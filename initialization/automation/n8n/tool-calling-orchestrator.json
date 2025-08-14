@@ -1,0 +1,314 @@
+{
+  "name": "Tool-Calling Orchestrator",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "d4b8c5e2-4a3d-4b2c-8e9f-1a2b3c4d5e6f",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ],
+      "webhookId": "tool-calling-orchestrator"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Tool-Calling Orchestrator Entry Point\n// Validates input and prepares for tool execution\n\nconst input = $input.all();\nconst body = input[0].json;\n\n// Validate required fields\nif (!body.query) {\n  throw new Error('Missing required field: query');\n}\n\nif (!body.tools || !Array.isArray(body.tools)) {\n  throw new Error('Missing or invalid tools array');\n}\n\n// Set defaults\nconst config = {\n  query: body.query,\n  tools: body.tools || [],\n  model: body.model || 'llama3.2',\n  parallel_execution: body.parallel_execution !== false,\n  max_iterations: body.max_iterations || 3,\n  temperature: body.temperature || 0.7,\n  system_prompt: body.system_prompt || 'You are a helpful AI assistant that can use tools to complete tasks.',\n  timeout_seconds: body.timeout_seconds || 300\n};\n\n// Validate tools format\nfor (const tool of config.tools) {\n  if (!tool.name || !tool.description) {\n    throw new Error(`Invalid tool format: ${JSON.stringify(tool)}. Each tool must have 'name' and 'description' fields.`);\n  }\n  if (!tool.parameters) {\n    tool.parameters = {};\n  }\n}\n\n// Initialize execution context\nconst executionContext = {\n  startTime: new Date(),\n  sessionId: `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,\n  iteration: 0,\n  toolCallHistory: [],\n  conversationHistory: [\n    {\n      role: 'system',\n      content: config.system_prompt + '\\n\\nAvailable tools:\\n' + \n        config.tools.map(t => `- ${t.name}: ${t.description}\\nParameters: ${JSON.stringify(t.parameters)}`).join('\\n')\n    },\n    {\n      role: 'user',\n      content: config.query\n    }\n  ],\n  toolRegistry: {},\n  errors: []\n};\n\n// Build tool registry for faster lookup\nconfig.tools.forEach(tool => {\n  executionContext.toolRegistry[tool.name] = tool;\n});\n\n// Log initialization\nconsole.log(`[Tool-Calling Orchestrator] Initialized session: ${executionContext.sessionId}`);\nconsole.log(`[Tool-Calling Orchestrator] Query: ${config.query}`);\nconsole.log(`[Tool-Calling Orchestrator] Available tools: ${config.tools.map(t => t.name).join(', ')}`);\nconsole.log(`[Tool-Calling Orchestrator] Model: ${config.model}, Parallel: ${config.parallel_execution}`);\n\nreturn [{\n  json: {\n    config,\n    executionContext,\n    status: 'initialized'\n  }\n}];"
+      },
+      "id": "a1b2c3d4-5e6f-7a8b-9c0d-1e2f3a4b5c6d",
+      "name": "Initialize & Validate",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://localhost:11434/api/chat",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": []
+        },
+        "jsonBody": "={\n  \"model\": \"{{ $json.config.model }}\",\n  \"messages\": {{ JSON.stringify($json.executionContext.conversationHistory) }},\n  \"stream\": false,\n  \"temperature\": {{ $json.config.temperature }},\n  \"options\": {\n    \"num_predict\": 2048,\n    \"temperature\": {{ $json.config.temperature }}\n  },\n  \"format\": \"json\"\n}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "b2c3d4e5-6f7a-8b9c-0d1e-2f3a4b5c6d7e",
+      "name": "Generate Response with Ollama",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Parse LLM Response and Extract Tool Calls\n// Analyzes the LLM response to identify function calls\n\nconst input = $input.all();\nconst llmResponse = input[0].json;\nconst previousData = input[0].json;\nconst config = previousData.config;\nconst context = previousData.executionContext;\n\nlet responseContent = '';\nlet toolCalls = [];\nlet needsToolExecution = false;\n\ntry {\n  // Extract response content\n  if (llmResponse.message && llmResponse.message.content) {\n    responseContent = llmResponse.message.content;\n  } else if (typeof llmResponse === 'string') {\n    responseContent = llmResponse;\n  }\n\n  console.log(`[Tool-Calling Orchestrator] LLM Response: ${responseContent.substring(0, 200)}...`);\n\n  // Try to parse structured response first\n  let parsedResponse = null;\n  try {\n    parsedResponse = JSON.parse(responseContent);\n  } catch (e) {\n    // If not JSON, look for function calls in text\n    console.log(`[Tool-Calling Orchestrator] Response is not JSON, parsing for function calls`);\n  }\n\n  // Extract tool calls from structured response\n  if (parsedResponse) {\n    if (parsedResponse.tool_calls && Array.isArray(parsedResponse.tool_calls)) {\n      toolCalls = parsedResponse.tool_calls;\n      needsToolExecution = true;\n    } else if (parsedResponse.function_call) {\n      toolCalls = [parsedResponse.function_call];\n      needsToolExecution = true;\n    } else if (parsedResponse.action) {\n      // Support ReAct-style responses\n      toolCalls = [{\n        name: parsedResponse.action,\n        parameters: parsedResponse.action_input || {}\n      }];\n      needsToolExecution = true;\n    }\n    \n    // Extract final answer if present\n    if (parsedResponse.final_answer || parsedResponse.answer) {\n      responseContent = parsedResponse.final_answer || parsedResponse.answer;\n      needsToolExecution = false; // Final answer means no more tools needed\n    }\n  }\n\n  // If no structured tools found, try pattern matching\n  if (toolCalls.length === 0) {\n    // Pattern 1: Function call format - function_name({\"param\": \"value\"})\n    const functionCallPattern = /(\\w+)\\s*\\(\\s*({[^}]+})\\s*\\)/g;\n    let match;\n    while ((match = functionCallPattern.exec(responseContent)) !== null) {\n      const functionName = match[1];\n      try {\n        const parameters = JSON.parse(match[2]);\n        if (context.toolRegistry[functionName]) {\n          toolCalls.push({\n            name: functionName,\n            parameters: parameters\n          });\n          needsToolExecution = true;\n        }\n      } catch (e) {\n        console.warn(`[Tool-Calling Orchestrator] Failed to parse parameters for ${functionName}: ${match[2]}`);\n      }\n    }\n\n    // Pattern 2: Action/Thought format\n    const actionPattern = /Action:\\s*(\\w+)\\s*(?:Action Input:|Input:)\\s*({[^}]+}|[^\\n]+)/gi;\n    let actionMatch;\n    while ((actionMatch = actionPattern.exec(responseContent)) !== null) {\n      const actionName = actionMatch[1];\n      const actionInput = actionMatch[2].trim();\n      \n      if (context.toolRegistry[actionName]) {\n        try {\n          let parameters = {};\n          if (actionInput.startsWith('{')) {\n            parameters = JSON.parse(actionInput);\n          } else {\n            // Simple string input\n            parameters = { input: actionInput };\n          }\n          \n          toolCalls.push({\n            name: actionName,\n            parameters: parameters\n          });\n          needsToolExecution = true;\n        } catch (e) {\n          console.warn(`[Tool-Calling Orchestrator] Failed to parse action input for ${actionName}: ${actionInput}`);\n        }\n      }\n    }\n\n    // Pattern 3: Tool usage mentions\n    const toolMentionPattern = /(?:use|call|execute)\\s+(\\w+)\\s+(?:with|using)?\\s*({[^}]+})?/gi;\n    let mentionMatch;\n    while ((mentionMatch = toolMentionPattern.exec(responseContent)) !== null) {\n      const toolName = mentionMatch[1];\n      const toolParams = mentionMatch[2];\n      \n      if (context.toolRegistry[toolName]) {\n        try {\n          let parameters = {};\n          if (toolParams) {\n            parameters = JSON.parse(toolParams);\n          }\n          \n          // Only add if not already found\n          if (!toolCalls.find(tc => tc.name === toolName)) {\n            toolCalls.push({\n              name: toolName,\n              parameters: parameters\n            });\n            needsToolExecution = true;\n          }\n        } catch (e) {\n          console.warn(`[Tool-Calling Orchestrator] Failed to parse tool mention for ${toolName}`);\n        }\n      }\n    }\n  }\n\n  // Validate tool calls\n  const validatedToolCalls = [];\n  for (const toolCall of toolCalls) {\n    if (!toolCall.name) {\n      console.warn(`[Tool-Calling Orchestrator] Skipping tool call with missing name: ${JSON.stringify(toolCall)}`);\n      continue;\n    }\n\n    const toolDef = context.toolRegistry[toolCall.name];\n    if (!toolDef) {\n      console.warn(`[Tool-Calling Orchestrator] Unknown tool: ${toolCall.name}`);\n      context.errors.push(`Unknown tool: ${toolCall.name}`);\n      continue;\n    }\n\n    // Validate parameters against tool schema\n    const validatedParams = {};\n    if (toolDef.parameters) {\n      for (const [paramName, paramSchema] of Object.entries(toolDef.parameters)) {\n        if (toolCall.parameters && toolCall.parameters[paramName] !== undefined) {\n          validatedParams[paramName] = toolCall.parameters[paramName];\n        } else if (typeof paramSchema === 'object' && paramSchema.required) {\n          console.warn(`[Tool-Calling Orchestrator] Missing required parameter '${paramName}' for tool '${toolCall.name}'`);\n          context.errors.push(`Missing required parameter '${paramName}' for tool '${toolCall.name}'`);\n        }\n      }\n    }\n\n    validatedToolCalls.push({\n      id: `call_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,\n      name: toolCall.name,\n      parameters: validatedParams,\n      tool_definition: toolDef\n    });\n  }\n\n  // Update context\n  context.iteration += 1;\n  context.lastResponse = responseContent;\n  context.pendingToolCalls = validatedToolCalls;\n  \n  // Add assistant response to conversation\n  context.conversationHistory.push({\n    role: 'assistant',\n    content: responseContent,\n    tool_calls: validatedToolCalls.length > 0 ? validatedToolCalls : undefined\n  });\n\n  const result = {\n    config,\n    executionContext: context,\n    response: responseContent,\n    toolCalls: validatedToolCalls,\n    needsToolExecution,\n    status: needsToolExecution ? 'tools_needed' : 'completed'\n  };\n\n  console.log(`[Tool-Calling Orchestrator] Parsed ${validatedToolCalls.length} tool calls, needs execution: ${needsToolExecution}`);\n  if (validatedToolCalls.length > 0) {\n    console.log(`[Tool-Calling Orchestrator] Tool calls: ${validatedToolCalls.map(tc => tc.name).join(', ')}`);\n  }\n\n  return [{ json: result }];\n\n} catch (error) {\n  console.error(`[Tool-Calling Orchestrator] Error parsing LLM response: ${error.message}`);\n  context.errors.push(`Response parsing error: ${error.message}`);\n  \n  return [{\n    json: {\n      config,\n      executionContext: context,\n      response: responseContent,\n      toolCalls: [],\n      needsToolExecution: false,\n      status: 'error',\n      error: error.message\n    }\n  }];\n}"
+      },
+      "id": "c3d4e5f6-7a8b-9c0d-1e2f-3a4b5c6d7e8f",
+      "name": "Parse LLM Response",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.needsToolExecution }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combineOperation": "any"
+        },
+        "options": {}
+      },
+      "id": "d4e5f6a7-8b9c-0d1e-2f3a-4b5c6d7e8f9a",
+      "name": "Check If Tools Needed",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Execute Tools in Parallel or Sequentially\n// Handles tool execution with proper error handling and retry logic\n\nconst input = $input.all();\nconst data = input[0].json;\nconst config = data.config;\nconst context = data.executionContext;\nconst toolCalls = data.toolCalls;\n\nif (!toolCalls || toolCalls.length === 0) {\n  return [{\n    json: {\n      ...data,\n      toolResults: [],\n      status: 'no_tools_to_execute'\n    }\n  }];\n}\n\n// Tool execution simulation - In production, these would call actual tools\nconst executeToolCall = async (toolCall) => {\n  const startTime = new Date();\n  \n  try {\n    console.log(`[Tool-Calling Orchestrator] Executing tool: ${toolCall.name}`);\n    console.log(`[Tool-Calling Orchestrator] Parameters: ${JSON.stringify(toolCall.parameters)}`);\n    \n    let result;\n    const toolName = toolCall.name;\n    const params = toolCall.parameters;\n    \n    // Simulated tool implementations - replace with actual tool integrations\n    switch (toolName) {\n      case 'web_search':\n        result = {\n          success: true,\n          results: [\n            {\n              title: `Search Result for: ${params.query || 'default query'}`,\n              url: \"https://example.com/search-result-1\",\n              snippet: `This is a simulated search result for the query: ${params.query || 'default query'}. In a real implementation, this would return actual web search results.`\n            },\n            {\n              title: `Second Result for: ${params.query || 'default query'}`,\n              url: \"https://example.com/search-result-2\", \n              snippet: `Another simulated search result with relevant information about ${params.query || 'the topic'}.`\n            }\n          ],\n          total_results: 2\n        };\n        break;\n        \n      case 'calculator':\n        if (params.expression) {\n          try {\n            // Safe math evaluation (in production, use a proper math parser)\n            const expression = params.expression.replace(/[^0-9+\\-*/().\\s]/g, '');\n            const calculationResult = eval(expression);\n            result = {\n              success: true,\n              expression: params.expression,\n              result: calculationResult,\n              type: 'number'\n            };\n          } catch (e) {\n            result = {\n              success: false,\n              error: `Invalid mathematical expression: ${params.expression}`,\n              expression: params.expression\n            };\n          }\n        } else {\n          result = {\n            success: false,\n            error: \"Missing required parameter: expression\"\n          };\n        }\n        break;\n        \n      case 'text_processor':\n        const operation = params.operation || 'summarize';\n        const text = params.text || 'No text provided';\n        \n        result = {\n          success: true,\n          operation: operation,\n          input_length: text.length,\n          result: `Processed text using ${operation}: ${text.substring(0, 100)}${text.length > 100 ? '...' : ''}`\n        };\n        break;\n        \n      case 'file_reader':\n        result = {\n          success: true,\n          filename: params.filename || 'example.txt',\n          content: `Simulated file content from ${params.filename || 'example.txt'}. In production, this would read actual file contents.`,\n          size: 1024,\n          last_modified: new Date().toISOString()\n        };\n        break;\n        \n      case 'data_analyzer':\n        result = {\n          success: true,\n          analysis_type: params.analysis_type || 'descriptive',\n          data_points: Math.floor(Math.random() * 1000) + 100,\n          insights: [\n            \"Mean value is within expected range\",\n            \"No significant outliers detected\", \n            \"Data shows normal distribution\"\n          ],\n          confidence: 0.85 + Math.random() * 0.1\n        };\n        break;\n        \n      case 'code_executor':\n        result = {\n          success: true,\n          language: params.language || 'python',\n          code: params.code || 'print(\"Hello World\")',\n          output: `Simulated code execution result for ${params.language || 'python'} code`,\n          execution_time_ms: Math.floor(Math.random() * 1000) + 100\n        };\n        break;\n        \n      case 'weather_check':\n        result = {\n          success: true,\n          location: params.location || 'Unknown Location',\n          temperature: Math.floor(Math.random() * 30) + 10,\n          condition: ['sunny', 'cloudy', 'rainy', 'snowy'][Math.floor(Math.random() * 4)],\n          humidity: Math.floor(Math.random() * 40) + 30,\n          timestamp: new Date().toISOString()\n        };\n        break;\n        \n      case 'database_query':\n        result = {\n          success: true,\n          query: params.query || 'SELECT * FROM example',\n          rows_affected: Math.floor(Math.random() * 50) + 1,\n          execution_time_ms: Math.floor(Math.random() * 200) + 50,\n          results: [\n            {id: 1, name: \"Example Record 1\", value: \"Sample data\"},\n            {id: 2, name: \"Example Record 2\", value: \"More sample data\"}\n          ]\n        };\n        break;\n        \n      case 'email_sender':\n        result = {\n          success: true,\n          to: params.to || 'example@example.com',\n          subject: params.subject || 'Test Email',\n          message_id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,\n          sent_at: new Date().toISOString()\n        };\n        break;\n        \n      default:\n        // Generic tool execution for unknown tools\n        result = {\n          success: true,\n          tool: toolName,\n          parameters: params,\n          message: `Simulated execution of ${toolName} with parameters: ${JSON.stringify(params)}`,\n          timestamp: new Date().toISOString()\n        };\n        break;\n    }\n    \n    const executionTime = new Date() - startTime;\n    \n    const toolResult = {\n      id: toolCall.id,\n      name: toolCall.name,\n      parameters: toolCall.parameters,\n      result: result,\n      success: result.success !== false,\n      execution_time_ms: executionTime,\n      timestamp: new Date().toISOString()\n    };\n    \n    console.log(`[Tool-Calling Orchestrator] Tool ${toolCall.name} completed in ${executionTime}ms`);\n    return toolResult;\n    \n  } catch (error) {\n    const executionTime = new Date() - startTime;\n    console.error(`[Tool-Calling Orchestrator] Tool ${toolCall.name} failed: ${error.message}`);\n    \n    return {\n      id: toolCall.id,\n      name: toolCall.name,\n      parameters: toolCall.parameters,\n      result: {\n        success: false,\n        error: error.message\n      },\n      success: false,\n      execution_time_ms: executionTime,\n      timestamp: new Date().toISOString()\n    };\n  }\n};\n\n// Execute tools based on parallel_execution setting\nlet toolResults = [];\n\nif (config.parallel_execution && toolCalls.length > 1) {\n  console.log(`[Tool-Calling Orchestrator] Executing ${toolCalls.length} tools in parallel`);\n  \n  // Execute all tools in parallel\n  const promises = toolCalls.map(executeToolCall);\n  toolResults = await Promise.all(promises);\n  \n} else {\n  console.log(`[Tool-Calling Orchestrator] Executing ${toolCalls.length} tools sequentially`);\n  \n  // Execute tools sequentially\n  for (const toolCall of toolCalls) {\n    const result = await executeToolCall(toolCall);\n    toolResults.push(result);\n    \n    // Add small delay between sequential calls\n    if (toolCalls.length > 1) {\n      await new Promise(resolve => setTimeout(resolve, 100));\n    }\n  }\n}\n\n// Update context with tool results\ncontext.toolCallHistory.push(...toolResults);\n\n// Add tool results to conversation history\nfor (const toolResult of toolResults) {\n  context.conversationHistory.push({\n    role: 'tool',\n    tool_call_id: toolResult.id,\n    name: toolResult.name,\n    content: JSON.stringify(toolResult.result)\n  });\n}\n\n// Calculate success rate\nconst successfulTools = toolResults.filter(tr => tr.success).length;\nconst successRate = toolResults.length > 0 ? successfulTools / toolResults.length : 0;\nconst totalExecutionTime = toolResults.reduce((sum, tr) => sum + tr.execution_time_ms, 0);\n\nconsole.log(`[Tool-Calling Orchestrator] Completed ${toolResults.length} tool executions`);\nconsole.log(`[Tool-Calling Orchestrator] Success rate: ${(successRate * 100).toFixed(1)}%`);\nconsole.log(`[Tool-Calling Orchestrator] Total execution time: ${totalExecutionTime}ms`);\n\nreturn [{\n  json: {\n    config,\n    executionContext: context,\n    toolResults,\n    successRate,\n    totalExecutionTime,\n    status: 'tools_executed'\n  }\n}];"
+      },
+      "id": "e5f6a7b8-9c0d-1e2f-3a4b-5c6d7e8f9a0b",
+      "name": "Execute Tools",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1340,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.executionContext.iteration }}",
+              "rightValue": "={{ $json.config.max_iterations }}",
+              "operator": {
+                "type": "number",
+                "operation": "smaller"
+              }
+            }
+          ],
+          "combineOperation": "any"
+        },
+        "options": {}
+      },
+      "id": "f6a7b8c9-0d1e-2f3a-4b5c-6d7e8f9a0b1c",
+      "name": "Check Max Iterations",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1560,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Format Final Response\n// Prepares the final output with all execution details\n\nconst input = $input.all();\nconst data = input[0].json;\nconst config = data.config;\nconst context = data.executionContext;\n\n// Calculate final metrics\nconst endTime = new Date();\nconst totalProcessingTime = endTime - context.startTime;\nconst toolCallsCount = context.toolCallHistory.length;\nconst successfulToolCalls = context.toolCallHistory.filter(tc => tc.success).length;\nconst toolSuccessRate = toolCallsCount > 0 ? successfulToolCalls / toolCallsCount : 0;\n\n// Get final response content\nlet finalResponse = context.lastResponse || 'Task completed';\n\n// If we have tool results, try to get a final synthesis\nif (data.toolResults && data.toolResults.length > 0) {\n  const toolSummary = data.toolResults.map(tr => {\n    if (tr.success) {\n      return `${tr.name}: ${typeof tr.result === 'object' ? JSON.stringify(tr.result).substring(0, 100) + '...' : tr.result}`;\n    } else {\n      return `${tr.name}: FAILED - ${tr.result.error || 'Unknown error'}`;\n    }\n  }).join('\\n');\n  \n  if (!finalResponse.includes('Tool')) {\n    finalResponse += `\\n\\nTool Execution Summary:\\n${toolSummary}`;\n  }\n}\n\n// Format tools called with their parameters and results\nconst toolsCalled = context.toolCallHistory.map(tc => ({\n  name: tc.name,\n  parameters: tc.parameters,\n  success: tc.success,\n  execution_time_ms: tc.execution_time_ms,\n  result: tc.result,\n  timestamp: tc.timestamp\n}));\n\n// Extract key insights from tool results\nconst insights = [];\nconst recommendations = [];\n\nif (context.errors.length > 0) {\n  recommendations.push('Review and fix the errors encountered during execution');\n}\n\nif (toolSuccessRate < 1.0) {\n  recommendations.push('Some tools failed - consider retrying with different parameters');\n}\n\nif (toolCallsCount > 0) {\n  insights.push(`Successfully executed ${successfulToolCalls}/${toolCallsCount} tools`);\n}\n\nif (totalProcessingTime > 30000) {\n  recommendations.push('Consider optimizing tool execution or enabling parallel processing');\n}\n\n// Build comprehensive response\nconst response = {\n  success: context.errors.length === 0 && (toolCallsCount === 0 || toolSuccessRate > 0),\n  session_id: context.sessionId,\n  query: config.query,\n  final_response: finalResponse,\n  \n  // Tool execution details\n  tools_called: toolsCalled,\n  tools_available: config.tools.map(t => ({\n    name: t.name,\n    description: t.description,\n    parameters: t.parameters\n  })),\n  \n  // Execution metrics\n  execution_metrics: {\n    total_processing_time_ms: totalProcessingTime,\n    iterations_completed: context.iteration,\n    max_iterations: config.max_iterations,\n    tools_executed: toolCallsCount,\n    tool_success_rate: Number((toolSuccessRate * 100).toFixed(1)),\n    parallel_execution: config.parallel_execution,\n    model_used: config.model\n  },\n  \n  // Quality indicators\n  quality_metrics: {\n    response_completeness: finalResponse.length > 10 ? 'complete' : 'incomplete',\n    tool_utilization: toolCallsCount > 0 ? 'used' : 'unused',\n    error_rate: context.errors.length,\n    efficiency_score: Math.max(0, Math.min(100, \n      ((toolSuccessRate * 50) + \n       (Math.max(0, 1 - (totalProcessingTime / 60000)) * 30) + \n       (context.errors.length === 0 ? 20 : 0))\n    ))\n  },\n  \n  // Analysis and insights\n  insights: insights,\n  recommendations: recommendations,\n  \n  // Debug information\n  debug_info: {\n    conversation_turns: context.conversationHistory.length,\n    errors_encountered: context.errors,\n    final_status: data.status || 'completed',\n    timestamp: endTime.toISOString()\n  }\n};\n\n// Add detailed error information if present\nif (context.errors.length > 0) {\n  response.errors = context.errors;\n  response.error_details = {\n    total_errors: context.errors.length,\n    error_types: [...new Set(context.errors.map(e => e.includes('tool') ? 'tool_error' : \n                                                e.includes('parameter') ? 'parameter_error' : \n                                                e.includes('timeout') ? 'timeout_error' : 'general_error'))],\n    first_error: context.errors[0],\n    recovery_attempted: true\n  };\n}\n\n// Log final results\nconsole.log(`[Tool-Calling Orchestrator] Session ${context.sessionId} completed`);\nconsole.log(`[Tool-Calling Orchestrator] Total time: ${totalProcessingTime}ms`);\nconsole.log(`[Tool-Calling Orchestrator] Tools executed: ${toolCallsCount}`);\nconsole.log(`[Tool-Calling Orchestrator] Success rate: ${(toolSuccessRate * 100).toFixed(1)}%`);\nconsole.log(`[Tool-Calling Orchestrator] Efficiency score: ${response.quality_metrics.efficiency_score}`);\n\nif (context.errors.length > 0) {\n  console.warn(`[Tool-Calling Orchestrator] ${context.errors.length} errors encountered`);\n}\n\nreturn [{ json: response }];"
+      },
+      "id": "a7b8c9d0-1e2f-3a4b-5c6d-7e8f9a0b1c2d",
+      "name": "Format Final Response",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1340,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Handle Iterative Processing\n// Continues the conversation loop with tool results\n\nconst input = $input.all();\nconst data = input[0].json;\nconst config = data.config;\nconst context = data.executionContext;\n\n// Add a user message requesting the LLM to continue with the tool results\nconst toolResultsSummary = data.toolResults ? data.toolResults.map(tr => {\n  return `${tr.name} result: ${JSON.stringify(tr.result)}`;\n}).join('\\n') : 'No tool results';\n\ncontext.conversationHistory.push({\n  role: 'user',\n  content: `Based on the tool execution results above, please provide your final response or call additional tools if needed. Remember to format function calls properly if more tools are required.\\n\\nTool Results Summary:\\n${toolResultsSummary}`\n});\n\nconsole.log(`[Tool-Calling Orchestrator] Continuing iteration ${context.iteration}, preparing next LLM call`);\n\nreturn [{\n  json: {\n    config,\n    executionContext: context,\n    status: 'continuing_iteration'\n  }\n}];"
+      },
+      "id": "b8c9d0e1-2f3a-4b5c-6d7e-8f9a0b1c2d3e",
+      "name": "Continue Iteration",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1780,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Handle Maximum Iterations Reached\n// Prepares response when max iterations limit is hit\n\nconst input = $input.all();\nconst data = input[0].json;\nconst config = data.config;\nconst context = data.executionContext;\n\nconsole.log(`[Tool-Calling Orchestrator] Maximum iterations (${config.max_iterations}) reached`);\n\n// Add iteration limit info to context\ncontext.errors.push(`Maximum iterations (${config.max_iterations}) reached`);\ncontext.lastResponse = context.lastResponse || 'Task partially completed due to iteration limit';\n\n// Set status to indicate completion due to limits\nreturn [{\n  json: {\n    config,\n    executionContext: context,\n    status: 'max_iterations_reached',\n    toolResults: data.toolResults || []\n  }\n}];"
+      },
+      "id": "c9d0e1f2-3a4b-5c6d-7e8f-9a0b1c2d3e4f",
+      "name": "Handle Max Iterations",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1780,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Initialize & Validate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Initialize & Validate": {
+      "main": [
+        [
+          {
+            "node": "Generate Response with Ollama",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Response with Ollama": {
+      "main": [
+        [
+          {
+            "node": "Parse LLM Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse LLM Response": {
+      "main": [
+        [
+          {
+            "node": "Check If Tools Needed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check If Tools Needed": {
+      "main": [
+        [
+          {
+            "node": "Execute Tools",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Final Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Tools": {
+      "main": [
+        [
+          {
+            "node": "Check Max Iterations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Max Iterations": {
+      "main": [
+        [
+          {
+            "node": "Continue Iteration",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Handle Max Iterations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Continue Iteration": {
+      "main": [
+        [
+          {
+            "node": "Generate Response with Ollama",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle Max Iterations": {
+      "main": [
+        [
+          {
+            "node": "Format Final Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1",
+  "meta": {
+    "templateCreatedBy": "claude-code",
+    "instanceId": "tool-calling-orchestrator-v1"
+  },
+  "id": "tool-calling-orchestrator",
+  "tags": []
+}

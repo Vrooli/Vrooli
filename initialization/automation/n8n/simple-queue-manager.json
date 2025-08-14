@@ -1,0 +1,578 @@
+{
+  "name": "Simple Queue Manager",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "queue",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Queue Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Validate input and determine operation\nconst input = $input.item.json;\n\n// Validate required operation field\nif (!input.operation) {\n  throw new Error('Missing required field: operation');\n}\n\nconst validOperations = ['enqueue', 'dequeue', 'get_status', 'update_status', 'get_stats', 'retry_job', 'move_to_dlq', 'peek', 'purge'];\nif (!validOperations.includes(input.operation)) {\n  throw new Error(`Invalid operation: ${input.operation}. Valid operations: ${validOperations.join(', ')}`);\n}\n\n// Initialize request metadata\nconst requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;\nconst timestamp = new Date().toISOString();\n\n// Common validation and preparation\nconst operationData = {\n  operation: input.operation,\n  request_id: requestId,\n  timestamp: timestamp,\n  client: input.client || 'n8n-queue-manager'\n};\n\n// Operation-specific validation and preparation\nswitch (input.operation) {\n  case 'enqueue':\n    // Validate queue name\n    if (!input.queue_name) {\n      throw new Error('Missing required field: queue_name');\n    }\n    \n    // Validate job object\n    if (!input.job) {\n      throw new Error('Missing required field: job');\n    }\n    \n    const job = input.job;\n    if (!job.id || !job.type) {\n      throw new Error('Job must have id and type fields');\n    }\n    \n    // Set defaults and validate job properties\n    operationData.queue_name = input.queue_name;\n    operationData.job = {\n      id: job.id,\n      type: job.type,\n      payload: job.payload || {},\n      priority: Math.max(0, Math.min(10, job.priority || 5)), // Priority 0-10, default 5\n      delay_seconds: Math.max(0, job.delay_seconds || 0),\n      max_retries: Math.max(0, job.max_retries || 3),\n      created_at: timestamp,\n      status: 'pending',\n      retry_count: 0,\n      metadata: {\n        ...job.metadata,\n        enqueued_by: operationData.client,\n        request_id: requestId\n      }\n    };\n    \n    // Calculate scheduled time for delayed jobs\n    if (operationData.job.delay_seconds > 0) {\n      const scheduledTime = new Date(Date.now() + (operationData.job.delay_seconds * 1000));\n      operationData.job.scheduled_at = scheduledTime.toISOString();\n      operationData.job.status = 'scheduled';\n    }\n    \n    break;\n    \n  case 'dequeue':\n    if (!input.queue_name) {\n      throw new Error('Missing required field: queue_name');\n    }\n    \n    operationData.queue_name = input.queue_name;\n    operationData.timeout_seconds = Math.max(1, Math.min(300, input.timeout_seconds || 30)); // 1-300 seconds\n    operationData.worker_id = input.worker_id || `worker_${Math.random().toString(36).substr(2, 8)}`;\n    operationData.max_jobs = Math.max(1, Math.min(100, input.max_jobs || 1)); // Batch dequeue support\n    break;\n    \n  case 'get_status':\n    if (!input.job_id && !input.queue_name) {\n      throw new Error('Either job_id or queue_name is required');\n    }\n    \n    operationData.job_id = input.job_id;\n    operationData.queue_name = input.queue_name;\n    operationData.include_payload = input.include_payload || false;\n    break;\n    \n  case 'update_status':\n    if (!input.job_id || !input.status) {\n      throw new Error('Missing required fields: job_id and status');\n    }\n    \n    const validStatuses = ['pending', 'scheduled', 'processing', 'completed', 'failed', 'retry', 'dead'];\n    if (!validStatuses.includes(input.status)) {\n      throw new Error(`Invalid status: ${input.status}. Valid statuses: ${validStatuses.join(', ')}`);\n    }\n    \n    operationData.job_id = input.job_id;\n    operationData.status = input.status;\n    operationData.result = input.result;\n    operationData.error = input.error;\n    operationData.progress = input.progress;\n    operationData.worker_id = input.worker_id;\n    break;\n    \n  case 'get_stats':\n    operationData.queue_name = input.queue_name; // Optional - all queues if not specified\n    operationData.time_range = input.time_range || '1h'; // 1m, 5m, 15m, 1h, 6h, 24h, 7d\n    operationData.include_details = input.include_details || false;\n    break;\n    \n  case 'retry_job':\n    if (!input.job_id) {\n      throw new Error('Missing required field: job_id');\n    }\n    \n    operationData.job_id = input.job_id;\n    operationData.reset_retry_count = input.reset_retry_count || false;\n    operationData.new_priority = input.new_priority; // Optional priority override\n    break;\n    \n  case 'move_to_dlq':\n    if (!input.job_id) {\n      throw new Error('Missing required field: job_id');\n    }\n    \n    operationData.job_id = input.job_id;\n    operationData.reason = input.reason || 'Manual move to DLQ';\n    break;\n    \n  case 'peek':\n    if (!input.queue_name) {\n      throw new Error('Missing required field: queue_name');\n    }\n    \n    operationData.queue_name = input.queue_name;\n    operationData.count = Math.max(1, Math.min(100, input.count || 10));\n    operationData.offset = Math.max(0, input.offset || 0);\n    break;\n    \n  case 'purge':\n    if (!input.queue_name) {\n      throw new Error('Missing required field: queue_name');\n    }\n    \n    operationData.queue_name = input.queue_name;\n    operationData.status_filter = input.status_filter; // Optional: only purge jobs with specific status\n    operationData.confirm = input.confirm; // Safety confirmation required\n    \n    if (!operationData.confirm) {\n      throw new Error('Purge operation requires explicit confirmation. Set confirm: true');\n    }\n    break;\n}\n\nreturn operationData;"
+      },
+      "id": "validate_and_prepare",
+      "name": "Validate & Prepare",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.operation }}",
+                    "value2": "enqueue"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "enqueue_job"
+            },
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.operation }}",
+                    "value2": "dequeue"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "dequeue_job"
+            },
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.operation }}",
+                    "value2": "get_status"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "get_job_status"
+            },
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.operation }}",
+                    "value2": "update_status"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "update_job_status"
+            },
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.operation }}",
+                    "value2": "get_stats"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "get_queue_stats"
+            },
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.operation }}",
+                    "value2": "retry_job"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "retry_failed_job"
+            },
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.operation }}",
+                    "value2": "move_to_dlq"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "move_job_to_dlq"
+            },
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.operation }}",
+                    "value2": "peek"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "peek_queue"
+            },
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.operation }}",
+                    "value2": "purge"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "purge_queue"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "operation_router",
+      "name": "Operation Router",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Enqueue job with priority support\nconst { queue_name, job } = $input.item.json;\n\n// Prepare job data for storage\nconst jobData = {\n  ...job,\n  enqueued_at: new Date().toISOString()\n};\n\n// Priority queue logic: higher priority (lower number) goes first\n// We'll use sorted sets for priority queues and lists for FIFO\nconst queueKey = `queue:${queue_name}`;\nconst priorityQueueKey = `queue:${queue_name}:priority`;\nconst jobKey = `job:${job.id}`;\nconst statsKey = `stats:${queue_name}`;\nconst delayedJobsKey = `queue:${queue_name}:delayed`;\n\n// Prepare Redis operations\nconst operations = [];\n\n// Store job details in hash\noperations.push({\n  command: 'HSET',\n  key: jobKey,\n  field: 'data',\n  value: JSON.stringify(jobData)\n});\n\n// Add job to appropriate queue based on priority and delay\nif (job.delay_seconds > 0) {\n  // Delayed job - add to sorted set with execution timestamp as score\n  const executeAt = Date.now() + (job.delay_seconds * 1000);\n  operations.push({\n    command: 'ZADD',\n    key: delayedJobsKey,\n    score: executeAt,\n    member: job.id\n  });\n} else if (job.priority !== 5) {\n  // Priority queue - use sorted set with priority as score (lower = higher priority)\n  operations.push({\n    command: 'ZADD',\n    key: priorityQueueKey,\n    score: job.priority,\n    member: job.id\n  });\n} else {\n  // Normal FIFO queue - use list\n  operations.push({\n    command: 'LPUSH',\n    key: queueKey,\n    value: job.id\n  });\n}\n\n// Update queue statistics\noperations.push({\n  command: 'HINCRBY',\n  key: statsKey,\n  field: 'total_enqueued',\n  increment: 1\n});\n\noperations.push({\n  command: 'HINCRBY',\n  key: statsKey,\n  field: 'pending_count',\n  increment: 1\n});\n\n// Set job expiration (24 hours for job data, 7 days for stats)\noperations.push({\n  command: 'EXPIRE',\n  key: jobKey,\n  seconds: 86400\n});\n\noperations.push({\n  command: 'EXPIRE',\n  key: statsKey,\n  seconds: 604800\n});\n\nreturn {\n  redis_operations: operations,\n  queue_name,\n  job_id: job.id,\n  priority: job.priority,\n  delayed: job.delay_seconds > 0,\n  result: {\n    success: true,\n    job_id: job.id,\n    queue_name: queue_name,\n    status: job.delay_seconds > 0 ? 'scheduled' : 'pending',\n    priority: job.priority,\n    enqueued_at: jobData.enqueued_at,\n    scheduled_at: job.scheduled_at\n  }\n};"
+      },
+      "id": "enqueue_processor",
+      "name": "Enqueue Processor",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Dequeue job with priority and timeout support\nconst { queue_name, timeout_seconds, worker_id, max_jobs } = $input.item.json;\n\nconst queueKey = `queue:${queue_name}`;\nconst priorityQueueKey = `queue:${queue_name}:priority`;\nconst delayedJobsKey = `queue:${queue_name}:delayed`;\nconst processingKey = `queue:${queue_name}:processing`;\nconst statsKey = `stats:${queue_name}`;\n\n// Check for delayed jobs that are ready to execute\nconst now = Date.now();\nconst checkDelayedJobs = {\n  command: 'ZRANGEBYSCORE',\n  key: delayedJobsKey,\n  min: 0,\n  max: now,\n  limit: max_jobs\n};\n\n// Priority-based dequeue strategy:\n// 1. Check delayed jobs ready for execution\n// 2. Check priority queue (sorted set)\n// 3. Check normal FIFO queue (list)\nconst dequeueOperations = [\n  // Move ready delayed jobs to priority queue\n  {\n    command: 'ZRANGEBYSCORE',\n    key: delayedJobsKey,\n    min: 0,\n    max: now,\n    limit: 1\n  },\n  // Try priority queue first\n  {\n    command: 'ZPOPMIN',\n    key: priorityQueueKey,\n    count: 1\n  },\n  // Then try FIFO queue\n  {\n    command: 'RPOP',\n    key: queueKey\n  }\n];\n\n// For simplicity in this implementation, we'll simulate the dequeue logic\n// In a real Redis implementation, you'd use Lua scripts for atomicity\nconst simulatedJobId = `job_${Date.now()}_${Math.random().toString(36).substr(2, 8)}`;\n\nreturn {\n  redis_operations: dequeueOperations,\n  queue_name,\n  worker_id,\n  timeout_seconds,\n  processing_key: processingKey,\n  stats_key: statsKey,\n  dequeue_strategy: 'priority_first',\n  timestamp: new Date().toISOString(),\n  result: {\n    success: true,\n    jobs: [], // Will be populated by Redis operations\n    worker_id,\n    queue_name,\n    dequeued_at: new Date().toISOString(),\n    timeout_seconds\n  }\n};"
+      },
+      "id": "dequeue_processor",
+      "name": "Dequeue Processor",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Get job or queue status\nconst { job_id, queue_name, include_payload } = $input.item.json;\n\nif (job_id) {\n  // Get specific job status\n  const jobKey = `job:${job_id}`;\n  \n  return {\n    redis_operations: [\n      {\n        command: 'HGET',\n        key: jobKey,\n        field: 'data'\n      },\n      {\n        command: 'TTL',\n        key: jobKey\n      }\n    ],\n    job_id,\n    include_payload,\n    lookup_type: 'job'\n  };\n} else if (queue_name) {\n  // Get queue status and statistics\n  const queueKey = `queue:${queue_name}`;\n  const priorityQueueKey = `queue:${queue_name}:priority`;\n  const delayedJobsKey = `queue:${queue_name}:delayed`;\n  const processingKey = `queue:${queue_name}:processing`;\n  const dlqKey = `queue:${queue_name}:dlq`;\n  const statsKey = `stats:${queue_name}`;\n  \n  return {\n    redis_operations: [\n      {\n        command: 'LLEN',\n        key: queueKey\n      },\n      {\n        command: 'ZCARD',\n        key: priorityQueueKey\n      },\n      {\n        command: 'ZCARD',\n        key: delayedJobsKey\n      },\n      {\n        command: 'ZCARD',\n        key: processingKey\n      },\n      {\n        command: 'LLEN',\n        key: dlqKey\n      },\n      {\n        command: 'HGETALL',\n        key: statsKey\n      }\n    ],\n    queue_name,\n    lookup_type: 'queue',\n    result: {\n      queue_name,\n      status: 'active',\n      queues: {\n        pending_fifo: 0, // Will be populated by Redis\n        pending_priority: 0,\n        scheduled: 0,\n        processing: 0,\n        dead_letter: 0\n      },\n      statistics: {}, // Will be populated by Redis\n      checked_at: new Date().toISOString()\n    }\n  };\n}\n\nthrow new Error('Either job_id or queue_name must be provided');"
+      },
+      "id": "status_processor",
+      "name": "Status Processor",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Update job status with retry and failure handling\nconst { job_id, status, result, error, progress, worker_id } = $input.item.json;\n\nconst jobKey = `job:${job_id}`;\nconst timestamp = new Date().toISOString();\n\n// Get current job data first to determine queue and update statistics\nconst operations = [\n  {\n    command: 'HGET',\n    key: jobKey,\n    field: 'data'\n  }\n];\n\n// Prepare status update\nconst statusUpdate = {\n  status,\n  updated_at: timestamp,\n  worker_id\n};\n\nif (result !== undefined) {\n  statusUpdate.result = result;\n}\n\nif (error !== undefined) {\n  statusUpdate.error = error;\n  statusUpdate.failed_at = timestamp;\n}\n\nif (progress !== undefined) {\n  statusUpdate.progress = progress;\n}\n\n// Handle status-specific logic\nswitch (status) {\n  case 'processing':\n    statusUpdate.started_at = timestamp;\n    break;\n    \n  case 'completed':\n    statusUpdate.completed_at = timestamp;\n    statusUpdate.duration = 'calculated_by_redis'; // Would be calculated in real implementation\n    break;\n    \n  case 'failed':\n    statusUpdate.failed_at = timestamp;\n    // Increment retry count logic would be handled here\n    break;\n    \n  case 'retry':\n    statusUpdate.retry_scheduled_at = timestamp;\n    statusUpdate.next_retry_at = new Date(Date.now() + (Math.pow(2, statusUpdate.retry_count || 0) * 1000)).toISOString();\n    break;\n    \n  case 'dead':\n    statusUpdate.moved_to_dlq_at = timestamp;\n    break;\n}\n\n// Update job data\noperations.push({\n  command: 'HSET',\n  key: jobKey,\n  field: 'status_data',\n  value: JSON.stringify(statusUpdate)\n});\n\n// Extend TTL for active jobs\nif (['processing', 'retry'].includes(status)) {\n  operations.push({\n    command: 'EXPIRE',\n    key: jobKey,\n    seconds: 86400\n  });\n}\n\nreturn {\n  redis_operations: operations,\n  job_id,\n  status,\n  worker_id,\n  timestamp,\n  result: {\n    success: true,\n    job_id,\n    status,\n    updated_at: timestamp,\n    worker_id\n  }\n};"
+      },
+      "id": "status_update_processor",
+      "name": "Status Update Processor",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [850, 500]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Get comprehensive queue statistics\nconst { queue_name, time_range, include_details } = $input.item.json;\n\nconst operations = [];\nconst currentTime = Date.now();\n\n// Calculate time range in milliseconds\nconst timeRanges = {\n  '1m': 60 * 1000,\n  '5m': 5 * 60 * 1000,\n  '15m': 15 * 60 * 1000,\n  '1h': 60 * 60 * 1000,\n  '6h': 6 * 60 * 60 * 1000,\n  '24h': 24 * 60 * 60 * 1000,\n  '7d': 7 * 24 * 60 * 60 * 1000\n};\n\nconst rangeMs = timeRanges[time_range] || timeRanges['1h'];\nconst startTime = currentTime - rangeMs;\n\nif (queue_name) {\n  // Stats for specific queue\n  const queueKey = `queue:${queue_name}`;\n  const priorityQueueKey = `queue:${queue_name}:priority`;\n  const delayedJobsKey = `queue:${queue_name}:delayed`;\n  const processingKey = `queue:${queue_name}:processing`;\n  const dlqKey = `queue:${queue_name}:dlq`;\n  const statsKey = `stats:${queue_name}`;\n  \n  operations.push(\n    { command: 'LLEN', key: queueKey },\n    { command: 'ZCARD', key: priorityQueueKey },\n    { command: 'ZCARD', key: delayedJobsKey },\n    { command: 'ZCARD', key: processingKey },\n    { command: 'LLEN', key: dlqKey },\n    { command: 'HGETALL', key: statsKey }\n  );\n  \n  if (include_details) {\n    // Get sample jobs from each queue\n    operations.push(\n      { command: 'LRANGE', key: queueKey, start: 0, stop: 4 },\n      { command: 'ZRANGE', key: priorityQueueKey, start: 0, stop: 4 },\n      { command: 'ZRANGE', key: delayedJobsKey, start: 0, stop: 4 },\n      { command: 'ZRANGE', key: processingKey, start: 0, stop: 4 },\n      { command: 'LRANGE', key: dlqKey, start: 0, stop: 4 }\n    );\n  }\n} else {\n  // Global stats across all queues (would require pattern matching in real implementation)\n  operations.push({\n    command: 'KEYS',\n    pattern: 'stats:*'\n  });\n}\n\n// Calculate throughput and performance metrics\nconst metrics = {\n  timestamp: new Date().toISOString(),\n  time_range,\n  queue_name: queue_name || 'all',\n  current_load: {\n    pending_fifo: 0,\n    pending_priority: 0,\n    scheduled: 0,\n    processing: 0,\n    dead_letter: 0\n  },\n  throughput: {\n    jobs_per_minute: 0,\n    avg_processing_time: 0,\n    success_rate: 0\n  },\n  totals: {\n    enqueued: 0,\n    completed: 0,\n    failed: 0,\n    retried: 0\n  }\n};\n\nreturn {\n  redis_operations: operations,\n  queue_name,\n  time_range,\n  include_details,\n  start_time: startTime,\n  current_time: currentTime,\n  result: {\n    success: true,\n    statistics: metrics,\n    generated_at: new Date().toISOString()\n  }\n};"
+      },
+      "id": "stats_processor",
+      "name": "Stats Processor",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [850, 600]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Retry failed job with exponential backoff\nconst { job_id, reset_retry_count, new_priority } = $input.item.json;\n\nconst jobKey = `job:${job_id}`;\nconst timestamp = new Date().toISOString();\n\n// Get current job data to determine retry strategy\nconst operations = [\n  {\n    command: 'HGET',\n    key: jobKey,\n    field: 'data'\n  },\n  {\n    command: 'HGET',\n    key: jobKey,\n    field: 'status_data'\n  }\n];\n\n// Calculate exponential backoff delay\nconst calculateBackoffDelay = (retryCount) => {\n  // Base delay of 1 second, exponential backoff with max of 15 minutes\n  const baseDelay = 1000; // 1 second\n  const maxDelay = 15 * 60 * 1000; // 15 minutes\n  const delay = Math.min(baseDelay * Math.pow(2, retryCount), maxDelay);\n  return delay;\n};\n\n// Simulate retry logic (in real implementation, this would be atomic with Lua script)\nconst retryCount = reset_retry_count ? 0 : 1; // Would get actual count from Redis\nconst backoffDelay = calculateBackoffDelay(retryCount);\nconst retryAt = new Date(Date.now() + backoffDelay);\n\nconst retryData = {\n  status: 'retry',\n  retry_count: retryCount,\n  retry_scheduled_at: timestamp,\n  next_retry_at: retryAt.toISOString(),\n  backoff_delay_ms: backoffDelay,\n  reset_retry_count\n};\n\nif (new_priority !== undefined) {\n  retryData.priority = new_priority;\n}\n\n// Update job status\noperations.push({\n  command: 'HSET',\n  key: jobKey,\n  field: 'retry_data',\n  value: JSON.stringify(retryData)\n});\n\n// Move job back to appropriate queue (delayed queue for retry scheduling)\nconst queueName = 'default'; // Would extract from job data\nconst delayedJobsKey = `queue:${queueName}:delayed`;\n\noperations.push({\n  command: 'ZADD',\n  key: delayedJobsKey,\n  score: retryAt.getTime(),\n  member: job_id\n});\n\n// Update statistics\noperations.push({\n  command: 'HINCRBY',\n  key: `stats:${queueName}`,\n  field: 'total_retried',\n  increment: 1\n});\n\nreturn {\n  redis_operations: operations,\n  job_id,\n  retry_count: retryCount,\n  next_retry_at: retryAt.toISOString(),\n  backoff_delay_ms: backoffDelay,\n  result: {\n    success: true,\n    job_id,\n    status: 'retry',\n    retry_count: retryCount,\n    next_retry_at: retryAt.toISOString(),\n    backoff_delay_seconds: Math.round(backoffDelay / 1000)\n  }\n};"
+      },
+      "id": "retry_processor",
+      "name": "Retry Processor",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [850, 700]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Move job to dead letter queue\nconst { job_id, reason } = $input.item.json;\n\nconst jobKey = `job:${job_id}`;\nconst timestamp = new Date().toISOString();\n\n// Get job data to determine source queue\nconst operations = [\n  {\n    command: 'HGET',\n    key: jobKey,\n    field: 'data'\n  }\n];\n\n// Prepare DLQ entry\nconst dlqEntry = {\n  job_id,\n  moved_to_dlq_at: timestamp,\n  reason,\n  original_status: 'failed', // Would get from job data\n  retry_count: 0 // Would get from job data\n};\n\n// Update job status\noperations.push({\n  command: 'HSET',\n  key: jobKey,\n  field: 'dlq_data',\n  value: JSON.stringify(dlqEntry)\n});\n\n// Move to dead letter queue\nconst queueName = 'default'; // Would extract from job data\nconst dlqKey = `queue:${queueName}:dlq`;\n\noperations.push({\n  command: 'LPUSH',\n  key: dlqKey,\n  value: job_id\n});\n\n// Remove from any active queues (would need to check all possible locations)\nconst queueKey = `queue:${queueName}`;\nconst priorityQueueKey = `queue:${queueName}:priority`;\nconst delayedJobsKey = `queue:${queueName}:delayed`;\nconst processingKey = `queue:${queueName}:processing`;\n\noperations.push(\n  { command: 'LREM', key: queueKey, count: 0, value: job_id },\n  { command: 'ZREM', key: priorityQueueKey, member: job_id },\n  { command: 'ZREM', key: delayedJobsKey, member: job_id },\n  { command: 'ZREM', key: processingKey, member: job_id }\n);\n\n// Update statistics\noperations.push({\n  command: 'HINCRBY',\n  key: `stats:${queueName}`,\n  field: 'total_dead_letter',\n  increment: 1\n});\n\n// Set longer TTL for DLQ jobs (30 days)\noperations.push({\n  command: 'EXPIRE',\n  key: jobKey,\n  seconds: 2592000\n});\n\nreturn {\n  redis_operations: operations,\n  job_id,\n  reason,\n  moved_at: timestamp,\n  result: {\n    success: true,\n    job_id,\n    status: 'dead',\n    moved_to_dlq_at: timestamp,\n    reason\n  }\n};"
+      },
+      "id": "dlq_processor",
+      "name": "DLQ Processor",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [850, 800]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Peek at queue contents without removing jobs\nconst { queue_name, count, offset } = $input.item.json;\n\nconst queueKey = `queue:${queue_name}`;\nconst priorityQueueKey = `queue:${queue_name}:priority`;\nconst delayedJobsKey = `queue:${queue_name}:delayed`;\nconst processingKey = `queue:${queue_name}:processing`;\nconst dlqKey = `queue:${queue_name}:dlq`;\n\nconst operations = [\n  // Peek FIFO queue\n  {\n    command: 'LRANGE',\n    key: queueKey,\n    start: offset,\n    stop: offset + count - 1\n  },\n  // Peek priority queue (get top priority jobs)\n  {\n    command: 'ZRANGE',\n    key: priorityQueueKey,\n    start: offset,\n    stop: offset + count - 1,\n    withScores: true\n  },\n  // Peek delayed jobs\n  {\n    command: 'ZRANGE',\n    key: delayedJobsKey,\n    start: offset,\n    stop: offset + count - 1,\n    withScores: true\n  },\n  // Peek processing jobs\n  {\n    command: 'ZRANGE',\n    key: processingKey,\n    start: offset,\n    stop: offset + count - 1,\n    withScores: true\n  },\n  // Peek dead letter queue\n  {\n    command: 'LRANGE',\n    key: dlqKey,\n    start: offset,\n    stop: offset + count - 1\n  }\n];\n\nreturn {\n  redis_operations: operations,\n  queue_name,\n  count,\n  offset,\n  result: {\n    success: true,\n    queue_name,\n    peek_results: {\n      fifo_queue: [],\n      priority_queue: [],\n      delayed_jobs: [],\n      processing_jobs: [],\n      dead_letter_queue: []\n    },\n    peeked_at: new Date().toISOString(),\n    offset,\n    count\n  }\n};"
+      },
+      "id": "peek_processor",
+      "name": "Peek Processor",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [850, 900]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Purge queue with safety confirmation\nconst { queue_name, status_filter, confirm } = $input.item.json;\n\nif (!confirm) {\n  throw new Error('Purge operation requires explicit confirmation');\n}\n\nconst queueKey = `queue:${queue_name}`;\nconst priorityQueueKey = `queue:${queue_name}:priority`;\nconst delayedJobsKey = `queue:${queue_name}:delayed`;\nconst processingKey = `queue:${queue_name}:processing`;\nconst dlqKey = `queue:${queue_name}:dlq`;\nconst statsKey = `stats:${queue_name}`;\n\nconst operations = [];\nconst timestamp = new Date().toISOString();\n\n// Get current queue sizes before purging\noperations.push(\n  { command: 'LLEN', key: queueKey },\n  { command: 'ZCARD', key: priorityQueueKey },\n  { command: 'ZCARD', key: delayedJobsKey },\n  { command: 'ZCARD', key: processingKey },\n  { command: 'LLEN', key: dlqKey }\n);\n\nif (!status_filter) {\n  // Purge all queues\n  operations.push(\n    { command: 'DEL', key: queueKey },\n    { command: 'DEL', key: priorityQueueKey },\n    { command: 'DEL', key: delayedJobsKey },\n    { command: 'DEL', key: processingKey },\n    { command: 'DEL', key: dlqKey }\n  );\n} else {\n  // Selective purging based on status_filter\n  switch (status_filter) {\n    case 'pending':\n      operations.push(\n        { command: 'DEL', key: queueKey },\n        { command: 'DEL', key: priorityQueueKey }\n      );\n      break;\n    case 'scheduled':\n      operations.push({ command: 'DEL', key: delayedJobsKey });\n      break;\n    case 'processing':\n      operations.push({ command: 'DEL', key: processingKey });\n      break;\n    case 'dead':\n      operations.push({ command: 'DEL', key: dlqKey });\n      break;\n  }\n}\n\n// Update purge statistics\noperations.push({\n  command: 'HSET',\n  key: `${statsKey}:purge_history`,\n  field: timestamp,\n  value: JSON.stringify({\n    purged_at: timestamp,\n    status_filter: status_filter || 'all',\n    purged_by: 'n8n-queue-manager'\n  })\n});\n\n// Reset relevant counters\nif (!status_filter || status_filter === 'pending') {\n  operations.push({\n    command: 'HSET',\n    key: statsKey,\n    field: 'pending_count',\n    value: 0\n  });\n}\n\nreturn {\n  redis_operations: operations,\n  queue_name,\n  status_filter: status_filter || 'all',\n  purged_at: timestamp,\n  result: {\n    success: true,\n    queue_name,\n    purged_queues: status_filter ? [status_filter] : ['pending', 'priority', 'scheduled', 'processing', 'dead'],\n    purged_at: timestamp,\n    warning: 'All specified queue data has been permanently deleted'\n  }\n};"
+      },
+      "id": "purge_processor",
+      "name": "Purge Processor",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [850, 1000]
+    },
+    {
+      "parameters": {
+        "resource": "redis",
+        "operation": "info"
+      },
+      "id": "redis_executor",
+      "name": "Execute Redis Operations",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [1050, 500],
+      "credentials": {
+        "redis": {
+          "id": "redis_credential",
+          "name": "Redis Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process Redis operation results and format response\nconst input = $input.item.json;\nconst operation = input.operation;\n\n// Mock Redis results for demonstration (in real implementation, these would come from Redis node)\nconst mockResults = {\n  enqueue_job: {\n    success: true,\n    job_id: input.job_id || `job_${Date.now()}`,\n    queue_name: input.queue_name,\n    status: input.delayed ? 'scheduled' : 'pending',\n    priority: input.priority || 5,\n    enqueued_at: new Date().toISOString()\n  },\n  dequeue_job: {\n    success: true,\n    jobs: input.max_jobs > 1 ? [\n      {\n        id: `job_${Date.now()}_1`,\n        type: 'image_processing',\n        payload: { image_url: 'https://example.com/image.jpg' },\n        priority: 5,\n        dequeued_at: new Date().toISOString()\n      }\n    ] : {\n      id: `job_${Date.now()}`,\n      type: 'image_processing',\n      payload: { image_url: 'https://example.com/image.jpg' },\n      priority: 5,\n      dequeued_at: new Date().toISOString()\n    },\n    worker_id: input.worker_id,\n    queue_name: input.queue_name,\n    timeout_seconds: input.timeout_seconds\n  },\n  get_job_status: {\n    success: true,\n    job_id: input.job_id,\n    status: 'processing',\n    created_at: '2025-01-01T12:00:00Z',\n    started_at: '2025-01-01T12:01:00Z',\n    progress: 75,\n    worker_id: 'worker_001',\n    retry_count: 0,\n    queue_name: 'image_processing'\n  },\n  update_job_status: {\n    success: true,\n    job_id: input.job_id,\n    status: input.status,\n    updated_at: new Date().toISOString(),\n    worker_id: input.worker_id\n  },\n  get_queue_stats: {\n    success: true,\n    statistics: {\n      queue_name: input.queue_name || 'all',\n      current_load: {\n        pending_fifo: 15,\n        pending_priority: 8,\n        scheduled: 23,\n        processing: 5,\n        dead_letter: 2\n      },\n      throughput: {\n        jobs_per_minute: 12.5,\n        avg_processing_time_seconds: 45.3,\n        success_rate_percent: 94.2\n      },\n      totals: {\n        enqueued_today: 1247,\n        completed_today: 1175,\n        failed_today: 72,\n        retried_today: 15\n      },\n      time_range: input.time_range\n    },\n    generated_at: new Date().toISOString()\n  },\n  retry_failed_job: {\n    success: true,\n    job_id: input.job_id,\n    status: 'retry',\n    retry_count: (input.reset_retry_count ? 0 : 1),\n    next_retry_at: new Date(Date.now() + 5000).toISOString(),\n    backoff_delay_seconds: 5\n  },\n  move_job_to_dlq: {\n    success: true,\n    job_id: input.job_id,\n    status: 'dead',\n    moved_to_dlq_at: new Date().toISOString(),\n    reason: input.reason\n  },\n  peek_queue: {\n    success: true,\n    queue_name: input.queue_name,\n    peek_results: {\n      fifo_queue: ['job_123', 'job_124', 'job_125'],\n      priority_queue: [{ job_id: 'job_priority_1', priority: 2 }, { job_id: 'job_priority_2', priority: 7 }],\n      delayed_jobs: [{ job_id: 'job_delayed_1', execute_at: '2025-01-01T13:00:00Z' }],\n      processing_jobs: [{ job_id: 'job_proc_1', worker_id: 'worker_001', started_at: '2025-01-01T12:00:00Z' }],\n      dead_letter_queue: ['job_failed_1', 'job_failed_2']\n    },\n    peeked_at: new Date().toISOString(),\n    offset: input.offset,\n    count: input.count\n  },\n  purge_queue: {\n    success: true,\n    queue_name: input.queue_name,\n    purged_queues: input.status_filter ? [input.status_filter] : ['pending', 'priority', 'scheduled', 'processing', 'dead'],\n    jobs_purged: {\n      pending_fifo: 15,\n      pending_priority: 8,\n      scheduled: 23,\n      processing: 5,\n      dead_letter: 2\n    },\n    purged_at: new Date().toISOString(),\n    warning: 'All specified queue data has been permanently deleted'\n  }\n};\n\n// Get the appropriate result based on the operation\nconst operationKey = {\n  'enqueue': 'enqueue_job',\n  'dequeue': 'dequeue_job',\n  'get_status': 'get_job_status',\n  'update_status': 'update_job_status',\n  'get_stats': 'get_queue_stats',\n  'retry_job': 'retry_failed_job',\n  'move_to_dlq': 'move_job_to_dlq',\n  'peek': 'peek_queue',\n  'purge': 'purge_queue'\n}[operation];\n\nconst result = mockResults[operationKey] || { success: false, error: 'Unknown operation' };\n\n// Add operation metadata\nresult.operation = operation;\nresult.request_id = input.request_id;\nresult.timestamp = input.timestamp;\nresult.processing_time_ms = Math.round(Math.random() * 100) + 10; // Simulated processing time\n\n// Add Redis operation details for debugging\nif (input.redis_operations) {\n  result.redis_operations_count = input.redis_operations.length;\n  result.redis_operations_executed = input.redis_operations.map(op => op.command).join(', ');\n}\n\nreturn result;"
+      },
+      "id": "result_formatter",
+      "name": "Format Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1250, 500]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "http_response",
+      "name": "HTTP Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1450, 500]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Handle errors and format error response\nconst error = $input.item.error || $input.item.json;\nconst operation = $input.item.json?.operation || 'unknown';\n\nconst errorResponse = {\n  success: false,\n  error: {\n    message: error.message || 'An error occurred',\n    operation: operation,\n    code: error.code || 'QUEUE_ERROR',\n    timestamp: new Date().toISOString()\n  },\n  request_id: $input.item.json?.request_id,\n  operation: operation\n};\n\n// Add specific error context based on operation\nswitch (operation) {\n  case 'enqueue':\n    errorResponse.error.context = 'Failed to enqueue job';\n    break;\n  case 'dequeue':\n    errorResponse.error.context = 'Failed to dequeue job';\n    break;\n  case 'get_status':\n    errorResponse.error.context = 'Failed to get job/queue status';\n    break;\n  case 'update_status':\n    errorResponse.error.context = 'Failed to update job status';\n    break;\n  default:\n    errorResponse.error.context = `Failed to execute ${operation} operation`;\n}\n\nreturn errorResponse;"
+      },
+      "id": "error_handler",
+      "name": "Error Handler",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1250, 700]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "responseCode": 400,
+        "options": {}
+      },
+      "id": "error_response",
+      "name": "Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1450, 700]
+    }
+  ],
+  "connections": {
+    "webhook_trigger": {
+      "main": [
+        [
+          {
+            "node": "validate_and_prepare",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "validate_and_prepare": {
+      "main": [
+        [
+          {
+            "node": "operation_router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "operation_router": {
+      "main": [
+        [
+          {
+            "node": "enqueue_processor",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "dequeue_processor",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "status_processor",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "status_update_processor",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "stats_processor",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "retry_processor",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "dlq_processor",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "peek_processor",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "purge_processor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "enqueue_processor": {
+      "main": [
+        [
+          {
+            "node": "redis_executor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "dequeue_processor": {
+      "main": [
+        [
+          {
+            "node": "redis_executor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "status_processor": {
+      "main": [
+        [
+          {
+            "node": "redis_executor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "status_update_processor": {
+      "main": [
+        [
+          {
+            "node": "redis_executor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "stats_processor": {
+      "main": [
+        [
+          {
+            "node": "redis_executor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "retry_processor": {
+      "main": [
+        [
+          {
+            "node": "redis_executor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "dlq_processor": {
+      "main": [
+        [
+          {
+            "node": "redis_executor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "peek_processor": {
+      "main": [
+        [
+          {
+            "node": "redis_executor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "purge_processor": {
+      "main": [
+        [
+          {
+            "node": "redis_executor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "redis_executor": {
+      "main": [
+        [
+          {
+            "node": "result_formatter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "result_formatter": {
+      "main": [
+        [
+          {
+            "node": "http_response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "validate_and_prepare": {
+      "main": [
+        [],
+        [
+          {
+            "node": "error_handler",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "operation_router": {
+      "main": [
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [
+          {
+            "node": "error_handler",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "error_handler": {
+      "main": [
+        [
+          {
+            "node": "error_response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2025-01-14T00:00:00.000Z",
+  "versionId": "1"
+}

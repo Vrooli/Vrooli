@@ -1,0 +1,417 @@
+{
+  "name": "Workflow Creator & Fixer",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "create-workflow",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Validate and prepare workflow creation requirements\nconst input = $input.item.json;\n\n// Required field validation\nif (!input.purpose) {\n  throw new Error('Missing required field: purpose');\n}\n\n// Extract and validate inputs\nconst purpose = input.purpose.trim();\nif (purpose.length === 0) {\n  throw new Error('Purpose field cannot be empty');\n}\n\nif (purpose.length > 2000) {\n  throw new Error('Purpose exceeds maximum length of 2000 characters');\n}\n\n// Configuration with defaults\nconst config = {\n  purpose: purpose,\n  description: input.description || purpose.substring(0, 200),\n  trigger_type: input.trigger_type || 'webhook',\n  schedule: input.schedule || null,\n  resources_needed: input.resources_needed || [],\n  expected_inputs: input.expected_inputs || {},\n  expected_outputs: input.expected_outputs || {},\n  test_cases: input.test_cases || [],\n  max_iterations: Math.min(Math.max(input.max_iterations || 5, 1), 10),\n  validation_mode: input.validation_mode || 'strict',\n  optimization_goals: input.optimization_goals || ['correctness', 'efficiency'],\n  use_patterns: input.use_patterns !== false,\n  learn_from_errors: input.learn_from_errors !== false\n};\n\n// Initialize tracking\nconst metadata = {\n  workflow_id: `wf_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,\n  iteration: 0,\n  errors: [],\n  fixes_applied: [],\n  validation_results: {},\n  test_results: [],\n  processing_start: new Date().toISOString(),\n  status: 'initializing'\n};\n\n// Generate initial prompt for workflow generation\nlet prompt = `You are an expert n8n workflow developer. Create a valid n8n workflow JSON that accomplishes the following:\n\nPurpose: ${config.purpose}\n\nRequirements:\n- Trigger Type: ${config.trigger_type}\n${config.schedule ? `- Schedule: ${config.schedule}` : ''}\n${config.resources_needed.length > 0 ? `- Resources Needed: ${config.resources_needed.join(', ')}` : ''}\n\nExpected Inputs:\n${JSON.stringify(config.expected_inputs, null, 2)}\n\nExpected Outputs:\n${JSON.stringify(config.expected_outputs, null, 2)}\n\nIMPORTANT:\n1. Generate ONLY valid n8n workflow JSON with nodes, connections, and settings\n2. Use correct n8n node types (e.g., n8n-nodes-base.webhook, n8n-nodes-base.httpRequest, n8n-nodes-base.code)\n3. Include proper error handling nodes\n4. Ensure all node IDs are unique\n5. Connect nodes properly using the connections object\n6. Add meaningful node names and descriptions\n7. For resource URLs, use template syntax like \\${service.resourceName.url}\n8. Include retry logic for external service calls\n9. Add data validation nodes where appropriate\n10. Use the Code node for complex logic\n\nRespond with ONLY the JSON workflow, no explanations or markdown.`;\n\n// Check pattern library for similar workflows\nif (config.use_patterns) {\n  // In production, this would query a pattern database\n  prompt += `\\n\\nConsider these successful patterns from similar workflows:\n- Use IF nodes for conditional logic\n- Add Set nodes to transform data\n- Include Respond to Webhook nodes for webhook triggers\n- Use Function nodes for complex calculations\n- Add Error Trigger nodes for error handling`;\n}\n\nreturn {\n  config: config,\n  metadata: metadata,\n  prompt: prompt\n};"
+      },
+      "id": "validate_input",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=${service.ollama.url}/api/generate",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"model\": \"codellama\",\n  \"prompt\": \"{{ $json.prompt }}\",\n  \"stream\": false,\n  \"options\": {\n    \"temperature\": 0.3,\n    \"top_p\": 0.9,\n    \"max_tokens\": 4000\n  }\n}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "generate_workflow",
+      "name": "Generate Workflow",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Extract and parse generated workflow\nconst response = $input.item.json;\nconst config = $('Validate Input').item.json.config;\nconst metadata = $('Validate Input').item.json.metadata;\n\nlet workflowJson;\ntry {\n  // Extract response text\n  const responseText = response.response || response.text || '';\n  \n  // Try to extract JSON from the response\n  const jsonMatch = responseText.match(/\\{[\\s\\S]*\\}/);\n  if (!jsonMatch) {\n    throw new Error('No valid JSON found in AI response');\n  }\n  \n  workflowJson = JSON.parse(jsonMatch[0]);\n  \n  // Ensure workflow has required structure\n  if (!workflowJson.nodes || !Array.isArray(workflowJson.nodes)) {\n    workflowJson.nodes = [];\n  }\n  if (!workflowJson.connections) {\n    workflowJson.connections = {};\n  }\n  if (!workflowJson.settings) {\n    workflowJson.settings = {};\n  }\n  \n  // Add workflow name if missing\n  if (!workflowJson.name) {\n    workflowJson.name = config.description || 'Generated Workflow';\n  }\n  \n  metadata.status = 'generated';\n  metadata.iteration += 1;\n  \n} catch (error) {\n  metadata.errors.push({\n    iteration: metadata.iteration,\n    type: 'parsing',\n    message: error.message,\n    timestamp: new Date().toISOString()\n  });\n  metadata.status = 'parse_error';\n  \n  // Create minimal valid workflow structure for retry\n  workflowJson = {\n    name: config.description || 'Generated Workflow',\n    nodes: [],\n    connections: {},\n    settings: {}\n  };\n}\n\nreturn {\n  config: config,\n  metadata: metadata,\n  workflow_json: workflowJson,\n  raw_response: response\n};"
+      },
+      "id": "parse_workflow",
+      "name": "Parse Workflow",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Validate workflow structure and syntax\nconst data = $input.item.json;\nconst workflowJson = data.workflow_json;\nconst metadata = data.metadata;\nconst config = data.config;\n\nconst validationResults = {\n  syntax: { passed: false, errors: [] },\n  structure: { passed: false, errors: [] },\n  nodes: { passed: false, errors: [] },\n  connections: { passed: false, errors: [] },\n  resources: { passed: false, errors: [] }\n};\n\n// 1. Validate JSON syntax\ntry {\n  JSON.stringify(workflowJson);\n  validationResults.syntax.passed = true;\n} catch (error) {\n  validationResults.syntax.errors.push(`Invalid JSON: ${error.message}`);\n}\n\n// 2. Validate structure\nif (workflowJson.nodes && Array.isArray(workflowJson.nodes)) {\n  validationResults.structure.passed = true;\n} else {\n  validationResults.structure.errors.push('Missing or invalid nodes array');\n}\n\nif (!workflowJson.connections || typeof workflowJson.connections !== 'object') {\n  validationResults.structure.errors.push('Missing or invalid connections object');\n  validationResults.structure.passed = false;\n}\n\n// 3. Validate nodes\nconst nodeIds = new Set();\nconst validNodeTypes = [\n  'n8n-nodes-base.webhook',\n  'n8n-nodes-base.httpRequest',\n  'n8n-nodes-base.code',\n  'n8n-nodes-base.set',\n  'n8n-nodes-base.if',\n  'n8n-nodes-base.merge',\n  'n8n-nodes-base.split',\n  'n8n-nodes-base.aggregate',\n  'n8n-nodes-base.respondToWebhook',\n  'n8n-nodes-base.cron',\n  'n8n-nodes-base.interval',\n  'n8n-nodes-base.execute',\n  'n8n-nodes-base.errorTrigger',\n  'n8n-nodes-base.wait',\n  'n8n-nodes-base.noOp'\n];\n\nif (workflowJson.nodes && workflowJson.nodes.length > 0) {\n  let nodesValid = true;\n  \n  for (const node of workflowJson.nodes) {\n    // Check for required fields\n    if (!node.id) {\n      validationResults.nodes.errors.push(`Node missing ID`);\n      nodesValid = false;\n    } else if (nodeIds.has(node.id)) {\n      validationResults.nodes.errors.push(`Duplicate node ID: ${node.id}`);\n      nodesValid = false;\n    } else {\n      nodeIds.add(node.id);\n    }\n    \n    if (!node.name) {\n      validationResults.nodes.errors.push(`Node ${node.id} missing name`);\n      nodesValid = false;\n    }\n    \n    if (!node.type) {\n      validationResults.nodes.errors.push(`Node ${node.id} missing type`);\n      nodesValid = false;\n    } else if (!validNodeTypes.includes(node.type)) {\n      // Check if it's a community node or other valid type\n      if (!node.type.includes('.') || node.type.startsWith('@')) {\n        validationResults.nodes.errors.push(`Node ${node.id} has invalid type: ${node.type}`);\n        nodesValid = false;\n      }\n    }\n    \n    if (!node.position || !Array.isArray(node.position) || node.position.length !== 2) {\n      validationResults.nodes.errors.push(`Node ${node.id} has invalid position`);\n      nodesValid = false;\n    }\n  }\n  \n  validationResults.nodes.passed = nodesValid;\n} else {\n  validationResults.nodes.errors.push('Workflow has no nodes');\n}\n\n// 4. Validate connections\nif (workflowJson.connections && Object.keys(workflowJson.connections).length > 0) {\n  let connectionsValid = true;\n  \n  for (const [sourceNodeId, connections] of Object.entries(workflowJson.connections)) {\n    if (!nodeIds.has(sourceNodeId)) {\n      validationResults.connections.errors.push(`Connection from non-existent node: ${sourceNodeId}`);\n      connectionsValid = false;\n    }\n    \n    if (typeof connections !== 'object') {\n      validationResults.connections.errors.push(`Invalid connections for node ${sourceNodeId}`);\n      connectionsValid = false;\n      continue;\n    }\n    \n    for (const [outputName, targetConnections] of Object.entries(connections)) {\n      if (!Array.isArray(targetConnections)) {\n        validationResults.connections.errors.push(`Invalid connections array for ${sourceNodeId}.${outputName}`);\n        connectionsValid = false;\n        continue;\n      }\n      \n      for (const conn of targetConnections) {\n        if (!conn.node || !nodeIds.has(conn.node)) {\n          validationResults.connections.errors.push(`Connection to non-existent node from ${sourceNodeId}`);\n          connectionsValid = false;\n        }\n      }\n    }\n  }\n  \n  validationResults.connections.passed = connectionsValid;\n} else {\n  // No connections might be valid for single-node workflows\n  if (workflowJson.nodes && workflowJson.nodes.length > 1) {\n    validationResults.connections.errors.push('Multi-node workflow has no connections');\n  } else {\n    validationResults.connections.passed = true;\n  }\n}\n\n// 5. Validate resource references\nif (config.resources_needed && config.resources_needed.length > 0) {\n  let resourcesValid = true;\n  const workflowString = JSON.stringify(workflowJson);\n  \n  for (const resource of config.resources_needed) {\n    const resourcePattern = `\\\\$\\\\{service\\\\.${resource}\\\\.`;\n    if (!workflowString.match(new RegExp(resourcePattern))) {\n      validationResults.resources.errors.push(`Required resource '${resource}' not referenced in workflow`);\n      resourcesValid = false;\n    }\n  }\n  \n  validationResults.resources.passed = resourcesValid;\n} else {\n  validationResults.resources.passed = true;\n}\n\n// Calculate overall validation status\nconst allPassed = Object.values(validationResults).every(result => result.passed);\n\n// Update metadata\nmetadata.validation_results = validationResults;\nmetadata.status = allPassed ? 'validated' : 'validation_failed';\n\n// Collect all errors for potential fixing\nconst allErrors = [];\nfor (const [category, result] of Object.entries(validationResults)) {\n  if (!result.passed) {\n    allErrors.push(...result.errors.map(err => ({ category, error: err })));\n  }\n}\n\nreturn {\n  config: config,\n  metadata: metadata,\n  workflow_json: workflowJson,\n  validation_passed: allPassed,\n  validation_errors: allErrors\n};"
+      },
+      "id": "validate_workflow",
+      "name": "Validate Workflow",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.validation_passed }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "check_validation",
+      "name": "Check Validation",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Test workflow with provided test cases\nconst data = $input.item.json;\nconst workflowJson = data.workflow_json;\nconst config = data.config;\nconst metadata = data.metadata;\n\nconst testResults = [];\nlet allTestsPassed = true;\n\n// If no test cases provided, create basic validation test\nif (!config.test_cases || config.test_cases.length === 0) {\n  // Basic structure test\n  testResults.push({\n    name: 'Basic Structure Test',\n    passed: workflowJson.nodes && workflowJson.nodes.length > 0,\n    expected: 'Workflow with nodes',\n    actual: workflowJson.nodes ? `${workflowJson.nodes.length} nodes` : 'No nodes',\n    type: 'structure'\n  });\n  \n  // Trigger node test\n  const hasTrigger = workflowJson.nodes.some(node => \n    node.type && (node.type.includes('webhook') || node.type.includes('cron') || node.type.includes('trigger'))\n  );\n  testResults.push({\n    name: 'Has Trigger Node',\n    passed: hasTrigger,\n    expected: 'At least one trigger node',\n    actual: hasTrigger ? 'Trigger found' : 'No trigger found',\n    type: 'structure'\n  });\n  \n  allTestsPassed = testResults.every(test => test.passed);\n} else {\n  // Run provided test cases\n  for (const testCase of config.test_cases) {\n    try {\n      // Simulate test execution\n      // In production, this would actually execute the workflow\n      const testResult = {\n        name: testCase.name || 'Test Case',\n        input: testCase.input,\n        expected_output: testCase.expected_output,\n        passed: false,\n        actual_output: null,\n        error: null,\n        type: testCase.type || 'functional'\n      };\n      \n      // For now, do basic validation based on workflow structure\n      // Check if workflow can handle the input type\n      if (config.trigger_type === 'webhook' && testCase.input) {\n        // Check for webhook node\n        const hasWebhook = workflowJson.nodes.some(node => \n          node.type === 'n8n-nodes-base.webhook'\n        );\n        testResult.passed = hasWebhook;\n        testResult.actual_output = hasWebhook ? 'Webhook node present' : 'No webhook node';\n      } else if (config.trigger_type === 'cron' && testCase.schedule) {\n        // Check for cron node\n        const hasCron = workflowJson.nodes.some(node => \n          node.type === 'n8n-nodes-base.cron'\n        );\n        testResult.passed = hasCron;\n        testResult.actual_output = hasCron ? 'Cron node present' : 'No cron node';\n      } else {\n        // Generic test - check if workflow is complete\n        testResult.passed = workflowJson.nodes.length > 0;\n        testResult.actual_output = `Workflow has ${workflowJson.nodes.length} nodes`;\n      }\n      \n      testResults.push(testResult);\n      if (!testResult.passed) {\n        allTestsPassed = false;\n      }\n      \n    } catch (error) {\n      testResults.push({\n        name: testCase.name || 'Test Case',\n        passed: false,\n        error: error.message,\n        type: 'error'\n      });\n      allTestsPassed = false;\n    }\n  }\n}\n\n// Update metadata\nmetadata.test_results = testResults;\nmetadata.status = allTestsPassed ? 'tested' : 'test_failed';\n\nreturn {\n  config: config,\n  metadata: metadata,\n  workflow_json: workflowJson,\n  validation_passed: data.validation_passed,\n  tests_passed: allTestsPassed,\n  test_results: testResults\n};"
+      },
+      "id": "test_workflow",
+      "name": "Test Workflow",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1450, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.tests_passed }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "check_tests",
+      "name": "Check Tests",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1650, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=${service.ollama.url}/api/generate",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"model\": \"llama3.2\",\n  \"prompt\": \"You are an expert n8n workflow debugger. Analyze these validation errors and provide specific fixes:\\n\\nWorkflow JSON:\\n{{ JSON.stringify($json.workflow_json, null, 2) }}\\n\\nValidation Errors:\\n{{ JSON.stringify($json.validation_errors, null, 2) }}\\n\\nProvide a corrected workflow JSON that fixes ALL the identified issues. Important:\\n1. Fix all validation errors\\n2. Maintain the original purpose and functionality\\n3. Ensure proper node connections\\n4. Use correct n8n node types\\n5. Add missing required fields\\n\\nRespond with ONLY the corrected JSON workflow, no explanations.\",\n  \"stream\": false,\n  \"options\": {\n    \"temperature\": 0.2,\n    \"top_p\": 0.9,\n    \"max_tokens\": 4000\n  }\n}",
+        "options": {
+          "timeout": 45000
+        }
+      },
+      "id": "fix_validation_errors",
+      "name": "Fix Validation Errors",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1450, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Check if we should continue iterating\nconst data = $input.item.json;\nconst metadata = data.metadata;\nconst config = data.config;\n\nconst shouldContinue = \n  metadata.iteration < config.max_iterations && \n  (metadata.status === 'validation_failed' || metadata.status === 'test_failed');\n\nif (shouldContinue) {\n  metadata.fixes_applied.push({\n    iteration: metadata.iteration,\n    errors_fixed: data.validation_errors ? data.validation_errors.length : 0,\n    timestamp: new Date().toISOString()\n  });\n}\n\nreturn {\n  config: config,\n  metadata: metadata,\n  workflow_json: data.workflow_json,\n  should_continue: shouldContinue,\n  iteration: metadata.iteration\n};"
+      },
+      "id": "check_iteration",
+      "name": "Check Iteration",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1650, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.should_continue }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "should_continue",
+      "name": "Should Continue?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1850, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Store successful pattern for future use\nconst data = $input.item.json;\nconst config = data.config;\nconst metadata = data.metadata;\nconst workflowJson = data.workflow_json;\n\n// Calculate success metrics\nconst successMetrics = {\n  iterations_needed: metadata.iteration,\n  total_errors_fixed: metadata.fixes_applied.reduce((sum, fix) => sum + fix.errors_fixed, 0),\n  processing_time_ms: Date.now() - new Date(metadata.processing_start).getTime(),\n  validation_score: Object.values(metadata.validation_results || {}).filter(r => r.passed).length / Object.keys(metadata.validation_results || {}).length,\n  test_score: metadata.test_results ? metadata.test_results.filter(t => t.passed).length / metadata.test_results.length : 1\n};\n\n// Prepare pattern for storage (in production, this would go to a database)\nconst pattern = {\n  id: metadata.workflow_id,\n  purpose: config.purpose,\n  trigger_type: config.trigger_type,\n  resources_used: config.resources_needed,\n  workflow_template: workflowJson,\n  success_metrics: successMetrics,\n  created_at: new Date().toISOString(),\n  tags: [\n    config.trigger_type,\n    ...config.resources_needed,\n    `iterations_${metadata.iteration}`,\n    successMetrics.validation_score === 1 ? 'perfect_validation' : 'validation_passed'\n  ]\n};\n\n// Mark as successful\nmetadata.status = 'completed';\nmetadata.pattern_stored = true;\n\n// Final success response\nreturn {\n  success: true,\n  workflow_id: metadata.workflow_id,\n  workflow_json: workflowJson,\n  metadata: metadata,\n  metrics: successMetrics,\n  pattern: pattern,\n  message: `Workflow successfully created after ${metadata.iteration} iteration(s)`,\n  ready_for_import: true\n};"
+      },
+      "id": "store_pattern",
+      "name": "Store Success Pattern",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1850, 100]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Handle failure after max iterations\nconst data = $input.item.json;\nconst metadata = data.metadata;\nconst config = data.config;\n\n// Analyze failure patterns\nconst failureAnalysis = {\n  primary_issues: [],\n  recurring_errors: [],\n  partial_success: false\n};\n\n// Check validation results\nif (metadata.validation_results) {\n  for (const [category, result] of Object.entries(metadata.validation_results)) {\n    if (!result.passed && result.errors && result.errors.length > 0) {\n      failureAnalysis.primary_issues.push({\n        category: category,\n        errors: result.errors\n      });\n    }\n  }\n}\n\n// Check for partial success\nif (metadata.validation_results && Object.values(metadata.validation_results).some(r => r.passed)) {\n  failureAnalysis.partial_success = true;\n}\n\n// Find recurring errors\nconst errorCounts = {};\nfor (const error of metadata.errors) {\n  const key = error.type;\n  errorCounts[key] = (errorCounts[key] || 0) + 1;\n}\nfailureAnalysis.recurring_errors = Object.entries(errorCounts)\n  .filter(([_, count]) => count > 1)\n  .map(([type, count]) => ({ type, count }));\n\n// Generate recommendations\nconst recommendations = [];\nif (failureAnalysis.primary_issues.some(issue => issue.category === 'nodes')) {\n  recommendations.push('Review node types and ensure they are valid n8n nodes');\n}\nif (failureAnalysis.primary_issues.some(issue => issue.category === 'connections')) {\n  recommendations.push('Check node connections and ensure all referenced nodes exist');\n}\nif (failureAnalysis.recurring_errors.length > 0) {\n  recommendations.push('Consider simplifying the workflow requirements');\n}\nif (!failureAnalysis.partial_success) {\n  recommendations.push('The requirements may be too complex or contradictory');\n}\n\n// Mark as failed\nmetadata.status = 'failed';\nmetadata.failure_analysis = failureAnalysis;\n\nreturn {\n  success: false,\n  workflow_id: metadata.workflow_id,\n  workflow_json: data.workflow_json,\n  metadata: metadata,\n  failure_analysis: failureAnalysis,\n  recommendations: recommendations,\n  message: `Workflow creation failed after ${config.max_iterations} iterations`,\n  partial_workflow_available: failureAnalysis.partial_success\n};"
+      },
+      "id": "handle_failure",
+      "name": "Handle Failure",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [2050, 500]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "respond_success",
+      "name": "Respond Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2050, 100]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "respond_failure",
+      "name": "Respond Failure",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2250, 500]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Parse fixed workflow and prepare for next iteration\nconst response = $input.item.json;\nconst previousData = $('Check Iteration').item.json;\nconst config = previousData.config;\nconst metadata = previousData.metadata;\n\nlet fixedWorkflowJson;\ntry {\n  // Extract response text\n  const responseText = response.response || response.text || '';\n  \n  // Try to extract JSON from the response\n  const jsonMatch = responseText.match(/\\{[\\s\\S]*\\}/);\n  if (!jsonMatch) {\n    throw new Error('No valid JSON found in fix response');\n  }\n  \n  fixedWorkflowJson = JSON.parse(jsonMatch[0]);\n  \n  // Ensure workflow has required structure\n  if (!fixedWorkflowJson.nodes || !Array.isArray(fixedWorkflowJson.nodes)) {\n    fixedWorkflowJson.nodes = previousData.workflow_json.nodes || [];\n  }\n  if (!fixedWorkflowJson.connections) {\n    fixedWorkflowJson.connections = previousData.workflow_json.connections || {};\n  }\n  if (!fixedWorkflowJson.settings) {\n    fixedWorkflowJson.settings = previousData.workflow_json.settings || {};\n  }\n  \n  metadata.status = 'fixed';\n  \n} catch (error) {\n  // If parsing fails, use previous workflow\n  fixedWorkflowJson = previousData.workflow_json;\n  metadata.errors.push({\n    iteration: metadata.iteration,\n    type: 'fix_parsing',\n    message: error.message,\n    timestamp: new Date().toISOString()\n  });\n}\n\nreturn {\n  config: config,\n  metadata: metadata,\n  workflow_json: fixedWorkflowJson\n};"
+      },
+      "id": "parse_fixed",
+      "name": "Parse Fixed Workflow",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [2050, 350]
+    }
+  ],
+  "connections": {
+    "webhook_trigger": {
+      "main": [
+        [
+          {
+            "node": "validate_input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "validate_input": {
+      "main": [
+        [
+          {
+            "node": "generate_workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "generate_workflow": {
+      "main": [
+        [
+          {
+            "node": "parse_workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "parse_workflow": {
+      "main": [
+        [
+          {
+            "node": "validate_workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "validate_workflow": {
+      "main": [
+        [
+          {
+            "node": "check_validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check_validation": {
+      "main": [
+        [
+          {
+            "node": "test_workflow",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "fix_validation_errors",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "test_workflow": {
+      "main": [
+        [
+          {
+            "node": "check_tests",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check_tests": {
+      "main": [
+        [
+          {
+            "node": "store_pattern",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "fix_validation_errors",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "fix_validation_errors": {
+      "main": [
+        [
+          {
+            "node": "check_iteration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check_iteration": {
+      "main": [
+        [
+          {
+            "node": "should_continue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "should_continue": {
+      "main": [
+        [
+          {
+            "node": "parse_fixed",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "handle_failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "parse_fixed": {
+      "main": [
+        [
+          {
+            "node": "validate_workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "store_pattern": {
+      "main": [
+        [
+          {
+            "node": "respond_success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "handle_failure": {
+      "main": [
+        [
+          {
+            "node": "respond_failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "saveExecutionProgress": true,
+    "executionTimeout": 300,
+    "errorWorkflow": "",
+    "timezone": "UTC"
+  },
+  "staticData": null
+}

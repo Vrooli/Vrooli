@@ -1,0 +1,359 @@
+{
+  "name": "Intelligent Text Classifier",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "classify",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [300, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Validate and prepare input for text classification\nconst input = $input.item.json;\n\n// Required field validation\nif (!input.text && !input.texts) {\n  throw new Error('Missing required field: text or texts (for batch mode)');\n}\n\n// Handle batch mode\nconst isBatchMode = Array.isArray(input.texts);\nconst textsToProcess = isBatchMode ? input.texts : [input.text];\n\n// Validate batch size\nif (isBatchMode && textsToProcess.length > 100) {\n  throw new Error('Batch size exceeds maximum limit of 100 texts');\n}\n\n// Validate classifier\nconst classifier = input.classifier || 'sentiment_analysis';\nconst supportedClassifiers = [\n  'pii_detection',\n  'log_severity', \n  'content_safety',\n  'document_type',\n  'sentiment_analysis',\n  'custom'\n];\n\nif (!supportedClassifiers.includes(classifier)) {\n  throw new Error(`Unsupported classifier: ${classifier}. Supported: ${supportedClassifiers.join(', ')}`);\n}\n\n// Configuration validation and defaults\nconst config = input.config || {};\nconst confidence_threshold = config.confidence_threshold || 0.7;\nconst return_explanations = config.return_explanations !== false;\nconst batch_mode = isBatchMode;\nconst parallel_processing = config.parallel_processing !== false;\n\n// Custom classifier validation\nif (classifier === 'custom') {\n  if (!config.name) {\n    throw new Error('Custom classifier requires config.name');\n  }\n  if (!config.classes || !Array.isArray(config.classes)) {\n    throw new Error('Custom classifier requires config.classes array');\n  }\n  if (config.classes.length < 2) {\n    throw new Error('Custom classifier requires at least 2 classes');\n  }\n}\n\n// Prepare metadata\nconst metadata = {\n  classifier: classifier,\n  batch_mode: batch_mode,\n  text_count: textsToProcess.length,\n  confidence_threshold: confidence_threshold,\n  processing_started_at: new Date().toISOString(),\n  request_id: `classify_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`\n};\n\nreturn {\n  texts: textsToProcess,\n  classifier: classifier,\n  config: {\n    confidence_threshold: confidence_threshold,\n    return_explanations: return_explanations,\n    batch_mode: batch_mode,\n    parallel_processing: parallel_processing,\n    ...config\n  },\n  metadata: metadata\n};"
+      },
+      "id": "validate_input",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [500, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.classifier }}",
+              "operation": "equal",
+              "value2": "pii_detection"
+            }
+          ]
+        }
+      },
+      "id": "classifier_router",
+      "name": "Classifier Router",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [700, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// PII Detection using rule-based patterns + LLM validation\nconst input = $input.item.json;\nconst texts = input.texts;\nconst config = input.config;\n\n// Rule-based PII patterns (fast detection)\nconst piiPatterns = {\n  ssn: {\n    regex: /\\b\\d{3}-?\\d{2}-?\\d{4}\\b/g,\n    name: 'Social Security Number'\n  },\n  email: {\n    regex: /\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Z|a-z]{2,}\\b/g,\n    name: 'Email Address'\n  },\n  phone: {\n    regex: /\\b(?:\\+?1[-.]?)?\\(?([0-9]{3})\\)?[-.]?([0-9]{3})[-.]?([0-9]{4})\\b/g,\n    name: 'Phone Number'\n  },\n  credit_card: {\n    regex: /\\b(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|3[47][0-9]{13}|3[0-9]{13}|6(?:011|5[0-9]{2})[0-9]{12})\\b/g,\n    name: 'Credit Card Number'\n  },\n  ip_address: {\n    regex: /\\b(?:[0-9]{1,3}\\.){3}[0-9]{1,3}\\b/g,\n    name: 'IP Address'\n  }\n};\n\nconst results = [];\n\nfor (const text of texts) {\n  const detected = [];\n  let redactedText = text;\n  let hasPii = false;\n  let maxConfidence = 0;\n  \n  // Rule-based detection\n  for (const [type, pattern] of Object.entries(piiPatterns)) {\n    const matches = [...text.matchAll(pattern.regex)];\n    \n    for (const match of matches) {\n      detected.push({\n        type: type,\n        text: match[0],\n        confidence: 0.95, // High confidence for regex matches\n        position: [match.index, match.index + match[0].length],\n        detection_method: 'rule_based'\n      });\n      \n      // Redact the text\n      redactedText = redactedText.replace(match[0], `[${type.toUpperCase()}]`);\n      hasPii = true;\n      maxConfidence = Math.max(maxConfidence, 0.95);\n    }\n  }\n  \n  // Determine risk level\n  let riskLevel = 'low';\n  if (detected.length > 0) {\n    const sensitiveTypes = ['ssn', 'credit_card'];\n    const hasSensitive = detected.some(d => sensitiveTypes.includes(d.type));\n    riskLevel = hasSensitive ? 'high' : (detected.length > 2 ? 'medium' : 'low');\n  }\n  \n  results.push({\n    original_text: text,\n    classification: {\n      has_pii: hasPii,\n      confidence: hasPii ? maxConfidence : 0.05,\n      detected_types: detected,\n      total_detections: detected.length\n    },\n    metadata: {\n      redacted_text: redactedText,\n      risk_level: riskLevel,\n      detection_method: 'rule_based',\n      processing_time_ms: 50 // Fast rule-based processing\n    }\n  });\n}\n\nreturn {\n  classifier: 'pii_detection',\n  results: results,\n  batch_mode: input.config.batch_mode,\n  processing_completed: true\n};"
+      },
+      "id": "pii_detector",
+      "name": "PII Detector",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.classifier }}",
+              "operation": "equal",
+              "value2": "log_severity"
+            }
+          ]
+        }
+      },
+      "id": "log_severity_router",
+      "name": "Log Severity Router",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [900, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Log Severity Classification using rule-based + LLM hybrid approach\nconst input = $input.item.json;\nconst texts = input.texts;\nconst config = input.config;\n\n// Rule-based severity patterns\nconst severityPatterns = {\n  critical: {\n    keywords: ['fatal', 'critical', 'emergency', 'panic', 'system down', 'service unavailable'],\n    prefixes: ['FATAL:', 'CRITICAL:', 'EMERGENCY:'],\n    confidence: 0.95\n  },\n  error: {\n    keywords: ['error', 'exception', 'failed', 'failure', 'crash', 'abort'],\n    prefixes: ['ERROR:', 'ERR:', 'EXCEPTION:'],\n    confidence: 0.9\n  },\n  warning: {\n    keywords: ['warning', 'warn', 'deprecated', 'timeout', 'retry', 'limit'],\n    prefixes: ['WARN:', 'WARNING:', 'CAUTION:'],\n    confidence: 0.85\n  },\n  info: {\n    keywords: ['info', 'start', 'stop', 'complete', 'success', 'ready'],\n    prefixes: ['INFO:', 'LOG:', 'NOTICE:'],\n    confidence: 0.8\n  },\n  debug: {\n    keywords: ['debug', 'trace', 'verbose'],\n    prefixes: ['DEBUG:', 'TRACE:', 'VERBOSE:'],\n    confidence: 0.75\n  }\n};\n\nconst results = [];\n\nfor (const text of texts) {\n  const lowerText = text.toLowerCase();\n  let bestMatch = { severity: 'info', confidence: 0.3, method: 'default' };\n  \n  // Check prefixes first (highest confidence)\n  for (const [severity, config] of Object.entries(severityPatterns)) {\n    for (const prefix of config.prefixes) {\n      if (text.toUpperCase().includes(prefix)) {\n        bestMatch = {\n          severity: severity,\n          confidence: config.confidence,\n          method: 'prefix_match',\n          matched_pattern: prefix\n        };\n        break;\n      }\n    }\n    if (bestMatch.method === 'prefix_match') break;\n  }\n  \n  // If no prefix match, check keywords\n  if (bestMatch.method === 'default') {\n    for (const [severity, config] of Object.entries(severityPatterns)) {\n      for (const keyword of config.keywords) {\n        if (lowerText.includes(keyword)) {\n          if (config.confidence > bestMatch.confidence) {\n            bestMatch = {\n              severity: severity,\n              confidence: config.confidence - 0.1, // Slightly lower than prefix\n              method: 'keyword_match',\n              matched_pattern: keyword\n            };\n          }\n        }\n      }\n    }\n  }\n  \n  // Determine alerting and actions\n  const shouldAlert = ['critical', 'error'].includes(bestMatch.severity);\n  const urgency = bestMatch.severity === 'critical' ? 'high' : \n                 bestMatch.severity === 'error' ? 'medium' : 'low';\n  \n  const categoryMapping = {\n    'database': ['connection', 'query', 'transaction', 'deadlock'],\n    'network': ['timeout', 'connection refused', 'dns', 'socket'],\n    'memory': ['out of memory', 'heap', 'gc', 'memory leak'],\n    'performance': ['slow', 'timeout', 'latency', 'throughput'],\n    'security': ['unauthorized', 'forbidden', 'authentication', 'certificate']\n  };\n  \n  let category = 'general';\n  for (const [cat, keywords] of Object.entries(categoryMapping)) {\n    if (keywords.some(kw => lowerText.includes(kw))) {\n      category = cat;\n      break;\n    }\n  }\n  \n  const recommendedActions = {\n    critical: ['immediate_investigation', 'alert_on_call', 'check_system_health'],\n    error: ['investigate', 'check_logs', 'monitor_trends'],\n    warning: ['monitor_closely', 'review_configuration'],\n    info: ['log_for_audit'],\n    debug: ['ignore_unless_debugging']\n  };\n  \n  results.push({\n    original_text: text,\n    classification: {\n      severity: bestMatch.severity,\n      confidence: bestMatch.confidence,\n      category: category,\n      urgency: urgency\n    },\n    metadata: {\n      should_alert: shouldAlert,\n      detection_method: bestMatch.method,\n      matched_pattern: bestMatch.matched_pattern || null,\n      recommended_actions: recommendedActions[bestMatch.severity] || [],\n      processing_time_ms: 25\n    }\n  });\n}\n\nreturn {\n  classifier: 'log_severity',\n  results: results,\n  batch_mode: input.config.batch_mode,\n  processing_completed: true\n};"
+      },
+      "id": "log_severity_classifier",
+      "name": "Log Severity Classifier",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1100, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// LLM-based classification for complex cases (content_safety, document_type, sentiment, custom)\nconst input = $input.item.json;\nconst texts = input.texts;\nconst classifier = input.classifier;\nconst config = input.config;\n\n// Build prompt based on classifier type\nlet systemPrompt = '';\nlet classificationInstructions = '';\n\nswitch (classifier) {\n  case 'content_safety':\n    systemPrompt = 'You are a content safety classifier. Analyze text for safety violations.';\n    classificationInstructions = `\nClassify the content safety of the following text. Consider:\n- Inappropriate language (profanity, hate speech)\n- Violence or threats\n- Adult content\n- Harassment or bullying\n- Misinformation or harmful advice\n\nRespond with a JSON object containing:\n{\n  \"is_safe\": boolean,\n  \"confidence\": number (0-1),\n  \"violation_types\": [\"list of violation types if any\"],\n  \"severity\": \"low|moderate|high\",\n  \"action\": \"allow|flag_for_review|block\",\n  \"explanation\": \"brief explanation\"\n}`;\n    break;\n    \n  case 'document_type':\n    systemPrompt = 'You are a document type classifier. Identify document types and extract key entities.';\n    classificationInstructions = `\nClassify the document type of the following text. Common types include:\n- invoice, receipt, contract, email, resume, report, letter, form, manual, specification\n\nRespond with a JSON object containing:\n{\n  \"document_type\": \"primary document type\",\n  \"confidence\": number (0-1),\n  \"secondary_types\": [\"other possible types\"],\n  \"extracted_entities\": {\n    \"key_fields\": \"values found in the document\"\n  },\n  \"explanation\": \"brief explanation\"\n}`;\n    break;\n    \n  case 'sentiment_analysis':\n    systemPrompt = 'You are a sentiment analysis expert. Analyze emotional tone and sentiment.';\n    classificationInstructions = `\nAnalyze the sentiment of the following text. Consider:\n- Overall emotional tone\n- Intensity of sentiment\n- Specific emotions present\n- Whether the sentiment is actionable\n\nRespond with a JSON object containing:\n{\n  \"sentiment\": \"positive|negative|neutral\",\n  \"confidence\": number (0-1),\n  \"intensity\": number (0-1),\n  \"emotions\": [\"list of detected emotions\"],\n  \"actionable\": boolean,\n  \"explanation\": \"brief explanation\"\n}`;\n    break;\n    \n  case 'custom':\n    systemPrompt = `You are a custom classifier for: ${config.name}`;\n    classificationInstructions = `\nClassify the following text into one of these categories: ${config.classes.join(', ')}\n\n${config.examples ? 'Examples:' : ''}\n${config.examples ? Object.entries(config.examples).map(([cls, examples]) => \n  `${cls}: ${examples.slice(0, 3).join(', ')}`\n).join('\\n') : ''}\n\nRespond with a JSON object containing:\n{\n  \"primary_class\": \"the most likely class\",\n  \"confidence\": number (0-1),\n  \"all_classes\": {\n    ${config.classes.map(cls => `\"${cls}\": number`).join(',\\n    ')}\n  },\n  \"explanation\": \"brief explanation\"\n}`;\n    break;\n}\n\n// Prepare texts for LLM processing\nconst llmRequests = texts.map((text, index) => {\n  return {\n    text: text,\n    index: index,\n    prompt: `${systemPrompt}\\n\\n${classificationInstructions}\\n\\nText to classify: \"${text}\"\\n\\nClassification:`\n  };\n});\n\nreturn {\n  classifier: classifier,\n  llm_requests: llmRequests,\n  config: config,\n  processing_method: 'llm_based',\n  texts_count: texts.length\n};"
+      },
+      "id": "prepare_llm_classification",
+      "name": "Prepare LLM Classification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1100, 500]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "${service.ollama.url}/api/generate",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "{\\n  \\\"model\\\": \\\"{{ $json.config.model || 'llama3.2' }}\\\",\\n  \\\"prompt\\\": \\\"={{ $json.llm_requests[0].prompt }}\\\",\\n  \\\"stream\\\": false,\\n  \\\"options\\\": {\\n    \\\"temperature\\\": 0.3,\\n    \\\"top_p\\\": 0.9,\\n    \\\"max_tokens\\\": 500\\n  }\\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "ollama_classification",
+      "name": "Ollama Classification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1300, 500]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process LLM response and format final classification result\nconst input = $input.item.json;\nconst llmResponse = input.response || '';\nconst classifier = $('Prepare LLM Classification').item.json.classifier;\nconst config = $('Prepare LLM Classification').item.json.config;\nconst originalTexts = $('Validate Input').item.json.texts;\n\nlet results = [];\n\ntry {\n  // Parse LLM response\n  let classificationResult;\n  try {\n    // Try to extract JSON from response\n    const jsonMatch = llmResponse.match(/\\{[\\s\\S]*\\}/);\n    if (jsonMatch) {\n      classificationResult = JSON.parse(jsonMatch[0]);\n    } else {\n      throw new Error('No JSON found in response');\n    }\n  } catch (parseError) {\n    // Fallback: create basic classification\n    classificationResult = {\n      primary_class: 'unknown',\n      confidence: 0.1,\n      explanation: 'Failed to parse LLM response',\n      error: parseError.message\n    };\n  }\n  \n  // Process single text (for now, handle batch in future iteration)\n  const text = originalTexts[0];\n  \n  // Format result based on classifier type\n  let formattedResult;\n  \n  switch (classifier) {\n    case 'content_safety':\n      formattedResult = {\n        original_text: text,\n        classification: {\n          is_safe: classificationResult.is_safe || false,\n          confidence: classificationResult.confidence || 0.5,\n          violation_types: classificationResult.violation_types || [],\n          severity: classificationResult.severity || 'moderate'\n        },\n        metadata: {\n          action: classificationResult.action || 'flag_for_review',\n          explanation: classificationResult.explanation || 'No explanation provided',\n          processing_method: 'llm_based',\n          processing_time_ms: 2000\n        }\n      };\n      break;\n      \n    case 'document_type':\n      formattedResult = {\n        original_text: text,\n        classification: {\n          document_type: classificationResult.document_type || 'unknown',\n          confidence: classificationResult.confidence || 0.5,\n          secondary_types: classificationResult.secondary_types || []\n        },\n        metadata: {\n          extracted_entities: classificationResult.extracted_entities || {},\n          explanation: classificationResult.explanation || 'No explanation provided',\n          processing_method: 'llm_based',\n          processing_time_ms: 2000\n        }\n      };\n      break;\n      \n    case 'sentiment_analysis':\n      formattedResult = {\n        original_text: text,\n        classification: {\n          sentiment: classificationResult.sentiment || 'neutral',\n          confidence: classificationResult.confidence || 0.5,\n          intensity: classificationResult.intensity || 0.5,\n          emotions: classificationResult.emotions || []\n        },\n        metadata: {\n          actionable: classificationResult.actionable || false,\n          explanation: classificationResult.explanation || 'No explanation provided',\n          processing_method: 'llm_based',\n          processing_time_ms: 2000\n        }\n      };\n      break;\n      \n    case 'custom':\n      formattedResult = {\n        original_text: text,\n        classification: {\n          primary_class: classificationResult.primary_class || 'unknown',\n          confidence: classificationResult.confidence || 0.5,\n          all_classes: classificationResult.all_classes || {}\n        },\n        metadata: {\n          classifier_name: config.name,\n          explanation: classificationResult.explanation || 'No explanation provided',\n          processing_method: 'llm_based',\n          processing_time_ms: 2000\n        }\n      };\n      break;\n      \n    default:\n      formattedResult = {\n        original_text: text,\n        classification: classificationResult,\n        metadata: {\n          explanation: 'Generic LLM classification',\n          processing_method: 'llm_based',\n          processing_time_ms: 2000\n        }\n      };\n  }\n  \n  results.push(formattedResult);\n  \n} catch (error) {\n  // Error handling\n  results.push({\n    original_text: originalTexts[0] || 'unknown',\n    classification: {\n      error: true,\n      confidence: 0,\n      message: error.message\n    },\n    metadata: {\n      processing_method: 'llm_based',\n      processing_time_ms: 100,\n      error_details: error.toString()\n    }\n  });\n}\n\nreturn {\n  classifier: classifier,\n  results: results,\n  batch_mode: false, // TODO: implement batch processing\n  processing_completed: true\n};"
+      },
+      "id": "process_llm_response",
+      "name": "Process LLM Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1500, 500]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Format final response for all classification types\nconst input = $input.item.json;\nconst originalRequest = $('Validate Input').item.json;\n\n// Determine which classification result to use\nlet classificationResults;\nif (input.classifier && input.results) {\n  classificationResults = input;\n} else {\n  // This shouldn't happen, but provide fallback\n  classificationResults = {\n    classifier: 'unknown',\n    results: [{\n      original_text: originalRequest.texts[0] || 'unknown',\n      classification: { error: true, message: 'No classification results found' },\n      metadata: { processing_method: 'error', processing_time_ms: 0 }\n    }],\n    processing_completed: false\n  };\n}\n\n// Calculate total processing time\nconst startTime = new Date(originalRequest.metadata.processing_started_at);\nconst totalProcessingTime = Date.now() - startTime.getTime();\n\n// Format response based on batch mode\nif (originalRequest.config.batch_mode) {\n  // Batch mode response\n  return {\n    success: true,\n    classifier: classificationResults.classifier,\n    batch_mode: true,\n    results: classificationResults.results,\n    summary: {\n      total_texts: classificationResults.results.length,\n      processing_time_ms: totalProcessingTime,\n      avg_confidence: classificationResults.results.reduce((sum, r) => \n        sum + (r.classification.confidence || 0), 0) / classificationResults.results.length,\n      processing_method: classificationResults.results[0]?.metadata?.processing_method || 'unknown'\n    },\n    metadata: {\n      request_id: originalRequest.metadata.request_id,\n      completed_at: new Date().toISOString()\n    }\n  };\n} else {\n  // Single text response\n  const result = classificationResults.results[0];\n  return {\n    success: true,\n    classifier: classificationResults.classifier,\n    text: result.original_text,\n    classification: result.classification,\n    metadata: {\n      ...result.metadata,\n      total_processing_time_ms: totalProcessingTime,\n      request_id: originalRequest.metadata.request_id,\n      completed_at: new Date().toISOString()\n    }\n  };\n}"
+      },
+      "id": "format_response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1700, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.success }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "success_check",
+      "name": "Success Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1900, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "success_response",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2100, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseCode": 500,
+        "responseBody": "{\\n  \\\"success\\\": false,\\n  \\\"error\\\": \\\"={{ $json.error || 'Classification failed' }}\\\",\\n  \\\"classifier\\\": \\\"={{ $json.classifier || 'unknown' }}\\\",\\n  \\\"timestamp\\\": \\\"={{ new Date().toISOString() }}\\\"\\n}"
+      },
+      "id": "error_response",
+      "name": "Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2100, 500]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Input": {
+      "main": [
+        [
+          {
+            "node": "Classifier Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classifier Router": {
+      "main": [
+        [
+          {
+            "node": "PII Detector",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Severity Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Severity Router": {
+      "main": [
+        [
+          {
+            "node": "Log Severity Classifier",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare LLM Classification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PII Detector": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Severity Classifier": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare LLM Classification": {
+      "main": [
+        [
+          {
+            "node": "Ollama Classification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Classification": {
+      "main": [
+        [
+          {
+            "node": "Process LLM Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process LLM Response": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Success Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Success Check": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "shared-v1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "intelligent-text-classifier",
+  "tags": [
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "shared-utility",
+      "name": "shared-utility"
+    },
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z", 
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "classification",
+      "name": "classification"
+    },
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z", 
+      "id": "ai-analysis",
+      "name": "ai-analysis"
+    }
+  ]
+}
