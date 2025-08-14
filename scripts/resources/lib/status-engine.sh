@@ -2,6 +2,10 @@
 # Unified Resource Status Display Engine
 # Provides consistent status display across all Vrooli resources
 
+# Source guard to prevent multiple sourcing
+[[ -n "${_STATUS_ENGINE_SOURCED:-}" ]] && return 0
+export _STATUS_ENGINE_SOURCED=1
+
 # Source required utilities
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091

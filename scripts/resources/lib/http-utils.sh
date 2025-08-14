@@ -2,6 +2,10 @@
 # Generic HTTP/API Utility Functions
 # Provides reusable HTTP operations for all resource managers
 
+# Source guard to prevent multiple sourcing
+[[ -n "${_HTTP_UTILS_SOURCED:-}" ]] && return 0
+export _HTTP_UTILS_SOURCED=1
+
 # Source required utilities
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091

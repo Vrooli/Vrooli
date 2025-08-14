@@ -5,26 +5,21 @@ You are an expert software engineer, visionary, and futurist. You strive for tru
 This file provides essential guidance to Claude Code (claude.ai/code) when working with this repository.
 
 ## ⚡ Critical Rules - READ FIRST
-1. **Imports**: 
-   - Always use `.js` extensions in TypeScript imports (e.g., `import { foo } from "./bar.js"`)
-   - For monorepo packages, use only the package name: `@vrooli/shared`, `@vrooli/server`, etc.
-   - NEVER use deep imports like `@vrooli/shared/id/snowflake.js` - import from the package root
-2. **Testing**: 
-   - Use testcontainers for Redis/PostgreSQL - NEVER mock core infrastructure
-   - For UI components: Test behavior, not visuals (no CSS class checks) - use Storybook for visual testing
-3. **Emergent Features**: Don't code security/optimization/learning features - these emerge from agents
-4. **Files**: Always prefer editing existing files over creating new ones
-5. **Linting**: After editing TypeScript files, run linting in the specific package (e.g., `cd packages/server && pnpm run lint --fix`)
-6. **Dependencies**: Never install packages without explicit permission
-7. **Documentation**: Read `/docs/` files at session start for context
+1. **Commands**: 
+   - Run `vrooli help` to see available.
+1. **Testing**: 
+   - Run `vrooli test help` to see available test commands.
+2. **Files**: Always prefer editing existing files over creating new ones
+4. **Dependencies**: Never install packages without explicit permission
+5. **Documentation**: Read `/docs/` files at session start for context
 
 ## 🎯 Understanding Vrooli's True Nature
 
 **CRITICAL CONTEXT:** Vrooli is not just an automation platform - it's a **self-improving intelligence system** where:
 
 ### The Core Vision
-- **Agent Swarms as Virtual Teams:** AI agents work individually or in coordinated swarms to accomplish open-ended goals
-- **Solutions Become Capabilities:** Every app/workflow built becomes a permanent tool the system can use forever
+- **Shared Local Resources:** Apps share local resources like N8n, Redis, Qdrant, and PostgreSQL so they can work together and build off each other.
+- **Scenarios Become Capabilities:** Every app (which is generated from a *scenario*) built becomes a permanent tool the system can use forever
 - **Recursive Improvement:** Agents build tools → Tools make agents smarter → Smarter agents build better tools → ∞
 - **Compound Intelligence:** The system literally cannot forget how to solve problems, only get better at solving them
 
@@ -70,100 +65,22 @@ For recurring tasks (test quality, React performance, etc.), use the AI maintena
 - **Event Bus**: Redis-based communication enabling collective learning between all agents
 - **Resource Layer**: 30+ local services (AI models, databases, automation platforms) that agents orchestrate
 
-## 📁 Key Locations
-```
-/packages/
-  /ui/            # React frontend (PWA)
-  /server/        # Express backend with AI tiers & resource integration
-  /shared/        # Shared types and utilities
-  /jobs/          # Background job processing
-  
-Key Files:
-- Types: packages/shared/src/api/types.ts
-- Endpoints: packages/server/src/endpoints/logic/
-- Tests: __test directories (NOT __tests)
-- AI Tiers: packages/server/src/services/execution/tier[1-3]/
-- Resources: packages/server/src/services/resources/providers/
-- Scenarios: scripts/scenarios/ (business templates & capability demos)
-```
-
 ## 🚀 Quick Start Commands
 ```bash
 # Setup project (includes CLI installation and system configuration)
 # NOTE: First run requires sudo for kernel parameter configuration when using certain resources
-./scripts/main/setup.sh --target native-linux --yes yes
+./scripts/main/setup.sh --yes yes
 
 # Start development environment
-./scripts/main/develop.sh --target docker --detached yes
-
-# Build specific artifacts
-./scripts/main/build.sh --environment development --test no --lint no --bundles zip --artifacts docker
-./scripts/main/build.sh --environment development --test no --lint no --bundles zip --artifacts k8s --version 2.0.0
-
-# Deploy to Kubernetes
-# IMPORTANT: Deployment uses the currently active kubectl context
-# For production: Use KUBECONFIG=/root/Vrooli/k8s/kubeconfig-vrooli-prod.yaml 
-# For development: The develop.sh script sets up minikube automatically
-./scripts/main/deploy.sh --source k8s --environment dev --version 2.0.0    # Development deployment
-./scripts/main/deploy.sh --source k8s --environment prod --version 2.0.0   # Production deployment
+vrooli develop
 
 # Run tests
-# ⚠️ IMPORTANT: Tests can take 3-5+ minutes. Always use extended timeouts for test commands
-pnpm test                                            # Run all tests (shell, unit, run) - needs 5+ min timeout
-pnpm test:shell                                      # Test shell scripts only
-pnpm test:unit                                       # Unit tests in all packages - needs 5+ min timeout
-cd packages/server && pnpm test                      # Server tests - needs 5+ min timeout
-cd packages/server && pnpm test-watch                # Watch mode
-cd packages/server && pnpm test-coverage             # With coverage - needs 5+ min timeout
-cd packages/jobs && pnpm test                        # Jobs tests - needs 3+ min timeout
 
-# Type checking (recommended: check smallest number of files possible due to large project size)
-# ⚠️ IMPORTANT: Full package type-check can take 2-4+ minutes. Use extended timeouts
-cd packages/server && pnpm run type-check            # Server package only - needs 4+ min timeout
-cd packages/ui && pnpm run type-check                # UI package only - needs 3+ min timeout
-cd packages/shared && pnpm run type-check            # Shared package only
-cd packages/server && tsc --noEmit src/file.ts       # Single file
-cd packages/server && tsc --noEmit src/file1.ts src/file2.ts  # Multiple files
-cd packages/server && tsc --noEmit src/folder/**/*.ts         # Folder/pattern
-
-# Linting
-pnpm run lint                                        # Run all linters (JS + shell)
-pnpm run lint:js                                     # ESLint for TypeScript
-pnpm run lint:shell                                  # ShellCheck for scripts
-cd packages/server && pnpm run lint --fix            # Server linting with auto-fix
-cd packages/ui && pnpm run lint --fix                # UI linting with auto-fix
-cd packages/shared && pnpm run lint --fix            # Shared linting with auto-fix
-cd packages/jobs && pnpm run lint --fix              # Jobs linting with auto-fix
-
-# Database commands
-cd packages/server && pnpm prisma generate           # After schema changes
-cd packages/server && pnpm prisma studio             # Visual database editor
-cd packages/server && pnpm prisma migrate deploy     # Deploy migrations
-
-# Kubernetes development commands (for local development only)
-./scripts/main/develop.sh --target k8s-cluster       # Start local k8s dev environment - auto-installs kubectl, Helm, Minikube
-./scripts/main/setup.sh --target k8s-cluster         # Setup local k8s cluster only - auto-installs kubectl, Helm, Minikube
-
-# Alternative development commands
-pnpm run develop                                     # Alternative to develop script
-docker compose up --build                            # Direct Docker alternative - needs 5+ min timeout
-
-# CLI commands (after setup)
-vrooli --help                                        # Show CLI help
-vrooli auth login                                    # Login to Vrooli
-vrooli routine list                                  # List routines
-vrooli chat start                                    # Start a chat session
-```
+Run `vrooli test help` to discover the available test commands.
 
 > **Note**: When writing tests, make sure you're writing them to test against the DESIRED/EXPECTED behavior, not the actual implementation. This is important for the test to be useful and not just a checkmark.
-> 
-> **UI Testing Note**: For UI components, focus on testing user interactions, accessibility, and component behavior. Avoid testing CSS classes or visual styling - these are implementation details that should be verified through Storybook instead.
 
 ## ❌ Common Pitfalls
-- DON'T remove `.js` extensions from imports
-- DON'T mock Redis or PostgreSQL in tests
-- DON'T implement emergent capabilities as code
-- DON'T use `__tests` directory (use `__test`)
 - DON'T skip reading memory files at session start
 - DON'T use mass-update scripts or automated tools to modify multiple files - check and update each file individually
 

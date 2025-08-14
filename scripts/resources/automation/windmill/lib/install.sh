@@ -80,6 +80,11 @@ windmill::install() {
     # Show success message
     windmill::show_success_message "$SUPERADMIN_EMAIL" "$SUPERADMIN_PASSWORD"
     
+    # Auto-install CLI if available
+    # shellcheck disable=SC1091
+    source "${var_SCRIPTS_RESOURCES_LIB_DIR}/cli-auto-install.sh" 2>/dev/null || true
+    resource_cli::auto_install "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)" || true
+    
     return 0
 }
 

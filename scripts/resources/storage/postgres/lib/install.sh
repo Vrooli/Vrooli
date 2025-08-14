@@ -64,6 +64,11 @@ postgres::install() {
     log::info "Port range available: ${POSTGRES_INSTANCE_PORT_RANGE_START}-${POSTGRES_INSTANCE_PORT_RANGE_END}"
     log::info "Maximum instances: ${POSTGRES_MAX_INSTANCES}"
     
+    # Auto-install CLI if available
+    # shellcheck disable=SC1091
+    source "${var_SCRIPTS_RESOURCES_LIB_DIR}/cli-auto-install.sh" 2>/dev/null || true
+    resource_cli::auto_install "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)" || true
+    
     return 0
 }
 

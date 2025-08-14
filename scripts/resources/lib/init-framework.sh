@@ -2,6 +2,10 @@
 # Generic Initialization Framework
 # Provides first-run setup and configuration for all resources
 
+# Source guard to prevent multiple sourcing
+[[ -n "${_INIT_FRAMEWORK_SOURCED:-}" ]] && return 0
+export _INIT_FRAMEWORK_SOURCED=1
+
 # Source required utilities
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
