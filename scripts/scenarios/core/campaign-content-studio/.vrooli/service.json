@@ -70,7 +70,8 @@
         "required": true,
         "models": [
           "llama3.2",
-          "mistral"
+          "mistral",
+          "nomic-embed-text"
         ]
       }
     },
@@ -79,7 +80,45 @@
         "type": "postgres",
         "enabled": true,
         "required": true,
-        "purpose": "campaign content data and project metadata"
+        "purpose": "Campaign metadata, document tracking, content history",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "script"
+          },
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "type": "script"
+          }
+        ]
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "purpose": "Document embeddings for semantic search and context retrieval"
+      },
+      "minio": {
+        "type": "minio",
+        "enabled": true,
+        "required": true,
+        "purpose": "File storage for documents and generated assets"
+      }
+    },
+    "generation": {
+      "comfyui": {
+        "type": "comfyui",
+        "enabled": true,
+        "required": false,
+        "purpose": "Image generation for blog posts and social media content"
+      }
+    },
+    "processing": {
+      "unstructured-io": {
+        "type": "unstructured-io",
+        "enabled": true,
+        "required": false,
+        "purpose": "Document text extraction from PDFs, DOCX, and other formats"
       }
     }
   },
@@ -99,29 +138,78 @@
           "description": "Add app data to resources"
         },
         {
+          "name": "install-cli",
+          "run": "cd cli && ./install-cli.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o campaign-content-studio-api main.go",
+          "description": "Build Go coordination API binary"
+        },
+        {
           "name": "show-urls",
-          "run": "echo '🚀 Campaign Content Studio initialized\\n  Windmill Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Ollama API: http://localhost:${RESOURCE_PORTS[ollama]}\\n  API: http://localhost:${SERVICE_PORT}'",
+          "run": "echo '🚀 Campaign Content Studio initialized\\n  Windmill Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${SERVICE_PORT}\\n  CLI: campaign-content-studio --help'",
           "description": "Display service access URLs"
         }
       ]
     },
     "develop": {
-      "description": "Start campaign content studio services",
+      "description": "Start campaign content studio with Go API server",
       "steps": [
         {
-          "name": "start-services",
-          "run": "cd deployment && ./startup.sh",
-          "description": "Start campaign content studio services"
+          "name": "start-api-server",
+          "run": "cd api && PORT=$SERVICE_PORT N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} WINDMILL_BASE_URL=http://localhost:${RESOURCE_PORTS[windmill]} POSTGRES_URL=postgres://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/campaign_content_studio QDRANT_URL=http://localhost:${RESOURCE_PORTS[qdrant]} MINIO_URL=http://localhost:${RESOURCE_PORTS[minio]} ./campaign-content-studio-api &",
+          "description": "Start Go coordination API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/campaign-content-studio-api"
+          }
+        },
+        {
+          "name": "wait-for-api",
+          "run": "sleep 2 && curl -sf http://localhost:$SERVICE_PORT/health > /dev/null",
+          "description": "Wait for API server to be ready",
+          "retry": {
+            "max_attempts": 15,
+            "delay": 1
+          }
+        },
+        {
+          "name": "show-running-services",
+          "run": "echo '🚀 Campaign Content Studio running:\\n  Windmill Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$SERVICE_PORT\\n  CLI: campaign-content-studio --help'",
+          "description": "Display all running service URLs"
         }
       ]
     },
     "test": {
-      "description": "Test campaign content studio functionality",
+      "description": "Test campaign content studio API and CLI",
       "steps": [
         {
-          "name": "run-tests",
-          "run": "bash test.sh",
-          "description": "Execute integration tests"
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build main.go && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-campaigns-endpoint",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/campaigns",
+          "description": "Test API campaigns endpoint"
+        },
+        {
+          "name": "test-cli-commands",
+          "run": "cd cli && bats campaign-content-studio.bats",
+          "description": "Run CLI test suite",
+          "condition": {
+            "file_exists": "cli/campaign-content-studio.bats"
+          }
         }
       ]
     },
@@ -129,9 +217,14 @@
       "description": "Stop campaign content studio services",
       "steps": [
         {
-          "name": "stop-services",
-          "run": "pkill -f 'campaign-content' || true",
-          "description": "Stop all campaign content studio processes"
+          "name": "stop-api-server",
+          "run": "pkill -f 'campaign-content-studio-api' || true",
+          "description": "Stop Go API server processes"
+        },
+        {
+          "name": "confirm-stop",
+          "run": "echo '🛑 Campaign Content Studio services stopped'",
+          "description": "Confirm services stopped"
         }
       ]
     }

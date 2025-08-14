@@ -1,0 +1,246 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "parent": "vrooli",
+    "name": "workflow-scheduler",
+    "displayName": "Workflow Scheduler",
+    "description": "Enterprise-grade cron scheduling platform for orchestrating Vrooli workflows with centralized management, execution tracking, and intelligent retry handling",
+    "version": "1.0.0",
+    "type": "infrastructure",
+    "category": "automation-tools",
+    "tags": [
+      "scheduling",
+      "cron",
+      "automation",
+      "workflow-orchestration",
+      "time-based-triggers",
+      "job-scheduler",
+      "task-automation"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "SERVICE_PORT",
+      "range": "8090-8999",
+      "fallback": "auto",
+      "description": "Workflow Scheduler REST API port"
+    }
+  },
+  "resources": {
+    "storage": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store schedule definitions, execution history, metrics, and configuration",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "script"
+          },
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "type": "script"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": true,
+        "purpose": "Execution locks, distributed caching, pub/sub for real-time updates"
+      }
+    },
+    "automation": {
+      "n8n": {
+        "type": "n8n",
+        "enabled": true,
+        "required": true,
+        "purpose": "Core scheduling engine, workflow execution, retry handling",
+        "initialization": [
+          {
+            "file": "initialization/automation/n8n/schedule-executor.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/missed-handler.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/retry-handler.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/monitor.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/notification-router.json",
+            "type": "workflow"
+          }
+        ]
+      },
+      "windmill": {
+        "type": "windmill",
+        "enabled": true,
+        "required": false,
+        "purpose": "Management dashboard, visual schedule builder, analytics",
+        "initialization": [
+          {
+            "file": "initialization/automation/windmill/schedule-dashboard.json",
+            "type": "app"
+          },
+          {
+            "file": "initialization/automation/windmill/schedule-builder.json",
+            "type": "app"
+          },
+          {
+            "file": "initialization/automation/windmill/execution-viewer.json",
+            "type": "app"
+          }
+        ]
+      }
+    }
+  },
+  "lifecycle": {
+    "version": "1.0.0",
+    "setup": {
+      "description": "Initialize Workflow Scheduler platform",
+      "steps": [
+        {
+          "name": "base-setup",
+          "run": "bash scripts/lib/setup.sh",
+          "description": "Execute generic setup (e.g. network, system, git)"
+        },
+        {
+          "name": "add-data",
+          "run": "scripts/resources/injection/engine.sh .",
+          "description": "Add app data to resources (database schema, workflows)"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install-cli.sh",
+          "description": "Install scheduler CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o workflow-scheduler-api main.go",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Workflow Scheduler initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  Scheduling Engine: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${SERVICE_PORT}\\n  Database: postgresql://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/workflow_scheduler\\n  Redis: redis://localhost:${RESOURCE_PORTS[redis]}\\n  CLI: scheduler-cli --help'",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start Workflow Scheduler with API server and scheduling engine",
+      "steps": [
+        {
+          "name": "start-api-server",
+          "run": "cd api && PORT=$SERVICE_PORT POSTGRES_URL=postgres://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/workflow_scheduler REDIS_URL=redis://localhost:${RESOURCE_PORTS[redis]} N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} WINDMILL_BASE_URL=http://localhost:${RESOURCE_PORTS[windmill]} ./workflow-scheduler-api &",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/workflow-scheduler-api"
+          }
+        },
+        {
+          "name": "wait-for-api",
+          "run": "sleep 2 && curl -sf http://localhost:$SERVICE_PORT/health > /dev/null",
+          "description": "Wait for API server to be ready",
+          "retry": {
+            "max_attempts": 15,
+            "delay": 1
+          }
+        },
+        {
+          "name": "configure-redis",
+          "run": "redis-cli -p ${RESOURCE_PORTS[redis]} CONFIG SET notify-keyspace-events Ex > /dev/null 2>&1 || true",
+          "description": "Configure Redis for keyspace notifications"
+        },
+        {
+          "name": "show-running-services",
+          "run": "echo '🚀 Workflow Scheduler running:\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}/apps/f/workflow-scheduler/dashboard\\n  Schedule Builder: http://localhost:${RESOURCE_PORTS[windmill]}/apps/f/workflow-scheduler/builder\\n  Scheduling Engine: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$SERVICE_PORT\\n  API Docs: http://localhost:$SERVICE_PORT/docs\\n  CLI: scheduler-cli --help\\n\\nQuick Start:\\n  scheduler-cli create --name \"Daily Report\" --cron \"0 9 * * *\" --url http://localhost:5678/webhook/report'",
+          "description": "Display all running service URLs"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test Workflow Scheduler API and scheduling engine",
+      "steps": [
+        {
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build main.go && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-database-connection",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/api/system/db-status",
+          "description": "Test database connectivity"
+        },
+        {
+          "name": "test-redis-connection",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/api/system/redis-status",
+          "description": "Test Redis connectivity"
+        },
+        {
+          "name": "test-schedule-endpoints",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/api/schedules && curl -sf http://localhost:$SERVICE_PORT/api/executions",
+          "description": "Test main API endpoints"
+        },
+        {
+          "name": "test-cron-validation",
+          "run": "curl -sf 'http://localhost:$SERVICE_PORT/api/cron/validate?expression=0%209%20*%20*%20*'",
+          "description": "Test cron expression validation"
+        },
+        {
+          "name": "test-schedule-creation",
+          "run": "bash test/test-schedule-creation.sh",
+          "description": "Test schedule creation workflow"
+        },
+        {
+          "name": "test-cli-commands",
+          "run": "cd cli && bats scheduler-cli.bats",
+          "description": "Run CLI test suite",
+          "condition": {
+            "file_exists": "cli/scheduler-cli.bats"
+          }
+        },
+        {
+          "name": "run-integration-tests",
+          "run": "bash test/integration-test.sh",
+          "description": "Run comprehensive integration tests",
+          "condition": {
+            "file_exists": "test/integration-test.sh"
+          }
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop Workflow Scheduler services",
+      "steps": [
+        {
+          "name": "stop-api-server",
+          "run": "pkill -f 'workflow-scheduler-api' || true",
+          "description": "Stop Go API server processes"
+        },
+        {
+          "name": "confirm-stop",
+          "run": "echo '🛑 Workflow Scheduler services stopped'",
+          "description": "Confirm services stopped"
+        }
+      ]
+    }
+  }
+}

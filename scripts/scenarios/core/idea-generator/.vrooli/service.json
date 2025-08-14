@@ -8,79 +8,139 @@
     "description": "AI-powered idea generation platform with document processing, semantic search, and agent refinement",
     "version": "1.0.0",
     "type": "business-application",
+    "category": "business-applications",
     "tags": [
       "ideation",
       "brainstorming",
       "ai",
       "creativity",
-      "innovation"
+      "innovation",
+      "document-processing",
+      "semantic-search",
+      "windmill-ui",
+      "multi-agent"
     ]
   },
+  "ports": {
+    "api": {
+      "env_var": "SERVICE_PORT",
+      "range": "8090-8999",
+      "fallback": "auto",
+      "description": "Idea generator coordination API port"
+    }
+  },
   "resources": {
-    "storage": {
-      "postgres": {
-        "enabled": true,
-        "purpose": "Store ideas, templates, and user data"
-      },
-      "minio": {
-        "enabled": true,
-        "buckets": [
-          "documents",
-          "exports",
-          "templates"
-        ],
-        "purpose": "Store documents and generated content"
-      },
-      "qdrant": {
-        "enabled": true,
-        "purpose": "Vector storage for semantic search"
-      }
-    },
     "automation": {
       "n8n": {
+        "type": "n8n",
         "enabled": true,
-        "workflows": [
-          "idea-generation-workflow",
-          "document-processing-pipeline",
-          "agent-refinement-workflow",
-          "semantic-search-workflow"
-        ],
-        "purpose": "Orchestrate idea generation and refinement workflows"
+        "required": true,
+        "initialization": [
+          {
+            "file": "initialization/automation/n8n/idea-generation-workflow.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/document-processing-pipeline.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/agent-refinement-workflow.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/semantic-search-workflow.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/campaign-sync-workflow.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/chat-refinement-workflow.json",
+            "type": "workflow"
+          }
+        ]
+      },
+      "windmill": {
+        "type": "windmill",
+        "enabled": true,
+        "required": true,
+        "initialization": [
+          {
+            "file": "initialization/automation/windmill/idea-generator-app.json",
+            "type": "app"
+          }
+        ]
       }
     },
     "ai": {
       "ollama": {
+        "type": "ollama",
         "enabled": true,
+        "required": true,
         "models": [
           "llama3.2",
-          "mistral"
-        ],
-        "purpose": "Generate and refine ideas"
+          "mistral",
+          "nomic-embed-text"
+        ]
       }
-    }
-  },
-  "deployment": {
-    "ports": {
-      "ui": 3500,
-      "api": 8500
-    }
-  },
-  "features": {
-    "idea_templates": {
-      "enabled": true,
-      "description": "Pre-built templates for various idea types"
     },
-    "document_processing": {
-      "enabled": true,
-      "description": "Process documents to extract ideas and context"
+    "storage": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store campaigns, ideas, chat history, and user data",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "script"
+          },
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "type": "script"
+          }
+        ]
+      },
+      "minio": {
+        "type": "minio",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store uploaded documents and processed content",
+        "initialization": [
+          {
+            "file": "initialization/storage/minio/buckets.json",
+            "type": "config"
+          }
+        ]
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "purpose": "Vector database for semantic search of ideas and documents - enables AI-powered similarity matching and content discovery",
+        "initialization": [
+          {
+            "file": "initialization/storage/qdrant/collections.json",
+            "type": "config"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": true,
+        "purpose": "Cache and real-time chat session management"
+      }
     },
-    "semantic_search": {
-      "enabled": true,
-      "description": "Search ideas using semantic similarity"
-    },
-    "agent_refinement": {
-      "enabled": true,
-      "description": "Use AI agents to refine and expand ideas"
+    "utility": {
+      "unstructured-io": {
+        "type": "unstructured-io",
+        "enabled": true,
+        "required": true,
+        "purpose": "Document processing and text extraction for uploaded files"
+      }
     }
   },
   "lifecycle": {
@@ -99,28 +159,88 @@
           "description": "Add app data to resources"
         },
         {
+          "name": "install-cli",
+          "run": "cd cli && ./install-cli.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o idea-generator-api main.go",
+          "description": "Build Go coordination API binary"
+        },
+        {
           "name": "show-urls",
-          "run": "echo '🚀 Idea Generator initialized\\n  Windmill Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Qdrant Vector Search: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  MinIO Document Storage: http://localhost:${RESOURCE_PORTS[minio]}'",
+          "run": "echo '🚀 Idea Generator initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${SERVICE_PORT}\\n  Vector Search: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  Document Storage: http://localhost:${RESOURCE_PORTS[minio]}\\n  CLI: idea-generator --help'",
           "description": "Display service access URLs"
         }
       ]
     },
     "develop": {
-      "description": "Start idea generator services",
+      "description": "Start idea generator with Go API server",
       "steps": [
         {
-          "name": "start-services",
-          "run": "cd deployment && ./startup.sh",
-          "description": "Start idea generator services"
+          "name": "start-api-server",
+          "run": "cd api && PORT=$SERVICE_PORT N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} WINDMILL_BASE_URL=http://localhost:${RESOURCE_PORTS[windmill]} POSTGRES_URL=postgres://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/idea_generator QDRANT_URL=http://localhost:${RESOURCE_PORTS[qdrant]} MINIO_URL=http://localhost:${RESOURCE_PORTS[minio]} REDIS_URL=redis://localhost:${RESOURCE_PORTS[redis]} OLLAMA_URL=http://localhost:${RESOURCE_PORTS[ollama]} UNSTRUCTURED_URL=http://localhost:${RESOURCE_PORTS[unstructured-io]} ./idea-generator-api &",
+          "description": "Start Go coordination API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/idea-generator-api"
+          }
+        },
+        {
+          "name": "wait-for-api",
+          "run": "sleep 2 && curl -sf http://localhost:$SERVICE_PORT/health > /dev/null",
+          "description": "Wait for API server to be ready",
+          "retry": {
+            "max_attempts": 15,
+            "delay": 1
+          }
+        },
+        {
+          "name": "show-running-services",
+          "run": "echo '🚀 Idea Generator running:\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$SERVICE_PORT\\n  CLI: idea-generator --help'",
+          "description": "Display all running service URLs"
         }
       ]
     },
     "test": {
-      "description": "Run idea generator tests",
+      "description": "Test idea generator API and CLI",
       "steps": [
         {
-          "name": "run-tests",
-          "run": "./test.sh"
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build main.go && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-campaigns-endpoint",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/campaigns",
+          "description": "Test API campaigns endpoint"
+        },
+        {
+          "name": "test-workflows-endpoint",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/workflows",
+          "description": "Test API workflows endpoint"
+        },
+        {
+          "name": "test-cli-commands",
+          "run": "cd cli && bats idea-generator.bats",
+          "description": "Run CLI test suite",
+          "condition": {
+            "file_exists": "cli/idea-generator.bats"
+          }
+        },
+        {
+          "name": "test-integration",
+          "run": "./test.sh",
+          "description": "Run integration tests"
         }
       ]
     },
@@ -128,27 +248,14 @@
       "description": "Stop idea generator services",
       "steps": [
         {
-          "name": "stop-services",
-          "run": "pkill -f 'idea-generator' || true",
-          "description": "Stop all idea generator processes"
-        }
-      ]
-    },
-    "build": {
-      "description": "Build idea generator artifacts",
-      "steps": [
+          "name": "stop-api-server",
+          "run": "pkill -f 'idea-generator-api' || true",
+          "description": "Stop Go API server processes"
+        },
         {
-          "name": "build-artifacts",
-          "run": "./scripts/manage.sh build"
-        }
-      ]
-    },
-    "clean": {
-      "description": "Clean build artifacts and temporary files",
-      "steps": [
-        {
-          "name": "clean-artifacts",
-          "run": "rm -rf dist/ build/ .next/ node_modules/ .cache/ || true"
+          "name": "confirm-stop",
+          "run": "echo '🛑 Idea Generator services stopped'",
+          "description": "Confirm services stopped"
         }
       ]
     }

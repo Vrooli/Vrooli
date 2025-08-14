@@ -1,0 +1,379 @@
+#!/usr/bin/env bash
+# Document Manager CLI
+# Provides command-line interface for the Document Manager API
+
+set -euo pipefail
+
+# Configuration
+API_BASE_URL="${DOCUMENT_MANAGER_API_URL:-http://localhost:8090}"
+VERSION="2.0.0"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+# Logging functions
+log_info() {
+    echo -e "${BLUE}[INFO]${NC} $1"
+}
+
+log_success() {
+    echo -e "${GREEN}[SUCCESS]${NC} $1"
+}
+
+log_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
+}
+
+log_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
+log_header() {
+    echo -e "${CYAN}=== $1 ===${NC}"
+}
+
+# API helper functions
+api_get() {
+    local endpoint="$1"
+    curl -s -f "$API_BASE_URL$endpoint" || {
+        log_error "Failed to connect to API at $API_BASE_URL$endpoint"
+        return 1
+    }
+}
+
+api_post() {
+    local endpoint="$1"
+    local data="$2"
+    curl -s -f -X POST "$API_BASE_URL$endpoint" \
+        -H "Content-Type: application/json" \
+        -d "$data" || {
+        log_error "Failed to POST to API at $API_BASE_URL$endpoint"
+        return 1
+    }
+}
+
+# Command functions
+show_help() {
+    cat << EOF
+Document Manager CLI v$VERSION
+
+USAGE:
+    document-manager [COMMAND] [OPTIONS]
+
+COMMANDS:
+    status          Show system status and health
+    applications    Manage applications
+    agents          Manage agents
+    queue           Manage improvement queue
+    health          Check service health
+    version         Show version information
+    help            Show this help message
+
+APPLICATION COMMANDS:
+    applications list                    List all applications
+    applications create <name> <repo>   Create new application
+    applications show <id>              Show application details
+
+AGENT COMMANDS:
+    agents list                         List all agents
+    agents create <name> <type> <app>   Create new agent
+    agents show <id>                    Show agent details
+    agents enable <id>                  Enable agent
+    agents disable <id>                 Disable agent
+
+QUEUE COMMANDS:
+    queue list                          List improvement queue
+    queue show <id>                     Show queue item details
+    queue approve <id>                  Approve improvement
+    queue deny <id>                     Deny improvement
+
+EXAMPLES:
+    document-manager status
+    document-manager applications list
+    document-manager applications create "My Docs" "https://github.com/user/docs"
+    document-manager agents create "Link Checker" "link_validator" 1
+    document-manager queue list
+
+ENVIRONMENT VARIABLES:
+    DOCUMENT_MANAGER_API_URL    API base URL (default: http://localhost:8090)
+
+EOF
+}
+
+check_health() {
+    log_header "Document Manager Health Check"
+    
+    local health_response
+    health_response=$(api_get "/health") || {
+        log_error "Service is not responding"
+        return 1
+    }
+    
+    echo "$health_response" | jq . 2>/dev/null || echo "$health_response"
+    
+    log_info "Checking subsystems..."
+    
+    # Check database
+    local db_status
+    db_status=$(api_get "/api/system/db-status") || {
+        log_warning "Database status check failed"
+    }
+    if echo "$db_status" | jq -r '.status' 2>/dev/null | grep -q "healthy"; then
+        log_success "Database: Healthy"
+    else
+        log_error "Database: Unhealthy"
+    fi
+    
+    # Check vector database
+    local vector_status
+    vector_status=$(api_get "/api/system/vector-status") || {
+        log_warning "Vector database status check failed"
+    }
+    if echo "$vector_status" | jq -r '.status' 2>/dev/null | grep -q "healthy"; then
+        log_success "Vector Database: Healthy"
+    else
+        log_error "Vector Database: Unhealthy"
+    fi
+    
+    # Check AI integration
+    local ai_status
+    ai_status=$(api_get "/api/system/ai-status") || {
+        log_warning "AI integration status check failed"
+    }
+    if echo "$ai_status" | jq -r '.status' 2>/dev/null | grep -q "healthy"; then
+        log_success "AI Integration: Healthy"
+    else
+        log_error "AI Integration: Unhealthy"
+    fi
+}
+
+show_status() {
+    log_header "Document Manager Status"
+    
+    check_health
+    
+    echo
+    log_info "Getting system overview..."
+    
+    # Get applications count
+    local apps_response
+    apps_response=$(api_get "/api/applications") || {
+        log_warning "Could not fetch applications"
+        return 1
+    }
+    local apps_count
+    apps_count=$(echo "$apps_response" | jq length 2>/dev/null || echo "0")
+    
+    # Get agents count
+    local agents_response
+    agents_response=$(api_get "/api/agents") || {
+        log_warning "Could not fetch agents"
+        return 1
+    }
+    local agents_count
+    agents_count=$(echo "$agents_response" | jq length 2>/dev/null || echo "0")
+    
+    # Get queue count
+    local queue_response
+    queue_response=$(api_get "/api/queue") || {
+        log_warning "Could not fetch queue"
+        return 1
+    }
+    local queue_count
+    queue_count=$(echo "$queue_response" | jq length 2>/dev/null || echo "0")
+    
+    echo
+    log_header "System Overview"
+    echo "Applications: $apps_count"
+    echo "Agents: $agents_count"
+    echo "Queue Items: $queue_count"
+    echo
+    log_info "Use 'document-manager applications list' to see applications"
+    log_info "Use 'document-manager agents list' to see agents"
+    log_info "Use 'document-manager queue list' to see improvement queue"
+}
+
+list_applications() {
+    log_header "Applications"
+    
+    local response
+    response=$(api_get "/api/applications") || return 1
+    
+    if echo "$response" | jq -e 'length == 0' >/dev/null 2>&1; then
+        log_info "No applications found. Create one with:"
+        echo "  document-manager applications create <name> <repository_url>"
+        return 0
+    fi
+    
+    echo "$response" | jq -r '.[] | "\(.id)\t\(.name)\t\(.status)\t\(.health_score)\t\(.agent_count) agents"' | \
+        awk 'BEGIN { printf "%-4s %-25s %-10s %-12s %-10s\n", "ID", "NAME", "STATUS", "HEALTH", "AGENTS"; print "------------------------------------------------------------" } { printf "%-4s %-25s %-10s %-12.2f %-10s\n", $1, $2, $3, $4, $5 " " $6 }'
+}
+
+create_application() {
+    local name="$1"
+    local repo_url="$2"
+    local docs_path="${3:-/docs}"
+    
+    log_info "Creating application: $name"
+    
+    local data
+    data=$(jq -n \
+        --arg name "$name" \
+        --arg repo "$repo_url" \
+        --arg docs "$docs_path" \
+        '{name: $name, repository_url: $repo, documentation_path: $docs}')
+    
+    local response
+    response=$(api_post "/api/applications" "$data") || return 1
+    
+    log_success "Application created successfully"
+    echo "$response" | jq .
+}
+
+list_agents() {
+    log_header "Agents"
+    
+    local response
+    response=$(api_get "/api/agents") || return 1
+    
+    if echo "$response" | jq -e 'length == 0' >/dev/null 2>&1; then
+        log_info "No agents found. Create one with:"
+        echo "  document-manager agents create <name> <type> <application_id>"
+        return 0
+    fi
+    
+    echo "$response" | jq -r '.[] | "\(.id)\t\(.name)\t\(.type)\t\(.application_name)\t\(.status)"' | \
+        awk 'BEGIN { printf "%-4s %-20s %-20s %-20s %-10s\n", "ID", "NAME", "TYPE", "APPLICATION", "STATUS"; print "--------------------------------------------------------------------------------" } { printf "%-4s %-20s %-20s %-20s %-10s\n", $1, $2, $3, $4, $5 }'
+}
+
+create_agent() {
+    local name="$1"
+    local type="$2"
+    local app_id="$3"
+    local schedule="${4:-0 */6 * * *}"  # Default: every 6 hours
+    local threshold="${5:-0.8}"         # Default: 80% confidence threshold
+    
+    log_info "Creating agent: $name"
+    
+    local data
+    data=$(jq -n \
+        --arg name "$name" \
+        --arg type "$type" \
+        --argjson app_id "$app_id" \
+        --arg schedule "$schedule" \
+        --argjson threshold "$threshold" \
+        '{name: $name, type: $type, application_id: $app_id, schedule_cron: $schedule, auto_apply_threshold: $threshold, configuration: "{}"}')
+    
+    local response
+    response=$(api_post "/api/agents" "$data") || return 1
+    
+    log_success "Agent created successfully"
+    echo "$response" | jq .
+}
+
+list_queue() {
+    log_header "Improvement Queue"
+    
+    local response
+    response=$(api_get "/api/queue") || return 1
+    
+    if echo "$response" | jq -e 'length == 0' >/dev/null 2>&1; then
+        log_info "No items in the improvement queue"
+        return 0
+    fi
+    
+    echo "$response" | jq -r '.[] | "\(.id)\t\(.title)\t\(.severity)\t\(.status)\t\(.agent_name)"' | \
+        awk 'BEGIN { printf "%-4s %-30s %-10s %-12s %-15s\n", "ID", "TITLE", "SEVERITY", "STATUS", "AGENT"; print "-------------------------------------------------------------------------------" } { printf "%-4s %-30s %-10s %-12s %-15s\n", $1, $2, $3, $4, $5 }'
+}
+
+show_version() {
+    echo "Document Manager CLI v$VERSION"
+    echo "API: $API_BASE_URL"
+}
+
+# Main command parsing
+main() {
+    if [[ $# -eq 0 ]]; then
+        show_help
+        return 0
+    fi
+    
+    case "${1:-}" in
+        "help"|"-h"|"--help")
+            show_help
+            ;;
+        "version"|"-v"|"--version")
+            show_version
+            ;;
+        "health")
+            check_health
+            ;;
+        "status")
+            show_status
+            ;;
+        "applications")
+            case "${2:-}" in
+                "list")
+                    list_applications
+                    ;;
+                "create")
+                    if [[ $# -lt 4 ]]; then
+                        log_error "Usage: document-manager applications create <name> <repository_url> [docs_path]"
+                        return 1
+                    fi
+                    create_application "$3" "$4" "${5:-}"
+                    ;;
+                *)
+                    log_error "Unknown applications command: ${2:-}"
+                    echo "Available: list, create"
+                    return 1
+                    ;;
+            esac
+            ;;
+        "agents")
+            case "${2:-}" in
+                "list")
+                    list_agents
+                    ;;
+                "create")
+                    if [[ $# -lt 5 ]]; then
+                        log_error "Usage: document-manager agents create <name> <type> <application_id> [schedule] [threshold]"
+                        return 1
+                    fi
+                    create_agent "$3" "$4" "$5" "${6:-}" "${7:-}"
+                    ;;
+                *)
+                    log_error "Unknown agents command: ${2:-}"
+                    echo "Available: list, create"
+                    return 1
+                    ;;
+            esac
+            ;;
+        "queue")
+            case "${2:-}" in
+                "list")
+                    list_queue
+                    ;;
+                *)
+                    log_error "Unknown queue command: ${2:-}"
+                    echo "Available: list"
+                    return 1
+                    ;;
+            esac
+            ;;
+        *)
+            log_error "Unknown command: $1"
+            echo
+            show_help
+            return 1
+            ;;
+    esac
+}
+
+# Execute main function with all arguments
+main "$@"

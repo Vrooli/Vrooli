@@ -93,7 +93,17 @@
         "type": "postgres",
         "enabled": true,
         "required": true,
-        "purpose": "campaign and brand data"
+        "purpose": "campaign and brand data",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "script"
+          },
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "type": "script"
+          }
+        ]
       },
       "qdrant": {
         "type": "qdrant",
@@ -118,7 +128,7 @@
   "lifecycle": {
     "version": "1.0.0",
     "setup": {
-      "description": "Initialize image generation pipeline",
+      "description": "Initialize Enterprise Image Generation Pipeline",
       "steps": [
         {
           "name": "base-setup",
@@ -131,62 +141,93 @@
           "description": "Add app data to resources"
         },
         {
+          "name": "install-cli",
+          "run": "cd cli && ./install-cli.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o image-generation-pipeline-api main.go",
+          "description": "Build Go API binary"
+        },
+        {
           "name": "show-urls",
-          "run": "echo '🚀 Image Generation Pipeline initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  ComfyUI: http://localhost:${RESOURCE_PORTS[comfyui]}'",
+          "run": "echo '🚀 Image Generation Pipeline initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  ComfyUI: http://localhost:${RESOURCE_PORTS[comfyui]}\\n  API: http://localhost:${SERVICE_PORT}\\n  CLI: image-generation-pipeline --help'",
           "description": "Display service access URLs"
         }
       ]
     },
     "develop": {
-      "description": "Start image generation services",
+      "description": "Start image generation pipeline with Go API server",
       "steps": [
         {
-          "name": "start-services",
-          "run": "cd deployment && ./startup.sh &",
-          "description": "Start all image generation services in background",
-          "background": true
+          "name": "start-api-server",
+          "run": "cd api && PORT=$SERVICE_PORT N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} WINDMILL_BASE_URL=http://localhost:${RESOURCE_PORTS[windmill]} COMFYUI_BASE_URL=http://localhost:${RESOURCE_PORTS[comfyui]} WHISPER_BASE_URL=http://localhost:${RESOURCE_PORTS[whisper]} POSTGRES_URL=postgres://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/image_generation_pipeline MINIO_ENDPOINT=localhost:${RESOURCE_PORTS[minio]} QDRANT_URL=http://localhost:${RESOURCE_PORTS[qdrant]} ./image-generation-pipeline-api &",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/image-generation-pipeline-api"
+          }
         },
         {
-          "name": "wait-for-services",
-          "run": "sleep 3 && curl -sf http://localhost:${RESOURCE_PORTS[windmill]}/api/version > /dev/null",
-          "description": "Wait for services to be ready",
+          "name": "wait-for-api",
+          "run": "sleep 2 && curl -sf http://localhost:$SERVICE_PORT/health > /dev/null",
+          "description": "Wait for API server to be ready",
           "retry": {
             "max_attempts": 15,
-            "delay": 2
+            "delay": 1
           }
         },
         {
           "name": "show-running-services",
-          "run": "echo '🚀 Services running:\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  ComfyUI: http://localhost:${RESOURCE_PORTS[comfyui]}'",
-          "description": "Display running service URLs"
+          "run": "echo '🚀 Image Generation Pipeline running:\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  ComfyUI: http://localhost:${RESOURCE_PORTS[comfyui]}\\n  API: http://localhost:$SERVICE_PORT\\n  CLI: image-generation-pipeline --help'",
+          "description": "Display all running service URLs"
         }
       ]
     },
     "test": {
-      "description": "Run image generation tests",
+      "description": "Test image generation pipeline API and CLI",
       "steps": [
         {
-          "name": "test-services-health",
-          "run": "curl -sf http://localhost:${RESOURCE_PORTS[windmill]}/api/version && curl -sf http://localhost:${RESOURCE_PORTS[n8n]}/healthz && curl -sf http://localhost:${RESOURCE_PORTS[comfyui]}",
-          "description": "Test service health endpoints"
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build main.go && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
         },
         {
-          "name": "run-integration-tests",
-          "run": "./test.sh",
-          "description": "Execute integration test suite",
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-campaigns-endpoint",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/api/campaigns",
+          "description": "Test API campaigns endpoint"
+        },
+        {
+          "name": "test-generation-endpoint",
+          "run": "bash test/test-generation-endpoint.sh",
+          "description": "Test API image generation endpoint"
+        },
+        {
+          "name": "test-cli-commands",
+          "run": "cd cli && bats image-generation-pipeline.bats",
+          "description": "Run CLI test suite",
           "condition": {
-            "file_exists": "test.sh"
+            "file_exists": "cli/image-generation-pipeline.bats"
           }
         }
       ]
     },
     "stop": {
-      "description": "Stop image generation services",
+      "description": "Stop image generation pipeline services",
       "steps": [
         {
-          "name": "stop-services",
-          "run": "pkill -f 'startup.sh' || true",
-          "description": "Stop image generation processes"
+          "name": "stop-api-server",
+          "run": "pkill -f 'image-generation-pipeline-api' || true",
+          "description": "Stop Go API server processes"
         },
         {
           "name": "confirm-stop",

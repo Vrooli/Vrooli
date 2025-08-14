@@ -5,16 +5,21 @@
 
 set -euo pipefail
 
-# Source var.sh for directory variables
-# shellcheck disable=SC1091
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../../../lib/utils/var.sh" 2>/dev/null || true
-# shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+# Basic path detection without dependency on var.sh
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Safe remove function (lightweight version)
+safe_remove() {
+    local file="$1"
+    if [[ -f "$file" ]]; then
+        rm -f "$file"
+    fi
+}
 
 # Configuration
 CLI_VERSION="1.0.0"
 CLI_NAME="task-planner"
-DEFAULT_API_BASE="${TASK_PLANNER_API_BASE:-http://localhost:8092/api}"
+DEFAULT_API_BASE="${TASK_PLANNER_API_BASE:-http://localhost:8090/api}"
 CONFIG_DIR="${HOME}/.task-planner"
 CONFIG_FILE="${CONFIG_DIR}/config.json"
 
@@ -631,7 +636,7 @@ cmd_config() {
             success "Configuration updated: $key = $value"
             ;;
         "reset")
-            trash::safe_remove "$CONFIG_FILE" --temp
+            safe_remove "$CONFIG_FILE"
             create_default_config
             success "Configuration reset to defaults"
             ;;

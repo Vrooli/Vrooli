@@ -55,7 +55,17 @@
         "type": "postgres",
         "enabled": true,
         "required": true,
-        "purpose": "app personalization metadata and configurations"
+        "purpose": "app personalization metadata and configurations",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "script"
+          },
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "type": "script"
+          }
+        ]
       },
       "minio": {
         "type": "minio",
@@ -66,12 +76,6 @@
     }
   },
   "ports": {
-    "ui": {
-      "env_var": "UI_PORT",
-      "range": "3000-3999",
-      "fallback": "auto",
-      "description": "Personalization UI port"
-    },
     "api": {
       "env_var": "SERVICE_PORT",
       "range": "8090-8999",
@@ -95,29 +99,78 @@
           "description": "Add app data to resources"
         },
         {
+          "name": "install-cli",
+          "run": "cd cli && ./install-cli.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o app-personalizer-api main.go",
+          "description": "Build Go API binary"
+        },
+        {
           "name": "show-urls",
-          "run": "echo '🚀 App Personalizer initialized\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${SERVICE_PORT}\\n  UI: http://localhost:${UI_PORT}'",
+          "run": "echo '🚀 App Personalizer initialized\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${SERVICE_PORT}\\n  CLI: app-personalizer --help'",
           "description": "Display service access URLs"
         }
       ]
     },
     "develop": {
-      "description": "Start App Personalizer services",
+      "description": "Start App Personalizer with Go API server",
       "steps": [
         {
-          "name": "start-services",
-          "run": "echo 'Starting App Personalizer services...'",
-          "description": "Start personalization services"
+          "name": "start-api-server",
+          "run": "cd api && PORT=$SERVICE_PORT N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} POSTGRES_URL=postgres://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/app_personalizer MINIO_ENDPOINT=localhost:${RESOURCE_PORTS[minio]} ./app-personalizer-api &",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/app-personalizer-api"
+          }
+        },
+        {
+          "name": "wait-for-api",
+          "run": "sleep 2 && curl -sf http://localhost:$SERVICE_PORT/health > /dev/null",
+          "description": "Wait for API server to be ready",
+          "retry": {
+            "max_attempts": 15,
+            "delay": 1
+          }
+        },
+        {
+          "name": "show-running-services",
+          "run": "echo '🚀 App Personalizer running:\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$SERVICE_PORT\\n  CLI: app-personalizer --help'",
+          "description": "Display all running service URLs"
         }
       ]
     },
     "test": {
-      "description": "Test App Personalizer functionality",
+      "description": "Test App Personalizer Go API and CLI",
       "steps": [
         {
-          "name": "run-tests",
-          "run": "bash scenario-test.yaml",
-          "description": "Run scenario tests"
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build main.go && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-apps-endpoint",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/api/apps",
+          "description": "Test API apps endpoint"
+        },
+        {
+          "name": "test-cli-commands",
+          "run": "cd cli && bats app-personalizer.bats",
+          "description": "Run CLI test suite",
+          "condition": {
+            "file_exists": "cli/app-personalizer.bats"
+          }
         }
       ]
     },
@@ -125,9 +178,14 @@
       "description": "Stop App Personalizer services",
       "steps": [
         {
-          "name": "stop-services",
-          "run": "pkill -f 'app-personalizer' || true",
-          "description": "Stop all personalizer processes"
+          "name": "stop-api-server",
+          "run": "pkill -f 'app-personalizer-api' || true",
+          "description": "Stop Go API server processes"
+        },
+        {
+          "name": "confirm-stop",
+          "run": "echo '🛑 App Personalizer services stopped'",
+          "description": "Confirm services stopped"
         }
       ]
     }

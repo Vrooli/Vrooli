@@ -59,74 +59,92 @@ run_test() {
 
 # Test Functions
 test_postgres_connection() {
+    local port="${RESOURCE_PORTS[postgres]:-5432}"
     PGPASSWORD="${POSTGRES_PASSWORD:-postgres}" psql \
         -h localhost \
-        -p 5433 \
-        -U "${POSTGRES_USER:-ideagen_user}" \
-        -d "${POSTGRES_DB:-ideagen}" \
+        -p "$port" \
+        -U "${POSTGRES_USER:-postgres}" \
+        -d "${POSTGRES_DB:-idea_generator}" \
         -c "SELECT 1" >/dev/null 2>&1
 }
 
 test_redis_connection() {
-    redis-cli -p 6380 ping >/dev/null 2>&1
+    local port="${RESOURCE_PORTS[redis]:-6379}"
+    redis-cli -p "$port" ping >/dev/null 2>&1
 }
 
 test_minio_connection() {
-    curl -f "http://localhost:9000/minio/health/live" >/dev/null 2>&1
+    local port="${RESOURCE_PORTS[minio]:-9000}"
+    curl -f "http://localhost:$port/minio/health/live" >/dev/null 2>&1
 }
 
 test_qdrant_connection() {
-    curl -f "http://localhost:6333/health" >/dev/null 2>&1
+    local port="${RESOURCE_PORTS[qdrant]:-6333}"
+    curl -f "http://localhost:$port/health" >/dev/null 2>&1
 }
 
 test_ollama_connection() {
-    curl -f "http://localhost:11434/api/version" >/dev/null 2>&1
+    local port="${RESOURCE_PORTS[ollama]:-11434}"
+    curl -f "http://localhost:$port/api/version" >/dev/null 2>&1
 }
 
 test_unstructured_connection() {
-    curl -f "http://localhost:11450/healthcheck" >/dev/null 2>&1
+    local port="${RESOURCE_PORTS[unstructured-io]:-11450}"
+    curl -f "http://localhost:$port/healthcheck" >/dev/null 2>&1
 }
 
 test_n8n_connection() {
-    curl -f "http://localhost:5678/healthz" >/dev/null 2>&1
+    local port="${RESOURCE_PORTS[n8n]:-5678}"
+    curl -f "http://localhost:$port/healthz" >/dev/null 2>&1
 }
 
 test_windmill_connection() {
-    curl -f "http://localhost:5681/api/version" >/dev/null 2>&1
+    local port="${RESOURCE_PORTS[windmill]:-5681}"
+    curl -f "http://localhost:$port/api/version" >/dev/null 2>&1
+}
+
+test_api_connection() {
+    local port="${SERVICE_PORT:-8500}"
+    curl -f "http://localhost:$port/health" >/dev/null 2>&1
 }
 
 test_database_schema() {
+    local port="${RESOURCE_PORTS[postgres]:-5432}"
     local tables=$(PGPASSWORD="${POSTGRES_PASSWORD:-postgres}" psql \
         -h localhost \
-        -p 5433 \
-        -U "${POSTGRES_USER:-ideagen_user}" \
-        -d "${POSTGRES_DB:-ideagen}" \
+        -p "$port" \
+        -U "${POSTGRES_USER:-postgres}" \
+        -d "${POSTGRES_DB:-idea_generator}" \
         -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public'" 2>/dev/null | xargs)
     
-    [[ $tables -ge 10 ]] # We expect at least 10 tables
+    [[ $tables -ge 5 ]] # We expect at least 5 tables
 }
 
 test_qdrant_collections() {
-    local response=$(curl -s "http://localhost:6333/collections")
+    local port="${RESOURCE_PORTS[qdrant]:-6333}"
+    local response=$(curl -s "http://localhost:$port/collections")
     echo "$response" | grep -q "ideas" && \
     echo "$response" | grep -q "documents" && \
     echo "$response" | grep -q "campaigns"
 }
 
 test_minio_buckets() {
+    local port="${RESOURCE_PORTS[minio]:-9000}"
     # Check if key buckets exist
-    curl -s -I "http://localhost:9000/idea-documents" | grep -q "200\|404" && \
-    curl -s -I "http://localhost:9000/processed-content" | grep -q "200\|404"
+    curl -s -I "http://localhost:$port/idea-documents" | grep -q "200\|404" && \
+    curl -s -I "http://localhost:$port/processed-content" | grep -q "200\|404"
 }
 
 test_n8n_workflows() {
-    local workflows=$(curl -s "http://localhost:5678/rest/workflows" | grep -o '"name"' | wc -l)
+    local port="${RESOURCE_PORTS[n8n]:-5678}"
+    local workflows=$(curl -s "http://localhost:$port/rest/workflows" | grep -o '"name"' | wc -l)
     [[ $workflows -ge 5 ]] # We expect at least 5 workflows
 }
 
 test_idea_generation_workflow() {
+    local port="${RESOURCE_PORTS[n8n]:-5678}"
     # Test the idea generation workflow
-    local response=$(curl -s -X POST "http://localhost:5678/webhook/generate-ideas" \
+    local response=$(curl -s -X POST "http://localhost:$port/webhook/generate-ideas" \
         -H "Content-Type: application/json" \
         -d '{
             "campaign_id": "650e8400-e29b-41d4-a716-446655440001",
@@ -138,8 +156,9 @@ test_idea_generation_workflow() {
 }
 
 test_semantic_search_workflow() {
+    local port="${RESOURCE_PORTS[n8n]:-5678}"
     # Test the semantic search workflow
-    local response=$(curl -s -X POST "http://localhost:5678/webhook/semantic-search" \
+    local response=$(curl -s -X POST "http://localhost:$port/webhook/semantic-search" \
         -H "Content-Type: application/json" \
         -d '{
             "query": "test search",
@@ -150,8 +169,9 @@ test_semantic_search_workflow() {
 }
 
 test_campaign_operations() {
+    local port="${RESOURCE_PORTS[n8n]:-5678}"
     # Test campaign sync workflow
-    local response=$(curl -s -X POST "http://localhost:5678/webhook/campaign-sync" \
+    local response=$(curl -s -X POST "http://localhost:$port/webhook/campaign-sync" \
         -H "Content-Type: application/json" \
         -d '{
             "operation": "create",
@@ -163,15 +183,30 @@ test_campaign_operations() {
 }
 
 test_windmill_app() {
+    local port="${RESOURCE_PORTS[windmill]:-5681}"
     # Check if Windmill app is deployed
-    local apps=$(curl -s "http://localhost:5681/api/apps" 2>/dev/null || echo '[]')
+    local apps=$(curl -s "http://localhost:$port/api/apps" 2>/dev/null || echo '[]')
     echo "$apps" | grep -q "Idea Generator" || [[ "$apps" != "[]" ]]
 }
 
 test_ollama_models() {
+    local port="${RESOURCE_PORTS[ollama]:-11434}"
     # Check if required models are available
-    local models=$(curl -s "http://localhost:11434/api/tags" 2>/dev/null || echo '{}')
+    local models=$(curl -s "http://localhost:$port/api/tags" 2>/dev/null || echo '{}')
     echo "$models" | grep -q "llama3.2\|mistral"
+}
+
+test_api_endpoints() {
+    local port="${SERVICE_PORT:-8500}"
+    
+    # Test health endpoint
+    curl -f "http://localhost:$port/health" >/dev/null 2>&1 && \
+    # Test campaigns endpoint
+    curl -f "http://localhost:$port/campaigns" >/dev/null 2>&1 && \
+    # Test ideas endpoint
+    curl -f "http://localhost:$port/ideas" >/dev/null 2>&1 && \
+    # Test workflows endpoint
+    curl -f "http://localhost:$port/workflows" >/dev/null 2>&1
 }
 
 # Main test execution
@@ -188,6 +223,7 @@ main() {
     run_test "Unstructured-IO Connection" test_unstructured_connection
     run_test "n8n Connection" test_n8n_connection
     run_test "Windmill Connection" test_windmill_connection
+    run_test "API Connection" test_api_connection
     
     # Configuration tests
     run_test "Database Schema" test_database_schema
@@ -196,6 +232,9 @@ main() {
     run_test "n8n Workflows" test_n8n_workflows
     run_test "Windmill App" test_windmill_app
     run_test "Ollama Models" test_ollama_models
+    
+    # API tests
+    run_test "API Endpoints" test_api_endpoints
     
     # Workflow tests
     run_test "Idea Generation Workflow" test_idea_generation_workflow

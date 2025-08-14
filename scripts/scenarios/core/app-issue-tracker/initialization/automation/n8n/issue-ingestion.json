@@ -26,7 +26,7 @@
     },
     {
       "parameters": {
-        "url": "http://ollama:11434/api/embeddings",
+        "url": "{{ $env.OLLAMA_URL || 'http://localhost:11434' }}/api/embeddings",
         "method": "POST",
         "body": "{\n  \"model\": \"nomic-embed-text\",\n  \"prompt\": \"{{ $json.title }} {{ $json.description }} {{ $json.error_message }}\"\n}",
         "options": {
@@ -41,7 +41,7 @@
     },
     {
       "parameters": {
-        "functionCode": "// Check for duplicate issues using embeddings\nconst issue = items[0].json;\nconst embedding = items[0].json.embedding;\n\n// Query Qdrant for similar issues\nconst qdrantUrl = 'http://qdrant:6333/collections/issues/points/search';\nconst searchPayload = {\n  vector: embedding,\n  limit: 5,\n  with_payload: true,\n  score_threshold: 0.85\n};\n\n// Simulate search (in real implementation, use HTTP Request node)\nconst similarIssues = [];\n\nif (similarIssues.length > 0 && similarIssues[0].score > 0.95) {\n  // Very high similarity - likely duplicate\n  issue.is_duplicate = true;\n  issue.duplicate_of = similarIssues[0].id;\n  issue.similarity_score = similarIssues[0].score;\n} else if (similarIssues.length > 0) {\n  // Related but not duplicate\n  issue.related_issues = similarIssues.map(s => ({\n    id: s.id,\n    title: s.payload.title,\n    similarity: s.score\n  }));\n}\n\nreturn [{json: issue}];"
+        "functionCode": "// Check for duplicate issues using embeddings\nconst issue = items[0].json;\nconst embedding = items[0].json.embedding;\n\n// Query Qdrant for similar issues\nconst qdrantUrl = `${process.env.QDRANT_URL || 'http://localhost:6333'}/collections/issues/points/search`;\nconst searchPayload = {\n  vector: embedding,\n  limit: 5,\n  with_payload: true,\n  score_threshold: 0.85\n};\n\n// Simulate search (in real implementation, use HTTP Request node)\nconst similarIssues = [];\n\nif (similarIssues.length > 0 && similarIssues[0].score > 0.95) {\n  // Very high similarity - likely duplicate\n  issue.is_duplicate = true;\n  issue.duplicate_of = similarIssues[0].id;\n  issue.similarity_score = similarIssues[0].score;\n} else if (similarIssues.length > 0) {\n  // Related but not duplicate\n  issue.related_issues = similarIssues.map(s => ({\n    id: s.id,\n    title: s.payload.title,\n    similarity: s.score\n  }));\n}\n\nreturn [{json: issue}];"
       },
       "id": "check_duplicates",
       "name": "Check Duplicates",
@@ -102,7 +102,7 @@
     },
     {
       "parameters": {
-        "url": "http://qdrant:6333/collections/issues/points",
+        "url": "{{ $env.QDRANT_URL || 'http://localhost:6333' }}/collections/issues/points",
         "method": "PUT",
         "body": "{\n  \"points\": [\n    {\n      \"id\": \"{{ $json.id }}\",\n      \"vector\": {{ $json.embedding }},\n      \"payload\": {\n        \"app_id\": \"{{ $json.app_id }}\",\n        \"title\": \"{{ $json.title }}\",\n        \"type\": \"{{ $json.type }}\",\n        \"priority\": \"{{ $json.priority }}\",\n        \"status\": \"{{ $json.status }}\",\n        \"pattern_group_id\": \"{{ $json.pattern_group_id }}\",\n        \"created_at\": \"{{ $json.created_at }}\"\n      }\n    }\n  ]\n}",
         "options": {}
@@ -153,7 +153,7 @@
     },
     {
       "parameters": {
-        "url": "http://localhost:8000/api/w/issue_tracker/jobs/run/p/trigger-investigation",
+        "url": "{{ $env.WINDMILL_BASE_URL || 'http://localhost:8000' }}/api/w/issue_tracker/jobs/run/p/trigger-investigation",
         "method": "POST",
         "body": "{\n  \"issueId\": \"{{ $json.id }}\",\n  \"priority\": \"{{ $json.investigation_priority }}\"\n}",
         "options": {}

@@ -81,7 +81,7 @@
     },
     {
       "parameters": {
-        "url": "http://qdrant:6333/collections/issues/points",
+        "url": "{{ $env.QDRANT_URL || 'http://localhost:6333' }}/collections/issues/points",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpBasicAuth",
         "httpMethod": "PUT",

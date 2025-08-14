@@ -1,0 +1,71 @@
+{
+  "feature_flags": {
+    "experimental_ai_models": {
+      "enabled": false,
+      "description": "Enable experimental AI models for content generation",
+      "rollout_percentage": 0
+    },
+    "advanced_analytics": {
+      "enabled": true,
+      "description": "Advanced analytics and reporting features",
+      "rollout_percentage": 100
+    },
+    "real_time_collaboration": {
+      "enabled": false,
+      "description": "Real-time collaboration features for team campaigns",
+      "rollout_percentage": 0
+    },
+    "bulk_content_generation": {
+      "enabled": true,
+      "description": "Generate multiple content pieces in batch",
+      "rollout_percentage": 100
+    },
+    "social_media_scheduler": {
+      "enabled": false,
+      "description": "Schedule and auto-post generated social media content",
+      "rollout_percentage": 0
+    },
+    "advanced_image_generation": {
+      "enabled": true,
+      "description": "Advanced image generation with style controls",
+      "rollout_percentage": 75
+    },
+    "campaign_templates": {
+      "enabled": true,
+      "description": "Pre-built campaign templates for quick setup",
+      "rollout_percentage": 100
+    },
+    "voice_content_generation": {
+      "enabled": false,
+      "description": "Generate audio content from text",
+      "rollout_percentage": 0
+    },
+    "multi_language_support": {
+      "enabled": false,
+      "description": "Generate content in multiple languages",
+      "rollout_percentage": 10
+    },
+    "content_approval_workflow": {
+      "enabled": true,
+      "description": "Approval workflow for generated content",
+      "rollout_percentage": 100
+    }
+  },
+  "environment": {
+    "development": {
+      "debug_mode": true,
+      "mock_external_apis": false,
+      "enable_test_data": true
+    },
+    "staging": {
+      "debug_mode": false,
+      "mock_external_apis": false,
+      "enable_test_data": false
+    },
+    "production": {
+      "debug_mode": false,
+      "mock_external_apis": false,
+      "enable_test_data": false
+    }
+  }
+}

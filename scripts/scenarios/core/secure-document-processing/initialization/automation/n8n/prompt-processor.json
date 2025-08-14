@@ -37,7 +37,7 @@
     
     {
       "parameters": {
-        "url": "http://localhost:9000/{{ $json.storage_bucket }}/{{ $json.storage_path }}",
+        "url": "http://localhost:{{ $env.RESOURCE_PORTS_minio }}/{{ $json.storage_bucket }}/{{ $json.storage_path }}",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpBasicAuth",
         "options": {
@@ -58,7 +58,7 @@
     
     {
       "parameters": {
-        "url": "http://localhost:11450/general/v0/general",
+        "url": "http://localhost:{{ $env.RESOURCE_PORTS_unstructured_io }}/general/v0/general",
         "sendBody": true,
         "contentType": "multipart-form-data",
         "bodyParameters": {
@@ -107,7 +107,7 @@
     
     {
       "parameters": {
-        "url": "http://localhost:11434/api/generate",
+        "url": "http://localhost:{{ $env.RESOURCE_PORTS_ollama }}/api/generate",
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
@@ -220,7 +220,7 @@
     
     {
       "parameters": {
-        "url": "http://localhost:9000/{{ $json.output_path }}",
+        "url": "http://localhost:{{ $env.RESOURCE_PORTS_minio }}/{{ $json.output_path }}",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpBasicAuth",
         "sendHeaders": true,

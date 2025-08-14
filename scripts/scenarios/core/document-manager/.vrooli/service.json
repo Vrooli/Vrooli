@@ -5,69 +5,133 @@
     "parent": "vrooli",
     "name": "document-manager",
     "displayName": "Document Manager",
-    "description": "AI-powered documentation management SaaS platform with agent-based monitoring, improvement suggestions, and comprehensive workflow automation",
+    "description": "AI-powered documentation management SaaS platform with comprehensive analysis, improvement suggestions, and automated quality maintenance",
     "version": "2.0.0",
     "type": "business-application",
+    "category": "productivity",
     "tags": [
       "documentation",
       "ai",
       "automation",
       "saas",
-      "monitoring"
+      "quality-assurance",
+      "content-analysis",
+      "windmill-ui"
     ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "SERVICE_PORT",
+      "range": "8090-8999",
+      "fallback": "auto",
+      "description": "Document manager coordination API port"
+    }
   },
   "resources": {
     "storage": {
       "postgres": {
+        "type": "postgres",
         "enabled": true,
-        "purpose": "Primary data storage for applications, agents, queues, and metrics",
-        "databases": [
-          "document_manager"
-        ],
-        "extensions": [
-          "uuid-ossp",
-          "pgcrypto"
+        "required": true,
+        "purpose": "Store application metadata, agent configurations, improvement queue, and audit logs",
+        "database": "document_manager",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "script"
+          },
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "type": "script"
+          }
         ]
       },
       "qdrant": {
+        "type": "qdrant",
         "enabled": true,
-        "purpose": "Vector storage for semantic search and AI embeddings"
+        "required": true,
+        "purpose": "Vector database for documentation embeddings, agent memory, and similarity pattern analysis",
+        "initialization": [
+          {
+            "file": "initialization/storage/qdrant/collections.json",
+            "type": "collections"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": true,
+        "purpose": "Real-time messaging, notification channels, and caching"
       }
     },
     "automation": {
       "windmill": {
+        "type": "windmill",
         "enabled": true,
-        "purpose": "Main UI application and backend workflow engine",
-        "auto_deploy_apps": true,
-        "workspace": "document_manager"
+        "required": true,
+        "workspace": "document_manager",
+        "initialization": [
+          {
+            "file": "initialization/automation/windmill/app.json",
+            "type": "app"
+          },
+          {
+            "file": "initialization/automation/windmill/flows/agent-manager.py",
+            "type": "script",
+            "path": "f/agent_manager"
+          },
+          {
+            "file": "initialization/automation/windmill/flows/app-manager.py",
+            "type": "script",
+            "path": "f/app_manager"
+          },
+          {
+            "file": "initialization/automation/windmill/flows/queue-processor.py",
+            "type": "script",
+            "path": "f/queue_processor"
+          }
+        ]
       },
       "n8n": {
+        "type": "n8n",
         "enabled": true,
-        "purpose": "Background automation and agent orchestration",
-        "auto_import_workflows": true,
-        "webhook_url": "http://localhost:5678"
+        "required": true,
+        "initialization": [
+          {
+            "file": "initialization/automation/n8n/doc-monitor-workflow.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/improvement-processor.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/notification-router.json",
+            "type": "workflow"
+          }
+        ]
       }
     },
     "ai": {
       "ollama": {
+        "type": "ollama",
         "enabled": true,
+        "required": true,
         "models": [
           "llama3.2",
-          "mistral"
-        ],
-        "purpose": "Document analysis and improvement suggestions"
-      },
-      "claude-code": {
-        "enabled": true,
-        "purpose": "Advanced document generation and agent tasks"
+          "nomic-embed-text",
+          "codellama"
+        ]
       }
-    }
-  },
-  "deployment": {
-    "ports": {
-      "ui": 8000,
-      "api": 8001,
-      "n8n": 5678
+    },
+    "processing": {
+      "unstructured_io": {
+        "type": "unstructured_io",
+        "enabled": true,
+        "required": false,
+        "purpose": "Advanced document parsing and content extraction"
+      }
     }
   },
   "business_model": {
@@ -85,7 +149,7 @@
   "lifecycle": {
     "version": "1.0.0",
     "setup": {
-      "description": "Initialize Document Manager",
+      "description": "Initialize Document Manager with all resources and integrations",
       "steps": [
         {
           "name": "base-setup",
@@ -95,31 +159,119 @@
         {
           "name": "add-data",
           "run": "scripts/resources/injection/engine.sh .",
-          "description": "Add app data to resources"
+          "description": "Add application data to resources (database schema, collections, workflows)"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install-cli.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o document-manager-api main.go",
+          "description": "Build Go coordination API binary"
+        },
+        {
+          "name": "verify-models",
+          "run": "curl -sf http://localhost:${RESOURCE_PORTS[ollama]}/api/tags | grep -E '(llama3.2|nomic-embed-text)' || echo 'Pulling required models...' && curl -X POST http://localhost:${RESOURCE_PORTS[ollama]}/api/pull -d '{\"name\": \"llama3.2\"}' & curl -X POST http://localhost:${RESOURCE_PORTS[ollama]}/api/pull -d '{\"name\": \"nomic-embed-text\"}' &",
+          "description": "Verify and pull required AI models"
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Document Manager initialized\\n  Windmill Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Qdrant Vector DB: http://localhost:${RESOURCE_PORTS[qdrant]}'",
+          "run": "echo '🚀 Document Manager initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${SERVICE_PORT}\\n  Database: postgresql://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/document_manager\\n  Vector DB: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  Redis: redis://localhost:${RESOURCE_PORTS[redis]}\\n  CLI: document-manager --help'",
           "description": "Display service access URLs"
         }
       ]
     },
     "develop": {
-      "description": "Start document manager services",
+      "description": "Start document manager with coordination API and monitoring",
       "steps": [
         {
-          "name": "start-services",
-          "run": "cd deployment && ./startup.sh",
-          "description": "Start document manager services"
+          "name": "start-api-server",
+          "run": "cd api && PORT=$SERVICE_PORT POSTGRES_URL=postgres://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/document_manager REDIS_URL=redis://localhost:${RESOURCE_PORTS[redis]} QDRANT_URL=http://localhost:${RESOURCE_PORTS[qdrant]} OLLAMA_URL=http://localhost:${RESOURCE_PORTS[ollama]} N8N_URL=http://localhost:${RESOURCE_PORTS[n8n]} WINDMILL_URL=http://localhost:${RESOURCE_PORTS[windmill]} UNSTRUCTURED_URL=http://localhost:${RESOURCE_PORTS[unstructured_io]} ./document-manager-api &",
+          "description": "Start Go coordination API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/document-manager-api"
+          }
+        },
+        {
+          "name": "wait-for-api",
+          "run": "sleep 3 && curl -sf http://localhost:$SERVICE_PORT/health > /dev/null",
+          "description": "Wait for API server to be ready",
+          "retry": {
+            "max_attempts": 20,
+            "delay": 1
+          }
+        },
+        {
+          "name": "configure-redis-notifications",
+          "run": "redis-cli -p ${RESOURCE_PORTS[redis]} CONFIG SET notify-keyspace-events Ex > /dev/null 2>&1 || echo 'Redis keyspace notifications configured'",
+          "description": "Configure Redis for pub/sub notifications"
+        },
+        {
+          "name": "show-running-services",
+          "run": "echo '🚀 Document Manager running:\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Coordination API: http://localhost:$SERVICE_PORT\\n  Vector search: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  CLI: document-manager --help\\n\\nNext steps:\\n  1. Create your first application in the dashboard\\n  2. Configure agents for your documentation\\n  3. Monitor the improvement queue for suggestions'",
+          "description": "Display all running service URLs and next steps"
         }
       ]
     },
     "test": {
-      "description": "Run document manager tests",
+      "description": "Test document manager API, integrations, and workflows",
       "steps": [
         {
-          "name": "run-tests",
-          "run": "./test.sh"
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build main.go && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-database-connection",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/api/system/db-status",
+          "description": "Test database connectivity"
+        },
+        {
+          "name": "test-vector-db-connection",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/api/system/vector-status",
+          "description": "Test vector database connectivity"
+        },
+        {
+          "name": "test-ai-integration",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/api/system/ai-status",
+          "description": "Test AI model integration"
+        },
+        {
+          "name": "test-application-endpoints",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/api/applications && curl -sf http://localhost:$SERVICE_PORT/api/agents && curl -sf http://localhost:$SERVICE_PORT/api/queue",
+          "description": "Test main API endpoints"
+        },
+        {
+          "name": "test-windmill-integration",
+          "run": "curl -sf http://localhost:${RESOURCE_PORTS[windmill]}/api/version && curl -sf http://localhost:${RESOURCE_PORTS[windmill]}/api/w/document_manager/apps",
+          "description": "Test Windmill dashboard integration"
+        },
+        {
+          "name": "test-cli-commands",
+          "run": "cd cli && bats document-manager.bats",
+          "description": "Run CLI test suite",
+          "condition": {
+            "file_exists": "cli/document-manager.bats"
+          }
+        },
+        {
+          "name": "run-integration-tests",
+          "run": "bash test/integration-test.sh",
+          "description": "Run comprehensive integration tests",
+          "condition": {
+            "file_exists": "test/integration-test.sh"
+          }
         }
       ]
     },
@@ -127,27 +279,14 @@
       "description": "Stop document manager services",
       "steps": [
         {
-          "name": "stop-services",
-          "run": "pkill -f 'document-manager' || true",
-          "description": "Stop all document manager processes"
-        }
-      ]
-    },
-    "build": {
-      "description": "Build document manager artifacts",
-      "steps": [
+          "name": "stop-api-server",
+          "run": "pkill -f 'document-manager-api' || true",
+          "description": "Stop Go API server processes"
+        },
         {
-          "name": "build-artifacts",
-          "run": "./scripts/manage.sh build"
-        }
-      ]
-    },
-    "clean": {
-      "description": "Clean build artifacts and temporary files",
-      "steps": [
-        {
-          "name": "clean-artifacts",
-          "run": "rm -rf dist/ build/ .next/ node_modules/ .cache/ || true"
+          "name": "confirm-stop",
+          "run": "echo '🛑 Document Manager services stopped'",
+          "description": "Confirm services stopped"
         }
       ]
     }

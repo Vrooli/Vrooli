@@ -1,38 +1,16 @@
 {
-  "name": "Auto Restart Unhealthy Apps",
+  "name": "App Auto-Restart",
   "nodes": [
     {
-      "parameters": {
-        "channel": "app-alerts",
-        "options": {}
-      },
-      "id": "4h5i6j7k-8l9m-0n1o-2p3q-4r5s6t7u8v9w",
-      "name": "Listen for Alerts",
-      "type": "n8n-nodes-base.redisTrigger",
+      "parameters": {},
+      "id": "auto-restart-trigger",
+      "name": "Check for Failed Apps",
+      "type": "n8n-nodes-base.cron",
       "typeVersion": 1,
-      "position": [
-        260,
-        300
-      ],
-      "credentials": {
-        "redis": {
-          "id": "1",
-          "name": "app-monitor-redis"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "// Extract app name from alert message\nconst message = $input.item.json.message || '';\nconst appNameMatch = message.match(/App (\\S+) health check failed/);\n\nif (appNameMatch) {\n  return {\n    json: {\n      appName: appNameMatch[1],\n      alertMessage: message,\n      timestamp: new Date().toISOString()\n    }\n  };\n}\n\n// Skip if no app name found\nreturn null;"
-      },
-      "id": "5i6j7k8l-9m0n-1o2p-3q4r-5s6t7u8v9w0x",
-      "name": "Extract App Info",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        480,
-        300
-      ]
+      "position": [260, 300],
+      "credentials": {},
+      "cronExpression": "*/5 * * * *",
+      "timezone": "UTC"
     },
     {
       "parameters": {
@@ -41,27 +19,30 @@
         "where": {
           "conditions": [
             {
-              "column": "name",
-              "value": "={{ $json.appName }}"
+              "column": "status",
+              "value": "failed"
             }
           ]
         },
         "options": {}
       },
-      "id": "6j7k8l9m-0n1o-2p3q-4r5s-6t7u8v9w0x1y",
-      "name": "Get App Details",
+      "id": "get-failed-apps",
+      "name": "Get Failed Apps",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [
-        700,
-        300
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "1",
-          "name": "app-monitor-postgres"
-        }
-      }
+      "position": [480, 300],
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "process-failed-apps",
+      "name": "Process Each Failed App",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [700, 300]
     },
     {
       "parameters": {
@@ -85,29 +66,31 @@
         },
         "options": {}
       },
-      "id": "7k8l9m0n-1o2p-3q4r-5s6t-7u8v9w0x1y2z",
-      "name": "Check Auto Restart Enabled",
+      "id": "check-auto-restart",
+      "name": "Check Auto-Restart Enabled",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [
-        920,
-        300
-      ]
+      "position": [920, 300]
     },
     {
       "parameters": {
-        "url": "=unix:///var/run/docker.sock:/containers/{{ $json.config.container_name || $json.name }}/restart",
-        "method": "POST",
-        "options": {}
+        "url": "=http://localhost:{{ process.env.SERVICE_PORT || 8090 }}/api/apps/{{ $json.id }}/start",
+        "options": {
+          "timeout": 10000,
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        },
+        "method": "POST"
       },
-      "id": "8l9m0n1o-2p3q-4r5s-6t7u-8v9w0x1y2z3a",
-      "name": "Restart Container",
+      "id": "restart-app",
+      "name": "Restart App",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [
-        1140,
-        220
-      ]
+      "position": [1140, 300]
     },
     {
       "parameters": {
@@ -116,152 +99,74 @@
         "columns": {
           "mappingMode": "defineBelow",
           "value": {
-            "app_id": "={{ $('Get App Details').item.json.id }}",
+            "app_id": "={{ $('Process Each Failed App').item.json.id }}",
             "level": "info",
-            "message": "=Automatic restart triggered due to health check failure",
-            "source": "auto-restart-workflow",
+            "message": "=Auto-restart attempted for app {{ $('Process Each Failed App').item.json.name }}",
+            "source": "auto-restart",
             "timestamp": "={{ $now }}"
           },
           "schema": []
         },
         "options": {}
       },
-      "id": "9m0n1o2p-3q4r-5s6t-7u8v-9w0x1y2z3a4b",
-      "name": "Log Restart Action",
+      "id": "log-restart-attempt",
+      "name": "Log Restart Attempt",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [
-        1360,
-        220
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "1",
-          "name": "app-monitor-postgres"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "channel": "app-notifications",
-        "message": "=🔄 Auto-restarting app {{ $('Get App Details').item.json.name }} due to health check failure"
-      },
-      "id": "0n1o2p3q-4r5s-6t7u-8v9w-0x1y2z3a4b5c",
-      "name": "Send Restart Notification",
-      "type": "n8n-nodes-base.redis",
-      "typeVersion": 1,
-      "position": [
-        1580,
-        220
-      ],
-      "credentials": {
-        "redis": {
-          "id": "1",
-          "name": "app-monitor-redis"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "insert",
-        "table": "app_logs",
-        "columns": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "app_id": "={{ $('Get App Details').item.json.id }}",
-            "level": "warning",
-            "message": "=Auto-restart disabled for this app",
-            "source": "auto-restart-workflow",
-            "timestamp": "={{ $now }}"
-          },
-          "schema": []
-        },
-        "options": {}
-      },
-      "id": "1o2p3q4r-5s6t-7u8v-9w0x-1y2z3a4b5c6d",
-      "name": "Log Restart Skipped",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
-      "position": [
-        1140,
-        380
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "1",
-          "name": "app-monitor-postgres"
-        }
-      }
+      "position": [1360, 300],
+      "credentials": {}
     }
   ],
   "connections": {
-    "Listen for Alerts": {
+    "Check for Failed Apps": {
       "main": [
         [
           {
-            "node": "Extract App Info",
+            "node": "Get Failed Apps",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Extract App Info": {
+    "Get Failed Apps": {
       "main": [
         [
           {
-            "node": "Get App Details",
+            "node": "Process Each Failed App",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Get App Details": {
+    "Process Each Failed App": {
       "main": [
         [
           {
-            "node": "Check Auto Restart Enabled",
+            "node": "Check Auto-Restart Enabled",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Check Auto Restart Enabled": {
+    "Check Auto-Restart Enabled": {
       "main": [
         [
           {
-            "node": "Restart Container",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Log Restart Skipped",
+            "node": "Restart App",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Restart Container": {
+    "Restart App": {
       "main": [
         [
           {
-            "node": "Log Restart Action",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Log Restart Action": {
-      "main": [
-        [
-          {
-            "node": "Send Restart Notification",
+            "node": "Log Restart Attempt",
             "type": "main",
             "index": 0
           }
@@ -281,3 +186,4 @@
   "pinData": {},
   "versionId": "1"
 }
+EOF < /dev/null

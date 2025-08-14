@@ -128,7 +128,7 @@
   "lifecycle": {
     "version": "1.0.0",
     "setup": {
-      "description": "Initialize research assistant environment",
+      "description": "Initialize Research Assistant",
       "steps": [
         {
           "name": "base-setup",
@@ -141,44 +141,75 @@
           "description": "Add app data to resources"
         },
         {
+          "name": "install-cli",
+          "run": "cd cli && ./install-cli.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o research-assistant-api main.go",
+          "description": "Build Go coordination API binary"
+        },
+        {
           "name": "show-urls",
-          "run": "echo '🚀 Research Assistant initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  SearXNG: http://localhost:${RESOURCE_PORTS[searxng]}'",
+          "run": "echo '🚀 Research Assistant initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${SERVICE_PORT}\\n  SearXNG: http://localhost:${RESOURCE_PORTS[searxng]}\\n  CLI: research-assistant --help'",
           "description": "Display service access URLs"
         }
       ]
     },
     "develop": {
-      "description": "Start research assistant services",
+      "description": "Start research assistant with Go API server",
       "steps": [
         {
-          "name": "start-services",
-          "run": "cd deployment && ./startup.sh &",
-          "description": "Start all research assistant services in background",
-          "background": true
+          "name": "start-api-server",
+          "run": "cd api && PORT=$SERVICE_PORT N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} WINDMILL_BASE_URL=http://localhost:${RESOURCE_PORTS[windmill]} SEARXNG_URL=http://localhost:${RESOURCE_PORTS[searxng]} QDRANT_URL=http://localhost:${RESOURCE_PORTS[qdrant]} MINIO_URL=http://localhost:${RESOURCE_PORTS[minio]} POSTGRES_URL=postgres://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/research_assistant ./research-assistant-api &",
+          "description": "Start Go coordination API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/research-assistant-api"
+          }
         },
         {
-          "name": "wait-for-services",
-          "run": "sleep 3 && curl -sf http://localhost:${RESOURCE_PORTS[windmill]}/api/version > /dev/null",
-          "description": "Wait for services to be ready",
+          "name": "wait-for-api",
+          "run": "sleep 2 && curl -sf http://localhost:$SERVICE_PORT/health > /dev/null",
+          "description": "Wait for API server to be ready",
           "retry": {
             "max_attempts": 15,
-            "delay": 2
+            "delay": 1
           }
         },
         {
           "name": "show-running-services",
-          "run": "echo '🚀 Services running:\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  SearXNG: http://localhost:${RESOURCE_PORTS[searxng]}'",
-          "description": "Display running service URLs"
+          "run": "echo '🚀 Services running:\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$SERVICE_PORT\\n  SearXNG: http://localhost:${RESOURCE_PORTS[searxng]}\\n  CLI: research-assistant --help'",
+          "description": "Display all running service URLs"
         }
       ]
     },
     "test": {
-      "description": "Run research assistant tests",
+      "description": "Test research assistant Go API and CLI",
       "steps": [
         {
-          "name": "test-services-health",
-          "run": "curl -sf http://localhost:${RESOURCE_PORTS[windmill]}/api/version && curl -sf http://localhost:${RESOURCE_PORTS[n8n]}/healthz",
-          "description": "Test service health endpoints"
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build main.go && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-reports-endpoint",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/api/reports",
+          "description": "Test API reports endpoint"
+        },
+        {
+          "name": "test-dashboard-endpoint",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/api/dashboard/stats",
+          "description": "Test API dashboard endpoint"
         },
         {
           "name": "run-integration-tests",
@@ -194,9 +225,9 @@
       "description": "Stop research assistant services",
       "steps": [
         {
-          "name": "stop-services",
-          "run": "pkill -f 'startup.sh' || true",
-          "description": "Stop research assistant processes"
+          "name": "stop-api-server",
+          "run": "pkill -f 'research-assistant-api' || true",
+          "description": "Stop Go API server processes"
         },
         {
           "name": "confirm-stop",

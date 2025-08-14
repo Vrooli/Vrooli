@@ -5,188 +5,132 @@
     "parent": "vrooli",
     "name": "personal-digital-twin",
     "displayName": "Personal Digital Twin",
-    "description": "Create AI personas from personal data with semantic search and model fine-tuning for personal productivity",
+    "description": "Platform for creating personalized AI agents that learn from user data and provide tailored interactions",
     "version": "1.0.0",
-    "type": "application",
+    "type": "business-application",
+    "category": "ai-applications",
     "tags": [
-      "ai",
-      "personas",
-      "productivity",
+      "ai-personalization",
+      "digital-twin",
       "fine-tuning",
-      "semantic-search"
+      "vector-search",
+      "conversation-ai",
+      "data-ingestion",
+      "persona-management"
     ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "SERVICE_PORT",
+      "range": "8090-8999",
+      "fallback": "auto",
+      "description": "Main digital twin management API port"
+    },
+    "chat": {
+      "env_var": "CHAT_PORT",
+      "range": "8000-8999",
+      "fallback": "auto",
+      "description": "Chat interface API port"
+    }
   },
   "resources": {
     "ai": {
       "ollama": {
+        "type": "ollama",
         "enabled": true,
+        "required": true,
         "models": [
           "llama3.2",
-          "nomic-embed-text",
-          "gemma2",
-          "mistral"
+          "mistral",
+          "codellama",
+          "nomic-embed-text"
         ],
-        "features": [
-          "fine-tuning",
-          "embeddings",
-          "chat"
-        ],
-        "purpose": "Core AI for personas and embeddings"
-      },
-      "unstructured-io": {
-        "enabled": true,
-        "purpose": "Process documents, emails, and data sources"
+        "purpose": "AI model inference for chat and embeddings generation"
       }
     },
     "storage": {
       "postgres": {
+        "type": "postgres",
         "enabled": true,
-        "databases": [
-          "digital_twin"
-        ],
-        "purpose": "Store persona configurations and metadata"
+        "required": true,
+        "purpose": "Store persona data, conversations, training jobs, and metadata",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "script"
+          },
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "type": "script"
+          }
+        ]
       },
       "qdrant": {
+        "type": "qdrant",
         "enabled": true,
-        "collections": [
-          "memories",
-          "documents",
-          "conversations"
-        ],
-        "purpose": "Vector storage for semantic search"
+        "required": true,
+        "purpose": "Vector database for semantic memory and document embeddings",
+        "initialization": [
+          {
+            "file": "initialization/storage/qdrant/collections.json",
+            "type": "script"
+          }
+        ]
       },
       "minio": {
+        "type": "minio",
         "enabled": true,
-        "buckets": [
-          "data-sources",
-          "processed-docs",
-          "model-checkpoints"
-        ],
-        "purpose": "Store raw data and fine-tuned models"
+        "required": false,
+        "purpose": "File storage for documents, model checkpoints, and snapshots"
       }
     },
     "automation": {
       "n8n": {
+        "type": "n8n",
         "enabled": true,
-        "workflows": [
-          "data-ingestion",
-          "model-training",
-          "memory-indexing"
+        "required": true,
+        "initialization": [
+          {
+            "file": "initialization/automation/n8n/data-ingestion.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/model-training.json",
+            "type": "workflow"
+          }
         ],
-        "purpose": "Orchestrate data processing and training"
+        "purpose": "Data ingestion pipelines and model training workflows"
       },
       "windmill": {
+        "type": "windmill",
         "enabled": true,
-        "apps": [
-          "persona-manager",
-          "data-source-config"
+        "required": false,
+        "initialization": [
+          {
+            "file": "initialization/automation/windmill/data-source-config.json",
+            "type": "app"
+          },
+          {
+            "file": "initialization/automation/windmill/persona-manager.json",
+            "type": "app"
+          }
         ],
-        "purpose": "Web UI for persona management and configuration"
+        "purpose": "UI for persona management and data source configuration"
       }
-    }
-  },
-  "serve": {
-    "ports": {
-      "ui": 3200,
-      "api": 8200,
-      "chat": 8201
     },
-    "environment": {
-      "NODE_ENV": "production",
-      "EMBEDDING_MODEL": "nomic-embed-text",
-      "VECTOR_DIM": "768",
-      "MAX_TOKENS": "8192",
-      "POSTGRES_DB": "digital_twin"
-    },
-    "health": {
-      "endpoint": "/health",
-      "port": 8200
-    }
-  },
-  "execution": {
-    "startup": {
-      "dependencies": [
-        "postgres",
-        "qdrant",
-        "ollama",
-        "minio",
-        "n8n",
-        "windmill"
-      ],
-      "initScripts": [
-        "initialize-database.sh",
-        "setup-qdrant-collections.sh",
-        "import-n8n-workflows.sh",
-        "deploy-windmill-apps.sh"
-      ]
-    },
-    "integrations": {
-      "data_sources": {
-        "google_drive": {
-          "enabled": true,
-          "oauth": true
-        },
-        "github": {
-          "enabled": true,
-          "types": [
-            "commits",
-            "issues",
-            "code"
-          ]
-        },
-        "email": {
-          "enabled": true,
-          "protocols": [
-            "imap",
-            "gmail-api"
-          ]
-        },
-        "local_files": {
-          "enabled": true,
-          "formats": [
-            "pdf",
-            "txt",
-            "md",
-            "docx",
-            "json"
-          ]
-        }
-      },
-      "external": {
-        "app-personalizer": {
-          "description": "Provide digital twins for app customization",
-          "protocol": "api",
-          "endpoints": [
-            "/api/twin/export",
-            "/api/twin/chat"
-          ]
-        }
+    "ai-processing": {
+      "unstructured-io": {
+        "type": "unstructured-io",
+        "enabled": true,
+        "required": false,
+        "purpose": "Document processing and text extraction"
       }
-    }
-  },
-  "features": {
-    "semantic_search": {
-      "enabled": true,
-      "rerank": true,
-      "hybrid_search": true
-    },
-    "fine_tuning": {
-      "enabled": true,
-      "techniques": [
-        "lora",
-        "qlora"
-      ],
-      "auto_train": true
-    },
-    "multi_persona": {
-      "enabled": true,
-      "max_personas": 10
     }
   },
   "lifecycle": {
     "version": "1.0.0",
     "setup": {
-      "description": "Initialize Personal Digital Twin",
+      "description": "Initialize Personal Digital Twin platform",
       "steps": [
         {
           "name": "base-setup",
@@ -199,64 +143,120 @@
           "description": "Add app data to resources"
         },
         {
+          "name": "install-cli",
+          "run": "cd cli && ./install-cli.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o personal-digital-twin-api main.go",
+          "description": "Build Go API binary"
+        },
+        {
           "name": "show-urls",
-          "run": "echo '🚀 Personal Digital Twin initialized\\n  Windmill Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Qdrant Vector Search: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  Ollama Model Training: http://localhost:${RESOURCE_PORTS[ollama]}\\n  Chat Interface: http://localhost:8201'",
+          "run": "echo '🚀 Personal Digital Twin initialized\\n  Management UI: http://localhost:${RESOURCE_PORTS[windmill]}\\n  Data Workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${SERVICE_PORT}\\n  Chat API: http://localhost:${CHAT_PORT}\\n  CLI: personal-digital-twin --help'",
           "description": "Display service access URLs"
         }
       ]
     },
     "develop": {
-      "description": "Start Personal Digital Twin services",
+      "description": "Start personal digital twin platform with APIs and workflows",
       "steps": [
         {
-          "name": "start-services",
-          "run": "cd deployment && ./deploy-windmill-apps.sh && ./import-n8n-workflows.sh",
-          "description": "Deploy apps and import workflows"
+          "name": "start-api-server",
+          "run": "cd api && PORT=$SERVICE_PORT CHAT_PORT=$CHAT_PORT POSTGRES_URL=postgres://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/digital_twin QDRANT_URL=http://localhost:${RESOURCE_PORTS[qdrant]} OLLAMA_URL=http://localhost:${RESOURCE_PORTS[ollama]} N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} MINIO_URL=http://localhost:${RESOURCE_PORTS[minio]} ./personal-digital-twin-api &",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/personal-digital-twin-api"
+          }
         },
         {
-          "name": "start-servers",
-          "run": "cd deployment && node api-server.js &; node chat-server.js &",
-          "description": "Start API and chat servers",
-          "background": true
+          "name": "wait-for-api",
+          "run": "sleep 3 && curl -sf http://localhost:$SERVICE_PORT/health > /dev/null",
+          "description": "Wait for main API server to be ready",
+          "retry": {
+            "max_attempts": 15,
+            "delay": 1
+          }
+        },
+        {
+          "name": "wait-for-chat-api",
+          "run": "curl -sf http://localhost:$CHAT_PORT/health > /dev/null",
+          "description": "Wait for chat API server to be ready",
+          "retry": {
+            "max_attempts": 15,
+            "delay": 1
+          }
+        },
+        {
+          "name": "show-running-services",
+          "run": "echo '🚀 Personal Digital Twin running:\\n  Management UI: http://localhost:${RESOURCE_PORTS[windmill]}\\n  Data Workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$SERVICE_PORT\\n  Chat API: http://localhost:$CHAT_PORT\\n  CLI: personal-digital-twin --help'",
+          "description": "Display all running service URLs"
         }
       ]
     },
     "test": {
-      "description": "Run Personal Digital Twin tests",
+      "description": "Test personal digital twin API and workflows",
       "steps": [
         {
-          "name": "run-scenario-tests",
-          "run": "../../tools/scenario-test-runner.sh scenario-test.yaml"
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build main.go && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/health",
+          "description": "Test main API health endpoint"
+        },
+        {
+          "name": "test-chat-health",
+          "run": "curl -sf http://localhost:$CHAT_PORT/health",
+          "description": "Test chat API health endpoint"
+        },
+        {
+          "name": "test-persona-creation",
+          "run": "bash test/test-persona-creation.sh",
+          "description": "Test persona creation endpoint"
+        },
+        {
+          "name": "test-data-ingestion",
+          "run": "bash test/test-data-ingestion.sh",
+          "description": "Test data ingestion workflow"
+        },
+        {
+          "name": "test-chat-interaction",
+          "run": "bash test/test-chat-interaction.sh",
+          "description": "Test chat functionality"
+        },
+        {
+          "name": "test-cli-commands",
+          "run": "cd cli && bats personal-digital-twin.bats",
+          "description": "Run CLI test suite",
+          "condition": {
+            "file_exists": "cli/personal-digital-twin.bats"
+          }
         }
       ]
     },
     "stop": {
-      "description": "Stop Personal Digital Twin services",
+      "description": "Stop personal digital twin services",
       "steps": [
         {
-          "name": "stop-services",
-          "run": "pkill -f 'api-server.js' || true; pkill -f 'chat-server.js' || true",
-          "description": "Stop all digital twin processes"
-        }
-      ]
-    },
-    "build": {
-      "description": "Build Personal Digital Twin artifacts",
-      "steps": [
+          "name": "stop-api-server",
+          "run": "pkill -f 'personal-digital-twin-api' || true",
+          "description": "Stop Go API server processes"
+        },
         {
-          "name": "build-artifacts",
-          "run": "./scripts/manage.sh build"
-        }
-      ]
-    },
-    "clean": {
-      "description": "Clean build artifacts and temporary files",
-      "steps": [
-        {
-          "name": "clean-artifacts",
-          "run": "rm -rf dist/ build/ .next/ node_modules/ .cache/ || true"
+          "name": "confirm-stop",
+          "run": "echo '🛑 Personal Digital Twin services stopped'",
+          "description": "Confirm services stopped"
         }
       ]
     }
   }
 }
+EOF < /dev/null

@@ -48,7 +48,8 @@ tests:
           body:
             persona_id: "${persona_id}"
             source_type: "local_files"
-            path: "/test-data"
+            source_config:
+              path: "/test-data"
           expected_status: 200
       - webhook_call:
           url: http://n8n:5678/webhook/ingest

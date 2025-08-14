@@ -37,12 +37,7 @@
         480,
         300
       ],
-      "credentials": {
-        "postgres": {
-          "id": "1",
-          "name": "app-monitor-postgres"
-        }
-      }
+      "credentials": {}
     },
     {
       "parameters": {
@@ -140,12 +135,7 @@
         1360,
         220
       ],
-      "credentials": {
-        "postgres": {
-          "id": "1",
-          "name": "app-monitor-postgres"
-        }
-      }
+      "credentials": {}
     },
     {
       "parameters": {
@@ -170,12 +160,7 @@
         1360,
         380
       ],
-      "credentials": {
-        "postgres": {
-          "id": "1",
-          "name": "app-monitor-postgres"
-        }
-      }
+      "credentials": {}
     },
     {
       "parameters": {
@@ -190,12 +175,7 @@
         1580,
         380
       ],
-      "credentials": {
-        "redis": {
-          "id": "1",
-          "name": "app-monitor-redis"
-        }
-      }
+      "credentials": {}
     }
   ],
   "connections": {

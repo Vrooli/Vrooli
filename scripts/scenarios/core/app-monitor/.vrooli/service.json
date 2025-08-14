@@ -5,20 +5,53 @@
     "parent": "vrooli",
     "name": "app-monitor",
     "displayName": "App Monitor",
-    "description": "Dashboard to manage all running generated apps",
+    "description": "Dashboard to monitor and control all running generated applications with real-time health checks and performance metrics",
     "version": "1.0.0",
-    "type": "vrooli-enhancement",
-    "category": "vrooli-helpers",
+    "type": "business-application",
+    "category": "monitoring",
     "tags": [
       "monitoring",
       "dashboard",
-      "health-checks",
-      "auto-restart",
-      "docker-monitoring",
-      "real-time-updates"
+      "docker",
+      "health-check",
+      "app-management",
+      "metrics",
+      "automation"
     ]
   },
+  "ports": {
+    "api": {
+      "env_var": "SERVICE_PORT",
+      "range": "8090-8999",
+      "fallback": "auto",
+      "description": "App monitoring coordination API port"
+    }
+  },
   "resources": {
+    "storage": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store app metadata, monitoring data, status logs, and metrics",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "script"
+          },
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "type": "script"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": true,
+        "purpose": "Real-time event streaming, caching, and app notifications"
+      }
+    },
     "automation": {
       "n8n": {
         "type": "n8n",
@@ -42,63 +75,35 @@
       "node-red": {
         "type": "node-red",
         "enabled": true,
-        "required": false,
-        "purpose": "real-time docker container monitoring",
+        "required": true,
         "initialization": [
           {
             "file": "initialization/automation/node-red/docker-monitor.json",
             "type": "flow"
           }
         ]
-      }
-    },
-    "agents": {
-      "browserless": {
-        "type": "browserless",
-        "enabled": true,
-        "required": false,
-        "purpose": "web scraping for app health checks and UI testing"
-      }
-    },
-    "storage": {
-      "postgres": {
-        "type": "postgres",
+      },
+      "windmill": {
+        "type": "windmill",
         "enabled": true,
         "required": true,
-        "purpose": "app monitoring data and metrics"
-      },
-      "redis": {
-        "type": "redis",
-        "enabled": true,
-        "required": false,
-        "purpose": "real-time status updates and pub/sub for app events"
+        "initialization": [
+          {
+            "file": "initialization/automation/windmill/app-monitor-dashboard.json",
+            "type": "app"
+          },
+          {
+            "file": "initialization/automation/windmill/app-control-panel.json",
+            "type": "app"
+          }
+        ]
       }
-    }
-  },
-  "ports": {
-    "ui": {
-      "env_var": "UI_PORT",
-      "range": "3000-3999",
-      "fallback": "auto",
-      "description": "Web UI port"
-    },
-    "api": {
-      "env_var": "SERVICE_PORT",
-      "range": "8090-8999",
-      "fallback": "auto",
-      "description": "API server port"
-    },
-    "websocket": {
-      "env_var": "WS_PORT",
-      "range": "3000-3999",
-      "fallback": "auto",
-      "description": "WebSocket server port"
     }
   },
   "lifecycle": {
     "version": "1.0.0",
     "setup": {
-      "description": "Initialize App Monitor",
+      "description": "Initialize App Monitor with database schema and automation workflows",
       "steps": [
         {
           "name": "base-setup",
@@ -111,64 +116,111 @@
           "description": "Add app data to resources"
         },
         {
-          "name": "install-dependencies",
-          "run": "cd initialization/configuration && npm install",
-          "description": "Install Node.js dependencies for API and WebSocket servers"
+          "name": "install-cli",
+          "run": "cd cli && ./install-cli.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o app-monitor-api main.go",
+          "description": "Build Go coordination API binary"
+        },
+        {
+          "name": "verify-docker-access",
+          "run": "docker version > /dev/null && echo '✅ Docker access verified' || echo '❌ Docker access required for app monitoring'",
+          "description": "Verify Docker access for app monitoring"
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 App Monitor initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${SERVICE_PORT}\\n  WebSocket: ws://localhost:${WS_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Node-RED flows: http://localhost:${RESOURCE_PORTS[node-red]}'",
+          "run": "echo '🚀 App Monitor initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Node-RED flows: http://localhost:${RESOURCE_PORTS[node-red]}\\n  API: http://localhost:${SERVICE_PORT}\\n  CLI: app-monitor --help'",
           "description": "Display service access URLs"
         }
       ]
     },
     "develop": {
-      "description": "Start App Monitor services",
+      "description": "Start app monitor with Go API server and automation workflows",
       "steps": [
         {
           "name": "start-api-server",
-          "run": "cd initialization/configuration && PORT=$SERVICE_PORT node api-server.js &",
-          "description": "Start API server in background",
-          "background": true
+          "run": "cd api && PORT=$SERVICE_PORT N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} WINDMILL_BASE_URL=http://localhost:${RESOURCE_PORTS[windmill]} NODE_RED_BASE_URL=http://localhost:${RESOURCE_PORTS[node-red]} POSTGRES_URL=postgres://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/app_monitor REDIS_URL=redis://localhost:${RESOURCE_PORTS[redis]} ./app-monitor-api &",
+          "description": "Start Go coordination API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/app-monitor-api"
+          }
         },
         {
-          "name": "start-websocket-server",
-          "run": "cd initialization/configuration && PORT=$WS_PORT node websocket-server.js &",
-          "description": "Start WebSocket server in background",
-          "background": true
-        },
-        {
-          "name": "start-ui",
-          "run": "cd initialization/configuration/ui && python3 -m http.server $UI_PORT &",
-          "description": "Start UI server",
-          "background": true
+          "name": "wait-for-api",
+          "run": "sleep 2 && curl -sf http://localhost:$SERVICE_PORT/health > /dev/null",
+          "description": "Wait for API server to be ready",
+          "retry": {
+            "max_attempts": 15,
+            "delay": 1
+          }
         },
         {
           "name": "show-running-services",
-          "run": "echo '🚀 Services running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${SERVICE_PORT}\\n  WebSocket: ws://localhost:${WS_PORT}'",
+          "run": "echo '🚀 App Monitor running:\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Node-RED: http://localhost:${RESOURCE_PORTS[node-red]}\\n  API: http://localhost:$SERVICE_PORT\\n  CLI: app-monitor --help'",
           "description": "Display all running service URLs"
         }
       ]
     },
     "test": {
-      "description": "Test App Monitor functionality",
+      "description": "Test app monitor API, CLI, and automation workflows",
       "steps": [
         {
-          "name": "run-tests",
-          "run": "bash deployment/validate.sh",
-          "description": "Run validation tests"
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build main.go && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-apps-endpoint",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/api/apps",
+          "description": "Test API apps endpoint"
+        },
+        {
+          "name": "test-docker-access",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/api/docker/info",
+          "description": "Test Docker API access through app monitor"
+        },
+        {
+          "name": "test-cli-commands",
+          "run": "cd cli && bats app-monitor.bats",
+          "description": "Run CLI test suite",
+          "condition": {
+            "file_exists": "cli/app-monitor.bats"
+          }
+        },
+        {
+          "name": "test-automation-workflows",
+          "run": "bash test/test-automation-integration.sh",
+          "description": "Test n8n and Node-RED workflow integration"
         }
       ]
     },
     "stop": {
-      "description": "Stop App Monitor services",
+      "description": "Stop app monitor services",
       "steps": [
         {
-          "name": "stop-services",
-          "run": "pkill -f 'api-server.js' || true; pkill -f 'websocket-server.js' || true; pkill -f 'http.server 3001' || true",
-          "description": "Stop all App Monitor processes"
+          "name": "stop-api-server",
+          "run": "pkill -f 'app-monitor-api' || true",
+          "description": "Stop Go API server processes"
+        },
+        {
+          "name": "confirm-stop",
+          "run": "echo '🛑 App Monitor services stopped'",
+          "description": "Confirm services stopped"
         }
       ]
     }
   }
 }
+EOF < /dev/null

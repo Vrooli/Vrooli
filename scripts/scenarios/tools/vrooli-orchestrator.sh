@@ -30,7 +30,7 @@ LOG_FILE="$ORCHESTRATOR_HOME/orchestrator.log"
 COMMAND_FIFO="$ORCHESTRATOR_HOME/commands.fifo"
 
 # Resource limits
-MAX_TOTAL_APPS="${VROOLI_MAX_APPS:-20}"
+MAX_TOTAL_APPS="${VROOLI_MAX_APPS:-100}"
 MAX_NESTING_DEPTH="${VROOLI_MAX_DEPTH:-5}"
 MAX_PER_PARENT="${VROOLI_MAX_PER_PARENT:-10}"
 
@@ -192,22 +192,26 @@ check_resource_limits() {
     local registry="$1"
     local parent="${2:-}"
     
-    # Count total processes
-    local total_count=$(echo "$registry" | jq '.processes | length')
+    # Count only active processes (not crashed/stopped/failed)
+    local total_count=$(echo "$registry" | jq --arg running "$STATE_RUNNING" --arg starting "$STATE_STARTING" --arg registered "$STATE_REGISTERED" '
+        .processes | to_entries | 
+        map(select(.value.state == $running or .value.state == $starting or .value.state == $registered)) | 
+        length
+    ')
     if [[ $total_count -ge $MAX_TOTAL_APPS ]]; then
-        log "ERROR" "Maximum total apps reached: $total_count >= $MAX_TOTAL_APPS"
+        log "ERROR" "Maximum active apps reached: $total_count >= $MAX_TOTAL_APPS"
         return 1
     fi
     
-    # Count processes under parent
+    # Count active processes under parent
     if [[ -n "$parent" ]]; then
-        local parent_count=$(echo "$registry" | jq --arg parent "$parent" '
+        local parent_count=$(echo "$registry" | jq --arg parent "$parent" --arg running "$STATE_RUNNING" --arg starting "$STATE_STARTING" --arg registered "$STATE_REGISTERED" '
             .processes | to_entries | 
-            map(select(.key | startswith($parent + "."))) | 
+            map(select(.key | startswith($parent + ".")) | select(.value.state == $running or .value.state == $starting or .value.state == $registered)) | 
             length
         ')
         if [[ $parent_count -ge $MAX_PER_PARENT ]]; then
-            log "ERROR" "Maximum apps per parent reached: $parent_count >= $MAX_PER_PARENT"
+            log "ERROR" "Maximum active apps per parent reached: $parent_count >= $MAX_PER_PARENT"
             return 1
         fi
     fi
@@ -793,6 +797,22 @@ start_daemon() {
     local registry=$(load_registry)
     registry=$(echo "$registry" | jq --arg started_at "$(date -Iseconds)" '
         .metadata.started_at = $started_at')
+    
+    # Auto-cleanup crashed/stopped/failed processes on startup
+    local cleanup_count=$(echo "$registry" | jq --arg crashed "$STATE_CRASHED" --arg stopped "$STATE_STOPPED" --arg failed "$STATE_FAILED" '
+        .processes | to_entries | 
+        map(select(.value.state == $crashed or .value.state == $stopped or .value.state == $failed)) | 
+        length
+    ')
+    
+    if [[ $cleanup_count -gt 0 ]]; then
+        log "INFO" "Auto-cleaning $cleanup_count crashed/stopped/failed processes"
+        registry=$(echo "$registry" | jq --arg crashed "$STATE_CRASHED" --arg stopped "$STATE_STOPPED" --arg failed "$STATE_FAILED" '
+            .processes |= with_entries(select(.value.state != $crashed and .value.state != $stopped and .value.state != $failed))
+        ')
+        log "INFO" "Cleaned up $cleanup_count old processes"
+    fi
+    
     save_registry "$registry"
     
     # Set up signal handling with flag to prevent recursion

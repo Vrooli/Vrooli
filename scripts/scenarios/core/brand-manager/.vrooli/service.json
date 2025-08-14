@@ -4,19 +4,21 @@
   "service": {
     "parent": "vrooli",
     "name": "brand-manager",
-    "displayName": "AI Brand Manager",
-    "description": "Complete AI-powered branding solution with logo generation, copywriting, and automated app integration via Claude Code agents",
-    "version": "1.0.0",
+    "displayName": "Brand Manager",
+    "description": "AI-powered brand generation and automated app integration platform",
+    "version": "2.0.0",
     "type": "business-application",
-    "category": "business",
+    "category": "marketing-tools",
     "tags": [
-      "brand-generation",
-      "visual-design",
-      "copywriting",
+      "branding",
+      "ai-generation",
+      "logo-design",
       "app-integration",
+      "marketing",
+      "automation",
       "windmill-ui",
-      "claude-code-agents",
-      "asset-management"
+      "comfyui",
+      "claude-code"
     ]
   },
   "ports": {
@@ -24,7 +26,7 @@
       "env_var": "SERVICE_PORT",
       "range": "8090-8999",
       "fallback": "auto",
-      "description": "Brand manager API port"
+      "description": "Brand Manager coordination API port"
     }
   },
   "resources": {
@@ -65,19 +67,43 @@
       }
     },
     "ai": {
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "models": [
+          "llama3.2",
+          "mistral",
+          "codellama"
+        ]
+      },
       "comfyui": {
         "type": "comfyui",
         "enabled": true,
         "required": true,
-        "purpose": "AI image generation for logos, icons, and brand assets"
+        "purpose": "AI-powered logo and visual asset generation",
+        "initialization": [
+          {
+            "file": "initialization/configuration/comfyui-workflows/logo-generator.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/configuration/comfyui-workflows/icon-creator.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/configuration/comfyui-workflows/favicon-generator.json",
+            "type": "workflow"
+          }
+        ]
       }
     },
     "agents": {
       "claude-code": {
         "type": "claude-code",
         "enabled": true,
-        "required": false,
-        "purpose": "automated app integration and code generation"
+        "required": true,
+        "purpose": "Automated app integration agent for brand deployment"
       }
     },
     "storage": {
@@ -85,26 +111,53 @@
         "type": "postgres",
         "enabled": true,
         "required": true,
-        "purpose": "brand management data and project metadata"
+        "purpose": "Brand data, campaigns, exports, and integration tracking",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "script"
+          },
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "type": "script"
+          }
+        ]
       },
       "minio": {
         "type": "minio",
         "enabled": true,
         "required": true,
-        "purpose": "brand assets, logos, icons, and exported files storage"
+        "purpose": "Asset storage for logos, icons, exports, and backups",
+        "buckets": [
+          "brand-logos",
+          "brand-icons", 
+          "brand-exports",
+          "brand-templates",
+          "app-backups"
+        ]
       },
       "vault": {
         "type": "vault",
         "enabled": true,
         "required": false,
-        "purpose": "API keys and integration tokens storage"
+        "purpose": "Secure storage for API keys and integration tokens",
+        "initialization": [
+          {
+            "file": "initialization/storage/vault/api-keys.json",
+            "type": "secrets"
+          },
+          {
+            "file": "initialization/storage/vault/integration-tokens.json",
+            "type": "secrets"
+          }
+        ]
       }
     }
   },
   "lifecycle": {
     "version": "1.0.0",
     "setup": {
-      "description": "Initialize AI Brand Manager",
+      "description": "Initialize Brand Manager platform",
       "steps": [
         {
           "name": "base-setup",
@@ -117,39 +170,108 @@
           "description": "Add app data to resources"
         },
         {
+          "name": "install-cli",
+          "run": "cd cli && ./install-cli.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o brand-manager-api main.go",
+          "description": "Build Go coordination API binary"
+        },
+        {
+          "name": "setup-minio-buckets",
+          "run": "bash scripts/lib/setup-minio-buckets.sh",
+          "description": "Create required MinIO buckets"
+        },
+        {
           "name": "show-urls",
-          "run": "echo '🚀 AI Brand Manager initialized\\n  Windmill Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  ComfyUI: http://localhost:${RESOURCE_PORTS[comfyui]}\\n  API: http://localhost:${SERVICE_PORT}\\n  MinIO Storage: http://localhost:${RESOURCE_PORTS[minio]}\\n  Vault: http://localhost:${RESOURCE_PORTS[vault]}'",
+          "run": "echo '🚀 Brand Manager initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}/apps/f/brand-manager/dashboard\\n  Integration Monitor: http://localhost:${RESOURCE_PORTS[windmill]}/apps/f/brand-manager/integration-dashboard\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${SERVICE_PORT}\\n  CLI: brand-manager --help'",
           "description": "Display service access URLs"
         }
       ]
     },
     "develop": {
-      "description": "Start brand manager services",
+      "description": "Start Brand Manager with Go API server",
       "steps": [
         {
-          "name": "start-services",
-          "run": "cd deployment && ./startup.sh",
-          "description": "Start brand manager services"
+          "name": "start-api-server",
+          "run": "cd api && PORT=$SERVICE_PORT N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} WINDMILL_BASE_URL=http://localhost:${RESOURCE_PORTS[windmill]} COMFYUI_BASE_URL=http://localhost:${RESOURCE_PORTS[comfyui]} POSTGRES_URL=postgres://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/brand_manager MINIO_ENDPOINT=localhost:${RESOURCE_PORTS[minio]} VAULT_ADDR=http://localhost:${RESOURCE_PORTS[vault]} ./brand-manager-api &",
+          "description": "Start Go coordination API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/brand-manager-api"
+          }
+        },
+        {
+          "name": "wait-for-api",
+          "run": "sleep 2 && curl -sf http://localhost:$SERVICE_PORT/health > /dev/null",
+          "description": "Wait for API server to be ready",
+          "retry": {
+            "max_attempts": 15,
+            "delay": 1
+          }
+        },
+        {
+          "name": "show-running-services",
+          "run": "echo '🚀 Brand Manager running:\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}/apps/f/brand-manager/dashboard\\n  Integration Monitor: http://localhost:${RESOURCE_PORTS[windmill]}/apps/f/brand-manager/integration-dashboard\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$SERVICE_PORT\\n  CLI: brand-manager --help'",
+          "description": "Display all running service URLs"
         }
       ]
     },
     "test": {
-      "description": "Test brand manager functionality",
+      "description": "Test Brand Manager API and workflows",
       "steps": [
         {
-          "name": "run-tests",
-          "run": "bash test.sh",
-          "description": "Execute integration tests"
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build main.go && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-brands-endpoint",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/api/brands",
+          "description": "Test API brands endpoint"
+        },
+        {
+          "name": "test-integration-endpoint",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/api/integrations",
+          "description": "Test API integrations endpoint"
+        },
+        {
+          "name": "test-brand-generation",
+          "run": "bash test/test-brand-generation.sh",
+          "description": "Test brand generation workflow"
+        },
+        {
+          "name": "test-cli-commands",
+          "run": "cd cli && bats brand-manager.bats",
+          "description": "Run CLI test suite",
+          "condition": {
+            "file_exists": "cli/brand-manager.bats"
+          }
         }
       ]
     },
     "stop": {
-      "description": "Stop brand manager services",
+      "description": "Stop Brand Manager services",
       "steps": [
         {
-          "name": "stop-services",
-          "run": "pkill -f 'brand-manager' || true",
-          "description": "Stop all brand manager processes"
+          "name": "stop-api-server",
+          "run": "pkill -f 'brand-manager-api' || true",
+          "description": "Stop Go API server processes"
+        },
+        {
+          "name": "confirm-stop",
+          "run": "echo '🛑 Brand Manager services stopped'",
+          "description": "Confirm services stopped"
         }
       ]
     }

@@ -1,0 +1,426 @@
+{
+  "name": "Retry Handler",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "retry-handler",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "retry-handler-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "=// Calculate retry delay based on strategy\nconst data = $input.all()[0].json;\nconst { retry_count, max_retries, retry_strategy, schedule_id, execution_id } = data;\n\nif (retry_count > max_retries) {\n  return [{\n    json: {\n      ...data,\n      action: 'give_up',\n      message: `Max retries (${max_retries}) exceeded`\n    }\n  }];\n}\n\n// Calculate delay in seconds\nlet delaySeconds = 5; // default\n\nswitch (retry_strategy) {\n  case 'exponential':\n    delaySeconds = Math.min(Math.pow(2, retry_count - 1), 300); // Cap at 5 minutes\n    break;\n  case 'linear':\n    delaySeconds = retry_count * 5;\n    break;\n  case 'fixed':\n    delaySeconds = 10;\n    break;\n}\n\nreturn [{\n  json: {\n    ...data,\n    action: 'retry',\n    delay_seconds: delaySeconds,\n    retry_at: new Date(Date.now() + delaySeconds * 1000).toISOString()\n  }\n}];"
+      },
+      "id": "calculate-delay",
+      "name": "Calculate Retry Delay",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "should-retry",
+              "leftValue": "={{ $json.action }}",
+              "rightValue": "retry",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-action",
+      "name": "Should Retry?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO retry_queue (\n  execution_id,\n  schedule_id,\n  retry_count,\n  retry_at,\n  created_at\n) VALUES (\n  '{{ $json.execution_id }}',\n  '{{ $json.schedule_id }}',\n  {{ $json.retry_count }},\n  '{{ $json.retry_at }}',\n  NOW()\n)\nON CONFLICT (execution_id) \nDO UPDATE SET\n  retry_count = {{ $json.retry_count }},\n  retry_at = '{{ $json.retry_at }}',\n  updated_at = NOW();",
+        "options": {}
+      },
+      "id": "queue-retry",
+      "name": "Queue Retry",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [850, 250],
+      "credentials": {
+        "postgres": {
+          "id": "postgres_workflow_scheduler",
+          "name": "Workflow Scheduler DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "value": "={{ $json.delay_seconds }}",
+        "unit": "seconds"
+      },
+      "id": "wait",
+      "name": "Wait for Retry",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [1050, 250],
+      "webhookId": "retry-wait"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT s.*, se.scheduled_time\nFROM schedules s\nJOIN schedule_executions se ON se.schedule_id = s.id\nWHERE se.id = '{{ $json.execution_id }}'\nAND s.enabled = true;",
+        "options": {}
+      },
+      "id": "get-schedule",
+      "name": "Get Schedule Details",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1250, 250],
+      "credentials": {
+        "postgres": {
+          "id": "postgres_workflow_scheduler",
+          "name": "Workflow Scheduler DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "={{ $json.target_method || 'POST' }}",
+        "url": "={{ $json.target_url }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Schedule-ID",
+              "value": "={{ $json.id }}"
+            },
+            {
+              "name": "X-Execution-ID",
+              "value": "={{ $('calculate-delay').item.json.execution_id }}"
+            },
+            {
+              "name": "X-Retry-Count",
+              "value": "={{ $('calculate-delay').item.json.retry_count }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": "={{ $json.target_payload || {} }}"
+        },
+        "options": {
+          "timeout": "={{ $json.timeout_seconds || 300 }}",
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "id": "retry-execution",
+      "name": "Retry Execution",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1450, 250],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "=// Process retry result\nconst schedule = $input.all()[0].json;\nconst response = $input.all()[0];\nconst retryData = $('calculate-delay').item.json;\nconst success = !response.error && response.statusCode >= 200 && response.statusCode < 300;\n\nconst result = {\n  execution_id: retryData.execution_id,\n  schedule_id: schedule.id,\n  status: success ? 'success' : 'failed',\n  retry_count: retryData.retry_count,\n  response_code: response.statusCode || 0,\n  error_message: response.error ? response.error.message : null\n};\n\nreturn [{ json: result }];"
+      },
+      "id": "process-retry-result",
+      "name": "Process Retry Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1650, 250]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=-- Update execution status\nUPDATE schedule_executions\nSET \n  status = '{{ $json.status }}',\n  completed_at = NOW(),\n  response_code = {{ $json.response_code }},\n  error_message = '{{ $json.error_message }}',\n  retry_count = {{ $json.retry_count }}\nWHERE id = '{{ $json.execution_id }}';\n\n-- Remove from retry queue\nDELETE FROM retry_queue\nWHERE execution_id = '{{ $json.execution_id }}';\n\n-- Update schedule metrics\nUPDATE schedules\nSET \n  {{ $json.status === 'success' ? 'consecutive_failures = 0' : 'consecutive_failures = consecutive_failures + 1' }}\nWHERE id = '{{ $json.schedule_id }}';",
+        "options": {}
+      },
+      "id": "update-retry-status",
+      "name": "Update Retry Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1850, 250],
+      "credentials": {
+        "postgres": {
+          "id": "postgres_workflow_scheduler",
+          "name": "Workflow Scheduler DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "still-failed",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "failed",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "can-retry",
+              "leftValue": "={{ $json.retry_count < $('webhook').item.json.max_retries }}",
+              "rightValue": "={{ true }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-retry-again",
+      "name": "Retry Again?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [2050, 250]
+    },
+    {
+      "parameters": {
+        "url": "=http://localhost:${service.n8n.port}/webhook/retry-handler",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "execution_id",
+              "value": "={{ $json.execution_id }}"
+            },
+            {
+              "name": "schedule_id",
+              "value": "={{ $json.schedule_id }}"
+            },
+            {
+              "name": "retry_count",
+              "value": "={{ $json.retry_count + 1 }}"
+            },
+            {
+              "name": "max_retries",
+              "value": "={{ $('webhook').item.json.max_retries }}"
+            },
+            {
+              "name": "retry_strategy",
+              "value": "={{ $('webhook').item.json.retry_strategy }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "trigger-next-retry",
+      "name": "Trigger Next Retry",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2250, 200],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=-- Mark as permanently failed\nUPDATE schedule_executions\nSET \n  status = 'failed_permanent',\n  completed_at = NOW(),\n  error_message = 'Max retries exceeded'\nWHERE id = '{{ $json.execution_id }}';\n\n-- Update schedule to track permanent failures\nUPDATE schedules\nSET \n  consecutive_failures = consecutive_failures + 1,\n  status = CASE \n    WHEN consecutive_failures >= 10 THEN 'disabled'\n    ELSE status\n  END\nWHERE id = '{{ $json.schedule_id }}';",
+        "options": {}
+      },
+      "id": "mark-failed",
+      "name": "Mark Permanently Failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [850, 350],
+      "credentials": {
+        "postgres": {
+          "id": "postgres_workflow_scheduler",
+          "name": "Workflow Scheduler DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "=## Retry Handler Complete\n\nExecution: {{ $('webhook').item.json.execution_id }}\nStatus: {{ $json.action === 'give_up' ? 'Permanently Failed' : 'Queued for Retry' }}",
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1050, 450]
+    }
+  ],
+  "connections": {
+    "webhook": {
+      "main": [
+        [
+          {
+            "node": "calculate-delay",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "calculate-delay": {
+      "main": [
+        [
+          {
+            "node": "check-action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check-action": {
+      "main": [
+        [
+          {
+            "node": "queue-retry",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "mark-failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "queue-retry": {
+      "main": [
+        [
+          {
+            "node": "wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "wait": {
+      "main": [
+        [
+          {
+            "node": "get-schedule",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get-schedule": {
+      "main": [
+        [
+          {
+            "node": "retry-execution",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "retry-execution": {
+      "main": [
+        [
+          {
+            "node": "process-retry-result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "process-retry-result": {
+      "main": [
+        [
+          {
+            "node": "update-retry-status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "update-retry-status": {
+      "main": [
+        [
+          {
+            "node": "check-retry-again",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check-retry-again": {
+      "main": [
+        [
+          {
+            "node": "trigger-next-retry",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "mark-failed": {
+      "main": [
+        [
+          {
+            "node": "respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "templateId": "workflow-scheduler-retry"
+  },
+  "tags": [
+    {
+      "name": "workflow-scheduler"
+    }
+  ]
+}

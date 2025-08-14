@@ -97,7 +97,7 @@
     
     {
       "parameters": {
-        "url": "http://localhost:8200/v1/transit/encrypt/documents",
+        "url": "http://localhost:{{ $env.RESOURCE_PORTS_vault }}/v1/transit/encrypt/documents",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
@@ -131,7 +131,7 @@
     
     {
       "parameters": {
-        "url": "http://localhost:9000/{{ $json.processing.outputFolder }}/",
+        "url": "http://localhost:{{ $env.RESOURCE_PORTS_minio }}/{{ $json.processing.outputFolder }}/",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpBasicAuth",
         "sendHeaders": true,
@@ -227,7 +227,7 @@
     
     {
       "parameters": {
-        "url": "http://localhost:5678/webhook/process-orchestrator",
+        "url": "http://localhost:{{ $env.RESOURCE_PORTS_n8n }}/webhook/process-orchestrator",
         "sendBody": true,
         "bodyParameters": {
           "parameters": [

@@ -5,6 +5,11 @@ scenario: campaign-content-studio
 structure:
   required_files:
     - .vrooli/service.json
+    - api/main.go
+    - api/go.mod
+    - cli/campaign-content-studio-cli.sh
+    - cli/install-cli.sh
+    - cli/campaign-content-studio.bats
     - initialization/storage/schema.sql
     - initialization/storage/seed.sql
     - initialization/automation/n8n/campaign-management.json
@@ -16,18 +21,17 @@ structure:
     - initialization/configuration/content-templates.json
     - initialization/configuration/feature-flags.json
     - initialization/configuration/resource-urls.json
-    - deployment/startup.sh
-    - test.sh
   
   required_dirs:
+    - api
+    - cli
     - initialization/storage
     - initialization/automation
     - initialization/configuration
-    - deployment
 
 # Resource requirements
 resources:
-  required: [postgres, minio, qdrant, ollama, whisper, comfyui, unstructured-io, n8n, windmill]
+  required: [postgres, minio, qdrant, ollama, comfyui, unstructured-io, n8n, windmill]
   optional: []
   health_timeout: 60
 
@@ -68,16 +72,8 @@ tests:
       status: 200
       body:
         type: json
-        contains: ["llama3.1:8b", "nomic-embed-text"]
+        contains: ["llama3.2", "nomic-embed-text"]
         
-  - name: "Whisper Speech-to-Text Ready"
-    type: http
-    service: whisper
-    endpoint: /
-    method: GET
-    expect:
-      status: 200
-      
   - name: "ComfyUI Image Generation Ready"
     type: http
     service: comfyui
@@ -112,14 +108,35 @@ tests:
       body:
         type: json
         
+  - name: "API Health Check"
+    type: http
+    service: api
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+      body:
+        type: json
+        contains: ["status", "service", "version"]
+        
+  - name: "API Campaigns List"
+    type: http
+    service: api
+    endpoint: /campaigns
+    method: GET
+    expect:
+      status: 200
+      body:
+        type: json
+        
   - name: "Campaign Management Integration Test"
     type: integration
-    description: "Test campaign creation and management workflow"
+    description: "Test campaign creation and management workflow via n8n"
     workflow:
       - step: "Create Campaign"
         type: http
         service: n8n
-        endpoint: /webhook/campaign-content-studio/campaigns
+        endpoint: /webhook/campaign-management
         method: POST
         body:
           operation: "create"
@@ -138,6 +155,29 @@ tests:
         expect:
           count: ">= 1"
           
+  - name: "API Campaign Creation Test"
+    type: integration
+    description: "Test campaign creation via API"
+    workflow:
+      - step: "Create Campaign via API"
+        type: http
+        service: api
+        endpoint: /campaigns
+        method: POST
+        body:
+          name: "API Test Campaign"
+          description: "Campaign created via API test"
+        expect:
+          status: 201
+          response_time: 5000
+          
+      - step: "Verify API Campaign Creation"
+        type: database
+        service: postgres
+        query: "SELECT COUNT(*) as count FROM campaign_content_studio.campaigns WHERE name = 'API Test Campaign'"
+        expect:
+          count: ">= 1"
+          
   - name: "Document Processing Pipeline Test"
     type: integration
     description: "Test document upload and processing pipeline"
@@ -145,7 +185,7 @@ tests:
       - step: "Process Sample Document"
         type: http
         service: n8n
-        endpoint: /webhook/campaign-content-studio/documents
+        endpoint: /webhook/document-processing
         method: POST
         body:
           operation: "upload"
@@ -162,13 +202,12 @@ tests:
     type: integration
     description: "Test AI content generation with campaign context"
     workflow:
-      - step: "Generate Blog Post"
+      - step: "Generate Blog Post via API"
         type: http
-        service: n8n
-        endpoint: /webhook/campaign-content-studio/generate
+        service: api
+        endpoint: /generate
         method: POST
         body:
-          operation: "generate"
           campaign_id: "550e8400-e29b-41d4-a716-446655440001"
           content_type: "blog_post"
           prompt: "Write a blog post about productivity tools"
@@ -193,6 +232,7 @@ validation:
   revenue_potential: 145000  # Updated based on service.json business model
   business_criteria:
     - "All core AI and storage services operational"
+    - "Modern API and CLI interfaces functional"
     - "Campaign management workflows functional"
     - "Document processing pipeline working end-to-end"
     - "AI content generation producing relevant results"
@@ -200,3 +240,5 @@ validation:
     - "Multi-format content generation capabilities"
     - "Professional dashboard UI accessible and functional"
     - "Database properly stores campaigns, documents, and generated content"
+    - "Go API server responding to health checks and CRUD operations"
+    - "CLI commands execute successfully"

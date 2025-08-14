@@ -60,22 +60,45 @@ The Idea Generator is an interactive AI-powered platform for brainstorming, refi
 ## Getting Started
 
 ### Prerequisites
-All required resources are automatically configured through the Vrooli platform.
+All required resources are automatically configured through the Vrooli platform using the modern lifecycle system.
 
 ### Deployment
+The scenario follows the modern Vrooli lifecycle pattern and can be launched through the orchestrator:
+
 ```bash
-# Run the startup script
-./deployment/startup.sh
+# Using the orchestrator (recommended)
+vrooli scenario launch idea-generator
+
+# Or manually using the service configuration
+cd /path/to/idea-generator
+vrooli service setup .
+vrooli service develop .
 ```
 
 ### Access Points
-- **UI**: http://localhost:5681 (Windmill)
-- **Workflows**: http://localhost:5678 (n8n)
-- **API**: http://localhost:5679/webhook/*
+- **UI**: http://localhost:${RESOURCE_PORTS[windmill]} (Windmill Dashboard)
+- **Workflows**: http://localhost:${RESOURCE_PORTS[n8n]} (n8n)
+- **API**: http://localhost:${SERVICE_PORT} (Coordination API)
+- **CLI**: `idea-generator --help`
 
-### Default Credentials
-- Username: `demo_user`
-- Email: `demo@ideagen.com`
+### CLI Usage
+The scenario includes a lightweight CLI for managing the platform:
+
+```bash
+# Check service status
+idea-generator status
+
+# List campaigns and ideas
+idea-generator campaigns
+idea-generator ideas
+
+# Open web interfaces
+idea-generator dashboard
+idea-generator workflows-ui
+
+# Check service health
+idea-generator health
+```
 
 ## Usage Guide
 
@@ -107,6 +130,12 @@ All required resources are automatically configured through the Vrooli platform.
 ```bash
 # Run integration tests
 ./test.sh
+
+# Test API endpoints
+./test/test-api-endpoint.sh
+
+# Test CLI functionality
+cd cli && bats idea-generator.bats
 ```
 
 ## Value Proposition

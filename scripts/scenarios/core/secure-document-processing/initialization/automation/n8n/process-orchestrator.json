@@ -79,7 +79,7 @@
     
     {
       "parameters": {
-        "url": "http://localhost:5678/webhook/prompt-processor",
+        "url": "http://localhost:{{ $env.RESOURCE_PORTS_n8n }}/webhook/prompt-processor",
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
@@ -118,7 +118,7 @@
     
     {
       "parameters": {
-        "url": "http://localhost:5678/webhook/workflow-executor",
+        "url": "http://localhost:{{ $env.RESOURCE_PORTS_n8n }}/webhook/workflow-executor",
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
@@ -179,7 +179,7 @@
     
     {
       "parameters": {
-        "url": "http://localhost:5678/webhook/semantic-indexer",
+        "url": "http://localhost:{{ $env.RESOURCE_PORTS_n8n }}/webhook/semantic-indexer",
         "sendBody": true,
         "bodyParameters": {
           "parameters": [

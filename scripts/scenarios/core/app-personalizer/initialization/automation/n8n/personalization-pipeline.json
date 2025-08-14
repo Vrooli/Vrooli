@@ -18,7 +18,7 @@
       "typeVersion": 3,
       "position": [450, 250],
       "parameters": {
-        "url": "http://localhost:8300/api/backup",
+        "url": "http://localhost:{{$env.SERVICE_PORT}}/api/backup",
         "method": "POST",
         "body": {
           "app_path": "={{$json.app_path}}",
@@ -32,7 +32,7 @@
       "typeVersion": 3,
       "position": [450, 350],
       "parameters": {
-        "url": "http://ollama:11434/api/generate",
+        "url": "http://localhost:{{$env.RESOURCE_PORTS_ollama}}/api/generate",
         "method": "POST",
         "body": {
           "model": "codellama",
@@ -46,7 +46,7 @@
       "typeVersion": 3,
       "position": [650, 300],
       "parameters": {
-        "url": "http://localhost:8200/api/twin/export",
+        "url": "http://localhost:{{$env.PERSONAL_DIGITAL_TWIN_PORT}}/api/twin/export",
         "method": "POST",
         "headers": {
           "Authorization": "Bearer {{$json.twin_api_token}}"
@@ -63,7 +63,7 @@
       "typeVersion": 3,
       "position": [650, 400],
       "parameters": {
-        "url": "http://localhost:8100/api/brand/export",
+        "url": "http://localhost:{{$env.BRAND_MANAGER_PORT}}/api/brand/export",
         "method": "POST",
         "headers": {
           "X-API-Key": "{{$json.brand_api_key}}"
@@ -89,7 +89,7 @@
       "typeVersion": 3,
       "position": [1050, 350],
       "parameters": {
-        "url": "http://claude-code:8080/api/modify",
+        "url": "http://localhost:{{$env.RESOURCE_PORTS_claude_code}}/api/modify",
         "method": "POST",
         "body": {
           "project_path": "={{$json.app_path}}",
@@ -151,7 +151,7 @@
       "typeVersion": 3,
       "position": [1450, 450],
       "parameters": {
-        "url": "http://localhost:8300/api/multi-tenant/configure",
+        "url": "http://localhost:{{$env.SERVICE_PORT}}/api/multi-tenant/configure",
         "method": "POST",
         "body": {
           "app_id": "={{$json.app_id}}",
@@ -166,7 +166,7 @@
       "typeVersion": 3,
       "position": [1650, 350],
       "parameters": {
-        "url": "http://localhost:8300/api/validate",
+        "url": "http://localhost:{{$env.SERVICE_PORT}}/api/validate",
         "method": "POST",
         "body": {
           "app_path": "={{$json.personalized_app_path}}",

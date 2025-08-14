@@ -5,14 +5,19 @@
     "parent": "vrooli",
     "name": "smart-file-photo-manager",
     "displayName": "Smart File Photo Manager",
-    "description": "Semantic file and photo management with AI-powered organization suggestions",
+    "description": "AI-powered semantic file organization and management system with intelligent photo categorization, document processing, and duplicate detection",
     "version": "1.0.0",
     "type": "business-application",
+    "category": "productivity",
     "tags": [
       "file-management",
-      "photo-management",
-      "ai-organization",
-      "semantic-search"
+      "photo-organization",
+      "ai-tagging",
+      "semantic-search",
+      "duplicate-detection",
+      "document-processing",
+      "windmill-ui",
+      "automation"
     ]
   },
   "ports": {
@@ -20,13 +25,7 @@
       "env_var": "SERVICE_PORT",
       "range": "8090-8999",
       "fallback": "auto",
-      "description": "File manager API port"
-    },
-    "ui": {
-      "env_var": "UI_PORT",
-      "range": "3000-3999",
-      "fallback": "auto",
-      "description": "File manager UI port"
+      "description": "Smart file manager coordination API port"
     }
   },
   "resources": {
@@ -35,7 +34,7 @@
         "type": "postgres",
         "enabled": true,
         "required": true,
-        "purpose": "Store file metadata, organization structure, and settings",
+        "purpose": "Store file metadata, processing history, and AI-generated suggestions",
         "initialization": [
           {
             "file": "initialization/storage/postgres/schema.sql",
@@ -47,23 +46,53 @@
           }
         ]
       },
-      "redis": {
-        "type": "redis",
-        "enabled": true,
-        "required": true,
-        "purpose": "Caching and real-time updates"
-      },
       "qdrant": {
         "type": "qdrant",
         "enabled": true,
         "required": true,
-        "purpose": "Vector database for semantic search of files and images"
+        "purpose": "Vector database for semantic file search, image similarity matching, and content embeddings",
+        "initialization": [
+          {
+            "file": "initialization/storage/qdrant/collections.json",
+            "type": "collection"
+          }
+        ]
       },
       "minio": {
         "type": "minio",
         "enabled": true,
         "required": true,
-        "purpose": "Object storage for files, processed files, thumbnails, and exports"
+        "purpose": "Object storage for original files, processed versions, and thumbnails",
+        "initialization": [
+          {
+            "file": "initialization/storage/minio/buckets.json",
+            "type": "bucket"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": true,
+        "purpose": "Caching file metadata and processing job queue management"
+      }
+    },
+    "ai": {
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "models": [
+          "llava:13b",
+          "llama3.2",
+          "nomic-embed-text"
+        ]
+      },
+      "unstructured-io": {
+        "type": "unstructured-io",
+        "enabled": true,
+        "required": true,
+        "purpose": "Document text extraction and content parsing"
       }
     },
     "automation": {
@@ -85,15 +114,7 @@
             "type": "workflow"
           },
           {
-            "file": "initialization/automation/n8n/embedding-generator.json",
-            "type": "workflow"
-          },
-          {
             "file": "initialization/automation/n8n/duplicate-detector.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/automation/n8n/organization-suggester.json",
             "type": "workflow"
           },
           {
@@ -102,6 +123,10 @@
           },
           {
             "file": "initialization/automation/n8n/semantic-search.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/embedding-generator.json",
             "type": "workflow"
           }
         ]
@@ -115,18 +140,6 @@
             "file": "initialization/automation/windmill/apps/file-manager-ui.json",
             "type": "app"
           }
-        ]
-      }
-    },
-    "ai": {
-      "ollama": {
-        "type": "ollama",
-        "enabled": true,
-        "required": true,
-        "models": [
-          "llava:13b",
-          "llama3.2",
-          "nomic-embed-text"
         ]
       }
     }
@@ -147,39 +160,103 @@
           "description": "Add app data to resources"
         },
         {
+          "name": "install-cli",
+          "run": "cd cli && ./install-cli.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o smart-file-photo-manager-api main.go",
+          "description": "Build Go coordination API binary"
+        },
+        {
           "name": "show-urls",
-          "run": "echo '🚀 Smart File Photo Manager initialized\\n  File Manager UI: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${SERVICE_PORT}'",
+          "run": "echo '🚀 Smart File Photo Manager initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${SERVICE_PORT}\\n  MinIO Console: http://localhost:${RESOURCE_PORTS[minio]}\\n  CLI: smart-file-photo-manager --help'",
           "description": "Display service access URLs"
         }
       ]
     },
     "develop": {
-      "description": "Start file manager services",
+      "description": "Start smart file photo manager with Go API server",
       "steps": [
         {
-          "name": "start-services",
-          "run": "cd deployment && ./startup.sh",
-          "description": "Start file manager services"
+          "name": "start-api-server",
+          "run": "cd api && PORT=$SERVICE_PORT N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} WINDMILL_BASE_URL=http://localhost:${RESOURCE_PORTS[windmill]} POSTGRES_URL=postgres://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/file_manager QDRANT_URL=http://localhost:${RESOURCE_PORTS[qdrant]} MINIO_URL=http://localhost:${RESOURCE_PORTS[minio]} REDIS_URL=redis://localhost:${RESOURCE_PORTS[redis]} OLLAMA_URL=http://localhost:${RESOURCE_PORTS[ollama]} UNSTRUCTURED_URL=http://localhost:${RESOURCE_PORTS[unstructured-io]} ./smart-file-photo-manager-api &",
+          "description": "Start Go coordination API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/smart-file-photo-manager-api"
+          }
+        },
+        {
+          "name": "wait-for-api",
+          "run": "sleep 2 && curl -sf http://localhost:$SERVICE_PORT/health > /dev/null",
+          "description": "Wait for API server to be ready",
+          "retry": {
+            "max_attempts": 15,
+            "delay": 1
+          }
+        },
+        {
+          "name": "show-running-services",
+          "run": "echo '🚀 Smart File Photo Manager running:\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$SERVICE_PORT\\n  MinIO Console: http://localhost:${RESOURCE_PORTS[minio]}\\n  CLI: smart-file-photo-manager --help'",
+          "description": "Display all running service URLs"
         }
       ]
     },
     "test": {
-      "description": "Test file manager functionality",
+      "description": "Test smart file photo manager API and workflows",
       "steps": [
         {
-          "name": "run-tests",
-          "run": "bash test.sh",
-          "description": "Run integration tests"
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build main.go && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-files-endpoint",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/api/files",
+          "description": "Test API files endpoint"
+        },
+        {
+          "name": "test-search-endpoint",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/api/search?q=test",
+          "description": "Test API search endpoint"
+        },
+        {
+          "name": "test-upload-endpoint",
+          "run": "bash test/test-upload-endpoint.sh",
+          "description": "Test file upload endpoint"
+        },
+        {
+          "name": "test-cli-commands",
+          "run": "cd cli && bats smart-file-photo-manager.bats",
+          "description": "Run CLI test suite",
+          "condition": {
+            "file_exists": "cli/smart-file-photo-manager.bats"
+          }
         }
       ]
     },
     "stop": {
-      "description": "Stop file manager services",
+      "description": "Stop smart file photo manager services",
       "steps": [
         {
-          "name": "stop-services",
-          "run": "pkill -f 'file-manager' || true",
-          "description": "Stop all file manager processes"
+          "name": "stop-api-server",
+          "run": "pkill -f 'smart-file-photo-manager-api' || true",
+          "description": "Stop Go API server processes"
+        },
+        {
+          "name": "confirm-stop",
+          "run": "echo '🛑 Smart File Photo Manager services stopped'",
+          "description": "Confirm services stopped"
         }
       ]
     }

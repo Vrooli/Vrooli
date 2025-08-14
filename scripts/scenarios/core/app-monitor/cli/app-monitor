@@ -1,0 +1,308 @@
+#\!/usr/bin/env bash
+# App Monitor CLI - Lightweight wrapper for the Go API
+
+set -euo pipefail
+
+# Configuration
+API_BASE_URL="${APP_MONITOR_API_URL:-http://localhost:8090}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Helper functions
+log_info() {
+    echo -e "${BLUE}ℹ${NC} $1"
+}
+
+log_success() {
+    echo -e "${GREEN}✅${NC} $1"
+}
+
+log_warning() {
+    echo -e "${YELLOW}⚠${NC} $1"
+}
+
+log_error() {
+    echo -e "${RED}❌${NC} $1"
+}
+
+# API request helper
+api_request() {
+    local method="$1"
+    local endpoint="$2"
+    local data="${3:-}"
+    
+    local curl_args=("-X" "$method" "-H" "Content-Type: application/json" "-s")
+    
+    if [[ -n "$data" ]]; then
+        curl_args+=("-d" "$data")
+    fi
+    
+    curl "${curl_args[@]}" "$API_BASE_URL$endpoint"
+}
+
+# Check if API is available
+check_api() {
+    if \! curl -s "$API_BASE_URL/health" > /dev/null 2>&1; then
+        log_error "App Monitor API is not available at $API_BASE_URL"
+        log_info "Make sure the App Monitor service is running"
+        return 1
+    fi
+}
+
+# Commands
+cmd_status() {
+    log_info "Checking App Monitor status..."
+    
+    if \! check_api; then
+        return 1
+    fi
+    
+    local health_response
+    health_response=$(api_request "GET" "/health")
+    
+    local status
+    status=$(echo "$health_response" | jq -r '.status // "unknown"')
+    
+    if [[ "$status" == "healthy" ]]; then
+        log_success "App Monitor is healthy"
+        echo "$health_response" | jq .
+    else
+        log_warning "App Monitor status: $status"
+        echo "$health_response" | jq .
+    fi
+}
+
+cmd_list() {
+    log_info "Listing managed apps..."
+    
+    if \! check_api; then
+        return 1
+    fi
+    
+    local apps_response
+    apps_response=$(api_request "GET" "/api/apps")
+    
+    if [[ "$apps_response" == "[]" ]]; then
+        log_info "No apps currently registered"
+        return 0
+    fi
+    
+    echo "$apps_response" | jq -r '.[] | "\(.name) (\(.id[0:8])...): \(.status) - \(.scenario_name)"'
+}
+
+cmd_start() {
+    local app_id="$1"
+    
+    log_info "Starting app: $app_id"
+    
+    if \! check_api; then
+        return 1
+    fi
+    
+    local response
+    response=$(api_request "POST" "/api/apps/$app_id/start")
+    
+    local message
+    message=$(echo "$response" | jq -r '.message // .error // "Unknown response"')
+    
+    if echo "$response" | jq -e '.message' > /dev/null 2>&1; then
+        log_success "$message"
+    else
+        log_error "$message"
+        return 1
+    fi
+}
+
+cmd_stop() {
+    local app_id="$1"
+    
+    log_info "Stopping app: $app_id"
+    
+    if \! check_api; then
+        return 1
+    fi
+    
+    local response
+    response=$(api_request "POST" "/api/apps/$app_id/stop")
+    
+    local message
+    message=$(echo "$response" | jq -r '.message // .error // "Unknown response"')
+    
+    if echo "$response" | jq -e '.message' > /dev/null 2>&1; then
+        log_success "$message"
+    else
+        log_error "$message"
+        return 1
+    fi
+}
+
+cmd_logs() {
+    local app_id="$1"
+    local limit="${2:-50}"
+    
+    log_info "Fetching logs for app: $app_id"
+    
+    if \! check_api; then
+        return 1
+    fi
+    
+    local logs_response
+    logs_response=$(api_request "GET" "/api/apps/$app_id/logs?limit=$limit")
+    
+    if [[ "$logs_response" == "[]" ]]; then
+        log_info "No logs found for app: $app_id"
+        return 0
+    fi
+    
+    echo "$logs_response" | jq -r '.[] | "\(.timestamp) [\(.level)] \(.message)"'
+}
+
+cmd_metrics() {
+    local app_id="$1"
+    local hours="${2:-24}"
+    
+    log_info "Fetching metrics for app: $app_id (last $hours hours)"
+    
+    if \! check_api; then
+        return 1
+    fi
+    
+    local metrics_response
+    metrics_response=$(api_request "GET" "/api/apps/$app_id/metrics?hours=$hours")
+    
+    if [[ "$metrics_response" == "[]" ]]; then
+        log_info "No metrics found for app: $app_id"
+        return 0
+    fi
+    
+    echo "$metrics_response" | jq -r '.[] | "\(.timestamp) - CPU: \(.cpu_usage)% Memory: \(.memory_usage)% Status: \(.status)"'
+}
+
+cmd_docker() {
+    log_info "Docker information..."
+    
+    if \! check_api; then
+        return 1
+    fi
+    
+    local docker_response
+    docker_response=$(api_request "GET" "/api/docker/info")
+    
+    echo "$docker_response" | jq '{
+        "Containers": .Containers,
+        "Images": .Images,
+        "Server Version": .ServerVersion,
+        "Operating System": .OperatingSystem,
+        "Architecture": .Architecture
+    }'
+}
+
+cmd_help() {
+    cat << 'HELP'
+App Monitor CLI - Manage and monitor generated applications
+
+Usage:
+    app-monitor <command> [arguments]
+
+Commands:
+    status                  Check App Monitor service health
+    list                    List all managed applications
+    start <app_id>          Start an application
+    stop <app_id>           Stop an application
+    logs <app_id> [limit]   Show application logs (default: 50)
+    metrics <app_id> [hrs]  Show application metrics (default: 24h)
+    docker                  Show Docker system information
+    help                    Show this help message
+
+Environment Variables:
+    APP_MONITOR_API_URL     API base URL (default: http://localhost:8090)
+
+Examples:
+    app-monitor status
+    app-monitor list
+    app-monitor start abc123
+    app-monitor logs abc123 100
+    app-monitor metrics abc123 12
+
+HELP
+}
+
+# Main command dispatcher
+main() {
+    if [[ $# -eq 0 ]]; then
+        cmd_help
+        return 0
+    fi
+    
+    local command="$1"
+    shift
+    
+    # Check for required tools
+    if \! command -v curl > /dev/null 2>&1; then
+        log_error "curl is required but not installed"
+        return 1
+    fi
+    
+    if \! command -v jq > /dev/null 2>&1; then
+        log_error "jq is required but not installed"
+        return 1
+    fi
+    
+    case "$command" in
+        "status")
+            cmd_status "$@"
+            ;;
+        "list")
+            cmd_list "$@"
+            ;;
+        "start")
+            if [[ $# -eq 0 ]]; then
+                log_error "App ID required for start command"
+                return 1
+            fi
+            cmd_start "$@"
+            ;;
+        "stop")
+            if [[ $# -eq 0 ]]; then
+                log_error "App ID required for stop command"
+                return 1
+            fi
+            cmd_stop "$@"
+            ;;
+        "logs")
+            if [[ $# -eq 0 ]]; then
+                log_error "App ID required for logs command"
+                return 1
+            fi
+            cmd_logs "$@"
+            ;;
+        "metrics")
+            if [[ $# -eq 0 ]]; then
+                log_error "App ID required for metrics command"
+                return 1
+            fi
+            cmd_metrics "$@"
+            ;;
+        "docker")
+            cmd_docker "$@"
+            ;;
+        "help"|"-h"|"--help")
+            cmd_help
+            ;;
+        *)
+            log_error "Unknown command: $command"
+            echo
+            cmd_help
+            return 1
+            ;;
+    esac
+}
+
+main "$@"
+EOF < /dev/null

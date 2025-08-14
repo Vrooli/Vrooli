@@ -81,7 +81,17 @@
         "type": "postgres",
         "enabled": true,
         "required": true,
-        "purpose": "transcription metadata and analytics"
+        "purpose": "transcription metadata and analytics",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "script"
+          },
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "type": "script"
+          }
+        ]
       },
       "minio": {
         "type": "minio",
@@ -113,29 +123,83 @@
           "description": "Add app data to resources"
         },
         {
+          "name": "install-cli",
+          "run": "cd cli && ./install-cli.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o audio-intelligence-platform-api main.go",
+          "description": "Build Go API binary"
+        },
+        {
           "name": "show-urls",
-          "run": "echo '🚀 Audio Intelligence Platform initialized\\n  Windmill Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Whisper API: http://localhost:${RESOURCE_PORTS[whisper]}\\n  Ollama API: http://localhost:${RESOURCE_PORTS[ollama]}\\n  Qdrant DB: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  MinIO Storage: http://localhost:${RESOURCE_PORTS[minio]}\\n  API: http://localhost:${SERVICE_PORT}'",
+          "run": "echo '🚀 Audio Intelligence Platform initialized\\n  Windmill Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Whisper API: http://localhost:${RESOURCE_PORTS[whisper]}\\n  Ollama API: http://localhost:${RESOURCE_PORTS[ollama]}\\n  Qdrant DB: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  MinIO Storage: http://localhost:${RESOURCE_PORTS[minio]}\\n  API: http://localhost:${SERVICE_PORT}\\n  CLI: audio-intelligence-platform --help'",
           "description": "Display service access URLs"
         }
       ]
     },
     "develop": {
-      "description": "Start audio intelligence platform services",
+      "description": "Start audio intelligence platform with Go API server",
       "steps": [
         {
-          "name": "start-services",
-          "run": "cd deployment && ./startup.sh",
-          "description": "Start platform services"
+          "name": "start-api-server",
+          "run": "cd api && PORT=$SERVICE_PORT N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} WINDMILL_BASE_URL=http://localhost:${RESOURCE_PORTS[windmill]} WHISPER_BASE_URL=http://localhost:${RESOURCE_PORTS[whisper]} OLLAMA_BASE_URL=http://localhost:${RESOURCE_PORTS[ollama]} POSTGRES_URL=postgres://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/audio_intelligence_platform MINIO_ENDPOINT=localhost:${RESOURCE_PORTS[minio]} QDRANT_URL=http://localhost:${RESOURCE_PORTS[qdrant]} ./audio-intelligence-platform-api &",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/audio-intelligence-platform-api"
+          }
+        },
+        {
+          "name": "wait-for-api",
+          "run": "sleep 2 && curl -sf http://localhost:$SERVICE_PORT/health > /dev/null",
+          "description": "Wait for API server to be ready",
+          "retry": {
+            "max_attempts": 15,
+            "delay": 1
+          }
+        },
+        {
+          "name": "show-running-services",
+          "run": "echo '🚀 Audio Intelligence Platform running:\\n  Windmill: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Whisper: http://localhost:${RESOURCE_PORTS[whisper]}\\n  Ollama: http://localhost:${RESOURCE_PORTS[ollama]}\\n  Qdrant: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  MinIO: http://localhost:${RESOURCE_PORTS[minio]}\\n  API: http://localhost:$SERVICE_PORT\\n  CLI: audio-intelligence-platform --help'",
+          "description": "Display all running service URLs"
         }
       ]
     },
     "test": {
-      "description": "Run audio intelligence platform tests",
+      "description": "Test audio intelligence platform API and CLI",
       "steps": [
         {
-          "name": "run-tests",
-          "run": "bash test.sh",
-          "description": "Execute integration tests"
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build main.go && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-transcription-endpoint",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/api/transcriptions",
+          "description": "Test API transcriptions endpoint"
+        },
+        {
+          "name": "test-analysis-endpoint",
+          "run": "bash test/test-analysis-endpoint.sh",
+          "description": "Test API analysis endpoint"
+        },
+        {
+          "name": "test-cli-commands",
+          "run": "cd cli && bats audio-intelligence-platform.bats",
+          "description": "Run CLI test suite",
+          "condition": {
+            "file_exists": "cli/audio-intelligence-platform.bats"
+          }
         }
       ]
     },
@@ -143,9 +207,14 @@
       "description": "Stop audio intelligence platform services",
       "steps": [
         {
-          "name": "stop-services",
-          "run": "pkill -f 'audio-intelligence' || true",
-          "description": "Stop all platform processes"
+          "name": "stop-api-server",
+          "run": "pkill -f 'audio-intelligence-platform-api' || true",
+          "description": "Stop Go API server processes"
+        },
+        {
+          "name": "confirm-stop",
+          "run": "echo '🛑 Audio Intelligence Platform services stopped'",
+          "description": "Confirm services stopped"
         }
       ]
     }

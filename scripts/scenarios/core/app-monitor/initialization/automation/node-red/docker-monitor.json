@@ -26,7 +26,7 @@
     "name": "List Docker Containers",
     "method": "GET",
     "ret": "obj",
-    "url": "unix:///var/run/docker.sock:/containers/json?all=true",
+    "url": "http://localhost:{{env.get('SERVICE_PORT') || 8090}}/api/docker/containers",
     "tls": "",
     "persist": false,
     "proxy": "",
@@ -50,7 +50,7 @@
     "type": "function",
     "z": "docker-monitor-flow",
     "name": "Store in PostgreSQL",
-    "func": "// Prepare SQL for batch insert\nconst values = msg.payload.map(app => {\n    return `('${app.name}', '${app.status}', '${app.id}')`;\n}).join(',');\n\nif (values) {\n    msg.topic = `\n        INSERT INTO app_status (app_id, status, container_id, timestamp)\n        SELECT a.id, v.status, v.container_id, CURRENT_TIMESTAMP\n        FROM (VALUES ${values}) AS v(name, status, container_id)\n        JOIN apps a ON a.name = v.name\n        ON CONFLICT DO NOTHING;\n    `;\n    return msg;\n}\nreturn null;",
+    "func": "// Send status updates to App Monitor API instead of direct DB access\nconst apiBaseUrl = `http://localhost:${env.get('SERVICE_PORT') || 8090}`;\n\nfor (const app of msg.payload) {\n    const statusUpdate = {\n        url: `${apiBaseUrl}/api/apps/${app.name}/status`,\n        method: 'POST',\n        headers: { 'Content-Type': 'application/json' },\n        payload: {\n            status: app.status,\n            container_id: app.id,\n            timestamp: new Date().toISOString()\n        }\n    };\n    \n    // Send each update (Node-RED will handle async)\n    node.send({ ...statusUpdate, _msgid: msg._msgid + '_' + app.name });\n}\n\nreturn null;",
     "outputs": 1,
     "noerr": 0
   },
@@ -86,7 +86,7 @@
     "name": "Restart Container",
     "method": "POST",
     "ret": "obj",
-    "url": "unix:///var/run/docker.sock:/containers/{{{payload.containerId}}}/restart",
+    "url": "http://localhost:{{env.get('SERVICE_PORT') || 8090}}/api/apps/{{{payload.appId}}}/start",
     "tls": "",
     "persist": false
   },

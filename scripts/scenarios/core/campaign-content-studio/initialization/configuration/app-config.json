@@ -1,0 +1,55 @@
+{
+  "app": {
+    "name": "Campaign Content Studio",
+    "version": "1.0.0",
+    "description": "AI-powered content studio for automated campaign creation, content generation, and multi-channel marketing"
+  },
+  "features": {
+    "campaign_management": {
+      "enabled": true,
+      "max_campaigns_per_user": 50,
+      "auto_save_interval": 30
+    },
+    "document_processing": {
+      "enabled": true,
+      "max_file_size_mb": 100,
+      "supported_formats": ["pdf", "docx", "txt", "md"],
+      "auto_extract_text": true,
+      "auto_generate_embeddings": true
+    },
+    "content_generation": {
+      "enabled": true,
+      "default_model": "llama3.2",
+      "max_content_length": 10000,
+      "include_seo_optimization": true,
+      "auto_save_generated": true
+    },
+    "semantic_search": {
+      "enabled": true,
+      "similarity_threshold": 0.7,
+      "max_results": 10,
+      "context_window": 1000
+    },
+    "image_generation": {
+      "enabled": true,
+      "default_style": "professional",
+      "supported_formats": ["blog_header", "social_media", "marketing"]
+    }
+  },
+  "ui": {
+    "theme": "modern",
+    "layout": "tabbed",
+    "auto_refresh_interval": 60,
+    "show_advanced_options": false
+  },
+  "integrations": {
+    "windmill": {
+      "workspace": "demo",
+      "auto_deploy_apps": true
+    },
+    "n8n": {
+      "auto_activate_workflows": true,
+      "webhook_prefix": "campaign-content-studio"
+    }
+  }
+}

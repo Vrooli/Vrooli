@@ -1,0 +1,135 @@
+#!/usr/bin/env bash
+# Test n8n investigation workflow
+
+set -euo pipefail
+
+API_URL="${ISSUE_TRACKER_API_URL:-http://localhost:8090/api}"
+N8N_URL="${N8N_BASE_URL:-http://localhost:5678}"
+
+# Colors for output
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+log_info() {
+    echo -e "${YELLOW}ℹ${NC} $1"
+}
+
+log_success() {
+    echo -e "${GREEN}✓${NC} $1"
+}
+
+log_error() {
+    echo -e "${RED}✗${NC} $1"
+}
+
+# Test investigation workflow trigger
+test_investigation_trigger() {
+    local issue_id="$1"
+    
+    log_info "Testing investigation workflow trigger for issue: $issue_id"
+    
+    local payload
+    payload=$(jq -n \
+        --arg id "$issue_id" \
+        --arg agent "test-agent" \
+        '{
+            issue_id: $id,
+            agent_id: $agent,
+            priority: "normal"
+        }')
+    
+    local response
+    response=$(curl -s -X POST "$API_URL/investigate" \
+        -H "Content-Type: application/json" \
+        -d "$payload")
+    
+    local success
+    success=$(echo "$response" | jq -r '.success')
+    
+    if [ "$success" = "true" ]; then
+        local run_id
+        run_id=$(echo "$response" | jq -r '.data.run_id // empty')
+        local investigation_id
+        investigation_id=$(echo "$response" | jq -r '.data.investigation_id // empty')
+        
+        if [ -n "$run_id" ] && [ -n "$investigation_id" ]; then
+            log_success "Investigation triggered successfully"
+            log_info "Run ID: $run_id"
+            log_info "Investigation ID: $investigation_id"
+            return 0
+        else
+            log_error "Investigation response missing required fields"
+            return 1
+        fi
+    else
+        local message
+        message=$(echo "$response" | jq -r '.message // "Unknown error"')
+        log_error "Investigation trigger failed: $message"
+        return 1
+    fi
+}
+
+# Test workflow health
+test_workflow_health() {
+    log_info "Testing n8n workflow health..."
+    
+    if curl -sf "$N8N_URL/healthz" > /dev/null 2>&1; then
+        log_success "n8n is healthy"
+        return 0
+    else
+        log_error "n8n is not available at $N8N_URL"
+        return 1
+    fi
+}
+
+# Test API health first
+log_info "Testing API health..."
+if ! curl -sf "$API_URL/../health" > /dev/null; then
+    log_error "API is not available at $API_URL"
+    exit 1
+fi
+log_success "API is healthy"
+
+# Test workflow engine
+if ! test_workflow_health; then
+    log_error "Workflow engine tests failed"
+    exit 1
+fi
+
+# Create a test issue first
+log_info "Creating test issue for investigation..."
+test_issue_payload=$(jq -n '{
+    title: "Test Investigation Issue",
+    description: "This is a test issue for investigation workflow testing",
+    type: "bug",
+    priority: "medium",
+    error_message: "Test error message",
+    tags: ["test", "investigation"]
+}')
+
+create_response=$(curl -s -X POST "$API_URL/issues" \
+    -H "Content-Type: application/json" \
+    -d "$test_issue_payload")
+
+create_success=$(echo "$create_response" | jq -r '.success')
+
+if [ "$create_success" = "true" ]; then
+    test_issue_id=$(echo "$create_response" | jq -r '.data.issue_id')
+    log_success "Test issue created: $test_issue_id"
+    
+    # Test investigation trigger
+    if test_investigation_trigger "$test_issue_id"; then
+        log_success "Investigation workflow tests passed!"
+    else
+        log_error "Investigation workflow tests failed"
+        exit 1
+    fi
+else
+    log_error "Failed to create test issue"
+    echo "$create_response" | jq -r '.message // "Unknown error"'
+    exit 1
+fi
+
+log_success "All investigation workflow tests passed!"

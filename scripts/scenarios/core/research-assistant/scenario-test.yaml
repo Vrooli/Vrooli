@@ -6,6 +6,10 @@ structure:
   required_files:
     - .vrooli/service.json
     - IMPLEMENTATION_PLAN.md
+    - api/main.go
+    - api/go.mod
+    - cli/research-assistant
+    - cli/install-cli.sh
     - initialization/storage/postgres/schema.sql
     - initialization/storage/postgres/seed.sql
     - initialization/automation/n8n/research-orchestrator.json
@@ -20,6 +24,8 @@ structure:
     - initialization/search/searxng/engines-config.json
   
   required_dirs:
+    - api
+    - cli
     - initialization/storage/postgres
     - initialization/storage/qdrant
     - initialization/storage/minio
@@ -27,7 +33,6 @@ structure:
     - initialization/automation/windmill
     - initialization/configuration
     - initialization/search/searxng
-    - deployment
 
 # Resource requirements
 resources:
@@ -112,6 +117,36 @@ tests:
     type: http
     service: windmill
     endpoint: /api/version
+    method: GET
+    expect:
+      status: 200
+      body:
+        type: json
+
+  - name: "Research Assistant API Health"
+    type: http
+    service: api
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+      body:
+        type: json
+
+  - name: "Research Assistant API Reports"
+    type: http
+    service: api
+    endpoint: /api/reports
+    method: GET
+    expect:
+      status: 200
+      body:
+        type: json
+
+  - name: "Research Assistant API Dashboard"
+    type: http
+    service: api
+    endpoint: /api/dashboard/stats
     method: GET
     expect:
       status: 200

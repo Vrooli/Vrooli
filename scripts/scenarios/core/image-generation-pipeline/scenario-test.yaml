@@ -1,135 +1,218 @@
-version: 1.0
-scenario: image-generation-pipeline
+name: image-generation-pipeline
+description: Test suite for Enterprise Image Generation Pipeline
+version: 1.0.0
 
-# Structure validation
-structure:
-  required_files:
-    - .vrooli/service.json
-    - initialization/storage/schema.sql
-    - initialization/storage/seed.sql
-    - initialization/automation/n8n/main-workflow.json
-    - initialization/automation/triggers.yaml
-    - initialization/automation/windmill/windmill-app.json
-    - initialization/configuration/app-config.json
-    - initialization/configuration/feature-flags.json
-    - initialization/configuration/resource-urls.json
-    - deployment/startup.sh
-    - deployment/monitor.sh
-    - test.sh
-    - custom-tests.sh
-    - ui/deploy-enterprise-platform.sh
-    - ui/enterprise-image-platform-app.json
-    - ui/scripts/analytics_dashboard.ts
-    - ui/scripts/asset_manager.ts
-    - ui/scripts/brand_engine.ts
-    - ui/scripts/campaign_manager.ts
-    - ui/scripts/client_portal.ts
-    - ui/scripts/generation_studio.ts
-    - ui/scripts/quality_control.ts
-  
-  required_dirs:
-    - .vrooli
-    - initialization/storage
-    - initialization/automation
-    - initialization/configuration
-    - deployment
-    - ui
-    - ui/scripts
+prerequisites:
+  resources:
+    - ollama
+    - n8n
+    - windmill
+    - postgres
+    - whisper
+    - comfyui
+    - minio
+    - qdrant
+    - go
+  environment:
+    N8N_BASE_URL: http://localhost:${RESOURCE_PORTS[n8n]}
+    WINDMILL_BASE_URL: http://localhost:${RESOURCE_PORTS[windmill]}
+    COMFYUI_BASE_URL: http://localhost:${RESOURCE_PORTS[comfyui]}
+    WHISPER_BASE_URL: http://localhost:${RESOURCE_PORTS[whisper]}
+    SERVICE_PORT: ${SERVICE_PORT:-dynamic}
 
-# Resource requirements
-resources:
-  required: [postgres, ollama, whisper, comfyui, qdrant, minio, agent-s2, browserless]
-  optional: [vault]
-  health_timeout: 60
-
-# Declarative tests
 tests:
-  - name: "Application Health Check"
-    type: http
-    service: app
-    endpoint: /api/image-generation-pipeline/health
-    method: GET
-    expect:
-      status: 200
-      body:
-        type: json
+  - name: resource_availability
+    description: Verify all required resources are running
+    steps:
+      - check: ollama_api
+        command: curl -f http://localhost:${RESOURCE_PORTS[ollama]}/api/version
+        expected_status: 200
+      - check: n8n_health
+        command: curl -f http://localhost:${RESOURCE_PORTS[n8n]}/healthz
+        expected_status: 200
+      - check: windmill_health
+        command: curl -f http://localhost:${RESOURCE_PORTS[windmill]}/api/version
+        expected_status: 200
+      - check: postgres_ready
+        command: pg_isready -h localhost -p ${RESOURCE_PORTS[postgres]}
+        expected_status: 0
+      - check: whisper_health
+        command: curl -f http://localhost:${RESOURCE_PORTS[whisper]}/health
+        expected_status: 200
+      - check: comfyui_health
+        command: curl -f http://localhost:${RESOURCE_PORTS[comfyui]}/system_stats
+        expected_status: 200
+      - check: minio_health
+        command: curl -f http://localhost:${RESOURCE_PORTS[minio]}/minio/health/live
+        expected_status: 200
+      - check: qdrant_health
+        command: curl -f http://localhost:${RESOURCE_PORTS[qdrant]}/
+        expected_status: 200
+      - check: go_runtime
+        command: go version
+        contains: go1.21
 
-  - name: "AI Model Engine Ready"
-    type: http
-    service: ollama
-    endpoint: /api/tags
-    method: GET
-    expect:
-      status: 200
-      body:
-        type: json
-        
-  - name: "Audio Transcription Engine Ready"
-    type: http
-    service: whisper
-    endpoint: /health
-    method: GET
-    expect:
-      status: 200
-      
-  - name: "Image Generation Engine Ready"
-    type: http
-    service: comfyui
-    endpoint: /system_stats
-    method: GET
-    expect:
-      status: 200
-      
-  - name: "Vector Database Ready"
-    type: http
-    service: qdrant
-    endpoint: /health
-    method: GET
-    expect:
-      status: 200
+  - name: go_api_service
+    description: Verify Go API is built and running
+    steps:
+      - check: api_binary_exists
+        command: test -f api/image-generation-pipeline-api
+        expected_status: 0
+      - check: api_health
+        command: curl -f http://localhost:${SERVICE_PORT}/health
+        expected_status: 200
+        contains: "status":"healthy"
+      - check: api_campaigns_endpoint
+        command: curl -f http://localhost:${SERVICE_PORT}/api/campaigns
+        expected_status: 200
+      - check: api_brands_endpoint
+        command: curl -f http://localhost:${SERVICE_PORT}/api/brands
+        expected_status: 200
+      - check: api_generations_endpoint
+        command: curl -f http://localhost:${SERVICE_PORT}/api/generations
+        expected_status: 200
 
-  - name: "Object Storage Ready"
-    type: http
-    service: minio
-    endpoint: /minio/health/ready
-    method: GET
-    expect:
-      status: 200
+  - name: n8n_workflow_deployment
+    description: Verify image generation workflow is deployed to n8n
+    steps:
+      - check: main_workflow
+        command: curl -X GET http://localhost:${RESOURCE_PORTS[n8n]}/rest/workflows
+        contains: main-workflow
 
-  - name: "Agent-S2 Automation Ready"
-    type: http
-    service: agent-s2
-    endpoint: /health
-    method: GET
-    expect:
-      status: 200
+  - name: windmill_app_deployment
+    description: Verify Windmill image generation app is deployed
+    steps:
+      - check: windmill_api
+        command: curl -f http://localhost:${RESOURCE_PORTS[windmill]}/api/version
+        expected_status: 200
+      - check: image_generation_app
+        command: curl -f http://localhost:${RESOURCE_PORTS[windmill]}/api/w/main/apps
+        expected_status: 200
 
-  - name: "Browserless Engine Ready"
-    type: http
-    service: browserless
-    endpoint: /pressure
-    method: GET
-    expect:
-      status: 200
+  - name: postgres_database
+    description: Verify PostgreSQL database schema is initialized
+    steps:
+      - check: database_exists
+        command: psql -h localhost -p ${RESOURCE_PORTS[postgres]} -U postgres -lqt | cut -d \| -f 1 | grep -qw image_generation_pipeline
+        expected_status: 0
+      - check: campaigns_table
+        command: psql -h localhost -p ${RESOURCE_PORTS[postgres]} -U postgres -d image_generation_pipeline -c "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'campaigns')"
+        contains: "t"
+      - check: brands_table
+        command: psql -h localhost -p ${RESOURCE_PORTS[postgres]} -U postgres -d image_generation_pipeline -c "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'brands')"
+        contains: "t"
+      - check: image_generations_table
+        command: psql -h localhost -p ${RESOURCE_PORTS[postgres]} -U postgres -d image_generation_pipeline -c "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'image_generations')"
+        contains: "t"
+      - check: seed_data_loaded
+        command: psql -h localhost -p ${RESOURCE_PORTS[postgres]} -U postgres -d image_generation_pipeline -t -c "SELECT COUNT(*) FROM brands"
+        min_value: 1
 
-  - name: "Database Connection"
-    type: tcp
-    service: postgres
-    port: 5432
-      
-  - name: "Enterprise Image Generation Workflow"
-    type: custom
-    script: custom-tests.sh
-    function: test_image_generation_pipeline_workflow
+  - name: comfyui_workflows
+    description: Verify ComfyUI workflows are deployed
+    steps:
+      - check: comfyui_api_available
+        command: curl -f http://localhost:${RESOURCE_PORTS[comfyui]}/system_stats
+        expected_status: 200
+      - check: workflows_available
+        command: curl -f http://localhost:${RESOURCE_PORTS[comfyui]}/object_info
+        expected_status: 200
 
-# Validation criteria
+  - name: api_integration_tests
+    description: Test API endpoints with real data
+    steps:
+      - check: create_brand
+        method: POST
+        url: http://localhost:${SERVICE_PORT}/api/brands
+        headers:
+          Content-Type: application/json
+        body:
+          name: Test Brand API
+          description: Brand created by integration test
+          colors: ["#FF0000", "#00FF00"]
+          fonts: ["Arial", "Helvetica"]
+        expected_status: 201
+        timeout: 30
+      - check: create_campaign
+        method: POST
+        url: http://localhost:${SERVICE_PORT}/api/campaigns
+        headers:
+          Content-Type: application/json
+        body:
+          name: Test Campaign API
+          brand_id: test-brand-id
+          description: Campaign created by integration test
+          status: active
+        expected_status: 201
+        timeout: 30
+      - check: image_generation_request
+        method: POST
+        url: http://localhost:${SERVICE_PORT}/api/generate
+        headers:
+          Content-Type: application/json
+        body:
+          campaign_id: test-campaign-id
+          prompt: A beautiful landscape for testing
+          style: photorealistic
+          dimensions: 512x512
+        expected_status: 202
+        timeout: 30
+
+  - name: ai_models_availability
+    description: Verify required AI models are available
+    steps:
+      - check: llama_model
+        command: ollama list | grep llama3.1
+        expected: llama3.1:8b
+      - check: embedding_model
+        command: ollama list | grep nomic-embed-text
+        expected: nomic-embed-text
+      - check: vision_model
+        command: ollama list | grep llava
+        expected: llava:13b
+
+  - name: cli_functionality
+    description: Verify CLI is installed and functional
+    steps:
+      - check: cli_installed
+        command: which image-generation-pipeline
+        expected: /usr/local/bin/image-generation-pipeline
+      - check: cli_health
+        command: image-generation-pipeline status
+        expected_status: 0
+        contains: healthy
+      - check: cli_campaigns_list
+        command: image-generation-pipeline campaigns
+        expected_status: 0
+      - check: cli_brands_list
+        command: image-generation-pipeline brands
+        expected_status: 0
+      - check: cli_generations_list
+        command: image-generation-pipeline generations
+        expected_status: 0
+
+  - name: end_to_end_workflow
+    description: Test complete image generation workflow
+    steps:
+      - check: brand_creation_via_cli
+        command: image-generation-pipeline brands create "E2E Test Brand" "End-to-end test brand"
+        expected_status: 0
+        contains: Brand created successfully
+        timeout: 30
+      - check: campaign_creation_via_api
+        method: POST
+        url: http://localhost:${SERVICE_PORT}/api/campaigns
+        headers:
+          Content-Type: application/json
+        body:
+          name: E2E Test Campaign
+          brand_id: e2e-brand-id
+          description: End-to-end test campaign
+          status: active
+        expected_status: 201
+        timeout: 30
+
 validation:
-  success_rate: 85        # High success rate for premium enterprise platform
-  response_time: 15000    # 15 seconds max for image generation operations
-  revenue_potential: 125000  # Total estimate from service.json
-  business_criteria:
-    - "Voice-enabled image generation platform operational"
-    - "Multi-brand management system functional"
-    - "Quality control pipeline validated"
-    - "Enterprise visual content automation verified"
-    - "ComfyUI workflow integration working"
+  timeout: 600
+  retry_count: 3
+  success_threshold: 0.90

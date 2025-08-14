@@ -70,7 +70,7 @@
     }
   },
   "network_security": {
-    "allowedOrigins": ["https://localhost:3000"],
+    "allowedOrigins": ["https://localhost:${RESOURCE_PORTS[windmill]}"],
     "rateLimiting": {
       "enabled": true,
       "requestsPerMinute": 100,

@@ -37,7 +37,7 @@
     }
   },
   "key_management": {
-    "vault_address": "http://localhost:8200",
+    "vault_address": "http://localhost:${RESOURCE_PORTS[vault]}",
     "namespace": "secure-doc-processing",
     "auth_method": "token",
     "policies": [

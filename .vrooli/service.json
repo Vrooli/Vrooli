@@ -69,9 +69,89 @@
         "description": "Workflow automation platform",
         "initialization": [
           {
-            "file": "initialization/n8n/embedding-generator.json",
+            "file": "initialization/automation/n8n/embedding-generator.json",
             "type": "workflow",
             "description": "Converts text to embeddings. Useful for storing text in a vector database, such as Qdrant."
+},
+          {
+            "file": "initialization/automation/n8n/structured-data-extractor.json",
+            "type": "workflow",
+            "description": "Extracts structured data from unstructured text using AI. Supports schema-based extraction, auto-detection of common patterns (emails, phones, dates), and confidence scoring."
+          },
+          {
+            "file": "initialization/automation/n8n/universal-rag-pipeline.json",
+            "type": "workflow",
+            "description": "Complete RAG pipeline: fetches content (URLs/files/text), chunks it, generates embeddings, and stores in Qdrant or returns for custom storage."
+          },
+          {
+            "file": "initialization/automation/n8n/cache-manager.json",
+            "type": "workflow",
+            "description": "Universal caching system with Redis multi-database support. Provides GET/SET/DELETE/INVALIDATE/WARM/STATS operations with automatic database selection, compression, tagging, and pattern-based invalidation."
+          },
+          {
+            "file": "initialization/automation/n8n/web-research-aggregator.json",
+            "type": "workflow",
+            "description": "Smart web research pipeline: search → filter → extract → synthesize. Uses SearXNG + Browserless + Ollama for comprehensive research with configurable strategies and intelligent content processing."
+          },
+          {
+            "file": "initialization/automation/n8n/multi-agent-reasoning-ensemble.json",
+            "type": "workflow",
+            "description": "Multi-agent reasoning system replicating Grok 4 Heavy functionality. Spawns multiple specialized agents to analyze complex problems, build consensus, and provide high-quality recommendations with confidence scoring and detailed analysis."
+          },
+          {
+            "file": "initialization/automation/n8n/smart-semantic-search.json",
+            "type": "workflow",
+            "description": "Revolutionary semantic search that generates multiple targeted queries from input text using LLM analysis, executes parallel searches, and aggregates results. Dramatically improves search quality by capturing multi-faceted concepts and specific details that single-embedding approaches miss."
+          },
+          {
+            "file": "initialization/automation/n8n/document-converter-validator.json",
+            "type": "workflow",
+            "description": "Universal document converter and validator: handles multiple input sources (file/URL/MinIO/content), detects formats using magic numbers, converts between formats (PDF/DOCX→text/markdown/JSON), validates content quality, and provides comprehensive metadata. Essential foundation for document processing across all scenarios."
+          },
+          {
+            "file": "initialization/automation/n8n/intelligent-text-classifier.json",
+            "type": "workflow",
+            "description": "Intelligent multi-modal text classification system: PII detection, log severity analysis, content safety, document type identification, sentiment analysis, and custom classification with few-shot learning. Combines rule-based, LLM-based, and embedding-based approaches for high accuracy and speed. Essential for data governance, operational intelligence, and content management across all scenarios."
+          },
+          {
+            "file": "initialization/automation/n8n/workflow-creator-fixer.json",
+            "type": "workflow",
+            "description": "Meta-workflow for creating and fixing other n8n workflows through iterative AI generation, validation, and testing. Embodies recursive improvement by learning from successes and failures to become better at building workflows over time. Essential for accelerating development, ensuring quality, and enabling self-healing capabilities across all scenarios."
+          },
+          {
+            "file": "initialization/automation/n8n/react-loop-engine.json",
+            "type": "workflow",
+            "description": "Autonomous agent workflow implementing Reasoning + Acting (ReAct) pattern. Enables agents to iteratively reason about problems, call tools, observe results, and continue until task completion. Foundation for truly autonomous AI agents that can solve complex, multi-step problems."
+          },
+          {
+            "file": "initialization/automation/n8n/tool-calling-orchestrator.json",
+            "type": "workflow",
+            "description": "Universal function calling system for Ollama models. Bridges the gap between LLM-generated tool calls and actual execution with dynamic tool registry, parameter validation, parallel execution, and comprehensive error handling. Transforms any LLM into a tool-using agent."
+          },
+          {
+            "file": "initialization/automation/n8n/event-stream-hub.json",
+            "type": "workflow",
+            "description": "Universal pub/sub event streaming using Redis Streams. Provides real-time communication backbone with topic management, event filtering, replay capabilities, consumer groups, and dead letter queues. Essential for event-driven architectures and inter-service communication."
+          },
+          {
+            "file": "initialization/automation/n8n/smart-notification-router.json",
+            "type": "workflow",
+            "description": "Intelligent multi-channel notification delivery system. Supports email, Slack, webhook, and SMS with priority-based routing, template management, retry logic, and delivery confirmation. Universal notification solution for all scenarios."
+          },
+          {
+            "file": "initialization/automation/n8n/simple-queue-manager.json",
+            "type": "workflow",
+            "description": "Lightweight async task processing queue using Redis. Provides FIFO and priority queues with job tracking, exponential backoff retry, dead letter queues, and comprehensive monitoring. Essential building block for scalable async processing."
+          },
+          {
+            "file": "initialization/automation/n8n/chain-of-thought-orchestrator.json",
+            "type": "workflow",
+            "description": "Enforces step-by-step reasoning with validation loops to significantly improve LLM output quality. Multi-stage thinking pipeline with self-critique validation, context preservation, and quality metrics. Transforms free-form responses into structured, validated reasoning."
+          },
+          {
+            "file": "initialization/automation/n8n/agent-conversation-manager.json",
+            "type": "workflow",
+            "description": "Multi-agent structured conversation system enabling AI agents with different models to debate, collaborate, and build consensus. Supports role-based specializations, round-based discussions, agreement tracking, and conversation synthesis for complex decision-making."
           }
         ]
       },

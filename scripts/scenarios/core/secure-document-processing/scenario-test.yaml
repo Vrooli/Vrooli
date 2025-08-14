@@ -5,6 +5,10 @@ scenario: secure-document-processing
 structure:
   required_files:
     - .vrooli/service.json
+    - api/main.go
+    - api/go.mod
+    - cli/secure-document-processing
+    - cli/install-cli.sh
     - initialization/storage/postgres/schema.sql
     - initialization/storage/postgres/seed.sql
     - initialization/automation/n8n/document-intake.json
@@ -13,33 +17,31 @@ structure:
     - initialization/automation/n8n/workflow-executor.json
     - initialization/automation/n8n/semantic-indexer.json
     - initialization/automation/windmill/document-portal.json
-    - initialization/configuration/app-config.json
-    - initialization/configuration/feature-flags.json
-    - initialization/configuration/resource-urls.json
-    - deployment/startup.sh
-    - deployment/monitor.sh
+    - initialization/configuration/encryption-config.json
+    - initialization/configuration/security-policies.json
     - test.sh
     - custom-tests.sh
   
   required_dirs:
     - .vrooli
+    - api
+    - cli
     - initialization/storage
     - initialization/automation
     - initialization/configuration
-    - deployment
 
 # Resource requirements
 resources:
-  required: [postgres, unstructured-io, vault, minio, ollama, qdrant, n8n, windmill]
-  optional: []
+  required: [postgres, unstructured-io, vault, minio, ollama, n8n, windmill]
+  optional: [qdrant]
   health_timeout: 50
 
 # Declarative tests
 tests:
-  - name: "Application Health Check"
+  - name: "API Health Check"
     type: http
-    service: app
-    endpoint: /api/secure-document-processing/health
+    service: api
+    endpoint: /health
     method: GET
     expect:
       status: 200
@@ -74,6 +76,30 @@ tests:
     type: tcp
     service: postgres
     port: 5432
+      
+  - name: "Documents API Endpoint"
+    type: http
+    service: api
+    endpoint: /api/documents
+    method: GET
+    expect:
+      status: 200
+      
+  - name: "Jobs API Endpoint"
+    type: http
+    service: api
+    endpoint: /api/jobs
+    method: GET
+    expect:
+      status: 200
+      
+  - name: "Workflows API Endpoint"
+    type: http
+    service: api
+    endpoint: /api/workflows
+    method: GET
+    expect:
+      status: 200
       
   - name: "Secure Document Processing Pipeline"
     type: custom

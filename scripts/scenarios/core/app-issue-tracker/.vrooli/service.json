@@ -5,19 +5,27 @@
     "parent": "vrooli",
     "name": "app-issue-tracker",
     "displayName": "App Issue Tracker",
-    "description": "Centralized issue tracking hub for all Vrooli-generated applications with AI-powered investigation",
+    "description": "Comprehensive issue tracking system with AI-powered investigation and automated fix attempts using Claude Code",
     "version": "1.0.0",
-    "type": "vrooli-enhancement",
-    "category": "vrooli-helpers",
+    "type": "business-application",
+    "category": "productivity-tools",
     "tags": [
       "issue-tracking",
       "ai-investigation",
-      "debugging",
-      "monitoring",
-      "claude-integration",
+      "automated-fixes",
+      "semantic-search",
+      "claude-code-integration",
       "windmill-ui",
-      "semantic-search"
+      "vector-search"
     ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "SERVICE_PORT",
+      "range": "8090-8999",
+      "fallback": "auto",
+      "description": "Issue tracker coordination API port"
+    }
   },
   "resources": {
     "automation": {
@@ -27,11 +35,11 @@
         "required": true,
         "initialization": [
           {
-            "file": "initialization/automation/n8n/claude-investigation.json",
+            "file": "initialization/automation/n8n/issue-ingestion.json",
             "type": "workflow"
           },
           {
-            "file": "initialization/automation/n8n/issue-ingestion.json",
+            "file": "initialization/automation/n8n/claude-investigation.json",
             "type": "workflow"
           }
         ]
@@ -62,17 +70,11 @@
         "enabled": true,
         "required": true,
         "models": [
-          "nomic-embed-text",
-          "llama3.2"
+          "llama3.2",
+          "mistral",
+          "codellama",
+          "nomic-embed-text"
         ]
-      }
-    },
-    "agents": {
-      "claude-code": {
-        "type": "claude-code",
-        "enabled": true,
-        "required": false,
-        "purpose": "AI-powered issue investigation and code analysis"
       }
     },
     "storage": {
@@ -80,40 +82,42 @@
         "type": "postgres",
         "enabled": true,
         "required": true,
-        "purpose": "issue tracking data and metadata"
+        "purpose": "Store issues, agents, apps, investigation reports, and tracking data",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "script"
+          },
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "type": "script"
+          }
+        ]
       },
       "qdrant": {
         "type": "qdrant",
         "enabled": true,
         "required": true,
-        "purpose": "semantic search for similar issues"
+        "purpose": "Vector database for semantic search of issues, similar issue detection, and knowledge base queries"
       },
       "redis": {
         "type": "redis",
         "enabled": true,
-        "required": false,
-        "purpose": "caching and real-time updates"
+        "required": true,
+        "purpose": "Caching and real-time event coordination between components"
       },
       "minio": {
         "type": "minio",
         "enabled": true,
         "required": false,
-        "purpose": "issue artifacts and attachments storage"
+        "purpose": "Storage for investigation artifacts, logs, and fix attempt evidence"
       }
-    }
-  },
-  "ports": {
-    "api": {
-      "env_var": "SERVICE_PORT",
-      "range": "8090-8999",
-      "fallback": "auto",
-      "description": "Issue tracker API server port"
     }
   },
   "lifecycle": {
     "version": "1.0.0",
     "setup": {
-      "description": "Initialize App Issue Tracker",
+      "description": "Initialize App Issue Tracker with AI investigation capabilities",
       "steps": [
         {
           "name": "base-setup",
@@ -128,37 +132,109 @@
         {
           "name": "install-cli",
           "run": "cd cli && ./install-cli.sh",
-          "description": "Install CLI command globally"
+          "description": "Install issue tracker CLI command globally"
         },
         {
-          "name": "generate-api-token",
-          "run": "openssl rand -hex 32 > /tmp/issue-tracker-api-token && echo 'API Token generated: '$(cat /tmp/issue-tracker-api-token)",
-          "description": "Generate secure API access token"
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o app-issue-tracker-api main.go",
+          "description": "Build Go coordination API binary"
+        },
+        {
+          "name": "init-qdrant-collection",
+          "run": "curl -X PUT \"http://localhost:${RESOURCE_PORTS[qdrant]}/collections/issues\" -H \"Content-Type: application/json\" -d '{\"vectors\": {\"size\": 1536, \"distance\": \"Cosine\"}, \"optimizers_config\": {\"default_segment_number\": 2}, \"replication_factor\": 1}' 2>/dev/null || echo '  Collection may already exist'",
+          "description": "Initialize Qdrant vector collection for issue embeddings"
+        },
+        {
+          "name": "init-minio-bucket",
+          "run": "if command -v mc &> /dev/null; then mc alias set issue-tracker \"http://localhost:${RESOURCE_PORTS[minio]}\" \"${MINIO_ACCESS_KEY:-minioadmin}\" \"${MINIO_SECRET_KEY:-minioadmin}\" 2>/dev/null || true; mc mb issue-tracker/issue-artifacts 2>/dev/null || echo '  Bucket may already exist'; mc policy set public issue-tracker/issue-artifacts 2>/dev/null || true; else echo '  MinIO CLI not found, skipping bucket creation'; fi",
+          "description": "Initialize MinIO bucket for investigation artifacts",
+          "condition": {
+            "resource_enabled": "minio"
+          }
+        },
+        {
+          "name": "generate-api-tokens",
+          "run": "PGPASSWORD=\"${POSTGRES_PASSWORD:-postgres}\" psql -h localhost -p \"${RESOURCE_PORTS[postgres]}\" -U \"${POSTGRES_USER:-postgres}\" -d issue_tracker -c \"UPDATE apps SET api_token = md5(random()::text || clock_timestamp()::text) WHERE api_token LIKE 'token_%';\" 2>/dev/null || echo '  Token generation completed'",
+          "description": "Generate secure API tokens for registered apps"
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 App Issue Tracker initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${SERVICE_PORT}\\n  CLI: vrooli-tracker --help'",
+          "run": "echo '🚀 App Issue Tracker initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}/apps/issue_tracker_dashboard\\n  Metrics: http://localhost:${RESOURCE_PORTS[windmill]}/apps/issue_tracker_metrics\\n  Agent Management: http://localhost:${RESOURCE_PORTS[windmill]}/apps/issue_tracker_agents\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${SERVICE_PORT}\\n  CLI: app-issue-tracker --help'",
           "description": "Display service access URLs"
         }
       ]
     },
     "develop": {
-      "description": "Start issue tracker API server",
+      "description": "Start issue tracker with Go API server and all integrations",
       "steps": [
         {
           "name": "start-api-server",
-          "run": "cd deployment && ./startup.sh",
-          "description": "Start issue tracker services"
+          "run": "cd api && PORT=$SERVICE_PORT N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} WINDMILL_BASE_URL=http://localhost:${RESOURCE_PORTS[windmill]} POSTGRES_URL=postgres://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/issue_tracker QDRANT_URL=http://localhost:${RESOURCE_PORTS[qdrant]} REDIS_URL=redis://localhost:${RESOURCE_PORTS[redis]} MINIO_URL=http://localhost:${RESOURCE_PORTS[minio]} OLLAMA_URL=http://localhost:${RESOURCE_PORTS[ollama]} ./app-issue-tracker-api &",
+          "description": "Start Go coordination API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/app-issue-tracker-api"
+          }
+        },
+        {
+          "name": "wait-for-api",
+          "run": "sleep 2 && curl -sf http://localhost:$SERVICE_PORT/health > /dev/null",
+          "description": "Wait for API server to be ready",
+          "retry": {
+            "max_attempts": 15,
+            "delay": 1
+          }
+        },
+        {
+          "name": "show-running-services",
+          "run": "echo '🚀 App Issue Tracker running:\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}/apps/issue_tracker_dashboard\\n  Metrics: http://localhost:${RESOURCE_PORTS[windmill]}/apps/issue_tracker_metrics\\n  Agent Management: http://localhost:${RESOURCE_PORTS[windmill]}/apps/issue_tracker_agents\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$SERVICE_PORT\\n  CLI: app-issue-tracker --help\\n\\n💡 Create issues with: app-issue-tracker create --title \"Issue title\" --description \"Details\" --priority high'",
+          "description": "Display all running service URLs and usage hints"
         }
       ]
     },
     "test": {
-      "description": "Test issue tracker functionality",
+      "description": "Test issue tracker API, CLI, and integrations",
       "steps": [
         {
-          "name": "run-tests",
-          "run": "bash test.sh",
-          "description": "Run integration tests"
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build main.go && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-issues-endpoint",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/api/issues",
+          "description": "Test API issues endpoint"
+        },
+        {
+          "name": "test-agents-endpoint",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/api/agents",
+          "description": "Test API agents endpoint"
+        },
+        {
+          "name": "test-search-endpoint",
+          "run": "bash test/test-search-endpoint.sh",
+          "description": "Test semantic search functionality"
+        },
+        {
+          "name": "test-investigation-workflow",
+          "run": "bash test/test-investigation-workflow.sh",
+          "description": "Test n8n investigation workflow"
+        },
+        {
+          "name": "test-cli-commands",
+          "run": "cd cli && bats app-issue-tracker.bats",
+          "description": "Run CLI test suite",
+          "condition": {
+            "file_exists": "cli/app-issue-tracker.bats"
+          }
         }
       ]
     },
@@ -166,9 +242,14 @@
       "description": "Stop issue tracker services",
       "steps": [
         {
-          "name": "stop-services",
-          "run": "pkill -f 'issue-tracker' || true",
-          "description": "Stop all issue tracker processes"
+          "name": "stop-api-server",
+          "run": "pkill -f 'app-issue-tracker-api' || true",
+          "description": "Stop Go API server processes"
+        },
+        {
+          "name": "confirm-stop",
+          "run": "echo '🛑 App Issue Tracker services stopped'",
+          "description": "Confirm services stopped"
         }
       ]
     }

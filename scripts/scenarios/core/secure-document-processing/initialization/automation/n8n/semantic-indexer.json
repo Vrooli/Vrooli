@@ -37,7 +37,7 @@
     
     {
       "parameters": {
-        "url": "http://localhost:11434/api/embeddings",
+        "url": "http://localhost:{{ $env.RESOURCE_PORTS_ollama }}/api/embeddings",
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
@@ -64,7 +64,7 @@
     
     {
       "parameters": {
-        "url": "http://localhost:6333/collections/document-embeddings/points",
+        "url": "http://localhost:{{ $env.RESOURCE_PORTS_qdrant }}/collections/document-embeddings/points",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [

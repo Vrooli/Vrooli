@@ -79,7 +79,10 @@ validation:
   required_files:
     - .vrooli/service.json
     - initialization/storage/postgres/schema.sql
-    - deployment/startup.sh
+    - api/main.go
+    - api/task-planner-api
+    - cli/task-planner-cli.sh
+    - cli/install-cli.sh
   
   resource_checks:
     postgres:

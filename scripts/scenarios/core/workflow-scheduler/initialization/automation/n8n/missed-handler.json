@@ -1,0 +1,383 @@
+{
+  "name": "Missed Execution Handler",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      },
+      "id": "cron-trigger",
+      "name": "Every 5 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=-- Find schedules with missed executions\nWITH missed_schedules AS (\n  SELECT \n    s.*,\n    se.last_run,\n    calculate_missed_runs(s.cron_expression, se.last_run, NOW(), s.timezone) as missed_count\n  FROM schedules s\n  LEFT JOIN (\n    SELECT schedule_id, MAX(scheduled_time) as last_run\n    FROM schedule_executions\n    WHERE status IN ('success', 'failed', 'failed_permanent')\n    GROUP BY schedule_id\n  ) se ON s.id = se.schedule_id\n  WHERE s.enabled = true\n  AND s.status = 'active'\n  AND s.catch_up_missed = true\n)\nSELECT *\nFROM missed_schedules\nWHERE missed_count > 0\nORDER BY priority DESC, missed_count DESC\nLIMIT 10;",
+        "options": {}
+      },
+      "id": "find-missed",
+      "name": "Find Missed Executions",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [450, 300],
+      "credentials": {
+        "postgres": {
+          "id": "postgres_workflow_scheduler",
+          "name": "Workflow Scheduler DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "=// Process missed schedules and generate catch-up executions\nconst schedules = $input.all();\nconst catchUpExecutions = [];\n\nfor (const item of schedules) {\n  const schedule = item.json;\n  const lastRun = schedule.last_run ? new Date(schedule.last_run) : new Date(Date.now() - 24 * 60 * 60 * 1000);\n  const now = new Date();\n  \n  // Calculate missed execution times\n  const missedTimes = calculateMissedExecutionTimes(\n    schedule.cron_expression,\n    lastRun,\n    now,\n    schedule.timezone\n  );\n  \n  // Limit catch-up executions per schedule\n  const maxCatchUp = Math.min(missedTimes.length, 5);\n  \n  for (let i = 0; i < maxCatchUp; i++) {\n    catchUpExecutions.push({\n      json: {\n        ...schedule,\n        execution_id: generateExecutionId(),\n        scheduled_time: missedTimes[i],\n        is_catch_up: true,\n        catch_up_index: i + 1,\n        catch_up_total: maxCatchUp\n      }\n    });\n  }\n}\n\nreturn catchUpExecutions;\n\nfunction calculateMissedExecutionTimes(cronExpr, lastRun, now, timezone) {\n  // Simplified - in production would use proper cron library\n  const times = [];\n  const interval = parseCronInterval(cronExpr);\n  let nextTime = new Date(lastRun.getTime() + interval);\n  \n  while (nextTime < now && times.length < 10) {\n    times.push(nextTime.toISOString());\n    nextTime = new Date(nextTime.getTime() + interval);\n  }\n  \n  return times;\n}\n\nfunction parseCronInterval(cronExpr) {\n  // Simple parsing for common patterns\n  if (cronExpr.includes('*/5 * * * *')) return 5 * 60 * 1000;\n  if (cronExpr.includes('0 * * * *')) return 60 * 60 * 1000;\n  if (cronExpr.includes('0 0 * * *')) return 24 * 60 * 60 * 1000;\n  return 60 * 60 * 1000; // Default to hourly\n}\n\nfunction generateExecutionId() {\n  return 'catch_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);\n}"
+      },
+      "id": "generate-catchup",
+      "name": "Generate Catch-up Executions",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-missed",
+              "leftValue": "={{ $json.length > 0 }}",
+              "rightValue": "={{ true }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-missed",
+      "name": "Has Missed Executions?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=-- Check if not already running or queued\nSELECT COUNT(*) as running_count\nFROM schedule_executions\nWHERE schedule_id = '{{ $json.id }}'\nAND status IN ('pending', 'running')\nAND scheduled_time >= '{{ $json.scheduled_time }}';",
+        "options": {}
+      },
+      "id": "check-running",
+      "name": "Check If Already Running",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1050, 250],
+      "credentials": {
+        "postgres": {
+          "id": "postgres_workflow_scheduler",
+          "name": "Workflow Scheduler DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "not-running",
+              "leftValue": "={{ $json.running_count }}",
+              "rightValue": "0",
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-can-run",
+      "name": "Can Run?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1250, 250]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO schedule_executions (\n  id, schedule_id, status, scheduled_time, started_at, is_catch_up\n) VALUES (\n  '{{ $('generate-catchup').item.json.execution_id }}',\n  '{{ $('generate-catchup').item.json.id }}',\n  'pending',\n  '{{ $('generate-catchup').item.json.scheduled_time }}',\n  NOW(),\n  true\n)\nON CONFLICT (id) DO NOTHING\nRETURNING *;",
+        "options": {}
+      },
+      "id": "queue-execution",
+      "name": "Queue Catch-up Execution",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1450, 200],
+      "credentials": {
+        "postgres": {
+          "id": "postgres_workflow_scheduler",
+          "name": "Workflow Scheduler DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "value": "={{ Math.random() * 3 + 1 }}",
+        "unit": "seconds"
+      },
+      "id": "stagger-wait",
+      "name": "Stagger Executions",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [1650, 200],
+      "webhookId": "stagger-catchup"
+    },
+    {
+      "parameters": {
+        "method": "={{ $('generate-catchup').item.json.target_method || 'POST' }}",
+        "url": "={{ $('generate-catchup').item.json.target_url }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Schedule-ID",
+              "value": "={{ $('generate-catchup').item.json.id }}"
+            },
+            {
+              "name": "X-Execution-ID",
+              "value": "={{ $('generate-catchup').item.json.execution_id }}"
+            },
+            {
+              "name": "X-Is-Catch-Up",
+              "value": "true"
+            },
+            {
+              "name": "X-Catch-Up-Time",
+              "value": "={{ $('generate-catchup').item.json.scheduled_time }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": "={{ $('generate-catchup').item.json.target_payload || {} }}"
+        },
+        "options": {
+          "timeout": "={{ $('generate-catchup').item.json.timeout_seconds || 300 }}",
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "id": "execute-catchup",
+      "name": "Execute Catch-up",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1850, 200],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "=// Process catch-up execution result\nconst schedule = $('generate-catchup').item.json;\nconst response = $input.all()[0];\nconst success = !response.error && response.statusCode >= 200 && response.statusCode < 300;\n\nconst result = {\n  execution_id: schedule.execution_id,\n  schedule_id: schedule.id,\n  status: success ? 'success' : 'failed',\n  completed_at: new Date().toISOString(),\n  response_code: response.statusCode || 0,\n  error_message: response.error ? response.error.message : null,\n  execution_time_ms: Date.now() - new Date().getTime(),\n  catch_up_info: {\n    index: schedule.catch_up_index,\n    total: schedule.catch_up_total,\n    original_time: schedule.scheduled_time\n  }\n};\n\nreturn [{ json: result }];"
+      },
+      "id": "process-catchup-result",
+      "name": "Process Catch-up Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2050, 200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=-- Update catch-up execution\nUPDATE schedule_executions\nSET \n  status = '{{ $json.status }}',\n  completed_at = '{{ $json.completed_at }}',\n  response_code = {{ $json.response_code }},\n  error_message = '{{ $json.error_message }}',\n  execution_time_ms = {{ $json.execution_time_ms }},\n  metadata = jsonb_build_object('catch_up_info', '{{ JSON.stringify($json.catch_up_info) }}'::jsonb)\nWHERE id = '{{ $json.execution_id }}';\n\n-- Update schedule last run time if successful\n{{ $json.status === 'success' ? \"UPDATE schedules SET last_run = '\" + $json.completed_at + \"' WHERE id = '\" + $json.schedule_id + \"';\" : \"\" }}\n\n-- Log catch-up completion\nINSERT INTO execution_logs (\n  execution_id,\n  level,\n  message,\n  created_at\n) VALUES (\n  '{{ $json.execution_id }}',\n  '{{ $json.status === \"success\" ? \"info\" : \"warning\" }}',\n  'Catch-up execution {{ $json.catch_up_info.index }}/{{ $json.catch_up_info.total }} completed with status: {{ $json.status }}',\n  NOW()\n);",
+        "options": {}
+      },
+      "id": "update-catchup",
+      "name": "Update Catch-up Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [2250, 200],
+      "credentials": {
+        "postgres": {
+          "id": "postgres_workflow_scheduler",
+          "name": "Workflow Scheduler DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=-- Summary of catch-up run\nSELECT \n  COUNT(*) as total_processed,\n  SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END) as successful,\n  SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed,\n  SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending\nFROM schedule_executions\nWHERE is_catch_up = true\nAND started_at >= NOW() - INTERVAL '10 minutes';",
+        "options": {}
+      },
+      "id": "catchup-summary",
+      "name": "Get Catch-up Summary",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1050, 450],
+      "credentials": {
+        "postgres": {
+          "id": "postgres_workflow_scheduler",
+          "name": "Workflow Scheduler DB"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "cron-trigger": {
+      "main": [
+        [
+          {
+            "node": "find-missed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "find-missed": {
+      "main": [
+        [
+          {
+            "node": "generate-catchup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "generate-catchup": {
+      "main": [
+        [
+          {
+            "node": "check-missed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check-missed": {
+      "main": [
+        [
+          {
+            "node": "check-running",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "catchup-summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check-running": {
+      "main": [
+        [
+          {
+            "node": "check-can-run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check-can-run": {
+      "main": [
+        [
+          {
+            "node": "queue-execution",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "queue-execution": {
+      "main": [
+        [
+          {
+            "node": "stagger-wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "stagger-wait": {
+      "main": [
+        [
+          {
+            "node": "execute-catchup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "execute-catchup": {
+      "main": [
+        [
+          {
+            "node": "process-catchup-result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "process-catchup-result": {
+      "main": [
+        [
+          {
+            "node": "update-catchup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "templateId": "workflow-scheduler-missed"
+  },
+  "tags": [
+    {
+      "name": "workflow-scheduler"
+    }
+  ]
+}

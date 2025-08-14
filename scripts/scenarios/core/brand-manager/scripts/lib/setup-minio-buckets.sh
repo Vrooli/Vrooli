@@ -1,0 +1,48 @@
+#!/bin/bash
+# Setup MinIO buckets for Brand Manager
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCENARIO_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
+
+# MinIO Configuration
+MINIO_ENDPOINT="${MINIO_ENDPOINT:-localhost:${RESOURCE_PORTS[minio]:-9000}}"
+MINIO_ACCESS_KEY="${MINIO_ACCESS_KEY:-minioadmin}"
+MINIO_SECRET_KEY="${MINIO_SECRET_KEY:-minioadmin}"
+MINIO_ALIAS="brand-manager-minio"
+
+# Required buckets
+BUCKETS=(
+    "brand-logos"
+    "brand-icons"
+    "brand-exports"
+    "brand-templates"
+    "app-backups"
+)
+
+echo "🪣 Setting up MinIO buckets for Brand Manager..."
+
+# Setup MinIO client alias
+echo "📡 Configuring MinIO client..."
+mc alias set "$MINIO_ALIAS" "http://$MINIO_ENDPOINT" "$MINIO_ACCESS_KEY" "$MINIO_SECRET_KEY" || {
+    echo "❌ Failed to setup MinIO alias" >&2
+    exit 1
+}
+
+# Create buckets
+for bucket in "${BUCKETS[@]}"; do
+    echo "🪣 Checking bucket: $bucket"
+    if ! mc ls "$MINIO_ALIAS/$bucket" >/dev/null 2>&1; then
+        echo "📦 Creating bucket: $bucket"
+        mc mb "$MINIO_ALIAS/$bucket" || {
+            echo "❌ Failed to create bucket: $bucket" >&2
+            exit 1
+        }
+        echo "✅ Created bucket: $bucket"
+    else
+        echo "✅ Bucket exists: $bucket"
+    fi
+done
+
+echo "🎉 MinIO buckets setup completed successfully!"
+echo "📍 Access MinIO console at: http://$MINIO_ENDPOINT"

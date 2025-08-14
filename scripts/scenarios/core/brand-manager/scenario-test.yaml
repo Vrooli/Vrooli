@@ -20,34 +20,38 @@ tests:
     steps:
       - check_service: 
           name: "Ollama AI"
-          endpoint: "http://ollama:11434/api/tags"
+          endpoint: "http://localhost:${RESOURCE_PORTS[ollama]}/api/tags"
           timeout: 30s
       - check_service:
           name: "ComfyUI"
-          endpoint: "http://comfyui:8188/system_stats"
+          endpoint: "http://localhost:${RESOURCE_PORTS[comfyui]}/system_stats"
           timeout: 30s
       - check_tcp:
           name: "PostgreSQL"
-          host: postgres
-          port: 5432
+          host: localhost
+          port: ${RESOURCE_PORTS[postgres]}
           timeout: 10s
       - check_service:
           name: "MinIO"
-          endpoint: "http://minio:9000/minio/health/ready"
+          endpoint: "http://localhost:${RESOURCE_PORTS[minio]}/minio/health/ready"
           timeout: 15s
       - check_service:
           name: "n8n"
-          endpoint: "http://n8n:5678/healthz"
+          endpoint: "http://localhost:${RESOURCE_PORTS[n8n]}/healthz"
           timeout: 20s
       - check_service:
           name: "Windmill"
-          endpoint: "http://windmill:8000/api/version"
+          endpoint: "http://localhost:${RESOURCE_PORTS[windmill]}/api/version"
           timeout: 15s
       - check_service:
           name: "Vault"
-          endpoint: "http://vault:8200/v1/sys/health"
+          endpoint: "http://localhost:${RESOURCE_PORTS[vault]}/v1/sys/health"
           timeout: 10s
           optional: true
+      - check_service:
+          name: "Brand Manager API"
+          endpoint: "http://localhost:${SERVICE_PORT}/health"
+          timeout: 10s
 
   - name: database_initialization
     description: Verify database schema and seed data
@@ -128,7 +132,7 @@ tests:
     steps:
       - webhook_call:
           description: "Trigger brand generation via n8n webhook"
-          url: "http://n8n:5678/webhook/generate-brand"
+          url: "http://localhost:${RESOURCE_PORTS[n8n]}/webhook/generate-brand"
           method: POST
           body:
             brandName: "TestTech Solutions"
@@ -172,7 +176,7 @@ tests:
     steps:
       - webhook_call:
           description: "Trigger Claude Code agent spawning"
-          url: "http://n8n:5678/webhook/spawn-claude-integration"
+          url: "http://localhost:${RESOURCE_PORTS[n8n]}/webhook/spawn-claude-integration"
           method: POST
           body:
             brandId: "${brand_data.id}"
@@ -224,9 +228,9 @@ tests:
       - test_webhook_callbacks:
           description: "Test Claude Code webhook callbacks"
           endpoints:
-            - "http://n8n:5678/webhook/claude-progress"
-            - "http://n8n:5678/webhook/claude-completion"
-            - "http://n8n:5678/webhook/claude-error"
+            - "http://localhost:${RESOURCE_PORTS[n8n]}/webhook/claude-progress"
+            - "http://localhost:${RESOURCE_PORTS[n8n]}/webhook/claude-completion"
+            - "http://localhost:${RESOURCE_PORTS[n8n]}/webhook/claude-error"
           method: POST
           test_payload:
             sessionId: "test-session-123"
@@ -262,14 +266,14 @@ tests:
     steps:
       - test_invalid_brand_request:
           description: "Test handling of invalid brand generation request"
-          webhook_url: "http://n8n:5678/webhook/generate-brand"
+          webhook_url: "http://localhost:${RESOURCE_PORTS[n8n]}/webhook/generate-brand"
           invalid_payload:
             brandName: ""
             template: "invalid-template"
           expected_error: validation_error
       - test_integration_failure:
           description: "Test handling of integration failure"
-          webhook_url: "http://n8n:5678/webhook/spawn-claude-integration"
+          webhook_url: "http://localhost:${RESOURCE_PORTS[n8n]}/webhook/spawn-claude-integration"
           invalid_payload:
             brandId: "non-existent-brand"
             targetAppPath: "/invalid/path"

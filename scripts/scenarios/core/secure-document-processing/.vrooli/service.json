@@ -4,21 +4,19 @@
   "service": {
     "parent": "vrooli",
     "name": "secure-document-processing",
-    "displayName": "Secure Document Processing Pipeline",
-    "description": "Enterprise-grade secure document processing with encryption, audit trails, and compliance automation",
+    "displayName": "Secure Document Processing",
+    "description": "Enterprise-grade secure document processing pipeline with encryption, compliance, and semantic search capabilities",
     "version": "1.0.0",
     "type": "business-application",
-    "category": "security",
+    "category": "document-processing",
     "tags": [
-      "compliance-focused",
-      "enterprise-ready",
-      "high-revenue-potential",
-      "hipaa",
-      "gdpr",
-      "sox-compliance",
-      "security-first",
-      "zero-trust",
-      "audit-trails"
+      "document-processing",
+      "security",
+      "encryption",
+      "compliance",
+      "enterprise",
+      "semantic-search",
+      "automation"
     ]
   },
   "ports": {
@@ -26,7 +24,7 @@
       "env_var": "SERVICE_PORT",
       "range": "8090-8999",
       "fallback": "auto",
-      "description": "Secure document processing API port"
+      "description": "Secure document processing coordination API port"
     }
   },
   "resources": {
@@ -71,20 +69,21 @@
       }
     },
     "ai": {
-      "unstructured-io": {
-        "type": "unstructured-io",
-        "enabled": true,
-        "required": true,
-        "purpose": "secure document processing and text extraction"
-      },
       "ollama": {
         "type": "ollama",
         "enabled": true,
         "required": true,
         "models": [
-          "llama3.1:8b",
+          "llama3.2",
+          "mistral",
           "nomic-embed-text"
         ]
+      },
+      "unstructured-io": {
+        "type": "unstructured-io",
+        "enabled": true,
+        "required": true,
+        "purpose": "Document parsing and content extraction from various formats (PDF, DOCX, images, etc.)"
       }
     },
     "storage": {
@@ -92,25 +91,35 @@
         "type": "postgres",
         "enabled": true,
         "required": true,
-        "purpose": "document metadata and audit trails"
+        "purpose": "Document metadata, processing jobs, workflows, and audit trails",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "script"
+          },
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "type": "script"
+          }
+        ]
       },
       "minio": {
         "type": "minio",
         "enabled": true,
         "required": true,
-        "purpose": "encrypted document storage"
+        "purpose": "Encrypted document storage with job-based organization and versioning"
       },
       "qdrant": {
         "type": "qdrant",
         "enabled": true,
-        "required": true,
-        "purpose": "document vector search and compliance metadata"
+        "required": false,
+        "purpose": "Vector database for semantic search of document content and metadata"
       },
       "vault": {
         "type": "vault",
         "enabled": true,
         "required": true,
-        "purpose": "encryption keys and compliance credentials"
+        "purpose": "Encryption key management, access control, and audit trail for document security"
       }
     }
   },
@@ -130,51 +139,92 @@
           "description": "Add app data to resources"
         },
         {
+          "name": "install-cli",
+          "run": "cd cli && ./install-cli.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o secure-document-processing-api main.go",
+          "description": "Build Go coordination API binary"
+        },
+        {
           "name": "show-urls",
-          "run": "echo '🚀 Secure Document Processing initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Vault: http://localhost:${RESOURCE_PORTS[vault]}\\n  Storage: http://localhost:${RESOURCE_PORTS[minio]}'",
+          "run": "echo '🚀 Secure Document Processing initialized\\n  Document Portal: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${SERVICE_PORT}\\n  MinIO Storage: http://localhost:${RESOURCE_PORTS[minio]}\\n  Vault: http://localhost:${RESOURCE_PORTS[vault]}\\n  CLI: secure-document-processing --help'",
           "description": "Display service access URLs"
         }
       ]
     },
     "develop": {
-      "description": "Start secure document processing services",
+      "description": "Start secure document processing pipeline with Go API server",
       "steps": [
         {
-          "name": "start-services",
-          "run": "cd deployment && ./startup.sh &",
-          "description": "Start all secure processing services in background",
-          "background": true
+          "name": "start-api-server",
+          "run": "cd api && PORT=$SERVICE_PORT N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} WINDMILL_BASE_URL=http://localhost:${RESOURCE_PORTS[windmill]} POSTGRES_URL=postgres://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/secure_document_processing MINIO_URL=http://localhost:${RESOURCE_PORTS[minio]} VAULT_URL=http://localhost:${RESOURCE_PORTS[vault]} QDRANT_URL=http://localhost:${RESOURCE_PORTS[qdrant]} UNSTRUCTURED_URL=http://localhost:${RESOURCE_PORTS[unstructured-io]} ./secure-document-processing-api &",
+          "description": "Start Go coordination API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/secure-document-processing-api"
+          }
         },
         {
-          "name": "wait-for-services",
-          "run": "sleep 5 && curl -sf http://localhost:${RESOURCE_PORTS[windmill]}/api/version > /dev/null",
-          "description": "Wait for services to be ready",
+          "name": "wait-for-api",
+          "run": "sleep 2 && curl -sf http://localhost:$SERVICE_PORT/health > /dev/null",
+          "description": "Wait for API server to be ready",
           "retry": {
             "max_attempts": 15,
-            "delay": 2
+            "delay": 1
           }
         },
         {
           "name": "show-running-services",
-          "run": "echo '🚀 Services running:\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Vault: http://localhost:${RESOURCE_PORTS[vault]}\\n  Storage: http://localhost:${RESOURCE_PORTS[minio]}'",
-          "description": "Display running service URLs"
+          "run": "echo '🚀 Services running:\\n  Document Portal: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$SERVICE_PORT\\n  MinIO: http://localhost:${RESOURCE_PORTS[minio]}\\n  Vault: http://localhost:${RESOURCE_PORTS[vault]}\\n  CLI: secure-document-processing --help'",
+          "description": "Display all running service URLs"
         }
       ]
     },
     "test": {
-      "description": "Run secure document processing tests",
+      "description": "Test secure document processing pipeline API and CLI",
       "steps": [
         {
-          "name": "test-services-health",
-          "run": "curl -sf http://localhost:${RESOURCE_PORTS[windmill]}/api/version && curl -sf http://localhost:${RESOURCE_PORTS[n8n]}/healthz && curl -sf http://localhost:${RESOURCE_PORTS[vault]}/v1/sys/health",
-          "description": "Test service health endpoints"
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build main.go && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
         },
         {
-          "name": "run-integration-tests",
-          "run": "./test.sh",
-          "description": "Execute integration test suite",
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-documents-endpoint",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/api/documents",
+          "description": "Test API documents endpoint"
+        },
+        {
+          "name": "test-processing-jobs-endpoint",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/api/jobs",
+          "description": "Test API processing jobs endpoint"
+        },
+        {
+          "name": "test-workflows-endpoint",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/api/workflows",
+          "description": "Test API workflows endpoint"
+        },
+        {
+          "name": "test-custom-functionality",
+          "run": "bash custom-tests.sh",
+          "description": "Run custom scenario tests"
+        },
+        {
+          "name": "test-cli-commands",
+          "run": "cd cli && bats secure-document-processing.bats",
+          "description": "Run CLI test suite",
           "condition": {
-            "file_exists": "test.sh"
+            "file_exists": "cli/secure-document-processing.bats"
           }
         }
       ]
@@ -183,9 +233,9 @@
       "description": "Stop secure document processing services",
       "steps": [
         {
-          "name": "stop-services",
-          "run": "pkill -f 'startup.sh' || true",
-          "description": "Stop secure processing processes"
+          "name": "stop-api-server",
+          "run": "pkill -f 'secure-document-processing-api' || true",
+          "description": "Stop Go API server processes"
         },
         {
           "name": "confirm-stop",

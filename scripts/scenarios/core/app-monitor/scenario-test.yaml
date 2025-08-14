@@ -1,15 +1,17 @@
 name: app-monitor
-description: Dashboard to manage all running generated apps
+description: Dashboard to monitor and control all running generated applications with real-time health checks and performance metrics
 version: 1.0.0
 
 tests:
-  - name: Docker API Connection
-    type: connectivity
-    target: docker
-    endpoint: /containers/json
-    expected: 200
+  - name: API Health Check
+    type: http
+    endpoint: "http://localhost:${SERVICE_PORT}/health"
+    expected:
+      status: 200
+      body:
+        status: healthy
 
-  - name: PostgreSQL Database
+  - name: PostgreSQL Database Connection
     type: database
     service: postgres
     database: app_monitor
@@ -22,48 +24,85 @@ tests:
     command: PING
     expected: PONG
 
-  - name: Node-RED Flow Deployment
-    type: automation
-    service: node-red
-    flow: docker-monitor
-    expected: deployed
-
-  - name: UI Dashboard
+  - name: Docker API Integration
     type: http
-    endpoint: http://localhost:3001
-    expected: 200
-
-  - name: API Health
-    type: http
-    endpoint: http://localhost:8081/health
+    endpoint: "http://localhost:${SERVICE_PORT}/api/docker/info"
     expected:
       status: 200
-      body:
-        status: healthy
 
-  - name: WebSocket Connection
-    type: websocket
-    endpoint: ws://localhost:3002
-    expected: connected
+  - name: n8n Workflow Health Checker
+    type: automation
+    service: n8n
+    workflow: "App Health Checker"
+    expected: deployed
 
-  - name: App Discovery
+  - name: n8n Auto-Restart Workflow
+    type: automation
+    service: n8n
+    workflow: "App Auto-Restart"
+    expected: deployed
+
+  - name: n8n Resource Monitor Workflow
+    type: automation
+    service: n8n
+    workflow: "Resource Monitor"
+    expected: deployed
+
+  - name: Node-RED Docker Monitor Flow
+    type: automation
+    service: node-red
+    flow: "Docker App Monitor"
+    expected: deployed
+
+  - name: Windmill Dashboard App
+    type: automation
+    service: windmill
+    app: "App Monitor Dashboard"
+    expected: deployed
+
+  - name: Windmill Control Panel App
+    type: automation
+    service: windmill
+    app: "App Control Panel"
+    expected: deployed
+
+  - name: Go API Compilation Test
+    type: build
+    command: "cd api && go build -o test-build main.go && rm test-build"
+    expected: success
+
+  - name: CLI Installation Test
+    type: cli
+    command: "cd cli && ./install-cli.sh && which app-monitor"
+    expected: success
+
+  - name: App List Endpoint
+    type: http
+    endpoint: "http://localhost:${SERVICE_PORT}/api/apps"
+    expected:
+      status: 200
+
+  - name: App Management Functionality
     type: functional
-    description: Verify app discovery mechanism
+    description: Test app start/stop functionality
     steps:
       - action: list_apps
-        endpoint: /api/apps
+        endpoint: "/api/apps"
+        expected: array
+      - action: get_docker_containers
+        endpoint: "/api/docker/containers"
         expected: array
 
-  - name: App Control
-    type: functional
-    description: Test start/stop functionality
+  - name: CLI Commands Test
+    type: cli
+    description: Test CLI basic functionality
     steps:
-      - action: stop_app
-        endpoint: /api/apps/{id}/stop
-        expected: 200
-      - action: start_app
-        endpoint: /api/apps/{id}/start
-        expected: 200
+      - command: "app-monitor status"
+        expected: success
+      - command: "app-monitor list"
+        expected: success
+      - command: "app-monitor docker"
+        expected: success
 
 validation:
   required_services:
@@ -71,8 +110,20 @@ validation:
     - redis
     - node-red
     - n8n
-  required_ports:
-    - 3001
-    - 8081
-    - 3002
+    - windmill
+  environment_variables:
+    - SERVICE_PORT
+    - RESOURCE_PORTS[postgres]
+    - RESOURCE_PORTS[redis]
+    - RESOURCE_PORTS[n8n]
+    - RESOURCE_PORTS[node-red]
+    - RESOURCE_PORTS[windmill]
   docker_access: required
+  required_files:
+    - "api/app-monitor-api"
+    - "cli/app-monitor"
+  required_directories:
+    - "initialization/storage/postgres"
+    - "initialization/automation/n8n"
+    - "initialization/automation/node-red"
+    - "initialization/automation/windmill"

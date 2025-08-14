@@ -176,6 +176,12 @@ node_red::install() {
             log::info "Access URL: http://localhost:$NODE_RED_PORT"
             log::warn "No authentication configured - consider enabling it for security"
         fi
+        
+        # Auto-install CLI if available
+        # shellcheck disable=SC1091
+        source "${var_SCRIPTS_RESOURCES_LIB_DIR}/cli-auto-install.sh" 2>/dev/null || true
+        resource_cli::auto_install "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)" || true
+        
         return 0
     else
         log::error "Node-RED installation failed"

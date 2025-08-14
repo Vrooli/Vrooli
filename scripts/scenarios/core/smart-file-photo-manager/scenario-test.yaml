@@ -12,6 +12,20 @@ resources:
   - unstructured-io
 
 tests:
+  - name: api-health-check
+    description: Verify API is running and responsive
+    steps:
+      - action: api-request
+        data:
+          method: GET
+          endpoint: "/health"
+      - verify: api-response
+        expected:
+          status_code: 200
+          response_contains:
+            status: "ok"
+            service: "smart-file-photo-manager-api"
+            
   - name: image-processing
     description: Verify image analysis with vision model
     steps:
@@ -19,6 +33,7 @@ tests:
         data:
           file: test-image.jpg
           type: image
+          api_endpoint: "/api/files"
       - wait: 30
       - verify: image-processed
         expected:
@@ -75,10 +90,28 @@ tests:
         data:
           query: "vacation photos with beaches"
           type: "semantic"
+          api_endpoint: "/api/search"
       - verify: search-results
         expected:
           min_relevance: 0.7
           results_contain_images: true
+          
+  - name: cli-functionality
+    description: Verify CLI commands work properly
+    steps:
+      - action: cli-command
+        data:
+          command: "smart-file-photo-manager health"
+      - verify: cli-output
+        expected:
+          exit_code: 0
+          output_contains: "Smart File Photo Manager API is healthy"
+      - action: cli-command
+        data:
+          command: "smart-file-photo-manager files list --limit 10"
+      - verify: cli-output
+        expected:
+          exit_code: 0
           
   - name: batch-organization
     description: Verify batch file organization
@@ -111,21 +144,39 @@ tests:
 validation:
   required_files:
     - .vrooli/service.json
+    - api/main.go
+    - api/go.mod
+    - cli/smart-file-photo-manager
+    - cli/install-cli.sh
     - initialization/storage/postgres/schema.sql
-    - deployment/startup.sh
+    - initialization/storage/postgres/seed.sql
+    - initialization/storage/qdrant/collections.json
+    - initialization/storage/minio/buckets.json
+    
+  api_health_checks:
+    - endpoint: "/health"
+      expected_status: 200
+      expected_response:
+        status: "ok"
+        service: "smart-file-photo-manager-api"
+    - endpoint: "/api/files"
+      expected_status: 200
+    - endpoint: "/api/stats"
+      expected_status: 200
     
   resource_checks:
     postgres:
       database: file_manager
-      tables: ["files", "content_chunks", "suggestions", "folders"]
+      tables: ["files", "content_chunks", "suggestions", "folders", "file_relationships", "processing_queue", "search_history", "batch_operations"]
     qdrant:
       collections: ["file_embeddings", "image_embeddings", "content_chunks"]
     minio:
-      buckets: ["original-files", "processed-files", "thumbnails"]
+      buckets: ["original-files", "processed-files", "thumbnails", "exports"]
     n8n:
-      workflows: ["file-processor", "organization-suggester", "semantic-search"]
+      workflows: ["file-processor", "image-analyzer", "document-processor", "duplicate-detector", "batch-processor", "semantic-search", "embedding-generator"]
     windmill:
       workspace: file_manager
-      scripts: ["process-image", "extract-text", "generate-tags"]
+      scripts: ["process-image", "extract-text", "semantic-search", "batch-organize", "find-duplicates", "generate-embeddings", "suggest-organization"]
+      apps: ["file-manager-ui"]
     ollama:
       models: ["llava:13b", "llama3.2", "nomic-embed-text"]

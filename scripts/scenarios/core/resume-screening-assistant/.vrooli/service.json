@@ -76,7 +76,17 @@
         "type": "postgres",
         "enabled": true,
         "required": true,
-        "purpose": "resume data, job listings, and assessment results"
+        "purpose": "resume data, job listings, and assessment results",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "script"
+          },
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "type": "script"
+          }
+        ]
       },
       "qdrant": {
         "type": "qdrant",
@@ -102,29 +112,88 @@
           "description": "Add app data to resources"
         },
         {
+          "name": "install-cli",
+          "run": "cd cli && ./install-cli.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o resume-screening-assistant-api main.go",
+          "description": "Build Go coordination API binary"
+        },
+        {
           "name": "show-urls",
-          "run": "echo '🚀 Resume Screening Assistant initialized\\n  Windmill Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Ollama API: http://localhost:${RESOURCE_PORTS[ollama]}\\n  Qdrant DB: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  API: http://localhost:${SERVICE_PORT}'",
+          "run": "echo '🚀 Resume Screening Assistant initialized\\n  Windmill Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Ollama API: http://localhost:${RESOURCE_PORTS[ollama]}\\n  Qdrant DB: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  API: http://localhost:${SERVICE_PORT}\\n  CLI: resume-screening-assistant --help'",
           "description": "Display service access URLs"
         }
       ]
     },
     "develop": {
-      "description": "Start resume screening assistant services",
+      "description": "Start resume screening assistant with Go API server",
       "steps": [
         {
-          "name": "start-services",
-          "run": "cd deployment && ./startup.sh",
-          "description": "Start resume screening assistant services"
+          "name": "start-api-server",
+          "run": "cd api && PORT=$SERVICE_PORT N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} WINDMILL_BASE_URL=http://localhost:${RESOURCE_PORTS[windmill]} POSTGRES_URL=postgres://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/resume_screening QDRANT_URL=http://localhost:${RESOURCE_PORTS[qdrant]} ./resume-screening-assistant-api &",
+          "description": "Start Go coordination API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/resume-screening-assistant-api"
+          }
+        },
+        {
+          "name": "wait-for-api",
+          "run": "sleep 2 && curl -sf http://localhost:$SERVICE_PORT/health > /dev/null",
+          "description": "Wait for API server to be ready",
+          "retry": {
+            "max_attempts": 15,
+            "delay": 1
+          }
+        },
+        {
+          "name": "show-running-services",
+          "run": "echo '🚀 Services running:\\n  Windmill Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$SERVICE_PORT\\n  CLI: resume-screening-assistant --help'",
+          "description": "Display all running service URLs"
         }
       ]
     },
     "test": {
-      "description": "Test resume screening assistant functionality",
+      "description": "Test resume screening assistant Go API and CLI",
       "steps": [
         {
-          "name": "run-tests",
-          "run": "bash test.sh",
-          "description": "Execute integration tests"
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build main.go && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-jobs-endpoint",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/api/jobs",
+          "description": "Test API jobs endpoint"
+        },
+        {
+          "name": "test-candidates-endpoint",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/api/candidates",
+          "description": "Test API candidates endpoint"
+        },
+        {
+          "name": "test-search-endpoint",
+          "run": "bash test/test-search-endpoint.sh",
+          "description": "Test API semantic search endpoint"
+        },
+        {
+          "name": "test-cli-commands",
+          "run": "cd cli && bats resume-screening-assistant.bats",
+          "description": "Run CLI test suite",
+          "condition": {
+            "file_exists": "cli/resume-screening-assistant.bats"
+          }
         }
       ]
     },
@@ -132,9 +201,14 @@
       "description": "Stop resume screening assistant services",
       "steps": [
         {
-          "name": "stop-services",
-          "run": "pkill -f 'resume-screening' || true",
-          "description": "Stop all resume screening assistant processes"
+          "name": "stop-api-server",
+          "run": "pkill -f 'resume-screening-assistant-api' || true",
+          "description": "Stop Go API server processes"
+        },
+        {
+          "name": "confirm-stop",
+          "run": "echo '🛑 Resume Screening Assistant services stopped'",
+          "description": "Confirm services stopped"
         }
       ]
     }

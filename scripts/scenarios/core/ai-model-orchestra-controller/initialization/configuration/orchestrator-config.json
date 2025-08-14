@@ -1,0 +1,263 @@
+{
+  "schema_version": "1.0",
+  "service_name": "ai-model-orchestra-controller",
+  "version": "1.0.0",
+  "environment": "development",
+  
+  "server": {
+    "host": "localhost",
+    "port": "{{SERVICE_PORT}}",
+    "timeout": 30000,
+    "cors": {
+      "origins": ["http://localhost:3000", "http://localhost:8080", "http://localhost:5173"],
+      "credentials": true
+    },
+    "rateLimit": {
+      "max": 1000,
+      "windowMs": 900000
+    }
+  },
+  
+  "orchestrator": {
+    "enabled": true,
+    "mode": "intelligent",
+    "default_strategy": "balanced",
+    "fallback_enabled": true,
+    "retry_attempts": 3,
+    "request_timeout_ms": 30000,
+    "queue_max_size": 100,
+    "concurrent_requests_max": 50
+  },
+  
+  "resource_monitoring": {
+    "enabled": true,
+    "interval_ms": 5000,
+    "memory_check_enabled": true,
+    "cpu_check_enabled": true,
+    "disk_check_enabled": false,
+    "network_check_enabled": false,
+    "history_retention_hours": 24
+  },
+  
+  "memory_management": {
+    "safety_buffer_gb": 1.5,
+    "pressure_thresholds": {
+      "low": 0.3,
+      "moderate": 0.7,
+      "high": 0.85,
+      "critical": 0.95
+    },
+    "pressure_actions": {
+      "moderate": ["prefer_efficient_models", "reduce_batch_size"],
+      "high": ["use_smallest_models", "pause_background_tasks"],
+      "critical": ["emergency_mode", "reject_low_priority", "alert_admin"]
+    }
+  },
+  
+  "model_health": {
+    "check_interval_ms": 30000,
+    "check_timeout_ms": 10000,
+    "unhealthy_threshold": 3,
+    "recovery_check_interval_ms": 60000,
+    "auto_recovery_enabled": true
+  },
+  
+  "selection_algorithm": {
+    "version": "1.0",
+    "weights": {
+      "default": {
+        "speed": 0.25,
+        "cost": 0.25,
+        "quality": 0.25,
+        "resource": 0.25
+      },
+      "speed_priority": {
+        "speed": 0.7,
+        "cost": 0.1,
+        "quality": 0.1,
+        "resource": 0.1
+      },
+      "quality_priority": {
+        "speed": 0.1,
+        "cost": 0.1,
+        "quality": 0.7,
+        "resource": 0.1
+      },
+      "cost_priority": {
+        "speed": 0.1,
+        "cost": 0.7,
+        "quality": 0.1,
+        "resource": 0.1
+      },
+      "resource_aware": {
+        "speed": 0.2,
+        "cost": 0.2,
+        "quality": 0.2,
+        "resource": 0.4
+      }
+    },
+    "scoring": {
+      "speed_multiplier": 1.0,
+      "cost_multiplier": 1.0,
+      "quality_multiplier": 1.0,
+      "resource_multiplier": 1.0,
+      "penalty_unhealthy": 0.1,
+      "penalty_overloaded": 0.3
+    }
+  },
+  
+  "load_balancing": {
+    "enabled": true,
+    "algorithm": "weighted_round_robin",
+    "max_requests_per_model": 10,
+    "load_threshold": 0.8,
+    "redistribution_enabled": true,
+    "sticky_sessions": false
+  },
+  
+  "failover": {
+    "enabled": true,
+    "max_attempts": 3,
+    "retry_delay_ms": 1000,
+    "exponential_backoff": true,
+    "circuit_breaker": {
+      "enabled": true,
+      "failure_threshold": 5,
+      "reset_timeout_ms": 60000,
+      "half_open_max_calls": 3
+    }
+  },
+  
+  "cost_optimization": {
+    "enabled": true,
+    "budget_tracking": false,
+    "cost_alerts": {
+      "daily_threshold": 10.0,
+      "weekly_threshold": 50.0,
+      "monthly_threshold": 200.0
+    },
+    "cost_strategies": {
+      "aggressive_savings": {
+        "prefer_cheap_models": true,
+        "quality_threshold": "basic"
+      },
+      "balanced_cost": {
+        "prefer_cheap_models": false,
+        "quality_threshold": "good"
+      },
+      "quality_first": {
+        "prefer_cheap_models": false,
+        "quality_threshold": "high"
+      }
+    }
+  },
+  
+  "caching": {
+    "enabled": true,
+    "ttl_seconds": 300,
+    "max_cache_size_mb": 100,
+    "cache_keys": ["model_capabilities", "system_metrics", "health_status"],
+    "redis_cache": true
+  },
+  
+  "logging": {
+    "level": "info",
+    "request_logging": true,
+    "performance_logging": true,
+    "error_logging": true,
+    "metrics_logging": true,
+    "log_rotation": {
+      "enabled": true,
+      "max_files": 10,
+      "max_size": "10M"
+    }
+  },
+  
+  "metrics": {
+    "collection_enabled": true,
+    "prometheus_enabled": false,
+    "custom_metrics": [
+      "orchestrator_requests_total",
+      "orchestrator_response_time_seconds",
+      "orchestrator_model_selections",
+      "orchestrator_memory_pressure",
+      "orchestrator_fallback_rate"
+    ],
+    "export_interval_ms": 10000
+  },
+  
+  "alerts": {
+    "enabled": true,
+    "channels": ["console", "redis"],
+    "thresholds": {
+      "error_rate_percent": 5,
+      "response_time_ms": 5000,
+      "memory_pressure": 0.9,
+      "model_unavailable": true,
+      "queue_full": true
+    }
+  },
+  
+  "security": {
+    "api_key_required": false,
+    "rate_limiting": true,
+    "input_validation": true,
+    "output_sanitization": false,
+    "request_size_limit": "10MB",
+    "cors_enabled": true
+  },
+  
+  "development": {
+    "debug_mode": true,
+    "verbose_logging": false,
+    "mock_models": false,
+    "test_endpoints": true,
+    "hot_reload": false
+  },
+  
+  "integrations": {
+    "ollama": {
+      "health_check_enabled": true,
+      "model_sync_enabled": true,
+      "sync_interval_ms": 300000
+    },
+    "redis": {
+      "event_publishing": true,
+      "metrics_storage": true,
+      "cache_enabled": true
+    },
+    "postgres": {
+      "metrics_storage": true,
+      "request_logging": true,
+      "cleanup_enabled": true
+    },
+    "node_red": {
+      "flows_enabled": true,
+      "webhook_integration": true,
+      "flow_monitoring": true
+    }
+  },
+  
+  "experimental": {
+    "ml_model_prediction": false,
+    "adaptive_learning": false,
+    "auto_scaling": false,
+    "predictive_caching": false,
+    "advanced_analytics": false
+  },
+  
+  "performance": {
+    "connection_pooling": true,
+    "async_processing": true,
+    "batch_processing": false,
+    "lazy_loading": true,
+    "compression": false
+  },
+  
+  "backup": {
+    "enabled": false,
+    "interval_hours": 24,
+    "retention_days": 7,
+    "backup_path": "/backup/orchestrator"
+  }
+}
