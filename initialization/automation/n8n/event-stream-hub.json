@@ -1,0 +1,979 @@
+{
+  "name": "Event Stream Hub",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "events/publish",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Event Stream Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Validate input and determine operation\nconst input = $input.item.json;\n\n// Validate required operation field\nif (!input.operation) {\n  throw new Error('Missing required field: operation');\n}\n\nconst validOperations = ['publish', 'subscribe', 'ack', 'get_pending', 'replay', 'create_consumer_group', 'get_stats', 'set_retention'];\nif (!validOperations.includes(input.operation)) {\n  throw new Error(`Invalid operation: ${input.operation}. Valid operations: ${validOperations.join(', ')}`);\n}\n\n// Validate operation-specific requirements\nif (input.operation === 'publish') {\n  if (!input.topic) {\n    throw new Error('Publish operation requires a topic');\n  }\n  if (!input.event) {\n    throw new Error('Publish operation requires an event');\n  }\n} else if (input.operation === 'subscribe') {\n  if (!input.topics && !input.topic) {\n    throw new Error('Subscribe operation requires topics or topic');\n  }\n  if (!input.consumer_group) {\n    throw new Error('Subscribe operation requires a consumer_group');\n  }\n}\n\n// Generate unique event ID for publish operations\nconst generateEventId = () => {\n  const timestamp = Date.now();\n  const random = Math.random().toString(36).substr(2, 9);\n  return `evt_${timestamp}_${random}`;\n};\n\n// Topic validation and normalization\nconst normalizeTopic = (topic) => {\n  if (!topic || typeof topic !== 'string') {\n    throw new Error('Invalid topic: must be a non-empty string');\n  }\n  // Replace invalid characters and ensure proper format\n  return topic.replace(/[^a-zA-Z0-9._-]/g, '_');\n};\n\n// Prepare operation data\nconst operationData = {\n  operation: input.operation,\n  event_id: input.event_id || generateEventId(),\n  timestamp: new Date().toISOString(),\n  ttl: input.ttl || 86400, // Default 24 hours\n  \n  // Publishing fields\n  topic: input.topic ? normalizeTopic(input.topic) : null,\n  event: input.event || null,\n  tags: input.tags || [],\n  metadata: input.metadata || {},\n  \n  // Subscription fields\n  topics: input.topics ? input.topics.map(normalizeTopic) : null,\n  consumer_group: input.consumer_group || null,\n  consumer_name: input.consumer_name || `consumer_${Date.now()}`,\n  filters: input.filters || {},\n  max_events: input.max_events || 100,\n  block_time: input.block_time || 5000, // 5 seconds\n  start_id: input.start_id || '>',\n  \n  // Acknowledgment fields\n  message_ids: input.message_ids || [],\n  \n  // Replay fields\n  from_timestamp: input.from_timestamp || null,\n  to_timestamp: input.to_timestamp || null,\n  \n  // Retention fields\n  max_length: input.max_length || 10000,\n  approximate: input.approximate !== false\n};\n\n// Add request metadata\noperationData.request_metadata = {\n  request_id: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,\n  client: input.client || 'n8n-event-stream-hub',\n  user_agent: input.user_agent || 'Event-Stream-Hub/1.0',\n  trace_id: input.trace_id || null,\n  correlation_id: input.correlation_id || null\n};\n\n// Validate event structure for publish operations\nif (operationData.operation === 'publish' && operationData.event) {\n  const event = operationData.event;\n  \n  // Ensure event has required structure\n  if (!event.type) {\n    throw new Error('Event must have a type field');\n  }\n  \n  // Add system metadata to event\n  operationData.event = {\n    ...event,\n    _metadata: {\n      event_id: operationData.event_id,\n      published_at: operationData.timestamp,\n      topic: operationData.topic,\n      tags: operationData.tags,\n      ttl: operationData.ttl,\n      ...event.metadata\n    }\n  };\n}\n\n// Validate subscription filters\nif (operationData.operation === 'subscribe' && operationData.filters) {\n  const filters = operationData.filters;\n  \n  // Supported filter types\n  const supportedFilters = ['type', 'tags', 'metadata', 'timestamp_range'];\n  const filterKeys = Object.keys(filters);\n  \n  for (const key of filterKeys) {\n    if (!supportedFilters.includes(key)) {\n      console.warn(`Unsupported filter type: ${key}. Supported types: ${supportedFilters.join(', ')}`);\n    }\n  }\n}\n\nreturn operationData;"
+      },
+      "id": "validate_and_prepare",
+      "name": "Validate & Prepare",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.operation }}",
+                    "value2": "publish"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "publish"
+            },
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.operation }}",
+                    "value2": "subscribe"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "subscribe"
+            },
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.operation }}",
+                    "value2": "ack"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "ack"
+            },
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.operation }}",
+                    "value2": "get_pending"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "get_pending"
+            },
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.operation }}",
+                    "value2": "replay"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "replay"
+            },
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.operation }}",
+                    "value2": "create_consumer_group"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "create_consumer_group"
+            },
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.operation }}",
+                    "value2": "get_stats"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "get_stats"
+            },
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.operation }}",
+                    "value2": "set_retention"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "set_retention"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "operation_router",
+      "name": "Operation Router",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Publish event to Redis Stream\nconst data = $input.item.json;\nconst streamKey = `stream:${data.topic}`;\n\n// Prepare Redis XADD command fields\nconst fields = {\n  event_id: data.event_id,\n  type: data.event.type,\n  payload: JSON.stringify(data.event.payload || {}),\n  metadata: JSON.stringify(data.event._metadata || {}),\n  tags: JSON.stringify(data.tags),\n  published_at: data.timestamp\n};\n\n// Create Redis command for publishing\nconst publishData = {\n  operation: 'xadd',\n  stream: streamKey,\n  fields: fields,\n  maxlen: data.max_length || 10000,\n  approximate: data.approximate !== false\n};\n\nreturn {\n  ...data,\n  redis_operation: publishData,\n  stream_key: streamKey\n};"
+      },
+      "id": "prepare_publish",
+      "name": "Prepare Publish",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [850, 100]
+    },
+    {
+      "parameters": {
+        "operation": "info",
+        "key": "={{ $json.stream_key }}",
+        "options": {}
+      },
+      "id": "check_stream_exists",
+      "name": "Check Stream Exists",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [1050, 100],
+      "credentials": {
+        "redis": {
+          "id": "vrooli-redis-0",
+          "name": "Vrooli Redis Default"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Execute Redis XADD command to publish event\nconst data = $input.first().json;\nconst streamInfo = $input.last().json;\n\n// Prepare XADD command\nconst streamKey = data.stream_key;\nconst fields = data.redis_operation.fields;\nconst maxlen = data.redis_operation.maxlen;\nconst approximate = data.redis_operation.approximate;\n\n// Build XADD command with MAXLEN for automatic trimming\nlet xaddCommand = `XADD ${streamKey}`;\nif (approximate) {\n  xaddCommand += ` MAXLEN ~ ${maxlen}`;\n} else {\n  xaddCommand += ` MAXLEN = ${maxlen}`;\n}\nxaddCommand += ` * `;\n\n// Add all fields\nfor (const [key, value] of Object.entries(fields)) {\n  xaddCommand += `${key} \"${value.replace(/\"/g, '\\\\\"')}\" `;\n}\n\nreturn {\n  redis_command: xaddCommand.trim(),\n  stream_key: streamKey,\n  event_id: data.event_id,\n  topic: data.topic,\n  stream_exists: streamInfo && streamInfo.length !== undefined,\n  original_data: data\n};"
+      },
+      "id": "execute_publish",
+      "name": "Execute Publish",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1250, 100]
+    },
+    {
+      "parameters": {
+        "operation": "publishCommand",
+        "command": "={{ $json.redis_command }}",
+        "options": {}
+      },
+      "id": "redis_publish",
+      "name": "Redis Publish",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [1450, 100],
+      "credentials": {
+        "redis": {
+          "id": "vrooli-redis-0",
+          "name": "Vrooli Redis Default"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Format publish response\nconst publishResult = $input.last().json;\nconst originalData = $input.first().json.original_data;\n\n// Extract message ID from Redis response\nconst messageId = publishResult.response || publishResult.result || null;\n\nconst response = {\n  success: true,\n  operation: 'publish',\n  event_id: originalData.event_id,\n  message_id: messageId,\n  topic: originalData.topic,\n  stream_key: originalData.stream_key || `stream:${originalData.topic}`,\n  published_at: originalData.timestamp,\n  ttl: originalData.ttl,\n  tags: originalData.tags,\n  \n  // Delivery confirmation\n  delivery: {\n    confirmed: messageId !== null,\n    message_id: messageId,\n    stream_position: messageId,\n    delivery_time_ms: Date.now() - new Date(originalData.timestamp).getTime()\n  },\n  \n  // Event metadata\n  event_metadata: {\n    type: originalData.event.type,\n    payload_size: JSON.stringify(originalData.event.payload || {}).length,\n    metadata_size: JSON.stringify(originalData.event._metadata || {}).length,\n    total_size: JSON.stringify(originalData.event).length\n  },\n  \n  // Request metadata\n  request_metadata: originalData.request_metadata\n};\n\nreturn response;"
+      },
+      "id": "format_publish_response",
+      "name": "Format Publish Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1650, 100]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Prepare subscription to Redis Streams\nconst data = $input.item.json;\n\n// Handle both single topic and multiple topics\nconst topics = data.topics || [data.topic];\nconst streamKeys = topics.map(topic => `stream:${topic}`);\n\n// Prepare consumer group creation for each stream\nconst consumerGroupCommands = streamKeys.map(streamKey => {\n  return {\n    operation: 'xgroup_create',\n    stream: streamKey,\n    group: data.consumer_group,\n    id: '$',  // Start from new messages\n    mkstream: true  // Create stream if it doesn't exist\n  };\n});\n\n// Prepare subscription data\nconst subscriptionData = {\n  operation: 'xreadgroup',\n  group: data.consumer_group,\n  consumer: data.consumer_name,\n  streams: streamKeys,\n  count: data.max_events,\n  block: data.block_time,\n  filters: data.filters,\n  start_id: data.start_id\n};\n\nreturn {\n  ...data,\n  stream_keys: streamKeys,\n  consumer_group_commands: consumerGroupCommands,\n  subscription_data: subscriptionData\n};"
+      },
+      "id": "prepare_subscribe",
+      "name": "Prepare Subscribe",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Create consumer groups for subscription\nconst data = $input.item.json;\nconst commands = data.consumer_group_commands;\n\n// Execute XGROUP CREATE commands for each stream\nconst groupCreationResults = [];\n\nfor (const cmd of commands) {\n  const createCommand = `XGROUP CREATE ${cmd.stream} ${cmd.group} ${cmd.id} MKSTREAM`;\n  groupCreationResults.push({\n    stream: cmd.stream,\n    group: cmd.group,\n    command: createCommand\n  });\n}\n\nreturn {\n  ...data,\n  group_creation_commands: groupCreationResults\n};"
+      },
+      "id": "create_consumer_groups",
+      "name": "Create Consumer Groups",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1050, 200]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Execute XREADGROUP command to subscribe to streams\nconst data = $input.item.json;\nconst subscription = data.subscription_data;\n\n// Build XREADGROUP command\nlet xreadCommand = `XREADGROUP GROUP ${subscription.group} ${subscription.consumer}`;\nif (subscription.count) {\n  xreadCommand += ` COUNT ${subscription.count}`;\n}\nif (subscription.block) {\n  xreadCommand += ` BLOCK ${subscription.block}`;\n}\n\n// Add streams\nxreadCommand += ` STREAMS`;\nfor (const streamKey of subscription.streams) {\n  xreadCommand += ` ${streamKey}`;\n}\n\n// Add start IDs (> for new messages)\nfor (let i = 0; i < subscription.streams.length; i++) {\n  xreadCommand += ` ${subscription.start_id}`;\n}\n\nreturn {\n  ...data,\n  redis_command: xreadCommand,\n  subscription_info: {\n    group: subscription.group,\n    consumer: subscription.consumer,\n    streams: subscription.streams,\n    filters: subscription.filters\n  }\n};"
+      },
+      "id": "execute_subscribe",
+      "name": "Execute Subscribe",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1250, 200]
+    },
+    {
+      "parameters": {
+        "operation": "publishCommand",
+        "command": "={{ $json.redis_command }}",
+        "options": {}
+      },
+      "id": "redis_subscribe",
+      "name": "Redis Subscribe",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [1450, 200],
+      "credentials": {
+        "redis": {
+          "id": "vrooli-redis-0",
+          "name": "Vrooli Redis Default"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Format subscription response and apply filters\nconst subscribeResult = $input.last().json;\nconst originalData = $input.first().json;\nconst filters = originalData.filters || {};\n\n// Parse Redis XREADGROUP response\nlet events = [];\nlet rawMessages = [];\n\ntry {\n  // Redis XREADGROUP returns: [[stream, [[id, [field1, value1, field2, value2, ...]]]]\n  const redisResponse = subscribeResult.response || subscribeResult.result || [];\n  \n  if (Array.isArray(redisResponse)) {\n    for (const streamData of redisResponse) {\n      if (Array.isArray(streamData) && streamData.length >= 2) {\n        const streamKey = streamData[0];\n        const messages = streamData[1] || [];\n        \n        for (const message of messages) {\n          if (Array.isArray(message) && message.length >= 2) {\n            const messageId = message[0];\n            const fields = message[1] || [];\n            \n            // Convert field array to object\n            const fieldObj = {};\n            for (let i = 0; i < fields.length; i += 2) {\n              if (i + 1 < fields.length) {\n                fieldObj[fields[i]] = fields[i + 1];\n              }\n            }\n            \n            // Parse event data\n            const event = {\n              message_id: messageId,\n              stream: streamKey,\n              event_id: fieldObj.event_id,\n              type: fieldObj.type,\n              payload: fieldObj.payload ? JSON.parse(fieldObj.payload) : {},\n              metadata: fieldObj.metadata ? JSON.parse(fieldObj.metadata) : {},\n              tags: fieldObj.tags ? JSON.parse(fieldObj.tags) : [],\n              published_at: fieldObj.published_at,\n              received_at: new Date().toISOString()\n            };\n            \n            rawMessages.push(event);\n            \n            // Apply filters\n            let includeEvent = true;\n            \n            // Type filter\n            if (filters.type && event.type !== filters.type) {\n              includeEvent = false;\n            }\n            \n            // Tags filter\n            if (filters.tags && Array.isArray(filters.tags)) {\n              const hasMatchingTag = filters.tags.some(tag => event.tags.includes(tag));\n              if (!hasMatchingTag) {\n                includeEvent = false;\n              }\n            }\n            \n            // Metadata filter\n            if (filters.metadata && typeof filters.metadata === 'object') {\n              for (const [key, value] of Object.entries(filters.metadata)) {\n                if (event.metadata[key] !== value) {\n                  includeEvent = false;\n                  break;\n                }\n              }\n            }\n            \n            // Timestamp range filter\n            if (filters.timestamp_range) {\n              const eventTime = new Date(event.published_at).getTime();\n              if (filters.timestamp_range.from) {\n                const fromTime = new Date(filters.timestamp_range.from).getTime();\n                if (eventTime < fromTime) {\n                  includeEvent = false;\n                }\n              }\n              if (filters.timestamp_range.to) {\n                const toTime = new Date(filters.timestamp_range.to).getTime();\n                if (eventTime > toTime) {\n                  includeEvent = false;\n                }\n              }\n            }\n            \n            if (includeEvent) {\n              events.push(event);\n            }\n          }\n        }\n      }\n    }\n  }\n} catch (error) {\n  console.warn('Error parsing subscription response:', error.message);\n}\n\nconst response = {\n  success: true,\n  operation: 'subscribe',\n  consumer_group: originalData.consumer_group,\n  consumer_name: originalData.consumer_name,\n  topics: originalData.topics || [originalData.topic],\n  \n  // Event data\n  events: events,\n  event_count: events.length,\n  raw_message_count: rawMessages.length,\n  filtered_count: rawMessages.length - events.length,\n  \n  // Subscription metadata\n  subscription_info: {\n    filters_applied: Object.keys(filters).length > 0,\n    active_filters: filters,\n    max_events_requested: originalData.max_events,\n    block_time_ms: originalData.block_time,\n    subscription_time: new Date().toISOString()\n  },\n  \n  // Message acknowledgment info\n  acknowledgment: {\n    message_ids: events.map(e => e.message_id),\n    pending_ack: events.length,\n    auto_ack_required: true\n  },\n  \n  // Request metadata\n  request_metadata: originalData.request_metadata\n};\n\nreturn response;"
+      },
+      "id": "format_subscribe_response",
+      "name": "Format Subscribe Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1650, 200]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Prepare acknowledgment of consumed messages\nconst data = $input.item.json;\n\nif (!data.message_ids || !Array.isArray(data.message_ids) || data.message_ids.length === 0) {\n  throw new Error('Acknowledgment requires message_ids array');\n}\n\nif (!data.consumer_group) {\n  throw new Error('Acknowledgment requires consumer_group');\n}\n\n// Build XACK command\nconst streamKey = data.stream_key || `stream:${data.topic}`;\nconst xackCommand = `XACK ${streamKey} ${data.consumer_group} ${data.message_ids.join(' ')}`;\n\nreturn {\n  ...data,\n  redis_command: xackCommand,\n  stream_key: streamKey\n};"
+      },
+      "id": "prepare_ack",
+      "name": "Prepare ACK",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "operation": "publishCommand",
+        "command": "={{ $json.redis_command }}",
+        "options": {}
+      },
+      "id": "redis_ack",
+      "name": "Redis ACK",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [1050, 300],
+      "credentials": {
+        "redis": {
+          "id": "vrooli-redis-0",
+          "name": "Vrooli Redis Default"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Format acknowledgment response\nconst ackResult = $input.last().json;\nconst originalData = $input.first().json;\n\n// Parse ACK result (number of messages acknowledged)\nconst acknowledgedCount = parseInt(ackResult.response || ackResult.result || '0');\n\nconst response = {\n  success: true,\n  operation: 'ack',\n  consumer_group: originalData.consumer_group,\n  stream_key: originalData.stream_key,\n  \n  // Acknowledgment results\n  acknowledgment: {\n    requested_count: originalData.message_ids.length,\n    acknowledged_count: acknowledgedCount,\n    success_rate: acknowledgedCount / originalData.message_ids.length,\n    message_ids: originalData.message_ids,\n    ack_time: new Date().toISOString()\n  },\n  \n  // Request metadata\n  request_metadata: originalData.request_metadata\n};\n\nreturn response;"
+      },
+      "id": "format_ack_response",
+      "name": "Format ACK Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Prepare getting pending messages for consumer group\nconst data = $input.item.json;\n\nif (!data.consumer_group) {\n  throw new Error('get_pending operation requires consumer_group');\n}\n\nconst streamKey = data.stream_key || `stream:${data.topic}`;\nconst consumerName = data.consumer_name || '-';  // '-' means all consumers\n\n// Build XPENDING command\nlet xpendingCommand = `XPENDING ${streamKey} ${data.consumer_group}`;\nif (consumerName !== '-') {\n  xpendingCommand += ` - + ${data.max_events || 100} ${consumerName}`;\n}\n\nreturn {\n  ...data,\n  redis_command: xpendingCommand,\n  stream_key: streamKey\n};"
+      },
+      "id": "prepare_get_pending",
+      "name": "Prepare Get Pending",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "operation": "publishCommand",
+        "command": "={{ $json.redis_command }}",
+        "options": {}
+      },
+      "id": "redis_get_pending",
+      "name": "Redis Get Pending",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [1050, 400],
+      "credentials": {
+        "redis": {
+          "id": "vrooli-redis-0",
+          "name": "Vrooli Redis Default"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Format get_pending response\nconst pendingResult = $input.last().json;\nconst originalData = $input.first().json;\n\n// Parse XPENDING response\nlet pendingMessages = [];\ntry {\n  const redisResponse = pendingResult.response || pendingResult.result || [];\n  \n  if (Array.isArray(redisResponse)) {\n    for (const message of redisResponse) {\n      if (Array.isArray(message) && message.length >= 4) {\n        pendingMessages.push({\n          message_id: message[0],\n          consumer: message[1],\n          idle_time_ms: parseInt(message[2]),\n          delivery_count: parseInt(message[3])\n        });\n      }\n    }\n  }\n} catch (error) {\n  console.warn('Error parsing pending messages response:', error.message);\n}\n\nconst response = {\n  success: true,\n  operation: 'get_pending',\n  consumer_group: originalData.consumer_group,\n  stream_key: originalData.stream_key,\n  \n  // Pending messages data\n  pending_messages: pendingMessages,\n  pending_count: pendingMessages.length,\n  \n  // Summary statistics\n  statistics: {\n    total_pending: pendingMessages.length,\n    max_idle_time_ms: pendingMessages.length > 0 ? Math.max(...pendingMessages.map(m => m.idle_time_ms)) : 0,\n    avg_delivery_count: pendingMessages.length > 0 ? pendingMessages.reduce((sum, m) => sum + m.delivery_count, 0) / pendingMessages.length : 0,\n    consumers_with_pending: [...new Set(pendingMessages.map(m => m.consumer))]\n  },\n  \n  // Dead letter queue candidates (high delivery count or very old)\n  dead_letter_candidates: pendingMessages.filter(m => \n    m.delivery_count > 3 || m.idle_time_ms > 300000  // 5 minutes\n  ),\n  \n  // Request metadata\n  request_metadata: originalData.request_metadata\n};\n\nreturn response;"
+      },
+      "id": "format_get_pending_response",
+      "name": "Format Get Pending Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1250, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Prepare event replay from timestamp\nconst data = $input.item.json;\n\nif (!data.from_timestamp) {\n  throw new Error('Replay operation requires from_timestamp');\n}\n\nconst streamKey = data.stream_key || `stream:${data.topic}`;\nconst fromTime = new Date(data.from_timestamp).getTime();\nconst toTime = data.to_timestamp ? new Date(data.to_timestamp).getTime() : Date.now();\n\n// Convert timestamp to Redis stream ID format (timestamp-sequence)\nconst fromId = `${fromTime}-0`;\nconst toId = data.to_timestamp ? `${toTime}-999` : '+';\n\n// Build XRANGE command for replay\nconst xrangeCommand = `XRANGE ${streamKey} ${fromId} ${toId} COUNT ${data.max_events || 1000}`;\n\nreturn {\n  ...data,\n  redis_command: xrangeCommand,\n  stream_key: streamKey,\n  from_id: fromId,\n  to_id: toId,\n  replay_range: {\n    from_timestamp: data.from_timestamp,\n    to_timestamp: data.to_timestamp || new Date().toISOString(),\n    from_id: fromId,\n    to_id: toId\n  }\n};"
+      },
+      "id": "prepare_replay",
+      "name": "Prepare Replay",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [850, 500]
+    },
+    {
+      "parameters": {
+        "operation": "publishCommand",
+        "command": "={{ $json.redis_command }}",
+        "options": {}
+      },
+      "id": "redis_replay",
+      "name": "Redis Replay",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [1050, 500],
+      "credentials": {
+        "redis": {
+          "id": "vrooli-redis-0",
+          "name": "Vrooli Redis Default"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Format replay response\nconst replayResult = $input.last().json;\nconst originalData = $input.first().json;\n\n// Parse XRANGE response for replay\nlet events = [];\ntry {\n  const redisResponse = replayResult.response || replayResult.result || [];\n  \n  if (Array.isArray(redisResponse)) {\n    for (const message of redisResponse) {\n      if (Array.isArray(message) && message.length >= 2) {\n        const messageId = message[0];\n        const fields = message[1] || [];\n        \n        // Convert field array to object\n        const fieldObj = {};\n        for (let i = 0; i < fields.length; i += 2) {\n          if (i + 1 < fields.length) {\n            fieldObj[fields[i]] = fields[i + 1];\n          }\n        }\n        \n        // Parse event data\n        const event = {\n          message_id: messageId,\n          event_id: fieldObj.event_id,\n          type: fieldObj.type,\n          payload: fieldObj.payload ? JSON.parse(fieldObj.payload) : {},\n          metadata: fieldObj.metadata ? JSON.parse(fieldObj.metadata) : {},\n          tags: fieldObj.tags ? JSON.parse(fieldObj.tags) : [],\n          published_at: fieldObj.published_at,\n          replayed_at: new Date().toISOString()\n        };\n        \n        events.push(event);\n      }\n    }\n  }\n} catch (error) {\n  console.warn('Error parsing replay response:', error.message);\n}\n\nconst response = {\n  success: true,\n  operation: 'replay',\n  stream_key: originalData.stream_key,\n  topic: originalData.topic,\n  \n  // Replay data\n  events: events,\n  event_count: events.length,\n  \n  // Replay metadata\n  replay_info: {\n    from_timestamp: originalData.from_timestamp,\n    to_timestamp: originalData.to_timestamp,\n    replay_range: originalData.replay_range,\n    max_events_requested: originalData.max_events,\n    actual_events_returned: events.length,\n    replay_time: new Date().toISOString()\n  },\n  \n  // Time range analysis\n  time_analysis: {\n    earliest_event: events.length > 0 ? events[0].published_at : null,\n    latest_event: events.length > 0 ? events[events.length - 1].published_at : null,\n    time_span_ms: events.length > 1 ? \n      new Date(events[events.length - 1].published_at).getTime() - new Date(events[0].published_at).getTime() : 0\n  },\n  \n  // Request metadata\n  request_metadata: originalData.request_metadata\n};\n\nreturn response;"
+      },
+      "id": "format_replay_response",
+      "name": "Format Replay Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1250, 500]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Prepare consumer group creation\nconst data = $input.item.json;\n\nif (!data.consumer_group) {\n  throw new Error('create_consumer_group operation requires consumer_group');\n}\n\nif (!data.topic) {\n  throw new Error('create_consumer_group operation requires topic');\n}\n\nconst streamKey = `stream:${data.topic}`;\nconst startId = data.start_id || '$';  // $ = from end, 0 = from beginning\n\n// Build XGROUP CREATE command\nconst xgroupCommand = `XGROUP CREATE ${streamKey} ${data.consumer_group} ${startId} MKSTREAM`;\n\nreturn {\n  ...data,\n  redis_command: xgroupCommand,\n  stream_key: streamKey\n};"
+      },
+      "id": "prepare_create_consumer_group",
+      "name": "Prepare Create Consumer Group",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [850, 600]
+    },
+    {
+      "parameters": {
+        "operation": "publishCommand",
+        "command": "={{ $json.redis_command }}",
+        "options": {}
+      },
+      "id": "redis_create_consumer_group",
+      "name": "Redis Create Consumer Group",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [1050, 600],
+      "credentials": {
+        "redis": {
+          "id": "vrooli-redis-0",
+          "name": "Vrooli Redis Default"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Format create consumer group response\nconst createResult = $input.last().json;\nconst originalData = $input.first().json;\n\n// Parse result (OK for success)\nconst success = (createResult.response || createResult.result || '').toString().toUpperCase() === 'OK';\n\nconst response = {\n  success: success,\n  operation: 'create_consumer_group',\n  consumer_group: originalData.consumer_group,\n  topic: originalData.topic,\n  stream_key: originalData.stream_key,\n  \n  // Group creation info\n  group_info: {\n    name: originalData.consumer_group,\n    stream: originalData.stream_key,\n    start_id: originalData.start_id || '$',\n    created_at: new Date().toISOString(),\n    auto_created_stream: true  // MKSTREAM flag was used\n  },\n  \n  // Request metadata\n  request_metadata: originalData.request_metadata\n};\n\nreturn response;"
+      },
+      "id": "format_create_consumer_group_response",
+      "name": "Format Create Consumer Group Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1250, 600]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Prepare getting stream statistics\nconst data = $input.item.json;\n\nconst streamKey = data.stream_key || `stream:${data.topic || '*'}`;\n\n// Build commands for comprehensive stats\nconst commands = {\n  stream_info: `XINFO STREAM ${streamKey}`,\n  groups_info: `XINFO GROUPS ${streamKey}`,\n  stream_length: `XLEN ${streamKey}`\n};\n\nreturn {\n  ...data,\n  redis_commands: commands,\n  stream_key: streamKey\n};"
+      },
+      "id": "prepare_get_stats",
+      "name": "Prepare Get Stats",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [850, 700]
+    },
+    {
+      "parameters": {
+        "operation": "publishCommand",
+        "command": "={{ $json.redis_commands.stream_info }}",
+        "options": {}
+      },
+      "id": "redis_get_stream_info",
+      "name": "Redis Get Stream Info",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [1050, 680],
+      "credentials": {
+        "redis": {
+          "id": "vrooli-redis-0",
+          "name": "Vrooli Redis Default"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "publishCommand",
+        "command": "={{ $json.redis_commands.groups_info }}",
+        "options": {}
+      },
+      "id": "redis_get_groups_info",
+      "name": "Redis Get Groups Info",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [1050, 720],
+      "credentials": {
+        "redis": {
+          "id": "vrooli-redis-0",
+          "name": "Vrooli Redis Default"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Format comprehensive stream statistics\nconst streamInfo = $input.first().json;\nconst groupsInfo = $input.last().json;\nconst originalData = $input.item(0).json;  // Get original data from first input\n\n// Parse stream info\nlet parsedStreamInfo = {};\ntry {\n  const streamResult = streamInfo.response || streamInfo.result || [];\n  for (let i = 0; i < streamResult.length; i += 2) {\n    if (i + 1 < streamResult.length) {\n      parsedStreamInfo[streamResult[i]] = streamResult[i + 1];\n    }\n  }\n} catch (error) {\n  console.warn('Error parsing stream info:', error.message);\n}\n\n// Parse groups info\nlet parsedGroupsInfo = [];\ntry {\n  const groupsResult = groupsInfo.response || groupsInfo.result || [];\n  for (const group of groupsResult) {\n    if (Array.isArray(group)) {\n      const groupObj = {};\n      for (let i = 0; i < group.length; i += 2) {\n        if (i + 1 < group.length) {\n          groupObj[group[i]] = group[i + 1];\n        }\n      }\n      parsedGroupsInfo.push(groupObj);\n    }\n  }\n} catch (error) {\n  console.warn('Error parsing groups info:', error.message);\n}\n\nconst response = {\n  success: true,\n  operation: 'get_stats',\n  stream_key: originalData.stream_key,\n  topic: originalData.topic,\n  \n  // Stream statistics\n  stream_stats: {\n    length: parseInt(parsedStreamInfo.length || '0'),\n    radix_tree_keys: parseInt(parsedStreamInfo['radix-tree-keys'] || '0'),\n    radix_tree_nodes: parseInt(parsedStreamInfo['radix-tree-nodes'] || '0'),\n    groups: parseInt(parsedStreamInfo.groups || '0'),\n    last_generated_id: parsedStreamInfo['last-generated-id'] || null,\n    first_entry: parsedStreamInfo['first-entry'] || null,\n    last_entry: parsedStreamInfo['last-entry'] || null\n  },\n  \n  // Consumer groups statistics\n  consumer_groups: parsedGroupsInfo.map(group => ({\n    name: group.name,\n    consumers: parseInt(group.consumers || '0'),\n    pending: parseInt(group.pending || '0'),\n    last_delivered_id: group['last-delivered-id'],\n    entries_read: parseInt(group['entries-read'] || '0'),\n    lag: parseInt(group.lag || '0')\n  })),\n  \n  // Overall statistics\n  summary: {\n    total_messages: parseInt(parsedStreamInfo.length || '0'),\n    total_consumer_groups: parsedGroupsInfo.length,\n    total_consumers: parsedGroupsInfo.reduce((sum, group) => sum + parseInt(group.consumers || '0'), 0),\n    total_pending_messages: parsedGroupsInfo.reduce((sum, group) => sum + parseInt(group.pending || '0'), 0),\n    stream_age_ms: parsedStreamInfo['first-entry'] && parsedStreamInfo['last-entry'] ? \n      parseInt(parsedStreamInfo['last-entry'][0].split('-')[0]) - parseInt(parsedStreamInfo['first-entry'][0].split('-')[0]) : 0\n  },\n  \n  // Health indicators\n  health: {\n    has_messages: parseInt(parsedStreamInfo.length || '0') > 0,\n    has_consumer_groups: parsedGroupsInfo.length > 0,\n    has_pending_messages: parsedGroupsInfo.some(group => parseInt(group.pending || '0') > 0),\n    max_lag: Math.max(...parsedGroupsInfo.map(group => parseInt(group.lag || '0')), 0)\n  },\n  \n  // Request metadata\n  request_metadata: originalData.request_metadata,\n  stats_generated_at: new Date().toISOString()\n};\n\nreturn response;"
+      },
+      "id": "format_get_stats_response",
+      "name": "Format Get Stats Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1250, 700]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Prepare setting retention policy\nconst data = $input.item.json;\n\nif (!data.topic && !data.stream_key) {\n  throw new Error('set_retention operation requires topic or stream_key');\n}\n\nconst streamKey = data.stream_key || `stream:${data.topic}`;\nconst maxLength = data.max_length || 10000;\nconst approximate = data.approximate !== false;\n\n// Build XTRIM command for retention\nlet xtrimCommand = `XTRIM ${streamKey} MAXLEN`;\nif (approximate) {\n  xtrimCommand += ` ~ ${maxLength}`;\n} else {\n  xtrimCommand += ` = ${maxLength}`;\n}\n\nreturn {\n  ...data,\n  redis_command: xtrimCommand,\n  stream_key: streamKey,\n  retention_policy: {\n    max_length: maxLength,\n    approximate: approximate,\n    applied_at: new Date().toISOString()\n  }\n};"
+      },
+      "id": "prepare_set_retention",
+      "name": "Prepare Set Retention",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [850, 800]
+    },
+    {
+      "parameters": {
+        "operation": "publishCommand",
+        "command": "={{ $json.redis_command }}",
+        "options": {}
+      },
+      "id": "redis_set_retention",
+      "name": "Redis Set Retention",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [1050, 800],
+      "credentials": {
+        "redis": {
+          "id": "vrooli-redis-0",
+          "name": "Vrooli Redis Default"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Format set retention response\nconst retentionResult = $input.last().json;\nconst originalData = $input.first().json;\n\n// Parse result (number of messages removed)\nconst messagesRemoved = parseInt(retentionResult.response || retentionResult.result || '0');\n\nconst response = {\n  success: true,\n  operation: 'set_retention',\n  stream_key: originalData.stream_key,\n  topic: originalData.topic,\n  \n  // Retention results\n  retention_results: {\n    messages_removed: messagesRemoved,\n    retention_policy: originalData.retention_policy,\n    trim_time: new Date().toISOString()\n  },\n  \n  // Policy info\n  policy_info: {\n    max_length: originalData.retention_policy.max_length,\n    approximate_trimming: originalData.retention_policy.approximate,\n    enforcement_type: originalData.retention_policy.approximate ? 'soft' : 'strict'\n  },\n  \n  // Request metadata\n  request_metadata: originalData.request_metadata\n};\n\nreturn response;"
+      },
+      "id": "format_set_retention_response",
+      "name": "Format Set Retention Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1250, 800]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Handle errors gracefully and provide helpful error responses\nconst error = $input.item.json.error || $input.item.json;\nconst errorMessage = error.message || error.toString() || 'Unknown error occurred';\n\n// Determine error type and provide appropriate response\nlet errorType = 'unknown_error';\nlet suggestions = [];\n\nif (errorMessage.includes('Missing required field')) {\n  errorType = 'validation_error';\n  suggestions = [\n    'Check that all required fields are provided',\n    'Refer to the API documentation for field requirements',\n    'Validate input schema before sending request'\n  ];\n} else if (errorMessage.includes('Invalid operation')) {\n  errorType = 'invalid_operation';\n  suggestions = [\n    'Use one of the supported operations: publish, subscribe, ack, get_pending, replay, create_consumer_group, get_stats, set_retention',\n    'Check operation spelling and case sensitivity'\n  ];\n} else if (errorMessage.includes('Redis') || errorMessage.includes('XADD') || errorMessage.includes('XREAD')) {\n  errorType = 'redis_error';\n  suggestions = [\n    'Check Redis connection and credentials',\n    'Verify Redis Streams are enabled',\n    'Ensure stream and consumer group names are valid'\n  ];\n} else if (errorMessage.includes('topic') || errorMessage.includes('consumer_group')) {\n  errorType = 'configuration_error';\n  suggestions = [\n    'Verify topic names are valid (alphanumeric, dots, dashes, underscores only)',\n    'Ensure consumer group exists or use create_consumer_group operation first',\n    'Check that topic and consumer group names match existing configuration'\n  ];\n}\n\nconst errorResponse = {\n  success: false,\n  error: {\n    type: errorType,\n    message: errorMessage,\n    timestamp: new Date().toISOString(),\n    suggestions: suggestions\n  },\n  \n  // Help information\n  help: {\n    supported_operations: [\n      'publish - Publish events to a topic',\n      'subscribe - Subscribe to event streams with filtering',\n      'ack - Acknowledge consumed messages',\n      'get_pending - Get pending messages for consumer group',\n      'replay - Replay events from specific timestamp',\n      'create_consumer_group - Create new consumer group',\n      'get_stats - Get stream and consumer statistics',\n      'set_retention - Set message retention policy'\n    ],\n    example_requests: {\n      publish: {\n        operation: 'publish',\n        topic: 'app.monitor.health',\n        event: {\n          type: 'health_check',\n          payload: { status: 'ok', timestamp: new Date().toISOString() }\n        },\n        tags: ['monitoring', 'health']\n      },\n      subscribe: {\n        operation: 'subscribe',\n        topics: ['app.monitor.*'],\n        consumer_group: 'health_monitors',\n        filters: { type: 'health_check' },\n        max_events: 100\n      }\n    }\n  }\n};\n\nreturn errorResponse;"
+      },
+      "id": "error_handler",
+      "name": "Error Handler",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [850, 1000]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "webhook_response",
+      "name": "Webhook Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1650, 300]
+    }
+  ],
+  "connections": {
+    "webhook_trigger": {
+      "main": [
+        [
+          {
+            "node": "validate_and_prepare",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "validate_and_prepare": {
+      "main": [
+        [
+          {
+            "node": "operation_router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "operation_router": {
+      "main": [
+        [
+          {
+            "node": "prepare_publish",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "prepare_subscribe",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "prepare_ack",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "prepare_get_pending",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "prepare_replay",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "prepare_create_consumer_group",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "prepare_get_stats",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "prepare_set_retention",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "prepare_publish": {
+      "main": [
+        [
+          {
+            "node": "check_stream_exists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check_stream_exists": {
+      "main": [
+        [
+          {
+            "node": "execute_publish",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "execute_publish": {
+      "main": [
+        [
+          {
+            "node": "redis_publish",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "redis_publish": {
+      "main": [
+        [
+          {
+            "node": "format_publish_response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "format_publish_response": {
+      "main": [
+        [
+          {
+            "node": "webhook_response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "prepare_subscribe": {
+      "main": [
+        [
+          {
+            "node": "create_consumer_groups",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "create_consumer_groups": {
+      "main": [
+        [
+          {
+            "node": "execute_subscribe",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "execute_subscribe": {
+      "main": [
+        [
+          {
+            "node": "redis_subscribe",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "redis_subscribe": {
+      "main": [
+        [
+          {
+            "node": "format_subscribe_response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "format_subscribe_response": {
+      "main": [
+        [
+          {
+            "node": "webhook_response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "prepare_ack": {
+      "main": [
+        [
+          {
+            "node": "redis_ack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "redis_ack": {
+      "main": [
+        [
+          {
+            "node": "format_ack_response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "format_ack_response": {
+      "main": [
+        [
+          {
+            "node": "webhook_response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "prepare_get_pending": {
+      "main": [
+        [
+          {
+            "node": "redis_get_pending",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "redis_get_pending": {
+      "main": [
+        [
+          {
+            "node": "format_get_pending_response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "format_get_pending_response": {
+      "main": [
+        [
+          {
+            "node": "webhook_response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "prepare_replay": {
+      "main": [
+        [
+          {
+            "node": "redis_replay",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "redis_replay": {
+      "main": [
+        [
+          {
+            "node": "format_replay_response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "format_replay_response": {
+      "main": [
+        [
+          {
+            "node": "webhook_response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "prepare_create_consumer_group": {
+      "main": [
+        [
+          {
+            "node": "redis_create_consumer_group",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "redis_create_consumer_group": {
+      "main": [
+        [
+          {
+            "node": "format_create_consumer_group_response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "format_create_consumer_group_response": {
+      "main": [
+        [
+          {
+            "node": "webhook_response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "prepare_get_stats": {
+      "main": [
+        [
+          {
+            "node": "redis_get_stream_info",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "redis_get_groups_info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "redis_get_stream_info": {
+      "main": [
+        [
+          {
+            "node": "format_get_stats_response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "redis_get_groups_info": {
+      "main": [
+        [
+          {
+            "node": "format_get_stats_response",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "format_get_stats_response": {
+      "main": [
+        [
+          {
+            "node": "webhook_response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "prepare_set_retention": {
+      "main": [
+        [
+          {
+            "node": "redis_set_retention",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "redis_set_retention": {
+      "main": [
+        [
+          {
+            "node": "format_set_retention_response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "format_set_retention_response": {
+      "main": [
+        [
+          {
+            "node": "webhook_response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "error_handler": {
+      "main": [
+        [
+          {
+            "node": "webhook_response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2024-01-15T10:30:00.000Z",
+  "versionId": "1"
+}
