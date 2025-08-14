@@ -899,45 +899,13 @@ start_daemon() {
     
     save_registry "$registry"
     
-    # Daemonize if not already in background
-    if [[ "${ORCHESTRATOR_DAEMONIZE:-true}" == "true" ]] && [[ -t 0 ]]; then
-        # We're running in foreground, daemonize properly
-        log "INFO" "Daemonizing orchestrator process"
-        
-        # Fork to background
-        (
-            # Close file descriptors
-            exec 0</dev/null
-            exec 1>>"$LOG_FILE"
-            exec 2>&1
-            
-            # Create new session
-            setsid
-            
-            # Run the actual daemon
-            ORCHESTRATOR_DAEMONIZE=false "$0" start
-        ) &
-        
-        # Wait briefly to check if daemon started
-        sleep 2
-        
-        if is_running; then
-            local pid=$(cat "$PID_FILE")
-            echo -e "${GREEN}✓ Vrooli Orchestrator started${NC}"
-            echo "  PID: $pid"
-            echo "  Socket: $SOCKET_FILE"
-            echo "  Registry: $REGISTRY_FILE"
-            echo "  Logs: $LOG_FILE"
-        else
-            echo -e "${RED}Failed to start orchestrator daemon${NC}"
-            return 1
-        fi
-        
-        return 0
-    fi
+    log "INFO" "Running orchestrator with PID $$"
     
-    # We're now running as daemon
-    log "INFO" "Running as daemon with PID $$"
+    echo -e "${GREEN}✓ Vrooli Orchestrator started${NC}"
+    echo "  PID: $$"
+    echo "  Socket: $SOCKET_FILE"
+    echo "  Registry: $REGISTRY_FILE"
+    echo "  Logs: $LOG_FILE"
     
     # Set up signal handling with flag to prevent recursion
     local shutdown_requested=false
