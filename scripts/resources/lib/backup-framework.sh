@@ -2,6 +2,10 @@
 # Simplified Backup Framework
 # Provides easy backup storage, retrieval, and smart iteration for resources
 
+# Source guard to prevent multiple sourcing
+[[ -n "${_BACKUP_FRAMEWORK_SOURCED:-}" ]] && return 0
+export _BACKUP_FRAMEWORK_SOURCED=1
+
 # Source required utilities
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091

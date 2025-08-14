@@ -295,4 +295,11 @@ elif [[ $failed -eq 0 ]]; then
     log::success "All scenarios up to date"
 fi
 
-[[ $failed -gt 0 ]] && exit 1 || exit 0
+# Report status but don't block setup completion
+if [[ $failed -gt 0 ]]; then
+    log::warning "⚠️  System running in degraded mode: $failed scenario(s) failed to convert"
+    log::info "Failed scenarios can be converted manually later or may be experimental"
+fi
+
+# Always exit successfully to allow setup to complete
+exit 0

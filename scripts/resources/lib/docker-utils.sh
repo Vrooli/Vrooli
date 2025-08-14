@@ -2,6 +2,10 @@
 # Generic Docker Utility Functions
 # Provides reusable Docker operations for all resource managers
 
+# Source guard to prevent multiple sourcing
+[[ -n "${_DOCKER_UTILS_SOURCED:-}" ]] && return 0
+export _DOCKER_UTILS_SOURCED=1
+
 # Source required utilities
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091

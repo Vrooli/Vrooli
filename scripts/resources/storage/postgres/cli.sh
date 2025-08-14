@@ -357,6 +357,123 @@ postgres_create_instance() {
     fi
 }
 
+# Get credentials for n8n integration
+resource_cli::credentials() {
+    # Source credentials utilities
+    # shellcheck disable=SC1091
+    source "${VROOLI_ROOT}/scripts/resources/lib/credentials-utils.sh"
+    
+    # Parse arguments
+    credentials::parse_args "$@"
+    local parse_result=$?
+    if [[ $parse_result -eq 2 ]]; then
+        credentials::show_help "postgres"
+        return 0
+    elif [[ $parse_result -ne 0 ]]; then
+        return 1
+    fi
+    
+    # Get all PostgreSQL containers (instances)
+    local connections=()
+    local overall_status="stopped"
+    
+    # Check for PostgreSQL containers
+    if command -v docker &>/dev/null; then
+        # Get all containers with postgres prefix
+        local containers
+        containers=$(docker ps -a --filter "name=^/${POSTGRES_CONTAINER_PREFIX}-" --format "{{.Names}}:{{.Status}}")
+        
+        if [[ -n "$containers" ]]; then
+            overall_status="running"
+            
+            while IFS=: read -r container_name container_status; do
+                # Skip if container is not running
+                if [[ ! "$container_status" =~ ^Up ]]; then
+                    continue
+                fi
+                
+                # Extract instance info from container name
+                local instance_name="${container_name#$POSTGRES_CONTAINER_PREFIX-}"
+                
+                # Get container port mapping
+                local port_mapping
+                port_mapping=$(docker port "$container_name" 5432 2>/dev/null | head -1)
+                local host_port="${port_mapping##*:}"
+                host_port="${host_port:-5432}"
+                
+                # Get environment variables for database info
+                local db_name db_user db_password
+                db_name=$(docker inspect "$container_name" --format '{{range .Config.Env}}{{if (index (split . "=") 0 | eq "POSTGRES_DB")}}{{index (split . "=") 1}}{{end}}{{end}}' 2>/dev/null || echo "${POSTGRES_DEFAULT_DB}")
+                db_user=$(docker inspect "$container_name" --format '{{range .Config.Env}}{{if (index (split . "=") 0 | eq "POSTGRES_USER")}}{{index (split . "=") 1}}{{end}}{{end}}' 2>/dev/null || echo "${POSTGRES_DEFAULT_USER}")
+                db_password=$(docker inspect "$container_name" --format '{{range .Config.Env}}{{if (index (split . "=") 0 | eq "POSTGRES_PASSWORD")}}{{index (split . "=") 1}}{{end}}{{end}}' 2>/dev/null || echo "postgres")
+                
+                # Create connection object
+                local connection_obj
+                connection_obj=$(jq -n \
+                    --arg host "localhost" \
+                    --argjson port "$host_port" \
+                    --arg database "$db_name" \
+                    '{
+                        host: $host,
+                        port: $port,
+                        database: $database,
+                        ssl: false
+                    }')
+                
+                local auth_obj
+                auth_obj=$(jq -n \
+                    --arg username "$db_user" \
+                    --arg password "$db_password" \
+                    '{
+                        username: $username,
+                        password: $password
+                    }')
+                
+                local metadata_obj
+                metadata_obj=$(jq -n \
+                    --arg description "PostgreSQL instance: $instance_name" \
+                    --argjson capabilities '["sql", "transactions", "acid"]' \
+                    --arg version "16" \
+                    '{
+                        description: $description,
+                        capabilities: $capabilities,
+                        version: $version
+                    }')
+                
+                local connection
+                connection=$(credentials::build_connection \
+                    "$instance_name" \
+                    "PostgreSQL ($instance_name)" \
+                    "postgres" \
+                    "$connection_obj" \
+                    "$auth_obj" \
+                    "$metadata_obj")
+                
+                connections+=("$connection")
+                
+            done <<< "$containers"
+        fi
+    fi
+    
+    # Convert connections array to JSON
+    local connections_array="[]"
+    if [[ ${#connections[@]} -gt 0 ]]; then
+        connections_array=$(printf '%s\n' "${connections[@]}" | jq -s '.')
+        overall_status="running"
+    fi
+    
+    # Build and validate response
+    local response
+    response=$(credentials::build_response "postgres" "$overall_status" "$connections_array")
+    
+    if credentials::validate_json "$response"; then
+        credentials::format_output "$response"
+    else
+        log::error "Invalid credentials JSON generated"
+        return 1
+    fi
+}
+
 # Show help
 resource_cli::show_help() {
     cat << EOF
@@ -373,6 +490,7 @@ CORE COMMANDS:
     stop                Stop PostgreSQL container
     install             Install PostgreSQL
     uninstall           Uninstall PostgreSQL (requires --force)
+    credentials         Get connection credentials for n8n integration
     
 POSTGRES COMMANDS:
     list-instances      List all PostgreSQL instances
@@ -390,6 +508,7 @@ OPTIONS:
 EXAMPLES:
     resource-postgres status
     resource-postgres list-instances
+    resource-postgres credentials --format pretty
     resource-postgres create-database myapp main
     resource-postgres execute-sql 'SELECT version();' main postgres
     resource-postgres create-backup myapp main /backups/myapp.sql
@@ -437,7 +556,7 @@ resource_cli::main() {
     
     case "$command" in
         # Standard resource commands
-        inject|validate|status|start|stop|install|uninstall)
+        inject|validate|status|start|stop|install|uninstall|credentials)
             resource_cli::$command "$@"
             ;;
             

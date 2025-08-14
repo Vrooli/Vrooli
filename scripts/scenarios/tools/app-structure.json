@@ -102,6 +102,38 @@
       "type": "file",
       "from": "scenario",
       "optional": true
+    },
+    {
+      "name": "scenario-api",
+      "source": "api",
+      "destination": "api",
+      "type": "directory",
+      "from": "scenario",
+      "optional": true
+    },
+    {
+      "name": "scenario-ui",
+      "source": "ui",
+      "destination": "ui",
+      "type": "directory",
+      "from": "scenario",
+      "optional": true
+    },
+    {
+      "name": "scenario-cli",
+      "source": "cli",
+      "destination": "cli",
+      "type": "directory",
+      "from": "scenario",
+      "optional": true
+    },
+    {
+      "name": "scenario-prompts",
+      "source": "prompts",
+      "destination": "prompts",
+      "type": "directory",
+      "from": "scenario",
+      "optional": true
     }
   ]
 }

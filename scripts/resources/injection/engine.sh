@@ -178,9 +178,10 @@ inject_resource() {
     
     # Check if enabled
     local enabled
-    enabled=$(echo "$resource_config" | jq -r '.enabled // true')
+    enabled=$(echo "$resource_config" | jq -r 'if .enabled == null then "true" else (.enabled | tostring) end')
+    # Removed debug output
     if [[ "$enabled" != "true" ]]; then
-        log::debug "Resource $resource_name is disabled"
+        log::info "Skipping disabled resource: $resource_name"
         return 0
     fi
     
@@ -234,10 +235,11 @@ inject_resource() {
         return 0
     fi
     
-    # Validate injection config first
+    # Validate injection config after transformation to proper format
     if ! "$manage_script" --action validate-injection --injection-config "$init_data" >/dev/null 2>&1; then
-        log::warn "Configuration validation failed for $resource_name (resource may not support new interface yet)"
-        # Continue anyway during migration period
+        log::warn "Configuration validation failed for $resource_name - some workflows may have validation issues"
+        log::debug "Validation failed for: $(echo "$init_data" | jq -c .)"
+        # Continue anyway - individual workflow validation will catch specific issues
     fi
     
     # Call manage script with inject action - pass JSON directly

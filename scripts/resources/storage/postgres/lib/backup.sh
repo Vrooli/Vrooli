@@ -455,16 +455,7 @@ postgres::backup::delete() {
         return 0
     else
         log::error "Failed to delete backup"
-            return 1
-        fi
-    else
-        if trash::safe_remove "$backup_path" --no-confirm; then
-            log::success "Backup deleted successfully"
-            return 0
-        else
-            log::error "Failed to delete backup"
-            return 1
-        fi
+        return 1
     fi
 }
 
@@ -513,13 +504,6 @@ postgres::backup::cleanup() {
                 ((deleted_count++))
             else
                 log::warn "Failed to remove backup: $backup_name"
-            fi
-            else
-                if trash::safe_remove "$backup_path" --no-confirm; then
-                    ((deleted_count++))
-                else
-                    log::warn "Failed to remove backup: $backup_name"
-                fi
             fi
         fi
     done < <(find "$base_dir" -maxdepth 2 -type d -print0)

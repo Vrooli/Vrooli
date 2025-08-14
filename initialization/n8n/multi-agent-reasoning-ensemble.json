@@ -12,7 +12,46 @@
       "name": "Webhook Trigger",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1.1,
-      "position": [250, 300]
+      "position": [
+        250,
+        300
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        250,
+        450
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "merge_triggers",
+      "name": "Merge Triggers",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [
+        400,
+        375
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Check if input is empty and provide defaults for manual testing\nconst input = $input.item.json;\n\n// If input is empty (manual trigger with no data), provide default test data\nif (!input || Object.keys(input).length === 0 || !input.task) {\n  return {\n    task: \"What are the key considerations when choosing between REST and GraphQL for a new API?\",\n    config: {\n      agent_count: 3,\n      reasoning_mode: \"thorough\",\n      consensus_threshold: 0.7\n    },\n    context: {\n      domain: \"software-architecture\",\n      background: \"Building a new SaaS platform that needs to serve both web and mobile clients\",\n      stakeholders: [\"Frontend Team\", \"Mobile Team\", \"DevOps\"],\n      constraints: [\"Must support real-time updates\", \"Need to minimize bandwidth for mobile\"]\n    }\n  };\n}\n\n// Otherwise, pass through the input as-is\nreturn input;"
+      },
+      "id": "handle_empty_input",
+      "name": "Handle Empty Input (Manual Only)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        350,
+        450
+      ]
     },
     {
       "parameters": {
@@ -23,18 +62,24 @@
       "name": "Validate Input",
       "type": "n8n-nodes-base.code",
       "typeVersion": 1,
-      "position": [450, 300]
+      "position": [
+        550,
+        375
+      ]
     },
     {
       "parameters": {
-        "mode": "runOnceForEachItem",
-        "jsCode": "// Split agents into parallel execution groups\nconst data = $input.item.json;\nconst agents = data.agents;\nconst metadata = data.metadata;\n\n// Create execution items for parallel processing\nconst executionItems = agents.map(agent => ({\n  agent_data: agent,\n  metadata: metadata\n}));\n\nreturn executionItems;"
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Split agents into parallel execution groups\nconst inputData = $input.all();\nconst data = inputData[0].json;\nconst agents = data.agents;\nconst metadata = data.metadata;\n\n// Create execution items for parallel processing\nconst executionItems = agents.map(agent => ({\n  agent_data: agent,\n  metadata: metadata\n}));\n\nreturn executionItems;"
       },
       "id": "split_agents",
       "name": "Split Agents",
       "type": "n8n-nodes-base.code",
       "typeVersion": 1,
-      "position": [650, 300]
+      "position": [
+        650,
+        300
+      ]
     },
     {
       "parameters": {
@@ -60,7 +105,10 @@
       "name": "Execute Agent",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [850, 300]
+      "position": [
+        850,
+        300
+      ]
     },
     {
       "parameters": {
@@ -71,7 +119,10 @@
       "name": "Process Agent Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 1,
-      "position": [1050, 300]
+      "position": [
+        1050,
+        300
+      ]
     },
     {
       "parameters": {
@@ -85,7 +136,10 @@
       "name": "Aggregate Responses",
       "type": "n8n-nodes-base.aggregate",
       "typeVersion": 1,
-      "position": [1250, 300]
+      "position": [
+        1250,
+        300
+      ]
     },
     {
       "parameters": {
@@ -111,7 +165,10 @@
       "name": "Build Consensus",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1650, 300]
+      "position": [
+        1650,
+        300
+      ]
     },
     {
       "parameters": {
@@ -122,7 +179,10 @@
       "name": "Prepare Consensus",
       "type": "n8n-nodes-base.code",
       "typeVersion": 1,
-      "position": [1450, 300]
+      "position": [
+        1450,
+        300
+      ]
     },
     {
       "parameters": {
@@ -133,7 +193,10 @@
       "name": "Build Final Output",
       "type": "n8n-nodes-base.code",
       "typeVersion": 1,
-      "position": [1850, 300]
+      "position": [
+        1850,
+        300
+      ]
     },
     {
       "parameters": {
@@ -150,7 +213,10 @@
       "name": "Success Check",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [2050, 300]
+      "position": [
+        2050,
+        300
+      ]
     },
     {
       "parameters": {
@@ -161,7 +227,10 @@
       "name": "Success Response",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [2250, 200]
+      "position": [
+        2250,
+        200
+      ]
     },
     {
       "parameters": {
@@ -173,11 +242,68 @@
       "name": "Error Response",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [2250, 400]
+      "position": [
+        2250,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "output_type",
+              "value": "Multi-Agent Reasoning Complete"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "final_output",
+      "name": "Final Output",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2450,
+        300
+      ]
     }
   ],
   "connections": {
     "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Merge Triggers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Handle Empty Input (Manual Only)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle Empty Input (Manual Only)": {
+      "main": [
+        [
+          {
+            "node": "Merge Triggers",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Triggers": {
       "main": [
         [
           {
@@ -293,11 +419,34 @@
           }
         ]
       ]
+    },
+    "Success Response": {
+      "main": [
+        [
+          {
+            "node": "Final Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Response": {
+      "main": [
+        [
+          {
+            "node": "Final Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": true,
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "executionTimeout": 120
   },
   "versionId": "multi-agent-v1.0.0",
   "meta": {
