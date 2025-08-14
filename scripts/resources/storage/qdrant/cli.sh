@@ -300,6 +300,108 @@ qdrant_list_backups() {
     fi
 }
 
+# Get credentials for n8n integration
+resource_cli::credentials() {
+    # Source credentials utilities
+    # shellcheck disable=SC1091
+    source "${VROOLI_ROOT}/scripts/resources/lib/credentials-utils.sh"
+    
+    # Parse arguments
+    credentials::parse_args "$@"
+    local parse_result=$?
+    if [[ $parse_result -eq 2 ]]; then
+        credentials::show_help "qdrant"
+        return 0
+    elif [[ $parse_result -ne 0 ]]; then
+        return 1
+    fi
+    
+    # Get resource status by checking Docker container
+    local status
+    status=$(credentials::get_resource_status "$QDRANT_CONTAINER_NAME")
+    
+    # Build connections array manually for Qdrant (bypassing the helper to avoid jq issues)
+    local connections_array="[]"
+    if [[ "$status" == "running" ]]; then
+        # Build connection JSON manually
+        local connection_json
+        if [[ -n "${QDRANT_API_KEY:-}" ]]; then
+            # With API key authentication
+            connection_json=$(jq -n \
+                --arg id "api" \
+                --arg name "Qdrant REST API" \
+                --arg n8n_credential_type "httpHeaderAuth" \
+                --arg host "localhost" \
+                --arg port "${QDRANT_PORT}" \
+                --arg path "/collections" \
+                --arg description "Qdrant vector database REST API" \
+                --arg version "${QDRANT_VERSION}" \
+                --arg header_name "api-key" \
+                --arg header_value "${QDRANT_API_KEY}" \
+                '{
+                    id: $id,
+                    name: $name,
+                    n8n_credential_type: $n8n_credential_type,
+                    connection: {
+                        host: $host,
+                        port: ($port | tonumber),
+                        path: $path,
+                        ssl: false
+                    },
+                    auth: {
+                        header_name: $header_name,
+                        header_value: $header_value
+                    },
+                    metadata: {
+                        description: $description,
+                        capabilities: ["vectors", "search", "clustering", "embeddings"],
+                        version: $version
+                    }
+                }')
+        else
+            # Without authentication
+            connection_json=$(jq -n \
+                --arg id "api" \
+                --arg name "Qdrant REST API" \
+                --arg n8n_credential_type "httpHeaderAuth" \
+                --arg host "localhost" \
+                --arg port "${QDRANT_PORT}" \
+                --arg path "/collections" \
+                --arg description "Qdrant vector database REST API" \
+                --arg version "${QDRANT_VERSION}" \
+                '{
+                    id: $id,
+                    name: $name,
+                    n8n_credential_type: $n8n_credential_type,
+                    connection: {
+                        host: $host,
+                        port: ($port | tonumber),
+                        path: $path,
+                        ssl: false
+                    },
+                    metadata: {
+                        description: $description,
+                        capabilities: ["vectors", "search", "clustering", "embeddings"],
+                        version: $version
+                    }
+                }')
+        fi
+        
+        connections_array=$(echo "$connection_json" | jq -s '.')
+    fi
+    
+    # Build and validate response
+    local response
+    response=$(credentials::build_response "qdrant" "$status" "$connections_array")
+    
+    if credentials::validate_json "$response"; then
+        credentials::format_output "$response"
+    else
+        log::error "Invalid credentials JSON generated"
+        return 1
+    fi
+}
+
 # Show help
 resource_cli::show_help() {
     cat << EOF
@@ -316,6 +418,7 @@ CORE COMMANDS:
     stop                        Stop qdrant container
     install                     Install qdrant
     uninstall                   Uninstall qdrant (requires --force)
+    credentials                 Get connection credentials for n8n integration
     
 QDRANT COMMANDS:
     list-collections            List all collections
@@ -332,6 +435,7 @@ OPTIONS:
 
 EXAMPLES:
     resource-qdrant status
+    resource-qdrant credentials --format pretty
     resource-qdrant list-collections
     resource-qdrant create-collection my-vectors 384 Cosine
     resource-qdrant inject shared:initialization/storage/qdrant/collections.json
@@ -353,7 +457,7 @@ resource_cli::main() {
     
     case "$command" in
         # Standard resource commands
-        inject|validate|status|start|stop|install|uninstall)
+        inject|validate|status|start|stop|install|uninstall|credentials)
             resource_cli::$command "$@"
             ;;
             

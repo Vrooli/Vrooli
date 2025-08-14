@@ -203,6 +203,83 @@ resource_cli::uninstall() {
     fi
 }
 
+# Get credentials for n8n integration
+resource_cli::credentials() {
+    # Source credentials utilities
+    # shellcheck disable=SC1091
+    source "${VROOLI_ROOT}/scripts/resources/lib/credentials-utils.sh"
+    
+    # Parse arguments
+    if ! credentials::parse_args "$@"; then
+        [[ $? -eq 2 ]] && { credentials::show_help "huginn"; return 0; }
+        return 1
+    fi
+    
+    # Get resource status
+    local status
+    status=$(credentials::get_resource_status "${CONTAINER_NAME:-huginn}")
+    
+    # Build connections array
+    local connections_array="[]"
+    if [[ "$status" == "running" ]]; then
+        # Huginn web interface - typically uses basic auth
+        local connection_obj
+        connection_obj=$(jq -n \
+            --arg host "localhost" \
+            --argjson port "${HUGINN_PORT:-3000}" \
+            --arg path "/api" \
+            --argjson ssl false \
+            '{
+                host: $host,
+                port: $port,
+                path: $path,
+                ssl: $ssl
+            }')
+        
+        local auth_obj
+        auth_obj=$(jq -n \
+            --arg username "${DEFAULT_ADMIN_USERNAME:-admin}" \
+            --arg password "changeme" \
+            '{
+                username: $username,
+                password: $password
+            }')
+        
+        local metadata_obj
+        metadata_obj=$(jq -n \
+            --arg description "Huginn agent-based workflow automation platform" \
+            --arg web_ui "${HUGINN_BASE_URL:-http://localhost:3000}" \
+            --arg setup_note "Default password should be changed after first login" \
+            '{
+                description: $description,
+                web_ui_url: $web_ui,
+                setup_note: $setup_note
+            }')
+        
+        local connection
+        connection=$(credentials::build_connection \
+            "main" \
+            "Huginn API" \
+            "httpBasicAuth" \
+            "$connection_obj" \
+            "$auth_obj" \
+            "$metadata_obj")
+        
+        connections_array="[$connection]"
+    fi
+    
+    # Build and validate response
+    local response
+    response=$(credentials::build_response "huginn" "$status" "$connections_array")
+    
+    if credentials::validate_json "$response"; then
+        credentials::format_output "$response"
+    else
+        log::error "Invalid credentials JSON generated"
+        return 1
+    fi
+}
+
 ################################################################################
 # Huginn-specific commands (if functions exist)
 ################################################################################
@@ -289,6 +366,7 @@ CORE COMMANDS:
     stop                Stop huginn container
     install             Install huginn
     uninstall           Uninstall huginn (requires --force)
+    credentials         Get connection credentials for n8n integration
     
 HUGINN COMMANDS:
     list-agents         List all agents
@@ -326,7 +404,7 @@ resource_cli::main() {
     
     case "$command" in
         # Standard resource commands
-        inject|validate|status|start|stop|install|uninstall)
+        inject|validate|status|start|stop|install|uninstall|credentials)
             resource_cli::$command "$@"
             ;;
             

@@ -163,6 +163,62 @@ resource_cli::uninstall() {
 # SearXNG-specific commands
 ################################################################################
 
+# Show credentials for n8n integration
+resource_cli::credentials() {
+    source "${VROOLI_ROOT}/scripts/resources/lib/credentials-utils.sh"
+    
+    if ! credentials::parse_args "$@"; then
+        [[ $? -eq 2 ]] && { credentials::show_help "$RESOURCE_NAME"; return 0; }
+        return 1
+    fi
+    
+    local status
+    status=$(credentials::get_resource_status "${SEARXNG_CONTAINER_NAME:-searxng}")
+    
+    local connections_array="[]"
+    if [[ "$status" == "running" ]]; then
+        # SearXNG typically runs without authentication by default
+        local connection_obj
+        connection_obj=$(jq -n \
+            --arg host "${SEARXNG_HOST:-localhost}" \
+            --argjson port "${SEARXNG_PORT:-9200}" \
+            '{
+                host: $host,
+                port: $port
+            }')
+        
+        # No authentication needed for SearXNG - using httpRequest
+        local auth_obj="{}"
+        
+        # Build metadata object
+        local metadata_obj
+        metadata_obj=$(jq -n \
+            --arg description "SearXNG privacy-respecting search engine" \
+            --arg base_url "${SEARXNG_BASE_URL:-http://localhost:9200}" \
+            --arg instance_name "${SEARXNG_INSTANCE_NAME:-Vrooli SearXNG}" \
+            '{
+                description: $description,
+                base_url: $base_url,
+                instance_name: $instance_name
+            }')
+        
+        local connection
+        connection=$(credentials::build_connection \
+            "main" \
+            "SearXNG Search API" \
+            "httpRequest" \
+            "$connection_obj" \
+            "$auth_obj" \
+            "$metadata_obj")
+        
+        connections_array="[$connection]"
+    fi
+    
+    local response
+    response=$(credentials::build_response "$RESOURCE_NAME" "$status" "$connections_array")
+    credentials::format_output "$response"
+}
+
 # Search using SearXNG
 searxng_search() {
     local query="${1:-}"
@@ -230,6 +286,7 @@ CORE COMMANDS:
     stop                Stop SearXNG container
     install             Install SearXNG
     uninstall           Uninstall SearXNG (requires --force)
+    credentials         Show n8n credentials for SearXNG
     
 SEARXNG COMMANDS:
     search <query>      Search using SearXNG API
@@ -265,7 +322,7 @@ resource_cli::main() {
     
     case "$command" in
         # Standard resource commands
-        validate|status|start|stop|install|uninstall)
+        validate|status|start|stop|install|uninstall|credentials)
             resource_cli::$command "$@"
             ;;
             

@@ -1,0 +1,244 @@
+{
+  "name": "Workflow Screenshot Capturer",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "screenshot",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Validate and prepare screenshot request\nconst input = $input.item.json;\n\n// Required field validation\nif (!input.workflow_id) {\n  throw new Error('Missing required field: workflow_id');\n}\n\n// Extract and validate workflow ID\nconst workflowId = input.workflow_id.toString().trim();\nif (workflowId.length === 0) {\n  throw new Error('Workflow ID cannot be empty');\n}\n\n// Screenshot configuration with defaults\nconst config = input.config || {};\nconst viewport = {\n  width: config.width || 1920,\n  height: config.height || 1080\n};\n\n// Validate viewport dimensions\nviewport.width = Math.min(Math.max(viewport.width, 800), 3840);\nviewport.height = Math.min(Math.max(viewport.height, 600), 2160);\n\nconst screenshot_config = {\n  format: config.format || 'png', // png, jpeg, webp\n  quality: config.quality || 90,\n  fullPage: config.fullPage !== false, // Default to true\n  waitFor: config.waitFor || 3000, // Wait time for page load\n  timeout: config.timeout || 30000, // Total timeout\n  selector: config.selector || '.canvas-container', // Default to workflow canvas\n  hideElements: config.hideElements || ['.sidebar', '.header-menu'], // Elements to hide\n  clip: config.clip || null // Custom clipping area\n};\n\n// Validate format\nconst validFormats = ['png', 'jpeg', 'webp'];\nif (!validFormats.includes(screenshot_config.format)) {\n  screenshot_config.format = 'png';\n}\n\n// Validate quality (only for jpeg/webp)\nif (['jpeg', 'webp'].includes(screenshot_config.format)) {\n  screenshot_config.quality = Math.min(Math.max(screenshot_config.quality, 1), 100);\n} else {\n  delete screenshot_config.quality;\n}\n\n// Build n8n workflow editor URL\n// Assuming n8n is accessible at the service URL\nconst n8nBaseUrl = '${service.n8n.url}';\nconst workflowUrl = `${n8nBaseUrl}/workflow/${workflowId}`;\n\n// Metadata\nconst metadata = {\n  request_id: `screenshot_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,\n  request_timestamp: new Date().toISOString(),\n  workflow_id: workflowId,\n  target_url: workflowUrl\n};\n\nreturn {\n  workflow_id: workflowId,\n  workflow_url: workflowUrl,\n  viewport: viewport,\n  screenshot_config: screenshot_config,\n  metadata: metadata\n};"
+      },
+      "id": "validate_input",
+      "name": "Validate & Prepare Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Build browserless screenshot request\nconst data = $input.item.json;\n\n// Build the browserless request payload\nconst browserlessPayload = {\n  url: data.workflow_url,\n  options: {\n    viewport: {\n      width: data.viewport.width,\n      height: data.viewport.height,\n      deviceScaleFactor: 1\n    },\n    waitUntil: ['networkidle0', 'domcontentloaded'],\n    timeout: data.screenshot_config.timeout,\n    args: [\n      '--no-sandbox',\n      '--disable-setuid-sandbox',\n      '--disable-dev-shm-usage',\n      '--disable-accelerated-2d-canvas',\n      '--disable-gpu'\n    ]\n  },\n  screenshot: {\n    type: data.screenshot_config.format,\n    encoding: 'base64',\n    fullPage: data.screenshot_config.fullPage\n  },\n  waitFor: data.screenshot_config.waitFor\n};\n\n// Add quality setting for jpeg/webp\nif (data.screenshot_config.quality) {\n  browserlessPayload.screenshot.quality = data.screenshot_config.quality;\n}\n\n// Add clipping if specified\nif (data.screenshot_config.clip) {\n  browserlessPayload.screenshot.clip = data.screenshot_config.clip;\n}\n\n// Add element hiding script\nif (data.screenshot_config.hideElements && data.screenshot_config.hideElements.length > 0) {\n  const hideScript = `\n    // Hide specified elements\n    const elementsToHide = ${JSON.stringify(data.screenshot_config.hideElements)};\n    elementsToHide.forEach(selector => {\n      const elements = document.querySelectorAll(selector);\n      elements.forEach(el => el.style.display = 'none');\n    });\n    \n    // Wait for any animations to complete\n    await new Promise(resolve => setTimeout(resolve, 1000));\n  `;\n  \n  browserlessPayload.script = hideScript;\n}\n\n// Add selector-specific screenshot if not full page\nif (!data.screenshot_config.fullPage && data.screenshot_config.selector) {\n  browserlessPayload.screenshot.clip = null; // Let selector handle the area\n  browserlessPayload.selector = data.screenshot_config.selector;\n}\n\nreturn {\n  browserless_payload: browserlessPayload,\n  metadata: data.metadata,\n  workflow_id: data.workflow_id,\n  screenshot_config: data.screenshot_config\n};"
+      },
+      "id": "build_browserless_request",
+      "name": "Build Screenshot Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "${service.browserless.url}/screenshot",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={{ JSON.stringify($json.browserless_payload) }}",
+        "options": {
+          "timeout": 45000
+        }
+      },
+      "id": "take_screenshot",
+      "name": "Take Screenshot with Browserless",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process screenshot response\nconst screenshotResponse = $input.item.json;\nconst prevData = $('Build Screenshot Request').item.json;\n\nif (!screenshotResponse) {\n  throw new Error('No response from browserless');\n}\n\nlet screenshot_data = null;\nlet success = false;\nlet error_message = null;\n\ntry {\n  // Handle different response formats from browserless\n  if (typeof screenshotResponse === 'string') {\n    // Direct base64 response\n    screenshot_data = screenshotResponse;\n    success = true;\n  } else if (screenshotResponse.screenshot) {\n    // Structured response with screenshot field\n    screenshot_data = screenshotResponse.screenshot;\n    success = true;\n  } else if (screenshotResponse.data) {\n    // Response with data field\n    screenshot_data = screenshotResponse.data;\n    success = true;\n  } else if (screenshotResponse.error) {\n    // Error response\n    error_message = screenshotResponse.error;\n    success = false;\n  } else {\n    error_message = 'Unexpected response format from browserless';\n    success = false;\n  }\n  \n  // Validate screenshot data\n  if (success && (!screenshot_data || screenshot_data.length < 100)) {\n    success = false;\n    error_message = 'Screenshot data appears invalid or empty';\n  }\n} catch (error) {\n  success = false;\n  error_message = `Failed to process screenshot response: ${error.message}`;\n}\n\n// Calculate file size estimate\nlet file_size_bytes = 0;\nif (success && screenshot_data) {\n  // Base64 estimation: each char = 6 bits, but with padding\n  file_size_bytes = Math.floor((screenshot_data.length * 3) / 4);\n}\n\n// Build response\nconst processing_time = Date.now() - new Date(prevData.metadata.request_timestamp).getTime();\n\nconst response = {\n  success: success,\n  workflow_id: prevData.workflow_id,\n  screenshot: success ? {\n    data: screenshot_data,\n    format: prevData.screenshot_config.format,\n    encoding: 'base64',\n    size_bytes: file_size_bytes,\n    size_kb: Math.round(file_size_bytes / 1024),\n    dimensions: {\n      width: prevData.browserless_payload.options.viewport.width,\n      height: prevData.browserless_payload.options.viewport.height,\n      fullPage: prevData.screenshot_config.fullPage\n    }\n  } : null,\n  metadata: {\n    ...prevData.metadata,\n    processing_time_ms: processing_time,\n    completed_at: new Date().toISOString(),\n    browserless_timeout: prevData.browserless_payload.options.timeout,\n    viewport_used: prevData.browserless_payload.options.viewport\n  }\n};\n\nif (!success) {\n  response.error = error_message;\n  response.raw_response = screenshotResponse;\n}\n\nreturn response;"
+      },
+      "id": "process_screenshot",
+      "name": "Process Screenshot Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.success }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "check_success",
+      "name": "Check Success",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Generate data URL for easy use\nconst data = $input.item.json;\n\nif (data.screenshot && data.screenshot.data) {\n  const mimeType = {\n    'png': 'image/png',\n    'jpeg': 'image/jpeg', \n    'webp': 'image/webp'\n  }[data.screenshot.format] || 'image/png';\n  \n  data.screenshot.data_url = `data:${mimeType};base64,${data.screenshot.data}`;\n  \n  // Add usage examples\n  data.usage_examples = {\n    html_img_tag: `<img src=\"${data.screenshot.data_url}\" alt=\"Workflow ${data.workflow_id} Screenshot\" />`,\n    markdown: `![Workflow ${data.workflow_id}](${data.screenshot.data_url})`,\n    css_background: `background-image: url(\"${data.screenshot.data_url}\");`\n  };\n}\n\nreturn data;"
+      },
+      "id": "enhance_response",
+      "name": "Enhance Success Response", 
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1450, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "success_response",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1650, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseCode": 500,
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"={{ $json.error || 'Screenshot capture failed' }}\",\n  \"workflow_id\": \"={{ $json.workflow_id || 'unknown' }}\",\n  \"request_id\": \"={{ $json.metadata?.request_id || 'unknown' }}\",\n  \"timestamp\": \"={{ new Date().toISOString() }}\",\n  \"troubleshooting\": {\n    \"common_issues\": [\n      \"Workflow ID does not exist\",\n      \"n8n service is not accessible\",\n      \"Browserless service is not running\",\n      \"Network timeout or connectivity issues\"\n    ],\n    \"suggested_actions\": [\n      \"Verify the workflow exists in n8n\",\n      \"Check service.json configuration\",\n      \"Ensure browserless resource is running\",\n      \"Try with a shorter timeout value\"\n    ]\n  }\n}"
+      },
+      "id": "error_response", 
+      "name": "Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1450, 400]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Validate & Prepare Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate & Prepare Input": {
+      "main": [
+        [
+          {
+            "node": "Build Screenshot Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Screenshot Request": {
+      "main": [
+        [
+          {
+            "node": "Take Screenshot with Browserless",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Take Screenshot with Browserless": {
+      "main": [
+        [
+          {
+            "node": "Process Screenshot Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Screenshot Response": {
+      "main": [
+        [
+          {
+            "node": "Check Success",
+            "type": "main", 
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Success": {
+      "main": [
+        [
+          {
+            "node": "Enhance Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enhance Success Response": {
+      "main": [
+        [
+          {
+            "node": "Success Response", 
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "executionTimeout": 60
+  },
+  "versionId": "screenshot-v1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "workflow-screenshot-capturer",
+  "tags": [
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z", 
+      "id": "shared-utility",
+      "name": "shared-utility"
+    },
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "screenshot",
+      "name": "screenshot"
+    },
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z", 
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "workflow-management",
+      "name": "workflow-management"
+    }
+  ]
+}

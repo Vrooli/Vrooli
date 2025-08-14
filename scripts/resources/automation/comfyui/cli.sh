@@ -190,6 +190,77 @@ resource_cli::uninstall() {
     fi
 }
 
+# Get credentials for n8n integration
+resource_cli::credentials() {
+    # Source credentials utilities
+    # shellcheck disable=SC1091
+    source "${VROOLI_ROOT}/scripts/resources/lib/credentials-utils.sh"
+    
+    # Parse arguments
+    if ! credentials::parse_args "$@"; then
+        [[ $? -eq 2 ]] && { credentials::show_help "comfyui"; return 0; }
+        return 1
+    fi
+    
+    # Get resource status
+    local status
+    status=$(credentials::get_resource_status "$COMFYUI_CONTAINER_NAME")
+    
+    # Build connections array - ComfyUI runs without auth by default
+    local connections_array="[]"
+    if [[ "$status" == "running" ]]; then
+        # ComfyUI HTTP API connection (no authentication by default)
+        local connection_obj
+        connection_obj=$(jq -n \
+            --arg host "localhost" \
+            --argjson port "$COMFYUI_DIRECT_PORT" \
+            --arg path "/api" \
+            --argjson ssl false \
+            '{
+                host: $host,
+                port: $port,
+                path: $path,
+                ssl: $ssl
+            }')
+        
+        local metadata_obj
+        metadata_obj=$(jq -n \
+            --arg description "ComfyUI AI image generation and manipulation" \
+            --arg web_ui "$COMFYUI_BASE_URL" \
+            --argjson jupyter_port "$COMFYUI_JUPYTER_PORT" \
+            --argjson models_dir "$COMFYUI_MODELS_DIR" \
+            '{
+                description: $description,
+                web_ui_url: $web_ui,
+                jupyter_port: $jupyter_port,
+                models_directory: $models_dir,
+                auth_enabled: false
+            }')
+        
+        local connection
+        connection=$(credentials::build_connection \
+            "main" \
+            "ComfyUI API" \
+            "httpRequest" \
+            "$connection_obj" \
+            "{}" \
+            "$metadata_obj")
+        
+        connections_array="[$connection]"
+    fi
+    
+    # Build and validate response
+    local response
+    response=$(credentials::build_response "comfyui" "$status" "$connections_array")
+    
+    if credentials::validate_json "$response"; then
+        credentials::format_output "$response"
+    else
+        log::error "Invalid credentials JSON generated"
+        return 1
+    fi
+}
+
 ################################################################################
 # ComfyUI-specific commands
 ################################################################################
@@ -300,6 +371,7 @@ CORE COMMANDS:
     stop                 Stop ComfyUI container
     install              Install ComfyUI
     uninstall            Uninstall ComfyUI (requires --force)
+    credentials          Get connection credentials for n8n integration
     
 COMFYUI COMMANDS:
     execute-workflow <file>  Execute a workflow
@@ -338,7 +410,7 @@ resource_cli::main() {
     
     case "$command" in
         # Standard resource commands
-        inject|validate|status|start|stop|install|uninstall)
+        inject|validate|status|start|stop|install|uninstall|credentials)
             resource_cli::$command "$@"
             ;;
             

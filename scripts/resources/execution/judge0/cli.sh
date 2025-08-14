@@ -201,6 +201,78 @@ resource_cli::uninstall() {
 # Judge0-specific commands (if functions exist)
 ################################################################################
 
+# Show credentials for n8n integration
+resource_cli::credentials() {
+    source "${VROOLI_ROOT}/scripts/resources/lib/credentials-utils.sh"
+    
+    if ! credentials::parse_args "$@"; then
+        [[ $? -eq 2 ]] && { credentials::show_help "$RESOURCE_NAME"; return 0; }
+        return 1
+    fi
+    
+    local status
+    status=$(credentials::get_resource_status "${JUDGE0_CONTAINER_NAME:-vrooli-judge0-server}")
+    
+    local connections_array="[]"
+    if [[ "$status" == "running" ]]; then
+        # Judge0 requires API key authentication for security
+        local api_key
+        if command -v judge0::get_api_key &>/dev/null; then
+            api_key=$(judge0::get_api_key)
+        else
+            api_key=""
+        fi
+        
+        local connection_obj
+        connection_obj=$(jq -n \
+            --arg host "${JUDGE0_HOST:-localhost}" \
+            --argjson port "${JUDGE0_PORT:-2358}" \
+            '{
+                host: $host,
+                port: $port
+            }')
+        
+        # Build auth object with X-Auth-Token header for Judge0
+        local auth_obj
+        auth_obj=$(jq -n \
+            --arg header_name "X-Auth-Token" \
+            --arg header_value "$api_key" \
+            '{
+                header_name: $header_name,
+                header_value: $header_value
+            }')
+        
+        # Build metadata object
+        local metadata_obj
+        metadata_obj=$(jq -n \
+            --arg description "Judge0 secure code execution service" \
+            --arg base_url "${JUDGE0_BASE_URL:-http://localhost:2358}" \
+            --arg version "${JUDGE0_VERSION:-1.13.1}" \
+            --argjson supported_languages "$(printf '%s\n' "${JUDGE0_DEFAULT_LANGUAGES[@]}" | head -5 | jq -R . | jq -s .)" \
+            '{
+                description: $description,
+                base_url: $base_url,
+                version: $version,
+                supported_languages_sample: $supported_languages
+            }')
+        
+        local connection
+        connection=$(credentials::build_connection \
+            "main" \
+            "Judge0 Code Execution API" \
+            "httpHeaderAuth" \
+            "$connection_obj" \
+            "$auth_obj" \
+            "$metadata_obj")
+        
+        connections_array="[$connection]"
+    fi
+    
+    local response
+    response=$(credentials::build_response "$RESOURCE_NAME" "$status" "$connections_array")
+    credentials::format_output "$response"
+}
+
 # List supported programming languages
 judge0_list_languages() {
     if command -v judge0::languages::list &>/dev/null; then
@@ -304,6 +376,7 @@ CORE COMMANDS:
     stop                     Stop Judge0 containers
     install                  Install Judge0
     uninstall                Uninstall Judge0 (requires --force)
+    credentials              Show n8n credentials for Judge0
     
 JUDGE0 COMMANDS:
     languages                List supported programming languages
@@ -343,7 +416,7 @@ resource_cli::main() {
     
     case "$command" in
         # Standard resource commands
-        inject|validate|status|start|stop|install|uninstall)
+        inject|validate|status|start|stop|install|uninstall|credentials)
             resource_cli::$command "$@"
             ;;
             

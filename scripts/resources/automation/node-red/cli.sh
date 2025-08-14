@@ -328,6 +328,71 @@ node_red_view_logs() {
     fi
 }
 
+# Get credentials for n8n integration
+resource_cli::credentials() {
+    # Source credentials utilities
+    # shellcheck disable=SC1091
+    source "${VROOLI_ROOT}/scripts/resources/lib/credentials-utils.sh"
+    
+    # Parse arguments
+    credentials::parse_args "$@"
+    local parse_result=$?
+    if [[ $parse_result -eq 2 ]]; then
+        credentials::show_help "node-red"
+        return 0
+    elif [[ $parse_result -ne 0 ]]; then
+        return 1
+    fi
+    
+    # Get resource status by checking Docker container
+    local status
+    status=$(credentials::get_resource_status "$CONTAINER_NAME")
+    
+    # Build connections array for Node-RED
+    local connections_array="[]"
+    if [[ "$status" == "running" ]]; then
+        # Build connection JSON for Node-RED API
+        local connection_json
+        connection_json=$(jq -n \
+            --arg id "api" \
+            --arg name "Node-RED API" \
+            --arg n8n_credential_type "httpHeaderAuth" \
+            --arg host "localhost" \
+            --arg port "${NODE_RED_PORT}" \
+            --arg path "/" \
+            --arg description "Node-RED flow-based automation API" \
+            '{
+                id: $id,
+                name: $name,
+                n8n_credential_type: $n8n_credential_type,
+                connection: {
+                    host: $host,
+                    port: ($port | tonumber),
+                    path: $path,
+                    ssl: false
+                },
+                metadata: {
+                    description: $description,
+                    capabilities: ["flows", "automation", "webhook", "mqtt", "http"],
+                    version: "latest"
+                }
+            }')
+        
+        connections_array=$(echo "$connection_json" | jq -s '.')
+    fi
+    
+    # Build and validate response
+    local response
+    response=$(credentials::build_response "node-red" "$status" "$connections_array")
+    
+    if credentials::validate_json "$response"; then
+        credentials::format_output "$response"
+    else
+        log::error "Invalid credentials JSON generated"
+        return 1
+    fi
+}
+
 # Show help
 resource_cli::show_help() {
     cat << EOF
@@ -344,6 +409,7 @@ CORE COMMANDS:
     stop                Stop node-red container
     install             Install node-red
     uninstall           Uninstall node-red (requires --force)
+    credentials         Get connection credentials for n8n integration
     
 NODE-RED COMMANDS:
     list-flows          List all flows
@@ -386,7 +452,7 @@ resource_cli::main() {
     
     case "$command" in
         # Standard resource commands
-        inject|validate|status|start|stop|install|uninstall)
+        inject|validate|status|start|stop|install|uninstall|credentials)
             resource_cli::$command "$@"
             ;;
             

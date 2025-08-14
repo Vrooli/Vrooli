@@ -141,18 +141,12 @@ http::extract_json_field() {
 #######################################
 http::check_endpoint() {
     local url="$1"
-    local expected_code="${2:-200}"
+    # The expected_code parameter is kept for compatibility but not used
+    # since http::request already returns proper exit codes
     
-    local response
-    local http_code
-    response=$(http::request "GET" "$url")
-    http_code=$?
-    
-    if [ "$http_code" -eq "$expected_code" ]; then
-        return 0
-    else
-        return 1
-    fi
+    # Simply pass through the exit code from http::request
+    # (0 for success/200-299, 1 for failure)
+    http::request "GET" "$url" >/dev/null 2>&1
 }
 
 #######################################

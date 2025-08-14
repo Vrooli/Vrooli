@@ -26,10 +26,14 @@ source "${SCRIPT_DIR}/../config/defaults.sh"
 minio::export_config
 
 # Override library defaults with MinIO-specific settings
+# shellcheck disable=SC2034
 SERVICE_NAME="minio"
 BASE_URL="${MINIO_BASE_URL:-http://localhost:9000}"
+# shellcheck disable=SC2034
 HEALTH_ENDPOINT="/minio/health/live"
+# shellcheck disable=SC2034
 REQUIRED_TOOLS=("curl" "jq" "mc")
+# shellcheck disable=SC2034
 SERVICE_METADATA=(
     "API Port: ${MINIO_PORT:-9000}"
     "Console Port: ${MINIO_CONSOLE_PORT:-9001}"
@@ -37,8 +41,11 @@ SERVICE_METADATA=(
 )
 
 # Test configuration
-readonly TEST_BUCKET_NAME="vrooli-integration-test-$(date +%s)"
+# shellcheck disable=SC2034
+TEST_BUCKET_NAME="vrooli-integration-test-$(date +%s)"
+# shellcheck disable=SC2034
 readonly TEST_FILE_NAME="test-file.txt"
+# shellcheck disable=SC2034
 readonly TEST_FILE_CONTENT="This is a test file for MinIO integration testing"
 
 #######################################
@@ -322,6 +329,7 @@ test_console_accessibility() {
 #######################################
 
 # Define service-specific tests to run
+# shellcheck disable=SC2034
 SERVICE_TESTS=(
     "test_minio_version"
     "test_s3_api_compatibility"

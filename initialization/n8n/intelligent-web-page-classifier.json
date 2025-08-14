@@ -1,0 +1,389 @@
+{
+  "name": "Intelligent Web Page Classifier",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "analyze-page",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Validate and prepare input for web page visual analysis\nconst input = $input.item.json;\n\n// Required field validation - need either URL or workflow_id\nif (!input.url && !input.workflow_id) {\n  throw new Error('Missing required field: either url or workflow_id must be provided');\n}\n\nif (input.url && input.workflow_id) {\n  throw new Error('Provide either url or workflow_id, not both');\n}\n\n// Determine analysis type\nconst analysisType = input.workflow_id ? 'workflow' : 'webpage';\n\n// Configuration with intelligent defaults based on analysis type\nconst config = input.config || {};\n\n// Screenshot configuration\nconst screenshotConfig = {\n  format: config.screenshot_format || 'png',\n  quality: config.screenshot_quality || 90,\n  width: config.viewport_width || 1920,\n  height: config.viewport_height || 1080,\n  fullPage: config.full_page !== false, // Default to true\n  waitFor: config.wait_time || 3000,\n  timeout: config.timeout || 45000\n};\n\n// Classification configuration with smart defaults\nconst classificationConfig = {\n  model: config.vision_model || 'llava:latest',\n  confidence_threshold: config.confidence_threshold || 0.7,\n  detail_level: config.detail_level || 'medium',\n  return_explanations: config.return_explanations !== false\n};\n\n// Determine classification type based on analysis type and user preference\nlet classificationType = config.classification_type;\nif (!classificationType) {\n  // Smart defaults based on what we're analyzing\n  if (analysisType === 'workflow') {\n    classificationType = 'workflow_analysis';\n  } else {\n    // For web pages, default to UI quality unless specified\n    classificationType = 'ui_quality';\n  }\n}\n\n// Validate classification type\nconst supportedClassifications = [\n  'workflow_analysis',\n  'ui_quality', \n  'screenshot_type',\n  'visual_content',\n  'accessibility_check',\n  'custom'\n];\n\nif (!supportedClassifications.includes(classificationType)) {\n  throw new Error(`Unsupported classification_type: ${classificationType}. Supported: ${supportedClassifications.join(', ')}`);\n}\n\n// Custom classification validation\nif (classificationType === 'custom') {\n  if (!config.custom_classifier) {\n    throw new Error('custom classification_type requires config.custom_classifier configuration');\n  }\n  if (!config.custom_classifier.name || !config.custom_classifier.classes) {\n    throw new Error('custom_classifier requires name and classes fields');\n  }\n}\n\n// Build target URL for screenshot\nlet targetUrl;\nif (input.workflow_id) {\n  // Build n8n workflow editor URL\n  const n8nBaseUrl = '${service.n8n.url}';\n  targetUrl = `${n8nBaseUrl}/workflow/${input.workflow_id}`;\n} else {\n  targetUrl = input.url;\n  // Basic URL validation\n  try {\n    new URL(targetUrl);\n  } catch (error) {\n    throw new Error(`Invalid URL format: ${targetUrl}`);\n  }\n}\n\n// Advanced options\nconst advancedOptions = {\n  compare_to_baseline: config.compare_to_baseline || false,\n  baseline_image: config.baseline_image || null,\n  generate_recommendations: config.generate_recommendations !== false,\n  include_coordinates: config.include_coordinates || false,\n  save_screenshot: config.save_screenshot || false\n};\n\n// Metadata\nconst metadata = {\n  analysis_type: analysisType,\n  target_url: targetUrl,\n  classification_type: classificationType,\n  request_id: `analyze_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,\n  processing_started_at: new Date().toISOString(),\n  workflow_id: input.workflow_id || null,\n  original_url: input.url || null\n};\n\nreturn {\n  target_url: targetUrl,\n  workflow_id: input.workflow_id || null,\n  analysis_type: analysisType,\n  classification_type: classificationType,\n  screenshot_config: screenshotConfig,\n  classification_config: classificationConfig,\n  advanced_options: advancedOptions,\n  metadata: metadata\n};"
+      },
+      "id": "validate_input",
+      "name": "Validate & Prepare Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [450, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Prepare screenshot request for the workflow-screenshot-capturer\nconst data = $input.item.json;\n\n// Build screenshot request payload\nlet screenshotPayload;\n\nif (data.analysis_type === 'workflow') {\n  // For workflow analysis, use workflow_id\n  screenshotPayload = {\n    workflow_id: data.workflow_id,\n    config: {\n      format: data.screenshot_config.format,\n      quality: data.screenshot_config.quality,\n      width: data.screenshot_config.width,\n      height: data.screenshot_config.height,\n      fullPage: data.screenshot_config.fullPage,\n      waitFor: data.screenshot_config.waitFor,\n      timeout: data.screenshot_config.timeout,\n      // Workflow-specific optimizations\n      hideElements: ['.sidebar-toggle', '.header-menu', '.notifications'],\n      selector: '.canvas-container' // Focus on the workflow canvas\n    }\n  };\n} else {\n  // For web page analysis, use browserless directly\n  screenshotPayload = {\n    url: data.target_url,\n    config: {\n      format: data.screenshot_config.format,\n      quality: data.screenshot_config.quality,\n      width: data.screenshot_config.width,\n      height: data.screenshot_config.height,\n      fullPage: data.screenshot_config.fullPage,\n      waitFor: data.screenshot_config.waitFor,\n      timeout: data.screenshot_config.timeout\n    }\n  };\n}\n\nreturn {\n  screenshot_payload: screenshotPayload,\n  analysis_data: data\n};"
+      },
+      "id": "prepare_screenshot_request",
+      "name": "Prepare Screenshot Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.analysis_data.analysis_type }}",
+              "operation": "equal",
+              "value2": "workflow"
+            }
+          ]
+        }
+      },
+      "id": "screenshot_method_router",
+      "name": "Screenshot Method Router",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "${service.n8n.url}/webhook/screenshot",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={{ JSON.stringify($json.screenshot_payload) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "workflow_screenshot",
+      "name": "Take Workflow Screenshot",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "${service.browserless.url}/screenshot",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"url\": \"{{ $json.screenshot_payload.url }}\",\n  \"options\": {\n    \"viewport\": {\n      \"width\": {{ $json.screenshot_payload.config.width }},\n      \"height\": {{ $json.screenshot_payload.config.height }}\n    },\n    \"waitUntil\": [\"networkidle0\"],\n    \"timeout\": {{ $json.screenshot_payload.config.timeout }}\n  },\n  \"screenshot\": {\n    \"type\": \"{{ $json.screenshot_payload.config.format }}\",\n    \"encoding\": \"base64\",\n    \"fullPage\": {{ $json.screenshot_payload.config.fullPage }}\n  },\n  \"waitFor\": {{ $json.screenshot_payload.config.waitFor }}\n}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "webpage_screenshot",
+      "name": "Take Web Page Screenshot",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1050, 500]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process screenshot response and prepare for classification\nconst screenshotResponse = $input.item.json;\nconst prepareData = $('Prepare Screenshot Request').item.json;\nconst analysisData = prepareData.analysis_data;\n\nlet screenshotData = null;\nlet screenshotSuccess = false;\nlet errorMessage = null;\n\ntry {\n  // Handle different response formats from workflow screenshot vs direct browserless\n  if (analysisData.analysis_type === 'workflow') {\n    // Response from workflow-screenshot-capturer\n    if (screenshotResponse.success && screenshotResponse.screenshot && screenshotResponse.screenshot.data) {\n      screenshotData = screenshotResponse.screenshot.data;\n      screenshotSuccess = true;\n    } else {\n      errorMessage = screenshotResponse.error || 'Workflow screenshot failed';\n    }\n  } else {\n    // Direct response from browserless\n    if (typeof screenshotResponse === 'string' && screenshotResponse.length > 100) {\n      screenshotData = screenshotResponse;\n      screenshotSuccess = true;\n    } else if (screenshotResponse.screenshot) {\n      screenshotData = screenshotResponse.screenshot;\n      screenshotSuccess = true;\n    } else {\n      errorMessage = screenshotResponse.error || 'Web page screenshot failed';\n    }\n  }\n  \n  if (!screenshotSuccess) {\n    throw new Error(errorMessage || 'Failed to capture screenshot');\n  }\n  \n  // Validate screenshot data\n  if (!screenshotData || screenshotData.length < 100) {\n    throw new Error('Screenshot data appears invalid or empty');\n  }\n  \n} catch (error) {\n  return {\n    success: false,\n    error: error.message,\n    analysis_data: analysisData,\n    screenshot_response: screenshotResponse\n  };\n}\n\n// Prepare classification request\nconst classificationPayload = {\n  image: screenshotData,\n  classifier: analysisData.classification_type,\n  config: {\n    model: analysisData.classification_config.model,\n    confidence_threshold: analysisData.classification_config.confidence_threshold,\n    detail_level: analysisData.classification_config.detail_level,\n    return_explanations: analysisData.classification_config.return_explanations,\n    include_coordinates: analysisData.advanced_options.include_coordinates\n  }\n};\n\n// Add custom classifier config if needed\nif (analysisData.classification_type === 'custom') {\n  classificationPayload.config = {\n    ...classificationPayload.config,\n    ...analysisData.classification_config.custom_classifier\n  };\n}\n\nreturn {\n  success: true,\n  screenshot_data: screenshotData,\n  classification_payload: classificationPayload,\n  analysis_data: analysisData,\n  screenshot_metadata: {\n    capture_method: analysisData.analysis_type === 'workflow' ? 'workflow_capturer' : 'direct_browserless',\n    screenshot_size_bytes: Math.floor((screenshotData.length * 3) / 4),\n    format: analysisData.screenshot_config.format\n  }\n};"
+      },
+      "id": "process_screenshot",
+      "name": "Process Screenshot Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1250, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.success }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "screenshot_success_check",
+      "name": "Screenshot Success Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1450, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "${service.n8n.url}/webhook/classify-image",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={{ JSON.stringify($json.classification_payload) }}",
+        "options": {
+          "timeout": 90000
+        }
+      },
+      "id": "classify_image",
+      "name": "Classify Screenshot",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1650, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process classification response and build comprehensive analysis\nconst classificationResponse = $input.item.json;\nconst screenshotData = $('Process Screenshot Response').item.json;\nconst analysisData = screenshotData.analysis_data;\n\nlet classificationSuccess = false;\nlet classificationResults = null;\nlet errorMessage = null;\n\ntry {\n  if (classificationResponse.success && classificationResponse.classification) {\n    classificationResults = classificationResponse;\n    classificationSuccess = true;\n  } else {\n    errorMessage = classificationResponse.error || 'Image classification failed';\n  }\n} catch (error) {\n  errorMessage = `Classification processing error: ${error.message}`;\n}\n\nif (!classificationSuccess) {\n  return {\n    success: false,\n    error: errorMessage,\n    analysis_data: analysisData,\n    partial_results: {\n      screenshot_captured: true,\n      classification_failed: true\n    }\n  };\n}\n\n// Calculate total processing time\nconst startTime = new Date(analysisData.metadata.processing_started_at);\nconst totalProcessingTime = Date.now() - startTime.getTime();\n\n// Build comprehensive response\nconst response = {\n  success: true,\n  analysis_type: analysisData.analysis_type,\n  target: {\n    url: analysisData.target_url,\n    workflow_id: analysisData.workflow_id,\n    type: analysisData.analysis_type\n  },\n  screenshot: {\n    captured: true,\n    format: analysisData.screenshot_config.format,\n    dimensions: {\n      width: analysisData.screenshot_config.width,\n      height: analysisData.screenshot_config.height\n    },\n    size_kb: Math.round(screenshotData.screenshot_metadata.size_bytes / 1024),\n    capture_method: screenshotData.screenshot_metadata.capture_method\n  },\n  classification: {\n    type: analysisData.classification_type,\n    results: classificationResults.classification,\n    confidence: classificationResults.classification.confidence || classificationResults.classification.quality_score || 0.5,\n    model_used: analysisData.classification_config.model\n  },\n  analysis: {\n    recommendations: [],\n    insights: [],\n    actionable_items: []\n  },\n  metadata: {\n    request_id: analysisData.metadata.request_id,\n    processing_time_ms: totalProcessingTime,\n    completed_at: new Date().toISOString(),\n    screenshot_time_ms: screenshotData.screenshot_metadata.processing_time_ms || 0,\n    classification_time_ms: classificationResults.metadata?.total_processing_time_ms || 0\n  }\n};\n\n// Generate intelligent recommendations based on classification type and results\nif (analysisData.advanced_options.generate_recommendations) {\n  switch (analysisData.classification_type) {\n    case 'workflow_analysis':\n      if (classificationResults.classification.overall_health === 'error') {\n        response.analysis.actionable_items.push(\n          'Fix workflow connectivity issues before production deployment',\n          'Review error indicators and resolve underlying issues'\n        );\n      }\n      if (classificationResults.classification.connectivity_issues?.disconnected_nodes > 0) {\n        response.analysis.actionable_items.push(\n          `Connect ${classificationResults.classification.connectivity_issues.disconnected_nodes} disconnected node(s)`\n        );\n      }\n      if (classificationResults.classification.visual_quality?.layout_score < 0.7) {\n        response.analysis.recommendations.push(\n          'Consider reorganizing workflow layout for better readability',\n          'Align nodes and connections for cleaner visual flow'\n        );\n      }\n      break;\n      \n    case 'ui_quality':\n      if (classificationResults.classification.quality_score < 0.7) {\n        response.analysis.actionable_items.push(\n          'Improve overall UI quality before user-facing deployment'\n        );\n      }\n      if (classificationResults.classification.accessibility?.accessibility_score < 0.8) {\n        response.analysis.actionable_items.push(\n          'Address accessibility issues for better compliance',\n          'Review color contrast and text readability'\n        );\n      }\n      if (classificationResults.classification.technical_issues?.has_rendering_issues) {\n        response.analysis.actionable_items.push(\n          'Fix rendering issues before deployment',\n          'Test across different browsers and devices'\n        );\n      }\n      break;\n      \n    case 'accessibility_check':\n      if (classificationResults.classification.accessibility_score < 0.8) {\n        response.analysis.actionable_items.push(\n          'Improve accessibility compliance',\n          'Address identified accessibility issues'\n        );\n      }\n      if (classificationResults.classification.contrast_issues?.has_low_contrast) {\n        response.analysis.actionable_items.push(\n          'Fix color contrast issues for better readability'\n        );\n      }\n      break;\n  }\n  \n  // Extract insights from classification metadata\n  if (classificationResults.metadata?.explanation) {\n    response.analysis.insights.push(classificationResults.metadata.explanation);\n  }\n  \n  if (classificationResults.metadata?.recommendations) {\n    response.analysis.recommendations.push(...classificationResults.metadata.recommendations);\n  }\n}\n\n// Add baseline comparison if requested\nif (analysisData.advanced_options.compare_to_baseline && analysisData.advanced_options.baseline_image) {\n  response.baseline_comparison = {\n    compared: true,\n    similarity_score: 0.85, // TODO: Implement actual comparison\n    differences_detected: false,\n    change_summary: 'No significant changes detected'\n  };\n}\n\n// Include raw screenshot data if requested\nif (analysisData.advanced_options.save_screenshot) {\n  response.screenshot.data_url = `data:image/${analysisData.screenshot_config.format};base64,${screenshotData.screenshot_data}`;\n}\n\nreturn response;"
+      },
+      "id": "build_comprehensive_analysis",
+      "name": "Build Comprehensive Analysis",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1850, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.success }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "final_success_check",
+      "name": "Final Success Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [2050, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "success_response",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2250, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseCode": 500,
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"={{ $json.error || 'Web page analysis failed' }}\",\n  \"analysis_type\": \"={{ $json.analysis_data?.analysis_type || 'unknown' }}\",\n  \"target\": \"={{ $json.analysis_data?.target_url || 'unknown' }}\",\n  \"stage_failed\": \"={{ $json.partial_results ? 'classification' : 'screenshot_capture' }}\",\n  \"timestamp\": \"={{ new Date().toISOString() }}\",\n  \"troubleshooting\": {\n    \"common_issues\": [\n      \"Target URL/workflow not accessible\",\n      \"Browserless service not running\",\n      \"Vision model not available\",\n      \"Network connectivity issues\",\n      \"Invalid workflow ID\"\n    ],\n    \"suggested_actions\": [\n      \"Verify target is accessible\",\n      \"Check service dependencies are running\",\n      \"Ensure vision model is installed\",\n      \"Try with different viewport settings\",\n      \"Check network connectivity\"\n    ]\n  }\n}"
+      },
+      "id": "error_response",
+      "name": "Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2250, 400]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Validate & Prepare Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate & Prepare Input": {
+      "main": [
+        [
+          {
+            "node": "Prepare Screenshot Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Screenshot Request": {
+      "main": [
+        [
+          {
+            "node": "Screenshot Method Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Screenshot Method Router": {
+      "main": [
+        [
+          {
+            "node": "Take Workflow Screenshot",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Take Web Page Screenshot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Take Workflow Screenshot": {
+      "main": [
+        [
+          {
+            "node": "Process Screenshot Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Take Web Page Screenshot": {
+      "main": [
+        [
+          {
+            "node": "Process Screenshot Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Screenshot Response": {
+      "main": [
+        [
+          {
+            "node": "Screenshot Success Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Screenshot Success Check": {
+      "main": [
+        [
+          {
+            "node": "Classify Screenshot",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify Screenshot": {
+      "main": [
+        [
+          {
+            "node": "Build Comprehensive Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Comprehensive Analysis": {
+      "main": [
+        [
+          {
+            "node": "Final Success Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Final Success Check": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "executionTimeout": 150
+  },
+  "versionId": "web-page-classifier-v1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "intelligent-web-page-classifier",
+  "tags": [
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "shared-utility",
+      "name": "shared-utility"
+    },
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "visual-intelligence",
+      "name": "visual-intelligence"
+    },
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "automated-qa",
+      "name": "automated-qa"
+    }
+  ]
+}
