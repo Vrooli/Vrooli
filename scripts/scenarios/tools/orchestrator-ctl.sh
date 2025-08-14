@@ -126,15 +126,22 @@ EOF
 start_orchestrator() {
     echo -e "${CYAN}🚀 Starting Vrooli Orchestrator...${NC}"
     
-    # Start orchestrator in background
-    "$ORCHESTRATOR_SCRIPT" start >/dev/null 2>&1 &
-    local daemon_pid=$!
-    
-    # Wait a moment for daemon to start
-    sleep 3
-    
-    # Check if daemon started successfully
+    # Check if already running first
     if [[ -f "$ORCHESTRATOR_HOME/orchestrator.pid" ]]; then
+        local pid=$(cat "$ORCHESTRATOR_HOME/orchestrator.pid")
+        if kill -0 "$pid" 2>/dev/null; then
+            echo -e "${YELLOW}⚠️  Orchestrator already running (PID: $pid)${NC}"
+            echo ""
+            show_status
+            return 0
+        else
+            # Clean up stale PID file
+            rm -f "$ORCHESTRATOR_HOME/orchestrator.pid"
+        fi
+    fi
+    
+    # Start orchestrator properly (it will daemonize itself)
+    if "$ORCHESTRATOR_SCRIPT" start; then
         echo -e "${GREEN}✅ Orchestrator started successfully${NC}"
         
         # Show initial status

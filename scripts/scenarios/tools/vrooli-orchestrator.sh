@@ -297,12 +297,19 @@ register_process() {
     return 0
 }
 
-# Start a process
+# Start a process with resource limits
 start_process() {
     local name="$1"
     local wait="${2:-false}"
     
     log "INFO" "Starting process: $name"
+    
+    # Check system CPU before starting new process
+    local cpu_usage=$(top -bn1 | grep "Cpu(s)" | sed "s/.*, *\([0-9.]*\)%* id.*/\1/" | awk '{print int(100 - $1)}')
+    if [[ $cpu_usage -gt 90 ]]; then
+        log "ERROR" "System CPU too high ($cpu_usage%), refusing to start new process"
+        return 1
+    fi
     
     # Load registry
     log "DEBUG" "Loading registry"
@@ -657,16 +664,41 @@ show_tree() {
     fi
 }
 
-# Process monitor loop
+# Process monitor loop with safety checks
 monitor_processes() {
     log "INFO" "Starting process monitor"
     
+    # Add timeout protection
+    local consecutive_errors=0
+    local max_errors=5
+    
     while true; do
-        # Check for crashed processes
-        local registry=$(load_registry)
+        # Safety check - bail if too many consecutive errors
+        if [[ $consecutive_errors -ge $max_errors ]]; then
+            log "ERROR" "Monitor process had $max_errors consecutive errors, exiting"
+            return 1
+        fi
+        
+        # Use timeout to prevent hanging
+        if ! timeout 30 bash -c '
+            registry=$(cat "'"$REGISTRY_FILE"'" 2>/dev/null || echo "{}")
+            echo "$registry"
+        ' > /tmp/monitor_registry_$$.json; then
+            log "ERROR" "Failed to load registry in monitor"
+            consecutive_errors=$((consecutive_errors + 1))
+            sleep 5
+            continue
+        fi
+        
+        local registry=$(cat /tmp/monitor_registry_$$.json)
+        rm -f /tmp/monitor_registry_$$.json
+        
+        # Reset error counter on success
+        consecutive_errors=0
+        
         local updated=false
         
-        # Check each running process
+        # Check each running process with timeout
         local running_processes=$(echo "$registry" | jq -r --arg state "$STATE_RUNNING" '
             .processes | to_entries | .[] | 
             select(.value.state == $state) | 
@@ -815,6 +847,46 @@ start_daemon() {
     
     save_registry "$registry"
     
+    # Daemonize if not already in background
+    if [[ "${ORCHESTRATOR_DAEMONIZE:-true}" == "true" ]] && [[ -t 0 ]]; then
+        # We're running in foreground, daemonize properly
+        log "INFO" "Daemonizing orchestrator process"
+        
+        # Fork to background
+        (
+            # Close file descriptors
+            exec 0</dev/null
+            exec 1>>"$LOG_FILE"
+            exec 2>&1
+            
+            # Create new session
+            setsid
+            
+            # Run the actual daemon
+            ORCHESTRATOR_DAEMONIZE=false "$0" start
+        ) &
+        
+        # Wait briefly to check if daemon started
+        sleep 2
+        
+        if is_running; then
+            local pid=$(cat "$PID_FILE")
+            echo -e "${GREEN}✓ Vrooli Orchestrator started${NC}"
+            echo "  PID: $pid"
+            echo "  Socket: $SOCKET_FILE"
+            echo "  Registry: $REGISTRY_FILE"
+            echo "  Logs: $LOG_FILE"
+        else
+            echo -e "${RED}Failed to start orchestrator daemon${NC}"
+            return 1
+        fi
+        
+        return 0
+    fi
+    
+    # We're now running as daemon
+    log "INFO" "Running as daemon with PID $$"
+    
     # Set up signal handling with flag to prevent recursion
     local shutdown_requested=false
     
@@ -831,22 +903,34 @@ start_daemon() {
     # Trap signals for cleanup
     trap 'handle_shutdown' SIGTERM SIGINT
     
-    # Start background workers
+    # Start background workers with error handling
     monitor_processes &
     local monitor_pid=$!
     
     process_commands &
     local command_pid=$!
     
-    log "INFO" "Orchestrator started successfully"
-    echo -e "${GREEN}✓ Vrooli Orchestrator started${NC}"
-    echo "  PID: $$"
-    echo "  Socket: $SOCKET_FILE"
-    echo "  Registry: $REGISTRY_FILE"
-    echo "  Logs: $LOG_FILE"
+    log "INFO" "Orchestrator started successfully with workers: monitor=$monitor_pid, commands=$command_pid"
     
-    # Wait for background processes
-    wait $monitor_pid $command_pid
+    # Monitor worker processes and restart if they die
+    while true; do
+        # Check monitor process
+        if ! kill -0 $monitor_pid 2>/dev/null; then
+            log "WARN" "Monitor process died, restarting"
+            monitor_processes &
+            monitor_pid=$!
+        fi
+        
+        # Check command processor
+        if ! kill -0 $command_pid 2>/dev/null; then
+            log "WARN" "Command processor died, restarting"
+            process_commands &
+            command_pid=$!
+        fi
+        
+        # Sleep before next check
+        sleep 10
+    done
 }
 
 # Stop the orchestrator daemon
