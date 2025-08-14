@@ -157,6 +157,11 @@ install::install() {
     log::info "4. Check GPU status: $0 --action gpu-info"
     echo
     
+    # Auto-install CLI if available
+    # shellcheck disable=SC1091
+    source "${var_SCRIPTS_RESOURCES_LIB_DIR}/cli-auto-install.sh" 2>/dev/null || true
+    resource_cli::auto_install "${COMFYUI_LIB_DIR}/.." || true
+    
     return 0
 }
 

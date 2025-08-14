@@ -2,6 +2,10 @@
 # n8n Core Functions - Consolidated n8n-specific logic
 # All generic operations delegated to shared libraries
 
+# Source guard to prevent multiple sourcing
+[[ -n "${_N8N_CORE_SOURCED:-}" ]] && return 0
+export _N8N_CORE_SOURCED=1
+
 # Source shared libraries
 N8N_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
@@ -412,6 +416,9 @@ n8n::install() {
     local init_config
     init_config=$(n8n::get_init_config)
     init::setup_resource "$init_config"
+    
+    # Auto-install CLI if available
+    resource_cli::auto_install "$N8N_SCRIPT_DIR" || true
 }
 
 

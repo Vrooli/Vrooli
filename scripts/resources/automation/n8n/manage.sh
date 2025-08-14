@@ -55,7 +55,7 @@ n8n::parse_arguments() {
         --flag "a" \
         --desc "Action to perform" \
         --type "value" \
-        --options "install|uninstall|start|stop|restart|status|reset-password|logs|info|version|test|test-api-key|execute|api-setup|save-api-key|list-workflows|list-executions|inject|validate-injection|url|create-backup|list-backups|backup-info|recover|recover-api-key|auto-credentials|refresh-credentials|validate-credentials|list-discoverable" \
+        --options "install|uninstall|start|stop|restart|status|reset-password|logs|info|version|test|test-api-key|execute|api-setup|save-api-key|list-workflows|list-executions|inject|validate-injection|url|create-backup|list-backups|backup-info|recover|recover-api-key|auto-credentials|refresh-credentials|validate-credentials|list-discoverable|setup-redis-databases|activate-workflow|deactivate-workflow|activate-all|activate-pattern|delete-workflow|delete-all-workflows" \
         --default "install"
     
     args::register \
@@ -88,6 +88,18 @@ n8n::parse_arguments() {
     args::register \
         --name "api-key" \
         --desc "n8n API key to save" \
+        --type "value" \
+        --default ""
+    
+    args::register \
+        --name "workflow-id" \
+        --desc "Workflow ID for activation/deactivation" \
+        --type "value" \
+        --default ""
+    
+    args::register \
+        --name "pattern" \
+        --desc "Pattern for matching workflow names (supports wildcards)" \
         --type "value" \
         --default ""
     
@@ -193,7 +205,9 @@ n8n::parse_arguments() {
     VALIDATION_TYPE=$(args::get "validation-type")
     VALIDATION_FILE=$(args::get "validation-file")
     AUTO_CREATE_CREDENTIALS=$(args::get "auto-credentials")
-    export ACTION FORCE LINES YES WEBHOOK_URL WORKFLOW_ID API_KEY WORKFLOW_DATA BASIC_AUTH AUTH_USERNAME AUTH_PASSWORD DATABASE_TYPE TUNNEL_ENABLED BUILD_IMAGE INJECTION_CONFIG VALIDATION_TYPE VALIDATION_FILE AUTO_CREATE_CREDENTIALS
+    ACTIVATE_WORKFLOW_ID=$(args::get "workflow-id")
+    ACTIVATION_PATTERN=$(args::get "pattern")
+    export ACTION FORCE LINES YES WEBHOOK_URL WORKFLOW_ID API_KEY WORKFLOW_DATA BASIC_AUTH AUTH_USERNAME AUTH_PASSWORD DATABASE_TYPE TUNNEL_ENABLED BUILD_IMAGE INJECTION_CONFIG VALIDATION_TYPE VALIDATION_FILE AUTO_CREATE_CREDENTIALS ACTIVATE_WORKFLOW_ID ACTIVATION_PATTERN
 }
 
 #######################################
@@ -282,6 +296,27 @@ n8n::main() {
         auto-credentials)
             n8n::auto_manage_credentials
             ;;
+        setup-redis-databases)
+            log::info "Setting up Redis multi-database credentials..."
+            
+            # Discover Redis resource
+            local redis_resource
+            redis_resource=$(n8n::discover_resources | jq -c '.[] | select(.name == "redis")')
+            
+            if [[ -z "$redis_resource" || "$redis_resource" == "null" ]]; then
+                log::error "No Redis resource found. Ensure Redis is running and discoverable."
+                exit 1
+            fi
+            
+            # Create multi-database credentials
+            if n8n::create_redis_database_credentials "$redis_resource"; then
+                log::success "✅ Redis multi-database credentials setup complete"
+                log::info "Now available: vrooli-redis-0 through vrooli-redis-15"
+            else
+                log::error "❌ Failed to setup Redis multi-database credentials"
+                exit 1
+            fi
+            ;;
         refresh-credentials)
             log::info "Refreshing auto-credentials for all discovered resources..."
             AUTO_CREATE_CREDENTIALS=yes n8n::auto_manage_credentials
@@ -291,6 +326,56 @@ n8n::main() {
             ;;
         list-discoverable)
             n8n::list_discoverable_resources
+            ;;
+        activate-workflow)
+            if [[ -z "$ACTIVATE_WORKFLOW_ID" ]]; then
+                log::error "Workflow ID is required for activation"
+                echo "Usage: $0 --action activate-workflow --workflow-id <workflow_id>"
+                echo ""
+                echo "To find workflow IDs, run: $0 --action list-workflows"
+                exit 1
+            fi
+            n8n::activate_workflow "$ACTIVATE_WORKFLOW_ID"
+            ;;
+        deactivate-workflow)
+            if [[ -z "$ACTIVATE_WORKFLOW_ID" ]]; then
+                log::error "Workflow ID is required for deactivation"
+                echo "Usage: $0 --action deactivate-workflow --workflow-id <workflow_id>"
+                echo ""
+                echo "To find workflow IDs, run: $0 --action list-workflows"
+                exit 1
+            fi
+            n8n::deactivate_workflow "$ACTIVATE_WORKFLOW_ID"
+            ;;
+        activate-all)
+            n8n::activate_all_workflows
+            ;;
+        activate-pattern)
+            if [[ -z "$ACTIVATION_PATTERN" ]]; then
+                log::error "Pattern is required for pattern-based activation"
+                echo "Usage: $0 --action activate-pattern --pattern <pattern>"
+                echo ""
+                echo "Examples:"
+                echo "  $0 --action activate-pattern --pattern \"embedding*\""
+                echo "  $0 --action activate-pattern --pattern \"*generator*\""
+                echo "  $0 --action activate-pattern --pattern \"reasoning-chain\""
+                exit 1
+            fi
+            n8n::activate_workflows_by_pattern "$ACTIVATION_PATTERN"
+            ;;
+        delete-workflow)
+            if [[ -z "$WORKFLOW_ID" ]]; then
+                log::error "Workflow ID is required for deletion"
+                echo "Usage: $0 --action delete-workflow --workflow-id <id>"
+                echo ""
+                echo "Examples:"
+                echo "  $0 --action delete-workflow --workflow-id wbu5QO9dVCD521pe"
+                exit 1
+            fi
+            n8n::delete_workflow "$WORKFLOW_ID"
+            ;;
+        delete-all-workflows)
+            n8n::delete_all_workflows
             ;;
         *)
             log::error "Unknown action: $ACTION"

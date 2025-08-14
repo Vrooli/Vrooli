@@ -2,6 +2,10 @@
 # Claude Code Installation Functions
 # Handles installation and uninstallation of Claude Code CLI
 
+# Source CLI auto-installation helper
+# shellcheck disable=SC1091
+source "${var_SCRIPTS_RESOURCES_LIB_DIR:-${VROOLI_ROOT:-/root/Vrooli}/scripts/lib/resources}/cli-auto-install.sh" 2>/dev/null || true
+
 #######################################
 # Install Claude Code
 #######################################
@@ -61,6 +65,13 @@ claude_code::install() {
             log::success "✓ Resource configuration updated"
         else
             log::warn "⚠️  Failed to update resource configuration"
+        fi
+        
+        # Install CLI command
+        if resource_cli::auto_install "${CLAUDE_CODE_SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../" && pwd)}"; then
+            log::success "✓ CLI command 'resource-claude-code' installed"
+        else
+            log::warn "⚠️  CLI installation failed (non-critical)"
         fi
         
         # Show next steps

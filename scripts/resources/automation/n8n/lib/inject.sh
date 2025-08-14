@@ -3,6 +3,10 @@ set -euo pipefail
 
 DESCRIPTION="Inject workflows and configurations into n8n automation platform"
 
+# Source guard to prevent multiple sourcing
+[[ -n "${_N8N_INJECT_SOURCED:-}" ]] && return 0
+export _N8N_INJECT_SOURCED=1
+
 # Get script directory and source framework
 N8N_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
@@ -12,6 +16,8 @@ source "${N8N_LIB_DIR}/../../../../lib/utils/var.sh"
 source "${var_SCRIPTS_RESOURCES_LIB_DIR}/inject_framework.sh"
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_LIB_DIR}/validation_utils.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_SERVICE_DIR}/secrets.sh"
 
 # Load n8n configuration and infrastructure
 if command -v inject_framework::load_adapter_config &>/dev/null; then
@@ -84,7 +90,23 @@ n8n::validate_workflow() {
         log::error "Workflow file not found for '$name': $workflow_file"
         return 1
     fi
-    if ! jq . "$workflow_file" >/dev/null 2>&1; then
+    
+    # Read and process templates before validation
+    local raw_content
+    if ! raw_content=$(cat "$workflow_file" 2>/dev/null); then
+        log::error "Failed to read workflow file for '$name': $workflow_file"
+        return 1
+    fi
+    
+    # Process template substitutions for validation
+    local processed_content
+    if ! processed_content=$(echo "$raw_content" | secrets::substitute_all_templates 2>/dev/null); then
+        log::warn "Template processing failed for validation of '$name', continuing with raw content"
+        processed_content="$raw_content"
+    fi
+    
+    # Validate processed JSON
+    if ! echo "$processed_content" | jq . >/dev/null 2>&1; then
         log::error "Workflow file contains invalid JSON for '$name': $workflow_file"
         return 1
     fi
@@ -255,10 +277,25 @@ n8n::import_workflow() {
     else
         workflow_file=$(inject_framework::resolve_file_path "$file")
     fi
-    # Read workflow content
-    local workflow_content
-    if ! workflow_content=$(jq -c . "$workflow_file" 2>/dev/null); then
+    # Read workflow content and process templates
+    local raw_content
+    if ! raw_content=$(cat "$workflow_file" 2>/dev/null); then
         log::error "Failed to read workflow file: $workflow_file"
+        return 1
+    fi
+    
+    # Process template substitutions (service references and secrets)
+    local processed_content
+    if ! processed_content=$(echo "$raw_content" | secrets::substitute_all_templates); then
+        log::error "Failed to process templates in workflow file: $workflow_file"
+        return 1
+    fi
+    
+    # Parse as JSON
+    local workflow_content
+    if ! workflow_content=$(echo "$processed_content" | jq -c . 2>/dev/null); then
+        log::error "Failed to parse processed workflow as JSON: $workflow_file"
+        log::debug "Processed content: $processed_content"
         return 1
     fi
     # Prepare workflow data with metadata (without read-only fields like active/tags)
@@ -295,6 +332,34 @@ n8n::import_workflow() {
             inject_framework::add_api_delete_rollback \
                 "Remove workflow: $name (ID: $workflow_id)" \
                 "$N8N_API_BASE/workflows/$workflow_id"
+            
+            # Auto-activate workflow if it has trigger nodes (unless explicitly disabled)
+            local auto_activate="${AUTO_ACTIVATE_INJECTED_WORKFLOWS:-true}"
+            if [[ "$auto_activate" == "true" ]]; then
+                # Check if workflow has trigger nodes that benefit from activation
+                local has_triggers=false
+                local trigger_nodes
+                trigger_nodes=$(echo "$workflow_content" | jq -r '.nodes[]? | select(.type | test("webhook|cron|trigger|schedule|interval|timer")) | .type' 2>/dev/null || echo "")
+                
+                if [[ -n "$trigger_nodes" ]]; then
+                    has_triggers=true
+                    log::info "🎯 Auto-activating workflow (found trigger nodes: $(echo "$trigger_nodes" | tr '\n' ' '))"
+                else
+                    log::debug "Skipping auto-activation for workflow without trigger nodes"
+                fi
+                
+                # Activate the workflow if it has triggers
+                if [[ "$has_triggers" == "true" ]] && command -v n8n::activate_workflow &>/dev/null; then
+                    if n8n::activate_workflow "$workflow_id" >/dev/null 2>&1; then
+                        log::success "✅ Auto-activated workflow: $name"
+                    else
+                        log::warn "⚠️  Failed to auto-activate workflow: $name (workflow still imported successfully)"
+                    fi
+                fi
+            else
+                log::debug "Auto-activation disabled for injected workflows"
+            fi
+            
             return 0
         else
             log::error "Workflow imported but no ID returned for: $name"

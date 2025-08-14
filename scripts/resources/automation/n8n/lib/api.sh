@@ -2,6 +2,10 @@
 # n8n API Management Functions
 # Workflow execution, API key management, and REST API interactions
 
+# Source guard to prevent multiple sourcing
+[[ -n "${_N8N_API_SOURCED:-}" ]] && return 0
+export _N8N_API_SOURCED=1
+
 # Source shared libraries
 N8N_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -498,4 +502,557 @@ n8n::get_urls() {
   }
 }
 EOF
+}
+
+#######################################
+# Activate a single workflow by ID
+# Args: $1 - workflow_id
+# Returns: 0 if successful, 1 if failed
+#######################################
+n8n::activate_workflow() {
+    local workflow_id="${1:-}"
+    
+    if [[ -z "$workflow_id" ]]; then
+        log::error "Workflow ID is required"
+        echo "Usage: n8n::activate_workflow <workflow_id>"
+        return 1
+    fi
+    
+    local api_key
+    api_key=$(n8n::resolve_api_key)
+    if [[ -z "$api_key" ]]; then
+        log::error "API key required for workflow activation"
+        n8n::show_api_setup_instructions
+        return 1
+    fi
+    
+    log::info "Activating workflow: $workflow_id"
+    log::debug "Making HTTP request to: ${N8N_BASE_URL}/api/v1/workflows/${workflow_id}/activate"
+    
+    # Use direct curl instead of http::request to avoid hanging issues
+    local response http_code exit_code
+    
+    response=$(curl -s -w "\n__HTTP_CODE__:%{http_code}" \
+        -X POST \
+        -H "X-N8N-API-KEY: $api_key" \
+        -H "Content-Type: application/json" \
+        -d '{}' \
+        --max-time 3 \
+        "${N8N_BASE_URL}/api/v1/workflows/${workflow_id}/activate" 2>/dev/null || echo "__HTTP_CODE__:000")
+    
+    # Extract HTTP code and body
+    http_code=$(echo "$response" | grep "__HTTP_CODE__:" | cut -d':' -f2 | tr -d '\n' | sed 's/[^0-9]//g')
+    response=$(echo "$response" | grep -v "__HTTP_CODE__:")
+    
+    # Set exit code based on HTTP status
+    if [[ "$http_code" -ge 200 && "$http_code" -lt 300 ]]; then
+        exit_code=0
+    else
+        exit_code=1
+    fi
+    
+    log::debug "HTTP request completed with code: $http_code, exit code: $exit_code"
+    log::debug "Response length: ${#response} characters"
+    
+    # Handle timeout specifically
+    if [[ $exit_code -eq 124 ]]; then
+        log::error "❌ Activation request timed out after 10 seconds for workflow: $workflow_id"
+        return 1
+    fi
+    
+    if [[ $exit_code -eq 0 ]]; then
+        # Check if response indicates success
+        if echo "$response" | jq -e '.active == true' >/dev/null 2>&1; then
+            local workflow_name
+            workflow_name=$(echo "$response" | jq -r '.name // "Unknown"')
+            log::success "✅ Activated workflow: $workflow_name ($workflow_id)"
+            return 0
+        else
+            log::error "❌ Activation request succeeded but workflow may not be active"
+            log::debug "Response: $response"
+            return 1
+        fi
+    else
+        log::error "❌ Failed to activate workflow: $workflow_id (exit code: $exit_code)"
+        
+        # Try to extract error message from response
+        if [[ -n "$response" ]]; then
+            if echo "$response" | jq empty 2>/dev/null; then
+                local error_msg
+                error_msg=$(echo "$response" | jq -r '.message // .error // "Unknown error"')
+                log::error "API Error: $error_msg"
+            else
+                log::error "Response: $response"
+            fi
+        fi
+        return 1
+    fi
+}
+
+#######################################
+# Deactivate a single workflow by ID
+# Args: $1 - workflow_id
+# Returns: 0 if successful, 1 if failed
+#######################################
+n8n::deactivate_workflow() {
+    local workflow_id="${1:-}"
+    
+    if [[ -z "$workflow_id" ]]; then
+        log::error "Workflow ID is required"
+        echo "Usage: n8n::deactivate_workflow <workflow_id>"
+        return 1
+    fi
+    
+    local api_key
+    api_key=$(n8n::resolve_api_key)
+    if [[ -z "$api_key" ]]; then
+        log::error "API key required for workflow deactivation"
+        n8n::show_api_setup_instructions
+        return 1
+    fi
+    
+    log::info "Deactivating workflow: $workflow_id"
+    
+    # Make deactivation request
+    local response
+    response=$(http::request "POST" "${N8N_BASE_URL}/api/v1/workflows/${workflow_id}/deactivate" '{}' "X-N8N-API-KEY: $api_key")
+    local exit_code=$?
+    
+    if [[ $exit_code -eq 0 ]]; then
+        # Check if response indicates success
+        if echo "$response" | jq -e '.active == false' >/dev/null 2>&1; then
+            local workflow_name
+            workflow_name=$(echo "$response" | jq -r '.name // "Unknown"')
+            log::success "✅ Deactivated workflow: $workflow_name ($workflow_id)"
+            return 0
+        else
+            log::error "❌ Deactivation request succeeded but workflow may still be active"
+            return 1
+        fi
+    else
+        log::error "❌ Failed to deactivate workflow: $workflow_id"
+        if echo "$response" | jq empty 2>/dev/null; then
+            local error_msg
+            error_msg=$(echo "$response" | jq -r '.message // .error // "Unknown error"')
+            log::error "Error: $error_msg"
+        fi
+        return 1
+    fi
+}
+
+#######################################
+# Activate all workflows
+# Returns: 0 if all successful, 1 if any failed
+#######################################
+n8n::activate_all_workflows() {
+    log::header "🚀 Activating All Workflows"
+    
+    local api_key
+    api_key=$(n8n::resolve_api_key)
+    if [[ -z "$api_key" ]]; then
+        log::error "API key required for workflow activation"
+        n8n::show_api_setup_instructions
+        return 1
+    fi
+    
+    # Get all workflows - use direct curl to avoid hanging
+    local workflows_response http_code
+    workflows_response=$(curl -s -w "\n__HTTP_CODE__:%{http_code}" \
+        -H "X-N8N-API-KEY: $api_key" \
+        --max-time 10 \
+        "${N8N_BASE_URL}/api/v1/workflows" 2>/dev/null || echo "__HTTP_CODE__:000")
+    
+    # Extract HTTP code and body
+    http_code=$(echo "$workflows_response" | grep "__HTTP_CODE__:" | cut -d':' -f2 | tr -d '\n' | sed 's/[^0-9]//g')
+    workflows_response=$(echo "$workflows_response" | grep -v "__HTTP_CODE__:")
+    
+    if [[ "$http_code" -lt 200 || "$http_code" -ge 300 ]] || ! echo "$workflows_response" | jq empty 2>/dev/null; then
+        log::error "Failed to get workflows list (HTTP $http_code)"
+        return 1
+    fi
+    
+    local total_count
+    total_count=$(echo "$workflows_response" | jq '.data | length')
+    
+    if [[ "$total_count" -eq 0 ]]; then
+        log::info "No workflows found to activate"
+        return 0
+    fi
+    
+    log::info "Found $total_count workflows to process"
+    echo ""
+    
+    local success_count=0
+    local skip_count=0
+    local fail_count=0
+    
+    # Process each workflow using array approach instead of process substitution
+    local workflow_count
+    workflow_count=$(echo "$workflows_response" | jq '.data | length')
+    
+    # Pre-declare variables outside the loop to avoid local declaration issues
+    local workflow_data workflow_id workflow_name is_active
+    
+    for ((i=0; i<workflow_count; i++)); do
+        # Extract workflow data safely
+        workflow_data=$(echo "$workflows_response" | jq -c ".data[$i]" 2>/dev/null || echo "{}")
+        [[ "$workflow_data" == "{}" ]] && continue
+        
+        workflow_id=$(echo "$workflow_data" | jq -r '.id // ""' 2>/dev/null || echo "")
+        workflow_name=$(echo "$workflow_data" | jq -r '.name // ""' 2>/dev/null || echo "")
+        is_active=$(echo "$workflow_data" | jq -r '.active // false' 2>/dev/null || echo "false")
+        
+        [[ -z "$workflow_id" ]] && continue
+        [[ -z "$workflow_name" ]] && continue
+        
+        if [[ "$is_active" == "true" ]]; then
+            log::info "⏭️  Skipping already active: $workflow_name ($workflow_id)"
+            skip_count=$((skip_count + 1))
+            continue
+        fi
+        
+        # Activate the workflow
+        log::info "Activating: $workflow_name ($workflow_id)"
+        if n8n::activate_workflow "$workflow_id"; then
+            success_count=$((success_count + 1))
+        else
+            log::error "❌ Failed to activate: $workflow_name ($workflow_id)"
+            fail_count=$((fail_count + 1))
+        fi
+    done
+    
+    # Summary
+    echo ""
+    log::info "📊 Activation Summary:"
+    log::info "   Activated: $success_count"
+    log::info "   Already Active: $skip_count"
+    log::info "   Failed: $fail_count"
+    log::info "   Total: $total_count"
+    
+    if [[ $fail_count -eq 0 ]]; then
+        log::success "✅ All workflows processed successfully"
+        return 0
+    else
+        log::error "❌ $fail_count workflows failed to activate"
+        return 1
+    fi
+}
+
+#######################################
+# Activate workflows matching a pattern
+# Args: $1 - pattern (supports wildcards and regex)
+# Returns: 0 if any activated, 1 if none found or all failed
+#######################################
+n8n::activate_workflows_by_pattern() {
+    local pattern="${1:-}"
+    
+    if [[ -z "$pattern" ]]; then
+        log::error "Pattern is required"
+        echo "Usage: n8n::activate_workflows_by_pattern <pattern>"
+        echo ""
+        echo "Examples:"
+        echo "  n8n::activate_workflows_by_pattern \"embedding*\""
+        echo "  n8n::activate_workflows_by_pattern \"*generator*\""
+        echo "  n8n::activate_workflows_by_pattern \"reasoning-chain\""
+        return 1
+    fi
+    
+    log::header "🎯 Activating Workflows Matching Pattern: $pattern"
+    
+    local api_key
+    api_key=$(n8n::resolve_api_key)
+    if [[ -z "$api_key" ]]; then
+        log::error "API key required for workflow activation"
+        n8n::show_api_setup_instructions
+        return 1
+    fi
+    
+    # Get all workflows - use direct curl to avoid hanging
+    local workflows_response http_code
+    workflows_response=$(curl -s -w "\n__HTTP_CODE__:%{http_code}" \
+        -H "X-N8N-API-KEY: $api_key" \
+        --max-time 10 \
+        "${N8N_BASE_URL}/api/v1/workflows" 2>/dev/null || echo "__HTTP_CODE__:000")
+    
+    # Extract HTTP code and body
+    http_code=$(echo "$workflows_response" | grep "__HTTP_CODE__:" | cut -d':' -f2 | tr -d '\n' | sed 's/[^0-9]//g')
+    workflows_response=$(echo "$workflows_response" | grep -v "__HTTP_CODE__:")
+    
+    if [[ "$http_code" -lt 200 || "$http_code" -ge 300 ]] || ! echo "$workflows_response" | jq empty 2>/dev/null; then
+        log::error "Failed to get workflows list (HTTP $http_code)"
+        return 1
+    fi
+    
+    local total_count
+    total_count=$(echo "$workflows_response" | jq '.data | length')
+    
+    if [[ "$total_count" -eq 0 ]]; then
+        log::info "No workflows found"
+        return 1
+    fi
+    
+    log::info "Searching through $total_count workflows for pattern: $pattern"
+    echo ""
+    
+    local match_count=0
+    local success_count=0
+    local skip_count=0
+    local fail_count=0
+    
+    # Convert wildcard pattern to regex if needed
+    local regex_pattern="$pattern"
+    if [[ "$pattern" == *"*"* ]] || [[ "$pattern" == *"?"* ]]; then
+        # Convert shell wildcards to regex (use .* instead of .*? for greedy matching)
+        regex_pattern=$(echo "$pattern" | sed 's/\./\\./g; s/\*/.*/g; s/\?/./g')
+        regex_pattern="^${regex_pattern}$"
+    fi
+    
+    # OPTIMIZED: Extract all workflow data at once to avoid multiple jq calls in loop
+    local workflows_extract
+    workflows_extract=$(echo "$workflows_response" | jq -r '.data[] | "\(.id)|\(.name)|\(.active)"' 2>/dev/null)
+    
+    if [[ -z "$workflows_extract" ]]; then
+        log::error "Failed to extract workflow data"
+        return 1
+    fi
+    
+    # Use index-based iteration for reliability
+    local workflow_count
+    workflow_count=$(echo "$workflows_response" | jq '.data | length')
+    
+    # Pre-declare loop variables  
+    local matches workflow_id workflow_name is_active workflow_data
+    
+    # Process each workflow using index-based iteration (most reliable)
+    for ((i=0; i<workflow_count; i++)); do
+        # Extract workflow data directly from JSON
+        workflow_data=$(echo "$workflows_response" | jq -c ".data[$i]" 2>/dev/null || echo "{}")
+        [[ "$workflow_data" == "{}" ]] && continue
+        
+        workflow_id=$(echo "$workflow_data" | jq -r '.id // ""' 2>/dev/null || echo "")
+        workflow_name=$(echo "$workflow_data" | jq -r '.name // ""' 2>/dev/null || echo "")
+        is_active=$(echo "$workflow_data" | jq -r '.active // false' 2>/dev/null || echo "false")
+        
+        [[ -z "$workflow_id" || -z "$workflow_name" ]] && continue
+        
+        # Check if workflow name matches pattern
+        matches=false
+        if [[ "$pattern" == *"*"* ]] || [[ "$pattern" == *"?"* ]]; then
+            # Use regex matching for wildcards
+            if echo "$workflow_name" | grep -qE "$regex_pattern"; then
+                matches=true
+            fi
+        else
+            # Simple substring matching
+            if [[ "$workflow_name" == *"$pattern"* ]]; then
+                matches=true
+            fi
+        fi
+        
+        if [[ "$matches" == "true" ]]; then
+            match_count=$((match_count + 1))
+            log::info "🎯 Found match: $workflow_name"
+            
+            if [[ "$is_active" == "true" ]]; then
+                log::info "⏭️  Already active: $workflow_name ($workflow_id)"
+                skip_count=$((skip_count + 1))
+                continue
+            fi
+            
+            # Activate the workflow
+            log::info "Activating: $workflow_name ($workflow_id)"
+            if n8n::activate_workflow "$workflow_id"; then
+                success_count=$((success_count + 1))
+                log::info "✅ Successfully activated: $workflow_name"
+            else
+                log::error "❌ Failed to activate: $workflow_name ($workflow_id)"
+                fail_count=$((fail_count + 1))
+            fi
+        fi
+    done
+    
+    log::debug "Completed workflow iteration. Found $match_count matches."
+    
+    # Summary
+    echo ""
+    if [[ $match_count -eq 0 ]]; then
+        log::warn "No workflows matched pattern: $pattern"
+        echo ""
+        echo "Available workflows:"
+        echo "$workflows_response" | jq -r '.data[] | "  • \(.name)"' | head -10
+        if [[ $total_count -gt 10 ]]; then
+            echo "  ... and $((total_count - 10)) more"
+        fi
+        return 1
+    fi
+    
+    log::info "📊 Pattern Activation Summary:"
+    log::info "   Pattern: $pattern"
+    log::info "   Matched: $match_count"
+    log::info "   Activated: $success_count"
+    log::info "   Already Active: $skip_count"
+    log::info "   Failed: $fail_count"
+    
+    if [[ $success_count -gt 0 ]]; then
+        log::success "✅ Successfully activated $success_count workflow(s)"
+        return 0
+    elif [[ $skip_count -gt 0 ]]; then
+        log::info "ℹ️  All matching workflows were already active"
+        return 0
+    else
+        log::error "❌ No workflows were activated"
+        return 1
+    fi
+}
+
+#######################################
+# Delete a single workflow by ID
+# Args: $1 - workflow_id
+# Returns: 0 if successful, 1 if failed
+#######################################
+n8n::delete_workflow() {
+    local workflow_id="${1:-}"
+    
+    if [[ -z "$workflow_id" ]]; then
+        log::error "Workflow ID is required"
+        echo "Usage: n8n::delete_workflow <workflow_id>"
+        return 1
+    fi
+    
+    local api_key
+    api_key=$(n8n::resolve_api_key)
+    if [[ -z "$api_key" ]]; then
+        log::error "API key required for workflow deletion"
+        n8n::show_api_setup_instructions
+        return 1
+    fi
+    
+    log::info "Deleting workflow: $workflow_id"
+    
+    # Use direct curl instead of http::request to avoid hanging issues
+    local response http_code
+    response=$(curl -s -w "\n__HTTP_CODE__:%{http_code}" \
+        -X DELETE \
+        -H "X-N8N-API-KEY: $api_key" \
+        --max-time 10 \
+        "${N8N_BASE_URL}/api/v1/workflows/${workflow_id}" 2>/dev/null || echo "__HTTP_CODE__:000")
+    
+    # Extract HTTP code and body
+    http_code=$(echo "$response" | grep "__HTTP_CODE__:" | cut -d':' -f2 | tr -d '\n' | sed 's/[^0-9]//g')
+    response=$(echo "$response" | grep -v "__HTTP_CODE__:")
+    
+    if [[ "$http_code" -ge 200 && "$http_code" -lt 300 ]]; then
+        log::success "✅ Deleted workflow: $workflow_id"
+        return 0
+    else
+        log::error "❌ Failed to delete workflow: $workflow_id (HTTP $http_code)"
+        if [[ -n "$response" ]]; then
+            if echo "$response" | jq empty 2>/dev/null; then
+                local error_msg
+                error_msg=$(echo "$response" | jq -r '.message // .error // "Unknown error"')
+                log::error "API Error: $error_msg"
+            else
+                log::error "Response: $response"
+            fi
+        fi
+        return 1
+    fi
+}
+
+#######################################
+# Delete all workflows
+# Returns: 0 if all successful, 1 if any failed
+#######################################
+n8n::delete_all_workflows() {
+    log::header "🗑️  Deleting All Workflows"
+    
+    local api_key
+    api_key=$(n8n::resolve_api_key)
+    if [[ -z "$api_key" ]]; then
+        log::error "API key required for workflow deletion"
+        n8n::show_api_setup_instructions
+        return 1
+    fi
+    
+    # Get all workflows - use direct curl to avoid hanging
+    local workflows_response http_code
+    workflows_response=$(curl -s -w "\n__HTTP_CODE__:%{http_code}" \
+        -H "X-N8N-API-KEY: $api_key" \
+        --max-time 10 \
+        "${N8N_BASE_URL}/api/v1/workflows" 2>/dev/null || echo "__HTTP_CODE__:000")
+    
+    # Extract HTTP code and body
+    http_code=$(echo "$workflows_response" | grep "__HTTP_CODE__:" | cut -d':' -f2 | tr -d '\n' | sed 's/[^0-9]//g')
+    workflows_response=$(echo "$workflows_response" | grep -v "__HTTP_CODE__:")
+    
+    if [[ "$http_code" -lt 200 || "$http_code" -ge 300 ]] || ! echo "$workflows_response" | jq empty 2>/dev/null; then
+        log::error "Failed to get workflows list (HTTP $http_code)"
+        return 1
+    fi
+    
+    local total_count
+    total_count=$(echo "$workflows_response" | jq '.data | length')
+    
+    if [[ "$total_count" -eq 0 ]]; then
+        log::info "No workflows found to delete"
+        return 0
+    fi
+    
+    log::info "Found $total_count workflows to delete"
+    echo ""
+    
+    # Confirm deletion unless YES flag is set
+    if [[ "${YES:-no}" != "yes" ]]; then
+        log::warn "⚠️  This will permanently delete ALL $total_count workflows!"
+        echo ""
+        read -p "Are you sure you want to continue? (y/N): " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            log::info "Operation cancelled"
+            return 1
+        fi
+        echo ""
+    fi
+    
+    local success_count=0
+    local fail_count=0
+    
+    # Pre-declare variables outside the loop
+    local workflow_data workflow_id workflow_name
+    
+    for ((i=0; i<total_count; i++)); do
+        # Extract workflow data safely
+        workflow_data=$(echo "$workflows_response" | jq -c ".data[$i]" 2>/dev/null || echo "{}")
+        [[ "$workflow_data" == "{}" ]] && continue
+        
+        workflow_id=$(echo "$workflow_data" | jq -r '.id // ""' 2>/dev/null || echo "")
+        workflow_name=$(echo "$workflow_data" | jq -r '.name // ""' 2>/dev/null || echo "")
+        
+        [[ -z "$workflow_id" ]] && continue
+        [[ -z "$workflow_name" ]] && continue
+        
+        # Delete the workflow
+        log::info "Deleting: $workflow_name ($workflow_id)"
+        if n8n::delete_workflow "$workflow_id" >/dev/null 2>&1; then
+            success_count=$((success_count + 1))
+        else
+            log::error "❌ Failed to delete: $workflow_name ($workflow_id)"
+            fail_count=$((fail_count + 1))
+        fi
+    done
+    
+    # Summary
+    echo ""
+    log::info "📊 Deletion Summary:"
+    log::info "   Deleted: $success_count"
+    log::info "   Failed: $fail_count"
+    log::info "   Total: $total_count"
+    
+    if [[ $fail_count -eq 0 ]]; then
+        log::success "✅ All workflows deleted successfully"
+        return 0
+    else
+        log::error "❌ $fail_count workflows failed to delete"
+        return 1
+    fi
 }

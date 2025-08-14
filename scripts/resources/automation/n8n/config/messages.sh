@@ -2,6 +2,10 @@
 # n8n User Messages and Help Text
 # All user-facing messages, prompts, and documentation
 
+# Source guard to prevent multiple sourcing
+[[ -n "${_N8N_MESSAGES_SOURCED:-}" ]] && return 0
+export _N8N_MESSAGES_SOURCED=1
+
 #######################################
 # API setup instructions
 #######################################

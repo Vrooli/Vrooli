@@ -4,6 +4,10 @@
 
 set -euo pipefail
 
+# Source guard to prevent multiple sourcing
+[[ -n "${_N8N_AUTO_CREDENTIALS_SOURCED:-}" ]] && return 0
+export _N8N_AUTO_CREDENTIALS_SOURCED=1
+
 # Get script directory and source dependencies
 N8N_AUTO_CREDS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -45,204 +49,47 @@ declare -A RESOURCE_CREDENTIAL_REGISTRY=(
 )
 
 #######################################
-# Auto-discover all running resources
+# Auto-discover all running resources using the CLI
 # Returns: JSON array of running resources with connection info
 #######################################
 n8n::discover_resources() {
-    log::debug "Discovering running resources for credential creation..."
+    log::debug "Discovering running resources via CLI for credential creation..."
     
-    local resources=()
-    local resource_configs_dir="${var_SCRIPTS_RESOURCES_DIR}"
+    # Use vrooli CLI to get running resources with connection info
+    local cli_path="${var_ROOT_DIR}/cli/commands/resource-commands.sh"
     
-    # Scan all resource categories
-    for category_dir in "${resource_configs_dir}"/*; do
-        [[ ! -d "$category_dir" ]] && continue
-        
-        local category_name=$(basename "$category_dir")
-        log::debug "Scanning category: $category_name"
-        
-        for resource_dir in "${category_dir}"/*; do
-            [[ ! -d "$resource_dir" ]] && continue
-            
-            local resource_name=$(basename "$resource_dir")
-            local manage_script="$resource_dir/manage.sh"
-            
-            # Skip if no management script
-            [[ ! -f "$manage_script" ]] && continue
-            
-            # Skip n8n itself to avoid recursion
-            [[ "$resource_name" == "n8n" ]] && continue
-            
-            log::debug "Checking resource: $resource_name"
-            
-            # Check if resource is running by examining the exit status and output
-            # Look for positive status indicators, avoiding false positives from "not running" messages
-            local status_output
-            if status_output=$("$manage_script" --action status 2>&1) && \
-               echo "$status_output" | grep -Eq "✅.*(Running|Health|Healthy)|Status:.*running|Container.*running" && \
-               ! echo "$status_output" | grep -q "not running\|is not running\|stopped"; then
-                local resource_info
-                resource_info=$(n8n::extract_resource_info "$resource_name" "$resource_dir" "$category_name")
-                
-                if [[ -n "$resource_info" && "$resource_info" != "null" ]]; then
-                    resources+=("$resource_info")
-                    log::debug "✓ Discovered running resource: $resource_name"
-                fi
-            else
-                log::debug "✗ Resource not running: $resource_name"
-            fi
-        done
-    done
-    
-    # Output as JSON array
-    if [[ ${#resources[@]} -gt 0 ]]; then
-        printf '%s\n' "${resources[@]}" | jq -s '.'
-    else
+    # Check if CLI is available
+    if [[ ! -f "$cli_path" ]]; then
+        log::error "CLI not found at $cli_path"
         echo '[]'
+        return 1
     fi
+    
+    # Call CLI to get running resources with connection info
+    local discovered_resources
+    discovered_resources=$(bash "$cli_path" list --format json --include-connection-info --only-running 2>/dev/null || echo '[]')
+    
+    # Filter out n8n itself to avoid recursion and ensure we have connection info
+    echo "$discovered_resources" | jq '[.[] | select(.name != "n8n" and .connection != {})]'
 }
 
-#######################################
-# Extract connection info for a resource
-# Args: $1 - resource name, $2 - resource directory, $3 - category
-# Returns: JSON object with connection details
-#######################################
-n8n::extract_resource_info() {
-    local resource_name="$1"
-    local resource_dir="$2"
-    local category="$3"
-    
-    # Source resource configuration to get connection details
-    local defaults_file="$resource_dir/config/defaults.sh"
-    [[ ! -f "$defaults_file" ]] && return
-    
-    # Extract configuration in subshell to avoid variable pollution
-    local config_data
-    config_data=$(
-        # shellcheck disable=SC1090
-        source "$defaults_file" 2>/dev/null || exit 1
-        
-        # Call export function if it exists
-        if declare -f "${resource_name}::export_config" >/dev/null 2>&1; then
-            "${resource_name}::export_config" 2>/dev/null || true
-        fi
-        
-        # Extract common configuration patterns with multiple naming conventions
-        local port host container_name user password database region endpoint
-        
-        # Try different variable naming conventions for port
-        # Use safe variable expansion that doesn't create complex strings
-        local resource_upper=$(echo "$resource_name" | tr '[:lower:]' '[:upper:]' | tr '-' '_')
-        eval "port=\${${resource_upper}_PORT:-}"
-        [[ -z "$port" ]] && eval "port=\${${resource_upper}_DEFAULT_PORT:-}"
-        
-        # Host detection - always fall back to localhost if no variable is set  
-        eval "host=\${${resource_upper}_HOST:-}"
-        [[ -z "$host" ]] && host="localhost"
-        
-        # Container name patterns - default to resource name
-        eval "container_name=\${${resource_upper}_CONTAINER_NAME:-}"
-        [[ -z "$container_name" ]] && container_name="$resource_name"
-        
-        # User/password patterns - simplified to avoid complex expansions
-        eval "user=\${${resource_upper}_USER:-}"
-        [[ -z "$user" ]] && eval "user=\${${resource_upper}_DEFAULT_USER:-}"
-        [[ -z "$user" ]] && eval "user=\${${resource_upper}_ROOT_USER:-}"
-        
-        eval "password=\${${resource_upper}_PASSWORD:-}"
-        [[ -z "$password" ]] && eval "password=\${${resource_upper}_ROOT_PASSWORD:-}"
-        
-        # Database name
-        eval "database=\${${resource_upper}_DATABASE:-}"
-        [[ -z "$database" ]] && eval "database=\${${resource_upper}_DEFAULT_DB:-}"
-        
-        # Special handling for specific resources
-        case "$resource_name" in
-            minio)
-                eval "region=\${MINIO_REGION:-us-east-1}"
-                eval "endpoint=http://\${host}:\${port}"
-                ;;
-            vault)
-                eval "endpoint=http://\${host}:\${port}"
-                ;;
-            ollama)
-                eval "endpoint=http://\${host}:\${port}"
-                ;;
-        esac
-        
-        # Detect Docker networking adjustments
-        local docker_host="$host"
-        if docker ps --format "{{.Names}}" | grep -q "^n8n$" 2>/dev/null; then
-            case "$host" in
-                localhost|127.0.0.1)
-                    # Check if target resource is also in Docker
-                    if docker ps --format "{{.Names}}" | grep -q "^${container_name}$" 2>/dev/null; then
-                        docker_host="$container_name"  # Container-to-container
-                        log::debug "Docker networking: $resource_name -> $container_name"
-                    else
-                        docker_host="host.docker.internal"  # Container-to-host
-                        log::debug "Docker networking: $resource_name -> host.docker.internal:$port"
-                    fi
-                    ;;
-            esac
-        fi
-        
-        # Skip if no port detected (likely not a network service)
-        [[ -z "$port" ]] && exit 1
-        
-        # Get credential type from registry
-        local cred_type="${RESOURCE_CREDENTIAL_REGISTRY[$resource_name]:-httpBasicAuth}"
-        
-        # Output as JSON with all available information
-        jq -n \
-            --arg name "$resource_name" \
-            --arg category "$category" \
-            --arg type "$cred_type" \
-            --arg port "${port:-}" \
-            --arg host "$docker_host" \
-            --arg original_host "$host" \
-            --arg user "${user:-}" \
-            --arg password "${password:-}" \
-            --arg database "${database:-}" \
-            --arg container "$container_name" \
-            --arg region "${region:-}" \
-            --arg endpoint "${endpoint:-}" \
-            '{
-                name: $name,
-                category: $category,
-                credential_type: $type,
-                connection: {
-                    host: $host,
-                    original_host: $original_host,
-                    port: ($port | tonumber? // null),
-                    user: $user,
-                    password: $password,
-                    database: $database,
-                    container_name: $container,
-                    region: $region,
-                    endpoint: $endpoint
-                }
-            } | 
-            # Clean up empty/null values
-            .connection |= with_entries(select(.value != "" and .value != null)) |
-            if .connection == {} then empty else . end'
-    ) || return 1
-    
-    echo "$config_data"
-}
+# Note: n8n::extract_resource_info function removed - now handled by CLI
 
 #######################################
 # Create credential configuration for each resource type
-# Args: $1 - resource info JSON object
+# Args: $1 - resource info JSON object from CLI
 # Returns: credential configuration JSON
 #######################################
 n8n::create_credential_config() {
     local resource_info="$1"
     
-    local name type connection
+    local name category connection
     name=$(echo "$resource_info" | jq -r '.name')
-    type=$(echo "$resource_info" | jq -r '.credential_type')
+    category=$(echo "$resource_info" | jq -r '.category')
     connection=$(echo "$resource_info" | jq -c '.connection')
+    
+    # Get credential type from registry
+    local type="${RESOURCE_CREDENTIAL_REGISTRY[$name]:-httpBasicAuth}"
     
     local credential_name="vrooli-$name"
     
@@ -301,14 +148,16 @@ n8n::create_credential_config() {
                 }'
             ;;
         s3)
-            local host port user password region
+            local host port user password region original_host
             host=$(echo "$connection" | jq -r '.host')
+            original_host=$(echo "$connection" | jq -r '.original_host // .host')
             port=$(echo "$connection" | jq -r '.port // 9000')
             user=$(echo "$connection" | jq -r '.user // "minioadmin"')
             password=$(echo "$connection" | jq -r '.password // "minioadmin"')
             region=$(echo "$connection" | jq -r '.region // "us-east-1"')
             
-            local endpoint="http://${host}:${port}"
+            # Use original host for endpoint URL to avoid Docker networking issues in S3
+            local endpoint="http://${original_host}:${port}"
             
             jq -n \
                 --arg name "$credential_name" \
@@ -330,11 +179,13 @@ n8n::create_credential_config() {
                 }'
             ;;
         ollama)
-            local host port
+            local host port original_host
             host=$(echo "$connection" | jq -r '.host')
+            original_host=$(echo "$connection" | jq -r '.original_host // .host')
             port=$(echo "$connection" | jq -r '.port // 11434')
             
-            local base_url="http://${host}:${port}"
+            # Use original host for base URL to avoid Docker networking issues
+            local base_url="http://${original_host}:${port}"
             
             jq -n \
                 --arg name "$credential_name" \
@@ -348,12 +199,14 @@ n8n::create_credential_config() {
                 }'
             ;;
         httpBasicAuth|httpHeaderAuth)
-            local host port user password
+            local host port user password original_host
             host=$(echo "$connection" | jq -r '.host')
+            original_host=$(echo "$connection" | jq -r '.original_host // .host')
             port=$(echo "$connection" | jq -r '.port // 80')
             user=$(echo "$connection" | jq -r '.user // ""')
             password=$(echo "$connection" | jq -r '.password // ""')
             
+            # Note: We use the Docker-adjusted host for basic auth since these are typically internal services
             local base_url="http://${host}:${port}"
             
             local credential_data
@@ -453,6 +306,83 @@ n8n::get_credential_id() {
 }
 
 #######################################
+# Create Redis credentials for all databases (0-15)
+# Args: $1 - Redis resource info JSON object from CLI
+# Returns: 0 if successful, 1 if failed
+#######################################
+n8n::create_redis_database_credentials() {
+    local redis_resource_info="$1"
+    
+    if [[ -z "$redis_resource_info" ]]; then
+        log::error "No Redis resource info provided for database credential creation"
+        return 1
+    fi
+    
+    local connection
+    connection=$(echo "$redis_resource_info" | jq -c '.connection')
+    
+    local host port password
+    host=$(echo "$connection" | jq -r '.host')
+    port=$(echo "$connection" | jq -r '.port // 6379')
+    password=$(echo "$connection" | jq -r '.password // ""')
+    
+    log::info "🗄️  Creating Redis credentials for all databases (0-15)..."
+    
+    local created_count=0
+    local skipped_count=0
+    local failed_count=0
+    
+    # Create credentials for databases 0-15
+    for db in {0..15}; do
+        local credential_name="vrooli-redis-${db}"
+        
+        # Check if credential already exists
+        if n8n::credential_exists "$credential_name"; then
+            log::debug "Credential already exists: $credential_name"
+            ((skipped_count++))
+            continue
+        fi
+        
+        # Create credential configuration for this database
+        local credential_config
+        credential_config=$(jq -n \
+            --arg name "$credential_name" \
+            --arg host "$host" \
+            --arg port "$port" \
+            --arg password "$password" \
+            --arg database "$db" \
+            '{
+                name: $name,
+                type: "redis",
+                data: {
+                    host: $host,
+                    port: ($port | tonumber),
+                    password: $password,
+                    database: ($database | tonumber)
+                }
+            }')
+        
+        # Create the credential
+        if n8n::create_credential "$credential_config" 2>/dev/null; then
+            log::debug "✅ Created Redis credential: $credential_name (database $db)"
+            ((created_count++))
+        else
+            log::error "❌ Failed to create Redis credential: $credential_name"
+            ((failed_count++))
+        fi
+    done
+    
+    # Summary
+    log::info "📊 Redis database credentials summary:"
+    log::info "   Created: $created_count"
+    log::info "   Existed: $skipped_count" 
+    log::info "   Failed:  $failed_count"
+    log::info "   Total:   16"
+    
+    return 0
+}
+
+#######################################
 # Main auto-credential management function
 #######################################
 n8n::auto_manage_credentials() {
@@ -533,6 +463,22 @@ n8n::auto_manage_credentials() {
             ((failed_count++))
         fi
     done
+    
+    # Create additional Redis database credentials if Redis was discovered
+    local redis_resource_info
+    redis_resource_info=$(echo "$discovered_resources" | jq -c '.[] | select(.name == "redis")')
+    
+    if [[ -n "$redis_resource_info" && "$redis_resource_info" != "null" ]]; then
+        log::info ""
+        log::info "🗄️  Setting up Redis multi-database credentials..."
+        if n8n::create_redis_database_credentials "$redis_resource_info"; then
+            log::success "✅ Redis multi-database credentials configured"
+        else
+            log::warn "⚠️  Redis multi-database credential creation had issues (not fatal)"
+        fi
+    else
+        log::debug "No Redis resource found for multi-database credential creation"
+    fi
     
     # Summary report
     log::info ""

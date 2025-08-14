@@ -2,6 +2,10 @@
 # n8n Configuration Defaults
 # All configuration constants and default values
 
+# Source guard to prevent multiple sourcing
+[[ -n "${_N8N_DEFAULTS_SOURCED:-}" ]] && return 0
+export _N8N_DEFAULTS_SOURCED=1
+
 # n8n port configuration - check if already set to avoid readonly conflicts in tests
 if ! readonly -p | grep -q "^declare -[a-z]*r[a-z]* N8N_PORT="; then
     # Use resources function if available, otherwise use default port

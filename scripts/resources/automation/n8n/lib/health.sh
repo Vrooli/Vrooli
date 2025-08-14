@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 # n8n Health Check Functions - Minimal wrapper using health framework
 
+# Source guard to prevent multiple sourcing
+[[ -n "${_N8N_HEALTH_SOURCED:-}" ]] && return 0
+export _N8N_HEALTH_SOURCED=1
+
 # Source core and frameworks
 N8N_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 

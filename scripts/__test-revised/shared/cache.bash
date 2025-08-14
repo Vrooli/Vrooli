@@ -175,34 +175,61 @@ save_cache() {
         fi
     done
     
-    # Build final JSON
-    json_entries="{}"
+    # Build final JSON using file-based approach to avoid "Argument list too long" errors
+    local entries_file="${temp_file}.entries"
+    local metadata_file="${temp_file}.metadata"
+    
+    # Write entries using individual JSON files to avoid memory/argument limits
+    local entries_dir="${temp_file}.entries_dir"
+    mkdir -p "$entries_dir"
+    
+    # Write each file's data to a separate JSON file to avoid large string concatenation
+    local file_index=0
     for file in "${!file_results[@]}"; do
-        json_entries=$(echo "$json_entries" | jq \
-            --argjson entry "${file_results[$file]}" \
-            --arg file "$file" \
-            '.[$file] = $entry')
+        # Create individual entry file with proper JSON structure
+        jq -n \
+            --arg filepath "$file" \
+            --argjson data "${file_results[$file]}" \
+            '{($filepath): $data}' \
+            > "${entries_dir}/${file_index}.json"
+        ((file_index++))
     done
     
-    # Create complete cache file
-    local cache_json
-    cache_json=$(jq -n \
+    # Combine all entry files using jq's efficient file processing
+    if [[ $file_index -gt 0 ]]; then
+        # Use jq to merge all JSON files efficiently
+        jq -s 'add' "${entries_dir}"/*.json > "$entries_file"
+    else
+        echo "{}" > "$entries_file"
+    fi
+    
+    # Clean up individual entry files
+    rm -rf "$entries_dir"
+    
+    # Create metadata in separate file
+    jq -n \
         --arg version "$CACHE_VERSION" \
         --arg phase "$phase" \
         --arg updated "$(date -Iseconds)" \
         --arg ttl "$CACHE_TTL" \
-        --argjson entries "$json_entries" \
-        '{version: $version, phase: $phase, updated: $updated, ttl_seconds: ($ttl | tonumber), entries: $entries}')
+        '{version: $version, phase: $phase, updated: $updated, ttl_seconds: ($ttl | tonumber)}' \
+        > "$metadata_file"
     
-    # Write atomically
-    if echo "$cache_json" | jq . > "$temp_file" 2>/dev/null; then
+    # Combine metadata and entries using file-based approach
+    if jq --slurpfile entries "$entries_file" \
+          '. + {entries: $entries[0]}' \
+          "$metadata_file" > "$temp_file" 2>/dev/null; then
         mv "$temp_file" "$cache_file"
         log_debug "Saved cache for phase: $phase"
         CACHE_MODIFIED=false
+        
+        # Clean up temporary files
+        rm -f "$entries_file" "$metadata_file"
         return 0
     else
         log_debug "Failed to save cache for phase: $phase"
-        rm -f "$temp_file"
+        rm -f "$temp_file" "$entries_file" "$metadata_file" "${entries_file}.tmp"
+        rm -rf "${entries_dir}" 2>/dev/null || true
         return 1
     fi
 }
