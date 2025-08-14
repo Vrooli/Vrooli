@@ -109,22 +109,37 @@ acquire_lock() {
         return 1
     fi
     
-    # Try to acquire lock atomically
-    if (set -C; echo $$ > "$temp_pid_file") 2>/dev/null; then
-        # Successfully created temp file, now move it atomically
-        if mv "$temp_pid_file" "$PID_FILE" 2>/dev/null; then
-            log "INFO" "Acquired lock with PID $$"
-            return 0
-        else
-            # Failed to move, clean up temp file
-            rm -f "$temp_pid_file" 2>/dev/null
-            log "ERROR" "Failed to acquire lock - another process may have started"
+    # Check for recent start attempts (prevent rapid restarts)
+    local lock_timestamp_file="${PID_FILE}.timestamp"
+    if [[ -f "$lock_timestamp_file" ]]; then
+        local last_start=$(cat "$lock_timestamp_file" 2>/dev/null || echo 0)
+        local current_time=$(date +%s)
+        local time_diff=$((current_time - last_start))
+        
+        if [[ $time_diff -lt 5 ]]; then
+            log "ERROR" "Orchestrator was started too recently (${time_diff}s ago). Wait 5 seconds between starts."
             return 1
         fi
-    else
-        log "ERROR" "Failed to create temporary PID file"
-        return 1
     fi
+    
+    # Try to acquire lock atomically using flock for better reliability
+    local lock_dir="$(dirname "$PID_FILE")"
+    local lock_file="$lock_dir/orchestrator.lock"
+    
+    # Create lock file if it doesn't exist
+    touch "$lock_file"
+    
+    # Try to acquire exclusive lock
+    if flock -n 200; then
+        # Write PID
+        echo $$ > "$PID_FILE"
+        echo $(date +%s) > "$lock_timestamp_file"
+        log "INFO" "Acquired lock with PID $$"
+        return 0
+    else
+        log "ERROR" "Failed to acquire lock - another process holds it"
+        return 1
+    fi 200>"$lock_file"
 }
 
 # Release singleton lock
@@ -133,6 +148,9 @@ release_lock() {
         local pid=$(cat "$PID_FILE")
         if [[ "$pid" == "$$" ]]; then
             rm -f "$PID_FILE"
+            rm -f "${PID_FILE}.timestamp"
+            # Release flock by closing file descriptor 200
+            exec 200>&-
             log "INFO" "Released lock for PID $$"
         fi
     fi
@@ -359,23 +377,57 @@ start_process() {
         return 1
     }
     
-    # Source environment variables
+    # Source environment variables safely
     log "DEBUG" "Setting up environment variables"
     local old_allexport=""
     [[ $- =~ a ]] && old_allexport=true
     set -a
-    if [[ -f "$env_file" ]]; then
-        while IFS='=' read -r key value; do
-            [[ -z "$key" || "$key" =~ ^# ]] && continue
-            export "$key"="$value"
-        done < <(echo "$env_vars" | jq -r 'to_entries | .[] | "\(.key)=\(.value)"')
+    
+    # Use a temporary file to avoid process substitution deadlock
+    local temp_env="/tmp/orchestrator_env_$$_$(date +%s).env"
+    if [[ -n "$env_vars" ]] && [[ "$env_vars" != "{}" ]]; then
+        echo "$env_vars" | jq -r 'to_entries | .[] | "\(.key)=\(.value)"' > "$temp_env" 2>/dev/null || true
+        if [[ -f "$temp_env" ]] && [[ -s "$temp_env" ]]; then
+            while IFS='=' read -r key value; do
+                [[ -z "$key" || "$key" =~ ^# ]] && continue
+                export "$key"="$value"
+            done < "$temp_env"
+        fi
+        rm -f "$temp_env"
     fi
+    
     [[ "$old_allexport" != "true" ]] && set +a
     
-    # Start the process in background and capture PID
+    # Validate command before starting
+    if [[ -z "$command" ]] || [[ "$command" == "null" ]]; then
+        log "ERROR" "Empty or invalid command for process: $name"
+        cd "$original_dir"
+        return 1
+    fi
+    
+    # Start the process in background with proper error handling
     log "DEBUG" "Starting command: $command"
-    $command > "$log_file" 2>&1 &
+    
+    # Use exec to replace bash process and prevent orphans
+    (
+        # Set up signal handlers to ensure clean exit
+        trap 'exit 0' TERM INT
+        trap 'exit 1' ERR
+        
+        # Execute command
+        exec bash -c "$command"
+    ) > "$log_file" 2>&1 &
+    
     local pid=$!
+    
+    # Verify process actually started
+    sleep 0.1
+    if ! kill -0 "$pid" 2>/dev/null; then
+        log "ERROR" "Process $name failed to start"
+        cd "$original_dir"
+        return 1
+    fi
+    
     log "DEBUG" "Started process with PID: $pid"
     
     # Restore working directory
@@ -914,6 +966,13 @@ start_daemon() {
     
     # Monitor worker processes and restart if they die
     while true; do
+        # Check if we should shut down
+        if [[ ! -f "$PID_FILE" ]] || [[ "$(cat "$PID_FILE" 2>/dev/null)" != "$$" ]]; then
+            log "INFO" "PID file removed or changed, shutting down"
+            kill $monitor_pid $command_pid 2>/dev/null || true
+            exit 0
+        fi
+        
         # Check monitor process
         if ! kill -0 $monitor_pid 2>/dev/null; then
             log "WARN" "Monitor process died, restarting"
@@ -942,6 +1001,11 @@ stop_daemon() {
         return 1
     fi
     
+    # First, kill all monitor and command processor background jobs
+    log "INFO" "Killing background workers"
+    pkill -f "monitor_processes" 2>/dev/null || true
+    pkill -f "process_commands" 2>/dev/null || true
+    
     # Stop all running processes
     local registry=$(load_registry)
     local running_processes=$(echo "$registry" | jq -r --arg state "$STATE_RUNNING" '
@@ -955,6 +1019,13 @@ stop_daemon() {
             [[ -z "$name" ]] && continue
             stop_process "$name" true
         done <<< "$running_processes"
+    fi
+    
+    # Kill any orphaned bash processes that might be stuck
+    local orchestrator_pids=$(pgrep -f "vrooli-orchestrator" | grep -v $$)
+    if [[ -n "$orchestrator_pids" ]]; then
+        log "INFO" "Killing orphaned orchestrator processes: $orchestrator_pids"
+        echo "$orchestrator_pids" | xargs -r kill -9 2>/dev/null || true
     fi
     
     # Kill daemon process (avoid infinite recursion by removing trap first)
