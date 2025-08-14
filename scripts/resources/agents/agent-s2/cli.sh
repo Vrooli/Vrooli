@@ -214,6 +214,71 @@ resource_cli::uninstall() {
 # agent-s2-specific commands (if functions exist)
 ################################################################################
 
+# Show credentials for n8n integration
+resource_cli::credentials() {
+    source "${VROOLI_ROOT}/scripts/resources/lib/credentials-utils.sh"
+    
+    if ! credentials::parse_args "$@"; then
+        [[ $? -eq 2 ]] && { credentials::show_help "$RESOURCE_NAME"; return 0; }
+        return 1
+    fi
+    
+    local status
+    status=$(credentials::get_resource_status "${AGENTS2_CONTAINER_NAME:-agent-s2}")
+    
+    local connections_array="[]"
+    if [[ "$status" == "running" ]]; then
+        # Build connection object for agent-s2 API
+        local connection_obj
+        connection_obj=$(jq -n \
+            --arg host "${AGENTS2_HOST:-localhost}" \
+            --argjson port "${AGENTS2_PORT:-8080}" \
+            '{
+                host: $host,
+                port: $port
+            }')
+        
+        # Build auth object and determine type based on API key availability
+        local auth_obj="{}"
+        local auth_type="httpRequest"
+        if [[ -n "${AGENTS2_API_KEY:-}" ]]; then
+            auth_type="httpHeaderAuth"
+            auth_obj=$(jq -n \
+                --arg header_name "Authorization" \
+                --arg header_value "Bearer ${AGENTS2_API_KEY}" \
+                '{
+                    header_name: $header_name,
+                    header_value: $header_value
+                }')
+        fi
+        
+        # Build metadata object
+        local metadata_obj
+        metadata_obj=$(jq -n \
+            --arg description "Agent-S2 browser automation and AI control" \
+            --arg base_url "${AGENTS2_BASE_URL:-http://localhost:8080}" \
+            '{
+                description: $description,
+                base_url: $base_url
+            }')
+        
+        local connection
+        connection=$(credentials::build_connection \
+            "main" \
+            "Agent-S2 Automation API" \
+            "$auth_type" \
+            "$connection_obj" \
+            "$auth_obj" \
+            "$metadata_obj")
+        
+        connections_array="[$connection]"
+    fi
+    
+    local response
+    response=$(credentials::build_response "$RESOURCE_NAME" "$status" "$connections_array")
+    credentials::format_output "$response"
+}
+
 # Take screenshot
 agent_s2_screenshot() {
     local output_file="${1:-screenshot.png}"
@@ -312,6 +377,7 @@ CORE COMMANDS:
     stop                Stop agent-s2 container
     install             Install agent-s2
     uninstall           Uninstall agent-s2 (requires --force)
+    credentials         Show n8n credentials for agent-s2
     
 AGENT-S2 COMMANDS:
     screenshot [file]   Take screenshot (default: screenshot.png)
@@ -349,7 +415,7 @@ resource_cli::main() {
     
     case "$command" in
         # Standard resource commands
-        inject|validate|status|start|stop|install|uninstall)
+        inject|validate|status|start|stop|install|uninstall|credentials)
             resource_cli::$command "$@"
             ;;
             

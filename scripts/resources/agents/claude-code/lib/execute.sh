@@ -20,8 +20,9 @@ claude_code::run() {
     
     # Build command arguments with TTY compatibility
     local cmd_args=()
+    # Always use non-interactive mode for autonomous platform integration
     cmd_args+=("--print")  # Use non-interactive mode for script execution
-    cmd_args+=("--max-turns" "$MAX_TURNS")
+    cmd_args+=("--max-turns" "${MAX_TURNS:-5}")
     
     # Ensure non-interactive mode for automation environments
     if ! claude_code::is_tty; then

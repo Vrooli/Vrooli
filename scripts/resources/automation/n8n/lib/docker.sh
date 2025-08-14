@@ -74,18 +74,6 @@ n8n::start() {
         log::success "✅ n8n is ready on port $N8N_PORT"
         log::info "Access n8n at: $N8N_BASE_URL"
         
-        # Auto-create credentials for discovered resources
-        if [[ "${AUTO_CREATE_CREDENTIALS:-yes}" == "yes" ]]; then
-            log::info ""
-            log::info "🤖 Starting auto-credential discovery..."
-            if n8n::auto_manage_credentials; then
-                log::success "✅ Auto-credential setup completed"
-            else
-                log::warn "⚠️  Auto-credential setup had issues (not fatal)"
-            fi
-        else
-            log::debug "Auto-credential creation disabled"
-        fi
         
         return 0
     else

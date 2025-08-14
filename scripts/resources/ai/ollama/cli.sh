@@ -33,6 +33,10 @@ source "${VROOLI_ROOT}/scripts/lib/resources/cli/resource-cli-template.sh"
 # Source Ollama configuration
 # shellcheck disable=SC1091
 source "${OLLAMA_CLI_DIR}/config/defaults.sh" 2>/dev/null || true
+# Set defaults if not already set
+OLLAMA_PORT="${OLLAMA_PORT:-11434}"
+OLLAMA_BASE_URL="${OLLAMA_BASE_URL:-http://localhost:11434}"
+OLLAMA_CONTAINER_NAME="${OLLAMA_CONTAINER_NAME:-ollama}"
 ollama::export_config 2>/dev/null || true
 
 # Source Ollama libraries

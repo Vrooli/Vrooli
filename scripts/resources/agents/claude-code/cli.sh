@@ -82,7 +82,15 @@ resource_cli::inject() {
         return 0
     fi
     
-    # Use the inject script
+    # Export log functions for inject script
+    export -f log::header log::info log::error log::success log::warn \
+              log::echo_color log::get_color_code log::initialize_color \
+              log::initialize_reset log::subheader log::warning log::prompt \
+              log::debug 2>/dev/null || true
+    
+    # Use the inject script with proper environment
+    VROOLI_ROOT="${VROOLI_ROOT}" \
+    RESOURCE_DIR="${RESOURCE_DIR}" \
     "${CLAUDE_CODE_CLI_DIR}/inject.sh" --inject "$file"
 }
 
@@ -193,10 +201,23 @@ claude_code_run() {
         return 1
     fi
     
+    # Set environment variables for claude_code::run function
+    export PROMPT="$prompt"
+    export MAX_TURNS="${MAX_TURNS:-5}"
+    export TIMEOUT="${TIMEOUT:-600}"
+    export OUTPUT_FORMAT="${OUTPUT_FORMAT:-text}"
+    # Default to essential tools for autonomous operation
+    export ALLOWED_TOOLS="${ALLOWED_TOOLS:-Read,Write,Edit,Bash,LS,Glob,Grep}"
+    export SKIP_PERMISSIONS="${SKIP_PERMISSIONS:-yes}"
+    
+    # Always use non-interactive mode for autonomous platform
+    export CLAUDE_NON_INTERACTIVE="true"
+    
     if command -v claude_code::run &>/dev/null; then
-        claude_code::run "$prompt"
+        claude_code::run
     else
-        claude-code "$prompt"
+        # Fall back to direct claude command with non-interactive mode
+        echo "$prompt" | claude --print --max-turns "${MAX_TURNS:-5}"
     fi
 }
 
@@ -357,8 +378,38 @@ claude_code_batch() {
     
     case "$type" in
         simple)
+            # Handle file input properly for simple batch processing
+            local file_or_prompt="${1:-}"
+            local total_turns="${2:-5}"
+            local batch_size="${3:-50}"
+            local allowed_tools="${4:-Read,Edit,Write,Bash}"
+            local output_dir="${5:-}"
+            
+            if [[ -z "$file_or_prompt" ]]; then
+                log::error "File path or prompt required for batch processing"
+                echo "Usage: resource-claude-code batch simple <file|prompt> [total_turns] [batch_size] [allowed_tools] [output_dir]"
+                return 1
+            fi
+            
+            local prompt
+            if [[ -f "$file_or_prompt" ]]; then
+                # Read from file
+                prompt=$(cat "$file_or_prompt")
+                if [[ -z "$prompt" ]]; then
+                    log::error "File is empty: $file_or_prompt"
+                    return 1
+                fi
+                log::info "Reading prompts from file: $file_or_prompt"
+            else
+                # Use as direct prompt
+                prompt="$file_or_prompt"
+            fi
+            
+            # Always use non-interactive mode
+            export CLAUDE_NON_INTERACTIVE="true"
+            
             if command -v claude_code::batch_simple &>/dev/null; then
-                claude_code::batch_simple "$@"
+                claude_code::batch_simple "$prompt" "$total_turns" "$batch_size" "$allowed_tools" "$output_dir"
             else
                 log::error "Simple batch not available"
                 return 1
@@ -366,6 +417,7 @@ claude_code_batch() {
             ;;
         config)
             if command -v claude_code::batch_config &>/dev/null; then
+                export CLAUDE_NON_INTERACTIVE="true"
                 claude_code::batch_config "$@"
             else
                 log::error "Config batch not available"
@@ -374,6 +426,7 @@ claude_code_batch() {
             ;;
         multi)
             if command -v claude_code::batch_multi &>/dev/null; then
+                export CLAUDE_NON_INTERACTIVE="true"
                 claude_code::batch_multi "$@"
             else
                 log::error "Multi batch not available"
@@ -382,6 +435,7 @@ claude_code_batch() {
             ;;
         parallel)
             if command -v claude_code::batch_parallel &>/dev/null; then
+                export CLAUDE_NON_INTERACTIVE="true"
                 claude_code::batch_parallel "$@"
             else
                 log::error "Parallel batch not available"

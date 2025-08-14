@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Source guard to prevent re-sourcing
+[[ -n "${_VAR_SH_SOURCED:-}" ]] && return 0
+export _VAR_SH_SOURCED=1
+
 _HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # Common directories

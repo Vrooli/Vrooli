@@ -2,7 +2,14 @@
 # Claude Code Installation Functions
 # Handles installation and uninstallation of Claude Code CLI
 
-# Source CLI auto-installation helper
+# Set script directory for sourcing
+CLAUDE_CODE_LIB_DIR="${CLAUDE_CODE_LIB_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+
+# Source required utilities
+# shellcheck disable=SC1091
+source "${CLAUDE_CODE_LIB_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LOG_FILE:-${CLAUDE_CODE_LIB_DIR}/../../../../lib/utils/log.sh}" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_LIB_DIR:-${VROOLI_ROOT:-/root/Vrooli}/scripts/lib/resources}/cli-auto-install.sh" 2>/dev/null || true
 
@@ -12,12 +19,15 @@ source "${var_SCRIPTS_RESOURCES_LIB_DIR:-${VROOLI_ROOT:-/root/Vrooli}/scripts/li
 claude_code::install() {
     log::header "📦 Installing Claude Code"
     
+    # Initialize FORCE with default value if not set
+    FORCE="${FORCE:-false}"
+    
     # Check if already installed
-    if claude_code::is_installed && [[ "$FORCE" != "yes" ]]; then
+    if claude_code::is_installed && [[ "$FORCE" != "true" ]]; then
         local version
         version=$(claude_code::get_version)
         log::warn "Claude Code is already installed (version: $version)"
-        log::info "Use --force yes to reinstall"
+        log::info "Use --force to reinstall"
         return 0
     fi
     

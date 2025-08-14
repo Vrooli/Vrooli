@@ -9,6 +9,8 @@ CLAUDE_CODE_SCRIPT_DIR="${CLAUDE_CODE_SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE
 # shellcheck disable=SC1091
 source "${CLAUDE_CODE_SCRIPT_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
+source "${var_LOG_FILE:-${CLAUDE_CODE_SCRIPT_DIR}/../../../lib/utils/log.sh}" 2>/dev/null || true
+# shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
 #######################################

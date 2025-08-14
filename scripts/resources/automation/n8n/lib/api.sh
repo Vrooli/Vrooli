@@ -247,6 +247,246 @@ n8n::get_executions() {
 }
 
 #######################################
+# Check if workflow exists by name
+# Arguments:
+#   $1 - workflow name
+# Returns:
+#   0 if exists (outputs workflow ID to stdout)
+#   1 if not found
+#######################################
+n8n::workflow_exists_by_name() {
+    local workflow_name="${1:-}"
+    
+    if [[ -z "$workflow_name" ]]; then
+        log::error "Workflow name is required"
+        return 1
+    fi
+    
+    local api_key
+    api_key=$(n8n::resolve_api_key)
+    if [[ -z "$api_key" ]]; then
+        log::debug "No API key available for workflow existence check"
+        return 1
+    fi
+    
+    # Get all workflows
+    local workflows_response
+    workflows_response=$(curl -s -H "X-N8N-API-KEY: $api_key" \
+        --max-time 10 \
+        "${N8N_BASE_URL}/api/v1/workflows" 2>/dev/null || echo '{"data":[]}')
+    
+    # Find workflow by exact name match
+    local workflow_id
+    workflow_id=$(echo "$workflows_response" | jq -r --arg name "$workflow_name" \
+        '.data[]? | select(.name == $name) | .id // empty' | head -1)
+    
+    if [[ -n "$workflow_id" ]]; then
+        echo "$workflow_id"
+        return 0
+    else
+        return 1
+    fi
+}
+
+#######################################
+# Get full workflow data by name
+# Arguments:
+#   $1 - workflow name
+# Returns:
+#   0 if found (outputs workflow JSON to stdout)
+#   1 if not found
+#######################################
+n8n::get_workflow_by_name() {
+    local workflow_name="${1:-}"
+    
+    if [[ -z "$workflow_name" ]]; then
+        log::error "Workflow name is required"
+        return 1
+    fi
+    
+    # First check if it exists and get ID
+    local workflow_id
+    if ! workflow_id=$(n8n::workflow_exists_by_name "$workflow_name"); then
+        return 1
+    fi
+    
+    local api_key
+    api_key=$(n8n::resolve_api_key)
+    if [[ -z "$api_key" ]]; then
+        return 1
+    fi
+    
+    # Get full workflow details
+    local workflow_details
+    workflow_details=$(curl -s -H "X-N8N-API-KEY: $api_key" \
+        --max-time 10 \
+        "${N8N_BASE_URL}/api/v1/workflows/${workflow_id}" 2>/dev/null)
+    
+    if [[ -n "$workflow_details" ]] && echo "$workflow_details" | jq empty 2>/dev/null; then
+        echo "$workflow_details"
+        return 0
+    else
+        return 1
+    fi
+}
+
+#######################################
+# Calculate hash of workflow structure
+# Arguments:
+#   $1 - workflow JSON
+# Returns:
+#   Hash string to stdout
+#######################################
+n8n::calculate_workflow_hash() {
+    local workflow_json="${1:-}"
+    
+    if [[ -z "$workflow_json" ]]; then
+        echo ""
+        return 1
+    fi
+    
+    # Extract only structural elements (not state/runtime data)
+    # This creates a deterministic representation of the workflow structure
+    local structural_json
+    structural_json=$(echo "$workflow_json" | jq -S '{
+        nodes: .nodes | map({
+            type: .type,
+            typeVersion: .typeVersion,
+            parameters: .parameters,
+            position: .position
+        }) | sort_by(.type, .typeVersion),
+        connections: .connections,
+        settings: {
+            executionOrder: .settings.executionOrder,
+            errorWorkflow: .settings.errorWorkflow,
+            timezone: .settings.timezone,
+            executionTimeout: .settings.executionTimeout,
+            maxExecutionTimeout: .settings.maxExecutionTimeout
+        }
+    }' 2>/dev/null || echo '{}')
+    
+    # Calculate SHA256 hash
+    echo -n "$structural_json" | sha256sum | cut -d' ' -f1
+}
+
+#######################################
+# Detect if workflow has changed
+# Arguments:
+#   $1 - existing workflow JSON
+#   $2 - new workflow JSON
+# Returns:
+#   0 if changed, 1 if identical
+#######################################
+n8n::detect_workflow_changes() {
+    local existing_workflow="${1:-}"
+    local new_workflow="${2:-}"
+    
+    if [[ -z "$existing_workflow" ]] || [[ -z "$new_workflow" ]]; then
+        return 0  # Assume changed if can't compare
+    fi
+    
+    local existing_hash
+    existing_hash=$(n8n::calculate_workflow_hash "$existing_workflow")
+    
+    local new_hash
+    new_hash=$(n8n::calculate_workflow_hash "$new_workflow")
+    
+    log::debug "Existing workflow hash: $existing_hash"
+    log::debug "New workflow hash: $new_hash"
+    
+    if [[ "$existing_hash" == "$new_hash" ]]; then
+        return 1  # No changes
+    else
+        return 0  # Has changes
+    fi
+}
+
+#######################################
+# Upgrade existing workflow
+# Arguments:
+#   $1 - workflow ID
+#   $2 - new workflow data JSON
+#   $3 - preserve fields (comma-separated, optional)
+# Returns:
+#   0 if successful, 1 if failed
+#######################################
+n8n::upgrade_workflow() {
+    local workflow_id="${1:-}"
+    local new_workflow_data="${2:-}"
+    local preserve_fields="${3:-staticData,credentials,active,webhookId,versionId}"
+    
+    if [[ -z "$workflow_id" ]] || [[ -z "$new_workflow_data" ]]; then
+        log::error "Workflow ID and new data are required for upgrade"
+        return 1
+    fi
+    
+    local api_key
+    api_key=$(n8n::resolve_api_key)
+    if [[ -z "$api_key" ]]; then
+        log::error "API key required for workflow upgrade"
+        return 1
+    fi
+    
+    # Get existing workflow to preserve fields
+    local existing_workflow
+    existing_workflow=$(curl -s -H "X-N8N-API-KEY: $api_key" \
+        --max-time 10 \
+        "${N8N_BASE_URL}/api/v1/workflows/${workflow_id}" 2>/dev/null)
+    
+    if [[ -z "$existing_workflow" ]]; then
+        log::error "Failed to fetch existing workflow for upgrade"
+        return 1
+    fi
+    
+    # Build upgrade payload preserving specified fields
+    # n8n PUT endpoint only accepts specific fields: name, nodes, connections, settings, staticData
+    # Note: 'active' field is read-only and cannot be set via PUT
+    local upgrade_payload
+    upgrade_payload=$(echo "$new_workflow_data" | jq --arg preserve "$preserve_fields" --argjson existing "$existing_workflow" '
+        . as $new |
+        ($preserve | split(",")) as $preserve_list |
+        # Start with base fields from new workflow
+        {
+            name: $new.name,
+            nodes: $new.nodes,
+            connections: $new.connections,
+            settings: $new.settings
+        } |
+        # Add preserved staticData if requested
+        if (($preserve_list | index("staticData")) and ($existing | has("staticData"))) then
+            .staticData = $existing.staticData
+        else . end
+    ')
+    
+    # PUT the workflow (n8n uses PUT for updates, not PATCH)
+    local response
+    response=$(curl -s -w "\n__HTTP_CODE__:%{http_code}" \
+        -X PUT \
+        -H "X-N8N-API-KEY: $api_key" \
+        -H "Content-Type: application/json" \
+        -d "$upgrade_payload" \
+        --max-time 10 \
+        "${N8N_BASE_URL}/api/v1/workflows/${workflow_id}" 2>/dev/null || echo "__HTTP_CODE__:000")
+    
+    local http_code
+    http_code=$(echo "$response" | grep "__HTTP_CODE__:" | sed 's/.*__HTTP_CODE__://')
+    response=$(echo "$response" | grep -v "__HTTP_CODE__:")
+    
+    if [[ "$http_code" == "200" ]]; then
+        log::success "Successfully upgraded workflow: $workflow_id"
+        return 0
+    else
+        log::error "Failed to upgrade workflow (HTTP $http_code)"
+        if [[ -n "$response" ]]; then
+            local error_message
+            error_message=$(echo "$response" | jq -r '.message // .error // .' 2>/dev/null || echo "$response")
+            log::error "API Error: $error_message"
+        fi
+        return 1
+    fi
+}
+
+#######################################
 # Test API connectivity
 # Returns: 0 if API is accessible, 1 otherwise
 #######################################

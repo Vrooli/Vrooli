@@ -10,7 +10,7 @@ setup() {
     
     # Source var.sh first to get proper directory variables
     # shellcheck disable=SC1091
-    source "${CLAUDE_CODE_DIR}/../../../../lib/utils/var.sh"
+    source "${CLAUDE_CODE_DIR}/../../../lib/utils/var.sh"
     
     # Source dependencies using var_ variables
     # shellcheck disable=SC1091

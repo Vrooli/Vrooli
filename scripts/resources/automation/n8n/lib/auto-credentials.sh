@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # n8n Auto-Credential Management System
-# Discovers resources and creates n8n credentials automatically
+# NEW APPROACH: Uses resource CLI commands to get connection info
 
 set -euo pipefail
 
@@ -13,256 +13,364 @@ N8N_AUTO_CREDS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # shellcheck disable=SC1091
 source "${N8N_AUTO_CREDS_DIR}/../../../../lib/utils/var.sh"
-
-# Resource credential registry - maps resource types to n8n credential types
-declare -A RESOURCE_CREDENTIAL_REGISTRY=(
-    # Storage Resources
-    ["postgres"]="postgres"
-    ["redis"]="redis"
-    ["minio"]="s3"
-    ["vault"]="httpHeaderAuth"
-    ["qdrant"]="httpHeaderAuth"
-    ["questdb"]="postgres"
-    
-    # AI Resources  
-    ["ollama"]="ollama"
-    ["whisper"]="httpBasicAuth"
-    ["unstructured-io"]="httpBasicAuth"
-    
-    # Automation Resources
-    ["windmill"]="httpBasicAuth"
-    ["node-red"]="httpBasicAuth"
-    ["huginn"]="httpBasicAuth"
-    ["comfyui"]="httpBasicAuth"
-    ["n8n-original"]="httpBasicAuth"
-    
-    # Search Resources
-    ["searxng"]="httpBasicAuth"
-    
-    # Execution Resources
-    ["judge0"]="httpBasicAuth"
-    
-    # Agent Resources
-    ["agent-s2"]="httpBasicAuth"
-    ["claude-code"]="httpBasicAuth"
-    ["browserless"]="httpBasicAuth"
-)
+# shellcheck disable=SC1091
+source "${var_LOG_FILE:-${N8N_AUTO_CREDS_DIR}/../../../../lib/utils/log.sh}"
 
 #######################################
-# Auto-discover all running resources using the CLI
-# Returns: JSON array of running resources with connection info
+# Discover resources using Vrooli CLI and resource CLI credentials commands
+# Returns: JSON array of resources with connection info
 #######################################
 n8n::discover_resources() {
-    log::debug "Discovering running resources via CLI for credential creation..."
+    log::debug "Discovering enabled resources using Vrooli CLI..."
     
-    # Use vrooli CLI to get running resources with connection info
-    local cli_path="${var_ROOT_DIR}/cli/commands/resource-commands.sh"
-    
-    # Check if CLI is available
-    if [[ ! -f "$cli_path" ]]; then
-        log::error "CLI not found at $cli_path"
+    # Get all resources from Vrooli CLI, filter by enabled status
+    local all_resources
+    if ! all_resources=$(bash "${var_ROOT_DIR}/cli/commands/resource-commands.sh" list --format json 2>/dev/null); then
+        log::error "Failed to get resources from Vrooli CLI"
         echo '[]'
         return 1
     fi
     
-    # Call CLI to get running resources with connection info
-    local discovered_resources
-    discovered_resources=$(bash "$cli_path" list --format json --include-connection-info --only-running 2>/dev/null || echo '[]')
+    # Filter to only enabled resources
+    local enabled_resources
+    enabled_resources=$(echo "$all_resources" | jq '[.[] | select(.enabled == true)]')
     
-    # Filter out n8n itself to avoid recursion and ensure we have connection info
-    echo "$discovered_resources" | jq '[.[] | select(.name != "n8n" and .connection != {})]'
-}
-
-# Note: n8n::extract_resource_info function removed - now handled by CLI
-
-#######################################
-# Create credential configuration for each resource type
-# Args: $1 - resource info JSON object from CLI
-# Returns: credential configuration JSON
-#######################################
-n8n::create_credential_config() {
-    local resource_info="$1"
+    # Check if we got valid JSON
+    if ! echo "$enabled_resources" | jq empty 2>/dev/null; then
+        log::error "Invalid JSON response from Vrooli CLI"
+        echo '[]'
+        return 1
+    fi
     
-    local name category connection
-    name=$(echo "$resource_info" | jq -r '.name')
-    category=$(echo "$resource_info" | jq -r '.category')
-    connection=$(echo "$resource_info" | jq -c '.connection')
+    log::debug "Found enabled resources, checking for credential support..."
     
-    # Get credential type from registry
-    local type="${RESOURCE_CREDENTIAL_REGISTRY[$name]:-httpBasicAuth}"
+    local discovered_resources=()
+    local resource_count
+    resource_count=$(echo "$enabled_resources" | jq 'length')
     
-    local credential_name="vrooli-$name"
-    
-    log::debug "Creating credential config for $name (type: $type)"
-    
-    case "$type" in
-        postgres)
-            local host port database user password
-            host=$(echo "$connection" | jq -r '.host')
-            port=$(echo "$connection" | jq -r '.port // 5432')
-            database=$(echo "$connection" | jq -r '.database // "postgres"')
-            user=$(echo "$connection" | jq -r '.user // "postgres"')
-            password=$(echo "$connection" | jq -r '.password // ""')
-            
-            jq -n \
-                --arg name "$credential_name" \
-                --arg host "$host" \
-                --arg port "$port" \
-                --arg database "$database" \
-                --arg user "$user" \
-                --arg password "$password" \
-                '{
-                    name: $name,
-                    type: "postgres", 
-                    data: {
-                        host: $host,
-                        port: ($port | tonumber),
-                        database: $database,
-                        user: $user,
-                        password: $password,
-                        ssl: false,
-                        allowUnauthorizedCerts: true
-                    }
-                }'
-            ;;
-        redis)
-            local host port password
-            host=$(echo "$connection" | jq -r '.host')
-            port=$(echo "$connection" | jq -r '.port // 6379')
-            password=$(echo "$connection" | jq -r '.password // ""')
-            
-            jq -n \
-                --arg name "$credential_name" \
-                --arg host "$host" \
-                --arg port "$port" \
-                --arg password "$password" \
-                '{
-                    name: $name,
-                    type: "redis",
-                    data: {
-                        host: $host,
-                        port: ($port | tonumber),
-                        password: $password,
-                        database: 0
-                    }
-                }'
-            ;;
-        s3)
-            local host port user password region original_host
-            host=$(echo "$connection" | jq -r '.host')
-            original_host=$(echo "$connection" | jq -r '.original_host // .host')
-            port=$(echo "$connection" | jq -r '.port // 9000')
-            user=$(echo "$connection" | jq -r '.user // "minioadmin"')
-            password=$(echo "$connection" | jq -r '.password // "minioadmin"')
-            region=$(echo "$connection" | jq -r '.region // "us-east-1"')
-            
-            # Use original host for endpoint URL to avoid Docker networking issues in S3
-            local endpoint="http://${original_host}:${port}"
-            
-            jq -n \
-                --arg name "$credential_name" \
-                --arg access_key "$user" \
-                --arg secret_key "$password" \
-                --arg region "$region" \
-                --arg endpoint "$endpoint" \
-                '{
-                    name: $name,
-                    type: "s3",
-                    data: {
-                        accessKeyId: $access_key,
-                        secretAccessKey: $secret_key,
-                        region: $region,
-                        customEndpoint: $endpoint,
-                        forcePathStyle: true,
-                        ssl: false
-                    }
-                }'
-            ;;
-        ollama)
-            local host port original_host
-            host=$(echo "$connection" | jq -r '.host')
-            original_host=$(echo "$connection" | jq -r '.original_host // .host')
-            port=$(echo "$connection" | jq -r '.port // 11434')
-            
-            # Use original host for base URL to avoid Docker networking issues
-            local base_url="http://${original_host}:${port}"
-            
-            jq -n \
-                --arg name "$credential_name" \
-                --arg base_url "$base_url" \
-                '{
-                    name: $name,
-                    type: "ollama",
-                    data: {
-                        baseUrl: $base_url
-                    }
-                }'
-            ;;
-        httpBasicAuth|httpHeaderAuth)
-            local host port user password original_host
-            host=$(echo "$connection" | jq -r '.host')
-            original_host=$(echo "$connection" | jq -r '.original_host // .host')
-            port=$(echo "$connection" | jq -r '.port // 80')
-            user=$(echo "$connection" | jq -r '.user // ""')
-            password=$(echo "$connection" | jq -r '.password // ""')
-            
-            # Note: We use the Docker-adjusted host for basic auth since these are typically internal services
-            local base_url="http://${host}:${port}"
-            
-            local credential_data
-            if [[ "$type" == "httpBasicAuth" ]]; then
-                # Basic Auth credential
-                credential_data=$(jq -n \
-                    --arg name "$credential_name" \
-                    --arg user "${user:-admin}" \
-                    --arg password "${password:-password}" \
-                    '{
-                        name: $name,
-                        type: "httpBasicAuth",
-                        data: {
-                            user: $user,
-                            password: $password
-                        }
-                    }')
-            elif [[ "$type" == "httpHeaderAuth" ]]; then
-                # Header Auth credential  
-                credential_data=$(jq -n \
-                    --arg name "$credential_name" \
-                    --arg header_name "Authorization" \
-                    --arg header_value "Bearer ${password:-token}" \
-                    '{
-                        name: $name,
-                        type: "httpHeaderAuth",
-                        data: {
-                            name: $header_name,
-                            value: $header_value
-                        }
-                    }')
+    # Process each enabled resource to get credentials
+    for ((i=0; i<resource_count; i++)); do
+        local resource_info
+        resource_info=$(echo "$enabled_resources" | jq -c ".[$i]")
+        
+        local resource_name category
+        resource_name=$(echo "$resource_info" | jq -r '.name')
+        category=$(echo "$resource_info" | jq -r '.category')
+        
+        # Skip n8n itself to avoid recursion
+        if [[ "$resource_name" == "n8n" ]]; then
+            log::debug "Skipping n8n itself to avoid recursion"
+            continue
+        fi
+        
+        # Try to get credentials from resource CLI
+        log::debug "Getting credentials for $resource_name..."
+        local credentials_json
+        if credentials_json=$(bash "${var_ROOT_DIR}/cli/vrooli" resource "$resource_name" credentials --format json 2>/dev/null); then
+            # Validate the JSON response
+            if echo "$credentials_json" | jq empty 2>/dev/null; then
+                local status connections_count
+                status=$(echo "$credentials_json" | jq -r '.status')
+                connections_count=$(echo "$credentials_json" | jq '.connections | length')
+                
+                # Only include running resources with connections
+                if [[ "$status" == "running" && "$connections_count" -gt 0 ]]; then
+                    log::debug "✅ $resource_name is running with $connections_count connection(s)"
+                    discovered_resources+=("$credentials_json")
+                else
+                    log::debug "⏭️  Skipping $resource_name - status: $status, connections: $connections_count"
+                fi
             else
-                # Default to basic auth with generic credentials
-                credential_data=$(jq -n \
-                    --arg name "$credential_name" \
-                    '{
-                        name: $name,
-                        type: "httpBasicAuth",
-                        data: {
-                            user: "admin",
-                            password: "admin"
-                        }
-                    }')
+                log::debug "⚠️  $resource_name returned invalid credentials JSON"
             fi
-            
-            echo "$credential_data"
-            ;;
-        *)
-            log::warn "Unknown credential type: $type for resource: $name"
-            return 1
-            ;;
-    esac
+        else
+            log::debug "⚠️  $resource_name does not support credentials command or is not running"
+        fi
+    done
+    
+    # Output discovered resources as JSON array
+    if [[ ${#discovered_resources[@]} -gt 0 ]]; then
+        printf '%s\n' "${discovered_resources[@]}" | jq -s '.'
+    else
+        echo '[]'
+    fi
 }
 
 #######################################
-# Check if credential already exists
+# Convert resource credentials JSON to n8n credential configurations
+# Args: $1 - credentials JSON from resource CLI
+# Returns: array of n8n credential configurations
+#######################################
+n8n::convert_to_n8n_credentials() {
+    local credentials_json="$1"
+    
+    local resource_name
+    resource_name=$(echo "$credentials_json" | jq -r '.resource')
+    
+    local n8n_credentials=()
+    local connections_count
+    connections_count=$(echo "$credentials_json" | jq '.connections | length')
+    
+    # Process each connection
+    for ((i=0; i<connections_count; i++)); do
+        local connection
+        connection=$(echo "$credentials_json" | jq -c ".connections[$i]")
+        
+        local conn_id conn_name n8n_type connection_info auth_info
+        conn_id=$(echo "$connection" | jq -r '.id')
+        conn_name=$(echo "$connection" | jq -r '.name')
+        n8n_type=$(echo "$connection" | jq -r '.n8n_credential_type')
+        connection_info=$(echo "$connection" | jq -c '.connection')
+        auth_info=$(echo "$connection" | jq -c '.auth // {}')
+        
+        # Build n8n credential name (resource-id or just resource if single connection)
+        local credential_name
+        if [[ "$connections_count" -eq 1 ]]; then
+            credential_name="vrooli-$resource_name"
+        else
+            credential_name="vrooli-$resource_name-$conn_id"
+        fi
+        
+        # Convert to n8n credential format based on type
+        local n8n_credential
+        case "$n8n_type" in
+            postgres)
+                n8n_credential=$(n8n::build_postgres_credential "$credential_name" "$connection_info" "$auth_info")
+                ;;
+            redis)
+                n8n_credential=$(n8n::build_redis_credential "$credential_name" "$connection_info" "$auth_info")
+                ;;
+            s3)
+                n8n_credential=$(n8n::build_s3_credential "$credential_name" "$connection_info" "$auth_info")
+                ;;
+            ollama)
+                n8n_credential=$(n8n::build_ollama_credential "$credential_name" "$connection_info" "$auth_info")
+                ;;
+            httpBasicAuth)
+                n8n_credential=$(n8n::build_basic_auth_credential "$credential_name" "$connection_info" "$auth_info")
+                ;;
+            httpHeaderAuth)
+                n8n_credential=$(n8n::build_header_auth_credential "$credential_name" "$connection_info" "$auth_info")
+                ;;
+            *)
+                log::warn "Unknown n8n credential type: $n8n_type for $resource_name"
+                continue
+                ;;
+        esac
+        
+        if [[ -n "$n8n_credential" && "$n8n_credential" != "null" ]]; then
+            n8n_credentials+=("$n8n_credential")
+        fi
+    done
+    
+    # Output as JSON array
+    if [[ ${#n8n_credentials[@]} -gt 0 ]]; then
+        printf '%s\n' "${n8n_credentials[@]}" | jq -s '.'
+    else
+        echo '[]'
+    fi
+}
+
+#######################################
+# Build PostgreSQL credential for n8n
+#######################################
+n8n::build_postgres_credential() {
+    local name="$1"
+    local connection="$2" 
+    local auth="$3"
+    
+    local host port database user password ssl
+    host=$(echo "$connection" | jq -r '.host')
+    port=$(echo "$connection" | jq -r '.port // 5432')
+    database=$(echo "$connection" | jq -r '.database // "postgres"')
+    ssl=$(echo "$connection" | jq -r '.ssl // false')
+    
+    user=$(echo "$auth" | jq -r '.username // "postgres"')
+    password=$(echo "$auth" | jq -r '.password // ""')
+    
+    jq -n \
+        --arg name "$name" \
+        --arg host "$host" \
+        --argjson port "$port" \
+        --arg database "$database" \
+        --arg user "$user" \
+        --arg password "$password" \
+        --argjson ssl "$ssl" \
+        '{
+            name: $name,
+            type: "postgres",
+            data: {
+                host: $host,
+                port: $port,
+                database: $database,
+                user: $user,
+                password: $password,
+                ssl: $ssl,
+                allowUnauthorizedCerts: true
+            }
+        }'
+}
+
+#######################################
+# Build Redis credential for n8n
+#######################################
+n8n::build_redis_credential() {
+    local name="$1"
+    local connection="$2"
+    local auth="$3"
+    
+    local host port database password
+    host=$(echo "$connection" | jq -r '.host')
+    port=$(echo "$connection" | jq -r '.port // 6379')
+    database=$(echo "$connection" | jq -r '.database // 0')
+    password=$(echo "$auth" | jq -r '.password // ""')
+    
+    jq -n \
+        --arg name "$name" \
+        --arg host "$host" \
+        --argjson port "$port" \
+        --argjson database "$database" \
+        --arg password "$password" \
+        '{
+            name: $name,
+            type: "redis",
+            data: {
+                host: $host,
+                port: $port,
+                database: $database,
+                password: $password
+            }
+        }'
+}
+
+#######################################
+# Build S3 credential for n8n
+#######################################
+n8n::build_s3_credential() {
+    local name="$1"
+    local connection="$2"
+    local auth="$3"
+    
+    local host port ssl access_key secret_key
+    host=$(echo "$connection" | jq -r '.host')
+    port=$(echo "$connection" | jq -r '.port // 9000')
+    ssl=$(echo "$connection" | jq -r '.ssl // false')
+    
+    access_key=$(echo "$auth" | jq -r '.username // "minioadmin"')
+    secret_key=$(echo "$auth" | jq -r '.password // "minioadmin"')
+    
+    local endpoint
+    if [[ "$ssl" == "true" ]]; then
+        endpoint="https://${host}:${port}"
+    else
+        endpoint="http://${host}:${port}"
+    fi
+    
+    jq -n \
+        --arg name "$name" \
+        --arg access_key "$access_key" \
+        --arg secret_key "$secret_key" \
+        --arg endpoint "$endpoint" \
+        '{
+            name: $name,
+            type: "s3",
+            data: {
+                accessKeyId: $access_key,
+                secretAccessKey: $secret_key,
+                region: "us-east-1",
+                customEndpoint: $endpoint,
+                forcePathStyle: true,
+                ssl: false
+            }
+        }'
+}
+
+#######################################
+# Build Ollama credential for n8n
+#######################################
+n8n::build_ollama_credential() {
+    local name="$1"
+    local connection="$2"
+    local auth="$3"
+    
+    local host port ssl
+    host=$(echo "$connection" | jq -r '.host')
+    port=$(echo "$connection" | jq -r '.port // 11434')
+    ssl=$(echo "$connection" | jq -r '.ssl // false')
+    
+    local base_url
+    if [[ "$ssl" == "true" ]]; then
+        base_url="https://${host}:${port}"
+    else
+        base_url="http://${host}:${port}"
+    fi
+    
+    jq -n \
+        --arg name "$name" \
+        --arg base_url "$base_url" \
+        '{
+            name: $name,
+            type: "ollama",
+            data: {
+                baseUrl: $base_url
+            }
+        }'
+}
+
+#######################################
+# Build HTTP Basic Auth credential for n8n
+#######################################
+n8n::build_basic_auth_credential() {
+    local name="$1"
+    local connection="$2"
+    local auth="$3"
+    
+    local username password
+    username=$(echo "$auth" | jq -r '.username // "admin"')
+    password=$(echo "$auth" | jq -r '.password // "admin"')
+    
+    jq -n \
+        --arg name "$name" \
+        --arg user "$username" \
+        --arg password "$password" \
+        '{
+            name: $name,
+            type: "httpBasicAuth",
+            data: {
+                user: $user,
+                password: $password
+            }
+        }'
+}
+
+#######################################
+# Build HTTP Header Auth credential for n8n
+#######################################
+n8n::build_header_auth_credential() {
+    local name="$1"
+    local connection="$2" 
+    local auth="$3"
+    
+    local header_name header_value
+    header_name=$(echo "$auth" | jq -r '.header_name // "Authorization"')
+    header_value=$(echo "$auth" | jq -r '.header_value // .token // ("Bearer " + (.api_key // "token"))')
+    
+    jq -n \
+        --arg name "$name" \
+        --arg header_name "$header_name" \
+        --arg header_value "$header_value" \
+        '{
+            name: $name,
+            type: "httpHeaderAuth",
+            data: {
+                name: $header_name,
+                value: $header_value
+            }
+        }'
+}
+
+#######################################
+# Check if credential already exists in n8n
 # Args: $1 - credential name
 # Returns: 0 if exists, 1 if not
 #######################################
@@ -284,109 +392,65 @@ n8n::credential_exists() {
 }
 
 #######################################
-# Get existing credential ID by name
-# Args: $1 - credential name
-# Returns: credential ID or empty string
-#######################################
-n8n::get_credential_id() {
-    local credential_name="$1"
-    
-    local api_key
-    api_key=$(n8n::resolve_api_key 2>/dev/null)
-    [[ -z "$api_key" ]] && return 1
-    
-    local credentials_response
-    credentials_response=$(curl -s \
-        -H "X-N8N-API-KEY: $api_key" \
-        -H "Content-Type: application/json" \
-        "$N8N_API_BASE/credentials" 2>/dev/null || echo '{"data":[]}')
-    
-    echo "$credentials_response" | jq -r --arg name "$credential_name" \
-        '.data[]? | select(.name == $name) | .id // empty'
-}
-
-#######################################
-# Create Redis credentials for all databases (0-15)
-# Args: $1 - Redis resource info JSON object from CLI
+# Create n8n credential
+# Args: $1 - credential JSON configuration
 # Returns: 0 if successful, 1 if failed
 #######################################
-n8n::create_redis_database_credentials() {
-    local redis_resource_info="$1"
+n8n::create_n8n_credential() {
+    local credential_config="$1"
     
-    if [[ -z "$redis_resource_info" ]]; then
-        log::error "No Redis resource info provided for database credential creation"
+    local name type
+    name=$(echo "$credential_config" | jq -r '.name')
+    type=$(echo "$credential_config" | jq -r '.type')
+    
+    log::info "Creating n8n credential: $name (type: $type)"
+    
+    local api_key
+    api_key=$(n8n::resolve_api_key)
+    if [[ -z "$api_key" ]]; then
+        log::error "N8N_API_KEY required for credential creation"
         return 1
     fi
     
-    local connection
-    connection=$(echo "$redis_resource_info" | jq -c '.connection')
+    # Create the credential
+    local response
+    response=$(curl -s -w "\n__HTTP_CODE__:%{http_code}" \
+        -X POST \
+        -H "X-N8N-API-KEY: $api_key" \
+        -H "Content-Type: application/json" \
+        -d "$credential_config" \
+        "$N8N_API_BASE/credentials" 2>/dev/null || echo "__HTTP_CODE__:000")
     
-    local host port password
-    host=$(echo "$connection" | jq -r '.host')
-    port=$(echo "$connection" | jq -r '.port // 6379')
-    password=$(echo "$connection" | jq -r '.password // ""')
+    local http_code
+    http_code=$(echo "$response" | grep "__HTTP_CODE__:" | sed 's/.*__HTTP_CODE__://')
+    response=$(echo "$response" | grep -v "__HTTP_CODE__:")
     
-    log::info "🗄️  Creating Redis credentials for all databases (0-15)..."
-    
-    local created_count=0
-    local skipped_count=0
-    local failed_count=0
-    
-    # Create credentials for databases 0-15
-    for db in {0..15}; do
-        local credential_name="vrooli-redis-${db}"
-        
-        # Check if credential already exists
-        if n8n::credential_exists "$credential_name"; then
-            log::debug "Credential already exists: $credential_name"
-            ((skipped_count++))
-            continue
-        fi
-        
-        # Create credential configuration for this database
-        local credential_config
-        credential_config=$(jq -n \
-            --arg name "$credential_name" \
-            --arg host "$host" \
-            --arg port "$port" \
-            --arg password "$password" \
-            --arg database "$db" \
-            '{
-                name: $name,
-                type: "redis",
-                data: {
-                    host: $host,
-                    port: ($port | tonumber),
-                    password: $password,
-                    database: ($database | tonumber)
-                }
-            }')
-        
-        # Create the credential
-        if n8n::create_credential "$credential_config" 2>/dev/null; then
-            log::debug "✅ Created Redis credential: $credential_name (database $db)"
-            ((created_count++))
+    if [[ "$http_code" == "200" ]] || [[ "$http_code" == "201" ]]; then
+        local credential_id
+        credential_id=$(echo "$response" | jq -r '.id // empty')
+        if [[ -n "$credential_id" ]]; then
+            log::success "✅ Created credential: $name (ID: $credential_id)"
+            return 0
         else
-            log::error "❌ Failed to create Redis credential: $credential_name"
-            ((failed_count++))
+            log::error "❌ Created credential but no ID returned: $name"
+            return 1
         fi
-    done
-    
-    # Summary
-    log::info "📊 Redis database credentials summary:"
-    log::info "   Created: $created_count"
-    log::info "   Existed: $skipped_count" 
-    log::info "   Failed:  $failed_count"
-    log::info "   Total:   16"
-    
-    return 0
+    else
+        log::error "❌ Failed to create credential: $name (HTTP $http_code)"
+        if [[ -n "$response" ]]; then
+            local error_message
+            error_message=$(echo "$response" | jq -r '.message // .error // .' 2>/dev/null || echo "$response")
+            log::debug "API Error: $error_message"
+        fi
+        return 1
+    fi
 }
 
 #######################################
 # Main auto-credential management function
 #######################################
 n8n::auto_manage_credentials() {
-    log::info "🔍 Auto-discovering resources for credential creation..."
+    log::info "🔍 Auto-discovering resources using CLI-based approach..."
     
     # Check if n8n is accessible first
     if ! n8n::check_basic_health >/dev/null 2>&1; then
@@ -404,7 +468,7 @@ n8n::auto_manage_credentials() {
         return 1
     fi
     
-    # Discover all running resources
+    # Discover all resources with credentials
     local discovered_resources
     discovered_resources=$(n8n::discover_resources)
     
@@ -412,87 +476,74 @@ n8n::auto_manage_credentials() {
     resource_count=$(echo "$discovered_resources" | jq 'length')
     
     if [[ "$resource_count" -eq 0 ]]; then
-        log::info "No running resources discovered for credential creation"
+        log::info "No running resources with credentials discovered"
         return 0
     fi
     
-    log::info "📊 Discovered $resource_count running resources"
+    log::info "📊 Discovered $resource_count resource(s) with credentials"
     
-    # Process each discovered resource (using for loop to avoid stdin issues)
+    # Track statistics
     local created_count=0
-    local updated_count=0
     local skipped_count=0
     local failed_count=0
+    local total_credentials=0
     
-    # Create array from JSON
-    readarray -t resource_array < <(echo "$discovered_resources" | jq -c '.[]')
-    
-    for resource_info in "${resource_array[@]}"; do
-        [[ -z "$resource_info" ]] && continue
+    # Process each resource
+    for ((i=0; i<resource_count; i++)); do
+        local resource_credentials
+        resource_credentials=$(echo "$discovered_resources" | jq -c ".[$i]")
         
         local resource_name
-        resource_name=$(echo "$resource_info" | jq -r '.name')
+        resource_name=$(echo "$resource_credentials" | jq -r '.resource')
         
-        local credential_name="vrooli-$resource_name"
+        log::debug "Processing credentials for: $resource_name"
         
-        log::debug "Processing resource: $resource_name"
+        # Convert to n8n credential format
+        local n8n_credentials
+        n8n_credentials=$(n8n::convert_to_n8n_credentials "$resource_credentials")
         
-        # Create credential configuration
-        local credential_config
-        credential_config=$(n8n::create_credential_config "$resource_info")
+        local credential_count
+        credential_count=$(echo "$n8n_credentials" | jq 'length')
+        total_credentials=$((total_credentials + credential_count))
         
-        if [[ -z "$credential_config" || "$credential_config" == "null" ]]; then
-            log::warn "Could not create credential config for: $resource_name"
-            ((failed_count++))
-            continue
-        fi
-        
-        # Check if credential already exists
-        if n8n::credential_exists "$credential_name"; then
-            log::debug "Credential already exists: $credential_name"
-            ((skipped_count++))
-            continue
-        fi
-        
-        # Create the credential using existing function (don't fail on individual errors)
-        if n8n::create_credential "$credential_config" 2>/dev/null; then
-            log::success "✅ Auto-created credential: $credential_name"
-            ((created_count++))
-        else
-            log::error "❌ Failed to create credential: $credential_name (possibly invalid connection data)"
-            ((failed_count++))
-        fi
+        # Process each credential
+        for ((j=0; j<credential_count; j++)); do
+            local credential_config
+            credential_config=$(echo "$n8n_credentials" | jq -c ".[$j]")
+            
+            local credential_name
+            credential_name=$(echo "$credential_config" | jq -r '.name')
+            
+            # Check if credential already exists
+            if n8n::credential_exists "$credential_name"; then
+                log::debug "Credential already exists: $credential_name"
+                ((skipped_count++))
+                continue
+            fi
+            
+            # Create the credential
+            if n8n::create_n8n_credential "$credential_config"; then
+                ((created_count++))
+            else
+                ((failed_count++))
+            fi
+        done
     done
-    
-    # Create additional Redis database credentials if Redis was discovered
-    local redis_resource_info
-    redis_resource_info=$(echo "$discovered_resources" | jq -c '.[] | select(.name == "redis")')
-    
-    if [[ -n "$redis_resource_info" && "$redis_resource_info" != "null" ]]; then
-        log::info ""
-        log::info "🗄️  Setting up Redis multi-database credentials..."
-        if n8n::create_redis_database_credentials "$redis_resource_info"; then
-            log::success "✅ Redis multi-database credentials configured"
-        else
-            log::warn "⚠️  Redis multi-database credential creation had issues (not fatal)"
-        fi
-    else
-        log::debug "No Redis resource found for multi-database credential creation"
-    fi
     
     # Summary report
     log::info ""
     log::info "📊 Auto-credential summary:"
+    log::info "   Resources: $resource_count"
+    log::info "   Credentials: $total_credentials"
     log::info "   Created: $created_count"
     log::info "   Existed: $skipped_count"
-    log::info "   Failed:  $failed_count"
-    log::info "   Total:   $resource_count"
+    log::info "   Failed: $failed_count"
     
     return 0
 }
 
 #######################################
-# Validate auto-created credentials are accessible
+# Validate auto-created credentials
 #######################################
 n8n::validate_auto_credentials() {
     log::debug "Validating auto-created credentials..."
@@ -528,10 +579,10 @@ n8n::validate_auto_credentials() {
 }
 
 #######################################
-# List all auto-discoverable resources (for debugging)
+# List all discoverable resources (for debugging)
 #######################################
 n8n::list_discoverable_resources() {
-    log::info "🔍 Scanning for discoverable resources..."
+    log::info "🔍 Scanning for resources with credential support..."
     
     local discovered_resources
     discovered_resources=$(n8n::discover_resources)
@@ -540,20 +591,41 @@ n8n::list_discoverable_resources() {
     resource_count=$(echo "$discovered_resources" | jq 'length')
     
     if [[ "$resource_count" -eq 0 ]]; then
-        log::info "No resources currently discoverable"
+        log::info "No resources currently support credential discovery"
         return 0
     fi
     
-    log::info "📊 Discoverable resources ($resource_count total):"
+    log::info "📊 Discoverable resources with credentials ($resource_count total):"
     log::info ""
     
-    echo "$discovered_resources" | jq -r '.[] | 
-        "   🔧 \(.name) (\(.category))" +
-        "\n      Type: \(.credential_type)" +
-        "\n      Host: \(.connection.host)" + 
-        (if .connection.port then ":\(.connection.port)" else "" end) +
-        (if .connection.user then "\n      User: \(.connection.user)" else "" end) +
-        "\n"'
+    for ((i=0; i<resource_count; i++)); do
+        local resource_data
+        resource_data=$(echo "$discovered_resources" | jq -c ".[$i]")
+        
+        local resource_name status connections_count
+        resource_name=$(echo "$resource_data" | jq -r '.resource')
+        status=$(echo "$resource_data" | jq -r '.status')  
+        connections_count=$(echo "$resource_data" | jq '.connections | length')
+        
+        log::info "   🔧 $resource_name (status: $status)"
+        log::info "      Connections: $connections_count"
+        
+        # Show connection details
+        for ((j=0; j<connections_count; j++)); do
+            local connection
+            connection=$(echo "$resource_data" | jq -c ".connections[$j]")
+            
+            local conn_name conn_type conn_host conn_port
+            conn_name=$(echo "$connection" | jq -r '.name')
+            conn_type=$(echo "$connection" | jq -r '.n8n_credential_type')
+            conn_host=$(echo "$connection" | jq -r '.connection.host')
+            conn_port=$(echo "$connection" | jq -r '.connection.port // "default"')
+            
+            log::info "        • $conn_name ($conn_type)"
+            log::info "          Host: $conn_host:$conn_port"
+        done
+        log::info ""
+    done
     
     return 0
 }

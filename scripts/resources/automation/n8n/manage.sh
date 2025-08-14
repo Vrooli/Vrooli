@@ -174,6 +174,12 @@ n8n::parse_arguments() {
         --default ""
     
     args::register \
+        --name "injection-config-file" \
+        --desc "Path to file containing JSON configuration for data injection" \
+        --type "value" \
+        --default ""
+    
+    args::register \
         --name "auto-credentials" \
         --desc "Enable/disable automatic credential creation" \
         --type "value" \
@@ -202,6 +208,7 @@ n8n::parse_arguments() {
     TUNNEL_ENABLED=$(args::get "tunnel")
     BUILD_IMAGE=$(args::get "build-image")
     INJECTION_CONFIG=$(args::get "injection-config")
+    INJECTION_CONFIG_FILE=$(args::get "injection-config-file")
     VALIDATION_TYPE=$(args::get "validation-type")
     VALIDATION_FILE=$(args::get "validation-file")
     AUTO_CREATE_CREDENTIALS=$(args::get "auto-credentials")

@@ -83,11 +83,17 @@ n8n::validate_workflow() {
         log::error "Workflow '$name' at index $index missing required 'file' field"
         return 1
     fi
-    # Validate workflow file exists and is valid JSON
+    # Validate workflow file exists and is valid JSON - use same path resolution as import
     local workflow_file
-    workflow_file=$(inject_framework::resolve_file_path "$file")
+    if [[ -n "${N8N_SCENARIO_DIR:-}" ]]; then
+        workflow_file="$N8N_SCENARIO_DIR/$file"
+    else
+        workflow_file=$(inject_framework::resolve_file_path "$file")
+    fi
+    
     if [[ ! -f "$workflow_file" ]]; then
         log::error "Workflow file not found for '$name': $workflow_file"
+        log::debug "Checked paths: N8N_SCENARIO_DIR=${N8N_SCENARIO_DIR:-unset}, resolved_path=$workflow_file"
         return 1
     fi
     
@@ -98,9 +104,9 @@ n8n::validate_workflow() {
         return 1
     fi
     
-    # Process template substitutions for validation
+    # Process template substitutions for validation using safe substitution
     local processed_content
-    if ! processed_content=$(echo "$raw_content" | secrets::substitute_all_templates 2>/dev/null); then
+    if ! processed_content=$(echo "$raw_content" | secrets::substitute_safe_templates 2>/dev/null); then
         log::warn "Template processing failed for validation of '$name', continuing with raw content"
         processed_content="$raw_content"
     fi
@@ -262,14 +268,40 @@ n8n::create_credential() {
 #######################################
 n8n::import_workflow() {
     local workflow="$1"
-    local name file enabled tags
+    local name file enabled tags duplicate_strategy preserve_fields
     name=$(echo "$workflow" | jq -r '.name')
     file=$(echo "$workflow" | jq -r '.file')
     enabled=$(echo "$workflow" | jq -r '.enabled // "true"')
     tags=$(echo "$workflow" | jq -c '.tags // []')
+    duplicate_strategy=$(echo "$workflow" | jq -r '.duplicate_strategy // empty')
+    preserve_fields=$(echo "$workflow" | jq -r '.preserve // empty')
     
+    # Get global duplicate strategy if not specified per-workflow
+    if [[ -z "$duplicate_strategy" ]]; then
+        # Check environment variable
+        duplicate_strategy="${N8N_DUPLICATE_STRATEGY:-}"
+        
+        # Check service.json configuration
+        if [[ -z "$duplicate_strategy" ]] && [[ -f ".vrooli/service.json" ]]; then
+            duplicate_strategy=$(jq -r '.resources.n8n.workflow_management.duplicate_strategy // empty' .vrooli/service.json 2>/dev/null || echo "")
+        fi
+        
+        # Default to "auto" for intelligent handling
+        if [[ -z "$duplicate_strategy" ]]; then
+            duplicate_strategy="auto"
+        fi
+    fi
     
-    log::info "Importing workflow: $name"
+    # Default preserve fields if not specified
+    # Note: n8n PUT endpoint only accepts: name, nodes, connections, settings, staticData
+    # The 'active' field is read-only and cannot be set via PUT
+    if [[ -z "$preserve_fields" ]]; then
+        preserve_fields="staticData"
+    fi
+    
+    log::info "Importing workflow: $name (strategy: $duplicate_strategy)"
+    log::debug "Workflow config: file=$file, enabled=$enabled, duplicate_strategy=$duplicate_strategy"
+    
     # Resolve file path using scenario directory context
     local workflow_file
     if [[ -n "${N8N_SCENARIO_DIR:-}" ]]; then
@@ -277,6 +309,7 @@ n8n::import_workflow() {
     else
         workflow_file=$(inject_framework::resolve_file_path "$file")
     fi
+    
     # Read workflow content and process templates
     local raw_content
     if ! raw_content=$(cat "$workflow_file" 2>/dev/null); then
@@ -284,9 +317,9 @@ n8n::import_workflow() {
         return 1
     fi
     
-    # Process template substitutions (service references and secrets)
+    # Process template substitutions using safe substitution (preserves n8n syntax)
     local processed_content
-    if ! processed_content=$(echo "$raw_content" | secrets::substitute_all_templates); then
+    if ! processed_content=$(echo "$raw_content" | secrets::substitute_safe_templates); then
         log::error "Failed to process templates in workflow file: $workflow_file"
         return 1
     fi
@@ -298,6 +331,7 @@ n8n::import_workflow() {
         log::debug "Processed content: $processed_content"
         return 1
     fi
+    
     # Prepare workflow data with metadata (without read-only fields like active/tags)
     local workflow_data
     workflow_data=$(jq -n \
@@ -310,6 +344,7 @@ n8n::import_workflow() {
             settings: $content.settings,
             staticData: $content.staticData
         }')
+    
     # Get API key for authentication
     local api_key="${N8N_API_KEY:-}"
     if [[ -z "$api_key" ]] && [[ -f ".vrooli/secrets.json" ]]; then
@@ -320,55 +355,145 @@ n8n::import_workflow() {
         return 1
     fi
     
-    # Use framework API call with authentication header
-    local auth_header="-H X-N8N-API-KEY:$api_key"
-    local response
-    if response=$(inject_framework::api_call "POST" "$N8N_API_BASE/workflows" "$workflow_data" "$auth_header"); then
-        local workflow_id
-        workflow_id=$(inject_framework::extract_id "$response")
-        if [[ -n "$workflow_id" ]]; then
-            log::success "Imported workflow: $name (ID: $workflow_id)"
-            # Add safe rollback action
-            inject_framework::add_api_delete_rollback \
-                "Remove workflow: $name (ID: $workflow_id)" \
-                "$N8N_API_BASE/workflows/$workflow_id"
-            
-            # Auto-activate workflow if it has trigger nodes (unless explicitly disabled)
-            local auto_activate="${AUTO_ACTIVATE_INJECTED_WORKFLOWS:-true}"
-            if [[ "$auto_activate" == "true" ]]; then
-                # Check if workflow has trigger nodes that benefit from activation
-                local has_triggers=false
-                local trigger_nodes
-                trigger_nodes=$(echo "$workflow_content" | jq -r '.nodes[]? | select(.type | test("webhook|cron|trigger|schedule|interval|timer")) | .type' 2>/dev/null || echo "")
-                
-                if [[ -n "$trigger_nodes" ]]; then
-                    has_triggers=true
-                    log::info "🎯 Auto-activating workflow (found trigger nodes: $(echo "$trigger_nodes" | tr '\n' ' '))"
-                else
-                    log::debug "Skipping auto-activation for workflow without trigger nodes"
-                fi
-                
-                # Activate the workflow if it has triggers
-                if [[ "$has_triggers" == "true" ]] && command -v n8n::activate_workflow &>/dev/null; then
-                    if n8n::activate_workflow "$workflow_id" >/dev/null 2>&1; then
-                        log::success "✅ Auto-activated workflow: $name"
+    # Source the API functions if not already available
+    if ! command -v n8n::workflow_exists_by_name &>/dev/null; then
+        local api_lib="${N8N_LIB_DIR}/api.sh"
+        if [[ -f "$api_lib" ]]; then
+            # shellcheck disable=SC1090
+            source "$api_lib"
+        fi
+    fi
+    
+    # Check if workflow already exists
+    local existing_workflow_id
+    if existing_workflow_id=$(n8n::workflow_exists_by_name "$name" 2>/dev/null); then
+        log::info "🔍 Found existing workflow: $name (ID: $existing_workflow_id)"
+        
+        # Handle duplicate based on strategy
+        case "$duplicate_strategy" in
+            auto)
+                # Get existing workflow for comparison
+                local existing_workflow
+                if existing_workflow=$(n8n::get_workflow_by_name "$name" 2>/dev/null); then
+                    # Check if workflow has changed
+                    if n8n::detect_workflow_changes "$existing_workflow" "$workflow_data"; then
+                        log::info "📊 Changes detected in workflow structure"
+                        log::info "🔄 Upgrading workflow (preserving: $preserve_fields)"
+                        
+                        # Upgrade the workflow
+                        if n8n::upgrade_workflow "$existing_workflow_id" "$workflow_data" "$preserve_fields"; then
+                            local workflow_id="$existing_workflow_id"
+                            log::success "✅ Successfully upgraded workflow: $name"
+                        else
+                            log::error "Failed to upgrade workflow: $name"
+                            return 1
+                        fi
                     else
-                        log::warn "⚠️  Failed to auto-activate workflow: $name (workflow still imported successfully)"
+                        log::info "✅ Workflow unchanged, skipping: $name"
+                        local workflow_id="$existing_workflow_id"
+                        # Still successful, just skipped
                     fi
+                else
+                    log::warn "Could not fetch existing workflow for comparison, creating duplicate"
+                    # Fall through to create new
+                    existing_workflow_id=""
                 fi
+                ;;
+                
+            upgrade)
+                log::info "🔄 Force upgrading workflow: $name"
+                if n8n::upgrade_workflow "$existing_workflow_id" "$workflow_data" "$preserve_fields"; then
+                    local workflow_id="$existing_workflow_id"
+                    log::success "✅ Successfully upgraded workflow: $name"
+                else
+                    log::error "Failed to upgrade workflow: $name"
+                    return 1
+                fi
+                ;;
+                
+            skip)
+                log::info "⏭️  Skipping existing workflow: $name"
+                local workflow_id="$existing_workflow_id"
+                # Still successful, just skipped
+                ;;
+                
+            duplicate)
+                log::info "📋 Creating duplicate workflow with suffix"
+                # Add suffix to name
+                local suffix=2
+                local new_name="${name}-v${suffix}"
+                while n8n::workflow_exists_by_name "$new_name" >/dev/null 2>&1; do
+                    suffix=$((suffix + 1))
+                    new_name="${name}-v${suffix}"
+                done
+                workflow_data=$(echo "$workflow_data" | jq --arg new_name "$new_name" '.name = $new_name')
+                log::info "Creating as: $new_name"
+                # Clear existing_workflow_id to trigger creation
+                existing_workflow_id=""
+                ;;
+                
+            *)
+                log::error "Unknown duplicate_strategy: $duplicate_strategy"
+                return 1
+                ;;
+        esac
+    else
+        log::debug "Workflow does not exist, will create new: $name"
+    fi
+    
+    # Create new workflow if it doesn't exist or if we're duplicating
+    if [[ -z "${existing_workflow_id:-}" ]]; then
+        # Use framework API call with authentication header
+        local auth_header="-H X-N8N-API-KEY:$api_key"
+        local response
+        if response=$(inject_framework::api_call "POST" "$N8N_API_BASE/workflows" "$workflow_data" "$auth_header"); then
+            workflow_id=$(inject_framework::extract_id "$response")
+            if [[ -n "$workflow_id" ]]; then
+                log::success "✅ Created workflow: $name (ID: $workflow_id)"
+                # Add safe rollback action
+                inject_framework::add_api_delete_rollback \
+                    "Remove workflow: $name (ID: $workflow_id)" \
+                    "$N8N_API_BASE/workflows/$workflow_id"
             else
-                log::debug "Auto-activation disabled for injected workflows"
+                log::error "Workflow created but no ID returned for: $name"
+                return 1
             fi
-            
-            return 0
         else
-            log::error "Workflow imported but no ID returned for: $name"
+            log::error "Failed to create workflow '$name'"
             return 1
         fi
-    else
-        log::error "Failed to import workflow '$name'"
-        return 1
     fi
+    
+    # Auto-activate workflow if it has trigger nodes (unless explicitly disabled)
+    if [[ -n "${workflow_id:-}" ]]; then
+        local auto_activate="${AUTO_ACTIVATE_INJECTED_WORKFLOWS:-true}"
+        if [[ "$auto_activate" == "true" ]]; then
+            # Check if workflow has trigger nodes that benefit from activation
+            local has_triggers=false
+            local trigger_nodes
+            trigger_nodes=$(echo "$workflow_content" | jq -r '.nodes[]? | select(.type | test("webhook|cron|trigger|schedule|interval|timer")) | .type' 2>/dev/null || echo "")
+            
+            if [[ -n "$trigger_nodes" ]]; then
+                has_triggers=true
+                log::info "🎯 Auto-activating workflow (found trigger nodes: $(echo "$trigger_nodes" | tr '\n' ' '))"
+            else
+                log::debug "Skipping auto-activation for workflow without trigger nodes"
+            fi
+            
+            # Activate the workflow if it has triggers
+            if [[ "$has_triggers" == "true" ]] && command -v n8n::activate_workflow &>/dev/null; then
+                if n8n::activate_workflow "$workflow_id" >/dev/null 2>&1; then
+                    log::success "✅ Auto-activated workflow: $name"
+                else
+                    log::warn "⚠️  Failed to auto-activate workflow: $name (workflow still imported successfully)"
+                fi
+            fi
+        else
+            log::debug "Auto-activation disabled for injected workflows"
+        fi
+    fi
+    
+    return 0
 }
 
 #######################################
@@ -422,10 +547,60 @@ n8n::inject_data() {
     if echo "$config" | jq -e '.workflows' >/dev/null 2>&1; then
         local workflows
         workflows=$(echo "$config" | jq -c '.workflows')
-        if ! inject_framework::process_array "$workflows" "n8n::import_workflow" "workflows"; then
-            log::error "Failed to import workflows"
-            inject_framework::execute_rollback
-            return 1
+        
+        # Process workflows in batches to avoid timeout/size issues
+        local workflow_count
+        workflow_count=$(echo "$workflows" | jq 'length')
+        
+        if [[ "$workflow_count" -gt 5 ]]; then
+            log::info "Processing $workflow_count workflows in batches to avoid timeout issues..."
+            
+            # Process in batches of 3
+            local batch_size=3
+            local batch_num=0
+            local total_failed=0
+            local total_success=0
+            
+            for ((i=0; i<workflow_count; i+=batch_size)); do
+                batch_num=$((batch_num + 1))
+                local end=$((i + batch_size))
+                if [[ $end -gt $workflow_count ]]; then
+                    end=$workflow_count
+                fi
+                
+                log::info "Processing batch $batch_num (workflows $((i+1))-$end of $workflow_count)..."
+                
+                # Extract batch
+                local batch
+                batch=$(echo "$workflows" | jq -c ".[$i:$end]")
+                
+                # Process batch
+                if inject_framework::process_array "$batch" "n8n::import_workflow" "workflows"; then
+                    total_success=$((total_success + (end - i)))
+                else
+                    total_failed=$((total_failed + (end - i)))
+                    log::warn "Some workflows in batch $batch_num failed to import"
+                fi
+                
+                # Small delay between batches to prevent overwhelming the system
+                if [[ $end -lt $workflow_count ]]; then
+                    sleep 1
+                fi
+            done
+            
+            log::info "Workflow import complete: $total_success succeeded, $total_failed failed"
+            if [[ $total_failed -eq 0 ]]; then
+                log::success "All workflows imported successfully"
+            else
+                log::warn "Some workflows failed to import - check individual workflow logs for details"
+            fi
+        else
+            # Small batch, process normally
+            if ! inject_framework::process_array "$workflows" "n8n::import_workflow" "workflows"; then
+                log::warn "Some workflows failed to import - check individual workflow logs for details"
+            else
+                log::success "All workflows imported successfully"
+            fi
         fi
     else
         log::debug "No workflows found in config"
@@ -434,24 +609,18 @@ n8n::inject_data() {
     if echo "$config" | jq -e '.credentials' >/dev/null 2>&1; then
         local credentials
         credentials=$(echo "$config" | jq -c '.credentials')
+        
+        # Process credentials - continue even if some fail
         if ! inject_framework::process_array "$credentials" "n8n::create_credential" "credentials"; then
-            log::error "Failed to create manual credentials"
-            inject_framework::execute_rollback
-            return 1
+            log::warn "Some credentials failed to create - check individual credential logs for details"
+            # Don't rollback or fail completely - partial success is acceptable
+        else
+            log::success "All manual credentials created successfully"
         fi
     else
         log::debug "No manual credentials found in config"
     fi
     
-    # Always run auto-credential discovery unless explicitly disabled
-    if [[ "${AUTO_CREATE_CREDENTIALS:-yes}" == "yes" ]]; then
-        log::info "🤖 Running auto-credential discovery..."
-        if ! n8n::auto_manage_credentials; then
-            log::warn "Auto-credential creation had issues (not fatal)"
-        fi
-    else
-        log::debug "Auto-credential creation disabled"
-    fi
     # Process variables if present
     if echo "$config" | jq -e '.variables' >/dev/null 2>&1; then
         local variables

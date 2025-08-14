@@ -2,6 +2,10 @@
 # system.sh - Cross-platform package manager helpers
 set -euo pipefail
 
+# Source guard to prevent re-sourcing
+[[ -n "${_SYSTEM_COMMANDS_SH_SOURCED:-}" ]] && return 0
+export _SYSTEM_COMMANDS_SH_SOURCED=1
+
 # Source var.sh with relative path first
 # shellcheck disable=SC1091
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../utils/var.sh"

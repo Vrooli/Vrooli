@@ -13,6 +13,10 @@ CLAUDE_CODE_SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck disable=SC1091
 source "${CLAUDE_CODE_SCRIPT_DIR}/../../../lib/utils/var.sh"
 
+# Source log utilities for log::header and other log functions
+# shellcheck disable=SC1091
+source "${var_LOG_FILE:-${CLAUDE_CODE_SCRIPT_DIR}/../../../lib/utils/log.sh}"
+
 # Source common utilities using var_ variables
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"

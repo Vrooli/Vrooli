@@ -15,6 +15,10 @@
 
 set -euo pipefail
 
+# Source guard to prevent re-sourcing
+[[ -n "${_JSON_SH_SOURCED:-}" ]] && return 0
+export _JSON_SH_SOURCED=1
+
 # Get the directory where this script is located
 JSON_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 

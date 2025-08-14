@@ -37,6 +37,11 @@ defaults::export_config 2>/dev/null || true
 # Initialize with resource name
 resource_cli::init "whisper"
 
+# Set defaults if not already set
+WHISPER_CONTAINER_NAME="${WHISPER_CONTAINER_NAME:-whisper}"
+WHISPER_PORT="${WHISPER_PORT:-9000}"
+WHISPER_HOST="${WHISPER_HOST:-localhost}"
+
 ################################################################################
 # Delegate to existing Whisper functions via manage.sh
 ################################################################################

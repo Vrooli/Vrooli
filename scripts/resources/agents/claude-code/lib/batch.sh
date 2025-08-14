@@ -22,8 +22,8 @@ source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 # Returns: 0 on success, 1 on failure
 #######################################
 claude_code::batch_simple() {
-    local prompt="$1"
-    local total_turns="$2"
+    local prompt="${1:-}"
+    local total_turns="${2:-}"
     local batch_size="${3:-50}"
     local allowed_tools="${4:-Read,Edit,Write}"
     local output_dir="${5:-}"

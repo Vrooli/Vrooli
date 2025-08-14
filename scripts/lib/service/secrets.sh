@@ -98,7 +98,8 @@ secrets::source_port_registry() {
     local port_registry="${var_SCRIPTS_RESOURCES_DIR:-$(secrets::get_project_root)/scripts/resources}/port_registry.sh"
     
     # Check if RESOURCE_PORTS array is already populated
-    if [[ "${#RESOURCE_PORTS[@]}" -gt 0 ]] 2>/dev/null; then
+    # Use declare -p to safely check if array exists
+    if declare -p RESOURCE_PORTS &>/dev/null && [[ "${#RESOURCE_PORTS[@]}" -gt 0 ]]; then
         return 0
     fi
     
@@ -131,7 +132,7 @@ secrets::resolve_service_reference() {
     secrets::source_port_registry
     
     # Check if RESOURCE_PORTS array is available and populated
-    if [[ "${#RESOURCE_PORTS[@]}" -eq 0 ]] 2>/dev/null; then
+    if ! declare -p RESOURCE_PORTS &>/dev/null || [[ "${#RESOURCE_PORTS[@]}" -eq 0 ]]; then
         return 1
     fi
     
@@ -189,7 +190,7 @@ secrets::substitute_service_references() {
     secrets::source_port_registry
     
     # Check if RESOURCE_PORTS array is available and populated
-    if [[ "${#RESOURCE_PORTS[@]}" -eq 0 ]]; then
+    if ! declare -p RESOURCE_PORTS &>/dev/null || [[ "${#RESOURCE_PORTS[@]}" -eq 0 ]]; then
         echo "WARNING: RESOURCE_PORTS not available, service references will not be resolved" >&2
         echo "$json_output"
         # Restore original set options
@@ -351,7 +352,7 @@ secrets::process_bash_templates() {
     secrets::source_port_registry
     
     # Check if RESOURCE_PORTS is available
-    if [[ "${#RESOURCE_PORTS[@]}" -eq 0 ]] 2>/dev/null; then
+    if ! declare -p RESOURCE_PORTS &>/dev/null || [[ "${#RESOURCE_PORTS[@]}" -eq 0 ]]; then
         # If no RESOURCE_PORTS, return command as-is
         echo "$command"
         return 0
@@ -841,4 +842,129 @@ secrets::validate_all_configs() {
     fi
     
     return $issues
+}
+
+#######################################
+# Substitute only known service references with whitelisted patterns
+# Only replaces ${service.KNOWN_RESOURCE.KNOWN_PROPERTY} patterns
+# where KNOWN_RESOURCE is in RESOURCE_PORTS and KNOWN_PROPERTY is url/port/host
+# This preserves n8n's JavaScript template literals and other ${} patterns
+# Arguments:
+#   $1 - String with potential service references
+# Returns:
+#   String with only known service references substituted
+#######################################
+secrets::substitute_known_services() {
+    local input
+    # Handle both parameter and piped input
+    if [[ $# -gt 0 ]]; then
+        input="$1"
+    else
+        input="$(cat)"
+    fi
+    
+    local output="$input"
+    
+    # Ensure port registry is sourced
+    secrets::source_port_registry
+    
+    # Check if RESOURCE_PORTS array is available and has entries
+    # Use declare -p to safely check if array exists
+    if ! declare -p RESOURCE_PORTS &>/dev/null || [[ "${#RESOURCE_PORTS[@]}" -eq 0 ]]; then
+        # If no RESOURCE_PORTS, return input unchanged
+        echo "$output"
+        return 0
+    fi
+    
+    # For each known resource in RESOURCE_PORTS, replace specific patterns only
+    for resource in "${!RESOURCE_PORTS[@]}"; do
+        local port="${RESOURCE_PORTS[$resource]}"
+        
+        # Replace both escaped (\${) and non-escaped (${) patterns
+        # Handle escaped syntax first (with backslash)
+        output=$(echo "$output" | sed "s|\\\\\${service\.${resource}\.url}|http://localhost:${port}|g")
+        output=$(echo "$output" | sed "s|\\\\\${service\.${resource}\.port}|${port}|g")
+        output=$(echo "$output" | sed "s|\\\\\${service\.${resource}\.host}|localhost|g")
+        
+        # Then handle non-escaped syntax (without backslash)
+        output=$(echo "$output" | sed "s|\${service\.${resource}\.url}|http://localhost:${port}|g")
+        output=$(echo "$output" | sed "s|\${service\.${resource}\.port}|${port}|g")
+        output=$(echo "$output" | sed "s|\${service\.${resource}\.host}|localhost|g")
+    done
+    
+    echo "$output"
+}
+
+#######################################
+# Substitute only uppercase secrets with format {{UPPERCASE_NAME}}
+# This preserves n8n's workflow expressions like {{ $json.field }}
+# Arguments:
+#   $1 - String with potential secret placeholders
+# Returns:
+#   String with only uppercase secrets substituted
+#######################################
+secrets::substitute_uppercase_secrets() {
+    local input
+    # Handle both parameter and piped input
+    if [[ $# -gt 0 ]]; then
+        input="$1"
+    else
+        input="$(cat)"
+    fi
+    
+    local output="$input"
+    
+    # Only match {{UPPERCASE_WITH_UNDERSCORES}} patterns
+    # This regex matches: {{ followed by uppercase letter, then any number of uppercase/digits/underscores, then }}
+    while [[ "$output" =~ \{\{([A-Z][A-Z0-9_]*)\}\} ]]; do
+        local full_pattern="${BASH_REMATCH[0]}"
+        local secret_name="${BASH_REMATCH[1]}"
+        
+        # Try to resolve the secret
+        local secret_value
+        secret_value=$(secrets::resolve "$secret_name" 2>/dev/null || echo "")
+        
+        if [[ -n "$secret_value" ]]; then
+            # Escape special characters for safe substitution
+            secret_value=$(echo "$secret_value" | sed 's/[[\.*^$()+?{|]/\\&/g')
+            output="${output//$full_pattern/$secret_value}"
+        else
+            # Log warning but keep the placeholder
+            if command -v log::debug >/dev/null 2>&1; then
+                log::debug "Uppercase secret not found: $secret_name"
+            fi
+            # Move past this match to avoid infinite loop
+            break
+        fi
+    done
+    
+    echo "$output"
+}
+
+#######################################
+# Safe template substitution for n8n workflows
+# Only substitutes Vrooli-specific patterns, preserving n8n's syntax
+# Combines targeted substitution of known services and uppercase secrets
+# Arguments:
+#   $1 - String with mixed template patterns
+# Returns:
+#   String with only Vrooli patterns substituted
+#######################################
+secrets::substitute_safe_templates() {
+    local input
+    # Handle both parameter and piped input
+    if [[ $# -gt 0 ]]; then
+        input="$1"
+    else
+        input="$(cat)"
+    fi
+    
+    # First substitute known service references
+    local processed
+    processed=$(echo "$input" | secrets::substitute_known_services)
+    
+    # Then substitute uppercase secrets
+    processed=$(echo "$processed" | secrets::substitute_uppercase_secrets)
+    
+    echo "$processed"
 }

@@ -5,9 +5,11 @@
 # Set CLAUDE_CODE_SCRIPT_DIR if not already set (for BATS test compatibility)
 CLAUDE_CODE_SCRIPT_DIR="${CLAUDE_CODE_SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 
-# Source trash module for safe cleanup
+# Source required utilities
 # shellcheck disable=SC1091
 source "${CLAUDE_CODE_SCRIPT_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LOG_FILE:-${CLAUDE_CODE_SCRIPT_DIR}/../../../lib/utils/log.sh}" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
@@ -65,11 +67,13 @@ claude_code::session_resume() {
     
     log::info "Resuming session: $session_id"
     
-    local cmd="claude --resume \"$session_id\""
+    local cmd="claude --print --resume \"$session_id\""
     
     # Add max turns if specified
     if [[ "$MAX_TURNS" != "$DEFAULT_MAX_TURNS" ]]; then
         cmd="$cmd --max-turns $MAX_TURNS"
+    else
+        cmd="$cmd --max-turns 5"
     fi
     
     log::info "Executing: $cmd"

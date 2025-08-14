@@ -563,6 +563,9 @@ claude_code::unregister_mcp() {
 claude_code::mcp_status() {
     log::header "📊 Vrooli MCP Status"
     
+    # Initialize MCP_FORMAT with default value if not set
+    MCP_FORMAT="${MCP_FORMAT:-text}"
+    
     # Get comprehensive status
     local status
     status=$(mcp::get_status)

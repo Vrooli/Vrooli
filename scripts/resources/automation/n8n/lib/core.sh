@@ -734,10 +734,21 @@ n8n::register_injection_framework() {
 
 n8n::inject() {
     local injection_config="${INJECTION_CONFIG:-}"
+    local injection_config_file="${INJECTION_CONFIG_FILE:-}"
     
-    if [[ -z "$injection_config" ]]; then
-        log::error "Missing required --injection-config parameter"
+    # Check if we have either direct config or config file
+    if [[ -z "$injection_config" && -z "$injection_config_file" ]]; then
+        log::error "Missing required --injection-config or --injection-config-file parameter"
         return 1
+    fi
+    
+    # If config file is provided, read it
+    if [[ -n "$injection_config_file" ]]; then
+        if [[ ! -f "$injection_config_file" ]]; then
+            log::error "Injection config file not found: $injection_config_file"
+            return 1
+        fi
+        injection_config=$(cat "$injection_config_file")
     fi
     
     # Load n8n injection functions
@@ -752,6 +763,7 @@ n8n::validate_injection() {
     local validation_type="${VALIDATION_TYPE:-}"
     local validation_file="${VALIDATION_FILE:-}"
     local injection_config="${INJECTION_CONFIG:-}"
+    local injection_config_file="${INJECTION_CONFIG_FILE:-}"
     
     # Support both legacy and new validation interfaces
     if [[ -n "$validation_type" && -n "$validation_file" ]]; then
@@ -769,14 +781,23 @@ n8n::validate_injection() {
             --validate \
             --type "$validation_type" \
             --content "$content"
-    elif [[ -n "$injection_config" ]]; then
+    elif [[ -n "$injection_config" || -n "$injection_config_file" ]]; then
+        # Handle file-based config if provided
+        if [[ -n "$injection_config_file" ]]; then
+            if [[ ! -f "$injection_config_file" ]]; then
+                log::error "Injection config file not found: $injection_config_file"
+                return 1
+            fi
+            injection_config=$(cat "$injection_config_file")
+        fi
+        
         # Legacy interface: full config JSON
         source "${N8N_SCRIPT_DIR}/lib/inject.sh"
         n8n::register_injection_framework
         inject_framework::main --validate "$injection_config"
     else
         log::error "Required: --validation-type TYPE --validation-file PATH"
-        log::info "   or legacy: --injection-config 'JSON_CONFIG'"
+        log::info "   or: --injection-config 'JSON_CONFIG' or --injection-config-file PATH"
         return 1
     fi
 }
