@@ -1,0 +1,564 @@
+{
+  "name": "Universal RAG Pipeline",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "rag/process",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Universal RAG Pipeline Input Validation\nconst input = $input.item.json;\n\n// Validate input type\nconst validTypes = ['text', 'url', 'file_path', 'base64'];\nconst inputType = input.type || 'text';\n\nif (!validTypes.includes(inputType)) {\n  throw new Error(`Invalid input type: ${inputType}. Valid types: ${validTypes.join(', ')}`);\n}\n\n// Validate content based on type\nif (!input.content) {\n  throw new Error('Missing required field: content');\n}\n\nif (inputType === 'text' && input.content.trim().length === 0) {\n  throw new Error('Text content cannot be empty');\n}\n\nif (inputType === 'url' && !input.content.match(/^https?:\\/\\/.+/)) {\n  throw new Error('Invalid URL format');\n}\n\n// Chunking configuration\nconst chunkSize = input.chunk_size || 1000;\nconst chunkOverlap = input.chunk_overlap || 200;\n\nif (chunkSize < 100 || chunkSize > 8000) {\n  throw new Error('Chunk size must be between 100 and 8000 characters');\n}\n\nif (chunkOverlap < 0 || chunkOverlap >= chunkSize) {\n  throw new Error('Chunk overlap must be between 0 and chunk_size');\n}\n\n// Model selection for embeddings\nconst model = input.embedding_model || 'mxbai-embed-large';\nconst supportedModels = [\n  'mxbai-embed-large',\n  'nomic-embed-text',\n  'all-minilm'\n];\n\nif (!supportedModels.includes(model)) {\n  throw new Error(`Unsupported embedding model: ${model}`);\n}\n\n// Storage configuration\nconst storageMode = input.storage_mode || 'qdrant'; // 'qdrant', 'return', 'webhook', 'custom'\nconst validStorageModes = ['qdrant', 'return', 'webhook', 'custom'];\n\nif (!validStorageModes.includes(storageMode)) {\n  throw new Error(`Invalid storage mode: ${storageMode}. Valid modes: ${validStorageModes.join(', ')}`);\n}\n\n// Validate storage-specific requirements\nif (storageMode === 'qdrant') {\n  if (!input.collection) {\n    throw new Error('Collection name is required for Qdrant storage');\n  }\n}\n\nif (storageMode === 'webhook') {\n  if (!input.webhook_url) {\n    throw new Error('Webhook URL is required for webhook storage mode');\n  }\n}\n\n// Processing options\nconst extractMetadata = input.extract_metadata !== false; // default true\nconst generateSummary = input.generate_summary === true; // default false\nconst extractEntities = input.extract_entities === true; // default false\n\n// Document metadata\nconst documentId = input.document_id || `doc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;\nconst documentMetadata = input.metadata || {};\n\nreturn {\n  type: inputType,\n  content: input.content,\n  chunk_size: chunkSize,\n  chunk_overlap: chunkOverlap,\n  embedding_model: model,\n  storage_mode: storageMode,\n  collection: input.collection || 'documents',\n  webhook_url: input.webhook_url || null,\n  custom_storage_config: input.custom_storage_config || {},\n  extract_metadata: extractMetadata,\n  generate_summary: generateSummary,\n  extract_entities: extractEntities,\n  document_id: documentId,\n  document_metadata: documentMetadata,\n  processing_started_at: new Date().toISOString()\n};"
+      },
+      "id": "validate_input",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [450, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.type }}",
+              "operation": "equals",
+              "value2": "url"
+            }
+          ]
+        }
+      },
+      "id": "check_if_url",
+      "name": "Check if URL",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "${service.browserless.url}/content",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "{\n  \"url\": \"={{ $json.content }}\",\n  \"waitForSelector\": \"body\",\n  \"includeMarkdown\": true\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "fetch_web_content",
+      "name": "Fetch Web Content",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $('Validate Input').item.json.type }}",
+              "operation": "equals",
+              "value2": "file_path"
+            }
+          ]
+        }
+      },
+      "id": "check_if_file",
+      "name": "Check if File",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [850, 500]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "${service.unstructured-io.url}/general/v0/general",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "{\n  \"file_path\": \"={{ $('Validate Input').item.json.content }}\",\n  \"strategy\": \"auto\",\n  \"extract_images\": false,\n  \"extract_tables\": true\n}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "process_document",
+      "name": "Process Document",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1050, 450]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Normalize content from different sources\nconst validatedInput = $('Validate Input').item.json;\nlet extractedContent = '';\nlet contentMetadata = {};\n\nif (validatedInput.type === 'url') {\n  // Process web content from Browserless\n  const webResponse = $input.item.json;\n  extractedContent = webResponse.markdown || webResponse.text || '';\n  contentMetadata = {\n    source: 'web',\n    url: validatedInput.content,\n    title: webResponse.title || null,\n    extracted_at: new Date().toISOString()\n  };\n} else if (validatedInput.type === 'file_path') {\n  // Process document from Unstructured-IO\n  const docResponse = $input.item.json;\n  if (Array.isArray(docResponse)) {\n    extractedContent = docResponse.map(element => element.text).join('\\n\\n');\n    contentMetadata = {\n      source: 'document',\n      file_path: validatedInput.content,\n      element_count: docResponse.length,\n      extracted_at: new Date().toISOString()\n    };\n  } else {\n    extractedContent = docResponse.text || '';\n  }\n} else if (validatedInput.type === 'base64') {\n  // Decode base64 content\n  extractedContent = Buffer.from(validatedInput.content, 'base64').toString('utf-8');\n  contentMetadata = {\n    source: 'base64',\n    decoded_at: new Date().toISOString()\n  };\n} else {\n  // Direct text input\n  extractedContent = validatedInput.content;\n  contentMetadata = {\n    source: 'direct_text',\n    received_at: new Date().toISOString()\n  };\n}\n\nif (!extractedContent || extractedContent.trim().length === 0) {\n  throw new Error('No content could be extracted from the input');\n}\n\nreturn {\n  content: extractedContent,\n  content_length: extractedContent.length,\n  content_metadata: contentMetadata,\n  ...validatedInput\n};"
+      },
+      "id": "normalize_content",
+      "name": "Normalize Content",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1250, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Smart chunking with overlap for RAG\nconst data = $input.item.json;\nconst content = data.content;\nconst chunkSize = data.chunk_size;\nconst overlap = data.chunk_overlap;\n\n// Split content into sentences for better chunking\nconst sentences = content.match(/[^.!?]+[.!?]+/g) || [content];\nconst chunks = [];\nlet currentChunk = '';\nlet chunkIndex = 0;\n\nfor (const sentence of sentences) {\n  // If adding this sentence would exceed chunk size, save current chunk\n  if (currentChunk.length + sentence.length > chunkSize && currentChunk.length > 0) {\n    chunks.push({\n      chunk_index: chunkIndex++,\n      text: currentChunk.trim(),\n      start_char: Math.max(0, chunks.length > 0 ? chunks[chunks.length - 1].end_char - overlap : 0),\n      end_char: currentChunk.length\n    });\n    \n    // Start new chunk with overlap from previous chunk\n    if (overlap > 0 && currentChunk.length > overlap) {\n      currentChunk = currentChunk.slice(-overlap) + sentence;\n    } else {\n      currentChunk = sentence;\n    }\n  } else {\n    currentChunk += (currentChunk.length > 0 ? ' ' : '') + sentence;\n  }\n}\n\n// Add the last chunk\nif (currentChunk.trim().length > 0) {\n  chunks.push({\n    chunk_index: chunkIndex,\n    text: currentChunk.trim(),\n    start_char: chunks.length > 0 ? chunks[chunks.length - 1].end_char - overlap : 0,\n    end_char: content.length\n  });\n}\n\n// Add document-level metadata to each chunk\nconst enrichedChunks = chunks.map(chunk => ({\n  ...chunk,\n  document_id: data.document_id,\n  total_chunks: chunks.length,\n  chunk_metadata: {\n    ...data.content_metadata,\n    ...data.document_metadata,\n    chunk_index: chunk.chunk_index,\n    chunk_size: chunk.text.length,\n    document_id: data.document_id\n  },\n  embedding_model: data.embedding_model,\n  storage_mode: data.storage_mode,\n  collection: data.collection,\n  webhook_url: data.webhook_url,\n  custom_storage_config: data.custom_storage_config\n}));\n\nreturn enrichedChunks;"
+      },
+      "id": "chunk_content",
+      "name": "Chunk Content",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1450, 400]
+    },
+    {
+      "parameters": {
+        "batchSize": 5,
+        "options": {}
+      },
+      "id": "split_into_batches",
+      "name": "Split Into Batches",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [1650, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "${service.ollama.url}/api/embeddings",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "{\n  \"model\": \"={{ $json.embedding_model }}\",\n  \"prompt\": \"={{ $json.text }}\"\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "generate_embeddings",
+      "name": "Generate Embeddings",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1850, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process embedding and prepare for storage decision\nconst chunkData = $('Split Into Batches').item.json;\nconst embeddingResponse = $input.item.json;\n\n// Extract embedding\nlet embedding;\nif (embeddingResponse.embedding) {\n  embedding = embeddingResponse.embedding;\n} else if (Array.isArray(embeddingResponse)) {\n  embedding = embeddingResponse;\n} else {\n  throw new Error('Invalid embedding response format');\n}\n\n// Create the processed chunk with embedding\nconst processedChunk = {\n  document_id: chunkData.document_id,\n  chunk_index: chunkData.chunk_index,\n  total_chunks: chunkData.total_chunks,\n  text: chunkData.text,\n  embedding: embedding,\n  embedding_dimensions: embedding.length,\n  metadata: {\n    ...chunkData.chunk_metadata,\n    embedding_generated_at: new Date().toISOString(),\n    embedding_model: chunkData.embedding_model\n  },\n  storage_mode: chunkData.storage_mode,\n  collection: chunkData.collection,\n  webhook_url: chunkData.webhook_url,\n  custom_storage_config: chunkData.custom_storage_config\n};\n\n// Prepare Qdrant point format if needed\nif (chunkData.storage_mode === 'qdrant') {\n  processedChunk.qdrant_point = {\n    id: `${chunkData.document_id}_chunk_${chunkData.chunk_index}`,\n    vector: embedding,\n    payload: {\n      document_id: chunkData.document_id,\n      chunk_index: chunkData.chunk_index,\n      text: chunkData.text,\n      metadata: processedChunk.metadata\n    }\n  };\n}\n\nreturn processedChunk;"
+      },
+      "id": "prepare_chunk_data",
+      "name": "Prepare Chunk Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [2050, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.storage_mode }}",
+              "operation": "equals",
+              "value2": "qdrant"
+            }
+          ]
+        }
+      },
+      "id": "check_storage_mode",
+      "name": "Check Storage Mode",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [2250, 400],
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "${service.qdrant.url}/collections/={{ $json.collection }}/points",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "{\n  \"points\": [\n    {\n      \"id\": \"={{ $json.qdrant_point.id }}\",\n      \"vector\": ={{ JSON.stringify($json.qdrant_point.vector) }},\n      \"payload\": ={{ JSON.stringify($json.qdrant_point.payload) }}\n    }\n  ]\n}",
+        "options": {
+          "timeout": 10000,
+          "ignoreResponseCode": true
+        }
+      },
+      "id": "store_in_qdrant",
+      "name": "Store in Qdrant",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $('Prepare Chunk Data').item.json.storage_mode }}",
+              "operation": "equals",
+              "value2": "webhook"
+            }
+          ]
+        }
+      },
+      "id": "check_if_webhook",
+      "name": "Check if Webhook",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [2450, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Prepare Chunk Data').item.json.webhook_url }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 10000,
+          "ignoreResponseCode": true
+        }
+      },
+      "id": "send_to_webhook",
+      "name": "Send to Webhook",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2650, 350]
+    },
+    {
+      "parameters": {
+        "aggregationMode": "aggregateIndividualFields",
+        "options": {}
+      },
+      "id": "aggregate_results",
+      "name": "Aggregate Results",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [2850, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Prepare final response based on storage mode\nconst aggregatedData = $input.item.json;\nconst validatedInput = $('Validate Input').item.json;\n\n// Build response structure\nconst response = {\n  success: true,\n  document_id: validatedInput.document_id,\n  input_type: validatedInput.type,\n  storage_mode: validatedInput.storage_mode,\n  chunks_processed: Array.isArray(aggregatedData) ? aggregatedData.length : 1,\n  embedding_model: validatedInput.embedding_model,\n  processing_time_ms: Date.now() - new Date(validatedInput.processing_started_at).getTime(),\n  metadata: validatedInput.document_metadata\n};\n\n// Add storage-specific information\nif (validatedInput.storage_mode === 'qdrant') {\n  response.storage = {\n    type: 'qdrant',\n    collection: validatedInput.collection,\n    chunks_stored: response.chunks_processed,\n    message: 'Successfully stored in Qdrant'\n  };\n} else if (validatedInput.storage_mode === 'webhook') {\n  response.storage = {\n    type: 'webhook',\n    url: validatedInput.webhook_url,\n    chunks_sent: response.chunks_processed,\n    message: 'Successfully sent to webhook'\n  };\n} else if (validatedInput.storage_mode === 'return') {\n  // Include all processed chunks in response\n  response.chunks = aggregatedData;\n  response.storage = {\n    type: 'return',\n    message: 'Chunks returned in response'\n  };\n}\n\n// Add summary statistics\nif (Array.isArray(aggregatedData) && aggregatedData.length > 0) {\n  const totalTextLength = aggregatedData.reduce((sum, chunk) => sum + (chunk.text?.length || 0), 0);\n  const avgChunkSize = Math.round(totalTextLength / aggregatedData.length);\n  \n  response.statistics = {\n    total_text_length: totalTextLength,\n    average_chunk_size: avgChunkSize,\n    chunk_count: aggregatedData.length,\n    embedding_dimensions: aggregatedData[0].embedding_dimensions || null\n  };\n}\n\nreturn response;"
+      },
+      "id": "prepare_final_response",
+      "name": "Prepare Final Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [3050, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "send_response",
+      "name": "Send Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [3250, 400]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Input": {
+      "main": [
+        [
+          {
+            "node": "Check if URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check if URL": {
+      "main": [
+        [
+          {
+            "node": "Fetch Web Content",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Check if File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Web Content": {
+      "main": [
+        [
+          {
+            "node": "Normalize Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check if File": {
+      "main": [
+        [
+          {
+            "node": "Process Document",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Normalize Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Document": {
+      "main": [
+        [
+          {
+            "node": "Normalize Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Content": {
+      "main": [
+        [
+          {
+            "node": "Chunk Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chunk Content": {
+      "main": [
+        [
+          {
+            "node": "Split Into Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Into Batches": {
+      "main": [
+        [
+          {
+            "node": "Generate Embeddings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Embeddings": {
+      "main": [
+        [
+          {
+            "node": "Prepare Chunk Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Chunk Data": {
+      "main": [
+        [
+          {
+            "node": "Check Storage Mode",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Storage Mode": {
+      "main": [
+        [
+          {
+            "node": "Store in Qdrant",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Check if Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store in Qdrant": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check if Webhook": {
+      "main": [
+        [
+          {
+            "node": "Send to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Aggregate Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send to Webhook": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Results": {
+      "main": [
+        [
+          {
+            "node": "Prepare Final Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Final Response": {
+      "main": [
+        [
+          {
+            "node": "Send Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "universal-rag-v1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "description": "Universal RAG Pipeline for document processing with flexible storage options. Supports text, URLs, files, and base64 inputs. Can store in Qdrant, send to webhook, or return processed chunks."
+  },
+  "id": "universal-rag-pipeline",
+  "tags": [
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "shared-utility",
+      "name": "shared-utility"
+    },
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "rag",
+      "name": "rag"
+    },
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "document-processing",
+      "name": "document-processing"
+    },
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "embeddings",
+      "name": "embeddings"
+    }
+  ]
+}

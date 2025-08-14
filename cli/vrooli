@@ -92,7 +92,11 @@ SCENARIO MANAGEMENT:
 RESOURCE MANAGEMENT:
     resource list       List available resources
     resource status     Show resource status
-    resource install    Install a resource
+    resource install    Install a resource (initial setup)
+    resource start      Start a resource
+    resource start-all  Start all enabled resources
+    resource stop       Stop a resource
+    resource stop-all   Stop all running resources
 
 ORCHESTRATOR MANAGEMENT:
     orchestrator start  Start the process orchestrator

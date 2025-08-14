@@ -1,0 +1,337 @@
+{
+  "name": "Structured Data Extractor",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "extract",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Validate and prepare extraction request\nconst input = $input.item.json;\n\n// Required field validation\nif (!input.text) {\n  throw new Error('Missing required field: text');\n}\n\nif (!input.schema && !input.auto_detect) {\n  throw new Error('Must provide either schema or auto_detect fields');\n}\n\n// Extract inputs with defaults\nconst text = input.text.trim();\nif (text.length === 0) {\n  throw new Error('Text field cannot be empty');\n}\n\n// Extraction configuration\nconst extractionMode = input.extraction_mode || 'guided';\nconst model = input.model || 'llama3.2:latest';\nconst examples = input.examples || [];\nconst validationRules = input.validation_rules || {};\nconst outputFormat = input.output_format || 'json';\nconst confidenceThreshold = input.confidence_threshold || 0.7;\nconst returnMetadata = input.return_metadata !== false;\nconst language = input.language || 'en';\n\n// Handle auto-detect mode\nlet schema = input.schema;\nif (input.auto_detect) {\n  const detectionTypes = Array.isArray(input.auto_detect) ? input.auto_detect : \n    ['emails', 'urls', 'dates', 'phone_numbers', 'money', 'addresses'];\n  \n  // Build auto-detection schema\n  schema = {\n    type: 'object',\n    properties: {}\n  };\n  \n  detectionTypes.forEach(type => {\n    switch(type) {\n      case 'emails':\n        schema.properties.emails = { type: 'array', items: { type: 'string', format: 'email' } };\n        break;\n      case 'urls':\n        schema.properties.urls = { type: 'array', items: { type: 'string', format: 'uri' } };\n        break;\n      case 'dates':\n        schema.properties.dates = { type: 'array', items: { type: 'string', format: 'date' } };\n        break;\n      case 'phone_numbers':\n        schema.properties.phone_numbers = { type: 'array', items: { type: 'string' } };\n        break;\n      case 'money':\n        schema.properties.amounts = { type: 'array', items: { \n          type: 'object',\n          properties: {\n            value: { type: 'number' },\n            currency: { type: 'string' }\n          }\n        }};\n        break;\n      case 'addresses':\n        schema.properties.addresses = { type: 'array', items: { \n          type: 'object',\n          properties: {\n            street: { type: 'string' },\n            city: { type: 'string' },\n            state: { type: 'string' },\n            zip: { type: 'string' },\n            country: { type: 'string' }\n          }\n        }};\n        break;\n    }\n  });\n}\n\n// Validate schema structure\nif (!schema || typeof schema !== 'object') {\n  throw new Error('Invalid schema structure');\n}\n\nreturn {\n  text: text,\n  schema: schema,\n  extraction_mode: extractionMode,\n  model: model,\n  examples: examples,\n  validation_rules: validationRules,\n  output_format: outputFormat,\n  confidence_threshold: confidenceThreshold,\n  return_metadata: returnMetadata,\n  language: language,\n  request_id: `extract_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,\n  request_timestamp: new Date().toISOString()\n};"
+      },
+      "id": "validate_input",
+      "name": "Validate & Prepare Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Build extraction prompt for Ollama\nconst data = $input.item.json;\n\n// Build the system prompt based on extraction mode\nlet systemPrompt = '';\nswitch(data.extraction_mode) {\n  case 'strict':\n    systemPrompt = 'You are a precise data extraction system. Extract ONLY the exact data specified in the schema. If a field cannot be found with high confidence, return null for that field.';\n    break;\n  case 'fuzzy':\n    systemPrompt = 'You are an intelligent data extraction system. Extract data matching the schema, using context and inference when exact matches are not found. Be thorough but accurate.';\n    break;\n  case 'guided':\n  default:\n    systemPrompt = 'You are an expert data extraction system. Extract structured data according to the provided schema. Use context to understand the data, but maintain accuracy. Include confidence indicators where appropriate.';\n}\n\n// Build the main prompt\nlet prompt = `${systemPrompt}\\n\\n`;\n\n// Add language instruction if not English\nif (data.language !== 'en') {\n  const langMap = {\n    'es': 'Spanish',\n    'fr': 'French', \n    'de': 'German',\n    'zh': 'Chinese',\n    'ja': 'Japanese',\n    'auto': 'the detected language'\n  };\n  prompt += `The text is in ${langMap[data.language] || data.language}. Extract the data accordingly.\\n\\n`;\n}\n\n// Add schema definition\nprompt += `Extract data according to this JSON schema:\\n${JSON.stringify(data.schema, null, 2)}\\n\\n`;\n\n// Add validation rules if present\nif (Object.keys(data.validation_rules).length > 0) {\n  prompt += 'Additional validation rules:\\n';\n  for (const [field, rule] of Object.entries(data.validation_rules)) {\n    prompt += `- ${field}: ${rule}\\n`;\n  }\n  prompt += '\\n';\n}\n\n// Add examples if provided\nif (data.examples && data.examples.length > 0) {\n  prompt += 'Examples of correct extraction:\\n';\n  data.examples.forEach((example, index) => {\n    prompt += `Example ${index + 1}:\\n`;\n    prompt += `Input: ${example.input}\\n`;\n    prompt += `Output: ${JSON.stringify(example.output, null, 2)}\\n\\n`;\n  });\n}\n\n// Add the text to extract from\nprompt += `Text to extract from:\\n${data.text}\\n\\n`;\n\n// Add output instructions\nprompt += 'Instructions:\\n';\nprompt += '1. Extract all relevant data according to the schema\\n';\nprompt += '2. Return ONLY valid JSON that matches the schema\\n';\nprompt += '3. Use null for missing required fields\\n';\nprompt += '4. For arrays, return empty array [] if no items found\\n';\nprompt += '5. Maintain the exact structure defined in the schema\\n';\nprompt += '6. Do not include any explanation or additional text\\n';\n\nif (data.extraction_mode === 'strict') {\n  prompt += '7. Only extract data that is explicitly present in the text\\n';\n} else {\n  prompt += '7. Use context and inference where reasonable\\n';\n}\n\nprompt += '\\nExtracted JSON:';\n\nreturn {\n  prompt: prompt,\n  model: data.model,\n  schema: data.schema,\n  extraction_mode: data.extraction_mode,\n  confidence_threshold: data.confidence_threshold,\n  return_metadata: data.return_metadata,\n  output_format: data.output_format,\n  request_id: data.request_id,\n  request_timestamp: data.request_timestamp,\n  original_text: data.text\n};"
+      },
+      "id": "build_prompt",
+      "name": "Build Extraction Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "${service.ollama.url}/api/generate",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "{\n  \"model\": \"={{ $json.model }}\",\n  \"prompt\": \"={{ $json.prompt }}\",\n  \"stream\": false,\n  \"options\": {\n    \"temperature\": 0.3,\n    \"top_p\": 0.9,\n    \"seed\": 42\n  }\n}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "call_ollama",
+      "name": "Extract with Ollama",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Parse and validate extraction response\nconst ollamaResponse = $input.item.json;\nconst prevData = $('Build Extraction Prompt').item.json;\n\nif (!ollamaResponse.response) {\n  throw new Error('No response from Ollama');\n}\n\nlet extractedData;\nlet parseError = null;\nlet validationErrors = [];\nlet confidenceScores = {};\n\n// Try to parse the JSON response\ntry {\n  // Clean the response - remove any markdown code blocks or extra text\n  let cleanedResponse = ollamaResponse.response;\n  \n  // Remove markdown code blocks if present\n  cleanedResponse = cleanedResponse.replace(/```json\\n?/g, '').replace(/```\\n?/g, '');\n  \n  // Find the first { and last } to extract just the JSON\n  const firstBrace = cleanedResponse.indexOf('{');\n  const lastBrace = cleanedResponse.lastIndexOf('}');\n  \n  if (firstBrace !== -1 && lastBrace !== -1) {\n    cleanedResponse = cleanedResponse.substring(firstBrace, lastBrace + 1);\n  }\n  \n  extractedData = JSON.parse(cleanedResponse);\n} catch (error) {\n  parseError = `JSON parsing failed: ${error.message}`;\n  \n  // Attempt recovery with a simpler prompt\n  return {\n    success: false,\n    error: parseError,\n    raw_response: ollamaResponse.response,\n    needs_retry: true,\n    request_id: prevData.request_id\n  };\n}\n\n// Validate against schema\nfunction validateAgainstSchema(data, schema, path = '') {\n  const errors = [];\n  const scores = {};\n  \n  if (schema.type === 'object' && schema.properties) {\n    for (const [key, propSchema] of Object.entries(schema.properties)) {\n      const fullPath = path ? `${path}.${key}` : key;\n      \n      if (!(key in data)) {\n        if (propSchema.required) {\n          errors.push(`Missing required field: ${fullPath}`);\n        }\n        scores[fullPath] = 0;\n      } else {\n        // Type validation\n        const value = data[key];\n        const expectedType = propSchema.type;\n        \n        if (expectedType === 'array' && !Array.isArray(value)) {\n          errors.push(`${fullPath} should be an array`);\n          scores[fullPath] = 0;\n        } else if (expectedType === 'object' && typeof value !== 'object') {\n          errors.push(`${fullPath} should be an object`);\n          scores[fullPath] = 0;\n        } else if (expectedType === 'string' && typeof value !== 'string' && value !== null) {\n          errors.push(`${fullPath} should be a string`);\n          scores[fullPath] = 0.5;\n        } else if (expectedType === 'number' && typeof value !== 'number' && value !== null) {\n          errors.push(`${fullPath} should be a number`);\n          scores[fullPath] = 0.5;\n        } else {\n          // Field extracted successfully\n          scores[fullPath] = value === null ? 0.3 : 0.95;\n          \n          // Recursive validation for nested objects\n          if (expectedType === 'object' && propSchema.properties) {\n            const nested = validateAgainstSchema(value, propSchema, fullPath);\n            errors.push(...nested.errors);\n            Object.assign(scores, nested.scores);\n          }\n        }\n      }\n    }\n  }\n  \n  return { errors, scores };\n}\n\nconst validation = validateAgainstSchema(extractedData, prevData.schema);\nvalidationErrors = validation.errors;\nconfidenceScores = validation.scores;\n\n// Calculate overall confidence\nconst scoreValues = Object.values(confidenceScores);\nconst overallConfidence = scoreValues.length > 0 ? \n  scoreValues.reduce((a, b) => a + b, 0) / scoreValues.length : 0;\n\n// Check if confidence meets threshold\nconst meetsThreshold = overallConfidence >= prevData.confidence_threshold;\n\n// Format output based on requested format\nlet formattedOutput = extractedData;\n\nif (prevData.output_format === 'csv' && extractedData) {\n  // Simple CSV conversion for flat structures\n  const headers = Object.keys(extractedData);\n  const values = headers.map(h => {\n    const val = extractedData[h];\n    return Array.isArray(val) ? val.join(';') : val;\n  });\n  formattedOutput = headers.join(',') + '\\n' + values.join(',');\n}\n\n// Build response\nconst response = {\n  success: validationErrors.length === 0 && meetsThreshold,\n  extracted_data: formattedOutput,\n  validation_errors: validationErrors,\n  confidence: overallConfidence,\n  meets_threshold: meetsThreshold,\n  request_id: prevData.request_id\n};\n\nif (prevData.return_metadata) {\n  response.metadata = {\n    model_used: prevData.model,\n    extraction_mode: prevData.extraction_mode,\n    extraction_time_ms: Date.now() - new Date(prevData.request_timestamp).getTime(),\n    confidence_scores: confidenceScores,\n    overall_confidence: overallConfidence,\n    threshold: prevData.confidence_threshold,\n    warnings: validationErrors.length > 0 ? \n      [`${validationErrors.length} validation error(s) found`] : [],\n    token_count: ollamaResponse.eval_count || null\n  };\n  \n  if (!response.success) {\n    response.raw_response = ollamaResponse.response;\n  }\n}\n\nreturn response;"
+      },
+      "id": "validate_extraction",
+      "name": "Validate & Format Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.success }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "check_success",
+      "name": "Check Success",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.needs_retry }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "check_retry",
+      "name": "Check Retry",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1250, 500]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Simplified retry with more explicit prompt\nconst prevData = $('Build Extraction Prompt').item.json;\n\nconst simplePrompt = `Extract the following data from the text and return ONLY valid JSON:\\n\\n` +\n  `Required fields: ${Object.keys(prevData.schema.properties || {}).join(', ')}\\n\\n` +\n  `Text: ${prevData.original_text}\\n\\n` +\n  `Return a JSON object with these fields. Use null for missing values. Example format:\\n` +\n  `{${Object.keys(prevData.schema.properties || {}).map(k => `\"${k}\": null`).join(', ')}}\\n\\n` +\n  `JSON Output:`;\n\nreturn {\n  prompt: simplePrompt,\n  model: prevData.model,\n  schema: prevData.schema,\n  is_retry: true,\n  request_id: prevData.request_id,\n  original_data: prevData\n};"
+      },
+      "id": "build_retry_prompt",
+      "name": "Build Retry Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1450, 500]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "${service.ollama.url}/api/generate",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "{\n  \"model\": \"={{ $json.model }}\",\n  \"prompt\": \"={{ $json.prompt }}\",\n  \"stream\": false,\n  \"options\": {\n    \"temperature\": 0.1,\n    \"top_p\": 0.9,\n    \"seed\": 42\n  }\n}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "retry_ollama",
+      "name": "Retry with Ollama",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1650, 500]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process retry response\nconst retryResponse = $input.item.json;\nconst retryData = $('Build Retry Prompt').item.json;\n\nlet extractedData;\ntry {\n  let cleanedResponse = retryResponse.response;\n  cleanedResponse = cleanedResponse.replace(/```json\\n?/g, '').replace(/```\\n?/g, '');\n  \n  const firstBrace = cleanedResponse.indexOf('{');\n  const lastBrace = cleanedResponse.lastIndexOf('}');\n  \n  if (firstBrace !== -1 && lastBrace !== -1) {\n    cleanedResponse = cleanedResponse.substring(firstBrace, lastBrace + 1);\n  }\n  \n  extractedData = JSON.parse(cleanedResponse);\n  \n  return {\n    success: true,\n    extracted_data: extractedData,\n    request_id: retryData.request_id,\n    metadata: {\n      model_used: retryData.model,\n      was_retry: true,\n      confidence_scores: {},\n      overall_confidence: 0.7,\n      warnings: ['Extraction required retry with simplified prompt']\n    }\n  };\n} catch (error) {\n  return {\n    success: false,\n    error: 'Extraction failed after retry',\n    raw_response: retryResponse.response,\n    request_id: retryData.request_id\n  };\n}"
+      },
+      "id": "process_retry",
+      "name": "Process Retry",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1850, 500]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "success_response",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2050, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseCode": 400,
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"={{ $json.error || 'Extraction failed' }}\",\n  \"validation_errors\": \"={{ $json.validation_errors || [] }}\",\n  \"request_id\": \"={{ $json.request_id }}\",\n  \"timestamp\": \"={{ new Date().toISOString() }}\"\n}"
+      },
+      "id": "error_response",
+      "name": "Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2050, 600]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Validate & Prepare Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate & Prepare Input": {
+      "main": [
+        [
+          {
+            "node": "Build Extraction Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Extraction Prompt": {
+      "main": [
+        [
+          {
+            "node": "Extract with Ollama",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract with Ollama": {
+      "main": [
+        [
+          {
+            "node": "Validate & Format Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate & Format Output": {
+      "main": [
+        [
+          {
+            "node": "Check Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Success": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Check Retry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Retry": {
+      "main": [
+        [
+          {
+            "node": "Build Retry Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Retry Prompt": {
+      "main": [
+        [
+          {
+            "node": "Retry with Ollama",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retry with Ollama": {
+      "main": [
+        [
+          {
+            "node": "Process Retry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Retry": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "extractor-v1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "structured-data-extractor",
+  "tags": [
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "shared-utility",
+      "name": "shared-utility"
+    },
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "data-extraction",
+      "name": "data-extraction"
+    },
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "ai-powered",
+      "name": "ai-powered"
+    }
+  ]
+}

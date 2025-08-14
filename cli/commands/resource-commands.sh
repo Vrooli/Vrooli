@@ -28,7 +28,8 @@ source "${var_LIB_DIR}/resources/auto-install.sh" 2>/dev/null || true
 
 # Resource paths
 RESOURCES_DIR="${var_SCRIPTS_RESOURCES_DIR}"
-RESOURCES_CONFIG="${var_ROOT_DIR}/.vrooli/resources.local.json"
+RESOURCES_CONFIG="${var_ROOT_DIR}/.vrooli/service.json"
+RESOURCES_CONFIG_LEGACY="${var_ROOT_DIR}/.vrooli/resources.local.json"
 RESOURCE_REGISTRY="${var_ROOT_DIR}/.vrooli/resource-registry"
 
 # Show help for resource commands
@@ -177,40 +178,70 @@ resource_list_brief() {
 
 # List all available resources (detailed)
 resource_list() {
-    log::header "Available Resources"
-    
-    echo ""
-    echo "Configuration: ${RESOURCES_CONFIG:-No local config}"
-    echo "Registry: ${RESOURCE_REGISTRY}"
-    echo ""
-    
-    # Show registered CLIs first
-    if [[ -d "$RESOURCE_REGISTRY" ]] && [[ -n "$(ls -A "$RESOURCE_REGISTRY" 2>/dev/null)" ]]; then
-        echo "Resources with CLI Commands:"
-        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        for registry_file in "$RESOURCE_REGISTRY"/*.json; do
-            [[ ! -f "$registry_file" ]] && continue
-            
-            local name command description
-            name=$(jq -r '.name' "$registry_file" 2>/dev/null)
-            command=$(jq -r '.command' "$registry_file" 2>/dev/null)
-            description=$(jq -r '.description // ""' "$registry_file" 2>/dev/null)
-            
-            printf "  %-15s %-20s %s\n" "$name" "$command" "$description"
-        done
-        echo ""
+    # Check if terminal supports colors (use ANSI codes directly for better compatibility)
+    local use_colors=false
+    if [[ -t 1 ]]; then
+        # Check if terminal supports colors using multiple methods
+        if [[ -n "${COLORTERM:-}" ]] || [[ "${TERM:-}" == *"color"* ]] || [[ "${TERM:-}" == "xterm"* ]]; then
+            use_colors=true
+        elif command -v tput >/dev/null 2>&1; then
+            local colors=$(tput colors 2>/dev/null || echo 0)
+            [[ $colors -ge 8 ]] && use_colors=true
+        fi
     fi
+    
+    # Use ANSI escape codes for better compatibility
+    local CYAN=''
+    local GREEN=''
+    local YELLOW=''
+    local BLUE=''
+    local GRAY=''
+    local BOLD=''
+    local DIM=''
+    local NC=''
+    
+    if [[ "$use_colors" == "true" ]]; then
+        # ANSI color codes
+        CYAN=$'\033[36m'
+        GREEN=$'\033[32m'
+        YELLOW=$'\033[33m'
+        BLUE=$'\033[34m'
+        GRAY=$'\033[90m'
+        BOLD=$'\033[1m'
+        DIM=$'\033[2m'
+        NC=$'\033[0m'
+    fi
+    
+    echo ""
+    echo "${CYAN}╔════════════════════════════════════════════════════════════════════╗${NC}"
+    echo "${CYAN}║${NC}                    ${BOLD}📦 VROOLI RESOURCE MANAGER${NC}                     ${CYAN}║${NC}"
+    echo "${CYAN}╚════════════════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+    
+    # Configuration info in a box
+    echo "${DIM}┌─ Configuration ─────────────────────────────────────────────────────┐${NC}"
+    if [[ -f "$RESOURCES_CONFIG" ]]; then
+        echo "${DIM}│${NC} Config: ${BLUE}${RESOURCES_CONFIG}${NC}"
+    else
+        echo "${DIM}│${NC} Config: ${GRAY}No configuration found${NC}"
+    fi
+    echo "${DIM}│${NC} Registry: ${BLUE}${RESOURCE_REGISTRY}${NC}"
+    echo "${DIM}└──────────────────────────────────────────────────────────────────────┘${NC}"
+    echo ""
     
     # Get list of resource directories by category
     local categories=(
-        "agents:AI Agents & Browsers"
-        "ai:AI Models & Inference"
-        "automation:Workflow Automation"
-        "search:Search Engines"
-        "storage:Databases & Storage"
-        "monitoring:Monitoring & Analytics"
-        "communication:Chat & Communication"
+        "storage:💾 Databases & Storage"
+        "ai:🤖 AI Models & Inference"
+        "automation:⚙️  Workflow Automation"
+        "agents:🌐 AI Agents & Browsers"
+        "search:🔍 Search Engines"
+        "monitoring:📊 Monitoring & Analytics"
+        "communication:💬 Chat & Communication"
     )
+    
+    # Track if any resources found
+    local resources_found=false
     
     for category_info in "${categories[@]}"; do
         local category="${category_info%%:*}"
@@ -221,44 +252,116 @@ resource_list() {
             continue
         fi
         
-        echo ""
-        echo "$description"
-        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        # Check if category has any resources
+        local has_resources=false
+        for resource_dir in "$category_dir"/*; do
+            if [[ -d "$resource_dir" ]]; then
+                has_resources=true
+                break
+            fi
+        done
+        
+        if [[ "$has_resources" == "false" ]]; then
+            continue
+        fi
+        
+        resources_found=true
+        
+        echo "${BOLD}${description}${NC}"
+        echo "${DIM}├────────────────────────────────────────────────────────────────────${NC}"
+        
+        # Header row
+        echo "${DIM}│${NC} Resource             Status     Running         Features"
+        echo "${DIM}├────────────────────────────────────────────────────────────────────${NC}"
         
         for resource_dir in "$category_dir"/*; do
             [[ ! -d "$resource_dir" ]] && continue
             
             local resource_name
             resource_name=$(basename "$resource_dir")
-            local status="❓ Unknown"
-            local enabled="❌"
-            local cli_status=""
+            local running_status=""
+            local enabled_status=""
+            local features=""
             
             # Check if resource is enabled in config
             if [[ -f "$RESOURCES_CONFIG" ]]; then
                 local is_enabled
-                is_enabled=$(jq -r ".resources.$category.$resource_name.enabled // false" "$RESOURCES_CONFIG" 2>/dev/null)
-                [[ "$is_enabled" == "true" ]] && enabled="✅"
+                # Use more robust JQ query with proper error handling
+                is_enabled=$(jq -r --arg cat "$category" --arg res "$resource_name" '.resources[$cat][$res].enabled // false' "$RESOURCES_CONFIG" 2>/dev/null || echo "false")
+                if [[ "$is_enabled" == "true" ]]; then
+                    enabled_status="✓ Enabled"
+                    enabled_color="${GREEN}"
+                else
+                    enabled_status="○ Disabled"
+                    enabled_color="${GRAY}"
+                fi
+            else
+                enabled_status="○ Unknown"
+                enabled_color="${GRAY}"
             fi
             
-            # Check if has CLI
+            # Check features
+            local feature_list=""
             if has_resource_cli "$resource_name"; then
-                cli_status=" 🔧"
+                feature_list="${feature_list}[CLI] "
+            fi
+            if [[ -f "$resource_dir/manage.sh" ]]; then
+                feature_list="${feature_list}[Script] "
+            fi
+            if [[ -f "$resource_dir/capabilities.yaml" ]]; then
+                feature_list="${feature_list}[Cap] "
             fi
             
-            # Check if running (basic check)
-            if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^${resource_name}$"; then
-                status="🟢 Running"
-            elif [[ -f "$resource_dir/manage.sh" ]]; then
-                status="📦 Available"
+            # Check if running (simplified version to debug early exit)
+            local running_status="○ Available"
+            local running_color="${GRAY}"
+            
+            # Very simple status check - just show if manage.sh exists
+            if [[ -f "$resource_dir/manage.sh" ]]; then
+                running_status="○ Available"
+                running_color="${GRAY}"
+            else
+                running_status="○ Unknown"
+                running_color="${GRAY}"
             fi
             
-            printf "  %-20s %s  %s%s\n" "$resource_name" "$enabled" "$status" "$cli_status"
+            # Format resource name with color based on status
+            local name_color=""
+            if [[ "$is_enabled" == "true" ]]; then
+                name_color="${BOLD}"
+            else
+                name_color="${DIM}"
+            fi
+            
+            # Print the row with proper formatting
+            printf "${DIM}│${NC} ${name_color}%-20s${NC} ${enabled_color}%-10s${NC} ${running_color}%-15s${NC} ${GRAY}%-20s${NC}\n" \
+                "$resource_name" "$enabled_status" "$running_status" "$feature_list"
         done
+        
+        echo "${DIM}└────────────────────────────────────────────────────────────────────${NC}"
+        echo ""
     done
     
+    if [[ "$resources_found" == "false" ]]; then
+        echo "${YELLOW}No resources found in ${RESOURCES_DIR}${NC}"
+        echo ""
+    fi
+    
+    # Show legend
+    echo "${DIM}┌─ Legend ────────────────────────────────────────────────────────────┐${NC}"
+    echo "${DIM}│${NC} Status:  ${GREEN}✓ Enabled${NC}  ${GRAY}○ Disabled${NC}"
+    echo "${DIM}│${NC} Running: ${GREEN}● Running${NC}  ${YELLOW}○ Stopped${NC}  ${GRAY}○ Not installed${NC}"
+    echo "${DIM}│${NC} Features: ${BLUE}[CLI]${NC} Has CLI  ${GRAY}[Script]${NC} Has manage.sh  ${GRAY}[Cap]${NC} Has capabilities"
+    echo "${DIM}└──────────────────────────────────────────────────────────────────────┘${NC}"
     echo ""
-    echo "Legend: ✅ Enabled  ❌ Disabled  🔧 Has CLI  🟢 Running  📦 Available"
+    
+    # Show quick commands
+    echo "${DIM}Quick Commands:${NC}"
+    echo "  ${CYAN}vrooli resource start <name>${NC}     Start a resource"
+    echo "  ${CYAN}vrooli resource stop <name>${NC}      Stop a resource"
+    echo "  ${CYAN}vrooli resource status <name>${NC}    Check resource status"
+    echo "  ${CYAN}vrooli resource install <name>${NC}   Install a resource"
+    echo ""
 }
 
 # Show resource status
@@ -269,7 +372,13 @@ resource_status() {
         # Show status of all enabled resources
         log::header "Resource Status Overview"
         
-        if [[ ! -f "$RESOURCES_CONFIG" ]]; then
+        # Check which config file exists
+        local config_file=""
+        if [[ -f "$RESOURCES_CONFIG" ]]; then
+            config_file="$RESOURCES_CONFIG"
+        elif [[ -f "$RESOURCES_CONFIG_LEGACY" ]]; then
+            config_file="$RESOURCES_CONFIG_LEGACY"
+        else
             log::warning "No resource configuration found"
             return 0
         fi
@@ -281,7 +390,7 @@ resource_status() {
             $category.value | to_entries[] | 
             select(.value.enabled == true) | 
             "\($category.key)/\(.key)"
-        ' "$RESOURCES_CONFIG" 2>/dev/null)
+        ' "$config_file" 2>/dev/null)
         
         if [[ -z "$enabled_resources" ]]; then
             log::info "No resources are enabled"
@@ -303,7 +412,7 @@ resource_status() {
                 fi
             else
                 # Fallback to basic status
-                if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^${name}$"; then
+                if command -v docker >/dev/null 2>&1 && docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^${name}$" || false; then
                     echo "Status: 🟢 Running (Docker)"
                 else
                     echo "Status: ⭕ Not running"
@@ -319,14 +428,14 @@ resource_status() {
             echo "📦 Resource: $resource_name"
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
             
-            if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^${resource_name}$"; then
+            if command -v docker >/dev/null 2>&1 && docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^${resource_name}$" || false; then
                 echo "Status: 🟢 Running (Docker)"
                 docker ps --filter "name=^${resource_name}$" --format "table {{.Status}}\t{{.Ports}}" | tail -n 1
             else
                 echo "Status: ⭕ Not running"
                 
                 # Check if container exists but stopped
-                if docker ps -a --format '{{.Names}}' 2>/dev/null | grep -q "^${resource_name}$"; then
+                if command -v docker >/dev/null 2>&1 && docker ps -a --format '{{.Names}}' 2>/dev/null | grep -q "^${resource_name}$" || false; then
                     echo "Container exists but is stopped"
                 fi
             fi
@@ -352,9 +461,155 @@ resource_install() {
     fi
 }
 
+# Start a specific resource
+resource_start() {
+    local resource_name="${1:-}"
+    
+    # Handle help flag
+    if [[ "$resource_name" == "--help" ]] || [[ "$resource_name" == "-h" ]]; then
+        echo "Usage: vrooli resource start <name>"
+        echo ""
+        echo "Start a specific resource that has been installed."
+        echo ""
+        echo "Examples:"
+        echo "  vrooli resource start postgres     # Start PostgreSQL"
+        echo "  vrooli resource start n8n          # Start n8n"
+        return 0
+    fi
+    
+    if [[ -z "$resource_name" ]]; then
+        log::error "Resource name required"
+        echo "Usage: vrooli resource start <name>"
+        return 1
+    fi
+    
+    log::info "Starting resource: $resource_name"
+    
+    # Try to route to resource CLI or manage.sh
+    if has_resource_cli "$resource_name"; then
+        route_to_resource_cli "$resource_name" start
+    else
+        route_to_manage_sh "$resource_name" start
+    fi
+    
+    # Update registry if available
+    if command -v resource_registry::register >/dev/null 2>&1; then
+        resource_registry::register "$resource_name" "running"
+    fi
+}
+
+# Start all enabled resources
+resource_start_all() {
+    # Handle help flag
+    if [[ "${1:-}" == "--help" ]] || [[ "${1:-}" == "-h" ]]; then
+        echo "Usage: vrooli resource start-all"
+        echo ""
+        echo "Start all resources that are marked as enabled in the configuration."
+        echo ""
+        echo "This will start resources from service.json that have 'enabled: true'."
+        return 0
+    fi
+    
+    log::header "Starting All Enabled Resources"
+    
+    # Check which config file exists
+    local config_file=""
+    if [[ -f "$RESOURCES_CONFIG" ]]; then
+        config_file="$RESOURCES_CONFIG"
+    elif [[ -f "$RESOURCES_CONFIG_LEGACY" ]]; then
+        config_file="$RESOURCES_CONFIG_LEGACY"
+    else
+        log::warning "No resource configuration found"
+        return 0
+    fi
+    
+    # Parse enabled resources from config
+    local enabled_resources
+    enabled_resources=$(jq -r '
+        .resources | to_entries[] as $category | 
+        $category.value | to_entries[] | 
+        select(.value.enabled == true) | 
+        "\($category.key)/\(.key)"
+    ' "$config_file" 2>/dev/null)
+    
+    if [[ -z "$enabled_resources" ]]; then
+        log::info "No resources are enabled"
+        return 0
+    fi
+    
+    local started_count=0
+    local failed_count=0
+    
+    while IFS= read -r resource_path; do
+        local category="${resource_path%%/*}"
+        local name="${resource_path#*/}"
+        
+        log::info "Starting: $name"
+        
+        # Check if already running
+        if command -v docker >/dev/null 2>&1 && docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^${name}$" || false; then
+            log::info "Already running: $name"
+            ((started_count++))
+            continue
+        fi
+        
+        # Try CLI first
+        if has_resource_cli "$name"; then
+            if "resource-${name}" start 2>/dev/null; then
+                ((started_count++))
+                log::success "✅ Started: $name"
+                
+                # Update registry
+                if command -v resource_registry::register >/dev/null 2>&1; then
+                    resource_registry::register "$name" "running"
+                fi
+                continue
+            fi
+        fi
+        
+        # Try manage.sh
+        local resource_dir="${RESOURCES_DIR}/${category}/${name}"
+        if [[ -f "$resource_dir/manage.sh" ]]; then
+            if "$resource_dir/manage.sh" --action start --yes yes 2>/dev/null; then
+                ((started_count++))
+                log::success "✅ Started: $name"
+                
+                # Update registry
+                if command -v resource_registry::register >/dev/null 2>&1; then
+                    resource_registry::register "$name" "running"
+                fi
+                continue
+            fi
+        fi
+        
+        log::warning "Could not start: $name"
+        ((failed_count++))
+    done <<< "$enabled_resources"
+    
+    if [[ $started_count -gt 0 ]]; then
+        log::success "✅ Started $started_count resource(s)"
+    fi
+    
+    if [[ $failed_count -gt 0 ]]; then
+        log::warning "Failed to start $failed_count resource(s)"
+    fi
+}
+
 # Stop a specific resource
 resource_stop() {
     local resource_name="${1:-}"
+    
+    # Handle help flag
+    if [[ "$resource_name" == "--help" ]] || [[ "$resource_name" == "-h" ]]; then
+        echo "Usage: vrooli resource stop <name>"
+        echo ""
+        echo "Stop a running resource."
+        echo ""
+        echo "Examples:"
+        echo "  vrooli resource stop postgres     # Stop PostgreSQL"
+        echo "  vrooli resource stop n8n          # Stop n8n"
+        return 0
+    fi
     
     if [[ -z "$resource_name" ]]; then
         log::error "Resource name required"
@@ -379,6 +634,16 @@ resource_stop() {
 
 # Stop all running resources
 resource_stop_all() {
+    # Handle help flag
+    if [[ "${1:-}" == "--help" ]] || [[ "${1:-}" == "-h" ]]; then
+        echo "Usage: vrooli resource stop-all"
+        echo ""
+        echo "Stop all currently running resources."
+        echo ""
+        echo "This will attempt to gracefully stop all resources that are running."
+        return 0
+    fi
+    
     log::header "Stopping All Resources"
     
     # Use the auto-install module if available
@@ -396,7 +661,7 @@ resource_stop_all() {
             resource_name=$(basename "$resource_dir")
             
             # Check if running in Docker
-            if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^${resource_name}$"; then
+            if command -v docker >/dev/null 2>&1 && docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^${resource_name}$" || false; then
                 log::info "Stopping: $resource_name"
                 
                 # Try CLI first
@@ -442,7 +707,7 @@ main() {
     # Check if first argument might be a resource name
     # (if it doesn't match known subcommands)
     case "$command" in
-        list|status|install|stop|stop-all|enable|disable|info|help|--help|-h)
+        list|status|install|start|start-all|stop|stop-all|enable|disable|info|help|--help|-h)
             # These are management commands
             shift || true
             case "$command" in
@@ -454,6 +719,12 @@ main() {
                     ;;
                 install)
                     resource_install "$@"
+                    ;;
+                start)
+                    resource_start "$@"
+                    ;;
+                start-all)
+                    resource_start_all "$@"
                     ;;
                 stop)
                     resource_stop "$@"
@@ -478,7 +749,7 @@ main() {
             shift || true
             
             # Check if this looks like a valid resource
-            if find "$RESOURCES_DIR" -mindepth 2 -maxdepth 2 -type d -name "$resource_name" | grep -q .; then
+            if find "$RESOURCES_DIR" -mindepth 2 -maxdepth 2 -type d -name "$resource_name" 2>/dev/null | grep -q . || false; then
                 route_to_resource_cli "$resource_name" "$@"
             else
                 log::error "Unknown command or resource: $command"
