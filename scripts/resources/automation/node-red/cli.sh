@@ -2,7 +2,7 @@
 ################################################################################
 # Node-RED Resource CLI
 # 
-# Lightweight CLI interface for Node-RED that delegates to existing lib functions.
+# Lightweight CLI interface for Node-RED using the CLI Command Framework
 #
 # Usage:
 #   resource-node-red <command> [options]
@@ -24,14 +24,11 @@ source "${VROOLI_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LOG_FILE:-${VROOLI_ROOT}/scripts/lib/utils/log.sh}" 2>/dev/null || true
 # shellcheck disable=SC1091
-source "${var_RESOURCES_COMMON_FILE}" 2>/dev/null || true
+source "${var_RESOURCES_COMMON_FILE:-${VROOLI_ROOT}/scripts/resources/common.sh}" 2>/dev/null || true
 
-# Source the CLI template
+# Source the CLI Command Framework
 # shellcheck disable=SC1091
-source "${VROOLI_ROOT}/scripts/lib/resources/cli/resource-cli-template.sh"
-
-# Initialize with resource name first (before sourcing config)
-resource_cli::init "node-red"
+source "${VROOLI_ROOT}/scripts/resources/lib/cli-command-framework.sh"
 
 # Source node-red configuration
 # shellcheck disable=SC1091
@@ -47,18 +44,41 @@ for lib in core docker health recovery; do
     fi
 done
 
+# Initialize CLI framework
+cli::init "node-red" "Node-RED flow-based automation platform"
+
+# Override help to provide Node-RED-specific examples
+cli::register_command "help" "Show this help message with Node-RED examples" "resource_cli::show_help"
+
+# Register additional Node-RED-specific commands
+cli::register_command "inject" "Inject flows into Node-RED" "resource_cli::inject" "modifies-system"
+cli::register_command "list-flows" "List all flows" "resource_cli::list_flows"
+cli::register_command "export-flows" "Export flows to file" "resource_cli::export_flows" "modifies-system"
+cli::register_command "import-flows" "Import flows from file" "resource_cli::import_flows" "modifies-system"
+cli::register_command "enable-flow" "Enable specific flow" "resource_cli::enable_flow" "modifies-system"
+cli::register_command "disable-flow" "Disable specific flow" "resource_cli::disable_flow" "modifies-system"
+cli::register_command "create-backup" "Create backup" "resource_cli::create_backup" "modifies-system"
+cli::register_command "list-backups" "List all backups" "resource_cli::list_backups"
+cli::register_command "restore-backup" "Restore from backup" "resource_cli::restore_backup" "modifies-system"
+cli::register_command "view-logs" "View container logs" "resource_cli::view_logs"
+cli::register_command "credentials" "Show n8n credentials for Node-RED" "resource_cli::credentials"
+cli::register_command "uninstall" "Uninstall Node-RED (requires --force)" "resource_cli::uninstall" "modifies-system"
+
 ################################################################################
-# Delegate to existing node-red functions
+# Resource-specific command implementations
 ################################################################################
 
 # Inject flows into node-red
 resource_cli::inject() {
     local file="${1:-}"
-    DRY_RUN="${DRY_RUN:-false}"
     
     if [[ -z "$file" ]]; then
         log::error "File path required for injection"
         echo "Usage: resource-node-red inject <file.json>"
+        echo ""
+        echo "Examples:"
+        echo "  resource-node-red inject flows.json"
+        echo "  resource-node-red inject shared:initialization/automation/node-red/flows.json"
         return 1
     fi
     
@@ -70,11 +90,6 @@ resource_cli::inject() {
     if [[ ! -f "$file" ]]; then
         log::error "File not found: $file"
         return 1
-    fi
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log::info "[DRY RUN] Would inject: $file"
-        return 0
     fi
     
     # Use existing injection function
@@ -102,7 +117,8 @@ resource_cli::validate() {
     else
         # Basic validation
         log::header "Validating Node-RED"
-        if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "node-red"; then
+        local container_name="${CONTAINER_NAME:-node-red}"
+        if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "$container_name"; then
             log::success "Node-RED is running"
         else
             log::error "Node-RED container not running"
@@ -118,9 +134,10 @@ resource_cli::status() {
     else
         # Basic status
         log::header "Node-RED Status"
-        if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "node-red"; then
+        local container_name="${CONTAINER_NAME:-node-red}"
+        if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "$container_name"; then
             echo "Container: ✅ Running"
-            docker ps --filter "name=node-red" --format "table {{.Status}}\t{{.Ports}}" | tail -n 1
+            docker ps --filter "name=$container_name" --format "table {{.Status}}\t{{.Ports}}" | tail -n 1
         else
             echo "Container: ❌ Not running"
         fi
@@ -129,13 +146,6 @@ resource_cli::status() {
 
 # Start node-red
 resource_cli::start() {
-    DRY_RUN="${DRY_RUN:-false}"
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log::info "[DRY RUN] Would start node-red"
-        return 0
-    fi
-    
     if command -v node_red::start &>/dev/null; then
         node_red::start
     else
@@ -146,13 +156,6 @@ resource_cli::start() {
 
 # Stop node-red
 resource_cli::stop() {
-    DRY_RUN="${DRY_RUN:-false}"
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log::info "[DRY RUN] Would stop node-red"
-        return 0
-    fi
-    
     if command -v node_red::stop &>/dev/null; then
         node_red::stop
     else
@@ -163,13 +166,6 @@ resource_cli::stop() {
 
 # Install node-red
 resource_cli::install() {
-    DRY_RUN="${DRY_RUN:-false}"
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log::info "[DRY RUN] Would install node-red"
-        return 0
-    fi
-    
     if command -v node_red::install &>/dev/null; then
         node_red::install
     else
@@ -181,16 +177,10 @@ resource_cli::install() {
 # Uninstall node-red
 resource_cli::uninstall() {
     FORCE="${FORCE:-false}"
-    DRY_RUN="${DRY_RUN:-false}"
     
     if [[ "$FORCE" != "true" ]]; then
         echo "⚠️  This will remove node-red and all its data. Use --force to confirm."
         return 1
-    fi
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log::info "[DRY RUN] Would uninstall node-red"
-        return 0
     fi
     
     if command -v node_red::uninstall &>/dev/null; then
@@ -201,12 +191,64 @@ resource_cli::uninstall() {
     fi
 }
 
-################################################################################
-# Node-RED-specific commands (if functions exist)
-################################################################################
+# Get credentials for n8n integration
+resource_cli::credentials() {
+    source "${VROOLI_ROOT}/scripts/resources/lib/credentials-utils.sh"
+    
+    if ! credentials::parse_args "$@"; then
+        [[ $? -eq 2 ]] && { credentials::show_help "node-red"; return 0; }
+        return 1
+    fi
+    
+    local status
+    status=$(credentials::get_resource_status "${CONTAINER_NAME:-node-red}")
+    
+    local connections_array="[]"
+    if [[ "$status" == "running" ]]; then
+        # Build connection JSON for Node-RED API
+        local connection_obj
+        connection_obj=$(jq -n \
+            --arg host "localhost" \
+            --argjson port "${NODE_RED_PORT:-1880}" \
+            --arg path "/" \
+            --argjson ssl false \
+            '{
+                host: $host,
+                port: $port,
+                path: $path,
+                ssl: $ssl
+            }')
+        
+        local metadata_obj
+        metadata_obj=$(jq -n \
+            --arg description "Node-RED flow-based automation API" \
+            --arg web_ui "${NODE_RED_BASE_URL:-http://localhost:1880}" \
+            '{
+                description: $description,
+                web_ui_url: $web_ui,
+                capabilities: ["flows", "automation", "webhook", "mqtt", "http"],
+                version: "latest"
+            }')
+        
+        local connection
+        connection=$(credentials::build_connection \
+            "api" \
+            "Node-RED API" \
+            "httpHeaderAuth" \
+            "$connection_obj" \
+            "{}" \
+            "$metadata_obj")
+        
+        connections_array="[$connection]"
+    fi
+    
+    local response
+    response=$(credentials::build_response "node-red" "$status" "$connections_array")
+    credentials::format_output "$response"
+}
 
 # List flows
-node_red_list_flows() {
+resource_cli::list_flows() {
     if command -v node_red::list_flows &>/dev/null; then
         node_red::list_flows
     else
@@ -216,7 +258,7 @@ node_red_list_flows() {
 }
 
 # Export flows
-node_red_export_flows() {
+resource_cli::export_flows() {
     local output_file="${1:-./flows_export.json}"
     
     if command -v node_red::export_flows &>/dev/null; then
@@ -228,11 +270,26 @@ node_red_export_flows() {
 }
 
 # Import flows
-node_red_import_flows() {
+resource_cli::import_flows() {
     local input_file="${1:-}"
+    
     if [[ -z "$input_file" ]]; then
         log::error "Input file required"
         echo "Usage: resource-node-red import-flows <file.json>"
+        echo ""
+        echo "Examples:"
+        echo "  resource-node-red import-flows my-flows.json"
+        echo "  resource-node-red import-flows shared:examples/node-red/flows.json"
+        return 1
+    fi
+    
+    # Handle shared: prefix
+    if [[ "$input_file" == shared:* ]]; then
+        input_file="${VROOLI_ROOT}/${input_file#shared:}"
+    fi
+    
+    if [[ ! -f "$input_file" ]]; then
+        log::error "Input file not found: $input_file"
         return 1
     fi
     
@@ -245,11 +302,16 @@ node_red_import_flows() {
 }
 
 # Enable flow
-node_red_enable_flow() {
+resource_cli::enable_flow() {
     local flow_id="${1:-}"
+    
     if [[ -z "$flow_id" ]]; then
         log::error "Flow ID required"
         echo "Usage: resource-node-red enable-flow <flow-id>"
+        echo ""
+        echo "Examples:"
+        echo "  resource-node-red enable-flow flow-123"
+        echo "  resource-node-red enable-flow main-automation"
         return 1
     fi
     
@@ -262,11 +324,16 @@ node_red_enable_flow() {
 }
 
 # Disable flow
-node_red_disable_flow() {
+resource_cli::disable_flow() {
     local flow_id="${1:-}"
+    
     if [[ -z "$flow_id" ]]; then
         log::error "Flow ID required"
         echo "Usage: resource-node-red disable-flow <flow-id>"
+        echo ""
+        echo "Examples:"
+        echo "  resource-node-red disable-flow flow-123"
+        echo "  resource-node-red disable-flow main-automation"
         return 1
     fi
     
@@ -279,7 +346,7 @@ node_red_disable_flow() {
 }
 
 # Create backup
-node_red_create_backup() {
+resource_cli::create_backup() {
     local backup_name="${1:-backup-$(date +%Y%m%d-%H%M%S)}"
     
     if command -v node_red::create_backup &>/dev/null; then
@@ -291,7 +358,7 @@ node_red_create_backup() {
 }
 
 # List backups
-node_red_list_backups() {
+resource_cli::list_backups() {
     if command -v node_red::list_backups &>/dev/null; then
         node_red::list_backups
     else
@@ -301,11 +368,16 @@ node_red_list_backups() {
 }
 
 # Restore backup
-node_red_restore_backup() {
+resource_cli::restore_backup() {
     local backup_name="${1:-}"
+    
     if [[ -z "$backup_name" ]]; then
         log::error "Backup name required"
         echo "Usage: resource-node-red restore-backup <backup-name>"
+        echo ""
+        echo "Examples:"
+        echo "  resource-node-red restore-backup backup-20240101-120000"
+        echo "  resource-node-red restore-backup production-backup"
         return 1
     fi
     
@@ -318,186 +390,67 @@ node_red_restore_backup() {
 }
 
 # View logs
-node_red_view_logs() {
+resource_cli::view_logs() {
     local lines="${1:-50}"
+    local follow="${2:-false}"
+    local container_name="${CONTAINER_NAME:-node-red}"
     
     if command -v node_red::view_logs &>/dev/null; then
         node_red::view_logs "$lines"
     else
-        docker logs "node-red" --tail "$lines" -f
+        if [[ "$follow" == "true" ]]; then
+            docker logs -f --tail "$lines" "$container_name"
+        else
+            docker logs --tail "$lines" "$container_name"
+        fi
     fi
 }
 
-# Get credentials for n8n integration
-resource_cli::credentials() {
-    # Source credentials utilities
-    # shellcheck disable=SC1091
-    source "${VROOLI_ROOT}/scripts/resources/lib/credentials-utils.sh"
-    
-    # Parse arguments
-    credentials::parse_args "$@"
-    local parse_result=$?
-    if [[ $parse_result -eq 2 ]]; then
-        credentials::show_help "node-red"
-        return 0
-    elif [[ $parse_result -ne 0 ]]; then
-        return 1
-    fi
-    
-    # Get resource status by checking Docker container
-    local status
-    status=$(credentials::get_resource_status "$CONTAINER_NAME")
-    
-    # Build connections array for Node-RED
-    local connections_array="[]"
-    if [[ "$status" == "running" ]]; then
-        # Build connection JSON for Node-RED API
-        local connection_json
-        connection_json=$(jq -n \
-            --arg id "api" \
-            --arg name "Node-RED API" \
-            --arg n8n_credential_type "httpHeaderAuth" \
-            --arg host "localhost" \
-            --arg port "${NODE_RED_PORT}" \
-            --arg path "/" \
-            --arg description "Node-RED flow-based automation API" \
-            '{
-                id: $id,
-                name: $name,
-                n8n_credential_type: $n8n_credential_type,
-                connection: {
-                    host: $host,
-                    port: ($port | tonumber),
-                    path: $path,
-                    ssl: false
-                },
-                metadata: {
-                    description: $description,
-                    capabilities: ["flows", "automation", "webhook", "mqtt", "http"],
-                    version: "latest"
-                }
-            }')
-        
-        connections_array=$(echo "$connection_json" | jq -s '.')
-    fi
-    
-    # Build and validate response
-    local response
-    response=$(credentials::build_response "node-red" "$status" "$connections_array")
-    
-    if credentials::validate_json "$response"; then
-        credentials::format_output "$response"
-    else
-        log::error "Invalid credentials JSON generated"
-        return 1
-    fi
-}
-
-# Show help
+# Custom help function with Node-RED-specific examples
 resource_cli::show_help() {
-    cat << EOF
-🔴 Node-RED Resource CLI
-
-USAGE:
-    resource-node-red <command> [options]
-
-CORE COMMANDS:
-    inject <file>       Inject flows into node-red
-    validate            Validate node-red configuration
-    status              Show node-red status
-    start               Start node-red container
-    stop                Stop node-red container
-    install             Install node-red
-    uninstall           Uninstall node-red (requires --force)
-    credentials         Get connection credentials for n8n integration
+    # Show standard framework help first
+    cli::_handle_help
     
-NODE-RED COMMANDS:
-    list-flows          List all flows
-    export-flows [file] Export flows to file (default: ./flows_export.json)
-    import-flows <file> Import flows from file
-    enable-flow <id>    Enable specific flow
-    disable-flow <id>   Disable specific flow
-    create-backup [name] Create backup (default: auto-named)
-    list-backups        List all backups
-    restore-backup <name> Restore from backup
-    view-logs [lines]   View container logs (default: 50)
-
-OPTIONS:
-    --verbose, -v       Show detailed output
-    --dry-run           Preview actions without executing
-    --force             Force operation (skip confirmations)
-
-EXAMPLES:
-    resource-node-red status
-    resource-node-red list-flows
-    resource-node-red export-flows ./my-flows.json
-    resource-node-red import-flows ./my-flows.json
-    resource-node-red inject shared:initialization/automation/node-red/flows.json
-    resource-node-red create-backup production-backup
-    resource-node-red view-logs 100
-
-For more information: https://docs.vrooli.com/resources/node-red
-EOF
+    # Add Node-RED-specific examples
+    echo ""
+    echo "🔴 Node-RED Flow Automation Examples:"
+    echo ""
+    echo "Flow Management:"
+    echo "  resource-node-red list-flows                        # List all flows"
+    echo "  resource-node-red export-flows ./my-flows.json     # Export flows to file"
+    echo "  resource-node-red import-flows ./my-flows.json     # Import flows from file"
+    echo "  resource-node-red inject shared:init/node-red/flows.json  # Import shared flows"
+    echo ""
+    echo "Flow Control:"
+    echo "  resource-node-red enable-flow main-automation      # Enable specific flow"
+    echo "  resource-node-red disable-flow test-flow           # Disable specific flow"
+    echo ""
+    echo "Backup & Recovery:"
+    echo "  resource-node-red create-backup production-backup  # Create named backup"
+    echo "  resource-node-red create-backup                    # Create timestamped backup"
+    echo "  resource-node-red list-backups                     # List all backups"
+    echo "  resource-node-red restore-backup production-backup # Restore backup"
+    echo ""
+    echo "Monitoring:"
+    echo "  resource-node-red view-logs 100                    # View recent logs"
+    echo "  resource-node-red status                           # Check service status"
+    echo "  resource-node-red credentials                      # Get API details"
+    echo ""
+    echo "Automation Features:"
+    echo "  • Visual flow-based programming"
+    echo "  • 3000+ nodes for integrations"
+    echo "  • MQTT, HTTP, WebSocket support"
+    echo "  • Dashboard and UI components"
+    echo ""
+    echo "Default Port: 1880"
+    echo "Web UI: http://localhost:1880"
 }
 
-# Main command router
-resource_cli::main() {
-    # Parse common options first
-    local remaining_args
-    remaining_args=$(resource_cli::parse_options "$@")
-    set -- $remaining_args
-    
-    local command="${1:-help}"
-    shift || true
-    
-    case "$command" in
-        # Standard resource commands
-        inject|validate|status|start|stop|install|uninstall|credentials)
-            resource_cli::$command "$@"
-            ;;
-            
-        # Node-RED-specific commands
-        list-flows)
-            node_red_list_flows "$@"
-            ;;
-        export-flows)
-            node_red_export_flows "$@"
-            ;;
-        import-flows)
-            node_red_import_flows "$@"
-            ;;
-        enable-flow)
-            node_red_enable_flow "$@"
-            ;;
-        disable-flow)
-            node_red_disable_flow "$@"
-            ;;
-        create-backup)
-            node_red_create_backup "$@"
-            ;;
-        list-backups)
-            node_red_list_backups "$@"
-            ;;
-        restore-backup)
-            node_red_restore_backup "$@"
-            ;;
-        view-logs)
-            node_red_view_logs "$@"
-            ;;
-            
-        help|--help|-h)
-            resource_cli::show_help
-            ;;
-        *)
-            log::error "Unknown command: $command"
-            echo ""
-            resource_cli::show_help
-            exit 1
-            ;;
-    esac
-}
+################################################################################
+# Main execution - dispatch to framework
+################################################################################
 
-# Run main if executed directly
+# Only execute if script is run directly (not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    resource_cli::main "$@"
+    cli::dispatch "$@"
 fi

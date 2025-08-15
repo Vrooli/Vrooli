@@ -2,7 +2,7 @@
 ################################################################################
 # Huginn Resource CLI
 # 
-# Lightweight CLI interface for Huginn that delegates to existing lib functions.
+# Lightweight CLI interface for Huginn using the CLI Command Framework
 #
 # Usage:
 #   resource-huginn <command> [options]
@@ -24,14 +24,11 @@ source "${VROOLI_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LOG_FILE:-${VROOLI_ROOT}/scripts/lib/utils/log.sh}" 2>/dev/null || true
 # shellcheck disable=SC1091
-source "${var_RESOURCES_COMMON_FILE}" 2>/dev/null || true
+source "${var_RESOURCES_COMMON_FILE:-${VROOLI_ROOT}/scripts/resources/common.sh}" 2>/dev/null || true
 
-# Source the CLI template
+# Source the CLI Command Framework
 # shellcheck disable=SC1091
-source "${VROOLI_ROOT}/scripts/lib/resources/cli/resource-cli-template.sh"
-
-# Initialize with resource name first (before sourcing config)
-resource_cli::init "huginn"
+source "${VROOLI_ROOT}/scripts/resources/lib/cli-command-framework.sh"
 
 # Source huginn configuration
 # shellcheck disable=SC1091
@@ -47,18 +44,37 @@ for lib in common docker status api install testing; do
     fi
 done
 
+# Initialize CLI framework
+cli::init "huginn" "Huginn agent-based workflow automation platform"
+
+# Override help to provide Huginn-specific examples
+cli::register_command "help" "Show this help message with Huginn examples" "resource_cli::show_help"
+
+# Register additional Huginn-specific commands
+cli::register_command "inject" "Inject agents/scenarios into Huginn" "resource_cli::inject" "modifies-system"
+cli::register_command "list-agents" "List all agents" "resource_cli::list_agents"
+cli::register_command "show-agent" "Show specific agent details" "resource_cli::show_agent"
+cli::register_command "run-agent" "Run specific agent" "resource_cli::run_agent" "modifies-system"
+cli::register_command "list-scenarios" "List all scenarios" "resource_cli::list_scenarios"
+cli::register_command "show-events" "Show recent events" "resource_cli::show_events"
+cli::register_command "credentials" "Show n8n credentials for Huginn" "resource_cli::credentials"
+cli::register_command "uninstall" "Uninstall Huginn (requires --force)" "resource_cli::uninstall" "modifies-system"
+
 ################################################################################
-# Delegate to existing huginn functions
+# Resource-specific command implementations
 ################################################################################
 
 # Inject agents or scenarios into huginn
 resource_cli::inject() {
     local file="${1:-}"
-    DRY_RUN="${DRY_RUN:-false}"
     
     if [[ -z "$file" ]]; then
         log::error "File path required for injection"
         echo "Usage: resource-huginn inject <file.json>"
+        echo ""
+        echo "Examples:"
+        echo "  resource-huginn inject agents.json"
+        echo "  resource-huginn inject shared:initialization/automation/huginn/agents.json"
         return 1
     fi
     
@@ -70,11 +86,6 @@ resource_cli::inject() {
     if [[ ! -f "$file" ]]; then
         log::error "File not found: $file"
         return 1
-    fi
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log::info "[DRY RUN] Would inject: $file"
-        return 0
     fi
     
     # Use existing injection function
@@ -131,13 +142,6 @@ resource_cli::status() {
 
 # Start huginn
 resource_cli::start() {
-    DRY_RUN="${DRY_RUN:-false}"
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log::info "[DRY RUN] Would start huginn"
-        return 0
-    fi
-    
     if command -v huginn::start &>/dev/null; then
         huginn::start
     else
@@ -148,13 +152,6 @@ resource_cli::start() {
 
 # Stop huginn
 resource_cli::stop() {
-    DRY_RUN="${DRY_RUN:-false}"
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log::info "[DRY RUN] Would stop huginn"
-        return 0
-    fi
-    
     if command -v huginn::stop &>/dev/null; then
         huginn::stop
     else
@@ -165,13 +162,6 @@ resource_cli::stop() {
 
 # Install huginn
 resource_cli::install() {
-    DRY_RUN="${DRY_RUN:-false}"
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log::info "[DRY RUN] Would install huginn"
-        return 0
-    fi
-    
     if command -v huginn::install &>/dev/null; then
         huginn::install
     else
@@ -183,16 +173,10 @@ resource_cli::install() {
 # Uninstall huginn
 resource_cli::uninstall() {
     FORCE="${FORCE:-false}"
-    DRY_RUN="${DRY_RUN:-false}"
     
     if [[ "$FORCE" != "true" ]]; then
         echo "⚠️  This will remove huginn and all its data. Use --force to confirm."
         return 1
-    fi
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log::info "[DRY RUN] Would uninstall huginn"
-        return 0
     fi
     
     if command -v huginn::uninstall &>/dev/null; then
@@ -205,21 +189,16 @@ resource_cli::uninstall() {
 
 # Get credentials for n8n integration
 resource_cli::credentials() {
-    # Source credentials utilities
-    # shellcheck disable=SC1091
     source "${VROOLI_ROOT}/scripts/resources/lib/credentials-utils.sh"
     
-    # Parse arguments
     if ! credentials::parse_args "$@"; then
         [[ $? -eq 2 ]] && { credentials::show_help "huginn"; return 0; }
         return 1
     fi
     
-    # Get resource status
     local status
     status=$(credentials::get_resource_status "${CONTAINER_NAME:-huginn}")
     
-    # Build connections array
     local connections_array="[]"
     if [[ "$status" == "running" ]]; then
         # Huginn web interface - typically uses basic auth
@@ -268,25 +247,15 @@ resource_cli::credentials() {
         connections_array="[$connection]"
     fi
     
-    # Build and validate response
     local response
     response=$(credentials::build_response "huginn" "$status" "$connections_array")
-    
-    if credentials::validate_json "$response"; then
-        credentials::format_output "$response"
-    else
-        log::error "Invalid credentials JSON generated"
-        return 1
-    fi
+    credentials::format_output "$response"
 }
 
-################################################################################
-# Huginn-specific commands (if functions exist)
-################################################################################
-
 # List agents
-huginn_list_agents() {
+resource_cli::list_agents() {
     local format="${1:-table}"
+    
     if command -v huginn::list_agents &>/dev/null; then
         huginn::list_agents "$format"
     else
@@ -296,11 +265,16 @@ huginn_list_agents() {
 }
 
 # Show specific agent
-huginn_show_agent() {
+resource_cli::show_agent() {
     local agent_id="${1:-}"
+    
     if [[ -z "$agent_id" ]]; then
         log::error "Agent ID required"
         echo "Usage: resource-huginn show-agent <agent-id>"
+        echo ""
+        echo "Examples:"
+        echo "  resource-huginn show-agent 1"
+        echo "  resource-huginn show-agent 42"
         return 1
     fi
     
@@ -313,11 +287,16 @@ huginn_show_agent() {
 }
 
 # Run specific agent
-huginn_run_agent() {
+resource_cli::run_agent() {
     local agent_id="${1:-}"
+    
     if [[ -z "$agent_id" ]]; then
         log::error "Agent ID required"
         echo "Usage: resource-huginn run-agent <agent-id>"
+        echo ""
+        echo "Examples:"
+        echo "  resource-huginn run-agent 1"
+        echo "  resource-huginn run-agent 42"
         return 1
     fi
     
@@ -330,7 +309,7 @@ huginn_run_agent() {
 }
 
 # List scenarios
-huginn_list_scenarios() {
+resource_cli::list_scenarios() {
     if command -v huginn::list_scenarios &>/dev/null; then
         huginn::list_scenarios
     else
@@ -340,8 +319,9 @@ huginn_list_scenarios() {
 }
 
 # Show recent events
-huginn_show_events() {
+resource_cli::show_events() {
     local count="${1:-10}"
+    
     if command -v huginn::show_recent_events &>/dev/null; then
         huginn::show_recent_events "$count"
     else
@@ -350,94 +330,46 @@ huginn_show_events() {
     fi
 }
 
-# Show help
+# Custom help function with Huginn-specific examples
 resource_cli::show_help() {
-    cat << EOF
-🤖 Huginn Resource CLI
-
-USAGE:
-    resource-huginn <command> [options]
-
-CORE COMMANDS:
-    inject <file>       Inject agents/scenarios into huginn
-    validate            Validate huginn configuration
-    status              Show huginn status
-    start               Start huginn container
-    stop                Stop huginn container
-    install             Install huginn
-    uninstall           Uninstall huginn (requires --force)
-    credentials         Get connection credentials for n8n integration
+    # Show standard framework help first
+    cli::_handle_help
     
-HUGINN COMMANDS:
-    list-agents         List all agents
-    show-agent <id>     Show specific agent details
-    run-agent <id>      Run specific agent
-    list-scenarios      List all scenarios
-    show-events [count] Show recent events (default: 10)
-
-OPTIONS:
-    --verbose, -v       Show detailed output
-    --dry-run           Preview actions without executing
-    --force             Force operation (skip confirmations)
-
-EXAMPLES:
-    resource-huginn status
-    resource-huginn list-agents
-    resource-huginn show-agent 1
-    resource-huginn run-agent 1
-    resource-huginn inject shared:initialization/automation/huginn/agents.json
-    resource-huginn show-events 20
-
-For more information: https://docs.vrooli.com/resources/huginn
-EOF
+    # Add Huginn-specific examples
+    echo ""
+    echo "🤖 Huginn Agent-Based Automation Examples:"
+    echo ""
+    echo "Agent Management:"
+    echo "  resource-huginn list-agents                       # List all agents"
+    echo "  resource-huginn show-agent 1                      # Show agent details"
+    echo "  resource-huginn run-agent 1                       # Execute specific agent"
+    echo "  resource-huginn list-scenarios                    # List all scenarios"
+    echo ""
+    echo "Data & Configuration:"
+    echo "  resource-huginn inject agents.json                # Import agents"
+    echo "  resource-huginn inject shared:init/huginn/agents.json  # Import shared config"
+    echo "  resource-huginn show-events 20                    # Show recent events"
+    echo ""
+    echo "Monitoring:"
+    echo "  resource-huginn status                            # Check service status"
+    echo "  resource-huginn credentials                       # Get API credentials"
+    echo ""
+    echo "Automation Features:"
+    echo "  • Agent-based workflow automation"
+    echo "  • Web scraping and data monitoring"
+    echo "  • API integrations and webhooks"
+    echo "  • Event-driven automation chains"
+    echo ""
+    echo "Default Port: 3000"
+    echo "Web UI: http://localhost:3000"
+    echo "Default Credentials: admin / changeme (should be changed)"
 }
 
-# Main command router
-resource_cli::main() {
-    # Parse common options first
-    local remaining_args
-    remaining_args=$(resource_cli::parse_options "$@")
-    set -- $remaining_args
-    
-    local command="${1:-help}"
-    shift || true
-    
-    case "$command" in
-        # Standard resource commands
-        inject|validate|status|start|stop|install|uninstall|credentials)
-            resource_cli::$command "$@"
-            ;;
-            
-        # Huginn-specific commands
-        list-agents)
-            huginn_list_agents "$@"
-            ;;
-        show-agent)
-            huginn_show_agent "$@"
-            ;;
-        run-agent)
-            huginn_run_agent "$@"
-            ;;
-        list-scenarios)
-            huginn_list_scenarios "$@"
-            ;;
-        show-events)
-            huginn_show_events "$@"
-            ;;
-            
-        help|--help|-h)
-            resource_cli::show_help
-            ;;
-        *)
-            log::error "Unknown command: $command"
-            echo ""
-            resource_cli::show_help
-            exit 1
-            ;;
-    esac
-}
+################################################################################
+# Main execution - dispatch to framework
+################################################################################
 
-# Run main if executed directly
+# Only execute if script is run directly (not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    resource_cli::main "$@"
+    cli::dispatch "$@"
 fi

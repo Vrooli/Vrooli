@@ -2,7 +2,7 @@
 ################################################################################
 # Claude Code Resource CLI
 # 
-# Lightweight CLI interface for Claude Code that delegates to existing lib functions.
+# Lightweight CLI interface for Claude Code using the CLI Command Framework
 #
 # Usage:
 #   resource-claude-code <command> [options]
@@ -13,7 +13,6 @@ set -euo pipefail
 
 # Get script directory (resolving symlinks)
 if [[ -L "${BASH_SOURCE[0]}" ]]; then
-    # If this is a symlink, resolve it
     CLAUDE_CODE_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
 else
     CLAUDE_CODE_CLI_SCRIPT="${BASH_SOURCE[0]}"
@@ -32,12 +31,9 @@ source "${var_LOG_FILE:-${VROOLI_ROOT}/scripts/lib/utils/log.sh}" 2>/dev/null ||
 # shellcheck disable=SC1091
 source "${var_RESOURCES_COMMON_FILE:-${VROOLI_ROOT}/scripts/resources/common.sh}" 2>/dev/null || true
 
-# Source the CLI template
+# Source the CLI Command Framework
 # shellcheck disable=SC1091
-source "${VROOLI_ROOT}/scripts/lib/resources/cli/resource-cli-template.sh"
-
-# Initialize with resource name (before sourcing configs that may set it as readonly)
-resource_cli::init "claude-code"
+source "${VROOLI_ROOT}/scripts/resources/lib/cli-command-framework.sh"
 
 # Source Claude Code configuration
 # shellcheck disable=SC1091
@@ -52,18 +48,37 @@ for lib in common status install session session-enhanced mcp templates settings
     fi
 done
 
+# Initialize CLI framework
+cli::init "claude-code" "Claude Code AI development assistant"
+
+# Override help to provide Claude Code-specific examples
+cli::register_command "help" "Show this help message with Claude Code examples" "resource_cli::show_help"
+
+# Register additional Claude Code-specific commands
+cli::register_command "inject" "Inject templates/prompts into Claude Code" "resource_cli::inject" "modifies-system"
+cli::register_command "run" "Run a prompt with Claude Code" "resource_cli::run" "modifies-system"
+cli::register_command "session" "Session management" "resource_cli::session"
+cli::register_command "mcp" "MCP server management" "resource_cli::mcp" "modifies-system"
+cli::register_command "template" "Template management" "resource_cli::template" "modifies-system"
+cli::register_command "batch" "Batch processing" "resource_cli::batch" "modifies-system"
+cli::register_command "settings" "Settings management" "resource_cli::settings" "modifies-system"
+cli::register_command "uninstall" "Uninstall Claude Code (requires --force)" "resource_cli::uninstall" "modifies-system"
+
 ################################################################################
-# Delegate to existing claude-code functions
+# Resource-specific command implementations
 ################################################################################
 
 # Inject templates/prompts/sessions into Claude Code
 resource_cli::inject() {
     local file="${1:-}"
-    DRY_RUN="${DRY_RUN:-false}"
     
     if [[ -z "$file" ]]; then
         log::error "File path required for injection"
         echo "Usage: resource-claude-code inject <file.json>"
+        echo ""
+        echo "Examples:"
+        echo "  resource-claude-code inject templates.json"
+        echo "  resource-claude-code inject shared:initialization/agents/claude-code/templates.json"
         return 1
     fi
     
@@ -75,11 +90,6 @@ resource_cli::inject() {
     if [[ ! -f "$file" ]]; then
         log::error "File not found: $file"
         return 1
-    fi
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log::info "[DRY RUN] Would inject: $file"
-        return 0
     fi
     
     # Export log functions for inject script
@@ -126,13 +136,6 @@ resource_cli::status() {
 
 # Start Claude Code (session)
 resource_cli::start() {
-    DRY_RUN="${DRY_RUN:-false}"
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log::info "[DRY RUN] Would start Claude Code session"
-        return 0
-    fi
-    
     if command -v claude_code::session &>/dev/null; then
         claude_code::session
     else
@@ -149,13 +152,6 @@ resource_cli::stop() {
 
 # Install Claude Code
 resource_cli::install() {
-    DRY_RUN="${DRY_RUN:-false}"
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log::info "[DRY RUN] Would install Claude Code"
-        return 0
-    fi
-    
     if command -v claude_code::install &>/dev/null; then
         claude_code::install
     else
@@ -167,16 +163,10 @@ resource_cli::install() {
 # Uninstall Claude Code
 resource_cli::uninstall() {
     FORCE="${FORCE:-false}"
-    DRY_RUN="${DRY_RUN:-false}"
     
     if [[ "$FORCE" != "true" ]]; then
         echo "⚠️  This will remove Claude Code and all its data. Use --force to confirm."
         return 1
-    fi
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log::info "[DRY RUN] Would uninstall Claude Code"
-        return 0
     fi
     
     if command -v claude_code::uninstall &>/dev/null; then
@@ -187,17 +177,17 @@ resource_cli::uninstall() {
     fi
 }
 
-################################################################################
-# Claude Code-specific commands
-################################################################################
-
 # Run a command with Claude Code
-claude_code_run() {
+resource_cli::run() {
     local prompt="${*:-}"
     
     if [[ -z "$prompt" ]]; then
         log::error "Prompt required"
         echo "Usage: resource-claude-code run <prompt>"
+        echo ""
+        echo "Examples:"
+        echo "  resource-claude-code run \"Write a hello world program\""
+        echo "  resource-claude-code run \"Fix the bug in main.py\""
         return 1
     fi
     
@@ -222,7 +212,7 @@ claude_code_run() {
 }
 
 # Session management
-claude_code_session() {
+resource_cli::session() {
     local action="${1:-list}"
     shift || true
     
@@ -265,14 +255,21 @@ claude_code_session() {
             ;;
         *)
             log::error "Unknown session action: $action"
-            echo "Available: list, resume, delete, view, analytics"
+            echo "Usage: resource-claude-code session <action>"
+            echo ""
+            echo "Available actions:"
+            echo "  list        List all sessions"
+            echo "  resume <id> Resume a session"
+            echo "  delete <id> Delete a session"
+            echo "  view <id>   View session details"
+            echo "  analytics   Show session analytics"
             return 1
             ;;
     esac
 }
 
 # MCP server management
-claude_code_mcp() {
+resource_cli::mcp() {
     local action="${1:-status}"
     shift || true
     
@@ -311,14 +308,20 @@ claude_code_mcp() {
             ;;
         *)
             log::error "Unknown MCP action: $action"
-            echo "Available: register, unregister, status, test"
+            echo "Usage: resource-claude-code mcp <action>"
+            echo ""
+            echo "Available actions:"
+            echo "  register   Register MCP server"
+            echo "  unregister Unregister MCP server"
+            echo "  status     Show MCP status"
+            echo "  test       Test MCP connection"
             return 1
             ;;
     esac
 }
 
 # Template management
-claude_code_template() {
+resource_cli::template() {
     local action="${1:-list}"
     shift || true
     
@@ -365,14 +368,21 @@ claude_code_template() {
             ;;
         *)
             log::error "Unknown template action: $action"
-            echo "Available: list, load, run, create, info"
+            echo "Usage: resource-claude-code template <action>"
+            echo ""
+            echo "Available actions:"
+            echo "  list          List templates"
+            echo "  load <name>   Load a template"
+            echo "  run <name>    Run a template"
+            echo "  create <name> Create a template"
+            echo "  info <name>   Show template info"
             return 1
             ;;
     esac
 }
 
 # Batch processing
-claude_code_batch() {
+resource_cli::batch() {
     local type="${1:-simple}"
     shift || true
     
@@ -388,6 +398,10 @@ claude_code_batch() {
             if [[ -z "$file_or_prompt" ]]; then
                 log::error "File path or prompt required for batch processing"
                 echo "Usage: resource-claude-code batch simple <file|prompt> [total_turns] [batch_size] [allowed_tools] [output_dir]"
+                echo ""
+                echo "Examples:"
+                echo "  resource-claude-code batch simple tasks.txt"
+                echo "  resource-claude-code batch simple \"Fix all bugs\" 10 25"
                 return 1
             fi
             
@@ -444,14 +458,20 @@ claude_code_batch() {
             ;;
         *)
             log::error "Unknown batch type: $type"
-            echo "Available: simple, config, multi, parallel"
+            echo "Usage: resource-claude-code batch <type>"
+            echo ""
+            echo "Available types:"
+            echo "  simple    Run simple batch"
+            echo "  config    Run with config file"
+            echo "  multi     Process multiple files"
+            echo "  parallel  Process in parallel"
             return 1
             ;;
     esac
 }
 
 # Settings management
-claude_code_settings() {
+resource_cli::settings() {
     local action="${1:-show}"
     shift || true
     
@@ -497,132 +517,68 @@ claude_code_settings() {
             ;;
         *)
             log::error "Unknown settings action: $action"
-            echo "Available: show, get, set, reset, tips"
+            echo "Usage: resource-claude-code settings <action>"
+            echo ""
+            echo "Available actions:"
+            echo "  show         Show current settings"
+            echo "  get <key>    Get a setting"
+            echo "  set <key>    Set a setting"
+            echo "  reset        Reset to defaults"
+            echo "  tips         Show configuration tips"
             return 1
             ;;
     esac
 }
 
-# Show help
+# Custom help function with Claude Code-specific examples
 resource_cli::show_help() {
-    cat << EOF
-🚀 Claude Code Resource CLI
-
-USAGE:
-    resource-claude-code <command> [options]
-
-CORE COMMANDS:
-    inject <file>           Inject templates/prompts into Claude Code
-    validate                Validate Claude Code installation
-    status                  Show Claude Code status
-    start                   Start a Claude Code session
-    stop                    (No-op, Claude Code runs on-demand)
-    install                 Install Claude Code
-    uninstall               Uninstall Claude Code (requires --force)
+    # Show standard framework help first
+    cli::_handle_help
     
-CLAUDE CODE COMMANDS:
-    run <prompt>            Run a prompt with Claude Code
-    
-    session <action>        Session management:
-      list                    List all sessions
-      resume <id>             Resume a session
-      delete <id>             Delete a session
-      view <id>               View session details
-      analytics               Show session analytics
-    
-    mcp <action>            MCP server management:
-      register                Register MCP server
-      unregister              Unregister MCP server
-      status                  Show MCP status
-      test                    Test MCP connection
-    
-    template <action>       Template management:
-      list                    List templates
-      load <name>             Load a template
-      run <name>              Run a template
-      create <name>           Create a template
-      info <name>             Show template info
-    
-    batch <type>            Batch processing:
-      simple <file>           Run simple batch
-      config <file>           Run with config file
-      multi <files...>        Process multiple files
-      parallel <files...>     Process in parallel
-    
-    settings <action>       Settings management:
-      show                    Show current settings
-      get <key>               Get a setting
-      set <key> <value>       Set a setting
-      reset                   Reset to defaults
-      tips                    Show configuration tips
-
-OPTIONS:
-    --verbose, -v           Show detailed output
-    --dry-run               Preview actions without executing
-    --force                 Force operation (skip confirmations)
-
-EXAMPLES:
-    resource-claude-code status
-    resource-claude-code run "Write a hello world program"
-    resource-claude-code session list
-    resource-claude-code template run react-component
-    resource-claude-code batch simple tasks.txt
-    resource-claude-code mcp status
-    resource-claude-code settings set model claude-3-opus
-
-For more information: https://docs.vrooli.com/resources/claude-code
-EOF
+    # Add Claude Code-specific examples
+    echo ""
+    echo "🚀 Claude Code AI Development Assistant Examples:"
+    echo ""
+    echo "Code Generation & Assistance:"
+    echo "  resource-claude-code run \"Write a hello world program\"     # Generate code"
+    echo "  resource-claude-code run \"Fix the bug in main.py\"          # Debug code"
+    echo "  resource-claude-code run \"Add unit tests for utils.js\"     # Write tests"
+    echo ""
+    echo "Session Management:"
+    echo "  resource-claude-code session list                           # List all sessions"
+    echo "  resource-claude-code session resume session-123             # Resume session"
+    echo "  resource-claude-code session view session-123               # View session"
+    echo "  resource-claude-code session analytics                      # Show analytics"
+    echo ""
+    echo "Template System:"
+    echo "  resource-claude-code template list                          # List templates"
+    echo "  resource-claude-code template run react-component           # Run template"
+    echo "  resource-claude-code template create my-template            # Create template"
+    echo ""
+    echo "Batch Processing:"
+    echo "  resource-claude-code batch simple tasks.txt                 # Process file"
+    echo "  resource-claude-code batch parallel task1.txt task2.txt     # Parallel"
+    echo ""
+    echo "MCP & Settings:"
+    echo "  resource-claude-code mcp status                             # Check MCP servers"
+    echo "  resource-claude-code settings set model claude-3-opus       # Set model"
+    echo "  resource-claude-code inject shared:templates/claude.json    # Import templates"
+    echo ""
+    echo "AI Capabilities:"
+    echo "  • Advanced code generation and debugging"
+    echo "  • Context-aware file editing and refactoring"
+    echo "  • Multi-turn conversations with memory"
+    echo "  • Template-based workflow automation"
+    echo ""
+    echo "Integration: CLI tool for direct AI assistance"
+    echo "Documentation: https://docs.anthropic.com/claude/docs"
 }
 
-# Main command router
-resource_cli::main() {
-    # Parse common options first
-    local remaining_args
-    remaining_args=$(resource_cli::parse_options "$@")
-    set -- $remaining_args
-    
-    local command="${1:-help}"
-    shift || true
-    
-    case "$command" in
-        # Standard resource commands
-        inject|validate|status|start|stop|install|uninstall)
-            resource_cli::$command "$@"
-            ;;
-            
-        # Claude Code-specific commands
-        run)
-            claude_code_run "$@"
-            ;;
-        session)
-            claude_code_session "$@"
-            ;;
-        mcp)
-            claude_code_mcp "$@"
-            ;;
-        template)
-            claude_code_template "$@"
-            ;;
-        batch)
-            claude_code_batch "$@"
-            ;;
-        settings)
-            claude_code_settings "$@"
-            ;;
-            
-        help|--help|-h)
-            resource_cli::show_help
-            ;;
-        *)
-            log::error "Unknown command: $command"
-            echo ""
-            resource_cli::show_help
-            exit 1
-            ;;
-    esac
-}
+################################################################################
+# Main execution - dispatch to framework
+################################################################################
 
-# Run main if executed directly
+# Only execute if script is run directly (not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    resource_cli::main "$@"
+    cli::dispatch "$@"
 fi

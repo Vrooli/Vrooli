@@ -37,6 +37,14 @@
       "executable": true
     },
     {
+      "name": "gitignore",
+      "source": ".gitignore",
+      "destination": ".gitignore",
+      "type": "file",
+      "from": "vrooli",
+      "required": true
+    },
+    {
       "name": "scenario-config",
       "source": ".vrooli",
       "destination": ".vrooli",

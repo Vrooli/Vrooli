@@ -1,0 +1,243 @@
+apiVersion: vrooli.com/v1
+kind: ResourceCapability
+metadata:
+  name: huginn
+  category: automation
+  subcategory: workflow
+  description: "Agent-based workflow automation platform for building connected automated processes"
+  maturity: stable
+  complexity: intermediate
+  
+spec:
+  # Core capabilities this resource provides
+  capabilities:
+    primary:
+      - agent-based-automation
+      - workflow-orchestration
+      - data-monitoring
+      - event-processing
+    secondary:
+      - webhook-handling
+      - scheduled-tasks
+      - data-transformation
+      - notification-systems
+    specialized:
+      - rss-monitoring
+      - website-scraping
+      - email-processing
+      - scenario-management
+  
+  # API interfaces available
+  interfaces:
+    - name: web-interface
+      endpoint: "/"
+      method: [GET, POST]
+      inputTypes: [text/html, application/json]
+      outputTypes: [text/html, application/json]
+      description: "Web-based agent and scenario management interface"
+    - name: api-endpoints
+      endpoint: "/api/v1/"
+      method: [GET, POST, PUT, DELETE]
+      inputTypes: [application/json]
+      outputTypes: [application/json]
+      description: "RESTful API for agent and event management"
+    - name: webhooks
+      endpoint: "/webhooks/*"
+      method: [GET, POST, PUT, DELETE]
+      inputTypes: [application/json, text/plain, application/xml]
+      outputTypes: [application/json, text/plain]
+      description: "Webhook endpoints for external system integration"
+    - name: agent-management
+      endpoint: "/agents"
+      method: [GET, POST, PUT, DELETE]
+      inputTypes: [application/json]
+      outputTypes: [application/json]
+      description: "Create and manage automation agents"
+  
+  # Resource dependencies and requirements
+  dependencies:
+    required:
+      - docker
+      - postgres
+    optional:
+      - redis
+      - smtp-server
+    incompatible: []
+  
+  # Scenario compatibility
+  scenarios:
+    primary:
+      - workflow-scheduler
+      - system-monitor
+      - research-assistant
+    secondary:
+      - campaign-content-studio
+      - document-manager
+    optimal_combinations:
+      - [huginn, postgres, redis]           # Full-featured workflow automation
+      - [huginn, n8n, vault]              # Dual automation platforms
+      - [huginn, whisper, minio]          # Multi-modal workflow processing
+      - [huginn, agent-s2, browserless]   # Web automation workflows
+  
+  # Business intelligence
+  business:
+    revenue_range:
+      min: 5000
+      max: 25000
+      currency: USD
+    complexity_score: 6  # 1-10 scale
+    implementation_time: "2-4 days"
+    upwork_demand: medium
+    target_industries:
+      - business-automation
+      - data-monitoring
+      - content-aggregation
+      - notification-systems
+      - workflow-optimization
+    common_project_types:
+      - "Business process automation"
+      - "Data monitoring and alerting system"
+      - "Content aggregation platform"
+      - "Multi-source notification system"
+      - "Workflow orchestration solution"
+  
+  # Technical specifications
+  technical:
+    ports: [4111]
+    protocols: [http, rest, webhook]
+    data_formats: [json, xml, rss, html, text]
+    resource_requirements:
+      memory:
+        minimum: "1GB"
+        recommended: "2GB"
+        optimal: "4GB+"
+      cpu:
+        minimum: "1 core"
+        recommended: "2 cores"
+        optimal: "4+ cores"
+      storage:
+        minimum: "1GB"
+        recommended: "5GB"
+        optimal: "20GB+"
+      database:
+        required: true
+        recommended: true
+        supported: [postgresql, mysql]
+    scaling:
+      horizontal: true
+      vertical: true
+      max_concurrent_agents: 500
+      execution_modes: [scheduled, event-driven, webhook]
+  
+  # AI generation hints for automated scenario creation
+  ai_generation:
+    common_patterns:
+      - agent-based-workflows
+      - data-monitoring-systems
+      - content-aggregation
+      - notification-automation
+    integration_targets:
+      preferred: [postgres, redis, n8n, vault]
+      compatible: [whisper, minio, agent-s2, browserless]
+      avoid: [gpu-intensive-tasks, real-time-streaming]
+    workflow_templates:
+      monitoring: "Monitor data source → Process changes → Apply filters → Send notifications"
+      aggregation: "Collect from multiple sources → Transform data → Store results → Generate reports"
+      automation: "Detect trigger event → Process data → Execute actions → Update status"
+    complexity_indicators:
+      simple: ["basic monitoring", "simple notifications", "single-source automation"]
+      intermediate: ["multi-agent workflows", "complex data processing", "scenario management"]
+      advanced: ["enterprise automation", "complex integrations", "advanced scheduling"]
+  
+  # Specialized features
+  features:
+    agent_ecosystem:
+      enabled: true
+      description: "Rich ecosystem of pre-built agent types"
+      types: ["rss", "website_monitor", "webhook", "email", "twitter", "slack", "http_request"]
+    scenario_management:
+      enabled: true
+      description: "Group agents into reusable scenarios"
+      capabilities: ["templates", "sharing", "version_control"]
+    web_interface:
+      enabled: true
+      description: "Full-featured web interface for agent management"
+      features: ["drag-drop", "visual-flow", "debugging", "monitoring"]
+    credential_management:
+      enabled: true
+      description: "Secure storage of API keys and credentials"
+      encryption: true
+  
+  # Integration capabilities
+  integrations:
+    agent_types:
+      - rss_agent
+      - website_agent
+      - webhook_agent
+      - email_agent
+      - http_status_agent
+      - json_parse_agent
+      - csv_agent
+      - slack_agent
+      - twitter_agent
+    data_sources:
+      - rss_feeds
+      - websites
+      - apis
+      - databases
+      - email
+      - social_media
+    output_formats:
+      - json
+      - xml
+      - html
+      - email
+      - webhook
+      - file
+  
+  # Testing and validation
+  testing:
+    test_file: "scripts/resources/automation/huginn/test/integration-test.sh"
+    test_coverage:
+      - service_health
+      - agent_creation
+      - scenario_management
+      - webhook_functionality
+      - database_integration
+    fixtures:
+      - sample_agents
+      - test_scenarios
+      - webhook_configurations
+    integration_tests:
+      - huginn_postgres_integration
+      - huginn_redis_caching
+      - multi_agent_workflows
+  
+  # Documentation and examples
+  documentation:
+    readme: "scripts/resources/automation/huginn/README.md"
+    api_reference: "scripts/resources/automation/huginn/docs/API.md"
+    examples_dir: "scripts/resources/automation/huginn/examples/"
+    configuration: "scripts/resources/automation/huginn/docs/CONFIGURATION.md"
+    troubleshooting: "scripts/resources/automation/huginn/docs/TROUBLESHOOTING.md"
+  
+  # Version and compatibility
+  version_info:
+    min_version: "1.0.0"
+    tested_version: "latest"
+    api_version: "v1"
+    compatibility_matrix:
+      docker: ">=20.10.0"
+      postgres: ">=12.0"
+      redis: ">=6.0"
+      ruby: ">=3.0"
+      architecture: [amd64, arm64]
+
+# Metadata for resource discovery and automation
+labels:
+  resource.vrooli.com/category: "automation"
+  resource.vrooli.com/type: "workflow"
+  resource.vrooli.com/maturity: "stable"
+  resource.vrooli.com/business-value: "high"
+  resource.vrooli.com/ai-friendly: "true"
+  resource.vrooli.com/web-interface: "true"

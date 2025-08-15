@@ -2,7 +2,7 @@
 ################################################################################
 # ComfyUI Resource CLI
 # 
-# Lightweight CLI interface for ComfyUI that delegates to existing lib functions.
+# Lightweight CLI interface for ComfyUI using the CLI Command Framework
 #
 # Usage:
 #   resource-comfyui <command> [options]
@@ -24,11 +24,11 @@ source "${VROOLI_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LOG_FILE:-${VROOLI_ROOT}/scripts/lib/utils/log.sh}" 2>/dev/null || true
 # shellcheck disable=SC1091
-source "${var_RESOURCES_COMMON_FILE}" 2>/dev/null || true
+source "${var_RESOURCES_COMMON_FILE:-${VROOLI_ROOT}/scripts/resources/common.sh}" 2>/dev/null || true
 
-# Source the CLI template
+# Source the CLI Command Framework
 # shellcheck disable=SC1091
-source "${VROOLI_ROOT}/scripts/lib/resources/cli/resource-cli-template.sh"
+source "${VROOLI_ROOT}/scripts/resources/lib/cli-command-framework.sh"
 
 # Source ComfyUI configuration
 # shellcheck disable=SC1091
@@ -43,21 +43,39 @@ for lib in common gpu docker models workflows status install; do
     fi
 done
 
-# Initialize with resource name
-resource_cli::init "comfyui"
+# Initialize CLI framework
+cli::init "comfyui" "ComfyUI AI image generation and manipulation"
+
+# Override help to provide ComfyUI-specific examples
+cli::register_command "help" "Show this help message with ComfyUI examples" "resource_cli::show_help"
+
+# Register additional ComfyUI-specific commands
+cli::register_command "inject" "Inject workflow into ComfyUI" "resource_cli::inject" "modifies-system"
+cli::register_command "execute-workflow" "Execute a workflow" "resource_cli::execute_workflow" "modifies-system"
+cli::register_command "list-workflows" "List available workflows" "resource_cli::list_workflows"
+cli::register_command "download-models" "Download default models" "resource_cli::download_models" "modifies-system"
+cli::register_command "list-models" "List available models" "resource_cli::list_models"
+cli::register_command "gpu-info" "Show GPU information" "resource_cli::gpu_info"
+cli::register_command "validate-nvidia" "Validate NVIDIA requirements" "resource_cli::validate_nvidia"
+cli::register_command "logs" "Show ComfyUI logs" "resource_cli::logs"
+cli::register_command "credentials" "Show n8n credentials for ComfyUI" "resource_cli::credentials"
+cli::register_command "uninstall" "Uninstall ComfyUI (requires --force)" "resource_cli::uninstall" "modifies-system"
 
 ################################################################################
-# Delegate to existing ComfyUI functions
+# Resource-specific command implementations
 ################################################################################
 
 # Inject workflow into ComfyUI
 resource_cli::inject() {
     local file="${1:-}"
-    DRY_RUN="${DRY_RUN:-false}"
     
     if [[ -z "$file" ]]; then
         log::error "File path required for injection"
         echo "Usage: resource-comfyui inject <workflow.json>"
+        echo ""
+        echo "Examples:"
+        echo "  resource-comfyui inject workflow.json"
+        echo "  resource-comfyui inject shared:initialization/automation/comfyui/workflow.json"
         return 1
     fi
     
@@ -69,11 +87,6 @@ resource_cli::inject() {
     if [[ ! -f "$file" ]]; then
         log::error "File not found: $file"
         return 1
-    fi
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log::info "[DRY RUN] Would inject workflow: $file"
-        return 0
     fi
     
     # Use existing workflow import function
@@ -93,7 +106,8 @@ resource_cli::validate() {
     else
         # Basic validation
         log::header "Validating ComfyUI"
-        docker ps --format '{{.Names}}' 2>/dev/null | grep -q "comfyui" || {
+        local container_name="${COMFYUI_CONTAINER_NAME:-comfyui}"
+        docker ps --format '{{.Names}}' 2>/dev/null | grep -q "$container_name" || {
             log::error "ComfyUI container not running"
             return 1
         }
@@ -108,9 +122,10 @@ resource_cli::status() {
     else
         # Basic status
         log::header "ComfyUI Status"
-        if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "comfyui"; then
+        local container_name="${COMFYUI_CONTAINER_NAME:-comfyui}"
+        if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "$container_name"; then
             echo "Container: ✅ Running"
-            docker ps --filter "name=comfyui" --format "table {{.Status}}\t{{.Ports}}" | tail -n 1
+            docker ps --filter "name=$container_name" --format "table {{.Status}}\t{{.Ports}}" | tail -n 1
         else
             echo "Container: ❌ Not running"
         fi
@@ -119,45 +134,26 @@ resource_cli::status() {
 
 # Start ComfyUI
 resource_cli::start() {
-    DRY_RUN="${DRY_RUN:-false}"
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log::info "[DRY RUN] Would start ComfyUI"
-        return 0
-    fi
-    
     if command -v docker::start &>/dev/null; then
         docker::start
     else
-        docker start comfyui || log::error "Failed to start ComfyUI"
+        local container_name="${COMFYUI_CONTAINER_NAME:-comfyui}"
+        docker start "$container_name" || log::error "Failed to start ComfyUI"
     fi
 }
 
 # Stop ComfyUI
 resource_cli::stop() {
-    DRY_RUN="${DRY_RUN:-false}"
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log::info "[DRY RUN] Would stop ComfyUI"
-        return 0
-    fi
-    
     if command -v docker::stop &>/dev/null; then
         docker::stop
     else
-        docker stop comfyui || log::error "Failed to stop ComfyUI"
+        local container_name="${COMFYUI_CONTAINER_NAME:-comfyui}"
+        docker stop "$container_name" || log::error "Failed to stop ComfyUI"
     fi
 }
 
 # Install ComfyUI
 resource_cli::install() {
-    DRY_RUN="${DRY_RUN:-false}"
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log::info "[DRY RUN] Would install ComfyUI"
-        return 0
-    fi
-    
     if command -v install::install &>/dev/null; then
         install::install
     else
@@ -169,42 +165,33 @@ resource_cli::install() {
 # Uninstall ComfyUI
 resource_cli::uninstall() {
     FORCE="${FORCE:-false}"
-    DRY_RUN="${DRY_RUN:-false}"
     
     if [[ "$FORCE" != "true" ]]; then
         echo "⚠️  This will remove ComfyUI and all its data. Use --force to confirm."
         return 1
     fi
     
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log::info "[DRY RUN] Would uninstall ComfyUI"
-        return 0
-    fi
-    
     if command -v install::uninstall &>/dev/null; then
         install::uninstall
     else
-        docker stop comfyui 2>/dev/null || true
-        docker rm comfyui 2>/dev/null || true
+        local container_name="${COMFYUI_CONTAINER_NAME:-comfyui}"
+        docker stop "$container_name" 2>/dev/null || true
+        docker rm "$container_name" 2>/dev/null || true
         log::success "ComfyUI uninstalled"
     fi
 }
 
 # Get credentials for n8n integration
 resource_cli::credentials() {
-    # Source credentials utilities
-    # shellcheck disable=SC1091
     source "${VROOLI_ROOT}/scripts/resources/lib/credentials-utils.sh"
     
-    # Parse arguments
     if ! credentials::parse_args "$@"; then
         [[ $? -eq 2 ]] && { credentials::show_help "comfyui"; return 0; }
         return 1
     fi
     
-    # Get resource status
     local status
-    status=$(credentials::get_resource_status "$COMFYUI_CONTAINER_NAME")
+    status=$(credentials::get_resource_status "${COMFYUI_CONTAINER_NAME:-comfyui}")
     
     # Build connections array - ComfyUI runs without auth by default
     local connections_array="[]"
@@ -213,7 +200,7 @@ resource_cli::credentials() {
         local connection_obj
         connection_obj=$(jq -n \
             --arg host "localhost" \
-            --argjson port "$COMFYUI_DIRECT_PORT" \
+            --argjson port "${COMFYUI_DIRECT_PORT:-8188}" \
             --arg path "/api" \
             --argjson ssl false \
             '{
@@ -226,9 +213,9 @@ resource_cli::credentials() {
         local metadata_obj
         metadata_obj=$(jq -n \
             --arg description "ComfyUI AI image generation and manipulation" \
-            --arg web_ui "$COMFYUI_BASE_URL" \
-            --argjson jupyter_port "$COMFYUI_JUPYTER_PORT" \
-            --argjson models_dir "$COMFYUI_MODELS_DIR" \
+            --arg web_ui "${COMFYUI_BASE_URL:-http://localhost:8188}" \
+            --argjson jupyter_port "${COMFYUI_JUPYTER_PORT:-8889}" \
+            --arg models_dir "${COMFYUI_MODELS_DIR:-/opt/ComfyUI/models}" \
             '{
                 description: $description,
                 web_ui_url: $web_ui,
@@ -249,29 +236,22 @@ resource_cli::credentials() {
         connections_array="[$connection]"
     fi
     
-    # Build and validate response
     local response
     response=$(credentials::build_response "comfyui" "$status" "$connections_array")
-    
-    if credentials::validate_json "$response"; then
-        credentials::format_output "$response"
-    else
-        log::error "Invalid credentials JSON generated"
-        return 1
-    fi
+    credentials::format_output "$response"
 }
 
-################################################################################
-# ComfyUI-specific commands
-################################################################################
-
 # Execute workflow
-comfyui_execute_workflow() {
+resource_cli::execute_workflow() {
     local workflow="${1:-}"
     
     if [[ -z "$workflow" ]]; then
         log::error "Workflow file required"
         echo "Usage: resource-comfyui execute-workflow <workflow.json>"
+        echo ""
+        echo "Examples:"
+        echo "  resource-comfyui execute-workflow basic_text_to_image.json"
+        echo "  resource-comfyui execute-workflow shared:examples/comfyui/workflow.json"
         return 1
     fi
     
@@ -295,7 +275,7 @@ comfyui_execute_workflow() {
 }
 
 # List workflows
-comfyui_list_workflows() {
+resource_cli::list_workflows() {
     if command -v workflows::list_workflows &>/dev/null; then
         workflows::list_workflows
     else
@@ -305,7 +285,7 @@ comfyui_list_workflows() {
 }
 
 # Download models
-comfyui_download_models() {
+resource_cli::download_models() {
     if command -v models::download_default_models &>/dev/null; then
         models::download_default_models
     elif command -v models::download_models &>/dev/null; then
@@ -317,7 +297,7 @@ comfyui_download_models() {
 }
 
 # List models
-comfyui_list_models() {
+resource_cli::list_models() {
     if command -v models::list_models &>/dev/null; then
         models::list_models
     else
@@ -327,7 +307,7 @@ comfyui_list_models() {
 }
 
 # GPU info
-comfyui_gpu_info() {
+resource_cli::gpu_info() {
     if command -v gpu::get_gpu_info &>/dev/null; then
         gpu::get_gpu_info
     else
@@ -337,7 +317,7 @@ comfyui_gpu_info() {
 }
 
 # Validate NVIDIA requirements
-comfyui_validate_nvidia() {
+resource_cli::validate_nvidia() {
     if command -v gpu::validate_nvidia_requirements &>/dev/null; then
         gpu::validate_nvidia_requirements
     else
@@ -347,109 +327,66 @@ comfyui_validate_nvidia() {
 }
 
 # Show logs
-comfyui_logs() {
+resource_cli::logs() {
+    local lines="${1:-50}"
+    local follow="${2:-false}"
+    local container_name="${COMFYUI_CONTAINER_NAME:-comfyui}"
+    
     if command -v docker::logs &>/dev/null; then
         docker::logs
     else
-        docker logs comfyui 2>/dev/null || log::error "Failed to show logs"
+        if [[ "$follow" == "true" ]]; then
+            docker logs -f --tail "$lines" "$container_name" 2>/dev/null || log::error "Failed to show logs"
+        else
+            docker logs --tail "$lines" "$container_name" 2>/dev/null || log::error "Failed to show logs"
+        fi
     fi
 }
 
-# Show help
+# Custom help function with ComfyUI-specific examples
 resource_cli::show_help() {
-    cat << EOF
-🎨 ComfyUI Resource CLI
-
-USAGE:
-    resource-comfyui <command> [options]
-
-CORE COMMANDS:
-    inject <file>         Inject workflow into ComfyUI
-    validate             Validate ComfyUI configuration
-    status               Show ComfyUI status
-    start                Start ComfyUI container
-    stop                 Stop ComfyUI container
-    install              Install ComfyUI
-    uninstall            Uninstall ComfyUI (requires --force)
-    credentials          Get connection credentials for n8n integration
+    # Show standard framework help first
+    cli::_handle_help
     
-COMFYUI COMMANDS:
-    execute-workflow <file>  Execute a workflow
-    list-workflows          List available workflows
-    download-models         Download default models
-    list-models            List available models
-    gpu-info               Show GPU information
-    validate-nvidia        Validate NVIDIA requirements
-    logs                   Show ComfyUI logs
-
-OPTIONS:
-    --verbose, -v       Show detailed output
-    --dry-run           Preview actions without executing
-    --force             Force operation (skip confirmations)
-
-EXAMPLES:
-    resource-comfyui status
-    resource-comfyui execute-workflow examples/basic_text_to_image.json
-    resource-comfyui download-models
-    resource-comfyui gpu-info
-    resource-comfyui inject shared:initialization/automation/comfyui/workflow.json
-
-For more information: https://docs.vrooli.com/resources/comfyui
-EOF
+    # Add ComfyUI-specific examples
+    echo ""
+    echo "🎨 ComfyUI AI Image Generation Examples:"
+    echo ""
+    echo "Workflow Operations:"
+    echo "  resource-comfyui execute-workflow basic_text_to_image.json  # Run workflow"
+    echo "  resource-comfyui list-workflows                             # List workflows"
+    echo "  resource-comfyui inject workflow.json                      # Import workflow"
+    echo "  resource-comfyui inject shared:init/comfyui/workflow.json   # Import shared"
+    echo ""
+    echo "Model Management:"
+    echo "  resource-comfyui download-models                           # Download default models"
+    echo "  resource-comfyui list-models                               # List available models"
+    echo ""
+    echo "System & Hardware:"
+    echo "  resource-comfyui gpu-info                                  # Show GPU details"
+    echo "  resource-comfyui validate-nvidia                           # Check NVIDIA setup"
+    echo "  resource-comfyui logs 100 true                             # Follow logs"
+    echo ""
+    echo "Management:"
+    echo "  resource-comfyui status                                    # Check service status"
+    echo "  resource-comfyui credentials                               # Get API details"
+    echo ""
+    echo "AI Features:"
+    echo "  • Stable Diffusion and custom model support"
+    echo "  • Node-based visual workflow editor"
+    echo "  • GPU acceleration for fast generation"
+    echo "  • Custom nodes and extensions ecosystem"
+    echo ""
+    echo "Default Port: 8188"
+    echo "Web UI: http://localhost:8188"
+    echo "Jupyter (if enabled): http://localhost:8889"
 }
 
-# Main command router
-resource_cli::main() {
-    # Parse common options first
-    local remaining_args
-    remaining_args=$(resource_cli::parse_options "$@")
-    set -- $remaining_args
-    
-    local command="${1:-help}"
-    shift || true
-    
-    case "$command" in
-        # Standard resource commands
-        inject|validate|status|start|stop|install|uninstall|credentials)
-            resource_cli::$command "$@"
-            ;;
-            
-        # ComfyUI-specific commands
-        execute-workflow|exec-workflow)
-            comfyui_execute_workflow "$@"
-            ;;
-        list-workflows)
-            comfyui_list_workflows "$@"
-            ;;
-        download-models)
-            comfyui_download_models "$@"
-            ;;
-        list-models)
-            comfyui_list_models "$@"
-            ;;
-        gpu-info)
-            comfyui_gpu_info "$@"
-            ;;
-        validate-nvidia)
-            comfyui_validate_nvidia "$@"
-            ;;
-        logs)
-            comfyui_logs "$@"
-            ;;
-            
-        help|--help|-h)
-            resource_cli::show_help
-            ;;
-        *)
-            log::error "Unknown command: $command"
-            echo ""
-            resource_cli::show_help
-            exit 1
-            ;;
-    esac
-}
+################################################################################
+# Main execution - dispatch to framework
+################################################################################
 
-# Run main if executed directly
+# Only execute if script is run directly (not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    resource_cli::main "$@"
+    cli::dispatch "$@"
 fi

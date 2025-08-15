@@ -182,10 +182,10 @@ resource_cli::install() {
 
 # Uninstall n8n
 resource_cli::uninstall() {
-    FORCE="${FORCE:-false}"
-    DRY_RUN="${DRY_RUN:-false}"
+    # Debug: Show what FORCE is set to
+    # echo "DEBUG: FORCE='$FORCE'" >&2
     
-    if [[ "$FORCE" != "true" ]]; then
+    if [[ "${FORCE:-false}" != "true" ]]; then
         echo "⚠️  This will remove n8n and all its data. Use --force to confirm."
         return 1
     fi
@@ -557,58 +557,96 @@ EOF
 
 # Main command router
 resource_cli::main() {
-    # Parse common options first
-    local remaining_args
-    remaining_args=$(resource_cli::parse_options "$@")
-    set -- $remaining_args
+    # Initialize flags
+    export VERBOSE=false
+    export DRY_RUN=false
+    export FORCE=false
     
-    local command="${1:-help}"
-    shift || true
+    # Get command first (it's the first non-flag argument)
+    local command=""
+    local args=()
+    
+    # Collect all arguments, separating command from flags
+    for arg in "$@"; do
+        if [[ "$arg" == --* ]] || [[ "$arg" == -* ]]; then
+            # It's a flag
+            case "$arg" in
+                --verbose|-v)
+                    VERBOSE=true
+                    ;;
+                --dry-run)
+                    DRY_RUN=true
+                    ;;
+                --force)
+                    FORCE=true
+                    ;;
+                --help|-h)
+                    resource_cli::show_help
+                    exit 0
+                    ;;
+                *)
+                    # Unknown flag, pass it through
+                    args+=("$arg")
+                    ;;
+            esac
+        else
+            # First non-flag is the command
+            if [[ -z "$command" ]]; then
+                command="$arg"
+            else
+                # Additional non-flag arguments
+                args+=("$arg")
+            fi
+        fi
+    done
+    
+    # Default to help if no command
+    command="${command:-help}"
     
     case "$command" in
         # Standard resource commands
         inject|validate|status|start|stop|install|uninstall|credentials)
-            resource_cli::$command "$@"
+            resource_cli::$command "${args[@]}"
             ;;
             
         # n8n-specific commands
         list-workflows)
-            n8n_list_workflows "$@"
+            n8n_list_workflows "${args[@]}"
             ;;
         export-workflows)
-            n8n_export_workflows "$@"
+            n8n_export_workflows "${args[@]}"
             ;;
         activate-workflow)
-            n8n_activate_workflow "$@"
+            n8n_activate_workflow "${args[@]}"
             ;;
         deactivate-workflow)
-            n8n_deactivate_workflow "$@"
+            n8n_deactivate_workflow "${args[@]}"
             ;;
         activate-all)
-            n8n_activate_all "$@"
+            n8n_activate_all "${args[@]}"
             ;;
         activate-pattern)
-            n8n_activate_pattern "$@"
+            n8n_activate_pattern "${args[@]}"
             ;;
         delete-workflow)
-            n8n_delete_workflow "$@"
+            n8n_delete_workflow "${args[@]}"
             ;;
         delete-all-workflows)
-            n8n_delete_all_workflows "$@"
+            n8n_delete_all_workflows "${args[@]}"
             ;;
             
         # Credential management commands
         auto-credentials)
-            n8n_auto_credentials "$@"
+            n8n_auto_credentials "${args[@]}"
             ;;
         list-credentials)
-            n8n_list_credentials "$@"
+            n8n_list_credentials "${args[@]}"
             ;;
         list-discoverable)
-            n8n_list_discoverable "$@"
+            n8n_list_discoverable "${args[@]}"
             ;;
         credential-registry)
-            n8n_credential_registry "$@"
+            n8n_credential_registry "${args[@]}"
             ;;
             
         help|--help|-h)

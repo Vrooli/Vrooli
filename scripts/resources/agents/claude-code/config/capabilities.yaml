@@ -1,0 +1,223 @@
+apiVersion: vrooli.com/v1
+kind: ResourceCapability
+metadata:
+  name: claude-code
+  category: agents
+  subcategory: development
+  description: "Anthropic's official CLI for AI-powered code development and assistance"
+  maturity: stable
+  complexity: simple
+  
+spec:
+  # Core capabilities this resource provides
+  capabilities:
+    primary:
+      - ai-code-assistance
+      - automated-refactoring
+      - code-analysis
+      - documentation-generation
+    secondary:
+      - code-review
+      - development-automation
+      - file-editing
+      - terminal-integration
+    specialized:
+      - anthropic-claude-integration
+      - interactive-development
+      - batch-processing
+      - tty-aware-operations
+  
+  # API interfaces available
+  interfaces:
+    - name: cli-interface
+      endpoint: "claude"
+      method: [CLI]
+      inputTypes: [text, file]
+      outputTypes: [text, file-edits]
+      description: "Interactive CLI for AI development assistance"
+    - name: batch-processing
+      endpoint: "./manage.sh --action batch"
+      method: [CLI]
+      inputTypes: [text, prompts]
+      outputTypes: [text, file-edits]
+      description: "Non-interactive batch processing mode"
+    - name: health-check
+      endpoint: "./manage.sh --action status"
+      method: [CLI]
+      inputTypes: []
+      outputTypes: [status]
+      description: "Installation and authentication status check"
+  
+  # Resource dependencies and requirements
+  dependencies:
+    required:
+      - nodejs
+      - npm
+      - claude-subscription
+    optional: []
+    incompatible: []
+  
+  # Scenario compatibility
+  scenarios:
+    primary:
+      - development-automation
+      - code-generation-tools
+    secondary:
+      - documentation-systems
+      - code-analysis-tools
+    optimal_combinations:
+      - [claude-code, postgres, n8n]        # AI-powered development workflows
+      - [claude-code, vault, minio]         # Secure development automation
+      - [claude-code, ollama]               # Local + cloud AI development
+  
+  # Business intelligence
+  business:
+    revenue_range:
+      min: 3000
+      max: 15000
+      currency: USD
+    complexity_score: 3  # 1-10 scale
+    implementation_time: "1-2 days"
+    upwork_demand: high
+    target_industries:
+      - software-development
+      - consulting-services
+      - development-agencies
+      - startup-tools
+      - code-automation
+    common_project_types:
+      - "AI-powered development assistant"
+      - "Automated code review and documentation"
+      - "Development workflow optimization"
+      - "Code generation and refactoring tools"
+  
+  # Technical specifications
+  technical:
+    ports: []
+    protocols: [cli, tty]
+    data_formats: [text, code]
+    resource_requirements:
+      memory:
+        minimum: "512MB"
+        recommended: "1GB"
+        optimal: "2GB+"
+      cpu:
+        minimum: "1 core"
+        recommended: "2 cores"
+        optimal: "4+ cores"
+      storage:
+        minimum: "100MB"
+        recommended: "500MB"
+        optimal: "1GB+"
+      database:
+        required: false
+        recommended: false
+        supported: []
+    scaling:
+      horizontal: false
+      vertical: true
+      max_concurrent_sessions: 1
+      execution_modes: [interactive, batch, health-check]
+  
+  # AI generation hints for automated scenario creation
+  ai_generation:
+    common_patterns:
+      - development-automation
+      - code-review-systems
+      - documentation-generation
+      - refactoring-tools
+    integration_targets:
+      preferred: [n8n, postgres, vault]
+      compatible: [ollama, minio, redis]
+      avoid: [real-time-streaming, high-throughput-processing]
+    workflow_templates:
+      development: "Analyze code → Generate improvements → Apply changes → Review results"
+      automation: "Trigger on code changes → Run analysis → Generate documentation → Commit changes"
+      batch_processing: "Load prompts → Process with Claude → Save results → Report completion"
+    complexity_indicators:
+      simple: ["single file analysis", "basic documentation", "simple refactoring"]
+      intermediate: ["multi-file analysis", "complex refactoring", "workflow automation"]
+      advanced: ["enterprise code analysis", "AI-powered development pipelines", "integrated development workflows"]
+  
+  # Specialized features
+  features:
+    interactive_mode:
+      enabled: true
+      description: "Full interactive terminal-based development assistance"
+      security_level: user-controlled
+    batch_mode:
+      enabled: true
+      description: "Non-interactive batch processing for automation"
+      requires: valid_authentication
+    file_editing:
+      enabled: true
+      description: "Direct file editing and creation capabilities"
+      security_level: user-controlled
+    claude_integration:
+      enabled: true
+      description: "Native integration with Anthropic's Claude API"
+      requires: claude_subscription
+  
+  # Integration capabilities
+  integrations:
+    built_in_capabilities:
+      - file_reading
+      - file_writing
+      - code_analysis
+      - documentation_generation
+    development_tools:
+      - git_integration
+      - editor_compatibility
+      - terminal_integration
+      - project_awareness
+    ai_capabilities:
+      - claude_3_5_sonnet
+      - claude_3_opus
+      - context_aware_assistance
+      - code_understanding
+  
+  # Testing and validation
+  testing:
+    test_file: "scripts/resources/agents/claude-code/test/integration-test.sh"
+    test_coverage:
+      - installation_check
+      - authentication_status
+      - basic_functionality
+      - batch_processing
+      - file_operations
+    fixtures:
+      - sample_code_files
+      - batch_prompts
+      - configuration_templates
+    integration_tests:
+      - claude_code_n8n_workflow
+      - claude_code_postgres_integration
+      - automated_development_pipeline
+  
+  # Documentation and examples
+  documentation:
+    readme: "scripts/resources/agents/claude-code/README.md"
+    api_reference: "scripts/resources/agents/claude-code/docs/API.md"
+    examples_dir: "scripts/resources/agents/claude-code/examples/"
+    configuration: "scripts/resources/agents/claude-code/docs/CONFIGURATION.md"
+    troubleshooting: "scripts/resources/agents/claude-code/docs/TROUBLESHOOTING.md"
+  
+  # Version and compatibility
+  version_info:
+    min_version: "1.0.0"
+    tested_version: "latest"
+    api_version: "CLI"
+    compatibility_matrix:
+      node: ">=18.0.0"
+      npm: ">=8.0.0"
+      os: [linux, macos, windows]
+      architecture: [amd64, arm64]
+
+# Metadata for resource discovery and automation
+labels:
+  resource.vrooli.com/category: "agents"
+  resource.vrooli.com/type: "development"
+  resource.vrooli.com/maturity: "stable"
+  resource.vrooli.com/business-value: "high"
+  resource.vrooli.com/ai-friendly: "true"
+  resource.vrooli.com/requires-auth: "true"

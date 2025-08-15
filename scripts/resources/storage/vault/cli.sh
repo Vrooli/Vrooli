@@ -2,7 +2,7 @@
 ################################################################################
 # Vault Resource CLI
 # 
-# Lightweight CLI interface for Vault that delegates to existing lib functions.
+# Lightweight CLI interface for Vault using the CLI Command Framework
 #
 # Usage:
 #   resource-vault <command> [options]
@@ -24,11 +24,11 @@ source "${VROOLI_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LOG_FILE:-${VROOLI_ROOT}/scripts/lib/utils/log.sh}" 2>/dev/null || true
 # shellcheck disable=SC1091
-source "${var_RESOURCES_COMMON_FILE}" 2>/dev/null || true
+source "${var_RESOURCES_COMMON_FILE:-${VROOLI_ROOT}/scripts/resources/common.sh}" 2>/dev/null || true
 
-# Source the CLI template
+# Source the CLI Command Framework
 # shellcheck disable=SC1091
-source "${VROOLI_ROOT}/scripts/lib/resources/cli/resource-cli-template.sh"
+source "${VROOLI_ROOT}/scripts/resources/lib/cli-command-framework.sh"
 
 # Source Vault configuration
 # shellcheck disable=SC1091
@@ -44,11 +44,33 @@ for lib in common docker api status install; do
     fi
 done
 
-# Initialize with resource name
-resource_cli::init "vault"
+# Initialize CLI framework
+cli::init "vault" "HashiCorp Vault secrets management"
+
+# Override help to provide Vault-specific examples
+cli::register_command "help" "Show this help message with Vault examples" "resource_cli::show_help"
+
+# Register additional Vault-specific commands
+cli::register_command "inject" "Store secret in Vault" "resource_cli::inject" "modifies-system"
+cli::register_command "init-dev" "Initialize Vault for development" "resource_cli::init_dev" "modifies-system"
+cli::register_command "init-prod" "Initialize Vault for production" "resource_cli::init_prod" "modifies-system"
+cli::register_command "unseal" "Unseal Vault" "resource_cli::unseal" "modifies-system"
+cli::register_command "get-secret" "Get secret from Vault" "resource_cli::get_secret"
+cli::register_command "list-secrets" "List secrets at path" "resource_cli::list_secrets"
+cli::register_command "delete-secret" "Delete secret (requires --force)" "resource_cli::delete_secret" "modifies-system"
+cli::register_command "auth-info" "Show authentication information" "resource_cli::auth_info"
+cli::register_command "test" "Run functional tests" "resource_cli::test"
+cli::register_command "monitor" "Monitor Vault (default: 5s)" "resource_cli::monitor"
+cli::register_command "backup" "Create Vault backup" "resource_cli::backup" "modifies-system"
+cli::register_command "restore" "Restore Vault backup" "resource_cli::restore" "modifies-system"
+cli::register_command "migrate-env" "Migrate .env file to Vault" "resource_cli::migrate_env" "modifies-system"
+cli::register_command "logs" "Show Vault logs (default: 50 lines)" "resource_cli::logs"
+cli::register_command "diagnose" "Diagnose Vault issues" "resource_cli::diagnose"
+cli::register_command "credentials" "Show n8n credentials for Vault" "resource_cli::credentials"
+cli::register_command "uninstall" "Uninstall Vault (requires --force)" "resource_cli::uninstall" "modifies-system"
 
 ################################################################################
-# Delegate to existing Vault functions
+# Resource-specific command implementations
 ################################################################################
 
 # Inject secrets into Vault
@@ -56,18 +78,16 @@ resource_cli::inject() {
     local path="${1:-}"
     local value="${2:-}"
     local key="${3:-value}"
-    DRY_RUN="${DRY_RUN:-false}"
     
     if [[ -z "$path" || -z "$value" ]]; then
         log::error "Both path and value required for injection"
         echo "Usage: resource-vault inject <path> <value> [key]"
-        echo "Example: resource-vault inject secret/myapp/db password123"
+        echo ""
+        echo "Examples:"
+        echo "  resource-vault inject secret/myapp/db password123"
+        echo "  resource-vault inject secret/myapp/api apikey123 api_key"
+        echo "  resource-vault inject secret/shared/jwt supersecret token"
         return 1
-    fi
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log::info "[DRY RUN] Would inject secret at path: $path"
-        return 0
     fi
     
     # Use existing Vault secret function
@@ -88,7 +108,8 @@ resource_cli::validate() {
     else
         # Basic validation
         log::header "Validating Vault"
-        docker ps --format '{{.Names}}' 2>/dev/null | grep -q "vault" || {
+        local container_name="${VAULT_CONTAINER_NAME:-vault}"
+        docker ps --format '{{.Names}}' 2>/dev/null | grep -q "$container_name" || {
             log::error "Vault container not running"
             return 1
         }
@@ -103,9 +124,10 @@ resource_cli::status() {
     else
         # Basic status
         log::header "Vault Status"
-        if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "vault"; then
+        local container_name="${VAULT_CONTAINER_NAME:-vault}"
+        if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "$container_name"; then
             echo "Container: ✅ Running"
-            docker ps --filter "name=vault" --format "table {{.Status}}\t{{.Ports}}" | tail -n 1
+            docker ps --filter "name=$container_name" --format "table {{.Status}}\t{{.Ports}}" | tail -n 1
         else
             echo "Container: ❌ Not running"
         fi
@@ -114,45 +136,26 @@ resource_cli::status() {
 
 # Start Vault
 resource_cli::start() {
-    DRY_RUN="${DRY_RUN:-false}"
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log::info "[DRY RUN] Would start Vault"
-        return 0
-    fi
-    
     if command -v vault::docker::start_container &>/dev/null; then
         vault::docker::start_container
     else
-        docker start vault || log::error "Failed to start Vault"
+        local container_name="${VAULT_CONTAINER_NAME:-vault}"
+        docker start "$container_name" || log::error "Failed to start Vault"
     fi
 }
 
 # Stop Vault
 resource_cli::stop() {
-    DRY_RUN="${DRY_RUN:-false}"
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log::info "[DRY RUN] Would stop Vault"
-        return 0
-    fi
-    
     if command -v vault::docker::stop_container &>/dev/null; then
         vault::docker::stop_container
     else
-        docker stop vault || log::error "Failed to stop Vault"
+        local container_name="${VAULT_CONTAINER_NAME:-vault}"
+        docker stop "$container_name" || log::error "Failed to stop Vault"
     fi
 }
 
 # Install Vault
 resource_cli::install() {
-    DRY_RUN="${DRY_RUN:-false}"
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log::info "[DRY RUN] Would install Vault"
-        return 0
-    fi
-    
     if command -v vault::install &>/dev/null; then
         vault::install
     else
@@ -164,54 +167,44 @@ resource_cli::install() {
 # Uninstall Vault
 resource_cli::uninstall() {
     FORCE="${FORCE:-false}"
-    DRY_RUN="${DRY_RUN:-false}"
     
     if [[ "$FORCE" != "true" ]]; then
         echo "⚠️  This will remove Vault and all its data. Use --force to confirm."
         return 1
     fi
     
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log::info "[DRY RUN] Would uninstall Vault"
-        return 0
-    fi
-    
     if command -v vault::uninstall &>/dev/null; then
         vault::uninstall
     else
-        docker stop vault 2>/dev/null || true
-        docker rm vault 2>/dev/null || true
+        local container_name="${VAULT_CONTAINER_NAME:-vault}"
+        docker stop "$container_name" 2>/dev/null || true
+        docker rm "$container_name" 2>/dev/null || true
         log::success "Vault uninstalled"
     fi
 }
 
-# Get credentials for n8n integration
+# Show credentials for n8n integration
 resource_cli::credentials() {
-    # Source credentials utilities
-    # shellcheck disable=SC1091
     source "${VROOLI_ROOT}/scripts/resources/lib/credentials-utils.sh"
     
-    # Parse arguments
     if ! credentials::parse_args "$@"; then
         [[ $? -eq 2 ]] && { credentials::show_help "vault"; return 0; }
         return 1
     fi
     
-    # Get resource status
     local status
-    status=$(credentials::get_resource_status "$VAULT_CONTAINER_NAME")
+    status=$(credentials::get_resource_status "${VAULT_CONTAINER_NAME:-vault}")
     
-    # Build connections array
     local connections_array="[]"
     if [[ "$status" == "running" ]]; then
         # Get token for authentication
         local token=""
-        if [[ "$VAULT_MODE" == "dev" ]]; then
+        if [[ "${VAULT_MODE:-}" == "dev" ]]; then
             # Use development root token
-            token="$VAULT_DEV_ROOT_TOKEN_ID"
-        elif [[ -f "$VAULT_TOKEN_FILE" ]]; then
+            token="${VAULT_DEV_ROOT_TOKEN_ID:-root}"
+        elif [[ -f "${VAULT_TOKEN_FILE:-}" ]]; then
             # Try to read token from file for production mode
-            token=$(cat "$VAULT_TOKEN_FILE" 2>/dev/null || echo "")
+            token=$(cat "${VAULT_TOKEN_FILE}" 2>/dev/null || echo "")
         fi
         
         if [[ -n "$token" ]]; then
@@ -219,9 +212,9 @@ resource_cli::credentials() {
             local connection_obj
             connection_obj=$(jq -n \
                 --arg host "localhost" \
-                --argjson port "$VAULT_PORT" \
+                --argjson port "${VAULT_PORT:-8200}" \
                 --arg path "/v1" \
-                --argjson ssl "$([[ "$VAULT_TLS_DISABLE" == "1" ]] && echo false || echo true)" \
+                --argjson ssl "$([[ "${VAULT_TLS_DISABLE:-1}" == "1" ]] && echo false || echo true)" \
                 '{
                     host: $host,
                     port: $port,
@@ -241,16 +234,14 @@ resource_cli::credentials() {
             local metadata_obj
             metadata_obj=$(jq -n \
                 --arg description "HashiCorp Vault secrets management" \
-                --arg mode "$VAULT_MODE" \
-                --arg engine "$VAULT_SECRET_ENGINE" \
-                --arg version "$VAULT_SECRET_VERSION" \
-                --argjson default_paths "$(printf '%s\n' "${VAULT_DEFAULT_PATHS[@]}" | jq -R . | jq -s .)" \
+                --arg mode "${VAULT_MODE:-dev}" \
+                --arg engine "${VAULT_SECRET_ENGINE:-secret}" \
+                --arg version "${VAULT_SECRET_VERSION:-v2}" \
                 '{
                     description: $description,
                     mode: $mode,
                     secret_engine: $engine,
-                    kv_version: $version,
-                    default_paths: $default_paths
+                    kv_version: $version
                 }')
             
             local connection
@@ -266,24 +257,13 @@ resource_cli::credentials() {
         fi
     fi
     
-    # Build and validate response
     local response
     response=$(credentials::build_response "vault" "$status" "$connections_array")
-    
-    if credentials::validate_json "$response"; then
-        credentials::format_output "$response"
-    else
-        log::error "Invalid credentials JSON generated"
-        return 1
-    fi
+    credentials::format_output "$response"
 }
 
-################################################################################
-# Vault-specific commands (if functions exist)
-################################################################################
-
 # Initialize Vault for development
-vault_init_dev() {
+resource_cli::init_dev() {
     if command -v vault::init_dev &>/dev/null; then
         vault::init_dev
     else
@@ -293,7 +273,7 @@ vault_init_dev() {
 }
 
 # Initialize Vault for production
-vault_init_prod() {
+resource_cli::init_prod() {
     if command -v vault::init_prod &>/dev/null; then
         vault::init_prod
     else
@@ -303,7 +283,7 @@ vault_init_prod() {
 }
 
 # Unseal Vault
-vault_unseal() {
+resource_cli::unseal() {
     if command -v vault::unseal &>/dev/null; then
         vault::unseal
     else
@@ -313,7 +293,7 @@ vault_unseal() {
 }
 
 # Get secret from Vault
-vault_get_secret() {
+resource_cli::get_secret() {
     local path="${1:-}"
     local key="${2:-value}"
     local format="${3:-raw}"
@@ -321,6 +301,11 @@ vault_get_secret() {
     if [[ -z "$path" ]]; then
         log::error "Secret path required"
         echo "Usage: resource-vault get-secret <path> [key] [format]"
+        echo ""
+        echo "Examples:"
+        echo "  resource-vault get-secret secret/myapp/db"
+        echo "  resource-vault get-secret secret/myapp/api api_key"
+        echo "  resource-vault get-secret secret/shared/jwt token json"
         return 1
     fi
     
@@ -333,13 +318,17 @@ vault_get_secret() {
 }
 
 # List secrets at path
-vault_list_secrets() {
+resource_cli::list_secrets() {
     local path="${1:-}"
     local format="${2:-list}"
     
     if [[ -z "$path" ]]; then
         log::error "Secret path required"
         echo "Usage: resource-vault list-secrets <path> [format]"
+        echo ""
+        echo "Examples:"
+        echo "  resource-vault list-secrets secret/myapp"
+        echo "  resource-vault list-secrets secret/shared json"
         return 1
     fi
     
@@ -352,12 +341,16 @@ vault_list_secrets() {
 }
 
 # Delete secret from Vault
-vault_delete_secret() {
+resource_cli::delete_secret() {
     local path="${1:-}"
     
     if [[ -z "$path" ]]; then
         log::error "Secret path required"
-        echo "Usage: resource-vault delete-secret <path>"
+        echo "Usage: resource-vault delete-secret <path> --force"
+        echo ""
+        echo "Examples:"
+        echo "  resource-vault delete-secret secret/myapp/old-key --force"
+        echo "  resource-vault delete-secret secret/temp/test-data --force"
         return 1
     fi
     
@@ -376,7 +369,7 @@ vault_delete_secret() {
 }
 
 # Show authentication info
-vault_auth_info() {
+resource_cli::auth_info() {
     if command -v vault::show_auth_info &>/dev/null; then
         vault::show_auth_info
     else
@@ -386,7 +379,7 @@ vault_auth_info() {
 }
 
 # Run functional tests
-vault_test() {
+resource_cli::test() {
     if command -v vault::test_functional &>/dev/null; then
         vault::test_functional
     else
@@ -396,7 +389,7 @@ vault_test() {
 }
 
 # Monitor Vault
-vault_monitor() {
+resource_cli::monitor() {
     local interval="${1:-5}"
     
     if command -v vault::monitor &>/dev/null; then
@@ -408,7 +401,7 @@ vault_monitor() {
 }
 
 # Create backup
-vault_backup() {
+resource_cli::backup() {
     local backup_file="${1:-}"
     
     if command -v vault::docker::backup &>/dev/null; then
@@ -420,11 +413,16 @@ vault_backup() {
 }
 
 # Restore backup
-vault_restore() {
+resource_cli::restore() {
     local backup_file="${1:-}"
     
     if [[ -z "$backup_file" ]]; then
         log::error "Backup file required for restore"
+        echo "Usage: resource-vault restore <backup-file>"
+        echo ""
+        echo "Examples:"
+        echo "  resource-vault restore /backups/vault-2024-01-01.tar"
+        echo "  resource-vault restore vault-backup.tar"
         return 1
     fi
     
@@ -437,13 +435,17 @@ vault_restore() {
 }
 
 # Migrate environment file
-vault_migrate_env() {
+resource_cli::migrate_env() {
     local env_file="${1:-}"
     local vault_prefix="${2:-}"
     
     if [[ -z "$env_file" || -z "$vault_prefix" ]]; then
         log::error "Both env-file and vault-prefix required"
         echo "Usage: resource-vault migrate-env <env-file> <vault-prefix>"
+        echo ""
+        echo "Examples:"
+        echo "  resource-vault migrate-env .env secret/myapp"
+        echo "  resource-vault migrate-env production.env secret/prod"
         return 1
     fi
     
@@ -456,9 +458,10 @@ vault_migrate_env() {
 }
 
 # Show logs
-vault_logs() {
+resource_cli::logs() {
     local lines="${1:-50}"
     local follow="${2:-false}"
+    local container_name="${VAULT_CONTAINER_NAME:-vault}"
     
     if command -v vault::docker::show_logs &>/dev/null; then
         if [[ "$follow" == "true" ]]; then
@@ -468,15 +471,15 @@ vault_logs() {
         fi
     else
         if [[ "$follow" == "true" ]]; then
-            docker logs --tail "$lines" -f vault
+            docker logs --tail "$lines" -f "$container_name"
         else
-            docker logs --tail "$lines" vault
+            docker logs --tail "$lines" "$container_name"
         fi
     fi
 }
 
 # Diagnose Vault issues
-vault_diagnose() {
+resource_cli::diagnose() {
     if command -v vault::diagnose &>/dev/null; then
         vault::diagnose
     else
@@ -485,130 +488,53 @@ vault_diagnose() {
     fi
 }
 
-# Show help
+# Custom help function with Vault-specific examples
 resource_cli::show_help() {
-    cat << EOF
-🚀 Vault Resource CLI
-
-USAGE:
-    resource-vault <command> [options]
-
-CORE COMMANDS:
-    inject <path> <value> [key]     Store secret in Vault
-    validate                        Validate Vault configuration
-    status                          Show Vault status
-    start                           Start Vault container
-    stop                            Stop Vault container
-    install                         Install Vault
-    uninstall                       Uninstall Vault (requires --force)
-    credentials                     Get connection credentials for n8n integration
+    # Show standard framework help first
+    cli::_handle_help
     
-VAULT COMMANDS:
-    init-dev                        Initialize Vault for development
-    init-prod                       Initialize Vault for production
-    unseal                          Unseal Vault
-    get-secret <path> [key] [format] Get secret from Vault
-    list-secrets <path> [format]    List secrets at path
-    delete-secret <path>            Delete secret (requires --force)
-    auth-info                       Show authentication information
-    test                            Run functional tests
-    monitor [interval]              Monitor Vault (default: 5s)
-    backup [file]                   Create Vault backup
-    restore <file>                  Restore Vault backup
-    migrate-env <env-file> <prefix> Migrate .env file to Vault
-    logs [lines] [follow]           Show Vault logs (default: 50 lines)
-    diagnose                        Diagnose Vault issues
-
-OPTIONS:
-    --verbose, -v                   Show detailed output
-    --dry-run                       Preview actions without executing
-    --force                         Force operation (skip confirmations)
-
-EXAMPLES:
-    resource-vault status
-    resource-vault inject secret/myapp/db password123
-    resource-vault get-secret secret/myapp/db
-    resource-vault list-secrets secret/myapp
-    resource-vault migrate-env .env secret/myapp
-    resource-vault delete-secret secret/myapp/db --force
-
-For more information: https://docs.vrooli.com/resources/vault
-EOF
+    # Add Vault-specific examples
+    echo ""
+    echo "🔐 HashiCorp Vault Secrets Management Examples:"
+    echo ""
+    echo "Secrets Management:"
+    echo "  resource-vault inject secret/myapp/db password123     # Store secret"
+    echo "  resource-vault get-secret secret/myapp/db             # Retrieve secret"
+    echo "  resource-vault list-secrets secret/myapp             # List secrets"
+    echo "  resource-vault delete-secret secret/old/key --force  # Delete secret"
+    echo ""
+    echo "Initialization & Operations:"
+    echo "  resource-vault init-dev                              # Setup development mode"
+    echo "  resource-vault init-prod                             # Setup production mode"
+    echo "  resource-vault unseal                                # Unseal vault"
+    echo "  resource-vault auth-info                             # Show auth status"
+    echo ""
+    echo "Environment Migration:"
+    echo "  resource-vault migrate-env .env secret/myapp         # Import .env file"
+    echo "  resource-vault migrate-env production.env secret/prod # Import prod env"
+    echo ""
+    echo "Backup & Monitoring:"
+    echo "  resource-vault backup /backups/vault-backup.tar      # Create backup"
+    echo "  resource-vault restore /backups/vault-backup.tar     # Restore backup"
+    echo "  resource-vault monitor 10                            # Monitor every 10s"
+    echo "  resource-vault diagnose                              # Run diagnostics"
+    echo ""
+    echo "Security Features:"
+    echo "  • Token-based authentication"
+    echo "  • Secret versioning and rollback"
+    echo "  • Audit logging and compliance"
+    echo "  • Dynamic secrets generation"
+    echo ""
+    echo "Default Port: 8200"
+    echo "Modes: dev (unsealed), prod (requires initialization)"
+    echo "Web UI: http://localhost:8200/ui"
 }
 
-# Main command router
-resource_cli::main() {
-    # Parse common options first
-    local remaining_args
-    remaining_args=$(resource_cli::parse_options "$@")
-    set -- $remaining_args
-    
-    local command="${1:-help}"
-    shift || true
-    
-    case "$command" in
-        # Standard resource commands
-        inject|validate|status|start|stop|install|uninstall|credentials)
-            resource_cli::$command "$@"
-            ;;
-            
-        # Vault-specific commands
-        init-dev)
-            vault_init_dev "$@"
-            ;;
-        init-prod)
-            vault_init_prod "$@"
-            ;;
-        unseal)
-            vault_unseal "$@"
-            ;;
-        get-secret)
-            vault_get_secret "$@"
-            ;;
-        list-secrets)
-            vault_list_secrets "$@"
-            ;;
-        delete-secret)
-            vault_delete_secret "$@"
-            ;;
-        auth-info)
-            vault_auth_info "$@"
-            ;;
-        test)
-            vault_test "$@"
-            ;;
-        monitor)
-            vault_monitor "$@"
-            ;;
-        backup)
-            vault_backup "$@"
-            ;;
-        restore)
-            vault_restore "$@"
-            ;;
-        migrate-env)
-            vault_migrate_env "$@"
-            ;;
-        logs)
-            vault_logs "$@"
-            ;;
-        diagnose)
-            vault_diagnose "$@"
-            ;;
-            
-        help|--help|-h)
-            resource_cli::show_help
-            ;;
-        *)
-            log::error "Unknown command: $command"
-            echo ""
-            resource_cli::show_help
-            exit 1
-            ;;
-    esac
-}
+################################################################################
+# Main execution - dispatch to framework
+################################################################################
 
-# Run main if executed directly
+# Only execute if script is run directly (not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    resource_cli::main "$@"
+    cli::dispatch "$@"
 fi

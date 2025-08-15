@@ -44,11 +44,12 @@ ollama::install_binary() {
         return 1
     fi
     
-    # Make executable and run
+    # Make executable and run non-interactively
     chmod +x "$install_script"
     
     if sudo::can_use_sudo; then
-        if sudo::exec_with_fallback "bash '$install_script'"; then
+        # Run installer non-interactively by piping yes to it
+        if sudo::exec_with_fallback "yes | bash '$install_script' 2>&1"; then
             log::success "$MSG_INSTALLER_SUCCESS"
         else
             log::error "$MSG_INSTALLER_FAILED"

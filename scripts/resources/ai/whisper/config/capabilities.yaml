@@ -1,0 +1,241 @@
+apiVersion: vrooli.com/v1
+kind: ResourceCapability
+metadata:
+  name: whisper
+  category: ai
+  subcategory: speech-recognition
+  description: "OpenAI's robust speech recognition system with 100+ language support"
+  maturity: stable
+  complexity: intermediate
+  
+spec:
+  # Core capabilities this resource provides
+  capabilities:
+    primary:
+      - speech-to-text
+      - audio-transcription
+      - multi-language-recognition
+      - audio-translation-to-english
+    secondary:
+      - batch-audio-processing
+      - real-time-transcription
+      - audio-format-conversion
+      - timestamp-alignment
+    specialized:
+      - gpu-acceleration
+      - model-size-optimization
+      - multilingual-processing
+      - openai-whisper-integration
+  
+  # API interfaces available
+  interfaces:
+    - name: transcription
+      endpoint: "/transcribe"
+      method: [POST]
+      inputTypes: [audio/wav, audio/mp3, audio/ogg, audio/m4a, audio/flac, audio/aac, audio/wma]
+      outputTypes: [json, text, vtt, srt]
+      description: "Transcribe audio files to text with optional timestamps"
+    - name: translation
+      endpoint: "/translate"
+      method: [POST]
+      inputTypes: [audio/wav, audio/mp3, audio/ogg, audio/m4a, audio/flac, audio/aac, audio/wma]
+      outputTypes: [json, text, vtt, srt]
+      description: "Translate audio from any language to English text"
+    - name: health-check
+      endpoint: "/health"
+      method: [GET]
+      inputTypes: []
+      outputTypes: [json]
+      description: "Service health and model status check"
+    - name: models
+      endpoint: "/models"
+      method: [GET]
+      inputTypes: []
+      outputTypes: [json]
+      description: "List available Whisper models and their capabilities"
+  
+  # Resource dependencies and requirements
+  dependencies:
+    required:
+      - python
+      - ffmpeg
+    optional:
+      - cuda-toolkit
+      - nvidia-gpu
+      - docker
+    incompatible: []
+  
+  # Scenario compatibility
+  scenarios:
+    primary:
+      - audio-intelligence-platform
+      - speech-processing-tools
+      - content-transcription-systems
+    secondary:
+      - research-assistant
+      - document-manager
+      - meeting-automation
+    optimal_combinations:
+      - [whisper, postgres, minio]          # Audio content management
+      - [whisper, n8n, vault]              # Automated transcription workflows
+      - [whisper, ollama, qdrant]          # AI-powered audio analysis
+      - [whisper, agent-s2, browserless]   # Multi-modal automation
+  
+  # Business intelligence
+  business:
+    revenue_range:
+      min: 8000
+      max: 45000
+      currency: USD
+    complexity_score: 6  # 1-10 scale
+    implementation_time: "2-4 days"
+    upwork_demand: very-high
+    target_industries:
+      - media-production
+      - education-technology
+      - legal-services
+      - healthcare
+      - content-creation
+      - accessibility-services
+    common_project_types:
+      - "Multi-language transcription service"
+      - "Meeting and lecture transcription platform"
+      - "Accessibility compliance solutions"
+      - "Content localization and translation"
+      - "Voice-driven data entry systems"
+  
+  # Technical specifications
+  technical:
+    ports: [9000]
+    protocols: [http, rest]
+    data_formats: [json, text, vtt, srt, wav, mp3, ogg, m4a, flac, aac, wma]
+    resource_requirements:
+      memory:
+        minimum: "2GB"
+        recommended: "4GB"
+        optimal: "8GB+"
+      cpu:
+        minimum: "2 cores"
+        recommended: "4 cores"
+        optimal: "8+ cores"
+      storage:
+        minimum: "2GB"
+        recommended: "5GB"
+        optimal: "20GB+"
+      gpu:
+        required: false
+        recommended: true
+        supported: ["NVIDIA CUDA", "Apple Metal"]
+    scaling:
+      horizontal: true
+      vertical: true
+      max_concurrent_requests: 10
+      execution_modes: [cpu, gpu, docker]
+  
+  # AI generation hints for automated scenario creation
+  ai_generation:
+    common_patterns:
+      - audio-transcription-pipelines
+      - multi-language-content-processing
+      - voice-activated-systems
+      - accessibility-enhancement
+    integration_targets:
+      preferred: [postgres, minio, n8n, qdrant]
+      compatible: [ollama, vault, redis, agent-s2]
+      avoid: [text-only-processing, image-processing]
+    workflow_templates:
+      transcription: "Upload audio → Process with Whisper → Store transcript → Notify completion"
+      translation: "Upload foreign audio → Translate to English → Store results → Generate summaries"
+      batch_processing: "Monitor audio folder → Batch transcribe → Index content → Generate reports"
+    complexity_indicators:
+      simple: ["single file transcription", "basic language detection", "text output only"]
+      intermediate: ["batch processing", "multiple formats", "timestamp alignment", "translation"]
+      advanced: ["real-time processing", "multi-language workflows", "AI-powered analysis", "enterprise integration"]
+  
+  # Specialized features
+  features:
+    multi_language_support:
+      enabled: true
+      description: "Transcribe audio in 100+ languages with automatic detection"
+      languages: 100+
+    gpu_acceleration:
+      enabled: true
+      description: "NVIDIA GPU acceleration for faster processing"
+      requires: cuda_toolkit
+    model_selection:
+      enabled: true
+      description: "Choose from tiny, base, small, medium, large models"
+      models: ["tiny", "base", "small", "medium", "large", "large-v2", "large-v3"]
+    timestamp_alignment:
+      enabled: true
+      description: "Word-level and segment-level timestamp alignment"
+      formats: [vtt, srt, json]
+  
+  # Integration capabilities
+  integrations:
+    audio_formats:
+      - wav
+      - mp3
+      - ogg
+      - m4a
+      - flac
+      - aac
+      - wma
+    output_formats:
+      - json
+      - text
+      - vtt
+      - srt
+    model_variants:
+      tiny: "39 MB, ~32x realtime"
+      base: "74 MB, ~16x realtime"
+      small: "244 MB, ~6x realtime"
+      medium: "769 MB, ~2x realtime"
+      large: "1550 MB, ~1x realtime"
+  
+  # Testing and validation
+  testing:
+    test_file: "scripts/resources/ai/whisper/test/integration-test.sh"
+    test_coverage:
+      - service_health
+      - transcription_accuracy
+      - multi_language_support
+      - format_compatibility
+      - gpu_acceleration
+    fixtures:
+      - sample_audio_files
+      - multi_language_samples
+      - performance_benchmarks
+    integration_tests:
+      - whisper_n8n_workflow
+      - whisper_postgres_storage
+      - multi_format_processing
+  
+  # Documentation and examples
+  documentation:
+    readme: "scripts/resources/ai/whisper/README.md"
+    api_reference: "scripts/resources/ai/whisper/docs/API.md"
+    examples_dir: "scripts/resources/ai/whisper/examples/"
+    configuration: "scripts/resources/ai/whisper/docs/CONFIGURATION.md"
+    troubleshooting: "scripts/resources/ai/whisper/docs/TROUBLESHOOTING.md"
+  
+  # Version and compatibility
+  version_info:
+    min_version: "20231117"
+    tested_version: "20231117"
+    api_version: "v1"
+    compatibility_matrix:
+      python: ">=3.8"
+      ffmpeg: ">=4.0"
+      cuda: ">=11.8"
+      docker: ">=20.10.0"
+      architecture: [amd64, arm64]
+
+# Metadata for resource discovery and automation
+labels:
+  resource.vrooli.com/category: "ai"
+  resource.vrooli.com/type: "speech-recognition"
+  resource.vrooli.com/maturity: "stable"
+  resource.vrooli.com/business-value: "very-high"
+  resource.vrooli.com/ai-friendly: "true"
+  resource.vrooli.com/gpu-enabled: "true"

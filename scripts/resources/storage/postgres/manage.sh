@@ -9,6 +9,9 @@ DESCRIPTION="Install and manage PostgreSQL database instances for client isolati
 POSTGRES_SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 POSTGRES_LIB_DIR="${POSTGRES_SCRIPT_DIR}/lib"
 
+# Clear any source guards that may have been inherited from parent process
+unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED 2>/dev/null || true
+
 # Source var.sh first for directory variables
 # shellcheck disable=SC1091
 source "${POSTGRES_SCRIPT_DIR}/../../../lib/utils/var.sh"
