@@ -1,0 +1,277 @@
+{
+  "name": "Ollama Universal Executor",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ollama",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 500]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "prompt",
+              "value": "What are the key benefits of using GraphQL over REST APIs? Provide a detailed analysis with pros and cons in JSON format: {\"recommendation\": \"your conclusion\", \"confidence\": 0.8, \"key_points\": [\"point 1\", \"point 2\"], \"pros\": [\"benefit 1\"], \"cons\": [\"risk 1\"]}"
+            },
+            {
+              "name": "model",
+              "value": "phi3.5:3.8b"
+            },
+            {
+              "name": "type",
+              "value": "reasoning"
+            }
+          ],
+          "boolean": [
+            {
+              "name": "quiet",
+              "value": true
+            }
+          ],
+          "number": [
+            {
+              "name": "timeout_seconds",
+              "value": 120
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set_test_defaults",
+      "name": "Set Test Defaults",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [400, 500]
+    },
+    {
+      "parameters": {
+        "mode": "append"
+      },
+      "id": "merge_triggers",
+      "name": "Merge Triggers",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [600, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const input = $input.item.json;\nconsole.log('Input received:', JSON.stringify(input));\n\n// Validate prompt\nif (!input.prompt || typeof input.prompt !== 'string' || input.prompt.trim().length === 0) {\n  throw new Error('Missing required parameter: prompt');\n}\n\nconst prompt = input.prompt.trim();\nif (prompt.length > 50000) {\n  throw new Error('Prompt too long (max 50,000 characters)');\n}\n\n// Get parameters with defaults\nconst model = (input.model && typeof input.model === 'string') ? input.model.trim() : '';\nconst type = (input.type && typeof input.type === 'string') ? input.type.trim() : 'general';\nconst quiet = input.quiet === true || input.quiet === 'true';\nconst timeoutSeconds = typeof input.timeout_seconds === 'number' ? Math.max(10, Math.min(600, input.timeout_seconds)) : 120;\n\n// Validate type\nconst validTypes = ['general', 'code', 'reasoning', 'vision'];\nif (!validTypes.includes(type)) {\n  throw new Error('Invalid type: ' + type);\n}\n\n// Build command\nconst timestamp = Date.now();\nconst randomId = Math.random().toString(36).substring(2, 8);\nconst tempFile = '/tmp/ollama_prompt_' + timestamp + '_' + randomId + '.txt';\n\n// Escape single quotes in prompt for shell\nconst escapedPrompt = prompt.replace(/'/g, \"'\\\"'\\\"'\");\n\n// Build command string\nconst baseCmd = 'bash /vrooli/cli/vrooli resource ollama generate';\nconst modelFlag = model ? '--model \\'' + model + '\\'' : '';\nconst typeFlag = '--type \\'' + type + '\\'';\nconst quietFlag = quiet ? '--quiet' : '';\n\nconst command = 'prompt_file=\"' + tempFile + '\"; ' +\n  'echo \\'' + escapedPrompt + '\\' > \"$prompt_file\"; ' +\n  baseCmd + ' \"$(cat \"$prompt_file\")\" ' + modelFlag + ' ' + typeFlag + ' ' + quietFlag + '; ' +\n  'rm -f \"$prompt_file\"';\n\n// Return result\nreturn {\n  command: command,\n  execution_meta: {\n    prompt_length: prompt.length,\n    model: model || 'auto-selected',\n    type: type,\n    quiet: quiet,\n    timeout_seconds: timeoutSeconds,\n    timeout_ms: timeoutSeconds * 1000,\n    temp_file: tempFile,\n    execution_id: 'ollama_' + timestamp + '_' + randomId,\n    timestamp: new Date().toISOString()\n  },\n  original_prompt: prompt\n};"
+      },
+      "id": "validate_input",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [800, 400]
+    },
+    {
+      "parameters": {
+        "command": "={{ $json.command }}",
+        "options": {
+          "timeout": "={{ $json.execution_meta.timeout_ms }}"
+        }
+      },
+      "id": "execute_ollama",
+      "name": "Execute Ollama",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1000, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process Ollama execution results\nconst commandResult = $input.item.json;\nconst executionMeta = $('Validate Input').item.json.execution_meta;\nconst originalPrompt = $('Validate Input').item.json.original_prompt;\n\n// Determine execution success\nconst success = commandResult.exitCode === 0;\nconst hasOutput = commandResult.stdout && commandResult.stdout.trim().length > 0;\nconst hasError = commandResult.stderr && commandResult.stderr.trim().length > 0;\n\n// Process output\nlet response = '';\nlet responseLength = 0;\nif (hasOutput) {\n  response = commandResult.stdout.trim();\n  responseLength = response.length;\n}\n\n// Process errors\nlet errorMessage = '';\nif (hasError) {\n  errorMessage = commandResult.stderr.trim();\n}\n\n// Calculate execution time (approximate)\nconst executionEndTime = new Date().toISOString();\nconst startTime = new Date(executionMeta.timestamp);\nconst endTime = new Date(executionEndTime);\nconst executionTimeMs = endTime.getTime() - startTime.getTime();\n\n// Try to detect response format\nlet responseFormat = 'text';\nif (response) {\n  const trimmedResponse = response.trim();\n  if (trimmedResponse.startsWith('{') && trimmedResponse.endsWith('}')) {\n    responseFormat = 'json';\n  } else if (trimmedResponse.includes('```')) {\n    responseFormat = 'markdown';\n  }\n}\n\n// Build comprehensive result\nconst result = {\n  // Core response data\n  success: success,\n  response: response,\n  response_length: responseLength,\n  response_format: responseFormat,\n  \n  // Execution details\n  execution: {\n    exit_code: commandResult.exitCode,\n    execution_time_ms: executionTimeMs,\n    execution_time_seconds: Math.round(executionTimeMs / 1000 * 100) / 100,\n    started_at: executionMeta.timestamp,\n    completed_at: executionEndTime,\n    execution_id: executionMeta.execution_id\n  },\n  \n  // Request details\n  request: {\n    prompt_length: executionMeta.prompt_length,\n    model: executionMeta.model,\n    type: executionMeta.type,\n    quiet: executionMeta.quiet,\n    timeout_seconds: executionMeta.timeout_seconds\n  },\n  \n  // Error information (if any)\n  error: success ? null : {\n    message: errorMessage || 'Command execution failed',\n    exit_code: commandResult.exitCode,\n    stderr: errorMessage\n  },\n  \n  // Debug information (only included if execution failed)\n  debug: success ? null : {\n    command_used: 'bash /vrooli/cli/vrooli resource ollama generate [prompt from temp file]',\n    temp_file_used: executionMeta.temp_file,\n    raw_stdout: commandResult.stdout,\n    raw_stderr: commandResult.stderr\n  }\n};\n\n// Add prompt sample for debugging (first 200 chars)\nif (!success) {\n  result.debug.prompt_sample = originalPrompt.length > 200 \n    ? originalPrompt.substring(0, 200) + '...' \n    : originalPrompt;\n}\n\nreturn result;"
+      },
+      "id": "format_output",
+      "name": "Format Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1200, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.success }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "check_success",
+      "name": "Success Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1400, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json, null, 2) }}"
+      },
+      "id": "success_response",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1600, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseCode": 500,
+        "responseBody": "={{ JSON.stringify($json, null, 2) }}"
+      },
+      "id": "error_response",
+      "name": "Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1600, 500]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Merge Triggers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Test Defaults",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Test Defaults": {
+      "main": [
+        [
+          {
+            "node": "Merge Triggers",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Triggers": {
+      "main": [
+        [
+          {
+            "node": "Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Input": {
+      "main": [
+        [
+          {
+            "node": "Execute Ollama",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Ollama": {
+      "main": [
+        [
+          {
+            "node": "Format Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Output": {
+      "main": [
+        [
+          {
+            "node": "Success Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Success Check": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "executionTimeout": 600
+  },
+  "staticData": null,
+  "versionId": "ollama-universal-v1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "ollama-universal",
+  "tags": [
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "ollama",
+      "name": "ollama"
+    },
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "universal-executor",
+      "name": "universal-executor"
+    },
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "ai-inference",
+      "name": "ai-inference"
+    }
+  ]
+}

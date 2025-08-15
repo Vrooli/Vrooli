@@ -2,7 +2,7 @@
 ################################################################################
 # SearXNG Resource CLI
 # 
-# Lightweight CLI interface for SearXNG using the CLI Command Framework
+# Ultra-thin CLI wrapper that delegates directly to library functions
 #
 # Usage:
 #   resource-searxng <command> [options]
@@ -11,248 +11,233 @@
 
 set -euo pipefail
 
-# Get script directory
-SEARXNG_CLI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VROOLI_ROOT="${VROOLI_ROOT:-$(cd "$SEARXNG_CLI_DIR/../../../.." && pwd)}"
-export VROOLI_ROOT
-export RESOURCE_DIR="$SEARXNG_CLI_DIR"
-export SEARXNG_SCRIPT_DIR="$SEARXNG_CLI_DIR"  # For compatibility with existing libs
+# Get script directory (resolving symlinks for installed CLI)
+if [[ -L "${BASH_SOURCE[0]}" ]]; then
+    # If this is a symlink, resolve it
+    SEARXNG_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
+else
+    SEARXNG_CLI_SCRIPT="${BASH_SOURCE[0]}"
+fi
+SEARXNG_CLI_DIR="$(cd "$(dirname "$SEARXNG_CLI_SCRIPT")" && pwd)"
 
-# Source utilities first
+# Source standard variables
 # shellcheck disable=SC1091
-source "${VROOLI_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || true
+source "${SEARXNG_CLI_DIR}/../../../lib/utils/var.sh"
+
+# Source utilities using var_ variables
 # shellcheck disable=SC1091
-source "${var_LOG_FILE:-${VROOLI_ROOT}/scripts/lib/utils/log.sh}" 2>/dev/null || true
+source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
-source "${var_RESOURCES_COMMON_FILE}" 2>/dev/null || true
+source "${var_RESOURCES_COMMON_FILE}"
 
 # Source the CLI Command Framework
 # shellcheck disable=SC1091
-source "${VROOLI_ROOT}/scripts/resources/lib/cli-command-framework.sh"
+source "${var_SCRIPTS_RESOURCES_LIB_DIR}/cli-command-framework.sh"
 
 # Source SearXNG configuration
 # shellcheck disable=SC1091
 source "${SEARXNG_CLI_DIR}/config/defaults.sh" 2>/dev/null || true
 searxng::export_config 2>/dev/null || true
 
-# Source SearXNG libraries
-for lib in common docker install status config api; do
-    lib_file="${SEARXNG_CLI_DIR}/lib/${lib}.sh"
-    if [[ -f "$lib_file" ]]; then
-        # shellcheck disable=SC1090
-        source "$lib_file" 2>/dev/null || true
-    fi
-done
+# Source SearXNG libraries - these contain the actual functionality
+# shellcheck disable=SC1091
+source "${SEARXNG_CLI_DIR}/lib/common.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${SEARXNG_CLI_DIR}/lib/docker.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${SEARXNG_CLI_DIR}/lib/install.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${SEARXNG_CLI_DIR}/lib/status.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${SEARXNG_CLI_DIR}/lib/config.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${SEARXNG_CLI_DIR}/lib/api.sh" 2>/dev/null || true
 
 # Initialize CLI framework
-cli::init "searxng" "SearXNG privacy-respecting search engine management"
+cli::init "searxng" "SearXNG privacy-respecting search engine"
 
-# Register additional SearXNG-specific commands
-cli::register_command "search" "Search using SearXNG API" "resource_cli::search"
-cli::register_command "test-api" "Test SearXNG API endpoints" "resource_cli::test_api"
-cli::register_command "benchmark" "Run performance benchmark" "resource_cli::benchmark"
-cli::register_command "logs" "Show container logs" "resource_cli::logs"
-cli::register_command "credentials" "Show n8n credentials for SearXNG" "resource_cli::credentials"
-cli::register_command "uninstall" "Uninstall SearXNG (requires --force)" "resource_cli::uninstall" "modifies-system"
+# Override help to provide SearXNG-specific examples
+cli::register_command "help" "Show this help message with examples" "searxng::show_help"
+
+# Register core commands - direct library function calls
+cli::register_command "install" "Install SearXNG" "searxng::install" "modifies-system"
+cli::register_command "uninstall" "Uninstall SearXNG" "searxng::uninstall" "modifies-system"
+cli::register_command "upgrade" "Upgrade SearXNG" "searxng::upgrade" "modifies-system"
+cli::register_command "start" "Start SearXNG" "searxng::start_container" "modifies-system"
+cli::register_command "stop" "Stop SearXNG" "searxng::stop_container" "modifies-system"
+cli::register_command "restart" "Restart SearXNG" "searxng::restart_container" "modifies-system"
+cli::register_command "reset" "Reset SearXNG to defaults" "searxng::reset" "modifies-system"
+
+# Register status and monitoring commands
+cli::register_command "status" "Show service status" "searxng::show_status"
+cli::register_command "status-detailed" "Show detailed status" "searxng::show_detailed_status"
+cli::register_command "diagnose" "Run diagnostics" "searxng::diagnose"
+cli::register_command "monitor" "Monitor SearXNG" "searxng::monitor"
+cli::register_command "logs" "Show container logs" "searxng::get_logs"
+cli::register_command "analyze-logs" "Analyze log patterns" "searxng::analyze_logs"
+cli::register_command "resource-usage" "Show resource usage" "searxng::get_resource_usage"
+
+# Register search commands
+cli::register_command "search" "Search using SearXNG" "searxng::cli_search"
+cli::register_command "lucky" "I'm Feeling Lucky search" "searxng::cli_lucky"
+cli::register_command "headlines" "Get news headlines" "searxng::cli_headlines"
+cli::register_command "batch-search" "Batch search from file" "searxng::cli_batch_search"
+cli::register_command "interactive" "Interactive search mode" "searxng::interactive_search"
+
+# Register API and testing commands
+cli::register_command "test-api" "Test API endpoints" "searxng::test_api"
+cli::register_command "benchmark" "Run performance benchmark" "searxng::cli_benchmark"
+cli::register_command "api-config" "Show API configuration" "searxng::get_api_config"
+cli::register_command "api-examples" "Show API usage examples" "searxng::show_api_examples"
+cli::register_command "stats" "Show search statistics" "searxng::get_stats"
+
+# Register configuration commands
+cli::register_command "show-config" "Show configuration" "searxng::show_config"
+cli::register_command "validate-config" "Validate configuration" "searxng::validate_config"
+cli::register_command "reset-config" "Reset configuration" "searxng::reset_config" "modifies-system"
+cli::register_command "update-engines" "Update search engines" "searxng::update_engines" "modifies-system"
+
+# Register backup commands
+cli::register_command "backup" "Backup configuration" "searxng::backup" "modifies-system"
+cli::register_command "restore" "Restore from backup" "searxng::cli_restore" "modifies-system"
+
+# Register utility commands
+cli::register_command "info" "Show system information" "searxng::show_info"
+cli::register_command "version" "Show SearXNG version" "searxng::get_version"
+cli::register_command "health" "Check health status" "searxng::is_healthy"
+cli::register_command "credentials" "Get n8n credentials" "searxng::show_credentials"
+cli::register_command "troubleshooting" "Show troubleshooting guide" "searxng::show_troubleshooting"
 
 ################################################################################
-# Resource-specific command implementations
+# CLI wrapper functions - minimal wrappers for commands that need argument handling
 ################################################################################
 
-# Validate SearXNG configuration
-resource_cli::validate() {
-    if command -v searxng::validate_config &>/dev/null; then
-        searxng::validate_config
-    elif command -v searxng::is_healthy &>/dev/null; then
-        searxng::is_healthy
-    else
-        # Basic validation
-        log::header "Validating SearXNG"
-        docker ps --format '{{.Names}}' 2>/dev/null | grep -q "searxng" || {
-            log::error "SearXNG container not running"
-            return 1
-        }
-        log::success "SearXNG is running"
-    fi
+# Search with argument handling
+searxng::cli_search() {
+    local query="${1:-}"
+    local category="${2:-general}"
+    local format="${3:-json}"
+    
+    [[ -z "$query" ]] && { log::error "Search query required"; return 1; }
+    searxng::search "$query" "$format" "$category"
 }
 
-# Show SearXNG status
-resource_cli::status() {
-    if command -v searxng::show_status &>/dev/null; then
-        searxng::show_status
-    elif command -v searxng::get_status &>/dev/null; then
-        searxng::get_status
-    else
-        # Basic status
-        log::header "SearXNG Status"
-        if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "searxng"; then
-            echo "Container: ✅ Running"
-            docker ps --filter "name=searxng" --format "table {{.Status}}\t{{.Ports}}" | tail -n 1
-        else
-            echo "Container: ❌ Not running"
-        fi
-    fi
+# Lucky search with query
+searxng::cli_lucky() {
+    local query="${1:-}"
+    [[ -z "$query" ]] && { log::error "Query required for lucky search"; return 1; }
+    searxng::lucky "$query"
 }
 
-# Start SearXNG
-resource_cli::start() {
-    if command -v searxng::start_container &>/dev/null; then
-        searxng::start_container
-    else
-        docker start searxng || log::error "Failed to start SearXNG"
-    fi
+# Headlines with optional topic
+searxng::cli_headlines() {
+    local topic="${1:-}"
+    searxng::headlines "$topic"
 }
 
-# Stop SearXNG
-resource_cli::stop() {
-    if command -v searxng::stop_container &>/dev/null; then
-        searxng::stop_container
+# Batch search from file or queries
+searxng::cli_batch_search() {
+    local file="${1:-}"
+    local queries="${2:-}"
+    
+    if [[ -n "$file" ]]; then
+        [[ "$file" == shared:* ]] && file="${var_ROOT_DIR}/${file#shared:}"
+        searxng::batch_search_file "$file"
+    elif [[ -n "$queries" ]]; then
+        searxng::batch_search_queries "$queries"
     else
-        docker stop searxng || log::error "Failed to stop SearXNG"
-    fi
-}
-
-# Install SearXNG
-resource_cli::install() {
-    if command -v searxng::install &>/dev/null; then
-        searxng::install
-    else
-        log::error "searxng::install not available"
+        log::error "Batch search requires file or queries"
+        echo "Usage: resource-searxng batch-search <file>"
+        echo "   or: resource-searxng batch-search '' 'query1,query2,query3'"
         return 1
     fi
 }
 
-# Uninstall SearXNG
-resource_cli::uninstall() {
-    FORCE="${FORCE:-false}"
-    
-    if [[ "$FORCE" != "true" ]]; then
-        echo "⚠️  This will remove SearXNG and all its data. Use --force to confirm."
-        return 1
-    fi
-    
-    if command -v searxng::uninstall &>/dev/null; then
-        searxng::uninstall
-    else
-        docker stop searxng 2>/dev/null || true
-        docker rm searxng 2>/dev/null || true
-        log::success "SearXNG uninstalled"
-    fi
+# Benchmark with count
+searxng::cli_benchmark() {
+    local count="${1:-10}"
+    searxng::benchmark "$count"
+}
+
+# Restore from backup
+searxng::cli_restore() {
+    local backup="${1:-}"
+    [[ -z "$backup" ]] && { log::error "Backup file required"; return 1; }
+    [[ "$backup" == shared:* ]] && backup="${var_ROOT_DIR}/${backup#shared:}"
+    searxng::restore "$backup"
 }
 
 # Show credentials for n8n integration
-resource_cli::credentials() {
-    source "${VROOLI_ROOT}/scripts/resources/lib/credentials-utils.sh"
+searxng::show_credentials() {
+    # Source credentials utilities
+    # shellcheck disable=SC1091
+    source "${var_SCRIPTS_RESOURCES_LIB_DIR}/credentials-utils.sh"
     
-    if ! credentials::parse_args "$@"; then
-        [[ $? -eq 2 ]] && { credentials::show_help "searxng"; return 0; }
-        return 1
-    fi
+    credentials::parse_args "$@" || return $?
     
     local status
     status=$(credentials::get_resource_status "${SEARXNG_CONTAINER_NAME:-searxng}")
     
     local connections_array="[]"
     if [[ "$status" == "running" ]]; then
-        # SearXNG typically runs without authentication by default
         local connection_obj
         connection_obj=$(jq -n \
             --arg host "${SEARXNG_HOST:-localhost}" \
             --argjson port "${SEARXNG_PORT:-9200}" \
-            '{
-                host: $host,
-                port: $port
-            }')
+            '{host: $host, port: $port}')
         
-        # No authentication needed for SearXNG - using httpRequest
-        local auth_obj="{}"
-        
-        # Build metadata object
         local metadata_obj
         metadata_obj=$(jq -n \
-            --arg description "SearXNG privacy-respecting search engine" \
+            --arg description "Privacy-respecting search engine" \
             --arg base_url "${SEARXNG_BASE_URL:-http://localhost:9200}" \
-            --arg instance_name "${SEARXNG_INSTANCE_NAME:-Vrooli SearXNG}" \
-            '{
-                description: $description,
-                base_url: $base_url,
-                instance_name: $instance_name
-            }')
+            '{description: $description, base_url: $base_url}')
         
         local connection
         connection=$(credentials::build_connection \
-            "main" \
-            "SearXNG Search API" \
-            "httpRequest" \
-            "$connection_obj" \
-            "$auth_obj" \
-            "$metadata_obj")
+            "main" "SearXNG Search API" "httpRequest" \
+            "$connection_obj" "{}" "$metadata_obj")
         
         connections_array="[$connection]"
     fi
     
-    local response
-    response=$(credentials::build_response "searxng" "$status" "$connections_array")
-    credentials::format_output "$response"
+    credentials::format_output "$(credentials::build_response "searxng" "$status" "$connections_array")"
 }
 
-# Search using SearXNG
-resource_cli::search() {
-    local query="${1:-}"
-    local category="${2:-general}"
-    local format="${3:-json}"
+# Custom help function with examples
+searxng::show_help() {
+    cli::_handle_help
     
-    if [[ -z "$query" ]]; then
-        log::error "Search query required"
-        echo "Usage: resource-searxng search <query> [category] [format]"
-        return 1
-    fi
-    
-    if command -v searxng::search &>/dev/null; then
-        SEARCH_QUERY="$query" SEARCH_CATEGORY="$category" SEARCH_FORMAT="$format" \
-        searxng::search "$query" "$format" "$category"
-    else
-        log::error "Search functionality not available"
-        return 1
-    fi
-}
-
-# Test SearXNG API
-resource_cli::test_api() {
-    if command -v searxng::test_api &>/dev/null; then
-        searxng::test_api
-    else
-        log::error "API test not available"
-        return 1
-    fi
-}
-
-# Run SearXNG benchmark
-resource_cli::benchmark() {
-    local count="${1:-10}"
-    
-    if command -v searxng::benchmark &>/dev/null; then
-        searxng::benchmark "$count"
-    else
-        log::error "Benchmark not available"
-        return 1
-    fi
-}
-
-# Show SearXNG logs
-resource_cli::logs() {
-    if command -v searxng::get_logs &>/dev/null; then
-        searxng::get_logs
-    else
-        docker logs searxng 2>/dev/null || log::error "Failed to get logs"
-    fi
+    echo ""
+    echo "🔍 Examples:"
+    echo ""
+    echo "  # Search operations"
+    echo "  resource-searxng search 'artificial intelligence'"
+    echo "  resource-searxng search 'robots' images"
+    echo "  resource-searxng lucky 'news today'"
+    echo "  resource-searxng headlines technology"
+    echo ""
+    echo "  # Batch operations"
+    echo "  resource-searxng batch-search queries.txt"
+    echo "  resource-searxng benchmark 20"
+    echo ""
+    echo "  # Management"
+    echo "  resource-searxng status"
+    echo "  resource-searxng diagnose"
+    echo "  resource-searxng monitor"
+    echo ""
+    echo "  # Configuration"
+    echo "  resource-searxng show-config"
+    echo "  resource-searxng backup"
+    echo ""
+    echo "Search categories: general, images, news, videos, files, it, science, social, maps"
+    echo "Default Port: ${SEARXNG_PORT:-9200}"
+    echo "Web UI: ${SEARXNG_BASE_URL:-http://localhost:9200}"
 }
 
 ################################################################################
-# Main execution - dispatch to framework
+# Main execution
 ################################################################################
 
-# Only execute if script is run directly (not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     cli::dispatch "$@"
 fi

@@ -190,6 +190,16 @@ resource_auto::start_resource() {
         return 0
     fi
     
+    # Check if resource is already running first
+    # Try using CLI status check
+    if command -v "resource-${resource_name}" &>/dev/null; then
+        if "resource-${resource_name}" status >/dev/null 2>&1; then
+            log::info "Resource already running: $resource_name"
+            resource_registry::register "$resource_name" "running"
+            return 0
+        fi
+    fi
+    
     # Try using CLI first
     if command -v "resource-${resource_name}" &>/dev/null; then
         log::info "Starting resource: $resource_name"
@@ -211,6 +221,13 @@ resource_auto::start_resource() {
     done
     
     if [[ -n "$resource_dir" && -f "$resource_dir/manage.sh" ]]; then
+        # Check if already running via manage.sh status
+        if "$resource_dir/manage.sh" --action status --yes yes >/dev/null 2>&1; then
+            log::info "Resource already running (via manage.sh): $resource_name"
+            resource_registry::register "$resource_name" "running"
+            return 0
+        fi
+        
         log::info "Starting resource via manage.sh: $resource_name"
         if "$resource_dir/manage.sh" --action start --yes yes; then
             resource_registry::register "$resource_name" "running"

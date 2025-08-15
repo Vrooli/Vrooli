@@ -157,11 +157,11 @@ app_list() {
         fi
     fi
     
-    # Get runtime status from orchestrator if available
-    local runtime_status="{}"
-    local orchestrator_registry="${VROOLI_ORCHESTRATOR_HOME:-$HOME/.vrooli/orchestrator}/processes.json"
-    if [[ -f "$orchestrator_registry" ]]; then
-        runtime_status=$(jq '.' "$orchestrator_registry" 2>/dev/null || echo "{}")
+    # Source process manager for status checks
+    local process_manager="${VROOLI_ROOT}/scripts/lib/process-manager.sh"
+    if [[ -f "$process_manager" ]]; then
+        # shellcheck disable=SC1090
+        source "$process_manager" 2>/dev/null || true
     fi
     
     echo ""
@@ -204,28 +204,27 @@ app_list() {
             git_status="$git_status 🔒"
         fi
         
-        # Get runtime state and URL from orchestrator
+        # Get runtime state using process manager
         runtime_state="○ Stopped"
         url_display="-"
         local process_name="vrooli.$name.develop"
         
-        if [[ -f "$orchestrator_registry" ]]; then
-            local state port
-            state=$(jq -r --arg pname "$process_name" '.processes[$pname].state // "stopped"' "$orchestrator_registry" 2>/dev/null)
-            
-            case "$state" in
-                "running") 
-                    runtime_state="● Running"
-                    # Get port from metadata or env_vars
-                    port=$(jq -r --arg pname "$process_name" '.processes[$pname].metadata.port // .processes[$pname].env_vars.PORT // ""' "$orchestrator_registry" 2>/dev/null)
-                    if [[ -n "$port" ]] && [[ "$port" != "null" ]]; then
-                        url_display="http://localhost:$port"
-                    fi
-                    ;;
-                "crashed"|"failed") runtime_state="✗ Failed" ;;
-                "stopped") runtime_state="○ Stopped" ;;
-                *) runtime_state="◌ Unknown" ;;
-            esac
+        if type -t pm::is_running >/dev/null 2>&1; then
+            if pm::is_running "$process_name" 2>/dev/null; then
+                runtime_state="● Running"
+                # Try to get port from app's config
+                local app_path="${GENERATED_APPS_DIR:-$HOME/generated-apps}/$name"
+                local port=""
+                if [[ -f "$app_path/package.json" ]]; then
+                    port=$(jq -r '.config.port // .port // ""' "$app_path/package.json" 2>/dev/null)
+                fi
+                if [[ -z "$port" ]] && [[ -f "$app_path/.env" ]]; then
+                    port=$(grep -E '^PORT=' "$app_path/.env" | cut -d= -f2 | tr -d '"' 2>/dev/null)
+                fi
+                if [[ -n "$port" ]]; then
+                    url_display="http://localhost:$port"
+                fi
+            fi
         fi
         
             # Format output - using simpler color handling
@@ -250,8 +249,12 @@ app_list() {
     
     # Count running apps
     local running_count=0
-    if [[ -f "$orchestrator_registry" ]]; then
-        running_count=$(jq '[.processes | to_entries[] | select(.key | startswith("vrooli.") and endswith(".develop")) | select(.value.state == "running")] | length' "$orchestrator_registry" 2>/dev/null || echo "0")
+    if type -t pm::list >/dev/null 2>&1; then
+        while IFS= read -r process; do
+            if [[ "$process" == vrooli.*.develop ]] && pm::is_running "$process" 2>/dev/null; then
+                running_count=$((running_count + 1))
+            fi
+        done < <(pm::list 2>/dev/null)
     fi
     
     echo "Total: $count apps ($running_count running)"
@@ -528,22 +531,22 @@ app_clean() {
     fi
 }
 
-# Start an app using orchestrator
+# Start an app using process manager
 app_start() {
     local app_name="${1:-}"
     [[ -z "$app_name" ]] && { log::error "App name required"; return 1; }
     
-    # Check if orchestrator client is available
-    local orchestrator_client="${VROOLI_ROOT}/scripts/scenarios/tools/orchestrator-client.sh"
-    if [[ ! -f "$orchestrator_client" ]]; then
-        log::error "Orchestrator client not found"
-        echo "Please run 'vrooli setup' to install the orchestrator"
+    # Check if process manager is available
+    local process_manager="${VROOLI_ROOT}/scripts/lib/process-manager.sh"
+    if [[ ! -f "$process_manager" ]]; then
+        log::error "Process manager not found"
+        echo "Please run 'vrooli setup' to install the process manager"
         return 1
     fi
     
     log::info "Starting app: $app_name"
     
-    # Change to app directory and start via orchestrator
+    # Check if app exists
     local app_path="${GENERATED_APPS_DIR:-$HOME/generated-apps}/$app_name"
     if [[ ! -d "$app_path" ]]; then
         log::error "App not found: $app_name"
@@ -551,71 +554,36 @@ app_start() {
         return 1
     fi
     
-    # Source orchestrator client (without failing on error)
+    # Source process manager
     # shellcheck disable=SC1090
-    if ! source "$orchestrator_client" >/dev/null 2>&1; then
-        log::error "Failed to load orchestrator client"
-        return 1
-    fi
+    source "$process_manager"
     
-    # Set explicit parent to prevent auto-detection issues
-    export VROOLI_ORCHESTRATOR_PARENT="vrooli"
-    
-    # Check if already registered by looking at the registry
-    local full_name="vrooli.$app_name.develop"
-    local registry_file="${VROOLI_ORCHESTRATOR_HOME:-$HOME/.vrooli/orchestrator}/processes.json"
-    local already_registered=false
-    
-    if [[ -f "$registry_file" ]]; then
-        if jq -e --arg name "$full_name" '.processes | has($name)' "$registry_file" >/dev/null 2>&1; then
-            already_registered=true
-            log::info "App already registered, starting it..."
-        fi
-    fi
-    
-    # Register if not already registered
-    if [[ "$already_registered" == "false" ]]; then
-        if ! orchestrator::register "$app_name.develop" "./scripts/manage.sh develop" \
-            --working-dir "$app_path" \
-            --auto-restart 2>/dev/null; then
-            log::error "Failed to register app: $app_name"
-            return 1
-        fi
-    fi
-    
-    # Start the app by sending command to FIFO with timeout
-    local cmd_json
-    cmd_json=$(jq -n -c --arg name "$full_name" '{command: "start", args: [$name]}')
-    local fifo="${VROOLI_ORCHESTRATOR_HOME:-$HOME/.vrooli/orchestrator}/commands.fifo"
-    
-    if [[ -p "$fifo" ]]; then
-        # Use timeout to prevent hanging (allow failure)
-        timeout 2 bash -c "echo '$cmd_json' > '$fifo'" 2>/dev/null || true
-        
-        # Wait a moment for app to start and registry to update
-        sleep 3
-        
-        # Try to get port from orchestrator registry (retry a few times)
+    # Start the app
+    local process_name="vrooli.$app_name.develop"
+    if pm::start "$process_name" "./scripts/manage.sh develop" "$app_path"; then
+        # Try to get port from app's package.json or config
         local port=""
-        local retries=3
-        while [[ $retries -gt 0 ]] && [[ -z "$port" ]]; do
-            if [[ -f "$registry_file" ]]; then
-                port=$(jq -r --arg pname "$full_name" \
-                    '.processes[$pname].metadata.port // .processes[$pname].env_vars.PORT // ""' \
-                    "$registry_file" 2>/dev/null)
-            fi
-            
-            if [[ -z "$port" ]] && [[ $retries -gt 1 ]]; then
-                sleep 1
-                retries=$((retries - 1))
-            else
-                break
-            fi
-        done
+        if [[ -f "$app_path/package.json" ]]; then
+            port=$(jq -r '.config.port // .port // ""' "$app_path/package.json" 2>/dev/null)
+        fi
+        
+        # If no port in package.json, check for common port files
+        if [[ -z "$port" ]] && [[ -f "$app_path/.env" ]]; then
+            port=$(grep -E '^PORT=' "$app_path/.env" | cut -d= -f2 | tr -d '"' 2>/dev/null)
+        fi
+        
+        # Default ports for known app types
+        if [[ -z "$port" ]]; then
+            case "$app_name" in
+                *api*) port="5000" ;;
+                *frontend*|*ui*) port="3000" ;;
+                *admin*) port="3001" ;;
+                *) port="" ;;
+            esac
+        fi
         
         # Display success with URL if available
-        log::success "✅ App started: $app_name"
-        if [[ -n "$port" ]] && [[ "$port" != "null" ]]; then
+        if [[ -n "$port" ]]; then
             echo ""
             echo -e "   ${GREEN}➜${NC} URL: ${BLUE}http://localhost:$port${NC}"
             echo ""
@@ -624,46 +592,34 @@ app_start() {
             echo "     vrooli app logs $app_name      # View logs"
             echo "     vrooli app restart $app_name   # Restart"
         fi
+        return 0
     else
-        log::error "Orchestrator FIFO not found. Is the orchestrator running?"
-        echo "Start it with: vrooli orchestrator start"
         return 1
     fi
 }
 
-# Stop an app using orchestrator
+# Stop an app using process manager
 app_stop() {
     local app_name="${1:-}"
     [[ -z "$app_name" ]] && { log::error "App name required"; return 1; }
     
-    # Check if orchestrator client is available
-    local orchestrator_client="${VROOLI_ROOT}/scripts/scenarios/tools/orchestrator-client.sh"
-    if [[ ! -f "$orchestrator_client" ]]; then
-        log::error "Orchestrator client not found"
+    # Check if process manager is available
+    local process_manager="${VROOLI_ROOT}/scripts/lib/process-manager.sh"
+    if [[ ! -f "$process_manager" ]]; then
+        log::error "Process manager not found"
         return 1
     fi
     
     log::info "Stopping app: $app_name"
     
-    # Stop the app using direct FIFO communication
-    local full_name="vrooli.$app_name.develop"
-    local cmd_json=$(jq -n -c --arg name "$full_name" '{command: "stop", args: [$name, "true"]}')
-    local fifo="${VROOLI_ORCHESTRATOR_HOME:-$HOME/.vrooli/orchestrator}/commands.fifo"
+    # Source process manager
+    # shellcheck disable=SC1090
+    source "$process_manager"
     
-    if [[ -p "$fifo" ]]; then
-        # Use timeout to prevent hanging
-        if timeout 2 bash -c "echo '$cmd_json' > '$fifo'"; then
-            log::success "✅ App stopped: $app_name"
-        else
-            log::error "Failed to send stop command to orchestrator"
-            echo "The orchestrator might be busy or not responding"
-            return 1
-        fi
-    else
-        log::error "Orchestrator FIFO not found. Is the orchestrator running?"
-        echo "Start it with: vrooli orchestrator start"
-        return 1
-    fi
+    # Stop the app
+    local process_name="vrooli.$app_name.develop"
+    pm::stop "$process_name"
+    return $?
 }
 
 # Restart an app using orchestrator
@@ -699,40 +655,26 @@ app_logs() {
         shift
     done
     
-    # Check if orchestrator client is available
-    local orchestrator_client="${VROOLI_ROOT}/scripts/scenarios/tools/orchestrator-client.sh"
-    if [[ ! -f "$orchestrator_client" ]]; then
-        log::error "Orchestrator client not found"
+    # Check if process manager is available
+    local process_manager="${VROOLI_ROOT}/scripts/lib/process-manager.sh"
+    if [[ ! -f "$process_manager" ]]; then
+        log::error "Process manager not found"
         return 1
     fi
     
-    # Source orchestrator client
+    # Source process manager
     # shellcheck disable=SC1090
-    source "$orchestrator_client" >/dev/null 2>&1
+    source "$process_manager"
     
-    # Set explicit parent to prevent auto-detection issues
-    export VROOLI_ORCHESTRATOR_PARENT="vrooli"
+    # Get logs using process manager
+    local process_name="vrooli.$app_name.develop"
     
-    # Get logs using orchestrator
-    local full_name="vrooli.$app_name.develop"
-    local log_file="${VROOLI_ORCHESTRATOR_HOME:-$HOME/.vrooli/orchestrator}/logs/$full_name.log"
-    
-    if [[ -f "$log_file" ]]; then
-        if [[ "$follow" == "true" ]]; then
-            log::info "Following logs for: $app_name (Ctrl+C to stop)"
-            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-            tail -f "$log_file"
-        else
-            log::info "Recent logs for: $app_name"
-            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-            tail -n 50 "$log_file"
-            echo ""
-            echo "Use --follow to see logs in real-time"
-        fi
+    if [[ "$follow" == "true" ]]; then
+        pm::logs "$process_name" 50 --follow
     else
-        log::error "No logs found for: $app_name"
-        echo "App might not have been started yet. Use 'vrooli app start $app_name' first"
-        return 1
+        pm::logs "$process_name" 50
+        echo ""
+        echo "Use --follow to see logs in real-time"
     fi
 }
 

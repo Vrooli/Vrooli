@@ -11,30 +11,27 @@
 
 set -euo pipefail
 
-# Get script directory (resolving symlinks)
+# Get script directory (resolving symlinks for installed CLI)
 if [[ -L "${BASH_SOURCE[0]}" ]]; then
-    # If this is a symlink, resolve it
     AGENT_S2_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
 else
     AGENT_S2_CLI_SCRIPT="${BASH_SOURCE[0]}"
 fi
 AGENT_S2_CLI_DIR="$(cd "$(dirname "$AGENT_S2_CLI_SCRIPT")" && pwd)"
-VROOLI_ROOT="${VROOLI_ROOT:-$(cd "$AGENT_S2_CLI_DIR/../../../.." && pwd)}"
-export VROOLI_ROOT
-export RESOURCE_DIR="$AGENT_S2_CLI_DIR"
-export AGENT_S2_SCRIPT_DIR="$AGENT_S2_CLI_DIR"  # For compatibility with existing libs
 
-# Source utilities first
+# Source standard variables
 # shellcheck disable=SC1091
-source "${VROOLI_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || true
+source "${AGENT_S2_CLI_DIR}/../../../lib/utils/var.sh"
+
+# Source utilities using var_ variables
 # shellcheck disable=SC1091
-source "${var_LOG_FILE:-${VROOLI_ROOT}/scripts/lib/utils/log.sh}" 2>/dev/null || true
+source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
-source "${var_RESOURCES_COMMON_FILE:-${VROOLI_ROOT}/scripts/resources/common.sh}" 2>/dev/null || true
+source "${var_RESOURCES_COMMON_FILE}"
 
 # Source the CLI Command Framework
 # shellcheck disable=SC1091
-source "${VROOLI_ROOT}/scripts/resources/lib/cli-command-framework.sh"
+source "${var_SCRIPTS_RESOURCES_LIB_DIR}/cli-command-framework.sh"
 
 # Source agent-s2 configuration
 # shellcheck disable=SC1091
@@ -57,21 +54,21 @@ done
 cli::init "agent-s2" "Agent-S2 browser automation and AI control management"
 
 # Register additional agent-s2-specific commands
-cli::register_command "inject" "Inject automation/config into agent-s2" "resource_cli::inject" "modifies-system"
-cli::register_command "screenshot" "Take screenshot" "resource_cli::screenshot"
-cli::register_command "execute" "Execute automation task" "resource_cli::execute"
-cli::register_command "switch-mode" "Switch between sandbox/host mode" "resource_cli::switch_mode" "modifies-system"
-cli::register_command "show-mode" "Show current operation mode" "resource_cli::show_mode"
-cli::register_command "health" "Show detailed health information" "resource_cli::health"
-cli::register_command "credentials" "Show n8n credentials for agent-s2" "resource_cli::credentials"
-cli::register_command "uninstall" "Uninstall agent-s2 (requires --force)" "resource_cli::uninstall" "modifies-system"
+cli::register_command "inject" "Inject automation/config into agent-s2" "agents2_inject" "modifies-system"
+cli::register_command "screenshot" "Take screenshot" "agents2_screenshot"
+cli::register_command "execute" "Execute automation task" "agents2_execute"
+cli::register_command "switch-mode" "Switch between sandbox/host mode" "agents2_switch_mode" "modifies-system"
+cli::register_command "show-mode" "Show current operation mode" "agents2_show_mode"
+cli::register_command "health" "Show detailed health information" "agents2_health"
+cli::register_command "credentials" "Show n8n credentials for agent-s2" "agents2_credentials"
+cli::register_command "uninstall" "Uninstall agent-s2 (requires --force)" "agents2_uninstall" "modifies-system"
 
 ################################################################################
 # Resource-specific command implementations
 ################################################################################
 
 # Inject automation or configuration into agent-s2
-resource_cli::inject() {
+agents2_inject() {
     local file="${1:-}"
     
     if [[ -z "$file" ]]; then
@@ -82,7 +79,7 @@ resource_cli::inject() {
     
     # Handle shared: prefix
     if [[ "$file" == shared:* ]]; then
-        file="${VROOLI_ROOT}/${file#shared:}"
+        file="${var_ROOT_DIR}/${file#shared:}"
     fi
     
     if [[ ! -f "$file" ]]; then
@@ -90,85 +87,11 @@ resource_cli::inject() {
         return 1
     fi
     
-    # Use existing injection script
-    local inject_script="${AGENT_S2_CLI_DIR}/inject.sh"
-    if [[ -f "$inject_script" ]]; then
-        "$inject_script" "$file"
-    else
-        log::error "agent-s2 injection script not available"
-        return 1
-    fi
+    "${AGENT_S2_CLI_DIR}/inject.sh" "$file"
 }
 
 # Validate agent-s2 configuration
-resource_cli::validate() {
-    if command -v agents2::is_healthy &>/dev/null; then
-        agents2::is_healthy
-    else
-        # Basic validation
-        log::header "Validating agent-s2"
-        docker ps --format '{{.Names}}' 2>/dev/null | grep -q "${AGENTS2_CONTAINER_NAME:-agent-s2}" || {
-            log::error "agent-s2 container not running"
-            return 1
-        }
-        log::success "agent-s2 is running"
-    fi
-}
-
-# Show agent-s2 status
-resource_cli::status() {
-    if command -v agents2::show_status &>/dev/null; then
-        agents2::show_status
-    else
-        # Basic status
-        log::header "agent-s2 Status"
-        local container_name="${AGENTS2_CONTAINER_NAME:-agent-s2}"
-        if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "$container_name"; then
-            echo "Container: ✅ Running"
-            docker ps --filter "name=$container_name" --format "table {{.Status}}\t{{.Ports}}" | tail -n 1
-        else
-            echo "Container: ❌ Not running"
-        fi
-    fi
-}
-
-# Start agent-s2
-resource_cli::start() {
-    if command -v agents2::docker_start &>/dev/null; then
-        agents2::docker_start
-    elif command -v agents2::start_in_mode &>/dev/null; then
-        agents2::start_in_mode "${MODE:-sandbox}"
-    else
-        local container_name="${AGENTS2_CONTAINER_NAME:-agent-s2}"
-        docker start "$container_name" || log::error "Failed to start agent-s2"
-    fi
-}
-
-# Stop agent-s2
-resource_cli::stop() {
-    if command -v agents2::docker_stop &>/dev/null; then
-        agents2::docker_stop
-    else
-        local container_name="${AGENTS2_CONTAINER_NAME:-agent-s2}"
-        docker stop "$container_name" || log::error "Failed to stop agent-s2"
-    fi
-}
-
-# Install agent-s2
-resource_cli::install() {
-    FORCE="${FORCE:-false}"
-    export FORCE
-    
-    if command -v agents2::install_service &>/dev/null; then
-        agents2::install_service
-    else
-        log::error "agents2::install_service not available"
-        return 1
-    fi
-}
-
-# Uninstall agent-s2
-resource_cli::uninstall() {
+agents2_uninstall() {
     FORCE="${FORCE:-false}"
     YES="${FORCE}"  # Set YES to FORCE for uninstall prompts
     export FORCE YES
@@ -178,19 +101,12 @@ resource_cli::uninstall() {
         return 1
     fi
     
-    if command -v agents2::uninstall_service &>/dev/null; then
-        agents2::uninstall_service
-    else
-        local container_name="${AGENTS2_CONTAINER_NAME:-agent-s2}"
-        docker stop "$container_name" 2>/dev/null || true
-        docker rm "$container_name" 2>/dev/null || true
-        log::success "agent-s2 uninstalled"
-    fi
+    agents2::uninstall_service
 }
 
 # Show credentials for n8n integration
-resource_cli::credentials() {
-    source "${VROOLI_ROOT}/scripts/resources/lib/credentials-utils.sh"
+agents2_credentials() {
+    source "${var_SCRIPTS_RESOURCES_LIB_DIR}/credentials-utils.sh"
     
     if ! credentials::parse_args "$@"; then
         [[ $? -eq 2 ]] && { credentials::show_help "agent-s2"; return 0; }
@@ -254,7 +170,7 @@ resource_cli::credentials() {
 }
 
 # Take screenshot
-resource_cli::screenshot() {
+agents2_screenshot() {
     local output_file="${1:-screenshot.png}"
     
     if command -v agents2::api_request &>/dev/null; then
@@ -274,7 +190,7 @@ resource_cli::screenshot() {
 }
 
 # Execute automation task
-resource_cli::execute() {
+agents2_execute() {
     local task="${1:-}"
     
     if [[ -z "$task" ]]; then
@@ -299,7 +215,7 @@ resource_cli::execute() {
 }
 
 # Switch operation mode
-resource_cli::switch_mode() {
+agents2_switch_mode() {
     local mode="${1:-}"
     
     if [[ -z "$mode" ]]; then
@@ -325,7 +241,7 @@ resource_cli::switch_mode() {
 }
 
 # Show current mode
-resource_cli::show_mode() {
+agents2_show_mode() {
     if command -v agents2::api_request &>/dev/null; then
         agents2::api_request "GET" "/modes/current"
     else
@@ -335,7 +251,7 @@ resource_cli::show_mode() {
 }
 
 # Show health information
-resource_cli::health() {
+agents2_health() {
     if command -v agents2::api_request &>/dev/null; then
         agents2::api_request "GET" "/health"
     else

@@ -2,7 +2,7 @@
 ################################################################################
 # Unstructured.io Resource CLI
 # 
-# Lightweight CLI interface for Unstructured.io using the CLI Command Framework
+# Ultra-thin CLI wrapper that delegates directly to library functions
 #
 # Usage:
 #   resource-unstructured-io <command> [options]
@@ -11,261 +11,245 @@
 
 set -euo pipefail
 
-# Get script directory
-UNSTRUCTURED_IO_CLI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VROOLI_ROOT="${VROOLI_ROOT:-$(cd "$UNSTRUCTURED_IO_CLI_DIR/../../../.." && pwd)}"
-export VROOLI_ROOT
-export RESOURCE_DIR="$UNSTRUCTURED_IO_CLI_DIR"
+# Get script directory (resolving symlinks for installed CLI)
+if [[ -L "${BASH_SOURCE[0]}" ]]; then
+    # If this is a symlink, resolve it
+    UNSTRUCTURED_IO_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
+else
+    UNSTRUCTURED_IO_CLI_SCRIPT="${BASH_SOURCE[0]}"
+fi
+UNSTRUCTURED_IO_CLI_DIR="$(cd "$(dirname "$UNSTRUCTURED_IO_CLI_SCRIPT")" && pwd)"
 
-# Source utilities first
+# Source standard variables
 # shellcheck disable=SC1091
-source "${VROOLI_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || true
+source "${UNSTRUCTURED_IO_CLI_DIR}/../../../lib/utils/var.sh"
+
+# Source utilities using var_ variables
 # shellcheck disable=SC1091
-source "${var_LOG_FILE:-${VROOLI_ROOT}/scripts/lib/utils/log.sh}" 2>/dev/null || true
+source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
-source "${var_RESOURCES_COMMON_FILE:-${VROOLI_ROOT}/scripts/resources/common.sh}" 2>/dev/null || true
+source "${var_RESOURCES_COMMON_FILE}"
 
 # Source the CLI Command Framework
 # shellcheck disable=SC1091
-source "${VROOLI_ROOT}/scripts/resources/lib/cli-command-framework.sh"
+source "${var_SCRIPTS_RESOURCES_LIB_DIR}/cli-command-framework.sh"
 
 # Source unstructured-io configuration
 # shellcheck disable=SC1091
 source "${UNSTRUCTURED_IO_CLI_DIR}/config/defaults.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${UNSTRUCTURED_IO_CLI_DIR}/config/messages.sh" 2>/dev/null || true
 
-# Set defaults if not already set
-UNSTRUCTURED_IO_CONTAINER_NAME="${UNSTRUCTURED_IO_CONTAINER_NAME:-unstructured-io}"
-UNSTRUCTURED_IO_PORT="${UNSTRUCTURED_IO_PORT:-8000}"
-UNSTRUCTURED_IO_DEFAULT_STRATEGY="${UNSTRUCTURED_IO_DEFAULT_STRATEGY:-hi_res}"
+# Export configuration
+unstructured_io::export_config 2>/dev/null || true
+
+# Source all library modules directly - these contain the actual functionality
+# shellcheck disable=SC1091
+source "${UNSTRUCTURED_IO_CLI_DIR}/lib/common.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${UNSTRUCTURED_IO_CLI_DIR}/lib/install.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${UNSTRUCTURED_IO_CLI_DIR}/lib/status.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${UNSTRUCTURED_IO_CLI_DIR}/lib/api.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${UNSTRUCTURED_IO_CLI_DIR}/lib/process.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${UNSTRUCTURED_IO_CLI_DIR}/lib/cache-simple.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${UNSTRUCTURED_IO_CLI_DIR}/lib/validate.sh" 2>/dev/null || true
 
 # Initialize CLI framework
 cli::init "unstructured-io" "Unstructured.io document processing and analysis"
 
 # Override help to provide Unstructured.io-specific examples
-cli::register_command "help" "Show this help message with Unstructured.io examples" "resource_cli::show_help"
+cli::register_command "help" "Show this help message with examples" "unstructured_io::show_help"
 
-# Register additional Unstructured.io-specific commands
-cli::register_command "inject" "Process document using Unstructured.io" "resource_cli::inject" "modifies-system"
-cli::register_command "process" "Process document" "resource_cli::process" "modifies-system"
-cli::register_command "strategies" "List processing strategies" "resource_cli::strategies"
-cli::register_command "formats" "List supported file formats" "resource_cli::formats"
-cli::register_command "credentials" "Show n8n credentials for Unstructured.io" "resource_cli::credentials"
-cli::register_command "uninstall" "Uninstall Unstructured.io (requires --force)" "resource_cli::uninstall" "modifies-system"
+# Register core commands - direct library function calls
+cli::register_command "install" "Install Unstructured.io" "unstructured_io::install" "modifies-system"
+cli::register_command "uninstall" "Uninstall Unstructured.io" "unstructured_io::uninstall" "modifies-system"
+cli::register_command "start" "Start Unstructured.io" "unstructured_io::start" "modifies-system"
+cli::register_command "stop" "Stop Unstructured.io" "unstructured_io::stop" "modifies-system"
+cli::register_command "restart" "Restart Unstructured.io" "unstructured_io::restart" "modifies-system"
+cli::register_command "status" "Show service status" "unstructured_io::status"
+cli::register_command "validate" "Validate installation" "unstructured_io::validate_installation"
+cli::register_command "logs" "Show container logs" "unstructured_io::logs"
+cli::register_command "info" "Show system information" "unstructured_io::info"
+
+# Register processing commands - direct library function calls
+cli::register_command "process" "Process document" "unstructured_io::cli_process" "modifies-system"
+cli::register_command "inject" "Process document (alias)" "unstructured_io::cli_process" "modifies-system"
+cli::register_command "extract-tables" "Extract tables from document" "unstructured_io::cli_extract_tables"
+cli::register_command "extract-metadata" "Extract metadata from document" "unstructured_io::cli_extract_metadata"
+cli::register_command "process-directory" "Process directory of documents" "unstructured_io::cli_process_directory" "modifies-system"
+cli::register_command "create-report" "Generate document report" "unstructured_io::cli_create_report" "modifies-system"
+
+# Register cache commands
+cli::register_command "cache-stats" "Show cache statistics" "unstructured_io::cache_stats"
+cli::register_command "clear-cache" "Clear processing cache" "unstructured_io::cli_clear_cache" "modifies-system"
+
+# Register utility commands
+cli::register_command "test-api" "Test API connectivity" "unstructured_io::test_api"
+cli::register_command "strategies" "List processing strategies" "unstructured_io::show_strategies"
+cli::register_command "formats" "List supported formats" "unstructured_io::show_formats"
+cli::register_command "credentials" "Get n8n credentials" "unstructured_io::show_credentials"
 
 ################################################################################
-# Resource-specific command implementations
+# CLI wrapper functions - minimal wrappers for commands that need argument handling
 ################################################################################
 
-# Process document using Unstructured.io (inject alias)
-resource_cli::inject() {
+# Process document with proper argument handling
+unstructured_io::cli_process() {
     local file="${1:-}"
+    local strategy="${2:-$UNSTRUCTURED_IO_DEFAULT_STRATEGY}"
+    local output="${3:-}"
+    local languages="${4:-}"
     
     if [[ -z "$file" ]]; then
-        log::error "Document file path required for processing"
-        echo "Usage: resource-unstructured-io inject <document-file>"
-        echo ""
-        echo "Examples:"
-        echo "  resource-unstructured-io inject document.pdf"
-        echo "  resource-unstructured-io inject shared:documents/report.docx"
+        log::error "Document file path required"
+        echo "Usage: resource-unstructured-io process <file> [strategy] [output] [languages]"
         return 1
     fi
     
     # Handle shared: prefix
-    if [[ "$file" == shared:* ]]; then
-        file="${VROOLI_ROOT}/${file#shared:}"
+    [[ "$file" == shared:* ]] && file="${var_ROOT_DIR}/${file#shared:}"
+    
+    unstructured_io::process_document "$file" "$strategy" "$output" "$languages"
+}
+
+# Extract tables with file argument
+unstructured_io::cli_extract_tables() {
+    local file="${1:-}"
+    [[ -z "$file" ]] && { log::error "File required"; return 1; }
+    [[ "$file" == shared:* ]] && file="${var_ROOT_DIR}/${file#shared:}"
+    unstructured_io::extract_tables "$file"
+}
+
+# Extract metadata with file argument
+unstructured_io::cli_extract_metadata() {
+    local file="${1:-}"
+    [[ -z "$file" ]] && { log::error "File required"; return 1; }
+    [[ "$file" == shared:* ]] && file="${var_ROOT_DIR}/${file#shared:}"
+    unstructured_io::extract_metadata "$file"
+}
+
+# Process directory with arguments
+unstructured_io::cli_process_directory() {
+    local directory="${1:-}"
+    local strategy="${2:-$UNSTRUCTURED_IO_DEFAULT_STRATEGY}"
+    local output="${3:-}"
+    local recursive="${4:-no}"
+    
+    [[ -z "$directory" ]] && { log::error "Directory required"; return 1; }
+    unstructured_io::process_directory "$directory" "$strategy" "$output" "$recursive"
+}
+
+# Create report with file argument
+unstructured_io::cli_create_report() {
+    local file="${1:-}"
+    local report_file="${2:-}"
+    [[ -z "$file" ]] && { log::error "File required"; return 1; }
+    [[ "$file" == shared:* ]] && file="${var_ROOT_DIR}/${file#shared:}"
+    unstructured_io::create_report "$file" "$report_file"
+}
+
+# Clear cache with optional file
+unstructured_io::cli_clear_cache() {
+    local file="${1:-}"
+    if [[ -n "$file" ]]; then
+        unstructured_io::clear_cache "$file"
+    else
+        unstructured_io::clear_all_cache
     fi
+}
+
+# Show processing strategies
+unstructured_io::show_strategies() {
+    echo "Available processing strategies:"
+    echo "  • auto     - Automatically choose the best strategy"
+    echo "  • fast     - Fast processing with basic layout detection"
+    echo "  • hi_res   - High-resolution processing with advanced layout"
+    echo "  • ocr_only - OCR-based text extraction only"
+    echo ""
+    echo "Default: $UNSTRUCTURED_IO_DEFAULT_STRATEGY"
+}
+
+# Show supported formats
+unstructured_io::show_formats() {
+    echo "Supported file formats:"
+    echo ""
+    echo "Documents: PDF, Word (docx/doc), Text, HTML, XML"
+    echo "Presentations: PowerPoint (pptx)"
+    echo "Spreadsheets: Excel (xlsx)"
+    echo "Images: JPEG, PNG (with OCR)"
+}
+
+# Show credentials for n8n integration
+unstructured_io::show_credentials() {
+    # Source credentials utilities
+    # shellcheck disable=SC1091
+    source "${var_SCRIPTS_RESOURCES_LIB_DIR}/credentials-utils.sh"
     
-    if [[ ! -f "$file" ]]; then
-        log::error "Document file not found: $file"
-        return 1
-    fi
-    
-    # Delegate to manage.sh
-    "${UNSTRUCTURED_IO_CLI_DIR}/manage.sh" --action inject --file "$file" "${@:2}"
-}
-
-# Process document
-resource_cli::process() {
-    resource_cli::inject "$@"
-}
-
-# Validate Unstructured.io configuration
-resource_cli::validate() {
-    "${UNSTRUCTURED_IO_CLI_DIR}/manage.sh" --action status
-}
-
-# Show Unstructured.io status
-resource_cli::status() {
-    "${UNSTRUCTURED_IO_CLI_DIR}/manage.sh" --action status
-}
-
-# Start Unstructured.io
-resource_cli::start() {
-    "${UNSTRUCTURED_IO_CLI_DIR}/manage.sh" --action start
-}
-
-# Stop Unstructured.io
-resource_cli::stop() {
-    "${UNSTRUCTURED_IO_CLI_DIR}/manage.sh" --action stop
-}
-
-# Install Unstructured.io
-resource_cli::install() {
-    "${UNSTRUCTURED_IO_CLI_DIR}/manage.sh" --action install --yes yes
-}
-
-# Uninstall Unstructured.io
-resource_cli::uninstall() {
-    FORCE="${FORCE:-false}"
-    
-    if [[ "$FORCE" != "true" ]]; then
-        echo "⚠️  This will remove Unstructured.io and all its data. Use --force to confirm."
-        return 1
-    fi
-    
-    "${UNSTRUCTURED_IO_CLI_DIR}/manage.sh" --action uninstall --yes yes
-}
-
-# Get credentials for n8n integration
-resource_cli::credentials() {
-    source "${VROOLI_ROOT}/scripts/resources/lib/credentials-utils.sh"
-    
-    if ! credentials::parse_args "$@"; then
-        [[ $? -eq 2 ]] && { credentials::show_help "unstructured-io"; return 0; }
-        return 1
-    fi
+    credentials::parse_args "$@" || return $?
     
     local status
     status=$(credentials::get_resource_status "$UNSTRUCTURED_IO_CONTAINER_NAME")
     
     local connections_array="[]"
     if [[ "$status" == "running" ]]; then
-        # Unstructured.io HTTP API connection (no authentication required)
         local connection_obj
         connection_obj=$(jq -n \
             --arg host "localhost" \
             --argjson port "$UNSTRUCTURED_IO_PORT" \
             --arg path "/general/v0/general" \
-            --argjson ssl false \
-            '{
-                host: $host,
-                port: $port,
-                path: $path,
-                ssl: $ssl
-            }')
+            '{host: $host, port: $port, path: $path, ssl: false}')
         
         local metadata_obj
         metadata_obj=$(jq -n \
-            --arg description "Unstructured.io document processing and analysis service" \
+            --arg description "Document processing service" \
             --arg strategy "$UNSTRUCTURED_IO_DEFAULT_STRATEGY" \
-            --argjson supported_formats '["pdf", "docx", "doc", "txt", "html", "xml", "pptx", "xlsx", "jpg", "png"]' \
-            '{
-                description: $description,
-                default_strategy: $strategy,
-                supported_formats: $supported_formats
-            }')
+            '{description: $description, default_strategy: $strategy}')
         
         local connection
         connection=$(credentials::build_connection \
-            "main" \
-            "Unstructured.io API" \
-            "httpRequest" \
-            "$connection_obj" \
-            "{}" \
-            "$metadata_obj")
+            "main" "Unstructured.io API" "httpRequest" \
+            "$connection_obj" "{}" "$metadata_obj")
         
         connections_array="[$connection]"
     fi
     
-    local response
-    response=$(credentials::build_response "unstructured-io" "$status" "$connections_array")
-    credentials::format_output "$response"
+    credentials::format_output "$(credentials::build_response "unstructured-io" "$status" "$connections_array")"
 }
 
-# List processing strategies
-resource_cli::strategies() {
-    echo "Available Unstructured.io processing strategies:"
-    echo ""
-    echo "  auto        Automatically choose the best strategy"
-    echo "  fast        Fast processing with basic layout detection"
-    echo "  hi_res      High-resolution processing with advanced layout"
-    echo "  ocr_only    OCR-based text extraction only"
-    echo ""
-    echo "Strategy descriptions:"
-    echo "• auto:     Chooses fast or hi_res based on document complexity"
-    echo "• fast:     Faster processing, good for simple documents"
-    echo "• hi_res:   More accurate, better for complex layouts and tables"
-    echo "• ocr_only: Text extraction without layout analysis"
-    echo ""
-    echo "Current default: $UNSTRUCTURED_IO_DEFAULT_STRATEGY"
-}
-
-# List supported file formats
-resource_cli::formats() {
-    echo "Supported file formats:"
-    echo ""
-    echo "Documents:"
-    echo "  • PDF (.pdf)          - Portable Document Format"
-    echo "  • Word (.docx, .doc)  - Microsoft Word documents"
-    echo "  • Text (.txt)         - Plain text files"
-    echo "  • HTML (.html)        - Web pages"
-    echo "  • XML (.xml)          - Structured markup"
-    echo ""
-    echo "Presentations:"
-    echo "  • PowerPoint (.pptx)  - Microsoft PowerPoint"
-    echo ""
-    echo "Spreadsheets:"
-    echo "  • Excel (.xlsx)       - Microsoft Excel"
-    echo ""
-    echo "Images:"
-    echo "  • JPEG (.jpg, .jpeg)  - Images with text (via OCR)"
-    echo "  • PNG (.png)          - Images with text (via OCR)"
-    echo ""
-    echo "Processing features:"
-    echo "  • Text extraction and chunking"
-    echo "  • Table detection and extraction"
-    echo "  • Layout analysis and element classification"
-    echo "  • OCR for scanned documents and images"
-}
-
-# Custom help function with Unstructured.io-specific examples
-resource_cli::show_help() {
-    # Show standard framework help first
+# Custom help function with examples
+unstructured_io::show_help() {
     cli::_handle_help
     
-    # Add Unstructured.io-specific examples
     echo ""
-    echo "📄 Unstructured.io Document Processing Examples:"
+    echo "📄 Examples:"
     echo ""
-    echo "Document Processing:"
-    echo "  resource-unstructured-io process document.pdf          # Process PDF document"
-    echo "  resource-unstructured-io inject report.docx            # Same as process"
-    echo "  resource-unstructured-io inject shared:docs/data.xlsx  # Process shared file"
+    echo "  # Process documents"
+    echo "  resource-unstructured-io process document.pdf"
+    echo "  resource-unstructured-io process report.docx hi_res output.json"
+    echo "  resource-unstructured-io process-directory ./docs/"
     echo ""
-    echo "Information & Configuration:"
-    echo "  resource-unstructured-io strategies                    # List processing strategies"
-    echo "  resource-unstructured-io formats                       # List supported formats"
+    echo "  # Extract data"
+    echo "  resource-unstructured-io extract-tables financial.pdf"
+    echo "  resource-unstructured-io extract-metadata paper.docx"
     echo ""
-    echo "Management:"
-    echo "  resource-unstructured-io status                        # Check service status"
-    echo "  resource-unstructured-io credentials                   # Get API details"
-    echo ""
-    echo "Document Processing Features:"
-    echo "  • Advanced text extraction and chunking"
-    echo "  • Table detection and structured extraction"
-    echo "  • Layout analysis with element classification"
-    echo "  • OCR support for scanned documents and images"
+    echo "  # Management"
+    echo "  resource-unstructured-io status"
+    echo "  resource-unstructured-io cache-stats"
+    echo "  resource-unstructured-io clear-cache"
     echo ""
     echo "Default Port: $UNSTRUCTURED_IO_PORT"
-    echo "Default Strategy: $UNSTRUCTURED_IO_DEFAULT_STRATEGY"
     echo "API Endpoint: http://localhost:$UNSTRUCTURED_IO_PORT/general/v0/general"
 }
 
 ################################################################################
-# Main execution - dispatch to framework
+# Main execution
 ################################################################################
 
-# Only execute if script is run directly (not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     cli::dispatch "$@"
 fi

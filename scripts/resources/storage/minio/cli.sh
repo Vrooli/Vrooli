@@ -11,29 +11,27 @@
 
 set -euo pipefail
 
-# Get script directory (handle symlinks)
+# Get script directory (resolving symlinks for installed CLI)
 if [[ -L "${BASH_SOURCE[0]}" ]]; then
     MINIO_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
 else
     MINIO_CLI_SCRIPT="${BASH_SOURCE[0]}"
 fi
 MINIO_CLI_DIR="$(cd "$(dirname "$MINIO_CLI_SCRIPT")" && pwd)"
-VROOLI_ROOT="${VROOLI_ROOT:-$(cd "$MINIO_CLI_DIR/../../../.." && pwd)}"
-export VROOLI_ROOT
-export RESOURCE_DIR="$MINIO_CLI_DIR"
-export MINIO_SCRIPT_DIR="$MINIO_CLI_DIR"  # For compatibility with existing libs
 
-# Source utilities first
+# Source standard variables
 # shellcheck disable=SC1091
-source "${VROOLI_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || true
+source "${MINIO_CLI_DIR}/../../../lib/utils/var.sh"
+
+# Source utilities using var_ variables
 # shellcheck disable=SC1091
-source "${var_LOG_FILE:-${VROOLI_ROOT}/scripts/lib/utils/log.sh}" 2>/dev/null || true
+source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
-source "${var_RESOURCES_COMMON_FILE:-${VROOLI_ROOT}/scripts/resources/common.sh}" 2>/dev/null || true
+source "${var_RESOURCES_COMMON_FILE}"
 
 # Source the CLI Command Framework
 # shellcheck disable=SC1091
-source "${VROOLI_ROOT}/scripts/resources/lib/cli-command-framework.sh"
+source "${var_SCRIPTS_RESOURCES_LIB_DIR}/cli-command-framework.sh"
 
 # Source MinIO configuration
 # shellcheck disable=SC1091
@@ -53,23 +51,23 @@ done
 cli::init "minio" "MinIO S3-compatible object storage management"
 
 # Override help to provide MinIO-specific examples
-cli::register_command "help" "Show this help message with MinIO examples" "resource_cli::show_help"
+cli::register_command "help" "Show this help message with MinIO examples" "minio_show_help"
 
 # Register additional MinIO-specific commands
-cli::register_command "inject" "Inject bucket config/data into MinIO" "resource_cli::inject" "modifies-system"
-cli::register_command "list-buckets" "List all buckets" "resource_cli::list_buckets"
-cli::register_command "create-bucket" "Create a new bucket" "resource_cli::create_bucket" "modifies-system"
-cli::register_command "delete-bucket" "Delete a bucket (requires --force)" "resource_cli::delete_bucket" "modifies-system"
-cli::register_command "configure" "Configure MinIO client" "resource_cli::configure" "modifies-system"
-cli::register_command "credentials" "Show n8n credentials for MinIO" "resource_cli::credentials"
-cli::register_command "uninstall" "Uninstall MinIO (requires --force)" "resource_cli::uninstall" "modifies-system"
+cli::register_command "inject" "Inject bucket config/data into MinIO" "minio_inject" "modifies-system"
+cli::register_command "list-buckets" "List all buckets" "minio_list_buckets"
+cli::register_command "create-bucket" "Create a new bucket" "minio_create_bucket" "modifies-system"
+cli::register_command "delete-bucket" "Delete a bucket (requires --force)" "minio_delete_bucket" "modifies-system"
+cli::register_command "configure" "Configure MinIO client" "minio_configure" "modifies-system"
+cli::register_command "credentials" "Show n8n credentials for MinIO" "minio_credentials"
+cli::register_command "uninstall" "Uninstall MinIO (requires --force)" "minio_uninstall" "modifies-system"
 
 ################################################################################
 # Resource-specific command implementations
 ################################################################################
 
 # Inject bucket configuration or data into MinIO
-resource_cli::inject() {
+minio_inject() {
     local file="${1:-}"
     
     if [[ -z "$file" ]]; then
@@ -84,7 +82,7 @@ resource_cli::inject() {
     
     # Handle shared: prefix
     if [[ "$file" == shared:* ]]; then
-        file="${VROOLI_ROOT}/${file#shared:}"
+        file="${var_ROOT_DIR}/${file#shared:}"
     fi
     
     if [[ ! -f "$file" ]]; then
@@ -104,7 +102,7 @@ resource_cli::inject() {
 }
 
 # Validate MinIO configuration
-resource_cli::validate() {
+minio_validate() {
     if command -v minio::validate &>/dev/null; then
         minio::validate
     elif command -v minio::check_health &>/dev/null; then
@@ -122,7 +120,7 @@ resource_cli::validate() {
 }
 
 # Show MinIO status
-resource_cli::status() {
+minio_status() {
     if command -v minio::status &>/dev/null; then
         minio::status
     else
@@ -139,7 +137,7 @@ resource_cli::status() {
 }
 
 # Start MinIO
-resource_cli::start() {
+minio_start() {
     if command -v minio::start &>/dev/null; then
         minio::start
     elif command -v minio::docker::start &>/dev/null; then
@@ -151,7 +149,7 @@ resource_cli::start() {
 }
 
 # Stop MinIO
-resource_cli::stop() {
+minio_stop() {
     if command -v minio::stop &>/dev/null; then
         minio::stop
     elif command -v minio::docker::stop &>/dev/null; then
@@ -163,7 +161,7 @@ resource_cli::stop() {
 }
 
 # Install MinIO
-resource_cli::install() {
+minio_install() {
     if command -v minio::install &>/dev/null; then
         minio::install
     else
@@ -173,7 +171,7 @@ resource_cli::install() {
 }
 
 # Uninstall MinIO
-resource_cli::uninstall() {
+minio_uninstall() {
     FORCE="${FORCE:-false}"
     
     if [[ "$FORCE" != "true" ]]; then
@@ -192,8 +190,8 @@ resource_cli::uninstall() {
 }
 
 # Show credentials for n8n integration
-resource_cli::credentials() {
-    source "${VROOLI_ROOT}/scripts/resources/lib/credentials-utils.sh"
+minio_credentials() {
+    source "${var_SCRIPTS_RESOURCES_LIB_DIR}/credentials-utils.sh"
     
     if ! credentials::parse_args "$@"; then
         [[ $? -eq 2 ]] && { credentials::show_help "minio"; return 0; }
@@ -255,7 +253,7 @@ resource_cli::credentials() {
 }
 
 # List buckets
-resource_cli::list_buckets() {
+minio_list_buckets() {
     if command -v minio::api::list_buckets &>/dev/null; then
         minio::api::list_buckets
     elif command -v minio::buckets::list &>/dev/null; then
@@ -273,7 +271,7 @@ resource_cli::list_buckets() {
 }
 
 # Create bucket
-resource_cli::create_bucket() {
+minio_create_bucket() {
     local bucket_name="${1:-}"
     
     if [[ -z "$bucket_name" ]]; then
@@ -298,7 +296,7 @@ resource_cli::create_bucket() {
 }
 
 # Delete bucket
-resource_cli::delete_bucket() {
+minio_delete_bucket() {
     local bucket_name="${1:-}"
     
     if [[ -z "$bucket_name" ]]; then
@@ -329,7 +327,7 @@ resource_cli::delete_bucket() {
 }
 
 # Configure MinIO client
-resource_cli::configure() {
+minio_configure() {
     if command -v minio::api::configure_mc &>/dev/null; then
         minio::api::configure_mc
     else
@@ -339,7 +337,7 @@ resource_cli::configure() {
 }
 
 # Custom help function with MinIO-specific examples
-resource_cli::show_help() {
+minio_show_help() {
     # Show standard framework help first
     cli::_handle_help
     

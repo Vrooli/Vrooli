@@ -11,29 +11,27 @@
 
 set -euo pipefail
 
-# Get script directory (handle symlinks)
+# Get script directory (resolving symlinks for installed CLI)
 if [[ -L "${BASH_SOURCE[0]}" ]]; then
     POSTGRES_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
 else
     POSTGRES_CLI_SCRIPT="${BASH_SOURCE[0]}"
 fi
 POSTGRES_CLI_DIR="$(cd "$(dirname "$POSTGRES_CLI_SCRIPT")" && pwd)"
-VROOLI_ROOT="${VROOLI_ROOT:-$(cd "$POSTGRES_CLI_DIR/../../../.." && pwd)}"
-export VROOLI_ROOT
-export RESOURCE_DIR="$POSTGRES_CLI_DIR"
-export POSTGRES_SCRIPT_DIR="$POSTGRES_CLI_DIR"  # For compatibility with existing libs
 
-# Source utilities first
+# Source standard variables
 # shellcheck disable=SC1091
-source "${VROOLI_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || true
+source "${POSTGRES_CLI_DIR}/../../../lib/utils/var.sh"
+
+# Source utilities using var_ variables
 # shellcheck disable=SC1091
-source "${var_LOG_FILE:-${VROOLI_ROOT}/scripts/lib/utils/log.sh}" 2>/dev/null || true
+source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
-source "${var_RESOURCES_COMMON_FILE:-${VROOLI_ROOT}/scripts/resources/common.sh}" 2>/dev/null || true
+source "${var_RESOURCES_COMMON_FILE}"
 
 # Source the CLI Command Framework
 # shellcheck disable=SC1091
-source "${VROOLI_ROOT}/scripts/resources/lib/cli-command-framework.sh"
+source "${var_SCRIPTS_RESOURCES_LIB_DIR}/cli-command-framework.sh"
 
 # Source PostgreSQL configuration
 # shellcheck disable=SC1091
@@ -56,25 +54,25 @@ done
 cli::init "postgres" "PostgreSQL relational database management"
 
 # Override help to provide PostgreSQL-specific examples
-cli::register_command "help" "Show this help message with PostgreSQL examples" "resource_cli::show_help"
+cli::register_command "help" "Show this help message with PostgreSQL examples" "postgres_show_help"
 
 # Register additional PostgreSQL-specific commands
-cli::register_command "inject" "Inject SQL/config into PostgreSQL" "resource_cli::inject" "modifies-system"
-cli::register_command "list-instances" "List all PostgreSQL instances" "resource_cli::list_instances"
-cli::register_command "create-instance" "Create new instance" "resource_cli::create_instance" "modifies-system"
-cli::register_command "list-databases" "List databases in instance" "resource_cli::list_databases"
-cli::register_command "create-database" "Create new database" "resource_cli::create_database" "modifies-system"
-cli::register_command "execute-sql" "Execute SQL command" "resource_cli::execute_sql"
-cli::register_command "create-backup" "Create database backup" "resource_cli::create_backup" "modifies-system"
-cli::register_command "credentials" "Show n8n credentials for PostgreSQL" "resource_cli::credentials"
-cli::register_command "uninstall" "Uninstall PostgreSQL (requires --force)" "resource_cli::uninstall" "modifies-system"
+cli::register_command "inject" "Inject SQL/config into PostgreSQL" "postgres_inject" "modifies-system"
+cli::register_command "list-instances" "List all PostgreSQL instances" "postgres_list_instances"
+cli::register_command "create-instance" "Create new instance" "postgres_create_instance" "modifies-system"
+cli::register_command "list-databases" "List databases in instance" "postgres_list_databases"
+cli::register_command "create-database" "Create new database" "postgres_create_database" "modifies-system"
+cli::register_command "execute-sql" "Execute SQL command" "postgres_execute_sql"
+cli::register_command "create-backup" "Create database backup" "postgres_create_backup" "modifies-system"
+cli::register_command "credentials" "Show n8n credentials for PostgreSQL" "postgres_credentials"
+cli::register_command "uninstall" "Uninstall PostgreSQL (requires --force)" "postgres_uninstall" "modifies-system"
 
 ################################################################################
 # Resource-specific command implementations
 ################################################################################
 
 # Inject SQL or configuration into PostgreSQL
-resource_cli::inject() {
+postgres_inject() {
     local file="${1:-}"
     
     if [[ -z "$file" ]]; then
@@ -89,7 +87,7 @@ resource_cli::inject() {
     
     # Handle shared: prefix
     if [[ "$file" == shared:* ]]; then
-        file="${VROOLI_ROOT}/${file#shared:}"
+        file="${var_ROOT_DIR}/${file#shared:}"
     fi
     
     if [[ ! -f "$file" ]]; then
@@ -97,88 +95,11 @@ resource_cli::inject() {
         return 1
     fi
     
-    # Use existing injection function
-    if command -v postgres::inject_file &>/dev/null; then
-        postgres::inject_file "$file"
-    elif command -v postgres::inject_sql &>/dev/null; then
-        postgres::inject_sql "$file"
-    else
-        log::error "PostgreSQL injection functions not available"
-        return 1
-    fi
-}
-
-# Validate PostgreSQL configuration
-resource_cli::validate() {
-    if command -v postgres::validate &>/dev/null; then
-        postgres::validate
-    elif command -v postgres::check_health &>/dev/null; then
-        postgres::check_health
-    else
-        # Basic validation
-        log::header "Validating PostgreSQL"
-        local container_prefix="${POSTGRES_CONTAINER_PREFIX:-postgres}"
-        docker ps --format '{{.Names}}' 2>/dev/null | grep -q "$container_prefix" || {
-            log::error "PostgreSQL container not running"
-            return 1
-        }
-        log::success "PostgreSQL is running"
-    fi
-}
-
-# Show PostgreSQL status
-resource_cli::status() {
-    if command -v postgres::status &>/dev/null; then
-        postgres::status
-    else
-        # Basic status
-        log::header "PostgreSQL Status"
-        local container_prefix="${POSTGRES_CONTAINER_PREFIX:-postgres}"
-        if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "$container_prefix"; then
-            echo "Containers: ✅ Running"
-            docker ps --filter "name=$container_prefix" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
-        else
-            echo "Containers: ❌ Not running"
-        fi
-    fi
-}
-
-# Start PostgreSQL
-resource_cli::start() {
-    if command -v postgres::start &>/dev/null; then
-        postgres::start
-    elif command -v postgres::docker::start &>/dev/null; then
-        postgres::docker::start
-    else
-        local container_prefix="${POSTGRES_CONTAINER_PREFIX:-postgres}"
-        docker start "$container_prefix" || log::error "Failed to start PostgreSQL"
-    fi
-}
-
-# Stop PostgreSQL
-resource_cli::stop() {
-    if command -v postgres::stop &>/dev/null; then
-        postgres::stop
-    elif command -v postgres::docker::stop &>/dev/null; then
-        postgres::docker::stop
-    else
-        local container_prefix="${POSTGRES_CONTAINER_PREFIX:-postgres}"
-        docker stop "$container_prefix" || log::error "Failed to stop PostgreSQL"
-    fi
-}
-
-# Install PostgreSQL
-resource_cli::install() {
-    if command -v postgres::install &>/dev/null; then
-        postgres::install
-    else
-        log::error "postgres::install not available"
-        return 1
-    fi
+    postgres::inject_file "$file"
 }
 
 # Uninstall PostgreSQL
-resource_cli::uninstall() {
+postgres_uninstall() {
     FORCE="${FORCE:-false}"
     
     if [[ "$FORCE" != "true" ]]; then
@@ -186,37 +107,19 @@ resource_cli::uninstall() {
         return 1
     fi
     
-    if command -v postgres::uninstall &>/dev/null; then
-        postgres::uninstall
-    else
-        local container_prefix="${POSTGRES_CONTAINER_PREFIX:-postgres}"
-        docker stop "$container_prefix" 2>/dev/null || true
-        docker rm "$container_prefix" 2>/dev/null || true
-        log::success "PostgreSQL uninstalled"
-    fi
+    postgres::uninstall
 }
 
 # List instances
-resource_cli::list_instances() {
+postgres_list_instances() {
     # Ensure messages are initialized
     postgres::messages::init 2>/dev/null || true
     
-    if command -v postgres::instance::list &>/dev/null; then
-        postgres::instance::list
-    elif command -v postgres::list_instances &>/dev/null; then
-        postgres::list_instances
-    else
-        # Basic instance listing using Docker
-        log::header "PostgreSQL Instances"
-        local container_prefix="${POSTGRES_CONTAINER_PREFIX:-postgres}"
-        docker ps --filter "name=$container_prefix" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" || {
-            echo "No PostgreSQL instances running"
-        }
-    fi
+    postgres::instance::list
 }
 
 # Create database
-resource_cli::create_database() {
+postgres_create_database() {
     local database_name="${1:-}"
     local instance_name="${2:-main}"
     
@@ -230,16 +133,11 @@ resource_cli::create_database() {
         return 1
     fi
     
-    if command -v postgres::database::create &>/dev/null; then
-        postgres::database::create "$instance_name" "$database_name"
-    else
-        log::error "Database creation not available"
-        return 1
-    fi
+    postgres::database::create "$instance_name" "$database_name"
 }
 
 # Execute SQL
-resource_cli::execute_sql() {
+postgres_execute_sql() {
     local sql_command="${1:-}"
     local instance_name="${2:-main}"
     local database="${3:-${POSTGRES_DEFAULT_DB:-postgres}}"
@@ -258,33 +156,18 @@ resource_cli::execute_sql() {
         return 1
     fi
     
-    if command -v postgres::database::execute &>/dev/null; then
-        postgres::database::execute "$instance_name" "$sql_command" "$database"
-    else
-        log::error "SQL execution not available"
-        return 1
-    fi
+    postgres::database::execute "$instance_name" "$sql_command" "$database"
 }
 
 # List databases
-resource_cli::list_databases() {
+postgres_list_databases() {
     local instance_name="${1:-main}"
     
-    if command -v postgres::database::list &>/dev/null; then
-        postgres::database::list "$instance_name"
-    else
-        # Use SQL execution to list databases
-        if command -v postgres::database::execute &>/dev/null; then
-            postgres::database::execute "$instance_name" "\\l" "postgres"
-        else
-            log::error "Database listing not available"
-            return 1
-        fi
-    fi
+    postgres::database::list "$instance_name"
 }
 
 # Create backup
-resource_cli::create_backup() {
+postgres_create_backup() {
     local database_name="${1:-}"
     local instance_name="${2:-main}"
     local backup_file="${3:-}"
@@ -299,16 +182,11 @@ resource_cli::create_backup() {
         return 1
     fi
     
-    if command -v postgres::backup::create &>/dev/null; then
-        postgres::backup::create "$instance_name" "$database_name" "$backup_file"
-    else
-        log::error "Backup creation not available"
-        return 1
-    fi
+    postgres::backup::create "$instance_name" "$database_name" "$backup_file"
 }
 
 # Create instance
-resource_cli::create_instance() {
+postgres_create_instance() {
     local instance_name="${1:-}"
     local template="${2:-development}"
     
@@ -324,18 +202,13 @@ resource_cli::create_instance() {
         return 1
     fi
     
-    if command -v postgres::instance::create &>/dev/null; then
-        # Pass empty string for port to let it auto-assign
-        postgres::instance::create "$instance_name" "" "$template"
-    else
-        log::error "Instance creation not available"
-        return 1
-    fi
+    # Pass empty string for port to let it auto-assign
+    postgres::instance::create "$instance_name" "" "$template"
 }
 
 # Show credentials for n8n integration
-resource_cli::credentials() {
-    source "${VROOLI_ROOT}/scripts/resources/lib/credentials-utils.sh"
+postgres_credentials() {
+    source "${var_SCRIPTS_RESOURCES_LIB_DIR}/credentials-utils.sh"
     
     if ! credentials::parse_args "$@"; then
         [[ $? -eq 2 ]] && { credentials::show_help "postgres"; return 0; }
@@ -429,7 +302,7 @@ resource_cli::credentials() {
 }
 
 # Custom help function with PostgreSQL-specific examples
-resource_cli::show_help() {
+postgres_show_help() {
     # Show standard framework help first
     cli::_handle_help
     

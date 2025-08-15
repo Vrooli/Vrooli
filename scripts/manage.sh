@@ -21,6 +21,8 @@ source "$SCRIPT_DIR/lib/utils/json.sh"
 source "${var_PORT_REGISTRY_FILE}" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/lib/service/secrets.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/lib/process-manager.sh" 2>/dev/null || true
 
 #######################################
 # Execute lifecycle phase
@@ -79,9 +81,9 @@ manage::execute_phase() {
     # Ensure file ends with newline to prevent read issues
     echo "" >> "$steps_file"
     
-    # Track background PIDs for cleanup
-    local bg_pids=()
-    trap 'for pid in "${bg_pids[@]}"; do kill -TERM "$pid" 2>/dev/null || true; done; rm -f "${steps_file:-}"' EXIT INT TERM
+    # Track background processes for cleanup
+    local bg_processes=()
+    trap 'for process in "${bg_processes[@]}"; do pm::stop "$process" 2>/dev/null || true; done; rm -f "${steps_file:-}"' EXIT INT TERM
     
     while IFS= read -r step; do
         step_count=$((step_count + 1))
@@ -125,11 +127,23 @@ manage::execute_phase() {
             # Execute in project root for consistency
             # Export SERVICE_PORT explicitly if it exists
             if [[ "$is_background" == "true" ]]; then
-                # Run in background and track PID
-                (cd "$var_ROOT_DIR" && export SERVICE_PORT="${SERVICE_PORT:-}" && exec bash -c "$processed_run") &
-                local bg_pid=$!
-                bg_pids+=("$bg_pid")
-                log::info "  Started background process (PID: $bg_pid)"
+                # Use process manager for background processes
+                local process_name="vrooli.${phase}.${name}"
+                if command -v pm::start >/dev/null 2>&1; then
+                    if pm::start "$process_name" "export SERVICE_PORT='${SERVICE_PORT:-}' && $processed_run" "$var_ROOT_DIR"; then
+                        bg_processes+=("$process_name")
+                        log::info "  Started background process: $process_name"
+                    else
+                        log::error "Failed to start background process: $process_name"
+                        rm -f "$steps_file"
+                        return 1
+                    fi
+                else
+                    log::warning "Process manager not available, falling back to manual process management"
+                    (cd "$var_ROOT_DIR" && export SERVICE_PORT="${SERVICE_PORT:-}" && exec bash -c "$processed_run") &
+                    local bg_pid=$!
+                    log::info "  Started background process (PID: $bg_pid) - manual management"
+                fi
             else
                 # Run without timeout wrapper to preserve terminal control for sudo
                 (cd "$var_ROOT_DIR" && export SERVICE_PORT="${SERVICE_PORT:-}" && bash -c "$processed_run") || {
@@ -144,26 +158,16 @@ manage::execute_phase() {
     
     rm -f "$steps_file"
     
-    # For develop phase, keep script running to maintain background processes
-    if [[ "$phase" == "develop" ]] && [[ ${#bg_pids[@]} -gt 0 ]]; then
-        log::info "Development services running. Press Ctrl+C to stop."
-        # Wait for all background processes with periodic checks
-        while true; do
-            local any_alive=false
-            for pid in "${bg_pids[@]}"; do
-                if kill -0 "$pid" 2>/dev/null; then
-                    any_alive=true
-                    break
-                fi
-            done
-            
-            if [[ "$any_alive" == "false" ]]; then
-                break
-            fi
-            
-            # Sleep to avoid busy waiting
-            sleep 1
+    # For develop phase with background processes, show status and exit
+    # Process manager handles all lifecycle management
+    if [[ "$phase" == "develop" ]] && [[ ${#bg_processes[@]} -gt 0 ]]; then
+        log::info "Development services started successfully:"
+        for process in "${bg_processes[@]}"; do
+            echo "  • $process"
         done
+        echo ""
+        log::info "Use 'vrooli app stop <name>' to stop services"
+        log::info "Use 'vrooli app logs <name>' to view logs"
     fi
     
     log::success "Phase '$phase' completed successfully"
