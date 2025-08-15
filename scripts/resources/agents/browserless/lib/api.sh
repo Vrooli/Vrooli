@@ -434,6 +434,673 @@ browserless::test_all_apis() {
     fi
 }
 
+#######################################
+# Execute n8n workflow via browser automation
+# Arguments:
+#   $1 - Workflow ID (required)
+#   $2 - N8N base URL (optional, default: http://localhost:5678)
+#   $3 - Timeout in milliseconds (optional, default: 60000)
+#   $4 - Input data (optional, JSON string or @file or env var)
+# Returns: 0 if successful, 1 if failed
+#######################################
+browserless::execute_n8n_workflow() {
+    local workflow_id="${1:?Workflow ID required}"
+    local n8n_url="${2:-http://localhost:5678}"
+    local timeout="${3:-60000}"
+    local input_data="${4:-}"
+    
+    log::header "🚀 Executing N8N Workflow via Browser Automation"
+    
+    if ! browserless::is_healthy; then
+        log::error "${MSG_NOT_HEALTHY}"
+        return 1
+    fi
+    
+    # Build workflow URL
+    local workflow_url
+    if [[ "$workflow_id" == http* ]]; then
+        workflow_url="$workflow_id"
+    else
+        workflow_url="${n8n_url}/workflow/${workflow_id}"
+    fi
+    
+    # Process input data
+    local processed_input=""
+    local input_description="None"
+    
+    if [[ -n "$input_data" ]]; then
+        # Check if input_data starts with @ (file reference)
+        if [[ "$input_data" == @* ]]; then
+            local input_file="${input_data#@}"
+            if [[ -f "$input_file" ]]; then
+                processed_input=$(cat "$input_file")
+                input_description="From file: $input_file"
+            else
+                log::error "Input file not found: $input_file"
+                return 1
+            fi
+        else
+            # Direct JSON input or environment variable
+            if [[ "$input_data" == "\$"* ]]; then
+                # Environment variable reference
+                local env_var="${input_data#\$}"
+                processed_input="${!env_var}"
+                input_description="From environment variable: $env_var"
+            else
+                # Direct JSON input
+                processed_input="$input_data"
+                input_description="Direct JSON input"
+            fi
+        fi
+        
+        # Check for WORKFLOW_INPUT environment variable as fallback
+        if [[ -z "$processed_input" && -n "${WORKFLOW_INPUT:-}" ]]; then
+            processed_input="$WORKFLOW_INPUT"
+            input_description="From WORKFLOW_INPUT environment variable"
+        fi
+        
+        # Validate JSON if input provided
+        if [[ -n "$processed_input" ]]; then
+            if ! echo "$processed_input" | jq . >/dev/null 2>&1; then
+                log::error "Invalid JSON input data"
+                log::debug "Input: $processed_input"
+                return 1
+            fi
+        fi
+    fi
+    
+    log::info "Workflow ID: $workflow_id"
+    log::info "Workflow URL: $workflow_url"
+    log::info "Timeout: ${timeout}ms"
+    log::info "Input Data: $input_description"
+    if [[ -n "$processed_input" ]]; then
+        log::debug "Input JSON: $(echo "$processed_input" | jq -c . 2>/dev/null || echo "$processed_input")"
+    fi
+    echo
+    
+    # Generate function code for workflow execution
+    local function_code
+    read -r -d '' function_code << 'EOF' || true
+async ({ page }) => {
+  const executionData = {
+    workflowId: '%WORKFLOW_ID%',
+    workflowUrl: '%WORKFLOW_URL%',
+    consoleLogs: [],
+    pageErrors: [],
+    networkErrors: [],
+    executionStatus: {},
+    startTime: new Date().toISOString(),
+    success: false
+  };
+  
+  try {
+    // Set up console log capture
+    page.on('console', msg => {
+      executionData.consoleLogs.push({
+        type: msg.type(),
+        text: msg.text(),
+        timestamp: new Date().toISOString()
+      });
+    });
+    
+    // Set up page error capture
+    page.on('pageerror', err => {
+      executionData.pageErrors.push({
+        message: err.message,
+        stack: err.stack,
+        timestamp: new Date().toISOString()
+      });
+    });
+    
+    // Set up network error capture
+    page.on('requestfailed', req => {
+      executionData.networkErrors.push({
+        url: req.url(),
+        method: req.method(),
+        failure: req.failure()?.errorText || 'Unknown error',
+        timestamp: new Date().toISOString()
+      });
+    });
+    
+    console.log('Navigating to workflow:', '%WORKFLOW_URL%');
+    
+    // Navigate to workflow
+    await page.goto('%WORKFLOW_URL%', {
+      waitUntil: 'networkidle2',
+      timeout: %TIMEOUT%
+    });
+    
+    // Wait for page to load
+    await page.waitForTimeout(3000);
+    
+    console.log('Waiting for execute button...');
+    
+    // Wait for execute button to appear
+    await page.waitForSelector('[data-test-id="execute-workflow-button"]', {
+      timeout: 10000
+    });
+    
+    console.log('Clicking execute button...');
+    
+    // Click the execute button
+    await page.click('[data-test-id="execute-workflow-button"]');
+    
+    // If input data is provided, try to fill it in
+    const inputData = '%INPUT_DATA%';
+    if (inputData && inputData !== '%INPUT_DATA%') {
+      console.log('Input data provided, looking for input form...');
+      
+      try {
+        // Wait a moment for any input dialog to appear
+        await page.waitForTimeout(1000);
+        
+        // Look for common input field selectors in n8n
+        const inputSelectors = [
+          'textarea[data-test-id="workflow-input-data"]',
+          'textarea[placeholder*="JSON"]',
+          'textarea[placeholder*="input"]',
+          '.cm-editor textarea',
+          '.monaco-editor textarea',
+          'textarea:not([readonly])',
+          'input[type="text"]:not([readonly])'
+        ];
+        
+        let inputFound = false;
+        for (const selector of inputSelectors) {
+          try {
+            await page.waitForSelector(selector, { timeout: 2000 });
+            console.log(`Found input field with selector: ${selector}`);
+            
+            // Clear existing content and input new data
+            await page.evaluate((sel) => {
+              const element = document.querySelector(sel);
+              if (element) {
+                element.value = '';
+                element.focus();
+              }
+            }, selector);
+            
+            await page.type(selector, inputData, { delay: 50 });
+            console.log('Input data entered successfully');
+            inputFound = true;
+            break;
+          } catch (e) {
+            // Continue to next selector
+          }
+        }
+        
+        if (!inputFound) {
+          console.log('No input field found, proceeding without input data');
+        }
+        
+        // Look for and click any "Execute" or "Run" button that might appear
+        try {
+          const executeSelectors = [
+            'button[data-test-id="execute-button"]',
+            'button:contains("Execute")',
+            'button:contains("Run")',
+            '.execute-button'
+          ];
+          
+          for (const selector of executeSelectors) {
+            try {
+              await page.waitForSelector(selector, { timeout: 1000 });
+              await page.click(selector);
+              console.log(`Clicked additional execute button: ${selector}`);
+              break;
+            } catch (e) {
+              // Continue to next selector
+            }
+          }
+        } catch (e) {
+          // No additional execute button found
+        }
+        
+      } catch (error) {
+        console.log('Input handling failed, continuing with execution:', error.message);
+      }
+    }
+    
+    console.log('Workflow execution triggered, monitoring...');
+    
+    // Wait and monitor for execution completion
+    let pollCount = 0;
+    const maxPolls = Math.floor(%TIMEOUT% / 2000); // Poll every 2 seconds
+    
+    while (pollCount < maxPolls) {
+      await page.waitForTimeout(2000);
+      pollCount++;
+      
+      // Check for execution completion indicators in console logs
+      const recentLogs = executionData.consoleLogs.slice(-5);
+      let executionComplete = false;
+      
+      for (const log of recentLogs) {
+        const text = log.text.toLowerCase();
+        if (text.includes('workflow execution finished') ||
+            text.includes('execution completed') ||
+            text.includes('execution successful') ||
+            text.includes('finished executing')) {
+          executionData.executionStatus.completed = true;
+          executionComplete = true;
+          break;
+        } else if (text.includes('workflow execution failed') ||
+                   text.includes('execution error') ||
+                   text.includes('execution failed')) {
+          executionData.executionStatus.failed = true;
+          executionComplete = true;
+          break;
+        }
+      }
+      
+      if (executionComplete) {
+        console.log(`Execution detected complete after ${pollCount} polls`);
+        break;
+      }
+      
+      console.log(`Monitoring poll ${pollCount}/${maxPolls}...`);
+    }
+    
+    executionData.endTime = new Date().toISOString();
+    executionData.pollsCompleted = pollCount;
+    executionData.success = true;
+    
+    return {
+      data: executionData,
+      type: 'application/json'
+    };
+    
+  } catch (err) {
+    executionData.error = {
+      message: err.message,
+      stack: err.stack,
+      timestamp: new Date().toISOString()
+    };
+    executionData.endTime = new Date().toISOString();
+    executionData.success = false;
+    
+    return {
+      data: executionData,
+      type: 'application/json'
+    };
+  }
+}
+EOF
+    
+    # Replace placeholders in function code  
+    function_code="${function_code//%WORKFLOW_ID%/$workflow_id}"
+    function_code="${function_code//%WORKFLOW_URL%/$workflow_url}"
+    function_code="${function_code//%TIMEOUT%/$timeout}"
+    
+    # Escape input data for JavaScript insertion
+    local escaped_input=""
+    if [[ -n "$processed_input" ]]; then
+        # Escape quotes and newlines for safe JavaScript insertion
+        escaped_input=$(echo "$processed_input" | sed 's/\\/\\\\/g; s/"/\\"/g; s/$/\\n/' | tr -d '\n' | sed 's/\\n$//')
+    fi
+    function_code="${function_code//%INPUT_DATA%/$escaped_input}"
+    
+    # Ensure test output directory exists
+    browserless::ensure_test_output_dir
+    
+    local temp_file="/tmp/browserless_workflow_exec_$$"
+    # Sanitize workflow_id for filename use (replace special characters with underscores)
+    local safe_workflow_id
+    safe_workflow_id=$(echo "$workflow_id" | sed 's/[^a-zA-Z0-9._-]/_/g')
+    local output_file="${BROWSERLESS_TEST_OUTPUT_DIR}/workflow_execution_${safe_workflow_id}_$(date +%Y%m%d_%H%M%S).json"
+    
+    log::info "Executing workflow automation..."
+    
+    # Execute the function via browserless
+    local response
+    response=$(curl -X POST "$BROWSERLESS_BASE_URL/function" \
+        -H "Content-Type: application/javascript" \
+        -d "$function_code" \
+        --silent \
+        --show-error \
+        --max-time $((timeout / 1000 + 30)) \
+        2>&1)
+    
+    local curl_exit_code=$?
+    
+    if [[ $curl_exit_code -ne 0 ]]; then
+        log::error "Failed to execute workflow automation (exit code: $curl_exit_code)"
+        log::debug "Response: $response"
+        return 1
+    fi
+    
+    # Save and parse response
+    echo "$response" > "$temp_file"
+    
+    # Try to parse the response
+    if command -v jq &> /dev/null && jq . "$temp_file" &> /dev/null; then
+        # Valid JSON response
+        local success=$(jq -r '.success // false' "$temp_file")
+        local workflow_success=$(jq -r '.executionStatus.completed // false' "$temp_file")
+        local workflow_failed=$(jq -r '.executionStatus.failed // false' "$temp_file")
+        local console_logs_count=$(jq -r '.consoleLogs | length' "$temp_file" 2>/dev/null || echo "0")
+        local errors_count=$(jq -r '.pageErrors | length' "$temp_file" 2>/dev/null || echo "0")
+        local network_errors_count=$(jq -r '.networkErrors | length' "$temp_file" 2>/dev/null || echo "0")
+        local polls_completed=$(jq -r '.pollsCompleted // 0' "$temp_file")
+        
+        # Move to final output location
+        mv "$temp_file" "$output_file"
+        
+        echo
+        log::success "✓ Workflow automation completed"
+        log::info "Results saved to: $output_file"
+        echo
+        
+        # Display summary
+        log::info "📊 Execution Summary:"
+        log::info "  Automation Success: $success"
+        log::info "  Workflow Completed: $workflow_success"
+        log::info "  Workflow Failed: $workflow_failed"
+        log::info "  Console Logs: $console_logs_count"
+        log::info "  Page Errors: $errors_count"
+        log::info "  Network Errors: $network_errors_count"
+        log::info "  Monitoring Polls: $polls_completed"
+        log::info "  Input Data Used: $input_description"
+        
+        # Show recent console logs
+        if [[ "$console_logs_count" -gt 0 ]]; then
+            echo
+            log::info "📋 Recent Console Logs:"
+            jq -r '.consoleLogs[-5:][] | "  [\(.type | ascii_upcase)] \(.text)"' "$output_file" 2>/dev/null || true
+        fi
+        
+        # Show errors if any
+        if [[ "$errors_count" -gt 0 ]]; then
+            echo
+            log::warn "⚠️  Page Errors:"
+            jq -r '.pageErrors[] | "  \(.message)"' "$output_file" 2>/dev/null || true
+        fi
+        
+        # Determine overall success
+        if [[ "$success" == "true" ]]; then
+            if [[ "$workflow_success" == "true" ]]; then
+                log::success "🎉 Workflow execution completed successfully!"
+                return 0
+            elif [[ "$workflow_failed" == "true" ]]; then
+                log::warn "⚠️  Workflow execution failed"
+                return 1
+            else
+                log::warn "⚠️  Workflow execution status unclear (may have timed out)"
+                return 1
+            fi
+        else
+            log::error "❌ Browser automation failed"
+            return 1
+        fi
+    else
+        # Invalid JSON or non-JSON response
+        mv "$temp_file" "$output_file"
+        log::error "❌ Invalid response from workflow automation"
+        log::debug "Response saved to: $output_file"
+        log::debug "Response preview: $(head -c 500 "$output_file")"
+        return 1
+    fi
+}
+
+#######################################
+# Capture console logs from any URL
+# Arguments:
+#   $1 - URL to capture console logs from (required)
+#   $2 - Output filename (optional, default: console-capture.json)
+#   $3 - Wait time in milliseconds (optional, default: 3000)
+# Returns: 0 if successful, 1 if failed
+#######################################
+browserless::capture_console_logs() {
+    local url="${1:?URL required}"
+    local output="${2:-console-capture.json}"
+    local wait_time="${3:-3000}"
+    
+    log::header "📋 Capturing Console Logs"
+    
+    if ! browserless::is_healthy; then
+        log::error "${MSG_NOT_HEALTHY}"
+        return 1
+    fi
+    
+    log::info "Target URL: $url"
+    log::info "Wait time: ${wait_time}ms"
+    echo
+    
+    # Ensure test output directory exists
+    browserless::ensure_test_output_dir
+    
+    # If output is relative path, put it in test output directory
+    if [[ "$output" != /* ]]; then
+        output="${BROWSERLESS_TEST_OUTPUT_DIR}/$output"
+    fi
+    
+    # Generate function code for console capture
+    local function_code
+    read -r -d '' function_code << 'EOF' || true
+async ({ page }) => {
+  const captureData = {
+    url: '%TARGET_URL%',
+    consoleLogs: [],
+    pageErrors: [],
+    networkErrors: [],
+    dialogs: [],
+    performanceMetrics: {},
+    pageInfo: {},
+    startTime: new Date().toISOString(),
+    success: false
+  };
+  
+  try {
+    // Set up console log capture
+    page.on('console', msg => {
+      captureData.consoleLogs.push({
+        type: msg.type(),
+        text: msg.text(),
+        args: msg.args().length,
+        location: msg.location(),
+        timestamp: new Date().toISOString()
+      });
+    });
+    
+    // Set up page error capture
+    page.on('pageerror', err => {
+      captureData.pageErrors.push({
+        message: err.message,
+        stack: err.stack,
+        name: err.name,
+        timestamp: new Date().toISOString()
+      });
+    });
+    
+    // Set up network error capture
+    page.on('requestfailed', req => {
+      captureData.networkErrors.push({
+        url: req.url(),
+        method: req.method(),
+        failure: req.failure()?.errorText || 'Unknown error',
+        timestamp: new Date().toISOString()
+      });
+    });
+    
+    // Set up dialog capture
+    page.on('dialog', dialog => {
+      captureData.dialogs.push({
+        type: dialog.type(),
+        message: dialog.message(),
+        defaultValue: dialog.defaultValue(),
+        timestamp: new Date().toISOString()
+      });
+      // Auto-dismiss dialogs to prevent hanging
+      dialog.dismiss().catch(() => {});
+    });
+    
+    console.log('Navigating to:', '%TARGET_URL%');
+    
+    // Navigate to the URL
+    const navigationStart = Date.now();
+    await page.goto('%TARGET_URL%', {
+      waitUntil: 'networkidle2',
+      timeout: 30000
+    });
+    const navigationTime = Date.now() - navigationStart;
+    
+    console.log('Page loaded, waiting %WAIT_TIME%ms for content...');
+    
+    // Wait for content to load
+    await page.waitForTimeout(%WAIT_TIME%);
+    
+    // Capture basic page information
+    captureData.pageInfo = {
+      title: await page.title(),
+      url: page.url(),
+      navigationTime: navigationTime,
+      timestamp: new Date().toISOString()
+    };
+    
+    // Capture performance metrics
+    try {
+      const performanceData = await page.evaluate(() => {
+        const perfTiming = performance.timing;
+        const navigation = performance.getEntriesByType('navigation')[0];
+        
+        return {
+          domContentLoaded: perfTiming.domContentLoadedEventEnd - perfTiming.navigationStart,
+          loadComplete: perfTiming.loadEventEnd - perfTiming.navigationStart,
+          firstPaint: performance.getEntriesByType('paint').find(entry => entry.name === 'first-paint')?.startTime || null,
+          firstContentfulPaint: performance.getEntriesByType('paint').find(entry => entry.name === 'first-contentful-paint')?.startTime || null,
+          resourceLoadTime: navigation?.loadEventEnd - navigation?.loadEventStart || null,
+          memoryUsage: performance.memory ? {
+            usedJSHeapSize: performance.memory.usedJSHeapSize,
+            totalJSHeapSize: performance.memory.totalJSHeapSize,
+            jsHeapSizeLimit: performance.memory.jsHeapSizeLimit
+          } : null
+        };
+      });
+      
+      captureData.performanceMetrics = performanceData;
+    } catch (err) {
+      captureData.performanceMetrics = { error: 'Failed to capture performance metrics: ' + err.message };
+    }
+    
+    captureData.endTime = new Date().toISOString();
+    captureData.success = true;
+    
+    console.log(`Console capture completed. Logs: ${captureData.consoleLogs.length}, Errors: ${captureData.pageErrors.length}`);
+    
+    return {
+      data: captureData,
+      type: 'application/json'
+    };
+    
+  } catch (err) {
+    captureData.success = false;
+    captureData.error = {
+      message: err.message,
+      stack: err.stack,
+      timestamp: new Date().toISOString()
+    };
+    captureData.endTime = new Date().toISOString();
+    
+    return {
+      data: captureData,
+      type: 'application/json'
+    };
+  }
+}
+EOF
+    
+    # Replace placeholders in function code
+    function_code="${function_code//%TARGET_URL%/$url}"
+    function_code="${function_code//%WAIT_TIME%/$wait_time}"
+    
+    local temp_file="/tmp/browserless_console_capture_$$"
+    
+    log::info "Capturing console logs..."
+    
+    # Execute the function via browserless
+    local response
+    response=$(curl -X POST "$BROWSERLESS_BASE_URL/function" \
+        -H "Content-Type: application/javascript" \
+        -d "$function_code" \
+        --silent \
+        --show-error \
+        --max-time 60 \
+        2>&1)
+    
+    local curl_exit_code=$?
+    
+    if [[ $curl_exit_code -ne 0 ]]; then
+        log::error "Failed to capture console logs (exit code: $curl_exit_code)"
+        log::debug "Response: $response"
+        return 1
+    fi
+    
+    # Save and parse response
+    echo "$response" > "$temp_file"
+    
+    # Try to parse the response
+    if command -v jq &> /dev/null && jq . "$temp_file" &> /dev/null; then
+        # Valid JSON response
+        local success=$(jq -r '.success // false' "$temp_file")
+        local console_logs_count=$(jq -r '.consoleLogs | length' "$temp_file" 2>/dev/null || echo "0")
+        local page_errors_count=$(jq -r '.pageErrors | length' "$temp_file" 2>/dev/null || echo "0")
+        local network_errors_count=$(jq -r '.networkErrors | length' "$temp_file" 2>/dev/null || echo "0")
+        local page_title=$(jq -r '.pageInfo.title // "Unknown"' "$temp_file" 2>/dev/null)
+        
+        # Move to final output location
+        mv "$temp_file" "$output"
+        
+        echo
+        log::success "✓ Console capture completed"
+        log::info "Results saved to: $output"
+        echo
+        
+        # Display summary
+        log::info "📊 Capture Summary:"
+        log::info "  Success: $success"
+        log::info "  Page Title: $page_title"
+        log::info "  Console Logs: $console_logs_count"
+        log::info "  Page Errors: $page_errors_count"
+        log::info "  Network Errors: $network_errors_count"
+        
+        # Show console log breakdown by type
+        if [[ "$console_logs_count" -gt 0 ]]; then
+            echo
+            log::info "📋 Console Log Types:"
+            jq -r '.consoleLogs | group_by(.type) | .[] | "\(.length) \(.[0].type) messages"' "$output" 2>/dev/null || true
+        fi
+        
+        # Show recent console logs
+        if [[ "$console_logs_count" -gt 0 ]]; then
+            echo
+            log::info "📋 Recent Console Logs (last 5):"
+            jq -r '.consoleLogs[-5:][] | "  [\(.type | ascii_upcase)] \(.text)"' "$output" 2>/dev/null || true
+        fi
+        
+        # Show errors if any
+        if [[ "$page_errors_count" -gt 0 ]]; then
+            echo
+            log::warn "⚠️  Page Errors:"
+            jq -r '.pageErrors[] | "  \(.message)"' "$output" 2>/dev/null || true
+        fi
+        
+        if [[ "$success" == "true" ]]; then
+            log::success "🎉 Console capture completed successfully!"
+            return 0
+        else
+            log::error "❌ Console capture failed"
+            return 1
+        fi
+    else
+        # Invalid JSON or non-JSON response
+        mv "$temp_file" "$output"
+        log::error "❌ Invalid response from console capture"
+        log::debug "Response saved to: $output"
+        log::debug "Response preview: $(head -c 500 "$output")"
+        return 1
+    fi
+}
+
 # Export functions for subshell availability
 export -f browserless::ensure_test_output_dir
 export -f browserless::test_screenshot
@@ -443,3 +1110,5 @@ export -f browserless::test_scrape
 export -f browserless::test_pressure
 export -f browserless::test_function
 export -f browserless::test_all_apis
+export -f browserless::execute_n8n_workflow
+export -f browserless::capture_console_logs

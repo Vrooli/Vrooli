@@ -132,8 +132,8 @@ browserless::install_service() {
         return 1
     fi
     
-    # Create Docker network
-    browserless::create_network
+    # Skip network creation for host network mode
+    # Network is already set to "host" in get_init_config
     
     # Start Browserless container
     if ! browserless::docker_run "$BROWSERLESS_MAX_BROWSERS" "$BROWSERLESS_TIMEOUT" "$BROWSERLESS_HEADLESS"; then

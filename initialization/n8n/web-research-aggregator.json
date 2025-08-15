@@ -28,7 +28,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "${service.ollama.url}/api/generate",
+        "url": "${service.n8n.url}/webhook/ollama",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -40,9 +40,9 @@
         },
         "sendBody": true,
         "bodyContentType": "json",
-        "jsonBody": "{\n  \"model\": \"llama3.2:3b\",\n  \"prompt\": \"You are a search strategy expert. Given this research query, generate 3-5 optimized search terms that would find the most relevant information. Focus on different angles and synonyms.\\n\\nOriginal Query: ={{ $json.query }}\\n\\nGenerate search terms as a JSON array with this exact format: {\\\"search_terms\\\": [\\\"term1\\\", \\\"term2\\\", \\\"term3\\\"]}\\n\\nConsider:\\n- Technical vs. general language\\n- Current vs. historical context\\n- Different perspectives on the topic\\n- Related concepts and synonyms\\n\\nProvide only the JSON response with search_terms array.\",\n  \"stream\": false,\n  \"options\": {\n    \"temperature\": 0.3,\n    \"top_p\": 0.9\n  }\n}",
+        "jsonBody": "{\n  \"prompt\": \"You are a search strategy expert. Given this research query, generate 3-5 optimized search terms that would find the most relevant information. Focus on different angles and synonyms.\\n\\nOriginal Query: ={{ $json.query }}\\n\\nGenerate search terms as a JSON array with this exact format: {\\\"search_terms\\\": [\\\"term1\\\", \\\"term2\\\", \\\"term3\\\"]}\\n\\nConsider:\\n- Technical vs. general language\\n- Current vs. historical context\\n- Different perspectives on the topic\\n- Related concepts and synonyms\\n\\nProvide only the JSON response with search_terms array.\",\n  \"model\": \"llama3.2:3b\",\n  \"type\": \"reasoning\",\n  \"quiet\": true,\n  \"timeout_seconds\": 35\n}",
         "options": {
-          "timeout": 30000
+          "timeout": 35000
         }
       },
       "id": "search_strategy_planning",
@@ -65,7 +65,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "${service.ollama.url}/api/generate",
+        "url": "${service.n8n.url}/webhook/ollama",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -77,9 +77,9 @@
         },
         "sendBody": true,
         "bodyContentType": "json",
-        "jsonBody": "{\n  \"model\": \"llama3.2:3b\",\n  \"prompt\": \"You are a relevance filtering expert. Evaluate these search results for the query and score their relevance.\\n\\nQuery: ={{ $json.query }}\\n\\nSearch Results:\\n={{ JSON.stringify($json.search_results.slice(0, 20), null, 2) }}\\n\\nFor each result, provide a relevance score (0.0-1.0) and decide if it should be extracted for content. Respond with this exact JSON format:\\n\\n{\\n  \\\"filtered_results\\\": [\\n    {\\n      \\\"url\\\": \\\"original_url\\\",\\n      \\\"title\\\": \\\"original_title\\\",\\n      \\\"snippet\\\": \\\"original_snippet\\\",\\n      \\\"relevance_score\\\": 0.85,\\n      \\\"should_extract\\\": true,\\n      \\\"reason\\\": \\\"why relevant or not\\\"\\n    }\\n  ]\\n}\\n\\nOnly include results with relevance_score >= 0.3. Mark should_extract=true for top results that would provide valuable content.\",\n  \"stream\": false,\n  \"options\": {\n    \"temperature\": 0.2,\n    \"top_p\": 0.8\n  }\n}",
+        "jsonBody": "{\n  \"prompt\": \"You are a relevance filtering expert. Evaluate these search results for the query and score their relevance.\\n\\nQuery: ={{ $json.query }}\\n\\nSearch Results:\\n={{ JSON.stringify($json.search_results.slice(0, 20), null, 2) }}\\n\\nFor each result, provide a relevance score (0.0-1.0) and decide if it should be extracted for content. Respond with this exact JSON format:\\n\\n{\\n  \\\"filtered_results\\\": [\\n    {\\n      \\\"url\\\": \\\"original_url\\\",\\n      \\\"title\\\": \\\"original_title\\\",\\n      \\\"snippet\\\": \\\"original_snippet\\\",\\n      \\\"relevance_score\\\": 0.85,\\n      \\\"should_extract\\\": true,\\n      \\\"reason\\\": \\\"why relevant or not\\\"\\n    }\\n  ]\\n}\\n\\nOnly include results with relevance_score >= 0.3. Mark should_extract=true for top results that would provide valuable content.\",\n  \"model\": \"llama3.2:3b\",\n  \"type\": \"reasoning\",\n  \"quiet\": true,\n  \"timeout_seconds\": 50\n}",
         "options": {
-          "timeout": 45000
+          "timeout": 50000
         }
       },
       "id": "relevance_filtering",
@@ -102,7 +102,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "${service.ollama.url}/api/generate",
+        "url": "${service.n8n.url}/webhook/ollama",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -114,9 +114,9 @@
         },
         "sendBody": true,
         "bodyContentType": "json",
-        "jsonBody": "{\n  \"model\": \"llama3.2:3b\",\n  \"prompt\": \"You are a research synthesis expert. Create a comprehensive research summary based on the extracted content.\\n\\nOriginal Query: ={{ $json.query }}\\n\\nExtracted Content:\\n={{ JSON.stringify($json.extracted_content.map(item => ({ title: item.title, url: item.url, relevance_score: item.relevance_score, content: item.content.substring(0, 1000) })), null, 2) }}\\n\\nSynthesis Requirements:\\n- Length: ={{ $json.config.synthesis_length }}\\n- Include academic sources: ={{ $json.config.include_academic }}\\n- Include sentiment analysis: ={{ $json.config.sentiment_analysis }}\\n- Extract quotes: ={{ $json.config.extract_quotes }}\\n\\nCreate a research summary with this exact JSON format:\\n\\n{\\n  \\\"summary\\\": \\\"Comprehensive summary of findings\\\",\\n  \\\"key_findings\\\": [\\n    \\\"Key finding 1\\\",\\n    \\\"Key finding 2\\\",\\n    \\\"Key finding 3\\\"\\n  ],\\n  \\\"confidence_score\\\": 0.85,\\n  \\\"gaps_identified\\\": [\\n    \\\"Information gap 1\\\",\\n    \\\"Information gap 2\\\"\\n  ],\\n  \\\"sentiment\\\": \\\"positive|neutral|negative\\\",\\n  \\\"quotes\\\": [\\n    {\\n      \\\"text\\\": \\\"Notable quote\\\",\\n      \\\"source\\\": \\\"Source title or URL\\\"\\n    }\\n  ]\\n}\\n\\nEnsure the summary is well-structured, factual, and directly addresses the original query.\",\n  \"stream\": false,\n  \"options\": {\n    \"temperature\": 0.4,\n    \"top_p\": 0.9\n  }\n}",
+        "jsonBody": "{\n  \"prompt\": \"You are a research synthesis expert. Create a comprehensive research summary based on the extracted content.\\n\\nOriginal Query: ={{ $json.query }}\\n\\nExtracted Content:\\n={{ JSON.stringify($json.extracted_content.map(item => ({ title: item.title, url: item.url, relevance_score: item.relevance_score, content: item.content.substring(0, 1000) })), null, 2) }}\\n\\nSynthesis Requirements:\\n- Length: ={{ $json.config.synthesis_length }}\\n- Include academic sources: ={{ $json.config.include_academic }}\\n- Include sentiment analysis: ={{ $json.config.sentiment_analysis }}\\n- Extract quotes: ={{ $json.config.extract_quotes }}\\n\\nCreate a research summary with this exact JSON format:\\n\\n{\\n  \\\"summary\\\": \\\"Comprehensive summary of findings\\\",\\n  \\\"key_findings\\\": [\\n    \\\"Key finding 1\\\",\\n    \\\"Key finding 2\\\",\\n    \\\"Key finding 3\\\"\\n  ],\\n  \\\"confidence_score\\\": 0.85,\\n  \\\"gaps_identified\\\": [\\n    \\\"Information gap 1\\\",\\n    \\\"Information gap 2\\\"\\n  ],\\n  \\\"sentiment\\\": \\\"positive|neutral|negative\\\",\\n  \\\"quotes\\\": [\\n    {\\n      \\\"text\\\": \\\"Notable quote\\\",\\n      \\\"source\\\": \\\"Source title or URL\\\"\\n    }\\n  ]\\n}\\n\\nEnsure the summary is well-structured, factual, and directly addresses the original query.\",\n  \"model\": \"llama3.2:3b\",\n  \"type\": \"reasoning\",\n  \"quiet\": true,\n  \"timeout_seconds\": 65\n}",
         "options": {
-          "timeout": 60000
+          "timeout": 65000
         }
       },
       "id": "synthesis_summary",

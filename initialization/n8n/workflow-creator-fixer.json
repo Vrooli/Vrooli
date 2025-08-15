@@ -28,7 +28,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=${service.ollama.url}/api/generate",
+        "url": "${service.n8n.url}/webhook/ollama",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -40,9 +40,9 @@
         },
         "sendBody": true,
         "bodyContentType": "json",
-        "jsonBody": "={\n  \"model\": \"codellama\",\n  \"prompt\": \"{{ $json.prompt }}\",\n  \"stream\": false,\n  \"options\": {\n    \"temperature\": 0.3,\n    \"top_p\": 0.9,\n    \"max_tokens\": 4000\n  }\n}",
+        "jsonBody": "={\n  \"prompt\": {{ JSON.stringify($json.prompt) }},\n  \"model\": {{ JSON.stringify(\"codellama\") }},\n  \"type\": \"reasoning\",\n  \"quiet\": true,\n  \"timeout_seconds\": 65\n}",
         "options": {
-          "timeout": 60000
+          "timeout": 65000
         }
       },
       "id": "generate_workflow",
@@ -54,7 +54,7 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Extract and parse generated workflow\nconst response = $input.item.json;\nconst config = $('Validate Input').item.json.config;\nconst metadata = $('Validate Input').item.json.metadata;\n\nlet workflowJson;\ntry {\n  // Extract response text\n  const responseText = response.response || response.text || '';\n  \n  // Try to extract JSON from the response\n  const jsonMatch = responseText.match(/\\{[\\s\\S]*\\}/);\n  if (!jsonMatch) {\n    throw new Error('No valid JSON found in AI response');\n  }\n  \n  workflowJson = JSON.parse(jsonMatch[0]);\n  \n  // Ensure workflow has required structure\n  if (!workflowJson.nodes || !Array.isArray(workflowJson.nodes)) {\n    workflowJson.nodes = [];\n  }\n  if (!workflowJson.connections) {\n    workflowJson.connections = {};\n  }\n  if (!workflowJson.settings) {\n    workflowJson.settings = {};\n  }\n  \n  // Add workflow name if missing\n  if (!workflowJson.name) {\n    workflowJson.name = config.description || 'Generated Workflow';\n  }\n  \n  metadata.status = 'generated';\n  metadata.iteration += 1;\n  \n} catch (error) {\n  metadata.errors.push({\n    iteration: metadata.iteration,\n    type: 'parsing',\n    message: error.message,\n    timestamp: new Date().toISOString()\n  });\n  metadata.status = 'parse_error';\n  \n  // Create minimal valid workflow structure for retry\n  workflowJson = {\n    name: config.description || 'Generated Workflow',\n    nodes: [],\n    connections: {},\n    settings: {}\n  };\n}\n\nreturn {\n  config: config,\n  metadata: metadata,\n  workflow_json: workflowJson,\n  raw_response: response\n};"
+        "jsCode": "// Extract and parse generated workflow\nconst response = $input.item.json;\nconst config = $('Validate Input').item.json.config;\nconst metadata = $('Validate Input').item.json.metadata;\n\nlet workflowJson;\ntry {\n  // Check if the universal executor returned success\n  if (!response.success) {\n    throw new Error('Universal executor returned failure: ' + (response.error || 'Unknown error'));\n  }\n  \n  // Extract response text from universal executor format\n  const responseText = response.response || response.text || '';\n  \n  // Try to extract JSON from the response\n  const jsonMatch = responseText.match(/\\{[\\s\\S]*\\}/);\n  if (!jsonMatch) {\n    throw new Error('No valid JSON found in AI response');\n  }\n  \n  workflowJson = JSON.parse(jsonMatch[0]);\n  \n  // Ensure workflow has required structure\n  if (!workflowJson.nodes || !Array.isArray(workflowJson.nodes)) {\n    workflowJson.nodes = [];\n  }\n  if (!workflowJson.connections) {\n    workflowJson.connections = {};\n  }\n  if (!workflowJson.settings) {\n    workflowJson.settings = {};\n  }\n  \n  // Add workflow name if missing\n  if (!workflowJson.name) {\n    workflowJson.name = config.description || 'Generated Workflow';\n  }\n  \n  metadata.status = 'generated';\n  metadata.iteration += 1;\n  \n} catch (error) {\n  metadata.errors.push({\n    iteration: metadata.iteration,\n    type: 'parsing',\n    message: error.message,\n    timestamp: new Date().toISOString()\n  });\n  metadata.status = 'parse_error';\n  \n  // Create minimal valid workflow structure for retry\n  workflowJson = {\n    name: config.description || 'Generated Workflow',\n    nodes: [],\n    connections: {},\n    settings: {}\n  };\n}\n\nreturn {\n  config: config,\n  metadata: metadata,\n  workflow_json: workflowJson,\n  raw_response: response\n};"
       },
       "id": "parse_workflow",
       "name": "Parse Workflow",
@@ -121,7 +121,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=${service.ollama.url}/api/generate",
+        "url": "${service.n8n.url}/webhook/ollama",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -133,9 +133,9 @@
         },
         "sendBody": true,
         "bodyContentType": "json",
-        "jsonBody": "={\n  \"model\": \"llama3.2\",\n  \"prompt\": \"You are an expert n8n workflow debugger. Analyze these validation errors and provide specific fixes:\\n\\nWorkflow JSON:\\n{{ JSON.stringify($json.workflow_json, null, 2) }}\\n\\nValidation Errors:\\n{{ JSON.stringify($json.validation_errors, null, 2) }}\\n\\nProvide a corrected workflow JSON that fixes ALL the identified issues. Important:\\n1. Fix all validation errors\\n2. Maintain the original purpose and functionality\\n3. Ensure proper node connections\\n4. Use correct n8n node types\\n5. Add missing required fields\\n\\nRespond with ONLY the corrected JSON workflow, no explanations.\",\n  \"stream\": false,\n  \"options\": {\n    \"temperature\": 0.2,\n    \"top_p\": 0.9,\n    \"max_tokens\": 4000\n  }\n}",
+        "jsonBody": "={\n  \"prompt\": {{ JSON.stringify(\"You are an expert n8n workflow debugger. Analyze these validation errors and provide specific fixes:\\n\\nWorkflow JSON:\\n\" + JSON.stringify($json.workflow_json, null, 2) + \"\\n\\nValidation Errors:\\n\" + JSON.stringify($json.validation_errors, null, 2) + \"\\n\\nProvide a corrected workflow JSON that fixes ALL the identified issues. Important:\\n1. Fix all validation errors\\n2. Maintain the original purpose and functionality\\n3. Ensure proper node connections\\n4. Use correct n8n node types\\n5. Add missing required fields\\n\\nRespond with ONLY the corrected JSON workflow, no explanations.\") }},\n  \"model\": {{ JSON.stringify(\"llama3.2\") }},\n  \"type\": \"reasoning\",\n  \"quiet\": true,\n  \"timeout_seconds\": 50\n}",
         "options": {
-          "timeout": 45000
+          "timeout": 50000
         }
       },
       "id": "fix_validation_errors",
@@ -217,7 +217,7 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Parse fixed workflow and prepare for next iteration\nconst response = $input.item.json;\nconst previousData = $('Check Iteration').item.json;\nconst config = previousData.config;\nconst metadata = previousData.metadata;\n\nlet fixedWorkflowJson;\ntry {\n  // Extract response text\n  const responseText = response.response || response.text || '';\n  \n  // Try to extract JSON from the response\n  const jsonMatch = responseText.match(/\\{[\\s\\S]*\\}/);\n  if (!jsonMatch) {\n    throw new Error('No valid JSON found in fix response');\n  }\n  \n  fixedWorkflowJson = JSON.parse(jsonMatch[0]);\n  \n  // Ensure workflow has required structure\n  if (!fixedWorkflowJson.nodes || !Array.isArray(fixedWorkflowJson.nodes)) {\n    fixedWorkflowJson.nodes = previousData.workflow_json.nodes || [];\n  }\n  if (!fixedWorkflowJson.connections) {\n    fixedWorkflowJson.connections = previousData.workflow_json.connections || {};\n  }\n  if (!fixedWorkflowJson.settings) {\n    fixedWorkflowJson.settings = previousData.workflow_json.settings || {};\n  }\n  \n  metadata.status = 'fixed';\n  \n} catch (error) {\n  // If parsing fails, use previous workflow\n  fixedWorkflowJson = previousData.workflow_json;\n  metadata.errors.push({\n    iteration: metadata.iteration,\n    type: 'fix_parsing',\n    message: error.message,\n    timestamp: new Date().toISOString()\n  });\n}\n\nreturn {\n  config: config,\n  metadata: metadata,\n  workflow_json: fixedWorkflowJson\n};"
+        "jsCode": "// Parse fixed workflow and prepare for next iteration\nconst response = $input.item.json;\nconst previousData = $('Check Iteration').item.json;\nconst config = previousData.config;\nconst metadata = previousData.metadata;\n\nlet fixedWorkflowJson;\ntry {\n  // Check if the universal executor returned success\n  if (!response.success) {\n    throw new Error('Universal executor returned failure: ' + (response.error || 'Unknown error'));\n  }\n  \n  // Extract response text from universal executor format\n  const responseText = response.response || response.text || '';\n  \n  // Try to extract JSON from the response\n  const jsonMatch = responseText.match(/\\{[\\s\\S]*\\}/);\n  if (!jsonMatch) {\n    throw new Error('No valid JSON found in fix response');\n  }\n  \n  fixedWorkflowJson = JSON.parse(jsonMatch[0]);\n  \n  // Ensure workflow has required structure\n  if (!fixedWorkflowJson.nodes || !Array.isArray(fixedWorkflowJson.nodes)) {\n    fixedWorkflowJson.nodes = previousData.workflow_json.nodes || [];\n  }\n  if (!fixedWorkflowJson.connections) {\n    fixedWorkflowJson.connections = previousData.workflow_json.connections || {};\n  }\n  if (!fixedWorkflowJson.settings) {\n    fixedWorkflowJson.settings = previousData.workflow_json.settings || {};\n  }\n  \n  metadata.status = 'fixed';\n  \n} catch (error) {\n  // If parsing fails, use previous workflow\n  fixedWorkflowJson = previousData.workflow_json;\n  metadata.errors.push({\n    iteration: metadata.iteration,\n    type: 'fix_parsing',\n    message: error.message,\n    timestamp: new Date().toISOString()\n  });\n}\n\nreturn {\n  config: config,\n  metadata: metadata,\n  workflow_json: fixedWorkflowJson\n};"
       },
       "id": "parse_fixed",
       "name": "Parse Fixed Workflow",

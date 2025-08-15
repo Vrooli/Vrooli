@@ -194,6 +194,8 @@ inject_resource() {
         return 0
     fi
     
+    log::debug "Using manage script: $manage_script"
+    
     # Get initialization data (handle both array and object formats)
     local init_data
     init_data=$(echo "$resource_config" | jq -c '.initialization // []')
@@ -235,20 +237,50 @@ inject_resource() {
         return 0
     fi
     
-    # Validate injection config after transformation to proper format
-    if ! "$manage_script" --action validate-injection --injection-config "$init_data" >/dev/null 2>&1; then
-        log::warn "Configuration validation failed for $resource_name - some workflows may have validation issues"
-        log::debug "Validation failed for: $(echo "$init_data" | jq -c .)"
-        # Continue anyway - individual workflow validation will catch specific issues
+    # Skip validation for n8n due to command length issues
+    if [[ "$resource_name" != "n8n" ]]; then
+        # Validate injection config after transformation to proper format
+        if ! (unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED; "$manage_script" --action validate-injection --injection-config "$init_data") >/dev/null 2>&1; then
+            log::warn "Configuration validation failed for $resource_name - some workflows may have validation issues"
+            log::debug "Validation failed for: $(echo "$init_data" | jq -c .)"
+            # Continue anyway - individual workflow validation will catch specific issues
+        fi
+    else
+        log::debug "Skipping validation for n8n due to large config size"
     fi
     
-    # Call manage script with inject action - pass JSON directly
-    if "$manage_script" --action inject --injection-config "$init_data" 2>&1; then
-        log::success "✓ $resource_name"
-        return 0
+    # Call manage script with inject action
+    # Use file-based config for all resources to avoid command-line length issues
+    if [[ "$resource_name" == "n8n" ]]; then
+        # Always use file-based config for n8n due to potentially large configurations
+        # Let n8n's internal batching handle workflow processing efficiently
+        local temp_config="/tmp/${resource_name}_config_$$.json"
+        
+        # Write config to file
+        echo "$init_data" > "$temp_config"
+        log::info "Processing $resource_name with $(echo "$init_data" | jq '.workflows | length' 2>/dev/null || echo "0") workflows..."
+        
+        # Execute using file-based config with real-time output
+        if (unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED; bash "$manage_script" --action inject --injection-config-file "$temp_config") 2>&1; then
+            # Clean up temp file
+            rm -f "$temp_config"
+            log::success "✓ $resource_name"
+            return 0
+        else
+            # Clean up temp file
+            rm -f "$temp_config"
+            log::error "✗ $resource_name"
+            return 1
+        fi
     else
-        log::error "✗ $resource_name"
-        return 1
+        # Non-n8n resource, process normally
+        if (unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED; "$manage_script" --action inject --injection-config "$init_data") 2>&1; then
+            log::success "✓ $resource_name"
+            return 0
+        else
+            log::error "✗ $resource_name"
+            return 1
+        fi
     fi
 }
 

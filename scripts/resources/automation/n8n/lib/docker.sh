@@ -74,7 +74,7 @@ n8n::start() {
         log::success "✅ n8n is ready on port $N8N_PORT"
         log::info "Access n8n at: $N8N_BASE_URL"
         
-# Update firewall rules for Docker-to-host connectivity
+        # Update firewall rules for Docker-to-host connectivity
         # This ensures n8n can reach native services like Ollama
         if [[ -f "${var_ROOT_DIR}/scripts/lib/firewall/firewall.sh" ]]; then
             log::debug "Updating firewall rules for Docker connectivity..."

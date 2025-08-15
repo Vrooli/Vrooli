@@ -24,46 +24,17 @@
     },
     {
       "parameters": {
-        "values": {
-          "string": [
-            {
-              "name": "prompt",
-              "value": "What are the key benefits of using GraphQL over REST APIs? Provide a detailed analysis with pros and cons in JSON format: {\"recommendation\": \"your conclusion\", \"confidence\": 0.8, \"key_points\": [\"point 1\", \"point 2\"], \"pros\": [\"benefit 1\"], \"cons\": [\"risk 1\"]}"
-            },
-            {
-              "name": "model",
-              "value": "phi3.5:3.8b"
-            },
-            {
-              "name": "type",
-              "value": "reasoning"
-            }
-          ],
-          "boolean": [
-            {
-              "name": "quiet",
-              "value": true
-            }
-          ],
-          "number": [
-            {
-              "name": "timeout_seconds",
-              "value": 120
-            }
-          ]
-        },
-        "options": {}
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Return test defaults for manual trigger\nreturn {\n  prompt: 'What are the key benefits of using GraphQL over REST APIs? Provide a detailed analysis with pros and cons.',\n  model: 'phi3.5:3.8b',\n  type: 'reasoning',\n  quiet: true,\n  timeout_seconds: 120\n};"
       },
       "id": "set_test_defaults",
       "name": "Set Test Defaults",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
       "position": [400, 500]
     },
     {
-      "parameters": {
-        "mode": "append"
-      },
+      "parameters": {},
       "id": "merge_triggers",
       "name": "Merge Triggers",
       "type": "n8n-nodes-base.merge",
@@ -73,7 +44,7 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "const input = $input.item.json;\nconsole.log('Input received:', JSON.stringify(input));\n\n// Validate prompt\nif (!input.prompt || typeof input.prompt !== 'string' || input.prompt.trim().length === 0) {\n  throw new Error('Missing required parameter: prompt');\n}\n\nconst prompt = input.prompt.trim();\nif (prompt.length > 50000) {\n  throw new Error('Prompt too long (max 50,000 characters)');\n}\n\n// Get parameters with defaults\nconst model = (input.model && typeof input.model === 'string') ? input.model.trim() : '';\nconst type = (input.type && typeof input.type === 'string') ? input.type.trim() : 'general';\nconst quiet = input.quiet === true || input.quiet === 'true';\nconst timeoutSeconds = typeof input.timeout_seconds === 'number' ? Math.max(10, Math.min(600, input.timeout_seconds)) : 120;\n\n// Validate type\nconst validTypes = ['general', 'code', 'reasoning', 'vision'];\nif (!validTypes.includes(type)) {\n  throw new Error('Invalid type: ' + type);\n}\n\n// Build command\nconst timestamp = Date.now();\nconst randomId = Math.random().toString(36).substring(2, 8);\nconst tempFile = '/tmp/ollama_prompt_' + timestamp + '_' + randomId + '.txt';\n\n// Escape single quotes in prompt for shell\nconst escapedPrompt = prompt.replace(/'/g, \"'\\\"'\\\"'\");\n\n// Build command string\nconst baseCmd = 'bash /vrooli/cli/vrooli resource ollama generate';\nconst modelFlag = model ? '--model \\'' + model + '\\'' : '';\nconst typeFlag = '--type \\'' + type + '\\'';\nconst quietFlag = quiet ? '--quiet' : '';\n\nconst command = 'prompt_file=\"' + tempFile + '\"; ' +\n  'echo \\'' + escapedPrompt + '\\' > \"$prompt_file\"; ' +\n  baseCmd + ' \"$(cat \"$prompt_file\")\" ' + modelFlag + ' ' + typeFlag + ' ' + quietFlag + '; ' +\n  'rm -f \"$prompt_file\"';\n\n// Return result\nreturn {\n  command: command,\n  execution_meta: {\n    prompt_length: prompt.length,\n    model: model || 'auto-selected',\n    type: type,\n    quiet: quiet,\n    timeout_seconds: timeoutSeconds,\n    timeout_ms: timeoutSeconds * 1000,\n    temp_file: tempFile,\n    execution_id: 'ollama_' + timestamp + '_' + randomId,\n    timestamp: new Date().toISOString()\n  },\n  original_prompt: prompt\n};"
+        "jsCode": "// Debug the input structure\nconst rawInput = $input.item.json;\nconsole.log('Raw input received:', JSON.stringify(rawInput));\nconsole.log('Input type:', typeof rawInput);\nconsole.log('Input keys:', Object.keys(rawInput));\n\n// Handle different input structures\nlet input = rawInput;\n\n// If input is wrapped in another json property\nif (rawInput.json) {\n  input = rawInput.json;\n  console.log('Unwrapped json property');\n}\n\n// If there's no prompt at top level, check for nested structures\nif (!input.prompt) {\n  // Check if the data is in a specific property\n  if (input.data && input.data.prompt) {\n    input = input.data;\n    console.log('Found prompt in data property');\n  } else if (input.body && input.body.prompt) {\n    input = input.body;\n    console.log('Found prompt in body property');\n  } else if (input.params && input.params.prompt) {\n    input = input.params;\n    console.log('Found prompt in params property');\n  } else {\n    // Try to find prompt anywhere in the object\n    for (const key in rawInput) {\n      if (rawInput[key] && typeof rawInput[key] === 'object' && rawInput[key].prompt) {\n        input = rawInput[key];\n        console.log('Found prompt in ' + key + ' property');\n        break;\n      }\n    }\n  }\n}\n\nconsole.log('Final input to validate:', JSON.stringify(input));\n\n// Validate prompt\nif (!input.prompt || typeof input.prompt !== 'string' || input.prompt.trim().length === 0) {\n  throw new Error('Missing required parameter: prompt. Input structure: ' + JSON.stringify(rawInput));\n}\n\nconst prompt = input.prompt.trim();\nif (prompt.length > 50000) {\n  throw new Error('Prompt too long (max 50,000 characters)');\n}\n\n// Get parameters with defaults\nconst model = (input.model && typeof input.model === 'string') ? input.model.trim() : '';\nconst type = (input.type && typeof input.type === 'string') ? input.type.trim() : 'general';\nconst quiet = input.quiet === true || input.quiet === 'true';\nconst timeoutSeconds = typeof input.timeout_seconds === 'number' ? Math.max(10, Math.min(600, input.timeout_seconds)) : 120;\n\n// Validate type\nconst validTypes = ['general', 'code', 'reasoning', 'vision'];\nif (!validTypes.includes(type)) {\n  throw new Error('Invalid type: ' + type);\n}\n\n// Build command\nconst timestamp = Date.now();\nconst randomId = Math.random().toString(36).substring(2, 8);\nconst tempFile = '/tmp/ollama_prompt_' + timestamp + '_' + randomId + '.txt';\n\n// Escape single quotes in prompt for shell\nconst escapedPrompt = prompt.replace(/'/g, \"'\\\"'\\\"'\");\n\n// Build command string\nconst baseCmd = 'bash /vrooli/cli/vrooli resource ollama generate';\nconst modelFlag = model ? '--model \\'' + model + '\\'' : '';\nconst typeFlag = '--type \\'' + type + '\\'';\nconst quietFlag = quiet ? '--quiet' : '';\n\nconst command = 'prompt_file=\"' + tempFile + '\"; ' +\n  'echo \\'' + escapedPrompt + '\\' > \"$prompt_file\"; ' +\n  baseCmd + ' \"$(cat \"$prompt_file\")\" ' + modelFlag + ' ' + typeFlag + ' ' + quietFlag + '; ' +\n  'rm -f \"$prompt_file\"';\n\n// Return result\nreturn {\n  command: command,\n  execution_meta: {\n    prompt_length: prompt.length,\n    model: model || 'auto-selected',\n    type: type,\n    quiet: quiet,\n    timeout_seconds: timeoutSeconds,\n    timeout_ms: timeoutSeconds * 1000,\n    temp_file: tempFile,\n    execution_id: 'ollama_' + timestamp + '_' + randomId,\n    timestamp: new Date().toISOString()\n  },\n  original_prompt: prompt\n};"
       },
       "id": "validate_input",
       "name": "Validate Input",

@@ -64,7 +64,7 @@ browserless::get_init_config() {
             "WORKSPACE_EXPIRE_DAYS": "7"
         },
         "volumes": '$volumes_array',
-        "networks": ["'$BROWSERLESS_NETWORK_NAME'"],
+        "networks": ["host"],
         "shm_size": "'$BROWSERLESS_DOCKER_SHM_SIZE'",
         "cap_add": ["'$BROWSERLESS_DOCKER_CAPS'"],
         "security_opt": ["seccomp='$BROWSERLESS_DOCKER_SECCOMP'"],

@@ -56,7 +56,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=${service.ollama.url}/api/generate",
+        "url": "${service.n8n.url}/webhook/ollama",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -68,9 +68,9 @@
         },
         "sendBody": true,
         "bodyContentType": "json",
-        "jsonBody": "={\n  \"model\": \"{{ $json.model }}\",\n  \"prompt\": \"{{ $json.current_reasoning_prompt }}\",\n  \"stream\": false,\n  \"options\": {\n    \"temperature\": {{ $json.temperature }},\n    \"top_p\": 0.9\n  }\n}",
+        "jsonBody": "={\n  \"prompt\": {{ JSON.stringify($json.current_reasoning_prompt) }},\n  \"model\": {{ JSON.stringify($json.model) }},\n  \"type\": \"reasoning\",\n  \"quiet\": true,\n  \"timeout_seconds\": 60\n}",
         "options": {
-          "timeout": 60000
+          "timeout": 65000
         }
       },
       "id": "llm_reasoning",
@@ -82,7 +82,7 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Process LLM reasoning response\nconst llmResponse = $input.item.json;\nconst state = $('Check Loop Condition').item.json;\n\nlet reasoningResult;\ntry {\n  // Extract response text\n  const responseText = llmResponse.response || llmResponse.text || '';\n  \n  // Try to parse JSON from the response\n  const jsonMatch = responseText.match(/\\{[\\s\\S]*\\}/);\n  if (jsonMatch) {\n    reasoningResult = JSON.parse(jsonMatch[0]);\n  } else {\n    throw new Error('No JSON found in LLM response');\n  }\n} catch (error) {\n  // Fallback parsing if JSON extraction fails\n  console.warn('LLM response parsing failed:', error.message);\n  const responseText = llmResponse.response || llmResponse.text || '';\n  \n  // Try to extract action from text\n  if (responseText.toLowerCase().includes('final answer') || responseText.toLowerCase().includes('task complete')) {\n    reasoningResult = {\n      reasoning: responseText,\n      action_type: 'final_answer',\n      final_answer: responseText,\n      confidence: 0.5\n    };\n  } else {\n    reasoningResult = {\n      reasoning: responseText,\n      action_type: 'tool_use',\n      tool_name: 'text_processor',\n      tool_parameters: { text: responseText, operation: 'process' },\n      confidence: 0.3\n    };\n  }\n}\n\n// Validate reasoning result\nif (!reasoningResult.reasoning) {\n  reasoningResult.reasoning = 'LLM reasoning not available';\n}\nif (!reasoningResult.action_type) {\n  reasoningResult.action_type = 'final_answer';\n  reasoningResult.final_answer = 'Unable to determine next action';\n}\nif (typeof reasoningResult.confidence !== 'number') {\n  reasoningResult.confidence = 0.5;\n}\n\n// Add reasoning to trace\nstate.reasoning_trace.push(`Iteration ${state.iteration_count}: ${reasoningResult.reasoning}`);\n\n// Update state with reasoning result\nstate.current_reasoning = reasoningResult;\n\nreturn state;"
+        "jsCode": "// Process LLM reasoning response from Universal Ollama Executor\nconst llmResponse = $input.item.json;\nconst state = $('Check Loop Condition').item.json;\n\nlet reasoningResult;\ntry {\n  // Extract response text\n  const responseText = llmResponse.response || llmResponse.text || '';\n  \n  // Try to parse JSON from the response\n  const jsonMatch = responseText.match(/\\{[\\s\\S]*\\}/);\n  if (jsonMatch) {\n    reasoningResult = JSON.parse(jsonMatch[0]);\n  } else {\n    throw new Error('No JSON found in LLM response');\n  }\n} catch (error) {\n  // Fallback parsing if JSON extraction fails\n  console.warn('LLM response parsing failed:', error.message);\n  const responseText = llmResponse.response || llmResponse.text || '';\n  \n  // Try to extract action from text\n  if (responseText.toLowerCase().includes('final answer') || responseText.toLowerCase().includes('task complete')) {\n    reasoningResult = {\n      reasoning: responseText,\n      action_type: 'final_answer',\n      final_answer: responseText,\n      confidence: 0.5\n    };\n  } else {\n    reasoningResult = {\n      reasoning: responseText,\n      action_type: 'tool_use',\n      tool_name: 'text_processor',\n      tool_parameters: { text: responseText, operation: 'process' },\n      confidence: 0.3\n    };\n  }\n}\n\n// Validate reasoning result\nif (!reasoningResult.reasoning) {\n  reasoningResult.reasoning = 'LLM reasoning not available';\n}\nif (!reasoningResult.action_type) {\n  reasoningResult.action_type = 'final_answer';\n  reasoningResult.final_answer = 'Unable to determine next action';\n}\nif (typeof reasoningResult.confidence !== 'number') {\n  reasoningResult.confidence = 0.5;\n}\n\n// Add reasoning to trace\nstate.reasoning_trace.push(`Iteration ${state.iteration_count}: ${reasoningResult.reasoning}`);\n\n// Update state with reasoning result\nstate.current_reasoning = reasoningResult;\n\nreturn state;"
       },
       "id": "process_reasoning",
       "name": "Process Reasoning",
