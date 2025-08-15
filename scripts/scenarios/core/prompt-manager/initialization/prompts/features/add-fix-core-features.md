@@ -10,40 +10,7 @@ You are tasked with developing or fixing core Vrooli platform features. This inc
 
 ## Pre-Implementation Research
 
-### 1. Study Core Architecture
-```bash
-# Main Vrooli CLI and management
-cat cli/vrooli
-cat scripts/manage.sh
-
-# Shared utilities and libraries
-tree scripts/lib/
-
-# Configuration and lifecycle system
-cat .vrooli/service.json
-```
-
-### 2. Understand System Components
-
-**Key Areas to Examine**:
-- **CLI System**: `cli/vrooli` - Main user interface
-- **Lifecycle Management**: `scripts/manage.sh` - Core orchestration
-- **Shared Libraries**: `scripts/lib/` - Common utilities
-- **Configuration**: `.vrooli/service.json` - System configuration
-- **Resource Management**: Integration with resource system
-- **Testing Framework**: Platform testing infrastructure
-
-### 3. Study Integration Patterns
-```bash
-# How core features integrate with resources
-grep -r "manage.sh" scripts/resources/
-
-# How scenarios use core features
-grep -r "vrooli" scripts/scenarios/core/*/
-
-# Service configuration patterns
-find . -name "service.json" | head -3 | xargs cat
-```
+**Essential Reading**: Study main CLI at `cli/vrooli` and lifecycle management at `scripts/manage.sh`. Examine shared libraries in `scripts/lib/` and integration patterns throughout resource and scenario systems.
 
 ## Core System Architecture
 
@@ -98,9 +65,9 @@ tree scripts/lib/utils/
 - **Service**: Secrets management, configuration
 - **Runtimes**: Docker, Kubernetes, language runtimes
 
-## Implementation Patterns
+## Implementation Phases
 
-### 1. CLI Command Development
+### Phase 1: CLI & Interface Development
 
 When adding new CLI commands:
 
@@ -122,7 +89,7 @@ EOF
 
 **Full template**: See any file in `cli/commands/`
 
-### 2. Lifecycle Phase Development
+### Phase 2: System Integration
 
 **Lifecycle Phase Structure**:
 ```json
@@ -136,7 +103,7 @@ EOF
 ```
 **Examples**: Check `.vrooli/service.json` in any scenario
 
-### 3. Shared Utility Development
+### Phase 3: Testing & Validation
 
 **Utility Pattern**:
 ```bash

@@ -17,7 +17,7 @@
     {
       "parameters": {
         "resource": "completion",
-        "model": "{{ $json.model || 'codellama' }}",
+        "model": "{{ $json['model'] || 'codellama' }}",
         "prompt": "Review your own reasoning for this decision or conclusion:\n\n{{ $json.decision }}\n\nPerform a thorough self-assessment by addressing:\n\n1. INITIAL REASONING VALIDATION:\n   - What assumptions did you make?\n   - What evidence did you rely on?\n   - What alternative explanations did you consider?\n   - How confident are you in each step of your logic?\n\n2. BIAS DETECTION:\n   - What cognitive biases might have influenced your thinking?\n   - Are you favoring information that confirms your initial hypothesis?\n   - Have you given adequate weight to contradicting evidence?\n   - What perspectives might you have overlooked?\n\n3. KNOWLEDGE GAPS:\n   - What information do you wish you had?\n   - What aspects of this decision are you most uncertain about?\n   - Where might your knowledge be incomplete or outdated?\n\n4. ALTERNATIVE APPROACHES:\n   - What other methods could have been used to reach this decision?\n   - How might someone with different expertise approach this?\n   - What would change your mind about this conclusion?\n\nFormat as structured JSON with confidence scores (0-100) for each assessment.",
         "temperature": 0.3,
         "maxTokens": 2000
@@ -30,19 +30,20 @@
     },
     {
       "parameters": {
-        "functionCode": "const review = JSON.parse($node['Initial Self-Review'].json.response);\n\n// Calculate introspection metrics\nconst avgConfidence = {\n  reasoning: review.initial_reasoning?.confidence || 50,\n  bias_awareness: review.bias_detection?.confidence || 50,\n  knowledge_completeness: review.knowledge_gaps?.confidence || 50,\n  alternative_consideration: review.alternative_approaches?.confidence || 50\n};\n\nconst overallConfidence = Object.values(avgConfidence).reduce((sum, conf) => sum + conf, 0) / 4;\n\n// Identify areas needing deeper review\nconst concernAreas = Object.entries(avgConfidence)\n  .filter(([area, conf]) => conf < 70)\n  .map(([area]) => area);\n\n// Determine if additional review iterations are needed\nconst needsAdditionalReview = overallConfidence < 75 || concernAreas.length > 2;\n\nreturn {\n  json: {\n    initial_review: review,\n    introspection_metrics: {\n      confidence_scores: avgConfidence,\n      overall_confidence: Math.round(overallConfidence),\n      concern_areas: concernAreas,\n      needs_additional_review: needsAdditionalReview,\n      iteration_count: 1\n    },\n    timestamp: new Date().toISOString()\n  }\n};"
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Access input data with fallbacks\nconst items = $input.all();\nconst inputData = items[0]?.json || {};\nconst nodeData = $node['Initial Self-Review']?.json || {};\n\n// Parse review with error handling\nlet review = {};\ntry {\n  const responseText = nodeData.response || '{}';\n  review = JSON.parse(responseText);\n} catch (error) {\n  // Return error if parsing fails\n  return [{\n    json: {\n      error: true,\n      message: 'Failed to parse review response',\n      original_response: nodeData.response || 'No response',\n      timestamp: new Date().toISOString()\n    }\n  }];\n}\n\n// Calculate introspection metrics with safe access\nconst avgConfidence = {\n  reasoning: review.initial_reasoning?.confidence || 50,\n  bias_awareness: review.bias_detection?.confidence || 50,\n  knowledge_completeness: review.knowledge_gaps?.confidence || 50,\n  alternative_consideration: review.alternative_approaches?.confidence || 50\n};\n\nconst overallConfidence = Object.values(avgConfidence).reduce((sum, conf) => sum + conf, 0) / 4;\n\n// Identify areas needing deeper review\nconst concernAreas = Object.entries(avgConfidence)\n  .filter(([area, conf]) => conf < 70)\n  .map(([area]) => area);\n\n// Determine if additional review iterations are needed\nconst needsAdditionalReview = overallConfidence < 75 || concernAreas.length > 2;\n\nreturn [{\n  json: {\n    initial_review: review,\n    introspection_metrics: {\n      confidence_scores: avgConfidence,\n      overall_confidence: Math.round(overallConfidence),\n      concern_areas: concernAreas,\n      needs_additional_review: needsAdditionalReview,\n      iteration_count: 1\n    },\n    timestamp: new Date().toISOString()\n  }\n}];"
       },
       "id": "analyze_review",
       "name": "Analyze Initial Review",
-      "type": "n8n-nodes-base.function",
-      "typeVersion": 1,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [650, 300]
     },
     {
       "parameters": {
         "resource": "completion",
-        "model": "{{ $json.model || 'codellama' }}",
-        "prompt": "Based on your initial self-review, you identified concerns in these areas: {{ $node['Analyze Initial Review'].json.introspection_metrics.concern_areas.join(', ') }}\n\nYour overall confidence was {{ $node['Analyze Initial Review'].json.introspection_metrics.overall_confidence }}%.\n\nPerform a DEEPER CRITICAL REVIEW focusing on the weak areas:\n\n{{ JSON.stringify($node['Analyze Initial Review'].json.initial_review) }}\n\nSpecifically address:\n1. Challenge your strongest assumptions more rigorously\n2. Actively seek out why you might be wrong\n3. Consider expert opinions that would disagree with you\n4. Imagine you had to defend the opposite position - what would be your best arguments?\n5. What would it take to change your mind completely?\n\nProvide revised assessments with updated confidence scores and any changes to your original position.",
+        "model": "{{ $json['model'] || 'codellama' }}",
+        "prompt": "Based on your initial self-review, you identified concerns in these areas: {{ ($node['Analyze Initial Review'].json?.introspection_metrics?.concern_areas || []).join(', ') }}\n\nYour overall confidence was {{ $node['Analyze Initial Review'].json?.introspection_metrics?.overall_confidence || 50 }}%.\n\nPerform a DEEPER CRITICAL REVIEW focusing on the weak areas:\n\n{{ JSON.stringify($node['Analyze Initial Review'].json.initial_review) }}\n\nSpecifically address:\n1. Challenge your strongest assumptions more rigorously\n2. Actively seek out why you might be wrong\n3. Consider expert opinions that would disagree with you\n4. Imagine you had to defend the opposite position - what would be your best arguments?\n5. What would it take to change your mind completely?\n\nProvide revised assessments with updated confidence scores and any changes to your original position.",
         "temperature": 0.4,
         "maxTokens": 1800
       },
@@ -50,14 +51,14 @@
       "name": "Deeper Critical Review",
       "type": "n8n-nodes-base.ollama",
       "typeVersion": 1,
-      "condition": "{{ $node['Analyze Initial Review'].json.introspection_metrics.needs_additional_review }}",
+      "condition": "{{ $node['Analyze Initial Review'].json?.introspection_metrics?.needs_additional_review || false }}",
       "position": [850, 200]
     },
     {
       "parameters": {
         "resource": "completion",
-        "model": "{{ $json.model || 'llama3.2' }}",
-        "prompt": "Based on your self-review process:\n\nOriginal Decision: {{ $json.decision }}\nReview Confidence: {{ $node['Analyze Initial Review'].json.introspection_metrics.overall_confidence }}%\n\n{% if $node['Deeper Critical Review'] %}Deeper Review Completed: Yes{% else %}Deeper Review: Not needed (high confidence){% endif %}\n\nProvide a FINAL ASSESSMENT with:\n1. Your final position on the original decision (unchanged/modified/reversed)\n2. Key insights gained from the self-review process\n3. Remaining uncertainties or knowledge gaps\n4. Recommended next steps for validation\n5. Overall confidence in your reasoning process (0-100)\n\nFormat as structured recommendations for decision improvement.",
+        "model": "{{ $json['model'] || 'llama3.2' }}",
+        "prompt": "Based on your self-review process:\n\nOriginal Decision: {{ $json['decision'] || 'No decision provided' }}\nReview Confidence: {{ $node['Analyze Initial Review'].json?.introspection_metrics?.overall_confidence || 50 }}%\n\n{% if $node['Deeper Critical Review'] %}Deeper Review Completed: Yes{% else %}Deeper Review: Not needed (high confidence){% endif %}\n\nProvide a FINAL ASSESSMENT with:\n1. Your final position on the original decision (unchanged/modified/reversed)\n2. Key insights gained from the self-review process\n3. Remaining uncertainties or knowledge gaps\n4. Recommended next steps for validation\n5. Overall confidence in your reasoning process (0-100)\n\nFormat as structured recommendations for decision improvement.",
         "temperature": 0.5,
         "maxTokens": 1200
       },
@@ -69,12 +70,13 @@
     },
     {
       "parameters": {
-        "functionCode": "const initialReview = $node['Analyze Initial Review'].json;\nconst deeperReview = $node['Deeper Critical Review']?.json || null;\nconst finalAssessment = $node['Final Assessment']?.json || {};\n\n// Compile complete self-review results\nconst selfReviewResults = {\n  original_decision: $json.decision,\n  review_process: {\n    initial_review: initialReview.initial_review,\n    initial_confidence: initialReview.introspection_metrics.overall_confidence,\n    deeper_review_needed: initialReview.introspection_metrics.needs_additional_review,\n    deeper_review: deeperReview ? JSON.parse(deeperReview.response) : null,\n    final_assessment: finalAssessment.response ? JSON.parse(finalAssessment.response) : {}\n  },\n  learning_outcomes: {\n    confidence_evolution: {\n      initial: initialReview.introspection_metrics.overall_confidence,\n      final: finalAssessment.response ? JSON.parse(finalAssessment.response).overall_confidence : initialReview.introspection_metrics.overall_confidence\n    },\n    key_insights: finalAssessment.response ? JSON.parse(finalAssessment.response).key_insights : [],\n    areas_improved: initialReview.introspection_metrics.concern_areas,\n    iteration_count: deeperReview ? 2 : 1\n  },\n  timestamp: new Date().toISOString(),\n  model_used: $json.model || 'codellama'\n};\n\nreturn {\n  json: selfReviewResults\n};"
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Access all input data with fallbacks\nconst items = $input.all();\nconst inputData = items[0]?.json || {};\n\n// Get node data with safe access\nconst initialReview = $node['Analyze Initial Review']?.json || {};\nconst deeperReview = $node['Deeper Critical Review']?.json || null;\nconst finalAssessment = $node['Final Assessment']?.json || {};\n\n// Parse deeper review with error handling\nlet parsedDeeperReview = null;\nif (deeperReview && deeperReview.response) {\n  try {\n    parsedDeeperReview = JSON.parse(deeperReview.response);\n  } catch (error) {\n    parsedDeeperReview = { error: 'Failed to parse deeper review' };\n  }\n}\n\n// Parse final assessment with error handling\nlet parsedFinalAssessment = {};\nif (finalAssessment.response) {\n  try {\n    parsedFinalAssessment = JSON.parse(finalAssessment.response);\n  } catch (error) {\n    parsedFinalAssessment = { error: 'Failed to parse final assessment' };\n  }\n}\n\n// Compile complete self-review results with fallbacks\nconst selfReviewResults = {\n  original_decision: inputData.decision || 'No decision provided',\n  review_process: {\n    initial_review: initialReview.initial_review || {},\n    initial_confidence: initialReview.introspection_metrics?.overall_confidence || 0,\n    deeper_review_needed: initialReview.introspection_metrics?.needs_additional_review || false,\n    deeper_review: parsedDeeperReview,\n    final_assessment: parsedFinalAssessment\n  },\n  learning_outcomes: {\n    confidence_evolution: {\n      initial: initialReview.introspection_metrics?.overall_confidence || 0,\n      final: parsedFinalAssessment.overall_confidence || initialReview.introspection_metrics?.overall_confidence || 0\n    },\n    key_insights: parsedFinalAssessment.key_insights || [],\n    areas_improved: initialReview.introspection_metrics?.concern_areas || [],\n    iteration_count: parsedDeeperReview ? 2 : 1\n  },\n  timestamp: new Date().toISOString(),\n  model_used: inputData.model || 'codellama'\n};\n\nreturn [{\n  json: selfReviewResults\n}];"
       },
       "id": "compile_results",
       "name": "Compile Self-Review Results",
-      "type": "n8n-nodes-base.function",
-      "typeVersion": 1,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [1050, 300]
     },
     {

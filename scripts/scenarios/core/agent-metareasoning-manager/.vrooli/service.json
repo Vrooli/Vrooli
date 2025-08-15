@@ -35,27 +35,27 @@
         "required": true,
         "initialization": [
           {
-            "file": "initialization/automation/n8n/pros-cons-analyzer.json",
+            "file": "initialization/n8n/pros-cons-analyzer.json",
             "type": "workflow"
           },
           {
-            "file": "initialization/automation/n8n/swot-analysis.json",
+            "file": "initialization/n8n/swot-analysis.json",
             "type": "workflow"
           },
           {
-            "file": "initialization/automation/n8n/risk-assessment.json",
+            "file": "initialization/n8n/risk-assessment.json",
             "type": "workflow"
           },
           {
-            "file": "initialization/automation/n8n/self-review.json",
+            "file": "initialization/n8n/self-review.json",
             "type": "workflow"
           },
           {
-            "file": "initialization/automation/n8n/reasoning-chain.json",
+            "file": "initialization/n8n/reasoning-chain.json",
             "type": "workflow"
           },
           {
-            "file": "initialization/automation/n8n/vector-conversion-service.json",
+            "file": "initialization/n8n/vector-conversion-service.json",
             "type": "workflow"
           }
         ]
@@ -97,11 +97,11 @@
         "purpose": "execution history and workflow metadata",
         "initialization": [
           {
-            "file": "initialization/storage/postgres/schema.sql",
+            "file": "initialization/postgres/schema.sql",
             "type": "script"
           },
           {
-            "file": "initialization/storage/postgres/seed.sql",
+            "file": "initialization/postgres/seed.sql",
             "type": "script"
           }
         ]

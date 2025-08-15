@@ -1,0 +1,239 @@
+apiVersion: vrooli.com/v1
+kind: ResourceCapability
+metadata:
+  name: redis
+  category: storage
+  subcategory: cache
+  description: "High-performance in-memory data store for caching, queuing, and real-time analytics"
+  maturity: stable
+  complexity: simple
+  
+spec:
+  # Core capabilities this resource provides
+  capabilities:
+    primary:
+      - in-memory-storage
+      - high-speed-caching
+      - data-structures
+      - pub-sub-messaging
+    secondary:
+      - session-storage
+      - queue-management
+      - real-time-analytics
+      - distributed-locking
+    specialized:
+      - sub-millisecond-access
+      - client-project-isolation
+      - persistence-options
+      - lua-scripting
+  
+  # API interfaces available
+  interfaces:
+    - name: redis-protocol
+      endpoint: "redis://host:port"
+      method: [REDIS]
+      inputTypes: [redis-commands, binary]
+      outputTypes: [redis-responses, binary]
+      description: "Native Redis protocol for high-performance operations"
+    - name: rest-api
+      endpoint: "/api/v1/"
+      method: [GET, POST, PUT, DELETE]
+      inputTypes: [application/json]
+      outputTypes: [application/json]
+      description: "RESTful API wrapper for Redis operations"
+    - name: health-check
+      endpoint: "/health"
+      method: [GET]
+      inputTypes: []
+      outputTypes: [application/json]
+      description: "Health status and performance metrics"
+    - name: metrics
+      endpoint: "/metrics"
+      method: [GET]
+      inputTypes: []
+      outputTypes: [text/plain]
+      description: "Prometheus-compatible metrics endpoint"
+  
+  # Resource dependencies and requirements
+  dependencies:
+    required:
+      - docker
+    optional:
+      - persistence-volume
+      - monitoring-tools
+    incompatible: []
+  
+  # Scenario compatibility
+  scenarios:
+    primary:
+      - app-monitor
+      - workflow-scheduler
+      - system-monitor
+    secondary:
+      - campaign-content-studio
+      - document-manager
+      - research-assistant
+    optimal_combinations:
+      - [redis, postgres, n8n]              # Complete data stack with caching
+      - [redis, ollama, qdrant]             # AI workflows with caching layer
+      - [redis, windmill, vault]            # High-performance automation
+      - [redis, judge0, minio]              # Cached execution and storage
+  
+  # Business intelligence
+  business:
+    revenue_range:
+      min: 3000
+      max: 20000
+      currency: USD
+    complexity_score: 4  # 1-10 scale
+    implementation_time: "1-2 days"
+    upwork_demand: high
+    target_industries:
+      - high-performance-applications
+      - real-time-systems
+      - gaming-platforms
+      - e-commerce
+      - fintech
+      - iot-platforms
+    common_project_types:
+      - "High-performance caching layer"
+      - "Real-time analytics dashboard"
+      - "Session management system"
+      - "Message queue and pub/sub platform"
+      - "Distributed locking and coordination"
+  
+  # Technical specifications
+  technical:
+    ports: [6379]
+    protocols: [redis, http]
+    data_formats: [redis-protocol, json, binary]
+    resource_requirements:
+      memory:
+        minimum: "512MB"
+        recommended: "2GB"
+        optimal: "16GB+"
+      cpu:
+        minimum: "1 core"
+        recommended: "2 cores"
+        optimal: "4+ cores"
+      storage:
+        minimum: "1GB"
+        recommended: "10GB"
+        optimal: "100GB+"
+      database:
+        required: false
+        recommended: false
+        supported: []
+    scaling:
+      horizontal: true
+      vertical: true
+      max_concurrent_connections: 10000
+      execution_modes: [standalone, cluster, sentinel]
+  
+  # AI generation hints for automated scenario creation
+  ai_generation:
+    common_patterns:
+      - high-performance-caching
+      - real-time-data-processing
+      - session-management
+      - queue-based-architectures
+    integration_targets:
+      preferred: [postgres, n8n, ollama, windmill]
+      compatible: [qdrant, vault, minio, judge0]
+      avoid: [file-storage, long-term-archival]
+    workflow_templates:
+      caching: "Check cache → If miss, fetch from source → Store in cache → Return data"
+      queuing: "Enqueue tasks → Process in background → Update status → Notify completion"
+      analytics: "Receive events → Update counters → Store metrics → Generate reports"
+    complexity_indicators:
+      simple: ["basic caching", "simple key-value storage", "session management"]
+      intermediate: ["pub/sub messaging", "complex data structures", "distributed caching"]
+      advanced: ["cluster management", "real-time analytics", "high-availability setups"]
+  
+  # Specialized features
+  features:
+    data_structures:
+      enabled: true
+      description: "Rich data structures beyond simple key-value"
+      types: ["strings", "hashes", "lists", "sets", "sorted-sets", "bitmaps", "streams"]
+    persistence:
+      enabled: true
+      description: "Configurable persistence for data durability"
+      methods: ["RDB-snapshots", "AOF-logging", "hybrid-persistence"]
+    pub_sub_messaging:
+      enabled: true
+      description: "Publisher-subscriber messaging patterns"
+      features: ["channels", "pattern-matching", "stream-processing"]
+    lua_scripting:
+      enabled: true
+      description: "Server-side Lua scripting for atomic operations"
+      capabilities: ["atomic-operations", "complex-logic", "stored-procedures"]
+  
+  # Integration capabilities
+  integrations:
+    data_types:
+      - strings
+      - hashes
+      - lists
+      - sets
+      - sorted_sets
+      - bitmaps
+      - hyperloglogs
+      - streams
+    use_cases:
+      - caching
+      - session_store
+      - message_broker
+      - real_time_analytics
+      - rate_limiting
+      - distributed_locking
+    client_libraries:
+      - python_redis
+      - node_redis
+      - go_redis
+      - java_jedis
+  
+  # Testing and validation
+  testing:
+    test_file: "scripts/resources/storage/redis/test/integration-test.sh"
+    test_coverage:
+      - service_health
+      - basic_operations
+      - data_persistence
+      - pub_sub_functionality
+      - performance_benchmarks
+    fixtures:
+      - test_data_sets
+      - performance_scenarios
+      - persistence_configs
+    integration_tests:
+      - redis_postgres_caching
+      - redis_n8n_queuing
+      - redis_clustering_setup
+  
+  # Documentation and examples
+  documentation:
+    readme: "scripts/resources/storage/redis/README.md"
+    api_reference: "scripts/resources/storage/redis/docs/API.md"
+    examples_dir: "scripts/resources/storage/redis/examples/"
+    configuration: "scripts/resources/storage/redis/docs/CONFIGURATION.md"
+    troubleshooting: "scripts/resources/storage/redis/docs/TROUBLESHOOTING.md"
+  
+  # Version and compatibility
+  version_info:
+    min_version: "7.0"
+    tested_version: "latest"
+    api_version: "RESP3"
+    compatibility_matrix:
+      docker: ">=20.10.0"
+      redis: ">=7.0"
+      architecture: [amd64, arm64]
+
+# Metadata for resource discovery and automation
+labels:
+  resource.vrooli.com/category: "storage"
+  resource.vrooli.com/type: "cache"
+  resource.vrooli.com/maturity: "stable"
+  resource.vrooli.com/business-value: "high"
+  resource.vrooli.com/ai-friendly: "true"
+  resource.vrooli.com/high-performance: "true"

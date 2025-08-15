@@ -2,7 +2,7 @@
 ################################################################################
 # SearXNG Resource CLI
 # 
-# Lightweight CLI interface for SearXNG that delegates to existing lib functions.
+# Lightweight CLI interface for SearXNG using the CLI Command Framework
 #
 # Usage:
 #   resource-searxng <command> [options]
@@ -26,9 +26,9 @@ source "${var_LOG_FILE:-${VROOLI_ROOT}/scripts/lib/utils/log.sh}" 2>/dev/null ||
 # shellcheck disable=SC1091
 source "${var_RESOURCES_COMMON_FILE}" 2>/dev/null || true
 
-# Source the CLI template
+# Source the CLI Command Framework
 # shellcheck disable=SC1091
-source "${VROOLI_ROOT}/scripts/lib/resources/cli/resource-cli-template.sh"
+source "${VROOLI_ROOT}/scripts/resources/lib/cli-command-framework.sh"
 
 # Source SearXNG configuration
 # shellcheck disable=SC1091
@@ -44,11 +44,19 @@ for lib in common docker install status config api; do
     fi
 done
 
-# Initialize with resource name
-resource_cli::init "searxng"
+# Initialize CLI framework
+cli::init "searxng" "SearXNG privacy-respecting search engine management"
+
+# Register additional SearXNG-specific commands
+cli::register_command "search" "Search using SearXNG API" "resource_cli::search"
+cli::register_command "test-api" "Test SearXNG API endpoints" "resource_cli::test_api"
+cli::register_command "benchmark" "Run performance benchmark" "resource_cli::benchmark"
+cli::register_command "logs" "Show container logs" "resource_cli::logs"
+cli::register_command "credentials" "Show n8n credentials for SearXNG" "resource_cli::credentials"
+cli::register_command "uninstall" "Uninstall SearXNG (requires --force)" "resource_cli::uninstall" "modifies-system"
 
 ################################################################################
-# Delegate to existing SearXNG functions
+# Resource-specific command implementations
 ################################################################################
 
 # Validate SearXNG configuration
@@ -88,13 +96,6 @@ resource_cli::status() {
 
 # Start SearXNG
 resource_cli::start() {
-    DRY_RUN="${DRY_RUN:-false}"
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log::info "[DRY RUN] Would start SearXNG"
-        return 0
-    fi
-    
     if command -v searxng::start_container &>/dev/null; then
         searxng::start_container
     else
@@ -104,13 +105,6 @@ resource_cli::start() {
 
 # Stop SearXNG
 resource_cli::stop() {
-    DRY_RUN="${DRY_RUN:-false}"
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log::info "[DRY RUN] Would stop SearXNG"
-        return 0
-    fi
-    
     if command -v searxng::stop_container &>/dev/null; then
         searxng::stop_container
     else
@@ -120,13 +114,6 @@ resource_cli::stop() {
 
 # Install SearXNG
 resource_cli::install() {
-    DRY_RUN="${DRY_RUN:-false}"
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log::info "[DRY RUN] Would install SearXNG"
-        return 0
-    fi
-    
     if command -v searxng::install &>/dev/null; then
         searxng::install
     else
@@ -138,16 +125,10 @@ resource_cli::install() {
 # Uninstall SearXNG
 resource_cli::uninstall() {
     FORCE="${FORCE:-false}"
-    DRY_RUN="${DRY_RUN:-false}"
     
     if [[ "$FORCE" != "true" ]]; then
         echo "⚠️  This will remove SearXNG and all its data. Use --force to confirm."
         return 1
-    fi
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log::info "[DRY RUN] Would uninstall SearXNG"
-        return 0
     fi
     
     if command -v searxng::uninstall &>/dev/null; then
@@ -159,16 +140,12 @@ resource_cli::uninstall() {
     fi
 }
 
-################################################################################
-# SearXNG-specific commands
-################################################################################
-
 # Show credentials for n8n integration
 resource_cli::credentials() {
     source "${VROOLI_ROOT}/scripts/resources/lib/credentials-utils.sh"
     
     if ! credentials::parse_args "$@"; then
-        [[ $? -eq 2 ]] && { credentials::show_help "$RESOURCE_NAME"; return 0; }
+        [[ $? -eq 2 ]] && { credentials::show_help "searxng"; return 0; }
         return 1
     fi
     
@@ -215,12 +192,12 @@ resource_cli::credentials() {
     fi
     
     local response
-    response=$(credentials::build_response "$RESOURCE_NAME" "$status" "$connections_array")
+    response=$(credentials::build_response "searxng" "$status" "$connections_array")
     credentials::format_output "$response"
 }
 
 # Search using SearXNG
-searxng_search() {
+resource_cli::search() {
     local query="${1:-}"
     local category="${2:-general}"
     local format="${3:-json}"
@@ -241,7 +218,7 @@ searxng_search() {
 }
 
 # Test SearXNG API
-searxng_test_api() {
+resource_cli::test_api() {
     if command -v searxng::test_api &>/dev/null; then
         searxng::test_api
     else
@@ -251,7 +228,7 @@ searxng_test_api() {
 }
 
 # Run SearXNG benchmark
-searxng_benchmark() {
+resource_cli::benchmark() {
     local count="${1:-10}"
     
     if command -v searxng::benchmark &>/dev/null; then
@@ -263,7 +240,7 @@ searxng_benchmark() {
 }
 
 # Show SearXNG logs
-searxng_logs() {
+resource_cli::logs() {
     if command -v searxng::get_logs &>/dev/null; then
         searxng::get_logs
     else
@@ -271,88 +248,11 @@ searxng_logs() {
     fi
 }
 
-# Show help
-resource_cli::show_help() {
-    cat << EOF
-🔍 SearXNG Resource CLI
+################################################################################
+# Main execution - dispatch to framework
+################################################################################
 
-USAGE:
-    resource-searxng <command> [options]
-
-CORE COMMANDS:
-    validate            Validate SearXNG configuration
-    status              Show SearXNG status
-    start               Start SearXNG container
-    stop                Stop SearXNG container
-    install             Install SearXNG
-    uninstall           Uninstall SearXNG (requires --force)
-    credentials         Show n8n credentials for SearXNG
-    
-SEARXNG COMMANDS:
-    search <query>      Search using SearXNG API
-    test-api            Test SearXNG API endpoints
-    benchmark [count]   Run performance benchmark
-    logs                Show container logs
-
-OPTIONS:
-    --verbose, -v       Show detailed output
-    --dry-run           Preview actions without executing
-    --force             Force operation (skip confirmations)
-
-EXAMPLES:
-    resource-searxng status
-    resource-searxng search "artificial intelligence"
-    resource-searxng search "robots" images json
-    resource-searxng test-api
-    resource-searxng benchmark 20
-
-For more information: https://docs.vrooli.com/resources/searxng
-EOF
-}
-
-# Main command router
-resource_cli::main() {
-    # Parse common options first
-    local remaining_args
-    remaining_args=$(resource_cli::parse_options "$@")
-    set -- $remaining_args
-    
-    local command="${1:-help}"
-    shift || true
-    
-    case "$command" in
-        # Standard resource commands
-        validate|status|start|stop|install|uninstall|credentials)
-            resource_cli::$command "$@"
-            ;;
-            
-        # SearXNG-specific commands
-        search)
-            searxng_search "$@"
-            ;;
-        test-api)
-            searxng_test_api "$@"
-            ;;
-        benchmark)
-            searxng_benchmark "$@"
-            ;;
-        logs)
-            searxng_logs "$@"
-            ;;
-            
-        help|--help|-h)
-            resource_cli::show_help
-            ;;
-        *)
-            log::error "Unknown command: $command"
-            echo ""
-            resource_cli::show_help
-            exit 1
-            ;;
-    esac
-}
-
-# Run main if executed directly
+# Only execute if script is run directly (not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    resource_cli::main "$@"
+    cli::dispatch "$@"
 fi

@@ -17,15 +17,15 @@ If you're working in a different directory, either:
 ### 🎯 What are you trying to build or fix?
 
 **1. Adding a New Service or Tool** → Use `add-fix-resource.md`
-- Examples: New AI model, database, automation platform, specialized service
+- Examples: Ollama model integration, PostgreSQL setup, ComfyUI workflows, Whisper transcription
 - If it extends Vrooli's capabilities through a new local service
 
 **2. Creating Automation or Workflows** → Use `add-fix-n8n-workflow.md`  
-- Examples: Data processing pipelines, business logic automation, API orchestration
+- Examples: Claude reasoning chains, document processing pipelines, resource health monitoring
 - If it involves connecting services or automating processes
 
 **3. Building Complete Applications** → Use `add-fix-scenario.md`
-- Examples: SaaS applications, business solutions, complete user-facing systems
+- Examples: Prompt Manager, Audio Intelligence Platform, Brand Manager scenarios
 - If it's a full application that uses multiple resources together
 
 **4. Improving Platform Infrastructure** → Use `add-fix-core-features.md`
@@ -156,24 +156,14 @@ If you're working in a different directory, either:
 - It's shared utilities or libraries
 - It improves the developer experience
 
-## Complex Scenarios - Multiple Prompts
+## Common Multi-Prompt Projects
 
-Some projects might require multiple prompts. Here's how to approach them:
+Some projects require multiple prompts in sequence:
 
-### 1. New AI-Powered Application
-1. **Start with Resource** (if you need a new AI service)
-2. **Add N8n Workflows** (for AI processing pipelines)  
-3. **Build the Scenario** (complete application)
-
-### 2. Enhanced Platform Capabilities
-1. **Core Features** (improve CLI or system management)
-2. **Resource Integration** (ensure resources work with new features)
-3. **Scenario Updates** (update existing scenarios to use new capabilities)
-
-### 3. Complete Business Solution
-1. **N8n Workflows** (business logic and automation)
-2. **Scenario Implementation** (user-facing application)
-3. **Core Features** (any needed CLI or management improvements)
+• **AI-Powered App**: Resource → Workflows → Scenario (e.g., Audio Intelligence Platform)
+• **Platform Enhancement**: Core Features → Resource Updates → Scenario Updates  
+• **Business Solution**: Workflows → Scenario → Core Features (as needed)
+• **New Resource Integration**: Resource → Workflows → Update existing scenarios
 
 ## How Each Prompt Connects to Vrooli's Architecture
 

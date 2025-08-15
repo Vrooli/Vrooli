@@ -14,30 +14,7 @@ You are tasked with creating or fixing scenarios in Vrooli. Scenarios are the cr
 
 ## Pre-Implementation Research
 
-### 1. Study Scenario Architecture
-```bash
-# Understand scenario structure
-tree scripts/scenarios/core/prompt-manager/
-
-# Read scenario documentation
-cat scripts/scenarios/README.md
-cat scripts/scenarios/docs/CONCEPTS.md
-```
-
-### 2. Examine Existing Scenarios
-```bash
-# Study successful scenario patterns
-ls scripts/scenarios/core/
-
-# Analyze scenario service.json files
-find scripts/scenarios/core/ -name "service.json" | head -3 | xargs cat
-```
-
-### 3. Understand Testing Framework
-**Key Files to Read**:
-- `scripts/scenarios/docs/TESTING_GUIDE.md` - Testing patterns
-- `scripts/scenarios/framework/scenario-test-runner.sh` - Test execution
-- `scripts/scenarios/tools/validate-scenario.sh` - Validation tools
+**Essential Reading**: Study scenario documentation at `scripts/scenarios/README.md` and examine existing scenarios in `scripts/scenarios/core/`. Focus on service.json patterns and testing framework at `scripts/scenarios/docs/TESTING_GUIDE.md`.
 
 ## Required Scenario Structure
 
@@ -60,9 +37,9 @@ scripts/scenarios/core/{scenario-name}/
 tree -L 2 scripts/scenarios/core/prompt-manager/
 ```
 
-## Implementation Steps
+## Implementation Phases
 
-### 1. Create service.json Configuration
+### Phase 1: Architecture & Configuration
 
 **Minimal Template**:
 ```json
@@ -84,7 +61,7 @@ cat scripts/scenarios/core/prompt-manager/service.json
 cat scripts/scenarios/core/agent-metareasoning-manager/service.json
 ```
 
-### 2. Design Resource Integration
+- Create service.json with scenario metadata, resource declarations, and service definitions
 
 Determine which resources your scenario needs:
 
@@ -102,7 +79,7 @@ cat scripts/resources/docs/integration-cookbook.md
 - **AI Applications**: Ollama + Whisper + ComfyUI
 - **Web Automation**: Agent-S2 + Browserless + SearXNG
 
-### 3. Create Database Schema
+### Phase 2: Core Application Development
 
 Design your database schema in `initialization/storage/postgres/schema.sql`:
 
@@ -121,7 +98,7 @@ CREATE INDEX idx_your_entities_name ON your_entities(name);
 CREATE INDEX idx_your_entities_created_at ON your_entities(created_at DESC);
 ```
 
-### 4. Implement Application Logic
+### Phase 3: Automation & Integration
 
 **API Service Pattern** (api/main.go):
 ```go
@@ -140,7 +117,7 @@ func main() {
 ```
 **Full examples**: See any `api/main.go` in `/scripts/scenarios/core/*/`
 
-### 5. Create Automation Workflows
+**Automation Workflows**:
 
 Design n8n workflows for your scenario's automation needs:
 
@@ -153,7 +130,7 @@ mkdir -p initialization/automation/n8n/
 # Design workflow JSON based on your requirements
 ```
 
-### 6. Implement Testing
+### Phase 4: Testing & Deployment
 
 **Test Configuration** (scenario-test.yaml):
 ```yaml
@@ -166,7 +143,7 @@ tests:
 ```
 **Complete test examples**: `/scripts/scenarios/core/*/scenario-test.yaml`
 
-### 7. Create Startup and Validation Scripts
+**Deployment Scripts**:
 
 **Startup Script Pattern** (deployment/startup.sh):
 ```bash

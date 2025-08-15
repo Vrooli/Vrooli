@@ -12,30 +12,7 @@ You are tasked with creating or fixing n8n workflows in Vrooli. N8n workflows ar
 
 ## Pre-Implementation Research
 
-### 1. Understand N8n Resource Architecture
-```bash
-# Study n8n resource structure
-tree scripts/resources/automation/n8n/
-
-# Read n8n documentation
-cat scripts/resources/automation/n8n/README.md
-cat scripts/resources/automation/n8n/docs/API.md
-```
-
-### 2. Examine Existing Workflows
-```bash
-# Study workflow patterns in scenarios
-find scripts/scenarios/core/ -name "*.json" -path "*/automation/n8n/*" | head -5
-
-# Analyze complex workflow examples
-cat scripts/scenarios/core/agent-metareasoning-manager/initialization/automation/n8n/reasoning-chain.json
-```
-
-### 3. Understanding N8n Integration
-**Key Files to Read**:
-- `scripts/resources/automation/n8n/lib/inject.sh` - How workflows get injected
-- `scripts/resources/automation/n8n/config/defaults.sh` - N8n configuration
-- `scripts/resources/automation/n8n/lib/api.sh` - N8n API patterns
+**Essential Reading**: Study n8n documentation at `scripts/resources/automation/n8n/README.md` and examine existing workflow patterns in `scripts/scenarios/core/*/initialization/automation/n8n/`. Focus on injection system and API patterns.
 
 ## N8n Workflow Architecture
 
@@ -71,166 +48,28 @@ cat scripts/scenarios/core/agent-metareasoning-manager/initialization/n8n/reason
 cat scripts/resources/automation/n8n/examples/webhook-workflow.json
 ```
 
-## Implementation Steps
+## Implementation Phases
 
-### 1. Workflow Planning and Design
-```bash
-# Document your workflow requirements
-echo "## Workflow Requirements
-- Purpose: [What this workflow achieves]
-- Inputs: [What data it expects]
-- Outputs: [What it returns]
-- Resources: [Which Vrooli resources it uses]
-- Error Handling: [How it handles failures]
-" > workflow-plan.md
-```
+### Phase 1: Planning & Architecture Design
+- Document workflow requirements (purpose, inputs, outputs, resources)
+- Map complete flow from trigger to response
+- Identify resource integrations and error handling needs
 
-### 2. Design Workflow Architecture
-- Map out the complete flow from trigger to response
-- Identify all resource integrations needed
-- Plan error handling and edge cases
-- Design data transformation steps
+### Phase 2: Core Implementation
+- Create workflow JSON with modern Code nodes (not deprecated Function nodes)
+- Essential patterns: `const input = $json; return {id: input.id || 'unknown'};`
+- Use HTTP Request nodes for external calls, Code nodes only for data transformation
+- Always include fallbacks: `$json?.field || 'default'`
 
-### 3. Create Workflow JSON
+### Phase 3: Integration & Testing  
+- Connect to Vrooli resources using documented patterns
+- Implement robust error handling with try/catch and fallbacks
+- Test locally: `curl -X POST http://localhost:5678/webhook/your-workflow`
 
-**Complete Modern Workflow Structure** (Code node, not Function node):
-```json
-{
-  "name": "Your Workflow Name",
-  "nodes": [
-    {
-      "type": "n8n-nodes-base.webhook",
-      "name": "Webhook",
-      "position": [0, 0],
-      "parameters": {
-        "path": "your-endpoint",
-        "responseMode": "lastNode",
-        "responseData": "={{ $json || {'status': 'received'} }}"
-      }
-    },
-    {
-      "type": "n8n-nodes-base.code",
-      "name": "Process Data",
-      "position": [300, 0],
-      "parameters": {
-        "mode": "runOnceForEachItem",
-        "jsCode": "// Modern Code node syntax\nconst data = $json;\n// Always validate and provide fallbacks\nreturn {\n  processed: true,\n  id: data.id || 'unknown',\n  timestamp: new Date().toISOString()\n};"
-      }
-    }
-  ],
-  "connections": {
-    "Webhook": {
-      "main": [
-        [
-          {
-            "node": "Process Data",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    }
-  }
-}
-```
-**Full examples**: See `scripts/resources/automation/n8n/examples/`
-
-### 4. Implement Core Logic
-
-**Modern Code Node Patterns** (n8n v0.198.0+):
-
-**Code Node Processing Modes**:
-```javascript
-// Mode: "runOnceForEachItem" - processes each item individually
-const input = $json; // Access current item's data
-if (!input.required_field) {
-  return { error: true, message: 'Missing required field', original: input };
-}
-return {
-  id: input.id || 'unknown', // Always use fallbacks
-  processed_at: new Date().toISOString(),
-  data: input.raw_data?.toUpperCase() || 'N/A'
-};
-
-// Mode: "runOnceForAllItems" (default) - batch processing
-const items = $input.all(); // Access all items
-const processedItems = [];
-for (const item of items) {
-  if (item.json.status === 'active') {
-    processedItems.push({
-      json: { id: item.json.id || 'unknown', processed: true, timestamp: new Date().toISOString() }
-    });
-  }
-}
-return processedItems;
-```
-
-**Expression Fallbacks** (prevent failures from missing data):
-```javascript
-// In n8n expressions, ALWAYS use fallbacks:
-"{{ $json["user"]["email"] || 'default@example.com' }}"
-"{{ $json.status || 'pending' }}"
-"{{ $node["HTTP Request"].json["data"] || [] }}"
-"{{ $json?.nested?.property || 'fallback' }}"
-```
-
-**HTTP Request Node Configuration**:
-```json
-{
-  "type": "n8n-nodes-base.httpRequest",
-  "requestMethod": "POST",
-  "url": "http://localhost:{{$json['port'] || 8080}}/api/endpoint",
-  "jsonBody": "={{ JSON.stringify($json || {}) }}",
-  "options": {
-    "timeout": 30000
-  }
-}
-```
-Note: HTTP requests must be made via HTTP Request nodes, not in Code nodes
-
-### 5. Resource Integration
-```bash
-# Study how to connect to Vrooli resources
-# PostgreSQL integration
-grep -A 10 -B 5 "postgres" scripts/scenarios/core/*/initialization/automation/n8n/*.json
-
-# Redis integration
-grep -A 10 -B 5 "redis" scripts/scenarios/core/*/initialization/automation/n8n/*.json
-
-# Ollama integration
-grep -A 10 -B 5 "ollama" scripts/scenarios/core/*/initialization/automation/n8n/*.json
-```
-
-### 6. Error Handling Implementation
-
-**Robust Error Handling Pattern**:
-```javascript
-// Individual item mode: "runOnceForEachItem"
-try {
-  const requiredField = $json.required_field || null; // Always use fallbacks
-  if (!requiredField) {
-    return { success: false, error: 'Missing required field', received: $json, timestamp: new Date().toISOString() };
-  }
-  
-  const processed = $json.data?.toUpperCase() || String($json.data || ''); // Safe processing
-  return { success: true, data: processed, id: $json.id || 'generated-' + Date.now() };
-} catch (error) {
-  return { success: false, error: error.message || 'Unknown error', input: $json || {} };
-}
-
-// Batch mode: "runOnceForAllItems" 
-const items = $input.all();
-return items.map(item => {
-  try {
-    const data = item.json || {};
-    return { json: { success: true, id: data.id || 'unknown', processed: data.value || 0 } };
-  } catch (error) {
-    return { json: { success: false, error: error.message || 'Processing failed', original: item.json || {} } };
-  }
-});
-```
-
-**Key Pattern**: Always use fallbacks (`||`) and optional chaining (`?.`) to prevent crashes from undefined values.
+### Phase 4: Deployment & Validation
+- Place workflow in scenario's `initialization/automation/n8n/` folder
+- Test injection system and workflow discovery
+- Validate all workflow paths with realistic data
 
 ## Testing and Validation
 

@@ -9,7 +9,7 @@ You are Claude Code. Your task is to create an exact copy of an existing Vrooli 
 
 ## Task Details
 
-1. **Read the entire scenario** from `/home/matthalloran8/Vrooli/scripts/scenarios/core/{{TARGET_SCENARIO}}/`
+1. **Read the entire scenario** from `scripts/scenarios/core/{{TARGET_SCENARIO}}/`
 
 2. **Copy all files and directories** to the target location, maintaining the exact structure:
    ```

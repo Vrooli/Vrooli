@@ -403,42 +403,28 @@ resource_cli::credentials() {
                 
                 # Get environment variables for database info
                 local db_name db_user db_password
-                db_name=$(docker inspect "$container_name" --format '{{range .Config.Env}}{{if (index (split . "=") 0 | eq "POSTGRES_DB")}}{{index (split . "=") 1}}{{end}}{{end}}' 2>/dev/null || echo "${POSTGRES_DEFAULT_DB}")
-                db_user=$(docker inspect "$container_name" --format '{{range .Config.Env}}{{if (index (split . "=") 0 | eq "POSTGRES_USER")}}{{index (split . "=") 1}}{{end}}{{end}}' 2>/dev/null || echo "${POSTGRES_DEFAULT_USER}")
-                db_password=$(docker inspect "$container_name" --format '{{range .Config.Env}}{{if (index (split . "=") 0 | eq "POSTGRES_PASSWORD")}}{{index (split . "=") 1}}{{end}}{{end}}' 2>/dev/null || echo "postgres")
+                db_name=$(docker inspect "$container_name" --format '{{range .Config.Env}}{{if (index (split . "=") 0 | eq "POSTGRES_DB")}}{{index (split . "=") 1}}{{end}}{{end}}' 2>/dev/null)
+                db_name="${db_name:-${POSTGRES_DEFAULT_DB}}"
                 
-                # Create connection object
+                db_user=$(docker inspect "$container_name" --format '{{range .Config.Env}}{{if (index (split . "=") 0 | eq "POSTGRES_USER")}}{{index (split . "=") 1}}{{end}}{{end}}' 2>/dev/null)
+                db_user="${db_user:-${POSTGRES_DEFAULT_USER}}"
+                
+                db_password=$(docker inspect "$container_name" --format '{{range .Config.Env}}{{if (index (split . "=") 0 | eq "POSTGRES_PASSWORD")}}{{index (split . "=") 1}}{{end}}{{end}}' 2>/dev/null)
+                db_password="${db_password:-postgres}"
+                
+                # Create connection object (compact JSON to avoid multiline issues)
                 local connection_obj
-                connection_obj=$(jq -n \
-                    --arg host "localhost" \
-                    --argjson port "$host_port" \
-                    --arg database "$db_name" \
-                    '{
-                        host: $host,
-                        port: $port,
-                        database: $database,
-                        ssl: false
-                    }')
+                connection_obj=$(jq -n -c --arg host "localhost" --argjson port "$host_port" --arg database "$db_name" '{host: $host, port: $port, database: $database, ssl: false}')
                 
                 local auth_obj
-                auth_obj=$(jq -n \
-                    --arg username "$db_user" \
-                    --arg password "$db_password" \
-                    '{
-                        username: $username,
-                        password: $password
-                    }')
+                auth_obj=$(jq -n -c --arg username "$db_user" --arg password "$db_password" '{username: $username, password: $password}')
+                # Remove any trailing extra braces that might be added by bash parsing
+                auth_obj="${auth_obj%\}}"
                 
                 local metadata_obj
-                metadata_obj=$(jq -n \
-                    --arg description "PostgreSQL instance: $instance_name" \
-                    --argjson capabilities '["sql", "transactions", "acid"]' \
-                    --arg version "16" \
-                    '{
-                        description: $description,
-                        capabilities: $capabilities,
-                        version: $version
-                    }')
+                metadata_obj=$(jq -n -c --arg description "PostgreSQL instance: $instance_name" --argjson capabilities '["sql", "transactions", "acid"]' --arg version "16" '{description: $description, capabilities: $capabilities, version: $version}')
+                # Remove any trailing extra braces that might be added by bash parsing
+                metadata_obj="${metadata_obj%\}}"
                 
                 local connection
                 connection=$(credentials::build_connection \

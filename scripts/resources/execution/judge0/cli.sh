@@ -2,7 +2,7 @@
 ################################################################################
 # Judge0 Resource CLI
 # 
-# Lightweight CLI interface for Judge0 that delegates to existing lib functions.
+# Lightweight CLI interface for Judge0 using the CLI Command Framework
 #
 # Usage:
 #   resource-judge0 <command> [options]
@@ -26,9 +26,9 @@ source "${var_LOG_FILE:-${VROOLI_ROOT}/scripts/lib/utils/log.sh}" 2>/dev/null ||
 # shellcheck disable=SC1091
 source "${var_RESOURCES_COMMON_FILE:-${VROOLI_ROOT}/scripts/resources/common.sh}" 2>/dev/null || true
 
-# Source the CLI template
+# Source the CLI Command Framework
 # shellcheck disable=SC1091
-source "${VROOLI_ROOT}/scripts/lib/resources/cli/resource-cli-template.sh"
+source "${VROOLI_ROOT}/scripts/resources/lib/cli-command-framework.sh"
 
 # Source judge0 configuration
 # shellcheck disable=SC1091
@@ -47,17 +47,31 @@ for lib in common docker status install api languages security usage; do
     fi
 done
 
-# Initialize with resource name
-resource_cli::init "judge0"
+# Initialize CLI framework
+cli::init "judge0" "Judge0 secure code execution service management"
+
+# Override help to provide Judge0-specific examples
+cli::register_command "help" "Show this help message with Judge0 examples" "resource_cli::show_help"
+
+# Register additional Judge0-specific commands
+cli::register_command "inject" "Inject configuration into Judge0" "resource_cli::inject" "modifies-system"
+cli::register_command "languages" "List supported programming languages" "resource_cli::languages"
+cli::register_command "test" "Test API connectivity" "resource_cli::test"
+cli::register_command "submit" "Submit code for execution" "resource_cli::submit"
+cli::register_command "usage" "Show usage statistics" "resource_cli::usage"
+cli::register_command "monitor" "Start security monitoring" "resource_cli::monitor"
+cli::register_command "info" "Get system information" "resource_cli::info"
+cli::register_command "logs" "Show container logs" "resource_cli::logs"
+cli::register_command "credentials" "Show n8n credentials for Judge0" "resource_cli::credentials"
+cli::register_command "uninstall" "Uninstall Judge0 (requires --force)" "resource_cli::uninstall" "modifies-system"
 
 ################################################################################
-# Delegate to existing judge0 functions
+# Resource-specific command implementations
 ################################################################################
 
 # Inject configuration or test cases into judge0
 resource_cli::inject() {
     local file="${1:-}"
-    DRY_RUN="${DRY_RUN:-false}"
     
     if [[ -z "$file" ]]; then
         log::error "File path required for injection"
@@ -73,11 +87,6 @@ resource_cli::inject() {
     if [[ ! -f "$file" ]]; then
         log::error "File not found: $file"
         return 1
-    fi
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log::info "[DRY RUN] Would inject: $file"
-        return 0
     fi
     
     # Use existing injection function
@@ -125,13 +134,6 @@ resource_cli::status() {
 
 # Start judge0
 resource_cli::start() {
-    DRY_RUN="${DRY_RUN:-false}"
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log::info "[DRY RUN] Would start Judge0"
-        return 0
-    fi
-    
     if command -v judge0::start &>/dev/null; then
         judge0::start
     else
@@ -142,13 +144,6 @@ resource_cli::start() {
 
 # Stop judge0
 resource_cli::stop() {
-    DRY_RUN="${DRY_RUN:-false}"
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log::info "[DRY RUN] Would stop Judge0"
-        return 0
-    fi
-    
     if command -v judge0::stop &>/dev/null; then
         judge0::stop
     else
@@ -159,13 +154,6 @@ resource_cli::stop() {
 
 # Install judge0
 resource_cli::install() {
-    DRY_RUN="${DRY_RUN:-false}"
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log::info "[DRY RUN] Would install Judge0"
-        return 0
-    fi
-    
     if command -v judge0::install &>/dev/null; then
         judge0::install
     else
@@ -177,16 +165,10 @@ resource_cli::install() {
 # Uninstall judge0
 resource_cli::uninstall() {
     FORCE="${FORCE:-false}"
-    DRY_RUN="${DRY_RUN:-false}"
     
     if [[ "$FORCE" != "true" ]]; then
         echo "⚠️  This will remove Judge0 and all its data. Use --force to confirm."
         return 1
-    fi
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log::info "[DRY RUN] Would uninstall Judge0"
-        return 0
     fi
     
     if command -v judge0::uninstall &>/dev/null; then
@@ -197,16 +179,12 @@ resource_cli::uninstall() {
     fi
 }
 
-################################################################################
-# Judge0-specific commands (if functions exist)
-################################################################################
-
 # Show credentials for n8n integration
 resource_cli::credentials() {
     source "${VROOLI_ROOT}/scripts/resources/lib/credentials-utils.sh"
     
     if ! credentials::parse_args "$@"; then
-        [[ $? -eq 2 ]] && { credentials::show_help "$RESOURCE_NAME"; return 0; }
+        [[ $? -eq 2 ]] && { credentials::show_help "judge0"; return 0; }
         return 1
     fi
     
@@ -269,12 +247,12 @@ resource_cli::credentials() {
     fi
     
     local response
-    response=$(credentials::build_response "$RESOURCE_NAME" "$status" "$connections_array")
+    response=$(credentials::build_response "judge0" "$status" "$connections_array")
     credentials::format_output "$response"
 }
 
 # List supported programming languages
-judge0_list_languages() {
+resource_cli::languages() {
     if command -v judge0::languages::list &>/dev/null; then
         judge0::languages::list
     else
@@ -284,7 +262,7 @@ judge0_list_languages() {
 }
 
 # Test API connectivity
-judge0_test() {
+resource_cli::test() {
     if command -v judge0::api::test &>/dev/null; then
         judge0::api::test
     else
@@ -294,7 +272,7 @@ judge0_test() {
 }
 
 # Submit code for execution
-judge0_submit() {
+resource_cli::submit() {
     local code="${1:-}"
     local language="${2:-javascript}"
     local stdin="${3:-}"
@@ -302,7 +280,14 @@ judge0_submit() {
     if [[ -z "$code" ]]; then
         log::error "Code required for submission"
         echo "Usage: resource-judge0 submit <code> [language] [stdin]"
-        echo "Example: resource-judge0 submit 'console.log(\"Hello World\")' javascript"
+        echo ""
+        echo "Examples:"
+        echo "  resource-judge0 submit 'console.log(\"Hello World\")' javascript"
+        echo "  resource-judge0 submit 'print(\"Hello World\")' python"
+        echo "  resource-judge0 submit 'println(\"Hello World\")' java"
+        echo "  resource-judge0 submit '#include <stdio.h>...printf(\"Hello\");' c"
+        echo ""
+        echo "Use 'resource-judge0 languages' to see supported languages"
         return 1
     fi
     
@@ -315,7 +300,7 @@ judge0_submit() {
 }
 
 # Show usage statistics
-judge0_usage() {
+resource_cli::usage() {
     if command -v judge0::usage::show &>/dev/null; then
         judge0::usage::show
     else
@@ -325,7 +310,7 @@ judge0_usage() {
 }
 
 # Start security monitoring
-judge0_monitor() {
+resource_cli::monitor() {
     if command -v judge0::security::monitor &>/dev/null; then
         judge0::security::monitor
     elif [[ -f "${JUDGE0_CLI_DIR}/lib/security-monitor.sh" ]]; then
@@ -339,7 +324,7 @@ judge0_monitor() {
 }
 
 # Get system information
-judge0_info() {
+resource_cli::info() {
     if command -v judge0::api::system_info &>/dev/null; then
         judge0::api::system_info
     else
@@ -349,7 +334,7 @@ judge0_info() {
 }
 
 # Show logs
-judge0_logs() {
+resource_cli::logs() {
     if command -v judge0::docker::logs &>/dev/null; then
         judge0::docker::logs
     else
@@ -360,102 +345,46 @@ judge0_logs() {
     fi
 }
 
-# Show help
+# Custom help function with Judge0-specific examples
 resource_cli::show_help() {
-    cat << EOF
-⚖️  Judge0 Resource CLI
-
-USAGE:
-    resource-judge0 <command> [options]
-
-CORE COMMANDS:
-    inject <file>            Inject configuration into Judge0
-    validate                 Validate Judge0 configuration
-    status                   Show Judge0 status
-    start                    Start Judge0 containers
-    stop                     Stop Judge0 containers
-    install                  Install Judge0
-    uninstall                Uninstall Judge0 (requires --force)
-    credentials              Show n8n credentials for Judge0
+    # Show standard framework help first
+    cli::_handle_help
     
-JUDGE0 COMMANDS:
-    languages                List supported programming languages
-    test                     Test API connectivity
-    submit <code> [lang]     Submit code for execution
-    usage                    Show usage statistics
-    monitor                  Start security monitoring
-    info                     Get system information
-    logs                     Show container logs
-
-OPTIONS:
-    --verbose, -v            Show detailed output
-    --dry-run                Preview actions without executing
-    --force                  Force operation (skip confirmations)
-
-EXAMPLES:
-    resource-judge0 status
-    resource-judge0 languages
-    resource-judge0 test
-    resource-judge0 submit 'print("Hello World")' python
-    resource-judge0 submit 'console.log("Hello")' javascript
-    resource-judge0 monitor
-
-For more information: https://docs.vrooli.com/resources/judge0
-EOF
+    # Add Judge0-specific examples
+    echo ""
+    echo "⚖️  Judge0 Code Execution Examples:"
+    echo ""
+    echo "Code Execution:"
+    echo "  resource-judge0 submit 'console.log(\"Hello World\")' javascript"
+    echo "  resource-judge0 submit 'print(\"Hello World\")' python"
+    echo "  resource-judge0 submit 'println(\"Hello World\")' java"
+    echo "  resource-judge0 submit '#include <stdio.h>...printf(\"Hello\");' c"
+    echo ""
+    echo "Language Support:"
+    echo "  resource-judge0 languages                    # List all supported languages"
+    echo "  resource-judge0 test                         # Test API connectivity"
+    echo ""
+    echo "Monitoring & Management:"
+    echo "  resource-judge0 usage                        # Show execution statistics"
+    echo "  resource-judge0 monitor                      # Start security monitoring"
+    echo "  resource-judge0 info                         # Show system information"
+    echo "  resource-judge0 logs                         # View container logs"
+    echo ""
+    echo "Security Features:"
+    echo "  • Secure sandboxed execution environment"
+    echo "  • API key authentication"
+    echo "  • Resource limits and timeouts"
+    echo "  • Real-time security monitoring"
+    echo ""
+    echo "Popular Languages: JavaScript, Python, Java, C, C++, Go, Rust, PHP, Ruby"
+    echo "For complete language list: resource-judge0 languages"
 }
 
-# Main command router
-resource_cli::main() {
-    # Parse common options first
-    local remaining_args
-    remaining_args=$(resource_cli::parse_options "$@")
-    set -- $remaining_args
-    
-    local command="${1:-help}"
-    shift || true
-    
-    case "$command" in
-        # Standard resource commands
-        inject|validate|status|start|stop|install|uninstall|credentials)
-            resource_cli::$command "$@"
-            ;;
-            
-        # Judge0-specific commands
-        languages)
-            judge0_list_languages "$@"
-            ;;
-        test)
-            judge0_test "$@"
-            ;;
-        submit)
-            judge0_submit "$@"
-            ;;
-        usage)
-            judge0_usage "$@"
-            ;;
-        monitor)
-            judge0_monitor "$@"
-            ;;
-        info)
-            judge0_info "$@"
-            ;;
-        logs)
-            judge0_logs "$@"
-            ;;
-            
-        help|--help|-h)
-            resource_cli::show_help
-            ;;
-        *)
-            log::error "Unknown command: $command"
-            echo ""
-            resource_cli::show_help
-            exit 1
-            ;;
-    esac
-}
+################################################################################
+# Main execution - dispatch to framework
+################################################################################
 
-# Run main if executed directly
+# Only execute if script is run directly (not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    resource_cli::main "$@"
+    cli::dispatch "$@"
 fi

@@ -880,16 +880,46 @@ secrets::substitute_known_services() {
     for resource in "${!RESOURCE_PORTS[@]}"; do
         local port="${RESOURCE_PORTS[$resource]}"
         
+        # Determine the host to use based on the resource and context
+        # For Ollama (and other host services), use host.docker.internal when accessed from Docker containers
+        # This enables n8n (in Docker) to reach Ollama (on host)
+        local host="localhost"
+        local url_prefix="http://localhost"
+        
+        # Check if we're processing for a Docker context (n8n workflows)
+        # Ollama and other native services need special handling when accessed from Docker
+        if [[ "$resource" == "ollama" ]] && [[ "${N8N_INJECT_CONTEXT:-}" == "true" || "${DOCKER_CONTEXT:-}" == "true" ]]; then
+            # IMPORTANT: On Linux, Docker containers on custom networks CANNOT reach
+            # host services via localhost, host.docker.internal, or gateway IPs
+            # due to iptables/netfilter restrictions.
+            # 
+            # The ONLY reliable solution is to use the host's actual network IP
+            # Ollama must be listening on 0.0.0.0 (all interfaces) for this to work
+            local host_ip=$(ip -4 addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v '127.0.0.1' | grep -v '^172\.' | head -1)
+            if [[ -z "$host_ip" ]]; then
+                # Fallback to hostname -I method
+                host_ip=$(hostname -I | awk '{print $1}')
+            fi
+            if [[ -n "$host_ip" ]]; then
+                host="$host_ip"
+                url_prefix="http://$host_ip"
+            else
+                # Last resort fallback
+                host="host.docker.internal"
+                url_prefix="http://host.docker.internal"
+            fi
+        fi
+        
         # Replace both escaped (\${) and non-escaped (${) patterns
         # Handle escaped syntax first (with backslash)
-        output=$(echo "$output" | sed "s|\\\\\${service\.${resource}\.url}|http://localhost:${port}|g")
+        output=$(echo "$output" | sed "s|\\\\\${service\.${resource}\.url}|${url_prefix}:${port}|g")
         output=$(echo "$output" | sed "s|\\\\\${service\.${resource}\.port}|${port}|g")
-        output=$(echo "$output" | sed "s|\\\\\${service\.${resource}\.host}|localhost|g")
+        output=$(echo "$output" | sed "s|\\\\\${service\.${resource}\.host}|${host}|g")
         
         # Then handle non-escaped syntax (without backslash)
-        output=$(echo "$output" | sed "s|\${service\.${resource}\.url}|http://localhost:${port}|g")
+        output=$(echo "$output" | sed "s|\${service\.${resource}\.url}|${url_prefix}:${port}|g")
         output=$(echo "$output" | sed "s|\${service\.${resource}\.port}|${port}|g")
-        output=$(echo "$output" | sed "s|\${service\.${resource}\.host}|localhost|g")
+        output=$(echo "$output" | sed "s|\${service\.${resource}\.host}|${host}|g")
     done
     
     echo "$output"

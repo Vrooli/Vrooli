@@ -16,19 +16,20 @@
     },
     {
       "parameters": {
-        "functionCode": "// Validate and prepare input for embedding generation\nconst input = $json;\n\n// Required fields\nif (!input.text) {\n  throw new Error('Missing required field: text');\n}\n\n// Extract and validate inputs\nconst text = input.text.trim();\nif (text.length === 0) {\n  throw new Error('Text field cannot be empty');\n}\n\n// Set defaults and validate optional fields\nconst collectionName = input.collection || 'execution_embeddings';\nconst validCollections = ['workflow_embeddings', 'execution_embeddings', 'prompt_templates'];\nif (!validCollections.includes(collectionName)) {\n  throw new Error(`Invalid collection. Must be one of: ${validCollections.join(', ')}`);\n}\n\n// Prepare metadata based on collection type\nlet metadata = {};\nswitch (collectionName) {\n  case 'workflow_embeddings':\n    metadata = {\n      pattern_id: input.pattern_id || `pattern_${Date.now()}`,\n      pattern_type: input.pattern_type || 'unknown',\n      pattern_name: input.pattern_name || text.substring(0, 50),\n      description: input.description || text,\n      tags: input.tags || [],\n      usage_count: input.usage_count || 0,\n      effectiveness_score: input.effectiveness_score || 0.0,\n      workflow_reference: input.workflow_reference || null\n    };\n    break;\n  case 'execution_embeddings':\n    metadata = {\n      execution_id: input.execution_id || `exec_${Date.now()}`,\n      workflow_type: input.workflow_type || 'unknown',\n      model_used: input.model_used || 'llama3.2',\n      input_text: text,\n      output_summary: input.output_summary || '',\n      status: input.status || 'pending',\n      execution_time_ms: input.execution_time_ms || 0,\n      tags: input.tags || [],\n      confidence_score: input.confidence_score || 0.0,\n      postgres_ref: input.postgres_ref || null\n    };\n    break;\n  case 'prompt_templates':\n    metadata = {\n      prompt_id: input.prompt_id || `prompt_${Date.now()}`,\n      prompt_name: input.prompt_name || text.substring(0, 50),\n      prompt_pattern: input.prompt_pattern || 'generic',\n      prompt_text: text,\n      collection: input.prompt_collection || 'user_prompts',\n      best_models: input.best_models || ['llama3.2'],\n      temperature_range: input.temperature_range || [0.3, 0.7],\n      usage_count: input.usage_count || 0,\n      avg_effectiveness: input.avg_effectiveness || 0.0\n    };\n    break;\n}\n\n// Add common fields\nmetadata.created_at = new Date().toISOString();\n\nreturn {\n  json: {\n    text: text,\n    collection: collectionName,\n    metadata: metadata,\n    point_id: input.point_id || `${collectionName}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,\n    model: input.embedding_model || 'llama3.2',\n    timestamp: new Date().toISOString()\n  }\n};"
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Validate and prepare input for embedding generation\nconst input = $json || {};\n\n// Required fields validation\nif (!input.text) {\n  return {\n    error: true,\n    message: 'Missing required field: text',\n    received_input: input\n  };\n}\n\n// Extract and validate inputs with fallbacks\nconst text = (input.text || '').trim();\nif (text.length === 0) {\n  return {\n    error: true,\n    message: 'Text field cannot be empty',\n    received_input: input\n  };\n}\n\n// Set defaults and validate optional fields\nconst collectionName = input.collection || 'execution_embeddings';\nconst validCollections = ['workflow_embeddings', 'execution_embeddings', 'prompt_templates'];\nif (!validCollections.includes(collectionName)) {\n  return {\n    error: true,\n    message: `Invalid collection. Must be one of: ${validCollections.join(', ')}`,\n    collection_provided: collectionName\n  };\n}\n\n// Prepare metadata based on collection type\nlet metadata = {};\nswitch (collectionName) {\n  case 'workflow_embeddings':\n    metadata = {\n      pattern_id: input.pattern_id || `pattern_${Date.now()}`,\n      pattern_type: input.pattern_type || 'unknown',\n      pattern_name: input.pattern_name || text.substring(0, 50),\n      description: input.description || text,\n      tags: input.tags || [],\n      usage_count: input.usage_count || 0,\n      effectiveness_score: input.effectiveness_score || 0.0,\n      workflow_reference: input.workflow_reference || null\n    };\n    break;\n  case 'execution_embeddings':\n    metadata = {\n      execution_id: input.execution_id || `exec_${Date.now()}`,\n      workflow_type: input.workflow_type || 'unknown',\n      model_used: input.model_used || 'llama3.2',\n      input_text: text,\n      output_summary: input.output_summary || '',\n      status: input.status || 'pending',\n      execution_time_ms: input.execution_time_ms || 0,\n      tags: input.tags || [],\n      confidence_score: input.confidence_score || 0.0,\n      postgres_ref: input.postgres_ref || null\n    };\n    break;\n  case 'prompt_templates':\n    metadata = {\n      prompt_id: input.prompt_id || `prompt_${Date.now()}`,\n      prompt_name: input.prompt_name || text.substring(0, 50),\n      prompt_pattern: input.prompt_pattern || 'generic',\n      prompt_text: text,\n      collection: input.prompt_collection || 'user_prompts',\n      best_models: input.best_models || ['llama3.2'],\n      temperature_range: input.temperature_range || [0.3, 0.7],\n      usage_count: input.usage_count || 0,\n      avg_effectiveness: input.avg_effectiveness || 0.0\n    };\n    break;\n}\n\n// Add common fields\nmetadata.created_at = new Date().toISOString();\n\nreturn {\n  text: text,\n  collection: collectionName,\n  metadata: metadata,\n  point_id: input.point_id || `${collectionName}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,\n  model: input.embedding_model || 'llama3.2',\n  timestamp: new Date().toISOString()\n};"
       },
       "id": "validate_input",
       "name": "Validate Input",
-      "type": "n8n-nodes-base.function",
-      "typeVersion": 1,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [450, 300]
     },
     {
       "parameters": {
         "resource": "embeddings",
-        "model": "{{ $json.model }}",
-        "prompt": "{{ $json.text }}",
+        "model": "{{ $json['model'] || 'llama3.2' }}",
+        "prompt": "{{ $json['text'] || '' }}",
         "options": {}
       },
       "id": "generate_embedding",
@@ -39,18 +40,19 @@
     },
     {
       "parameters": {
-        "functionCode": "// Process the embedding response from Ollama\nconst embeddingResponse = $node['Generate Embedding'].json.embedding;\nconst inputData = $json;\n\n// Validate embedding response\nif (!embeddingResponse || !Array.isArray(embeddingResponse)) {\n  throw new Error('Invalid embedding response from Ollama');\n}\n\n// Validate embedding dimensions (should be 384 for the models we're using)\nif (embeddingResponse.length !== 384) {\n  console.warn(`Unexpected embedding dimension: ${embeddingResponse.length}, expected 384`);\n}\n\n// Prepare point for Qdrant insertion\nconst qdrantPoint = {\n  id: inputData.point_id,\n  vector: embeddingResponse,\n  payload: inputData.metadata\n};\n\nreturn {\n  json: {\n    ...inputData,\n    embedding: embeddingResponse,\n    embedding_dimension: embeddingResponse.length,\n    qdrant_point: qdrantPoint,\n    processing_completed_at: new Date().toISOString()\n  }\n};"
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process the embedding response from Ollama\nconst embeddingNode = $node['Generate Embedding']?.json || {};\nconst embeddingResponse = embeddingNode.embedding;\nconst inputData = $json || {};\n\n// Validate embedding response\nif (!embeddingResponse || !Array.isArray(embeddingResponse)) {\n  return {\n    error: true,\n    message: 'Invalid embedding response from Ollama',\n    received: embeddingNode\n  };\n}\n\n// Validate embedding dimensions (should be 384 for the models we're using)\nif (embeddingResponse.length !== 384) {\n  console.warn(`Unexpected embedding dimension: ${embeddingResponse.length}, expected 384`);\n}\n\n// Prepare point for Qdrant insertion\nconst qdrantPoint = {\n  id: inputData.point_id || `point_${Date.now()}`,\n  vector: embeddingResponse,\n  payload: inputData.metadata || {}\n};\n\nreturn {\n  ...inputData,\n  embedding: embeddingResponse,\n  embedding_dimension: embeddingResponse.length,\n  qdrant_point: qdrantPoint,\n  processing_completed_at: new Date().toISOString()\n};"
       },
       "id": "process_embedding",
       "name": "Process Embedding",
-      "type": "n8n-nodes-base.function",
-      "typeVersion": 1,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [850, 300]
     },
     {
       "parameters": {
         "requestMethod": "PUT",
-        "url": "http://localhost:6333/collections/{{ $json.collection }}/points",
+        "url": "http://localhost:6333/collections/{{ $json['collection'] || 'execution_embeddings' }}/points",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -62,7 +64,7 @@
         },
         "sendBody": true,
         "bodyContentType": "json",
-        "jsonBody": "{\n  \"points\": [\n    {\n      \"id\": \"{{ $json.point_id }}\",\n      \"vector\": {{ JSON.stringify($json.embedding) }},\n      \"payload\": {{ JSON.stringify($json.metadata) }}\n    }\n  ]\n}",
+        "jsonBody": "{\n  \"points\": [\n    {\n      \"id\": \"{{ $json['point_id'] || 'unknown' }}\",\n      \"vector\": {{ JSON.stringify($json['embedding'] || []) }},\n      \"payload\": {{ JSON.stringify($json['metadata'] || {}) }}\n    }\n  ]\n}",
         "options": {
           "timeout": 10000
         }
@@ -75,12 +77,13 @@
     },
     {
       "parameters": {
-        "functionCode": "// Process Qdrant response and prepare final response\nconst qdrantResponse = $node['Store in Qdrant'].json;\nconst inputData = $json;\n\n// Check if Qdrant operation was successful\nlet qdrantSuccess = false;\nlet qdrantError = null;\n\ntry {\n  if (qdrantResponse.result && qdrantResponse.result.operation_id) {\n    qdrantSuccess = true;\n  } else if (qdrantResponse.status === 'ok' || qdrantResponse.result) {\n    qdrantSuccess = true;\n  }\n} catch (error) {\n  qdrantError = error.message;\n}\n\n// Prepare execution record for PostgreSQL (using execution_log table structure)\nconst executionRecord = {\n  platform: 'n8n_vector_service',\n  platform_execution_id: inputData.point_id,\n  status: qdrantSuccess ? 'success' : 'failed',\n  execution_time_ms: Math.round(Date.now() - new Date(inputData.timestamp).getTime())\n};\n\n// Prepare final response\nconst response = {\n  success: qdrantSuccess,\n  point_id: inputData.point_id,\n  collection: inputData.collection,\n  embedding_dimension: inputData.embedding_dimension,\n  model_used: inputData.model,\n  metadata: inputData.metadata,\n  execution_time_ms: executionRecord.execution_time_ms,\n  created_at: inputData.timestamp,\n  completed_at: new Date().toISOString()\n};\n\nif (qdrantError) {\n  response.error = qdrantError;\n}\n\nreturn {\n  json: {\n    ...response,\n    postgres_record: executionRecord\n  }\n};"
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process Qdrant response and prepare final response\nconst qdrantResponse = $node['Store in Qdrant']?.json || {};\nconst inputData = $json || {};\n\n// Check if Qdrant operation was successful\nlet qdrantSuccess = false;\nlet qdrantError = null;\n\ntry {\n  if (qdrantResponse.result && qdrantResponse.result.operation_id) {\n    qdrantSuccess = true;\n  } else if (qdrantResponse.status === 'ok' || qdrantResponse.result) {\n    qdrantSuccess = true;\n  }\n} catch (error) {\n  qdrantError = error.message || 'Unknown error';\n}\n\n// Calculate execution time safely\nlet executionTimeMs = 0;\ntry {\n  const startTime = inputData.timestamp ? new Date(inputData.timestamp).getTime() : Date.now();\n  executionTimeMs = Math.round(Date.now() - startTime);\n} catch (error) {\n  executionTimeMs = 0;\n}\n\n// Prepare execution record for PostgreSQL (using execution_log table structure)\nconst executionRecord = {\n  platform: 'n8n_vector_service',\n  platform_execution_id: inputData.point_id || 'unknown',\n  status: qdrantSuccess ? 'success' : 'failed',\n  execution_time_ms: executionTimeMs\n};\n\n// Prepare final response\nconst response = {\n  success: qdrantSuccess,\n  point_id: inputData.point_id || 'unknown',\n  collection: inputData.collection || 'execution_embeddings',\n  embedding_dimension: inputData.embedding_dimension || 0,\n  model_used: inputData.model || 'llama3.2',\n  metadata: inputData.metadata || {},\n  execution_time_ms: executionTimeMs,\n  created_at: inputData.timestamp || new Date().toISOString(),\n  completed_at: new Date().toISOString()\n};\n\nif (qdrantError) {\n  response.error = qdrantError;\n}\n\nreturn {\n  ...response,\n  postgres_record: executionRecord\n};"
       },
       "id": "process_result",
       "name": "Process Result",
-      "type": "n8n-nodes-base.function",
-      "typeVersion": 1,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [1250, 300]
     },
     {
@@ -90,9 +93,9 @@
         "columns": "platform,platform_execution_id,status,execution_time_ms",
         "values": {
           "platform": "n8n_vector_service",
-          "platform_execution_id": "={{ $json.point_id }}",
-          "status": "={{ $json.postgres_record.status }}",
-          "execution_time_ms": "={{ $json.postgres_record.execution_time_ms }}"
+          "platform_execution_id": "={{ $json['point_id'] || 'unknown' }}",
+          "status": "={{ $json['postgres_record']['status'] || 'unknown' }}",
+          "execution_time_ms": "={{ $json['postgres_record']['execution_time_ms'] || 0 }}"
         },
         "returnFields": "id"
       },

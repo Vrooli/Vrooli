@@ -23,7 +23,7 @@ Vrooli is a **self-improving AI platform** where:
 
 You need to:
 
-1. **Copy the existing scenario** from `/home/matthalloran8/Vrooli/scripts/scenarios/core/{{TARGET_SCENARIO}}/`
+1. **Copy the existing scenario** from `scripts/scenarios/core/{{TARGET_SCENARIO}}/`
 2. **Analyze what {{NEW_RESOURCE}} provides** and how it can enhance the scenario
 3. **Integrate {{NEW_RESOURCE}}** into the scenario by modifying the appropriate files
 4. **Present the modified files** with clear explanations of changes

@@ -1,14 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Source guard to prevent re-sourcing
-[[ -n "${_LOG_SH_SOURCED:-}" ]] && return 0
-export _LOG_SH_SOURCED=1
-
-# Source var.sh with relative path first
-# shellcheck disable=SC1091
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/var.sh"
-
 # Set default terminal type if not set
 export TERM=${TERM:-xterm}
 

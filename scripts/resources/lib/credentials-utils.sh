@@ -169,6 +169,7 @@ credentials::build_connection() {
     local auth_obj="${5:-{}}"
     local metadata_obj="${6:-{}}"
     
+    
     jq -n \
         --arg id "$conn_id" \
         --arg name "$conn_name" \

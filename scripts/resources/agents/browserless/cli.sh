@@ -2,7 +2,7 @@
 ################################################################################
 # Browserless Resource CLI
 # 
-# Lightweight CLI interface for Browserless that delegates to existing lib functions.
+# Lightweight CLI interface for Browserless using the CLI Command Framework
 #
 # Usage:
 #   resource-browserless <command> [options]
@@ -32,9 +32,9 @@ source "${var_LOG_FILE:-${VROOLI_ROOT}/scripts/lib/utils/log.sh}" 2>/dev/null ||
 # shellcheck disable=SC1091
 source "${var_RESOURCES_COMMON_FILE:-${VROOLI_ROOT}/scripts/resources/common.sh}" 2>/dev/null || true
 
-# Source the CLI template
+# Source the CLI Command Framework
 # shellcheck disable=SC1091
-source "${VROOLI_ROOT}/scripts/lib/resources/cli/resource-cli-template.sh"
+source "${VROOLI_ROOT}/scripts/resources/lib/cli-command-framework.sh"
 
 # Source browserless configuration
 # shellcheck disable=SC1091
@@ -50,17 +50,25 @@ for lib in core docker health status api inject usage recovery; do
     fi
 done
 
-# Initialize with resource name
-resource_cli::init "browserless"
+# Initialize CLI framework
+cli::init "browserless" "Browserless Chrome automation management"
+
+# Register additional Browserless-specific commands
+cli::register_command "inject" "Inject configuration into Browserless" "resource_cli::inject" "modifies-system"
+cli::register_command "screenshot" "Take screenshot of URL" "resource_cli::screenshot"
+cli::register_command "pdf" "Generate PDF from URL" "resource_cli::pdf"
+cli::register_command "test-apis" "Test all Browserless APIs" "resource_cli::test_apis"
+cli::register_command "metrics" "Show browser pressure/metrics" "resource_cli::metrics"
+cli::register_command "credentials" "Get connection credentials for n8n integration" "resource_cli::credentials"
+cli::register_command "uninstall" "Uninstall Browserless (requires --force)" "resource_cli::uninstall" "modifies-system"
 
 ################################################################################
-# Delegate to existing browserless functions
+# Resource-specific command implementations
 ################################################################################
 
 # Inject configuration into browserless
 resource_cli::inject() {
     local file="${1:-}"
-    DRY_RUN="${DRY_RUN:-false}"
     
     if [[ -z "$file" ]]; then
         log::error "File path required for injection"
@@ -76,11 +84,6 @@ resource_cli::inject() {
     if [[ ! -f "$file" ]]; then
         log::error "File not found: $file"
         return 1
-    fi
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log::info "[DRY RUN] Would inject: $file"
-        return 0
     fi
     
     # Use existing injection function
@@ -127,13 +130,6 @@ resource_cli::status() {
 
 # Start browserless
 resource_cli::start() {
-    DRY_RUN="${DRY_RUN:-false}"
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log::info "[DRY RUN] Would start Browserless"
-        return 0
-    fi
-    
     if command -v browserless::start &>/dev/null; then
         browserless::start
     else
@@ -143,13 +139,6 @@ resource_cli::start() {
 
 # Stop browserless
 resource_cli::stop() {
-    DRY_RUN="${DRY_RUN:-false}"
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log::info "[DRY RUN] Would stop Browserless"
-        return 0
-    fi
-    
     if command -v browserless::stop &>/dev/null; then
         browserless::stop
     else
@@ -159,13 +148,6 @@ resource_cli::stop() {
 
 # Install browserless
 resource_cli::install() {
-    DRY_RUN="${DRY_RUN:-false}"
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log::info "[DRY RUN] Would install Browserless"
-        return 0
-    fi
-    
     if command -v browserless::install &>/dev/null; then
         browserless::install
     else
@@ -177,16 +159,10 @@ resource_cli::install() {
 # Uninstall browserless
 resource_cli::uninstall() {
     FORCE="${FORCE:-false}"
-    DRY_RUN="${DRY_RUN:-false}"
     
     if [[ "$FORCE" != "true" ]]; then
         echo "⚠️  This will remove Browserless and all its data. Use --force to confirm."
         return 1
-    fi
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log::info "[DRY RUN] Would uninstall Browserless"
-        return 0
     fi
     
     if command -v browserless::uninstall &>/dev/null; then
@@ -198,12 +174,8 @@ resource_cli::uninstall() {
     fi
 }
 
-################################################################################
-# Browserless-specific commands
-################################################################################
-
 # Take screenshot
-browserless_screenshot() {
+resource_cli::screenshot() {
     local url="${1:-}"
     local output="${2:-screenshot.png}"
     
@@ -222,7 +194,7 @@ browserless_screenshot() {
 }
 
 # Generate PDF
-browserless_pdf() {
+resource_cli::pdf() {
     local url="${1:-}"
     local output="${2:-output.pdf}"
     
@@ -241,7 +213,7 @@ browserless_pdf() {
 }
 
 # Test all APIs
-browserless_test_apis() {
+resource_cli::test_apis() {
     if command -v browserless::test_all_apis &>/dev/null; then
         browserless::test_all_apis
     else
@@ -251,7 +223,7 @@ browserless_test_apis() {
 }
 
 # Show browser pressure/metrics
-browserless_metrics() {
+resource_cli::metrics() {
     if command -v browserless::test_pressure &>/dev/null; then
         browserless::test_pressure
     else
@@ -337,89 +309,11 @@ resource_cli::credentials() {
     fi
 }
 
-# Show help
-resource_cli::show_help() {
-    cat << EOF
-🚀 Browserless Resource CLI
+################################################################################
+# Main execution - dispatch to framework
+################################################################################
 
-USAGE:
-    resource-browserless <command> [options]
-
-CORE COMMANDS:
-    inject <file>           Inject configuration into Browserless
-    validate                Validate Browserless health
-    status                  Show Browserless status
-    start                   Start Browserless container
-    stop                    Stop Browserless container
-    install                 Install Browserless
-    uninstall               Uninstall Browserless (requires --force)
-    credentials             Get connection credentials for n8n integration
-    
-BROWSERLESS COMMANDS:
-    screenshot <url> [file] Take screenshot of URL
-    pdf <url> [file]        Generate PDF from URL
-    test-apis               Test all Browserless APIs
-    metrics                 Show browser pressure/metrics
-
-OPTIONS:
-    --verbose, -v           Show detailed output
-    --dry-run               Preview actions without executing
-    --force                 Force operation (skip confirmations)
-
-EXAMPLES:
-    resource-browserless status
-    resource-browserless screenshot https://example.com screenshot.png
-    resource-browserless pdf https://example.com document.pdf
-    resource-browserless test-apis
-    resource-browserless metrics
-
-For more information: https://docs.vrooli.com/resources/browserless
-EOF
-}
-
-# Main command router
-resource_cli::main() {
-    # Parse common options first
-    local remaining_args
-    remaining_args=$(resource_cli::parse_options "$@")
-    set -- $remaining_args
-    
-    local command="${1:-help}"
-    shift || true
-    
-    case "$command" in
-        # Standard resource commands
-        inject|validate|status|start|stop|install|uninstall|credentials)
-            resource_cli::$command "$@"
-            ;;
-            
-        # Browserless-specific commands
-        screenshot)
-            browserless_screenshot "$@"
-            ;;
-        pdf)
-            browserless_pdf "$@"
-            ;;
-        test-apis)
-            browserless_test_apis "$@"
-            ;;
-        metrics)
-            browserless_metrics "$@"
-            ;;
-            
-        help|--help|-h)
-            resource_cli::show_help
-            ;;
-        *)
-            log::error "Unknown command: $command"
-            echo ""
-            resource_cli::show_help
-            exit 1
-            ;;
-    esac
-}
-
-# Run main if executed directly
+# Only execute if script is run directly (not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    resource_cli::main "$@"
+    cli::dispatch "$@"
 fi

@@ -38,7 +38,6 @@ source "${var_LIB_SERVICE_DIR}/secrets.sh"
 : "${BASIC_AUTH:=yes}"
 : "${AUTH_USERNAME:=admin}"
 : "${TUNNEL_ENABLED:=no}"
-: "${BUILD_IMAGE:=no}"
 
 #######################################
 # Get n8n initialization configuration
@@ -48,24 +47,26 @@ n8n::get_init_config() {
     local webhook_url="${1:-}"
     local auth_password="${2:-}"
     
-    # Select image (custom if available)
+    # Use custom image if available, otherwise fallback to standard
     local image_to_use="$N8N_IMAGE"
-    if [[ "$BUILD_IMAGE" == "yes" ]] && docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "^${N8N_CUSTOM_IMAGE}$"; then
+    if docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "^${N8N_CUSTOM_IMAGE}$"; then
         image_to_use="$N8N_CUSTOM_IMAGE"
+        # Log to stderr to avoid contaminating JSON output
+        log::info "Using custom n8n image with advanced features" >&2
     fi
     
     # Build environment variables
     local timezone
     timezone=$(timedatectl show -p Timezone --value 2>/dev/null || echo 'UTC')
     
-    # Build volumes list
+    # Build volumes list - always include advanced mounts for better functionality
     local volumes_array="[\"${N8N_DATA_DIR}:/home/node/.n8n\""
-    if [[ "$BUILD_IMAGE" == "yes" ]]; then
-        volumes_array+=",\"/var/run/docker.sock:/var/run/docker.sock:rw\""
-        volumes_array+=",\"${PWD}:/workspace:rw\""
-        volumes_array+=",\"/usr/bin:/host/usr/bin:ro\""
-        volumes_array+=",\"$HOME:/host/home:rw\""
-    fi
+    volumes_array+=",\"/var/run/docker.sock:/var/run/docker.sock:rw\""
+    volumes_array+=",\"${PWD}:/workspace:rw\""
+    volumes_array+=",\"/usr/bin:/host/usr/bin:ro\""
+    volumes_array+=",\"$HOME:/host/home:rw\""
+    # Mount Vrooli root for CLI access
+    volumes_array+=",\"${VROOLI_ROOT}:/vrooli:ro\""
     volumes_array+="]"
     
     # Build init config
@@ -92,9 +93,10 @@ n8n::get_init_config() {
     
     # Add database configuration
     if [[ "$DATABASE_TYPE" == "postgres" ]]; then
+        # Use localhost for host network mode
         config=$(echo "$config" | jq '.env_vars += {
             "DB_TYPE": "postgresdb",
-            "DB_POSTGRESDB_HOST": "'$N8N_DB_CONTAINER_NAME'",
+            "DB_POSTGRESDB_HOST": "localhost",
             "DB_POSTGRESDB_PORT": "5432",
             "DB_POSTGRESDB_DATABASE": "n8n"
         }')
@@ -404,8 +406,8 @@ n8n::install() {
     # Create data directory
     init::create_data_dir "$N8N_DATA_DIR"
     
-    # Create network
-    docker::create_network "$N8N_NETWORK_NAME"
+    # Skip network creation for host network mode
+    # Network is already set to "host" in get_init_config
     
     # Install PostgreSQL if needed
     if [[ "$DATABASE_TYPE" == "postgres" ]]; then
@@ -418,9 +420,13 @@ n8n::install() {
     init::setup_resource "$init_config"
     
     # Auto-install CLI if available
-    # shellcheck disable=SC1091
-    source "${var_SCRIPTS_RESOURCES_LIB_DIR}/cli-auto-install.sh" 2>/dev/null || true
-    resource_cli::auto_install "$N8N_SCRIPT_DIR" || true
+    if [[ -f "${var_SCRIPTS_RESOURCES_LIB_DIR}/cli-auto-install.sh" ]]; then
+        # shellcheck disable=SC1091
+        source "${var_SCRIPTS_RESOURCES_LIB_DIR}/cli-auto-install.sh"
+        if command -v resource_cli::auto_install &>/dev/null; then
+            resource_cli::auto_install "$N8N_SCRIPT_DIR" || true
+        fi
+    fi
 }
 
 
@@ -584,10 +590,10 @@ n8n::install_postgres() {
     local pg_data_dir="${N8N_DATA_DIR}/postgres"
     init::create_data_dir "$pg_data_dir"
     
-    # Create PostgreSQL container
+    # Create PostgreSQL container with port mapping for host network access
     docker run -d \
         --name "$N8N_DB_CONTAINER_NAME" \
-        --network "$N8N_NETWORK_NAME" \
+        -p 5432:5432 \
         -e POSTGRES_USER=n8n \
         -e POSTGRES_PASSWORD="${N8N_DB_PASSWORD:-n8n_password}" \
         -e POSTGRES_DB=n8n \
@@ -680,7 +686,6 @@ OPTIONS:
     --password PASS         Basic auth password (default: auto-generated)
     --database TYPE         Database type: sqlite or postgres (default: sqlite)
     --tunnel yes/no         Enable tunnel for webhook testing (default: no)
-    --build-image yes/no    Build custom n8n image (default: no)
     --auto-credentials yes/no Auto-create credentials for resources (default: yes)
     --help, -h              Show this help message
 

@@ -1,0 +1,236 @@
+apiVersion: vrooli.com/v1
+kind: ResourceCapability
+metadata:
+  name: postgres
+  category: storage
+  subcategory: database
+  description: "Managed PostgreSQL instances with multi-tenant isolation and client-specific deployments"
+  maturity: stable
+  complexity: intermediate
+  
+spec:
+  # Core capabilities this resource provides
+  capabilities:
+    primary:
+      - relational-database
+      - multi-instance-management
+      - client-isolation
+      - sql-operations
+    secondary:
+      - backup-restore
+      - migration-management
+      - connection-pooling
+      - web-gui-access
+    specialized:
+      - template-based-configs
+      - parallel-development
+      - schema-versioning
+      - deployment-packaging
+  
+  # API interfaces available
+  interfaces:
+    - name: database-connection
+      endpoint: "postgresql://user:pass@host:port/db"
+      method: [SQL]
+      inputTypes: [sql, text]
+      outputTypes: [tabular, json]
+      description: "Standard PostgreSQL connection for SQL operations"
+    - name: web-gui
+      endpoint: "/gui/{instance}"
+      method: [GET, POST]
+      inputTypes: [text/html, application/json]
+      outputTypes: [text/html, application/json]
+      description: "Web-based database management interface (pgweb)"
+    - name: backup-api
+      endpoint: "/backup/{instance}"
+      method: [POST, GET]
+      inputTypes: [application/json]
+      outputTypes: [application/octet-stream, application/json]
+      description: "Instance backup and restore operations"
+    - name: admin-api
+      endpoint: "/admin/{instance}"
+      method: [GET, POST, PUT, DELETE]
+      inputTypes: [application/json]
+      outputTypes: [application/json]
+      description: "Instance management and configuration"
+  
+  # Resource dependencies and requirements
+  dependencies:
+    required:
+      - docker
+    optional:
+      - pgweb
+      - backup-storage
+    incompatible: []
+  
+  # Scenario compatibility
+  scenarios:
+    primary:
+      - prompt-manager
+      - document-manager
+      - brand-manager
+    secondary:
+      - campaign-content-studio
+      - research-assistant
+      - workflow-scheduler
+    optimal_combinations:
+      - [postgres, minio, n8n]              # Complete data management stack
+      - [postgres, ollama, qdrant]          # AI-powered data processing
+      - [postgres, vault, windmill]         # Secure enterprise workflows
+      - [postgres, whisper, unstructured-io] # Multi-modal data processing
+  
+  # Business intelligence
+  business:
+    revenue_range:
+      min: 5000
+      max: 35000
+      currency: USD
+    complexity_score: 6  # 1-10 scale
+    implementation_time: "2-4 days"
+    upwork_demand: very-high
+    target_industries:
+      - enterprise-software
+      - saas-platforms
+      - data-management
+      - business-automation
+      - analytics-platforms
+      - e-commerce
+    common_project_types:
+      - "Enterprise data management platform"
+      - "Multi-tenant SaaS application"
+      - "Business intelligence dashboard"
+      - "Customer relationship management system"
+      - "Inventory and order management system"
+  
+  # Technical specifications
+  technical:
+    ports: [5432, 8081]
+    protocols: [postgresql, http]
+    data_formats: [sql, json, csv, binary]
+    resource_requirements:
+      memory:
+        minimum: "1GB"
+        recommended: "4GB"
+        optimal: "16GB+"
+      cpu:
+        minimum: "1 core"
+        recommended: "2 cores"
+        optimal: "8+ cores"
+      storage:
+        minimum: "5GB"
+        recommended: "50GB"
+        optimal: "500GB+"
+      database:
+        required: false
+        recommended: false
+        supported: []
+    scaling:
+      horizontal: true
+      vertical: true
+      max_concurrent_connections: 200
+      execution_modes: [single-instance, multi-instance, clustered]
+  
+  # AI generation hints for automated scenario creation
+  ai_generation:
+    common_patterns:
+      - data-driven-applications
+      - multi-tenant-systems
+      - analytics-platforms
+      - business-automation
+    integration_targets:
+      preferred: [n8n, minio, ollama, qdrant]
+      compatible: [vault, windmill, whisper, unstructured-io]
+      avoid: [file-storage-only, computation-heavy-tasks]
+    workflow_templates:
+      application: "Create schema → Seed data → Connect application → Implement business logic → Deploy"
+      analytics: "Ingest data → Store in tables → Create views → Generate reports → Visualize results"
+      automation: "Monitor data changes → Trigger workflows → Process updates → Store results → Notify stakeholders"
+    complexity_indicators:
+      simple: ["single database", "basic CRUD", "simple queries"]
+      intermediate: ["multi-instance setup", "complex queries", "migrations", "backup strategies"]
+      advanced: ["enterprise clustering", "performance optimization", "advanced security", "multi-tenant architectures"]
+  
+  # Specialized features
+  features:
+    multi_instance_support:
+      enabled: true
+      description: "Create and manage multiple isolated PostgreSQL instances"
+      capabilities: ["client-isolation", "template-configs", "parallel-development"]
+    web_gui_integration:
+      enabled: true
+      description: "Integrated pgweb interface for visual database management"
+      features: ["query-builder", "schema-browser", "data-export"]
+    backup_automation:
+      enabled: true
+      description: "Automated backup and restore with scheduling"
+      features: ["scheduled-backups", "point-in-time-recovery", "cross-instance-restore"]
+    template_system:
+      enabled: true
+      description: "Pre-configured templates for common use cases"
+      templates: ["development", "production", "testing", "ecommerce", "saas"]
+  
+  # Integration capabilities
+  integrations:
+    sql_features:
+      - advanced_sql
+      - json_operations
+      - full_text_search
+      - window_functions
+      - recursive_queries
+    extensions:
+      - uuid_ossp
+      - pgcrypto
+      - hstore
+      - ltree
+      - postgis
+    management_features:
+      - connection_pooling
+      - replication
+      - partitioning
+      - indexing_optimization
+  
+  # Testing and validation
+  testing:
+    test_file: "scripts/resources/storage/postgres/test/integration-test.sh"
+    test_coverage:
+      - service_health
+      - connection_establishment
+      - database_operations
+      - backup_restore
+      - multi_instance_isolation
+    fixtures:
+      - sample_schemas
+      - test_data_sets
+      - migration_scripts
+    integration_tests:
+      - postgres_n8n_integration
+      - postgres_minio_backup
+      - multi_instance_isolation
+  
+  # Documentation and examples
+  documentation:
+    readme: "scripts/resources/storage/postgres/README.md"
+    api_reference: "scripts/resources/storage/postgres/docs/API.md"
+    examples_dir: "scripts/resources/storage/postgres/examples/"
+    configuration: "scripts/resources/storage/postgres/docs/CONFIGURATION.md"
+    client_handoff: "scripts/resources/storage/postgres/docs/CLIENT-HANDOFF-GUIDE.md"
+  
+  # Version and compatibility
+  version_info:
+    min_version: "14.0"
+    tested_version: "16.0"
+    api_version: "SQL:2016"
+    compatibility_matrix:
+      docker: ">=20.10.0"
+      postgresql: ">=14.0"
+      pgweb: ">=0.14.0"
+      architecture: [amd64, arm64]
+
+# Metadata for resource discovery and automation
+labels:
+  resource.vrooli.com/category: "storage"
+  resource.vrooli.com/type: "database"
+  resource.vrooli.com/maturity: "stable"
+  resource.vrooli.com/business-value: "very-high"
+  resource.vrooli.com/ai-friendly: "true"
+  resource.vrooli.com/multi-tenant: "true"

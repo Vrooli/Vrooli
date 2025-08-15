@@ -218,13 +218,28 @@ init::create_container() {
         done <<< "$volumes"
     fi
     
-    # Add networks
+    # Add networks - check for special "host" network mode
     local networks
     networks=$(echo "$config" | jq -r '.networks[]? // empty' 2>/dev/null)
+    local use_host_network=false
     if [[ -n "$networks" ]]; then
         while IFS= read -r network; do
-            [[ -n "$network" ]] && docker_cmd+=" --network $network"
+            if [[ "$network" == "host" ]]; then
+                use_host_network=true
+                docker_cmd+=" --network host"
+                # Remove port mapping for host network mode
+                docker_cmd="${docker_cmd//-p ${port}:${port}/}"
+            elif [[ -n "$network" ]]; then
+                docker_cmd+=" --network $network"
+            fi
         done <<< "$networks"
+    fi
+    
+    # Add host.docker.internal mapping for Linux (allows containers to reach host services)
+    # This enables n8n to connect to services like Ollama running on the host
+    # Skip this for host network mode as it's not needed
+    if [[ "$use_host_network" != "true" ]]; then
+        docker_cmd+=" --add-host host.docker.internal:host-gateway"
     fi
     
     # Add restart policy

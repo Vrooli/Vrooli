@@ -2,7 +2,7 @@
 ################################################################################
 # Redis Resource CLI
 # 
-# Lightweight CLI interface for Redis that delegates to existing lib functions.
+# Lightweight CLI interface for Redis using the CLI Command Framework
 #
 # Usage:
 #   resource-redis <command> [options]
@@ -26,9 +26,9 @@ source "${var_LOG_FILE:-${VROOLI_ROOT}/scripts/lib/utils/log.sh}" 2>/dev/null ||
 # shellcheck disable=SC1091
 source "${var_RESOURCES_COMMON_FILE}" 2>/dev/null || true
 
-# Source the CLI template
+# Source the CLI Command Framework
 # shellcheck disable=SC1091
-source "${VROOLI_ROOT}/scripts/lib/resources/cli/resource-cli-template.sh"
+source "${VROOLI_ROOT}/scripts/resources/lib/cli-command-framework.sh"
 
 # Source Redis configuration
 # shellcheck disable=SC1091
@@ -44,11 +44,22 @@ for lib in common docker status backup install; do
     fi
 done
 
-# Initialize with resource name
-resource_cli::init "redis"
+# Initialize CLI framework
+cli::init "redis" "Redis cache and data structure server management"
+
+# Register additional Redis-specific commands
+cli::register_command "inject" "Execute Redis command" "resource_cli::inject" "modifies-system"
+cli::register_command "monitor" "Monitor Redis in real-time" "resource_cli::monitor"
+cli::register_command "backup" "Create Redis backup" "resource_cli::backup" "modifies-system"
+cli::register_command "restore" "Restore Redis backup" "resource_cli::restore" "modifies-system"
+cli::register_command "list-backups" "List available backups" "resource_cli::list_backups"
+cli::register_command "logs" "Show Redis logs" "resource_cli::logs"
+cli::register_command "flush" "Flush all Redis data (requires --force)" "resource_cli::flush" "modifies-system"
+cli::register_command "credentials" "Get connection credentials for n8n integration" "resource_cli::credentials"
+cli::register_command "uninstall" "Uninstall Redis (requires --force)" "resource_cli::uninstall" "modifies-system"
 
 ################################################################################
-# Delegate to existing Redis functions
+# Resource-specific command implementations
 ################################################################################
 
 # Validate Redis configuration
@@ -86,13 +97,6 @@ resource_cli::status() {
 
 # Start Redis
 resource_cli::start() {
-    DRY_RUN="${DRY_RUN:-false}"
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log::info "[DRY RUN] Would start Redis"
-        return 0
-    fi
-    
     if command -v redis::docker::start &>/dev/null; then
         redis::docker::start
     else
@@ -102,13 +106,6 @@ resource_cli::start() {
 
 # Stop Redis
 resource_cli::stop() {
-    DRY_RUN="${DRY_RUN:-false}"
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log::info "[DRY RUN] Would stop Redis"
-        return 0
-    fi
-    
     if command -v redis::docker::stop &>/dev/null; then
         redis::docker::stop
     else
@@ -118,13 +115,6 @@ resource_cli::stop() {
 
 # Install Redis
 resource_cli::install() {
-    DRY_RUN="${DRY_RUN:-false}"
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log::info "[DRY RUN] Would install Redis"
-        return 0
-    fi
-    
     if command -v redis::install::main &>/dev/null; then
         redis::install::main
     else
@@ -136,16 +126,10 @@ resource_cli::install() {
 # Uninstall Redis
 resource_cli::uninstall() {
     FORCE="${FORCE:-false}"
-    DRY_RUN="${DRY_RUN:-false}"
     
     if [[ "$FORCE" != "true" ]]; then
         echo "⚠️  This will remove Redis and all its data. Use --force to confirm."
         return 1
-    fi
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log::info "[DRY RUN] Would uninstall Redis"
-        return 0
     fi
     
     if command -v redis::install::uninstall &>/dev/null; then
@@ -160,18 +144,12 @@ resource_cli::uninstall() {
 # Inject data into Redis (using redis-cli exec)
 resource_cli::inject() {
     local command="${1:-}"
-    DRY_RUN="${DRY_RUN:-false}"
     
     if [[ -z "$command" ]]; then
         log::error "Redis command required for injection"
         echo "Usage: resource-redis inject '<redis-command>'"
         echo "Example: resource-redis inject 'SET mykey myvalue'"
         return 1
-    fi
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log::info "[DRY RUN] Would execute: $command"
-        return 0
     fi
     
     # Use existing Redis CLI execution function
@@ -187,12 +165,8 @@ resource_cli::inject() {
     fi
 }
 
-################################################################################
-# Redis-specific commands (if functions exist)
-################################################################################
-
 # Monitor Redis in real-time
-redis_monitor() {
+resource_cli::monitor() {
     local interval="${1:-5}"
     
     if command -v redis::status::monitor &>/dev/null; then
@@ -204,7 +178,7 @@ redis_monitor() {
 }
 
 # Create backup
-redis_backup() {
+resource_cli::backup() {
     local backup_name="${1:-}"
     
     if command -v redis::backup::create &>/dev/null; then
@@ -216,7 +190,7 @@ redis_backup() {
 }
 
 # Restore backup
-redis_restore() {
+resource_cli::restore() {
     local backup_name="${1:-}"
     
     if [[ -z "$backup_name" ]]; then
@@ -233,7 +207,7 @@ redis_restore() {
 }
 
 # List backups
-redis_list_backups() {
+resource_cli::list_backups() {
     if command -v redis::backup::list &>/dev/null; then
         redis::backup::list
     else
@@ -243,7 +217,7 @@ redis_list_backups() {
 }
 
 # Show logs
-redis_logs() {
+resource_cli::logs() {
     local lines="${1:-50}"
     
     if command -v redis::docker::show_logs &>/dev/null; then
@@ -254,7 +228,7 @@ redis_logs() {
 }
 
 # Flush all data
-redis_flush() {
+resource_cli::flush() {
     FORCE="${FORCE:-false}"
     
     if [[ "$FORCE" != "true" ]]; then
@@ -348,99 +322,11 @@ resource_cli::credentials() {
     fi
 }
 
-# Show help
-resource_cli::show_help() {
-    cat << EOF
-🚀 Redis Resource CLI
+################################################################################
+# Main execution - dispatch to framework
+################################################################################
 
-USAGE:
-    resource-redis <command> [options]
-
-CORE COMMANDS:
-    inject <command>        Execute Redis command (e.g., 'SET key value')
-    validate                Validate Redis configuration
-    status                  Show Redis status
-    start                   Start Redis container
-    stop                    Stop Redis container
-    install                 Install Redis
-    uninstall               Uninstall Redis (requires --force)
-    credentials             Get connection credentials for n8n integration
-    
-REDIS COMMANDS:
-    monitor [interval]      Monitor Redis in real-time (default: 5s)
-    backup [name]           Create Redis backup
-    restore <name>          Restore Redis backup
-    list-backups            List available backups
-    logs [lines]            Show Redis logs (default: 50 lines)
-    flush                   Flush all Redis data (requires --force)
-
-OPTIONS:
-    --verbose, -v           Show detailed output
-    --dry-run               Preview actions without executing
-    --force                 Force operation (skip confirmations)
-
-EXAMPLES:
-    resource-redis status
-    resource-redis inject "SET mykey 'hello world'"
-    resource-redis inject "GET mykey"
-    resource-redis credentials --format pretty
-    resource-redis monitor 10
-    resource-redis backup daily-backup
-    resource-redis flush --force
-
-For more information: https://docs.vrooli.com/resources/redis
-EOF
-}
-
-# Main command router
-resource_cli::main() {
-    # Parse common options first
-    local remaining_args
-    remaining_args=$(resource_cli::parse_options "$@")
-    set -- $remaining_args
-    
-    local command="${1:-help}"
-    shift || true
-    
-    case "$command" in
-        # Standard resource commands
-        inject|validate|status|start|stop|install|uninstall|credentials)
-            resource_cli::$command "$@"
-            ;;
-            
-        # Redis-specific commands
-        monitor)
-            redis_monitor "$@"
-            ;;
-        backup)
-            redis_backup "$@"
-            ;;
-        restore)
-            redis_restore "$@"
-            ;;
-        list-backups)
-            redis_list_backups "$@"
-            ;;
-        logs)
-            redis_logs "$@"
-            ;;
-        flush)
-            redis_flush "$@"
-            ;;
-            
-        help|--help|-h)
-            resource_cli::show_help
-            ;;
-        *)
-            log::error "Unknown command: $command"
-            echo ""
-            resource_cli::show_help
-            exit 1
-            ;;
-    esac
-}
-
-# Run main if executed directly
+# Only execute if script is run directly (not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    resource_cli::main "$@"
+    cli::dispatch "$@"
 fi

@@ -17,8 +17,8 @@
     {
       "parameters": {
         "resource": "completion",
-        "model": "{{ $json.model || 'llama3.2' }}",
-        "prompt": "Analyze the following decision or proposal and create a comprehensive pros and cons list:\n\n{{ $json.input }}\n\nProvide:\n1. At least 5 pros (advantages, benefits, positive outcomes)\n2. At least 5 cons (disadvantages, risks, negative outcomes)\n3. Weight each item on importance (1-10)\n4. Overall recommendation\n\nFormat as JSON with structure: {pros: [{item, weight, explanation}], cons: [{item, weight, explanation}], recommendation: string, confidence: number}",
+        "model": "{{ $json['model'] || 'llama3.2' }}",
+        "prompt": "Analyze the following decision or proposal and create a comprehensive pros and cons list:\n\n{{ $json['input'] || 'No input provided' }}\n\nProvide:\n1. At least 5 pros (advantages, benefits, positive outcomes)\n2. At least 5 cons (disadvantages, risks, negative outcomes)\n3. Weight each item on importance (1-10)\n4. Overall recommendation\n\nFormat as JSON with structure: {pros: [{item, weight, explanation}], cons: [{item, weight, explanation}], recommendation: string, confidence: number}",
         "temperature": 0.5,
         "maxTokens": 2000
       },
@@ -30,12 +30,13 @@
     },
     {
       "parameters": {
-        "functionCode": "const response = JSON.parse($node['Generate Pros and Cons'].json.response);\n\n// Calculate weighted scores\nconst prosScore = response.pros.reduce((sum, p) => sum + p.weight, 0);\nconst consScore = response.cons.reduce((sum, c) => sum + c.weight, 0);\nconst netScore = prosScore - consScore;\n\nreturn {\n  json: {\n    analysis: response,\n    scores: {\n      pros_total: prosScore,\n      cons_total: consScore,\n      net_score: netScore,\n      recommendation_strength: Math.abs(netScore) / (prosScore + consScore)\n    },\n    timestamp: new Date().toISOString(),\n    model_used: $json.model || 'llama3.2'\n  }\n};"
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Get input data with fallbacks\nconst items = $input.all();\nconst inputData = items[0]?.json || {};\nconst nodeData = $node['Generate Pros and Cons']?.json || {};\n\n// Parse response with error handling\nlet response = { pros: [], cons: [], recommendation: '', confidence: 0 };\ntry {\n  const responseText = nodeData.response || '{}';\n  response = JSON.parse(responseText);\n} catch (error) {\n  // Return error if parsing fails\n  return [{\n    json: {\n      error: true,\n      message: 'Failed to parse analysis response',\n      original_response: nodeData.response || 'No response',\n      timestamp: new Date().toISOString()\n    }\n  }];\n}\n\n// Ensure arrays exist with fallbacks\nconst pros = response.pros || [];\nconst cons = response.cons || [];\n\n// Calculate weighted scores safely\nconst prosScore = pros.reduce((sum, p) => sum + (p?.weight || 0), 0);\nconst consScore = cons.reduce((sum, c) => sum + (c?.weight || 0), 0);\nconst netScore = prosScore - consScore;\nconst totalScore = prosScore + consScore;\nconst recommendationStrength = totalScore > 0 ? Math.abs(netScore) / totalScore : 0;\n\nreturn [{\n  json: {\n    analysis: response,\n    scores: {\n      pros_total: prosScore,\n      cons_total: consScore,\n      net_score: netScore,\n      recommendation_strength: recommendationStrength\n    },\n    timestamp: new Date().toISOString(),\n    model_used: inputData.model || 'llama3.2'\n  }\n}];"
       },
       "id": "process_results",
       "name": "Process and Score",
-      "type": "n8n-nodes-base.function",
-      "typeVersion": 1,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [650, 300]
     },
     {

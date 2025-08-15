@@ -105,8 +105,9 @@ n8n::validate_workflow() {
     fi
     
     # Process template substitutions for validation using safe substitution
+    # Set N8N_INJECT_CONTEXT to indicate we're processing for n8n (which runs in Docker)
     local processed_content
-    if ! processed_content=$(echo "$raw_content" | secrets::substitute_safe_templates 2>/dev/null); then
+    if ! processed_content=$(N8N_INJECT_CONTEXT=true echo "$raw_content" | secrets::substitute_safe_templates 2>/dev/null); then
         log::warn "Template processing failed for validation of '$name', continuing with raw content"
         processed_content="$raw_content"
     fi
@@ -318,8 +319,9 @@ n8n::import_workflow() {
     fi
     
     # Process template substitutions using safe substitution (preserves n8n syntax)
+    # Set N8N_INJECT_CONTEXT to indicate we're processing for n8n (which runs in Docker)
     local processed_content
-    if ! processed_content=$(echo "$raw_content" | secrets::substitute_safe_templates); then
+    if ! processed_content=$(N8N_INJECT_CONTEXT=true echo "$raw_content" | secrets::substitute_safe_templates); then
         log::error "Failed to process templates in workflow file: $workflow_file"
         return 1
     fi

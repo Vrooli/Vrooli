@@ -10,31 +10,7 @@ You are tasked with adding or fixing a resource in Vrooli's local resource ecosy
 
 ## Pre-Implementation Research
 
-### 1. Analyze Resource Ecosystem
-```bash
-# Understand current resources
-ls scripts/resources/
-./scripts/resources/index.sh --action discover
-./scripts/resources/port_registry.sh --action list
-
-# Study resource categories and patterns
-grep -r "category" scripts/resources/*/README.md
-```
-
-### 2. Examine Resource Standards
-**Critical Files to Read**:
-- `scripts/resources/docs/interface-standards.md` - Required interface patterns
-- `scripts/resources/docs/integration-cookbook.md` - Integration patterns
-- `scripts/resources/injection/README.md` - Injection system
-
-### 3. Study Existing Resource Implementation
-Pick a similar resource and examine its complete structure:
-```bash
-# Examples by category:
-tree scripts/resources/automation/n8n/     # Automation platforms
-tree scripts/resources/ai/ollama/          # AI services  
-tree scripts/resources/storage/postgres/   # Storage systems
-```
+**Essential Reading**: Study interface standards at `scripts/resources/docs/interface-standards.md` and examine existing resources in `scripts/resources/`. Use `tree` commands to analyze structure patterns for similar resource categories.
 
 ## Required Resource Structure
 
@@ -60,53 +36,27 @@ scripts/resources/{category}/{resource-name}/
 └── docs/                        # Additional documentation
 ```
 
-## Implementation Steps
+## Implementation Phases
 
-### 1. Port Assignment and Registration
-```bash
-# Check available ports
-./scripts/resources/port_registry.sh --action list
+### Phase 1: Setup & Configuration
+- Reserve port via `./scripts/resources/port_registry.sh --action list`
+- Create directory structure: `mkdir -p scripts/resources/{category}/{resource-name}/{config,lib,test,docs}`
+- Configure defaults, messages, and capabilities in `config/` folder
 
-# Reserve your port (choose from available range)
-# Update port_registry.sh with your resource
-```
+### Phase 2: Core Implementation
+- Implement `manage.sh` with required actions: install, start, stop, status, logs
+- Create utility functions in `lib/` (common.sh, install.sh, status.sh)
+- Build resource-specific functionality
 
-### 2. Create Resource Directory Structure
-```bash
-mkdir -p scripts/resources/{category}/{resource-name}/{config,lib,test,docs}
-```
+### Phase 3: Integration & Testing
+- Create injection adapter (`inject.sh`) following existing patterns
+- Implement integration tests covering installation, lifecycle, API, and error conditions
+- Update resource index and port registry
 
-### 3. Implement Core Interface (manage.sh)
-**Required Actions**: install, start, stop, status, logs
-```bash
-# Must support all standard actions
-./manage.sh --action [install|start|stop|status|logs]
-# Reference any existing manage.sh in scripts/resources/*/
-```
-
-### 4. Configuration Management
-- `config/defaults.sh`: Default ports, paths, settings  
-- `config/messages.sh`: User-facing messages and prompts
-- `config/capabilities.yaml`: What the resource can do
-
-### 5. Utility Functions (lib/)
-- `lib/common.sh`: Shared utilities
-- `lib/install.sh`: Installation logic  
-- `lib/status.sh`: Health checking
-- Resource-specific functions
-
-### 6. Injection System Integration
-```bash
-# Study existing injection patterns, then create inject.sh
-cat scripts/resources/automation/n8n/lib/inject.sh
-```
-
-### 7. Testing Implementation
-Create comprehensive integration tests in `test/integration-test.sh`:
-- Installation testing
-- Service lifecycle testing  
-- API/functionality testing
-- Error condition testing
+### Phase 4: Validation & Documentation
+- Run validation: `./scripts/resources/tools/validate-interfaces.sh --resource {name}`
+- Complete README with API docs and integration examples
+- Test end-to-end with actual scenarios
 
 ## Validation and Testing
 
