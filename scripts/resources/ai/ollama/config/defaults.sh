@@ -4,7 +4,7 @@
 # This file contains all configuration constants and defaults for the Ollama resource
 
 # Ollama service configuration
-readonly OLLAMA_PORT="${OLLAMA_CUSTOM_PORT:-$(resources::get_default_port "ollama")}"
+readonly OLLAMA_PORT="${OLLAMA_CUSTOM_PORT:-$(resources::get_default_port "ollama" 2>/dev/null || echo "11434")}"
 readonly OLLAMA_BASE_URL="http://localhost:${OLLAMA_PORT}"
 readonly OLLAMA_SERVICE_NAME="ollama"
 readonly OLLAMA_INSTALL_DIR="/usr/local/bin"

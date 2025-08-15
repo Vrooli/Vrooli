@@ -309,6 +309,12 @@ resource_cli::credentials() {
                     path: $path,
                     ssl: false
                 },
+                auth: {
+                    header_name: "Authorization",
+                    header_value: "",
+                    token: null,
+                    api_key: null
+                },
                 metadata: {
                     description: $description,
                     capabilities: ["browser", "pdf", "screenshot", "scraping", "automation"],

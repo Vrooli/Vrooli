@@ -552,55 +552,11 @@ n8n::inject_data() {
         local workflow_count
         workflow_count=$(echo "$workflows" | jq 'length')
         
-        if [[ "$workflow_count" -gt 5 ]]; then
-            log::info "Processing $workflow_count workflows in batches to avoid timeout issues..."
-            
-            # Process in batches of 3
-            local batch_size=3
-            local batch_num=0
-            local total_failed=0
-            local total_success=0
-            
-            for ((i=0; i<workflow_count; i+=batch_size)); do
-                batch_num=$((batch_num + 1))
-                local end=$((i + batch_size))
-                if [[ $end -gt $workflow_count ]]; then
-                    end=$workflow_count
-                fi
-                
-                log::info "Processing batch $batch_num (workflows $((i+1))-$end of $workflow_count)..."
-                
-                # Extract batch
-                local batch
-                batch=$(echo "$workflows" | jq -c ".[$i:$end]")
-                
-                # Process batch
-                if inject_framework::process_array "$batch" "n8n::import_workflow" "workflows"; then
-                    total_success=$((total_success + (end - i)))
-                else
-                    total_failed=$((total_failed + (end - i)))
-                    log::warn "Some workflows in batch $batch_num failed to import"
-                fi
-                
-                # Small delay between batches to prevent overwhelming the system
-                if [[ $end -lt $workflow_count ]]; then
-                    sleep 1
-                fi
-            done
-            
-            log::info "Workflow import complete: $total_success succeeded, $total_failed failed"
-            if [[ $total_failed -eq 0 ]]; then
-                log::success "All workflows imported successfully"
-            else
-                log::warn "Some workflows failed to import - check individual workflow logs for details"
-            fi
+        # Process workflows - simplified approach to avoid batching complexity
+        if ! inject_framework::process_array "$workflows" "n8n::import_workflow" "workflows"; then
+            log::warn "Some workflows failed to import - check individual workflow logs for details"
         else
-            # Small batch, process normally
-            if ! inject_framework::process_array "$workflows" "n8n::import_workflow" "workflows"; then
-                log::warn "Some workflows failed to import - check individual workflow logs for details"
-            else
-                log::success "All workflows imported successfully"
-            fi
+            log::success "All workflows imported successfully"
         fi
     else
         log::debug "No workflows found in config"

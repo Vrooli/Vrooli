@@ -15,6 +15,16 @@ N8N_AUTO_CREDS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${N8N_AUTO_CREDS_DIR}/../../../../lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE:-${N8N_AUTO_CREDS_DIR}/../../../../lib/utils/log.sh}"
+# shellcheck disable=SC1091
+source "${N8N_AUTO_CREDS_DIR}/credential-registry.sh"
+
+# Set up API base URL if not already defined
+if [[ -z "${N8N_API_BASE:-}" ]]; then
+    N8N_API_BASE="${N8N_BASE_URL:-http://localhost:5678}/api/v1"
+fi
+if ! readonly -p | grep -q "N8N_API_BASE"; then
+    readonly N8N_API_BASE
+fi
 
 #######################################
 # Discover resources using Vrooli CLI and resource CLI credentials commands
@@ -188,6 +198,14 @@ n8n::build_postgres_credential() {
     user=$(echo "$auth" | jq -r '.username // "postgres"')
     password=$(echo "$auth" | jq -r '.password // ""')
     
+    # Convert boolean SSL to string format that n8n expects
+    local ssl_mode
+    if [[ "$ssl" == "true" ]]; then
+        ssl_mode="require"
+    else
+        ssl_mode="disable"
+    fi
+    
     jq -n \
         --arg name "$name" \
         --arg host "$host" \
@@ -195,7 +213,7 @@ n8n::build_postgres_credential() {
         --arg database "$database" \
         --arg user "$user" \
         --arg password "$password" \
-        --argjson ssl "$ssl" \
+        --arg ssl "$ssl_mode" \
         '{
             name: $name,
             type: "postgres",
@@ -206,7 +224,7 @@ n8n::build_postgres_credential() {
                 user: $user,
                 password: $password,
                 ssl: $ssl,
-                allowUnauthorizedCerts: true
+                sshTunnel: false
             }
         }'
 }
@@ -370,25 +388,14 @@ n8n::build_header_auth_credential() {
 }
 
 #######################################
-# Check if credential already exists in n8n
+# Check if credential already exists using local registry
 # Args: $1 - credential name
 # Returns: 0 if exists, 1 if not
 #######################################
 n8n::credential_exists() {
     local credential_name="$1"
     
-    local api_key
-    api_key=$(n8n::resolve_api_key 2>/dev/null)
-    [[ -z "$api_key" ]] && return 1
-    
-    local credentials_response
-    credentials_response=$(curl -s \
-        -H "X-N8N-API-KEY: $api_key" \
-        -H "Content-Type: application/json" \
-        "$N8N_API_BASE/credentials" 2>/dev/null || echo '{"data":[]}')
-    
-    echo "$credentials_response" | jq -e --arg name "$credential_name" \
-        '.data[]? | select(.name == $name)' >/dev/null 2>&1
+    credential_registry::exists "$credential_name"
 }
 
 #######################################
@@ -430,6 +437,13 @@ n8n::create_n8n_credential() {
         credential_id=$(echo "$response" | jq -r '.id // empty')
         if [[ -n "$credential_id" ]]; then
             log::success "✅ Created credential: $name (ID: $credential_id)"
+            
+            # Add to registry for future duplicate detection
+            # Extract resource name from credential name (vrooli-resourcename format)
+            local resource_name="${name#vrooli-}"
+            resource_name="${resource_name%%-*}"  # Remove any suffix after first dash
+            credential_registry::add "$name" "$credential_id" "$type" "$resource_name"
+            
             return 0
         else
             log::error "❌ Created credential but no ID returned: $name"

@@ -338,6 +338,161 @@ n8n_delete_all_workflows() {
     fi
 }
 
+################################################################################
+# Credential Management Commands
+################################################################################
+
+# Auto-discover and create credentials
+n8n_auto_credentials() {
+    if command -v n8n::auto_manage_credentials &>/dev/null; then
+        n8n::auto_manage_credentials
+    else
+        log::error "Auto-credentials not available"
+        return 1
+    fi
+}
+
+# List current credentials
+n8n_list_credentials() {
+    if command -v n8n::validate_auto_credentials &>/dev/null; then
+        n8n::validate_auto_credentials
+    else
+        log::error "Credential listing not available"
+        return 1
+    fi
+}
+
+# List discoverable resources (debug)
+n8n_list_discoverable() {
+    if command -v n8n::list_discoverable_resources &>/dev/null; then
+        n8n::list_discoverable_resources
+    else
+        log::error "Resource discovery listing not available"
+        return 1
+    fi
+}
+
+# Show credential registry statistics
+n8n_credential_registry() {
+    local action="${1:-stats}"
+    
+    # Source the registry library
+    # shellcheck disable=SC1091
+    source "${N8N_SCRIPT_DIR}/lib/credential-registry.sh"
+    
+    case "$action" in
+        stats)
+            credential_registry::stats
+            ;;
+        list)
+            echo "📋 Registered Credentials:"
+            local credentials
+            credentials=$(credential_registry::list)
+            if [[ -n "$credentials" ]]; then
+                echo "$credentials" | jq -r '"  • \(.name) (\(.type)) - \(.resource) - ID: \(.id)"'
+            else
+                echo "  No credentials registered"
+            fi
+            ;;
+        backup)
+            credential_registry::backup
+            ;;
+        file)
+            echo "Registry file: $(credential_registry::get_file_path)"
+            ;;
+        *)
+            log::error "Unknown registry action: $action"
+            echo "Available actions: stats, list, backup, file"
+            return 1
+            ;;
+    esac
+}
+
+# Get credentials for n8n integration
+resource_cli::credentials() {
+    # Source credentials utilities
+    # shellcheck disable=SC1091
+    source "${VROOLI_ROOT}/scripts/resources/lib/credentials-utils.sh"
+    
+    # Parse arguments
+    if ! credentials::parse_args "$@"; then
+        [[ $? -eq 2 ]] && { credentials::show_help "n8n"; return 0; }
+        return 1
+    fi
+    
+    # Get resource status
+    local status
+    status=$(credentials::get_resource_status "${N8N_CONTAINER_NAME}")
+    
+    # Build connections array - n8n provides API access
+    local connections_array="[]"
+    if [[ "$status" == "running" ]]; then
+        # Get API key for n8n
+        local api_key
+        api_key=$(n8n::resolve_api_key 2>/dev/null || echo "")
+        
+        # n8n API connection
+        local connection_obj
+        connection_obj=$(jq -n \
+            --arg host "localhost" \
+            --argjson port "${N8N_PORT}" \
+            --arg path "/api/v1" \
+            --argjson ssl false \
+            '{
+                host: $host,
+                port: $port,
+                path: $path,
+                ssl: $ssl
+            }')
+        
+        local auth_obj
+        if [[ -n "$api_key" ]]; then
+            auth_obj=$(jq -n \
+                --arg header_name "X-N8N-API-KEY" \
+                --arg header_value "$api_key" \
+                '{
+                    header_name: $header_name,
+                    header_value: $header_value
+                }')
+        else
+            auth_obj='{"header_name": "X-N8N-API-KEY", "header_value": ""}'
+        fi
+        
+        local metadata_obj
+        metadata_obj=$(jq -n \
+            --arg description "n8n workflow automation API" \
+            --arg web_url "http://localhost:${N8N_PORT}" \
+            --arg api_version "v1" \
+            '{
+                description: $description,
+                web_interface: $web_url,
+                api_version: $api_version
+            }')
+        
+        local connection
+        connection=$(credentials::build_connection \
+            "api" \
+            "n8n API" \
+            "httpHeaderAuth" \
+            "$connection_obj" \
+            "$auth_obj" \
+            "$metadata_obj")
+        
+        connections_array="[$connection]"
+    fi
+    
+    # Build and validate response
+    local response
+    response=$(credentials::build_response "n8n" "$status" "$connections_array")
+    
+    if credentials::validate_json "$response"; then
+        credentials::format_output "$response"
+    else
+        log::error "Invalid credentials JSON generated"
+        return 1
+    fi
+}
+
 # Show help
 resource_cli::show_help() {
     cat << EOF
@@ -364,6 +519,13 @@ N8N COMMANDS:
     activate-pattern <pattern>  Activate workflows matching pattern
     delete-workflow <id>        Delete a specific workflow by ID
     delete-all-workflows        Delete all workflows (with confirmation)
+    
+CREDENTIAL COMMANDS:
+    auto-credentials            Auto-discover and create resource credentials
+    list-credentials            List existing n8n credentials  
+    list-discoverable           List discoverable resources (debug)
+    credential-registry [action] Show credential registry stats (actions: stats, list, backup, file)
+    credentials                 Get connection credentials for n8n integration
 
 OPTIONS:
     --verbose, -v       Show detailed output
@@ -380,6 +542,9 @@ EXAMPLES:
     resource-n8n export-workflows ./backups/
     resource-n8n delete-workflow wbu5QO9dVCD521pe
     resource-n8n delete-all-workflows
+    resource-n8n auto-credentials
+    resource-n8n list-credentials
+    resource-n8n credentials --format pretty
 
 PATTERN EXAMPLES:
     resource-n8n activate-pattern "embedding*"     # Workflows starting with "embedding"
@@ -402,7 +567,7 @@ resource_cli::main() {
     
     case "$command" in
         # Standard resource commands
-        inject|validate|status|start|stop|install|uninstall)
+        inject|validate|status|start|stop|install|uninstall|credentials)
             resource_cli::$command "$@"
             ;;
             
@@ -430,6 +595,20 @@ resource_cli::main() {
             ;;
         delete-all-workflows)
             n8n_delete_all_workflows "$@"
+            ;;
+            
+        # Credential management commands
+        auto-credentials)
+            n8n_auto_credentials "$@"
+            ;;
+        list-credentials)
+            n8n_list_credentials "$@"
+            ;;
+        list-discoverable)
+            n8n_list_discoverable "$@"
+            ;;
+        credential-registry)
+            n8n_credential_registry "$@"
             ;;
             
         help|--help|-h)
