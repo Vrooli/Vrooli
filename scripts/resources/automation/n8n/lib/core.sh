@@ -84,7 +84,7 @@ n8n::get_init_config() {
             "N8N_PUBLIC_API_DISABLED": "false"
         },
         "volumes": '$volumes_array',
-        "networks": ["'$N8N_NETWORK_NAME'"],
+        "networks": ["host"],
         "first_run_check": "n8n::is_first_run",
         "setup_func": "n8n::first_time_setup",
         "wait_for_ready": "n8n::wait_for_ready"

@@ -107,6 +107,10 @@ route_to_resource_cli() {
         local cli_command
         cli_command=$(jq -r '.command' "${RESOURCE_REGISTRY}/${resource_name}.json" 2>/dev/null)
         if [[ -n "$cli_command" ]] && command -v "$cli_command" >/dev/null 2>&1; then
+            # Clear source guards before exec to allow proper sourcing
+            unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED
+            # Ensure VROOLI_ROOT is preserved for registered commands
+            export VROOLI_ROOT="${VROOLI_ROOT:-$(cd "$RESOURCES_DIR/.." && pwd)}"
             exec "$cli_command" "$@"
         fi
     fi
@@ -114,7 +118,54 @@ route_to_resource_cli() {
     # Try standard resource-<name> pattern
     local resource_command="resource-${resource_name}"
     if command -v "$resource_command" >/dev/null 2>&1; then
+        # Clear source guards before exec to allow proper sourcing
+        unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED
+        # Ensure VROOLI_ROOT is preserved for resource commands
+        export VROOLI_ROOT="${VROOLI_ROOT:-$(cd "$RESOURCES_DIR/.." && pwd)}"
         exec "$resource_command" "$@"
+    fi
+    
+    # Try direct path to known CLI locations (bulletproof fallback)
+    local direct_cli_paths=(
+        "$RESOURCES_DIR/ai/$resource_name/cli.sh"
+        "$RESOURCES_DIR/storage/$resource_name/cli.sh" 
+        "$RESOURCES_DIR/automation/$resource_name/cli.sh"
+        "$RESOURCES_DIR/*/$resource_name/cli.sh"
+        "$RESOURCES_DIR/$resource_name/cli.sh"
+    )
+    
+    local cli_script=""
+    for path_pattern in "${direct_cli_paths[@]}"; do
+        if [[ "$path_pattern" == *"*"* ]]; then
+            # Use find for wildcard patterns
+            cli_script=$(find "$RESOURCES_DIR" -name "cli.sh" -path "*/${resource_name}/*" 2>/dev/null | head -1)
+        else
+            # Direct path check
+            cli_script="$path_pattern"
+        fi
+        
+        if [[ -n "$cli_script" ]] && [[ -f "$cli_script" ]]; then
+            break
+        fi
+        cli_script=""  # Reset for next iteration
+    done
+    
+    if [[ -n "$cli_script" ]] && [[ -f "$cli_script" ]]; then
+        # Clear source guards before calling CLI to allow proper sourcing  
+        unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED
+        
+        # Set up proper environment and working directory
+        local vrooli_root="${VROOLI_ROOT:-$(cd "$RESOURCES_DIR/.." && pwd)}"
+        
+        # Simple, reliable execution with explicit environment
+        (
+            cd "$vrooli_root"
+            export VROOLI_ROOT="$vrooli_root"
+            export OLLAMA_PORT="${OLLAMA_PORT:-11434}"
+            bash "$cli_script" "$@"
+        )
+        local exit_code=$?
+        return $exit_code
     fi
     
     # Fallback to legacy manage.sh approach
@@ -452,14 +503,14 @@ get_resource_status_json() {
             # Try resource CLI - check if it supports --format json
             if command -v "resource-${resource_name}" >/dev/null 2>&1; then
                 # Try with --format json first (future-proof)
-                if status_output=$("resource-${resource_name}" status --format json 2>/dev/null) && \
+                if status_output=$(unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED; "resource-${resource_name}" status --format json 2>/dev/null) && \
                    echo "$status_output" | jq empty 2>/dev/null; then
                     # Resource supports JSON format and returned valid JSON
                     echo "$status_output"
                     return 0
                 else
                     # Fall back to text parsing (but limit to fast check only)
-                    status_output=$("resource-${resource_name}" status 2>/dev/null | head -5) || status_output=""
+                    status_output=$(unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED; "resource-${resource_name}" status 2>/dev/null | head -5) || status_output=""
                     status_exit_code=$?
                 fi
             fi
@@ -805,7 +856,8 @@ resource_status() {
             # Try to use resource CLI if available
             if has_resource_cli "$name"; then
                 if command -v "resource-${name}" >/dev/null 2>&1; then
-                    "resource-${name}" status 2>/dev/null || echo "Status check failed"
+                    # Clear source guards to allow resource CLI to source its dependencies
+                    (unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED; "resource-${name}" status 2>/dev/null) || echo "Status check failed"
                 fi
             else
                 # Fallback to basic status
@@ -961,7 +1013,7 @@ resource_start_all() {
         
         # Try CLI first
         if has_resource_cli "$name"; then
-            if "resource-${name}" start 2>/dev/null; then
+            if (unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED; "resource-${name}" start 2>/dev/null); then
                 ((started_count++))
                 log::success "✅ Started: $name"
                 
@@ -1072,7 +1124,7 @@ resource_stop_all() {
                 
                 # Try CLI first
                 if has_resource_cli "$resource_name"; then
-                    if "resource-${resource_name}" stop 2>/dev/null; then
+                    if (unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED; "resource-${resource_name}" stop 2>/dev/null); then
                         ((stopped_count++))
                         log::success "✅ Stopped: $resource_name"
                         continue

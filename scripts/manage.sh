@@ -68,15 +68,37 @@ manage::execute_phase() {
     local total_steps
     total_steps=$(echo "$steps" | jq 'length')
     
-    echo "$steps" | jq -c '.[]' | while IFS= read -r step; do
+    # Use a temporary file to avoid pipeline issues
+    local steps_file=$(mktemp)
+    if ! echo "$steps" | jq -c '.[]' > "$steps_file" 2>/dev/null; then
+        log::error "Failed to parse steps JSON"
+        rm -f "$steps_file"
+        return 1
+    fi
+    
+    # Ensure file ends with newline to prevent read issues
+    echo "" >> "$steps_file"
+    
+    # Track background PIDs for cleanup
+    local bg_pids=()
+    trap 'for pid in "${bg_pids[@]}"; do kill -TERM "$pid" 2>/dev/null || true; done; rm -f "${steps_file:-}"' EXIT INT TERM
+    
+    while IFS= read -r step; do
         step_count=$((step_count + 1))
         
+        # Validate step is not empty
+        if [[ -z "$step" ]]; then
+            continue
+        fi
+        
         local name
-        name=$(echo "$step" | jq -r '.name // "unnamed"')
+        name=$(echo "$step" | jq -r '.name // "unnamed"' 2>/dev/null) || name="unnamed"
         local run
-        run=$(echo "$step" | jq -r '.run // ""')
+        run=$(echo "$step" | jq -r '.run // ""' 2>/dev/null) || run=""
         local desc
-        desc=$(echo "$step" | jq -r '.description // ""')
+        desc=$(echo "$step" | jq -r '.description // ""' 2>/dev/null) || desc=""
+        local is_background
+        is_background=$(echo "$step" | jq -r '.background // false' 2>/dev/null) || is_background="false"
         
         [[ -z "$run" ]] && continue
         
@@ -94,15 +116,55 @@ manage::execute_phase() {
                 processed_run="$run"
             fi
             
+            # Remove any trailing & from command if background flag is set
+            if [[ "$is_background" == "true" ]]; then
+                processed_run="${processed_run% &}"
+                processed_run="${processed_run%&}"
+            fi
+            
             # Execute in project root for consistency
             # Export SERVICE_PORT explicitly if it exists
-            (cd "$var_ROOT_DIR" && export SERVICE_PORT="${SERVICE_PORT:-}" && eval "$processed_run") || {
-                local exit_code=$?
-                log::error "Step '$name' failed with exit code $exit_code"
-                return $exit_code
-            }
+            if [[ "$is_background" == "true" ]]; then
+                # Run in background and track PID
+                (cd "$var_ROOT_DIR" && export SERVICE_PORT="${SERVICE_PORT:-}" && exec bash -c "$processed_run") &
+                local bg_pid=$!
+                bg_pids+=("$bg_pid")
+                log::info "  Started background process (PID: $bg_pid)"
+            else
+                # Run without timeout wrapper to preserve terminal control for sudo
+                (cd "$var_ROOT_DIR" && export SERVICE_PORT="${SERVICE_PORT:-}" && bash -c "$processed_run") || {
+                    local exit_code=$?
+                    log::error "Step '$name' failed with exit code $exit_code"
+                    rm -f "$steps_file"
+                    return $exit_code
+                }
+            fi
         fi
-    done
+    done < "$steps_file"
+    
+    rm -f "$steps_file"
+    
+    # For develop phase, keep script running to maintain background processes
+    if [[ "$phase" == "develop" ]] && [[ ${#bg_pids[@]} -gt 0 ]]; then
+        log::info "Development services running. Press Ctrl+C to stop."
+        # Wait for all background processes with periodic checks
+        while true; do
+            local any_alive=false
+            for pid in "${bg_pids[@]}"; do
+                if kill -0 "$pid" 2>/dev/null; then
+                    any_alive=true
+                    break
+                fi
+            done
+            
+            if [[ "$any_alive" == "false" ]]; then
+                break
+            fi
+            
+            # Sleep to avoid busy waiting
+            sleep 1
+        done
+    fi
     
     log::success "Phase '$phase' completed successfully"
     return 0

@@ -173,11 +173,68 @@
       }
     ]
   },
+  "features": [
+    {
+      "file": "feature-development-guide.md",
+      "title": "Feature Development Guide",
+      "description": "Meta-prompt to help choose which development prompt to use",
+      "variables": [],
+      "usage_count": 0,
+      "is_favorite": true,
+      "effectiveness_rating": 5,
+      "is_guide": true,
+      "category": "meta"
+    },
+    {
+      "file": "add-fix-resource.md",
+      "title": "Resource Development and Enhancement",
+      "description": "Comprehensive guide for adding or fixing Vrooli resources (local services)",
+      "variables": [],
+      "usage_count": 0,
+      "is_favorite": true,
+      "effectiveness_rating": 5,
+      "category": "infrastructure",
+      "task_type": "RESOURCE_DEVELOPMENT"
+    },
+    {
+      "file": "add-fix-n8n-workflow.md",
+      "title": "N8n Workflow Development and Enhancement",
+      "description": "Complete guide for creating and fixing n8n automation workflows",
+      "variables": [],
+      "usage_count": 0,
+      "is_favorite": true,
+      "effectiveness_rating": 5,
+      "category": "automation",
+      "task_type": "WORKFLOW_DEVELOPMENT"
+    },
+    {
+      "file": "add-fix-scenario.md",
+      "title": "Scenario Development and Enhancement",
+      "description": "Comprehensive guide for building complete Vrooli scenarios (applications)",
+      "variables": [],
+      "usage_count": 0,
+      "is_favorite": true,
+      "effectiveness_rating": 5,
+      "category": "application",
+      "task_type": "SCENARIO_DEVELOPMENT"
+    },
+    {
+      "file": "add-fix-core-features.md",
+      "title": "Core Vrooli Feature Development",
+      "description": "Guide for developing foundational Vrooli platform features",
+      "variables": [],
+      "usage_count": 0,
+      "is_favorite": true,
+      "effectiveness_rating": 5,
+      "category": "platform",
+      "task_type": "CORE_DEVELOPMENT"
+    }
+  ],
   "templates": [],
   "metadata": {
-    "version": "2.0.0",
+    "version": "3.0.0",
     "updated": "2025-08-15",
-    "description": "AI maintenance tasks for Vrooli codebase",
-    "source": "Migrated from docs/ai-maintenance/"
+    "description": "AI maintenance tasks and feature development prompts for Vrooli",
+    "source": "Migrated from docs/ai-maintenance/ + comprehensive feature development prompts"
   }
 }

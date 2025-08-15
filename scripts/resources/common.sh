@@ -1151,7 +1151,15 @@ resources::start_service() {
     fi
     
     log::info "Starting service: $service_name"
-    sudo::exec_with_fallback "systemctl start '$service_name'"
+    # Use direct sudo for systemctl to preserve stdin for password prompts
+    # The </dev/tty ensures sudo can read password from terminal
+    if [[ -t 0 ]]; then
+        # Terminal available - sudo can prompt properly
+        sudo systemctl start "$service_name" </dev/tty
+    else
+        # No terminal - use fallback
+        sudo::exec_with_fallback "systemctl start '$service_name'"
+    fi
     log::success "Service $service_name started"
 }
 
@@ -1169,7 +1177,14 @@ resources::stop_service() {
     fi
     
     log::info "Stopping service: $service_name"
-    sudo::exec_with_fallback "systemctl stop '$service_name'" 2>/dev/null || true
+    # Use direct sudo for systemctl to preserve stdin for password prompts
+    if [[ -t 0 ]]; then
+        # Terminal available - sudo can prompt properly
+        sudo systemctl stop "$service_name" </dev/tty 2>/dev/null || true
+    else
+        # No terminal - use fallback
+        sudo::exec_with_fallback "systemctl stop '$service_name'" 2>/dev/null || true
+    fi
     log::success "Service $service_name stopped"
 }
 

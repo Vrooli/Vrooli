@@ -139,31 +139,43 @@ main() {
     case "$command" in
         # Lifecycle commands (delegate to manage.sh)
         setup|develop|build|deploy|clean|backup|restore)
+            # Clear source guards to allow manage.sh to load functions properly
+            unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED
             exec "${VROOLI_ROOT}/scripts/manage.sh" "$command" "$@"
             ;;
         
         # Test commands (delegate to test-commands.sh)
         test)
+            # Clear source guards to allow test-commands.sh to load functions properly
+            unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED
             exec "${VROOLI_ROOT}/cli/commands/test-commands.sh" "$@"
             ;;
         
         # App management commands
         app)
+            # Clear source guards to allow app-commands.sh to load functions properly
+            unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED
             exec "${VROOLI_ROOT}/cli/commands/app-commands.sh" "$@"
             ;;
         
         # Scenario commands  
         scenario)
+            # Clear source guards to allow scenario-commands.sh to load functions properly
+            unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED
             exec "${VROOLI_ROOT}/cli/commands/scenario-commands.sh" "$@"
             ;;
             
         # Resource commands
         resource)
+            # Clear source guards to allow resource-commands.sh to load functions properly
+            unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED
             exec "${VROOLI_ROOT}/cli/commands/resource-commands.sh" "$@"
             ;;
             
         # Orchestrator commands
         orchestrator)
+            # Clear source guards to allow orchestrator-commands.sh to load functions properly
+            unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED
             exec "${VROOLI_ROOT}/cli/commands/orchestrator-commands.sh" "$@"
             ;;
         

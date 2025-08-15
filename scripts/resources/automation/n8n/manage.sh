@@ -161,13 +161,6 @@ n8n::parse_arguments() {
         --default "no"
     
     args::register \
-        --name "build-image" \
-        --desc "Build custom n8n image with host access" \
-        --type "value" \
-        --options "yes|no" \
-        --default "no"
-    
-    args::register \
         --name "injection-config" \
         --desc "JSON configuration for data injection" \
         --type "value" \
@@ -206,7 +199,6 @@ n8n::parse_arguments() {
     AUTH_PASSWORD=$(args::get "password")
     DATABASE_TYPE=$(args::get "database")
     TUNNEL_ENABLED=$(args::get "tunnel")
-    BUILD_IMAGE=$(args::get "build-image")
     INJECTION_CONFIG=$(args::get "injection-config")
     INJECTION_CONFIG_FILE=$(args::get "injection-config-file")
     VALIDATION_TYPE=$(args::get "validation-type")
@@ -214,7 +206,7 @@ n8n::parse_arguments() {
     AUTO_CREATE_CREDENTIALS=$(args::get "auto-credentials")
     ACTIVATE_WORKFLOW_ID=$(args::get "workflow-id")
     ACTIVATION_PATTERN=$(args::get "pattern")
-    export ACTION FORCE LINES YES WEBHOOK_URL WORKFLOW_ID API_KEY WORKFLOW_DATA BASIC_AUTH AUTH_USERNAME AUTH_PASSWORD DATABASE_TYPE TUNNEL_ENABLED BUILD_IMAGE INJECTION_CONFIG VALIDATION_TYPE VALIDATION_FILE AUTO_CREATE_CREDENTIALS ACTIVATE_WORKFLOW_ID ACTIVATION_PATTERN
+    export ACTION FORCE LINES YES WEBHOOK_URL WORKFLOW_ID API_KEY WORKFLOW_DATA BASIC_AUTH AUTH_USERNAME AUTH_PASSWORD DATABASE_TYPE TUNNEL_ENABLED INJECTION_CONFIG VALIDATION_TYPE VALIDATION_FILE AUTO_CREATE_CREDENTIALS ACTIVATE_WORKFLOW_ID ACTIVATION_PATTERN
 }
 
 #######################################

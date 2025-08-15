@@ -17,7 +17,13 @@ INSERT INTO tags (name, color, description) VALUES
     ('documentation', '#6B7280', 'Documentation and comment improvements'),
     ('cleanup', '#EC4899', 'Code cleanup and dead code removal'),
     ('error-handling', '#14B8A6', 'Error handling and logging improvements'),
-    ('startup', '#F97316', 'Development environment and startup issues')
+    ('startup', '#F97316', 'Development environment and startup issues'),
+    ('feature-development', '#10B981', 'Feature development and enhancement'),
+    ('infrastructure', '#F97316', 'Infrastructure and resource development'),
+    ('automation', '#8B5CF6', 'Workflow and automation development'),
+    ('application', '#EC4899', 'Application and scenario development'),
+    ('platform', '#6B7280', 'Platform and core feature development'),
+    ('guide', '#6366f1', 'Guide and reference prompts')
 ON CONFLICT (name) DO NOTHING;
 
 -- Insert campaigns for organizing maintenance tasks
@@ -28,7 +34,12 @@ INSERT INTO campaigns (name, description, color, icon, sort_order, is_favorite) 
     ('Security & Safety', 'Security reviews and vulnerability assessments', '#EF4444', 'shield', 4, true),
     ('User Experience', 'UX, accessibility, and loading state improvements', '#8B5CF6', 'users', 5, false),
     ('Code Health', 'Code quality, cleanup, and refactoring tasks', '#3B82F6', 'heart', 6, false),
-    ('Documentation', 'Documentation, comments, and knowledge management', '#6B7280', 'book', 7, false)
+    ('Documentation', 'Documentation, comments, and knowledge management', '#6B7280', 'book', 7, false),
+    ('Feature Development', 'Comprehensive guides for building new Vrooli capabilities', '#10B981', 'plus-circle', 8, true),
+    ('Resource Development', 'Building and enhancing local services and infrastructure', '#F97316', 'server', 9, true),
+    ('Automation Development', 'Creating workflows and process automation', '#8B5CF6', 'workflow', 10, true),
+    ('Application Development', 'Building complete scenarios and business applications', '#EC4899', 'application', 11, true),
+    ('Platform Development', 'Core Vrooli platform and infrastructure improvements', '#6B7280', 'cog', 12, false)
 ON CONFLICT (name) DO NOTHING;
 
 -- Get campaign and tag IDs for relationships
@@ -41,6 +52,11 @@ DECLARE
     ux_campaign_id UUID;
     code_campaign_id UUID;
     docs_campaign_id UUID;
+    feature_campaign_id UUID;
+    resource_campaign_id UUID;
+    automation_campaign_id UUID;
+    application_campaign_id UUID;
+    platform_campaign_id UUID;
     
     maintenance_tag_id UUID;
     testing_tag_id UUID;
@@ -52,6 +68,12 @@ DECLARE
     cleanup_tag_id UUID;
     error_handling_tag_id UUID;
     startup_tag_id UUID;
+    feature_development_tag_id UUID;
+    infrastructure_tag_id UUID;
+    automation_tag_id UUID;
+    application_tag_id UUID;
+    platform_tag_id UUID;
+    guide_tag_id UUID;
 BEGIN
     -- Get campaign IDs
     SELECT id INTO maintenance_campaign_id FROM campaigns WHERE name = 'AI Maintenance';
@@ -61,6 +83,11 @@ BEGIN
     SELECT id INTO ux_campaign_id FROM campaigns WHERE name = 'User Experience';
     SELECT id INTO code_campaign_id FROM campaigns WHERE name = 'Code Health';
     SELECT id INTO docs_campaign_id FROM campaigns WHERE name = 'Documentation';
+    SELECT id INTO feature_campaign_id FROM campaigns WHERE name = 'Feature Development';
+    SELECT id INTO resource_campaign_id FROM campaigns WHERE name = 'Resource Development';
+    SELECT id INTO automation_campaign_id FROM campaigns WHERE name = 'Automation Development';
+    SELECT id INTO application_campaign_id FROM campaigns WHERE name = 'Application Development';
+    SELECT id INTO platform_campaign_id FROM campaigns WHERE name = 'Platform Development';
     
     -- Get tag IDs
     SELECT id INTO maintenance_tag_id FROM tags WHERE name = 'maintenance';
@@ -73,6 +100,12 @@ BEGIN
     SELECT id INTO cleanup_tag_id FROM tags WHERE name = 'cleanup';
     SELECT id INTO error_handling_tag_id FROM tags WHERE name = 'error-handling';
     SELECT id INTO startup_tag_id FROM tags WHERE name = 'startup';
+    SELECT id INTO feature_development_tag_id FROM tags WHERE name = 'feature-development';
+    SELECT id INTO infrastructure_tag_id FROM tags WHERE name = 'infrastructure';
+    SELECT id INTO automation_tag_id FROM tags WHERE name = 'automation';
+    SELECT id INTO application_tag_id FROM tags WHERE name = 'application';
+    SELECT id INTO platform_tag_id FROM tags WHERE name = 'platform';
+    SELECT id INTO guide_tag_id FROM tags WHERE name = 'guide';
 
     -- Insert the main guide
     INSERT INTO prompts (campaign_id, title, file_path, description, variables, usage_count, is_favorite, effectiveness_rating, quick_access_key) VALUES
@@ -269,13 +302,81 @@ BEGIN
     FROM prompts p
     WHERE p.file_path LIKE 'maintenance/%';
 
+    -- Insert feature development prompts
+    INSERT INTO prompts (campaign_id, title, file_path, description, variables, usage_count, is_favorite, effectiveness_rating, quick_access_key) VALUES
+        (feature_campaign_id,
+         'Feature Development Guide',
+         'features/feature-development-guide.md',
+         'Meta-prompt to help choose which development prompt to use',
+         '[]'::jsonb,
+         0, true, 5, 'dev-guide'),
+         
+        (resource_campaign_id,
+         'Resource Development and Enhancement',
+         'features/add-fix-resource.md',
+         'Comprehensive guide for adding or fixing Vrooli resources (local services)',
+         '[]'::jsonb,
+         0, true, 5, 'resource'),
+         
+        (automation_campaign_id,
+         'N8n Workflow Development and Enhancement',
+         'features/add-fix-n8n-workflow.md',
+         'Complete guide for creating and fixing n8n automation workflows',
+         '[]'::jsonb,
+         0, true, 5, 'workflow'),
+         
+        (application_campaign_id,
+         'Scenario Development and Enhancement',
+         'features/add-fix-scenario.md',
+         'Comprehensive guide for building complete Vrooli scenarios (applications)',
+         '[]'::jsonb,
+         0, true, 5, 'scenario'),
+         
+        (platform_campaign_id,
+         'Core Vrooli Feature Development',
+         'features/add-fix-core-features.md',
+         'Guide for developing foundational Vrooli platform features',
+         '[]'::jsonb,
+         0, true, 5, 'core');
+
+    -- Create prompt-tag relationships for feature development prompts
+    INSERT INTO prompt_tags (prompt_id, tag_id)
+    SELECT p.id, guide_tag_id
+    FROM prompts p
+    WHERE p.file_path = 'features/feature-development-guide.md';
+
+    INSERT INTO prompt_tags (prompt_id, tag_id)
+    SELECT p.id, feature_development_tag_id
+    FROM prompts p
+    WHERE p.file_path LIKE 'features/%';
+
+    INSERT INTO prompt_tags (prompt_id, tag_id)
+    SELECT p.id, infrastructure_tag_id
+    FROM prompts p
+    WHERE p.file_path = 'features/add-fix-resource.md';
+
+    INSERT INTO prompt_tags (prompt_id, tag_id)
+    SELECT p.id, automation_tag_id
+    FROM prompts p
+    WHERE p.file_path = 'features/add-fix-n8n-workflow.md';
+
+    INSERT INTO prompt_tags (prompt_id, tag_id)
+    SELECT p.id, application_tag_id
+    FROM prompts p
+    WHERE p.file_path = 'features/add-fix-scenario.md';
+
+    INSERT INTO prompt_tags (prompt_id, tag_id)
+    SELECT p.id, platform_tag_id
+    FROM prompts p
+    WHERE p.file_path = 'features/add-fix-core-features.md';
+
 END $$;
 
 -- Update campaign last_used timestamps and prompt counts
 UPDATE campaigns SET 
     last_used = CURRENT_TIMESTAMP,
     prompt_count = (SELECT COUNT(*) FROM prompts WHERE campaign_id = campaigns.id)
-WHERE name IN ('AI Maintenance', 'Test Improvements', 'Performance', 'Security & Safety', 'User Experience', 'Code Health', 'Documentation');
+WHERE name IN ('AI Maintenance', 'Test Improvements', 'Performance', 'Security & Safety', 'User Experience', 'Code Health', 'Documentation', 'Feature Development', 'Resource Development', 'Automation Development', 'Application Development', 'Platform Development');
 
 -- Function to load prompt content from files (placeholder for production)
 CREATE OR REPLACE FUNCTION load_prompt_content(path VARCHAR)

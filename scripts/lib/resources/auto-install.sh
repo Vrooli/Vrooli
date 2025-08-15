@@ -193,7 +193,8 @@ resource_auto::start_resource() {
     # Try using CLI first
     if command -v "resource-${resource_name}" &>/dev/null; then
         log::info "Starting resource: $resource_name"
-        if "resource-${resource_name}" start 2>/dev/null; then
+        # Don't redirect stderr - sudo needs it for password prompts
+        if "resource-${resource_name}" start; then
             resource_registry::register "$resource_name" "running"
             log::success "✅ Resource started: $resource_name"
             return 0

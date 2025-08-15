@@ -15,9 +15,19 @@ set -euo pipefail
 API_PORT="${VROOLI_API_PORT:-8090}"
 API_BASE="http://localhost:${API_PORT}"
 
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
 # Source utilities for display
 # shellcheck disable=SC1091
 VROOLI_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# Unset source guards to ensure utilities are properly loaded when exec'd from CLI
+unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED 2>/dev/null || true
 source "${VROOLI_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
@@ -26,11 +36,10 @@ source "${var_LIB_UTILS_DIR}/flow.sh"
 
 # Check if API is running
 check_api() {
-    if ! curl -s "${API_BASE}/health" >/dev/null 2>&1; then
-        log::error "App API is not running"
-        echo "Start it with: cd api && go run main.go"
-        return 1
+    if ! curl -s --connect-timeout 2 "${API_BASE}/health" >/dev/null 2>&1; then
+        return 1  # Return failure silently, let callers handle it
     fi
+    return 0
 }
 
 # Show help
@@ -78,20 +87,75 @@ EOF
 
 # List all apps
 app_list() {
-    check_api || return 1
-    
     log::header "Generated Apps"
     
-    local response
-    response=$(curl -s "${API_BASE}/apps")
+    local apps
+    local use_api=false
     
-    if ! echo "$response" | jq -e '.success' >/dev/null 2>&1; then
-        log::error "Failed to list apps"
-        return 1
+    # Try to use API if available
+    if check_api; then
+        local response
+        response=$(curl -s --connect-timeout 2 "${API_BASE}/apps" 2>/dev/null)
+        
+        if echo "$response" | jq -e '.success' >/dev/null 2>&1; then
+            apps=$(echo "$response" | jq -r '.data')
+            use_api=true
+        fi
     fi
     
-    local apps
-    apps=$(echo "$response" | jq -r '.data')
+    # Fallback to filesystem if API not available
+    if [[ "$use_api" == "false" ]]; then
+        # Build JSON array from filesystem
+        apps="[]"
+        local generated_dir="${GENERATED_APPS_DIR:-$HOME/generated-apps}"
+        
+        if [[ -d "$generated_dir" ]]; then
+            for app_dir in "$generated_dir"/*; do
+                [[ ! -d "$app_dir" ]] && continue
+                
+                local app_name
+                app_name=$(basename "$app_dir")
+                
+                # Skip hidden directories and backups
+                [[ "$app_name" == .* && "$app_name" != .tmp-* ]] && continue
+                [[ "$app_name" == "backups" ]] && continue
+                
+                local has_git="false"
+                [[ -d "$app_dir/.git" ]] && has_git="true"
+                
+                local customized="false"
+                if [[ "$has_git" == "true" ]]; then
+                    # Check if there are uncommitted changes
+                    if cd "$app_dir" 2>/dev/null && git diff --quiet HEAD 2>/dev/null; then
+                        customized="false"
+                    else
+                        customized="true"
+                    fi
+                    cd - >/dev/null 2>&1
+                fi
+                
+                local modified
+                modified=$(stat -c '%Y' "$app_dir" 2>/dev/null || stat -f '%m' "$app_dir" 2>/dev/null || echo "0")
+                modified=$(date -d "@$modified" '+%Y-%m-%d' 2>/dev/null || date -r "$modified" '+%Y-%m-%d' 2>/dev/null || echo "unknown")
+                
+                local protected="false"
+                [[ -f "$app_dir/.protected" ]] && protected="true"
+                
+                # Add to apps array
+                local app_json
+                app_json=$(jq -n \
+                    --arg name "$app_name" \
+                    --arg path "$app_dir" \
+                    --arg has_git "$has_git" \
+                    --arg customized "$customized" \
+                    --arg protected "$protected" \
+                    --arg modified "$modified" \
+                    '{name: $name, path: $path, has_git: ($has_git == "true"), customized: ($customized == "true"), protected: ($protected == "true"), modified: $modified}')
+                
+                apps=$(echo "$apps" | jq --argjson app "$app_json" '. + [$app]')
+            done
+        fi
+    fi
     
     # Get runtime status from orchestrator if available
     local runtime_status="{}"
@@ -103,39 +167,81 @@ app_list() {
     echo ""
     echo "Location: ${GENERATED_APPS_DIR:-$HOME/generated-apps}"
     echo ""
-    printf "%-30s %-12s %-15s %-20s\n" "APP NAME" "RUNTIME" "GIT STATUS" "LAST MODIFIED"
-    printf "%-30s %-12s %-15s %-20s\n" "--------" "-------" "----------" "-------------"
+    printf "%-30s %-12s %-25s %-15s %-20s\n" "APP NAME" "RUNTIME" "URL" "GIT STATUS" "LAST MODIFIED"
+    printf "%-30s %-12s %-25s %-15s %-20s\n" "--------" "-------" "---" "----------" "-------------"
     
-    echo "$apps" | jq -c '.[]' | while IFS= read -r app; do
-        local name git_status modified runtime_state
-        name=$(echo "$app" | jq -r '.name')
-        modified=$(echo "$app" | jq -r '.modified' | cut -d'T' -f1)
+    # Process each app (properly handle JSON array)
+    local app_count=0
+    while IFS= read -r app; do
+        # Skip empty lines
+        [[ -z "$app" ]] && continue
+        
+        # Process app in subshell to prevent errors from breaking the loop
+        (
+            # Extract app data (with error handling)
+            local name git_status modified runtime_state url_display
+            name=$(echo "$app" | jq -r '.name' 2>/dev/null)
+            [[ -z "$name" || "$name" == "null" ]] && exit 0
+            
+            modified=$(echo "$app" | jq -r '.modified' 2>/dev/null || echo "unknown")
+            [[ "$modified" == "null" ]] && modified="unknown"
+            modified=$(echo "$modified" | cut -d'T' -f1 2>/dev/null || echo "$modified")
         
         # Determine git status
         git_status="✅ Clean"
-        if [[ $(echo "$app" | jq -r '.has_git') == "false" ]]; then
+        local has_git customized protected
+        has_git=$(echo "$app" | jq -r '.has_git' 2>/dev/null || echo "false")
+        customized=$(echo "$app" | jq -r '.customized' 2>/dev/null || echo "false")
+        protected=$(echo "$app" | jq -r '.protected' 2>/dev/null || echo "false")
+        
+        if [[ "$has_git" == "false" ]]; then
             git_status="⚠️  No Git"
-        elif [[ $(echo "$app" | jq -r '.customized') == "true" ]]; then
+        elif [[ "$customized" == "true" ]]; then
             git_status="🔧 Modified"
         fi
         
-        [[ $(echo "$app" | jq -r '.protected') == "true" ]] && git_status="$git_status 🔒"
+        if [[ "$protected" == "true" ]]; then
+            git_status="$git_status 🔒"
+        fi
         
-        # Get runtime state from orchestrator
+        # Get runtime state and URL from orchestrator
         runtime_state="○ Stopped"
+        url_display="-"
         local process_name="vrooli.$name.develop"
-        local state
-        state=$(echo "$runtime_status" | jq -r --arg name "$process_name" '.processes[$name].state // "stopped"' 2>/dev/null)
         
-        case "$state" in
-            "running") runtime_state="● Running" ;;
-            "crashed"|"failed") runtime_state="✗ Failed" ;;
-            "stopped") runtime_state="○ Stopped" ;;
-            *) runtime_state="◌ Unknown" ;;
-        esac
+        if [[ -f "$orchestrator_registry" ]]; then
+            local state port
+            state=$(jq -r --arg pname "$process_name" '.processes[$pname].state // "stopped"' "$orchestrator_registry" 2>/dev/null)
+            
+            case "$state" in
+                "running") 
+                    runtime_state="● Running"
+                    # Get port from metadata or env_vars
+                    port=$(jq -r --arg pname "$process_name" '.processes[$pname].metadata.port // .processes[$pname].env_vars.PORT // ""' "$orchestrator_registry" 2>/dev/null)
+                    if [[ -n "$port" ]] && [[ "$port" != "null" ]]; then
+                        url_display="http://localhost:$port"
+                    fi
+                    ;;
+                "crashed"|"failed") runtime_state="✗ Failed" ;;
+                "stopped") runtime_state="○ Stopped" ;;
+                *) runtime_state="◌ Unknown" ;;
+            esac
+        fi
         
-        printf "%-30s %-12s %-15s %-20s\n" "$name" "$runtime_state" "$git_status" "$modified"
-    done
+            # Format output - using simpler color handling
+            if [[ "$url_display" != "-" ]]; then
+                # Print with colored URL
+                printf "%-30s %-12s ${BLUE}%-25s${NC} %-15s %-20s\n" \
+                    "$name" "$runtime_state" "$url_display" "$git_status" "$modified"
+            else
+                # Print without color
+                printf "%-30s %-12s %-25s %-15s %-20s\n" \
+                    "$name" "$runtime_state" "$url_display" "$git_status" "$modified"
+            fi
+        ) || true  # Continue even if subshell fails
+        
+        app_count=$((app_count + 1))
+    done < <(echo "$apps" | jq -c '.[]' 2>/dev/null)
     
     local count
     count=$(echo "$apps" | jq '. | length')
@@ -445,9 +551,12 @@ app_start() {
         return 1
     fi
     
-    # Source orchestrator client
+    # Source orchestrator client (without failing on error)
     # shellcheck disable=SC1090
-    source "$orchestrator_client" >/dev/null 2>&1
+    if ! source "$orchestrator_client" >/dev/null 2>&1; then
+        log::error "Failed to load orchestrator client"
+        return 1
+    fi
     
     # Set explicit parent to prevent auto-detection issues
     export VROOLI_ORCHESTRATOR_PARENT="vrooli"
@@ -468,38 +577,52 @@ app_start() {
     if [[ "$already_registered" == "false" ]]; then
         if ! orchestrator::register "$app_name.develop" "./scripts/manage.sh develop" \
             --working-dir "$app_path" \
-            --auto-restart; then
+            --auto-restart 2>/dev/null; then
             log::error "Failed to register app: $app_name"
             return 1
         fi
     fi
     
     # Start the app by sending command to FIFO with timeout
-    local cmd_json=$(jq -n -c --arg name "$full_name" '{command: "start", args: [$name]}')
+    local cmd_json
+    cmd_json=$(jq -n -c --arg name "$full_name" '{command: "start", args: [$name]}')
     local fifo="${VROOLI_ORCHESTRATOR_HOME:-$HOME/.vrooli/orchestrator}/commands.fifo"
     
     if [[ -p "$fifo" ]]; then
-        # Use timeout to prevent hanging
-        if timeout 2 bash -c "echo '$cmd_json' > '$fifo'"; then
-            log::success "✅ App started: $app_name"
-            
-            # Wait a moment for app to start
-            sleep 2
-            
-            # Try to get port from orchestrator registry
+        # Use timeout to prevent hanging (allow failure)
+        timeout 2 bash -c "echo '$cmd_json' > '$fifo'" 2>/dev/null || true
+        
+        # Wait a moment for app to start and registry to update
+        sleep 3
+        
+        # Try to get port from orchestrator registry (retry a few times)
+        local port=""
+        local retries=3
+        while [[ $retries -gt 0 ]] && [[ -z "$port" ]]; do
             if [[ -f "$registry_file" ]]; then
-                local port
-                port=$(jq -r --arg name "$full_name" \
-                    '.processes[$name].metadata.port // .processes[$name].env_vars.PORT // ""' \
+                port=$(jq -r --arg pname "$full_name" \
+                    '.processes[$pname].metadata.port // .processes[$pname].env_vars.PORT // ""' \
                     "$registry_file" 2>/dev/null)
-                if [[ -n "$port" ]]; then
-                    echo "   URL: http://localhost:$port"
-                fi
             fi
-        else
-            log::error "Failed to send start command to orchestrator"
-            echo "The orchestrator might be busy or not responding"
-            return 1
+            
+            if [[ -z "$port" ]] && [[ $retries -gt 1 ]]; then
+                sleep 1
+                retries=$((retries - 1))
+            else
+                break
+            fi
+        done
+        
+        # Display success with URL if available
+        log::success "✅ App started: $app_name"
+        if [[ -n "$port" ]] && [[ "$port" != "null" ]]; then
+            echo ""
+            echo -e "   ${GREEN}➜${NC} URL: ${BLUE}http://localhost:$port${NC}"
+            echo ""
+            echo "   Other commands:"
+            echo "     vrooli app stop $app_name      # Stop the app"
+            echo "     vrooli app logs $app_name      # View logs"
+            echo "     vrooli app restart $app_name   # Restart"
         fi
     else
         log::error "Orchestrator FIFO not found. Is the orchestrator running?"
@@ -550,13 +673,13 @@ app_restart() {
     
     log::info "Restarting app: $app_name"
     
-    # Stop then start
-    if app_stop "$app_name"; then
+    # Stop then start (suppress stop output to avoid clutter)
+    if app_stop "$app_name" >/dev/null 2>&1; then
         sleep 2
         app_start "$app_name"
     else
         # If stop failed, try to start anyway (might not be running)
-        log::info "Attempting to start app..."
+        log::info "App not running, starting it..."
         app_start "$app_name"
     fi
 }

@@ -414,8 +414,15 @@ start_process() {
         trap 'exit 0' TERM INT
         trap 'exit 1' ERR
         
-        # Execute command
-        exec bash -c "$command"
+        # Unset source guard variables to prevent conflicts in child processes
+        unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED 2>/dev/null || true
+        unset JSON_CONFIG_CACHE JSON_CONFIG_PATH JSON_DEBUG 2>/dev/null || true
+        
+        # Set CPU limits to prevent runaway processes
+        # Limit CPU time to 30 minutes (1800 seconds)
+        ulimit -t 1800
+        # Run with lower priority to prevent CPU hogging
+        exec nice -n 10 bash -c "$command"
     ) > "$log_file" 2>&1 &
     
     local pid=$!
@@ -724,6 +731,11 @@ monitor_processes() {
     local consecutive_errors=0
     local max_errors=5
     
+    # Track high CPU usage per process
+    declare -A high_cpu_counts
+    local cpu_threshold=80  # CPU percentage threshold
+    local max_high_cpu_checks=3  # Kill after 3 consecutive high CPU checks
+    
     while true; do
         # Safety check - bail if too many consecutive errors
         if [[ $consecutive_errors -ge $max_errors ]]; then
@@ -760,6 +772,7 @@ monitor_processes() {
         while IFS=: read -r name pid; do
             [[ -z "$name" ]] && continue
             
+            # Check if process is still alive
             if [[ -n "$pid" ]] && ! kill -0 "$pid" 2>/dev/null; then
                 log "WARN" "Process crashed: $name (PID $pid)"
                 
@@ -798,6 +811,43 @@ monitor_processes() {
                         updated=false  # Already saved
                     else
                         log "ERROR" "Process $name exceeded restart limit (3)"
+                    fi
+                fi
+            else
+                # Process is alive, check CPU usage
+                if [[ -n "$pid" ]]; then
+                    local cpu_usage=$(ps -p "$pid" -o %cpu --no-headers 2>/dev/null | tr -d ' ')
+                    if [[ -n "$cpu_usage" ]]; then
+                        # Compare as integers (bash doesn't do floating point comparison well)
+                        local cpu_int=${cpu_usage%.*}
+                        if [[ $cpu_int -ge $cpu_threshold ]]; then
+                            # Increment high CPU counter
+                            high_cpu_counts[$name]=$((${high_cpu_counts[$name]:-0} + 1))
+                            log "WARN" "High CPU usage detected for $name (PID $pid): ${cpu_usage}% (check ${high_cpu_counts[$name]}/$max_high_cpu_checks)"
+                            
+                            if [[ ${high_cpu_counts[$name]} -ge $max_high_cpu_checks ]]; then
+                                log "ERROR" "Killing process $name (PID $pid) due to sustained high CPU usage"
+                                kill -TERM "$pid" 2>/dev/null || kill -KILL "$pid" 2>/dev/null
+                                
+                                # Update state to crashed
+                                registry=$(echo "$registry" | jq \
+                                    --arg name "$name" \
+                                    --arg state "$STATE_CRASHED" \
+                                    --arg stopped_at "$(date -Iseconds)" \
+                                    '
+                                    .processes[$name].state = $state |
+                                    .processes[$name].pid = null |
+                                    .processes[$name].stopped_at = $stopped_at
+                                    ')
+                                updated=true
+                                
+                                # Reset counter
+                                unset high_cpu_counts[$name]
+                            fi
+                        else
+                            # Reset counter if CPU is normal
+                            unset high_cpu_counts[$name]
+                        fi
                     fi
                 fi
             fi

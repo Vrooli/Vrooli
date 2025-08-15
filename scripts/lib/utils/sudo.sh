@@ -44,6 +44,11 @@ sudo::is_root() {
 #   0 if sudo can be used, 1 otherwise
 #######################################
 sudo::can_use_sudo() {
+    # Check SUDO_MODE first - if skip, never use sudo
+    if [[ "${SUDO_MODE:-}" == "skip" ]]; then
+        return 1
+    fi
+    
     # Check if sudo command exists
     if ! command -v sudo >/dev/null 2>&1; then
         return 1
@@ -69,7 +74,15 @@ sudo::exec_with_fallback() {
     local cmd="$1"
     
     if sudo::can_use_sudo; then
-        sudo bash -c "$cmd"
+        # Use sudo with stdin properly preserved for password prompts
+        # The </dev/tty ensures sudo can read password from terminal
+        if [[ -t 0 ]]; then
+            # Terminal is available - sudo can prompt for password
+            sudo bash -c "$cmd" </dev/tty
+        else
+            # No terminal - try without stdin redirect (may fail if password needed)
+            sudo bash -c "$cmd"
+        fi
     else
         bash -c "$cmd"
     fi
