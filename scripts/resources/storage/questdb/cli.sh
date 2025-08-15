@@ -11,30 +11,27 @@
 
 set -euo pipefail
 
-# Get script directory (handle symlinks)
+# Get script directory (resolving symlinks for installed CLI)
 if [[ -L "${BASH_SOURCE[0]}" ]]; then
-    REAL_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
-    QUESTDB_CLI_DIR="$(cd "$(dirname "$REAL_SCRIPT")" && pwd)"
+    QUESTDB_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
 else
-    QUESTDB_CLI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    QUESTDB_CLI_SCRIPT="${BASH_SOURCE[0]}"
 fi
+QUESTDB_CLI_DIR="$(cd "$(dirname "$QUESTDB_CLI_SCRIPT")" && pwd)"
 
-VROOLI_ROOT="${VROOLI_ROOT:-$(cd "$QUESTDB_CLI_DIR/../../../.." && pwd)}"
-export VROOLI_ROOT
-export RESOURCE_DIR="$QUESTDB_CLI_DIR"
-export QUESTDB_SCRIPT_DIR="$QUESTDB_CLI_DIR"  # For compatibility with existing libs
+# Source standard variables
+# shellcheck disable=SC1091
+source "${QUESTDB_CLI_DIR}/../../../lib/utils/var.sh"
 
-# Source utilities first
+# Source utilities using var_ variables
 # shellcheck disable=SC1091
-source "${VROOLI_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || true
+source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
-source "${var_LOG_FILE:-${VROOLI_ROOT}/scripts/lib/utils/log.sh}" 2>/dev/null || true
-# shellcheck disable=SC1091
-source "${var_RESOURCES_COMMON_FILE:-${VROOLI_ROOT}/scripts/resources/common.sh}" 2>/dev/null || true
+source "${var_RESOURCES_COMMON_FILE}"
 
 # Source the CLI Command Framework
 # shellcheck disable=SC1091
-source "${VROOLI_ROOT}/scripts/resources/lib/cli-command-framework.sh"
+source "${var_SCRIPTS_RESOURCES_LIB_DIR}/cli-command-framework.sh"
 
 # Source questdb configuration
 # shellcheck disable=SC1091
@@ -54,24 +51,24 @@ done
 cli::init "questdb" "QuestDB high-performance time-series database management"
 
 # Override help to provide QuestDB-specific examples
-cli::register_command "help" "Show this help message with QuestDB examples" "resource_cli::show_help"
+cli::register_command "help" "Show this help message with QuestDB examples" "questdb_show_help"
 
 # Register additional QuestDB-specific commands
-cli::register_command "inject" "Inject SQL/CSV/JSON data into QuestDB" "resource_cli::inject" "modifies-system"
-cli::register_command "query" "Execute SQL query" "resource_cli::query"
-cli::register_command "tables" "List or create tables" "resource_cli::tables"
-cli::register_command "api" "Make API request" "resource_cli::api"
-cli::register_command "console" "Open web console in browser" "resource_cli::console"
-cli::register_command "logs" "Show container logs" "resource_cli::logs"
-cli::register_command "credentials" "Show n8n credentials for QuestDB" "resource_cli::credentials"
-cli::register_command "uninstall" "Uninstall QuestDB (requires --force)" "resource_cli::uninstall" "modifies-system"
+cli::register_command "inject" "Inject SQL/CSV/JSON data into QuestDB" "questdb_inject" "modifies-system"
+cli::register_command "query" "Execute SQL query" "questdb_query"
+cli::register_command "tables" "List or create tables" "questdb_tables"
+cli::register_command "api" "Make API request" "questdb_api"
+cli::register_command "console" "Open web console in browser" "questdb_console"
+cli::register_command "logs" "Show container logs" "questdb_logs"
+cli::register_command "credentials" "Show n8n credentials for QuestDB" "questdb_credentials"
+cli::register_command "uninstall" "Uninstall QuestDB (requires --force)" "questdb_uninstall" "modifies-system"
 
 ################################################################################
 # Resource-specific command implementations
 ################################################################################
 
 # Inject data into QuestDB
-resource_cli::inject() {
+questdb_inject() {
     local file="${1:-}"
     
     if [[ -z "$file" ]]; then
@@ -87,7 +84,7 @@ resource_cli::inject() {
     
     # Handle shared: prefix
     if [[ "$file" == shared:* ]]; then
-        file="${VROOLI_ROOT}/${file#shared:}"
+        file="${var_ROOT_DIR}/${file#shared:}"
     fi
     
     if [[ ! -f "$file" ]]; then
@@ -122,7 +119,7 @@ resource_cli::inject() {
 }
 
 # Validate QuestDB configuration
-resource_cli::validate() {
+questdb_validate() {
     if command -v questdb::validate &>/dev/null; then
         questdb::validate
     elif command -v questdb::status::health_check &>/dev/null; then
@@ -140,7 +137,7 @@ resource_cli::validate() {
 }
 
 # Show QuestDB status
-resource_cli::status() {
+questdb_status() {
     if command -v questdb::status::check &>/dev/null; then
         questdb::status::check
     else
@@ -157,7 +154,7 @@ resource_cli::status() {
 }
 
 # Start QuestDB
-resource_cli::start() {
+questdb_start() {
     if command -v questdb::docker::start &>/dev/null; then
         questdb::docker::start
     else
@@ -167,7 +164,7 @@ resource_cli::start() {
 }
 
 # Stop QuestDB
-resource_cli::stop() {
+questdb_stop() {
     if command -v questdb::docker::stop &>/dev/null; then
         questdb::docker::stop
     else
@@ -177,7 +174,7 @@ resource_cli::stop() {
 }
 
 # Install QuestDB
-resource_cli::install() {
+questdb_install() {
     if command -v questdb::install::run &>/dev/null; then
         questdb::install::run
     else
@@ -187,7 +184,7 @@ resource_cli::install() {
 }
 
 # Uninstall QuestDB
-resource_cli::uninstall() {
+questdb_uninstall() {
     FORCE="${FORCE:-false}"
     
     if [[ "$FORCE" != "true" ]]; then
@@ -206,8 +203,8 @@ resource_cli::uninstall() {
 }
 
 # Show credentials for n8n integration
-resource_cli::credentials() {
-    source "${VROOLI_ROOT}/scripts/resources/lib/credentials-utils.sh"
+questdb_credentials() {
+    source "${var_SCRIPTS_RESOURCES_LIB_DIR}/credentials-utils.sh"
     
     if ! credentials::parse_args "$@"; then
         [[ $? -eq 2 ]] && { credentials::show_help "questdb"; return 0; }
@@ -311,7 +308,7 @@ resource_cli::credentials() {
 }
 
 # Execute SQL query
-resource_cli::query() {
+questdb_query() {
     local query="${1:-}"
     
     if [[ -z "$query" ]]; then
@@ -334,7 +331,7 @@ resource_cli::query() {
 }
 
 # List or create tables
-resource_cli::tables() {
+questdb_tables() {
     local action="${1:-list}"
     local table_name="${2:-}"
     local schema_file="${3:-}"
@@ -345,7 +342,7 @@ resource_cli::tables() {
                 questdb::tables::list
             else
                 # Fallback to SHOW TABLES query
-                resource_cli::query "SHOW TABLES"
+                questdb_query "SHOW TABLES"
             fi
             ;;
         create)
@@ -379,7 +376,7 @@ resource_cli::tables() {
 }
 
 # Make API request
-resource_cli::api() {
+questdb_api() {
     local endpoint="${1:-}"
     local method="${2:-GET}"
     local data="${3:-}"
@@ -403,7 +400,7 @@ resource_cli::api() {
 }
 
 # Open web console
-resource_cli::console() {
+questdb_console() {
     if command -v questdb::open_console &>/dev/null; then
         questdb::open_console
     else
@@ -421,7 +418,7 @@ resource_cli::console() {
 }
 
 # Show logs
-resource_cli::logs() {
+questdb_logs() {
     local lines="${1:-50}"
     local follow="${2:-false}"
     local container_name="${QUESTDB_CONTAINER_NAME:-questdb}"
@@ -440,7 +437,7 @@ resource_cli::logs() {
 }
 
 # Custom help function with QuestDB-specific examples
-resource_cli::show_help() {
+questdb_show_help() {
     # Show standard framework help first
     cli::_handle_help
     

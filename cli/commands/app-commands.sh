@@ -207,10 +207,18 @@ app_list() {
         # Get runtime state using process manager
         runtime_state="○ Stopped"
         url_display="-"
-        local process_name="vrooli.$name.develop"
         
-        if type -t pm::is_running >/dev/null 2>&1; then
-            if pm::is_running "$process_name" 2>/dev/null; then
+        # Check if any background processes are running for this app
+        if type -t pm::list >/dev/null 2>&1; then
+            local has_running_processes=false
+            while IFS= read -r process; do
+                if [[ "$process" == vrooli.develop.* ]] && pm::is_running "$process" 2>/dev/null; then
+                    has_running_processes=true
+                    break
+                fi
+            done < <(pm::list 2>/dev/null)
+            
+            if [[ "$has_running_processes" == "true" ]]; then
                 runtime_state="● Running"
                 # Try to get port from app's config
                 local app_path="${GENERATED_APPS_DIR:-$HOME/generated-apps}/$name"
@@ -558,9 +566,10 @@ app_start() {
     # shellcheck disable=SC1090
     source "$process_manager"
     
-    # Start the app
-    local process_name="vrooli.$app_name.develop"
-    if pm::start "$process_name" "./scripts/manage.sh develop" "$app_path"; then
+    # Start the app by running manage.sh develop directly
+    # manage.sh will handle background processes internally via process manager
+    log::info "Running development setup for: $app_name"
+    if (cd "$app_path" && ./scripts/manage.sh develop); then
         # Try to get port from app's package.json or config
         local port=""
         if [[ -f "$app_path/package.json" ]]; then
@@ -616,10 +625,27 @@ app_stop() {
     # shellcheck disable=SC1090
     source "$process_manager"
     
-    # Stop the app
-    local process_name="vrooli.$app_name.develop"
-    pm::stop "$process_name"
-    return $?
+    # Stop all background processes for this app
+    # Background processes are named: vrooli.develop.*
+    local stopped_any=false
+    
+    if command -v pm::list >/dev/null 2>&1; then
+        while IFS= read -r process; do
+            if [[ "$process" == vrooli.develop.* ]]; then
+                if pm::stop "$process"; then
+                    stopped_any=true
+                fi
+            fi
+        done < <(pm::list 2>/dev/null)
+    fi
+    
+    if [[ "$stopped_any" == "true" ]]; then
+        log::success "✓ Stopped background processes for: $app_name"
+        return 0
+    else
+        log::info "No running processes found for: $app_name"
+        return 0
+    fi
 }
 
 # Restart an app using orchestrator
@@ -666,13 +692,37 @@ app_logs() {
     # shellcheck disable=SC1090
     source "$process_manager"
     
-    # Get logs using process manager
-    local process_name="vrooli.$app_name.develop"
+    # Get logs from all background processes for this app
+    local found_processes=()
     
-    if [[ "$follow" == "true" ]]; then
-        pm::logs "$process_name" 50 --follow
-    else
-        pm::logs "$process_name" 50
+    if command -v pm::list >/dev/null 2>&1; then
+        while IFS= read -r process; do
+            if [[ "$process" == vrooli.develop.* ]]; then
+                found_processes+=("$process")
+            fi
+        done < <(pm::list 2>/dev/null)
+    fi
+    
+    if [[ ${#found_processes[@]} -eq 0 ]]; then
+        log::info "No running processes found for: $app_name"
+        return 0
+    fi
+    
+    # Show logs from all background processes
+    for process in "${found_processes[@]}"; do
+        echo ""
+        log::info "Logs for: $process"
+        echo "────────────────────────────────────────────────────────"
+        
+        if [[ "$follow" == "true" ]]; then
+            pm::logs "$process" 50 --follow
+            break  # Only follow one process to avoid confusion
+        else
+            pm::logs "$process" 20
+        fi
+    done
+    
+    if [[ "$follow" != "true" ]]; then
         echo ""
         echo "Use --follow to see logs in real-time"
     fi

@@ -11,24 +11,27 @@
 
 set -euo pipefail
 
-# Get script directory
-OLLAMA_CLI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VROOLI_ROOT="${VROOLI_ROOT:-$(cd "$OLLAMA_CLI_DIR/../../../.." && pwd)}"
-export VROOLI_ROOT
-export RESOURCE_DIR="$OLLAMA_CLI_DIR"
-export OLLAMA_SCRIPT_DIR="$OLLAMA_CLI_DIR"  # For compatibility with existing libs
+# Get script directory (resolving symlinks for installed CLI)
+if [[ -L "${BASH_SOURCE[0]}" ]]; then
+    OLLAMA_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
+else
+    OLLAMA_CLI_SCRIPT="${BASH_SOURCE[0]}"
+fi
+OLLAMA_CLI_DIR="$(cd "$(dirname "$OLLAMA_CLI_SCRIPT")" && pwd)"
 
-# Source utilities
+# Source standard variables
 # shellcheck disable=SC1091
-source "${VROOLI_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || true
+source "${OLLAMA_CLI_DIR}/../../../lib/utils/var.sh"
+
+# Source utilities using var_ variables
 # shellcheck disable=SC1091
-source "${var_LOG_FILE:-${VROOLI_ROOT}/scripts/lib/utils/log.sh}" 2>/dev/null || true
+source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
-source "${var_RESOURCES_COMMON_FILE}" 2>/dev/null || true
+source "${var_RESOURCES_COMMON_FILE}"
 
 # Source the CLI Command Framework
 # shellcheck disable=SC1091
-source "${VROOLI_ROOT}/scripts/resources/lib/cli-command-framework.sh"
+source "${var_SCRIPTS_RESOURCES_LIB_DIR}/cli-command-framework.sh"
 
 # Source Ollama configuration and libraries
 # shellcheck disable=SC1091
@@ -47,23 +50,38 @@ done
 cli::init "ollama" "Ollama AI inference server management"
 
 # Override the help command to provide Ollama-specific examples
-cli::register_command "help" "Show this help message with Ollama examples" "resource_cli::show_help"
+cli::register_command "help" "Show this help message with examples" "ollama_show_help"
 
-# Register additional Ollama-specific commands
-cli::register_command "list-models" "List installed models" "resource_cli::list_models"
-cli::register_command "pull-model" "Pull a model from registry" "resource_cli::pull_model"
-cli::register_command "remove-model" "Remove a model" "resource_cli::remove_model" "modifies-system"
-cli::register_command "chat" "Start interactive chat with a model" "resource_cli::chat"
-cli::register_command "generate" "Generate text using a model" "resource_cli::generate"
-cli::register_command "show-model" "Show details about a model" "resource_cli::show_model"
-cli::register_command "info" "Show detailed service information" "resource_cli::info"
+# Register core commands - direct library function calls
+cli::register_command "install" "Install Ollama" "ollama::install" "modifies-system"
+cli::register_command "uninstall" "Uninstall Ollama" "ollama::uninstall" "modifies-system"
+cli::register_command "start" "Start Ollama" "ollama::start" "modifies-system"
+cli::register_command "stop" "Stop Ollama" "ollama::stop" "modifies-system"
+cli::register_command "restart" "Restart Ollama" "ollama::restart" "modifies-system"
+
+# Register status and monitoring commands
+cli::register_command "status" "Show service status" "ollama::status"
+cli::register_command "logs" "Show service logs" "ollama::logs"
+cli::register_command "test" "Test service functionality" "ollama::test"
+cli::register_command "info" "Show service information" "ollama::info"
+
+# Register model management commands
+cli::register_command "list-models" "List installed models" "ollama::list_models"
+cli::register_command "pull-model" "Pull a model from registry" "ollama::cli_pull_model"
+cli::register_command "show-model" "Show details about a model" "ollama::cli_show_model"
+cli::register_command "remove-model" "Remove a model" "ollama::cli_remove_model" "modifies-system"
+
+# Register AI interaction commands
+cli::register_command "chat" "Start interactive chat with a model" "ollama::cli_chat"
+cli::register_command "generate" "Generate text using a model" "ollama::cli_generate"
+cli::register_command "send-prompt" "Send prompt to model" "ollama::cli_send_prompt"
 
 ################################################################################
 # Resource-specific command implementations
 ################################################################################
 
 # Validate Ollama configuration
-resource_cli::validate() {
+ollama_validate() {
     if command -v ollama::api::health &>/dev/null; then
         ollama::api::health
     else
@@ -80,7 +98,7 @@ resource_cli::validate() {
 }
 
 # Show Ollama status
-resource_cli::status() {
+ollama_status() {
     if command -v ollama::status::show &>/dev/null; then
         ollama::status::show
     else
@@ -102,7 +120,7 @@ resource_cli::status() {
 }
 
 # Start Ollama
-resource_cli::start() {
+ollama_start() {
     if command -v ollama::install::start_service &>/dev/null; then
         ollama::install::start_service
     else
@@ -120,7 +138,7 @@ resource_cli::start() {
 }
 
 # Stop Ollama
-resource_cli::stop() {
+ollama_stop() {
     if command -v ollama::install::stop_service &>/dev/null; then
         ollama::install::stop_service
     else
@@ -138,7 +156,7 @@ resource_cli::stop() {
 }
 
 # Install Ollama
-resource_cli::install() {
+ollama_install() {
     if command -v ollama::install::main &>/dev/null; then
         ollama::install::main
     else
@@ -148,7 +166,7 @@ resource_cli::install() {
 }
 
 # List installed models
-resource_cli::list_models() {
+ollama_list_models() {
     if command -v ollama &>/dev/null; then
         ollama list
     else
@@ -158,7 +176,7 @@ resource_cli::list_models() {
 }
 
 # Pull a model from registry
-resource_cli::pull_model() {
+ollama_pull_model() {
     local model="${1:-}"
     if [[ -z "$model" ]]; then
         log::error "Model name required"
@@ -184,7 +202,7 @@ resource_cli::pull_model() {
 }
 
 # Remove a model
-resource_cli::remove_model() {
+ollama_remove_model() {
     local model="${1:-}"
     if [[ -z "$model" ]]; then
         log::error "Model name required"
@@ -202,14 +220,14 @@ resource_cli::remove_model() {
 }
 
 # Start interactive chat with a model
-resource_cli::chat() {
+ollama_chat() {
     local model="${1:-}"
     if [[ -z "$model" ]]; then
         log::error "Model name required"
         echo "Usage: resource-ollama chat <model-name>"
         echo ""
         echo "Available models:"
-        resource_cli::list_models
+        ollama_list_models
         echo ""
         echo "Example: resource-ollama chat llama3.2:3b"
         return 1
@@ -225,7 +243,7 @@ resource_cli::chat() {
 }
 
 # Generate text using a model
-resource_cli::generate() {
+ollama_generate() {
     local model="${1:-}"
     local prompt="${2:-}"
     
@@ -252,7 +270,7 @@ resource_cli::generate() {
 }
 
 # Show details about a model
-resource_cli::show_model() {
+ollama_show_model() {
     local model="${1:-}"
     if [[ -z "$model" ]]; then
         log::error "Model name required"
@@ -270,7 +288,7 @@ resource_cli::show_model() {
 }
 
 # Show detailed service information
-resource_cli::info() {
+ollama_info() {
     log::header "Ollama Service Information"
     local port="${OLLAMA_PORT:-11434}"
     echo "Port: $port"
@@ -283,7 +301,7 @@ resource_cli::info() {
 }
 
 # Custom help function with Ollama-specific examples
-resource_cli::show_help() {
+ollama_show_help() {
     # Show standard framework help first
     cli::_handle_help
     

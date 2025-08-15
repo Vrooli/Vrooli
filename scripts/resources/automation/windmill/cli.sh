@@ -2,7 +2,7 @@
 ################################################################################
 # Windmill Resource CLI
 # 
-# Lightweight CLI interface for Windmill using the CLI Command Framework
+# Ultra-thin CLI wrapper that delegates directly to library functions
 #
 # Usage:
 #   resource-windmill <command> [options]
@@ -11,68 +11,86 @@
 
 set -euo pipefail
 
-# Get script directory (handle symlinks)
+# Get script directory (resolving symlinks for installed CLI)
 if [[ -L "${BASH_SOURCE[0]}" ]]; then
+    # If this is a symlink, resolve it
     WINDMILL_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
 else
     WINDMILL_CLI_SCRIPT="${BASH_SOURCE[0]}"
 fi
 WINDMILL_CLI_DIR="$(cd "$(dirname "$WINDMILL_CLI_SCRIPT")" && pwd)"
-VROOLI_ROOT="${VROOLI_ROOT:-$(cd "$WINDMILL_CLI_DIR/../../../.." && pwd)}"
-export VROOLI_ROOT
-export RESOURCE_DIR="$WINDMILL_CLI_DIR"
-export WINDMILL_SCRIPT_DIR="$WINDMILL_CLI_DIR"  # For compatibility with existing libs
 
-# Source utilities first
+# Source standard variables
 # shellcheck disable=SC1091
-source "${VROOLI_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || true
+source "${WINDMILL_CLI_DIR}/../../../lib/utils/var.sh"
+
+# Source utilities using var_ variables
 # shellcheck disable=SC1091
-source "${var_LOG_FILE:-${VROOLI_ROOT}/scripts/lib/utils/log.sh}" 2>/dev/null || true
+source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
-source "${var_RESOURCES_COMMON_FILE:-${VROOLI_ROOT}/scripts/resources/common.sh}" 2>/dev/null || true
+source "${var_RESOURCES_COMMON_FILE}"
 
 # Source the CLI Command Framework
 # shellcheck disable=SC1091
-source "${VROOLI_ROOT}/scripts/resources/lib/cli-command-framework.sh"
+source "${var_SCRIPTS_RESOURCES_LIB_DIR}/cli-command-framework.sh"
 
 # Source windmill configuration
 # shellcheck disable=SC1091
 source "${WINDMILL_CLI_DIR}/config/defaults.sh" 2>/dev/null || true
 windmill::export_config 2>/dev/null || true
 
-# Source windmill libraries
-for lib in common docker status install apps api workers; do
-    lib_file="${WINDMILL_CLI_DIR}/lib/${lib}.sh"
-    if [[ -f "$lib_file" ]]; then
-        # shellcheck disable=SC1090
-        source "$lib_file" 2>/dev/null || true
-    fi
-done
+# Source windmill libraries - these contain the actual functionality
+# shellcheck disable=SC1091
+source "${WINDMILL_CLI_DIR}/lib/common.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${WINDMILL_CLI_DIR}/lib/docker.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${WINDMILL_CLI_DIR}/lib/status.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${WINDMILL_CLI_DIR}/lib/install.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${WINDMILL_CLI_DIR}/lib/apps.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${WINDMILL_CLI_DIR}/lib/api.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${WINDMILL_CLI_DIR}/lib/workers.sh" 2>/dev/null || true
 
 # Initialize CLI framework
 cli::init "windmill" "Windmill developer platform and workflow automation"
 
 # Override help to provide Windmill-specific examples
-cli::register_command "help" "Show this help message with Windmill examples" "resource_cli::show_help"
+cli::register_command "help" "Show this help message with examples" "windmill::show_help"
 
-# Register additional Windmill-specific commands
-cli::register_command "inject" "Inject workflow/app into Windmill" "resource_cli::inject" "modifies-system"
-cli::register_command "list-apps" "List available app examples" "resource_cli::list_apps"
-cli::register_command "prepare-app" "Prepare app for deployment" "resource_cli::prepare_app" "modifies-system"
-cli::register_command "deploy-app" "Deploy app to workspace" "resource_cli::deploy_app" "modifies-system"
-cli::register_command "scale-workers" "Scale worker containers" "resource_cli::scale_workers" "modifies-system"
-cli::register_command "backup" "Backup Windmill data" "resource_cli::backup" "modifies-system"
-cli::register_command "restore" "Restore from backup" "resource_cli::restore" "modifies-system"
-cli::register_command "api-setup" "Show API setup instructions" "resource_cli::api_setup"
-cli::register_command "credentials" "Show n8n credentials for Windmill" "resource_cli::credentials"
-cli::register_command "uninstall" "Uninstall Windmill (requires --force)" "resource_cli::uninstall" "modifies-system"
+# Register core commands - direct library function calls
+cli::register_command "install" "Install Windmill" "windmill::install" "modifies-system"
+cli::register_command "uninstall" "Uninstall Windmill" "windmill::cli_uninstall" "modifies-system"
+cli::register_command "start" "Start Windmill" "windmill::start" "modifies-system"
+cli::register_command "stop" "Stop Windmill" "windmill::stop" "modifies-system"
+
+# Register status and monitoring commands
+cli::register_command "status" "Show service status" "windmill::status"
+cli::register_command "validate" "Validate installation" "windmill::validate"
+cli::register_command "logs" "Show Windmill logs" "windmill::cli_logs"
+
+# Register workflow and app commands
+cli::register_command "inject" "Inject workflow/app into Windmill" "windmill::cli_inject" "modifies-system"
+cli::register_command "list-apps" "List available app examples" "apps::list"
+
+# Register utility commands
+cli::register_command "credentials" "Show Windmill credentials for integration" "windmill::cli_credentials"
+cli::register_command "prepare-app" "Prepare app for deployment" "windmill::cli_prepare_app" "modifies-system"
+cli::register_command "deploy-app" "Deploy app to workspace" "windmill::cli_deploy_app" "modifies-system"
+cli::register_command "scale-workers" "Scale worker containers" "windmill::cli_scale_workers" "modifies-system"
+cli::register_command "backup" "Backup Windmill data" "windmill::cli_backup" "modifies-system"
+cli::register_command "restore" "Restore from backup" "windmill::cli_restore" "modifies-system"
+cli::register_command "api-setup" "Show API setup instructions" "api::setup"
 
 ################################################################################
-# Resource-specific command implementations
+# CLI wrapper functions - minimal wrappers for commands that need argument handling
 ################################################################################
 
 # Inject workflows or apps into windmill
-resource_cli::inject() {
+windmill::cli_inject() {
     local file="${1:-}"
     
     if [[ -z "$file" ]]; then
@@ -87,7 +105,7 @@ resource_cli::inject() {
     
     # Handle shared: prefix
     if [[ "$file" == shared:* ]]; then
-        file="${VROOLI_ROOT}/${file#shared:}"
+        file="${var_VROOLI_ROOT}/${file#shared:}"
     fi
     
     if [[ ! -f "$file" ]]; then
@@ -97,31 +115,177 @@ resource_cli::inject() {
     
     # Use existing injection function
     if command -v windmill::inject &>/dev/null; then
-        windmill::inject
+        windmill::inject "$file"
     else
         "${WINDMILL_CLI_DIR}/inject.sh" --inject "$(cat "$file")"
     fi
 }
 
-# Validate windmill configuration
-resource_cli::validate() {
-    if command -v windmill::validate &>/dev/null; then
-        windmill::validate
-    elif command -v windmill::status &>/dev/null; then
-        windmill::status
+# Uninstall with force confirmation
+windmill::cli_uninstall() {
+    FORCE="${FORCE:-false}"
+    
+    if [[ "$FORCE" != "true" ]]; then
+        echo "⚠️  This will remove Windmill and all its data. Use --force to confirm."
+        return 1
+    fi
+    
+    windmill::uninstall
+}
+
+# Show logs with line count
+windmill::cli_logs() {
+    local lines="${1:-50}"
+    
+    if command -v windmill::logs &>/dev/null; then
+        windmill::logs "$lines"
     else
-        # Basic validation
-        log::header "Validating Windmill"
-        docker ps --format '{{.Names}}' 2>/dev/null | grep -q "windmill" || {
-            log::error "Windmill containers not running"
-            return 1
-        }
-        log::success "Windmill is running"
+        docker logs --tail "$lines" windmill-app 2>/dev/null || log::error "Failed to show logs"
+    fi
+}
+
+# Show credentials for Windmill integration
+windmill::cli_credentials() {
+    # Source credentials utilities
+    # shellcheck disable=SC1091
+    source "${var_SCRIPTS_RESOURCES_LIB_DIR}/credentials-utils.sh"
+    
+    credentials::parse_args "$@" || return $?
+    
+    # Get resource status
+    local status
+    status=$(credentials::get_resource_status "windmill-app")
+    
+    # Build connections array
+    local connections_array="[]"
+    if [[ "$status" == "running" ]]; then
+        # Windmill API connection
+        local connection_obj
+        connection_obj=$(jq -n \
+            --arg host "localhost" \
+            --argjson port "${WINDMILL_PORT:-8000}" \
+            --arg path "/api" \
+            --argjson ssl false \
+            '{
+                host: $host,
+                port: $port,
+                path: $path,
+                ssl: $ssl
+            }')
+        
+        local metadata_obj
+        metadata_obj=$(jq -n \
+            --arg description "Windmill developer platform and workflow automation" \
+            --arg web_ui "http://localhost:${WINDMILL_PORT:-8000}" \
+            --arg default_user "admin@example.com" \
+            '{
+                description: $description,
+                web_ui_url: $web_ui,
+                default_credentials: {
+                    username: $default_user,
+                    password: "password"
+                }
+            }')
+        
+        local connection
+        connection=$(credentials::build_connection \
+            "api" \
+            "Windmill API" \
+            "httpHeaderAuth" \
+            "$connection_obj" \
+            "{}" \
+            "$metadata_obj")
+        
+        connections_array="[$connection]"
+    fi
+    
+    # Build and validate response
+    local response
+    response=$(credentials::build_response "windmill" "$status" "$connections_array")
+    
+    credentials::format_output "$response"
+}
+
+# Prepare app for deployment
+windmill::cli_prepare_app() {
+    local app_path="${1:-}"
+    
+    if [[ -z "$app_path" ]]; then
+        log::error "App path required"
+        echo "Usage: resource-windmill prepare-app <app-directory>"
+        return 1
+    fi
+    
+    if command -v apps::prepare &>/dev/null; then
+        apps::prepare "$app_path"
+    else
+        log::error "App preparation not available"
+        return 1
+    fi
+}
+
+# Deploy app to workspace
+windmill::cli_deploy_app() {
+    local app_name="${1:-}"
+    
+    if [[ -z "$app_name" ]]; then
+        log::error "App name required"
+        echo "Usage: resource-windmill deploy-app <app-name>"
+        return 1
+    fi
+    
+    if command -v apps::deploy &>/dev/null; then
+        apps::deploy "$app_name"
+    else
+        log::error "App deployment not available"
+        return 1
+    fi
+}
+
+# Scale worker containers
+windmill::cli_scale_workers() {
+    local count="${1:-1}"
+    
+    if command -v workers::scale &>/dev/null; then
+        workers::scale "$count"
+    else
+        log::error "Worker scaling not available"
+        return 1
+    fi
+}
+
+# Create backup
+windmill::cli_backup() {
+    local backup_path="${1:-./windmill-backup-$(date +%Y%m%d-%H%M%S)}"
+    
+    if command -v windmill::backup &>/dev/null; then
+        windmill::backup "$backup_path"
+    else
+        log::error "Backup functionality not available"
+        return 1
+    fi
+}
+
+# Restore from backup
+windmill::cli_restore() {
+    local backup_path="${1:-}"
+    
+    if [[ -z "$backup_path" ]]; then
+        log::error "Backup path required"
+        echo "Usage: resource-windmill restore <backup-path>"
+        return 1
+    fi
+    
+    if command -v windmill::restore &>/dev/null; then
+        windmill::restore "$backup_path"
+    else
+        log::error "Restore functionality not available"
+        return 1
     fi
 }
 
 # Show windmill status
-resource_cli::status() {
+windmill_status() {
     if command -v windmill::status &>/dev/null; then
         windmill::status
     else
@@ -137,7 +301,7 @@ resource_cli::status() {
 }
 
 # Start windmill
-resource_cli::start() {
+windmill_start() {
     if command -v windmill::start &>/dev/null; then
         windmill::start
     else
@@ -147,7 +311,7 @@ resource_cli::start() {
 }
 
 # Stop windmill
-resource_cli::stop() {
+windmill_stop() {
     if command -v windmill::stop &>/dev/null; then
         windmill::stop
     else
@@ -157,7 +321,7 @@ resource_cli::stop() {
 }
 
 # Install windmill
-resource_cli::install() {
+windmill_install() {
     if command -v windmill::install &>/dev/null; then
         windmill::install
     else
@@ -167,7 +331,7 @@ resource_cli::install() {
 }
 
 # Uninstall windmill
-resource_cli::uninstall() {
+windmill_uninstall() {
     FORCE="${FORCE:-false}"
     
     if [[ "$FORCE" != "true" ]]; then
@@ -184,8 +348,8 @@ resource_cli::uninstall() {
 }
 
 # Get credentials for n8n integration
-resource_cli::credentials() {
-    source "${VROOLI_ROOT}/scripts/resources/lib/credentials-utils.sh"
+windmill_credentials() {
+    source "${var_SCRIPTS_RESOURCES_LIB_DIR}/credentials-utils.sh"
     
     if ! credentials::parse_args "$@"; then
         [[ $? -eq 2 ]] && { credentials::show_help "windmill"; return 0; }
@@ -251,7 +415,7 @@ resource_cli::credentials() {
 }
 
 # List available apps
-resource_cli::list_apps() {
+windmill_list_apps() {
     if command -v windmill::list_apps &>/dev/null; then
         windmill::list_apps
     else
@@ -261,7 +425,7 @@ resource_cli::list_apps() {
 }
 
 # Prepare app for deployment
-resource_cli::prepare_app() {
+windmill_prepare_app() {
     local app_name="${1:-}"
     local output_dir="${2:-.}"
     
@@ -284,7 +448,7 @@ resource_cli::prepare_app() {
 }
 
 # Deploy app to workspace
-resource_cli::deploy_app() {
+windmill_deploy_app() {
     local app_name="${1:-}"
     local workspace="${2:-demo}"
     
@@ -307,7 +471,7 @@ resource_cli::deploy_app() {
 }
 
 # Scale workers
-resource_cli::scale_workers() {
+windmill_scale_workers() {
     local count="${1:-2}"
     
     if command -v windmill::scale_workers &>/dev/null; then
@@ -319,7 +483,7 @@ resource_cli::scale_workers() {
 }
 
 # Backup windmill data
-resource_cli::backup() {
+windmill_backup() {
     local backup_path="${1:-./windmill-backup}"
     
     if command -v windmill::backup &>/dev/null; then
@@ -331,7 +495,7 @@ resource_cli::backup() {
 }
 
 # Restore windmill data
-resource_cli::restore() {
+windmill_restore() {
     local backup_path="${1:-}"
     
     if [[ -z "$backup_path" ]]; then
@@ -353,7 +517,7 @@ resource_cli::restore() {
 }
 
 # Show API setup instructions
-resource_cli::api_setup() {
+windmill_api_setup() {
     if command -v windmill::show_api_setup_instructions &>/dev/null; then
         windmill::show_api_setup_instructions
     else
@@ -363,7 +527,7 @@ resource_cli::api_setup() {
 }
 
 # Custom help function with Windmill-specific examples
-resource_cli::show_help() {
+windmill::show_help() {
     # Show standard framework help first
     cli::_handle_help
     

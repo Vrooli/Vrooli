@@ -202,15 +202,29 @@ browserless_execute_workflow() {
     local workflow_id="${1:-}"
     local n8n_url="${2:-http://localhost:5678}"
     local timeout="${3:-60000}"
+    local input_data="${4:-}"
     
     if [[ -z "$workflow_id" ]]; then
         log::error "Workflow ID required"
-        echo "Usage: resource-browserless execute-workflow <workflow-id> [n8n-url] [timeout-ms]"
-        echo "Example: resource-browserless execute-workflow my-workflow http://localhost:5678 30000"
+        echo "Usage: resource-browserless execute-workflow <workflow-id> [n8n-url] [timeout-ms] [input-json]"
+        echo ""
+        echo "Examples:"
+        echo "  # Execute workflow without input"
+        echo "  resource-browserless execute-workflow my-workflow"
+        echo ""
+        echo "  # Execute with JSON input data"
+        echo "  resource-browserless execute-workflow embedding-generator http://localhost:5678 30000 '{\"text\":\"Hello world\"}'"
+        echo ""
+        echo "  # Execute with JSON file input"
+        echo "  resource-browserless execute-workflow my-workflow http://localhost:5678 30000 @input.json"
+        echo ""
+        echo "  # Execute with environment variable input"
+        echo "  export WORKFLOW_INPUT='{\"text\":\"test\"}'"
+        echo "  resource-browserless execute-workflow embedding-generator"
         return 1
     fi
     
-    browserless::execute_n8n_workflow "$workflow_id" "$n8n_url" "$timeout"
+    browserless::execute_n8n_workflow "$workflow_id" "$n8n_url" "$timeout" "$input_data"
 }
 
 # Capture console logs from any URL

@@ -216,12 +216,27 @@ scenario_convert() {
         return 1
     fi
     
+    # Parse options
+    local force=""
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --force)
+                force="?force=true"
+                shift
+                ;;
+            *)
+                log::warning "Unknown option: $1"
+                shift
+                ;;
+        esac
+    done
+    
     check_api || return 1
     
     log::info "Starting conversion: $scenario_name"
     
     local response
-    response=$(curl -s -X POST "${API_BASE}/scenarios/${scenario_name}/convert")
+    response=$(curl -s -X POST "${API_BASE}/scenarios/${scenario_name}/convert${force}")
     
     if ! echo "$response" | jq -e '.success' >/dev/null 2>&1; then
         log::error "$(echo "$response" | jq -r '.error // "Conversion failed"')"

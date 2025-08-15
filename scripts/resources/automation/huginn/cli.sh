@@ -11,24 +11,27 @@
 
 set -euo pipefail
 
-# Get script directory
-HUGINN_CLI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VROOLI_ROOT="${VROOLI_ROOT:-$(cd "$HUGINN_CLI_DIR/../../../.." && pwd)}"
-export VROOLI_ROOT
-export RESOURCE_DIR="$HUGINN_CLI_DIR"
-export HUGINN_SCRIPT_DIR="$HUGINN_CLI_DIR"  # For compatibility with existing libs
+# Get script directory (resolving symlinks for installed CLI)
+if [[ -L "${BASH_SOURCE[0]}" ]]; then
+    HUGINN_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
+else
+    HUGINN_CLI_SCRIPT="${BASH_SOURCE[0]}"
+fi
+HUGINN_CLI_DIR="$(cd "$(dirname "$HUGINN_CLI_SCRIPT")" && pwd)"
 
-# Source utilities first
+# Source standard variables
 # shellcheck disable=SC1091
-source "${VROOLI_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || true
+source "${HUGINN_CLI_DIR}/../../../lib/utils/var.sh"
+
+# Source utilities using var_ variables
 # shellcheck disable=SC1091
-source "${var_LOG_FILE:-${VROOLI_ROOT}/scripts/lib/utils/log.sh}" 2>/dev/null || true
+source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
-source "${var_RESOURCES_COMMON_FILE:-${VROOLI_ROOT}/scripts/resources/common.sh}" 2>/dev/null || true
+source "${var_RESOURCES_COMMON_FILE}"
 
 # Source the CLI Command Framework
 # shellcheck disable=SC1091
-source "${VROOLI_ROOT}/scripts/resources/lib/cli-command-framework.sh"
+source "${var_SCRIPTS_RESOURCES_LIB_DIR}/cli-command-framework.sh"
 
 # Source huginn configuration
 # shellcheck disable=SC1091
@@ -48,24 +51,24 @@ done
 cli::init "huginn" "Huginn agent-based workflow automation platform"
 
 # Override help to provide Huginn-specific examples
-cli::register_command "help" "Show this help message with Huginn examples" "resource_cli::show_help"
+cli::register_command "help" "Show this help message with Huginn examples" "huginn_show_help"
 
 # Register additional Huginn-specific commands
-cli::register_command "inject" "Inject agents/scenarios into Huginn" "resource_cli::inject" "modifies-system"
-cli::register_command "list-agents" "List all agents" "resource_cli::list_agents"
-cli::register_command "show-agent" "Show specific agent details" "resource_cli::show_agent"
-cli::register_command "run-agent" "Run specific agent" "resource_cli::run_agent" "modifies-system"
-cli::register_command "list-scenarios" "List all scenarios" "resource_cli::list_scenarios"
-cli::register_command "show-events" "Show recent events" "resource_cli::show_events"
-cli::register_command "credentials" "Show n8n credentials for Huginn" "resource_cli::credentials"
-cli::register_command "uninstall" "Uninstall Huginn (requires --force)" "resource_cli::uninstall" "modifies-system"
+cli::register_command "inject" "Inject agents/scenarios into Huginn" "huginn_inject" "modifies-system"
+cli::register_command "list-agents" "List all agents" "huginn_list_agents"
+cli::register_command "show-agent" "Show specific agent details" "huginn_show_agent"
+cli::register_command "run-agent" "Run specific agent" "huginn_run_agent" "modifies-system"
+cli::register_command "list-scenarios" "List all scenarios" "huginn_list_scenarios"
+cli::register_command "show-events" "Show recent events" "huginn_show_events"
+cli::register_command "credentials" "Show n8n credentials for Huginn" "huginn_credentials"
+cli::register_command "uninstall" "Uninstall Huginn (requires --force)" "huginn_uninstall" "modifies-system"
 
 ################################################################################
 # Resource-specific command implementations
 ################################################################################
 
 # Inject agents or scenarios into huginn
-resource_cli::inject() {
+huginn_inject() {
     local file="${1:-}"
     
     if [[ -z "$file" ]]; then
@@ -80,7 +83,7 @@ resource_cli::inject() {
     
     # Handle shared: prefix
     if [[ "$file" == shared:* ]]; then
-        file="${VROOLI_ROOT}/${file#shared:}"
+        file="${var_ROOT_DIR}/${file#shared:}"
     fi
     
     if [[ ! -f "$file" ]]; then
@@ -100,7 +103,7 @@ resource_cli::inject() {
 }
 
 # Validate huginn configuration
-resource_cli::validate() {
+huginn_validate() {
     if command -v huginn::health_check &>/dev/null; then
         huginn::health_check
     elif command -v huginn::is_healthy &>/dev/null; then
@@ -123,7 +126,7 @@ resource_cli::validate() {
 }
 
 # Show huginn status
-resource_cli::status() {
+huginn_status() {
     if command -v huginn::show_status &>/dev/null; then
         huginn::show_status
     elif command -v huginn::show_basic_status &>/dev/null; then
@@ -141,7 +144,7 @@ resource_cli::status() {
 }
 
 # Start huginn
-resource_cli::start() {
+huginn_start() {
     if command -v huginn::start &>/dev/null; then
         huginn::start
     else
@@ -151,7 +154,7 @@ resource_cli::start() {
 }
 
 # Stop huginn
-resource_cli::stop() {
+huginn_stop() {
     if command -v huginn::stop &>/dev/null; then
         huginn::stop
     else
@@ -161,7 +164,7 @@ resource_cli::stop() {
 }
 
 # Install huginn
-resource_cli::install() {
+huginn_install() {
     if command -v huginn::install &>/dev/null; then
         huginn::install
     else
@@ -171,7 +174,7 @@ resource_cli::install() {
 }
 
 # Uninstall huginn
-resource_cli::uninstall() {
+huginn_uninstall() {
     FORCE="${FORCE:-false}"
     
     if [[ "$FORCE" != "true" ]]; then
@@ -188,8 +191,8 @@ resource_cli::uninstall() {
 }
 
 # Get credentials for n8n integration
-resource_cli::credentials() {
-    source "${VROOLI_ROOT}/scripts/resources/lib/credentials-utils.sh"
+huginn_credentials() {
+    source "${var_SCRIPTS_RESOURCES_LIB_DIR}/credentials-utils.sh"
     
     if ! credentials::parse_args "$@"; then
         [[ $? -eq 2 ]] && { credentials::show_help "huginn"; return 0; }
@@ -253,7 +256,7 @@ resource_cli::credentials() {
 }
 
 # List agents
-resource_cli::list_agents() {
+huginn_list_agents() {
     local format="${1:-table}"
     
     if command -v huginn::list_agents &>/dev/null; then
@@ -265,7 +268,7 @@ resource_cli::list_agents() {
 }
 
 # Show specific agent
-resource_cli::show_agent() {
+huginn_show_agent() {
     local agent_id="${1:-}"
     
     if [[ -z "$agent_id" ]]; then
@@ -287,7 +290,7 @@ resource_cli::show_agent() {
 }
 
 # Run specific agent
-resource_cli::run_agent() {
+huginn_run_agent() {
     local agent_id="${1:-}"
     
     if [[ -z "$agent_id" ]]; then
@@ -309,7 +312,7 @@ resource_cli::run_agent() {
 }
 
 # List scenarios
-resource_cli::list_scenarios() {
+huginn_list_scenarios() {
     if command -v huginn::list_scenarios &>/dev/null; then
         huginn::list_scenarios
     else
@@ -319,7 +322,7 @@ resource_cli::list_scenarios() {
 }
 
 # Show recent events
-resource_cli::show_events() {
+huginn_show_events() {
     local count="${1:-10}"
     
     if command -v huginn::show_recent_events &>/dev/null; then
@@ -331,7 +334,7 @@ resource_cli::show_events() {
 }
 
 # Custom help function with Huginn-specific examples
-resource_cli::show_help() {
+huginn_show_help() {
     # Show standard framework help first
     cli::_handle_help
     

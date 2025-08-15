@@ -98,12 +98,6 @@ RESOURCE MANAGEMENT:
     resource stop       Stop a resource
     resource stop-all   Stop all running resources
 
-ORCHESTRATOR MANAGEMENT:
-    orchestrator start  Start the process orchestrator
-    orchestrator status Show all running processes
-    orchestrator logs   Show process logs
-    orchestrator tree   Show process hierarchy
-    orchestrator stop   Stop all processes
 
 OPTIONS:
     --help, -h          Show help for a command
@@ -111,12 +105,12 @@ OPTIONS:
 
 EXAMPLES:
     vrooli setup                        # First-time setup
-    vrooli develop                      # Start development (includes orchestrator)
+    vrooli develop                      # Start development environment
     vrooli test                         # Run all tests
     vrooli test resources --verbose     # Test resources with details
     vrooli app list                     # List generated apps
-    vrooli orchestrator status          # Show all running processes
-    vrooli orchestrator logs my-app     # Show app logs
+    vrooli app list                     # Show all generated apps
+    vrooli app logs my-app              # Show app logs
 
 For more help on a specific command:
     vrooli <command> --help
@@ -172,12 +166,6 @@ main() {
             exec "${VROOLI_ROOT}/cli/commands/resource-commands.sh" "$@"
             ;;
             
-        # Orchestrator commands
-        orchestrator)
-            # Clear source guards to allow orchestrator-commands.sh to load functions properly
-            unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED
-            exec "${VROOLI_ROOT}/cli/commands/orchestrator-commands.sh" "$@"
-            ;;
         
         # Version command
         version|--version|-v)

@@ -11,29 +11,27 @@
 
 set -euo pipefail
 
-# Get script directory (resolving symlinks)
+# Get script directory (resolving symlinks for installed CLI)
 if [[ -L "${BASH_SOURCE[0]}" ]]; then
     CLAUDE_CODE_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
 else
     CLAUDE_CODE_CLI_SCRIPT="${BASH_SOURCE[0]}"
 fi
 CLAUDE_CODE_CLI_DIR="$(cd "$(dirname "$CLAUDE_CODE_CLI_SCRIPT")" && pwd)"
-VROOLI_ROOT="${VROOLI_ROOT:-$(cd "$CLAUDE_CODE_CLI_DIR/../../../.." && pwd)}"
-export VROOLI_ROOT
-export RESOURCE_DIR="$CLAUDE_CODE_CLI_DIR"
-export CLAUDE_CODE_SCRIPT_DIR="$CLAUDE_CODE_CLI_DIR"  # For compatibility with existing libs
 
-# Source utilities first
+# Source standard variables
 # shellcheck disable=SC1091
-source "${VROOLI_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || true
+source "${CLAUDE_CODE_CLI_DIR}/../../../lib/utils/var.sh"
+
+# Source utilities using var_ variables
 # shellcheck disable=SC1091
-source "${var_LOG_FILE:-${VROOLI_ROOT}/scripts/lib/utils/log.sh}" 2>/dev/null || true
+source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
-source "${var_RESOURCES_COMMON_FILE:-${VROOLI_ROOT}/scripts/resources/common.sh}" 2>/dev/null || true
+source "${var_RESOURCES_COMMON_FILE}"
 
 # Source the CLI Command Framework
 # shellcheck disable=SC1091
-source "${VROOLI_ROOT}/scripts/resources/lib/cli-command-framework.sh"
+source "${var_SCRIPTS_RESOURCES_LIB_DIR}/cli-command-framework.sh"
 
 # Source Claude Code configuration
 # shellcheck disable=SC1091
@@ -52,24 +50,24 @@ done
 cli::init "claude-code" "Claude Code AI development assistant"
 
 # Override help to provide Claude Code-specific examples
-cli::register_command "help" "Show this help message with Claude Code examples" "resource_cli::show_help"
+cli::register_command "help" "Show this help message with Claude Code examples" "claude_code_show_help"
 
 # Register additional Claude Code-specific commands
-cli::register_command "inject" "Inject templates/prompts into Claude Code" "resource_cli::inject" "modifies-system"
-cli::register_command "run" "Run a prompt with Claude Code" "resource_cli::run" "modifies-system"
-cli::register_command "session" "Session management" "resource_cli::session"
-cli::register_command "mcp" "MCP server management" "resource_cli::mcp" "modifies-system"
-cli::register_command "template" "Template management" "resource_cli::template" "modifies-system"
-cli::register_command "batch" "Batch processing" "resource_cli::batch" "modifies-system"
-cli::register_command "settings" "Settings management" "resource_cli::settings" "modifies-system"
-cli::register_command "uninstall" "Uninstall Claude Code (requires --force)" "resource_cli::uninstall" "modifies-system"
+cli::register_command "inject" "Inject templates/prompts into Claude Code" "claude_code_inject" "modifies-system"
+cli::register_command "run" "Run a prompt with Claude Code" "claude_code_run" "modifies-system"
+cli::register_command "session" "Session management" "claude_code_session"
+cli::register_command "mcp" "MCP server management" "claude_code_mcp" "modifies-system"
+cli::register_command "template" "Template management" "claude_code_template" "modifies-system"
+cli::register_command "batch" "Batch processing" "claude_code_batch" "modifies-system"
+cli::register_command "settings" "Settings management" "claude_code_settings" "modifies-system"
+cli::register_command "uninstall" "Uninstall Claude Code (requires --force)" "claude_code_uninstall" "modifies-system"
 
 ################################################################################
 # Resource-specific command implementations
 ################################################################################
 
 # Inject templates/prompts/sessions into Claude Code
-resource_cli::inject() {
+claude_code_inject() {
     local file="${1:-}"
     
     if [[ -z "$file" ]]; then
@@ -84,7 +82,7 @@ resource_cli::inject() {
     
     # Handle shared: prefix
     if [[ "$file" == shared:* ]]; then
-        file="${VROOLI_ROOT}/${file#shared:}"
+        file="${var_ROOT_DIR}/${file#shared:}"
     fi
     
     if [[ ! -f "$file" ]]; then
@@ -99,13 +97,13 @@ resource_cli::inject() {
               log::debug 2>/dev/null || true
     
     # Use the inject script with proper environment
-    VROOLI_ROOT="${VROOLI_ROOT}" \
+    VROOLI_ROOT="${var_ROOT_DIR}" \
     RESOURCE_DIR="${RESOURCE_DIR}" \
     "${CLAUDE_CODE_CLI_DIR}/inject.sh" --inject "$file"
 }
 
 # Validate Claude Code configuration
-resource_cli::validate() {
+claude_code_validate() {
     if command -v claude_code::test &>/dev/null; then
         claude_code::test
     else
@@ -120,7 +118,7 @@ resource_cli::validate() {
 }
 
 # Show Claude Code status
-resource_cli::status() {
+claude_code_status() {
     if command -v claude_code::status &>/dev/null; then
         claude_code::status
     else
@@ -135,7 +133,7 @@ resource_cli::status() {
 }
 
 # Start Claude Code (session)
-resource_cli::start() {
+claude_code_start() {
     if command -v claude_code::session &>/dev/null; then
         claude_code::session
     else
@@ -145,13 +143,13 @@ resource_cli::start() {
 }
 
 # Stop Claude Code (not applicable, but kept for consistency)
-resource_cli::stop() {
+claude_code_stop() {
     log::info "Claude Code runs on-demand, no daemon to stop"
     return 0
 }
 
 # Install Claude Code
-resource_cli::install() {
+claude_code_install() {
     if command -v claude_code::install &>/dev/null; then
         claude_code::install
     else
@@ -161,7 +159,7 @@ resource_cli::install() {
 }
 
 # Uninstall Claude Code
-resource_cli::uninstall() {
+claude_code_uninstall() {
     FORCE="${FORCE:-false}"
     
     if [[ "$FORCE" != "true" ]]; then
@@ -178,7 +176,7 @@ resource_cli::uninstall() {
 }
 
 # Run a command with Claude Code
-resource_cli::run() {
+claude_code_run() {
     local prompt="${*:-}"
     
     if [[ -z "$prompt" ]]; then
@@ -212,7 +210,7 @@ resource_cli::run() {
 }
 
 # Session management
-resource_cli::session() {
+claude_code_session() {
     local action="${1:-list}"
     shift || true
     
@@ -269,7 +267,7 @@ resource_cli::session() {
 }
 
 # MCP server management
-resource_cli::mcp() {
+claude_code_mcp() {
     local action="${1:-status}"
     shift || true
     
@@ -321,7 +319,7 @@ resource_cli::mcp() {
 }
 
 # Template management
-resource_cli::template() {
+claude_code_template() {
     local action="${1:-list}"
     shift || true
     
@@ -382,7 +380,7 @@ resource_cli::template() {
 }
 
 # Batch processing
-resource_cli::batch() {
+claude_code_batch() {
     local type="${1:-simple}"
     shift || true
     
@@ -471,7 +469,7 @@ resource_cli::batch() {
 }
 
 # Settings management
-resource_cli::settings() {
+claude_code_settings() {
     local action="${1:-show}"
     shift || true
     
@@ -531,7 +529,7 @@ resource_cli::settings() {
 }
 
 # Custom help function with Claude Code-specific examples
-resource_cli::show_help() {
+claude_code_show_help() {
     # Show standard framework help first
     cli::_handle_help
     

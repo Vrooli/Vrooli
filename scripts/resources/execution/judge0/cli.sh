@@ -11,24 +11,27 @@
 
 set -euo pipefail
 
-# Get script directory (handle symlinks)
-JUDGE0_CLI_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
-VROOLI_ROOT="${VROOLI_ROOT:-$(cd "$JUDGE0_CLI_DIR/../../../.." && pwd)}"
-export VROOLI_ROOT
-export RESOURCE_DIR="$JUDGE0_CLI_DIR"
-export JUDGE0_SCRIPT_DIR="$JUDGE0_CLI_DIR"  # For compatibility with existing libs
+# Get script directory (resolving symlinks for installed CLI)
+if [[ -L "${BASH_SOURCE[0]}" ]]; then
+    JUDGE0_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
+else
+    JUDGE0_CLI_SCRIPT="${BASH_SOURCE[0]}"
+fi
+JUDGE0_CLI_DIR="$(cd "$(dirname "$JUDGE0_CLI_SCRIPT")" && pwd)"
 
-# Source utilities first
+# Source standard variables
 # shellcheck disable=SC1091
-source "${VROOLI_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || true
+source "${JUDGE0_CLI_DIR}/../../../lib/utils/var.sh"
+
+# Source utilities using var_ variables
 # shellcheck disable=SC1091
-source "${var_LOG_FILE:-${VROOLI_ROOT}/scripts/lib/utils/log.sh}" 2>/dev/null || true
+source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
-source "${var_RESOURCES_COMMON_FILE:-${VROOLI_ROOT}/scripts/resources/common.sh}" 2>/dev/null || true
+source "${var_RESOURCES_COMMON_FILE}"
 
 # Source the CLI Command Framework
 # shellcheck disable=SC1091
-source "${VROOLI_ROOT}/scripts/resources/lib/cli-command-framework.sh"
+source "${var_SCRIPTS_RESOURCES_LIB_DIR}/cli-command-framework.sh"
 
 # Source judge0 configuration
 # shellcheck disable=SC1091
@@ -51,26 +54,26 @@ done
 cli::init "judge0" "Judge0 secure code execution service management"
 
 # Override help to provide Judge0-specific examples
-cli::register_command "help" "Show this help message with Judge0 examples" "resource_cli::show_help"
+cli::register_command "help" "Show this help message with Judge0 examples" "judge0_show_help"
 
 # Register additional Judge0-specific commands
-cli::register_command "inject" "Inject configuration into Judge0" "resource_cli::inject" "modifies-system"
-cli::register_command "languages" "List supported programming languages" "resource_cli::languages"
-cli::register_command "test" "Test API connectivity" "resource_cli::test"
-cli::register_command "submit" "Submit code for execution" "resource_cli::submit"
-cli::register_command "usage" "Show usage statistics" "resource_cli::usage"
-cli::register_command "monitor" "Start security monitoring" "resource_cli::monitor"
-cli::register_command "info" "Get system information" "resource_cli::info"
-cli::register_command "logs" "Show container logs" "resource_cli::logs"
-cli::register_command "credentials" "Show n8n credentials for Judge0" "resource_cli::credentials"
-cli::register_command "uninstall" "Uninstall Judge0 (requires --force)" "resource_cli::uninstall" "modifies-system"
+cli::register_command "inject" "Inject configuration into Judge0" "judge0_inject" "modifies-system"
+cli::register_command "languages" "List supported programming languages" "judge0_languages"
+cli::register_command "test" "Test API connectivity" "judge0_test"
+cli::register_command "submit" "Submit code for execution" "judge0_submit"
+cli::register_command "usage" "Show usage statistics" "judge0_usage"
+cli::register_command "monitor" "Start security monitoring" "judge0_monitor"
+cli::register_command "info" "Get system information" "judge0_info"
+cli::register_command "logs" "Show container logs" "judge0_logs"
+cli::register_command "credentials" "Show n8n credentials for Judge0" "judge0_credentials"
+cli::register_command "uninstall" "Uninstall Judge0 (requires --force)" "judge0_uninstall" "modifies-system"
 
 ################################################################################
 # Resource-specific command implementations
 ################################################################################
 
 # Inject configuration or test cases into judge0
-resource_cli::inject() {
+judge0_inject() {
     local file="${1:-}"
     
     if [[ -z "$file" ]]; then
@@ -81,7 +84,7 @@ resource_cli::inject() {
     
     # Handle shared: prefix
     if [[ "$file" == shared:* ]]; then
-        file="${VROOLI_ROOT}/${file#shared:}"
+        file="${var_ROOT_DIR}/${file#shared:}"
     fi
     
     if [[ ! -f "$file" ]]; then
@@ -98,7 +101,7 @@ resource_cli::inject() {
 }
 
 # Validate judge0 configuration
-resource_cli::validate() {
+judge0_validate() {
     if command -v judge0::validate &>/dev/null; then
         judge0::validate
     elif command -v judge0::api::test &>/dev/null; then
@@ -115,7 +118,7 @@ resource_cli::validate() {
 }
 
 # Show judge0 status
-resource_cli::status() {
+judge0_status() {
     if command -v judge0::status::show &>/dev/null; then
         judge0::status::show
     elif command -v judge0::status &>/dev/null; then
@@ -133,7 +136,7 @@ resource_cli::status() {
 }
 
 # Start judge0
-resource_cli::start() {
+judge0_start() {
     if command -v judge0::start &>/dev/null; then
         judge0::start
     else
@@ -143,7 +146,7 @@ resource_cli::start() {
 }
 
 # Stop judge0
-resource_cli::stop() {
+judge0_stop() {
     if command -v judge0::stop &>/dev/null; then
         judge0::stop
     else
@@ -153,7 +156,7 @@ resource_cli::stop() {
 }
 
 # Install judge0
-resource_cli::install() {
+judge0_install() {
     if command -v judge0::install &>/dev/null; then
         judge0::install
     else
@@ -163,7 +166,7 @@ resource_cli::install() {
 }
 
 # Uninstall judge0
-resource_cli::uninstall() {
+judge0_uninstall() {
     FORCE="${FORCE:-false}"
     
     if [[ "$FORCE" != "true" ]]; then
@@ -180,8 +183,8 @@ resource_cli::uninstall() {
 }
 
 # Show credentials for n8n integration
-resource_cli::credentials() {
-    source "${VROOLI_ROOT}/scripts/resources/lib/credentials-utils.sh"
+judge0_credentials() {
+    source "${var_SCRIPTS_RESOURCES_LIB_DIR}/credentials-utils.sh"
     
     if ! credentials::parse_args "$@"; then
         [[ $? -eq 2 ]] && { credentials::show_help "judge0"; return 0; }
@@ -252,7 +255,7 @@ resource_cli::credentials() {
 }
 
 # List supported programming languages
-resource_cli::languages() {
+judge0_languages() {
     if command -v judge0::languages::list &>/dev/null; then
         judge0::languages::list
     else
@@ -262,7 +265,7 @@ resource_cli::languages() {
 }
 
 # Test API connectivity
-resource_cli::test() {
+judge0_test() {
     if command -v judge0::api::test &>/dev/null; then
         judge0::api::test
     else
@@ -272,7 +275,7 @@ resource_cli::test() {
 }
 
 # Submit code for execution
-resource_cli::submit() {
+judge0_submit() {
     local code="${1:-}"
     local language="${2:-javascript}"
     local stdin="${3:-}"
@@ -300,7 +303,7 @@ resource_cli::submit() {
 }
 
 # Show usage statistics
-resource_cli::usage() {
+judge0_usage() {
     if command -v judge0::usage::show &>/dev/null; then
         judge0::usage::show
     else
@@ -310,7 +313,7 @@ resource_cli::usage() {
 }
 
 # Start security monitoring
-resource_cli::monitor() {
+judge0_monitor() {
     if command -v judge0::security::monitor &>/dev/null; then
         judge0::security::monitor
     elif [[ -f "${JUDGE0_CLI_DIR}/lib/security-monitor.sh" ]]; then
@@ -324,7 +327,7 @@ resource_cli::monitor() {
 }
 
 # Get system information
-resource_cli::info() {
+judge0_info() {
     if command -v judge0::api::system_info &>/dev/null; then
         judge0::api::system_info
     else
@@ -334,7 +337,7 @@ resource_cli::info() {
 }
 
 # Show logs
-resource_cli::logs() {
+judge0_logs() {
     if command -v judge0::docker::logs &>/dev/null; then
         judge0::docker::logs
     else
@@ -346,7 +349,7 @@ resource_cli::logs() {
 }
 
 # Custom help function with Judge0-specific examples
-resource_cli::show_help() {
+judge0_show_help() {
     # Show standard framework help first
     cli::_handle_help
     

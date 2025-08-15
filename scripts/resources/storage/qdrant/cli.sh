@@ -11,30 +11,27 @@
 
 set -euo pipefail
 
-# Get script directory (handle symlinks)
+# Get script directory (resolving symlinks for installed CLI)
 if [[ -L "${BASH_SOURCE[0]}" ]]; then
-    REAL_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
-    QDRANT_CLI_DIR="$(cd "$(dirname "$REAL_SCRIPT")" && pwd)"
+    QDRANT_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
 else
-    QDRANT_CLI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    QDRANT_CLI_SCRIPT="${BASH_SOURCE[0]}"
 fi
+QDRANT_CLI_DIR="$(cd "$(dirname "$QDRANT_CLI_SCRIPT")" && pwd)"
 
-VROOLI_ROOT="${VROOLI_ROOT:-$(cd "$QDRANT_CLI_DIR/../../../.." && pwd)}"
-export VROOLI_ROOT
-export RESOURCE_DIR="$QDRANT_CLI_DIR"
-export QDRANT_SCRIPT_DIR="$QDRANT_CLI_DIR"  # For compatibility with existing libs
+# Source standard variables
+# shellcheck disable=SC1091
+source "${QDRANT_CLI_DIR}/../../../lib/utils/var.sh"
 
-# Source utilities first
+# Source utilities using var_ variables
 # shellcheck disable=SC1091
-source "${VROOLI_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || true
+source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
-source "${var_LOG_FILE:-${VROOLI_ROOT}/scripts/lib/utils/log.sh}" 2>/dev/null || true
-# shellcheck disable=SC1091
-source "${var_RESOURCES_COMMON_FILE:-${VROOLI_ROOT}/scripts/resources/common.sh}" 2>/dev/null || true
+source "${var_RESOURCES_COMMON_FILE}"
 
 # Source the CLI Command Framework
 # shellcheck disable=SC1091
-source "${VROOLI_ROOT}/scripts/resources/lib/cli-command-framework.sh"
+source "${var_SCRIPTS_RESOURCES_LIB_DIR}/cli-command-framework.sh"
 
 # Source qdrant configuration
 # shellcheck disable=SC1091
@@ -54,25 +51,25 @@ done
 cli::init "qdrant" "Qdrant vector database management"
 
 # Override help to provide Qdrant-specific examples
-cli::register_command "help" "Show this help message with Qdrant examples" "resource_cli::show_help"
+cli::register_command "help" "Show this help message with Qdrant examples" "qdrant_show_help"
 
 # Register additional Qdrant-specific commands
-cli::register_command "inject" "Inject data into Qdrant" "resource_cli::inject" "modifies-system"
-cli::register_command "list-collections" "List all collections" "resource_cli::list_collections"
-cli::register_command "create-collection" "Create a new collection" "resource_cli::create_collection" "modifies-system"
-cli::register_command "delete-collection" "Delete a collection" "resource_cli::delete_collection" "modifies-system"
-cli::register_command "collection-info" "Show collection information" "resource_cli::collection_info"
-cli::register_command "create-backup" "Create a backup snapshot" "resource_cli::create_backup" "modifies-system"
-cli::register_command "list-backups" "List all backups" "resource_cli::list_backups"
-cli::register_command "credentials" "Show n8n credentials for Qdrant" "resource_cli::credentials"
-cli::register_command "uninstall" "Uninstall Qdrant (requires --force)" "resource_cli::uninstall" "modifies-system"
+cli::register_command "inject" "Inject data into Qdrant" "qdrant_inject" "modifies-system"
+cli::register_command "list-collections" "List all collections" "qdrant_list_collections"
+cli::register_command "create-collection" "Create a new collection" "qdrant_create_collection" "modifies-system"
+cli::register_command "delete-collection" "Delete a collection" "qdrant_delete_collection" "modifies-system"
+cli::register_command "collection-info" "Show collection information" "qdrant_collection_info"
+cli::register_command "create-backup" "Create a backup snapshot" "qdrant_create_backup" "modifies-system"
+cli::register_command "list-backups" "List all backups" "qdrant_list_backups"
+cli::register_command "credentials" "Show n8n credentials for Qdrant" "qdrant_credentials"
+cli::register_command "uninstall" "Uninstall Qdrant (requires --force)" "qdrant_uninstall" "modifies-system"
 
 ################################################################################
 # Resource-specific command implementations
 ################################################################################
 
 # Inject data into Qdrant
-resource_cli::inject() {
+qdrant_inject() {
     local file="${1:-}"
     
     if [[ -z "$file" ]]; then
@@ -87,7 +84,7 @@ resource_cli::inject() {
     
     # Handle shared: prefix
     if [[ "$file" == shared:* ]]; then
-        file="${VROOLI_ROOT}/${file#shared:}"
+        file="${var_ROOT_DIR}/${file#shared:}"
     fi
     
     if [[ ! -f "$file" ]]; then
@@ -105,7 +102,7 @@ resource_cli::inject() {
 }
 
 # Validate Qdrant configuration
-resource_cli::validate() {
+qdrant_validate() {
     if command -v qdrant::health &>/dev/null; then
         qdrant::health
     elif command -v qdrant::check_basic_health &>/dev/null; then
@@ -123,7 +120,7 @@ resource_cli::validate() {
 }
 
 # Show Qdrant status
-resource_cli::status() {
+qdrant_status() {
     if command -v qdrant::status::check &>/dev/null; then
         qdrant::status::check
     else
@@ -140,7 +137,7 @@ resource_cli::status() {
 }
 
 # Start Qdrant
-resource_cli::start() {
+qdrant_start() {
     if command -v qdrant::docker::start &>/dev/null; then
         qdrant::docker::start
     else
@@ -150,7 +147,7 @@ resource_cli::start() {
 }
 
 # Stop Qdrant
-resource_cli::stop() {
+qdrant_stop() {
     if command -v qdrant::docker::stop &>/dev/null; then
         qdrant::docker::stop
     else
@@ -160,7 +157,7 @@ resource_cli::stop() {
 }
 
 # Install Qdrant
-resource_cli::install() {
+qdrant_install() {
     if command -v qdrant::install &>/dev/null; then
         qdrant::install
     else
@@ -170,7 +167,7 @@ resource_cli::install() {
 }
 
 # Uninstall Qdrant
-resource_cli::uninstall() {
+qdrant_uninstall() {
     FORCE="${FORCE:-false}"
     
     if [[ "$FORCE" != "true" ]]; then
@@ -189,8 +186,8 @@ resource_cli::uninstall() {
 }
 
 # Show credentials for n8n integration
-resource_cli::credentials() {
-    source "${VROOLI_ROOT}/scripts/resources/lib/credentials-utils.sh"
+qdrant_credentials() {
+    source "${var_SCRIPTS_RESOURCES_LIB_DIR}/credentials-utils.sh"
     
     if ! credentials::parse_args "$@"; then
         [[ $? -eq 2 ]] && { credentials::show_help "qdrant"; return 0; }
@@ -275,7 +272,7 @@ resource_cli::credentials() {
 }
 
 # List collections
-resource_cli::list_collections() {
+qdrant_list_collections() {
     if command -v qdrant::collections::list &>/dev/null; then
         qdrant::collections::list
     elif command -v qdrant::api::list_collections &>/dev/null; then
@@ -287,7 +284,7 @@ resource_cli::list_collections() {
 }
 
 # Create collection
-resource_cli::create_collection() {
+qdrant_create_collection() {
     local name="${1:-}"
     local vector_size="${2:-1536}"
     local distance="${3:-Cosine}"
@@ -316,7 +313,7 @@ resource_cli::create_collection() {
 }
 
 # Delete collection
-resource_cli::delete_collection() {
+qdrant_delete_collection() {
     local name="${1:-}"
     
     if [[ -z "$name" ]]; then
@@ -340,7 +337,7 @@ resource_cli::delete_collection() {
 }
 
 # Get collection info
-resource_cli::collection_info() {
+qdrant_collection_info() {
     local name="${1:-}"
     
     if [[ -z "$name" ]]; then
@@ -364,7 +361,7 @@ resource_cli::collection_info() {
 }
 
 # Create backup
-resource_cli::create_backup() {
+qdrant_create_backup() {
     local name="${1:-backup-$(date +%Y%m%d-%H%M%S)}"
     
     if command -v qdrant::backup::create &>/dev/null; then
@@ -376,7 +373,7 @@ resource_cli::create_backup() {
 }
 
 # List backups
-resource_cli::list_backups() {
+qdrant_list_backups() {
     if command -v qdrant::backup::list &>/dev/null; then
         qdrant::backup::list
     else
@@ -386,7 +383,7 @@ resource_cli::list_backups() {
 }
 
 # Custom help function with Qdrant-specific examples
-resource_cli::show_help() {
+qdrant_show_help() {
     # Show standard framework help first
     cli::_handle_help
     

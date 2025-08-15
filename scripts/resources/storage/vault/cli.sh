@@ -11,24 +11,27 @@
 
 set -euo pipefail
 
-# Get script directory
-VAULT_CLI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VROOLI_ROOT="${VROOLI_ROOT:-$(cd "$VAULT_CLI_DIR/../../../.." && pwd)}"
-export VROOLI_ROOT
-export RESOURCE_DIR="$VAULT_CLI_DIR"
-export VAULT_SCRIPT_DIR="$VAULT_CLI_DIR"  # For compatibility with existing libs
+# Get script directory (resolving symlinks for installed CLI)
+if [[ -L "${BASH_SOURCE[0]}" ]]; then
+    VAULT_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
+else
+    VAULT_CLI_SCRIPT="${BASH_SOURCE[0]}"
+fi
+VAULT_CLI_DIR="$(cd "$(dirname "$VAULT_CLI_SCRIPT")" && pwd)"
 
-# Source utilities first
+# Source standard variables
 # shellcheck disable=SC1091
-source "${VROOLI_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || true
+source "${VAULT_CLI_DIR}/../../../lib/utils/var.sh"
+
+# Source utilities using var_ variables
 # shellcheck disable=SC1091
-source "${var_LOG_FILE:-${VROOLI_ROOT}/scripts/lib/utils/log.sh}" 2>/dev/null || true
+source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
-source "${var_RESOURCES_COMMON_FILE:-${VROOLI_ROOT}/scripts/resources/common.sh}" 2>/dev/null || true
+source "${var_RESOURCES_COMMON_FILE}"
 
 # Source the CLI Command Framework
 # shellcheck disable=SC1091
-source "${VROOLI_ROOT}/scripts/resources/lib/cli-command-framework.sh"
+source "${var_SCRIPTS_RESOURCES_LIB_DIR}/cli-command-framework.sh"
 
 # Source Vault configuration
 # shellcheck disable=SC1091
@@ -48,33 +51,33 @@ done
 cli::init "vault" "HashiCorp Vault secrets management"
 
 # Override help to provide Vault-specific examples
-cli::register_command "help" "Show this help message with Vault examples" "resource_cli::show_help"
+cli::register_command "help" "Show this help message with Vault examples" "vault_show_help"
 
 # Register additional Vault-specific commands
-cli::register_command "inject" "Store secret in Vault" "resource_cli::inject" "modifies-system"
-cli::register_command "init-dev" "Initialize Vault for development" "resource_cli::init_dev" "modifies-system"
-cli::register_command "init-prod" "Initialize Vault for production" "resource_cli::init_prod" "modifies-system"
-cli::register_command "unseal" "Unseal Vault" "resource_cli::unseal" "modifies-system"
-cli::register_command "get-secret" "Get secret from Vault" "resource_cli::get_secret"
-cli::register_command "list-secrets" "List secrets at path" "resource_cli::list_secrets"
-cli::register_command "delete-secret" "Delete secret (requires --force)" "resource_cli::delete_secret" "modifies-system"
-cli::register_command "auth-info" "Show authentication information" "resource_cli::auth_info"
-cli::register_command "test" "Run functional tests" "resource_cli::test"
-cli::register_command "monitor" "Monitor Vault (default: 5s)" "resource_cli::monitor"
-cli::register_command "backup" "Create Vault backup" "resource_cli::backup" "modifies-system"
-cli::register_command "restore" "Restore Vault backup" "resource_cli::restore" "modifies-system"
-cli::register_command "migrate-env" "Migrate .env file to Vault" "resource_cli::migrate_env" "modifies-system"
-cli::register_command "logs" "Show Vault logs (default: 50 lines)" "resource_cli::logs"
-cli::register_command "diagnose" "Diagnose Vault issues" "resource_cli::diagnose"
-cli::register_command "credentials" "Show n8n credentials for Vault" "resource_cli::credentials"
-cli::register_command "uninstall" "Uninstall Vault (requires --force)" "resource_cli::uninstall" "modifies-system"
+cli::register_command "inject" "Store secret in Vault" "vault_inject" "modifies-system"
+cli::register_command "init-dev" "Initialize Vault for development" "vault_init_dev" "modifies-system"
+cli::register_command "init-prod" "Initialize Vault for production" "vault_init_prod" "modifies-system"
+cli::register_command "unseal" "Unseal Vault" "vault_unseal" "modifies-system"
+cli::register_command "get-secret" "Get secret from Vault" "vault_get_secret"
+cli::register_command "list-secrets" "List secrets at path" "vault_list_secrets"
+cli::register_command "delete-secret" "Delete secret (requires --force)" "vault_delete_secret" "modifies-system"
+cli::register_command "auth-info" "Show authentication information" "vault_auth_info"
+cli::register_command "test" "Run functional tests" "vault_test"
+cli::register_command "monitor" "Monitor Vault (default: 5s)" "vault_monitor"
+cli::register_command "backup" "Create Vault backup" "vault_backup" "modifies-system"
+cli::register_command "restore" "Restore Vault backup" "vault_restore" "modifies-system"
+cli::register_command "migrate-env" "Migrate .env file to Vault" "vault_migrate_env" "modifies-system"
+cli::register_command "logs" "Show Vault logs (default: 50 lines)" "vault_logs"
+cli::register_command "diagnose" "Diagnose Vault issues" "vault_diagnose"
+cli::register_command "credentials" "Show n8n credentials for Vault" "vault_credentials"
+cli::register_command "uninstall" "Uninstall Vault (requires --force)" "vault_uninstall" "modifies-system"
 
 ################################################################################
 # Resource-specific command implementations
 ################################################################################
 
 # Inject secrets into Vault
-resource_cli::inject() {
+vault_inject() {
     local path="${1:-}"
     local value="${2:-}"
     local key="${3:-value}"
@@ -100,7 +103,7 @@ resource_cli::inject() {
 }
 
 # Validate Vault configuration
-resource_cli::validate() {
+vault_validate() {
     if command -v vault::show_status &>/dev/null; then
         vault::show_status
     elif command -v vault::common::is_healthy &>/dev/null; then
@@ -118,7 +121,7 @@ resource_cli::validate() {
 }
 
 # Show Vault status
-resource_cli::status() {
+vault_status() {
     if command -v vault::show_status &>/dev/null; then
         vault::show_status
     else
@@ -135,7 +138,7 @@ resource_cli::status() {
 }
 
 # Start Vault
-resource_cli::start() {
+vault_start() {
     if command -v vault::docker::start_container &>/dev/null; then
         vault::docker::start_container
     else
@@ -145,7 +148,7 @@ resource_cli::start() {
 }
 
 # Stop Vault
-resource_cli::stop() {
+vault_stop() {
     if command -v vault::docker::stop_container &>/dev/null; then
         vault::docker::stop_container
     else
@@ -155,7 +158,7 @@ resource_cli::stop() {
 }
 
 # Install Vault
-resource_cli::install() {
+vault_install() {
     if command -v vault::install &>/dev/null; then
         vault::install
     else
@@ -165,7 +168,7 @@ resource_cli::install() {
 }
 
 # Uninstall Vault
-resource_cli::uninstall() {
+vault_uninstall() {
     FORCE="${FORCE:-false}"
     
     if [[ "$FORCE" != "true" ]]; then
@@ -184,8 +187,8 @@ resource_cli::uninstall() {
 }
 
 # Show credentials for n8n integration
-resource_cli::credentials() {
-    source "${VROOLI_ROOT}/scripts/resources/lib/credentials-utils.sh"
+vault_credentials() {
+    source "${var_SCRIPTS_RESOURCES_LIB_DIR}/credentials-utils.sh"
     
     if ! credentials::parse_args "$@"; then
         [[ $? -eq 2 ]] && { credentials::show_help "vault"; return 0; }
@@ -263,7 +266,7 @@ resource_cli::credentials() {
 }
 
 # Initialize Vault for development
-resource_cli::init_dev() {
+vault_init_dev() {
     if command -v vault::init_dev &>/dev/null; then
         vault::init_dev
     else
@@ -273,7 +276,7 @@ resource_cli::init_dev() {
 }
 
 # Initialize Vault for production
-resource_cli::init_prod() {
+vault_init_prod() {
     if command -v vault::init_prod &>/dev/null; then
         vault::init_prod
     else
@@ -283,7 +286,7 @@ resource_cli::init_prod() {
 }
 
 # Unseal Vault
-resource_cli::unseal() {
+vault_unseal() {
     if command -v vault::unseal &>/dev/null; then
         vault::unseal
     else
@@ -293,7 +296,7 @@ resource_cli::unseal() {
 }
 
 # Get secret from Vault
-resource_cli::get_secret() {
+vault_get_secret() {
     local path="${1:-}"
     local key="${2:-value}"
     local format="${3:-raw}"
@@ -318,7 +321,7 @@ resource_cli::get_secret() {
 }
 
 # List secrets at path
-resource_cli::list_secrets() {
+vault_list_secrets() {
     local path="${1:-}"
     local format="${2:-list}"
     
@@ -341,7 +344,7 @@ resource_cli::list_secrets() {
 }
 
 # Delete secret from Vault
-resource_cli::delete_secret() {
+vault_delete_secret() {
     local path="${1:-}"
     
     if [[ -z "$path" ]]; then
@@ -369,7 +372,7 @@ resource_cli::delete_secret() {
 }
 
 # Show authentication info
-resource_cli::auth_info() {
+vault_auth_info() {
     if command -v vault::show_auth_info &>/dev/null; then
         vault::show_auth_info
     else
@@ -379,7 +382,7 @@ resource_cli::auth_info() {
 }
 
 # Run functional tests
-resource_cli::test() {
+vault_test() {
     if command -v vault::test_functional &>/dev/null; then
         vault::test_functional
     else
@@ -389,7 +392,7 @@ resource_cli::test() {
 }
 
 # Monitor Vault
-resource_cli::monitor() {
+vault_monitor() {
     local interval="${1:-5}"
     
     if command -v vault::monitor &>/dev/null; then
@@ -401,7 +404,7 @@ resource_cli::monitor() {
 }
 
 # Create backup
-resource_cli::backup() {
+vault_backup() {
     local backup_file="${1:-}"
     
     if command -v vault::docker::backup &>/dev/null; then
@@ -413,7 +416,7 @@ resource_cli::backup() {
 }
 
 # Restore backup
-resource_cli::restore() {
+vault_restore() {
     local backup_file="${1:-}"
     
     if [[ -z "$backup_file" ]]; then
@@ -435,7 +438,7 @@ resource_cli::restore() {
 }
 
 # Migrate environment file
-resource_cli::migrate_env() {
+vault_migrate_env() {
     local env_file="${1:-}"
     local vault_prefix="${2:-}"
     
@@ -458,7 +461,7 @@ resource_cli::migrate_env() {
 }
 
 # Show logs
-resource_cli::logs() {
+vault_logs() {
     local lines="${1:-50}"
     local follow="${2:-false}"
     local container_name="${VAULT_CONTAINER_NAME:-vault}"
@@ -479,7 +482,7 @@ resource_cli::logs() {
 }
 
 # Diagnose Vault issues
-resource_cli::diagnose() {
+vault_diagnose() {
     if command -v vault::diagnose &>/dev/null; then
         vault::diagnose
     else
@@ -489,7 +492,7 @@ resource_cli::diagnose() {
 }
 
 # Custom help function with Vault-specific examples
-resource_cli::show_help() {
+vault_show_help() {
     # Show standard framework help first
     cli::_handle_help
     
