@@ -1,312 +1,297 @@
--- Seed data for Prompt Manager
--- Default user, campaigns, tags, and sample prompts
+-- Seed data for Prompt Manager with AI Maintenance Tasks
+-- Default user, campaigns, tags, and maintenance prompts
 
 -- Insert default user
 INSERT INTO users (username, name, email) VALUES 
-    ('default', 'Personal User', 'user@localhost')
+    ('default', 'AI Maintenance User', 'maintenance@vrooli.com')
 ON CONFLICT (username) DO NOTHING;
 
--- Insert default campaign tags
+-- Insert maintenance-focused tags
 INSERT INTO tags (name, color, description) VALUES
-    ('debugging', '#EF4444', 'Code debugging and troubleshooting'),
-    ('ux-design', '#8B5CF6', 'User experience and interface design'),
-    ('coding', '#10B981', 'Software development and programming'),
-    ('writing', '#F59E0B', 'Content writing and documentation'),
-    ('analysis', '#3B82F6', 'Data analysis and research'),
-    ('automation', '#6B7280', 'Process automation and workflows'),
-    ('creative', '#EC4899', 'Creative tasks and ideation'),
-    ('learning', '#14B8A6', 'Learning and skill development')
+    ('maintenance', '#6366f1', 'AI maintenance and code quality tasks'),
+    ('testing', '#10B981', 'Test quality and coverage improvements'),
+    ('performance', '#F59E0B', 'Performance optimization tasks'),
+    ('security', '#EF4444', 'Security review and vulnerability fixes'),
+    ('accessibility', '#8B5CF6', 'Accessibility and WCAG compliance'),
+    ('code-quality', '#3B82F6', 'Code quality and refactoring'),
+    ('documentation', '#6B7280', 'Documentation and comment improvements'),
+    ('cleanup', '#EC4899', 'Code cleanup and dead code removal'),
+    ('error-handling', '#14B8A6', 'Error handling and logging improvements'),
+    ('startup', '#F97316', 'Development environment and startup issues')
 ON CONFLICT (name) DO NOTHING;
 
--- Insert default campaigns with proper ordering
+-- Insert campaigns for organizing maintenance tasks
 INSERT INTO campaigns (name, description, color, icon, sort_order, is_favorite) VALUES
-    ('Debugging', 'Prompts for troubleshooting code issues and finding bugs', '#EF4444', 'bug', 1, true),
-    ('UX Design', 'User experience research, design thinking, and interface improvements', '#8B5CF6', 'palette', 2, true),
-    ('Coding', 'Software development, architecture, and programming best practices', '#10B981', 'code', 3, true),
-    ('Writing', 'Documentation, content creation, and communication', '#F59E0B', 'pen-tool', 4, false),
-    ('Analysis', 'Data analysis, research, and problem-solving approaches', '#3B82F6', 'chart-bar', 5, false),
-    ('Automation', 'Workflow automation and process optimization', '#6B7280', 'cog', 6, false),
-    ('Learning', 'Skill development and educational content', '#14B8A6', 'book-open', 7, false)
+    ('AI Maintenance', 'Automated maintenance tasks for code quality and health', '#6366f1', 'wrench', 1, true),
+    ('Test Improvements', 'Test quality, coverage, and reliability tasks', '#10B981', 'check-circle', 2, true),
+    ('Performance', 'Performance optimization and monitoring tasks', '#F59E0B', 'zap', 3, true),
+    ('Security & Safety', 'Security reviews and vulnerability assessments', '#EF4444', 'shield', 4, true),
+    ('User Experience', 'UX, accessibility, and loading state improvements', '#8B5CF6', 'users', 5, false),
+    ('Code Health', 'Code quality, cleanup, and refactoring tasks', '#3B82F6', 'heart', 6, false),
+    ('Documentation', 'Documentation, comments, and knowledge management', '#6B7280', 'book', 7, false)
 ON CONFLICT (name) DO NOTHING;
 
 -- Get campaign and tag IDs for relationships
 DO $$ 
 DECLARE
-    debugging_campaign_id UUID;
+    maintenance_campaign_id UUID;
+    test_campaign_id UUID;
+    perf_campaign_id UUID;
+    security_campaign_id UUID;
     ux_campaign_id UUID;
-    coding_campaign_id UUID;
-    debugging_tag_id UUID;
-    ux_tag_id UUID;
-    coding_tag_id UUID;
+    code_campaign_id UUID;
+    docs_campaign_id UUID;
+    
+    maintenance_tag_id UUID;
+    testing_tag_id UUID;
+    performance_tag_id UUID;
+    security_tag_id UUID;
+    accessibility_tag_id UUID;
+    code_quality_tag_id UUID;
+    documentation_tag_id UUID;
+    cleanup_tag_id UUID;
+    error_handling_tag_id UUID;
+    startup_tag_id UUID;
 BEGIN
     -- Get campaign IDs
-    SELECT id INTO debugging_campaign_id FROM campaigns WHERE name = 'Debugging';
-    SELECT id INTO ux_campaign_id FROM campaigns WHERE name = 'UX Design';
-    SELECT id INTO coding_campaign_id FROM campaigns WHERE name = 'Coding';
+    SELECT id INTO maintenance_campaign_id FROM campaigns WHERE name = 'AI Maintenance';
+    SELECT id INTO test_campaign_id FROM campaigns WHERE name = 'Test Improvements';
+    SELECT id INTO perf_campaign_id FROM campaigns WHERE name = 'Performance';
+    SELECT id INTO security_campaign_id FROM campaigns WHERE name = 'Security & Safety';
+    SELECT id INTO ux_campaign_id FROM campaigns WHERE name = 'User Experience';
+    SELECT id INTO code_campaign_id FROM campaigns WHERE name = 'Code Health';
+    SELECT id INTO docs_campaign_id FROM campaigns WHERE name = 'Documentation';
     
     -- Get tag IDs
-    SELECT id INTO debugging_tag_id FROM tags WHERE name = 'debugging';
-    SELECT id INTO ux_tag_id FROM tags WHERE name = 'ux-design';
-    SELECT id INTO coding_tag_id FROM tags WHERE name = 'coding';
+    SELECT id INTO maintenance_tag_id FROM tags WHERE name = 'maintenance';
+    SELECT id INTO testing_tag_id FROM tags WHERE name = 'testing';
+    SELECT id INTO performance_tag_id FROM tags WHERE name = 'performance';
+    SELECT id INTO security_tag_id FROM tags WHERE name = 'security';
+    SELECT id INTO accessibility_tag_id FROM tags WHERE name = 'accessibility';
+    SELECT id INTO code_quality_tag_id FROM tags WHERE name = 'code-quality';
+    SELECT id INTO documentation_tag_id FROM tags WHERE name = 'documentation';
+    SELECT id INTO cleanup_tag_id FROM tags WHERE name = 'cleanup';
+    SELECT id INTO error_handling_tag_id FROM tags WHERE name = 'error-handling';
+    SELECT id INTO startup_tag_id FROM tags WHERE name = 'startup';
 
-    -- Insert sample prompts for debugging campaign
-    INSERT INTO prompts (campaign_id, title, content, description, usage_count, is_favorite, effectiveness_rating) VALUES
-        (debugging_campaign_id, 
-         'Debug SQL Performance', 
-         'I have a slow SQL query that needs optimization. Here''s the query:
+    -- Insert the main guide
+    INSERT INTO prompts (campaign_id, title, file_path, description, variables, usage_count, is_favorite, effectiveness_rating, quick_access_key) VALUES
+        (maintenance_campaign_id, 
+         'AI Maintenance Task Guide', 
+         'maintenance/_TASK_GUIDE.md',
+         'Complete guide for AI maintenance tracking system with all task IDs and instructions',
+         '[]'::jsonb,
+         0, true, 5, 'guide');
 
-[QUERY]
-
-The current execution time is [TIME] and it''s running against a table with [ROWS] rows. Please analyze this query and suggest optimizations, including:
-
-1. Index recommendations
-2. Query restructuring possibilities
-3. Potential bottlenecks
-4. Alternative approaches
-
-Database: [DATABASE_TYPE]
-Table schema: [SCHEMA]', 
-         'Template for debugging slow SQL queries with systematic analysis',
-         3, true, 5),
+    -- Insert test-related maintenance tasks
+    INSERT INTO prompts (campaign_id, title, file_path, description, variables, usage_count, is_favorite, effectiveness_rating, quick_access_key) VALUES
+        (test_campaign_id, 
+         'Test Quality Review', 
+         'maintenance/TEST_QUALITY.md',
+         'Find and fix tests written to pass rather than test actual behavior',
+         '[]'::jsonb,
+         0, true, 5, 'test-quality'),
          
-        (debugging_campaign_id,
-         'JavaScript Error Analysis',
-         'I''m getting this JavaScript error and need help debugging:
+        (test_campaign_id,
+         'Test Coverage Improvement',
+         'maintenance/TEST_COVERAGE.md',
+         'Improve test coverage for critical paths and edge cases',
+         '[]'::jsonb,
+         0, false, 4, 'test-coverage');
 
-Error: [ERROR_MESSAGE]
-Stack trace: [STACK_TRACE]
-Context: [CONTEXT_DESCRIPTION]
-Browser/Environment: [ENVIRONMENT]
+    -- Insert performance-related tasks
+    INSERT INTO prompts (campaign_id, title, file_path, description, variables, usage_count, is_favorite, effectiveness_rating, quick_access_key) VALUES
+        (perf_campaign_id,
+         'React Performance Optimization',
+         'maintenance/REACT_PERF.md',
+         'Optimize React component rendering and performance issues',
+         '[]'::jsonb,
+         0, true, 5, 'react-perf'),
+         
+        (perf_campaign_id,
+         'General Performance Optimization',
+         'maintenance/PERF_GENERAL.md',
+         'Improve overall application performance',
+         '[]'::jsonb,
+         0, false, 4, 'perf');
 
-Please help me:
-1. Understand what this error means
-2. Identify the root cause
-3. Provide a fix
-4. Suggest how to prevent similar issues
+    -- Insert security and safety tasks
+    INSERT INTO prompts (campaign_id, title, file_path, description, variables, usage_count, is_favorite, effectiveness_rating, quick_access_key) VALUES
+        (security_campaign_id,
+         'Security Review',
+         'maintenance/SECURITY.md',
+         'Identify and fix security vulnerabilities',
+         '[]'::jsonb,
+         0, true, 5, 'security'),
+         
+        (security_campaign_id,
+         'Type Safety Improvements',
+         'maintenance/TYPE_SAFETY.md',
+         'Improve TypeScript type safety and eliminate any types',
+         '[]'::jsonb,
+         0, false, 4, 'type-safety'),
+         
+        (security_campaign_id,
+         'Error Handling Enhancement',
+         'maintenance/ERROR_HANDLING.md',
+         'Improve error handling, logging, and user feedback',
+         '[]'::jsonb,
+         0, true, 5, 'errors');
 
-Code snippet where error occurs:
-```javascript
-[CODE_SNIPPET]
-```',
-         'Systematic approach to debugging JavaScript errors',
-         5, true, 4),
-
-        (debugging_campaign_id,
-         'API Integration Debug',
-         'I''m having issues with an API integration. Here are the details:
-
-API Endpoint: [ENDPOINT]
-HTTP Method: [METHOD]
-Request payload: [PAYLOAD]
-Response received: [RESPONSE]
-Expected response: [EXPECTED]
-
-Error details:
-- Status code: [STATUS_CODE]
-- Error message: [ERROR_MESSAGE]
-- Headers: [HEADERS]
-
-Please help me debug this API integration and suggest fixes.',
-         'Template for troubleshooting API integration problems',
-         2, false, 4);
-
-    -- Insert sample prompts for UX Design campaign
-    INSERT INTO prompts (campaign_id, title, content, description, usage_count, effectiveness_rating) VALUES
+    -- Insert UX and accessibility tasks
+    INSERT INTO prompts (campaign_id, title, file_path, description, variables, usage_count, is_favorite, effectiveness_rating, quick_access_key) VALUES
         (ux_campaign_id,
-         'User Journey Analysis',
-         'I need to analyze the user journey for [FEATURE/PRODUCT]. Here''s the current flow:
-
-Current user steps:
-1. [STEP_1]
-2. [STEP_2]
-3. [STEP_3]
-[etc.]
-
-Pain points identified:
-- [PAIN_POINT_1]
-- [PAIN_POINT_2]
-
-Goals:
-- [GOAL_1]
-- [GOAL_2]
-
-Please help me:
-1. Identify friction points in this journey
-2. Suggest improvements to reduce cognitive load
-3. Recommend better user flow alternatives
-4. Consider accessibility and mobile experience',
-         'Comprehensive user journey analysis template',
-         4, true, 5),
-
+         'Accessibility Improvements',
+         'maintenance/ACCESSIBILITY.md',
+         'Enhance WCAG compliance and accessibility features',
+         '[]'::jsonb,
+         0, false, 5, 'a11y'),
+         
         (ux_campaign_id,
-         'Design System Component',
-         'I need to design a [COMPONENT_TYPE] component for our design system.
+         'Loading States UX',
+         'maintenance/LOADING_STATES.md',
+         'Improve loading states and user feedback',
+         '[]'::jsonb,
+         0, false, 4, 'loading');
 
-Requirements:
-- Use case: [USE_CASE]
-- Target users: [USER_TYPES]
-- Platform: [PLATFORM]
-- Brand guidelines: [BRAND_INFO]
+    -- Insert code health tasks
+    INSERT INTO prompts (campaign_id, title, file_path, description, variables, usage_count, is_favorite, effectiveness_rating, quick_access_key) VALUES
+        (code_campaign_id,
+         'Code Quality Review',
+         'maintenance/CODE_QUALITY.md',
+         'General code quality improvements and refactoring',
+         '[]'::jsonb,
+         0, false, 4, 'quality'),
+         
+        (code_campaign_id,
+         'Dead Code Elimination',
+         'maintenance/DEAD_CODE.md',
+         'Identify and remove unused code',
+         '[]'::jsonb,
+         0, false, 4, 'dead-code'),
+         
+        (code_campaign_id,
+         'Import Cleanup',
+         'maintenance/IMPORTS.md',
+         'Clean up and optimize import statements',
+         '[]'::jsonb,
+         0, false, 3, 'imports'),
+         
+        (code_campaign_id,
+         'TODO/FIXME Cleanup',
+         'maintenance/TODO_CLEANUP.md',
+         'Address TODO and FIXME comments in codebase',
+         '[]'::jsonb,
+         0, false, 3, 'todos');
 
-Current design challenges:
-- [CHALLENGE_1]
-- [CHALLENGE_2]
+    -- Insert documentation tasks
+    INSERT INTO prompts (campaign_id, title, file_path, description, variables, usage_count, is_favorite, effectiveness_rating, quick_access_key) VALUES
+        (docs_campaign_id,
+         'Comment Quality',
+         'maintenance/COMMENTS.md',
+         'Improve code comments and documentation',
+         '[]'::jsonb,
+         0, false, 3, 'comments');
 
-Please help me design this component considering:
-1. Usability best practices
-2. Accessibility (WCAG compliance)
-3. Consistency with existing design system
-4. Responsive behavior
-5. Interaction patterns',
-         'Template for creating design system components',
-         2, false, 4);
+    -- Insert special/priority tasks
+    INSERT INTO prompts (campaign_id, title, file_path, description, variables, usage_count, is_favorite, effectiveness_rating, quick_access_key) VALUES
+        (maintenance_campaign_id,
+         'Easy Wins Identification',
+         'maintenance/EASY_WINS.md',
+         'Find quick, high-impact improvements',
+         '[]'::jsonb,
+         0, true, 4, 'easy'),
+         
+        (maintenance_campaign_id,
+         'Startup Error Resolution',
+         'maintenance/STARTUP_ERRORS.md',
+         'Identify and fix development environment startup issues',
+         '[]'::jsonb,
+         0, true, 5, 'startup');
 
-    -- Insert sample prompts for coding campaign  
-    INSERT INTO prompts (campaign_id, title, content, description, usage_count, effectiveness_rating) VALUES
-        (coding_campaign_id,
-         'Code Review Request',
-         'Please review this [LANGUAGE] code for:
-
-```[language]
-[CODE_BLOCK]
-```
-
-Context: [CONTEXT_DESCRIPTION]
-Purpose: [PURPOSE]
-
-Please focus on:
-1. Code quality and best practices
-2. Performance considerations  
-3. Security vulnerabilities
-4. Maintainability and readability
-5. Test coverage recommendations
-
-Specific concerns: [SPECIFIC_CONCERNS]',
-         'Comprehensive code review template',
-         6, true, 5),
-
-        (coding_campaign_id,
-         'Architecture Decision',
-         'I need to make an architecture decision for [PROJECT/FEATURE].
-
-Current situation:
-- [CURRENT_STATE]
-- [CONSTRAINTS]
-- [REQUIREMENTS]
-
-Options being considered:
-1. [OPTION_1]: [DESCRIPTION]
-   Pros: [PROS]
-   Cons: [CONS]
-
-2. [OPTION_2]: [DESCRIPTION]
-   Pros: [PROS] 
-   Cons: [CONS]
-
-Please help me evaluate these options considering:
-- Scalability
-- Maintainability  
-- Performance
-- Development velocity
-- Technical debt implications',
-         'Template for evaluating architecture decisions',
-         3, true, 4);
-
-    -- Create prompt-tag relationships
+    -- Create prompt-tag relationships for test tasks
     INSERT INTO prompt_tags (prompt_id, tag_id) 
-    SELECT p.id, debugging_tag_id 
+    SELECT p.id, testing_tag_id 
     FROM prompts p 
-    JOIN campaigns c ON p.campaign_id = c.id 
-    WHERE c.name = 'Debugging';
+    WHERE p.file_path IN ('maintenance/TEST_QUALITY.md', 'maintenance/TEST_COVERAGE.md');
 
+    -- Create prompt-tag relationships for performance tasks
     INSERT INTO prompt_tags (prompt_id, tag_id)
-    SELECT p.id, ux_tag_id
+    SELECT p.id, performance_tag_id
     FROM prompts p
-    JOIN campaigns c ON p.campaign_id = c.id
-    WHERE c.name = 'UX Design';
+    WHERE p.file_path IN ('maintenance/REACT_PERF.md', 'maintenance/PERF_GENERAL.md');
 
+    -- Create prompt-tag relationships for security tasks
     INSERT INTO prompt_tags (prompt_id, tag_id)
-    SELECT p.id, coding_tag_id
+    SELECT p.id, security_tag_id
     FROM prompts p
-    JOIN campaigns c ON p.campaign_id = c.id
-    WHERE c.name = 'Coding';
+    WHERE p.file_path IN ('maintenance/SECURITY.md', 'maintenance/TYPE_SAFETY.md');
+
+    -- Create prompt-tag relationships for error handling
+    INSERT INTO prompt_tags (prompt_id, tag_id)
+    SELECT p.id, error_handling_tag_id
+    FROM prompts p
+    WHERE p.file_path = 'maintenance/ERROR_HANDLING.md';
+
+    -- Create prompt-tag relationships for accessibility
+    INSERT INTO prompt_tags (prompt_id, tag_id)
+    SELECT p.id, accessibility_tag_id
+    FROM prompts p
+    WHERE p.file_path = 'maintenance/ACCESSIBILITY.md';
+
+    -- Create prompt-tag relationships for code quality
+    INSERT INTO prompt_tags (prompt_id, tag_id)
+    SELECT p.id, code_quality_tag_id
+    FROM prompts p
+    WHERE p.file_path IN ('maintenance/CODE_QUALITY.md', 'maintenance/IMPORTS.md');
+
+    -- Create prompt-tag relationships for cleanup
+    INSERT INTO prompt_tags (prompt_id, tag_id)
+    SELECT p.id, cleanup_tag_id
+    FROM prompts p
+    WHERE p.file_path IN ('maintenance/DEAD_CODE.md', 'maintenance/TODO_CLEANUP.md');
+
+    -- Create prompt-tag relationships for documentation
+    INSERT INTO prompt_tags (prompt_id, tag_id)
+    SELECT p.id, documentation_tag_id
+    FROM prompts p
+    WHERE p.file_path = 'maintenance/COMMENTS.md';
+
+    -- Create prompt-tag relationships for startup
+    INSERT INTO prompt_tags (prompt_id, tag_id)
+    SELECT p.id, startup_tag_id
+    FROM prompts p
+    WHERE p.file_path = 'maintenance/STARTUP_ERRORS.md';
+
+    -- Tag all maintenance tasks
+    INSERT INTO prompt_tags (prompt_id, tag_id)
+    SELECT p.id, maintenance_tag_id
+    FROM prompts p
+    WHERE p.file_path LIKE 'maintenance/%';
 
 END $$;
-
--- Insert useful prompt templates
-INSERT INTO templates (name, description, content, category, variables) VALUES
-    ('Code Analysis',
-     'Template for analyzing code quality and suggesting improvements',
-     'Please analyze this [LANGUAGE] code:
-
-```[language]
-[CODE]
-```
-
-Focus on:
-1. [FOCUS_AREA_1]
-2. [FOCUS_AREA_2] 
-3. [FOCUS_AREA_3]
-
-Provide specific recommendations for improvement.',
-     'development',
-     '["LANGUAGE", "CODE", "FOCUS_AREA_1", "FOCUS_AREA_2", "FOCUS_AREA_3"]'::jsonb),
-
-    ('Feature Specification',
-     'Template for creating detailed feature specifications',
-     'Feature: [FEATURE_NAME]
-
-## Overview
-[BRIEF_DESCRIPTION]
-
-## User Stories
-- As a [USER_TYPE], I want [GOAL] so that [BENEFIT]
-- [ADDITIONAL_STORIES]
-
-## Acceptance Criteria
-1. [CRITERIA_1]
-2. [CRITERIA_2]
-3. [CRITERIA_3]
-
-## Technical Considerations
-- [TECH_REQUIREMENT_1]
-- [TECH_REQUIREMENT_2]
-
-## Dependencies
-- [DEPENDENCY_1]
-- [DEPENDENCY_2]',
-     'planning',
-     '["FEATURE_NAME", "BRIEF_DESCRIPTION", "USER_TYPE", "GOAL", "BENEFIT"]'::jsonb),
-
-    ('Bug Report Analysis',
-     'Template for systematic bug analysis and resolution',
-     'Bug Report: [BUG_TITLE]
-
-## Current Behavior
-[ACTUAL_BEHAVIOR]
-
-## Expected Behavior  
-[EXPECTED_BEHAVIOR]
-
-## Steps to Reproduce
-1. [STEP_1]
-2. [STEP_2]
-3. [STEP_3]
-
-## Environment
-- Browser/Platform: [ENVIRONMENT]
-- Version: [VERSION]
-- Additional context: [CONTEXT]
-
-Please help me:
-1. Identify the root cause
-2. Suggest a fix
-3. Recommend prevention strategies',
-     'debugging',
-     '["BUG_TITLE", "ACTUAL_BEHAVIOR", "EXPECTED_BEHAVIOR", "ENVIRONMENT", "VERSION"]'::jsonb);
 
 -- Update campaign last_used timestamps and prompt counts
 UPDATE campaigns SET 
     last_used = CURRENT_TIMESTAMP,
     prompt_count = (SELECT COUNT(*) FROM prompts WHERE campaign_id = campaigns.id)
-WHERE name IN ('Debugging', 'UX Design', 'Coding');
+WHERE name IN ('AI Maintenance', 'Test Improvements', 'Performance', 'Security & Safety', 'User Experience', 'Code Health', 'Documentation');
+
+-- Function to load prompt content from files (placeholder for production)
+CREATE OR REPLACE FUNCTION load_prompt_content(path VARCHAR)
+RETURNS TEXT AS $$
+DECLARE
+    base_path TEXT := '/app/initialization/prompts/';
+    full_path TEXT;
+BEGIN
+    full_path := base_path || path;
+    -- In production, this would read from the file system
+    -- For now, return the path as a placeholder
+    RETURN 'Content from file: ' || full_path;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Update content_cache for all prompts (in production, this would read actual files)
+UPDATE prompts 
+SET content_cache = load_prompt_content(file_path)
+WHERE file_path IS NOT NULL;

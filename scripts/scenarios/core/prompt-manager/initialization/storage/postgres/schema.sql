@@ -28,12 +28,13 @@ CREATE TABLE IF NOT EXISTS campaigns (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Core prompt storage with personal usage tracking
+-- Core prompt storage with file-based content
 CREATE TABLE IF NOT EXISTS prompts (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     campaign_id UUID REFERENCES campaigns(id) ON DELETE CASCADE,
     title VARCHAR(255) NOT NULL,
-    content TEXT NOT NULL,
+    file_path VARCHAR(500) NOT NULL, -- Path to prompt file relative to initialization/prompts/
+    content_cache TEXT, -- Optional cache of file content for performance
     description TEXT,
     variables JSONB DEFAULT '[]'::jsonb,
     
@@ -64,7 +65,8 @@ CREATE TABLE IF NOT EXISTS prompt_versions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     prompt_id UUID REFERENCES prompts(id) ON DELETE CASCADE,
     version_number INTEGER NOT NULL,
-    content TEXT NOT NULL,
+    file_path VARCHAR(500) NOT NULL, -- Path to versioned prompt file
+    content_cache TEXT, -- Optional cache
     variables JSONB,
     change_summary TEXT,
     created_by UUID REFERENCES users(id),
@@ -90,7 +92,8 @@ CREATE TABLE IF NOT EXISTS templates (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(255) NOT NULL,
     description TEXT,
-    content TEXT NOT NULL,
+    file_path VARCHAR(500) NOT NULL, -- Path to template file
+    content_cache TEXT, -- Optional cache
     variables JSONB DEFAULT '[]'::jsonb,
     category VARCHAR(100),
     usage_count INTEGER DEFAULT 0,
@@ -123,10 +126,10 @@ CREATE INDEX idx_prompts_quick_access ON prompts(quick_access_key) WHERE quick_a
 CREATE INDEX idx_prompt_versions_prompt ON prompt_versions(prompt_id);
 CREATE INDEX idx_test_results_prompt ON test_results(prompt_id);
 
--- Full text search
-CREATE INDEX idx_prompts_content_search ON prompts USING gin(to_tsvector('english', content));
+-- Full text search on cached content
+CREATE INDEX idx_prompts_content_search ON prompts USING gin(to_tsvector('english', COALESCE(content_cache, '')));
 CREATE INDEX idx_prompts_title_search ON prompts USING gin(to_tsvector('english', title));
-CREATE INDEX idx_prompts_description_search ON prompts USING gin(to_tsvector('english', description));
+CREATE INDEX idx_prompts_description_search ON prompts USING gin(to_tsvector('english', COALESCE(description, '')));
 
 -- Function to update campaign prompt count
 CREATE OR REPLACE FUNCTION update_campaign_prompt_count()

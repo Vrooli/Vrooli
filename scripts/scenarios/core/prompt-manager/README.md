@@ -1,14 +1,15 @@
 # Prompt Manager
 
-Personal prompt storage and management tool organized by campaigns, with web interface, API, and CLI access.
+AI maintenance task management system for Vrooli, organizing automated code quality and maintenance prompts with web interface, API, and CLI access.
 
 ## Features
 
-- **Campaign Organization**: Group prompts by purpose (debugging, UX, coding, etc.)
-- **Multiple Interfaces**: Web UI, REST API, and command-line tool
-- **Search & Discovery**: Full-text search and optional semantic search
-- **Usage Tracking**: Monitor how often prompts are used
-- **Quick Access**: Copy prompts to clipboard with usage recording
+- **AI Maintenance Tasks**: Pre-configured maintenance prompts for code quality, testing, performance, and security
+- **Campaign Organization**: Tasks grouped by purpose (Testing, Performance, Security, UX, Code Health, etc.)
+- **Task ID System**: Track AI maintenance work with standardized IDs (TEST_QUALITY, REACT_PERF, etc.)
+- **Multiple Interfaces**: Web UI, REST API, and command-line tool for accessing maintenance tasks
+- **Quick Access Keys**: Fast access to frequently used maintenance tasks
+- **Usage Tracking**: Monitor which maintenance tasks are performed most often
 
 ## Quick Start
 

@@ -1,0 +1,183 @@
+{
+  "prompts": {
+    "maintenance": [
+      {
+        "file": "_TASK_GUIDE.md",
+        "title": "AI Maintenance Task Guide",
+        "description": "Complete guide for AI maintenance tracking system with all task IDs and instructions",
+        "variables": [],
+        "usage_count": 0,
+        "is_favorite": true,
+        "effectiveness_rating": 5,
+        "is_guide": true
+      },
+      {
+        "file": "TEST_QUALITY.md",
+        "title": "Test Quality Review",
+        "description": "Find and fix tests written to pass rather than test actual behavior",
+        "variables": [],
+        "usage_count": 0,
+        "is_favorite": true,
+        "effectiveness_rating": 5,
+        "task_id": "TEST_QUALITY"
+      },
+      {
+        "file": "TEST_COVERAGE.md",
+        "title": "Test Coverage Improvement",
+        "description": "Improve test coverage for critical paths and edge cases",
+        "variables": [],
+        "usage_count": 0,
+        "is_favorite": false,
+        "effectiveness_rating": 4,
+        "task_id": "TEST_COVERAGE"
+      },
+      {
+        "file": "REACT_PERF.md",
+        "title": "React Performance Optimization",
+        "description": "Optimize React component rendering and performance issues",
+        "variables": [],
+        "usage_count": 0,
+        "is_favorite": true,
+        "effectiveness_rating": 5,
+        "task_id": "REACT_PERF"
+      },
+      {
+        "file": "TYPE_SAFETY.md",
+        "title": "Type Safety Improvements",
+        "description": "Improve TypeScript type safety and eliminate any types",
+        "variables": [],
+        "usage_count": 0,
+        "is_favorite": false,
+        "effectiveness_rating": 4,
+        "task_id": "TYPE_SAFETY"
+      },
+      {
+        "file": "ERROR_HANDLING.md",
+        "title": "Error Handling Enhancement",
+        "description": "Improve error handling, logging, and user feedback",
+        "variables": [],
+        "usage_count": 0,
+        "is_favorite": true,
+        "effectiveness_rating": 5,
+        "task_id": "ERROR_HANDLING"
+      },
+      {
+        "file": "ACCESSIBILITY.md",
+        "title": "Accessibility Improvements",
+        "description": "Enhance WCAG compliance and accessibility features",
+        "variables": [],
+        "usage_count": 0,
+        "is_favorite": false,
+        "effectiveness_rating": 5,
+        "task_id": "ACCESSIBILITY"
+      },
+      {
+        "file": "SECURITY.md",
+        "title": "Security Review",
+        "description": "Identify and fix security vulnerabilities",
+        "variables": [],
+        "usage_count": 0,
+        "is_favorite": true,
+        "effectiveness_rating": 5,
+        "task_id": "SECURITY"
+      },
+      {
+        "file": "CODE_QUALITY.md",
+        "title": "Code Quality Review",
+        "description": "General code quality improvements and refactoring",
+        "variables": [],
+        "usage_count": 0,
+        "is_favorite": false,
+        "effectiveness_rating": 4,
+        "task_id": "CODE_QUALITY"
+      },
+      {
+        "file": "EASY_WINS.md",
+        "title": "Easy Wins Identification",
+        "description": "Find quick, high-impact improvements",
+        "variables": [],
+        "usage_count": 0,
+        "is_favorite": true,
+        "effectiveness_rating": 4,
+        "task_id": "EASY_WINS"
+      },
+      {
+        "file": "DEAD_CODE.md",
+        "title": "Dead Code Elimination",
+        "description": "Identify and remove unused code",
+        "variables": [],
+        "usage_count": 0,
+        "is_favorite": false,
+        "effectiveness_rating": 4,
+        "task_id": "DEAD_CODE"
+      },
+      {
+        "file": "TODO_CLEANUP.md",
+        "title": "TODO/FIXME Cleanup",
+        "description": "Address TODO and FIXME comments in codebase",
+        "variables": [],
+        "usage_count": 0,
+        "is_favorite": false,
+        "effectiveness_rating": 3,
+        "task_id": "TODO_CLEANUP"
+      },
+      {
+        "file": "PERF_GENERAL.md",
+        "title": "General Performance Optimization",
+        "description": "Improve overall application performance",
+        "variables": [],
+        "usage_count": 0,
+        "is_favorite": false,
+        "effectiveness_rating": 4,
+        "task_id": "PERF_GENERAL"
+      },
+      {
+        "file": "IMPORTS.md",
+        "title": "Import Cleanup",
+        "description": "Clean up and optimize import statements",
+        "variables": [],
+        "usage_count": 0,
+        "is_favorite": false,
+        "effectiveness_rating": 3,
+        "task_id": "IMPORTS"
+      },
+      {
+        "file": "COMMENTS.md",
+        "title": "Comment Quality",
+        "description": "Improve code comments and documentation",
+        "variables": [],
+        "usage_count": 0,
+        "is_favorite": false,
+        "effectiveness_rating": 3,
+        "task_id": "COMMENTS"
+      },
+      {
+        "file": "LOADING_STATES.md",
+        "title": "Loading States UX",
+        "description": "Improve loading states and user feedback",
+        "variables": [],
+        "usage_count": 0,
+        "is_favorite": false,
+        "effectiveness_rating": 4,
+        "task_id": "LOADING_STATES"
+      },
+      {
+        "file": "STARTUP_ERRORS.md",
+        "title": "Startup Error Resolution",
+        "description": "Identify and fix development environment startup issues",
+        "variables": [],
+        "usage_count": 0,
+        "is_favorite": true,
+        "effectiveness_rating": 5,
+        "task_id": "STARTUP_ERRORS"
+      }
+    ]
+  },
+  "templates": [],
+  "metadata": {
+    "version": "2.0.0",
+    "updated": "2025-08-15",
+    "description": "AI maintenance tasks for Vrooli codebase",
+    "source": "Migrated from docs/ai-maintenance/"
+  }
+}
