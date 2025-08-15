@@ -1,0 +1,934 @@
+{
+  "name": "Autonomous Task Executor",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "autonomous-task",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [200, 200]
+    },
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const input = $input.item.json;\nif (!input || Object.keys(input).length === 0 || !input.prompt) {\n  return {\n    prompt: \"Create a simple Python script that calculates fibonacci numbers and test it\",\n    max_attempts: 5,\n    timeout_minutes: 10,\n    regression_threshold: 2,\n    test_mode: true\n  };\n}\nreturn input;"
+      },
+      "id": "handle_empty_input",
+      "name": "Handle Empty Input (Manual Only)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [380, 400]
+    },
+    {
+      "parameters": {},
+      "id": "merge_triggers",
+      "name": "Merge Triggers",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [520, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Initialize task execution context\nconst input = $input.item.json;\n\n// Validate required fields\nif (!input.prompt) {\n  throw new Error('Missing required field: prompt');\n}\n\n// Set defaults\nconst maxAttempts = input.max_attempts || 10;\nconst timeoutMinutes = input.timeout_minutes || 30;\nconst regressionThreshold = input.regression_threshold || 2;\nconst testMode = input.test_mode || false;\n\n// Validate limits\nif (maxAttempts < 1 || maxAttempts > 20) {\n  throw new Error('max_attempts must be between 1 and 20');\n}\n\nif (timeoutMinutes < 1 || timeoutMinutes > 60) {\n  throw new Error('timeout_minutes must be between 1 and 60');\n}\n\n// Generate task ID\nconst taskId = `task_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;\n\n// Initialize execution context\nconst context = {\n  task_id: taskId,\n  prompt: input.prompt,\n  max_attempts: maxAttempts,\n  timeout_minutes: timeoutMinutes,\n  regression_threshold: regressionThreshold,\n  test_mode: testMode,\n  current_attempt: 1,\n  regression_count: 0,\n  success: false,\n  start_time: new Date().toISOString(),\n  deadline: new Date(Date.now() + (timeoutMinutes * 60 * 1000)).toISOString(),\n  redis_keys: {\n    attempts: `task:${taskId}:attempts`,\n    checkpoints: `task:${taskId}:checkpoints`,\n    patterns: `task:${taskId}:patterns`,\n    config: `task:${taskId}:config`\n  },\n  metadata: {\n    trace_id: input.trace_id || null,\n    user_id: input.user_id || 'system',\n    project: input.project || 'default'\n  }\n};\n\nreturn context;"
+      },
+      "id": "initialize_context",
+      "name": "Initialize Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:5000/webhook/safe-path",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "action",
+              "value": "generate_temp_path"
+            },
+            {
+              "name": "extension",
+              "value": ".md"
+            },
+            {
+              "name": "prefix",
+              "value": "plan"
+            },
+            {
+              "name": "directory",
+              "value": "/tmp/autonomous-tasks"
+            },
+            {
+              "name": "ttl_seconds",
+              "value": "={{ $json.timeout_minutes * 60 }}"
+            },
+            {
+              "name": "create_directory",
+              "value": "={{ true }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "generate_plan_path",
+      "name": "Generate Plan Path",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 100]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:5000/webhook/safe-path",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "action",
+              "value": "generate_temp_path"
+            },
+            {
+              "name": "extension",
+              "value": ".log"
+            },
+            {
+              "name": "prefix",
+              "value": "results"
+            },
+            {
+              "name": "directory",
+              "value": "/tmp/autonomous-tasks"
+            },
+            {
+              "name": "ttl_seconds",
+              "value": "={{ $json.timeout_minutes * 60 }}"
+            },
+            {
+              "name": "create_directory",
+              "value": "={{ true }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "generate_results_path",
+      "name": "Generate Results Path",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 250]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:5000/webhook/safe-path",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "action",
+              "value": "generate_temp_path"
+            },
+            {
+              "name": "extension",
+              "value": "sh"
+            },
+            {
+              "name": "prefix",
+              "value": "test"
+            },
+            {
+              "name": "directory",
+              "value": "/tmp/autonomous-tasks"
+            },
+            {
+              "name": "ttl_seconds",
+              "value": "={{ $json.timeout_minutes * 60 }}"
+            },
+            {
+              "name": "make_executable",
+              "value": "={{ true }}"
+            },
+            {
+              "name": "create_directory",
+              "value": "={{ true }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "generate_test_path",
+      "name": "Generate Test Path",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Combine paths and prepare for Claude Code execution\nconst context = $items[0].json;\nconst planPath = $items[1].json.path;\nconst resultsPath = $items[2].json.path;\nconst testPath = $items[3].json.path;\n\n// Get failure history from Redis if this is a retry\nconst failureHistory = context.current_attempt > 1 ? \n  context.failure_history || [] : [];\n\n// Build enhanced prompt with paths and history\nconst enhancedPrompt = `\nYou are an autonomous task executor with self-correction capabilities.\n\nTASK: ${context.prompt}\n\nEXECUTION REQUIREMENTS:\n1. Create a comprehensive implementation plan and save it to: ${planPath}\n2. Log ALL your work, attempts, and results to: ${resultsPath}\n3. Create a test script that validates your solution and save it to: ${testPath}\n\nThe test script should:\n- Exit with code 0 if successful\n- Exit with non-zero code if failed\n- Print clear success/failure messages\n- Test all key functionality\n\n${failureHistory.length > 0 ? `\nPREVIOUS ATTEMPTS (Learn from these failures):\n${failureHistory.map((f, i) => `\nAttempt ${i + 1}:\n- Failure: ${f.failure_reason}\n- Error: ${f.specific_error}\n- Fix Attempted: ${f.fix_attempted}\n- Outcome: ${f.outcome}`).join('\\n')}\n\nDO NOT repeat the same mistakes. Try a different approach.` : ''}\n\nAttempt ${context.current_attempt} of ${context.max_attempts}\n`;\n\nreturn {\n  ...context,\n  paths: {\n    plan: planPath,\n    results: resultsPath,\n    test: testPath\n  },\n  enhanced_prompt: enhancedPrompt,\n  failure_history: failureHistory\n};"
+      },
+      "id": "prepare_claude_prompt",
+      "name": "Prepare Claude Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1100, 250]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:5000/webhook/claude-code-executor",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "action",
+              "value": "execute_simple"
+            },
+            {
+              "name": "prompt",
+              "value": "={{ $json.enhanced_prompt }}"
+            },
+            {
+              "name": "max_thinking_tokens",
+              "value": "={{ 15000 }}"
+            },
+            {
+              "name": "safety_level",
+              "value": "moderate"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 300000
+        }
+      },
+      "id": "execute_claude_code",
+      "name": "Execute Claude Code",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1300, 250]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:5000/webhook/file-reader",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "action",
+              "value": "read_full_list"
+            },
+            {
+              "name": "file_path",
+              "value": "={{ $json.paths.results }}"
+            },
+            {
+              "name": "format",
+              "value": "lines"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "read_results_file",
+      "name": "Read Results File",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1500, 250]
+    },
+    {
+      "parameters": {
+        "model": "llama3.1:8b",
+        "prompt": "Analyze the following task execution results and determine if the task was completed successfully.\n\nResults:\n{{ $json.items.join('\\n') }}\n\nRespond with a JSON object:\n{\n  \"success\": true/false,\n  \"confidence\": 0.0-1.0,\n  \"reason\": \"brief explanation\",\n  \"key_achievements\": [\"list of completed items\"],\n  \"missing_elements\": [\"list of incomplete items\"]\n}",
+        "options": {
+          "temperature": 0.1
+        }
+      },
+      "id": "validate_with_ollama",
+      "name": "Validate with Ollama",
+      "type": "n8n-nodes-ai.ollama",
+      "typeVersion": 1,
+      "position": [1700, 250]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Parse validation result and decide next action\nconst context = $items[0].json;\nconst validation = JSON.parse($items[1].json.response || '{}');\n\n// Check if task seems successful based on AI analysis\nconst aiThinksSucess = validation.success && validation.confidence > 0.7;\n\nif (aiThinksSucess || context.test_mode) {\n  // Proceed to test execution\n  return {\n    ...context,\n    ai_validation: validation,\n    proceed_to_test: true\n  };\n} else {\n  // Skip test, mark as failed\n  return {\n    ...context,\n    ai_validation: validation,\n    proceed_to_test: false,\n    skip_reason: 'AI validation failed with low confidence'\n  };\n}"
+      },
+      "id": "check_ai_validation",
+      "name": "Check AI Validation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1900, 250]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "boolean": [
+                  {
+                    "value1": "={{ $json.proceed_to_test }}",
+                    "value2": true
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "test"
+            },
+            {
+              "conditions": {
+                "boolean": [
+                  {
+                    "value1": "={{ $json.proceed_to_test }}",
+                    "value2": false
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "skip"
+            }
+          ]
+        }
+      },
+      "id": "test_decision",
+      "name": "Test Decision",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [2100, 250]
+    },
+    {
+      "parameters": {
+        "command": "chmod +x {{ $json.paths.test }} && timeout 30 {{ $json.paths.test }} 2>&1",
+        "cwd": "/tmp/autonomous-tasks"
+      },
+      "id": "execute_test_script",
+      "name": "Execute Test Script",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [2300, 150],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "model": "llama3.1:8b",
+        "prompt": "Analyze the test execution output and determine if the task was truly successful.\n\nTest Output:\n{{ $json.stdout || $json.stderr || 'No output' }}\n\nExit Code: {{ $json.exitCode }}\n\nRespond with a JSON object:\n{\n  \"test_passed\": true/false,\n  \"confidence\": 0.0-1.0,\n  \"specific_failures\": [\"list of specific test failures\"],\n  \"suggestions\": [\"how to fix the failures\"]\n}",
+        "options": {
+          "temperature": 0.1
+        }
+      },
+      "id": "validate_test_output",
+      "name": "Validate Test Output",
+      "type": "n8n-nodes-ai.ollama",
+      "typeVersion": 1,
+      "position": [2500, 150]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Determine final success and whether to retry\nconst context = $items[0].json;\nconst testValidation = JSON.parse($items[1].json.response || '{}');\nconst testExitCode = $items[0].json.exitCode || 1;\n\n// Determine success\nconst success = testExitCode === 0 && testValidation.test_passed;\n\nif (success) {\n  return {\n    ...context,\n    success: true,\n    final_status: 'completed',\n    test_validation: testValidation,\n    completion_attempt: context.current_attempt,\n    message: 'Task completed successfully!'\n  };\n}\n\n// Task failed - prepare retry information\nconst failureInfo = {\n  attempt_number: context.current_attempt,\n  failure_reason: testValidation.test_passed === false ? \n    'Test validation failed' : 'Test execution failed',\n  specific_error: testValidation.specific_failures?.join(', ') || \n    `Exit code: ${testExitCode}`,\n  fix_attempted: `Attempt ${context.current_attempt}`,\n  outcome: 'test_failure',\n  suggestions: testValidation.suggestions || []\n};\n\nreturn {\n  ...context,\n  success: false,\n  should_retry: context.current_attempt < context.max_attempts,\n  current_failure: failureInfo,\n  test_validation: testValidation\n};"
+      },
+      "id": "evaluate_test_results",
+      "name": "Evaluate Test Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [2700, 150]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Handle skipped test scenario\nconst context = $input.item.json;\n\n// Create failure info for skipped test\nconst failureInfo = {\n  attempt_number: context.current_attempt,\n  failure_reason: 'AI validation indicated likely failure',\n  specific_error: context.ai_validation?.reason || 'Unknown',\n  fix_attempted: `Attempt ${context.current_attempt}`,\n  outcome: 'validation_failure',\n  missing_elements: context.ai_validation?.missing_elements || []\n};\n\nreturn {\n  ...context,\n  success: false,\n  should_retry: context.current_attempt < context.max_attempts,\n  current_failure: failureInfo,\n  skipped_test: true\n};"
+      },
+      "id": "handle_skip",
+      "name": "Handle Skip",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [2300, 350]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "boolean": [
+                  {
+                    "value1": "={{ $json.success }}",
+                    "value2": true
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "success"
+            },
+            {
+              "conditions": {
+                "boolean": [
+                  {
+                    "value1": "={{ $json.should_retry }}",
+                    "value2": true
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "retry"
+            },
+            {
+              "conditions": {
+                "boolean": [
+                  {
+                    "value1": "={{ $json.should_retry }}",
+                    "value2": false
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "failed"
+            }
+          ]
+        }
+      },
+      "id": "retry_decision",
+      "name": "Retry Decision",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [2900, 250]
+    },
+    {
+      "parameters": {
+        "operation": "push",
+        "list": "={{ $json.redis_keys.attempts }}",
+        "messageData": "={{ JSON.stringify($json.current_failure) }}",
+        "options": {}
+      },
+      "id": "store_failure_redis",
+      "name": "Store Failure in Redis",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [3100, 250],
+      "credentials": {
+        "redis": {
+          "id": "redis_creds",
+          "name": "Redis"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "propertyName": "failure_history",
+        "key": "={{ $json.redis_keys.attempts }}",
+        "keyType": "list",
+        "options": {}
+      },
+      "id": "get_failure_history",
+      "name": "Get Failure History",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [3300, 250],
+      "credentials": {
+        "redis": {
+          "id": "redis_creds",
+          "name": "Redis"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Check for regression and prepare next attempt\nconst context = $input.item.json;\nconst failureHistory = context.failure_history || [];\n\n// Parse failure history from Redis\nconst parsedHistory = failureHistory.map(item => {\n  try {\n    return JSON.parse(item);\n  } catch (e) {\n    return item;\n  }\n});\n\n// Add current failure to history\nparsedHistory.push(context.current_failure);\n\n// Check for regression (similar failures)\nlet regressionCount = context.regression_count || 0;\nif (parsedHistory.length >= 2) {\n  const lastTwo = parsedHistory.slice(-2);\n  if (lastTwo[0].specific_error === lastTwo[1].specific_error) {\n    regressionCount++;\n  } else {\n    regressionCount = 0; // Reset if different error\n  }\n}\n\n// Check if we should stop due to regression\nif (regressionCount >= context.regression_threshold) {\n  return {\n    ...context,\n    success: false,\n    should_retry: false,\n    final_status: 'regression_detected',\n    message: `Stopped due to regression: ${regressionCount} similar failures`,\n    failure_history: parsedHistory\n  };\n}\n\n// Check if deadline exceeded\nif (new Date() > new Date(context.deadline)) {\n  return {\n    ...context,\n    success: false,\n    should_retry: false,\n    final_status: 'timeout',\n    message: 'Task exceeded time limit',\n    failure_history: parsedHistory\n  };\n}\n\n// Prepare for next attempt\nreturn {\n  ...context,\n  current_attempt: context.current_attempt + 1,\n  regression_count: regressionCount,\n  failure_history: parsedHistory,\n  should_continue: true\n};"
+      },
+      "id": "check_regression",
+      "name": "Check Regression",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [3500, 250]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "boolean": [
+                  {
+                    "value1": "={{ $json.should_continue }}",
+                    "value2": true
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "continue"
+            },
+            {
+              "conditions": {
+                "boolean": [
+                  {
+                    "value1": "={{ $json.should_continue }}",
+                    "value2": false
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "stop"
+            }
+          ]
+        }
+      },
+      "id": "continue_decision",
+      "name": "Continue Decision",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [3700, 250]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Prepare successful response\nconst context = $input.item.json;\n\nreturn {\n  success: true,\n  task_id: context.task_id,\n  prompt: context.prompt,\n  status: 'completed',\n  attempts_used: context.completion_attempt || context.current_attempt,\n  paths: context.paths,\n  validation: {\n    ai_confidence: context.ai_validation?.confidence,\n    test_passed: true,\n    test_output: context.test_validation\n  },\n  execution_time: {\n    start: context.start_time,\n    end: new Date().toISOString(),\n    duration_ms: Date.now() - new Date(context.start_time).getTime()\n  },\n  message: 'Task completed successfully!',\n  recommendations: [\n    'Review the plan file for implementation details',\n    'Check the results file for complete execution log',\n    'Run the test script to verify functionality'\n  ]\n};"
+      },
+      "id": "format_success",
+      "name": "Format Success",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [3100, 50]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Prepare failure response\nconst context = $input.item.json;\n\nreturn {\n  success: false,\n  task_id: context.task_id,\n  prompt: context.prompt,\n  status: context.final_status || 'failed',\n  attempts_used: context.current_attempt,\n  paths: context.paths,\n  failure_history: context.failure_history || [],\n  final_failure: context.current_failure,\n  execution_time: {\n    start: context.start_time,\n    end: new Date().toISOString(),\n    duration_ms: Date.now() - new Date(context.start_time).getTime()\n  },\n  message: context.message || `Task failed after ${context.current_attempt} attempts`,\n  suggestions: [\n    'Review failure history for patterns',\n    'Consider simplifying the task requirements',\n    'Check if prerequisites are properly set up',\n    'Manually review and fix the generated files'\n  ]\n};"
+      },
+      "id": "format_failure",
+      "name": "Format Failure",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [3100, 450]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "success_response",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [3500, 50]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseCode": 207,
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "partial_response",
+      "name": "Partial Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [3500, 450]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "output_type",
+              "value": "Autonomous Task Executor Complete"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "final_output",
+      "name": "Final Output",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [3700, 250]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Merge Triggers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Handle Empty Input (Manual Only)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle Empty Input (Manual Only)": {
+      "main": [
+        [
+          {
+            "node": "Merge Triggers",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Triggers": {
+      "main": [
+        [
+          {
+            "node": "Initialize Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Initialize Context": {
+      "main": [
+        [
+          {
+            "node": "Generate Plan Path",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Generate Results Path",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Generate Test Path",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Plan Path": {
+      "main": [
+        [
+          {
+            "node": "Prepare Claude Prompt",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Generate Results Path": {
+      "main": [
+        [
+          {
+            "node": "Prepare Claude Prompt",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Generate Test Path": {
+      "main": [
+        [
+          {
+            "node": "Prepare Claude Prompt",
+            "type": "main",
+            "index": 3
+          }
+        ]
+      ]
+    },
+    "Prepare Claude Prompt": {
+      "main": [
+        [
+          {
+            "node": "Execute Claude Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Claude Code": {
+      "main": [
+        [
+          {
+            "node": "Read Results File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Results File": {
+      "main": [
+        [
+          {
+            "node": "Validate with Ollama",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate with Ollama": {
+      "main": [
+        [
+          {
+            "node": "Check AI Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check AI Validation": {
+      "main": [
+        [
+          {
+            "node": "Test Decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Test Decision": {
+      "main": [
+        [
+          {
+            "node": "Execute Test Script",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Handle Skip",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Test Script": {
+      "main": [
+        [
+          {
+            "node": "Validate Test Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Test Output": {
+      "main": [
+        [
+          {
+            "node": "Evaluate Test Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluate Test Results": {
+      "main": [
+        [
+          {
+            "node": "Retry Decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle Skip": {
+      "main": [
+        [
+          {
+            "node": "Retry Decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retry Decision": {
+      "main": [
+        [
+          {
+            "node": "Format Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Store Failure in Redis",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Failure in Redis": {
+      "main": [
+        [
+          {
+            "node": "Get Failure History",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Failure History": {
+      "main": [
+        [
+          {
+            "node": "Check Regression",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Regression": {
+      "main": [
+        [
+          {
+            "node": "Continue Decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Continue Decision": {
+      "main": [
+        [
+          {
+            "node": "Prepare Claude Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Success": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Failure": {
+      "main": [
+        [
+          {
+            "node": "Partial Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Success Response": {
+      "main": [
+        [
+          {
+            "node": "Final Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Partial Response": {
+      "main": [
+        [
+          {
+            "node": "Final Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "autonomous-task-executor-v1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "autonomous-task-executor",
+  "tags": [
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "ai-orchestration",
+      "name": "ai-orchestration"
+    },
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "autonomous-agent",
+      "name": "autonomous-agent"
+    },
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "self-correction",
+      "name": "self-correction"
+    },
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "long-horizon",
+      "name": "long-horizon"
+    }
+  ]
+}

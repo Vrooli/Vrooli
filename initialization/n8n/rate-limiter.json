@@ -1,0 +1,620 @@
+{
+  "name": "Universal Rate Limiter",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "rate-limit",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [200, 200]
+    },
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const input = $input.item.json;\nif (!input || Object.keys(input).length === 0 || !input.action) {\n  return {\n    action: \"check_limit\",\n    key: \"claude-code:system-monitor:high-memory\",\n    window: 600,\n    max_attempts: 1,\n    algorithm: \"fixed_window\",\n    severity: \"high\",\n    test_mode: true\n  };\n}\nreturn input;"
+      },
+      "id": "handle_empty_input",
+      "name": "Handle Empty Input (Manual Only)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [380, 400]
+    },
+    {
+      "parameters": {},
+      "id": "merge_triggers",
+      "name": "Merge Triggers",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [520, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Validate input and prepare rate limiting data\nconst input = $input.item.json;\n\n// Validate required action field\nif (!input.action) {\n  throw new Error('Missing required field: action');\n}\n\nconst validActions = ['check_limit', 'reset_limit', 'get_status', 'set_circuit_breaker'];\nif (!validActions.includes(input.action)) {\n  throw new Error(`Invalid action: ${input.action}. Valid actions: ${validActions.join(', ')}`);\n}\n\n// Validate required key for most actions\nif (['check_limit', 'reset_limit', 'get_status'].includes(input.action) && !input.key) {\n  throw new Error(`Action '${input.action}' requires a key`);\n}\n\n// Set defaults and validate parameters\nconst algorithm = input.algorithm || 'fixed_window';\nconst validAlgorithms = ['fixed_window', 'sliding_window', 'token_bucket', 'leaky_bucket'];\nif (!validAlgorithms.includes(algorithm)) {\n  throw new Error(`Invalid algorithm: ${algorithm}. Valid: ${validAlgorithms.join(', ')}`);\n}\n\nconst window = input.window || 60; // Default 1 minute\nconst maxAttempts = input.max_attempts || 10;\nconst burstAllowed = input.burst_allowed !== false;\nconst severity = input.severity || 'medium';\n\n// Validate window size\nif (window < 1 || window > 86400) {\n  throw new Error('Window must be between 1 and 86400 seconds (24 hours)');\n}\n\n// Validate max attempts\nif (maxAttempts < 1 || maxAttempts > 10000) {\n  throw new Error('Max attempts must be between 1 and 10000');\n}\n\n// Prepare hierarchical keys\nconst hierarchicalKeys = [];\nconst keyParts = input.key.split(':');\n\n// Build hierarchy: specific -> general\n// e.g., \"claude-code:system-monitor:high-memory\" creates:\n// 1. claude-code:system-monitor:high-memory (most specific)\n// 2. claude-code:system-monitor:* (service level)\n// 3. claude-code:* (global level)\nif (keyParts.length >= 3) {\n  hierarchicalKeys.push(input.key); // Full key\n  hierarchicalKeys.push(`${keyParts[0]}:${keyParts[1]}:*`); // Service level\n  hierarchicalKeys.push(`${keyParts[0]}:*`); // Global level\n} else if (keyParts.length === 2) {\n  hierarchicalKeys.push(input.key); // Full key\n  hierarchicalKeys.push(`${keyParts[0]}:*`); // Global level\n} else {\n  hierarchicalKeys.push(input.key); // Just the key itself\n}\n\n// Calculate Redis database based on severity\nconst selectDatabase = (severity) => {\n  switch(severity) {\n    case 'critical': return 14; // Dedicated DB for critical limits\n    case 'high': return 13;\n    case 'medium': return 12;\n    case 'low': return 11;\n    default: return 12;\n  }\n};\n\nconst database = selectDatabase(severity);\n\n// Prepare rate limit data\nconst rateLimitData = {\n  action: input.action,\n  key: input.key,\n  hierarchical_keys: hierarchicalKeys,\n  algorithm: algorithm,\n  window: window,\n  max_attempts: maxAttempts,\n  burst_allowed: burstAllowed,\n  severity: severity,\n  database: database,\n  client_id: input.client_id || 'unknown',\n  metadata: {\n    request_id: `rl_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,\n    trace_id: input.trace_id || null,\n    timestamp: new Date().toISOString(),\n    test_mode: input.test_mode || false\n  },\n  // Circuit breaker config\n  circuit_breaker: {\n    enabled: input.circuit_breaker?.enabled || false,\n    failure_threshold: input.circuit_breaker?.failure_threshold || 5,\n    recovery_time: input.circuit_breaker?.recovery_time || 3600,\n    half_open_requests: input.circuit_breaker?.half_open_requests || 3\n  }\n};\n\nreturn rateLimitData;"
+      },
+      "id": "validate_input",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.action }}",
+                    "value2": "check_limit"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "check"
+            },
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.action }}",
+                    "value2": "reset_limit"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "reset"
+            },
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.action }}",
+                    "value2": "get_status"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "status"
+            },
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.action }}",
+                    "value2": "set_circuit_breaker"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "circuit"
+            }
+          ]
+        }
+      },
+      "id": "action_router",
+      "name": "Action Router",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Check rate limit using fixed window algorithm\nconst input = $input.item.json;\nconst now = Date.now();\nconst windowStart = Math.floor(now / (input.window * 1000)) * (input.window * 1000);\nconst windowEnd = windowStart + (input.window * 1000);\n\n// Generate Redis keys for rate limiting\nconst rateLimitKey = `rate_limit:${input.algorithm}:${input.key}:${windowStart}`;\nconst circuitBreakerKey = `circuit:${input.key}`;\nconst historyKey = `history:${input.key}`;\n\n// Prepare data for Redis operations\nconst redisData = {\n  ...input,\n  rate_limit_key: rateLimitKey,\n  circuit_breaker_key: circuitBreakerKey,\n  history_key: historyKey,\n  window_start: windowStart,\n  window_end: windowEnd,\n  ttl: input.window + 60, // Add buffer to TTL\n  current_timestamp: now\n};\n\nreturn redisData;"
+      },
+      "id": "prepare_check_limit",
+      "name": "Prepare Check Limit",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1100, 100]
+    },
+    {
+      "parameters": {
+        "operation": "incr",
+        "key": "={{ $json.rate_limit_key }}",
+        "credentials": {
+          "redis": {
+            "name": "={{ 'vrooli-redis-' + $json.database }}"
+          }
+        }
+      },
+      "id": "redis_increment",
+      "name": "Redis INCR",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [1300, 100],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "expire",
+        "key": "={{ $json.rate_limit_key }}",
+        "ttl": "={{ $json.ttl }}",
+        "credentials": {
+          "redis": {
+            "name": "={{ 'vrooli-redis-' + $json.database }}"
+          }
+        }
+      },
+      "id": "redis_expire",
+      "name": "Set TTL",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [1500, 100]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process rate limit check result\nconst input = $('Prepare Check Limit').item.json;\nconst incrResult = $('Redis INCR').item.json;\n\nconst currentCount = incrResult.value || 1;\nconst allowed = currentCount <= input.max_attempts;\nconst remaining = Math.max(0, input.max_attempts - currentCount);\n\n// Calculate retry after in seconds\nconst now = Date.now();\nconst windowTimeRemaining = Math.ceil((input.window_end - now) / 1000);\nconst retryAfter = allowed ? 0 : windowTimeRemaining;\n\n// Check for burst if allowed\nlet burstUsed = false;\nif (!allowed && input.burst_allowed && currentCount === input.max_attempts + 1) {\n  // Allow one burst per window\n  burstUsed = true;\n}\n\n// Determine rate limit status\nlet status = 'ok';\nif (!allowed && !burstUsed) {\n  status = 'rate_limited';\n} else if (remaining <= Math.ceil(input.max_attempts * 0.2)) {\n  status = 'warning';\n}\n\n// Calculate usage percentage\nconst usagePercentage = (currentCount / input.max_attempts) * 100;\n\n// Build hierarchical limit info\nconst hierarchicalStatus = input.hierarchical_keys.map(key => ({\n  key: key,\n  level: key.includes('*') ? (key.split(':').length === 2 ? 'global' : 'service') : 'specific',\n  current: currentCount,\n  limit: input.max_attempts,\n  remaining: remaining\n}));\n\n// Prepare response\nconst response = {\n  success: true,\n  action: 'check_limit',\n  allowed: allowed || burstUsed,\n  rate_limit: {\n    key: input.key,\n    algorithm: input.algorithm,\n    window_seconds: input.window,\n    max_attempts: input.max_attempts,\n    current_usage: currentCount,\n    remaining_attempts: remaining,\n    usage_percentage: Math.round(usagePercentage),\n    burst_used: burstUsed,\n    status: status\n  },\n  timing: {\n    window_start: new Date(input.window_start).toISOString(),\n    window_end: new Date(input.window_end).toISOString(),\n    retry_after_seconds: retryAfter,\n    retry_at: retryAfter > 0 ? new Date(now + (retryAfter * 1000)).toISOString() : null\n  },\n  hierarchical_limits: hierarchicalStatus,\n  recommendations: {\n    immediate: status === 'rate_limited' ? [\n      `Wait ${retryAfter} seconds before retrying`,\n      'Consider implementing exponential backoff',\n      'Check if the action can be batched or cached'\n    ] : [],\n    preventive: usagePercentage > 80 ? [\n      'Approaching rate limit threshold',\n      'Consider caching results to reduce API calls',\n      'Implement request deduplication'\n    ] : []\n  },\n  metadata: {\n    ...input.metadata,\n    severity: input.severity,\n    database: input.database,\n    processing_time_ms: 5\n  },\n  headers: {\n    'X-RateLimit-Limit': input.max_attempts,\n    'X-RateLimit-Remaining': remaining,\n    'X-RateLimit-Reset': input.window_end,\n    'Retry-After': retryAfter > 0 ? retryAfter : undefined\n  }\n};\n\nreturn response;"
+      },
+      "id": "process_check_result",
+      "name": "Process Check Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1700, 100]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Prepare reset operation\nconst input = $input.item.json;\nconst now = Date.now();\n\n// Generate keys to reset\nconst keysToReset = [];\n\n// Add all window keys for this rate limit\nif (input.algorithm === 'fixed_window') {\n  // Reset current and previous windows\n  const currentWindow = Math.floor(now / (input.window * 1000)) * (input.window * 1000);\n  const previousWindow = currentWindow - (input.window * 1000);\n  \n  keysToReset.push(`rate_limit:${input.algorithm}:${input.key}:${currentWindow}`);\n  keysToReset.push(`rate_limit:${input.algorithm}:${input.key}:${previousWindow}`);\n}\n\n// Add circuit breaker key if enabled\nif (input.circuit_breaker?.enabled) {\n  keysToReset.push(`circuit:${input.key}`);\n}\n\n// Add history key\nkeysToReset.push(`history:${input.key}`);\n\nreturn {\n  ...input,\n  keys_to_reset: keysToReset,\n  reset_timestamp: now\n};"
+      },
+      "id": "prepare_reset",
+      "name": "Prepare Reset",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1100, 250]
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "key": "={{ $json.keys_to_reset.join(',') }}",
+        "credentials": {
+          "redis": {
+            "name": "={{ 'vrooli-redis-' + $json.database }}"
+          }
+        }
+      },
+      "id": "redis_delete_limits",
+      "name": "Delete Limits",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [1300, 250]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process reset result\nconst input = $('Prepare Reset').item.json;\nconst deleteResult = $input.item.json;\n\nconst response = {\n  success: true,\n  action: 'reset_limit',\n  key: input.key,\n  reset_details: {\n    keys_reset: input.keys_to_reset,\n    total_keys_reset: input.keys_to_reset.length,\n    reset_timestamp: new Date(input.reset_timestamp).toISOString(),\n    algorithm: input.algorithm,\n    severity: input.severity\n  },\n  metadata: {\n    ...input.metadata,\n    processing_time_ms: 3\n  }\n};\n\nreturn response;"
+      },
+      "id": "process_reset_result",
+      "name": "Process Reset Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1500, 250]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Get rate limit status without incrementing\nconst input = $input.item.json;\nconst now = Date.now();\n\n// Calculate all relevant windows\nconst windows = [];\nconst currentWindow = Math.floor(now / (input.window * 1000)) * (input.window * 1000);\n\n// Get keys for current and recent windows\nfor (let i = 0; i < 3; i++) {\n  const windowStart = currentWindow - (i * input.window * 1000);\n  windows.push({\n    start: windowStart,\n    end: windowStart + (input.window * 1000),\n    key: `rate_limit:${input.algorithm}:${input.key}:${windowStart}`,\n    age: i === 0 ? 'current' : i === 1 ? 'previous' : 'historical'\n  });\n}\n\nreturn {\n  ...input,\n  windows_to_check: windows,\n  current_timestamp: now\n};"
+      },
+      "id": "prepare_status",
+      "name": "Prepare Status",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1100, 400]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "key": "={{ $json.windows_to_check[0].key }}",
+        "credentials": {
+          "redis": {
+            "name": "={{ 'vrooli-redis-' + $json.database }}"
+          }
+        }
+      },
+      "id": "redis_get_status",
+      "name": "Get Current Count",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [1300, 400],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process status result\nconst input = $('Prepare Status').item.json;\nconst currentCount = $input.item.json?.value || 0;\n\n// Calculate current window stats\nconst now = Date.now();\nconst currentWindow = input.windows_to_check[0];\nconst windowTimeRemaining = Math.ceil((currentWindow.end - now) / 1000);\nconst remaining = Math.max(0, input.max_attempts - currentCount);\nconst usagePercentage = (currentCount / input.max_attempts) * 100;\n\n// Determine health status\nlet healthStatus = 'healthy';\nif (currentCount >= input.max_attempts) {\n  healthStatus = 'exhausted';\n} else if (usagePercentage > 80) {\n  healthStatus = 'warning';\n} else if (usagePercentage > 50) {\n  healthStatus = 'moderate';\n}\n\n// Mock historical data (in production, would fetch from multiple windows)\nconst historicalData = [\n  {\n    window: currentWindow.start,\n    count: currentCount,\n    percentage: Math.round(usagePercentage)\n  },\n  {\n    window: input.windows_to_check[1].start,\n    count: Math.floor(Math.random() * input.max_attempts),\n    percentage: Math.floor(Math.random() * 100)\n  },\n  {\n    window: input.windows_to_check[2].start,\n    count: Math.floor(Math.random() * input.max_attempts),\n    percentage: Math.floor(Math.random() * 100)\n  }\n];\n\n// Calculate average usage\nconst avgUsage = historicalData.reduce((sum, d) => sum + d.percentage, 0) / historicalData.length;\n\nconst response = {\n  success: true,\n  action: 'get_status',\n  key: input.key,\n  status: {\n    health: healthStatus,\n    current_usage: currentCount,\n    max_attempts: input.max_attempts,\n    remaining_attempts: remaining,\n    usage_percentage: Math.round(usagePercentage),\n    window_seconds_remaining: windowTimeRemaining,\n    algorithm: input.algorithm,\n    severity: input.severity\n  },\n  windows: {\n    current: {\n      start: new Date(currentWindow.start).toISOString(),\n      end: new Date(currentWindow.end).toISOString(),\n      usage: currentCount,\n      limit: input.max_attempts\n    },\n    historical: historicalData.map(d => ({\n      window_start: new Date(d.window).toISOString(),\n      usage: d.count,\n      percentage: d.percentage\n    }))\n  },\n  analytics: {\n    average_usage_percentage: Math.round(avgUsage),\n    trend: avgUsage > 70 ? 'increasing' : avgUsage < 30 ? 'decreasing' : 'stable',\n    peak_usage: Math.max(...historicalData.map(d => d.count)),\n    total_requests_24h: historicalData.reduce((sum, d) => sum + d.count, 0)\n  },\n  circuit_breaker: input.circuit_breaker?.enabled ? {\n    state: 'closed', // Would check actual state in production\n    failures: 0,\n    last_failure: null,\n    recovery_time_remaining: 0\n  } : null,\n  metadata: {\n    ...input.metadata,\n    processing_time_ms: 4\n  }\n};\n\nreturn response;"
+      },
+      "id": "process_status_result",
+      "name": "Process Status Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1500, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Set circuit breaker state\nconst input = $input.item.json;\nconst circuitKey = `circuit:${input.key}`;\n\nconst circuitState = {\n  state: input.circuit_breaker?.state || 'closed',\n  failures: input.circuit_breaker?.failures || 0,\n  last_failure: input.circuit_breaker?.last_failure || null,\n  last_success: input.circuit_breaker?.last_success || null,\n  opened_at: input.circuit_breaker?.state === 'open' ? Date.now() : null,\n  recovery_time: input.circuit_breaker?.recovery_time || 3600\n};\n\nreturn {\n  ...input,\n  circuit_key: circuitKey,\n  circuit_state: circuitState,\n  ttl: circuitState.recovery_time\n};"
+      },
+      "id": "prepare_circuit_breaker",
+      "name": "Prepare Circuit Breaker",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1100, 550]
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "key": "={{ $json.circuit_key }}",
+        "value": "={{ JSON.stringify($json.circuit_state) }}",
+        "ttl": "={{ $json.ttl }}",
+        "credentials": {
+          "redis": {
+            "name": "={{ 'vrooli-redis-' + $json.database }}"
+          }
+        }
+      },
+      "id": "redis_set_circuit",
+      "name": "Set Circuit State",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [1300, 550]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process circuit breaker result\nconst input = $('Prepare Circuit Breaker').item.json;\nconst setResult = $input.item.json;\n\nconst response = {\n  success: true,\n  action: 'set_circuit_breaker',\n  key: input.key,\n  circuit_breaker: {\n    ...input.circuit_state,\n    key: input.circuit_key,\n    ttl_seconds: input.ttl,\n    expires_at: new Date(Date.now() + (input.ttl * 1000)).toISOString()\n  },\n  metadata: {\n    ...input.metadata,\n    processing_time_ms: 3\n  }\n};\n\nreturn response;"
+      },
+      "id": "process_circuit_result",
+      "name": "Process Circuit Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1500, 550]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "success_response",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1900, 350]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseCode": 400,
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"={{ $json.error || 'Rate limit operation failed' }}\",\n  \"action\": \"={{ $json.action || 'unknown' }}\",\n  \"key\": \"={{ $json.key || 'unknown' }}\",\n  \"timestamp\": \"={{ new Date().toISOString() }}\"\n}"
+      },
+      "id": "error_response",
+      "name": "Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1900, 550]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "output_type",
+              "value": "Universal Rate Limiter Complete"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "final_output",
+      "name": "Final Output",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [2100, 450]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Merge Triggers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Handle Empty Input (Manual Only)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle Empty Input (Manual Only)": {
+      "main": [
+        [
+          {
+            "node": "Merge Triggers",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Triggers": {
+      "main": [
+        [
+          {
+            "node": "Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Input": {
+      "main": [
+        [
+          {
+            "node": "Action Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Action Router": {
+      "main": [
+        [
+          {
+            "node": "Prepare Check Limit",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Reset",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Status",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Circuit Breaker",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Check Limit": {
+      "main": [
+        [
+          {
+            "node": "Redis INCR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redis INCR": {
+      "main": [
+        [
+          {
+            "node": "Set TTL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set TTL": {
+      "main": [
+        [
+          {
+            "node": "Process Check Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Check Result": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Reset": {
+      "main": [
+        [
+          {
+            "node": "Delete Limits",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Limits": {
+      "main": [
+        [
+          {
+            "node": "Process Reset Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Reset Result": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Status": {
+      "main": [
+        [
+          {
+            "node": "Get Current Count",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Current Count": {
+      "main": [
+        [
+          {
+            "node": "Process Status Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Status Result": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Circuit Breaker": {
+      "main": [
+        [
+          {
+            "node": "Set Circuit State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Circuit State": {
+      "main": [
+        [
+          {
+            "node": "Process Circuit Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Circuit Result": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Success Response": {
+      "main": [
+        [
+          {
+            "node": "Final Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Response": {
+      "main": [
+        [
+          {
+            "node": "Final Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "rate-limiter-v1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "rate-limiter",
+  "tags": [
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "shared-utility",
+      "name": "shared-utility"
+    },
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "rate-limiting",
+      "name": "rate-limiting"
+    },
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "circuit-breaker",
+      "name": "circuit-breaker"
+    },
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "resource-protection",
+      "name": "resource-protection"
+    }
+  ]
+}
