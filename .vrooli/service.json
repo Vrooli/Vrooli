@@ -51,6 +51,38 @@
         "version": "7",
         "required": true,
         "description": "Event bus and caching layer"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "port": 6333,
+        "grpc_port": 6334,
+        "base_url": "http://localhost:6333",
+        "grpc_url": "grpc://localhost:6334",
+        "container_name": "qdrant",
+        "data_directory": "/home/matthalloran8/.qdrant/data",
+        "version": "unknown",
+        "status": "installed",
+        "last_updated": "2025-08-13 14:23:53",
+        "description": "Vector database for embeddings and semantic search"
+      },
+      "minio": {
+        "type": "minio",
+        "enabled": true,
+        "required": false,
+        "description": "S3-compatible object storage service"
+      },
+      "questdb": {
+        "type": "questdb",
+        "enabled": true,
+        "required": false,
+        "description": "High-performance time series database"
+      },
+      "vault": {
+        "type": "vault",
+        "enabled": true,
+        "required": false,
+        "description": "Secrets management and secure storage"
       }
     },
     "ai": {
@@ -59,6 +91,18 @@
         "enabled": true,
         "required": false,
         "description": "Local AI inference server"
+      },
+      "unstructured-io": {
+        "type": "unstructured-io",
+        "enabled": true,
+        "required": false,
+        "description": "Document processing and parsing service"
+      },
+      "whisper": {
+        "type": "whisper",
+        "enabled": false,
+        "required": false,
+        "description": "Speech-to-text processing service"
       }
     },
     "automation": {
@@ -189,9 +233,24 @@
             "description": "Self-correcting autonomous agent loop for executing complex, long-horizon tasks with multi-layered verification. Orchestrates Claude Code to iteratively solve problems by writing implementation plans, results, and test scripts to temporary files. Features triple validation (AI assessment, test execution, output analysis), structured failure tracking via Redis, automatic retry with learning from past attempts, regression detection, and configurable safety limits. Essential for autonomous task completion that requires multiple attempts and self-correction."
           },
           {
-            "file": "initialization/n8n/ollama-test.json",
+            "file": "initialization/n8n/ollama.json",
             "type": "workflow",
-            "description": "Test workflow for debugging Ollama CLI output capture issues in n8n Execute Command nodes. Tests multiple approaches in parallel to identify which methods work with n8n's stdout capture mechanism."
+            "description": "Universal Ollama executor with safe prompt handling via temporary files. Accepts all Ollama CLI arguments (prompt, model, type, quiet, timeout) and uses temp file solution to avoid shell command line parsing issues with complex prompts containing JSON, quotes, or long text. Provides comprehensive execution metadata, error handling, and structured responses. Essential utility for reliable AI inference across all workflows."
+          },
+          {
+            "file": "initialization/n8n/browser-console-capture.json",
+            "type": "workflow",
+            "description": "Comprehensive browser debugging and monitoring workflow that captures console logs, JavaScript errors, network failures, performance metrics, and takes screenshots. Uses Browserless /function endpoint to execute custom JavaScript, monitor page events, and return structured diagnostic data. Supports optional page interactions (clicks, form inputs, scrolling) and provides health scoring for web applications. Essential for debugging, testing, and monitoring web-based services and dashboards."
+          },
+          {
+            "file": "initialization/n8n/n8n-workflow-executor.json",
+            "type": "workflow",
+            "description": "Meta-automation workflow that executes other n8n workflows through browser automation and monitors their execution via console capture. Takes a workflow ID, navigates to the n8n interface, clicks the manual trigger execute button, and polls for completion while capturing all console logs, errors, and execution status. Provides comprehensive execution reports with success/failure analysis, timing data, and detailed logging. Essential for automated testing, workflow validation, and meta-workflow orchestration enabling recursive improvement capabilities."
+          },
+          {
+            "file": "initialization/n8n/n8n-workflow-executor-with-auth.json",
+            "type": "workflow",
+            "description": "Enhanced meta-automation workflow that executes n8n workflows with automatic authentication handling. Detects if authentication is required, automatically fills in credentials (from environment variables N8N_EMAIL/N8N_PASSWORD), performs login, and then executes the target workflow. Provides comprehensive execution reports including authentication status, workflow execution results, and detailed logging. Essential for real-world n8n instances that require authentication, enabling seamless automated testing and workflow orchestration."
           }
         ]
       },
@@ -206,9 +265,27 @@
         "enabled": false,
         "required": false,
         "description": "Visual programming for IoT and automation"
+      },
+      "comfyui": {
+        "type": "comfyui",
+        "enabled": false,
+        "required": false,
+        "description": "Node-based interface for AI image generation"
+      },
+      "huginn": {
+        "type": "huginn",
+        "enabled": true,
+        "required": false,
+        "description": "Agent-based automation and monitoring platform"
       }
     },
     "agents": {
+      "agent-s2": {
+        "type": "agent-s2",
+        "enabled": false,
+        "required": false,
+        "description": "Advanced agent framework for autonomous task execution"
+      },
       "browserless": {
         "enabled": true,
         "baseUrl": "http://localhost:4110",
@@ -230,6 +307,14 @@
         "enabled": false,
         "required": false,
         "description": "Privacy-respecting search engine"
+      }
+    },
+    "execution": {
+      "judge0": {
+        "type": "judge0",
+        "enabled": true,
+        "required": false,
+        "description": "Code execution and testing platform"
       }
     }
   },
@@ -306,9 +391,8 @@
         },
         {
           "name": "start-generated-apps",
-          "run": "./scripts/scenarios/tools/multi-app-runner.sh --verbose",
-          "description": "Start all generated apps using the orchestrator",
-          "timeout": "10m"
+          "run": "./scripts/scenarios/tools/simple-multi-app-starter.sh --verbose",
+          "description": "Start all generated apps for enabled scenarios using process manager"
         }
       ]
     },
@@ -364,20 +448,5 @@
       ]
     }
   },
-  "services": {
-    "storage": {
-      "qdrant": {
-        "enabled": true,
-        "port": 6333,
-        "grpc_port": 6334,
-        "base_url": "http://localhost:6333",
-        "grpc_url": "grpc://localhost:6334",
-        "container_name": "qdrant",
-        "data_directory": "/home/matthalloran8/.qdrant/data",
-        "version": "unknown",
-        "status": "installed",
-        "last_updated": "2025-08-13 14:23:53"
-      }
-    }
-  }
+  "services": {}
 }

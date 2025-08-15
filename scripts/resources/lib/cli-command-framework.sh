@@ -84,8 +84,7 @@ cli::dispatch() {
                 break
                 ;;
             *)
-                # Put the argument back for the command handler
-                set -- "$1" "$@"
+                # Arguments are already correct, just break to continue
                 break
                 ;;
         esac

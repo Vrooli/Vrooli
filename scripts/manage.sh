@@ -186,8 +186,8 @@ manage::allocate_service_ports() {
     
     log::info "Allocating service ports..."
     
-    # Process each port configuration
-    echo "$ports_config" | jq -r 'to_entries | .[] | @base64' | while IFS= read -r port_entry; do
+    # Process each port configuration - using process substitution to avoid subshell
+    while IFS= read -r port_entry; do
         # Decode the port configuration
         local port_name port_config
         port_name=$(echo "$port_entry" | base64 -d | jq -r '.key')
@@ -243,7 +243,7 @@ manage::allocate_service_ports() {
         else
             log::warning "Could not allocate port for $port_name (fallback: auto)"
         fi
-    done
+    done < <(echo "$ports_config" | jq -r 'to_entries | .[] | @base64')
     
     return 0
 }

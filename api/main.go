@@ -250,6 +250,9 @@ func validateScenario(w http.ResponseWriter, r *http.Request) {
 func convertScenario(w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
 	
+	// Check for force parameter
+	force := r.URL.Query().Get("force") == "true"
+	
 	if status, exists := conversionJobs[name]; exists && status.InProgress {
 		json.NewEncoder(w).Encode(Response{
 			Success: false,
@@ -267,8 +270,12 @@ func convertScenario(w http.ResponseWriter, r *http.Request) {
 	conversionJobs[name] = status
 
 	go func() {
-		cmd := exec.Command(converterCmd, name)
-		cmd.Env = append(os.Environ(), "FORCE_REGENERATE=false")
+		var cmd *exec.Cmd
+		if force {
+			cmd = exec.Command(converterCmd, name, "--force")
+		} else {
+			cmd = exec.Command(converterCmd, name)
+		}
 		output, err := cmd.CombinedOutput()
 		
 		if err != nil {
@@ -290,6 +297,34 @@ func convertScenario(w http.ResponseWriter, r *http.Request) {
 			"status":  status,
 		},
 	})
+}
+
+func getScenarioStatus(w http.ResponseWriter, r *http.Request) {
+	name := mux.Vars(r)["name"]
+	
+	if status, exists := conversionJobs[name]; exists {
+		json.NewEncoder(w).Encode(Response{Success: true, Data: status})
+	} else {
+		// No active conversion job - check if app exists
+		appPath := filepath.Join(appsDir, name)
+		if _, err := os.Stat(appPath); err == nil {
+			json.NewEncoder(w).Encode(Response{
+				Success: true,
+				Data: &ConversionStatus{
+					InProgress: false,
+					Message:    "App exists and ready",
+				},
+			})
+		} else {
+			json.NewEncoder(w).Encode(Response{
+				Success: true,
+				Data: &ConversionStatus{
+					InProgress: false,
+					Message:    "No conversion in progress",
+				},
+			})
+		}
+	}
 }
 
 // === Resource Management (placeholder) ===
@@ -351,6 +386,7 @@ func main() {
 	r.HandleFunc("/scenarios", listScenarios).Methods("GET")
 	r.HandleFunc("/scenarios/{name}/validate", validateScenario).Methods("POST")
 	r.HandleFunc("/scenarios/{name}/convert", convertScenario).Methods("POST")
+	r.HandleFunc("/scenarios/{name}/status", getScenarioStatus).Methods("GET")
 	
 	// Resources API (placeholder)
 	r.HandleFunc("/resources", listResources).Methods("GET")

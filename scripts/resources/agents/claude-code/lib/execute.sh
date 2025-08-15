@@ -47,17 +47,37 @@ claude_code::run() {
     # Set timeout environment variables
     claude_code::set_timeouts "$TIMEOUT"
     
-    log::info "Executing: echo \"$PROMPT\" | claude ${cmd_args[*]}"
+    log::info "Executing: timeout ${TIMEOUT:-600} claude ${cmd_args[*]} \"$PROMPT\""
     echo
     
-    # Execute Claude with prompt via stdin
+    # Execute Claude with timeout and streaming output (no capture to prevent hanging)
     local exit_code
-    local output
-    output=$(echo "$PROMPT" | claude "${cmd_args[@]}" 2>&1)
-    exit_code=$?
+    local temp_output_file
+    temp_output_file=$(mktemp)
     
-    # Handle common error patterns with enhanced TTY support
+    # Use timeout with streaming to prevent hanging, capture minimal output for error handling
+    # Claude expects prompt as argument, not stdin
+    {
+        timeout "${TIMEOUT:-600}" claude "${cmd_args[@]}" "$PROMPT" 2>&1
+        echo $? > "${temp_output_file}.exit"
+    } | tee "$temp_output_file"
+    
+    exit_code=$(cat "${temp_output_file}.exit" 2>/dev/null || echo "124")
+    
+    # Handle timeout specifically (exit code 124)
+    if [[ $exit_code -eq 124 ]]; then
+        log::error "Claude execution timed out after ${TIMEOUT:-600} seconds"
+        log::info "Try increasing timeout with: --timeout <seconds>"
+        log::info "Or use a simpler prompt that requires less processing"
+        rm -f "$temp_output_file" "${temp_output_file}.exit"
+        return $exit_code
+    fi
+    
+    # Handle other error patterns with enhanced TTY support
     if [[ $exit_code -ne 0 ]]; then
+        local output
+        output=$(cat "$temp_output_file" 2>/dev/null || echo "")
+        
         if [[ "$output" =~ "unknown option" ]]; then
             log::error "CLI interface error: Unknown option detected"
             log::info "This may indicate the claude CLI has changed"
@@ -95,11 +115,14 @@ claude_code::run() {
             log::info "For detailed diagnostics, run:"
             log::info "  $0 --action health-check --check-type full"
         fi
-        echo "$output"
+        
+        # Cleanup temp files
+        rm -f "$temp_output_file" "${temp_output_file}.exit"
         return $exit_code
     fi
     
-    echo "$output"
+    # Cleanup temp files on success
+    rm -f "$temp_output_file" "${temp_output_file}.exit"
 }
 
 #######################################

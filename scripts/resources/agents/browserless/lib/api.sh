@@ -521,7 +521,7 @@ browserless::execute_n8n_workflow() {
     # Generate function code for workflow execution
     local function_code
     read -r -d '' function_code << 'EOF' || true
-async ({ page }) => {
+export default async ({ page }) => {
   const executionData = {
     workflowId: '%WORKFLOW_ID%',
     workflowUrl: '%WORKFLOW_URL%',
@@ -570,10 +570,57 @@ async ({ page }) => {
       timeout: %TIMEOUT%
     });
     
-    // Wait for page to load
-    await page.waitForTimeout(3000);
+    // Check if we landed on a signin page
+    const currentUrl = page.url();
+    console.log('Current URL after navigation:', currentUrl);
     
-    console.log('Waiting for execute button...');
+    if (currentUrl.includes('/signin') || currentUrl.includes('/login')) {
+      console.log('Authentication required - attempting login');
+      
+      try {
+        // Wait for login form
+        await page.waitForSelector('input[type=email], input[name=email], input[id=email]', { timeout: 5000 });
+        
+        // Fill in credentials using environment variables passed from shell
+        const email = '%N8N_EMAIL%';
+        const password = '%N8N_PASSWORD%';
+        
+        if (email && email !== '%N8N_EMAIL%' && password && password !== '%N8N_PASSWORD%') {
+          console.log('Using provided credentials for login');
+          
+          await page.type('input[type=email], input[name=email], input[id=email]', email);
+          await page.type('input[type=password], input[name=password], input[id=password]', password);
+          
+          // Click submit button
+          await page.click('button[type=submit], input[type=submit], button:contains("Sign in"), button:contains("Login")');
+          
+          // Wait for redirect
+          await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 10000 });
+          
+          console.log('After login, URL:', page.url());
+          
+          // Navigate to workflow again if needed
+          if (!page.url().includes('/workflow/%WORKFLOW_ID%')) {
+            console.log('Navigating to workflow after authentication');
+            await page.goto('%WORKFLOW_URL%', { 
+              waitUntil: 'networkidle2',
+              timeout: %TIMEOUT%
+            });
+          }
+        } else {
+          console.log('No valid credentials provided, cannot authenticate');
+          throw new Error('Authentication required but no credentials provided');
+        }
+      } catch (authError) {
+        console.log('Authentication failed:', authError.message);
+        throw new Error('Failed to authenticate: ' + authError.message);
+      }
+    }
+    
+    // Wait for page to load after potential authentication
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    
+    console.log('Looking for execute button...');
     
     // Wait for execute button to appear
     await page.waitForSelector('[data-test-id="execute-workflow-button"]', {
@@ -592,7 +639,7 @@ async ({ page }) => {
       
       try {
         // Wait a moment for any input dialog to appear
-        await page.waitForTimeout(1000);
+        await new Promise(resolve => setTimeout(resolve, 1000));
         
         // Look for common input field selectors in n8n
         const inputSelectors = [
@@ -668,7 +715,7 @@ async ({ page }) => {
     const maxPolls = Math.floor(%TIMEOUT% / 2000); // Poll every 2 seconds
     
     while (pollCount < maxPolls) {
-      await page.waitForTimeout(2000);
+      await new Promise(resolve => setTimeout(resolve, 2000));
       pollCount++;
       
       // Check for execution completion indicators in console logs
@@ -732,6 +779,12 @@ EOF
     function_code="${function_code//%WORKFLOW_URL%/$workflow_url}"
     function_code="${function_code//%TIMEOUT%/$timeout}"
     
+    # Inject N8N credentials if available
+    local n8n_email="${N8N_EMAIL:-}"
+    local n8n_password="${N8N_PASSWORD:-}"
+    function_code="${function_code//%N8N_EMAIL%/$n8n_email}"
+    function_code="${function_code//%N8N_PASSWORD%/$n8n_password}"
+    
     # Escape input data for JavaScript insertion
     local escaped_input=""
     if [[ -n "$processed_input" ]]; then
@@ -753,7 +806,7 @@ EOF
     
     # Execute the function via browserless
     local response
-    response=$(curl -X POST "$BROWSERLESS_BASE_URL/function" \
+    response=$(curl -X POST "$BROWSERLESS_BASE_URL/chrome/function" \
         -H "Content-Type: application/javascript" \
         -d "$function_code" \
         --silent \
@@ -764,8 +817,32 @@ EOF
     local curl_exit_code=$?
     
     if [[ $curl_exit_code -ne 0 ]]; then
-        log::error "Failed to execute workflow automation (exit code: $curl_exit_code)"
-        log::debug "Response: $response"
+        echo
+        log::error "❌ Failed to execute workflow automation (curl exit code: $curl_exit_code)"
+        
+        # Provide specific curl error information
+        case $curl_exit_code in
+            6)  log::info "• Error: Could not resolve host - check if browserless is running on $BROWSERLESS_BASE_URL" ;;
+            7)  log::info "• Error: Failed to connect to host - check if browserless is accessible" ;;
+            28) log::info "• Error: Operation timeout - try increasing timeout (currently ${timeout}ms)" ;;
+            52) log::info "• Error: Empty response from server - browserless may be overloaded" ;;
+            56) log::info "• Error: Network receive failure - connection interrupted" ;;
+            *)  log::info "• Curl error code $curl_exit_code - check network connectivity" ;;
+        esac
+        
+        if [[ -n "$response" ]]; then
+            echo
+            log::info "🔍 Curl Response/Error:"
+            echo "----------------------------------------"
+            echo "$response"
+            echo "----------------------------------------"
+        fi
+        
+        log::info "💡 Troubleshooting steps:"
+        log::info "  1. Check browserless status: resource-browserless status"
+        log::info "  2. Test browserless health: curl -s $BROWSERLESS_BASE_URL/pressure"
+        log::info "  3. Verify n8n is accessible: curl -s $n8n_url/healthz"
+        
         return 1
     fi
     
@@ -807,6 +884,19 @@ EOF
             echo
             log::info "📋 Recent Console Logs:"
             jq -r '.consoleLogs[-5:][] | "  [\(.type | ascii_upcase)] \(.text)"' "$output_file" 2>/dev/null || true
+            
+            # Check for error patterns in console logs
+            local error_log_count
+            error_log_count=$(jq -r '.consoleLogs[] | select(.type == "error") | .text' "$output_file" 2>/dev/null | wc -l || echo "0")
+            local warn_log_count
+            warn_log_count=$(jq -r '.consoleLogs[] | select(.type == "warning") | .text' "$output_file" 2>/dev/null | wc -l || echo "0")
+            
+            if [[ "$error_log_count" -gt 0 ]] || [[ "$warn_log_count" -gt 0 ]]; then
+                echo
+                log::warn "⚠️  Detected $error_log_count errors and $warn_log_count warnings in console logs"
+                log::info "Run the following to see detailed logs:"
+                log::info "  jq '.consoleLogs[] | select(.type == \"error\" or .type == \"warning\")' '$output_file'"
+            fi
         fi
         
         # Show errors if any
@@ -833,11 +923,40 @@ EOF
             return 1
         fi
     else
-        # Invalid JSON or non-JSON response
+        # Invalid JSON or non-JSON response - provide detailed error information
         mv "$temp_file" "$output_file"
+        echo
         log::error "❌ Invalid response from workflow automation"
-        log::debug "Response saved to: $output_file"
-        log::debug "Response preview: $(head -c 500 "$output_file")"
+        log::info "Full response saved to: $output_file"
+        
+        # Always show response preview for debugging
+        echo
+        log::info "🔍 Response Preview (first 1000 characters):"
+        echo "----------------------------------------"
+        head -c 1000 "$output_file" 2>/dev/null || echo "Cannot read response file"
+        echo
+        echo "----------------------------------------"
+        
+        # Check if it's an HTTP error response
+        if head -c 50 "$output_file" 2>/dev/null | grep -qi "error\|exception\|failed\|timeout"; then
+            echo
+            log::warn "⚠️  This appears to be an error response from browserless"
+            log::info "Common causes:"
+            log::info "  • N8N authentication required (workflow redirects to login)"
+            log::info "  • Workflow ID '$workflow_id' not found"  
+            log::info "  • N8N service not accessible at $n8n_url"
+            log::info "  • Browser timeout during execution"
+            log::info "  • Workflow execution errors"
+        fi
+        
+        # Check if response looks like HTML (authentication redirect)
+        if head -c 50 "$output_file" 2>/dev/null | grep -qi "<html\|<!doctype"; then
+            echo
+            log::warn "🔐 Response appears to be HTML - likely an authentication redirect"
+            log::info "Try using the enhanced authentication workflow:"
+            log::info "  resource-n8n list-workflows | grep auth"
+        fi
+        
         return 1
     fi
 }
@@ -877,7 +996,7 @@ browserless::capture_console_logs() {
     # Generate function code for console capture
     local function_code
     read -r -d '' function_code << 'EOF' || true
-async ({ page }) => {
+export default async ({ page }) => {
   const captureData = {
     url: '%TARGET_URL%',
     consoleLogs: [],
@@ -947,7 +1066,7 @@ async ({ page }) => {
     console.log('Page loaded, waiting %WAIT_TIME%ms for content...');
     
     // Wait for content to load
-    await page.waitForTimeout(%WAIT_TIME%);
+    await new Promise(resolve => setTimeout(resolve, %WAIT_TIME%));
     
     // Capture basic page information
     captureData.pageInfo = {
@@ -1019,7 +1138,7 @@ EOF
     
     # Execute the function via browserless
     local response
-    response=$(curl -X POST "$BROWSERLESS_BASE_URL/function" \
+    response=$(curl -X POST "$BROWSERLESS_BASE_URL/chrome/function" \
         -H "Content-Type: application/javascript" \
         -d "$function_code" \
         --silent \
@@ -1030,8 +1149,32 @@ EOF
     local curl_exit_code=$?
     
     if [[ $curl_exit_code -ne 0 ]]; then
-        log::error "Failed to capture console logs (exit code: $curl_exit_code)"
-        log::debug "Response: $response"
+        echo
+        log::error "❌ Failed to capture console logs (curl exit code: $curl_exit_code)"
+        
+        # Provide specific curl error information
+        case $curl_exit_code in
+            6)  log::info "• Error: Could not resolve host - check if browserless is running on $BROWSERLESS_BASE_URL" ;;
+            7)  log::info "• Error: Failed to connect to host - check if browserless is accessible" ;;
+            28) log::info "• Error: Operation timeout - try increasing wait time (currently ${wait_time}ms)" ;;
+            52) log::info "• Error: Empty response from server - browserless may be overloaded" ;;
+            56) log::info "• Error: Network receive failure - connection interrupted" ;;
+            *)  log::info "• Curl error code $curl_exit_code - check network connectivity" ;;
+        esac
+        
+        if [[ -n "$response" ]]; then
+            echo
+            log::info "🔍 Curl Response/Error:"
+            echo "----------------------------------------"
+            echo "$response"
+            echo "----------------------------------------"
+        fi
+        
+        log::info "💡 Troubleshooting steps:"
+        log::info "  1. Check browserless status: resource-browserless status"
+        log::info "  2. Test browserless health: curl -s $BROWSERLESS_BASE_URL/pressure"
+        log::info "  3. Verify target URL is accessible: curl -s '$url'"
+        
         return 1
     fi
     
@@ -1092,11 +1235,31 @@ EOF
             return 1
         fi
     else
-        # Invalid JSON or non-JSON response
+        # Invalid JSON or non-JSON response - provide detailed error information
         mv "$temp_file" "$output"
+        echo
         log::error "❌ Invalid response from console capture"
-        log::debug "Response saved to: $output"
-        log::debug "Response preview: $(head -c 500 "$output")"
+        log::info "Full response saved to: $output"
+        
+        # Always show response preview for debugging
+        echo
+        log::info "🔍 Response Preview (first 1000 characters):"
+        echo "----------------------------------------"
+        head -c 1000 "$output" 2>/dev/null || echo "Cannot read response file"
+        echo
+        echo "----------------------------------------"
+        
+        # Check if it's an HTTP error response
+        if head -c 50 "$output" 2>/dev/null | grep -qi "error\|exception\|failed\|timeout"; then
+            echo
+            log::warn "⚠️  This appears to be an error response from browserless"
+            log::info "Common causes:"
+            log::info "  • Target URL '$url' not accessible"
+            log::info "  • Browserless service overloaded or timing out"
+            log::info "  • Network connectivity issues"
+            log::info "  • JavaScript execution errors on the page"
+        fi
+        
         return 1
     fi
 }
