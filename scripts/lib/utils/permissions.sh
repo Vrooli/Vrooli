@@ -157,7 +157,13 @@ permissions::make_files_in_dir_executable() {
     log::header "Making scripts in ${1} executable"
     if [ -d "${1}" ]; then
         local count files_output
-        files_output=$(find -- "${1}" -type f \( -name '*.sh' -o -name '*.bats' \) -not -executable 2>&1 || true)
+        # Exclude data directories and other runtime directories that shouldn't be scanned
+        files_output=$(find -- "${1}" -type f \( -name '*.sh' -o -name '*.bats' \) -not -executable \
+            -not -path "*/data/*" \
+            -not -path "*/instances/*/data/*" \
+            -not -path "*/node_modules/*" \
+            -not -path "*/.git/*" \
+            -not -path "*/vendor/*" 2>&1 || true)
         
         # Show permission errors to user if any
         if echo "$files_output" | grep -q "Permission denied"; then

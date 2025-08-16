@@ -123,7 +123,7 @@ ollama::get_health_details() {
 # Start Ollama service with enhanced error handling
 #######################################
 ollama::start() {
-    if ollama::is_running && [[ "$FORCE" != "yes" ]]; then
+    if ollama::is_running && [[ "${FORCE:-no}" != "yes" ]]; then
         log::info "Ollama is already running on port $OLLAMA_PORT"
         return 0
     fi

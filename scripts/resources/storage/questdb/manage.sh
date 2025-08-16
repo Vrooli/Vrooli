@@ -16,7 +16,7 @@ source "${RESOURCES_DIR}/common.sh"
 # shellcheck disable=SC1091
 source "${RESOURCES_DIR}/../lib/utils/args-cli.sh"
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/../app/utils/docker.sh"
+source "${RESOURCES_DIR}/lib/docker-utils.sh"
 # shellcheck disable=SC1091
 source "${RESOURCES_DIR}/../lib/utils/var.sh"
 # shellcheck disable=SC1091
@@ -56,29 +56,48 @@ questdb::parse_arguments() {
     args::register_yes
     
     # Define actions
-    args::define_option_with_value action "" "action" "
-        Action to perform:
-        - install:     Install QuestDB
-        - uninstall:   Remove QuestDB
-        - start:       Start QuestDB container
-        - stop:        Stop QuestDB container
-        - restart:     Restart QuestDB container
-        - status:      Check QuestDB status
-        - logs:        View QuestDB logs
-        - info:        Show detailed resource information
-        - test:        Test QuestDB functionality
-        - query:       Execute SQL query
-        - tables:      List or create tables
-        - api:         Make API request
-        - console:     Open web console
-    " false
+    args::register \
+        --name "action" \
+        --flag "a" \
+        --desc "Action to perform (install, uninstall, start, stop, restart, status, logs, monitor, backup, restore, test, shell, query, create-table, drop-table, list-tables, export, import, reset)" \
+        --type "value" \
+        --default "status"
 
     # Additional options
-    args::define_option_with_value query "" "query,q" "SQL query to execute" false
-    args::define_option_with_value table "" "table,t" "Table name for operations" false
-    args::define_option_with_value schema "" "schema,s" "Schema file for table creation" false
-    args::define_option_with_value limit "100" "limit,l" "Limit query results" false
-    args::define_option tail "tail,f" "Follow logs in real-time" false
+    args::register \
+        --name "query" \
+        --flag "q" \
+        --desc "SQL query to execute" \
+        --type "value" \
+        --default ""
+    
+    args::register \
+        --name "table" \
+        --flag "t" \
+        --desc "Table name for operations" \
+        --type "value" \
+        --default ""
+    
+    args::register \
+        --name "schema" \
+        --flag "s" \
+        --desc "Schema file for table creation" \
+        --type "value" \
+        --default ""
+    
+    args::register \
+        --name "limit" \
+        --flag "l" \
+        --desc "Limit query results" \
+        --type "value" \
+        --default "100"
+    
+    args::register \
+        --name "tail" \
+        --flag "f" \
+        --desc "Follow logs in real-time" \
+        --type "flag" \
+        --default "false"
     
     # Parse arguments
     if ! args::parse "$@"; then

@@ -624,57 +624,52 @@ export default async ({ page }) => {
       timeout: %TIMEOUT%
     });
     
-    // Check if we landed on a signin page
+    // Check if we landed on a signin page and authenticate
     const currentUrl = page.url();
     console.log('Current URL after navigation:', currentUrl);
-    console.log('URL includes signin:', currentUrl.includes('/signin'));
-    console.log('URL includes login:', currentUrl.includes('/login'));
     
     if (currentUrl.includes('/signin') || currentUrl.includes('/login')) {
       console.log('Authentication required - attempting login');
       
-      try {
-        // Wait for login form
-        await page.waitForSelector('input[type=email], input[name=email], input[id=email]', { timeout: 5000 });
+      // Get credentials
+      const email = '%N8N_EMAIL%';
+      const password = '%N8N_PASSWORD%';
+      
+      console.log('Using credentials for login');
+      console.log('Email:', email);
+      console.log('Password length:', password ? password.length : 0);
+      
+      if (email && password && email !== 'PLACEHOLDER_EMAIL' && password !== 'PLACEHOLDER_PASSWORD') {
+        // Fill login form using the proven working approach
+        await page.waitForSelector('input[type=email]', { timeout: 5000 });
+        await page.type('input[type=email]', email);
+        await page.type('input[type=password]', password);
         
-        // Fill in credentials using environment variables passed from shell
-        const email = '%N8N_EMAIL%';
-        const password = '%N8N_PASSWORD%';
+        // Use Enter key instead of button click (more reliable)
+        console.log('Submitting login form with Enter key');
+        await page.focus('input[type=password]');
+        await page.keyboard.press('Enter');
         
-        console.log('Credential check - email:', email);
-        console.log('Credential check - password length:', password ? password.length : 0);
-        console.log('Email placeholder check:', email !== '%N8N_EMAIL%');
-        console.log('Password placeholder check:', password !== '%N8N_PASSWORD%');
-        
-        if (email && email !== '%N8N_EMAIL%' && password && password !== '%N8N_PASSWORD%') {
-          console.log('Using provided credentials for login');
-          
-          await page.type('input[type=email], input[name=email], input[id=email]', email);
-          await page.type('input[type=password], input[name=password], input[id=password]', password);
-          
-          // Click submit button
-          await page.click('button[type=submit], input[type=submit], button:contains("Sign in"), button:contains("Login")');
-          
-          // Wait for redirect
-          await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 10000 });
-          
-          console.log('After login, URL:', page.url());
-          
-          // Navigate to workflow again if needed
-          if (!page.url().includes('/workflow/%WORKFLOW_ID%')) {
-            console.log('Navigating to workflow after authentication');
-            await page.goto('%WORKFLOW_URL%', { 
-              waitUntil: 'networkidle2',
-              timeout: %TIMEOUT%
-            });
-          }
-        } else {
-          console.log('No valid credentials provided, cannot authenticate');
-          throw new Error('Authentication required but no credentials provided');
+        // Wait for login to complete with error handling
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        try {
+          await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 8000 });
+          console.log('Navigation completed after login');
+        } catch (navError) {
+          console.log('Navigation timeout, checking current URL');
         }
-      } catch (authError) {
-        console.log('Authentication failed:', authError.message);
-        throw new Error('Failed to authenticate: ' + authError.message);
+        
+        console.log('Login completed, new URL:', page.url());
+        
+        // Check if login was successful
+        const afterLoginUrl = page.url();
+        if (afterLoginUrl.includes('/signin') || afterLoginUrl.includes('/login')) {
+          throw new Error('Login failed - still on signin page');
+        }
+        
+        console.log('Authentication successful');
+      } else {
+        throw new Error('Authentication required but no valid credentials provided');
       }
     }
     
@@ -683,15 +678,34 @@ export default async ({ page }) => {
     
     console.log('Looking for execute button...');
     
-    // Wait for execute button to appear
-    await page.waitForSelector('[data-test-id="execute-workflow-button"]', {
-      timeout: 10000
-    });
+    // Try multiple selectors for execute button
+    const executeSelectors = [
+      '[data-test-id="execute-workflow-button"]',
+      'button[title*="Execute"]',
+      'button[title*="Run"]',
+      '.execute-button',
+      '.run-button'
+    ];
+    
+    let executeButton = null;
+    for (const selector of executeSelectors) {
+      try {
+        console.log(`Trying execute selector: ${selector}`);
+        await page.waitForSelector(selector, { timeout: 3000 });
+        executeButton = selector;
+        console.log(`Found execute button: ${selector}`);
+        break;
+      } catch (e) {
+        console.log(`Execute selector ${selector} not found`);
+      }
+    }
+    
+    if (!executeButton) {
+      throw new Error('No execute button found');
+    }
     
     console.log('Clicking execute button...');
-    
-    // Click the execute button
-    await page.click('[data-test-id="execute-workflow-button"]');
+    await page.click(executeButton);
     
     // If input data is provided, try to fill it in
     const inputData = '%INPUT_DATA%';
@@ -857,8 +871,9 @@ EOF
         log::info "⚠️  No N8N_PASSWORD environment variable found"
     fi
     
-    function_code="${function_code//%N8N_EMAIL%/$n8n_email}"
-    function_code="${function_code//%N8N_PASSWORD%/$n8n_password}"
+    # Use sed with different delimiter to handle special characters in password
+    function_code=$(echo "$function_code" | sed "s|%N8N_EMAIL%|$n8n_email|g")
+    function_code=$(echo "$function_code" | sed "s|%N8N_PASSWORD%|$n8n_password|g")
     
     # Escape input data for JavaScript insertion
     local escaped_input=""

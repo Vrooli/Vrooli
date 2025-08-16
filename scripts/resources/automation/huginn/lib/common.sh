@@ -2,6 +2,15 @@
 # Huginn Common Utility Functions
 # Shared utilities used across all modules
 
+# Define Huginn lib directory
+HUGINN_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Source required dependencies
+# shellcheck disable=SC1091
+source "${HUGINN_LIB_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_SYSTEM_COMMANDS_FILE}" 2>/dev/null || true
+
 #######################################
 # Check if Docker is available and running
 # Returns: 0 if available, 1 otherwise

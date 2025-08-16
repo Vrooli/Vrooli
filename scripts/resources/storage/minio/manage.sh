@@ -11,7 +11,7 @@ MINIO_LIB_DIR="${MINIO_SCRIPT_DIR}/lib"
 
 # Source var.sh first to get directory variables
 # shellcheck disable=SC1091
-source "${MINIO_SCRIPT_DIR}/../../../../lib/utils/var.sh"
+source "${MINIO_SCRIPT_DIR}/../../../lib/utils/var.sh"
 
 # Source common resources using var_ variables
 # shellcheck disable=SC1091
@@ -19,7 +19,7 @@ source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/args-cli.sh"
 # shellcheck disable=SC1091
-source "${var_APP_UTILS_DIR}/docker.sh"
+source "${var_SCRIPTS_RESOURCES_LIB_DIR}/docker-utils.sh"
 
 # Source configuration
 # shellcheck disable=SC1091
