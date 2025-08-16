@@ -104,9 +104,10 @@ agents2::docker_start() {
     
     log::info "$MSG_STARTING_CONTAINER"
     
-    # Create network and prepare volumes
-    agents2::docker_create_network
+    # Pull image
+    docker::pull_image "$AGENTS2_IMAGE_NAME"
     
+    # Prepare volumes
     local volumes="${AGENTS2_DATA_DIR}/logs:/var/log/supervisor:rw ${AGENTS2_DATA_DIR}/cache:/home/agents2/.cache:rw ${AGENTS2_DATA_DIR}/models:/home/agents2/.agent-s2/models:rw ${AGENTS2_DATA_DIR}/sessions:/home/agents2/.agent-s2/sessions:rw"
     
     if [[ "$AGENTS2_ENABLE_HOST_DISPLAY" == "yes" ]]; then
@@ -114,31 +115,49 @@ agents2::docker_start() {
         volumes="$volumes /tmp/.X11-unix:/tmp/.X11-unix:rw"
     fi
     
-    # Build docker run command with Agent S2-specific requirements
-    local cmd=(docker run -d --name "$AGENTS2_CONTAINER_NAME" --network "$AGENTS2_NETWORK_NAME" --restart unless-stopped)
-    cmd+=(--add-host=host.docker.internal:host-gateway -p "${AGENTS2_PORT}:4113" -p "${AGENTS2_VNC_PORT}:5900")
-    
     # Environment variables
-    cmd+=(-e "OPENAI_API_KEY=$AGENTS2_OPENAI_API_KEY" -e "ANTHROPIC_API_KEY=$AGENTS2_ANTHROPIC_API_KEY")
-    cmd+=(-e "AGENTS2_LLM_PROVIDER=$AGENTS2_LLM_PROVIDER" -e "AGENTS2_LLM_MODEL=$AGENTS2_LLM_MODEL")
-    cmd+=(-e "AGENTS2_OLLAMA_BASE_URL=$AGENTS2_OLLAMA_BASE_URL" -e "AGENTS2_ENABLE_AI=$AGENTS2_ENABLE_AI")
-    cmd+=(-e "AGENTS2_ENABLE_SEARCH=$AGENTS2_ENABLE_SEARCH" -e "DISPLAY=$AGENTS2_DISPLAY")
-    cmd+=(-e "AGENT_S2_VIRUSTOTAL_API_KEY=$AGENTS2_VIRUSTOTAL_API_KEY")
+    local env_vars=(
+        "OPENAI_API_KEY=$AGENTS2_OPENAI_API_KEY"
+        "ANTHROPIC_API_KEY=$AGENTS2_ANTHROPIC_API_KEY"
+        "AGENTS2_LLM_PROVIDER=$AGENTS2_LLM_PROVIDER"
+        "AGENTS2_LLM_MODEL=$AGENTS2_LLM_MODEL"
+        "AGENTS2_OLLAMA_BASE_URL=$AGENTS2_OLLAMA_BASE_URL"
+        "AGENTS2_ENABLE_AI=$AGENTS2_ENABLE_AI"
+        "AGENTS2_ENABLE_SEARCH=$AGENTS2_ENABLE_SEARCH"
+        "DISPLAY=$AGENTS2_DISPLAY"
+        "AGENT_S2_VIRUSTOTAL_API_KEY=$AGENTS2_VIRUSTOTAL_API_KEY"
+    )
     
-    # Add volumes
-    for volume in $volumes; do
-        cmd+=(-v "$volume")
-    done
+    # Add display environment if enabled
+    [[ "$AGENTS2_ENABLE_HOST_DISPLAY" == "yes" ]] && env_vars+=("DISPLAY=${DISPLAY:-:0}")
     
-    # Host display environment if enabled
-    [[ "$AGENTS2_ENABLE_HOST_DISPLAY" == "yes" ]] && cmd+=(-e "DISPLAY=${DISPLAY:-:0}")
+    # Docker options for security and resources
+    local docker_opts=(
+        "--add-host=host.docker.internal:host-gateway"
+        "--cap-add" "NET_ADMIN"
+        "--cap-add" "NET_RAW"
+        "--security-opt" "$AGENTS2_SECURITY_OPT"
+        "--shm-size" "$AGENTS2_SHM_SIZE"
+        "--memory" "$AGENTS2_MEMORY_LIMIT"
+        "--cpus" "$AGENTS2_CPU_LIMIT"
+    )
     
-    # Security and resource constraints
-    cmd+=(--cap-add NET_ADMIN --cap-add NET_RAW --security-opt "$AGENTS2_SECURITY_OPT")
-    cmd+=(--shm-size "$AGENTS2_SHM_SIZE" --memory "$AGENTS2_MEMORY_LIMIT" --cpus "$AGENTS2_CPU_LIMIT")
-    cmd+=("$AGENTS2_IMAGE_NAME")
+    # Port mappings for main app and VNC
+    local port_mappings="${AGENTS2_PORT}:4113 ${AGENTS2_VNC_PORT}:5900"
     
-    if "${cmd[@]}" >/dev/null 2>&1; then
+    # Use advanced creation
+    docker_resource::create_service_advanced \
+        "$AGENTS2_CONTAINER_NAME" \
+        "$AGENTS2_IMAGE_NAME" \
+        "$port_mappings" \
+        "$AGENTS2_NETWORK_NAME" \
+        "$volumes" \
+        "env_vars" \
+        "docker_opts" \
+        "" \
+        ""
+    
+    if [[ $? -eq 0 ]]; then
         log::success "$MSG_CONTAINER_STARTED"
         sleep "$AGENTS2_INITIALIZATION_WAIT"
         
@@ -205,17 +224,9 @@ agents2::docker_restart() {
 # Arguments: $1 - number of lines to show (optional, default: follow)
 #######################################
 agents2::docker_logs() {
-    if ! agents2::container_exists; then
-        log::error "Agent S2 container does not exist"
-        return 1
-    fi
-    
-    if [[ -n "${1:-}" ]]; then
-        docker::get_logs "$AGENTS2_CONTAINER_NAME" "$1"
-    else
-        log::info "Showing Agent S2 logs (Ctrl+C to exit)..."
-        docker logs -f "$AGENTS2_CONTAINER_NAME"
-    fi
+    local lines="${1:-50}"
+    local follow="${2:-true}"
+    docker_resource::show_logs_with_follow "$AGENTS2_CONTAINER_NAME" "$lines" "$follow"
 }
 
 #######################################
@@ -224,12 +235,7 @@ agents2::docker_logs() {
 # Returns: exit code from command
 #######################################
 agents2::docker_exec() {
-    if ! agents2::is_running; then
-        log::error "Agent S2 container is not running"
-        return 1
-    fi
-    
-    docker exec -it "$AGENTS2_CONTAINER_NAME" "$@"
+    docker_resource::exec_interactive "$AGENTS2_CONTAINER_NAME" "$@"
 }
 
 #######################################
@@ -237,11 +243,7 @@ agents2::docker_exec() {
 # Returns: container stats as string
 #######################################
 agents2::docker_stats() {
-    if agents2::is_running; then
-        docker stats --no-stream --format "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}" "$AGENTS2_CONTAINER_NAME"
-    else
-        echo "Container not running"
-    fi
+    docker_resource::get_stats "$AGENTS2_CONTAINER_NAME"
 }
 
 #######################################

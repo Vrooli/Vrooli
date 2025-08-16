@@ -13,173 +13,52 @@ source "${SCRIPT_DIR}/../../lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/../../lib/utils/log.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../lib/system/system_commands.sh" 2>/dev/null || true
+source "${var_LIB_SYSTEM_DIR}/system_commands.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../lib/system/trash.sh" 2>/dev/null || true
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/docker-utils.sh" 2>/dev/null || true
 
 ################################################################################
-# BASIC DOCKER UTILITIES - Keep the useful simple functions
+# GENERIC RESOURCE HELPERS - Common patterns for all resources
 ################################################################################
 
 #######################################
-# Check if Docker is installed and accessible
-# Returns: 0 if Docker is ready, 1 otherwise
+# Build standardized health check parameters
+# Args: $1 - health_cmd, $2 - interval (optional), $3 - timeout (optional), $4 - retries (optional)
+# Returns: Array of health check docker arguments via stdout
 #######################################
-docker::check_daemon() {
-    if ! system::is_command "docker"; then
-        log::error "Docker is not installed"
-        log::info "Please install Docker first: https://docs.docker.com/get-docker/"
-        return 1
-    fi
+docker_resource::build_health_check() {
+    local health_cmd="$1"
+    local interval="${2:-${DOCKER_HEALTH_INTERVAL:-30s}}"
+    local timeout="${3:-${DOCKER_HEALTH_TIMEOUT:-10s}}"
+    local retries="${4:-${DOCKER_HEALTH_RETRIES:-3}}"
     
-    # Check if Docker daemon is running
-    if ! docker info >/dev/null 2>&1; then
-        log::error "Docker daemon is not running"
-        log::info "Start Docker with: sudo systemctl start docker"
-        return 1
-    fi
-    
-    # Check if user has permissions
-    if ! docker ps >/dev/null 2>&1; then
-        log::error "Current user doesn't have Docker permissions"
-        log::info "Add user to docker group: sudo usermod -aG docker $USER"
-        log::info "Then log out and back in for changes to take effect"
-        return 1
-    fi
-    
-    return 0
-}
-
-#######################################
-# Check if a container exists
-# Args: $1 - container_name
-# Returns: 0 if exists, 1 otherwise
-#######################################
-docker::container_exists() {
-    local container_name="$1"
-    docker inspect "$container_name" >/dev/null 2>&1
-}
-
-#######################################
-# Check if a container is running
-# Args: $1 - container_name
-# Returns: 0 if running, 1 otherwise
-#######################################
-docker::is_running() {
-    local container_name="$1"
-    local status
-    status=$(docker inspect --format='{{.State.Status}}' "$container_name" 2>/dev/null)
-    [[ "$status" == "running" ]]
-}
-
-#######################################
-# Check if port is available
-# Args: $1 - port number
-# Returns: 0 if available, 1 if in use
-#######################################
-docker::is_port_available() {
-    local port="$1"
-    ! netstat -tuln 2>/dev/null | grep -q ":${port} " && ! ss -tuln 2>/dev/null | grep -q ":${port} "
-}
-
-#######################################
-# Start existing container
-# Args: $1 - container_name
-# Returns: 0 on success, 1 on failure
-#######################################
-docker::start_container() {
-    local container_name="$1"
-    log::debug "Starting container: $container_name"
-    docker start "$container_name" >/dev/null 2>&1
-}
-
-#######################################
-# Stop container
-# Args: $1 - container_name, $2 - timeout (optional)
-# Returns: 0 on success, 1 on failure
-#######################################
-docker::stop_container() {
-    local container_name="$1"
-    local timeout="${2:-30}"
-    
-    log::debug "Stopping container: $container_name"
-    
-    if docker::is_running "$container_name"; then
-        docker stop --time="$timeout" "$container_name" >/dev/null 2>&1
-    else
-        return 0
+    if [[ -n "$health_cmd" ]]; then
+        echo "--health-cmd \"$health_cmd\" --health-interval $interval --health-timeout $timeout --health-retries $retries"
     fi
 }
 
 #######################################
-# Restart container
-# Args: $1 - container_name
+# Show container logs with optional follow mode
+# Args: $1 - container_name, $2 - lines (default 50), $3 - follow (true/false)
 # Returns: 0 on success, 1 on failure
 #######################################
-docker::restart_container() {
-    local container_name="$1"
-    log::debug "Restarting container: $container_name"
-    docker restart "$container_name" >/dev/null 2>&1
-}
-
-#######################################
-# Remove container
-# Args: $1 - container_name, $2 - force (optional)
-# Returns: 0 on success, 1 on failure
-#######################################
-docker::remove_container() {
-    local container_name="$1"
-    local force="${2:-false}"
-    
-    log::debug "Removing container: $container_name"
-    
-    # Stop first if running
-    if docker::is_running "$container_name"; then
-        docker::stop_container "$container_name"
-    fi
-    
-    # Remove container
-    if [[ "$force" == "true" ]]; then
-        docker rm -f "$container_name" >/dev/null 2>&1
-    else
-        docker rm "$container_name" >/dev/null 2>&1
-    fi
-}
-
-#######################################
-# Pull Docker image
-# Args: $1 - image name
-# Returns: 0 on success, 1 on failure
-#######################################
-docker::pull_image() {
-    local image="$1"
-    log::debug "Pulling image: $image"
-    docker pull "$image" >/dev/null 2>&1
-}
-
-#######################################
-# Get container logs
-# Args: $1 - container_name, $2 - lines (optional)
-# Returns: 0 on success, 1 on failure
-#######################################
-docker::get_logs() {
+docker_resource::show_logs_with_follow() {
     local container_name="$1"
     local lines="${2:-50}"
-    docker logs --tail "$lines" "$container_name" 2>&1
-}
-
-#######################################
-# Create network if it doesn't exist
-# Args: $1 - network_name
-# Returns: 0 on success, 1 on failure
-#######################################
-docker::create_network() {
-    local network_name="$1"
+    local follow="${3:-false}"
     
-    if ! docker network inspect "$network_name" >/dev/null 2>&1; then
-        docker network create "$network_name" >/dev/null 2>&1
+    if ! docker::container_exists "$container_name"; then
+        log::error "Container not found: $container_name"
+        return 1
+    fi
+    
+    if [[ "$follow" == "true" || "$follow" == "follow" ]]; then
+        log::info "Following logs for $container_name (last $lines lines):"
+        docker logs --timestamps --tail "$lines" --follow "$container_name"
+    else
+        docker::get_logs "$container_name" "$lines"
     fi
 }
 
@@ -231,17 +110,27 @@ docker_resource::create_service() {
     
     # Add health check if specified
     if [[ -n "$health_cmd" ]]; then
-        cmd+=("--health-cmd" "$health_cmd")
-        cmd+=("--health-interval" "30s")
-        cmd+=("--health-timeout" "5s")
-        cmd+=("--health-retries" "3")
+        # Use standardized health check builder
+        local health_args
+        health_args=$(docker_resource::build_health_check "$health_cmd" "30s" "5s" "3")
+        # shellcheck disable=SC2086
+        cmd+=($health_args)
     fi
     
     # Add image
     cmd+=("$image")
     
-    # Execute command
-    "${cmd[@]}" >/dev/null 2>&1
+    # Execute command with error checking
+    local output
+    log::debug "Executing: ${cmd[*]}"
+    if output=$("${cmd[@]}" 2>&1); then
+        log::debug "Container created successfully with ID: ${output:0:12}"
+        return 0
+    else
+        log::error "Failed to create service container: $output"
+        log::debug "Failed command was: ${cmd[*]}"
+        return 1
+    fi
 }
 
 #######################################
@@ -286,10 +175,11 @@ docker_resource::create_service_with_command() {
     
     # Add health check if specified
     if [[ -n "$health_cmd" ]]; then
-        cmd+=("--health-cmd" "$health_cmd")
-        cmd+=("--health-interval" "30s")
-        cmd+=("--health-timeout" "5s")
-        cmd+=("--health-retries" "3")
+        # Use standardized health check builder
+        local health_args
+        health_args=$(docker_resource::build_health_check "$health_cmd" "30s" "5s" "3")
+        # shellcheck disable=SC2086
+        cmd+=($health_args)
     fi
     
     # Add image and command
@@ -298,8 +188,17 @@ docker_resource::create_service_with_command() {
         cmd+=("${command_args[@]}")
     fi
     
-    # Execute command
-    "${cmd[@]}" >/dev/null 2>&1
+    # Execute command with error checking
+    local output
+    log::debug "Executing: ${cmd[*]}"
+    if output=$("${cmd[@]}" 2>&1); then
+        log::debug "Container created successfully with ID: ${output:0:12}"
+        return 0
+    else
+        log::error "Failed to create service with command: $output"
+        log::debug "Failed command was: ${cmd[*]}"
+        return 1
+    fi
 }
 
 #######################################
@@ -327,14 +226,9 @@ docker_resource::create_client_instance() {
         return 1
     fi
     
-    # Find available port
+    # Find available port atomically to prevent race conditions
     local client_port
-    for ((port=port_start; port<=port_end; port++)); do
-        if docker::is_port_available "$port"; then
-            client_port="$port"
-            break
-        fi
-    done
+    client_port=$(docker_resource::allocate_port_atomic "$port_start" "$port_end" "${resource_name}-${client_id}")
     
     if [[ -z "$client_port" ]]; then
         log::error "No available ports in range ${port_start}-${port_end}"
@@ -384,11 +278,24 @@ docker_resource::remove_client_instance() {
     local client_container="${resource_name}-client-${client_id}"
     local client_network="vrooli-${client_id}-network"
     
+    # Get port before removing container (for cleanup)
+    local client_port
+    if docker::container_exists "$client_container"; then
+        client_port=$(docker port "$client_container" 2>/dev/null | head -1 | cut -d':' -f2 | cut -d'-' -f1)
+    fi
+    
     # Remove container
     docker::remove_container "$client_container" "true"
     
-    # Remove network if empty
-    docker network rm "$client_network" >/dev/null 2>&1 || true
+    # Release the allocated port if we found it
+    if [[ -n "$client_port" ]]; then
+        docker_resource::release_port "$client_port" "${resource_name}-${client_id}"
+    fi
+    
+    # Remove network if empty (ignore error if network is in use)
+    if ! docker network rm "$client_network" >/dev/null 2>&1; then
+        log::debug "Network $client_network may still be in use or already removed"
+    fi
     
     # Remove data if requested
     if [[ "$remove_data" == "true" ]]; then
@@ -397,28 +304,6 @@ docker_resource::remove_client_instance() {
             trash::safe_remove "$client_dir" --no-confirm 2>/dev/null || true
         fi
     fi
-}
-
-#######################################
-# Add environment variables to container creation
-# Args: Appends -e KEY=VALUE pairs to global cmd array
-# Usage: docker_resource::add_env "KEY1=value1" "KEY2=value2"
-#######################################
-docker_resource::add_env() {
-    for env_var in "$@"; do
-        cmd+=("-e" "$env_var")
-    done
-}
-
-#######################################
-# Add labels to container creation  
-# Args: Appends --label KEY=VALUE pairs to global cmd array
-# Usage: docker_resource::add_labels "app=myapp" "version=1.0"
-#######################################
-docker_resource::add_labels() {
-    for label in "$@"; do
-        cmd+=("--label" "$label")
-    done
 }
 
 #######################################
@@ -438,6 +323,94 @@ docker_resource::find_available_port() {
     done
     
     return 1
+}
+
+#######################################
+# Atomically allocate port with file locking to prevent race conditions
+# Args: $1 - start_port, $2 - end_port, $3 - lock_id (optional, for identifying lock owner)
+# Returns: Available port number via stdout, or empty if none found
+#######################################
+docker_resource::allocate_port_atomic() {
+    local start_port="$1"
+    local end_port="$2"
+    local lock_id="${3:-$$}"  # Default to current PID
+    local lock_dir="/tmp/vrooli_port_locks"
+    local allocated_port=""
+    
+    # Create lock directory if it doesn't exist
+    mkdir -p "$lock_dir" 2>/dev/null || true
+    
+    # Use a global lock file for port allocation
+    local global_lock="${lock_dir}/global.lock"
+    
+    # Create lock file if it doesn't exist
+    touch "$global_lock" 2>/dev/null || true
+    
+    # Try to acquire exclusive lock with timeout
+    if command -v flock &>/dev/null; then
+        # Use flock for atomic locking if available
+        (
+            flock -x -w 5 200 || {
+                log::error "Failed to acquire port allocation lock"
+                exit 1
+            }
+            
+            # Find available port while holding lock
+            for ((port=start_port; port<=end_port; port++)); do
+                local port_lock="${lock_dir}/port_${port}.lock"
+                
+                # Check if port is available and not locked
+                if docker::is_port_available "$port" && [[ ! -f "$port_lock" ]]; then
+                    # Claim this port
+                    echo "$lock_id" > "$port_lock"
+                    allocated_port="$port"
+                    break
+                fi
+            done
+        ) 200>"$global_lock"
+    else
+        # Fallback to simple locking without flock
+        log::warn "flock not available, using simple port allocation (may have race conditions)"
+        allocated_port=$(docker_resource::find_available_port "$start_port" "$end_port")
+    fi
+    
+    if [[ -n "$allocated_port" ]]; then
+        log::debug "Allocated port $allocated_port for lock_id $lock_id"
+        echo "$allocated_port"
+        return 0
+    else
+        log::error "No available ports in range $start_port-$end_port"
+        return 1
+    fi
+}
+
+#######################################
+# Release a previously allocated port
+# Args: $1 - port_number, $2 - lock_id (optional, must match allocation)
+# Returns: 0 on success, 1 on failure
+#######################################
+docker_resource::release_port() {
+    local port="$1"
+    local lock_id="${2:-$$}"
+    local lock_dir="/tmp/vrooli_port_locks"
+    local port_lock="${lock_dir}/port_${port}.lock"
+    
+    if [[ -f "$port_lock" ]]; then
+        local current_owner
+        current_owner=$(cat "$port_lock" 2>/dev/null || echo "")
+        
+        if [[ "$current_owner" == "$lock_id" ]] || [[ -z "$lock_id" ]]; then
+            rm -f "$port_lock" 2>/dev/null || true
+            log::debug "Released port $port (was locked by $current_owner)"
+            return 0
+        else
+            log::warn "Cannot release port $port: owned by $current_owner, not $lock_id"
+            return 1
+        fi
+    else
+        log::debug "Port $port was not locked"
+        return 0
+    fi
 }
 
 #######################################
@@ -481,79 +454,27 @@ docker_resource::create_multi_port_service() {
     
     # Add health check if specified
     if [[ -n "$health_cmd" ]]; then
-        cmd+=("--health-cmd" "$health_cmd")
-        cmd+=("--health-interval" "30s")
-        cmd+=("--health-timeout" "5s")
-        cmd+=("--health-retries" "3")
+        # Use standardized health check builder
+        local health_args
+        health_args=$(docker_resource::build_health_check "$health_cmd" "30s" "5s" "3")
+        # shellcheck disable=SC2086
+        cmd+=($health_args)
     fi
     
     # Add image
     cmd+=("$image")
     
-    # Execute command
-    "${cmd[@]}" >/dev/null 2>&1
-}
-
-#######################################
-# Create service with additional Docker options
-# Args: $1 - name, $2 - image, $3 - port_mappings, $4 - network,
-#       $5 - volumes, $6 - health_cmd, $7 - docker_opts (additional docker run options)
-# Returns: 0 on success, 1 on failure
-#######################################
-docker_resource::create_service_with_opts() {
-    local name="$1"
-    local image="$2"
-    local port_mappings="$3"
-    local network="$4"
-    local volumes="$5"
-    local health_cmd="$6"
-    local docker_opts="$7"
-    
-    log::debug "Creating service container with options: $name"
-    
-    # Create network
-    docker::create_network "$network"
-    
-    # Build docker run command
-    local cmd=("docker" "run" "-d")
-    cmd+=("--name" "$name")
-    cmd+=("--network" "$network")
-    cmd+=("--restart" "unless-stopped")
-    
-    # Add port mappings
-    if [[ -n "$port_mappings" ]]; then
-        for port_map in $port_mappings; do
-            cmd+=("-p" "$port_map")
-        done
+    # Execute command with error checking
+    local output
+    log::debug "Executing: ${cmd[*]}"
+    if output=$("${cmd[@]}" 2>&1); then
+        log::debug "Container created successfully with ID: ${output:0:12}"
+        return 0
+    else
+        log::error "Failed to create multi-port service: $output"
+        log::debug "Failed command was: ${cmd[*]}"
+        return 1
     fi
-    
-    # Add volumes
-    if [[ -n "$volumes" ]]; then
-        for volume in $volumes; do
-            cmd+=("-v" "$volume")
-        done
-    fi
-    
-    # Add custom Docker options (e.g., --shm-size, --cap-add, etc.)
-    if [[ -n "$docker_opts" ]]; then
-        # Parse docker_opts as an array to handle options with values
-        eval "local opts_array=($docker_opts)"
-        cmd+=("${opts_array[@]}")
-    fi
-    
-    # Add health check if specified
-    if [[ -n "$health_cmd" ]]; then
-        cmd+=("--health-cmd" "$health_cmd")
-        cmd+=("--health-interval" "30s")
-        cmd+=("--health-timeout" "5s")
-        cmd+=("--health-retries" "3")
-    fi
-    
-    # Add image
-    cmd+=("$image")
-    
-    # Execute command
-    "${cmd[@]}" >/dev/null 2>&1
 }
 
 #######################################
@@ -620,12 +541,11 @@ docker_resource::exec_interactive() {
     fi
     
     # Use -it only if we have a TTY
-    local docker_flags=""
     if [[ -t 0 ]]; then
-        docker_flags="-it"
+        docker exec -it "$container_name" "$@"
+    else
+        docker exec "$container_name" "$@"
     fi
-    
-    docker exec $docker_flags "$container_name" "$@"
 }
 
 #######################################
@@ -765,11 +685,476 @@ docker_resource::create_multi_port_client() {
     
     cmd+=("$image")
     
-    # Execute
-    if "${cmd[@]}" >/dev/null 2>&1; then
+    # Execute with error checking
+    local output
+    if output=$("${cmd[@]}" 2>&1); then
         echo "$allocated_ports"
         return 0
     else
+        log::error "Failed to create multi-port client: $output"
+        return 1
+    fi
+}
+
+################################################################################
+# ADVANCED CONTAINER CREATION - For complex Docker configurations
+################################################################################
+
+#######################################
+# Create service with advanced Docker options and custom entrypoint
+# Args: $1 - name, $2 - image, $3 - port_mappings, $4 - network,
+#       $5 - volumes, $6 - env_vars (array name), $7 - docker_opts (array name),
+#       $8 - health_cmd, $9 - entrypoint_cmd (array name)
+# Returns: 0 on success, 1 on failure
+#######################################
+docker_resource::create_service_advanced() {
+    local name="$1"
+    local image="$2"
+    local port_mappings="$3"
+    local network="$4"
+    local volumes="$5"
+    local env_vars_name="$6"
+    local docker_opts_name="$7"
+    local health_cmd="$8"
+    local entrypoint_name="$9"
+    
+    log::debug "Creating advanced service container: $name"
+    
+    # Validate Docker daemon
+    if ! docker::check_daemon; then
+        return 1
+    fi
+    
+    # Pull image first with error checking
+    if ! docker::pull_image "$image"; then
+        log::error "Failed to pull image: $image"
+        return 1
+    fi
+    
+    # Create network
+    docker::create_network "$network"
+    
+    # Build docker run command
+    local cmd=("docker" "run" "-d")
+    cmd+=("--name" "$name")
+    cmd+=("--network" "$network")
+    cmd+=("--restart" "unless-stopped")
+    
+    # Add port mappings
+    if [[ -n "$port_mappings" ]]; then
+        for port_map in $port_mappings; do
+            cmd+=("-p" "$port_map")
+        done
+    fi
+    
+    # Add volumes
+    if [[ -n "$volumes" ]]; then
+        for volume in $volumes; do
+            cmd+=("-v" "$volume")
+        done
+    fi
+    
+    # Add environment variables from array
+    if [[ -n "$env_vars_name" ]]; then
+        # Use eval for Bash 4.2 compatibility instead of nameref
+        eval "local env_array=(\"\${${env_vars_name}[@]}\")"
+        for env_var in "${env_array[@]}"; do
+            cmd+=("-e" "$env_var")
+        done
+    fi
+    
+    # Add Docker options from array
+    if [[ -n "$docker_opts_name" ]]; then
+        # Use eval for Bash 4.2 compatibility instead of nameref
+        eval "local opts_array=(\"\${${docker_opts_name}[@]}\")"
+        cmd+=("${opts_array[@]}")
+    fi
+    
+    # Add health check with configurable timeout
+    if [[ -n "$health_cmd" ]]; then
+        # Use standardized health check builder with environment variable defaults
+        local health_args
+        health_args=$(docker_resource::build_health_check "$health_cmd")
+        # shellcheck disable=SC2086
+        cmd+=($health_args)
+    fi
+    
+    # Add image
+    cmd+=("$image")
+    
+    # Add entrypoint/command from array
+    if [[ -n "$entrypoint_name" ]]; then
+        # Use eval for Bash 4.2 compatibility instead of nameref
+        eval "local entrypoint_array=(\"\${${entrypoint_name}[@]}\")"
+        cmd+=("${entrypoint_array[@]}")
+    fi
+    
+    # Execute command with detailed error output
+    local output
+    log::debug "Executing: ${cmd[*]}"
+    if output=$("${cmd[@]}" 2>&1); then
+        log::debug "Container created successfully with ID: ${output:0:12}"
+        return 0
+    else
+        log::error "Failed to create advanced service container: $output"
+        log::debug "Failed command was: ${cmd[*]}"
+        return 1
+    fi
+}
+
+#######################################
+# Allocate multiple ports atomically for multi-port services
+# Args: $1 - num_ports, $2 - start_range, $3 - end_range
+# Returns: Space-separated list of allocated ports via stdout
+# Example: ports=$(docker_resource::allocate_port_range 3 9000 9100)
+#######################################
+docker_resource::allocate_port_range() {
+    local num_ports="$1"
+    local start_range="$2"
+    local end_range="$3"
+    
+    local allocated_ports=()
+    local port="$start_range"
+    
+    while [[ ${#allocated_ports[@]} -lt $num_ports ]] && [[ $port -le $end_range ]]; do
+        if docker::is_port_available "$port"; then
+            allocated_ports+=("$port")
+        fi
+        ((port++))
+    done
+    
+    if [[ ${#allocated_ports[@]} -eq $num_ports ]]; then
+        echo "${allocated_ports[*]}"
+        return 0
+    else
+        log::error "Could not allocate $num_ports ports in range $start_range-$end_range"
+        return 1
+    fi
+}
+
+#######################################
+# Merge JSON objects using jq safely
+# Args: $1 - base_json, $2 - additional_json
+# Returns: Merged JSON via stdout
+#######################################
+docker_resource::merge_json() {
+    local base_json="$1"
+    local additional_json="$2"
+    
+    if command -v jq &>/dev/null; then
+        echo "$base_json" | jq --argjson add "$additional_json" '. + $add'
+    else
+        log::error "jq is required for JSON operations"
+        return 1
+    fi
+}
+
+#######################################
+# Validate required environment variables
+# Args: Variable names to check
+# Returns: 0 if all present, 1 if any missing
+#######################################
+docker_resource::validate_env_vars() {
+    local missing=()
+    
+    for var_name in "$@"; do
+        if [[ -z "${!var_name:-}" ]]; then
+            missing+=("$var_name")
+        fi
+    done
+    
+    if [[ ${#missing[@]} -gt 0 ]]; then
+        log::error "Missing required environment variables: ${missing[*]}"
+        return 1
+    fi
+    
+    return 0
+}
+
+################################################################################
+# DOCKER COMPOSE UTILITIES - For multi-service orchestration
+################################################################################
+
+#######################################
+# Run docker-compose command with standard options
+# Args: $1 - compose_file, $@ - compose arguments
+# Returns: Compose command exit code
+#######################################
+docker_resource::compose_cmd() {
+    local compose_file="$1"
+    shift
+    
+    if [[ ! -f "$compose_file" ]]; then
+        log::error "Docker Compose file not found: $compose_file"
+        return 1
+    fi
+    
+    # Check for docker-compose or docker compose command
+    local compose_cmd
+    if command -v docker-compose &>/dev/null; then
+        compose_cmd="docker-compose"
+    elif docker compose version &>/dev/null 2>&1; then
+        compose_cmd="docker compose"
+    else
+        log::error "Docker Compose is not installed"
+        return 1
+    fi
+    
+    # Execute compose command
+    $compose_cmd -f "$compose_file" "$@"
+}
+
+#######################################
+# Start services using docker-compose
+# Args: $1 - compose_file, $2 - profiles (optional)
+# Returns: 0 on success, 1 on failure
+#######################################
+docker_resource::compose_up() {
+    local compose_file="$1"
+    local profiles="${2:-}"
+    
+    log::info "Starting services with Docker Compose..."
+    
+    local cmd_args=("up" "-d")
+    if [[ -n "$profiles" ]]; then
+        for profile in $profiles; do
+            cmd_args=("--profile" "$profile" "${cmd_args[@]}")
+        done
+    fi
+    
+    if docker_resource::compose_cmd "$compose_file" "${cmd_args[@]}"; then
+        log::success "Services started successfully"
+        return 0
+    else
+        log::error "Failed to start services"
+        return 1
+    fi
+}
+
+#######################################
+# Stop services using docker-compose
+# Args: $1 - compose_file, $2 - remove_volumes (true/false)
+# Returns: 0 on success, 1 on failure
+#######################################
+docker_resource::compose_down() {
+    local compose_file="$1"
+    local remove_volumes="${2:-false}"
+    
+    log::info "Stopping services with Docker Compose..."
+    
+    local cmd_args=("down")
+    if [[ "$remove_volumes" == "true" ]]; then
+        cmd_args+=("-v")
+    fi
+    
+    if docker_resource::compose_cmd "$compose_file" "${cmd_args[@]}"; then
+        log::success "Services stopped successfully"
+        return 0
+    else
+        log::error "Failed to stop services"
+        return 1
+    fi
+}
+
+#######################################
+# Restart services using docker-compose
+# Args: $1 - compose_file, $2 - service_name (optional)
+# Returns: 0 on success, 1 on failure
+#######################################
+docker_resource::compose_restart() {
+    local compose_file="$1"
+    local service_name="${2:-}"
+    
+    log::info "Restarting services with Docker Compose..."
+    
+    local cmd_args=("restart")
+    if [[ -n "$service_name" ]]; then
+        cmd_args+=("$service_name")
+    fi
+    
+    if docker_resource::compose_cmd "$compose_file" "${cmd_args[@]}"; then
+        log::success "Services restarted successfully"
+        return 0
+    else
+        log::error "Failed to restart services"
+        return 1
+    fi
+}
+
+#######################################
+# Scale service to specified count
+# Args: $1 - compose_file, $2 - service_name, $3 - count
+# Returns: 0 on success, 1 on failure
+#######################################
+docker_resource::compose_scale() {
+    local compose_file="$1"
+    local service_name="$2"
+    local count="$3"
+    
+    if ! [[ "$count" =~ ^[0-9]+$ ]]; then
+        log::error "Invalid count: $count (must be a number)"
+        return 1
+    fi
+    
+    log::info "Scaling $service_name to $count instances..."
+    
+    if docker_resource::compose_cmd "$compose_file" scale "$service_name=$count"; then
+        log::success "Service scaled successfully"
+        return 0
+    else
+        log::error "Failed to scale service"
+        return 1
+    fi
+}
+
+#######################################
+# Get compose service logs
+# Args: $1 - compose_file, $2 - service_name (optional), $3 - lines (optional)
+# Returns: 0 on success, 1 on failure
+#######################################
+docker_resource::compose_logs() {
+    local compose_file="$1"
+    local service_name="${2:-}"
+    local lines="${3:-50}"
+    
+    local cmd_args=("logs" "--tail=$lines")
+    if [[ -n "$service_name" ]]; then
+        cmd_args+=("$service_name")
+    fi
+    
+    docker_resource::compose_cmd "$compose_file" "${cmd_args[@]}"
+}
+
+#######################################
+# Execute command in database container with automatic CLI detection
+# Args: $1 - container_name, $2 - db_type (postgres/mysql/redis/mongo), $3 - command
+# Returns: Command exit code
+#######################################
+docker_resource::exec_database_command() {
+    local container_name="$1"
+    local db_type="$2"
+    local command="$3"
+    
+    if ! docker::is_running "$container_name"; then
+        log::error "Container is not running: $container_name"
+        return 1
+    fi
+    
+    case "$db_type" in
+        postgres)
+            docker exec "$container_name" psql -U "${POSTGRES_USER:-postgres}" -c "$command"
+            ;;
+        mysql)
+            docker exec "$container_name" mysql -u "${MYSQL_USER:-root}" -p"${MYSQL_PASSWORD:-}" -e "$command"
+            ;;
+        redis)
+            if [[ -n "${REDIS_PASSWORD:-}" ]]; then
+                docker exec "$container_name" redis-cli -a "$REDIS_PASSWORD" "$command"
+            else
+                docker exec "$container_name" redis-cli "$command"
+            fi
+            ;;
+        mongo)
+            docker exec "$container_name" mongosh --eval "$command"
+            ;;
+        *)
+            log::error "Unknown database type: $db_type"
+            return 1
+            ;;
+    esac
+}
+
+#######################################
+# Get database-specific environment variables
+# Args: $1 - db_type, $2 - password
+# Returns: Environment variable arguments via stdout
+#######################################
+docker_resource::get_database_env_vars() {
+    local db_type="$1"
+    local password="${2:-}"
+    
+    case "$db_type" in
+        postgres)
+            echo "-e POSTGRES_PASSWORD=${password:-postgres} -e POSTGRES_USER=${POSTGRES_USER:-postgres} -e POSTGRES_DB=${POSTGRES_DB:-postgres}"
+            ;;
+        mysql)
+            echo "-e MYSQL_ROOT_PASSWORD=${password:-mysql} -e MYSQL_DATABASE=${MYSQL_DATABASE:-mysql}"
+            ;;
+        redis)
+            if [[ -n "$password" ]]; then
+                echo "-e REDIS_PASSWORD=$password"
+            fi
+            ;;
+        mongo)
+            if [[ -n "$password" ]]; then
+                echo "-e MONGO_INITDB_ROOT_PASSWORD=$password -e MONGO_INITDB_ROOT_USERNAME=${MONGO_USER:-admin}"
+            fi
+            ;;
+        *)
+            log::warn "Unknown database type for env vars: $db_type"
+            ;;
+    esac
+}
+
+#######################################
+# Create database client instance with unified pattern
+# Args: $1 - db_type, $2 - client_id, $3 - image, $4 - internal_port, 
+#       $5 - port_start, $6 - port_end, $7 - password
+# Returns: Allocated port via stdout, 1 on failure
+#######################################
+docker_resource::create_database_client_instance() {
+    local db_type="$1"
+    local client_id="$2"
+    local image="$3"
+    local internal_port="$4"
+    local port_start="$5"
+    local port_end="$6"
+    local password="${7:-}"
+    
+    local client_container="${db_type}-client-${client_id}"
+    local client_network="vrooli-${client_id}-network"
+    
+    # Find available port atomically to prevent race conditions
+    local client_port
+    client_port=$(docker_resource::allocate_port_atomic "$port_start" "$port_end" "${db_type}-${client_id}")
+    
+    if [[ -z "$client_port" ]]; then
+        log::error "No available ports in range $port_start-$port_end"
+        return 1
+    fi
+    
+    # Create network
+    docker::create_network "$client_network"
+    
+    # Get database-specific environment variables
+    local env_vars
+    env_vars=$(docker_resource::get_database_env_vars "$db_type" "$password")
+    
+    # Create container
+    local cmd=("docker" "run" "-d")
+    cmd+=("--name" "$client_container")
+    cmd+=("--network" "$client_network")
+    cmd+=("-p" "${client_port}:${internal_port}")
+    cmd+=("--restart" "unless-stopped")
+    
+    # Add environment variables if any
+    if [[ -n "$env_vars" ]]; then
+        # shellcheck disable=SC2086
+        cmd+=($env_vars)
+    fi
+    
+    cmd+=("$image")
+    
+    # Execute with error checking
+    local output
+    log::debug "Creating database client: ${cmd[*]}"
+    if output=$("${cmd[@]}" 2>&1); then
+        log::debug "Database client created with ID: ${output:0:12}"
+        echo "$client_port"
+        return 0
+    else
+        log::error "Failed to create $db_type client instance: $output"
+        log::debug "Failed command was: ${cmd[*]}"
         return 1
     fi
 }

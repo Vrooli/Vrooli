@@ -106,14 +106,14 @@ questdb::parse_arguments() {
     fi
     
     # Show help if requested
-    if args::is_help_set; then
+    if args::is_asking_for_help "$@"; then
         args::usage "$@"
         return 0
     fi
     
     # Get action
     local action
-    action=$(args::get_option_value action)
+    action=$(args::get action)
     
     if [[ -z "$action" ]]; then
         echo_error "No action specified"

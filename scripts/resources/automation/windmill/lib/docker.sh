@@ -16,18 +16,8 @@ source "${var_SCRIPTS_RESOURCES_LIB_DIR}/docker-resource-utils.sh"
 # Returns: 0 if successful, 1 otherwise
 #######################################
 windmill::compose_up() {
-    # Ensure Docker daemon is available
     docker::check_daemon || return 1
-    
-    log::info "Starting Windmill services..."
-    
-    if windmill::compose_cmd up -d; then
-        log::success "Windmill services started successfully"
-        return 0
-    else
-        log::error "Failed to start Windmill services"
-        return 1
-    fi
+    docker_resource::compose_up "$WINDMILL_COMPOSE_FILE"
 }
 
 #######################################
@@ -35,15 +25,7 @@ windmill::compose_up() {
 # Returns: 0 if successful, 1 otherwise
 #######################################
 windmill::compose_down() {
-    log::info "Stopping Windmill services..."
-    
-    if windmill::compose_cmd down; then
-        log::success "Windmill services stopped successfully"
-        return 0
-    else
-        log::error "Failed to stop Windmill services"
-        return 1
-    fi
+    docker_resource::compose_down "$WINDMILL_COMPOSE_FILE" "false"
 }
 
 #######################################
@@ -51,15 +33,7 @@ windmill::compose_down() {
 # Returns: 0 if successful, 1 otherwise
 #######################################
 windmill::compose_down_volumes() {
-    log::info "Stopping Windmill services and removing volumes..."
-    
-    if windmill::compose_cmd down -v; then
-        log::success "Windmill services stopped and volumes removed"
-        return 0
-    else
-        log::error "Failed to stop Windmill services and remove volumes"
-        return 1
-    fi
+    docker_resource::compose_down "$WINDMILL_COMPOSE_FILE" "true"
 }
 
 #######################################
@@ -67,15 +41,7 @@ windmill::compose_down_volumes() {
 # Returns: 0 if successful, 1 otherwise
 #######################################
 windmill::compose_restart() {
-    log::info "Restarting Windmill services..."
-    
-    if windmill::compose_cmd restart; then
-        log::success "Windmill services restarted successfully"
-        return 0
-    else
-        log::error "Failed to restart Windmill services"
-        return 1
-    fi
+    docker_resource::compose_restart "$WINDMILL_COMPOSE_FILE"
 }
 
 #######################################

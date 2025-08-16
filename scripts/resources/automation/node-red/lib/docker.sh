@@ -11,10 +11,7 @@ source "${_NODE_RED_DOCKER_DIR}/../../../../lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_LIB_DIR}/docker-resource-utils.sh"
 
-#######################################
 # Create and start Node-RED container
-# Returns: 0 on success, 1 on failure
-#######################################
 node_red::docker::create_container() {
     # Ensure first-time setup is completed
     if node_red::is_first_run; then
@@ -52,7 +49,6 @@ node_red::docker::create_container() {
         "curl -f http://localhost:1880 || exit 1" \
         "node-red"; then
         
-        log::debug "Node-RED container created successfully"
         sleep "${NODE_RED_INITIALIZATION_WAIT:-3}"
         return 0
     else
@@ -61,10 +57,7 @@ node_red::docker::create_container() {
     fi
 }
 
-#######################################
 # Build custom Node-RED image if Dockerfile exists
-# Returns: 0 on success, 1 on failure
-#######################################
 node_red::build_custom_image() {
     local docker_dir="${NODE_RED_SCRIPT_DIR}/docker"
     
@@ -77,19 +70,16 @@ node_red::build_custom_image() {
     docker build -t "$NODE_RED_CUSTOM_IMAGE" "$docker_dir"
 }
 
-#######################################
 # Remove Node-RED container and clean up
 # Arguments: $1 - remove data (yes/no)
-# Returns: 0 on success, 1 on failure
-#######################################
 node_red::docker::remove_container() {
     local remove_data="${1:-no}"
     
     # Stop and remove container
     docker::remove_container "$NODE_RED_CONTAINER_NAME" "true"
     
-    # Remove network if empty
-    docker network rm "$NODE_RED_NETWORK_NAME" >/dev/null 2>&1 || true
+    # Remove network only if empty
+    docker::cleanup_network_if_empty "$NODE_RED_NETWORK_NAME"
     
     # Handle data removal if requested
     if [[ "$remove_data" == "yes" ]]; then
@@ -99,10 +89,7 @@ node_red::docker::remove_container() {
     return 0
 }
 
-#######################################
 # Start Node-RED container
-# Returns: 0 on success, 1 on failure
-#######################################
 node_red::docker::start() {
     if ! docker::container_exists "$NODE_RED_CONTAINER_NAME"; then
         log::error "Node-RED container does not exist. Run install first."
@@ -126,10 +113,7 @@ node_red::docker::start() {
     fi
 }
 
-#######################################
 # Stop Node-RED container
-# Returns: 0 on success, 1 on failure
-#######################################
 node_red::docker::stop() {
     if ! docker::container_exists "$NODE_RED_CONTAINER_NAME"; then
         log::warn "Node-RED container does not exist"
@@ -147,10 +131,7 @@ node_red::docker::stop() {
     fi
 }
 
-#######################################
 # Restart Node-RED container
-# Returns: 0 on success, 1 on failure
-#######################################
 node_red::docker::restart() {
     log::info "Restarting Node-RED container..."
     

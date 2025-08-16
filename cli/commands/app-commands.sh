@@ -51,7 +51,7 @@ USAGE:
     vrooli app <subcommand> [options]
 
 RUNTIME COMMANDS:
-    start <name>            Start a specific app
+    start <name>            Start a specific app (runs setup if needed, then develop)
     stop <name>             Stop a specific app
     restart <name>          Restart a specific app
     logs <name>             Show logs for a specific app
@@ -72,7 +72,7 @@ OPTIONS:
     --follow                Follow logs in real-time (for logs command)
 
 EXAMPLES:
-    vrooli app start research-assistant       # Start an app
+    vrooli app start research-assistant       # Start an app (setup + develop)
     vrooli app stop research-assistant        # Stop an app
     vrooli app restart research-assistant     # Restart an app
     vrooli app logs research-assistant        # Show app logs
@@ -566,9 +566,28 @@ app_start() {
     # shellcheck disable=SC1090
     source "$process_manager"
     
-    # Start the app by running manage.sh develop directly
+    # Check if app has been set up before
+    local setup_marker="$app_path/.vrooli/.setup-complete"
+    if [[ ! -f "$setup_marker" ]]; then
+        log::info "First-time setup required for: $app_name"
+        log::info "Running setup phase..."
+        
+        if (cd "$app_path" && ./scripts/manage.sh setup); then
+            # Create setup completion marker
+            mkdir -p "$app_path/.vrooli"
+            echo "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" > "$setup_marker"
+            log::success "✅ Setup completed for: $app_name"
+        else
+            log::error "Setup failed for: $app_name"
+            return 1
+        fi
+    else
+        log::info "App already set up (setup completed: $(cat "$setup_marker" 2>/dev/null || echo 'unknown'))"
+    fi
+    
+    # Start the app by running manage.sh develop
     # manage.sh will handle background processes internally via process manager
-    log::info "Running development setup for: $app_name"
+    log::info "Starting development environment for: $app_name"
     if (cd "$app_path" && ./scripts/manage.sh develop); then
         # Try to get port from app's package.json or config
         local port=""

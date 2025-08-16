@@ -96,9 +96,6 @@ n8n::start() {
     fi
 }
 
-#######################################
-# Stop n8n
-#######################################
 n8n::stop() {
     log::info "Stopping n8n..."
     
@@ -114,9 +111,6 @@ n8n::stop() {
     log::info "n8n stopped"
 }
 
-#######################################
-# Restart n8n
-#######################################
 n8n::restart() {
     log::info "Restarting n8n..."
     n8n::stop
@@ -124,16 +118,8 @@ n8n::restart() {
     n8n::start
 }
 
-#######################################
-# Show logs
-#######################################
 n8n::logs() {
-    if ! docker::container_exists "$N8N_CONTAINER_NAME"; then
-        log::error "n8n container does not exist"
-        return 1
-    fi
-    
-    log::info "Showing n8n logs (last ${LINES:-50} lines)..."
-    docker::get_logs "$N8N_CONTAINER_NAME" "${LINES:-50}"
+    local lines="${1:-50}"
+    local follow="${2:-false}"
+    docker_resource::show_logs_with_follow "$N8N_CONTAINER_NAME" "$lines" "$follow"
 }
-

@@ -92,9 +92,6 @@ redis::docker::restart() {
     fi
 }
 
-redis::docker::remove_container() {
-    docker::remove_container "$REDIS_CONTAINER_NAME" "true"
-}
 
 #######################################
 # Execute Redis CLI command

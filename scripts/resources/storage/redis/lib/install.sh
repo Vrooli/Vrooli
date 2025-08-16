@@ -269,7 +269,7 @@ redis::install::uninstall() {
     log::info "🗑️  Uninstalling Redis resource..."
     
     # Remove container
-    if ! redis::docker::remove_container "$remove_data"; then
+    if ! docker::remove_container "$REDIS_CONTAINER_NAME" "true"; then
         return 1
     fi
     

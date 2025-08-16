@@ -20,7 +20,7 @@ minio::status::check() {
     fi
     
     # Check Docker
-    if minio::docker::check_docker >/dev/null 2>&1; then
+    if docker::check_daemon >/dev/null 2>&1; then
         [[ "$verbose" == "true" ]] && log::success "Docker: Available"
     else
         [[ "$verbose" == "true" ]] && log::error "Docker: Not available"
@@ -242,7 +242,7 @@ minio::status::diagnose() {
     
     # Check Docker
     log::info "1. Checking Docker..."
-    if minio::docker::check_docker; then
+    if docker::check_daemon; then
         log::success "   Docker is available"
     else
         log::error "   Docker is not available"

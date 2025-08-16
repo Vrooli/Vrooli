@@ -3,11 +3,11 @@
 # Unstructured.io API Test Suite (Shell Script)
 # This script provides comprehensive testing of the Unstructured.io API functionality
 
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+TEST_API_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # Source var.sh for directory variables
 # shellcheck disable=SC1091
-source "$SCRIPT_DIR/../../../../lib/utils/var.sh" 2>/dev/null || true
+source "$TEST_API_LIB_DIR/../../../../lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 

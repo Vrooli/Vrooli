@@ -101,7 +101,7 @@ minio::install::pre_checks() {
     
     # Check Docker
     log::info "${MSG_CHECKING_DOCKER}"
-    if ! minio::docker::check_docker; then
+    if ! docker::check_daemon; then
         log::error "${MSG_DOCKER_NOT_FOUND}"
         return 1
     fi

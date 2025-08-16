@@ -13,7 +13,7 @@ source "${SCRIPT_DIR}/../../lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/../../lib/utils/log.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../lib/system/system_commands.sh"
+source "${var_LIB_SYSTEM_DIR}/system_commands.sh"
 
 #######################################
 # Check if Docker is installed and accessible
@@ -125,9 +125,17 @@ docker::remove_network() {
     
     if docker network ls | grep -q "$network_name"; then
         log::info "Removing Docker network: $network_name"
-        docker network rm "$network_name" >/dev/null 2>&1 || true
+        if docker network rm "$network_name" >/dev/null 2>&1; then
+            log::success "Network removed: $network_name"
+            return 0
+        else
+            log::warn "Failed to remove network (may have attached containers): $network_name"
+            return 1
+        fi
+    else
+        log::debug "Network $network_name does not exist, nothing to remove"
+        return 0
     fi
-    return 0
 }
 
 #######################################
@@ -149,8 +157,13 @@ docker::cleanup_network_if_empty() {
     
     if [[ "$network_containers" -eq 0 ]]; then
         log::info "Removing empty network: $network_name"
-        docker network rm "$network_name" >/dev/null 2>&1 || true
-        return 0
+        if docker network rm "$network_name" >/dev/null 2>&1; then
+            log::success "Empty network removed: $network_name"
+            return 0
+        else
+            log::warn "Failed to remove empty network: $network_name"
+            return 1
+        fi
     else
         log::debug "Network $network_name has $network_containers container(s) attached, keeping it"
         return 1
@@ -183,12 +196,13 @@ docker::stop_container() {
     local timeout="${2:-10}"
     
     if ! docker::is_running "$container_name"; then
+        log::debug "Container $container_name is not running, nothing to stop"
         return 0  # Already stopped
     fi
     
     log::info "Stopping container: $container_name"
     if docker stop -t "$timeout" "$container_name" >/dev/null 2>&1; then
-        log::success "Container stopped: $container_name"
+        log::success "Container stopped successfully: $container_name"
         return 0
     else
         log::error "Failed to stop container: $container_name"
@@ -199,25 +213,39 @@ docker::stop_container() {
 #######################################
 # Remove a Docker container
 # Args: $1 - container_name, $2 - force (optional, "true" to force)
-# Returns: 0 on success
+# Returns: 0 on success, 1 on failure
 #######################################
 docker::remove_container() {
     local container_name="$1"
     local force="${2:-false}"
     
     if ! docker::container_exists "$container_name"; then
+        log::debug "Container $container_name does not exist, nothing to remove"
         return 0  # Already removed
     fi
     
     log::info "Removing container: $container_name"
     
-    local remove_args=""
-    if [[ "$force" == "true" ]]; then
-        remove_args="-f"
+    # Stop first if running and force is true
+    if [[ "$force" == "true" ]] && docker::is_running "$container_name"; then
+        log::debug "Stopping running container before removal: $container_name"
+        docker::stop_container "$container_name" 10 || true
     fi
     
-    docker rm $remove_args "$container_name" >/dev/null 2>&1 || true
-    return 0
+    # Build remove command properly
+    local cmd=("docker" "rm")
+    if [[ "$force" == "true" ]]; then
+        cmd+=("-f")
+    fi
+    cmd+=("$container_name")
+    
+    if "${cmd[@]}" >/dev/null 2>&1; then
+        log::success "Container removed successfully: $container_name"
+        return 0
+    else
+        log::error "Failed to remove container: $container_name"
+        return 1
+    fi
 }
 
 #######################################
@@ -464,7 +492,11 @@ docker::get_all_env() {
 docker::inspect_env() {
     local container_name="$1"
     local var_name="$2"
-    docker inspect "$container_name" --format="{{range .Config.Env}}{{if eq (index (split . \"=\") 0) \"$var_name\"}}{{index (split . \"=\") 1}}{{end}}{{end}}" 2>/dev/null
+    
+    # Get all env vars and filter for the one we want - simpler and more maintainable
+    docker inspect "$container_name" --format='{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | \
+        grep "^${var_name}=" | \
+        cut -d'=' -f2- || echo ""
 }
 
 #######################################
@@ -545,21 +577,5 @@ docker::get_state() {
 # These functions provide simple, intuitive APIs for common resource patterns
 # instead of complex JSON configuration building.
 
-# Legacy complex functions (now deprecated, use docker-resource-utils.sh):
-docker::start_with_config() {
-    log::warn "docker::start_with_config is deprecated. Use docker_resource::create_service instead."
-    log::info "See docker-resource-utils.sh for simplified resource patterns."
-    return 1
-}
 
-docker::stop_with_config() {
-    log::warn "docker::stop_with_config is deprecated. Use standard docker::stop_container + docker_resource::remove_data instead."
-    log::info "See docker-resource-utils.sh for simplified resource patterns."
-    return 1
-}
 
-docker::restart_with_config() {
-    log::warn "docker::restart_with_config is deprecated. Use docker::restart_container instead."
-    log::info "See docker-resource-utils.sh for simplified resource patterns."
-    return 1
-}

@@ -36,29 +36,6 @@ comfyui::docker::_wait_for_healthy() {
 }
 
 #######################################
-# Build GPU-specific arguments for ComfyUI
-#######################################
-comfyui::docker::_get_gpu_args() {
-    case "${GPU_TYPE}" in
-        nvidia)
-            if docker info 2>/dev/null | grep -E "(Runtimes:.*nvidia|Default Runtime: nvidia)" >/dev/null; then
-                echo "--gpus all -e NVIDIA_VISIBLE_DEVICES=all -e NVIDIA_DRIVER_CAPABILITIES=all"
-                [[ -n "$COMFYUI_VRAM_LIMIT" ]] && echo "-e PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb=$((COMFYUI_VRAM_LIMIT * 1024))"
-            else
-                log::warn "NVIDIA runtime not available, falling back to CPU mode"
-                echo "-e CUDA_VISIBLE_DEVICES="
-            fi
-            ;;
-        amd)
-            echo "--device=/dev/kfd --device=/dev/dri --group-add video -e HSA_OVERRIDE_GFX_VERSION=10.3.0 -e PYTORCH_HIP_ALLOC_CONF=max_split_size_mb=512"
-            ;;
-        *)
-            echo "-e CUDA_VISIBLE_DEVICES="
-            ;;
-    esac
-}
-
-#######################################
 # Start ComfyUI container with appropriate configuration
 #######################################
 comfyui::docker::start_container() {
@@ -68,50 +45,59 @@ comfyui::docker::start_container() {
     local image="${COMFYUI_CUSTOM_IMAGE:-$COMFYUI_DEFAULT_IMAGE}"
     local network="${COMFYUI_CONTAINER_NAME}-network"
     
+    # Pull image
+    docker::pull_image "$image"
+    
     # Build volumes string
     local volumes=""
     for volume in "${COMFYUI_VOLUMES[@]}"; do
         volumes+="$volume "
     done
     
-    # Build GPU arguments
-    local gpu_args
-    gpu_args=$(comfyui::docker::_get_gpu_args)
-    
-    # Create container with GPU support using direct docker command
-    # This preserves ComfyUI's specific GPU requirements while simplifying the structure
-    local cmd=(docker run -d --name "$COMFYUI_CONTAINER_NAME")
-    cmd+=(--restart unless-stopped)
-    cmd+=(-p "${port}:8188")
-    cmd+=(--network "$network")
-    
-    # Add GPU args if any
-    [[ -n "$gpu_args" ]] && cmd+=($gpu_args)
-    
-    # Add volumes
-    for volume in ${volumes}; do
-        cmd+=(-v "$volume")
-    done
-    
-    # Add environment variables
+    # Prepare environment variables
+    local env_vars=()
     for env_var in "${COMFYUI_ENV_VARS[@]}"; do
-        cmd+=(-e "$env_var")
+        env_vars+=("$env_var")
     done
     
-    # Add health check
-    cmd+=(--health-cmd "curl -f http://localhost:8188${COMFYUI_HEALTH_ENDPOINT} || exit 1")
-    cmd+=(--health-interval 30s --health-timeout 5s --health-retries 3)
+    # Build GPU-specific Docker options
+    local docker_opts=()
+    case "${GPU_TYPE}" in
+        nvidia)
+            if docker info 2>/dev/null | grep -E "(Runtimes:.*nvidia|Default Runtime: nvidia)" >/dev/null; then
+                docker_opts+=("--gpus" "all")
+                env_vars+=("NVIDIA_VISIBLE_DEVICES=all" "NVIDIA_DRIVER_CAPABILITIES=all")
+                [[ -n "$COMFYUI_VRAM_LIMIT" ]] && env_vars+=("PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb=$((COMFYUI_VRAM_LIMIT * 1024))")
+            else
+                log::warn "NVIDIA runtime not available, falling back to CPU mode"
+                env_vars+=("CUDA_VISIBLE_DEVICES=")
+            fi
+            ;;
+        amd)
+            docker_opts+=("--device=/dev/kfd" "--device=/dev/dri" "--group-add" "video")
+            env_vars+=("HSA_OVERRIDE_GFX_VERSION=10.3.0" "PYTORCH_HIP_ALLOC_CONF=max_split_size_mb=512")
+            ;;
+        *)
+            env_vars+=("CUDA_VISIBLE_DEVICES=")
+            ;;
+    esac
     
-    cmd+=("$image")
+    # Health check
+    local health_cmd="curl -f http://localhost:8188${COMFYUI_HEALTH_ENDPOINT} || exit 1"
     
-    # Create network first
-    docker::create_network "$network"
+    # Use advanced creation
+    docker_resource::create_service_advanced \
+        "$COMFYUI_CONTAINER_NAME" \
+        "$image" \
+        "${port}:8188" \
+        "$network" \
+        "$volumes" \
+        "env_vars" \
+        "docker_opts" \
+        "$health_cmd" \
+        ""
     
-    log::debug "Docker command: ${cmd[*]}"
-    
-    if "${cmd[@]}" >/dev/null 2>&1; then
-        log::success "Container started successfully"
-        
+    if [[ $? -eq 0 ]]; then
         # Wait for health check
         if comfyui::docker::_wait_for_healthy 120; then
             log::success "ComfyUI is ready!"
@@ -131,15 +117,11 @@ comfyui::docker::start_container() {
     fi
 }
 
-#######################################
-# Stop ComfyUI container
-#######################################
 comfyui::docker::stop() {
     docker::container_exists "$COMFYUI_CONTAINER_NAME" || { log::info "ComfyUI container does not exist"; return 0; }
     docker::is_running "$COMFYUI_CONTAINER_NAME" || { log::info "ComfyUI is not running"; return 0; }
     
-    log::info "Stopping ComfyUI..."
-    docker::stop_container "$COMFYUI_CONTAINER_NAME" && log::success "ComfyUI stopped successfully"
+    docker::stop_container "$COMFYUI_CONTAINER_NAME"
 }
 
 #######################################
@@ -192,24 +174,13 @@ comfyui::docker::restart() {
 # Show ComfyUI container logs
 #######################################
 comfyui::docker::logs() {
-    docker::container_exists "$COMFYUI_CONTAINER_NAME" || { log::error "ComfyUI container does not exist"; return 1; }
-    
-    log::info "Showing ComfyUI logs (press Ctrl+C to exit)..."
-    echo
-    docker logs -f --tail 100 "$COMFYUI_CONTAINER_NAME"
+    local lines="${1:-100}"
+    local follow="${2:-true}"
+    docker_resource::show_logs_with_follow "$COMFYUI_CONTAINER_NAME" "$lines" "$follow"
 }
 
-#######################################
-# Remove ComfyUI container
-#######################################
 comfyui::docker::remove_container() {
-    docker::container_exists "$COMFYUI_CONTAINER_NAME" || { log::debug "Container does not exist, nothing to remove"; return 0; }
-    
-    log::info "Removing ComfyUI container..."
-    if docker::is_running "$COMFYUI_CONTAINER_NAME"; then
-        docker stop "$COMFYUI_CONTAINER_NAME" || true
-    fi
-    docker rm -f "$COMFYUI_CONTAINER_NAME" && log::success "Container removed successfully"
+    docker::remove_container "$COMFYUI_CONTAINER_NAME" "true"
 }
 
 #######################################
@@ -217,29 +188,12 @@ comfyui::docker::remove_container() {
 #######################################
 comfyui::docker::pull_image() {
     local image="${COMFYUI_CUSTOM_IMAGE:-$COMFYUI_DEFAULT_IMAGE}"
-    
     log::info "Pulling ComfyUI Docker image: $image"
-    log::info "This may take several minutes depending on your internet connection..."
-    
-    if docker pull "$image"; then
-        log::success "Successfully pulled ComfyUI image"
-        log::info "Image details:"
-        docker images "$image" --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}\t{{.CreatedAt}}"
-    else
-        log::error "Failed to pull ComfyUI image. Check your internet connection and Docker Hub access."
-        return 1
-    fi
+    docker::pull_image "$image"
 }
 
-#######################################
-# Execute command in ComfyUI container
-#######################################
 comfyui::docker::exec() {
-    local command="$1"
-    shift
-    
-    docker::is_running "$COMFYUI_CONTAINER_NAME" || { log::error "ComfyUI container is not running"; return 1; }
-    docker exec "$COMFYUI_CONTAINER_NAME" "$command" "$@"
+    docker_resource::exec "$COMFYUI_CONTAINER_NAME" "$@"
 }
 
 #######################################

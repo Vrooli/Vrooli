@@ -63,13 +63,13 @@ whisper::install() {
     # Stop existing container if running
     if common::is_running "$WHISPER_CONTAINER_NAME"; then
         log::info "Stopping existing Whisper container..."
-        whisper::docker::stop_container
+        docker::stop_container "$WHISPER_CONTAINER_NAME"
     fi
     
     # Remove existing container if it exists
     if common::container_exists "$WHISPER_CONTAINER_NAME"; then
         log::info "Removing existing Whisper container..."
-        whisper::docker::remove_container
+        docker::remove_container "$WHISPER_CONTAINER_NAME" "true"
     fi
     
     # Pull the Docker image
@@ -108,13 +108,13 @@ whisper::uninstall() {
     # Stop container if running
     if common::is_running "$WHISPER_CONTAINER_NAME"; then
         log::info "Stopping Whisper container..."
-        whisper::docker::stop_container
+        docker::stop_container "$WHISPER_CONTAINER_NAME"
     fi
     
     # Remove container if it exists
     if common::container_exists "$WHISPER_CONTAINER_NAME"; then
         log::info "Removing Whisper container..."
-        whisper::docker::remove_container
+        docker::remove_container "$WHISPER_CONTAINER_NAME" "true"
     fi
     
     # Clean up whisper cleanup
@@ -162,7 +162,7 @@ whisper::stop() {
     fi
     
     log::info "Stopping Whisper container..."
-    if whisper::docker::stop_container; then
+    if docker::stop_container "$WHISPER_CONTAINER_NAME"; then
         log::success "✅ Whisper stopped successfully"
     else
         log::error "Failed to stop Whisper container"

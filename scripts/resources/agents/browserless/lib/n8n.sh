@@ -738,39 +738,64 @@ export default async ({ page }) => {
 
     await takeScreenshot('execute-button-found');
     
-    // Check if there's a dropdown for trigger selection - look for chevron specifically
-    const dropdownSelector = '[data-test-id="execute-workflow-button"] ._chevron_p52lz_142, .action-dropdown-container button, ._chevron_p52lz_142';
-    let hasDropdown = await page.evaluate((sel) => !!document.querySelector(sel), dropdownSelector).catch(() => false);
+    // Check if there's a dropdown for trigger selection - try profile candidates
+    const dropdownCandidates = SELECTORS && SELECTORS.executeDropdown ? SELECTORS.executeDropdown : ['[data-test-id="execute-workflow-button"] ._chevron_p52lz_142', '.action-dropdown-container button', '._chevron_p52lz_142'];
+    let opened = false;
+    for (const dd of dropdownCandidates) {
+      const visible = await waitForSelectorVisible(dd, 8000);
+      if (visible) {
+        console.log('Opening trigger selection dropdown via:', dd);
+        try { await page.click(dd); } catch (e) {
+          await page.evaluate((sel) => { const el = document.querySelector(sel); if (el) el.dispatchEvent(new MouseEvent('click', { bubbles: true })); }, dd);
+        }
+        opened = true;
+        break;
+      }
+    }
     
-          if (hasDropdown) {
-        console.log('Opening trigger selection dropdown...');
-        // Click the chevron directly
-        const opened = await page.evaluate((sel) => {
-          const chevron = document.querySelector(sel);
-          if (chevron) { 
-            chevron.dispatchEvent(new MouseEvent('click', { bubbles: true })); 
-            return true; 
-          }
-          return false;
-        }, dropdownSelector).catch(() => false);
-        console.log('Dropdown chevron clicked:', opened);
-        await new Promise(resolve => setTimeout(resolve, 500)); // Brief wait for dropdown
+          if (opened) {
+        console.log('Dropdown opened, searching for Manual Trigger...');
+        await new Promise(resolve => setTimeout(resolve, 500));
         await takeScreenshot('dropdown-opened');
       
       // Wait for dropdown menu to appear
       await new Promise(resolve => setTimeout(resolve, 1000));
       await takeScreenshot('dropdown-waited');
       
-      // Look for Manual Trigger option by text using evaluate
-      let manualTriggerFound = await page.evaluate(() => {
-        const candidates = Array.from(document.querySelectorAll('.el-dropdown-menu__item, li, [role="menuitem"], .dropdown-item, button, a'));
-        const match = candidates.find(el => /manual trigger|manual/i.test(el.textContent || ''));
-        if (match) {
-          match.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-          return true;
+      // Look for Manual Trigger option using profile candidates and text fallback
+      let manualTriggerFound = false;
+      // Try XPaths/CSS from profile
+      if (SELECTORS && SELECTORS.triggerMenuItems) {
+        for (const sel of SELECTORS.triggerMenuItems) {
+          try {
+            // If it's an XPath
+            if (sel.startsWith('//')) {
+              const found = await page.evaluate((xpath) => {
+                const snap = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+                const el = snap.singleNodeValue;
+                if (el) { el.dispatchEvent(new MouseEvent('click', { bubbles: true })); return true; }
+                return false;
+              }, sel);
+              if (found) { manualTriggerFound = true; break; }
+            } else {
+              const visible = await waitForSelectorVisible(sel, 2000);
+              if (visible) { await page.click(sel); manualTriggerFound = true; break; }
+            }
+          } catch { /* continue */ }
         }
-        return false;
-      }).catch(() => false);
+      }
+      // Fallback by text scan
+      if (!manualTriggerFound) {
+        manualTriggerFound = await page.evaluate(() => {
+          const popovers = Array.from(document.querySelectorAll('[role="menu"], .el-dropdown-menu, .el-popper'));
+          for (const pop of popovers) {
+            const items = Array.from(pop.querySelectorAll('*'));
+            const match = items.find(el => /manual trigger|manual/i.test(el.textContent || ''));
+            if (match) { match.dispatchEvent(new MouseEvent('click', { bubbles: true })); return true; }
+          }
+          return false;
+        }).catch(() => false);
+      }
       
       if (!manualTriggerFound) {
         // Secondary scan within any open popover containers
@@ -840,11 +865,12 @@ export default async ({ page }) => {
       if (el) el.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     }, executeButton);
   }
-  await takeScreenshot('after-click-execute');
-    
-    // Mark execution as started
-    executionData.executionStatus.started = true;
-    executionData.executionStatus.running = true;
+    await takeScreenshot('after-click-execute');
+  
+  // Mark execution as started
+  executionData.executionStatus.started = true;
+  executionData.executionStatus.running = true;
+  executionData.triggeredAt = new Date().toISOString();
     
     // Additional fallback: trigger run via keyboard shortcut (Ctrl/Cmd + Enter)
     try {
@@ -932,10 +958,12 @@ export default async ({ page }) => {
     await takeScreenshot('before-monitoring');
     console.log('Workflow execution triggered, starting enhanced monitoring...');
     
-    // ENHANCED EXECUTION MONITORING - Wait for actual completion
+    // ENHANCED EXECUTION MONITORING - Wait for actual completion via snack messages or UI state
     let pollCount = 0;
-    const maxPolls = Math.max(6, Math.floor(%TIMEOUT% / 5000)); // Poll every 5s, minimum 6 polls
-    const pollInterval = 5000; // 5 seconds between polls
+    const pollInterval = 3000; // 3 seconds
+    const maxPolls = Math.max(10, Math.floor(%TIMEOUT% / pollInterval));
+    let sawSnackSuccess = false;
+    let sawSnackError = false;
     
     console.log(`Starting enhanced monitoring: max ${maxPolls} polls every ${pollInterval}ms`);
     
@@ -960,22 +988,18 @@ export default async ({ page }) => {
         if (currentSnackMessages.length > 0) {
           console.log(`Poll ${pollCount}: Found ${currentSnackMessages.length} snack message(s)`);
           
-          // Add snack messages to execution data for later reporting
-          if (!executionData.snackMessages) {
-            executionData.snackMessages = [];
-          }
+          if (!executionData.snackMessages) executionData.snackMessages = [];
           
-          // Only add new unique messages (avoid duplicates across polls)
           for (const newMsg of currentSnackMessages) {
             const isDuplicate = executionData.snackMessages.some(existing => 
-              existing.title === newMsg.title && 
-              existing.content === newMsg.content && 
-              existing.type === newMsg.type
+              existing.title === newMsg.title && existing.content === newMsg.content && existing.type === newMsg.type
             );
             if (!isDuplicate) {
               executionData.snackMessages.push(newMsg);
               console.log(`New snack message recorded: [${newMsg.type.toUpperCase()}] ${newMsg.title} - ${newMsg.content}`);
             }
+            if (newMsg.type === 'success') sawSnackSuccess = true;
+            if (newMsg.type === 'error') sawSnackError = true;
           }
         }
         
@@ -1069,6 +1093,15 @@ export default async ({ page }) => {
           }
         }
         
+        // If we detected snack success/error, treat as completion immediately
+        if (!executionComplete && (sawSnackSuccess || sawSnackError)) {
+          executionComplete = true;
+          executionData.executionStatus.running = false;
+          executionData.executionStatus.completed = sawSnackSuccess && !sawSnackError;
+          executionData.executionStatus.failed = sawSnackError;
+          console.log(`Poll ${pollCount}: Completion via snack (${sawSnackSuccess ? 'success' : ''}${sawSnackError ? 'error' : ''})`);
+        }
+
         if (executionComplete) {
           console.log(`Execution detected complete after ${pollCount} polls`);
           break;
@@ -1124,54 +1157,52 @@ export default async ({ page }) => {
     
     executionData.endTime = new Date().toISOString();
     executionData.pollsCompleted = pollCount;
-    executionData.success = true;
     
-    // IMPROVED: Set execution success based primarily on snack messages
+    // Compute accurate total duration since trigger
+    try {
+      const t0 = new Date(executionData.triggeredAt || executionData.startTime).getTime();
+      const t1 = new Date(executionData.endTime).getTime();
+      executionData.totalDurationMs = Math.max(0, t1 - t0);
+      console.log(`⏱️ Total time from trigger to end: ${executionData.totalDurationMs} ms`);
+    } catch {}
+    
+    // Determine success from snack messages only; if none, treat as still running/unknown
     if (executionData.snackMessages && executionData.snackMessages.length > 0) {
       console.log('=== SNACK MESSAGE ANALYSIS ===');
       console.log(`Found ${executionData.snackMessages.length} snack message(s) during execution:`);
       
       let hasErrors = false;
-      let hasWarnings = false;
       let hasSuccess = false;
       
       for (const msg of executionData.snackMessages) {
         console.log(`  [${msg.type.toUpperCase()}] ${msg.title}: ${msg.content}`);
-        
-        if (msg.type === 'error') {
-          hasErrors = true;
-          executionData.executionStatus.failed = true;
-          executionData.executionStatus.running = false;
-        } else if (msg.type === 'warning') {
-          hasWarnings = true;
-        } else if (msg.type === 'success') {
-          hasSuccess = true;
-          executionData.executionStatus.completed = true;
-          executionData.executionStatus.running = false;
-        }
+        if (msg.type === 'error') { hasErrors = true; }
+        if (msg.type === 'success') { hasSuccess = true; }
       }
       
       if (hasErrors) {
+        executionData.success = false;
+        executionData.executionStatus.failed = true;
+        executionData.executionStatus.running = false;
         console.log('❌ Workflow execution failed (error snack messages detected)');
       } else if (hasSuccess) {
+        executionData.success = true;
+        executionData.executionStatus.completed = true;
+        executionData.executionStatus.running = false;
         console.log('🎉 Workflow execution completed successfully (success snack messages detected)');
-      } else if (hasWarnings) {
-        console.log('⚠️ Workflow execution completed with warnings');
-        // Assume success if only warnings (no errors)
-        executionData.executionStatus.completed = true;
-        executionData.executionStatus.running = false;
       } else {
-        console.log('ℹ️ Workflow execution completed with informational messages');
-        // Assume success if only info messages (no errors)
-        executionData.executionStatus.completed = true;
-        executionData.executionStatus.running = false;
+        executionData.success = false;
+        executionData.executionStatus.completed = false;
+        executionData.executionStatus.running = true;
+        console.log('ℹ️ Snack messages present but neither success nor error; treating as still running');
       }
     } else {
+      // No snack messages at all: treat as still running/unknown
+      executionData.success = false;
+      executionData.executionStatus.completed = false;
+      executionData.executionStatus.running = true;
       console.log('=== NO SNACK MESSAGES DETECTED ===');
-      console.log('No snack messages found - assuming successful execution');
-      console.log('(If there were errors, n8n would typically show snack notifications)');
-      executionData.executionStatus.completed = true;
-      executionData.executionStatus.running = false;
+      console.log('No snack messages found - treating as still running (will require further investigation)');
     }
     
     return {
@@ -1235,6 +1266,8 @@ EOF
         selectors_raw="$N8N_SELECTORS"
     elif [[ -n "${N8N_SELECTORS_FILE:-}" && -f "$N8N_SELECTORS_FILE" ]]; then
         selectors_raw=$(cat "$N8N_SELECTORS_FILE" 2>/dev/null || echo "")
+    elif [[ -f "$(dirname "${BASH_SOURCE[0]}")/n8n-selectors.json" ]]; then
+        selectors_raw=$(cat "$(dirname "${BASH_SOURCE[0]}")/n8n-selectors.json" 2>/dev/null || echo "")
     else
         selectors_raw="$selectors_default"
     fi

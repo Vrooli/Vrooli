@@ -122,27 +122,33 @@ huginn::start_database() {
         docker::remove_container "$DB_CONTAINER_NAME" "true"
     fi
     
-    # Create network
-    docker::create_network "$NETWORK_NAME"
+    # Pull image
+    docker::pull_image "$POSTGRES_IMAGE"
     
-    # Build docker run command manually for complex env vars
-    local cmd=("docker" "run" "-d")
-    cmd+=("--name" "$DB_CONTAINER_NAME")
-    cmd+=("--network" "$NETWORK_NAME")
-    cmd+=("--restart" "unless-stopped")
-    cmd+=("--volume" "$DB_VOLUME_NAME:/var/lib/postgresql/data")
-    cmd+=("--env" "POSTGRES_DB=huginn")
-    cmd+=("--env" "POSTGRES_USER=huginn")
-    cmd+=("--env" "POSTGRES_PASSWORD=$DEFAULT_DB_PASSWORD")
-    cmd+=("--env" "POSTGRES_INITDB_ARGS=--encoding=UTF-8")
-    cmd+=("--health-cmd" "pg_isready -U huginn -d huginn")
-    cmd+=("--health-interval" "30s")
-    cmd+=("--health-timeout" "5s")
-    cmd+=("--health-retries" "3")
-    cmd+=("$POSTGRES_IMAGE")
+    # Environment variables
+    local env_vars=(
+        "POSTGRES_DB=huginn"
+        "POSTGRES_USER=huginn"
+        "POSTGRES_PASSWORD=$DEFAULT_DB_PASSWORD"
+        "POSTGRES_INITDB_ARGS=--encoding=UTF-8"
+    )
     
-    if "${cmd[@]}" >/dev/null 2>&1; then
-        log::debug "Database container created successfully"
+    # Health check
+    local health_cmd="pg_isready -U huginn -d huginn"
+    
+    # Use advanced creation
+    docker_resource::create_service_advanced \
+        "$DB_CONTAINER_NAME" \
+        "$POSTGRES_IMAGE" \
+        "" \
+        "$NETWORK_NAME" \
+        "$DB_VOLUME_NAME:/var/lib/postgresql/data" \
+        "env_vars" \
+        "" \
+        "$health_cmd" \
+        ""
+    
+    if [[ $? -eq 0 ]]; then
         return 0
     else
         huginn::show_database_error
@@ -172,39 +178,46 @@ huginn::start_huginn_container() {
         return 1
     fi
     
-    # Create network
-    docker::create_network "$NETWORK_NAME"
+    # Pull image
+    docker::pull_image "$HUGINN_IMAGE"
     
-    # Build docker run command manually for complex env vars
-    local cmd=("docker" "run" "-d")
-    cmd+=("--name" "$CONTAINER_NAME")
-    cmd+=("--network" "$NETWORK_NAME")
-    cmd+=("--restart" "unless-stopped")
-    cmd+=("--publish" "${HUGINN_PORT}:3000")
-    cmd+=("--volume" "$VOLUME_NAME:/var/lib/huginn")
-    cmd+=("--volume" "$HUGINN_UPLOADS_DIR:/app/public/uploads")
-    cmd+=("--env" "DATABASE_URL=postgres://huginn:${DEFAULT_DB_PASSWORD}@${DB_CONTAINER_NAME}:5432/huginn")
-    cmd+=("--env" "HUGINN_DATABASE_NAME=huginn")
-    cmd+=("--env" "HUGINN_DATABASE_USERNAME=huginn")
-    cmd+=("--env" "HUGINN_DATABASE_PASSWORD=$DEFAULT_DB_PASSWORD")
-    cmd+=("--env" "HUGINN_DATABASE_HOST=$DB_CONTAINER_NAME")
-    cmd+=("--env" "HUGINN_DATABASE_PORT=5432")
-    cmd+=("--env" "PORT=3000")
-    cmd+=("--env" "RAILS_ENV=production")
-    cmd+=("--env" "SEED_USERNAME=$DEFAULT_ADMIN_USERNAME")
-    cmd+=("--env" "SEED_EMAIL=$DEFAULT_ADMIN_EMAIL")
-    cmd+=("--env" "SEED_PASSWORD=$DEFAULT_ADMIN_PASSWORD")
-    cmd+=("--env" "APP_SECRET_TOKEN=$(openssl rand -hex 64)")
-    cmd+=("--env" "INVITATION_CODE=")
-    cmd+=("--env" "REQUIRE_CONFIRMED_EMAIL=false")
-    cmd+=("--health-cmd" "curl -f http://localhost:3000/ || exit 1")
-    cmd+=("--health-interval" "30s")
-    cmd+=("--health-timeout" "5s")
-    cmd+=("--health-retries" "3")
-    cmd+=("$HUGINN_IMAGE")
+    # Environment variables
+    local env_vars=(
+        "DATABASE_URL=postgres://huginn:${DEFAULT_DB_PASSWORD}@${DB_CONTAINER_NAME}:5432/huginn"
+        "HUGINN_DATABASE_NAME=huginn"
+        "HUGINN_DATABASE_USERNAME=huginn"
+        "HUGINN_DATABASE_PASSWORD=$DEFAULT_DB_PASSWORD"
+        "HUGINN_DATABASE_HOST=$DB_CONTAINER_NAME"
+        "HUGINN_DATABASE_PORT=5432"
+        "PORT=3000"
+        "RAILS_ENV=production"
+        "SEED_USERNAME=$DEFAULT_ADMIN_USERNAME"
+        "SEED_EMAIL=$DEFAULT_ADMIN_EMAIL"
+        "SEED_PASSWORD=$DEFAULT_ADMIN_PASSWORD"
+        "APP_SECRET_TOKEN=$(openssl rand -hex 64)"
+        "INVITATION_CODE="
+        "REQUIRE_CONFIRMED_EMAIL=false"
+    )
     
-    if "${cmd[@]}" >/dev/null 2>&1; then
-        log::debug "Huginn container created successfully"
+    # Volumes
+    local volumes="$VOLUME_NAME:/var/lib/huginn $HUGINN_UPLOADS_DIR:/app/public/uploads"
+    
+    # Health check
+    local health_cmd="curl -f http://localhost:3000/ || exit 1"
+    
+    # Use advanced creation
+    docker_resource::create_service_advanced \
+        "$CONTAINER_NAME" \
+        "$HUGINN_IMAGE" \
+        "${HUGINN_PORT}:3000" \
+        "$NETWORK_NAME" \
+        "$volumes" \
+        "env_vars" \
+        "" \
+        "$health_cmd" \
+        ""
+    
+    if [[ $? -eq 0 ]]; then
         return 0
     else
         huginn::show_rails_error
@@ -336,4 +349,33 @@ huginn::cleanup_docker_resources() {
     docker::cleanup_network_if_empty "$NETWORK_NAME"
     
     return 0
+}
+
+#######################################
+# Start Huginn using docker-compose
+# Returns: 0 if successful, 1 otherwise
+#######################################
+huginn::compose_up() {
+    local compose_file="${_HUGINN_DOCKER_DIR}/../docker/docker-compose.yml"
+    docker_resource::compose_up "$compose_file"
+}
+
+#######################################
+# Stop Huginn using docker-compose
+# Arguments: $1 - remove volumes (true/false)
+# Returns: 0 if successful, 1 otherwise
+#######################################
+huginn::compose_down() {
+    local remove_volumes="${1:-false}"
+    local compose_file="${_HUGINN_DOCKER_DIR}/../docker/docker-compose.yml"
+    docker_resource::compose_down "$compose_file" "$remove_volumes"
+}
+
+#######################################
+# Restart Huginn using docker-compose
+# Returns: 0 if successful, 1 otherwise
+#######################################
+huginn::compose_restart() {
+    local compose_file="${_HUGINN_DOCKER_DIR}/../docker/docker-compose.yml"
+    docker_resource::compose_restart "$compose_file"
 }

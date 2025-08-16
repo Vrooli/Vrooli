@@ -125,7 +125,8 @@ judge0::docker::uninstall() {
     fi
     
     # Remove network and volume
-    docker network rm "$JUDGE0_NETWORK_NAME" >/dev/null 2>&1 || true
+    # Remove network only if empty
+    docker::cleanup_network_if_empty "$JUDGE0_NETWORK_NAME"
     docker volume rm "$JUDGE0_VOLUME_NAME" >/dev/null 2>&1 || true
     
     log::success "Judge0 uninstalled successfully"
