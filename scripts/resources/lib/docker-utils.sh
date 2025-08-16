@@ -131,6 +131,33 @@ docker::remove_network() {
 }
 
 #######################################
+# Remove Docker network only if empty (no containers attached)
+# Args: $1 - network_name
+# Returns: 0 on success or if network doesn't exist, 1 if network has containers
+#######################################
+docker::cleanup_network_if_empty() {
+    local network_name="$1"
+    
+    # Check if network exists
+    if ! docker network inspect "$network_name" >/dev/null 2>&1; then
+        return 0  # Network doesn't exist, nothing to do
+    fi
+    
+    # Check if network has any containers attached
+    local network_containers
+    network_containers=$(docker network inspect "$network_name" --format '{{len .Containers}}' 2>/dev/null || echo "0")
+    
+    if [[ "$network_containers" -eq 0 ]]; then
+        log::info "Removing empty network: $network_name"
+        docker network rm "$network_name" >/dev/null 2>&1 || true
+        return 0
+    else
+        log::debug "Network $network_name has $network_containers container(s) attached, keeping it"
+        return 1
+    fi
+}
+
+#######################################
 # Get container environment variable safely
 # Args: $1 - container_name, $2 - variable_name
 # Returns: Variable value via stdout, empty if not found

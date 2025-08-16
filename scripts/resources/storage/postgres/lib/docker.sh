@@ -13,8 +13,6 @@ source "${var_LIB_SERVICE_DIR}/secrets.sh"
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_LIB_DIR}/docker-resource-utils.sh"
 
-
-
 #######################################
 # Create and start PostgreSQL container
 # Arguments:
@@ -80,10 +78,12 @@ postgres::docker::create_container() {
     # Health check command with configurable params
     local health_cmd="pg_isready -U ${POSTGRES_DEFAULT_USER} -d ${POSTGRES_DEFAULT_DB}"
     
-    # Set health check environment variables for advanced function
-    export DOCKER_HEALTH_INTERVAL="${POSTGRES_HEALTH_CHECK_INTERVAL}s"
-    export DOCKER_HEALTH_TIMEOUT="${POSTGRES_HEALTH_CHECK_TIMEOUT}s"
-    export DOCKER_HEALTH_RETRIES="${POSTGRES_HEALTH_CHECK_RETRIES}"
+    # Docker options for PostgreSQL-specific health check configuration
+    local docker_opts=(
+        "--health-interval" "${POSTGRES_HEALTH_CHECK_INTERVAL}s"
+        "--health-timeout" "${POSTGRES_HEALTH_CHECK_TIMEOUT}s"
+        "--health-retries" "${POSTGRES_HEALTH_CHECK_RETRIES}"
+    )
     
     # Command arguments for PostgreSQL
     local entrypoint_cmd=(
@@ -98,11 +98,10 @@ postgres::docker::create_container() {
         "${POSTGRES_NETWORK}" \
         "$volumes" \
         "env_vars" \
-        "" \
+        "docker_opts" \
         "$health_cmd" \
         "entrypoint_cmd"; then
         
-        log::debug "PostgreSQL container created successfully"
         sleep "${POSTGRES_INITIALIZATION_WAIT:-3}"
         return 0
     else
@@ -170,15 +169,7 @@ postgres::docker::stop() {
         return 0
     fi
     
-    log::info "Stopping PostgreSQL instance '$instance_name'..."
-    
-    if docker::stop_container "${container_name}"; then
-        log::success "${MSG_STOP_SUCCESS}"
-        return 0
-    else
-        log::error "Failed to stop PostgreSQL container"
-        return 1
-    fi
+    docker::stop_container "${container_name}"
 }
 
 #######################################
@@ -225,16 +216,7 @@ postgres::docker::remove() {
         return 0
     fi
     
-    log::info "Removing PostgreSQL instance '$instance_name'..."
-    
-    # Use simplified docker::remove_container with force flag
-    if docker::remove_container "${container_name}" "$force"; then
-        log::debug "PostgreSQL container removed successfully"
-        return 0
-    else
-        log::error "Failed to remove PostgreSQL container"
-        return 1
-    fi
+    docker::remove_container "${container_name}" "$force"
 }
 
 #######################################
@@ -256,7 +238,9 @@ postgres::docker::exec_sql() {
         return 1
     fi
     
-    docker exec "${container_name}" psql -U "${POSTGRES_DEFAULT_USER}" -d "$database" -c "$sql_command"
+    # Use shared database command execution
+    POSTGRES_USER="${POSTGRES_DEFAULT_USER}" \
+    docker_resource::exec_database_command "$container_name" "postgres" "$sql_command"
 }
 
 #######################################
@@ -274,36 +258,31 @@ postgres::docker::create_client_instance() {
     
     log::info "Creating PostgreSQL client instance for: ${client_id}"
     
-    # Use simplified client creation
-    local client_port project_config_dir
-    project_config_dir="$(secrets::get_project_config_dir)"
-    
-    client_port=$(docker_resource::create_client_instance \
+    # Use shared database client creation
+    local client_port
+    client_port=$(docker_resource::create_database_client_instance \
         "postgres" \
         "$client_id" \
         "$POSTGRES_IMAGE" \
         "5432" \
         "${POSTGRES_CLIENT_PORT_START:-5434}" \
         "${POSTGRES_CLIENT_PORT_END:-5450}" \
-        "$project_config_dir" \
-        "${POSTGRES_TEMPLATE_DIR}/development.conf")
+        "${POSTGRES_PASSWORD:-postgres}")
     
     if [[ $? -eq 0 && -n "$client_port" ]]; then
         # Save client configuration metadata
+        local project_config_dir
+        project_config_dir="$(secrets::get_project_config_dir)"
+        mkdir -p "${project_config_dir}/clients/${client_id}"
+        
         local client_config_file="${project_config_dir}/clients/${client_id}/postgres.json"
-        cat > "$client_config_file" << EOF
-{
-  "clientId": "${client_id}",
-  "resource": "postgres", 
-  "container": "postgres-client-${client_id}",
-  "network": "vrooli-${client_id}-network",
-  "port": ${client_port},
-  "database": "postgres",
-  "username": "postgres",
-  "baseUrl": "postgresql://postgres@localhost:${client_port}/postgres",
-  "created": "$(date -Iseconds)"
-}
-EOF
+        docker_resource::generate_client_metadata \
+            "$client_id" \
+            "postgres" \
+            "postgres-client-${client_id}" \
+            "vrooli-${client_id}-network" \
+            "$client_port" \
+            "postgresql://postgres@localhost:${client_port}/postgres" > "$client_config_file"
         
         log::success "PostgreSQL client instance created successfully"
         log::info "   Client: ${client_id}"

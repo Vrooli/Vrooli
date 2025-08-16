@@ -794,6 +794,63 @@ EOF
     fi
 }
 
+#######################################
+# Execute arbitrary JavaScript function via Browserless
+# Arguments:
+#   $1 - Function code (JavaScript) [required]
+#   $2 - Timeout in ms (optional, default: 60000)
+#   $3 - Use persistent session (true|false, default: true)
+#   $4 - Session ID (optional; auto if persistent and not provided)
+#   $5 - Launch options JSON to pass to Browserless (optional)
+# Returns:
+#   - stdout: raw response body from Browserless
+#   - exit code: curl exit status (0 on success sending/receiving)
+#   - exports BROWSERLESS_LAST_CURL_EXIT_CODE with curl status
+#######################################
+browserless::run_function() {
+	local function_code="${1:?Function code required}"
+	local timeout="${2:-60000}"
+	local use_persistent_session="${3:-true}"
+	local session_id="${4:-}"
+	local launch_json="${5:-}"
+
+	# Build API URL
+	local api_url="$BROWSERLESS_BASE_URL/chrome/function?timeout=$timeout"
+
+	# Handle session persistence / launch options
+	if [[ "$use_persistent_session" == "true" ]]; then
+		local sid
+		sid="${session_id:-browserless_session_$(date +%s)}"
+		local user_data_dir="/tmp/browserless-sessions/${sid}"
+		local launch_args
+		if [[ -n "$launch_json" ]]; then
+			launch_args="$launch_json"
+		else
+			launch_args="{\"args\":[\"--user-data-dir=${user_data_dir}\"]}"
+		fi
+		api_url="${api_url}&launch=$(echo "$launch_args" | jq -r @uri)"
+	else
+		if [[ -n "$launch_json" ]]; then
+			api_url="${api_url}&launch=$(echo "$launch_json" | jq -r @uri)"
+		fi
+	fi
+
+	# Execute against Browserless
+	local response
+	response=$(curl -X POST "$api_url" \
+		-H "Content-Type: application/javascript" \
+		-d "$function_code" \
+		--silent \
+		--show-error \
+		--max-time $((timeout / 1000 + 30)) \
+		2>&1)
+	local curl_exit_code=$?
+	export BROWSERLESS_LAST_CURL_EXIT_CODE="$curl_exit_code"
+	# Emit raw response for caller to handle
+	echo "$response"
+	return $curl_exit_code
+}
+
 # Export functions for subshell availability
 export -f browserless::ensure_test_output_dir
 export -f browserless::test_screenshot

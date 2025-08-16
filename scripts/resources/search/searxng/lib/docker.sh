@@ -13,15 +13,7 @@ source "${SEARXNG_LIB_DIR}/../../../../lib/service/secrets.sh"
 source "${SEARXNG_LIB_DIR}/../../../lib/docker-resource-utils.sh"
 
 #######################################
-# Pull SearXNG Docker image
-#######################################
-searxng::pull_image() {
-    log::info "Pulling SearXNG Docker image: $SEARXNG_IMAGE"
-    docker::pull_image "$SEARXNG_IMAGE"
-}
-
-#######################################
-# Start SearXNG container using simplified API with enhanced configuration
+# Start SearXNG container using shared utilities
 #######################################
 searxng::start_container() {
     if searxng::is_running; then
@@ -31,49 +23,53 @@ searxng::start_container() {
     
     log::info "Starting SearXNG container..."
     
-    # Create network first
-    docker::create_network "$SEARXNG_NETWORK_NAME"
+    # Pull image if needed
+    docker::pull_image "$SEARXNG_IMAGE"
     
-    # Build enhanced docker run command with SearXNG-specific settings
-    local cmd=("docker" "run" "-d")
-    cmd+=("--name" "$SEARXNG_CONTAINER_NAME")
-    cmd+=("--hostname" "searxng")
-    cmd+=("--network" "$SEARXNG_NETWORK_NAME")
-    cmd+=("--restart" "unless-stopped")
+    # Prepare environment variables
+    local env_vars=(
+        "SEARXNG_BASE_URL=${SEARXNG_BASE_URL}"
+        "SEARXNG_SECRET=${SEARXNG_SECRET_KEY}"
+    )
     
-    # Port mapping with bind address support
-    cmd+=("-p" "${SEARXNG_BIND_ADDRESS}:${SEARXNG_PORT}:8080")
+    # Docker options for security and logging
+    local docker_opts=(
+        "--hostname" "searxng"
+        "--cap-drop=ALL"
+        "--cap-add=CHOWN"
+        "--cap-add=SETGID"
+        "--cap-add=SETUID"
+        "--log-driver" "json-file"
+        "--log-opt" "max-size=1m"
+        "--log-opt" "max-file=3"
+        "--health-start-period" "60s"
+    )
     
-    # Volume mounts
-    cmd+=("-v" "${SEARXNG_DATA_DIR}:/etc/searxng:rw")
+    # Port mapping with bind address
+    local port_mappings="${SEARXNG_BIND_ADDRESS}:${SEARXNG_PORT}:8080"
     
-    # Environment variables for SearXNG
-    cmd+=("-e" "SEARXNG_BASE_URL=${SEARXNG_BASE_URL}")
-    cmd+=("-e" "SEARXNG_SECRET=${SEARXNG_SECRET_KEY}")
+    # Volumes
+    local volumes="${SEARXNG_DATA_DIR}:/etc/searxng:rw"
     
-    # Security configuration - SearXNG specific capabilities
-    cmd+=("--cap-drop=ALL")
-    cmd+=("--cap-add=CHOWN")
-    cmd+=("--cap-add=SETGID")
-    cmd+=("--cap-add=SETUID")
+    # Health check
+    local health_cmd="curl -f http://localhost:8080/stats || exit 1"
     
-    # Logging configuration
-    cmd+=("--log-driver" "json-file")
-    cmd+=("--log-opt" "max-size=1m")
-    cmd+=("--log-opt" "max-file=3")
+    # Use advanced creation with custom health intervals
+    DOCKER_HEALTH_INTERVAL="30s" \
+    DOCKER_HEALTH_TIMEOUT="10s" \
+    DOCKER_HEALTH_RETRIES="3" \
+    docker_resource::create_service_advanced \
+        "$SEARXNG_CONTAINER_NAME" \
+        "$SEARXNG_IMAGE" \
+        "$port_mappings" \
+        "$SEARXNG_NETWORK_NAME" \
+        "$volumes" \
+        "env_vars" \
+        "docker_opts" \
+        "$health_cmd" \
+        ""
     
-    # Health check configuration
-    cmd+=("--health-cmd" "curl -f http://localhost:8080/stats || exit 1")
-    cmd+=("--health-interval" "30s")
-    cmd+=("--health-timeout" "10s")
-    cmd+=("--health-retries" "3")
-    cmd+=("--health-start-period" "60s")
-    
-    # Image
-    cmd+=("$SEARXNG_IMAGE")
-    
-    # Execute the command
-    if "${cmd[@]}" >/dev/null 2>&1; then
+    if [[ $? -eq 0 ]]; then
         searxng::message "success" "MSG_SEARXNG_START_SUCCESS"
         
         # Wait for container to become healthy
@@ -90,9 +86,6 @@ searxng::start_container() {
     fi
 }
 
-#######################################
-# Stop SearXNG container
-#######################################
 searxng::stop_container() {
     if ! searxng::is_running; then
         searxng::message "warning" "MSG_SEARXNG_NOT_RUNNING"
@@ -109,9 +102,6 @@ searxng::stop_container() {
     fi
 }
 
-#######################################
-# Restart SearXNG container
-#######################################
 searxng::restart_container() {
     log::info "Restarting SearXNG container..."
     
@@ -123,11 +113,7 @@ searxng::restart_container() {
     fi
 }
 
-#######################################
-# Remove SearXNG container
-#######################################
 searxng::remove_container() {
-    log::info "Removing SearXNG container..."
     docker::remove_container "$SEARXNG_CONTAINER_NAME" "true"
 }
 
@@ -232,7 +218,8 @@ searxng::create_network() {
 
 searxng::remove_network() {
     if docker network inspect "$SEARXNG_NETWORK_NAME" >/dev/null 2>&1; then
-        docker network rm "$SEARXNG_NETWORK_NAME" >/dev/null 2>&1 || true
+        # Remove network only if empty
+        docker::cleanup_network_if_empty "$SEARXNG_NETWORK_NAME"
     fi
 }
 

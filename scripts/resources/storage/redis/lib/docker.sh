@@ -13,10 +13,7 @@ source "${var_LIB_SERVICE_DIR}/secrets.sh"
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_LIB_DIR}/docker-resource-utils.sh"
 
-#######################################
 # Create and start Redis container
-# Returns: 0 on success, 1 on failure
-#######################################
 redis::docker::create_container() {
     # Ensure configuration is generated
     redis::common::generate_config || return 1
@@ -41,8 +38,6 @@ redis::docker::create_container() {
         "redis-cli ping || exit 1" \
         "redis-server" "/usr/local/etc/redis/redis.conf" ${REDIS_PASSWORD:+--requirepass "$REDIS_PASSWORD"}; then
         
-        log::debug "Redis container created successfully"
-        
         # Wait a moment for container to initialize
         sleep "${REDIS_INITIALIZATION_WAIT:-2}"
         return 0
@@ -52,10 +47,7 @@ redis::docker::create_container() {
     fi
 }
 
-#######################################
 # Start Redis container
-# Returns: 0 on success, 1 on failure
-#######################################
 redis::docker::start() {
     if ! docker::container_exists "$REDIS_CONTAINER_NAME"; then
         log::error "Redis container does not exist. Run install first."
@@ -80,62 +72,29 @@ redis::docker::start() {
     fi
 }
 
-#######################################
 # Stop Redis container
-# Returns: 0 on success, 1 on failure
-#######################################
 redis::docker::stop() {
     if ! docker::container_exists "$REDIS_CONTAINER_NAME"; then
         log::warn "Redis container does not exist"
         return 0
     fi
     
-    log::info "Stopping Redis container..."
-    
-    if docker::stop_container "$REDIS_CONTAINER_NAME"; then
-        log::success "${MSG_STOP_SUCCESS}"
-        return 0
-    else
-        log::error "${MSG_STOP_FAILED}"
-        return 1
-    fi
+    docker::stop_container "$REDIS_CONTAINER_NAME"
 }
 
-#######################################
 # Restart Redis container
-# Returns: 0 on success, 1 on failure
-#######################################
 redis::docker::restart() {
     log::info "Restarting Redis container..."
     
     if docker::restart_container "$REDIS_CONTAINER_NAME"; then
         log::success "${MSG_RESTART_SUCCESS}"
         redis::docker::show_connection_info
-        return 0
-    else
-        log::error "Failed to restart Redis"
-        return 1
     fi
 }
 
-#######################################
-# Remove Redis container
-# Arguments: $1 - remove data (yes/no)
-# Returns: 0 on success, 1 on failure
-#######################################
 redis::docker::remove_container() {
-    local remove_data="${1:-no}"
-    
-    # Stop and remove container
     docker::remove_container "$REDIS_CONTAINER_NAME" "true"
-    
-    # Note: Data removal is handled by Docker volume management
-    # Docker volumes will be removed automatically when containers are removed
-    
-    return 0
 }
-
-
 
 #######################################
 # Execute Redis CLI command
@@ -148,27 +107,17 @@ redis::docker::exec_cli() {
         return 1
     fi
     
-    # Use -it only if we have a TTY (interactive terminal)
-    local docker_flags=""
+    # For interactive mode with TTY
     if [[ -t 0 ]]; then
-        docker_flags="-it"
+        docker_resource::exec_interactive "$REDIS_CONTAINER_NAME" \
+            redis-cli ${REDIS_PASSWORD:+-a "$REDIS_PASSWORD"} -p "$REDIS_INTERNAL_PORT" "$@"
+    else
+        # For single commands, use database command execution
+        docker_resource::exec_database_command "$REDIS_CONTAINER_NAME" "redis" "$*"
     fi
-    local cmd=(docker exec $docker_flags "$REDIS_CONTAINER_NAME" redis-cli)
-    
-    # Add password if configured
-    if [[ -n "$REDIS_PASSWORD" ]]; then
-        cmd+=(-a "$REDIS_PASSWORD")
-    fi
-    
-    # Add port and user arguments
-    cmd+=(-p "$REDIS_INTERNAL_PORT" "$@")
-    
-    "${cmd[@]}"
 }
 
-#######################################
 # Show connection information
-#######################################
 redis::docker::show_connection_info() {
     log::info "${MSG_CONNECTION_INFO}"
     log::info "${MSG_CONNECTION_HOST}"
@@ -196,34 +145,31 @@ redis::docker::create_client_instance() {
     
     log::info "${MSG_CLIENT_CREATE_START}${client_id}"
     
-    # Use simplified client creation
-    local client_port project_config_dir
-    project_config_dir="$(secrets::get_project_config_dir)"
-    
-    client_port=$(docker_resource::create_client_instance \
+    # Use shared database client creation
+    local client_port
+    client_port=$(docker_resource::create_database_client_instance \
         "redis" \
         "$client_id" \
         "$REDIS_IMAGE" \
         "$REDIS_INTERNAL_PORT" \
         "$REDIS_CLIENT_PORT_START" \
         "$REDIS_CLIENT_PORT_END" \
-        "$project_config_dir" \
-        "$REDIS_CONFIG_FILE")
+        "${REDIS_PASSWORD:-}")
     
     if [[ $? -eq 0 && -n "$client_port" ]]; then
         # Save client configuration metadata
+        local project_config_dir
+        project_config_dir="$(secrets::get_project_config_dir)"
+        mkdir -p "${project_config_dir}/clients/${client_id}"
+        
         local client_config_file="${project_config_dir}/clients/${client_id}/redis.json"
-        cat > "$client_config_file" << EOF
-{
-  "clientId": "${client_id}",
-  "resource": "redis",
-  "container": "redis-client-${client_id}",
-  "network": "vrooli-${client_id}-network",
-  "port": ${client_port},
-  "baseUrl": "redis://localhost:${client_port}",
-  "created": "$(date -Iseconds)"
-}
-EOF
+        docker_resource::generate_client_metadata \
+            "$client_id" \
+            "redis" \
+            "redis-client-${client_id}" \
+            "vrooli-${client_id}-network" \
+            "$client_port" \
+            "redis://localhost:${client_port}" > "$client_config_file"
         
         log::success "${MSG_CLIENT_CREATE_SUCCESS}"
         log::info "   Client: ${client_id}"

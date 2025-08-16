@@ -15,10 +15,7 @@ source "${var_SCRIPTS_RESOURCES_LIB_DIR}/docker-resource-utils.sh"
 # shellcheck disable=SC1091
 source "${_QUESTDB_DOCKER_DIR}/common.sh"
 
-#######################################
 # Create and start QuestDB container
-# Returns: 0 on success, 1 on failure
-#######################################
 questdb::docker::create_container() {
     # Ensure directories exist
     questdb::common::create_dirs || return 1
@@ -35,18 +32,28 @@ questdb::docker::create_container() {
     # Prepare volumes
     local volumes="${QUESTDB_DATA_DIR}:/var/lib/questdb ${QUESTDB_CONFIG_DIR}:/questdb/conf ${QUESTDB_LOG_DIR}:/var/log/questdb"
     
-    # Prepare Docker options (ulimit for performance)
-    local docker_opts="--ulimit nofile=65536:65536 -e QDB_PG_USER=${QUESTDB_PG_USER} -e QDB_PG_PASSWORD=${QUESTDB_PG_PASSWORD}"
+    # Prepare environment variables
+    local env_vars=(
+        "QDB_PG_USER=${QUESTDB_PG_USER}"
+        "QDB_PG_PASSWORD=${QUESTDB_PG_PASSWORD}"
+    )
     
-    # Use multi-port service creation with options
-    if docker_resource::create_service_with_opts \
+    # Prepare Docker options (ulimit for performance)
+    local docker_opts=(
+        "--ulimit" "nofile=65536:65536"
+    )
+    
+    # Use advanced service creation
+    if docker_resource::create_service_advanced \
         "$QUESTDB_CONTAINER_NAME" \
         "$QUESTDB_IMAGE" \
         "$port_mappings" \
         "$QUESTDB_NETWORK_NAME" \
         "$volumes" \
+        "env_vars" \
+        "docker_opts" \
         "curl -f http://localhost:9000/status || exit 1" \
-        "$docker_opts"; then
+        ""; then
         
         # Wait for container to be ready
         if questdb::common::wait_for_ready; then
@@ -63,10 +70,7 @@ questdb::docker::create_container() {
     fi
 }
 
-#######################################
 # Start QuestDB container
-# Returns: 0 on success, 1 on failure
-#######################################
 questdb::docker::start() {
     if ! docker::container_exists "$QUESTDB_CONTAINER_NAME"; then
         log::error "QuestDB container does not exist. Run install first."
@@ -90,10 +94,7 @@ questdb::docker::start() {
     fi
 }
 
-#######################################
 # Stop QuestDB container
-# Returns: 0 on success, 1 on failure
-#######################################
 questdb::docker::stop() {
     if ! docker::container_exists "$QUESTDB_CONTAINER_NAME"; then
         log::warn "QuestDB container does not exist"
@@ -111,10 +112,7 @@ questdb::docker::stop() {
     fi
 }
 
-#######################################
 # Restart QuestDB container
-# Returns: 0 on success, 1 on failure
-#######################################
 questdb::docker::restart() {
     log::info "Restarting QuestDB container..."
     
@@ -133,11 +131,8 @@ questdb::docker::restart() {
     fi
 }
 
-#######################################
 # Remove QuestDB container
 # Arguments: $1 - remove data (yes/no)
-# Returns: 0 on success, 1 on failure
-#######################################
 questdb::docker::remove_container() {
     local remove_data="${1:-no}"
     
@@ -152,7 +147,6 @@ questdb::docker::remove_container() {
     return 0
 }
 
-
 #######################################
 # Execute SQL query using PostgreSQL wire protocol
 # Arguments: $@ - SQL query
@@ -163,18 +157,8 @@ questdb::docker::exec_sql() {
     docker_resource::exec "$QUESTDB_CONTAINER_NAME" psql -h localhost -p 8812 -U "${QUESTDB_PG_USER}" -d qdb -c "$query"
 }
 
-#######################################
-# Execute command in QuestDB container
-# Arguments: $@ - Command to execute
-# Returns: Command exit code
-#######################################
-questdb::docker::exec() {
-    docker_resource::exec "$QUESTDB_CONTAINER_NAME" "$@"
-}
 
-#######################################
 # Show connection information
-#######################################
 questdb::docker::show_connection_info() {
     local additional_info=(
         "PostgreSQL Wire: ${QUESTDB_PG_URL}"
@@ -207,16 +191,20 @@ questdb::docker::create_client_instance() {
     local project_config_dir
     project_config_dir="$(secrets::get_project_config_dir)"
     
-    # Allocate three ports for QuestDB
-    local client_http_port client_pg_port client_ilp_port
-    client_http_port=$(docker_resource::find_available_port "9020" "9050")
-    client_pg_port=$(docker_resource::find_available_port "8820" "8850") 
-    client_ilp_port=$(docker_resource::find_available_port "9060" "9090")
+    # Allocate three ports for QuestDB atomically
+    local ports_allocated
+    ports_allocated=$(docker_resource::allocate_port_range 3 9020 9090)
     
-    if [[ -z "$client_http_port" || -z "$client_pg_port" || -z "$client_ilp_port" ]]; then
+    if [[ -z "$ports_allocated" ]]; then
         log::error "Could not allocate required ports for QuestDB client"
         return 1
     fi
+    
+    # Parse allocated ports
+    local port_array=($ports_allocated)
+    local client_http_port="${port_array[0]}"
+    local client_pg_port="${port_array[1]}"
+    local client_ilp_port="${port_array[2]}"
     
     # Create client directories
     local client_base_dir="${project_config_dir}/clients/${client_id}/questdb"
@@ -228,17 +216,29 @@ questdb::docker::create_client_instance() {
     # Prepare configuration for multi-port client
     local port_mappings="${client_http_port}:9000 ${client_pg_port}:8812 ${client_ilp_port}:9009"
     local volumes="${client_base_dir}/data:/var/lib/questdb ${client_base_dir}/config:/questdb/conf ${client_base_dir}/logs:/var/log/questdb"
-    local docker_opts="-e QDB_PG_USER=admin -e QDB_PG_PASSWORD=quest --ulimit nofile=65536:65536"
     
-    # Create container
-    if docker_resource::create_service_with_opts \
+    # Environment variables for client
+    local client_env_vars=(
+        "QDB_PG_USER=admin"
+        "QDB_PG_PASSWORD=quest"
+    )
+    
+    # Docker options for client
+    local client_docker_opts=(
+        "--ulimit" "nofile=65536:65536"
+    )
+    
+    # Create container using advanced function
+    if docker_resource::create_service_advanced \
         "$client_container" \
         "$QUESTDB_IMAGE" \
         "$port_mappings" \
         "$client_network" \
         "$volumes" \
+        "client_env_vars" \
+        "client_docker_opts" \
         "curl -f http://localhost:9000/status || exit 1" \
-        "$docker_opts"; then
+        ""; then
         
         # Generate metadata JSON
         local ports_json='{
@@ -256,18 +256,22 @@ questdb::docker::create_client_instance() {
             "${ports_json}" \
             "http://localhost:${client_http_port}")
         
-        # Save metadata with extended URLs
+        # Save metadata with extended URLs using jq for safe JSON manipulation
         local client_config_file="${project_config_dir}/clients/${client_id}/questdb.json"
-        # Add urls field to metadata
-        echo "$metadata" | sed 's/}$/,/' > "$client_config_file"
-        cat >> "$client_config_file" << EOF
-  "urls": {
-    "http": "http://localhost:${client_http_port}",
-    "postgresql": "postgresql://admin:quest@localhost:${client_pg_port}/qdb",
-    "influxdb": "localhost:${client_ilp_port}"
-  }
-}
-EOF
+        
+        # Create URLs JSON object
+        local urls_json=$(jq -n \
+            --arg http "http://localhost:${client_http_port}" \
+            --arg postgresql "postgresql://admin:quest@localhost:${client_pg_port}/qdb" \
+            --arg influxdb "localhost:${client_ilp_port}" \
+            '{
+                http: $http,
+                postgresql: $postgresql,
+                influxdb: $influxdb
+            }')
+        
+        # Merge metadata with URLs using jq
+        echo "$metadata" | jq --argjson urls "$urls_json" '. + {urls: $urls}' > "$client_config_file"
         
         log::success "QuestDB client instance created successfully"
         log::info "   Client: ${client_id}"

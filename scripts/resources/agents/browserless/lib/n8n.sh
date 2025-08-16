@@ -152,6 +152,8 @@ export default async ({ page }) => {
         type: highQuality ? 'jpeg' : 'png',
         highQuality
       });
+      // Emit a marker for bash to optionally extract
+      console.log(`__BL_SCREENSHOT__ ${label} ${timestamp} ${buffer.length}`);
       
       console.log(`Screenshot captured: ${label} (${buffer.length} bytes)`);
     } catch (e) {
@@ -161,32 +163,49 @@ export default async ({ page }) => {
   
   const sleep = (ms) => new Promise(r => setTimeout(r, ms));
   
-  const waitForStableUI = async (totalMs = 5000, stepMs = 400, requiredStable = 2) => {
-    const deadline = Date.now() + totalMs;
-    let prev = null;
-    let stableCount = 0;
-    while (Date.now() < deadline) {
-      const sig = await page.evaluate(() => {
-        const btn = document.querySelector('[data-test-id="execute-workflow-button"]');
-        const dropdown = document.querySelector('.action-dropdown-container button');
-        const nodes = document.querySelectorAll('*').length;
-        const bodyLen = document.body ? document.body.innerText.length : 0;
-        return { btn: !!btn, dropdown: !!dropdown, nodes, bodyLen };
-      }).catch(() => null);
-      if (!sig) { await sleep(stepMs); continue; }
-      const key = JSON.stringify(sig);
-      if (key === prev) {
-        stableCount += 1;
-        if (stableCount >= requiredStable) return true;
-      } else {
-        prev = key;
-        stableCount = 0;
+    const waitForStableUI = async (totalMs = 5000, stepMs = 400, requiredStable = 2) => {
+      const deadline = Date.now() + totalMs;
+      let prev = null;
+      let stableCount = 0;
+      while (Date.now() < deadline) {
+        const sig = await page.evaluate(() => {
+          const btn = document.querySelector('[data-test-id="execute-workflow-button"]');
+          const dropdown = document.querySelector('.action-dropdown-container button');
+          const nodes = document.querySelectorAll('*').length;
+          const bodyLen = document.body ? document.body.innerText.length : 0;
+          return { btn: !!btn, dropdown: !!dropdown, nodes, bodyLen };
+        }).catch(() => null);
+        if (!sig) { await sleep(stepMs); continue; }
+        const key = JSON.stringify(sig);
+        if (key === prev) {
+          stableCount += 1;
+          if (stableCount >= requiredStable) return true;
+        } else {
+          prev = key;
+          stableCount = 0;
+        }
+        await sleep(stepMs);
       }
-      await sleep(stepMs);
-    }
-    return false;
-  };
-  
+      return false;
+    };
+
+    // Selectors profile embedded at runtime from Bash (configurable)
+    const SELECTORS = %SELECTORS%;
+
+    // Wait for a selector to be visible and scroll into view
+    const waitForSelectorVisible = async (selector, timeout = 10000) => {
+      try {
+        await page.waitForSelector(selector, { timeout, visible: true });
+        await page.evaluate((sel) => {
+          const el = document.querySelector(sel);
+          if (el) el.scrollIntoView({ block: 'center', inline: 'center' });
+        }, selector);
+        return true;
+      } catch (e) {
+        return false;
+      }
+    };
+      
   // Function to detect and parse snack messages
   const detectSnackMessages = async () => {
     const snackMessages = [];
@@ -689,8 +708,8 @@ export default async ({ page }) => {
     await takeScreenshot('before-find-execute');
     console.log('Looking for execute button...');
     
-    // Enhanced execute button logic with trigger selection
-    const executeSelectors = [
+      // Enhanced execute button logic with trigger selection
+  const candidates = SELECTORS && SELECTORS.executeButton ? SELECTORS.executeButton : [
       '[data-test-id="execute-workflow-button"]',
       'button[aria-label="Execute workflow"]',
       'button[title*="Execute"]',
@@ -698,25 +717,25 @@ export default async ({ page }) => {
       '.execute-button',
       '.run-button'
     ];
-    
+
     let executeButton = null;
-    for (const selector of executeSelectors) {
+    for (const selector of candidates) {
       console.log(`Trying execute selector: ${selector}`);
-      const found = await page.evaluate((sel) => !!document.querySelector(sel), selector).catch(() => false);
-      if (found) {
+      const visible = await waitForSelectorVisible(selector, 20000);
+      if (visible) {
         executeButton = selector;
-        console.log(`Found execute button: ${selector}`);
+        console.log(`Found execute button visible: ${selector}`);
         break;
       } else {
-        console.log(`Execute selector ${selector} not found`);
+        console.log(`Execute selector ${selector} not visible yet`);
       }
     }
-    
+
     if (!executeButton) {
       await takeScreenshot('no-execute-button');
       throw new Error('No execute button found');
     }
-    
+
     await takeScreenshot('execute-button-found');
     
     // Check if there's a dropdown for trigger selection - look for chevron specifically
@@ -800,14 +819,28 @@ export default async ({ page }) => {
     console.log(`Cleared ${clearedBefore} existing snack messages`);
     await takeScreenshot('after-clear-snacks');
     
-    console.log('Clicking execute button...');
-    await takeScreenshot('before-click-execute');
-    // Click via evaluate to avoid handle invalidation during frame swaps
+      console.log('Clicking execute button...');
+  await takeScreenshot('before-click-execute');
+  // Ensure in view and click with retries
+  await waitForSelectorVisible(executeButton, 20000);
+  let clicked = false;
+  for (let i = 0; i < 3 && !clicked; i++) {
+    try {
+      await page.click(executeButton, { delay: 20 });
+      clicked = true;
+    } catch (e) {
+      console.log('Click failed, retrying...', e.message);
+      await sleep(500 + i * 500);
+    }
+  }
+  if (!clicked) {
+    // Fallback to dispatching event
     await page.evaluate((sel) => {
       const el = document.querySelector(sel);
-      if (el) (el).dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      if (el) el.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     }, executeButton);
-    await takeScreenshot('after-click-execute');
+  }
+  await takeScreenshot('after-click-execute');
     
     // Mark execution as started
     executionData.executionStatus.started = true;
@@ -1195,6 +1228,26 @@ EOF
     function_code=$(echo "$function_code" | sed "s|%N8N_EMAIL%|$n8n_email|g")
     function_code=$(echo "$function_code" | sed "s|%N8N_PASSWORD%|$n8n_password|g")
     
+    # Build selector profile (env > file > defaults)
+    local selectors_default='{"executeButton":["[data-test-id=\"execute-workflow-button\"]","button[aria-label=\"Execute workflow\"]","button[title*=\"Execute\"]","button[title*=\"Run\"]",".execute-button",".run-button"]}'
+    local selectors_raw=""
+    if [[ -n "${N8N_SELECTORS:-}" ]]; then
+        selectors_raw="$N8N_SELECTORS"
+    elif [[ -n "${N8N_SELECTORS_FILE:-}" && -f "$N8N_SELECTORS_FILE" ]]; then
+        selectors_raw=$(cat "$N8N_SELECTORS_FILE" 2>/dev/null || echo "")
+    else
+        selectors_raw="$selectors_default"
+    fi
+    # Validate JSON and collapse to oneliner
+    if echo "$selectors_raw" | jq . >/dev/null 2>&1; then
+        selectors_raw=$(echo "$selectors_raw" | jq -c . 2>/dev/null || echo "$selectors_default")
+    else
+        log::info "Using default selectors profile (invalid custom JSON)"
+        selectors_raw="$selectors_default"
+    fi
+    # Inject into code (no quotes; insert as object literal)
+    function_code="${function_code//%SELECTORS%/$selectors_raw}"
+    
     # Escape input data for JavaScript insertion
     local escaped_input=""
     if [[ -n "$processed_input" ]]; then
@@ -1210,47 +1263,34 @@ EOF
     # Sanitize workflow_id for filename use (replace special characters with underscores)
     local safe_workflow_id
     safe_workflow_id=$(echo "$workflow_id" | sed 's/[^a-zA-Z0-9._-]/_/g')
-    local output_file="${BROWSERLESS_TEST_OUTPUT_DIR}/workflow_execution_${safe_workflow_id}_$(date +%Y%m%d_%H%M%S).json"
+    # Create a per-run artifacts dir
+    local run_dir="${BROWSERLESS_TEST_OUTPUT_DIR}/n8n/${safe_workflow_id}_$(date +%Y%m%d_%H%M%S)"
+    mkdir -p "$run_dir" 2>/dev/null || true
+    local output_file="${run_dir}/result.json"
+    local function_file="${run_dir}/function.js"
     
     log::info "Executing workflow automation..."
     
-    # Build URL with session persistence if enabled
-    local api_url="$BROWSERLESS_BASE_URL/chrome/function?timeout=$timeout"
+    # Persist session launch options
+    local launch_json=""
     if [[ "$use_persistent_session" == "true" ]]; then
-        # Add user-data-dir parameter for session persistence
         local user_data_dir="/tmp/browserless-sessions/${session_id}"
-        local launch_args="{\"args\":[\"--user-data-dir=${user_data_dir}\"]}"
-        api_url="${api_url}&launch=$(echo "$launch_args" | jq -r @uri)"
+        launch_json="{\"args\":[\"--user-data-dir=${user_data_dir}\"]}"
         log::info "Using persistent session: $session_id"
         log::info "User data directory: $user_data_dir"
     fi
     
-    # Execute the function via browserless
-    local response
-    response=$(curl -X POST "$api_url" \
-        -H "Content-Type: application/javascript" \
-        -d "$function_code" \
-        --silent \
-        --show-error \
-        --max-time $((timeout / 1000 + 30)) \
-        2>&1)
+    # Save function code for repro/debug
+    echo "$function_code" > "$function_file"
     
+    # Execute via shared Browserless runner
+    local response
+    response=$(browserless::run_function "$function_code" "$timeout" "$use_persistent_session" "$session_id" "$launch_json")
     local curl_exit_code=$?
     
     if [[ $curl_exit_code -ne 0 ]]; then
         echo
         log::error "❌ Failed to execute workflow automation (curl exit code: $curl_exit_code)"
-        
-        # Provide specific curl error information
-        case $curl_exit_code in
-            6)  log::info "• Error: Could not resolve host - check if browserless is running on $BROWSERLESS_BASE_URL" ;;
-            7)  log::info "• Error: Failed to connect to host - check if browserless is accessible" ;;
-            28) log::info "• Error: Operation timeout - try increasing timeout (currently ${timeout}ms)" ;;
-            52) log::info "• Error: Empty response from server - browserless may be overloaded" ;;
-            56) log::info "• Error: Network receive failure - connection interrupted" ;;
-            *)  log::info "• Curl error code $curl_exit_code - check network connectivity" ;;
-        esac
-        
         if [[ -n "$response" ]]; then
             echo
             log::info "🔍 Curl Response/Error:"
@@ -1258,12 +1298,10 @@ EOF
             echo "$response"
             echo "----------------------------------------"
         fi
-        
         log::info "💡 Troubleshooting steps:"
         log::info "  1. Check browserless status: resource-browserless status"
         log::info "  2. Test browserless health: curl -s $BROWSERLESS_BASE_URL/pressure"
         log::info "  3. Verify n8n is accessible: curl -s $n8n_url/healthz"
-        
         return 1
     fi
     
@@ -1289,9 +1327,27 @@ EOF
         # Move to final output location
         mv "$temp_file" "$output_file"
         
+        # Save screenshots emitted in JSON into files in artifacts dir
+        local ss_count
+        ss_count=$(jq -r '.screenshots | length' "$output_file" 2>/dev/null || echo "0")
+        if [[ "$ss_count" != "0" ]]; then
+            for i in $(seq 0 $((ss_count-1))); do
+                local label
+                local type
+                local data
+                label=$(jq -r ".screenshots[$i].label" "$output_file")
+                type=$(jq -r ".screenshots[$i].type" "$output_file")
+                data=$(jq -r ".screenshots[$i].data" "$output_file")
+                if [[ -n "$data" && "$data" != "null" ]]; then
+                    echo "$data" | base64 -d > "$run_dir/${i}_${label}.${type}" 2>/dev/null || true
+                fi
+            done
+        fi
+        
         echo
         log::success "✓ Enhanced workflow automation completed"
         log::info "Results saved to: $output_file"
+        log::info "Artifacts directory: $run_dir"
         echo
         
         # Display enhanced summary

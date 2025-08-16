@@ -24,10 +24,7 @@ source "${_VAULT_DOCKER_DIR}/vault-storage-strategies.sh"
 
 
 
-#######################################
 # Preflight check for container startup
-# Returns: 0 if ready, 1 if issues found
-#######################################
 vault::docker::preflight_check() {
     # Check Docker access using simplified utility
     if ! docker::check_daemon; then
@@ -47,9 +44,7 @@ vault::docker::preflight_check() {
 
 
 
-#######################################
 # Start Vault container
-#######################################
 vault::docker::start_container() {
     if vault::is_running; then
         vault::message "info" "MSG_VAULT_ALREADY_RUNNING"
@@ -85,113 +80,111 @@ vault::docker::start_container() {
     local health_cmd="vault status -tls-skip-verify || exit 1"
     
     # Prepare command arguments based on mode
-    local command_args=()
+    local entrypoint_cmd=()
     if [[ "$VAULT_MODE" == "dev" ]]; then
         # Development mode - auto-initialized and unsealed
-        command_args=("server" "-dev")
+        entrypoint_cmd=("server" "-dev")
     else
         # Production mode - requires manual initialization
         if [[ "${strategy}" == "inmem" ]]; then
             # Use inline config for in-memory storage via environment variable
-            command_args=("server")
+            entrypoint_cmd=("server")
         else
-            command_args=("server" "-config=/vault/config")
+            entrypoint_cmd=("server" "-config=/vault/config")
         fi
     fi
     
     # Create network
     docker::create_network "$VAULT_NETWORK_NAME"
     
-    # Build container with Vault-specific requirements
-    local cmd=("docker" "run" "-d")
-    cmd+=("--name" "$VAULT_CONTAINER_NAME")
-    cmd+=("--network" "$VAULT_NETWORK_NAME")
-    cmd+=("--publish" "${VAULT_PORT}:${VAULT_PORT}")
-    cmd+=("--cap-add=IPC_LOCK")
-    cmd+=("--restart" "unless-stopped")
-    cmd+=("--health-cmd" "$health_cmd")
-    cmd+=("--health-interval" "10s")
-    cmd+=("--health-timeout" "5s")
-    cmd+=("--health-retries" "3")
-    cmd+=("--health-start-period" "10s")
-    
-    # Add volumes
-    if [[ -n "$volumes" ]]; then
-        for volume in $volumes; do
-            cmd+=("--volume" "$volume")
-        done
-    fi
-    
-    # Add environment variables based on mode
+    # Prepare environment variables
+    local env_vars=()
     if [[ "$VAULT_MODE" == "dev" ]]; then
         # Dev mode environment
-        cmd+=("--env" "VAULT_ADDR=http://0.0.0.0:${VAULT_PORT}")
-        cmd+=("--env" "VAULT_API_ADDR=http://localhost:${VAULT_PORT}")
-        cmd+=("--env" "VAULT_DEV_ROOT_TOKEN_ID=${VAULT_DEV_ROOT_TOKEN_ID}")
-        cmd+=("--env" "VAULT_DEV_LISTEN_ADDRESS=${VAULT_DEV_LISTEN_ADDRESS}")
+        env_vars+=(
+            "VAULT_ADDR=http://0.0.0.0:${VAULT_PORT}"
+            "VAULT_API_ADDR=http://localhost:${VAULT_PORT}"
+            "VAULT_DEV_ROOT_TOKEN_ID=${VAULT_DEV_ROOT_TOKEN_ID}"
+            "VAULT_DEV_LISTEN_ADDRESS=${VAULT_DEV_LISTEN_ADDRESS}"
+        )
     else
         # Production mode environment
         if [[ -f "${VAULT_CONFIG_DIR}/tls/server.crt" ]]; then
             # HTTPS if TLS certificates exist
-            cmd+=("--env" "VAULT_ADDR=https://0.0.0.0:${VAULT_PORT}")
-            cmd+=("--env" "VAULT_API_ADDR=https://localhost:${VAULT_PORT}")
-            cmd+=("--env" "VAULT_SKIP_VERIFY=true")
+            env_vars+=(
+                "VAULT_ADDR=https://0.0.0.0:${VAULT_PORT}"
+                "VAULT_API_ADDR=https://localhost:${VAULT_PORT}"
+                "VAULT_SKIP_VERIFY=true"
+            )
         else
             # HTTP fallback
-            cmd+=("--env" "VAULT_ADDR=http://0.0.0.0:${VAULT_PORT}")
-            cmd+=("--env" "VAULT_API_ADDR=http://localhost:${VAULT_PORT}")
+            env_vars+=(
+                "VAULT_ADDR=http://0.0.0.0:${VAULT_PORT}"
+                "VAULT_API_ADDR=http://localhost:${VAULT_PORT}"
+            )
         fi
         
         # Add inline config for in-memory storage
         if [[ "${strategy}" == "inmem" ]]; then
-            cmd+=("--env" 'VAULT_LOCAL_CONFIG={"storage": {"inmem": {}}, "listener": {"tcp": {"address": "0.0.0.0:8200", "tls_disable": "1"}}, "ui": true}')
+            env_vars+=("VAULT_LOCAL_CONFIG={\"storage\": {\"inmem\": {}}, \"listener\": {\"tcp\": {\"address\": \"0.0.0.0:8200\", \"tls_disable\": \"1\"}}, \"ui\": true}")
         fi
     fi
     
-    # Add image and command
-    cmd+=("$VAULT_IMAGE" "${command_args[@]}")
+    # Prepare Docker options
+    local docker_opts=(
+        "--cap-add=IPC_LOCK"
+        "--restart" "unless-stopped"
+        "--health-interval" "10s"
+        "--health-timeout" "5s"
+        "--health-retries" "3"
+        "--health-start-period" "10s"
+    )
     
-    # Execute container creation
-    local container_id
-    if container_id=$("${cmd[@]}" 2>&1); then
+    # Port mapping
+    local port_mappings="${VAULT_PORT}:${VAULT_PORT}"
+    
+    # Create container using advanced function
+    if docker_resource::create_service_advanced \
+        "$VAULT_CONTAINER_NAME" \
+        "$VAULT_IMAGE" \
+        "$port_mappings" \
+        "$VAULT_NETWORK_NAME" \
+        "$volumes" \
+        "env_vars" \
+        "docker_opts" \
+        "$health_cmd" \
+        "entrypoint_cmd"; then
+        
         if [[ "$VAULT_MODE" == "dev" ]]; then
             vault::message "warn" "MSG_VAULT_DEV_MODE_WARNING"
         fi
     else
-        log::error "Failed to create container: $container_id"
+        log::error "Failed to create Vault container"
         return 1
     fi
     
-    if [[ -n "$container_id" ]]; then
-        log::info "Started Vault container: $container_id"
-        log::info "Storage strategy: ${strategy}"
+    log::info "Storage strategy: ${strategy}"
+    
+    # Wait for container to be healthy
+    if vault::wait_for_health; then
+        vault::message "success" "MSG_VAULT_START_SUCCESS"
         
-        # Wait for container to be healthy
-        if vault::wait_for_health; then
-            vault::message "success" "MSG_VAULT_START_SUCCESS"
-            
-            # Show important information based on strategy
-            if [[ "${strategy}" == "inmem" ]]; then
-                log::warn "Using in-memory storage - data will be lost on restart!"
-            elif [[ "${strategy}" == "volumes" ]]; then
-                log::info "Using Docker volumes for persistent storage"
-            fi
-            
-            return 0
-        else
-            vault::message "error" "MSG_VAULT_START_FAILED"
-            vault::docker::show_logs
-            return 1
+        # Show important information based on strategy
+        if [[ "${strategy}" == "inmem" ]]; then
+            log::warn "Using in-memory storage - data will be lost on restart!"
+        elif [[ "${strategy}" == "volumes" ]]; then
+            log::info "Using Docker volumes for persistent storage"
         fi
+        
+        return 0
     else
         vault::message "error" "MSG_VAULT_START_FAILED"
+        vault::docker::show_logs
         return 1
     fi
 }
 
-#######################################
 # Stop Vault container
-#######################################
 vault::docker::stop_container() {
     if ! vault::is_running; then
         vault::message "info" "MSG_VAULT_NOT_RUNNING"
@@ -209,9 +202,7 @@ vault::docker::stop_container() {
     fi
 }
 
-#######################################
 # Restart Vault container
-#######################################
 vault::docker::restart_container() {
     vault::message "info" "MSG_VAULT_RESTART_RESTARTING"
     
@@ -224,9 +215,7 @@ vault::docker::restart_container() {
     fi
 }
 
-#######################################
 # Remove Vault container
-#######################################
 vault::docker::remove_container() {
     if vault::is_running; then
         vault::docker::stop_container
@@ -240,17 +229,13 @@ vault::docker::remove_container() {
 
 
 
-#######################################
 # Get Vault container resource usage
-#######################################
 vault::docker::get_resource_usage() {
     log::info "Vault container resource usage:"
     docker_resource::get_stats "$VAULT_CONTAINER_NAME"
 }
 
-#######################################
 # Clean up all Vault Docker resources
-#######################################
 vault::docker::cleanup() {
     log::info "Cleaning up Vault Docker resources..."
     
@@ -261,18 +246,8 @@ vault::docker::cleanup() {
     local strategy=$(vault::storage::determine_strategy)
     vault::storage::cleanup "${strategy}" "${VAULT_REMOVE_DATA:-no}"
     
-    # Remove network (only if no other containers are using it)
-    if docker network inspect "$VAULT_NETWORK_NAME" >/dev/null 2>&1; then
-        local network_containers
-        network_containers=$(docker network inspect "$VAULT_NETWORK_NAME" --format '{{len .Containers}}' 2>/dev/null || echo "0")
-        
-        if [[ "$network_containers" -eq 0 ]]; then
-            log::info "Removing Vault network: $VAULT_NETWORK_NAME"
-            docker network rm "$VAULT_NETWORK_NAME" >/dev/null 2>&1 || true
-        else
-            log::info "Network $VAULT_NETWORK_NAME has other containers, keeping it"
-        fi
-    fi
+    # Remove network only if empty
+    docker::cleanup_network_if_empty "$VAULT_NETWORK_NAME"
 }
 
 #######################################
@@ -284,9 +259,7 @@ vault::docker::repair_permissions() {
     vault::storage::repair_permissions
 }
 
-#######################################
 # Check Docker prerequisites
-#######################################
 vault::docker::check_prerequisites() {
     # Use simplified Docker check
     docker::check_daemon

@@ -13,25 +13,17 @@ source "${var_LIB_SERVICE_DIR}/secrets.sh"
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_LIB_DIR}/docker-resource-utils.sh"
 
-#######################################
-# Create Docker network if it doesn't exist
-# Returns: 0 on success, 1 on failure
-#######################################
-minio::docker::create_network() {
-    docker::create_network "${MINIO_NETWORK_NAME}"
-}
 
-
-#######################################
 # Create and start MinIO container
-# Returns: 0 on success, 1 on failure
-#######################################
 minio::docker::create_container() {
     # Ensure directories exist
     minio::common::create_directories || return 1
     
     # Generate credentials if needed
     minio::common::generate_credentials || return 1
+    
+    # Create network
+    docker::create_network "${MINIO_NETWORK_NAME}"
     
     # Pull image if needed
     log::info "${MSG_PULLING_IMAGE}"
@@ -56,9 +48,13 @@ minio::docker::create_container() {
     # Volumes
     local volumes="${MINIO_DATA_DIR}:/data ${MINIO_CONFIG_DIR}:/root/.minio"
     
-    # Health check command with MinIO-specific timeout
+    # Health check command
     local health_cmd="curl -f http://localhost:9000/minio/health/live || exit 1"
-    export DOCKER_HEALTH_TIMEOUT="10s"  # Override default for MinIO
+    
+    # Docker options for MinIO-specific health timeout
+    local docker_opts=(
+        "--health-timeout" "10s"
+    )
     
     # MinIO server command arguments
     local entrypoint_cmd=(
@@ -73,11 +69,9 @@ minio::docker::create_container() {
         "$MINIO_NETWORK_NAME" \
         "$volumes" \
         "env_vars" \
-        "" \
+        "docker_opts" \
         "$health_cmd" \
         "entrypoint_cmd"; then
-        
-        log::debug "MinIO container created successfully"
         
         # Wait for container to initialize
         sleep "${MINIO_INITIALIZATION_WAIT:-10}"
@@ -88,10 +82,7 @@ minio::docker::create_container() {
     fi
 }
 
-#######################################
 # Start MinIO container
-# Returns: 0 on success, 1 on failure
-#######################################
 minio::docker::start() {
     if ! docker::container_exists "$MINIO_CONTAINER_NAME"; then
         log::error "MinIO container does not exist. Run install first."
@@ -116,10 +107,7 @@ minio::docker::start() {
     fi
 }
 
-#######################################
 # Stop MinIO container
-# Returns: 0 on success, 1 on failure
-#######################################
 minio::docker::stop() {
     if ! docker::container_exists "$MINIO_CONTAINER_NAME"; then
         log::warn "MinIO container does not exist"
@@ -137,10 +125,7 @@ minio::docker::stop() {
     fi
 }
 
-#######################################
 # Restart MinIO container
-# Returns: 0 on success, 1 on failure
-#######################################
 minio::docker::restart() {
     log::info "Restarting MinIO..."
     
@@ -160,22 +145,8 @@ minio::docker::restart() {
     fi
 }
 
-#######################################
 # Remove MinIO container
-# Arguments:
-#   $1 - Force removal (optional, default: false)
-# Returns: 0 on success, 1 on failure
-#######################################
 minio::docker::remove() {
     local force=${1:-false}
-    
-    log::info "Removing MinIO container..."
-    
-    if docker::remove_container "$MINIO_CONTAINER_NAME" "$force"; then
-        log::debug "MinIO container removed successfully"
-        return 0
-    else
-        log::error "Failed to remove MinIO container"
-        return 1
-    fi
+    docker::remove_container "$MINIO_CONTAINER_NAME" "$force"
 }
