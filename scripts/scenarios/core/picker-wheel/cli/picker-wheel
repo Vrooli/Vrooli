@@ -1,0 +1,185 @@
+#!/bin/bash
+
+# Picker Wheel CLI
+# Fun random selection tool
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+API_URL="${API_URL:-http://localhost:9851}"
+
+# Color codes
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+MAGENTA='\033[0;35m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+show_help() {
+    echo -e "${CYAN}🎯 Picker Wheel CLI${NC}"
+    echo
+    echo "Usage: picker-wheel [command] [options]"
+    echo
+    echo "Commands:"
+    echo "  spin [wheel-name]     Spin a wheel (default: yes-no)"
+    echo "  list                  List available wheels"
+    echo "  create                Create a new wheel"
+    echo "  history               Show spin history"
+    echo "  help                  Show this help message"
+    echo
+    echo "Examples:"
+    echo "  picker-wheel spin dinner"
+    echo "  picker-wheel list"
+    echo "  picker-wheel create"
+}
+
+spin_wheel() {
+    local wheel_name="${1:-yes-no}"
+    
+    echo -e "${YELLOW}🎰 Spinning the $wheel_name wheel...${NC}"
+    sleep 1
+    
+    # Simple local random selection for demo
+    case "$wheel_name" in
+        "yes-no")
+            options=("YES! ✅" "NO ❌" "Maybe? 🤔")
+            ;;
+        "dinner")
+            options=("Pizza 🍕" "Sushi 🍱" "Tacos 🌮" "Burger 🍔" "Pasta 🍝")
+            ;;
+        "d20")
+            options=($(seq 1 20))
+            ;;
+        *)
+            options=("Option 1" "Option 2" "Option 3")
+            ;;
+    esac
+    
+    # Animated spinning effect
+    for i in {1..20}; do
+        random_index=$((RANDOM % ${#options[@]}))
+        echo -ne "\r${CYAN}    ${options[$random_index]}${NC}    "
+        sleep 0.1
+    done
+    
+    # Final result
+    final_index=$((RANDOM % ${#options[@]}))
+    result="${options[$final_index]}"
+    
+    echo -e "\r${GREEN}🎉 Result: $result${NC}        "
+    echo
+    
+    # Try to save to API (optional)
+    curl -s -X POST "$API_URL/api/spin" \
+        -H "Content-Type: application/json" \
+        -d "{\"wheel_id\":\"$wheel_name\",\"result\":\"$result\"}" \
+        > /dev/null 2>&1 || true
+}
+
+list_wheels() {
+    echo -e "${CYAN}📋 Available Wheels:${NC}"
+    echo
+    echo -e "${MAGENTA}Preset Wheels:${NC}"
+    echo "  • dinner    - Dinner Decider 🍕"
+    echo "  • yes-no    - Yes or No ✅❌"
+    echo "  • teams     - Team Picker 👥"
+    echo "  • d20       - D20 Roll 🎲"
+    echo "  • workout   - Workout Chooser 💪"
+    echo "  • movie     - Movie Genre 🎬"
+    echo
+    
+    # Try to fetch custom wheels from API
+    if command -v curl &> /dev/null; then
+        custom_wheels=$(curl -s "$API_URL/api/wheels" 2>/dev/null | grep -o '"name":"[^"]*"' | cut -d'"' -f4)
+        if [ ! -z "$custom_wheels" ]; then
+            echo -e "${MAGENTA}Custom Wheels:${NC}"
+            echo "$custom_wheels" | while read wheel; do
+                echo "  • $wheel"
+            done
+            echo
+        fi
+    fi
+}
+
+create_wheel() {
+    echo -e "${CYAN}🎨 Create Custom Wheel${NC}"
+    echo
+    
+    read -p "Wheel name: " name
+    read -p "Number of options (2-20): " num_options
+    
+    if [[ ! "$num_options" =~ ^[0-9]+$ ]] || [ "$num_options" -lt 2 ] || [ "$num_options" -gt 20 ]; then
+        echo -e "${RED}Invalid number of options${NC}"
+        exit 1
+    fi
+    
+    options="["
+    for ((i=1; i<=num_options; i++)); do
+        read -p "Option $i: " option
+        if [ $i -gt 1 ]; then
+            options+=","
+        fi
+        options+="{\"label\":\"$option\",\"weight\":1}"
+    done
+    options+="]"
+    
+    echo
+    echo -e "${GREEN}✅ Wheel '$name' created with $num_options options${NC}"
+    echo
+    
+    # Try to save to API
+    if command -v curl &> /dev/null; then
+        curl -s -X POST "$API_URL/api/wheels" \
+            -H "Content-Type: application/json" \
+            -d "{\"name\":\"$name\",\"options\":$options}" \
+            > /dev/null 2>&1 || true
+    fi
+}
+
+show_history() {
+    echo -e "${CYAN}📜 Recent Spin History:${NC}"
+    echo
+    
+    # Try to fetch from API
+    if command -v curl &> /dev/null; then
+        history=$(curl -s "$API_URL/api/history" 2>/dev/null)
+        if [ ! -z "$history" ] && [ "$history" != "[]" ]; then
+            echo "$history" | grep -o '"result":"[^"]*"' | head -10 | while read line; do
+                result=$(echo "$line" | cut -d'"' -f4)
+                echo "  • $result"
+            done
+        else
+            echo "  No history available"
+        fi
+    else
+        echo "  No history available (API not reachable)"
+    fi
+    echo
+}
+
+# Main command handling
+case "${1:-help}" in
+    spin)
+        spin_wheel "$2"
+        ;;
+    list)
+        list_wheels
+        ;;
+    create)
+        create_wheel
+        ;;
+    history)
+        show_history
+        ;;
+    help|--help|-h)
+        show_help
+        ;;
+    *)
+        echo -e "${RED}Unknown command: $1${NC}"
+        echo
+        show_help
+        exit 1
+        ;;
+esac

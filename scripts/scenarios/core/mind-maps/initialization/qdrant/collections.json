@@ -1,0 +1,27 @@
+{
+  "collections": [
+    {
+      "name": "mind_map_nodes",
+      "vector_size": 768,
+      "distance": "Cosine",
+      "payload_schema": {
+        "node_id": "keyword",
+        "mind_map_id": "keyword",
+        "content": "text",
+        "type": "keyword",
+        "parent_id": "keyword",
+        "metadata": "json"
+      },
+      "optimizers_config": {
+        "deleted_threshold": 0.2,
+        "vacuum_min_vector_number": 1000,
+        "default_segment_number": 2
+      },
+      "hnsw_config": {
+        "m": 16,
+        "ef_construct": 100,
+        "full_scan_threshold": 10000
+      }
+    }
+  ]
+}

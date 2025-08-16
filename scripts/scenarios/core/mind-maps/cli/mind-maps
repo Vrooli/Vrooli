@@ -1,0 +1,96 @@
+#\!/bin/bash
+
+# Mind Maps CLI
+# Provides command-line interface for mind map operations
+
+set -e
+
+COMMAND=${1:-help}
+shift || true
+
+API_URL=${MIND_MAPS_API_URL:-"http://localhost:8093"}
+
+case "$COMMAND" in
+    create)
+        TITLE="${1:-Untitled Map}"
+        DESCRIPTION="${2:-}"
+        
+        curl -X POST "$API_URL/api/mindmaps" \
+            -H "Content-Type: application/json" \
+            -d "{\"title\": \"$TITLE\", \"description\": \"$DESCRIPTION\"}" \
+            | jq .
+        ;;
+        
+    add-node)
+        MAP_ID="${1}"
+        CONTENT="${2:-New Node}"
+        PARENT_ID="${3:-}"
+        
+        if [ -z "$MAP_ID" ]; then
+            echo "Error: Mind map ID required"
+            exit 1
+        fi
+        
+        curl -X POST "$API_URL/api/mindmaps/$MAP_ID/nodes" \
+            -H "Content-Type: application/json" \
+            -d "{\"content\": \"$CONTENT\", \"parent_id\": \"$PARENT_ID\"}" \
+            | jq .
+        ;;
+        
+    search)
+        QUERY="${1}"
+        
+        if [ -z "$QUERY" ]; then
+            echo "Error: Search query required"
+            exit 1
+        fi
+        
+        curl -X POST "$API_URL/api/mindmaps/search" \
+            -H "Content-Type: application/json" \
+            -d "{\"query\": \"$QUERY\"}" \
+            | jq .
+        ;;
+        
+    export)
+        MAP_ID="${1}"
+        FORMAT="${2:-json}"
+        
+        if [ -z "$MAP_ID" ]; then
+            echo "Error: Mind map ID required"
+            exit 1
+        fi
+        
+        curl -X GET "$API_URL/api/mindmaps/$MAP_ID/export?format=$FORMAT" \
+            | jq .
+        ;;
+        
+    list)
+        curl -X GET "$API_URL/api/mindmaps" | jq .
+        ;;
+        
+    help|*)
+        cat <<EOF
+Mind Maps CLI - Visual Knowledge Organization
+
+Usage: mind-maps [COMMAND] [OPTIONS]
+
+Commands:
+  create [title] [description]     Create a new mind map
+  add-node <map-id> [content]      Add a node to a mind map
+  search <query>                   Search across all mind maps
+  export <map-id> [format]         Export a mind map (json, markdown, dot, opml)
+  list                             List all mind maps
+  help                             Show this help message
+
+Examples:
+  mind-maps create "Project Ideas" "Brainstorming for Q1"
+  mind-maps add-node abc123 "New Feature"
+  mind-maps search "machine learning"
+  mind-maps export abc123 markdown
+  mind-maps list
+
+Environment Variables:
+  MIND_MAPS_API_URL   API endpoint (default: http://localhost:8093)
+EOF
+        ;;
+esac

@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🗺️ Travel Map Filler - Track Your Adventures</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <h1 class="title">
+                    <span class="globe-icon">🌍</span>
+                    Travel Map Filler
+                </h1>
+                <div class="stats-bar">
+                    <div class="stat">
+                        <span class="stat-value" id="countriesCount">0</span>
+                        <span class="stat-label">Countries</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-value" id="citiesCount">0</span>
+                        <span class="stat-label">Cities</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-value" id="continentsCount">0</span>
+                        <span class="stat-label">Continents</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-value" id="coveragePercent">0%</span>
+                        <span class="stat-label">World Coverage</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Map Container -->
+            <div class="map-section">
+                <div id="worldMap" class="world-map"></div>
+                
+                <!-- Map Controls -->
+                <div class="map-controls">
+                    <button class="control-btn" id="zoomInBtn" title="Zoom In">➕</button>
+                    <button class="control-btn" id="zoomOutBtn" title="Zoom Out">➖</button>
+                    <button class="control-btn" id="resetViewBtn" title="Reset View">🏠</button>
+                    <button class="control-btn" id="heatmapToggle" title="Toggle Heatmap">🔥</button>
+                </div>
+
+                <!-- Search Bar -->
+                <div class="search-container">
+                    <input type="text" id="locationSearch" class="search-input" placeholder="Search for a city or country...">
+                    <button class="search-btn" id="searchBtn">🔍</button>
+                </div>
+            </div>
+
+            <!-- Sidebar -->
+            <aside class="sidebar">
+                <!-- Travel Form -->
+                <div class="panel add-travel-panel">
+                    <h2 class="panel-title">Add New Travel</h2>
+                    <form id="addTravelForm" class="travel-form">
+                        <div class="form-group">
+                            <label for="locationInput">Location</label>
+                            <input type="text" id="locationInput" class="form-input" placeholder="Paris, France" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="dateInput">Date Visited</label>
+                            <input type="date" id="dateInput" class="form-input" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="typeSelect">Travel Type</label>
+                            <select id="typeSelect" class="form-select">
+                                <option value="vacation">🏖️ Vacation</option>
+                                <option value="business">💼 Business</option>
+                                <option value="adventure">🏔️ Adventure</option>
+                                <option value="family">👨‍👩‍👧‍👦 Family Visit</option>
+                                <option value="transit">✈️ Transit</option>
+                                <option value="lived">🏠 Lived There</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="notesInput">Notes (Optional)</label>
+                            <textarea id="notesInput" class="form-textarea" rows="3" placeholder="What made this trip special?"></textarea>
+                        </div>
+                        <button type="submit" class="submit-btn">Add to Map</button>
+                    </form>
+                </div>
+
+                <!-- Achievements -->
+                <div class="panel achievements-panel">
+                    <h2 class="panel-title">🏆 Achievements</h2>
+                    <div id="achievementsList" class="achievements-list">
+                        <!-- Achievements will be populated here -->
+                    </div>
+                </div>
+
+                <!-- Recent Travels -->
+                <div class="panel recent-panel">
+                    <h2 class="panel-title">📍 Recent Travels</h2>
+                    <div id="recentList" class="recent-list">
+                        <!-- Recent travels will be populated here -->
+                    </div>
+                </div>
+            </aside>
+        </div>
+
+        <!-- Travel Details Modal -->
+        <div id="travelModal" class="modal hidden">
+            <div class="modal-content">
+                <span class="modal-close" id="modalClose">&times;</span>
+                <h2 id="modalTitle" class="modal-title"></h2>
+                <div id="modalBody" class="modal-body">
+                    <!-- Travel details will be populated here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <div class="footer-content">
+                <button class="footer-btn" id="exportBtn">📥 Export Map</button>
+                <button class="footer-btn" id="shareBtn">🔗 Share</button>
+                <button class="footer-btn" id="statsBtn">📊 Detailed Stats</button>
+                <button class="footer-btn" id="bucketListBtn">📝 Bucket List</button>
+            </div>
+        </footer>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,275 @@
+#!/bin/bash
+
+# Stream of Consciousness Analyzer CLI
+# Captures and processes unstructured thoughts into organized notes
+
+set -e
+
+API_URL="${SOC_API_URL:-http://localhost:8049}"
+DEFAULT_CAMPAIGN="general"
+
+show_help() {
+    cat << EOF
+Stream of Consciousness Analyzer CLI
+
+Usage: soc-analyzer <command> [options]
+
+Commands:
+    capture <text>           Capture a stream of consciousness entry
+    process                  Process pending stream entries
+    list-campaigns          List all campaigns
+    create-campaign         Create a new campaign
+    search <query>          Search through notes
+    export [campaign]       Export notes as markdown
+    insights [campaign]     View extracted insights
+    help                    Show this help message
+
+Options:
+    --campaign, -c         Specify campaign (default: general)
+    --type, -t            Entry type: text, voice, idea (default: text)
+    --json                Output in JSON format
+
+Examples:
+    soc-analyzer capture "Had an idea about improving the onboarding flow"
+    soc-analyzer capture "Meeting notes: discussed API redesign" -c work
+    soc-analyzer search "onboarding" -c work
+    soc-analyzer insights work --json
+    soc-analyzer export work > work-notes.md
+
+EOF
+}
+
+capture_stream() {
+    local content="$1"
+    local campaign="${CAMPAIGN:-$DEFAULT_CAMPAIGN}"
+    local type="${TYPE:-text}"
+    
+    if [ -z "$content" ]; then
+        echo "Error: Content is required"
+        exit 1
+    fi
+    
+    response=$(curl -s -X POST "$API_URL/api/stream/capture" \
+        -H "Content-Type: application/json" \
+        -d "{
+            \"campaign_id\": \"$campaign\",
+            \"content\": \"$content\",
+            \"type\": \"$type\",
+            \"source\": \"cli\"
+        }")
+    
+    if [ "$JSON_OUTPUT" = true ]; then
+        echo "$response"
+    else
+        echo "✨ Stream captured successfully"
+        echo "$response" | jq -r '.id' 2>/dev/null && echo "Entry ID: $(echo "$response" | jq -r '.id')"
+    fi
+}
+
+list_campaigns() {
+    response=$(curl -s "$API_URL/api/campaigns")
+    
+    if [ "$JSON_OUTPUT" = true ]; then
+        echo "$response"
+    else
+        echo "📁 Available Campaigns:"
+        echo "$response" | jq -r '.[] | "  • \(.name) (\(.id)) - \(.description)"' 2>/dev/null || echo "$response"
+    fi
+}
+
+create_campaign() {
+    echo -n "Campaign name: "
+    read name
+    echo -n "Description: "
+    read description
+    echo -n "Context prompt for AI: "
+    read context_prompt
+    echo -n "Color (hex, default #7C3AED): "
+    read color
+    color="${color:-#7C3AED}"
+    echo -n "Icon (default: brain): "
+    read icon
+    icon="${icon:-brain}"
+    
+    response=$(curl -s -X POST "$API_URL/api/campaigns" \
+        -H "Content-Type: application/json" \
+        -d "{
+            \"name\": \"$name\",
+            \"description\": \"$description\",
+            \"context_prompt\": \"$context_prompt\",
+            \"color\": \"$color\",
+            \"icon\": \"$icon\"
+        }")
+    
+    if [ "$JSON_OUTPUT" = true ]; then
+        echo "$response"
+    else
+        echo "✅ Campaign created successfully"
+        echo "$response" | jq '.' 2>/dev/null || echo "$response"
+    fi
+}
+
+search_notes() {
+    local query="$1"
+    local campaign="${CAMPAIGN:-}"
+    
+    if [ -z "$query" ]; then
+        echo "Error: Search query is required"
+        exit 1
+    fi
+    
+    url="$API_URL/api/search?q=$(echo "$query" | jq -sRr @uri)"
+    if [ -n "$campaign" ]; then
+        url="$url&campaign_id=$campaign"
+    fi
+    
+    response=$(curl -s "$url")
+    
+    if [ "$JSON_OUTPUT" = true ]; then
+        echo "$response"
+    else
+        echo "🔍 Search Results for: $query"
+        echo "$response" | jq -r '.[] | "
+📝 \(.title)
+   Summary: \(.summary)
+   Tags: \(.tags | join(", "))
+   Created: \(.created_at)
+"' 2>/dev/null || echo "$response"
+    fi
+}
+
+get_insights() {
+    local campaign="${1:-$CAMPAIGN}"
+    
+    url="$API_URL/api/insights"
+    if [ -n "$campaign" ]; then
+        url="$url?campaign_id=$campaign"
+    fi
+    
+    response=$(curl -s "$url")
+    
+    if [ "$JSON_OUTPUT" = true ]; then
+        echo "$response"
+    else
+        echo "💡 Insights${campaign:+ for campaign: $campaign}"
+        echo "$response" | jq -r '.[] | "
+[\(.insight_type | ascii_upcase)] \(.content)
+   Confidence: \(.confidence)
+   Created: \(.created_at)
+"' 2>/dev/null || echo "$response"
+    fi
+}
+
+export_notes() {
+    local campaign="${1:-$CAMPAIGN}"
+    
+    url="$API_URL/api/notes"
+    if [ -n "$campaign" ]; then
+        url="$url?campaign_id=$campaign&limit=1000"
+    else
+        url="$url?limit=1000"
+    fi
+    
+    response=$(curl -s "$url")
+    
+    if [ "$JSON_OUTPUT" = true ]; then
+        echo "$response"
+    else
+        echo "# Stream of Consciousness Notes${campaign:+ - Campaign: $campaign}"
+        echo "Generated: $(date)"
+        echo ""
+        
+        echo "$response" | jq -r '.[] | "
+## \(.title)
+
+**Created:** \(.created_at)  
+**Category:** \(.category)  
+**Tags:** \(.tags | join(", "))  
+**Priority:** \(.priority)
+
+### Summary
+\(.summary)
+
+### Content
+\(.content)
+
+---
+"' 2>/dev/null || echo "Error exporting notes"
+    fi
+}
+
+process_stream() {
+    echo "🔄 Processing pending stream entries..."
+    # Trigger processing via API or n8n webhook
+    response=$(curl -s -X POST "$API_URL/api/stream/process")
+    
+    if [ "$JSON_OUTPUT" = true ]; then
+        echo "$response"
+    else
+        echo "Processing triggered"
+        echo "$response" | jq '.' 2>/dev/null || echo "$response"
+    fi
+}
+
+# Parse arguments
+COMMAND="$1"
+shift || true
+
+# Parse options
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --campaign|-c)
+            CAMPAIGN="$2"
+            shift 2
+            ;;
+        --type|-t)
+            TYPE="$2"
+            shift 2
+            ;;
+        --json)
+            JSON_OUTPUT=true
+            shift
+            ;;
+        --help|-h)
+            show_help
+            exit 0
+            ;;
+        *)
+            ARGS+=("$1")
+            shift
+            ;;
+    esac
+done
+
+# Execute command
+case "$COMMAND" in
+    capture)
+        capture_stream "${ARGS[*]}"
+        ;;
+    process)
+        process_stream
+        ;;
+    list-campaigns)
+        list_campaigns
+        ;;
+    create-campaign)
+        create_campaign
+        ;;
+    search)
+        search_notes "${ARGS[*]}"
+        ;;
+    insights)
+        get_insights "${ARGS[0]}"
+        ;;
+    export)
+        export_notes "${ARGS[0]}"
+        ;;
+    help|"")
+        show_help
+        ;;
+    *)
+        echo "Unknown command: $COMMAND"
+        echo "Run 'soc-analyzer help' for usage information"
+        exit 1
+        ;;
+esac

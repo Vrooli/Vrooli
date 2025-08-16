@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZenNotes - Mindful Note Taking</title>
+    <link rel="stylesheet" href="zen-styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@300;400;500;600&family=Noto+Serif:wght@300;400&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Animated background -->
+    <div class="zen-container"></div>
+    
+    <!-- Main app -->
+    <div class="app-zen">
+        <!-- Left Sidebar -->
+        <aside class="sidebar-zen">
+            <!-- Logo -->
+            <div class="zen-logo">
+                <div class="zen-logo-icon">☯</div>
+                <div class="zen-logo-text">ZenNotes</div>
+            </div>
+            
+            <!-- Search -->
+            <div class="zen-search">
+                <input type="text" class="zen-search-input" placeholder="Find your thoughts..." id="searchInput">
+            </div>
+            
+            <!-- Navigation -->
+            <nav class="zen-nav">
+                <button class="zen-nav-item active" data-view="all">
+                    <span>🌸</span>
+                    <span>All Notes</span>
+                </button>
+                <button class="zen-nav-item" data-view="today">
+                    <span>☀️</span>
+                    <span>Today's Flow</span>
+                </button>
+                <button class="zen-nav-item" data-view="insights">
+                    <span>💡</span>
+                    <span>Insights</span>
+                </button>
+                <button class="zen-nav-item" data-view="connections">
+                    <span>🔗</span>
+                    <span>Connections</span>
+                </button>
+                <button class="zen-nav-item" data-view="archive">
+                    <span>📦</span>
+                    <span>Archive</span>
+                </button>
+            </nav>
+            
+            <!-- Folders -->
+            <div class="zen-folders">
+                <h4 style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.5rem;">Collections</h4>
+                <div id="foldersList">
+                    <div class="zen-folder">
+                        <span class="zen-folder-dot" style="background: #7da3a1;"></span>
+                        <span>Work</span>
+                    </div>
+                    <div class="zen-folder">
+                        <span class="zen-folder-dot" style="background: #6b8e6f;"></span>
+                        <span>Personal</span>
+                    </div>
+                    <div class="zen-folder">
+                        <span class="zen-folder-dot" style="background: #d4a574;"></span>
+                        <span>Ideas</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+        
+        <!-- Main Content -->
+        <main class="main-zen">
+            <!-- Editor Header -->
+            <div class="editor-header-zen">
+                <input type="text" class="note-title-zen" placeholder="Untitled thought..." id="noteTitle">
+                <div class="editor-actions">
+                    <button class="zen-tool" id="saveBtn" title="Save">💾</button>
+                    <button class="zen-tool" id="shareBtn" title="Share">🔗</button>
+                    <button class="zen-tool" id="zenModeBtn" title="Zen Mode">🧘</button>
+                </div>
+            </div>
+            
+            <!-- Toolbar -->
+            <div class="zen-toolbar">
+                <button class="zen-tool" data-format="heading">H</button>
+                <button class="zen-tool" data-format="bold">B</button>
+                <button class="zen-tool" data-format="italic">I</button>
+                <button class="zen-tool" data-format="list">☰</button>
+                <button class="zen-tool" data-format="checkbox">☑</button>
+                <button class="zen-tool" data-format="quote">"</button>
+                <button class="zen-tool" data-format="code">&lt;&gt;</button>
+                <button class="zen-tool" data-format="link">🔗</button>
+            </div>
+            
+            <!-- Editor -->
+            <div class="editor-zen">
+                <textarea class="editor-content-zen" id="noteContent" placeholder="Let your thoughts flow naturally..."></textarea>
+            </div>
+            
+            <!-- Status bar -->
+            <div style="padding: 1rem 2rem; background: var(--zen-mist); border-top: 1px solid var(--zen-stone); display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; color: var(--text-secondary);">
+                <span id="wordCount">0 words</span>
+                <span id="lastSaved">All changes saved</span>
+                <span id="readingTime">~0 min read</span>
+            </div>
+        </main>
+        
+        <!-- Right Panel - AI Insights -->
+        <aside class="insights-zen">
+            <div class="insights-header-zen">
+                <div class="insights-icon">🧠</div>
+                <h3 style="font-family: var(--font-accent); font-weight: 300;">AI Insights</h3>
+            </div>
+            
+            <!-- Summary -->
+            <div class="insight-card fade-in">
+                <div class="insight-title">Summary</div>
+                <div class="insight-content" id="aiSummary">
+                    Start writing to see AI-generated insights...
+                </div>
+            </div>
+            
+            <!-- Key Topics -->
+            <div class="insight-card fade-in">
+                <div class="insight-title">Key Topics</div>
+                <div class="insight-content" id="keyTopics">
+                    <span class="zen-tag">mindfulness</span>
+                    <span class="zen-tag">productivity</span>
+                    <span class="zen-tag">ideas</span>
+                </div>
+            </div>
+            
+            <!-- Action Items -->
+            <div class="insight-card fade-in">
+                <div class="insight-title">Action Items</div>
+                <div class="insight-content" id="actionItems">
+                    <div class="action-item-zen">
+                        <div class="action-checkbox"></div>
+                        <div>Review meeting notes</div>
+                    </div>
+                    <div class="action-item-zen">
+                        <div class="action-checkbox"></div>
+                        <div>Send follow-up email</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Sentiment -->
+            <div class="insight-card fade-in">
+                <div class="insight-title">Mood Analysis</div>
+                <div class="insight-content" id="sentiment">
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <span style="font-size: 1.5rem;">😌</span>
+                        <span>Focused & Productive</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Related Notes -->
+            <div class="insight-card fade-in">
+                <div class="insight-title">Related Notes</div>
+                <div class="insight-content" id="relatedNotes">
+                    <div style="padding: 0.5rem 0; border-bottom: 1px solid var(--zen-stone);">
+                        <div style="font-weight: 500;">Project Planning</div>
+                        <div style="font-size: 0.85rem; color: var(--text-secondary);">2 days ago</div>
+                    </div>
+                    <div style="padding: 0.5rem 0;">
+                        <div style="font-weight: 500;">Team Meeting Notes</div>
+                        <div style="font-size: 0.85rem; color: var(--text-secondary);">1 week ago</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- AI Suggestions -->
+            <div class="insight-card fade-in">
+                <div class="insight-title">AI Suggestions</div>
+                <div class="insight-content" id="aiSuggestions">
+                    <div style="padding: 0.5rem; background: rgba(125, 163, 161, 0.1); border-radius: 8px; margin-bottom: 0.5rem;">
+                        💡 Consider breaking this into smaller, actionable tasks
+                    </div>
+                    <div style="padding: 0.5rem; background: rgba(107, 142, 111, 0.1); border-radius: 8px;">
+                        🌱 This connects well with your quarterly goals
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </div>
+    
+    <!-- Floating Action Button -->
+    <button class="fab-zen" id="newNoteBtn">+</button>
+    
+    <!-- Notes List Modal (hidden by default) -->
+    <div id="notesListModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200;">
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; border-radius: 16px; padding: 2rem; width: 90%; max-width: 600px; max-height: 80vh; overflow-y: auto;">
+            <h3 style="font-family: var(--font-accent); margin-bottom: 1rem;">Your Notes</h3>
+            <div id="notesList">
+                <!-- Notes will be populated here -->
+            </div>
+            <button onclick="document.getElementById('notesListModal').style.display='none'" style="margin-top: 1rem; padding: 0.5rem 1rem; background: var(--zen-water); color: white; border: none; border-radius: 8px; cursor: pointer;">Close</button>
+        </div>
+    </div>
+    
+    <script src="zen-script.js"></script>
+</body>
+</html>

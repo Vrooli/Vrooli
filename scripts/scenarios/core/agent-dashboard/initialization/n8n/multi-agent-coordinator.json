@@ -1,0 +1,304 @@
+{
+  "name": "Multi-Agent Coordinator",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "agent-dashboard/coordinate",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Provide defaults for manual testing\nconst defaults = {\n  coordination_type: $json.coordination_type || 'consensus',  // consensus, debate, hierarchy, collaborative\n  topic: $json.topic || 'Should we scale up the infrastructure to handle increased load?',\n  agents: $json.agents || [\n    {\n      name: 'Claude-Code',\n      role: 'Technical Expert',\n      perspective: 'Focus on code quality and maintainability'\n    },\n    {\n      name: 'Agent-S2',\n      role: 'Performance Analyst',\n      perspective: 'Optimize for speed and efficiency'\n    },\n    {\n      name: 'Huginn',\n      role: 'Data Specialist',\n      perspective: 'Ensure data integrity and monitoring'\n    }\n  ],\n  context: $json.context || {\n    current_load: '75%',\n    peak_hours: '2pm-6pm',\n    budget_remaining: '$5000',\n    sla_requirements: '99.9% uptime'\n  },\n  decision_criteria: $json.decision_criteria || [\n    'Cost effectiveness',\n    'Implementation time',\n    'Risk assessment',\n    'Long-term scalability'\n  ],\n  max_rounds: $json.max_rounds || 3\n};\n\n// Only use defaults if coming from manual trigger\nconst isManual = $execution.resumeUrl === undefined;\nif (isManual) {\n  return [{json: defaults}];\n}\n\n// Otherwise pass through webhook data\nreturn items;"
+      },
+      "id": "set_defaults",
+      "name": "Set Defaults",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\n\n// Prepare the conversation setup for agent-conversation-manager\nconst conversationSetup = {\n  topic: input.topic,\n  goal: `Reach a ${input.coordination_type} decision on: ${input.topic}`,\n  \n  agents: input.agents.map((agent, index) => ({\n    id: `agent_${index + 1}`,\n    name: agent.name,\n    role: agent.role,\n    personality: agent.perspective,\n    expertise: [\n      agent.role.toLowerCase().replace(' ', '_'),\n      ...getExpertiseForRole(agent.role)\n    ],\n    initial_position: null  // Let agents form their own positions\n  })),\n  \n  conversation_rules: getConversationRules(input.coordination_type),\n  \n  context: {\n    ...input.context,\n    decision_criteria: input.decision_criteria,\n    coordination_type: input.coordination_type\n  },\n  \n  max_rounds: input.max_rounds,\n  consensus_threshold: input.coordination_type === 'consensus' ? 0.8 : 0.6,\n  \n  output_format: {\n    final_decision: \"The agreed upon decision\",\n    reasoning: \"Collective reasoning behind the decision\",\n    action_items: [\"List of specific actions to take\"],\n    dissenting_opinions: [\"Any unresolved disagreements\"],\n    confidence_score: 0.0,\n    implementation_plan: {\n      immediate_actions: [],\n      short_term: [],\n      long_term: []\n    }\n  }\n};\n\nfunction getExpertiseForRole(role) {\n  const expertiseMap = {\n    'Technical Expert': ['system_architecture', 'code_optimization', 'security'],\n    'Performance Analyst': ['metrics_analysis', 'bottleneck_detection', 'scaling'],\n    'Data Specialist': ['data_modeling', 'etl_pipelines', 'analytics'],\n    'Security Officer': ['threat_assessment', 'compliance', 'access_control'],\n    'DevOps Engineer': ['deployment', 'monitoring', 'infrastructure']\n  };\n  return expertiseMap[role] || ['general_knowledge'];\n}\n\nfunction getConversationRules(type) {\n  const rulesMap = {\n    consensus: [\n      \"All agents must contribute their perspective\",\n      \"Focus on finding common ground\",\n      \"Acknowledge valid points from other agents\",\n      \"Propose compromises when disagreements arise\",\n      \"Vote on final decision if consensus not reached\"\n    ],\n    debate: [\n      \"Present arguments with evidence\",\n      \"Challenge assumptions respectfully\",\n      \"Defend positions with logic\",\n      \"Concede points when proven wrong\",\n      \"Strongest argument wins\"\n    ],\n    hierarchy: [\n      \"Senior agents have decision authority\",\n      \"Junior agents provide input and analysis\",\n      \"Escalate unresolved issues\",\n      \"Follow chain of command\",\n      \"Document all decisions\"\n    ],\n    collaborative: [\n      \"Build on each other's ideas\",\n      \"No idea is dismissed without consideration\",\n      \"Combine perspectives for innovation\",\n      \"Share knowledge freely\",\n      \"Celebrate collective success\"\n    ]\n  };\n  return rulesMap[type] || rulesMap.consensus;\n}\n\nreturn [{json: conversationSetup}];"
+      },
+      "id": "prepare_conversation",
+      "name": "Prepare Conversation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "workflow": "={{ $fromAI('WORKFLOW_ID_agent-conversation-manager', 'string') }}",
+        "workflowData": "={{ JSON.stringify($json) }}",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "call_conversation_manager",
+      "name": "Call Agent Conversation Manager",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const conversation = items[0].json;\nconst input = $('prepare_conversation').first().json;\n\n// Parse the conversation results\nlet decision;\ntry {\n  if (conversation.consensus) {\n    decision = conversation.consensus;\n  } else if (conversation.final_decision) {\n    decision = conversation.final_decision;\n  } else if (conversation.conversation_summary) {\n    // Extract decision from summary\n    decision = {\n      final_decision: conversation.conversation_summary.conclusion || 'No clear decision reached',\n      reasoning: conversation.conversation_summary.key_points || [],\n      action_items: extractActionItems(conversation),\n      confidence_score: conversation.consensus_reached ? 0.9 : 0.6\n    };\n  } else {\n    decision = {\n      final_decision: 'Coordination incomplete',\n      reasoning: 'The agent conversation did not reach a conclusion',\n      action_items: [],\n      confidence_score: 0.3\n    };\n  }\n} catch (e) {\n  console.error('Parse error:', e);\n  decision = {\n    final_decision: 'Error in coordination',\n    error: e.message,\n    action_items: [],\n    confidence_score: 0.0\n  };\n}\n\nfunction extractActionItems(conv) {\n  const items = [];\n  \n  // Extract from agent messages\n  if (conv.agent_messages) {\n    conv.agent_messages.forEach(msg => {\n      const actionMatches = msg.content.match(/(?:should|must|need to|will|action:)\\s+([^.!?]+)/gi);\n      if (actionMatches) {\n        items.push(...actionMatches.map(m => m.trim()));\n      }\n    });\n  }\n  \n  // Extract from summary\n  if (conv.conversation_summary?.action_items) {\n    items.push(...conv.conversation_summary.action_items);\n  }\n  \n  // Deduplicate and clean\n  return [...new Set(items)].slice(0, 10);\n}\n\n// Create coordination record\nconst coordinationRecord = {\n  id: crypto.randomUUID(),\n  timestamp: new Date().toISOString(),\n  coordination_type: input.coordination_type,\n  topic: input.topic,\n  participating_agents: input.agents.map(a => a.name),\n  decision: decision,\n  conversation_log: conversation.agent_messages || [],\n  rounds_completed: conversation.rounds_completed || 0,\n  consensus_reached: conversation.consensus_reached || false,\n  execution_ready: decision.confidence_score > 0.7\n};\n\nreturn [{json: coordinationRecord}];"
+      },
+      "id": "parse_coordination",
+      "name": "Parse Coordination Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO agent_dashboard.coordination_logs \n  (id, coordination_type, topic, participating_agents, decision, conversation_log, consensus_reached, created_at) \nVALUES \n  ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP) \nRETURNING id",
+        "additionalFields": {
+          "queryParams": "={{ $json.id }},={{ $json.coordination_type }},={{ $json.topic }},={{ JSON.stringify($json.participating_agents) }},={{ JSON.stringify($json.decision) }},={{ JSON.stringify($json.conversation_log) }},={{ $json.consensus_reached }}"
+        },
+        "options": {}
+      },
+      "id": "log_coordination",
+      "name": "Log Coordination",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1250, 400],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-agent-dashboard",
+          "name": "Agent Dashboard DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "workflow": "={{ $fromAI('WORKFLOW_ID_event-stream-hub', 'string') }}",
+        "workflowData": "={{ JSON.stringify({\n  action: 'publish',\n  channel: 'agent_coordination',\n  event: {\n    type: 'coordination_complete',\n    coordination_id: $json.id,\n    topic: $json.topic,\n    decision: $json.decision.final_decision,\n    confidence: $json.decision.confidence_score,\n    agents: $json.participating_agents,\n    timestamp: $json.timestamp\n  }\n}) }}",
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      },
+      "id": "publish_event",
+      "name": "Publish to Event Stream",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [1450, 500]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.execution_ready }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "check_execution_ready",
+      "name": "Execution Ready?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1450, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const coordination = $input.first().json;\n\n// Generate execution commands from the decision\nconst commands = [];\n\nif (coordination.decision.action_items && coordination.decision.action_items.length > 0) {\n  coordination.decision.action_items.forEach((item, index) => {\n    commands.push({\n      id: `cmd_${index + 1}`,\n      action: item,\n      assigned_to: selectAgentForAction(item, coordination.participating_agents),\n      priority: index + 1,\n      status: 'pending'\n    });\n  });\n}\n\nfunction selectAgentForAction(action, agents) {\n  // Simple heuristic to assign actions to agents\n  const actionLower = action.toLowerCase();\n  \n  if (actionLower.includes('code') || actionLower.includes('implement')) {\n    return agents.find(a => a.includes('Claude')) || agents[0];\n  }\n  if (actionLower.includes('monitor') || actionLower.includes('data')) {\n    return agents.find(a => a.includes('Huginn')) || agents[0];\n  }\n  if (actionLower.includes('performance') || actionLower.includes('analyze')) {\n    return agents.find(a => a.includes('S2')) || agents[0];\n  }\n  \n  // Round-robin for unmatched actions\n  return agents[Math.floor(Math.random() * agents.length)];\n}\n\nreturn [{\n  json: {\n    coordination_id: coordination.id,\n    execution_plan: {\n      commands: commands,\n      estimated_completion: calculateCompletionTime(commands.length),\n      parallel_execution: commands.length > 3\n    }\n  }\n}];\n\nfunction calculateCompletionTime(numCommands) {\n  const baseTime = 5; // minutes per command\n  const parallelFactor = 0.6; // reduction when running in parallel\n  const time = numCommands * baseTime * (numCommands > 3 ? parallelFactor : 1);\n  return `${Math.ceil(time)} minutes`;\n}"
+      },
+      "id": "generate_execution",
+      "name": "Generate Execution Plan",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1650, 200]
+    },
+    {
+      "parameters": {
+        "workflow": "={{ $fromAI('WORKFLOW_ID_smart-notification-router', 'string') }}",
+        "workflowData": "={{ JSON.stringify({\n  notification: {\n    type: 'coordination_complete',\n    priority: $('parse_coordination').first().json.decision.confidence_score > 0.8 ? 'high' : 'medium',\n    title: 'Agent Coordination Complete',\n    message: `Decision reached on: ${$('parse_coordination').first().json.topic}`,\n    details: {\n      decision: $('parse_coordination').first().json.decision.final_decision,\n      confidence: $('parse_coordination').first().json.decision.confidence_score,\n      agents_involved: $('parse_coordination').first().json.participating_agents,\n      action_items: $('parse_coordination').first().json.decision.action_items\n    },\n    channels: ['dashboard', 'slack', 'email'],\n    recipients: ['ops-team', 'agent-admins']\n  }\n}) }}",
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      },
+      "id": "send_notifications",
+      "name": "Send Notifications",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [1650, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const coordination = $('parse_coordination').first().json;\nconst executionPlan = $('generate_execution').first().json || null;\n\nreturn [{\n  json: {\n    success: true,\n    coordination_id: coordination.id,\n    message: `Multi-agent coordination completed with ${coordination.consensus_reached ? 'consensus' : 'partial agreement'}`,\n    summary: {\n      topic: coordination.topic,\n      coordination_type: coordination.coordination_type,\n      agents_involved: coordination.participating_agents,\n      rounds_completed: coordination.rounds_completed,\n      consensus_reached: coordination.consensus_reached,\n      confidence_score: coordination.decision.confidence_score\n    },\n    decision: coordination.decision,\n    execution_plan: executionPlan,\n    next_steps: executionPlan ? \n      `Execute ${executionPlan.execution_plan.commands.length} action items` : \n      'Manual review required due to low confidence',\n    timestamp: coordination.timestamp\n  }\n}];"
+      },
+      "id": "format_response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1850, 300]
+    },
+    {
+      "parameters": {},
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2050, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Prepare Conversation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Defaults",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Defaults": {
+      "main": [
+        [
+          {
+            "node": "Prepare Conversation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Conversation": {
+      "main": [
+        [
+          {
+            "node": "Call Agent Conversation Manager",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Agent Conversation Manager": {
+      "main": [
+        [
+          {
+            "node": "Parse Coordination Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Coordination Results": {
+      "main": [
+        [
+          {
+            "node": "Log Coordination",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Coordination": {
+      "main": [
+        [
+          {
+            "node": "Execution Ready?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Publish to Event Stream",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send Notifications",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execution Ready?": {
+      "main": [
+        [
+          {
+            "node": "Generate Execution Plan",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Execution Plan": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "agent-dashboard"
+  },
+  "id": "multi-agent-coordinator",
+  "tags": []
+}

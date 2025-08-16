@@ -1,0 +1,99 @@
+name: agent-dashboard
+description: Central command center for managing all active AI agents
+version: 1.0.0
+
+tests:
+  - name: Service Configuration Test
+    type: validate_config
+    config:
+      file: .vrooli/service.json
+      required_fields:
+        - name
+        - description
+        - version
+        - resources
+        - initialization
+
+  - name: UI Server Test
+    type: http_check
+    config:
+      url: http://localhost:3800
+      method: GET
+      expected_status: 200
+      timeout: 10
+
+  - name: API Health Check
+    type: http_check
+    config:
+      url: http://localhost:8800/health
+      method: GET
+      expected_status: 200
+      timeout: 5
+
+  - name: Agent Status Endpoint
+    type: api_test
+    config:
+      url: http://localhost:8800/api/agents/status
+      method: GET
+      expected_response:
+        type: array
+        min_items: 0
+      timeout: 5
+
+  - name: Agent Orchestration Workflow
+    type: workflow_test
+    config:
+      workflow: agent-orchestrator
+      trigger: manual
+      payload:
+        task: "test orchestration"
+        context:
+          current_workload: "moderate"
+        constraints:
+          max_agents: 5
+      expected_status: success
+      timeout: 30
+
+  - name: Agent Monitoring Workflow
+    type: workflow_test
+    config:
+      workflow: agent-status-monitor
+      trigger: manual
+      payload:
+        check_type: "health"
+      expected_status: success
+      timeout: 20
+
+  - name: Database Schema Test
+    type: database_test
+    config:
+      connection: postgres
+      schema_file: initialization/postgres/schema.sql
+      validate_tables:
+        - agents
+        - agent_tasks
+        - agent_metrics
+        - orchestration_logs
+
+  - name: CLI Installation Test
+    type: cli_test
+    config:
+      install_script: cli/install-cli.sh
+      commands:
+        - agent-dashboard --version
+        - agent-dashboard list
+        - agent-dashboard status
+
+validation:
+  required_resources:
+    - n8n
+    - postgres
+  optional_resources:
+    - redis
+  ports:
+    - 3800  # UI
+    - 8800  # API
+  environment:
+    - AGENT_DASHBOARD_PORT
+    - AGENT_API_PORT
+    - MAX_AGENTS

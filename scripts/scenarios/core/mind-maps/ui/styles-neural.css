@@ -1,0 +1,459 @@
+/* Neural Mind Maps - Cyberpunk Neural Network Theme */
+:root {
+    /* Neural color palette */
+    --neural-bg: #0a0e1b;
+    --neural-surface: #111827;
+    --neural-surface-light: #1f2937;
+    --neural-primary: #00ffcc;
+    --neural-secondary: #ff00ff;
+    --neural-accent: #00ccff;
+    --neural-warning: #ffaa00;
+    --neural-error: #ff0066;
+    --neural-success: #00ff88;
+    
+    /* Synaptic connections */
+    --synapse-idle: rgba(0, 255, 204, 0.2);
+    --synapse-active: rgba(0, 255, 204, 0.8);
+    --synapse-pulse: rgba(255, 0, 255, 0.6);
+    
+    /* Text colors */
+    --text-primary: #ffffff;
+    --text-secondary: #9ca3af;
+    --text-dim: #6b7280;
+    
+    /* Neural glow effects */
+    --glow-primary: 0 0 20px rgba(0, 255, 204, 0.5);
+    --glow-secondary: 0 0 20px rgba(255, 0, 255, 0.5);
+    --glow-intense: 0 0 40px rgba(0, 204, 255, 0.8);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Space Grotesk', 'Inter', system-ui, -apple-system, sans-serif;
+    background: var(--neural-bg);
+    color: var(--text-primary);
+    overflow: hidden;
+    position: relative;
+}
+
+/* Animated neural background */
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+        radial-gradient(circle at 20% 50%, rgba(0, 255, 204, 0.1) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(255, 0, 255, 0.1) 0%, transparent 50%),
+        radial-gradient(circle at 40% 20%, rgba(0, 204, 255, 0.1) 0%, transparent 50%);
+    animation: neuralPulse 20s ease-in-out infinite;
+    pointer-events: none;
+    z-index: 0;
+}
+
+@keyframes neuralPulse {
+    0%, 100% { opacity: 0.3; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(1.1); }
+}
+
+.app-container {
+    position: relative;
+    z-index: 1;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Futuristic Navigation Bar */
+.top-nav {
+    background: linear-gradient(180deg, var(--neural-surface) 0%, rgba(17, 24, 39, 0.8) 100%);
+    border-bottom: 1px solid var(--synapse-idle);
+    padding: 0.75rem 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    backdrop-filter: blur(10px);
+    position: relative;
+}
+
+.top-nav::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, 
+        transparent 0%, 
+        var(--neural-primary) 20%, 
+        var(--neural-secondary) 50%, 
+        var(--neural-accent) 80%, 
+        transparent 100%);
+    animation: scanline 8s linear infinite;
+}
+
+@keyframes scanline {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.logo-icon {
+    width: 32px;
+    height: 32px;
+    color: var(--neural-primary);
+    filter: drop-shadow(var(--glow-primary));
+    animation: neuronPulse 3s ease-in-out infinite;
+}
+
+@keyframes neuronPulse {
+    0%, 100% { transform: scale(1); opacity: 0.8; }
+    50% { transform: scale(1.1); opacity: 1; }
+}
+
+.logo-text {
+    font-size: 1.25rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--neural-primary), var(--neural-accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* Holographic Search Bar */
+.search-bar {
+    background: rgba(31, 41, 55, 0.6);
+    border: 1px solid var(--synapse-idle);
+    border-radius: 24px;
+    padding: 0.5rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 400px;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.search-bar::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    background: linear-gradient(45deg, var(--neural-primary), var(--neural-secondary), var(--neural-accent));
+    border-radius: 24px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: -1;
+    filter: blur(4px);
+}
+
+.search-bar:focus-within::before {
+    opacity: 0.5;
+    animation: holographicShift 3s linear infinite;
+}
+
+@keyframes holographicShift {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.search-bar:focus-within {
+    background: rgba(31, 41, 55, 0.9);
+    box-shadow: var(--glow-intense);
+}
+
+#searchInput {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text-primary);
+    flex: 1;
+    font-size: 0.95rem;
+}
+
+.search-mode {
+    display: flex;
+    gap: 0.25rem;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 0.25rem;
+    border-radius: 12px;
+}
+
+.mode-toggle {
+    padding: 0.25rem 0.75rem;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.mode-toggle.active {
+    background: linear-gradient(135deg, var(--neural-primary), var(--neural-accent));
+    color: var(--neural-bg);
+    font-weight: 600;
+    box-shadow: var(--glow-primary);
+}
+
+/* Neural Canvas */
+.canvas-container {
+    flex: 1;
+    position: relative;
+    background: radial-gradient(circle at center, rgba(17, 24, 39, 0.5), var(--neural-bg));
+    overflow: hidden;
+}
+
+#mind-map-canvas {
+    width: 100%;
+    height: 100%;
+}
+
+/* Floating toolbar with neural design */
+.floating-toolbar {
+    position: absolute;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(17, 24, 39, 0.95);
+    border: 1px solid var(--synapse-active);
+    border-radius: 20px;
+    padding: 0.75rem;
+    display: flex;
+    gap: 0.5rem;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5), var(--glow-primary);
+}
+
+.toolbar-btn {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: rgba(31, 41, 55, 0.8);
+    border: 1px solid var(--synapse-idle);
+    color: var(--neural-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.toolbar-btn:hover {
+    background: rgba(0, 255, 204, 0.1);
+    border-color: var(--neural-primary);
+    transform: translateY(-2px);
+    box-shadow: 0 5px 20px rgba(0, 255, 204, 0.3);
+}
+
+.toolbar-btn.active {
+    background: linear-gradient(135deg, rgba(0, 255, 204, 0.2), rgba(0, 204, 255, 0.2));
+    border-color: var(--neural-primary);
+    box-shadow: inset 0 0 20px rgba(0, 255, 204, 0.3);
+}
+
+/* Sidebar with neural theme */
+.sidebar {
+    width: 280px;
+    background: linear-gradient(180deg, var(--neural-surface) 0%, rgba(17, 24, 39, 0.95) 100%);
+    border-right: 1px solid var(--synapse-idle);
+    padding: 1.5rem;
+    overflow-y: auto;
+    position: relative;
+}
+
+.sidebar::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 2px;
+    height: 100%;
+    background: linear-gradient(180deg, 
+        var(--neural-primary) 0%, 
+        transparent 20%, 
+        var(--neural-secondary) 50%, 
+        transparent 80%, 
+        var(--neural-accent) 100%);
+    animation: dataFlow 5s linear infinite;
+}
+
+@keyframes dataFlow {
+    0% { transform: translateY(-100%); }
+    100% { transform: translateY(100%); }
+}
+
+.map-item {
+    padding: 0.75rem;
+    border-radius: 12px;
+    border: 1px solid transparent;
+    background: rgba(31, 41, 55, 0.3);
+    margin-bottom: 0.5rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.map-item::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(0, 255, 204, 0.1), transparent);
+    transition: left 0.5s ease;
+}
+
+.map-item:hover::before {
+    left: 100%;
+}
+
+.map-item:hover {
+    background: rgba(0, 255, 204, 0.05);
+    border-color: var(--synapse-active);
+    transform: translateX(4px);
+}
+
+.map-item.active {
+    background: linear-gradient(135deg, rgba(0, 255, 204, 0.1), rgba(0, 204, 255, 0.1));
+    border-color: var(--neural-primary);
+    box-shadow: inset 0 0 20px rgba(0, 255, 204, 0.1);
+}
+
+/* Neural node styles */
+.neural-node {
+    position: absolute;
+    padding: 0.75rem 1.25rem;
+    background: rgba(17, 24, 39, 0.9);
+    border: 2px solid var(--synapse-active);
+    border-radius: 12px;
+    color: var(--text-primary);
+    font-weight: 500;
+    cursor: move;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(5px);
+}
+
+.neural-node:hover {
+    background: rgba(0, 255, 204, 0.1);
+    border-color: var(--neural-primary);
+    box-shadow: var(--glow-primary);
+    transform: scale(1.05);
+}
+
+.neural-node.selected {
+    border-color: var(--neural-secondary);
+    box-shadow: var(--glow-secondary);
+    animation: nodeSelected 1s ease-in-out infinite;
+}
+
+@keyframes nodeSelected {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+/* Synaptic connections */
+.synapse {
+    stroke: var(--synapse-idle);
+    stroke-width: 2;
+    fill: none;
+    opacity: 0.6;
+    filter: drop-shadow(0 0 3px rgba(0, 255, 204, 0.3));
+}
+
+.synapse.active {
+    stroke: var(--synapse-active);
+    stroke-width: 3;
+    opacity: 1;
+    animation: synapseTransmit 2s linear infinite;
+}
+
+@keyframes synapseTransmit {
+    0% { stroke-dasharray: 0 100; }
+    100% { stroke-dasharray: 100 0; }
+}
+
+/* Neural pulse animation for data transmission */
+.data-pulse {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    background: var(--neural-primary);
+    border-radius: 50%;
+    box-shadow: var(--glow-primary);
+    animation: dataPulseMove 2s linear infinite;
+}
+
+@keyframes dataPulseMove {
+    0% { opacity: 0; transform: scale(0); }
+    50% { opacity: 1; transform: scale(1); }
+    100% { opacity: 0; transform: scale(0); }
+}
+
+/* Loading states with neural animation */
+.neural-loader {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 120px;
+    height: 120px;
+}
+
+.neural-loader svg {
+    animation: neuralRotate 3s linear infinite;
+}
+
+@keyframes neuralRotate {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Notification with holographic effect */
+.neural-notification {
+    position: fixed;
+    top: 2rem;
+    right: 2rem;
+    background: rgba(17, 24, 39, 0.95);
+    border: 1px solid var(--neural-primary);
+    border-radius: 12px;
+    padding: 1rem 1.5rem;
+    color: var(--text-primary);
+    backdrop-filter: blur(10px);
+    box-shadow: var(--glow-primary);
+    animation: notificationSlide 0.5s ease-out;
+    z-index: 1000;
+}
+
+@keyframes notificationSlide {
+    from { transform: translateX(120%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .sidebar { width: 240px; }
+    .search-bar { min-width: 300px; }
+    .floating-toolbar { bottom: 1rem; }
+}

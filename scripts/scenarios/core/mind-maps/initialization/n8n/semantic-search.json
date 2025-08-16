@@ -1,0 +1,287 @@
+{
+  "name": "mind-maps-semantic-search",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "mind-maps/search",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n  \"query\": \"knowledge management techniques\",\n  \"userId\": \"test-user\",\n  \"limit\": 10,\n  \"includePublic\": true,\n  \"searchMode\": \"semantic\"\n}",
+        "options": {}
+      },
+      "id": "provide-defaults",
+      "name": "Provide Defaults",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [450, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge webhook or manual input\nconst input = $input.all()[0].json;\n\n// Extract search parameters\nconst query = input.query || '';\nconst userId = input.userId || 'anonymous';\nconst limit = input.limit || 10;\nconst includePublic = input.includePublic !== undefined ? input.includePublic : true;\nconst searchMode = input.searchMode || 'semantic';\nconst filters = input.filters || {};\n\nif (!query) {\n  throw new Error('Search query is required');\n}\n\nreturn {\n  query,\n  userId,\n  limit,\n  includePublic,\n  searchMode,\n  filters\n};"
+      },
+      "id": "merge-inputs",
+      "name": "Merge Inputs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.searchMode }}",
+              "value2": "semantic"
+            }
+          ]
+        }
+      },
+      "id": "check-mode",
+      "name": "Check Search Mode",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:5678/webhook/smart-semantic-search",
+        "authentication": "none",
+        "method": "POST",
+        "body": {
+          "query": "={{ $json.query }}",
+          "collection": "mind_maps",
+          "model": "nomic-embed-text",
+          "limit": "={{ $json.limit }}",
+          "filter": {
+            "$or": [
+              { "userId": "={{ $json.userId }}" },
+              { "isPublic": true }
+            ]
+          },
+          "includeDistance": true,
+          "includePayload": true
+        },
+        "options": {}
+      },
+      "id": "semantic-search",
+      "name": "Semantic Search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM mind_maps WHERE \n  (user_id = $1 OR is_public = true) AND\n  (title ILIKE $2 OR description ILIKE $2 OR $2 = ANY(tags))\nORDER BY updated_at DESC\nLIMIT $3;",
+        "options": {
+          "queryParams": "={{ $json.userId }}, %{{ $json.query }}%, {{ $json.limit }}"
+        }
+      },
+      "id": "keyword-search",
+      "name": "Keyword Search",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1050, 500],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-default",
+          "name": "PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get search results from either semantic or keyword search\nconst results = $input.all()[0].json;\n\n// Process and enrich results\nlet processedResults = [];\n\nif (results.results) {\n  // Semantic search results\n  processedResults = results.results.map(r => ({\n    id: r.payload.mapId,\n    title: r.payload.title,\n    userId: r.payload.userId,\n    tags: r.payload.tags,\n    score: r.score || r.distance,\n    type: 'semantic',\n    createdAt: r.payload.createdAt\n  }));\n} else if (Array.isArray(results)) {\n  // Keyword search results\n  processedResults = results.map(r => ({\n    id: r.id,\n    title: r.title,\n    description: r.description,\n    userId: r.user_id,\n    tags: r.tags,\n    score: 1.0,\n    type: 'keyword',\n    data: r.data,\n    createdAt: r.created_at\n  }));\n}\n\nreturn {\n  success: true,\n  query: $('merge-inputs').item.json.query,\n  searchMode: $('merge-inputs').item.json.searchMode,\n  resultCount: processedResults.length,\n  results: processedResults\n};"
+      },
+      "id": "process-results",
+      "name": "Process Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 400]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:5678/webhook/ollama",
+        "authentication": "none",
+        "method": "POST",
+        "body": {
+          "model": "llama3.2",
+          "prompt": "Based on these search results for the query '{{ $('merge-inputs').item.json.query }}', provide a brief summary of the most relevant mind maps found:\n\n{{ JSON.stringify($json.results) }}\n\nSummary (2-3 sentences):",
+          "temperature": 0.3,
+          "max_tokens": 150
+        },
+        "options": {}
+      },
+      "id": "generate-summary",
+      "name": "Generate Summary",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1450, 400]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n  \"success\": {{ $('process-results').item.json.success }},\n  \"query\": \"{{ $('process-results').item.json.query }}\",\n  \"searchMode\": \"{{ $('process-results').item.json.searchMode }}\",\n  \"resultCount\": {{ $('process-results').item.json.resultCount }},\n  \"summary\": \"{{ $json.response }}\",\n  \"results\": {{ JSON.stringify($('process-results').item.json.results) }}\n}",
+        "options": {}
+      },
+      "id": "format-response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [1650, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1850, 300]
+    }
+  ],
+  "connections": {
+    "webhook-trigger": {
+      "main": [
+        [
+          {
+            "node": "merge-inputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "manual-trigger": {
+      "main": [
+        [
+          {
+            "node": "provide-defaults",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "provide-defaults": {
+      "main": [
+        [
+          {
+            "node": "merge-inputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "merge-inputs": {
+      "main": [
+        [
+          {
+            "node": "check-mode",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check-mode": {
+      "main": [
+        [
+          {
+            "node": "semantic-search",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "keyword-search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "semantic-search": {
+      "main": [
+        [
+          {
+            "node": "process-results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "keyword-search": {
+      "main": [
+        [
+          {
+            "node": "process-results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "process-results": {
+      "main": [
+        [
+          {
+            "node": "generate-summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "generate-summary": {
+      "main": [
+        [
+          {
+            "node": "format-response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "format-response": {
+      "main": [
+        [
+          {
+            "node": "respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {},
+  "id": "mind-maps-semantic-search"
+}

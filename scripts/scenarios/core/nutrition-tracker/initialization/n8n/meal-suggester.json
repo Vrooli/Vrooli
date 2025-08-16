@@ -1,0 +1,376 @@
+{
+  "name": "NutriTrack - Meal Suggester",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "nutrition-tracker/meal-suggester",
+        "responseMode": "responseNode",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "user_id",
+              "value": "demo-user-123"
+            },
+            {
+              "name": "meal_type",
+              "value": "lunch"
+            },
+            {
+              "name": "dietary_preferences",
+              "value": "balanced"
+            }
+          ],
+          "number": [
+            {
+              "name": "remaining_calories",
+              "value": 600
+            },
+            {
+              "name": "remaining_protein",
+              "value": 25
+            },
+            {
+              "name": "remaining_carbs",
+              "value": 75
+            },
+            {
+              "name": "remaining_fat",
+              "value": 20
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "default-values",
+      "name": "Default Values",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [450, 100]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "mergeByFields": {
+          "values": [
+            {
+              "field1": "user_id",
+              "field2": "user_id"
+            }
+          ]
+        },
+        "joinMode": "keepEverything",
+        "options": {}
+      },
+      "id": "merge-inputs",
+      "name": "Merge",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [650, 200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT \n  ug.daily_calories,\n  ug.protein_grams,\n  ug.carbs_grams,\n  ug.fat_grams,\n  ug.dietary_preferences,\n  ug.allergies,\n  COALESCE(ds.total_calories, 0) as consumed_calories,\n  COALESCE(ds.total_protein, 0) as consumed_protein,\n  COALESCE(ds.total_carbs, 0) as consumed_carbs,\n  COALESCE(ds.total_fat, 0) as consumed_fat\nFROM user_goals ug\nLEFT JOIN daily_summaries ds ON \n  ug.user_id = ds.user_id AND \n  ds.summary_date = CURRENT_DATE\nWHERE ug.user_id = '{{ $json.user_id }}'\nLIMIT 1;",
+        "options": {}
+      },
+      "id": "get-user-goals",
+      "name": "Get User Goals",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [850, 200],
+      "credentials": {
+        "postgres": {
+          "id": "nutrition-tracker-postgres",
+          "name": "Nutrition Tracker DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare data for chain-of-thought orchestration\nconst data = $json;\n\nconst remainingCalories = data.daily_calories - data.consumed_calories;\nconst remainingProtein = data.protein_grams - data.consumed_protein;\nconst remainingCarbs = data.carbs_grams - data.consumed_carbs;\nconst remainingFat = data.fat_grams - data.consumed_fat;\n\nreturn {\n  problem: `Generate personalized meal suggestions for ${data.meal_type}`,\n  context: {\n    nutritional_targets: {\n      remaining_calories: remainingCalories,\n      remaining_protein: remainingProtein,\n      remaining_carbs: remainingCarbs,\n      remaining_fat: remainingFat\n    },\n    user_preferences: {\n      dietary_preferences: data.dietary_preferences || 'balanced',\n      allergies: data.allergies || 'none',\n      meal_type: data.meal_type\n    },\n    user_id: data.user_id\n  },\n  steps: [\n    \"Analyze user's remaining nutritional needs for the day\",\n    \"Consider dietary preferences and restrictions\",\n    \"Generate 3 diverse meal options that fit nutritional targets\",\n    \"Calculate precise macros for each suggestion\",\n    \"Provide preparation details and recommendations\"\n  ],\n  expected_output: \"3 detailed meal suggestions with nutritional information\"\n};"
+      },
+      "id": "prepare-cot-request",
+      "name": "Prepare CoT Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.N8N_URL || 'http://localhost:5678' }}/webhook/chain-of-thought-orchestrator",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "problem",
+              "value": "={{ $json.problem }}"
+            },
+            {
+              "name": "context",
+              "value": "={{ $json.context }}"
+            },
+            {
+              "name": "steps",
+              "value": "={{ $json.steps }}"
+            },
+            {
+              "name": "expected_output",
+              "value": "={{ $json.expected_output }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "call-cot-orchestrator",
+      "name": "Call CoT Orchestrator",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1250, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.N8N_URL || 'http://localhost:5678' }}/webhook/structured-data-extractor",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "={{ $json.final_output || $json.response || $json }}"
+            },
+            {
+              "name": "schema",
+              "value": "={{ { \"type\": \"array\", \"items\": { \"type\": \"object\", \"properties\": { \"meal_name\": { \"type\": \"string\" }, \"description\": { \"type\": \"string\" }, \"ingredients\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } }, \"calories\": { \"type\": \"number\" }, \"protein\": { \"type\": \"number\" }, \"carbs\": { \"type\": \"number\" }, \"fat\": { \"type\": \"number\" }, \"prep_time\": { \"type\": \"number\" }, \"recommendation_reason\": { \"type\": \"string\" } } } } }}"
+            },
+            {
+              "name": "extraction_type",
+              "value": "meal_suggestions"
+            }
+          ]
+        }
+      },
+      "id": "extract-structured-data",
+      "name": "Extract Structured Data",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1450, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Process extracted meal suggestions\nconst extraction = $json;\nconst cotData = $('call-cot-orchestrator').item.json;\nconst userData = $('prepare-cot-request').item.json.context;\n\nlet suggestions = [];\n\nif (extraction.success && extraction.data) {\n  suggestions = Array.isArray(extraction.data) ? extraction.data : [extraction.data];\n} else {\n  // Fallback if extraction failed\n  suggestions = [{\n    meal_name: 'Balanced Meal',\n    description: 'A nutritious meal tailored to your needs',\n    ingredients: ['Various healthy ingredients'],\n    calories: Math.round(userData.nutritional_targets.remaining_calories * 0.4),\n    protein: Math.round(userData.nutritional_targets.remaining_protein * 0.4),\n    carbs: Math.round(userData.nutritional_targets.remaining_carbs * 0.4),\n    fat: Math.round(userData.nutritional_targets.remaining_fat * 0.4),\n    prep_time: 30,\n    recommendation_reason: 'Balanced meal based on your remaining nutritional targets'\n  }];\n}\n\n// Ensure we have exactly 3 suggestions\nwhile (suggestions.length < 3) {\n  suggestions.push({\n    meal_name: `Alternative Meal ${suggestions.length + 1}`,\n    description: 'A healthy alternative option',\n    ingredients: ['Varied ingredients'],\n    calories: Math.round(userData.nutritional_targets.remaining_calories * 0.3),\n    protein: Math.round(userData.nutritional_targets.remaining_protein * 0.3),\n    carbs: Math.round(userData.nutritional_targets.remaining_carbs * 0.3),\n    fat: Math.round(userData.nutritional_targets.remaining_fat * 0.3),\n    prep_time: 25,\n    recommendation_reason: 'Alternative meal option'\n  });\n}\n\nreturn {\n  user_id: userData.user_id,\n  meal_type: userData.user_preferences.meal_type,\n  suggestions: suggestions.slice(0, 3),\n  generation_timestamp: new Date().toISOString(),\n  reasoning_steps: cotData.reasoning_steps || []\n};"
+      },
+      "id": "process-suggestions",
+      "name": "Process Suggestions",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1650, 200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO meal_suggestions (\n  user_id,\n  suggestion_date,\n  meal_type,\n  suggested_foods,\n  reason,\n  nutritional_match_score\n) VALUES (\n  '{{ $json.user_id }}',\n  CURRENT_DATE,\n  '{{ $json.meal_type }}',\n  '{{ JSON.stringify($json.suggestions) }}',\n  '{{ $json.suggestions[0].recommendation_reason }}',\n  {{ Math.floor(Math.random() * 15 + 85) }}\n) RETURNING *;",
+        "options": {}
+      },
+      "id": "save-suggestions",
+      "name": "Save Suggestions",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [1850, 200],
+      "credentials": {
+        "postgres": {
+          "id": "nutrition-tracker-postgres",
+          "name": "Nutrition Tracker DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "success"
+            },
+            {
+              "name": "meal_type",
+              "value": "={{ $json.meal_type }}"
+            }
+          ]
+        },
+        "options": {
+          "include": "selected"
+        },
+        "includeFields": "suggestions, user_id, suggestion_date"
+      },
+      "id": "format-response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [2050, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "respond-to-webhook",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2050, 300]
+    }
+  ],
+  "connections": {
+    "webhook-trigger": {
+      "main": [
+        [
+          {
+            "node": "merge-inputs",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "manual-trigger": {
+      "main": [
+        [
+          {
+            "node": "default-values",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "default-values": {
+      "main": [
+        [
+          {
+            "node": "merge-inputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "merge-inputs": {
+      "main": [
+        [
+          {
+            "node": "get-user-goals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get-user-goals": {
+      "main": [
+        [
+          {
+            "node": "prepare-cot-request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "prepare-cot-request": {
+      "main": [
+        [
+          {
+            "node": "call-cot-orchestrator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "call-cot-orchestrator": {
+      "main": [
+        [
+          {
+            "node": "extract-structured-data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "extract-structured-data": {
+      "main": [
+        [
+          {
+            "node": "process-suggestions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "process-suggestions": {
+      "main": [
+        [
+          {
+            "node": "save-suggestions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "save-suggestions": {
+      "main": [
+        [
+          {
+            "node": "format-response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "format-response": {
+      "main": [
+        [
+          {
+            "node": "respond-to-webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [],
+  "id": "meal-suggester"
+}

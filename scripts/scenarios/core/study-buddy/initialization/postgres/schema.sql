@@ -26,15 +26,16 @@ CREATE TABLE IF NOT EXISTS subjects (
 
 -- Study materials table
 CREATE TABLE IF NOT EXISTS study_materials (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-    subject_id UUID REFERENCES subjects(id) ON DELETE CASCADE,
-    title VARCHAR(255) NOT NULL,
-    content TEXT NOT NULL,
+    id VARCHAR(255) PRIMARY KEY,
+    user_id VARCHAR(255) NOT NULL,
+    subject_id VARCHAR(255) NOT NULL,
+    chapter_name VARCHAR(255),
     material_type VARCHAR(50) DEFAULT 'note',
+    processing_summary JSONB DEFAULT '{}',
+    vector_collection VARCHAR(255),
+    chunk_count INTEGER DEFAULT 0,
     tags TEXT[],
     metadata JSONB DEFAULT '{}',
-    embedding_id VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -195,6 +196,24 @@ CREATE TABLE IF NOT EXISTS achievements (
     metadata JSONB DEFAULT '{}'
 );
 
+-- Pomodoro sessions table for tracking focus sessions
+CREATE TABLE IF NOT EXISTS pomodoro_sessions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    subject_id UUID REFERENCES subjects(id) ON DELETE CASCADE,
+    session_type VARCHAR(50) NOT NULL, -- study, short_break, long_break
+    duration_minutes INTEGER NOT NULL,
+    topic VARCHAR(255),
+    energy_level INTEGER CHECK (energy_level BETWEEN 1 AND 10),
+    started_at TIMESTAMP NOT NULL,
+    completed_at TIMESTAMP,
+    status VARCHAR(50) DEFAULT 'active', -- active, completed, paused, abandoned
+    productivity_rating INTEGER CHECK (productivity_rating BETWEEN 1 AND 5),
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, subject_id, started_at)
+);
+
 -- Create indexes for better performance
 CREATE INDEX idx_study_materials_user_subject ON study_materials(user_id, subject_id);
 CREATE INDEX idx_flashcards_user_subject ON flashcards(user_id, subject_id);
@@ -207,6 +226,8 @@ CREATE INDEX idx_flashcard_reviews_user_date ON flashcard_reviews(user_id, revie
 CREATE INDEX idx_quizzes_user_subject ON quizzes(user_id, subject_id);
 CREATE INDEX idx_study_plans_user_status ON study_plans(user_id, status);
 CREATE INDEX idx_study_plans_deadline ON study_plans(deadline);
+CREATE INDEX idx_pomodoro_sessions_user_date ON pomodoro_sessions(user_id, started_at);
+CREATE INDEX idx_pomodoro_sessions_status ON pomodoro_sessions(status, user_id);
 
 -- Create update timestamp trigger
 CREATE OR REPLACE FUNCTION update_updated_at_column()

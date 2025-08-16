@@ -1,0 +1,216 @@
+{
+  "version": "1.0.0",
+  "service": {
+    "parent": "vrooli",
+    "name": "mind-maps",
+    "displayName": "Mind Maps",
+    "description": "AI-enabled mind mapping tool for visual organization and semantic search of ideas and knowledge",
+    "version": "1.0.0",
+    "type": "knowledge-management",
+    "category": "productivity",
+    "tags": [
+      "mind-maps",
+      "knowledge-management",
+      "visualization",
+      "semantic-search",
+      "ai-organization",
+      "collaboration",
+      "javascript-ui",
+      "neural-network"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "SERVICE_PORT",
+      "range": "8700-8799",
+      "fallback": "auto",
+      "description": "Mind Maps API port"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "range": "3700-3799",
+      "fallback": "auto",
+      "description": "Mind Maps UI port"
+    }
+  },
+  "resources": {
+    "automation": {
+      "n8n": {
+        "type": "n8n",
+        "enabled": true,
+        "required": true,
+        "shared_workflows": [
+          "ollama",
+          "embedding-generator",
+          "chain-of-thought-orchestrator",
+          "structured-data-extractor",
+          "universal-rag-pipeline"
+        ],
+        "initialization": [
+          {
+            "file": "initialization/n8n/create-mindmap.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/update-mindmap.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/semantic-search.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/auto-organize.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/auto-organize-enhanced.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/auto-organize-advanced.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/intelligent-mindmap-builder.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/export-mindmap.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/collaborative-sharing.json",
+            "type": "workflow"
+          }
+        ]
+      }
+    },
+    "storage": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store mind maps, nodes, connections, campaigns, and collaboration data",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "schema"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": true,
+        "purpose": "Cache mind map sessions, real-time collaboration, and search results"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store and search vector embeddings of mind map nodes for semantic retrieval",
+        "initialization": [
+          {
+            "file": "initialization/qdrant/collections.json",
+            "type": "collections"
+          }
+        ]
+      }
+    }
+  },
+  "lifecycle": {
+    "version": "1.0.0",
+    "setup": {
+      "description": "Initialize Mind Maps",
+      "steps": [
+        {
+          "name": "base-setup",
+          "run": "bash scripts/lib/setup.sh",
+          "description": "Execute generic setup"
+        },
+        {
+          "name": "add-data",
+          "run": "scripts/resources/injection/engine.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && chmod +x mind-maps && sudo ln -sf $(pwd)/mind-maps /usr/local/bin/mind-maps",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o mind-maps-api main.go",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "setup-ui",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo 'Mind Maps initialized - UI: http://localhost:${UI_PORT} - API: http://localhost:${SERVICE_PORT}'",
+          "description": "Display service URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start Mind Maps services",
+      "steps": [
+        {
+          "name": "start-api-server",
+          "run": "cd api && PORT=$SERVICE_PORT N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} POSTGRES_URL=postgres://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/mind_maps REDIS_URL=redis://localhost:${RESOURCE_PORTS[redis]} QDRANT_URL=http://localhost:${RESOURCE_PORTS[qdrant]} ./mind-maps-api &",
+          "description": "Start API server",
+          "background": true,
+          "condition": {
+            "file_exists": "api/mind-maps-api"
+          }
+        },
+        {
+          "name": "start-ui-server",
+          "run": "cd ui && PORT=$UI_PORT API_URL=http://localhost:$SERVICE_PORT npm start &",
+          "description": "Start UI server",
+          "background": true
+        },
+        {
+          "name": "wait-for-services",
+          "run": "sleep 3",
+          "description": "Wait for services to start"
+        },
+        {
+          "name": "show-running",
+          "run": "echo 'Mind Maps running - UI: http://localhost:${UI_PORT} - API: http://localhost:${SERVICE_PORT}'",
+          "description": "Display running services"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test Mind Maps services",
+      "steps": [
+        {
+          "name": "test-api",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/health",
+          "description": "Test API health"
+        },
+        {
+          "name": "test-mindmaps",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/api/mindmaps",
+          "description": "Test mindmaps endpoint"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop Mind Maps services",
+      "steps": [
+        {
+          "name": "stop-services",
+          "run": "pkill -f 'mind-maps-api' || true; pkill -f 'npm.*mind-maps' || true",
+          "description": "Stop all services"
+        }
+      ]
+    }
+  }
+}
+ENDFILE < /dev/null

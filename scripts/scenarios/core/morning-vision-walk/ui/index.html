@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Morning Vision Walk - AI Companion for Daily Planning</title>
+    <link href="https://fonts.googleapis.com/css2?family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Ambient Background -->
+        <div class="ambient-bg">
+            <div class="gradient-orb orb-1"></div>
+            <div class="gradient-orb orb-2"></div>
+            <div class="gradient-orb orb-3"></div>
+        </div>
+
+        <!-- Main Header -->
+        <header class="main-header">
+            <div class="header-content">
+                <div class="logo-section">
+                    <svg class="logo-icon" viewBox="0 0 48 48" fill="none">
+                        <circle cx="24" cy="12" r="8" fill="url(#sun-gradient)" opacity="0.9"/>
+                        <path d="M4 36C4 36 8 28 24 28C40 28 44 36 44 36" stroke="url(#path-gradient)" stroke-width="2" stroke-linecap="round"/>
+                        <path d="M16 20L16 24M24 20L24 24M32 20L32 24" stroke="url(#ray-gradient)" stroke-width="1.5" stroke-linecap="round" opacity="0.6"/>
+                        <defs>
+                            <linearGradient id="sun-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" style="stop-color:#FFB347"/>
+                                <stop offset="100%" style="stop-color:#FF6B6B"/>
+                            </linearGradient>
+                            <linearGradient id="path-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" style="stop-color:#667EEA"/>
+                                <stop offset="100%" style="stop-color:#764BA2"/>
+                            </linearGradient>
+                            <linearGradient id="ray-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                                <stop offset="0%" style="stop-color:#FFD93D"/>
+                                <stop offset="100%" style="stop-color:#FFB347"/>
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                    <h1 class="app-title">Morning Vision Walk</h1>
+                </div>
+                <div class="header-stats">
+                    <div class="stat-item">
+                        <span class="stat-value" id="currentTime">7:30 AM</span>
+                        <span class="stat-label">Current Time</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="sessionDuration">0:00</span>
+                        <span class="stat-label">Session</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="insightCount">0</span>
+                        <span class="stat-label">Insights Today</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Conversation Area -->
+            <section class="conversation-section">
+                <div class="conversation-container">
+                    <div class="conversation-messages" id="conversationMessages">
+                        <!-- Welcome Message -->
+                        <div class="message ai-message welcome-message">
+                            <div class="message-avatar">
+                                <svg viewBox="0 0 32 32" fill="none">
+                                    <circle cx="16" cy="16" r="14" fill="url(#ai-gradient)"/>
+                                    <path d="M16 10L16 22M10 16L22 16" stroke="white" stroke-width="2" stroke-linecap="round"/>
+                                    <defs>
+                                        <linearGradient id="ai-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                            <stop offset="0%" style="stop-color:#667EEA"/>
+                                            <stop offset="100%" style="stop-color:#764BA2"/>
+                                        </linearGradient>
+                                    </defs>
+                                </svg>
+                            </div>
+                            <div class="message-content">
+                                <p>Good morning! Ready for our vision walk? Let's explore what's on your mind about Vrooli today. I'm here to help you brainstorm, plan, and understand the current state of your projects.</p>
+                                <div class="suggested-topics">
+                                    <button class="topic-chip" data-topic="daily-priorities">Today's Priorities</button>
+                                    <button class="topic-chip" data-topic="scenario-review">Scenario Status</button>
+                                    <button class="topic-chip" data-topic="creative-ideas">New Ideas</button>
+                                    <button class="topic-chip" data-topic="challenges">Current Challenges</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Input Area -->
+                    <div class="input-area">
+                        <div class="input-controls">
+                            <button class="voice-btn" id="voiceBtn" title="Hold to speak">
+                                <svg viewBox="0 0 24 24" fill="none">
+                                    <path d="M12 1C10.34 1 9 2.34 9 4V12C9 13.66 10.34 15 12 15C13.66 15 15 13.66 15 12V4C15 2.34 13.66 1 12 1Z" fill="currentColor"/>
+                                    <path d="M17 12C17 14.76 14.76 17 12 17C9.24 17 7 14.76 7 12H5C5 15.53 7.61 18.47 11 18.93V23H13V18.93C16.39 18.47 19 15.53 19 12H17Z" fill="currentColor"/>
+                                </svg>
+                                <span class="voice-status">Hold to speak</span>
+                            </button>
+                            <textarea 
+                                class="text-input" 
+                                id="textInput" 
+                                placeholder="Share your thoughts... What's on your mind about Vrooli today?"
+                                rows="1"
+                            ></textarea>
+                            <button class="send-btn" id="sendBtn" title="Send message">
+                                <svg viewBox="0 0 24 24" fill="none">
+                                    <path d="M2 21L23 12L2 3V10L17 12L2 14V21Z" fill="currentColor"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="input-hints">
+                            <span class="hint" id="activeMode">🎯 Focus Mode</span>
+                            <span class="hint">Press Space for voice • Enter to send</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Side Panel -->
+            <aside class="side-panel">
+                <!-- Today's Vision -->
+                <div class="panel-section vision-section">
+                    <h2 class="section-title">
+                        <svg class="section-icon" viewBox="0 0 24 24" fill="none">
+                            <path d="M12 4.5C7 4.5 2.73 7.61 1 12C2.73 16.39 7 19.5 12 19.5C17 19.5 21.27 16.39 23 12C21.27 7.61 17 4.5 12 4.5ZM12 17C9.24 17 7 14.76 7 12C7 9.24 9.24 7 12 7C14.76 7 17 9.24 17 12C17 14.76 14.76 17 12 17ZM12 9C10.34 9 9 10.34 9 12C9 13.66 10.34 15 12 15C13.66 15 15 13.66 15 12C15 10.34 13.66 9 12 9Z" fill="currentColor"/>
+                        </svg>
+                        Today's Vision
+                    </h2>
+                    <div class="vision-content" id="visionContent">
+                        <p class="vision-placeholder">Your daily vision will emerge as we talk...</p>
+                    </div>
+                </div>
+
+                <!-- Key Insights -->
+                <div class="panel-section insights-section">
+                    <h2 class="section-title">
+                        <svg class="section-icon" viewBox="0 0 24 24" fill="none">
+                            <path d="M9 21C9 21.55 9.45 22 10 22H14C14.55 22 15 21.55 15 21V20H9V21ZM12 2C8.14 2 5 5.14 5 9C5 11.38 6.19 13.47 8 14.74V17C8 17.55 8.45 18 9 18H15C15.55 18 16 17.55 16 17V14.74C17.81 13.47 19 11.38 19 9C19 5.14 15.86 2 12 2Z" fill="currentColor"/>
+                        </svg>
+                        Key Insights
+                    </h2>
+                    <div class="insights-list" id="insightsList">
+                        <!-- Insights will be added here -->
+                    </div>
+                </div>
+
+                <!-- Action Items -->
+                <div class="panel-section actions-section">
+                    <h2 class="section-title">
+                        <svg class="section-icon" viewBox="0 0 24 24" fill="none">
+                            <path d="M9 16.17L4.83 12L3.41 13.41L9 19L21 7L19.59 5.59L9 16.17Z" fill="currentColor"/>
+                        </svg>
+                        Action Items
+                    </h2>
+                    <div class="actions-list" id="actionsList">
+                        <!-- Actions will be added here -->
+                    </div>
+                </div>
+
+                <!-- Energy & Mood -->
+                <div class="panel-section mood-section">
+                    <h2 class="section-title">
+                        <svg class="section-icon" viewBox="0 0 24 24" fill="none">
+                            <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM8.5 8C9.33 8 10 8.67 10 9.5C10 10.33 9.33 11 8.5 11C7.67 11 7 10.33 7 9.5C7 8.67 7.67 8 8.5 8ZM15.5 8C16.33 8 17 8.67 17 9.5C17 10.33 16.33 11 15.5 11C14.67 11 14 10.33 14 9.5C14 8.67 14.67 8 15.5 8ZM12 17.5C9.67 17.5 7.69 16.04 6.89 14H17.11C16.31 16.04 14.33 17.5 12 17.5Z" fill="currentColor"/>
+                        </svg>
+                        Energy & Mood
+                    </h2>
+                    <div class="mood-tracker">
+                        <div class="energy-meter">
+                            <label>Energy Level</label>
+                            <div class="meter-bar">
+                                <div class="meter-fill" id="energyFill" style="width: 70%"></div>
+                            </div>
+                        </div>
+                        <div class="mood-selector">
+                            <button class="mood-btn" data-mood="energized">⚡ Energized</button>
+                            <button class="mood-btn active" data-mood="focused">🎯 Focused</button>
+                            <button class="mood-btn" data-mood="creative">🎨 Creative</button>
+                            <button class="mood-btn" data-mood="reflective">🤔 Reflective</button>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+        </main>
+
+        <!-- Quick Actions Bar -->
+        <div class="quick-actions">
+            <button class="quick-action-btn" id="endSessionBtn">
+                <svg viewBox="0 0 24 24" fill="none">
+                    <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM10 17L5 12L6.41 10.59L10 14.17L17.59 6.58L19 8L10 17Z" fill="currentColor"/>
+                </svg>
+                End Session
+            </button>
+            <button class="quick-action-btn" id="exportBtn">
+                <svg viewBox="0 0 24 24" fill="none">
+                    <path d="M19 9H15V3H9V9H5L12 16L19 9ZM5 18V20H19V18H5Z" fill="currentColor"/>
+                </svg>
+                Export Summary
+            </button>
+            <button class="quick-action-btn" id="integrationBtn">
+                <svg viewBox="0 0 24 24" fill="none">
+                    <path d="M8.5 13.5L2.5 7.5L8.5 1.5M15.5 1.5L21.5 7.5L15.5 13.5M3 7.5H21M3 16.5H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                Sync with Scenarios
+            </button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

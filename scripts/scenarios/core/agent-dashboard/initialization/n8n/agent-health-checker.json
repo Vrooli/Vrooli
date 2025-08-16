@@ -1,0 +1,377 @@
+{
+  "name": "Agent Health Checker",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      },
+      "id": "schedule_trigger",
+      "name": "Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "agent-dashboard/health-check",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 700]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge all trigger types and set defaults\nconst defaults = {\n  check_type: $json.check_type || 'comprehensive',  // comprehensive, quick, diagnostic\n  agents_to_check: $json.agents_to_check || 'all',  // all, active, specific list\n  include_diagnostics: $json.include_diagnostics !== false,\n  auto_remediation: $json.auto_remediation !== false,\n  alert_threshold: $json.alert_threshold || 'warning'  // info, warning, critical\n};\n\nreturn [{json: defaults}];"
+      },
+      "id": "prepare_check",
+      "name": "Prepare Health Check",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 500]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  a.name,\n  a.type,\n  a.status,\n  a.last_heartbeat,\n  a.metrics::jsonb as metrics,\n  a.resource_usage::jsonb as resource_usage,\n  a.error_count,\n  a.config::jsonb as config,\n  EXTRACT(EPOCH FROM (NOW() - a.last_heartbeat)) as seconds_since_heartbeat\nFROM agent_dashboard.agents a\nWHERE \n  CASE \n    WHEN '{{ $json.agents_to_check }}' = 'all' THEN true\n    WHEN '{{ $json.agents_to_check }}' = 'active' THEN a.status = 'active'\n    ELSE a.name = ANY(STRING_TO_ARRAY('{{ $json.agents_to_check }}', ','))\n  END\nORDER BY a.priority DESC, a.name",
+        "options": {}
+      },
+      "id": "get_agents",
+      "name": "Get Agent Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [650, 500],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-agent-dashboard",
+          "name": "Agent Dashboard DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const agents = items[0].json;\nconst checkConfig = $('prepare_check').first().json;\n\n// Prepare ReAct loop configuration for health checking\nconst healthCheckTask = {\n  task: `Perform ${checkConfig.check_type} health check on ${agents.length} agents and determine necessary actions.`,\n  \n  context: {\n    agents: agents.map(a => ({\n      name: a.name,\n      type: a.type,\n      status: a.status,\n      last_heartbeat: a.last_heartbeat,\n      seconds_offline: a.seconds_since_heartbeat || 0,\n      metrics: a.metrics || {},\n      resource_usage: a.resource_usage || {},\n      error_count: a.error_count || 0,\n      health_status: determineHealthStatus(a)\n    })),\n    check_type: checkConfig.check_type,\n    timestamp: new Date().toISOString()\n  },\n  \n  available_tools: [\n    {\n      name: 'check_agent_endpoint',\n      description: 'Ping agent health endpoint',\n      parameters: {agent_name: 'string', endpoint: 'string'}\n    },\n    {\n      name: 'analyze_logs',\n      description: 'Analyze agent logs for errors',\n      parameters: {agent_name: 'string', time_range: 'string'}\n    },\n    {\n      name: 'check_resource_usage',\n      description: 'Check CPU, memory, disk usage',\n      parameters: {agent_name: 'string'}\n    },\n    {\n      name: 'restart_agent',\n      description: 'Restart an unhealthy agent',\n      parameters: {agent_name: 'string', reason: 'string'}\n    },\n    {\n      name: 'scale_resources',\n      description: 'Adjust resource allocation',\n      parameters: {agent_name: 'string', cpu: 'number', memory: 'number'}\n    },\n    {\n      name: 'send_alert',\n      description: 'Send alert to administrators',\n      parameters: {severity: 'string', message: 'string', agent_name: 'string'}\n    }\n  ],\n  \n  success_criteria: [\n    'All critical agents are healthy or being remediated',\n    'No agent has been offline for more than 10 minutes',\n    'Resource usage is within acceptable limits',\n    'All necessary alerts have been sent'\n  ],\n  \n  max_iterations: checkConfig.check_type === 'comprehensive' ? 10 : 5,\n  model: 'llama3.2',\n  temperature: 0.3,\n  auto_execute_tools: checkConfig.auto_remediation\n};\n\nfunction determineHealthStatus(agent) {\n  const offlineThreshold = 300; // 5 minutes\n  const errorThreshold = 10;\n  const cpuThreshold = 90;\n  const memoryThreshold = 85;\n  \n  if (agent.seconds_since_heartbeat > offlineThreshold) {\n    return 'critical';\n  }\n  if (agent.error_count > errorThreshold) {\n    return 'warning';\n  }\n  if (agent.resource_usage?.cpu > cpuThreshold || agent.resource_usage?.memory > memoryThreshold) {\n    return 'warning';\n  }\n  if (agent.status !== 'active') {\n    return 'info';\n  }\n  return 'healthy';\n}\n\nreturn [{json: healthCheckTask}];"
+      },
+      "id": "prepare_react_task",
+      "name": "Prepare ReAct Task",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 500]
+    },
+    {
+      "parameters": {
+        "workflow": "={{ $fromAI('WORKFLOW_ID_react-loop-engine', 'string') }}",
+        "workflowData": "={{ JSON.stringify($json) }}",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "call_react_engine",
+      "name": "Call ReAct Loop Engine",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [1050, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "const reactResults = items[0].json;\nconst agents = $('get_agents').all()[0].json;\nconst checkConfig = $('prepare_check').first().json;\n\n// Parse ReAct engine results\nlet healthReport;\ntry {\n  const actions = reactResults.actions_taken || [];\n  const observations = reactResults.observations || [];\n  const finalThought = reactResults.final_thought || '';\n  \n  // Compile health status for each agent\n  const agentHealthStatus = agents.map(agent => {\n    const agentActions = actions.filter(a => \n      a.tool_input?.agent_name === agent.name\n    );\n    \n    const status = determineHealthStatus(agent);\n    const issues = [];\n    const remediations = [];\n    \n    // Check for issues\n    if (agent.seconds_since_heartbeat > 300) {\n      issues.push(`Offline for ${Math.round(agent.seconds_since_heartbeat / 60)} minutes`);\n    }\n    if (agent.error_count > 10) {\n      issues.push(`High error count: ${agent.error_count}`);\n    }\n    if (agent.resource_usage?.cpu > 90) {\n      issues.push(`High CPU usage: ${agent.resource_usage.cpu}%`);\n    }\n    if (agent.resource_usage?.memory > 85) {\n      issues.push(`High memory usage: ${agent.resource_usage.memory}%`);\n    }\n    \n    // Check what remediations were applied\n    agentActions.forEach(action => {\n      if (action.tool === 'restart_agent') {\n        remediations.push('Agent restarted');\n      }\n      if (action.tool === 'scale_resources') {\n        remediations.push('Resources scaled');\n      }\n    });\n    \n    return {\n      name: agent.name,\n      type: agent.type,\n      status: status,\n      operational: status === 'healthy' || status === 'info',\n      issues: issues,\n      remediations_applied: remediations,\n      last_check: new Date().toISOString(),\n      metrics: {\n        uptime_percentage: agent.seconds_since_heartbeat < 300 ? 100 : 0,\n        error_rate: agent.error_count || 0,\n        resource_efficiency: calculateEfficiency(agent.resource_usage)\n      }\n    };\n  });\n  \n  // Generate summary statistics\n  const totalAgents = agentHealthStatus.length;\n  const healthyAgents = agentHealthStatus.filter(a => a.status === 'healthy').length;\n  const warningAgents = agentHealthStatus.filter(a => a.status === 'warning').length;\n  const criticalAgents = agentHealthStatus.filter(a => a.status === 'critical').length;\n  \n  healthReport = {\n    check_id: crypto.randomUUID(),\n    timestamp: new Date().toISOString(),\n    check_type: checkConfig.check_type,\n    summary: {\n      total_agents: totalAgents,\n      healthy: healthyAgents,\n      warning: warningAgents,\n      critical: criticalAgents,\n      health_score: Math.round((healthyAgents / totalAgents) * 100),\n      all_operational: criticalAgents === 0\n    },\n    agent_status: agentHealthStatus,\n    actions_taken: actions.map(a => ({\n      tool: a.tool,\n      target: a.tool_input?.agent_name,\n      result: a.observation,\n      timestamp: a.timestamp\n    })),\n    recommendations: generateRecommendations(agentHealthStatus, finalThought),\n    next_check: new Date(Date.now() + 5 * 60 * 1000).toISOString()\n  };\n  \n} catch (e) {\n  console.error('Parse error:', e);\n  healthReport = {\n    check_id: crypto.randomUUID(),\n    timestamp: new Date().toISOString(),\n    error: e.message,\n    summary: {\n      health_score: 0,\n      all_operational: false\n    }\n  };\n}\n\nfunction determineHealthStatus(agent) {\n  const offlineThreshold = 300; // 5 minutes\n  const errorThreshold = 10;\n  const cpuThreshold = 90;\n  const memoryThreshold = 85;\n  \n  if (agent.seconds_since_heartbeat > offlineThreshold) {\n    return 'critical';\n  }\n  if (agent.error_count > errorThreshold) {\n    return 'warning';\n  }\n  if (agent.resource_usage?.cpu > cpuThreshold || agent.resource_usage?.memory > memoryThreshold) {\n    return 'warning';\n  }\n  if (agent.status !== 'active') {\n    return 'info';\n  }\n  return 'healthy';\n}\n\nfunction calculateEfficiency(resourceUsage) {\n  if (!resourceUsage) return 100;\n  const cpu = resourceUsage.cpu || 0;\n  const memory = resourceUsage.memory || 0;\n  // Efficiency is inverse of resource usage\n  return Math.round(100 - ((cpu + memory) / 2));\n}\n\nfunction generateRecommendations(agentStatus, aiThought) {\n  const recommendations = [];\n  \n  const criticalAgents = agentStatus.filter(a => a.status === 'critical');\n  if (criticalAgents.length > 0) {\n    recommendations.push({\n      priority: 'high',\n      action: 'Investigate critical agents',\n      agents: criticalAgents.map(a => a.name),\n      reason: 'Agents are offline or unresponsive'\n    });\n  }\n  \n  const highResourceAgents = agentStatus.filter(a => \n    a.metrics.resource_efficiency < 30\n  );\n  if (highResourceAgents.length > 0) {\n    recommendations.push({\n      priority: 'medium',\n      action: 'Optimize resource allocation',\n      agents: highResourceAgents.map(a => a.name),\n      reason: 'High resource consumption detected'\n    });\n  }\n  \n  const errorProneAgents = agentStatus.filter(a => \n    a.metrics.error_rate > 10\n  );\n  if (errorProneAgents.length > 0) {\n    recommendations.push({\n      priority: 'medium',\n      action: 'Review error logs',\n      agents: errorProneAgents.map(a => a.name),\n      reason: 'Elevated error rates detected'\n    });\n  }\n  \n  // Add AI-generated recommendations if available\n  if (aiThought && aiThought.includes('recommend')) {\n    recommendations.push({\n      priority: 'low',\n      action: 'AI Recommendation',\n      details: aiThought,\n      reason: 'Based on comprehensive analysis'\n    });\n  }\n  \n  return recommendations;\n}\n\nreturn [{json: healthReport}];"
+      },
+      "id": "compile_health_report",
+      "name": "Compile Health Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 500]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO agent_dashboard.health_checks \n  (id, check_type, summary, agent_status, actions_taken, recommendations, created_at) \nVALUES \n  ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP) \nRETURNING id",
+        "additionalFields": {
+          "queryParams": "={{ $json.check_id }},={{ $json.check_type }},={{ JSON.stringify($json.summary) }},={{ JSON.stringify($json.agent_status) }},={{ JSON.stringify($json.actions_taken) }},={{ JSON.stringify($json.recommendations) }}"
+        },
+        "options": {}
+      },
+      "id": "log_health_check",
+      "name": "Log Health Check",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1450, 500],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-agent-dashboard",
+          "name": "Agent Dashboard DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.summary.health_score }}",
+              "rightValue": 50,
+              "operator": {
+                "type": "number",
+                "operation": "lt"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "id": "check_alert_needed",
+      "name": "Alert Needed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1650, 500]
+    },
+    {
+      "parameters": {
+        "workflow": "={{ $fromAI('WORKFLOW_ID_smart-notification-router', 'string') }}",
+        "workflowData": "={{ JSON.stringify({\n  notification: {\n    type: 'health_alert',\n    priority: $json.summary.critical > 0 ? 'critical' : 'warning',\n    title: `Agent Health Alert: ${$json.summary.critical} critical, ${$json.summary.warning} warning`,\n    message: `Health check detected issues. Score: ${$json.summary.health_score}%`,\n    details: {\n      check_id: $json.check_id,\n      summary: $json.summary,\n      critical_agents: $json.agent_status.filter(a => a.status === 'critical'),\n      recommendations: $json.recommendations\n    },\n    channels: ['dashboard', 'slack', 'pagerduty'],\n    recipients: ['ops-team', 'on-call']\n  }\n}) }}",
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      },
+      "id": "send_alert",
+      "name": "Send Alert",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [1850, 400]
+    },
+    {
+      "parameters": {
+        "resource": "database",
+        "operation": "set",
+        "key": "agent_health:latest",
+        "value": "={{ JSON.stringify($json) }}",
+        "keyType": "automatic",
+        "expire": true,
+        "ttl": 600,
+        "options": {}
+      },
+      "id": "cache_health_status",
+      "name": "Cache Health Status",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [1850, 600],
+      "credentials": {
+        "redis": {
+          "id": "redis-agent-dashboard",
+          "name": "Agent Dashboard Redis"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const healthReport = $('compile_health_report').first().json;\nconst alertSent = $('send_alert').first()?.json?.success || false;\n\nreturn [{\n  json: {\n    success: true,\n    check_id: healthReport.check_id,\n    message: `Health check completed: ${healthReport.summary.healthy} healthy, ${healthReport.summary.warning} warning, ${healthReport.summary.critical} critical agents`,\n    health_score: healthReport.summary.health_score,\n    all_operational: healthReport.summary.all_operational,\n    alert_sent: alertSent,\n    summary: healthReport.summary,\n    recommendations: healthReport.recommendations.slice(0, 3),\n    next_check: healthReport.next_check,\n    dashboard_url: `/dashboard/health/${healthReport.check_id}`,\n    timestamp: healthReport.timestamp\n  }\n}];"
+      },
+      "id": "format_response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2050, 500]
+    },
+    {
+      "parameters": {},
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2250, 500]
+    }
+  ],
+  "connections": {
+    "Schedule": {
+      "main": [
+        [
+          {
+            "node": "Prepare Health Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Prepare Health Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Prepare Health Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Health Check": {
+      "main": [
+        [
+          {
+            "node": "Get Agent Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Agent Status": {
+      "main": [
+        [
+          {
+            "node": "Prepare ReAct Task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare ReAct Task": {
+      "main": [
+        [
+          {
+            "node": "Call ReAct Loop Engine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call ReAct Loop Engine": {
+      "main": [
+        [
+          {
+            "node": "Compile Health Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compile Health Report": {
+      "main": [
+        [
+          {
+            "node": "Log Health Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Health Check": {
+      "main": [
+        [
+          {
+            "node": "Alert Needed?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Cache Health Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert Needed?": {
+      "main": [
+        [
+          {
+            "node": "Send Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Alert": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cache Health Status": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "agent-dashboard"
+  },
+  "id": "agent-health-checker",
+  "tags": []
+}

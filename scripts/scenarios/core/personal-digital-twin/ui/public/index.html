@@ -3,603 +3,227 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Digital Twin Console - Consciousness Transfer Protocol v2.0</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap');
-        
-        :root {
-            --neon-cyan: #00ffff;
-            --neon-magenta: #ff00ff;
-            --neon-yellow: #ffff00;
-            --neon-green: #00ff00;
-            --dark-bg: #0a0a0f;
-            --terminal-green: #00ff41;
-            --terminal-amber: #ffb000;
-            --glitch-red: #ff0044;
-            --grid-color: rgba(0, 255, 255, 0.1);
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Share Tech Mono', monospace;
-            background: var(--dark-bg);
-            color: var(--neon-cyan);
-            min-height: 100vh;
-            overflow-x: hidden;
-            position: relative;
-        }
-
-        /* Animated grid background */
-        body::before {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-image: 
-                linear-gradient(rgba(0, 255, 255, 0.1) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(0, 255, 255, 0.1) 1px, transparent 1px);
-            background-size: 50px 50px;
-            animation: grid-move 10s linear infinite;
-            z-index: -1;
-        }
-
-        @keyframes grid-move {
-            0% { transform: translate(0, 0); }
-            100% { transform: translate(50px, 50px); }
-        }
-
-        /* Header */
-        .header {
-            background: linear-gradient(135deg, rgba(0, 255, 255, 0.1), rgba(255, 0, 255, 0.1));
-            border-bottom: 2px solid var(--neon-cyan);
-            padding: 20px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .header::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            height: 2px;
-            background: linear-gradient(90deg, transparent, var(--neon-cyan), transparent);
-            animation: scan-line 3s linear infinite;
-        }
-
-        @keyframes scan-line {
-            0% { transform: translateX(-100%); }
-            100% { transform: translateX(100%); }
-        }
-
-        .header h1 {
-            font-family: 'Orbitron', sans-serif;
-            font-size: 2.5rem;
-            font-weight: 900;
-            text-align: center;
-            text-transform: uppercase;
-            letter-spacing: 5px;
-            text-shadow: 
-                0 0 10px var(--neon-cyan),
-                0 0 20px var(--neon-cyan),
-                0 0 30px var(--neon-cyan);
-            animation: pulse-glow 2s ease-in-out infinite;
-        }
-
-        @keyframes pulse-glow {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.8; }
-        }
-
-        .header .subtitle {
-            text-align: center;
-            margin-top: 10px;
-            color: var(--neon-magenta);
-            font-size: 0.9rem;
-            letter-spacing: 3px;
-        }
-
-        /* Main container */
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 20px;
-            display: grid;
-            grid-template-columns: 1fr 2fr;
-            gap: 20px;
-        }
-
-        /* Control Panel */
-        .control-panel {
-            background: rgba(0, 255, 255, 0.05);
-            border: 1px solid var(--neon-cyan);
-            border-radius: 10px;
-            padding: 20px;
-            position: relative;
-        }
-
-        .panel-header {
-            font-family: 'Orbitron', sans-serif;
-            font-size: 1.2rem;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid rgba(0, 255, 255, 0.3);
-            text-transform: uppercase;
-            letter-spacing: 2px;
-        }
-
-        /* Persona List */
-        .persona-list {
-            max-height: 300px;
-            overflow-y: auto;
-            margin-bottom: 20px;
-        }
-
-        .persona-item {
-            background: rgba(255, 0, 255, 0.1);
-            border: 1px solid var(--neon-magenta);
-            border-radius: 5px;
-            padding: 15px;
-            margin-bottom: 10px;
-            cursor: pointer;
-            transition: all 0.3s;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .persona-item::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255, 0, 255, 0.3), transparent);
-            transition: left 0.5s;
-        }
-
-        .persona-item:hover::before {
-            left: 100%;
-        }
-
-        .persona-item.active {
-            background: rgba(255, 0, 255, 0.2);
-            box-shadow: 0 0 20px rgba(255, 0, 255, 0.5);
-        }
-
-        .persona-name {
-            font-weight: bold;
-            font-size: 1.1rem;
-            margin-bottom: 5px;
-            color: var(--neon-yellow);
-        }
-
-        .persona-status {
-            font-size: 0.9rem;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .status-indicator {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            animation: blink 1s infinite;
-        }
-
-        .status-indicator.ready {
-            background: var(--neon-green);
-            box-shadow: 0 0 10px var(--neon-green);
-        }
-
-        .status-indicator.training {
-            background: var(--terminal-amber);
-            box-shadow: 0 0 10px var(--terminal-amber);
-        }
-
-        @keyframes blink {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.3; }
-        }
-
-        /* Buttons */
-        .btn {
-            background: linear-gradient(135deg, rgba(0, 255, 255, 0.2), rgba(255, 0, 255, 0.2));
-            border: 1px solid var(--neon-cyan);
-            color: var(--neon-cyan);
-            padding: 12px 20px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-family: 'Orbitron', sans-serif;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            transition: all 0.3s;
-            position: relative;
-            overflow: hidden;
-            width: 100%;
-            margin-bottom: 10px;
-        }
-
-        .btn::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 0;
-            height: 0;
-            background: rgba(0, 255, 255, 0.3);
-            border-radius: 50%;
-            transform: translate(-50%, -50%);
-            transition: width 0.5s, height 0.5s;
-        }
-
-        .btn:hover::before {
-            width: 300px;
-            height: 300px;
-        }
-
-        .btn:hover {
-            box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
-            text-shadow: 0 0 10px var(--neon-cyan);
-        }
-
-        /* Chat Interface */
-        .chat-interface {
-            background: rgba(0, 255, 255, 0.05);
-            border: 1px solid var(--neon-cyan);
-            border-radius: 10px;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            height: 600px;
-        }
-
-        .chat-messages {
-            flex: 1;
-            overflow-y: auto;
-            padding: 20px;
-            background: rgba(0, 0, 0, 0.3);
-            border-radius: 5px;
-            margin-bottom: 20px;
-            position: relative;
-        }
-
-        .message {
-            margin-bottom: 15px;
-            padding: 10px;
-            border-radius: 5px;
-            animation: message-appear 0.3s ease-out;
-        }
-
-        @keyframes message-appear {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .message.user {
-            background: rgba(0, 255, 255, 0.1);
-            border-left: 3px solid var(--neon-cyan);
-            margin-left: 20%;
-        }
-
-        .message.twin {
-            background: rgba(255, 0, 255, 0.1);
-            border-left: 3px solid var(--neon-magenta);
-            margin-right: 20%;
-        }
-
-        .message-author {
-            font-weight: bold;
-            margin-bottom: 5px;
-            font-size: 0.9rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .message.user .message-author {
-            color: var(--neon-cyan);
-        }
-
-        .message.twin .message-author {
-            color: var(--neon-magenta);
-        }
-
-        .chat-input-container {
-            display: flex;
-            gap: 10px;
-        }
-
-        .chat-input {
-            flex: 1;
-            background: rgba(0, 0, 0, 0.5);
-            border: 1px solid var(--neon-cyan);
-            color: var(--terminal-green);
-            padding: 12px;
-            border-radius: 5px;
-            font-family: 'Share Tech Mono', monospace;
-            font-size: 1rem;
-        }
-
-        .chat-input:focus {
-            outline: none;
-            box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
-        }
-
-        /* Stats Panel */
-        .stats-panel {
-            grid-column: 1 / -1;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-top: 20px;
-        }
-
-        .stat-card {
-            background: linear-gradient(135deg, rgba(0, 255, 255, 0.1), rgba(255, 0, 255, 0.1));
-            border: 1px solid var(--neon-cyan);
-            border-radius: 10px;
-            padding: 15px;
-            text-align: center;
-        }
-
-        .stat-value {
-            font-family: 'Orbitron', sans-serif;
-            font-size: 2rem;
-            font-weight: bold;
-            color: var(--neon-yellow);
-            text-shadow: 0 0 10px rgba(255, 255, 0, 0.5);
-        }
-
-        .stat-label {
-            margin-top: 5px;
-            font-size: 0.9rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: var(--neon-cyan);
-        }
-
-        /* Modal */
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            z-index: 1000;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .modal.active {
-            display: flex;
-        }
-
-        .modal-content {
-            background: var(--dark-bg);
-            border: 2px solid var(--neon-cyan);
-            border-radius: 10px;
-            padding: 30px;
-            max-width: 500px;
-            width: 90%;
-            position: relative;
-            animation: modal-appear 0.3s ease-out;
-        }
-
-        @keyframes modal-appear {
-            from {
-                opacity: 0;
-                transform: scale(0.8);
-            }
-            to {
-                opacity: 1;
-                transform: scale(1);
-            }
-        }
-
-        .modal-header {
-            font-family: 'Orbitron', sans-serif;
-            font-size: 1.5rem;
-            margin-bottom: 20px;
-            color: var(--neon-yellow);
-            text-transform: uppercase;
-            letter-spacing: 2px;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 5px;
-            color: var(--neon-cyan);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            font-size: 0.9rem;
-        }
-
-        .form-group input,
-        .form-group textarea {
-            width: 100%;
-            padding: 10px;
-            background: rgba(0, 0, 0, 0.5);
-            border: 1px solid var(--neon-cyan);
-            color: var(--terminal-green);
-            border-radius: 5px;
-            font-family: 'Share Tech Mono', monospace;
-        }
-
-        .form-group input:focus,
-        .form-group textarea:focus {
-            outline: none;
-            box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
-        }
-
-        /* Loading Animation */
-        .loading {
-            display: none;
-            text-align: center;
-            padding: 20px;
-        }
-
-        .loading.active {
-            display: block;
-        }
-
-        .loading-spinner {
-            width: 50px;
-            height: 50px;
-            border: 3px solid rgba(0, 255, 255, 0.3);
-            border-top: 3px solid var(--neon-cyan);
-            border-radius: 50%;
-            margin: 0 auto;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        /* Glitch effect for errors */
-        .error {
-            color: var(--glitch-red);
-            animation: glitch 0.3s infinite;
-        }
-
-        @keyframes glitch {
-            0%, 100% {
-                text-shadow: 
-                    2px 0 var(--glitch-red),
-                    -2px 0 var(--neon-cyan);
-            }
-            50% {
-                text-shadow: 
-                    -2px 0 var(--glitch-red),
-                    2px 0 var(--neon-cyan);
-            }
-        }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            .container {
-                grid-template-columns: 1fr;
-            }
-            
-            .header h1 {
-                font-size: 1.8rem;
-            }
-        }
-    </style>
+    <title>Neural Mirror - Personal Digital Twin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="header">
-        <h1>Digital Twin Console</h1>
-        <div class="subtitle">Consciousness Transfer Protocol v2.0 - Neural Link Active</div>
-    </div>
+    <div class="neural-container">
+        <!-- Matrix-like background animation -->
+        <canvas id="matrix-rain"></canvas>
+        
+        <!-- Holographic overlay effects -->
+        <div class="hologram-lines"></div>
+        <div class="scan-line"></div>
+        
+        <!-- Main Interface -->
+        <div class="interface-wrapper">
+            <!-- Top Bar -->
+            <header class="top-bar">
+                <div class="logo-section">
+                    <div class="logo-cube">
+                        <div class="cube-face front"></div>
+                        <div class="cube-face back"></div>
+                        <div class="cube-face left"></div>
+                        <div class="cube-face right"></div>
+                        <div class="cube-face top"></div>
+                        <div class="cube-face bottom"></div>
+                    </div>
+                    <h1 class="brand-title">
+                        <span class="glitch" data-text="NEURAL">NEURAL</span>
+                        <span class="subtitle">MIRROR</span>
+                    </h1>
+                </div>
+                
+                <div class="status-indicators">
+                    <div class="indicator sync-status">
+                        <span class="pulse"></span>
+                        <span class="label">SYNC</span>
+                    </div>
+                    <div class="indicator neural-load">
+                        <div class="load-bar">
+                            <div class="load-fill"></div>
+                        </div>
+                        <span class="label">NEURAL LOAD</span>
+                    </div>
+                    <div class="indicator memory-usage">
+                        <span class="value">0</span>
+                        <span class="label">MEMORIES</span>
+                    </div>
+                </div>
+            </header>
 
-    <div class="container">
-        <div class="control-panel">
-            <div class="panel-header">Persona Control</div>
-            
-            <div class="persona-list" id="personaList">
-                <!-- Personas will be loaded here -->
-            </div>
+            <!-- Main Content Area -->
+            <main class="main-content">
+                <!-- Left Panel - Twin Status -->
+                <section class="twin-status-panel">
+                    <div class="panel-header">
+                        <h2>DIGITAL TWIN STATUS</h2>
+                        <div class="status-light active"></div>
+                    </div>
+                    
+                    <div class="avatar-container">
+                        <div class="avatar-frame">
+                            <div class="avatar-inner">
+                                <div class="dna-helix"></div>
+                                <div class="avatar-core">
+                                    <span class="avatar-initial">?</span>
+                                </div>
+                                <div class="orbit orbit-1"></div>
+                                <div class="orbit orbit-2"></div>
+                                <div class="orbit orbit-3"></div>
+                            </div>
+                        </div>
+                        <div class="avatar-name">INITIALIZING...</div>
+                        <div class="avatar-stats">
+                            <div class="stat">
+                                <span class="stat-label">Personality Model</span>
+                                <span class="stat-value">--</span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-label">Knowledge Base</span>
+                                <span class="stat-value">0 GB</span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-label">Conversations</span>
+                                <span class="stat-value">0</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="action-buttons">
+                        <button class="cyber-btn train-btn" id="trainBtn">
+                            <span class="btn-text">TRAIN MODEL</span>
+                            <span class="btn-glow"></span>
+                        </button>
+                        <button class="cyber-btn upload-btn" id="uploadBtn">
+                            <span class="btn-text">UPLOAD DATA</span>
+                            <span class="btn-glow"></span>
+                        </button>
+                    </div>
+                </section>
 
-            <button class="btn" onclick="showCreatePersonaModal()">
-                Create New Persona
-            </button>
-            <button class="btn" onclick="connectDataSource()">
-                Connect Data Source
-            </button>
-            <button class="btn" onclick="startTraining()">
-                Initiate Training
-            </button>
-            <button class="btn" onclick="generateAPIToken()">
-                Generate API Token
-            </button>
+                <!-- Center Panel - Chat Interface -->
+                <section class="chat-interface">
+                    <div class="chat-header">
+                        <div class="chat-mode-selector">
+                            <button class="mode-btn active" data-mode="mirror">MIRROR MODE</button>
+                            <button class="mode-btn" data-mode="advisor">ADVISOR MODE</button>
+                            <button class="mode-btn" data-mode="creative">CREATIVE MODE</button>
+                        </div>
+                        <div class="chat-options">
+                            <button class="option-btn" title="Voice Mode">🎤</button>
+                            <button class="option-btn" title="Settings">⚙️</button>
+                        </div>
+                    </div>
+                    
+                    <div class="chat-viewport">
+                        <div class="chat-messages" id="chatMessages">
+                            <div class="welcome-message">
+                                <div class="hologram-text">
+                                    <h3>WELCOME TO NEURAL MIRROR</h3>
+                                    <p>Initialize your digital twin by uploading personal data or start a conversation to begin training.</p>
+                                    <p class="typing-indicator">System ready<span class="dots">...</span></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="chat-input-container">
+                        <div class="input-wrapper">
+                            <textarea 
+                                id="chatInput" 
+                                class="chat-input" 
+                                placeholder="Ask your digital twin anything..."
+                                rows="1"
+                            ></textarea>
+                            <button class="send-btn" id="sendBtn">
+                                <svg viewBox="0 0 24 24" fill="none">
+                                    <path d="M2 12L22 2L12 22L10 14L2 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="input-hints">
+                            <span class="hint">Press Enter to send • Shift+Enter for new line</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Right Panel - Memory Bank -->
+                <section class="memory-panel">
+                    <div class="panel-header">
+                        <h2>MEMORY BANK</h2>
+                        <button class="add-memory-btn" id="addMemoryBtn">+</button>
+                    </div>
+                    
+                    <div class="memory-categories">
+                        <button class="category-btn active">ALL</button>
+                        <button class="category-btn">PERSONAL</button>
+                        <button class="category-btn">KNOWLEDGE</button>
+                        <button class="category-btn">EXPERIENCES</button>
+                    </div>
+                    
+                    <div class="memory-list" id="memoryList">
+                        <div class="memory-item">
+                            <div class="memory-icon">💭</div>
+                            <div class="memory-content">
+                                <div class="memory-title">No memories yet</div>
+                                <div class="memory-meta">Start uploading data to build your twin's memory</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="memory-stats">
+                        <div class="stat-bar">
+                            <span class="stat-label">Storage Used</span>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: 0%"></div>
+                            </div>
+                            <span class="stat-value">0 / 10 GB</span>
+                        </div>
+                    </div>
+                </section>
+            </main>
+
+            <!-- Bottom Status Bar -->
+            <footer class="status-bar">
+                <div class="status-item">
+                    <span class="status-icon">🧠</span>
+                    <span class="status-text">Neural Network: <span class="status-value">READY</span></span>
+                </div>
+                <div class="status-item">
+                    <span class="status-icon">🔗</span>
+                    <span class="status-text">API Connection: <span class="status-value connected">CONNECTED</span></span>
+                </div>
+                <div class="status-item">
+                    <span class="status-icon">⚡</span>
+                    <span class="status-text">Processing: <span class="status-value">IDLE</span></span>
+                </div>
+                <div class="status-item">
+                    <span class="status-icon">📊</span>
+                    <span class="status-text">Model Accuracy: <span class="status-value">--</span></span>
+                </div>
+            </footer>
         </div>
 
-        <div class="chat-interface">
-            <div class="panel-header">Neural Interface</div>
-            
-            <div class="chat-messages" id="chatMessages">
-                <div class="message twin">
-                    <div class="message-author">System</div>
-                    <div class="message-content">Digital Twin Console initialized. Select or create a persona to begin consciousness transfer.</div>
+        <!-- Upload Modal -->
+        <div class="modal" id="uploadModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>UPLOAD TRAINING DATA</h3>
+                    <button class="modal-close" id="closeModalBtn">×</button>
                 </div>
-            </div>
-
-            <div class="chat-input-container">
-                <input type="text" class="chat-input" id="chatInput" placeholder="Enter neural command..." onkeypress="handleChatKeypress(event)">
-                <button class="btn" style="width: auto;" onclick="sendMessage()">Transmit</button>
+                <div class="modal-body">
+                    <div class="upload-zone" id="uploadZone">
+                        <div class="upload-icon">📁</div>
+                        <p>Drag & drop files here or click to browse</p>
+                        <p class="upload-hint">Supported: Text, PDF, Images, Audio, Video</p>
+                        <input type="file" id="fileInput" multiple hidden>
+                    </div>
+                    <div class="upload-queue" id="uploadQueue"></div>
+                </div>
             </div>
         </div>
-
-        <div class="stats-panel">
-            <div class="stat-card">
-                <div class="stat-value" id="totalPersonas">0</div>
-                <div class="stat-label">Active Personas</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value" id="totalDocuments">0</div>
-                <div class="stat-label">Knowledge Units</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value" id="totalTokens">0</div>
-                <div class="stat-label">Neural Tokens</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value" id="activeTraining">0</div>
-                <div class="stat-label">Training Jobs</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Create Persona Modal -->
-    <div class="modal" id="createPersonaModal">
-        <div class="modal-content">
-            <div class="modal-header">Initialize New Persona</div>
-            <form onsubmit="createPersona(event)">
-                <div class="form-group">
-                    <label for="personaName">Designation</label>
-                    <input type="text" id="personaName" required>
-                </div>
-                <div class="form-group">
-                    <label for="personaDescription">Neural Profile</label>
-                    <textarea id="personaDescription" rows="3" required></textarea>
-                </div>
-                <div class="form-group">
-                    <label for="personalityTraits">Personality Matrix (JSON)</label>
-                    <textarea id="personalityTraits" rows="4" placeholder='{"creativity": 0.8, "analytical": 0.9, "empathy": 0.7}'></textarea>
-                </div>
-                <button type="submit" class="btn">Initialize Persona</button>
-                <button type="button" class="btn" onclick="closeModal()">Cancel Protocol</button>
-            </form>
-        </div>
-    </div>
-
-    <!-- Loading indicator -->
-    <div class="loading" id="loading">
-        <div class="loading-spinner"></div>
-        <div style="margin-top: 10px;">Processing neural patterns...</div>
     </div>
 
     <script src="script.js"></script>

@@ -1,0 +1,345 @@
+{
+  "name": "Stream of Consciousness - Organize Thoughts",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "organize-thoughts",
+        "responseMode": "responseNode",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "mode": "everyHour"
+            }
+          ]
+        }
+      },
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Provide defaults for manual testing\nconst items = $input.all();\n\nif (items[0].json.stream_data) {\n  // Data from webhook, pass through\n  return items;\n}\n\n// Manual trigger - provide test data\nreturn [{\n  json: {\n    stream_data: {\n      main_topics: ['user onboarding', 'gamification', 'API documentation'],\n      action_items: [\n        { task: 'Review API documentation', priority: 'high', deadline: 'tomorrow' },\n        { task: 'Design interactive tutorials', priority: 'medium' }\n      ],\n      key_insights: ['Current onboarding flow confuses new users', 'Gamification could improve engagement'],\n      decisions: ['Implement tutorial system'],\n      questions: ['What metrics should we track?'],\n      entities: {\n        people: [],\n        projects: ['onboarding-redesign'],\n        dates: ['tomorrow'],\n        tools: ['API']\n      },\n      sentiment: 'positive',\n      category: 'product-development'\n    },\n    campaign_id: 'work',\n    original_content: 'Had a great idea about improving the user onboarding flow...'\n  }\n}];"
+      },
+      "id": "provide-defaults",
+      "name": "Provide Defaults",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM campaigns WHERE id = '{{ $json.campaign_id }}' OR name = '{{ $json.campaign_id }}' LIMIT 1;",
+        "options": {}
+      },
+      "id": "get-campaign-context",
+      "name": "Get Campaign Context",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [650, 400],
+      "credentials": {
+        "postgres": {
+          "id": "1",
+          "name": "Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5678/webhook/ollama",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "prompt",
+              "value": "={{ `You are an intelligent note organizer. Transform this stream of consciousness into well-structured notes.\n\nCampaign Context: ${$json.context_prompt || 'General thoughts'}\n\nExtracted Information:\n- Topics: ${JSON.stringify($json.stream_data.main_topics)}\n- Action Items: ${JSON.stringify($json.stream_data.action_items)}\n- Key Insights: ${JSON.stringify($json.stream_data.key_insights)}\n- Decisions: ${JSON.stringify($json.stream_data.decisions)}\n- Questions: ${JSON.stringify($json.stream_data.questions)}\n\nOriginal Content: ${$json.original_content}\n\nCreate a structured note with:\n1. A clear, concise title (max 100 chars)\n2. Well-organized content with sections\n3. A brief summary (max 200 chars)\n4. Relevant tags (5-10 tags)\n5. Priority level (1-5, where 1 is highest)\n\nRespond in JSON format:\n{\n  \"title\": \"...\",\n  \"content\": \"...\",\n  \"summary\": \"...\",\n  \"tags\": [...],\n  \"priority\": 1-5\n}` }}"
+            },
+            {
+              "name": "model",
+              "value": "llama3.2"
+            },
+            {
+              "name": "temperature",
+              "value": "0.3"
+            },
+            {
+              "name": "format",
+              "value": "json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "create-organized-note",
+      "name": "Create Organized Note",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse and validate the organized note\nconst response = $input.item.json;\nlet organized;\n\ntry {\n  // Parse the Ollama response\n  if (typeof response.response === 'string') {\n    organized = JSON.parse(response.response);\n  } else {\n    organized = response.response;\n  }\n} catch (error) {\n  // Fallback structure if parsing fails\n  organized = {\n    title: 'Untitled Note',\n    content: response.response || $json.original_content,\n    summary: 'Auto-generated note from stream of consciousness',\n    tags: $json.stream_data.main_topics || [],\n    priority: 3\n  };\n}\n\n// Ensure all required fields exist\norganized.title = organized.title || 'Untitled Note';\norganized.content = organized.content || '';\norganized.summary = organized.summary || organized.title;\norganized.tags = Array.isArray(organized.tags) ? organized.tags : [];\norganized.priority = Math.min(5, Math.max(1, organized.priority || 3));\n\n// Add metadata from stream processing\nreturn [{\n  json: {\n    ...organized,\n    campaign_id: $json.campaign_id,\n    stream_data: $json.stream_data,\n    category: $json.stream_data.category || 'general',\n    metadata: {\n      entities: $json.stream_data.entities,\n      sentiment: $json.stream_data.sentiment,\n      action_items: $json.stream_data.action_items,\n      decisions: $json.stream_data.decisions,\n      questions: $json.stream_data.questions,\n      processed_at: new Date().toISOString()\n    }\n  }\n}];"
+      },
+      "id": "validate-organized-note",
+      "name": "Validate Organized Note",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5678/webhook/embedding-generator",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "={{ $json.title + ' ' + $json.summary + ' ' + $json.content }}"
+            },
+            {
+              "name": "model",
+              "value": "nomic-embed-text"
+            },
+            {
+              "name": "metadata",
+              "value": "={{ JSON.stringify({\n  type: 'organized_note',\n  campaign_id: $json.campaign_id,\n  tags: $json.tags\n}) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "generate-note-embedding",
+      "name": "Generate Note Embedding",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1250, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:6333/collections/stream_notes/points",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "",
+              "value": "={{ JSON.stringify({\n  points: [{\n    id: Date.now().toString(),\n    vector: $json.embedding,\n    payload: {\n      title: $json.title,\n      summary: $json.summary,\n      campaign_id: $json.campaign_id,\n      category: $json.category,\n      tags: $json.tags,\n      priority: $json.priority,\n      created_at: new Date().toISOString()\n    }\n  }]\n}) }}"
+            }
+          ]
+        },
+        "options": {
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "id": "store-in-qdrant",
+      "name": "Store in Qdrant",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1450, 500],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": "public",
+        "table": "organized_notes",
+        "columns": "campaign_id,title,content,summary,category,tags,priority,embedding_id,metadata",
+        "values": "={{ $json.campaign_id }},={{ $json.title }},={{ $json.content }},={{ $json.summary }},={{ $json.category }},={{ '{' + ($json.tags || []).map(t => '\"' + t + '\"').join(',') + '}' }},={{ $json.priority }},={{ $json.embedding_id || Date.now().toString() }},={{ JSON.stringify($json.metadata) }}",
+        "options": {
+          "returnFields": "id,title,created_at"
+        }
+      },
+      "id": "save-organized-note",
+      "name": "Save Organized Note",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1650, 400],
+      "credentials": {
+        "postgres": {
+          "id": "1",
+          "name": "Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Check if any action items need to be created as separate tasks\nconst note = $input.item.json;\nconst actionItems = note.metadata?.action_items || [];\n\nif (actionItems.length === 0) {\n  return [{ json: { ...note, tasks_created: [] } }];\n}\n\n// Format action items for task creation\nconst tasks = actionItems.map(item => ({\n  note_id: note.id,\n  campaign_id: note.campaign_id,\n  task: item.task,\n  priority: item.priority || 'medium',\n  deadline: item.deadline || null,\n  status: 'pending',\n  created_from: 'organized_note'\n}));\n\nreturn [{\n  json: {\n    ...note,\n    tasks_to_create: tasks,\n    tasks_created: tasks.length\n  }\n}];"
+      },
+      "id": "extract-action-items",
+      "name": "Extract Action Items",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1850, 400]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={{ JSON.stringify({\n  success: true,\n  note: {\n    id: $json.id,\n    title: $json.title,\n    summary: $json.summary,\n    category: $json.category,\n    tags: $json.tags,\n    priority: $json.priority,\n    created_at: $json.created_at\n  },\n  tasks_created: $json.tasks_created || 0,\n  message: 'Thoughts organized successfully'\n}) }}",
+        "options": {}
+      },
+      "id": "format-response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [2050, 300]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "respond-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2250, 300]
+    }
+  ],
+  "connections": {
+    "webhook-trigger": {
+      "main": [
+        [
+          {
+            "node": "provide-defaults",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "manual-trigger": {
+      "main": [
+        [
+          {
+            "node": "provide-defaults",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "provide-defaults": {
+      "main": [
+        [
+          {
+            "node": "get-campaign-context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get-campaign-context": {
+      "main": [
+        [
+          {
+            "node": "create-organized-note",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "create-organized-note": {
+      "main": [
+        [
+          {
+            "node": "validate-organized-note",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "validate-organized-note": {
+      "main": [
+        [
+          {
+            "node": "generate-note-embedding",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "generate-note-embedding": {
+      "main": [
+        [
+          {
+            "node": "store-in-qdrant",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "save-organized-note",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "store-in-qdrant": {
+      "main": [
+        []
+      ]
+    },
+    "save-organized-note": {
+      "main": [
+        [
+          {
+            "node": "extract-action-items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "extract-action-items": {
+      "main": [
+        [
+          {
+            "node": "format-response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "format-response": {
+      "main": [
+        [
+          {
+            "node": "respond-webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [],
+  "updatedAt": "2025-01-17T06:50:00.000Z",
+  "id": "organize-thoughts-001"
+}

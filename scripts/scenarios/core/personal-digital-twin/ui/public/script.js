@@ -1,529 +1,691 @@
-// Digital Twin Console - Neural Interface Controller
-// Consciousness Transfer Protocol v2.0
+// Matrix rain effect
+const canvas = document.getElementById('matrix-rain');
+const ctx = canvas.getContext('2d');
 
-let config = null;
-let currentPersona = null;
-let currentSessionId = null;
-let personas = [];
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
 
-// Initialize on page load
-document.addEventListener('DOMContentLoaded', async () => {
-    await loadConfig();
-    await loadPersonas();
-    updateStats();
+const matrix = "ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789@#$%^&*()*&^%+-/~{[|`]}";
+const matrixArray = matrix.split("");
+
+const fontSize = 10;
+const columns = canvas.width / fontSize;
+
+const drops = [];
+for(let x = 0; x < columns; x++) {
+    drops[x] = 1;
+}
+
+function drawMatrix() {
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.04)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
     
-    // Add typing animation to initial message
-    animateTyping();
+    ctx.fillStyle = '#00ffff';
+    ctx.font = fontSize + 'px monospace';
     
-    // Add ambient sound effect simulation
-    setInterval(updateAmbientEffects, 3000);
+    for(let i = 0; i < drops.length; i++) {
+        const text = matrixArray[Math.floor(Math.random() * matrixArray.length)];
+        ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+        
+        if(drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+            drops[i] = 0;
+        }
+        drops[i]++;
+    }
+}
+
+setInterval(drawMatrix, 35);
+
+// Resize canvas on window resize
+window.addEventListener('resize', () => {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
 });
 
-// Load configuration from server
-async function loadConfig() {
+// API Configuration
+const API_BASE_URL = window.location.port ? `http://localhost:${window.location.port}` : 'http://localhost:8080';
+
+// UI Elements
+const chatInput = document.getElementById('chatInput');
+const sendBtn = document.getElementById('sendBtn');
+const chatMessages = document.getElementById('chatMessages');
+const trainBtn = document.getElementById('trainBtn');
+const uploadBtn = document.getElementById('uploadBtn');
+const uploadModal = document.getElementById('uploadModal');
+const closeModalBtn = document.getElementById('closeModalBtn');
+const uploadZone = document.getElementById('uploadZone');
+const fileInput = document.getElementById('fileInput');
+const memoryList = document.getElementById('memoryList');
+const addMemoryBtn = document.getElementById('addMemoryBtn');
+
+// State
+let currentMode = 'mirror';
+let isProcessing = false;
+let twinInitialized = false;
+let memories = [];
+let conversationHistory = [];
+
+// Initialize UI
+document.addEventListener('DOMContentLoaded', () => {
+    initializeEventListeners();
+    loadTwinStatus();
+    loadMemories();
+    updateUIState();
+});
+
+// Event Listeners
+function initializeEventListeners() {
+    // Chat functionality
+    sendBtn.addEventListener('click', sendMessage);
+    chatInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+
+    // Auto-resize textarea
+    chatInput.addEventListener('input', () => {
+        chatInput.style.height = 'auto';
+        chatInput.style.height = Math.min(chatInput.scrollHeight, 120) + 'px';
+    });
+
+    // Mode selection
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentMode = btn.dataset.mode;
+            updateChatPlaceholder();
+        });
+    });
+
+    // Training and upload
+    trainBtn.addEventListener('click', trainModel);
+    uploadBtn.addEventListener('click', () => uploadModal.classList.add('active'));
+    closeModalBtn.addEventListener('click', () => uploadModal.classList.remove('active'));
+    addMemoryBtn.addEventListener('click', () => uploadModal.classList.add('active'));
+
+    // Upload zone
+    uploadZone.addEventListener('click', () => fileInput.click());
+    uploadZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadZone.classList.add('dragover');
+    });
+    uploadZone.addEventListener('dragleave', () => {
+        uploadZone.classList.remove('dragover');
+    });
+    uploadZone.addEventListener('drop', handleFileDrop);
+    fileInput.addEventListener('change', handleFileSelect);
+
+    // Category filters
+    document.querySelectorAll('.category-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            filterMemories(btn.textContent);
+        });
+    });
+
+    // Close modal on escape
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            uploadModal.classList.remove('active');
+        }
+    });
+}
+
+// Twin Status Management
+async function loadTwinStatus() {
     try {
-        const response = await fetch('/config');
-        config = await response.json();
-        console.log('Neural link established:', config);
+        const response = await fetch(`${API_BASE_URL}/api/twin/status`);
+        if (response.ok) {
+            const data = await response.json();
+            updateTwinDisplay(data);
+            twinInitialized = data.initialized || false;
+        }
     } catch (error) {
-        console.error('Failed to establish neural link:', error);
-        showError('Neural link connection failed. Check system integrity.');
+        console.error('Failed to load twin status:', error);
+        // Initialize with default values
+        updateTwinDisplay({
+            name: 'Not Initialized',
+            personality_model: 'None',
+            knowledge_size: '0 GB',
+            conversations: 0,
+            initialized: false
+        });
     }
 }
 
-// Load all personas
-async function loadPersonas() {
-    if (!config) return;
+function updateTwinDisplay(data) {
+    const avatarInitial = document.querySelector('.avatar-initial');
+    const avatarName = document.querySelector('.avatar-name');
+    const stats = document.querySelectorAll('.avatar-stats .stat-value');
     
-    showLoading(true);
+    if (data.initialized) {
+        avatarInitial.textContent = (data.name || 'AI')[0].toUpperCase();
+        avatarName.textContent = data.name || 'Digital Twin';
+        stats[0].textContent = data.personality_model || 'Standard';
+        stats[1].textContent = data.knowledge_size || '0 GB';
+        stats[2].textContent = data.conversations || '0';
+        
+        // Update status indicators
+        document.querySelector('.memory-usage .value').textContent = data.memory_count || '0';
+        updateModelAccuracy(data.accuracy || 0);
+    }
+}
+
+function updateModelAccuracy(accuracy) {
+    const accuracyDisplay = document.querySelector('.status-bar .status-value:last-child');
+    if (accuracyDisplay) {
+        accuracyDisplay.textContent = accuracy > 0 ? `${accuracy}%` : '--';
+    }
+}
+
+// Chat Functionality
+async function sendMessage() {
+    const message = chatInput.value.trim();
+    if (!message || isProcessing) return;
+
+    isProcessing = true;
+    updateProcessingState(true);
+    
+    // Add user message to chat
+    addMessageToChat('user', message);
+    chatInput.value = '';
+    chatInput.style.height = 'auto';
+
     try {
-        const response = await fetch(`${config.apiUrl}/api/personas`);
-        personas = await response.json();
-        displayPersonas();
-        updateStats();
+        const response = await fetch(`${API_BASE_URL}/api/chat`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                message: message,
+                mode: currentMode,
+                conversation_id: generateConversationId(),
+                history: conversationHistory.slice(-10) // Send last 10 messages for context
+            })
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            addMessageToChat('twin', data.response);
+            conversationHistory.push({user: message, twin: data.response});
+            
+            // Update stats if provided
+            if (data.stats) {
+                updateTwinDisplay(data.stats);
+            }
+        } else {
+            addMessageToChat('system', 'Failed to get response from twin. Please try again.');
+        }
     } catch (error) {
-        console.error('Failed to load personas:', error);
-        showError('Persona retrieval failed. Neural database may be offline.');
+        console.error('Chat error:', error);
+        addMessageToChat('system', 'Connection error. Please check your connection and try again.');
     } finally {
-        showLoading(false);
+        isProcessing = false;
+        updateProcessingState(false);
     }
 }
 
-// Display personas in the control panel
-function displayPersonas() {
-    const personaList = document.getElementById('personaList');
+function addMessageToChat(type, content) {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `chat-message ${type}-message`;
     
-    if (personas.length === 0) {
-        personaList.innerHTML = `
-            <div style="text-align: center; padding: 20px; color: var(--terminal-amber);">
-                No personas detected in neural matrix.
-                Initialize a new consciousness to begin.
+    const timestamp = new Date().toLocaleTimeString('en-US', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+    });
+    
+    messageDiv.innerHTML = `
+        <div class="message-header">
+            <span class="message-sender">${type === 'user' ? 'You' : type === 'twin' ? 'Digital Twin' : 'System'}</span>
+            <span class="message-time">${timestamp}</span>
+        </div>
+        <div class="message-content">${escapeHtml(content)}</div>
+    `;
+    
+    // Clear welcome message if it exists
+    const welcomeMessage = chatMessages.querySelector('.welcome-message');
+    if (welcomeMessage) {
+        welcomeMessage.remove();
+    }
+    
+    chatMessages.appendChild(messageDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+    
+    // Add typing animation for twin messages
+    if (type === 'twin') {
+        messageDiv.style.animation = 'messageSlideIn 0.3s ease-out';
+    }
+}
+
+// Training Functionality
+async function trainModel() {
+    if (isProcessing) return;
+    
+    isProcessing = true;
+    trainBtn.disabled = true;
+    trainBtn.querySelector('.btn-text').textContent = 'TRAINING...';
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/twin/train`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                data_sources: memories.map(m => m.id)
+            })
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            addMessageToChat('system', 'Training completed successfully! Your digital twin has been updated.');
+            await loadTwinStatus();
+            twinInitialized = true;
+            updateUIState();
+        } else {
+            addMessageToChat('system', 'Training failed. Please ensure you have uploaded sufficient data.');
+        }
+    } catch (error) {
+        console.error('Training error:', error);
+        addMessageToChat('system', 'Training error. Please try again.');
+    } finally {
+        isProcessing = false;
+        trainBtn.disabled = false;
+        trainBtn.querySelector('.btn-text').textContent = 'TRAIN MODEL';
+    }
+}
+
+// File Upload Functionality
+function handleFileDrop(e) {
+    e.preventDefault();
+    uploadZone.classList.remove('dragover');
+    
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+        processFiles(files);
+    }
+}
+
+function handleFileSelect(e) {
+    const files = e.target.files;
+    if (files.length > 0) {
+        processFiles(files);
+    }
+}
+
+async function processFiles(files) {
+    const uploadQueue = document.getElementById('uploadQueue');
+    uploadQueue.innerHTML = '';
+    
+    for (const file of files) {
+        const queueItem = createUploadQueueItem(file);
+        uploadQueue.appendChild(queueItem);
+        
+        try {
+            await uploadFile(file, queueItem);
+        } catch (error) {
+            console.error('Upload error:', error);
+            updateQueueItemStatus(queueItem, 'error');
+        }
+    }
+}
+
+function createUploadQueueItem(file) {
+    const item = document.createElement('div');
+    item.className = 'upload-item';
+    item.innerHTML = `
+        <div class="upload-item-info">
+            <span class="upload-filename">${file.name}</span>
+            <span class="upload-size">${formatFileSize(file.size)}</span>
+        </div>
+        <div class="upload-progress">
+            <div class="upload-progress-bar"></div>
+        </div>
+        <span class="upload-status">Uploading...</span>
+    `;
+    return item;
+}
+
+async function uploadFile(file, queueItem) {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('type', getFileCategory(file));
+    
+    const progressBar = queueItem.querySelector('.upload-progress-bar');
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/upload`, {
+            method: 'POST',
+            body: formData
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            progressBar.style.width = '100%';
+            updateQueueItemStatus(queueItem, 'success');
+            
+            // Add to memories
+            addMemory({
+                id: data.id,
+                title: file.name,
+                type: getFileCategory(file),
+                size: file.size,
+                timestamp: new Date().toISOString()
+            });
+            
+            // Close modal after successful upload
+            setTimeout(() => {
+                uploadModal.classList.remove('active');
+                loadMemories();
+            }, 1500);
+        } else {
+            throw new Error('Upload failed');
+        }
+    } catch (error) {
+        updateQueueItemStatus(queueItem, 'error');
+        throw error;
+    }
+}
+
+function updateQueueItemStatus(item, status) {
+    const statusElement = item.querySelector('.upload-status');
+    if (status === 'success') {
+        statusElement.textContent = '✓ Uploaded';
+        statusElement.style.color = 'var(--accent-green)';
+    } else if (status === 'error') {
+        statusElement.textContent = '✗ Failed';
+        statusElement.style.color = 'var(--accent-red)';
+    }
+}
+
+// Memory Management
+async function loadMemories() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/memories`);
+        if (response.ok) {
+            memories = await response.json();
+            displayMemories(memories);
+            updateMemoryStats();
+        }
+    } catch (error) {
+        console.error('Failed to load memories:', error);
+        // Display placeholder
+        memoryList.innerHTML = `
+            <div class="memory-item">
+                <div class="memory-icon">💭</div>
+                <div class="memory-content">
+                    <div class="memory-title">No memories yet</div>
+                    <div class="memory-meta">Start uploading data to build your twin's memory</div>
+                </div>
+            </div>
+        `;
+    }
+}
+
+function displayMemories(memoriesToDisplay) {
+    if (memoriesToDisplay.length === 0) {
+        memoryList.innerHTML = `
+            <div class="memory-item">
+                <div class="memory-icon">💭</div>
+                <div class="memory-content">
+                    <div class="memory-title">No memories found</div>
+                    <div class="memory-meta">Upload files to create memories</div>
+                </div>
             </div>
         `;
         return;
     }
     
-    personaList.innerHTML = personas.map(persona => `
-        <div class="persona-item ${currentPersona?.id === persona.id ? 'active' : ''}" 
-             onclick="selectPersona('${persona.id}')"
-             data-persona-id="${persona.id}">
-            <div class="persona-name">${persona.name}</div>
-            <div class="persona-status">
-                <span class="status-indicator ${persona.training_status === 'completed' ? 'ready' : 'training'}"></span>
-                <span>${persona.training_status || 'Initializing'}</span>
-                <span style="margin-left: auto;">
-                    ${persona.document_count || 0} knowledge units
-                </span>
-            </div>
-        </div>
-    `).join('');
-}
-
-// Select a persona
-async function selectPersona(personaId) {
-    const persona = personas.find(p => p.id === personaId);
-    if (!persona) return;
-    
-    currentPersona = persona;
-    currentSessionId = generateSessionId();
-    
-    // Update UI
-    document.querySelectorAll('.persona-item').forEach(item => {
-        item.classList.toggle('active', item.dataset.personaId === personaId);
-    });
-    
-    // Clear chat and add activation message
-    const chatMessages = document.getElementById('chatMessages');
-    chatMessages.innerHTML = `
-        <div class="message twin">
-            <div class="message-author">System</div>
-            <div class="message-content">Neural link established with ${persona.name}. Consciousness transfer complete.</div>
-        </div>
-        <div class="message twin">
-            <div class="message-author">${persona.name}</div>
-            <div class="message-content">${persona.description || 'Digital twin activated. Ready for interaction.'}</div>
-        </div>
-    `;
-    
-    updateStats();
-    
-    // Visual feedback
-    flashEffect();
-}
-
-// Send chat message
-async function sendMessage() {
-    const input = document.getElementById('chatInput');
-    const message = input.value.trim();
-    
-    if (!message || !currentPersona) {
-        if (!currentPersona) {
-            showError('No persona selected. Initialize neural link first.');
-        }
-        return;
-    }
-    
-    // Add user message
-    addMessage('User', message, 'user');
-    input.value = '';
-    
-    // Show typing indicator
-    const typingId = addTypingIndicator(currentPersona.name);
-    
-    try {
-        const response = await fetch(`${config.chatUrl}/api/chat`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                persona_id: currentPersona.id,
-                message: message,
-                session_id: currentSessionId
-            })
-        });
-        
-        const data = await response.json();
-        
-        // Remove typing indicator
-        removeTypingIndicator(typingId);
-        
-        // Add twin response
-        addMessage(currentPersona.name, data.response, 'twin');
-        
-    } catch (error) {
-        removeTypingIndicator(typingId);
-        console.error('Chat transmission failed:', error);
-        addMessage('System', 'Neural transmission interrupted. Please retry.', 'twin');
-    }
-}
-
-// Add message to chat
-function addMessage(author, content, type) {
-    const chatMessages = document.getElementById('chatMessages');
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `message ${type}`;
-    messageDiv.innerHTML = `
-        <div class="message-author">${author}</div>
-        <div class="message-content">${content}</div>
-    `;
-    chatMessages.appendChild(messageDiv);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-}
-
-// Add typing indicator
-function addTypingIndicator(name) {
-    const id = 'typing-' + Date.now();
-    const chatMessages = document.getElementById('chatMessages');
-    const indicator = document.createElement('div');
-    indicator.id = id;
-    indicator.className = 'message twin';
-    indicator.innerHTML = `
-        <div class="message-author">${name}</div>
-        <div class="message-content">
-            <span class="typing-dots">
-                <span>.</span><span>.</span><span>.</span>
-            </span>
-        </div>
-    `;
-    chatMessages.appendChild(indicator);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-    return id;
-}
-
-// Remove typing indicator
-function removeTypingIndicator(id) {
-    const indicator = document.getElementById(id);
-    if (indicator) {
-        indicator.remove();
-    }
-}
-
-// Handle chat input keypress
-function handleChatKeypress(event) {
-    if (event.key === 'Enter') {
-        sendMessage();
-    }
-}
-
-// Show create persona modal
-function showCreatePersonaModal() {
-    document.getElementById('createPersonaModal').classList.add('active');
-    // Add glitch effect
-    glitchEffect();
-}
-
-// Close modal
-function closeModal() {
-    document.getElementById('createPersonaModal').classList.remove('active');
-}
-
-// Create new persona
-async function createPersona(event) {
-    event.preventDefault();
-    
-    const name = document.getElementById('personaName').value;
-    const description = document.getElementById('personaDescription').value;
-    const traitsText = document.getElementById('personalityTraits').value;
-    
-    let personalityTraits = {};
-    if (traitsText) {
-        try {
-            personalityTraits = JSON.parse(traitsText);
-        } catch (e) {
-            showError('Invalid personality matrix format. Use valid JSON.');
-            return;
-        }
-    }
-    
-    showLoading(true);
-    
-    try {
-        const response = await fetch(`${config.apiUrl}/api/persona/create`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                name,
-                description,
-                personality_traits: personalityTraits
-            })
-        });
-        
-        if (response.ok) {
-            closeModal();
-            await loadPersonas();
-            showSuccess('Persona initialized successfully. Neural patterns established.');
-        } else {
-            throw new Error('Persona initialization failed');
-        }
-    } catch (error) {
-        console.error('Failed to create persona:', error);
-        showError('Persona initialization failed. Check neural matrix configuration.');
-    } finally {
-        showLoading(false);
-    }
-}
-
-// Connect data source
-async function connectDataSource() {
-    if (!currentPersona) {
-        showError('Select a persona before connecting data sources.');
-        return;
-    }
-    
-    // For demo, show a simple prompt
-    const sourceType = prompt('Enter data source type (google_drive, local_files, github):');
-    if (!sourceType) return;
-    
-    showLoading(true);
-    
-    try {
-        const response = await fetch(`${config.apiUrl}/api/datasource/connect`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                persona_id: currentPersona.id,
-                source_type: sourceType,
-                source_config: {}
-            })
-        });
-        
-        if (response.ok) {
-            showSuccess('Data source connected. Knowledge assimilation initiated.');
-            await loadPersonas();
-        }
-    } catch (error) {
-        console.error('Failed to connect data source:', error);
-        showError('Data source connection failed.');
-    } finally {
-        showLoading(false);
-    }
-}
-
-// Start training
-async function startTraining() {
-    if (!currentPersona) {
-        showError('Select a persona before initiating training.');
-        return;
-    }
-    
-    showLoading(true);
-    
-    try {
-        const response = await fetch(`${config.apiUrl}/api/train/start`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                persona_id: currentPersona.id,
-                model: 'llama3.2',
-                technique: 'fine-tuning'
-            })
-        });
-        
-        if (response.ok) {
-            showSuccess('Neural training initiated. Consciousness evolution in progress.');
-            await loadPersonas();
-        }
-    } catch (error) {
-        console.error('Failed to start training:', error);
-        showError('Training initialization failed.');
-    } finally {
-        showLoading(false);
-    }
-}
-
-// Generate API token
-async function generateAPIToken() {
-    if (!currentPersona) {
-        showError('Select a persona before generating access tokens.');
-        return;
-    }
-    
-    const tokenName = prompt('Enter token designation:');
-    if (!tokenName) return;
-    
-    showLoading(true);
-    
-    try {
-        const response = await fetch(`${config.apiUrl}/api/tokens/create`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                persona_id: currentPersona.id,
-                name: tokenName,
-                permissions: ['read', 'write', 'chat']
-            })
-        });
-        
-        if (response.ok) {
-            const token = await response.json();
-            alert(`Access token generated:\n${token.token}\n\nStore this securely. It will not be shown again.`);
-            showSuccess('Neural access token generated successfully.');
-        }
-    } catch (error) {
-        console.error('Failed to generate token:', error);
-        showError('Token generation failed.');
-    } finally {
-        showLoading(false);
-    }
-}
-
-// Update statistics
-function updateStats() {
-    document.getElementById('totalPersonas').textContent = personas.length;
-    
-    const totalDocs = personas.reduce((sum, p) => sum + (p.document_count || 0), 0);
-    document.getElementById('totalDocuments').textContent = formatNumber(totalDocs);
-    
-    const totalTokens = personas.reduce((sum, p) => sum + (p.total_tokens || 0), 0);
-    document.getElementById('totalTokens').textContent = formatNumber(totalTokens);
-    
-    const activeTraining = personas.filter(p => p.training_status === 'training').length;
-    document.getElementById('activeTraining').textContent = activeTraining;
-}
-
-// Utility functions
-function generateSessionId() {
-    return 'session-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
-}
-
-function formatNumber(num) {
-    if (num > 1000000) return (num / 1000000).toFixed(1) + 'M';
-    if (num > 1000) return (num / 1000).toFixed(1) + 'K';
-    return num.toString();
-}
-
-function showLoading(show) {
-    document.getElementById('loading').classList.toggle('active', show);
-}
-
-function showError(message) {
-    const errorDiv = document.createElement('div');
-    errorDiv.className = 'error';
-    errorDiv.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        background: rgba(255, 0, 68, 0.2);
-        border: 1px solid var(--glitch-red);
-        padding: 15px 20px;
-        border-radius: 5px;
-        z-index: 10000;
-        animation: glitch 0.3s infinite;
-    `;
-    errorDiv.textContent = '⚠ ' + message;
-    document.body.appendChild(errorDiv);
-    
-    setTimeout(() => errorDiv.remove(), 5000);
-}
-
-function showSuccess(message) {
-    const successDiv = document.createElement('div');
-    successDiv.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        background: rgba(0, 255, 0, 0.2);
-        border: 1px solid var(--neon-green);
-        color: var(--neon-green);
-        padding: 15px 20px;
-        border-radius: 5px;
-        z-index: 10000;
-    `;
-    successDiv.textContent = '✓ ' + message;
-    document.body.appendChild(successDiv);
-    
-    setTimeout(() => successDiv.remove(), 3000);
-}
-
-// Visual effects
-function flashEffect() {
-    document.body.style.animation = 'flash 0.3s';
-    setTimeout(() => {
-        document.body.style.animation = '';
-    }, 300);
-}
-
-function glitchEffect() {
-    const elements = document.querySelectorAll('.modal-content *');
-    elements.forEach((el, i) => {
-        setTimeout(() => {
-            el.style.animation = 'glitch 0.1s';
-            setTimeout(() => {
-                el.style.animation = '';
-            }, 100);
-        }, i * 20);
+    memoryList.innerHTML = '';
+    memoriesToDisplay.forEach(memory => {
+        const memoryItem = createMemoryItem(memory);
+        memoryList.appendChild(memoryItem);
     });
 }
 
-function animateTyping() {
-    const style = document.createElement('style');
-    style.textContent = `
-        .typing-dots span {
-            animation: typing-bounce 1.4s infinite;
-            display: inline-block;
-        }
-        .typing-dots span:nth-child(2) {
-            animation-delay: 0.2s;
-        }
-        .typing-dots span:nth-child(3) {
-            animation-delay: 0.4s;
-        }
-        @keyframes typing-bounce {
-            0%, 60%, 100% {
-                transform: translateY(0);
-            }
-            30% {
-                transform: translateY(-10px);
-            }
-        }
-        @keyframes flash {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.7; }
-        }
+function createMemoryItem(memory) {
+    const item = document.createElement('div');
+    item.className = 'memory-item';
+    item.innerHTML = `
+        <div class="memory-icon">${getMemoryIcon(memory.type)}</div>
+        <div class="memory-content">
+            <div class="memory-title">${memory.title}</div>
+            <div class="memory-meta">${memory.type} • ${formatDate(memory.timestamp)}</div>
+        </div>
     `;
-    document.head.appendChild(style);
+    return item;
 }
 
-function updateAmbientEffects() {
-    // Randomly update some stats to simulate activity
-    if (Math.random() > 0.7) {
-        const tokens = document.getElementById('totalTokens');
-        const current = parseInt(tokens.textContent.replace(/[KM]/, '')) || 0;
-        tokens.textContent = formatNumber(current + Math.floor(Math.random() * 100));
+function addMemory(memory) {
+    memories.push(memory);
+    displayMemories(memories);
+    updateMemoryStats();
+}
+
+function filterMemories(category) {
+    if (category === 'ALL') {
+        displayMemories(memories);
+    } else {
+        const filtered = memories.filter(m => 
+            m.type.toUpperCase() === category.toUpperCase()
+        );
+        displayMemories(filtered);
     }
 }
 
-// Initialize WebSocket for real-time updates (if available)
-function initializeWebSocket() {
-    if (!config || !config.wsUrl) return;
+function updateMemoryStats() {
+    const totalSize = memories.reduce((sum, m) => sum + (m.size || 0), 0);
+    const progressFill = document.querySelector('.memory-stats .progress-fill');
+    const statValue = document.querySelector('.memory-stats .stat-value');
     
-    const ws = new WebSocket(config.wsUrl);
+    const usedGB = (totalSize / (1024 * 1024 * 1024)).toFixed(2);
+    const percentage = Math.min((totalSize / (10 * 1024 * 1024 * 1024)) * 100, 100);
     
-    ws.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        if (data.type === 'persona_update') {
-            loadPersonas();
-        }
-    };
+    if (progressFill) progressFill.style.width = `${percentage}%`;
+    if (statValue) statValue.textContent = `${usedGB} / 10 GB`;
     
-    ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
-    };
+    // Update header count
+    document.querySelector('.memory-usage .value').textContent = memories.length;
 }
 
-console.log(`
-╔══════════════════════════════════════════════════╗
-║     DIGITAL TWIN CONSOLE - NEURAL INTERFACE       ║
-║     Consciousness Transfer Protocol v2.0          ║
-║     © 2025 Vrooli Systems - Mind Upload Division  ║
-╚══════════════════════════════════════════════════╝
-`);
+// Utility Functions
+function updateChatPlaceholder() {
+    const placeholders = {
+        mirror: 'Ask your digital twin anything...',
+        advisor: 'Get advice from your twin...',
+        creative: 'Explore creative ideas with your twin...'
+    };
+    chatInput.placeholder = placeholders[currentMode] || placeholders.mirror;
+}
+
+function updateProcessingState(processing) {
+    const statusText = document.querySelector('.status-bar .status-item:nth-child(3) .status-value');
+    if (statusText) {
+        statusText.textContent = processing ? 'PROCESSING' : 'IDLE';
+        statusText.style.color = processing ? 'var(--primary-cyan)' : 'var(--text-primary)';
+    }
+    
+    // Update neural load animation
+    const loadFill = document.querySelector('.neural-load .load-fill');
+    if (loadFill) {
+        loadFill.style.animationDuration = processing ? '1s' : '3s';
+    }
+}
+
+function updateUIState() {
+    if (twinInitialized) {
+        document.querySelector('.avatar-name').textContent = 'Digital Twin Active';
+        document.querySelector('.status-light').classList.add('active');
+    }
+}
+
+function generateConversationId() {
+    return `conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+}
+
+function escapeHtml(text) {
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    };
+    return text.replace(/[&<>"']/g, m => map[m]);
+}
+
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+}
+
+function formatDate(dateString) {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins} min ago`;
+    if (diffMins < 1440) return `${Math.floor(diffMins / 60)} hours ago`;
+    return date.toLocaleDateString();
+}
+
+function getFileCategory(file) {
+    const ext = file.name.split('.').pop().toLowerCase();
+    const categories = {
+        'txt,md,doc,docx,pdf': 'KNOWLEDGE',
+        'jpg,jpeg,png,gif,bmp': 'EXPERIENCES',
+        'mp3,wav,m4a,ogg': 'PERSONAL',
+        'mp4,avi,mov,mkv': 'EXPERIENCES'
+    };
+    
+    for (const [exts, category] of Object.entries(categories)) {
+        if (exts.split(',').includes(ext)) return category;
+    }
+    return 'KNOWLEDGE';
+}
+
+function getMemoryIcon(type) {
+    const icons = {
+        'PERSONAL': '👤',
+        'KNOWLEDGE': '📚',
+        'EXPERIENCES': '🎯',
+        'DEFAULT': '💭'
+    };
+    return icons[type] || icons.DEFAULT;
+}
+
+// Add message animation styles
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes messageSlideIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .chat-message {
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border-radius: 8px;
+        background: rgba(0, 0, 0, 0.3);
+        border-left: 3px solid transparent;
+    }
+    
+    .user-message {
+        border-left-color: var(--primary-cyan);
+        background: rgba(0, 255, 255, 0.05);
+    }
+    
+    .twin-message {
+        border-left-color: var(--primary-purple);
+        background: rgba(155, 89, 182, 0.05);
+    }
+    
+    .system-message {
+        border-left-color: var(--accent-green);
+        background: rgba(0, 255, 136, 0.05);
+        font-style: italic;
+    }
+    
+    .message-header {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 0.5rem;
+        font-size: 0.85rem;
+    }
+    
+    .message-sender {
+        color: var(--primary-cyan);
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    
+    .message-time {
+        color: var(--text-secondary);
+    }
+    
+    .message-content {
+        line-height: 1.6;
+        color: var(--text-primary);
+    }
+    
+    .upload-item {
+        padding: 1rem;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 8px;
+        margin-bottom: 1rem;
+    }
+    
+    .upload-item-info {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 0.5rem;
+    }
+    
+    .upload-filename {
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+    
+    .upload-size {
+        color: var(--text-secondary);
+        font-size: 0.85rem;
+    }
+    
+    .upload-progress {
+        height: 4px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 2px;
+        overflow: hidden;
+        margin-bottom: 0.5rem;
+    }
+    
+    .upload-progress-bar {
+        height: 100%;
+        width: 0;
+        background: linear-gradient(90deg, var(--primary-cyan), var(--primary-purple));
+        transition: width 0.3s ease;
+    }
+    
+    .upload-status {
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+    }
+`;
+document.head.appendChild(style);

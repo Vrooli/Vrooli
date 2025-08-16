@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mind Maps - Visual Knowledge Organization</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Top Navigation Bar -->
+        <nav class="top-nav">
+            <div class="nav-left">
+                <div class="logo">
+                    <svg class="logo-icon" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+                        <circle cx="12" cy="4" r="2" stroke="currentColor" stroke-width="1.5"/>
+                        <circle cx="19" cy="8" r="2" stroke="currentColor" stroke-width="1.5"/>
+                        <circle cx="19" cy="16" r="2" stroke="currentColor" stroke-width="1.5"/>
+                        <circle cx="12" cy="20" r="2" stroke="currentColor" stroke-width="1.5"/>
+                        <circle cx="5" cy="16" r="2" stroke="currentColor" stroke-width="1.5"/>
+                        <circle cx="5" cy="8" r="2" stroke="currentColor" stroke-width="1.5"/>
+                        <path d="M12 12L12 4M12 12L19 8M12 12L19 16M12 12L12 20M12 12L5 16M12 12L5 8" stroke="currentColor" stroke-width="1" opacity="0.3"/>
+                    </svg>
+                    <span class="logo-text">Mind Maps</span>
+                </div>
+                <div class="breadcrumb">
+                    <span class="breadcrumb-item" id="currentMapName">Untitled Map</span>
+                </div>
+            </div>
+            
+            <div class="nav-center">
+                <div class="search-bar">
+                    <svg class="search-icon" viewBox="0 0 24 24" fill="none">
+                        <path d="M21 21L16.5 16.5M19 11C19 15.4183 15.4183 19 11 19C6.58172 19 3 15.4183 3 11C3 6.58172 6.58172 3 11 3C15.4183 3 19 6.58172 19 11Z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                    <input type="text" id="searchInput" placeholder="Search across all mind maps..." />
+                    <div class="search-mode">
+                        <button class="mode-toggle active" data-mode="semantic">Semantic</button>
+                        <button class="mode-toggle" data-mode="keyword">Keyword</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="nav-right">
+                <button class="nav-btn" id="newMapBtn" title="New Map">
+                    <svg viewBox="0 0 24 24" fill="none">
+                        <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </button>
+                <button class="nav-btn" id="saveBtn" title="Save">
+                    <svg viewBox="0 0 24 24" fill="none">
+                        <path d="M19 21H5C4.44772 21 4 20.5523 4 20V4C4 3.44772 4.44772 3 5 3H16L20 7V20C20 20.5523 19.5523 21 19 21Z" stroke="currentColor" stroke-width="2"/>
+                        <path d="M7 3V8H15V3" stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                </button>
+                <button class="nav-btn" id="shareBtn" title="Share">
+                    <svg viewBox="0 0 24 24" fill="none">
+                        <path d="M8.59 13.51L15.42 17.49M15.41 6.51L8.59 10.49M21 5C21 6.65685 19.6569 8 18 8C16.3431 8 15 6.65685 15 5C15 3.34315 16.3431 2 18 2C19.6569 2 21 3.34315 21 5ZM9 12C9 13.6569 7.65685 15 6 15C4.34315 15 3 13.6569 3 12C3 10.3431 4.34315 9 6 9C7.65685 9 9 10.3431 9 12ZM21 19C21 20.6569 19.6569 22 18 22C16.3431 22 15 20.6569 15 19C15 17.3431 16.3431 16 18 16C19.6569 16 21 17.3431 21 19Z" stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                </button>
+                <div class="user-menu">
+                    <button class="user-avatar" id="userMenuBtn">
+                        <span>JD</span>
+                    </button>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content Area -->
+        <div class="main-layout">
+            <!-- Sidebar -->
+            <aside class="sidebar">
+                <div class="sidebar-section">
+                    <h3 class="section-title">My Maps</h3>
+                    <div class="maps-list" id="mapsList">
+                        <div class="map-item active">
+                            <svg class="map-icon" viewBox="0 0 24 24" fill="none">
+                                <circle cx="12" cy="12" r="2" fill="currentColor"/>
+                            </svg>
+                            <span class="map-name">Welcome Tutorial</span>
+                            <span class="map-nodes">12 nodes</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="sidebar-section">
+                    <h3 class="section-title">Campaigns</h3>
+                    <div class="campaign-list" id="campaignList">
+                        <div class="campaign-item">
+                            <div class="campaign-color" style="background: linear-gradient(135deg, #667eea, #764ba2)"></div>
+                            <span>Personal Projects</span>
+                        </div>
+                        <div class="campaign-item">
+                            <div class="campaign-color" style="background: linear-gradient(135deg, #f093fb, #f5576c)"></div>
+                            <span>Work Ideas</span>
+                        </div>
+                        <div class="campaign-item">
+                            <div class="campaign-color" style="background: linear-gradient(135deg, #4facfe, #00f2fe)"></div>
+                            <span>Learning Notes</span>
+                        </div>
+                    </div>
+                    <button class="add-campaign-btn" id="addCampaignBtn">
+                        + New Campaign
+                    </button>
+                </div>
+                
+                <div class="sidebar-section">
+                    <h3 class="section-title">Tools</h3>
+                    <div class="tools-list">
+                        <button class="tool-btn" id="autoOrganizeBtn">
+                            <svg viewBox="0 0 24 24" fill="none">
+                                <path d="M12 2L2 7V12C2 16.5 4.23 20.68 7.62 23.15L12 24L16.38 23.15C19.77 20.68 22 16.5 22 12V7L12 2Z" stroke="currentColor" stroke-width="2"/>
+                            </svg>
+                            <span>Auto-Organize</span>
+                        </button>
+                        <button class="tool-btn" id="exportBtn">
+                            <svg viewBox="0 0 24 24" fill="none">
+                                <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15M7 10L12 15M12 15L17 10M12 15V3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                            <span>Export</span>
+                        </button>
+                        <button class="tool-btn" id="templatesBtn">
+                            <svg viewBox="0 0 24 24" fill="none">
+                                <rect x="3" y="3" width="7" height="7" stroke="currentColor" stroke-width="2"/>
+                                <rect x="14" y="3" width="7" height="7" stroke="currentColor" stroke-width="2"/>
+                                <rect x="3" y="14" width="7" height="7" stroke="currentColor" stroke-width="2"/>
+                                <rect x="14" y="14" width="7" height="7" stroke="currentColor" stroke-width="2"/>
+                            </svg>
+                            <span>Templates</span>
+                        </button>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Canvas Area -->
+            <main class="canvas-container">
+                <!-- Toolbar -->
+                <div class="toolbar">
+                    <div class="tool-group">
+                        <button class="tool active" id="selectTool" title="Select (V)">
+                            <svg viewBox="0 0 24 24" fill="none">
+                                <path d="M3 3L10.07 19.97L12.58 12.58L19.97 10.07L3 3Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                            </svg>
+                        </button>
+                        <button class="tool" id="nodeTool" title="Add Node (N)">
+                            <svg viewBox="0 0 24 24" fill="none">
+                                <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/>
+                                <circle cx="12" cy="12" r="3" fill="currentColor"/>
+                            </svg>
+                        </button>
+                        <button class="tool" id="connectTool" title="Connect (C)">
+                            <svg viewBox="0 0 24 24" fill="none">
+                                <path d="M7 7L17 17M20 12C20 13.6569 18.6569 15 17 15C15.3431 15 14 13.6569 14 12C14 10.3431 15.3431 9 17 9C18.6569 9 20 10.3431 20 12ZM10 12C10 13.6569 8.65685 15 7 15C5.34315 15 4 13.6569 4 12C4 10.3431 5.34315 9 7 9C8.65685 9 10 10.3431 10 12Z" stroke="currentColor" stroke-width="2"/>
+                            </svg>
+                        </button>
+                        <button class="tool" id="textTool" title="Add Text (T)">
+                            <svg viewBox="0 0 24 24" fill="none">
+                                <path d="M4 7V4H20V7M9 20H15M12 4V20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                        </button>
+                    </div>
+                    
+                    <div class="tool-separator"></div>
+                    
+                    <div class="tool-group">
+                        <button class="tool" id="zoomInBtn" title="Zoom In">
+                            <svg viewBox="0 0 24 24" fill="none">
+                                <path d="M21 21L15 15M17 10C17 13.866 13.866 17 10 17C6.13401 17 3 13.866 3 10C3 6.13401 6.13401 3 10 3C13.866 3 17 6.13401 17 10Z" stroke="currentColor" stroke-width="2"/>
+                                <path d="M10 7V13M7 10H13" stroke="currentColor" stroke-width="2"/>
+                            </svg>
+                        </button>
+                        <button class="tool" id="zoomOutBtn" title="Zoom Out">
+                            <svg viewBox="0 0 24 24" fill="none">
+                                <path d="M21 21L15 15M17 10C17 13.866 13.866 17 10 17C6.13401 17 3 13.866 3 10C3 6.13401 6.13401 3 10 3C13.866 3 17 6.13401 17 10Z" stroke="currentColor" stroke-width="2"/>
+                                <path d="M7 10H13" stroke="currentColor" stroke-width="2"/>
+                            </svg>
+                        </button>
+                        <button class="tool" id="fitViewBtn" title="Fit to View">
+                            <svg viewBox="0 0 24 24" fill="none">
+                                <path d="M5 9L3 9L3 3L9 3M15 3L21 3L21 9L19 9M19 15L21 15L21 21L15 21M9 21L3 21L3 15L5 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                        </button>
+                    </div>
+                    
+                    <div class="tool-separator"></div>
+                    
+                    <div class="tool-group">
+                        <button class="tool" id="undoBtn" title="Undo (Ctrl+Z)">
+                            <svg viewBox="0 0 24 24" fill="none">
+                                <path d="M3 7H15C17.7614 7 20 9.23858 20 12C20 14.7614 17.7614 17 15 17H11M3 7L7 3M3 7L7 11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                        </button>
+                        <button class="tool" id="redoBtn" title="Redo (Ctrl+Y)">
+                            <svg viewBox="0 0 24 24" fill="none">
+                                <path d="M21 7H9C6.23858 7 4 9.23858 4 12C4 14.7614 6.23858 17 9 17H13M21 7L17 3M21 7L17 11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Mind Map Canvas -->
+                <div class="canvas-viewport" id="canvasViewport">
+                    <svg id="mindMapCanvas" class="mind-map-canvas">
+                        <defs>
+                            <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                                <polygon points="0 0, 10 3.5, 0 7" fill="#64748b" />
+                            </marker>
+                            <filter id="node-shadow">
+                                <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.1"/>
+                            </filter>
+                        </defs>
+                        <g id="connections"></g>
+                        <g id="nodes"></g>
+                    </svg>
+                </div>
+
+                <!-- Zoom Indicator -->
+                <div class="zoom-indicator">
+                    <span id="zoomLevel">100%</span>
+                </div>
+            </main>
+
+            <!-- Properties Panel -->
+            <aside class="properties-panel" id="propertiesPanel">
+                <div class="panel-header">
+                    <h3>Node Properties</h3>
+                    <button class="panel-close" id="closePanelBtn">×</button>
+                </div>
+                
+                <div class="property-section">
+                    <label class="property-label">Title</label>
+                    <input type="text" class="property-input" id="nodeTitle" placeholder="Enter node title..."/>
+                </div>
+                
+                <div class="property-section">
+                    <label class="property-label">Description</label>
+                    <textarea class="property-textarea" id="nodeDescription" placeholder="Add description..."></textarea>
+                </div>
+                
+                <div class="property-section">
+                    <label class="property-label">Color</label>
+                    <div class="color-picker">
+                        <button class="color-option" data-color="#667eea" style="background: #667eea"></button>
+                        <button class="color-option" data-color="#f5576c" style="background: #f5576c"></button>
+                        <button class="color-option" data-color="#00f2fe" style="background: #00f2fe"></button>
+                        <button class="color-option" data-color="#fda085" style="background: #fda085"></button>
+                        <button class="color-option" data-color="#a8edea" style="background: #a8edea"></button>
+                        <button class="color-option" data-color="#fed6e3" style="background: #fed6e3"></button>
+                    </div>
+                </div>
+                
+                <div class="property-section">
+                    <label class="property-label">Tags</label>
+                    <div class="tags-input">
+                        <div class="tags-list" id="tagsList"></div>
+                        <input type="text" class="tag-input" id="tagInput" placeholder="Add tag..."/>
+                    </div>
+                </div>
+                
+                <div class="property-section">
+                    <label class="property-label">AI Suggestions</label>
+                    <button class="ai-suggest-btn" id="aiSuggestBtn">
+                        <svg viewBox="0 0 24 24" fill="none">
+                            <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        <span>Generate Related Ideas</span>
+                    </button>
+                    <div class="suggestions-list" id="suggestionsList"></div>
+                </div>
+            </aside>
+        </div>
+
+        <!-- Search Results Overlay -->
+        <div class="search-overlay" id="searchOverlay">
+            <div class="search-results">
+                <div class="results-header">
+                    <h3>Search Results</h3>
+                    <button class="close-results" id="closeSearchBtn">×</button>
+                </div>
+                <div class="results-list" id="searchResults"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,245 @@
+{
+  "name": "mind-maps-auto-organize-enhanced",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "mind-maps/auto-organize",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n  \"mapId\": \"test-map-123\",\n  \"userId\": \"test-user\",\n  \"content\": \"Machine learning is a subset of artificial intelligence. Neural networks are inspired by biological brains. Deep learning uses multiple layers. Transformers revolutionized NLP. GPT models are based on transformers. Computer vision handles image processing. CNNs are good for images. RNNs handle sequential data.\",\n  \"organizationMode\": \"hierarchical\",\n  \"maxDepth\": 3\n}",
+        "options": {}
+      },
+      "id": "provide-defaults",
+      "name": "Provide Defaults",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [450, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.all()[0].json;\n\nif (!input.content || !input.mapId) {\n  throw new Error('Content and mapId are required');\n}\n\nreturn {\n  mapId: input.mapId,\n  userId: input.userId || 'anonymous',\n  content: input.content,\n  organizationMode: input.organizationMode || 'hierarchical',\n  maxDepth: input.maxDepth || 3,\n  existingNodes: input.existingNodes || []\n};"
+      },
+      "id": "merge-inputs",
+      "name": "Merge Inputs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:5678/webhook/chain-of-thought-orchestrator",
+        "authentication": "none",
+        "method": "POST",
+        "body": {
+          "task": "Organize the following content into a mind map structure: {{ $json.content }}",
+          "stages": [
+            {
+              "name": "extract_concepts",
+              "prompt": "Extract all key concepts, entities, and relationships from this text: {{ $json.content }}\n\nList each concept with its category and importance level (1-5).",
+              "model": "llama3.2",
+              "temperature": 0.3
+            },
+            {
+              "name": "identify_hierarchy",
+              "prompt": "Based on the extracted concepts, identify the hierarchical relationships. Determine parent-child relationships and group related concepts. Organization mode: {{ $json.organizationMode }}",
+              "model": "llama3.2",
+              "temperature": 0.4
+            },
+            {
+              "name": "create_connections",
+              "prompt": "Create cross-references and connections between concepts that aren't hierarchically related but have semantic relationships. Include connection strength (weak/medium/strong).",
+              "model": "llama3.2",
+              "temperature": 0.5
+            },
+            {
+              "name": "optimize_structure",
+              "prompt": "Optimize the mind map structure for clarity and usability. Ensure max depth is {{ $json.maxDepth }}. Balance the tree and suggest node colors/icons based on categories.",
+              "model": "llama3.2",
+              "temperature": 0.3
+            }
+          ],
+          "validation": {
+            "criteria": [
+              "All important concepts from the original text are included",
+              "Hierarchical structure is logical and clear",
+              "Connections between nodes are meaningful",
+              "Structure respects the max depth constraint"
+            ]
+          },
+          "synthesis": {
+            "prompt": "Create the final mind map structure as JSON with nodes and edges. Each node should have: id, label, category, depth, position hints, color suggestions. Each edge should have: source, target, relationship type, strength.",
+            "format": "json"
+          }
+        },
+        "options": {}
+      },
+      "id": "chain-of-thought",
+      "name": "Chain of Thought Analysis",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const cotResult = $json;\nconst input = $('merge-inputs').item.json;\n\n// Parse the synthesis result\nlet mindMapStructure;\ntry {\n  mindMapStructure = typeof cotResult.synthesis === 'string' \n    ? JSON.parse(cotResult.synthesis)\n    : cotResult.synthesis;\n} catch (e) {\n  // Fallback structure if parsing fails\n  mindMapStructure = {\n    nodes: [],\n    edges: []\n  };\n}\n\n// Enhance with metadata\nconst enhancedNodes = mindMapStructure.nodes.map(node => ({\n  ...node,\n  mapId: input.mapId,\n  userId: input.userId,\n  createdAt: new Date().toISOString(),\n  metadata: {\n    autoGenerated: true,\n    source: 'chain-of-thought',\n    confidence: cotResult.validation?.score || 0.8\n  }\n}));\n\nreturn {\n  success: true,\n  mapId: input.mapId,\n  structure: {\n    nodes: enhancedNodes,\n    edges: mindMapStructure.edges\n  },\n  analysis: {\n    stages: cotResult.stages,\n    validation: cotResult.validation\n  },\n  timestamp: new Date().toISOString()\n};"
+      },
+      "id": "process-structure",
+      "name": "Process Structure",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 400]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:5678/webhook/embedding-generator",
+        "authentication": "none",
+        "method": "POST",
+        "body": {
+          "texts": "={{ $json.structure.nodes.map(n => n.label).join('|||') }}",
+          "model": "nomic-embed-text",
+          "separator": "|||",
+          "includeMetadata": true
+        },
+        "options": {}
+      },
+      "id": "generate-embeddings",
+      "name": "Generate Node Embeddings",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1250, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO mind_map_nodes (map_id, node_data, embedding, created_at)\nVALUES ($1, $2, $3, $4)\nON CONFLICT (map_id) DO UPDATE\nSET node_data = $2, embedding = $3, updated_at = $4\nRETURNING id;",
+        "options": {
+          "queryParams": "={{ $('process-structure').item.json.mapId }}, {{ JSON.stringify($('process-structure').item.json.structure) }}, {{ JSON.stringify($json.embeddings) }}, {{ $('process-structure').item.json.timestamp }}"
+        }
+      },
+      "id": "save-to-db",
+      "name": "Save to Database",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1450, 400],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-default",
+          "name": "PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:5678/webhook/workflow-screenshot-capturer",
+        "authentication": "none",
+        "method": "POST",
+        "body": {
+          "url": "http://localhost:{{ $('merge-inputs').item.json.uiPort || 5174 }}/mind-map/{{ $('process-structure').item.json.mapId }}",
+          "waitTime": 2000,
+          "selector": "#mind-map-canvas",
+          "fullPage": false
+        },
+        "options": {}
+      },
+      "id": "capture-preview",
+      "name": "Capture Mind Map Preview",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1650, 400]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n  \"success\": true,\n  \"mapId\": \"{{ $('process-structure').item.json.mapId }}\",\n  \"message\": \"Mind map auto-organized successfully\",\n  \"structure\": {{ JSON.stringify($('process-structure').item.json.structure) }},\n  \"preview\": \"{{ $json.screenshot || '' }}\",\n  \"analysis\": {{ JSON.stringify($('process-structure').item.json.analysis) }},\n  \"timestamp\": \"{{ $('process-structure').item.json.timestamp }}\"\n}",
+        "options": {}
+      },
+      "id": "format-response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [1850, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2050, 300]
+    }
+  ],
+  "connections": {
+    "webhook-trigger": {
+      "main": [[{"node": "merge-inputs", "type": "main", "index": 0}]]
+    },
+    "manual-trigger": {
+      "main": [[{"node": "provide-defaults", "type": "main", "index": 0}]]
+    },
+    "provide-defaults": {
+      "main": [[{"node": "merge-inputs", "type": "main", "index": 0}]]
+    },
+    "merge-inputs": {
+      "main": [[{"node": "chain-of-thought", "type": "main", "index": 0}]]
+    },
+    "chain-of-thought": {
+      "main": [[{"node": "process-structure", "type": "main", "index": 0}]]
+    },
+    "process-structure": {
+      "main": [[{"node": "generate-embeddings", "type": "main", "index": 0}]]
+    },
+    "generate-embeddings": {
+      "main": [[{"node": "save-to-db", "type": "main", "index": 0}]]
+    },
+    "save-to-db": {
+      "main": [[{"node": "capture-preview", "type": "main", "index": 0}]]
+    },
+    "capture-preview": {
+      "main": [[{"node": "format-response", "type": "main", "index": 0}]]
+    },
+    "format-response": {
+      "main": [[{"node": "respond", "type": "main", "index": 0}]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1.0.0",
+  "meta": {
+    "instanceId": "mind-maps-auto-organize-enhanced"
+  },
+  "tags": [
+    {
+      "name": "mind-maps"
+    },
+    {
+      "name": "chain-of-thought"
+    },
+    {
+      "name": "auto-organization"
+    }
+  ]
+}

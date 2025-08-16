@@ -1,0 +1,331 @@
+{
+  "name": "smart-suggestions",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "notes/suggestions",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [260, 300],
+      "id": "webhook-1"
+    },
+    {
+      "parameters": {},
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [260, 500],
+      "id": "manual-1"
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "context",
+              "value": "={{ $json.context || 'I am working on a machine learning project' }}"
+            },
+            {
+              "name": "user_id",
+              "value": "={{ $json.user_id || 'default-user' }}"
+            },
+            {
+              "name": "current_note_id",
+              "value": "={{ $json.current_note_id || '' }}"
+            }
+          ]
+        }
+      },
+      "name": "Set Defaults",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [460, 500],
+      "id": "set-defaults"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "multiplex",
+        "options": {}
+      },
+      "name": "Merge Inputs",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [660, 400],
+      "id": "merge-1"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT n.id, n.title, n.summary, n.updated_at,\n       array_agg(DISTINCT t.name) as tags\nFROM notes n\nLEFT JOIN note_tags nt ON n.id = nt.note_id\nLEFT JOIN tags t ON nt.tag_id = t.id\nWHERE n.user_id = $1\n  AND n.id != $2\n  AND n.is_archived = false\nGROUP BY n.id\nORDER BY n.updated_at DESC\nLIMIT 20",
+        "additionalFields": {
+          "queryParameters": "={{ [$json.user_id, $json.current_note_id || '00000000-0000-0000-0000-000000000000'] }}"
+        }
+      },
+      "name": "Get Recent Notes",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [860, 500],
+      "credentials": {
+        "postgres": {
+          "id": "vrooli-postgres",
+          "name": "Vrooli PostgreSQL"
+        }
+      },
+      "id": "postgres-recent"
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:5678/webhook/semantic-search",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "={{ $json.context }}"
+            },
+            {
+              "name": "collection",
+              "value": "notes"
+            },
+            {
+              "name": "limit",
+              "value": 10
+            },
+            {
+              "name": "filter",
+              "value": "={{ { user_id: $json.user_id } }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Find Related Notes",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [860, 300],
+      "id": "http-related"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT name, description, content, category, usage_count FROM templates WHERE (user_id = $1 OR is_public = true) ORDER BY usage_count DESC LIMIT 5",
+        "additionalFields": {
+          "queryParameters": "={{ [$('merge-1').item.json.user_id] }}"
+        }
+      },
+      "name": "Get Templates",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [860, 700],
+      "credentials": {
+        "postgres": {
+          "id": "vrooli-postgres",
+          "name": "Vrooli PostgreSQL"
+        }
+      },
+      "id": "postgres-templates"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Combine all suggestion sources\nconst context = $('merge-1').item.json.context;\nconst relatedNotes = $('http-related').item.json.results || [];\nconst recentNotes = $('postgres-recent').all().map(n => n.json);\nconst templates = $('postgres-templates').all().map(t => t.json);\n\n// Build prompt context\nconst relatedContext = relatedNotes.slice(0, 5).map(n => ({\n  title: n.payload.title,\n  summary: n.payload.summary,\n  relevance: n.score\n}));\n\nconst recentContext = recentNotes.slice(0, 5).map(n => ({\n  title: n.title,\n  summary: n.summary,\n  tags: n.tags\n}));\n\nconst templateContext = templates.map(t => ({\n  name: t.name,\n  description: t.description,\n  category: t.category\n}));\n\nreturn {\n  context: context,\n  related_notes: relatedContext,\n  recent_notes: recentContext,\n  available_templates: templateContext\n};"
+      },
+      "name": "Prepare AI Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1060, 500],
+      "id": "code-prepare"
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:5678/webhook/ollama",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "prompt",
+              "value": "=Based on the user's current context and their note-taking history, provide intelligent suggestions.\n\nCurrent context: {{ $json.context }}\n\nRelated notes they've written:\n{{ $json.related_notes.map(n => `- ${n.title}: ${n.summary}`).join('\\n') }}\n\nRecent notes:\n{{ $json.recent_notes.map(n => `- ${n.title} (tags: ${n.tags.join(', ')})`).join('\\n') }}\n\nAvailable templates:\n{{ $json.available_templates.map(t => `- ${t.name}: ${t.description}`).join('\\n') }}\n\nProvide helpful suggestions in these categories:\n1. Next topics to explore (based on their current context)\n2. Related notes to review or link\n3. Questions to consider\n4. Templates that might be useful\n5. Writing prompts to overcome blocks\n\nRespond in JSON format:\n{\n  \"next_topics\": [\"topic1\", \"topic2\"],\n  \"notes_to_link\": [{\"title\": \"...\", \"reason\": \"...\"}],\n  \"questions\": [\"question1\", \"question2\"],\n  \"template_suggestions\": [{\"name\": \"...\", \"why_useful\": \"...\"}],\n  \"writing_prompts\": [\"prompt1\", \"prompt2\"]\n}"
+            },
+            {
+              "name": "model",
+              "value": "llama3.2:latest"
+            },
+            {
+              "name": "format",
+              "value": "json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Generate AI Suggestions",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1260, 500],
+      "id": "http-ai-suggest"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Process and enhance AI suggestions\nconst aiSuggestions = $input.item.json;\nconst relatedNotes = $('http-related').item.json.results || [];\nconst recentNotes = $('postgres-recent').all().map(n => n.json);\n\n// Match AI suggested notes with actual note IDs\nconst enrichedNotesToLink = (aiSuggestions.notes_to_link || []).map(suggestion => {\n  // Try to find matching note\n  const matchedNote = relatedNotes.find(n => \n    n.payload.title.toLowerCase().includes(suggestion.title.toLowerCase())\n  ) || recentNotes.find(n => \n    n.title.toLowerCase().includes(suggestion.title.toLowerCase())\n  );\n  \n  return {\n    ...suggestion,\n    note_id: matchedNote?.id || matchedNote?.payload?.note_id,\n    actual_title: matchedNote?.title || matchedNote?.payload?.title,\n    found: !!matchedNote\n  };\n}).filter(n => n.found);\n\n// Create quick actions\nconst quickActions = [];\n\nif (aiSuggestions.next_topics && aiSuggestions.next_topics.length > 0) {\n  quickActions.push({\n    type: 'create_note',\n    label: `Start note about \"${aiSuggestions.next_topics[0]}\"`,\n    data: {\n      title: aiSuggestions.next_topics[0],\n      template: aiSuggestions.template_suggestions?.[0]?.name\n    }\n  });\n}\n\nif (enrichedNotesToLink.length > 0) {\n  quickActions.push({\n    type: 'link_note',\n    label: `Link to \"${enrichedNotesToLink[0].actual_title}\"`,\n    data: {\n      note_id: enrichedNotesToLink[0].note_id,\n      reason: enrichedNotesToLink[0].reason\n    }\n  });\n}\n\nif (aiSuggestions.questions && aiSuggestions.questions.length > 0) {\n  quickActions.push({\n    type: 'add_section',\n    label: 'Add Q&A section',\n    data: {\n      questions: aiSuggestions.questions\n    }\n  });\n}\n\nreturn {\n  suggestions: {\n    next_topics: aiSuggestions.next_topics || [],\n    related_notes: enrichedNotesToLink,\n    questions_to_explore: aiSuggestions.questions || [],\n    templates: aiSuggestions.template_suggestions || [],\n    writing_prompts: aiSuggestions.writing_prompts || []\n  },\n  quick_actions: quickActions,\n  context_analyzed: $('merge-1').item.json.context,\n  timestamp: new Date().toISOString()\n};"
+      },
+      "name": "Enrich Suggestions",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1460, 500],
+      "id": "code-enrich"
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "success"
+            }
+          ],
+          "object": [
+            {
+              "name": "data",
+              "value": "={{ $json }}"
+            }
+          ]
+        }
+      },
+      "name": "Format Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [1660, 300],
+      "id": "format-response"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Merge Inputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Defaults",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Defaults": {
+      "main": [
+        [
+          {
+            "node": "Merge Inputs",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Inputs": {
+      "main": [
+        [
+          {
+            "node": "Find Related Notes",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Recent Notes",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Templates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Related Notes": {
+      "main": [
+        [
+          {
+            "node": "Prepare AI Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Recent Notes": {
+      "main": [
+        [
+          {
+            "node": "Prepare AI Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Templates": {
+      "main": [
+        [
+          {
+            "node": "Prepare AI Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare AI Context": {
+      "main": [
+        [
+          {
+            "node": "Generate AI Suggestions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate AI Suggestions": {
+      "main": [
+        [
+          {
+            "node": "Enrich Suggestions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enrich Suggestions": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": true
+}

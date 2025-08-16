@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neural Mind Maps - Synaptic Knowledge Network</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Orbitron:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles-neural.css">
+</head>
+<body>
+    <!-- Neural particle effect background -->
+    <canvas id="neuralBackground"></canvas>
+    
+    <div class="app-container">
+        <!-- Futuristic Navigation -->
+        <nav class="top-nav">
+            <div class="nav-left">
+                <div class="logo">
+                    <svg class="logo-icon" viewBox="0 0 48 48" fill="none">
+                        <!-- Central neuron -->
+                        <circle cx="24" cy="24" r="6" stroke="currentColor" stroke-width="2" fill="rgba(0, 255, 204, 0.2)"/>
+                        
+                        <!-- Surrounding neurons -->
+                        <circle cx="24" cy="8" r="4" stroke="currentColor" stroke-width="1.5" opacity="0.8"/>
+                        <circle cx="38" cy="14" r="4" stroke="currentColor" stroke-width="1.5" opacity="0.8"/>
+                        <circle cx="40" cy="30" r="4" stroke="currentColor" stroke-width="1.5" opacity="0.8"/>
+                        <circle cx="24" cy="40" r="4" stroke="currentColor" stroke-width="1.5" opacity="0.8"/>
+                        <circle cx="8" cy="30" r="4" stroke="currentColor" stroke-width="1.5" opacity="0.8"/>
+                        <circle cx="10" cy="14" r="4" stroke="currentColor" stroke-width="1.5" opacity="0.8"/>
+                        
+                        <!-- Synaptic connections -->
+                        <path d="M24 24L24 8M24 24L38 14M24 24L40 30M24 24L24 40M24 24L8 30M24 24L10 14" 
+                              stroke="url(#synapseGradient)" stroke-width="1" opacity="0.6"/>
+                        
+                        <defs>
+                            <linearGradient id="synapseGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" style="stop-color:#00ffcc;stop-opacity:1" />
+                                <stop offset="50%" style="stop-color:#ff00ff;stop-opacity:1" />
+                                <stop offset="100%" style="stop-color:#00ccff;stop-opacity:1" />
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                    <span class="logo-text">Neural Maps</span>
+                </div>
+                <div class="status-indicator">
+                    <span class="status-dot"></span>
+                    <span class="status-text">Synapses Active</span>
+                </div>
+            </div>
+            
+            <div class="nav-center">
+                <div class="search-bar">
+                    <svg class="search-icon" viewBox="0 0 24 24" fill="none">
+                        <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2"/>
+                        <path d="M21 21L16.65 16.65" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                    <input type="text" id="searchInput" placeholder="Query neural network..." />
+                    <div class="search-mode">
+                        <button class="mode-toggle active" data-mode="semantic">Semantic</button>
+                        <button class="mode-toggle" data-mode="pattern">Pattern</button>
+                        <button class="mode-toggle" data-mode="hybrid">Hybrid</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="nav-right">
+                <button class="nav-btn neural-btn" id="trainBtn" title="Train Network">
+                    <svg viewBox="0 0 24 24" fill="none">
+                        <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2"/>
+                        <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2"/>
+                        <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                </button>
+                <button class="nav-btn neural-btn" id="synthesizeBtn" title="Synthesize">
+                    <svg viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+                        <path d="M12 1V9M12 15V23M23 12H15M9 12H1" stroke="currentColor" stroke-width="2"/>
+                        <path d="M20.5 7.5L15.5 12.5M12.5 15.5L7.5 20.5M7.5 3.5L12.5 8.5M15.5 11.5L20.5 16.5" stroke="currentColor" stroke-width="1" opacity="0.5"/>
+                    </svg>
+                </button>
+                <div class="neural-metrics">
+                    <div class="metric">
+                        <span class="metric-label">Nodes</span>
+                        <span class="metric-value" id="nodeCount">0</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Synapses</span>
+                        <span class="metric-value" id="synapseCount">0</span>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Neural Interface -->
+        <div class="main-layout">
+            <!-- Control Panel -->
+            <aside class="control-panel">
+                <div class="panel-section">
+                    <h3 class="section-title">
+                        <span class="section-icon">⚡</span>
+                        Neural Networks
+                    </h3>
+                    <div class="network-list" id="networkList">
+                        <!-- Networks will be loaded here -->
+                    </div>
+                    <button class="create-network-btn">
+                        <span class="btn-icon">+</span>
+                        Initialize New Network
+                    </button>
+                </div>
+                
+                <div class="panel-section">
+                    <h3 class="section-title">
+                        <span class="section-icon">🧬</span>
+                        Thought Patterns
+                    </h3>
+                    <div class="pattern-grid">
+                        <div class="pattern-card" data-pattern="hierarchical">
+                            <div class="pattern-visual">
+                                <svg viewBox="0 0 40 40" fill="none">
+                                    <circle cx="20" cy="8" r="3" fill="currentColor"/>
+                                    <circle cx="10" cy="20" r="2" fill="currentColor"/>
+                                    <circle cx="20" cy="20" r="2" fill="currentColor"/>
+                                    <circle cx="30" cy="20" r="2" fill="currentColor"/>
+                                    <circle cx="8" cy="32" r="1" fill="currentColor"/>
+                                    <circle cx="16" cy="32" r="1" fill="currentColor"/>
+                                    <circle cx="24" cy="32" r="1" fill="currentColor"/>
+                                    <circle cx="32" cy="32" r="1" fill="currentColor"/>
+                                    <path d="M20 11V17M20 8L10 20M20 8L30 20M10 20L8 32M10 20L16 32M30 20L24 32M30 20L32 32" stroke="currentColor" stroke-width="0.5"/>
+                                </svg>
+                            </div>
+                            <span class="pattern-name">Hierarchical</span>
+                        </div>
+                        <div class="pattern-card" data-pattern="radial">
+                            <div class="pattern-visual">
+                                <svg viewBox="0 0 40 40" fill="none">
+                                    <circle cx="20" cy="20" r="3" fill="currentColor"/>
+                                    <circle cx="20" cy="8" r="2" fill="currentColor"/>
+                                    <circle cx="32" cy="20" r="2" fill="currentColor"/>
+                                    <circle cx="20" cy="32" r="2" fill="currentColor"/>
+                                    <circle cx="8" cy="20" r="2" fill="currentColor"/>
+                                    <path d="M20 20L20 8M20 20L32 20M20 20L20 32M20 20L8 20" stroke="currentColor" stroke-width="0.5"/>
+                                </svg>
+                            </div>
+                            <span class="pattern-name">Radial</span>
+                        </div>
+                        <div class="pattern-card" data-pattern="organic">
+                            <div class="pattern-visual">
+                                <svg viewBox="0 0 40 40" fill="none">
+                                    <circle cx="20" cy="20" r="3" fill="currentColor"/>
+                                    <circle cx="15" cy="10" r="2" fill="currentColor"/>
+                                    <circle cx="30" cy="15" r="2" fill="currentColor"/>
+                                    <circle cx="28" cy="28" r="2" fill="currentColor"/>
+                                    <circle cx="12" cy="27" r="2" fill="currentColor"/>
+                                    <circle cx="8" cy="18" r="2" fill="currentColor"/>
+                                    <path d="M20 20Q15 15 15 10M20 20Q25 17 30 15M20 20Q24 24 28 28M20 20Q16 23 12 27M20 20Q14 19 8 18" stroke="currentColor" stroke-width="0.5"/>
+                                </svg>
+                            </div>
+                            <span class="pattern-name">Organic</span>
+                        </div>
+                        <div class="pattern-card" data-pattern="matrix">
+                            <div class="pattern-visual">
+                                <svg viewBox="0 0 40 40" fill="none">
+                                    <circle cx="10" cy="10" r="2" fill="currentColor"/>
+                                    <circle cx="20" cy="10" r="2" fill="currentColor"/>
+                                    <circle cx="30" cy="10" r="2" fill="currentColor"/>
+                                    <circle cx="10" cy="20" r="2" fill="currentColor"/>
+                                    <circle cx="20" cy="20" r="3" fill="currentColor"/>
+                                    <circle cx="30" cy="20" r="2" fill="currentColor"/>
+                                    <circle cx="10" cy="30" r="2" fill="currentColor"/>
+                                    <circle cx="20" cy="30" r="2" fill="currentColor"/>
+                                    <circle cx="30" cy="30" r="2" fill="currentColor"/>
+                                    <path d="M10 10H30V30H10V10M10 20H30M20 10V30" stroke="currentColor" stroke-width="0.5"/>
+                                </svg>
+                            </div>
+                            <span class="pattern-name">Matrix</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="panel-section">
+                    <h3 class="section-title">
+                        <span class="section-icon">🔮</span>
+                        Neural Insights
+                    </h3>
+                    <div class="insights-container">
+                        <div class="insight-card">
+                            <div class="insight-metric">
+                                <span class="metric-name">Connectivity</span>
+                                <div class="metric-bar">
+                                    <div class="metric-fill" style="width: 75%"></div>
+                                </div>
+                                <span class="metric-percent">75%</span>
+                            </div>
+                        </div>
+                        <div class="insight-card">
+                            <div class="insight-metric">
+                                <span class="metric-name">Complexity</span>
+                                <div class="metric-bar">
+                                    <div class="metric-fill" style="width: 60%"></div>
+                                </div>
+                                <span class="metric-percent">60%</span>
+                            </div>
+                        </div>
+                        <div class="insight-card">
+                            <div class="insight-metric">
+                                <span class="metric-name">Coherence</span>
+                                <div class="metric-bar">
+                                    <div class="metric-fill" style="width: 88%"></div>
+                                </div>
+                                <span class="metric-percent">88%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Neural Canvas -->
+            <div class="canvas-container">
+                <canvas id="mind-map-canvas"></canvas>
+                
+                <!-- Floating Neural Toolbar -->
+                <div class="floating-toolbar">
+                    <button class="toolbar-btn" id="addNodeBtn" title="Add Neuron">
+                        <svg viewBox="0 0 24 24" fill="none">
+                            <circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="2"/>
+                            <path d="M12 8V16M8 12H16" stroke="currentColor" stroke-width="2"/>
+                        </svg>
+                    </button>
+                    <button class="toolbar-btn" id="connectBtn" title="Create Synapse">
+                        <svg viewBox="0 0 24 24" fill="none">
+                            <circle cx="6" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+                            <circle cx="18" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+                            <path d="M9 12H15" stroke="currentColor" stroke-width="2"/>
+                        </svg>
+                    </button>
+                    <button class="toolbar-btn" id="autoOrganizeBtn" title="Auto-Organize">
+                        <svg viewBox="0 0 24 24" fill="none">
+                            <path d="M3 7H21M3 12H21M3 17H21" stroke="currentColor" stroke-width="2"/>
+                            <circle cx="12" cy="7" r="2" fill="currentColor"/>
+                            <circle cx="8" cy="12" r="2" fill="currentColor"/>
+                            <circle cx="16" cy="17" r="2" fill="currentColor"/>
+                        </svg>
+                    </button>
+                    <button class="toolbar-btn" id="visualizeBtn" title="Visualize Connections">
+                        <svg viewBox="0 0 24 24" fill="none">
+                            <path d="M12 2L22 7V17L12 22L2 17V7L12 2Z" stroke="currentColor" stroke-width="2"/>
+                            <path d="M12 22V12M12 12L2 7M12 12L22 7" stroke="currentColor" stroke-width="2"/>
+                        </svg>
+                    </button>
+                    <div class="toolbar-separator"></div>
+                    <button class="toolbar-btn" id="zoomInBtn" title="Zoom In">
+                        <svg viewBox="0 0 24 24" fill="none">
+                            <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2"/>
+                            <path d="M21 21L16.65 16.65M11 8V14M8 11H14" stroke="currentColor" stroke-width="2"/>
+                        </svg>
+                    </button>
+                    <button class="toolbar-btn" id="zoomOutBtn" title="Zoom Out">
+                        <svg viewBox="0 0 24 24" fill="none">
+                            <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2"/>
+                            <path d="M21 21L16.65 16.65M8 11H14" stroke="currentColor" stroke-width="2"/>
+                        </svg>
+                    </button>
+                    <button class="toolbar-btn" id="resetViewBtn" title="Reset View">
+                        <svg viewBox="0 0 24 24" fill="none">
+                            <path d="M1 1L7 1V7M23 23L17 23V17M23 1L23 7H17M1 23L1 17H7" stroke="currentColor" stroke-width="2"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Neural Status Display -->
+                <div class="neural-status">
+                    <div class="status-item">
+                        <span class="status-label">Neural Activity</span>
+                        <div class="activity-indicator">
+                            <span class="pulse"></span>
+                            <span class="pulse"></span>
+                            <span class="pulse"></span>
+                        </div>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Processing</span>
+                        <span class="status-value" id="processingStatus">Idle</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Neural Inspector Panel -->
+            <aside class="inspector-panel" id="inspectorPanel" style="display: none;">
+                <div class="inspector-header">
+                    <h3 class="inspector-title">Neuron Properties</h3>
+                    <button class="close-btn" id="closeInspector">×</button>
+                </div>
+                <div class="inspector-content">
+                    <div class="property-group">
+                        <label class="property-label">Label</label>
+                        <input type="text" class="property-input" id="nodeLabel" />
+                    </div>
+                    <div class="property-group">
+                        <label class="property-label">Category</label>
+                        <select class="property-select" id="nodeCategory">
+                            <option value="concept">Concept</option>
+                            <option value="idea">Idea</option>
+                            <option value="task">Task</option>
+                            <option value="reference">Reference</option>
+                            <option value="question">Question</option>
+                        </select>
+                    </div>
+                    <div class="property-group">
+                        <label class="property-label">Neural Weight</label>
+                        <input type="range" class="property-slider" id="nodeWeight" min="1" max="10" />
+                        <span class="slider-value">5</span>
+                    </div>
+                    <div class="property-group">
+                        <label class="property-label">Activation Color</label>
+                        <div class="color-palette">
+                            <button class="color-option" data-color="#00ffcc"></button>
+                            <button class="color-option" data-color="#ff00ff"></button>
+                            <button class="color-option" data-color="#00ccff"></button>
+                            <button class="color-option" data-color="#ffaa00"></button>
+                            <button class="color-option" data-color="#00ff88"></button>
+                        </div>
+                    </div>
+                    <div class="property-group">
+                        <label class="property-label">Connections</label>
+                        <div class="connection-list" id="connectionList">
+                            <!-- Connections will be listed here -->
+                        </div>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <!-- Neural Loader -->
+    <div class="neural-loader" id="loader" style="display: none;">
+        <svg viewBox="0 0 120 120" fill="none">
+            <circle cx="60" cy="60" r="50" stroke="url(#loaderGradient)" stroke-width="4" stroke-linecap="round" stroke-dasharray="10 20"/>
+            <circle cx="60" cy="30" r="8" fill="#00ffcc" opacity="0.8">
+                <animate attributeName="opacity" values="0.8;0.2;0.8" dur="2s" repeatCount="indefinite"/>
+            </circle>
+            <circle cx="85" cy="60" r="8" fill="#ff00ff" opacity="0.8">
+                <animate attributeName="opacity" values="0.2;0.8;0.2" dur="2s" repeatCount="indefinite"/>
+            </circle>
+            <circle cx="60" cy="90" r="8" fill="#00ccff" opacity="0.8">
+                <animate attributeName="opacity" values="0.5;0.2;0.8" dur="2s" repeatCount="indefinite"/>
+            </circle>
+            <circle cx="35" cy="60" r="8" fill="#ffaa00" opacity="0.8">
+                <animate attributeName="opacity" values="0.8;0.5;0.2" dur="2s" repeatCount="indefinite"/>
+            </circle>
+            <defs>
+                <linearGradient id="loaderGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style="stop-color:#00ffcc;stop-opacity:1">
+                        <animate attributeName="stop-color" values="#00ffcc;#ff00ff;#00ccff;#00ffcc" dur="3s" repeatCount="indefinite"/>
+                    </stop>
+                    <stop offset="100%" style="stop-color:#ff00ff;stop-opacity:1">
+                        <animate attributeName="stop-color" values="#ff00ff;#00ccff;#00ffcc;#ff00ff" dur="3s" repeatCount="indefinite"/>
+                    </stop>
+                </linearGradient>
+            </defs>
+        </svg>
+        <div class="loader-text">Initializing Neural Network...</div>
+    </div>
+
+    <script src="script-neural.js"></script>
+</body>
+</html>

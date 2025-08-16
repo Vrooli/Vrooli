@@ -1,0 +1,261 @@
+{
+  "name": "Study Material Processor",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "study/process-material",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Provide defaults for manual testing\nconst defaults = {\n  user_id: 'test-user',\n  subject_id: 'biology-101',\n  material_type: 'pdf', // pdf, url, text, image\n  material_source: 'https://example.com/biology-textbook.pdf',\n  material_content: null, // For direct text input\n  material_base64: null, // For file uploads\n  chapter_name: 'Cell Biology',\n  topics: ['mitochondria', 'cell membrane', 'nucleus'],\n  difficulty_level: 3,\n  learning_objectives: [\n    'Understand cell structure',\n    'Identify organelle functions',\n    'Explain cellular processes'\n  ]\n};\n\n// Only use defaults if coming from manual trigger\nconst isManual = $execution.resumeUrl === undefined;\nif (isManual) {\n  return [{json: defaults}];\n}\n\n// Otherwise pass through webhook data\nreturn items;"
+      },
+      "id": "defaults",
+      "name": "Defaults",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare the material for RAG processing\nconst input = items[0].json;\n\n// Create unique collection name for this user's subject\nconst collectionName = `study_buddy_${input.user_id}_${input.subject_id}`.replace(/[^a-zA-Z0-9_]/g, '_');\n\n// Prepare metadata for the chunks\nconst metadata = {\n  user_id: input.user_id,\n  subject_id: input.subject_id,\n  chapter: input.chapter_name || 'General',\n  topics: input.topics || [],\n  difficulty: input.difficulty_level || 3,\n  learning_objectives: input.learning_objectives || [],\n  upload_date: new Date().toISOString(),\n  material_type: input.material_type\n};\n\n// Determine input type and source\nlet ragInput = {\n  collection_name: collectionName,\n  metadata: metadata,\n  chunk_size: 500, // Smaller chunks for study materials\n  chunk_overlap: 100,\n  generate_summary: true,\n  extract_entities: true // Extract key terms, definitions, etc.\n};\n\nif (input.material_type === 'url') {\n  ragInput.input_type = 'url';\n  ragInput.url = input.material_source;\n} else if (input.material_type === 'text') {\n  ragInput.input_type = 'text';\n  ragInput.text = input.material_content || input.material_source;\n} else if (input.material_type === 'pdf' || input.material_type === 'image') {\n  ragInput.input_type = 'base64';\n  ragInput.base64_content = input.material_base64;\n  ragInput.file_type = input.material_type;\n} else if (input.material_source && input.material_source.startsWith('/')) {\n  ragInput.input_type = 'file';\n  ragInput.file_path = input.material_source;\n}\n\nreturn [{json: ragInput}];"
+      },
+      "id": "prepare-rag-input",
+      "name": "Prepare RAG Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "workflow": "={{ $fromAI('WORKFLOW_ID_universal-rag-pipeline', 'string') }}",
+        "workflowData": "={{ JSON.stringify($json) }}",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "process-with-rag",
+      "name": "Process with RAG Pipeline",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Process the RAG results and generate study materials\nconst ragResult = items[0].json;\nconst originalInput = $input.all()[0].json;\n\n// Extract key information from the processed material\nconst processedChunks = ragResult.chunks || [];\nconst summary = ragResult.summary || 'Material processed successfully';\nconst entities = ragResult.entities || [];\n\n// Identify key concepts and definitions\nconst keyConcepts = entities.filter(e => \n  e.type === 'CONCEPT' || \n  e.type === 'TERM' || \n  e.type === 'DEFINITION'\n).slice(0, 20); // Top 20 concepts\n\n// Prepare response\nconst response = {\n  success: true,\n  user_id: originalInput.user_id,\n  subject_id: originalInput.subject_id,\n  material_id: `material_${Date.now()}`,\n  collection_name: ragResult.collection_name,\n  processing_summary: {\n    chunks_created: processedChunks.length,\n    vectors_stored: ragResult.vectors_stored || processedChunks.length,\n    summary: summary,\n    key_concepts: keyConcepts,\n    topics_covered: originalInput.topics || []\n  },\n  study_recommendations: {\n    estimated_study_time: Math.ceil(processedChunks.length * 2), // 2 min per chunk\n    flashcards_to_generate: Math.min(50, keyConcepts.length * 3),\n    quiz_questions_available: Math.ceil(processedChunks.length / 5),\n    difficulty_level: originalInput.difficulty_level || 3\n  },\n  next_steps: [\n    'Generate flashcards from key concepts',\n    'Create quiz based on learning objectives',\n    'Build study plan for systematic review'\n  ],\n  timestamp: new Date().toISOString()\n};\n\nreturn [{json: response}];"
+      },
+      "id": "prepare-study-response",
+      "name": "Prepare Study Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 400]
+    },
+    {
+      "parameters": {
+        "workflow": "={{ $fromAI('WORKFLOW_ID_flashcard-generator', 'string') }}",
+        "workflowData": "={{ JSON.stringify({\n  user_id: $json.user_id,\n  subject_id: $json.subject_id,\n  source: 'processed_material',\n  material_id: $json.material_id,\n  concepts: $json.processing_summary.key_concepts.slice(0, 10),\n  difficulty: $json.study_recommendations.difficulty_level,\n  count: Math.min(20, $json.study_recommendations.flashcards_to_generate)\n}) }}",
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      },
+      "id": "trigger-flashcard-generation",
+      "name": "Trigger Flashcard Generation",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ `INSERT INTO study_materials \n  (id, user_id, subject_id, chapter_name, material_type, processing_summary, \n   vector_collection, chunk_count, created_at, updated_at)\nVALUES \n  ('${$json.material_id}', '${$json.user_id}', '${$json.subject_id}', \n   '${$input.all()[0].json.chapter_name || 'General'}', \n   '${$input.all()[0].json.material_type}',\n   '${JSON.stringify($json.processing_summary).replace(/'/g, \"''\")}',\n   '${$json.collection_name}', ${$json.processing_summary.chunks_created},\n   NOW(), NOW())\nON CONFLICT (id) DO UPDATE SET\n  processing_summary = EXCLUDED.processing_summary,\n  chunk_count = EXCLUDED.chunk_count,\n  updated_at = NOW()` }}",
+        "options": {}
+      },
+      "id": "save-to-database",
+      "name": "Save to Database",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1250, 500],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-study-buddy",
+          "name": "Study Buddy DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "cache_key",
+              "value": "={{ `study-buddy:materials:${$json.user_id}:${$json.subject_id}:latest` }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "prepare-cache-key",
+      "name": "Prepare Cache Key",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1450, 400]
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "key": "={{ $json.cache_key }}",
+        "value": "={{ JSON.stringify($input.all()[0].json) }}",
+        "ttl": 3600,
+        "options": {}
+      },
+      "id": "cache-result",
+      "name": "Cache Result",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [1650, 400],
+      "credentials": {
+        "redis": {
+          "id": "redis-study-buddy",
+          "name": "Study Buddy Cache"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1850, 400]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Prepare RAG Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual": {
+      "main": [
+        [
+          {
+            "node": "Defaults",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Defaults": {
+      "main": [
+        [
+          {
+            "node": "Prepare RAG Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare RAG Input": {
+      "main": [
+        [
+          {
+            "node": "Process with RAG Pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process with RAG Pipeline": {
+      "main": [
+        [
+          {
+            "node": "Prepare Study Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Study Response": {
+      "main": [
+        [
+          {
+            "node": "Trigger Flashcard Generation",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Save to Database",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prepare Cache Key",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Cache Key": {
+      "main": [
+        [
+          {
+            "node": "Cache Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cache Result": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "templateId": "study-material-processor"
+  },
+  "pinData": {},
+  "versionId": "1.0.0",
+  "triggerCount": 2,
+  "tags": []
+}

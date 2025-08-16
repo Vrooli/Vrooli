@@ -1,0 +1,161 @@
+{
+  "name": "Smart File Manager - Semantic Search",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "smart-file-manager/search",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 500]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Provide test defaults for manual testing\nreturn {\n  query: 'photos from last vacation with beaches',\n  filters: {\n    file_types: ['image/jpeg', 'image/png'],\n    date_range: {\n      start: '2024-01-01',\n      end: '2024-12-31'\n    }\n  },\n  limit: 20,\n  use_semantic_search: true\n};"
+      },
+      "id": "set_test_defaults",
+      "name": "Set Test Defaults",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [400, 500]
+    },
+    {
+      "parameters": {},
+      "id": "merge_triggers",
+      "name": "Merge Triggers",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [600, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5678/webhook/smart-semantic-search",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "={{ $json.query }}"
+            },
+            {
+              "name": "collection",
+              "value": "smart-file-manager"
+            },
+            {
+              "name": "limit",
+              "value": "={{ $json.limit || 20 }}"
+            },
+            {
+              "name": "threshold",
+              "value": "={{ $json.threshold || 0.7 }}"
+            },
+            {
+              "name": "metadata_filter",
+              "value": "={{ JSON.stringify($json.filters) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "call_semantic_search",
+      "name": "Call Shared Semantic Search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [800, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process search results and enrich with file metadata\nconst searchResults = $json.results || [];\nconst fileIds = searchResults.map(r => r.id || r.file_id).filter(Boolean);\n\nif (fileIds.length === 0) {\n  return {\n    success: true,\n    query: $json.query,\n    results: [],\n    total: 0,\n    message: 'No matching files found'\n  };\n}\n\nreturn {\n  query: $json.query,\n  file_ids: fileIds,\n  raw_results: searchResults,\n  search_metadata: {\n    threshold_used: $json.threshold || 0.7,\n    limit: $json.limit || 20,\n    execution_time_ms: $json.execution_time\n  }\n};"
+      },
+      "id": "process_search_results",
+      "name": "Process Search Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1000, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT f.*, ia.description, ia.detected_objects, ia.scene_type, array_agg(DISTINCT fs.suggested_value) FILTER (WHERE fs.suggestion_type = 'tag') as tags FROM files f LEFT JOIN image_analysis ia ON f.file_id = ia.file_id LEFT JOIN file_suggestions fs ON f.file_id = fs.file_id WHERE f.file_id = ANY($1::text[]) GROUP BY f.file_id, ia.file_id",
+        "options": {
+          "queryParams": "={{ $json.file_ids }}"
+        }
+      },
+      "id": "get_file_details",
+      "name": "Get File Details",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1200, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Combine search results with file details\nconst fileDetails = $('Get File Details').all()[0].json;\nconst searchData = $('Process Search Results').all()[0].json;\n\n// Map scores from raw results to file details\nconst scoreMap = {};\nsearchData.raw_results.forEach(result => {\n  scoreMap[result.id || result.file_id] = result.score || result.similarity || 0;\n});\n\n// Enrich file details with search scores and format response\nconst enrichedResults = fileDetails.map(file => ({\n  file_id: file.file_id,\n  file_name: file.original_name,\n  file_path: file.file_path,\n  mime_type: file.mime_type,\n  size: file.size,\n  created_at: file.created_at,\n  relevance_score: scoreMap[file.file_id] || 0,\n  preview: {\n    description: file.description,\n    tags: file.tags || [],\n    scene_type: file.scene_type,\n    detected_objects: file.detected_objects || []\n  },\n  actions: [\n    { type: 'download', url: `/api/files/${file.file_id}/download` },\n    { type: 'preview', url: `/api/files/${file.file_id}/preview` },\n    { type: 'edit_tags', url: `/api/files/${file.file_id}/tags` }\n  ]\n}));\n\n// Sort by relevance score\nenrichedResults.sort((a, b) => b.relevance_score - a.relevance_score);\n\nreturn {\n  success: true,\n  query: searchData.query,\n  results: enrichedResults,\n  total: enrichedResults.length,\n  metadata: searchData.search_metadata,\n  facets: generateFacets(enrichedResults)\n};\n\nfunction generateFacets(results) {\n  const facets = {\n    file_types: {},\n    tags: {},\n    scene_types: {}\n  };\n  \n  results.forEach(result => {\n    // Count file types\n    const fileType = result.mime_type?.split('/')[0] || 'unknown';\n    facets.file_types[fileType] = (facets.file_types[fileType] || 0) + 1;\n    \n    // Count tags\n    (result.preview.tags || []).forEach(tag => {\n      facets.tags[tag] = (facets.tags[tag] || 0) + 1;\n    });\n    \n    // Count scene types\n    if (result.preview.scene_type) {\n      facets.scene_types[result.preview.scene_type] = (facets.scene_types[result.preview.scene_type] || 0) + 1;\n    }\n  });\n  \n  return facets;\n}"
+      },
+      "id": "format_response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1400, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      },
+      "id": "success_response",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1600, 400]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": { 
+      "main": [[{ "node": "Merge Triggers", "type": "main", "index": 0 }]] 
+    },
+    "Manual Trigger": { 
+      "main": [[{ "node": "Set Test Defaults", "type": "main", "index": 0 }]] 
+    },
+    "Set Test Defaults": { 
+      "main": [[{ "node": "Merge Triggers", "type": "main", "index": 1 }]] 
+    },
+    "Merge Triggers": { 
+      "main": [[{ "node": "Call Shared Semantic Search", "type": "main", "index": 0 }]] 
+    },
+    "Call Shared Semantic Search": { 
+      "main": [[{ "node": "Process Search Results", "type": "main", "index": 0 }]] 
+    },
+    "Process Search Results": { 
+      "main": [[{ "node": "Get File Details", "type": "main", "index": 0 }]] 
+    },
+    "Get File Details": { 
+      "main": [[{ "node": "Format Response", "type": "main", "index": 0 }]] 
+    },
+    "Format Response": { 
+      "main": [[{ "node": "Success Response", "type": "main", "index": 0 }]] 
+    }
+  },
+  "active": true,
+  "settings": { "executionOrder": "v1" },
+  "versionId": "1",
+  "id": "smart-file-semantic-search",
+  "meta": { "instanceId": "smart-file-manager" },
+  "tags": [{ "id": "1", "name": "smart-file-manager" }, { "id": "2", "name": "search" }]
+}

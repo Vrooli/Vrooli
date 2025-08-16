@@ -1,0 +1,301 @@
+{
+  "name": "Agent Realtime Monitor",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "seconds",
+              "secondsInterval": 30
+            }
+          ]
+        }
+      },
+      "id": "schedule_trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  a.id,\n  a.name,\n  a.type,\n  a.status,\n  a.last_heartbeat,\n  a.capabilities::jsonb as capabilities,\n  a.metrics::jsonb as metrics,\n  a.configuration::jsonb as configuration,\n  EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - a.last_heartbeat))::int as seconds_since_heartbeat,\n  CASE \n    WHEN a.last_heartbeat IS NULL THEN 'never'\n    WHEN EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - a.last_heartbeat)) > 300 THEN 'stale'\n    WHEN EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - a.last_heartbeat)) > 60 THEN 'warning'\n    ELSE 'healthy'\n  END as health_status\nFROM agent_dashboard.agents a\nWHERE a.status != 'terminated'\nORDER BY a.type, a.name",
+        "options": {}
+      },
+      "id": "get_all_agents",
+      "name": "Get All Agents",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [450, 400],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-agent-dashboard",
+          "name": "Agent Dashboard DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const agents = items;\nconst healthyAgents = [];\nconst warningAgents = [];\nconst staleAgents = [];\nconst criticalAgents = [];\n\nfor (const agent of agents) {\n  const agentData = agent.json;\n  \n  // Check agent health based on multiple factors\n  const healthScore = calculateHealthScore(agentData);\n  \n  // Categorize agent\n  if (agentData.health_status === 'stale' || healthScore < 30) {\n    criticalAgents.push({\n      ...agentData,\n      health_score: healthScore,\n      issue: determineIssue(agentData, healthScore)\n    });\n  } else if (agentData.health_status === 'warning' || healthScore < 60) {\n    warningAgents.push({\n      ...agentData,\n      health_score: healthScore\n    });\n  } else if (healthScore < 80) {\n    warningAgents.push({\n      ...agentData,\n      health_score: healthScore\n    });\n  } else {\n    healthyAgents.push({\n      ...agentData,\n      health_score: healthScore\n    });\n  }\n}\n\nfunction calculateHealthScore(agent) {\n  let score = 100;\n  \n  // Heartbeat penalty\n  if (agent.seconds_since_heartbeat > 300) score -= 50;\n  else if (agent.seconds_since_heartbeat > 120) score -= 30;\n  else if (agent.seconds_since_heartbeat > 60) score -= 10;\n  \n  // Status penalty\n  if (agent.status === 'error') score -= 40;\n  else if (agent.status === 'inactive') score -= 20;\n  else if (agent.status === 'stopping') score -= 10;\n  \n  // Metrics-based scoring\n  const metrics = agent.metrics || {};\n  if (metrics.cpu_usage > 90) score -= 20;\n  else if (metrics.cpu_usage > 70) score -= 10;\n  \n  if (metrics.memory_usage > 90) score -= 15;\n  else if (metrics.memory_usage > 80) score -= 5;\n  \n  if (metrics.error_rate > 10) score -= 25;\n  else if (metrics.error_rate > 5) score -= 10;\n  \n  return Math.max(0, Math.min(100, score));\n}\n\nfunction determineIssue(agent, healthScore) {\n  const issues = [];\n  \n  if (agent.seconds_since_heartbeat > 300) {\n    issues.push('No heartbeat for over 5 minutes');\n  }\n  \n  if (agent.status === 'error') {\n    issues.push('Agent in error state');\n  }\n  \n  const metrics = agent.metrics || {};\n  if (metrics.cpu_usage > 90) {\n    issues.push('Critical CPU usage');\n  }\n  \n  if (metrics.memory_usage > 90) {\n    issues.push('Critical memory usage');\n  }\n  \n  if (metrics.error_rate > 10) {\n    issues.push('High error rate');\n  }\n  \n  return issues.length > 0 ? issues.join(', ') : 'Unknown issue';\n}\n\nreturn [{\n  json: {\n    timestamp: new Date().toISOString(),\n    total_agents: agents.length,\n    healthy_count: healthyAgents.length,\n    warning_count: warningAgents.length,\n    critical_count: criticalAgents.length,\n    healthy_agents: healthyAgents,\n    warning_agents: warningAgents,\n    critical_agents: criticalAgents,\n    system_health: criticalAgents.length > 0 ? 'critical' : \n                   warningAgents.length > 2 ? 'warning' : 'healthy'\n  }\n}];"
+      },
+      "id": "analyze_health",
+      "name": "Analyze Agent Health",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.critical_count }}",
+              "operation": "larger",
+              "value2": 0
+            }
+          ]
+        }
+      },
+      "id": "check_critical",
+      "name": "Has Critical Agents?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const healthData = items[0].json;\nconst criticalAgents = healthData.critical_agents;\n\n// Prepare recovery actions for each critical agent\nconst recoveryActions = [];\n\nfor (const agent of criticalAgents) {\n  const action = {\n    agent_id: agent.id,\n    agent_name: agent.name,\n    agent_type: agent.type,\n    issue: agent.issue,\n    health_score: agent.health_score,\n    recovery_steps: []\n  };\n  \n  // Determine recovery steps based on the issue\n  if (agent.seconds_since_heartbeat > 300) {\n    action.recovery_steps.push({\n      step: 'restart_agent',\n      priority: 'high',\n      description: 'Attempt to restart the unresponsive agent'\n    });\n  }\n  \n  if (agent.status === 'error') {\n    action.recovery_steps.push({\n      step: 'check_logs',\n      priority: 'high',\n      description: 'Analyze recent error logs for root cause'\n    });\n    action.recovery_steps.push({\n      step: 'reset_configuration',\n      priority: 'medium',\n      description: 'Reset agent to default configuration if corrupted'\n    });\n  }\n  \n  const metrics = agent.metrics || {};\n  if (metrics.cpu_usage > 90) {\n    action.recovery_steps.push({\n      step: 'scale_resources',\n      priority: 'high',\n      description: 'Allocate more CPU resources or distribute load'\n    });\n  }\n  \n  if (metrics.memory_usage > 90) {\n    action.recovery_steps.push({\n      step: 'clear_cache',\n      priority: 'medium',\n      description: 'Clear agent cache and temporary data'\n    });\n    action.recovery_steps.push({\n      step: 'increase_memory',\n      priority: 'low',\n      description: 'Consider increasing memory allocation'\n    });\n  }\n  \n  recoveryActions.push(action);\n}\n\nreturn [{\n  json: {\n    alert_type: 'critical',\n    timestamp: new Date().toISOString(),\n    affected_agents: criticalAgents.length,\n    recovery_actions: recoveryActions,\n    notification_required: true,\n    auto_recovery_enabled: true\n  }\n}];"
+      },
+      "id": "prepare_recovery",
+      "name": "Prepare Recovery Actions",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "workflow": "={{ $fromAI('WORKFLOW_ID_smart-notification-router', 'string') }}",
+        "workflowData": "={{ JSON.stringify({ type: 'agent_critical', priority: 'high', title: 'Critical Agent Alert', message: `${$json.affected_agents} agent(s) require immediate attention`, details: $json.recovery_actions, channels: ['email', 'slack', 'dashboard'] }) }}",
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      },
+      "id": "send_alert",
+      "name": "Send Critical Alert",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO agent_dashboard.orchestration_logs \n  (orchestration_type, status, affected_agents, configuration, initiated_by) \nVALUES \n  ('auto_recovery', 'initiated', $1::jsonb, $2::jsonb, 'system')\nRETURNING id",
+        "additionalFields": {
+          "queryParams": "={{ JSON.stringify($json.recovery_actions.map(a => a.agent_id)) }},={{ JSON.stringify($json) }}"
+        },
+        "options": {}
+      },
+      "id": "log_recovery",
+      "name": "Log Recovery Attempt",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1450, 300],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-agent-dashboard",
+          "name": "Agent Dashboard DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "database",
+        "operation": "set",
+        "key": "agent_health_status",
+        "value": "={{ JSON.stringify($json) }}",
+        "keyType": "automatic",
+        "expire": true,
+        "ttl": 60,
+        "options": {}
+      },
+      "id": "cache_health",
+      "name": "Cache Health Status",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [1050, 500],
+      "credentials": {
+        "redis": {
+          "id": "redis-agent-dashboard",
+          "name": "Agent Dashboard Redis"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "database",
+        "operation": "publish",
+        "channel": "agent_health_updates",
+        "messageData": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "publish_update",
+      "name": "Publish Health Update",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [1250, 500],
+      "credentials": {
+        "redis": {
+          "id": "redis-agent-dashboard",
+          "name": "Agent Dashboard Redis"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH metrics_update AS (\n  SELECT \n    agent_id,\n    'health_score' as metric_type,\n    health_score as value,\n    'points' as unit\n  FROM (\n    VALUES {{ $json.healthy_agents.concat($json.warning_agents, $json.critical_agents).map(a => `('${a.id}'::uuid, ${a.health_score})`).join(',') }}\n  ) AS t(agent_id, health_score)\n)\nINSERT INTO agent_dashboard.agent_metrics (agent_id, metric_type, value, unit)\nSELECT * FROM metrics_update\nON CONFLICT DO NOTHING",
+        "options": {}
+      },
+      "id": "store_metrics",
+      "name": "Store Health Metrics",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1450, 500],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-agent-dashboard",
+          "name": "Agent Dashboard DB"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get All Agents",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get All Agents",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get All Agents": {
+      "main": [
+        [
+          {
+            "node": "Analyze Agent Health",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Agent Health": {
+      "main": [
+        [
+          {
+            "node": "Has Critical Agents?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Critical Agents?": {
+      "main": [
+        [
+          {
+            "node": "Prepare Recovery Actions",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Cache Health Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Recovery Actions": {
+      "main": [
+        [
+          {
+            "node": "Send Critical Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Critical Alert": {
+      "main": [
+        [
+          {
+            "node": "Log Recovery Attempt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cache Health Status": {
+      "main": [
+        [
+          {
+            "node": "Publish Health Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Publish Health Update": {
+      "main": [
+        [
+          {
+            "node": "Store Health Metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "agent-dashboard"
+  },
+  "id": "agent-realtime-monitor",
+  "tags": []
+}

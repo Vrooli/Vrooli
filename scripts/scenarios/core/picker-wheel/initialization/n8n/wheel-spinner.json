@@ -1,0 +1,252 @@
+{
+  "name": "picker-wheel-spinner",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "wheel/spin",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "wheel_id",
+              "name": "wheel_id",
+              "value": "={{ $json.wheel_id || 'yes-or-no' }}",
+              "type": "string"
+            },
+            {
+              "id": "session_id",
+              "name": "session_id",
+              "value": "={{ $json.session_id || 'manual-test' }}",
+              "type": "string"
+            },
+            {
+              "id": "custom_options",
+              "name": "custom_options",
+              "value": "={{ $json.options || [] }}",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set_defaults",
+      "name": "Set Defaults",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [450, 500]
+    },
+    {
+      "parameters": {
+        "content": "## Weighted Random Selection\n\nThis workflow implements a weighted random selection algorithm for the picker wheel. It supports both predefined wheels from the database and custom ad-hoc wheels.",
+        "height": 150,
+        "width": 350
+      },
+      "id": "note_1",
+      "name": "Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [200, 150]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.custom_options.length }}",
+                    "rightValue": 0,
+                    "operator": {
+                      "type": "number",
+                      "operation": "gt"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "custom"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.wheel_id }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "notEmpty"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "database"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "check_source",
+      "name": "Check Wheel Source",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM wheels WHERE id = $1 OR name = $1 LIMIT 1",
+        "options": {
+          "queryParams": "={{ [$json.wheel_id] }}"
+        }
+      },
+      "id": "get_wheel",
+      "name": "Get Wheel from DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [850, 450],
+      "credentials": {
+        "postgres": {
+          "id": "postgres_picker_wheel",
+          "name": "Postgres - Picker Wheel"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Weighted random selection algorithm\nconst items = $input.all();\nconst data = items[0].json;\n\n// Get options from either custom input or database\nlet options = data.custom_options || [];\nif (options.length === 0 && data.options) {\n  options = data.options;\n}\n\nif (!options || options.length === 0) {\n  return [{\n    json: {\n      error: 'No options available for wheel',\n      wheel_id: data.wheel_id\n    }\n  }];\n}\n\n// Calculate total weight\nlet totalWeight = 0;\nfor (const option of options) {\n  totalWeight += option.weight || 1;\n}\n\n// Generate random number\nlet random = Math.random() * totalWeight;\n\n// Select based on weighted probability\nlet selected = null;\nfor (const option of options) {\n  random -= option.weight || 1;\n  if (random <= 0) {\n    selected = option;\n    break;\n  }\n}\n\n// Calculate spin animation details\nconst spinDuration = 3000 + Math.random() * 2000; // 3-5 seconds\nconst rotations = 5 + Math.floor(Math.random() * 5); // 5-10 full rotations\nconst finalAngle = Math.random() * 360;\n\nreturn [{\n  json: {\n    result: selected.label,\n    color: selected.color,\n    wheel_id: data.wheel_id || 'custom',\n    session_id: data.session_id,\n    spin_details: {\n      duration_ms: Math.floor(spinDuration),\n      rotations: rotations,\n      final_angle: Math.floor(finalAngle),\n      total_options: options.length,\n      winning_index: options.indexOf(selected)\n    },\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "weighted_selection",
+      "name": "Weighted Selection",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO spin_history (wheel_id, result, spin_duration_ms, session_id, metadata) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryParams": "={{ [$json.wheel_id === 'custom' ? null : $json.wheel_id, $json.result, $json.spin_details.duration_ms, $json.session_id, JSON.stringify($json.spin_details)] }}"
+        }
+      },
+      "id": "save_history",
+      "name": "Save to History",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1250, 400],
+      "credentials": {
+        "postgres": {
+          "id": "postgres_picker_wheel",
+          "name": "Postgres - Picker Wheel"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE wheels SET times_used = times_used + 1, updated_at = CURRENT_TIMESTAMP WHERE id = $1",
+        "options": {
+          "queryParams": "={{ [$json.wheel_id] }}"
+        }
+      },
+      "id": "update_usage",
+      "name": "Update Usage Count",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1450, 450],
+      "continueOnFail": true,
+      "credentials": {
+        "postgres": {
+          "id": "postgres_picker_wheel",
+          "name": "Postgres - Picker Wheel"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1650, 300]
+    }
+  ],
+  "connections": {
+    "webhook_trigger": {
+      "main": [[{ "node": "check_source", "type": "main", "index": 0 }]]
+    },
+    "manual_trigger": {
+      "main": [[{ "node": "set_defaults", "type": "main", "index": 0 }]]
+    },
+    "set_defaults": {
+      "main": [[{ "node": "check_source", "type": "main", "index": 0 }]]
+    },
+    "check_source": {
+      "main": [
+        [{ "node": "weighted_selection", "type": "main", "index": 0 }],
+        [{ "node": "get_wheel", "type": "main", "index": 0 }]
+      ]
+    },
+    "get_wheel": {
+      "main": [[{ "node": "weighted_selection", "type": "main", "index": 0 }]]
+    },
+    "weighted_selection": {
+      "main": [[{ "node": "save_history", "type": "main", "index": 0 }]]
+    },
+    "save_history": {
+      "main": [[{ "node": "update_usage", "type": "main", "index": 0 }]]
+    },
+    "update_usage": {
+      "main": [[{ "node": "respond", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "picker-wheel-spinner"
+  },
+  "tags": []
+}

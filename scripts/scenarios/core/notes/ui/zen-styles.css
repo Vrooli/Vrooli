@@ -1,0 +1,561 @@
+/* Digital Zen Garden Theme - Notes App */
+
+:root {
+  /* Zen palette - calm, natural colors */
+  --zen-sand: #f5f2ed;
+  --zen-stone: #d4cfc5;
+  --zen-water: #7da3a1;
+  --zen-bamboo: #6b8e6f;
+  --zen-ink: #2c3e3b;
+  --zen-gold: #d4a574;
+  --zen-mist: #e8e4df;
+  --zen-shadow: rgba(44, 62, 59, 0.1);
+  
+  /* Semantic colors */
+  --bg-primary: var(--zen-sand);
+  --bg-secondary: var(--zen-mist);
+  --text-primary: var(--zen-ink);
+  --text-secondary: #5a6b68;
+  --accent: var(--zen-water);
+  --accent-hover: #6b918f;
+  --success: var(--zen-bamboo);
+  --warning: var(--zen-gold);
+  
+  /* Spacing */
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  --space-2xl: 3rem;
+  
+  /* Typography */
+  --font-main: 'Noto Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-accent: 'Noto Serif', Georgia, serif;
+  --font-mono: 'Fira Code', 'Courier New', monospace;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-main);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.6;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Animated background pattern */
+.zen-container {
+  position: fixed;
+  inset: 0;
+  background: 
+    radial-gradient(circle at 20% 50%, var(--zen-mist) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, var(--zen-stone) 0%, transparent 50%),
+    radial-gradient(circle at 40% 20%, var(--zen-sand) 0%, transparent 50%);
+  animation: breathe 20s ease-in-out infinite;
+  z-index: 0;
+}
+
+@keyframes breathe {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.02); }
+}
+
+/* Main app container */
+.app-zen {
+  position: relative;
+  z-index: 1;
+  height: 100vh;
+  display: grid;
+  grid-template-columns: 280px 1fr 320px;
+  gap: 0;
+  background: transparent;
+}
+
+/* Sidebar - Minimal and calm */
+.sidebar-zen {
+  background: linear-gradient(180deg, var(--zen-mist) 0%, var(--zen-sand) 100%);
+  border-right: 1px solid var(--zen-stone);
+  padding: var(--space-xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  position: relative;
+  overflow-y: auto;
+}
+
+.sidebar-zen::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 1px;
+  height: 100%;
+  background: linear-gradient(180deg, transparent, var(--zen-water), transparent);
+  opacity: 0.3;
+}
+
+/* Logo and branding */
+.zen-logo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding-bottom: var(--space-lg);
+  border-bottom: 1px solid var(--zen-stone);
+}
+
+.zen-logo-icon {
+  width: 40px;
+  height: 40px;
+  background: var(--zen-water);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  color: white;
+  animation: ripple 3s ease-in-out infinite;
+}
+
+@keyframes ripple {
+  0%, 100% { box-shadow: 0 0 0 0 var(--zen-shadow); }
+  50% { box-shadow: 0 0 0 10px transparent; }
+}
+
+.zen-logo-text {
+  font-family: var(--font-accent);
+  font-size: 1.5rem;
+  color: var(--text-primary);
+  font-weight: 300;
+}
+
+/* Search with zen aesthetic */
+.zen-search {
+  position: relative;
+  margin-bottom: var(--space-md);
+}
+
+.zen-search-input {
+  width: 100%;
+  padding: var(--space-md);
+  background: white;
+  border: 1px solid var(--zen-stone);
+  border-radius: 20px;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+  font-family: var(--font-main);
+}
+
+.zen-search-input:focus {
+  outline: none;
+  border-color: var(--zen-water);
+  box-shadow: 0 0 0 3px rgba(125, 163, 161, 0.1);
+}
+
+/* Navigation items */
+.zen-nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.zen-nav-item {
+  padding: var(--space-md);
+  background: transparent;
+  border: none;
+  border-radius: 12px;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  font-size: 0.95rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.zen-nav-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 0;
+  background: var(--zen-water);
+  transition: height 0.3s ease;
+}
+
+.zen-nav-item:hover {
+  background: rgba(125, 163, 161, 0.1);
+}
+
+.zen-nav-item.active {
+  background: white;
+  color: var(--zen-water);
+  box-shadow: 0 2px 8px var(--zen-shadow);
+}
+
+.zen-nav-item.active::before {
+  height: 70%;
+}
+
+/* Folders section */
+.zen-folders {
+  margin-top: auto;
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--zen-stone);
+}
+
+.zen-folder {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm);
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.zen-folder:hover {
+  background: rgba(125, 163, 161, 0.05);
+}
+
+.zen-folder-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--zen-water);
+}
+
+/* Main content area */
+.main-zen {
+  background: white;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Note editor header */
+.editor-header-zen {
+  padding: var(--space-xl);
+  border-bottom: 1px solid var(--zen-stone);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(180deg, white 0%, var(--zen-sand) 100%);
+}
+
+.note-title-zen {
+  font-family: var(--font-accent);
+  font-size: 2rem;
+  font-weight: 300;
+  color: var(--text-primary);
+  border: none;
+  background: transparent;
+  outline: none;
+  flex: 1;
+}
+
+.note-title-zen::placeholder {
+  color: var(--text-secondary);
+  opacity: 0.5;
+}
+
+/* Zen toolbar */
+.zen-toolbar {
+  display: flex;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-xl);
+  background: var(--zen-mist);
+  border-bottom: 1px solid var(--zen-stone);
+}
+
+.zen-tool {
+  padding: var(--space-sm) var(--space-md);
+  background: white;
+  border: 1px solid var(--zen-stone);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.zen-tool:hover {
+  background: var(--zen-water);
+  color: white;
+  border-color: var(--zen-water);
+  transform: translateY(-1px);
+}
+
+.zen-tool.active {
+  background: var(--zen-water);
+  color: white;
+  border-color: var(--zen-water);
+}
+
+/* Editor area */
+.editor-zen {
+  flex: 1;
+  padding: var(--space-2xl);
+  overflow-y: auto;
+  position: relative;
+}
+
+.editor-content-zen {
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+  font-family: var(--font-main);
+  font-size: 1.1rem;
+  line-height: 1.8;
+  color: var(--text-primary);
+  border: none;
+  outline: none;
+  resize: none;
+  background: transparent;
+  min-height: 400px;
+}
+
+.editor-content-zen::placeholder {
+  color: var(--text-secondary);
+  opacity: 0.4;
+  font-style: italic;
+}
+
+/* Right panel - AI insights */
+.insights-zen {
+  background: linear-gradient(180deg, var(--zen-mist) 0%, white 100%);
+  border-left: 1px solid var(--zen-stone);
+  padding: var(--space-xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  overflow-y: auto;
+}
+
+.insights-header-zen {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding-bottom: var(--space-md);
+  border-bottom: 1px solid var(--zen-stone);
+}
+
+.insights-icon {
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, var(--zen-water), var(--zen-bamboo));
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+/* Insight cards */
+.insight-card {
+  background: white;
+  padding: var(--space-md);
+  border-radius: 12px;
+  border: 1px solid var(--zen-stone);
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.insight-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, var(--zen-water), var(--zen-bamboo));
+  transform: scaleX(0);
+  transition: transform 0.3s ease;
+}
+
+.insight-card:hover::before {
+  transform: scaleX(1);
+}
+
+.insight-card:hover {
+  box-shadow: 0 4px 12px var(--zen-shadow);
+  transform: translateY(-2px);
+}
+
+.insight-title {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--space-sm);
+}
+
+.insight-content {
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+/* Tags with zen style */
+.zen-tag {
+  display: inline-block;
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--zen-stone);
+  color: var(--text-primary);
+  border-radius: 20px;
+  font-size: 0.85rem;
+  margin: var(--space-xs);
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.zen-tag:hover {
+  background: var(--zen-water);
+  color: white;
+  transform: scale(1.05);
+}
+
+/* Action items */
+.action-item-zen {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: var(--space-sm);
+  background: rgba(107, 142, 111, 0.05);
+  border-radius: 8px;
+  margin-bottom: var(--space-sm);
+}
+
+.action-checkbox {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--zen-bamboo);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 2px;
+}
+
+.action-checkbox:hover {
+  background: var(--zen-bamboo);
+}
+
+.action-checkbox.checked {
+  background: var(--zen-bamboo);
+  position: relative;
+}
+
+.action-checkbox.checked::after {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-size: 12px;
+}
+
+/* Floating action button */
+.fab-zen {
+  position: fixed;
+  bottom: var(--space-xl);
+  right: var(--space-xl);
+  width: 56px;
+  height: 56px;
+  background: linear-gradient(135deg, var(--zen-water), var(--zen-bamboo));
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 1.5rem;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(125, 163, 161, 0.3);
+  transition: all 0.3s ease;
+  z-index: 100;
+}
+
+.fab-zen:hover {
+  transform: scale(1.1) rotate(90deg);
+  box-shadow: 0 6px 20px rgba(125, 163, 161, 0.4);
+}
+
+/* Loading animation */
+.zen-loading {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--zen-stone);
+  border-top-color: var(--zen-water);
+  border-radius: 50%;
+  animation: zen-spin 1s linear infinite;
+}
+
+@keyframes zen-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Responsive adjustments */
+@media (max-width: 1200px) {
+  .app-zen {
+    grid-template-columns: 240px 1fr 280px;
+  }
+}
+
+@media (max-width: 768px) {
+  .app-zen {
+    grid-template-columns: 1fr;
+  }
+  
+  .sidebar-zen,
+  .insights-zen {
+    display: none;
+  }
+}
+
+/* Subtle animations for interactions */
+.fade-in {
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--zen-sand);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--zen-stone);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--zen-water);
+}

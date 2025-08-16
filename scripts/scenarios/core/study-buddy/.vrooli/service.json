@@ -43,7 +43,10 @@
         "required": true,
         "shared_workflows": [
           "ollama",
-          "embedding-generator"
+          "embedding-generator",
+          "chain-of-thought-orchestrator",
+          "structured-data-extractor",
+          "universal-rag-pipeline"
         ],
         "initialization": [
           {
@@ -69,6 +72,22 @@
           {
             "file": "initialization/n8n/study-session-tracker.json",
             "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/adaptive-learning-engine.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/pomodoro-timer.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/study-material-processor.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/spaced-repetition-engine.json",
+            "type": "workflow"
           }
         ]
       }
@@ -91,6 +110,12 @@
         "enabled": true,
         "required": true,
         "purpose": "Cache study sessions, spaced repetition intervals, and real-time progress"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store and search vector embeddings of study materials for semantic retrieval"
       }
     }
   },

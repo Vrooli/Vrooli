@@ -102,31 +102,31 @@
         "required": true,
         "initialization": [
           {
-            "file": "initialization/automation/n8n/file-processor.json",
+            "file": "initialization/n8n/file-embedding-generator.json",
             "type": "workflow"
           },
           {
-            "file": "initialization/automation/n8n/image-analyzer.json",
+            "file": "initialization/n8n/smart-image-analyzer.json",
             "type": "workflow"
           },
           {
-            "file": "initialization/automation/n8n/document-processor.json",
+            "file": "initialization/n8n/file-semantic-search.json",
             "type": "workflow"
           },
           {
-            "file": "initialization/automation/n8n/duplicate-detector.json",
+            "file": "initialization/n8n/file-processor.json",
             "type": "workflow"
           },
           {
-            "file": "initialization/automation/n8n/batch-processor.json",
+            "file": "initialization/n8n/document-processor.json",
             "type": "workflow"
           },
           {
-            "file": "initialization/automation/n8n/semantic-search.json",
+            "file": "initialization/n8n/duplicate-detector.json",
             "type": "workflow"
           },
           {
-            "file": "initialization/automation/n8n/embedding-generator.json",
+            "file": "initialization/n8n/batch-processor.json",
             "type": "workflow"
           }
         ]

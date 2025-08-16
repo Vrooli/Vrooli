@@ -3,6 +3,15 @@
   "last_updated": "2025-01-17",
   "scenarios": [
     {
+      "name": "picker-wheel",
+      "description": "Fun random selection wheel with customizable options and animated spinning",
+      "location": "core/picker-wheel",
+      "category": "saas-applications",
+      "validated": false,
+      "enabled": true,
+      "ui": true
+    },
+    {
       "name": "scenario-generator-v1",
       "description": "Generates new scenarios from user requirements",
       "location": "core/scenario-generator-v1",
@@ -250,6 +259,33 @@
       "description": "AI-assisted debugging and performance profiling for generated apps",
       "location": "core/app-debugger",
       "category": "vrooli-helpers",
+      "validated": false,
+      "enabled": true,
+      "ui": true
+    },
+    {
+      "name": "mind-maps",
+      "description": "AI-enabled mind mapping tool for visual organization and semantic search of ideas and knowledge",
+      "location": "core/mind-maps",
+      "category": "saas-applications",
+      "validated": false,
+      "enabled": true,
+      "ui": true
+    },
+    {
+      "name": "stream-of-consciousness-analyzer",
+      "description": "Transform unstructured text/voice into organized notes with AI-powered insights and campaign-based organization",
+      "location": "core/stream-of-consciousness-analyzer",
+      "category": "saas-applications",
+      "validated": false,
+      "enabled": true,
+      "ui": true
+    },
+    {
+      "name": "nutrition-tracker",
+      "description": "Smart nutrition tracking with calorie counting, macro tracking, and AI-powered meal suggestions",
+      "location": "core/nutrition-tracker",
+      "category": "saas-applications",
       "validated": false,
       "enabled": true,
       "ui": true

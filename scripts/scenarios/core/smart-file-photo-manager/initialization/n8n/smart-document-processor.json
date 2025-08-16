@@ -1,0 +1,207 @@
+{
+  "name": "Smart File Manager - Document Processor",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "smart-file-manager/process-document",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 500]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Provide test defaults for manual testing\nreturn {\n  file_id: 'test-doc-001',\n  file_path: '/test/sample.pdf',\n  mime_type: 'application/pdf',\n  process_options: {\n    extract_text: true,\n    extract_metadata: true,\n    generate_summary: true,\n    detect_language: true\n  }\n};"
+      },
+      "id": "set_test_defaults",
+      "name": "Set Test Defaults",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [400, 500]
+    },
+    {
+      "parameters": {},
+      "id": "merge_triggers",
+      "name": "Merge Triggers",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [600, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5678/webhook/document-converter-validator",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "file_path",
+              "value": "={{ $json.file_path }}"
+            },
+            {
+              "name": "target_format",
+              "value": "text"
+            },
+            {
+              "name": "validate_output",
+              "value": "={{ true }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "convert_document",
+      "name": "Convert Document to Text",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [800, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5678/webhook/ollama",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "llama3.2"
+            },
+            {
+              "name": "prompt",
+              "value": "={{ 'Analyze this document and provide: 1) A concise summary (2-3 sentences), 2) Key topics/themes, 3) Document type (contract, report, article, etc.), 4) Important entities (people, organizations, dates), 5) Language detected. Format as JSON.\\n\\nDocument content:\\n' + $json.converted_text.substring(0, 4000) }}"
+            },
+            {
+              "name": "format",
+              "value": "json"
+            },
+            {
+              "name": "temperature",
+              "value": "={{ 0.3 }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "analyze_document",
+      "name": "Analyze Document with LLM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1000, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process document analysis results\nconst fileData = $json;\nconst documentText = $('Convert Document to Text').first().json.converted_text;\nconst analysis = $('Analyze Document with LLM').first().json;\n\n// Parse LLM response\nlet parsedAnalysis;\ntry {\n  parsedAnalysis = typeof analysis.response === 'string' ? JSON.parse(analysis.response) : analysis.response;\n} catch (e) {\n  parsedAnalysis = {\n    summary: 'Unable to generate summary',\n    topics: [],\n    document_type: 'unknown',\n    entities: {},\n    language: 'unknown'\n  };\n}\n\n// Calculate document statistics\nconst wordCount = documentText.split(/\\s+/).length;\nconst charCount = documentText.length;\nconst avgWordLength = charCount / wordCount;\nconst readingTime = Math.ceil(wordCount / 200); // Assuming 200 words per minute\n\nreturn {\n  file_id: fileData.file_id,\n  file_path: fileData.file_path,\n  document_analysis: {\n    summary: parsedAnalysis.summary,\n    topics: parsedAnalysis.topics || [],\n    document_type: parsedAnalysis.document_type,\n    entities: parsedAnalysis.entities || {},\n    language: parsedAnalysis.language,\n    statistics: {\n      word_count: wordCount,\n      character_count: charCount,\n      average_word_length: avgWordLength.toFixed(2),\n      estimated_reading_time_minutes: readingTime\n    }\n  },\n  extracted_text: documentText,\n  suggestions: generateDocumentSuggestions(parsedAnalysis, fileData),\n  processing_timestamp: new Date().toISOString()\n};\n\nfunction generateDocumentSuggestions(analysis, fileData) {\n  const suggestions = [];\n  \n  // Suggest folder based on document type\n  const folderMap = {\n    'contract': '/Documents/Legal/Contracts',\n    'report': '/Documents/Reports',\n    'article': '/Documents/Articles',\n    'invoice': '/Documents/Financial/Invoices',\n    'presentation': '/Documents/Presentations',\n    'manual': '/Documents/Manuals',\n    'email': '/Documents/Communications'\n  };\n  \n  const suggestedFolder = folderMap[analysis.document_type] || '/Documents/General';\n  suggestions.push({\n    type: 'folder',\n    value: suggestedFolder,\n    reason: `Document type: ${analysis.document_type}`\n  });\n  \n  // Add topic-based tags\n  (analysis.topics || []).forEach(topic => {\n    suggestions.push({\n      type: 'tag',\n      value: topic.toLowerCase().replace(/\\s+/g, '-'),\n      reason: 'Document topic'\n    });\n  });\n  \n  // Add entity-based tags\n  if (analysis.entities?.organizations) {\n    analysis.entities.organizations.forEach(org => {\n      suggestions.push({\n        type: 'tag',\n        value: org.toLowerCase().replace(/\\s+/g, '-'),\n        reason: 'Organization mentioned'\n      });\n    });\n  }\n  \n  return suggestions;\n}"
+      },
+      "id": "process_results",
+      "name": "Process Document Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO document_analysis (file_id, summary, topics, document_type, entities, language, word_count, reading_time_minutes, extracted_text, analysis_timestamp) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) ON CONFLICT (file_id) DO UPDATE SET summary = $2, topics = $3, document_type = $4, entities = $5, language = $6, word_count = $7, reading_time_minutes = $8, extracted_text = $9, analysis_timestamp = $10",
+        "options": {
+          "queryParams": "={{ $json.file_id }},{{ $json.document_analysis.summary }},{{ JSON.stringify($json.document_analysis.topics) }},{{ $json.document_analysis.document_type }},{{ JSON.stringify($json.document_analysis.entities) }},{{ $json.document_analysis.language }},{{ $json.document_analysis.statistics.word_count }},{{ $json.document_analysis.statistics.estimated_reading_time_minutes }},{{ $json.extracted_text }},{{ $json.processing_timestamp }}"
+        }
+      },
+      "id": "store_analysis",
+      "name": "Store Document Analysis",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1400, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5678/webhook/smart-file-manager/generate-embeddings",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "file_id",
+              "value": "={{ $json.file_id }}"
+            },
+            {
+              "name": "content",
+              "value": "={{ $json.document_analysis.summary + ' ' + $json.document_analysis.topics.join(' ') + ' ' + $json.extracted_text.substring(0, 2000) }}"
+            },
+            {
+              "name": "metadata",
+              "value": "={{ { type: 'document', document_type: $json.document_analysis.document_type, language: $json.document_analysis.language } }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "generate_embeddings",
+      "name": "Generate Document Embeddings",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1600, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \n  \"success\": true,\n  \"file_id\": $json.file_id,\n  \"document_analysis\": $json.document_analysis,\n  \"suggestions_count\": $json.suggestions.length,\n  \"embeddings_generated\": true,\n  \"processing_time_ms\": Date.now() - new Date($json.processing_timestamp).getTime()\n} }}"
+      },
+      "id": "success_response",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1800, 400]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": { 
+      "main": [[{ "node": "Merge Triggers", "type": "main", "index": 0 }]] 
+    },
+    "Manual Trigger": { 
+      "main": [[{ "node": "Set Test Defaults", "type": "main", "index": 0 }]] 
+    },
+    "Set Test Defaults": { 
+      "main": [[{ "node": "Merge Triggers", "type": "main", "index": 1 }]] 
+    },
+    "Merge Triggers": { 
+      "main": [[{ "node": "Convert Document to Text", "type": "main", "index": 0 }]] 
+    },
+    "Convert Document to Text": { 
+      "main": [[{ "node": "Analyze Document with LLM", "type": "main", "index": 0 }]] 
+    },
+    "Analyze Document with LLM": { 
+      "main": [[{ "node": "Process Document Results", "type": "main", "index": 0 }]] 
+    },
+    "Process Document Results": { 
+      "main": [[{ "node": "Store Document Analysis", "type": "main", "index": 0 }]] 
+    },
+    "Store Document Analysis": { 
+      "main": [[{ "node": "Generate Document Embeddings", "type": "main", "index": 0 }]] 
+    },
+    "Generate Document Embeddings": { 
+      "main": [[{ "node": "Success Response", "type": "main", "index": 0 }]] 
+    }
+  },
+  "active": true,
+  "settings": { "executionOrder": "v1" },
+  "versionId": "1",
+  "id": "smart-document-processor",
+  "meta": { "instanceId": "smart-file-manager" },
+  "tags": [{ "id": "1", "name": "smart-file-manager" }, { "id": "2", "name": "document-processing" }]
+}

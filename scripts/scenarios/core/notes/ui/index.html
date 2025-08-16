@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartNotes - AI-Powered Note Taking</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="app-header">
+                <h1 class="app-title">
+                    <span class="logo">📝</span>
+                    SmartNotes
+                </h1>
+                <div class="user-info">
+                    <span class="user-avatar">👤</span>
+                    <span class="user-name">Default User</span>
+                </div>
+            </div>
+
+            <div class="search-container">
+                <input type="text" id="searchInput" class="search-input" placeholder="Search notes...">
+                <button id="searchBtn" class="search-btn">🔍</button>
+            </div>
+
+            <nav class="nav-menu">
+                <button class="nav-item active" data-view="notes">
+                    <span class="nav-icon">📄</span>
+                    All Notes
+                </button>
+                <button class="nav-item" data-view="favorites">
+                    <span class="nav-icon">⭐</span>
+                    Favorites
+                </button>
+                <button class="nav-item" data-view="archived">
+                    <span class="nav-icon">📦</span>
+                    Archive
+                </button>
+                <button class="nav-item" data-view="templates">
+                    <span class="nav-icon">📋</span>
+                    Templates
+                </button>
+            </nav>
+
+            <div class="folders-section">
+                <div class="section-header">
+                    <h3>Folders</h3>
+                    <button class="add-folder-btn">+</button>
+                </div>
+                <div id="foldersList" class="folders-list"></div>
+            </div>
+
+            <div class="tags-section">
+                <div class="section-header">
+                    <h3>Tags</h3>
+                </div>
+                <div id="tagsList" class="tags-list"></div>
+            </div>
+
+            <div class="stats-section">
+                <div class="stat-item">
+                    <span class="stat-value" id="totalNotes">0</span>
+                    <span class="stat-label">Notes</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-value" id="totalWords">0</span>
+                    <span class="stat-label">Words</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Notes List -->
+            <section class="notes-list-section">
+                <div class="notes-header">
+                    <h2 id="sectionTitle">All Notes</h2>
+                    <div class="notes-actions">
+                        <button id="newNoteBtn" class="btn btn-primary">
+                            <span>+</span> New Note
+                        </button>
+                        <button id="sortBtn" class="btn-icon" title="Sort">
+                            <span>↕️</span>
+                        </button>
+                        <button id="viewModeBtn" class="btn-icon" title="View Mode">
+                            <span>⚏</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="notesList" class="notes-list"></div>
+            </section>
+
+            <!-- Note Editor -->
+            <section class="note-editor-section">
+                <div class="editor-header">
+                    <input type="text" id="noteTitle" class="note-title-input" placeholder="Untitled Note">
+                    <div class="editor-actions">
+                        <button id="pinBtn" class="btn-icon" title="Pin">
+                            <span>📌</span>
+                        </button>
+                        <button id="favoriteBtn" class="btn-icon" title="Favorite">
+                            <span>⭐</span>
+                        </button>
+                        <button id="shareBtn" class="btn-icon" title="Share">
+                            <span>🔗</span>
+                        </button>
+                        <button id="deleteBtn" class="btn-icon btn-danger" title="Delete">
+                            <span>🗑️</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="editor-toolbar">
+                    <button class="toolbar-btn" data-format="bold" title="Bold">B</button>
+                    <button class="toolbar-btn" data-format="italic" title="Italic">I</button>
+                    <button class="toolbar-btn" data-format="underline" title="Underline">U</button>
+                    <span class="toolbar-separator"></span>
+                    <button class="toolbar-btn" data-format="h1" title="Heading 1">H1</button>
+                    <button class="toolbar-btn" data-format="h2" title="Heading 2">H2</button>
+                    <button class="toolbar-btn" data-format="h3" title="Heading 3">H3</button>
+                    <span class="toolbar-separator"></span>
+                    <button class="toolbar-btn" data-format="ul" title="Bullet List">•</button>
+                    <button class="toolbar-btn" data-format="ol" title="Numbered List">1.</button>
+                    <button class="toolbar-btn" data-format="checkbox" title="Checkbox">☐</button>
+                    <span class="toolbar-separator"></span>
+                    <button class="toolbar-btn" data-format="code" title="Code">&lt;&gt;</button>
+                    <button class="toolbar-btn" data-format="quote" title="Quote">"</button>
+                    <button class="toolbar-btn" data-format="link" title="Link">🔗</button>
+                    <span class="toolbar-separator"></span>
+                    <button class="toolbar-btn" id="stickerBtn" title="Add Stickers">✨</button>
+                </div>
+                
+                <!-- Sticker Picker -->
+                <div id="stickerPicker" class="sticker-picker hidden">
+                    <div class="sticker-grid">
+                        <span class="sticker-option" data-sticker="⭐">⭐</span>
+                        <span class="sticker-option" data-sticker="💡">💡</span>
+                        <span class="sticker-option" data-sticker="🎯">🎯</span>
+                        <span class="sticker-option" data-sticker="🚀">🚀</span>
+                        <span class="sticker-option" data-sticker="🌟">🌟</span>
+                        <span class="sticker-option" data-sticker="📍">📍</span>
+                        <span class="sticker-option" data-sticker="💭">💭</span>
+                        <span class="sticker-option" data-sticker="✏️">✏️</span>
+                        <span class="sticker-option" data-sticker="🎨">🎨</span>
+                        <span class="sticker-option" data-sticker="🔥">🔥</span>
+                        <span class="sticker-option" data-sticker="💎">💎</span>
+                        <span class="sticker-option" data-sticker="🌈">🌈</span>
+                    </div>
+                </div>
+
+                <div class="editor-container">
+                    <textarea id="noteContent" class="note-content" placeholder="Start typing..."></textarea>
+                    <div id="notePreview" class="note-preview hidden"></div>
+                </div>
+
+                <div class="editor-footer">
+                    <div class="note-meta">
+                        <span id="wordCount">0 words</span>
+                        <span id="readingTime">0 min read</span>
+                        <span id="lastSaved">Not saved</span>
+                    </div>
+                    <div class="editor-modes">
+                        <button id="editModeBtn" class="mode-btn active">Edit</button>
+                        <button id="previewModeBtn" class="mode-btn">Preview</button>
+                        <button id="splitModeBtn" class="mode-btn">Split</button>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- AI Assistant Panel -->
+        <aside class="ai-panel" id="aiPanel">
+            <div class="ai-header">
+                <h3>AI Assistant</h3>
+                <button id="closeAiPanel" class="btn-icon">×</button>
+            </div>
+
+            <div class="ai-suggestions">
+                <h4>Smart Suggestions</h4>
+                <div id="suggestions" class="suggestions-list"></div>
+            </div>
+
+            <div class="ai-chat">
+                <div id="chatMessages" class="chat-messages"></div>
+                <div class="chat-input-container">
+                    <input type="text" id="chatInput" class="chat-input" placeholder="Ask AI anything...">
+                    <button id="chatSend" class="chat-send">→</button>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Modals -->
+    <div id="modalOverlay" class="modal-overlay hidden"></div>
+    
+    <div id="folderModal" class="modal hidden">
+        <div class="modal-content">
+            <h3>Create Folder</h3>
+            <input type="text" id="folderName" placeholder="Folder name">
+            <div class="color-picker">
+                <span class="color-option" data-color="#6366f1" style="background: #6366f1"></span>
+                <span class="color-option" data-color="#10b981" style="background: #10b981"></span>
+                <span class="color-option" data-color="#f59e0b" style="background: #f59e0b"></span>
+                <span class="color-option" data-color="#ef4444" style="background: #ef4444"></span>
+                <span class="color-option" data-color="#8b5cf6" style="background: #8b5cf6"></span>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal('folderModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="createFolder()">Create</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

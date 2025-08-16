@@ -1,0 +1,547 @@
+{
+  "name": "Stream of Consciousness - Campaign Context Builder",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "campaign-context",
+        "responseMode": "responseNode",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Handle different operations: create, update, add_document, search\nconst items = $input.all();\nconst data = items[0].json;\n\n// Provide defaults for manual testing\nif (!data.operation) {\n  return [{\n    json: {\n      operation: 'create',\n      campaign: {\n        name: 'Test Campaign',\n        description: 'A test campaign for development',\n        context_prompt: 'You are helping organize thoughts for a test campaign. Be helpful and organized.',\n        color: '#10B981',\n        icon: 'test'\n      }\n    }\n  }];\n}\n\nreturn items;"
+      },
+      "id": "provide-defaults",
+      "name": "Provide Defaults",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "create",
+              "leftValue": "={{ $json.operation }}",
+              "rightValue": "create",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "update",
+              "leftValue": "={{ $json.operation }}",
+              "rightValue": "update",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "add_document",
+              "leftValue": "={{ $json.operation }}",
+              "rightValue": "add_document",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "search",
+              "leftValue": "={{ $json.operation }}",
+              "rightValue": "search",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "id": "route-operation",
+      "name": "Route Operation",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": "public",
+        "table": "campaigns",
+        "columns": "name,description,context_prompt,color,icon,active",
+        "values": "={{ $json.campaign.name }},={{ $json.campaign.description || '' }},={{ $json.campaign.context_prompt || 'Help organize thoughts clearly and actionably' }},={{ $json.campaign.color || '#7C3AED' }},={{ $json.campaign.icon || 'brain' }},true",
+        "options": {
+          "returnFields": "id,name,created_at"
+        }
+      },
+      "id": "create-campaign",
+      "name": "Create Campaign",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [900, 200],
+      "credentials": {
+        "postgres": {
+          "id": "1",
+          "name": "Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "schema": "public",
+        "table": "campaigns",
+        "updateKey": "id",
+        "columns": "context_prompt,description,color,icon,active,updated_at",
+        "values": "={{ $json.campaign.context_prompt }},={{ $json.campaign.description }},={{ $json.campaign.color }},={{ $json.campaign.icon }},={{ $json.campaign.active }},={{ new Date().toISOString() }}",
+        "options": {
+          "returnFields": "id,name,updated_at"
+        }
+      },
+      "id": "update-campaign",
+      "name": "Update Campaign",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [900, 350],
+      "credentials": {
+        "postgres": {
+          "id": "1",
+          "name": "Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Process document for context addition\nconst doc = $input.item.json.document;\n\nif (!doc || !doc.content) {\n  throw new Error('Document content is required');\n}\n\n// Prepare document for embedding and storage\nreturn [{\n  json: {\n    campaign_id: $json.campaign_id,\n    document: {\n      name: doc.name || 'Untitled Document',\n      content: doc.content,\n      type: doc.type || 'reference',\n      metadata: {\n        ...doc.metadata,\n        added_at: new Date().toISOString(),\n        word_count: doc.content.split(/\\s+/).length\n      }\n    }\n  }\n}];"
+      },
+      "id": "prepare-document",
+      "name": "Prepare Document",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 500]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5678/webhook/embed",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "={{ $json.document.name + ' ' + $json.document.content }}"
+            },
+            {
+              "name": "model",
+              "value": "nomic-embed-text"
+            },
+            {
+              "name": "metadata",
+              "value": "={{ JSON.stringify({\n  type: 'context_document',\n  campaign_id: $json.campaign_id,\n  document_type: $json.document.type\n}) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "embed-document",
+      "name": "Embed Document",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1100, 500]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": "public",
+        "table": "context_documents",
+        "columns": "campaign_id,name,content,document_type,embedding_id,metadata",
+        "values": "={{ $json.campaign_id }},={{ $json.document.name }},={{ $json.document.content }},={{ $json.document.type }},={{ Date.now().toString() }},={{ JSON.stringify($json.document.metadata) }}",
+        "options": {
+          "returnFields": "id,name,created_at"
+        }
+      },
+      "id": "save-document",
+      "name": "Save Document",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1300, 500],
+      "credentials": {
+        "postgres": {
+          "id": "1",
+          "name": "Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5678/webhook/smart-search",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "={{ $json.query }}"
+            },
+            {
+              "name": "collection",
+              "value": "stream_notes"
+            },
+            {
+              "name": "filters",
+              "value": "={{ JSON.stringify({\n  campaign_id: $json.campaign_id\n}) }}"
+            },
+            {
+              "name": "limit",
+              "value": "={{ $json.limit || 10 }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "search-context",
+      "name": "Search Context",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 650]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build enhanced context from campaign and related documents\nconst campaignId = $json.campaign_id;\n\n// Fetch campaign details\nconst campaignQuery = `SELECT * FROM campaigns WHERE id = '${campaignId}' LIMIT 1;`;\n\n// Fetch recent notes for context\nconst notesQuery = `\n  SELECT title, summary, tags, category \n  FROM organized_notes \n  WHERE campaign_id = '${campaignId}' \n  ORDER BY created_at DESC \n  LIMIT 5;\n`;\n\n// Fetch context documents\nconst docsQuery = `\n  SELECT name, document_type \n  FROM context_documents \n  WHERE campaign_id = '${campaignId}' \n  ORDER BY created_at DESC;\n`;\n\nreturn [{\n  json: {\n    campaign_id: campaignId,\n    queries: {\n      campaign: campaignQuery,\n      recent_notes: notesQuery,\n      documents: docsQuery\n    }\n  }\n}];"
+      },
+      "id": "build-context-query",
+      "name": "Build Context Query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 350]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.queries.campaign }}",
+        "options": {}
+      },
+      "id": "fetch-campaign-details",
+      "name": "Fetch Campaign Details",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1300, 250],
+      "credentials": {
+        "postgres": {
+          "id": "1",
+          "name": "Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.queries.recent_notes }}",
+        "options": {}
+      },
+      "id": "fetch-recent-notes",
+      "name": "Fetch Recent Notes",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1300, 350],
+      "credentials": {
+        "postgres": {
+          "id": "1",
+          "name": "Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.queries.documents }}",
+        "options": {}
+      },
+      "id": "fetch-documents",
+      "name": "Fetch Documents",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1300, 450],
+      "credentials": {
+        "postgres": {
+          "id": "1",
+          "name": "Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineAll",
+        "options": {}
+      },
+      "id": "merge-context-data",
+      "name": "Merge Context Data",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [1500, 350]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format the complete context response\nconst operation = $json.operation || 'unknown';\nlet response = {\n  success: true,\n  operation: operation,\n  timestamp: new Date().toISOString()\n};\n\nswitch(operation) {\n  case 'create':\n    response.campaign = {\n      id: $json.id,\n      name: $json.name,\n      created_at: $json.created_at\n    };\n    response.message = 'Campaign created successfully';\n    break;\n    \n  case 'update':\n    response.campaign = {\n      id: $json.id,\n      name: $json.name,\n      updated_at: $json.updated_at\n    };\n    response.message = 'Campaign updated successfully';\n    break;\n    \n  case 'add_document':\n    response.document = {\n      id: $json.id,\n      name: $json.name,\n      created_at: $json.created_at\n    };\n    response.message = 'Document added to campaign context';\n    break;\n    \n  case 'search':\n    response.results = $json.results || [];\n    response.total = response.results.length;\n    response.message = `Found ${response.total} matching items`;\n    break;\n    \n  default:\n    // For context building\n    const items = $input.all();\n    response.context = {\n      campaign: items[0]?.json || {},\n      recent_notes: items[1]?.json || [],\n      documents: items[2]?.json || []\n    };\n    response.message = 'Context built successfully';\n}\n\nreturn [{ json: response }];"
+      },
+      "id": "format-response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1700, 400]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "respond-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1900, 400]
+    }
+  ],
+  "connections": {
+    "webhook-trigger": {
+      "main": [
+        [
+          {
+            "node": "provide-defaults",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "manual-trigger": {
+      "main": [
+        [
+          {
+            "node": "provide-defaults",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "provide-defaults": {
+      "main": [
+        [
+          {
+            "node": "route-operation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "route-operation": {
+      "main": [
+        [
+          {
+            "node": "create-campaign",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "update-campaign",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "prepare-document",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "search-context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "create-campaign": {
+      "main": [
+        [
+          {
+            "node": "format-response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "update-campaign": {
+      "main": [
+        [
+          {
+            "node": "build-context-query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "prepare-document": {
+      "main": [
+        [
+          {
+            "node": "embed-document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "embed-document": {
+      "main": [
+        [
+          {
+            "node": "save-document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "save-document": {
+      "main": [
+        [
+          {
+            "node": "format-response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "search-context": {
+      "main": [
+        [
+          {
+            "node": "format-response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "build-context-query": {
+      "main": [
+        [
+          {
+            "node": "fetch-campaign-details",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "fetch-recent-notes",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "fetch-documents",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "fetch-campaign-details": {
+      "main": [
+        [
+          {
+            "node": "merge-context-data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "fetch-recent-notes": {
+      "main": [
+        [
+          {
+            "node": "merge-context-data",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "fetch-documents": {
+      "main": [
+        [
+          {
+            "node": "merge-context-data",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "merge-context-data": {
+      "main": [
+        [
+          {
+            "node": "format-response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "format-response": {
+      "main": [
+        [
+          {
+            "node": "respond-webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [],
+  "updatedAt": "2025-01-17T07:00:00.000Z",
+  "id": "campaign-context-001"
+}

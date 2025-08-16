@@ -1,0 +1,226 @@
+{
+  "name": "smart-tagging",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "notes/tags/suggest",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [260, 300],
+      "id": "webhook-1"
+    },
+    {
+      "parameters": {},
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [260, 500],
+      "id": "manual-1"
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "content",
+              "value": "={{ $json.content || 'Machine learning is a subset of artificial intelligence that enables computers to learn from data without being explicitly programmed. It uses algorithms to identify patterns and make decisions.' }}"
+            },
+            {
+              "name": "existing_tags",
+              "value": "={{ $json.existing_tags || 'technology,programming' }}"
+            },
+            {
+              "name": "user_id",
+              "value": "={{ $json.user_id || 'default-user' }}"
+            }
+          ]
+        }
+      },
+      "name": "Set Defaults",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [460, 500],
+      "id": "set-defaults"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "multiplex",
+        "options": {}
+      },
+      "name": "Merge Inputs",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [660, 400],
+      "id": "merge-1"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT name, color, usage_count FROM tags WHERE user_id = $1 ORDER BY usage_count DESC LIMIT 20",
+        "additionalFields": {
+          "queryParameters": "={{ [$json.user_id] }}"
+        }
+      },
+      "name": "Get User Tags",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [860, 500],
+      "credentials": {
+        "postgres": {
+          "id": "vrooli-postgres",
+          "name": "Vrooli PostgreSQL"
+        }
+      },
+      "id": "postgres-tags"
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:5678/webhook/ollama",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "prompt",
+              "value": "=Analyze this content and suggest relevant tags.\n\nContent: {{ $('merge-1').item.json.content }}\n\nExisting tags on this note: {{ $('merge-1').item.json.existing_tags }}\n\nUser's frequently used tags: {{ $('postgres-tags').all().map(t => t.json.name).join(', ') }}\n\nSuggest 3-7 highly relevant tags. Prefer existing user tags when appropriate, but also suggest new ones if needed.\n\nRespond in JSON format:\n{\n  \"suggested_tags\": [\"tag1\", \"tag2\", \"tag3\"],\n  \"new_tags\": [\"newtag1\"],\n  \"reasoning\": \"Brief explanation of tag choices\"\n}"
+            },
+            {
+              "name": "model",
+              "value": "llama3.2:latest"
+            },
+            {
+              "name": "format",
+              "value": "json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "AI Tag Suggestions",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1060, 400],
+      "id": "http-ai-tags"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Color palette for new tags\nconst colors = [\n  '#10b981', // emerald\n  '#3b82f6', // blue\n  '#8b5cf6', // violet\n  '#f59e0b', // amber\n  '#ef4444', // red\n  '#14b8a6', // teal\n  '#f97316', // orange\n  '#84cc16', // lime\n];\n\nconst aiResponse = $input.item.json;\nconst userTags = $('postgres-tags').all().map(t => t.json);\nconst userTagNames = userTags.map(t => t.name.toLowerCase());\n\n// Process suggested tags\nconst processedTags = aiResponse.suggested_tags.map(tagName => {\n  const normalizedName = tagName.toLowerCase().trim();\n  const existingTag = userTags.find(t => t.name.toLowerCase() === normalizedName);\n  \n  if (existingTag) {\n    return {\n      name: existingTag.name,\n      color: existingTag.color,\n      isNew: false,\n      usage_count: existingTag.usage_count\n    };\n  } else {\n    // Assign color based on hash of tag name for consistency\n    const hash = normalizedName.split('').reduce((acc, char) => {\n      return char.charCodeAt(0) + ((acc << 5) - acc);\n    }, 0);\n    const colorIndex = Math.abs(hash) % colors.length;\n    \n    return {\n      name: tagName,\n      color: colors[colorIndex],\n      isNew: true,\n      usage_count: 0\n    };\n  }\n});\n\n// Calculate relevance scores\nconst tagScores = processedTags.map(tag => {\n  let score = 1.0;\n  \n  // Boost score for existing tags based on usage\n  if (!tag.isNew) {\n    score += Math.min(tag.usage_count / 100, 0.5);\n  }\n  \n  // Boost score if tag appears in content\n  const content = $('merge-1').item.json.content.toLowerCase();\n  if (content.includes(tag.name.toLowerCase())) {\n    score += 0.3;\n  }\n  \n  return {\n    ...tag,\n    relevance_score: score\n  };\n});\n\n// Sort by relevance and limit\nconst finalTags = tagScores\n  .sort((a, b) => b.relevance_score - a.relevance_score)\n  .slice(0, 7);\n\nreturn {\n  suggested_tags: finalTags,\n  reasoning: aiResponse.reasoning,\n  total_suggestions: finalTags.length,\n  new_tags_count: finalTags.filter(t => t.isNew).length\n};"
+      },
+      "name": "Process Tags",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1260, 400],
+      "id": "code-process"
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "success"
+            }
+          ],
+          "object": [
+            {
+              "name": "data",
+              "value": "={{ $json }}"
+            }
+          ]
+        }
+      },
+      "name": "Format Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [1460, 300],
+      "id": "format-response"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Merge Inputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Defaults",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Defaults": {
+      "main": [
+        [
+          {
+            "node": "Merge Inputs",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Inputs": {
+      "main": [
+        [
+          {
+            "node": "Get User Tags",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get User Tags": {
+      "main": [
+        [
+          {
+            "node": "AI Tag Suggestions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Tag Suggestions": {
+      "main": [
+        [
+          {
+            "node": "Process Tags",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Tags": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": true
+}

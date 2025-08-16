@@ -1,0 +1,218 @@
+#!/bin/bash
+
+# SmartNotes CLI
+# Local AI-enabled note-taking application
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Default configuration
+API_URL="${NOTES_API_URL:-http://localhost:8950}"
+USER_ID="${NOTES_USER_ID:-default-user}"
+
+# Colors for output
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+NC='\033[0m' # No Color
+
+show_help() {
+    echo "SmartNotes CLI - AI-powered note-taking"
+    echo ""
+    echo "Usage: notes [command] [options]"
+    echo ""
+    echo "Commands:"
+    echo "  list                List all notes"
+    echo "  new <title>         Create a new note"
+    echo "  view <id>           View a specific note"
+    echo "  edit <id>           Edit a note"
+    echo "  delete <id>         Delete a note"
+    echo "  search <query>      Search notes"
+    echo "  folders             List all folders"
+    echo "  tags                List all tags"
+    echo "  templates           List available templates"
+    echo "  summary             Get daily summary"
+    echo "  help                Show this help message"
+    echo ""
+    echo "Environment Variables:"
+    echo "  NOTES_API_URL       API endpoint (default: http://localhost:8950)"
+    echo "  NOTES_USER_ID       User ID (default: default-user)"
+}
+
+list_notes() {
+    echo -e "${BLUE}📝 Your Notes:${NC}"
+    response=$(curl -s "${API_URL}/api/notes?user_id=${USER_ID}")
+    
+    if [ -z "$response" ] || [ "$response" = "[]" ]; then
+        echo "No notes found. Create your first note with: notes new \"My First Note\""
+        return
+    fi
+    
+    echo "$response" | jq -r '.[] | "\(.id[0:8])... | \(.title) | \(.word_count) words | Updated: \(.updated_at[0:10])"'
+}
+
+create_note() {
+    local title="$1"
+    if [ -z "$title" ]; then
+        echo -e "${RED}Error: Please provide a title${NC}"
+        echo "Usage: notes new \"Note Title\""
+        return 1
+    fi
+    
+    echo -e "${GREEN}Creating new note: $title${NC}"
+    
+    # Simple text editor prompt
+    echo "Enter your note content (press Ctrl+D when done):"
+    content=$(cat)
+    
+    response=$(curl -s -X POST "${API_URL}/api/notes" \
+        -H "Content-Type: application/json" \
+        -d "{\"title\": \"$title\", \"content\": \"$content\", \"user_id\": \"$USER_ID\", \"content_type\": \"markdown\"}")
+    
+    note_id=$(echo "$response" | jq -r '.id')
+    if [ "$note_id" != "null" ] && [ -n "$note_id" ]; then
+        echo -e "${GREEN}✅ Note created successfully!${NC}"
+        echo "Note ID: $note_id"
+    else
+        echo -e "${RED}Failed to create note${NC}"
+        echo "$response"
+    fi
+}
+
+view_note() {
+    local note_id="$1"
+    if [ -z "$note_id" ]; then
+        echo -e "${RED}Error: Please provide a note ID${NC}"
+        return 1
+    fi
+    
+    response=$(curl -s "${API_URL}/api/notes/${note_id}")
+    
+    if echo "$response" | grep -q "not found"; then
+        echo -e "${RED}Note not found${NC}"
+        return 1
+    fi
+    
+    echo -e "${BLUE}📄 Note Details:${NC}"
+    echo "$response" | jq -r '"Title: \(.title)\nCreated: \(.created_at[0:19])\nUpdated: \(.updated_at[0:19])\nWords: \(.word_count)\nReading Time: \(.reading_time_minutes) min\n\nContent:\n\(.content)"'
+}
+
+delete_note() {
+    local note_id="$1"
+    if [ -z "$note_id" ]; then
+        echo -e "${RED}Error: Please provide a note ID${NC}"
+        return 1
+    fi
+    
+    echo -e "${YELLOW}Are you sure you want to delete this note? (y/N)${NC}"
+    read -r confirmation
+    
+    if [ "$confirmation" = "y" ] || [ "$confirmation" = "Y" ]; then
+        curl -s -X DELETE "${API_URL}/api/notes/${note_id}"
+        echo -e "${GREEN}✅ Note deleted${NC}"
+    else
+        echo "Deletion cancelled"
+    fi
+}
+
+search_notes() {
+    local query="$1"
+    if [ -z "$query" ]; then
+        echo -e "${RED}Error: Please provide a search query${NC}"
+        return 1
+    fi
+    
+    echo -e "${BLUE}🔍 Searching for: $query${NC}"
+    
+    response=$(curl -s -X POST "${API_URL}/api/search" \
+        -H "Content-Type: application/json" \
+        -d "{\"query\": \"$query\", \"user_id\": \"$USER_ID\"}")
+    
+    count=$(echo "$response" | jq -r '.count')
+    if [ "$count" = "0" ]; then
+        echo "No results found"
+        return
+    fi
+    
+    echo -e "${GREEN}Found $count results:${NC}"
+    echo "$response" | jq -r '.results[] | "\(.id[0:8])... | \(.title) | \(.updated_at[0:10])"'
+}
+
+list_folders() {
+    echo -e "${BLUE}📁 Your Folders:${NC}"
+    response=$(curl -s "${API_URL}/api/folders?user_id=${USER_ID}")
+    
+    if [ -z "$response" ] || [ "$response" = "[]" ]; then
+        echo "No folders found"
+        return
+    fi
+    
+    echo "$response" | jq -r '.[] | "\(.icon) \(.name) [\(.color)]"'
+}
+
+list_tags() {
+    echo -e "${BLUE}🏷️  Your Tags:${NC}"
+    response=$(curl -s "${API_URL}/api/tags?user_id=${USER_ID}")
+    
+    if [ -z "$response" ] || [ "$response" = "[]" ]; then
+        echo "No tags found"
+        return
+    fi
+    
+    echo "$response" | jq -r '.[] | "\(.name) (\(.usage_count) uses) [\(.color)]"'
+}
+
+list_templates() {
+    echo -e "${BLUE}📋 Available Templates:${NC}"
+    response=$(curl -s "${API_URL}/api/templates?user_id=${USER_ID}")
+    
+    if [ -z "$response" ] || [ "$response" = "[]" ]; then
+        echo "No templates available"
+        return
+    fi
+    
+    echo "$response" | jq -r '.[] | "\(.name) - \(.description) [\(.category)]"'
+}
+
+# Main command handler
+case "$1" in
+    list|ls)
+        list_notes
+        ;;
+    new|create|add)
+        create_note "$2"
+        ;;
+    view|show|get)
+        view_note "$2"
+        ;;
+    edit|update)
+        echo "Edit functionality coming soon. Use the web UI for now."
+        ;;
+    delete|rm|remove)
+        delete_note "$2"
+        ;;
+    search|find)
+        search_notes "$2"
+        ;;
+    folders|folder)
+        list_folders
+        ;;
+    tags|tag)
+        list_tags
+        ;;
+    templates|template)
+        list_templates
+        ;;
+    summary)
+        echo "Daily summary functionality coming soon"
+        ;;
+    help|--help|-h|"")
+        show_help
+        ;;
+    *)
+        echo -e "${RED}Unknown command: $1${NC}"
+        show_help
+        exit 1
+        ;;
+esac

@@ -3,270 +3,219 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>📚 STUDY QUEST '95 - Educational Adventure System</title>
+    <title>☕ Study Buddy - Your Cozy Learning Space</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=VT323&family=Press+Start+2P&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&family=Comfortaa:wght@400;600&family=Kalam:wght@300;400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <script src="progress-tracker.js" defer></script>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            image-rendering: pixelated;
-            image-rendering: -moz-crisp-edges;
-            image-rendering: crisp-edges;
         }
 
-        @keyframes crt-flicker {
-            0% { opacity: 0.97; }
+        :root {
+            --bg-gradient-1: #2c1f4a;
+            --bg-gradient-2: #4a3862;
+            --bg-gradient-3: #6b4c7a;
+            --card-bg: rgba(255, 248, 240, 0.95);
+            --accent-purple: #9b72aa;
+            --accent-pink: #d4a5c8;
+            --accent-yellow: #f9d978;
+            --text-dark: #3a2e4d;
+            --text-light: #6b5d7a;
+            --success: #7bb68e;
+            --warning: #f4a261;
+            --error: #e76f51;
+            --shadow: rgba(42, 32, 61, 0.2);
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.3; }
             50% { opacity: 1; }
-            100% { opacity: 0.98; }
         }
 
-        @keyframes scanlines {
-            0% { transform: translateY(0); }
-            100% { transform: translateY(10px); }
-        }
-
-        @keyframes pixel-pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-        }
-
-        @keyframes rainbow-text {
-            0% { color: #ff0000; }
-            16% { color: #ff8800; }
-            33% { color: #ffff00; }
-            50% { color: #00ff00; }
-            66% { color: #0088ff; }
-            83% { color: #8800ff; }
-            100% { color: #ff0000; }
+        @keyframes steam {
+            0% { transform: translateY(0) scale(1); opacity: 0.6; }
+            100% { transform: translateY(-30px) scale(1.5); opacity: 0; }
         }
 
         body {
-            font-family: 'VT323', monospace;
-            background: #0a0a0a;
+            font-family: 'Quicksand', sans-serif;
+            background: linear-gradient(135deg, var(--bg-gradient-1) 0%, var(--bg-gradient-2) 50%, var(--bg-gradient-3) 100%);
             min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            color: #00ff00;
+            color: var(--text-dark);
             position: relative;
             overflow-x: hidden;
         }
 
-        /* CRT Screen Effect */
-        body::before {
-            content: '';
+        /* Animated background elements */
+        .bg-stars {
             position: fixed;
-            top: 0;
-            left: 0;
             width: 100%;
             height: 100%;
-            background: repeating-linear-gradient(
-                0deg,
-                rgba(0, 0, 0, 0.15),
-                rgba(0, 0, 0, 0.15) 1px,
-                transparent 1px,
-                transparent 2px
-            );
             pointer-events: none;
-            z-index: 9999;
-            animation: scanlines 8s linear infinite;
+            z-index: 1;
         }
 
-        /* Retro glow effect */
-        body::after {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: radial-gradient(ellipse at center, transparent 0%, rgba(0,255,0,0.02) 100%);
-            pointer-events: none;
-            z-index: 9998;
-            animation: crt-flicker 0.15s infinite;
+        .star {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: white;
+            border-radius: 50%;
+            animation: twinkle 3s infinite;
         }
 
+        /* Header */
         .header {
-            background: linear-gradient(90deg, #1a1a2e 0%, #16213e 100%);
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
             padding: 1rem 2rem;
-            border: 3px solid #00ff00;
-            border-bottom: 5px solid #00ff00;
-            box-shadow: 
-                0 0 20px rgba(0,255,0,0.5),
-                inset 0 0 20px rgba(0,255,0,0.1);
             display: flex;
             justify-content: space-between;
             align-items: center;
             position: relative;
-        }
-
-        .header::before {
-            content: '╔══════════════════════════════════════════════════════════════╗';
-            position: absolute;
-            top: -15px;
-            left: 50%;
-            transform: translateX(-50%);
-            color: #00ff00;
-            font-size: 20px;
-            letter-spacing: -2px;
-            opacity: 0.5;
+            z-index: 100;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         }
 
         .logo {
-            font-family: 'Press Start 2P', cursive;
-            font-size: 1.2rem;
-            color: #ffff00;
-            text-shadow: 
-                2px 2px 0 #ff00ff,
-                4px 4px 0 #00ffff,
-                6px 6px 8px rgba(0,0,0,0.5);
             display: flex;
             align-items: center;
             gap: 1rem;
-            animation: pixel-pulse 2s ease-in-out infinite;
+            color: white;
+            font-family: 'Comfortaa', cursive;
+            font-size: 1.5rem;
+            font-weight: 600;
         }
 
-        .logo::before {
-            content: '📚';
+        .coffee-cup {
+            position: relative;
             font-size: 2rem;
-            animation: rainbow-text 3s linear infinite;
+        }
+
+        .coffee-steam {
+            position: absolute;
+            top: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            opacity: 0;
+            animation: steam 2s infinite;
+        }
+
+        .coffee-steam:nth-child(2) {
+            animation-delay: 0.5s;
+            left: 60%;
+        }
+
+        .coffee-steam:nth-child(3) {
+            animation-delay: 1s;
+            left: 40%;
         }
 
         .stats {
             display: flex;
             gap: 2rem;
-            align-items: center;
+            color: white;
+            font-size: 0.9rem;
         }
 
         .stat-item {
-            text-align: center;
-            padding: 0.5rem 1rem;
-            background: #000;
-            border: 2px solid #00ff00;
-            position: relative;
-        }
-
-        .stat-item::before {
-            content: '[';
-            position: absolute;
-            left: -5px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: #ffff00;
-            font-size: 1.5rem;
-        }
-
-        .stat-item::after {
-            content: ']';
-            position: absolute;
-            right: -5px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: #ffff00;
-            font-size: 1.5rem;
-        }
-
-        .stat-value {
-            font-size: 2rem;
-            font-weight: bold;
-            color: #00ffff;
-            text-shadow: 0 0 10px currentColor;
-            font-family: 'Press Start 2P', cursive;
-        }
-
-        .stat-label {
-            font-size: 1.2rem;
-            color: #00ff00;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            margin-top: 0.25rem;
-        }
-
-        .main-container {
-            flex: 1;
-            display: flex;
-            padding: 2rem;
-            gap: 2rem;
-            max-width: 1400px;
-            margin: 0 auto;
-            width: 100%;
-        }
-
-        .sidebar {
-            background: #1a1a2e;
-            border: 3px solid #00ff00;
-            padding: 1.5rem;
-            width: 280px;
-            box-shadow: 
-                0 0 30px rgba(0,255,0,0.3),
-                inset 0 0 30px rgba(0,255,0,0.05);
-            position: relative;
-        }
-
-        .sidebar::before {
-            content: '◆ MISSION SELECT ◆';
-            position: absolute;
-            top: -12px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: #1a1a2e;
-            padding: 0 10px;
-            color: #ffff00;
-            font-family: 'Press Start 2P', cursive;
-            font-size: 0.7rem;
-            text-shadow: 0 0 5px currentColor;
-        }
-
-        .subject-list {
-            list-style: none;
-            margin-top: 2rem;
-        }
-
-        .subject-item {
-            padding: 0.75rem;
-            margin: 1rem 0;
-            border: 2px solid #00ff00;
-            background: #000;
-            cursor: pointer;
-            transition: all 0.1s;
             display: flex;
             align-items: center;
             gap: 0.5rem;
-            position: relative;
-            font-size: 1.3rem;
-            text-transform: uppercase;
+            padding: 0.5rem 1rem;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
         }
 
-        .subject-item::before {
-            content: '▶';
-            color: #ffff00;
-            margin-right: 0.5rem;
-            animation: pixel-pulse 1s ease-in-out infinite;
+        /* Main container */
+        .main-container {
+            max-width: 1400px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+            display: grid;
+            grid-template-columns: 250px 1fr 300px;
+            gap: 2rem;
+            position: relative;
+            z-index: 10;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 1.5rem;
+            box-shadow: 0 10px 30px var(--shadow);
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        .subjects-list {
+            margin-top: 1rem;
+        }
+
+        .subject-item {
+            padding: 0.8rem 1rem;
+            margin: 0.5rem 0;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: white;
         }
 
         .subject-item:hover {
-            background: #00ff00;
-            color: #000;
-            transform: translateX(10px) scale(1.05);
-            box-shadow: 
-                5px 5px 0 #ff00ff,
-                10px 10px 0 #00ffff;
-            font-weight: bold;
+            background: var(--accent-purple);
+            color: white;
+            transform: translateX(5px);
         }
 
         .subject-item.active {
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-pink));
             color: white;
         }
 
+        .add-subject-btn {
+            width: 100%;
+            padding: 0.8rem;
+            margin-top: 1rem;
+            border: 2px dashed var(--accent-purple);
+            background: transparent;
+            border-radius: 12px;
+            cursor: pointer;
+            color: var(--accent-purple);
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .add-subject-btn:hover {
+            background: var(--accent-purple);
+            color: white;
+            border-style: solid;
+        }
+
+        /* Content area */
         .content-area {
-            flex: 1;
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 1rem;
-            padding: 2rem;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            animation: fadeIn 0.6s ease-out;
         }
 
         .mode-selector {
@@ -278,114 +227,135 @@
         .mode-btn {
             flex: 1;
             padding: 1rem;
-            border: 2px solid #e0e0e0;
-            background: white;
-            border-radius: 0.5rem;
+            background: var(--card-bg);
+            border: none;
+            border-radius: 15px;
             cursor: pointer;
-            transition: all 0.3s;
             font-size: 1rem;
-            font-weight: 500;
+            font-weight: 600;
+            color: var(--text-dark);
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            box-shadow: 0 5px 15px var(--shadow);
         }
 
         .mode-btn:hover {
-            border-color: #667eea;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 10px rgba(102, 126, 234, 0.2);
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px var(--shadow);
         }
 
         .mode-btn.active {
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-pink));
             color: white;
-            border-color: transparent;
         }
 
+        /* Flashcard */
         .flashcard-container {
-            display: none;
-            flex-direction: column;
-            align-items: center;
-            gap: 2rem;
+            perspective: 1000px;
+            height: 400px;
+            margin-bottom: 2rem;
         }
 
         .flashcard {
             width: 100%;
-            max-width: 600px;
-            height: 350px;
-            perspective: 1000px;
+            height: 100%;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.6s;
             cursor: pointer;
         }
 
-        .flashcard-inner {
-            position: relative;
-            width: 100%;
-            height: 100%;
-            text-align: center;
-            transition: transform 0.6s;
-            transform-style: preserve-3d;
-        }
-
-        .flashcard.flipped .flashcard-inner {
+        .flashcard.flipped {
             transform: rotateY(180deg);
         }
 
-        .flashcard-face {
+        .card-face {
             position: absolute;
             width: 100%;
             height: 100%;
             backface-visibility: hidden;
-            border-radius: 1rem;
+            border-radius: 20px;
             display: flex;
-            align-items: center;
+            flex-direction: column;
             justify-content: center;
+            align-items: center;
             padding: 2rem;
-            font-size: 1.25rem;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            background: var(--card-bg);
+            box-shadow: 0 15px 40px var(--shadow);
         }
 
-        .flashcard-front {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-        }
-
-        .flashcard-back {
-            background: linear-gradient(135deg, #56ab2f, #a8e063);
-            color: white;
+        .card-back {
             transform: rotateY(180deg);
+            background: linear-gradient(135deg, #fff9f0, #ffefd8);
+        }
+
+        .card-content {
+            font-size: 1.3rem;
+            text-align: center;
+            line-height: 1.6;
+            color: var(--text-dark);
+        }
+
+        .card-hint {
+            position: absolute;
+            bottom: 2rem;
+            font-size: 0.9rem;
+            color: var(--text-light);
+            font-style: italic;
         }
 
         .flashcard-controls {
             display: flex;
             gap: 1rem;
+            justify-content: center;
         }
 
         .control-btn {
-            padding: 0.75rem 1.5rem;
+            padding: 1rem 2rem;
             border: none;
-            border-radius: 0.5rem;
+            border-radius: 12px;
             cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
             font-size: 1rem;
-            transition: all 0.3s;
-            background: white;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .control-btn.easy {
+            background: var(--success);
+            color: white;
+        }
+
+        .control-btn.medium {
+            background: var(--warning);
+            color: white;
+        }
+
+        .control-btn.hard {
+            background: var(--error);
+            color: white;
         }
 
         .control-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
         }
 
-        .btn-easy { background: #4ade80; color: white; }
-        .btn-medium { background: #fbbf24; color: white; }
-        .btn-hard { background: #f87171; color: white; }
-        .btn-skip { background: #94a3b8; color: white; }
-
+        /* Quiz */
         .quiz-container {
             display: none;
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 15px 40px var(--shadow);
         }
 
         .quiz-question {
-            font-size: 1.5rem;
+            font-size: 1.4rem;
             margin-bottom: 2rem;
-            color: #333;
+            color: var(--text-dark);
         }
 
         .quiz-options {
@@ -394,258 +364,426 @@
         }
 
         .quiz-option {
-            padding: 1rem;
-            border: 2px solid #e0e0e0;
-            border-radius: 0.5rem;
-            cursor: pointer;
-            transition: all 0.3s;
+            padding: 1.2rem;
             background: white;
+            border: 2px solid transparent;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1.1rem;
         }
 
         .quiz-option:hover {
-            border-color: #667eea;
-            background: rgba(102, 126, 234, 0.05);
-        }
-
-        .quiz-option.selected {
-            border-color: #667eea;
-            background: rgba(102, 126, 234, 0.1);
+            border-color: var(--accent-purple);
+            transform: translateX(5px);
         }
 
         .quiz-option.correct {
-            border-color: #4ade80;
-            background: rgba(74, 222, 128, 0.1);
-            animation: correctPulse 0.5s;
+            background: var(--success);
+            color: white;
+            border-color: var(--success);
         }
 
         .quiz-option.incorrect {
-            border-color: #f87171;
-            background: rgba(248, 113, 113, 0.1);
-            animation: shake 0.5s;
+            background: var(--error);
+            color: white;
+            border-color: var(--error);
         }
 
-        @keyframes correctPulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
+        /* Notes */
+        .notes-container {
+            display: none;
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 15px 40px var(--shadow);
         }
 
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-5px); }
-            75% { transform: translateX(5px); }
+        .notes-editor {
+            width: 100%;
+            min-height: 300px;
+            padding: 1rem;
+            border: 2px solid var(--accent-purple);
+            border-radius: 12px;
+            font-size: 1.1rem;
+            resize: vertical;
+            font-family: 'Quicksand', sans-serif;
+        }
+
+        .save-note-btn {
+            margin-top: 1rem;
+            padding: 1rem 2rem;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-pink));
+            color: white;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .save-note-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        /* Right sidebar */
+        .right-sidebar {
+            animation: fadeIn 0.7s ease-out;
+        }
+
+        .study-timer {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 1.5rem;
+            text-align: center;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 30px var(--shadow);
+        }
+
+        .timer-display {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: var(--accent-purple);
+            margin: 1rem 0;
+            font-family: 'Comfortaa', cursive;
+        }
+
+        .progress-card {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 1.5rem;
+            box-shadow: 0 10px 30px var(--shadow);
+        }
+
+        .progress-item {
+            margin: 1rem 0;
+        }
+
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+            color: var(--text-light);
         }
 
         .progress-bar {
-            width: 100%;
             height: 8px;
             background: #e0e0e0;
-            border-radius: 4px;
+            border-radius: 10px;
             overflow: hidden;
-            margin-bottom: 2rem;
         }
 
         .progress-fill {
             height: 100%;
-            background: linear-gradient(90deg, #667eea, #764ba2);
-            transition: width 0.3s;
-            border-radius: 4px;
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-pink));
+            border-radius: 10px;
+            transition: width 0.5s ease;
         }
 
-        .study-timer {
-            position: fixed;
-            bottom: 2rem;
-            right: 2rem;
-            background: white;
-            padding: 1rem 1.5rem;
-            border-radius: 2rem;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            font-weight: 500;
-        }
-
-        .timer-icon {
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-
-        .streak-badge {
-            position: absolute;
-            top: -10px;
-            right: -10px;
-            background: #fbbf24;
-            color: white;
-            padding: 0.25rem 0.5rem;
-            border-radius: 1rem;
-            font-size: 0.75rem;
-            font-weight: bold;
-            animation: bounce 2s infinite;
-        }
-
-        @keyframes bounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-5px); }
-        }
-
-        .notes-container {
-            display: none;
-            flex-direction: column;
-            gap: 1rem;
-        }
-
-        .note-input {
-            width: 100%;
-            min-height: 200px;
-            padding: 1rem;
-            border: 2px solid #e0e0e0;
-            border-radius: 0.5rem;
-            font-size: 1rem;
-            resize: vertical;
-            transition: border-color 0.3s;
-        }
-
-        .note-input:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
-        .save-note-btn {
-            align-self: flex-end;
-            padding: 0.75rem 2rem;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            border: none;
-            border-radius: 0.5rem;
-            cursor: pointer;
-            font-size: 1rem;
-            transition: all 0.3s;
-        }
-
-        .save-note-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
-        }
-
+        /* Floating action button */
         .floating-action {
             position: fixed;
             bottom: 2rem;
-            left: 2rem;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
+            right: 2rem;
             width: 60px;
             height: 60px;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-pink));
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-            transition: all 0.3s;
+            box-shadow: 0 10px 30px var(--shadow);
+            animation: float 3s ease-in-out infinite;
+            z-index: 1000;
+            color: white;
             font-size: 1.5rem;
         }
 
         .floating-action:hover {
-            transform: scale(1.1) rotate(90deg);
+            transform: scale(1.1);
+        }
+
+        /* Decorative elements */
+        .plant-decoration {
+            position: fixed;
+            bottom: 0;
+            left: 2rem;
+            width: 150px;
+            height: 200px;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 200"><path d="M75 200 Q50 150 60 100 Q70 50 75 0 Q80 50 90 100 Q100 150 75 200" fill="%237bb68e" opacity="0.3"/></svg>') no-repeat center;
+            background-size: contain;
+            z-index: 5;
+            pointer-events: none;
+        }
+
+        .cat-decoration {
+            position: fixed;
+            bottom: 10px;
+            right: 400px;
+            width: 80px;
+            height: 80px;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80"><ellipse cx="40" cy="50" rx="25" ry="20" fill="%233a2e4d" opacity="0.2"/><circle cx="30" cy="30" r="3" fill="%233a2e4d" opacity="0.3"/><circle cx="50" cy="30" r="3" fill="%233a2e4d" opacity="0.3"/><path d="M15 20 L20 35 L10 35 Z" fill="%233a2e4d" opacity="0.3"/><path d="M65 20 L70 35 L60 35 Z" fill="%233a2e4d" opacity="0.3"/></svg>') no-repeat center;
+            background-size: contain;
+            z-index: 5;
+            pointer-events: none;
+            animation: float 5s ease-in-out infinite;
+        }
+
+        /* Loading animation */
+        .loading {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 2000;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid var(--accent-purple);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .main-container {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar, .right-sidebar {
+                display: none;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="header">
+    <!-- Animated background stars -->
+    <div class="bg-stars" id="stars"></div>
+
+    <!-- Header -->
+    <header class="header">
         <div class="logo">
-            STUDY QUEST '95
+            <div class="coffee-cup">
+                ☕
+                <div class="coffee-steam"></div>
+                <div class="coffee-steam"></div>
+                <div class="coffee-steam"></div>
+            </div>
+            <span>Study Buddy</span>
         </div>
         <div class="stats">
             <div class="stat-item">
-                <div class="stat-value" id="streak">7</div>
-                <div class="stat-label">Day Streak</div>
-                <div class="streak-badge">🔥</div>
+                <span>🔥</span>
+                <span id="streak">0 day streak</span>
             </div>
             <div class="stat-item">
-                <div class="stat-value" id="xp">1,250</div>
-                <div class="stat-label">XP Points</div>
+                <span>⭐</span>
+                <span id="points">0 points</span>
             </div>
             <div class="stat-item">
-                <div class="stat-value" id="mastered">42</div>
-                <div class="stat-label">Cards Mastered</div>
+                <span>📚</span>
+                <span id="cards-studied">0 cards today</span>
             </div>
         </div>
-    </div>
+    </header>
 
+    <!-- Main Container -->
     <div class="main-container">
-        <div class="sidebar">
+        <!-- Left Sidebar -->
+        <aside class="sidebar">
             <h3>Subjects</h3>
-            <ul class="subject-list">
-                <li class="subject-item active" data-subject="math">📐 Mathematics</li>
-                <li class="subject-item" data-subject="science">🔬 Science</li>
-                <li class="subject-item" data-subject="history">📜 History</li>
-                <li class="subject-item" data-subject="language">📝 Language Arts</li>
-                <li class="subject-item" data-subject="programming">💻 Programming</li>
-            </ul>
-            <button class="add-subject-btn" style="width: 100%; margin-top: 1rem; padding: 0.75rem; background: white; border: 2px dashed #667eea; border-radius: 0.5rem; cursor: pointer; color: #667eea;">
-                + Add Subject
-            </button>
-        </div>
+            <div class="subjects-list" id="subjects-list">
+                <div class="subject-item active" data-subject="math">
+                    <span>📐</span> Mathematics
+                </div>
+                <div class="subject-item" data-subject="science">
+                    <span>🔬</span> Science
+                </div>
+                <div class="subject-item" data-subject="history">
+                    <span>📜</span> History
+                </div>
+                <div class="subject-item" data-subject="language">
+                    <span>📝</span> Language Arts
+                </div>
+                <div class="subject-item" data-subject="computer">
+                    <span>💻</span> Computer Science
+                </div>
+            </div>
+            <button class="add-subject-btn">+ Add Subject</button>
+        </aside>
 
-        <div class="content-area">
+        <!-- Content Area -->
+        <main class="content-area">
+            <!-- Mode Selector -->
             <div class="mode-selector">
-                <button class="mode-btn active" data-mode="flashcards">🎴 Flashcards</button>
-                <button class="mode-btn" data-mode="quiz">📝 Quiz</button>
-                <button class="mode-btn" data-mode="notes">📓 Notes</button>
+                <button class="mode-btn active" data-mode="flashcards">
+                    <span>🎴</span> Flashcards
+                </button>
+                <button class="mode-btn" data-mode="quiz">
+                    <span>📝</span> Quiz
+                </button>
+                <button class="mode-btn" data-mode="notes">
+                    <span>📔</span> Notes
+                </button>
             </div>
 
-            <div class="progress-bar">
-                <div class="progress-fill" style="width: 35%;"></div>
-            </div>
-
-            <div class="flashcard-container" style="display: flex;">
+            <!-- Flashcard Container -->
+            <div class="flashcard-container">
                 <div class="flashcard" id="flashcard">
-                    <div class="flashcard-inner">
-                        <div class="flashcard-face flashcard-front">
-                            <div>What is the derivative of x²?</div>
+                    <div class="card-face card-front">
+                        <div class="card-content" id="card-front-content">
+                            What is the Pythagorean theorem?
                         </div>
-                        <div class="flashcard-face flashcard-back">
-                            <div>2x</div>
+                        <div class="card-hint">💡 Click to flip</div>
+                    </div>
+                    <div class="card-face card-back">
+                        <div class="card-content" id="card-back-content">
+                            a² + b² = c²
+                            <br><br>
+                            In a right triangle, the square of the hypotenuse equals the sum of squares of the other two sides.
                         </div>
                     </div>
                 </div>
-                <div class="flashcard-controls">
-                    <button class="control-btn btn-easy">Easy</button>
-                    <button class="control-btn btn-medium">Medium</button>
-                    <button class="control-btn btn-hard">Hard</button>
-                    <button class="control-btn btn-skip">Skip</button>
-                </div>
             </div>
 
+            <!-- Flashcard Controls -->
+            <div class="flashcard-controls">
+                <button class="control-btn again" data-quality="again" data-difficulty="hard">
+                    Again 🔄
+                </button>
+                <button class="control-btn hard" data-quality="hard" data-difficulty="hard">
+                    Hard 😅
+                </button>
+                <button class="control-btn good" data-quality="good" data-difficulty="medium">
+                    Good 👍
+                </button>
+                <button class="control-btn easy" data-quality="easy" data-difficulty="easy">
+                    Easy 😊
+                </button>
+            </div>
+
+            <!-- Quiz Container -->
             <div class="quiz-container">
-                <div class="quiz-question">Which planet is known as the Red Planet?</div>
-                <div class="quiz-options">
-                    <div class="quiz-option" data-answer="venus">Venus</div>
-                    <div class="quiz-option" data-answer="mars">Mars</div>
-                    <div class="quiz-option" data-answer="jupiter">Jupiter</div>
-                    <div class="quiz-option" data-answer="saturn">Saturn</div>
+                <div class="quiz-question" id="quiz-question">
+                    What is 2 + 2?
+                </div>
+                <div class="quiz-options" id="quiz-options">
+                    <div class="quiz-option" data-answer="a">3</div>
+                    <div class="quiz-option" data-answer="b">4</div>
+                    <div class="quiz-option" data-answer="c">5</div>
+                    <div class="quiz-option" data-answer="d">6</div>
                 </div>
             </div>
 
+            <!-- Notes Container -->
             <div class="notes-container">
                 <h3>Study Notes</h3>
-                <textarea class="note-input" placeholder="Type your study notes here..."></textarea>
-                <button class="save-note-btn">Save Note</button>
+                <textarea class="notes-editor" id="notes-editor" placeholder="Type your notes here... Use markdown for formatting!"></textarea>
+                <button class="save-note-btn">Save Notes 💾</button>
             </div>
-        </div>
+
+            <!-- Materials Upload Container -->
+            <div class="materials-container" id="materials-container" style="display: none;">
+                <h3>📚 Upload Study Materials</h3>
+                <div class="upload-area" id="upload-area">
+                    <div class="upload-icon">📤</div>
+                    <h4>Drop files here or click to upload</h4>
+                    <p>Supports PDF, images, text files, or paste a URL</p>
+                    <input type="file" id="file-input" style="display: none;" accept=".pdf,.txt,.md,.doc,.docx,.png,.jpg,.jpeg">
+                </div>
+                <div class="url-input-container">
+                    <input type="url" id="url-input" placeholder="Or paste a URL to study material..." class="url-input">
+                    <button id="process-url-btn" class="process-btn">Process URL 🔗</button>
+                </div>
+                <div class="uploaded-materials" id="uploaded-materials">
+                    <h4>📖 Processed Materials</h4>
+                    <div class="materials-list" id="materials-list"></div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Right Sidebar -->
+        <aside class="right-sidebar">
+            <!-- Study Timer -->
+            <div class="study-timer">
+                <h3>Study Session</h3>
+                <div class="timer-display" id="timer">00:00</div>
+                <div>Keep it up! 🌟</div>
+            </div>
+
+            <!-- Progress Card -->
+            <div class="progress-card">
+                <h3>Today's Progress</h3>
+                <div class="progress-item">
+                    <div class="progress-label">
+                        <span>Flashcards</span>
+                        <span id="flashcard-progress">0/20</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="flashcard-progress-bar" style="width: 0%"></div>
+                    </div>
+                </div>
+                <div class="progress-item">
+                    <div class="progress-label">
+                        <span>Quiz Score</span>
+                        <span id="quiz-score">0%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="quiz-progress-bar" style="width: 0%"></div>
+                    </div>
+                </div>
+                <div class="progress-item">
+                    <div class="progress-label">
+                        <span>Daily Goal</span>
+                        <span id="daily-goal">0/50 XP</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="goal-progress-bar" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+        </aside>
     </div>
 
-    <div class="study-timer">
-        <span class="timer-icon">⏱️</span>
-        <span id="timer">00:00</span>
+    <!-- Floating Action Button -->
+    <div class="floating-action" id="fab" title="Generate AI Flashcards">
+        ✨
     </div>
 
-    <div class="floating-action">+</div>
+    <!-- Decorative Elements -->
+    <div class="plant-decoration"></div>
+    <div class="cat-decoration"></div>
+
+    <!-- Loading Spinner -->
+    <div class="loading" id="loading">
+        <div class="loading-spinner"></div>
+    </div>
 
     <script src="script.js"></script>
+    <script>
+        // Generate random stars
+        const starsContainer = document.getElementById('stars');
+        for (let i = 0; i < 100; i++) {
+            const star = document.createElement('div');
+            star.className = 'star';
+            star.style.left = Math.random() * 100 + '%';
+            star.style.top = Math.random() * 100 + '%';
+            star.style.animationDelay = Math.random() * 3 + 's';
+            starsContainer.appendChild(star);
+        }
+    </script>
 </body>
 </html>

@@ -1,0 +1,56 @@
+{
+  "name": "stream-of-consciousness-analyzer",
+  "version": "1.0.0",
+  "description": "Transform unstructured text/voice into organized notes with AI-powered insights",
+  "category": "saas-applications",
+  "resources": {
+    "n8n": {
+      "enabled": true,
+      "workflows": [
+        "process-stream",
+        "organize-thoughts",
+        "extract-insights",
+        "campaign-context-builder",
+        "autonomous-thought-processor"
+      ]
+    },
+    "postgres": {
+      "enabled": true,
+      "schema": "schema.sql"
+    },
+    "redis": {
+      "enabled": true
+    },
+    "qdrant": {
+      "enabled": true,
+      "collections": ["thoughts", "insights", "campaigns"]
+    },
+    "ollama": {
+      "enabled": true,
+      "models": ["llama3.2:3b", "nomic-embed-text"]
+    }
+  },
+  "ports": {
+    "ui": {
+      "range": [8800, 8899]
+    },
+    "api": {
+      "range": [3800, 3899]
+    }
+  },
+  "lifecycle": {
+    "start": ["ui", "api"],
+    "health_check": {
+      "enabled": true,
+      "interval": 30
+    }
+  },
+  "dependencies": {
+    "shared_workflows": [
+      "chain-of-thought-orchestrator",
+      "embedding-generator",
+      "ollama",
+      "rate-limiter"
+    ]
+  }
+}

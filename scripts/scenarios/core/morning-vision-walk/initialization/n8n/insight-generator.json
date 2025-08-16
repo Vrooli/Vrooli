@@ -1,0 +1,213 @@
+{
+  "name": "Morning Vision - Insight Generator",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "vision-insight-generator",
+        "responseMode": "responseNode",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Provide defaults for manual testing\nreturn [{\n  json: {\n    session_id: \"test-session\",\n    user_id: \"test-user\",\n    conversation_history: [\n      {\n        role: \"user\",\n        content: \"I'm thinking about improving the scenario conversion process\"\n      },\n      {\n        role: \"assistant\",\n        content: \"That's a great focus area. The conversion process is crucial for Vrooli's recursive improvement.\"\n      }\n    ],\n    context: {\n      current_focus: \"scenario improvement\",\n      energy_level: \"high\"\n    }\n  }\n}];"
+      },
+      "id": "provide-defaults",
+      "name": "Provide Defaults",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 500]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.N8N_URL || 'http://localhost:5678' }}/webhook/ollama",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "prompt",
+              "value": "Based on this conversation during a morning vision walk, extract key insights and actionable recommendations.\n\nConversation:\n{{ JSON.stringify($json.conversation_history) }}\n\nContext:\n{{ JSON.stringify($json.context) }}\n\nProvide a structured response with:\n1. Key Insights (2-3 bullet points)\n2. Immediate Actions (1-2 items)\n3. Long-term Considerations (1-2 items)\n4. Connections to Vrooli's recursive improvement vision\n5. Energy optimization suggestion based on the discussion\n\nFormat as JSON with keys: insights, immediate_actions, long_term_considerations, vrooli_connections, energy_suggestion"
+            },
+            {
+              "name": "model",
+              "value": "llama3.2"
+            },
+            {
+              "name": "temperature",
+              "value": 0.8
+            },
+            {
+              "name": "format",
+              "value": "json"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "generate-insights",
+      "name": "Generate Insights",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse the AI response and structure insights\nconst aiResponse = $json.response || '{}';\nlet insights;\n\ntry {\n  insights = typeof aiResponse === 'string' ? JSON.parse(aiResponse) : aiResponse;\n} catch (e) {\n  // Fallback structure if parsing fails\n  insights = {\n    insights: ['Unable to parse AI response'],\n    immediate_actions: [],\n    long_term_considerations: [],\n    vrooli_connections: [],\n    energy_suggestion: 'Continue at your own pace'\n  };\n}\n\n// Add metadata\nconst enrichedInsights = {\n  session_id: $('webhook-trigger').item.json.session_id,\n  user_id: $('webhook-trigger').item.json.user_id,\n  timestamp: new Date().toISOString(),\n  ...insights,\n  conversation_length: $('webhook-trigger').item.json.conversation_history?.length || 0,\n  context_tags: extractContextTags($('webhook-trigger').item.json.context)\n};\n\nfunction extractContextTags(context) {\n  const tags = [];\n  if (context?.current_focus) tags.push(context.current_focus);\n  if (context?.energy_level) tags.push(`energy:${context.energy_level}`);\n  if (context?.mood) tags.push(`mood:${context.mood}`);\n  return tags;\n}\n\nreturn [{ json: enrichedInsights }];"
+      },
+      "id": "structure-insights",
+      "name": "Structure Insights",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "resource": "database",
+        "operation": "insert",
+        "schema": "public",
+        "table": "insights",
+        "columns": "session_id,user_id,insight_text,category,metadata,created_at",
+        "additionalFields": {}
+      },
+      "id": "store-insights",
+      "name": "Store Insights",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1050, 300],
+      "credentials": {
+        "postgres": {
+          "id": "vision-walk-postgres",
+          "name": "Vision Walk Postgres"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare insights for storage\nconst insights = $json;\nconst records = [];\n\n// Store each insight type\nif (insights.insights?.length) {\n  insights.insights.forEach(text => {\n    records.push({\n      session_id: insights.session_id,\n      user_id: insights.user_id,\n      insight_text: text,\n      category: 'key_insight',\n      metadata: JSON.stringify({\n        tags: insights.context_tags,\n        conversation_length: insights.conversation_length\n      }),\n      created_at: new Date().toISOString()\n    });\n  });\n}\n\nif (insights.immediate_actions?.length) {\n  insights.immediate_actions.forEach(text => {\n    records.push({\n      session_id: insights.session_id,\n      user_id: insights.user_id,\n      insight_text: text,\n      category: 'immediate_action',\n      metadata: JSON.stringify({\n        tags: insights.context_tags,\n        priority: 'high'\n      }),\n      created_at: new Date().toISOString()\n    });\n  });\n}\n\nif (insights.vrooli_connections?.length) {\n  insights.vrooli_connections.forEach(text => {\n    records.push({\n      session_id: insights.session_id,\n      user_id: insights.user_id,\n      insight_text: text,\n      category: 'vrooli_connection',\n      metadata: JSON.stringify({\n        tags: insights.context_tags,\n        recursive_improvement: true\n      }),\n      created_at: new Date().toISOString()\n    });\n  });\n}\n\nreturn records.length > 0 ? records : [{ json: { message: 'No insights to store' } }];"
+      },
+      "id": "prepare-storage",
+      "name": "Prepare Storage",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.N8N_URL || 'http://localhost:5678' }}/webhook/smart-notification-router",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "type",
+              "value": "insight_generated"
+            },
+            {
+              "name": "priority",
+              "value": "={{ $json.immediate_actions?.length > 0 ? 'high' : 'medium' }}"
+            },
+            {
+              "name": "title",
+              "value": "New Insights from Morning Vision Walk"
+            },
+            {
+              "name": "content",
+              "value": "={{ $json.insights?.join('\\n') || 'Insights generated' }}"
+            },
+            {
+              "name": "metadata",
+              "value": "={{ $json }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 5000
+        }
+      },
+      "id": "notify-insights",
+      "name": "Notify Insights",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1050, 500],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Compile final response\nconst insights = $('structure-insights').item.json;\nconst storageResult = $('store-insights').item?.json || { success: false };\nconst notificationResult = $('notify-insights').item?.json || { sent: false };\n\nreturn [{\n  json: {\n    success: true,\n    session_id: insights.session_id,\n    timestamp: insights.timestamp,\n    insights_generated: {\n      key_insights: insights.insights || [],\n      immediate_actions: insights.immediate_actions || [],\n      long_term_considerations: insights.long_term_considerations || [],\n      vrooli_connections: insights.vrooli_connections || [],\n      energy_suggestion: insights.energy_suggestion\n    },\n    storage: {\n      stored: !!storageResult.id,\n      record_count: $('prepare-storage').items?.length || 0\n    },\n    notification: {\n      sent: notificationResult.sent || notificationResult.success || false\n    }\n  }\n}];"
+      },
+      "id": "compile-response",
+      "name": "Compile Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 400]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1450, 400]
+    }
+  ],
+  "connections": {
+    "webhook-trigger": {
+      "main": [[{ "node": "generate-insights", "type": "main", "index": 0 }]]
+    },
+    "manual-trigger": {
+      "main": [[{ "node": "provide-defaults", "type": "main", "index": 0 }]]
+    },
+    "provide-defaults": {
+      "main": [[{ "node": "generate-insights", "type": "main", "index": 0 }]]
+    },
+    "generate-insights": {
+      "main": [[{ "node": "structure-insights", "type": "main", "index": 0 }]]
+    },
+    "structure-insights": {
+      "main": [
+        [
+          { "node": "prepare-storage", "type": "main", "index": 0 },
+          { "node": "notify-insights", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "prepare-storage": {
+      "main": [[{ "node": "store-insights", "type": "main", "index": 0 }]]
+    },
+    "store-insights": {
+      "main": [[{ "node": "compile-response", "type": "main", "index": 0 }]]
+    },
+    "notify-insights": {
+      "main": [[{ "node": "compile-response", "type": "main", "index": 0 }]]
+    },
+    "compile-response": {
+      "main": [[{ "node": "respond", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": []
+}

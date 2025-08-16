@@ -1,0 +1,195 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "parent": "vrooli",
+    "name": "competitor-change-monitor",
+    "displayName": "Competitor Change Monitor",
+    "description": "Track competitor websites and repositories for relevant changes with AI-powered analysis and alerting",
+    "version": "1.0.0",
+    "type": "monitoring-application",
+    "category": "business-intelligence",
+    "tags": [
+      "monitoring",
+      "competitor-analysis",
+      "change-detection",
+      "web-scraping",
+      "github-tracking",
+      "business-intelligence",
+      "alerts",
+      "javascript-ui"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "SERVICE_PORT",
+      "range": "8140-8149",
+      "fallback": "auto",
+      "description": "Competitor Monitor API port"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "range": "5240-5249",
+      "fallback": "auto",
+      "description": "Competitor Monitor UI port"
+    }
+  },
+  "resources": {
+    "automation": {
+      "n8n": {
+        "type": "n8n",
+        "enabled": true,
+        "required": true,
+        "shared_workflows": [
+          "ollama",
+          "web-scraper",
+          "change-detector",
+          "notification-dispatcher"
+        ],
+        "initialization": [
+          {
+            "file": "initialization/n8n/website-monitor.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/github-monitor.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/change-analyzer.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/alert-manager.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/scheduled-scanner.json",
+            "type": "workflow"
+          }
+        ]
+      }
+    },
+    "storage": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store competitors, monitoring targets, change history, and alerts",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "schema"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": false,
+        "purpose": "Cache scraped content and real-time monitoring state"
+      }
+    },
+    "ai": {
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "purpose": "Analyze changes for relevance and generate insights"
+      }
+    }
+  },
+  "lifecycle": {
+    "version": "1.0.0",
+    "setup": {
+      "description": "Initialize Competitor Change Monitor",
+      "steps": [
+        {
+          "name": "base-setup",
+          "run": "bash scripts/lib/setup.sh",
+          "description": "Execute generic setup"
+        },
+        {
+          "name": "add-data",
+          "run": "scripts/resources/injection/engine.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && chmod +x competitor-monitor && ln -sf $(pwd)/competitor-monitor /usr/local/bin/competitor-monitor 2>/dev/null || true",
+          "description": "Install CLI command"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o competitor-monitor-api main.go",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "setup-ui",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🔍 Competitor Monitor initialized\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${SERVICE_PORT}'",
+          "description": "Display service URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start Competitor Monitor services",
+      "steps": [
+        {
+          "name": "start-api-server",
+          "run": "cd api && PORT=$SERVICE_PORT N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} POSTGRES_URL=postgres://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/competitor_monitor REDIS_URL=redis://localhost:${RESOURCE_PORTS[redis]} ./competitor-monitor-api &",
+          "description": "Start API server",
+          "background": true,
+          "condition": {
+            "file_exists": "api/competitor-monitor-api"
+          }
+        },
+        {
+          "name": "start-ui-server",
+          "run": "cd ui && PORT=$UI_PORT API_URL=http://localhost:$SERVICE_PORT npm start &",
+          "description": "Start UI server",
+          "background": true
+        },
+        {
+          "name": "wait-for-services",
+          "run": "sleep 3",
+          "description": "Wait for services to start"
+        },
+        {
+          "name": "show-running",
+          "run": "echo '🚀 Competitor Monitor running:\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${SERVICE_PORT}'",
+          "description": "Display running services"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test Competitor Monitor services",
+      "steps": [
+        {
+          "name": "test-api",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/health",
+          "description": "Test API health"
+        },
+        {
+          "name": "test-competitors",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/api/competitors",
+          "description": "Test competitors endpoint"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop Competitor Monitor services",
+      "steps": [
+        {
+          "name": "stop-services",
+          "run": "pkill -f 'competitor-monitor-api' || true; pkill -f 'npm.*competitor-monitor' || true",
+          "description": "Stop all services"
+        }
+      ]
+    }
+  }
+}

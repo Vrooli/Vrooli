@@ -1,0 +1,78 @@
+{
+  "collections": [
+    {
+      "name": "notes",
+      "vectors": {
+        "size": 768,
+        "distance": "Cosine"
+      },
+      "payload_schema": {
+        "note_id": {
+          "type": "keyword"
+        },
+        "user_id": {
+          "type": "keyword"
+        },
+        "title": {
+          "type": "text"
+        },
+        "summary": {
+          "type": "text"
+        },
+        "tags": {
+          "type": "keyword[]"
+        },
+        "folder_id": {
+          "type": "keyword"
+        },
+        "created_at": {
+          "type": "datetime"
+        },
+        "updated_at": {
+          "type": "datetime"
+        },
+        "is_pinned": {
+          "type": "bool"
+        },
+        "is_favorite": {
+          "type": "bool"
+        }
+      },
+      "optimizers_config": {
+        "indexing_threshold": 10000,
+        "memmap_threshold": 20000
+      },
+      "hnsw_config": {
+        "m": 16,
+        "ef_construct": 100
+      }
+    },
+    {
+      "name": "note_chunks",
+      "vectors": {
+        "size": 768,
+        "distance": "Cosine"
+      },
+      "payload_schema": {
+        "note_id": {
+          "type": "keyword"
+        },
+        "user_id": {
+          "type": "keyword"
+        },
+        "chunk_index": {
+          "type": "integer"
+        },
+        "chunk_text": {
+          "type": "text"
+        },
+        "start_position": {
+          "type": "integer"
+        },
+        "end_position": {
+          "type": "integer"
+        }
+      }
+    }
+  ]
+}

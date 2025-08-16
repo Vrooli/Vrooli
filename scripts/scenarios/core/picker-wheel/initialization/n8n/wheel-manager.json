@@ -1,0 +1,239 @@
+{
+  "name": "picker-wheel-manager",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "=POST",
+        "path": "wheel/manage",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "operation",
+              "name": "operation",
+              "value": "={{ $json.operation || 'list' }}",
+              "type": "string"
+            },
+            {
+              "id": "wheel_data",
+              "name": "wheel_data",
+              "value": "={{ $json.wheel_data || {} }}",
+              "type": "object"
+            }
+          ]
+        }
+      },
+      "id": "set_defaults",
+      "name": "Set Defaults",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [450, 500]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.operation }}",
+                    "rightValue": "create",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "create"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.operation }}",
+                    "rightValue": "list",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "list"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.operation }}",
+                    "rightValue": "delete",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "delete"
+            }
+          ]
+        }
+      },
+      "id": "operation_switch",
+      "name": "Operation Router",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO wheels (name, description, options, theme, tags, is_public) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *",
+        "options": {
+          "queryParams": "={{ [$json.wheel_data.name, $json.wheel_data.description, JSON.stringify($json.wheel_data.options), $json.wheel_data.theme || 'custom', $json.wheel_data.tags || [], $json.wheel_data.is_public || false] }}"
+        }
+      },
+      "id": "create_wheel",
+      "name": "Create Wheel",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [850, 300],
+      "credentials": {
+        "postgres": {
+          "id": "postgres_picker_wheel",
+          "name": "Postgres - Picker Wheel"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM wheels WHERE is_public = true OR session_id = $1 ORDER BY created_at DESC",
+        "options": {
+          "queryParams": "={{ [$json.session_id || 'public'] }}"
+        }
+      },
+      "id": "list_wheels",
+      "name": "List Wheels",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [850, 400],
+      "credentials": {
+        "postgres": {
+          "id": "postgres_picker_wheel",
+          "name": "Postgres - Picker Wheel"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM wheels WHERE id = $1 RETURNING id",
+        "options": {
+          "queryParams": "={{ [$json.wheel_id] }}"
+        }
+      },
+      "id": "delete_wheel",
+      "name": "Delete Wheel",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [850, 500],
+      "credentials": {
+        "postgres": {
+          "id": "postgres_picker_wheel",
+          "name": "Postgres - Picker Wheel"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({success: true, data: $json}) }}",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1050, 400]
+    }
+  ],
+  "connections": {
+    "webhook_trigger": {
+      "main": [[{ "node": "operation_switch", "type": "main", "index": 0 }]]
+    },
+    "manual_trigger": {
+      "main": [[{ "node": "set_defaults", "type": "main", "index": 0 }]]
+    },
+    "set_defaults": {
+      "main": [[{ "node": "operation_switch", "type": "main", "index": 0 }]]
+    },
+    "operation_switch": {
+      "main": [
+        [{ "node": "create_wheel", "type": "main", "index": 0 }],
+        [{ "node": "list_wheels", "type": "main", "index": 0 }],
+        [{ "node": "delete_wheel", "type": "main", "index": 0 }]
+      ]
+    },
+    "create_wheel": {
+      "main": [[{ "node": "respond", "type": "main", "index": 0 }]]
+    },
+    "list_wheels": {
+      "main": [[{ "node": "respond", "type": "main", "index": 0 }]]
+    },
+    "delete_wheel": {
+      "main": [[{ "node": "respond", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "picker-wheel-manager"
+  },
+  "tags": []
+}

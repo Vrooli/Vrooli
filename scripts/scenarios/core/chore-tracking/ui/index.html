@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChoreQuest - Make Cleaning Fun! 🎮</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Animated Background Elements -->
+        <div class="background-elements">
+            <div class="bubble bubble-1"></div>
+            <div class="bubble bubble-2"></div>
+            <div class="bubble bubble-3"></div>
+            <div class="sparkle sparkle-1">✨</div>
+            <div class="sparkle sparkle-2">⭐</div>
+            <div class="sparkle sparkle-3">🌟</div>
+            <div class="floating-emoji emoji-1">🧹</div>
+            <div class="floating-emoji emoji-2">🧽</div>
+            <div class="floating-emoji emoji-3">🧺</div>
+        </div>
+
+        <!-- Header with User Stats -->
+        <header class="game-header">
+            <div class="logo-section">
+                <div class="logo-icon">🏠</div>
+                <h1 class="logo-text">
+                    Chore<span class="quest">Quest</span>
+                    <div class="tagline">Adventure in Every Task!</div>
+                </h1>
+            </div>
+
+            <div class="user-stats">
+                <div class="stat-card level-card">
+                    <div class="stat-icon">🎖️</div>
+                    <div class="stat-info">
+                        <div class="stat-label">Level</div>
+                        <div class="stat-value" id="user-level">1</div>
+                    </div>
+                </div>
+                
+                <div class="stat-card points-card">
+                    <div class="stat-icon">💎</div>
+                    <div class="stat-info">
+                        <div class="stat-label">Points</div>
+                        <div class="stat-value" id="user-points">0</div>
+                    </div>
+                </div>
+                
+                <div class="stat-card streak-card">
+                    <div class="stat-icon">🔥</div>
+                    <div class="stat-info">
+                        <div class="stat-label">Streak</div>
+                        <div class="stat-value" id="user-streak">0</div>
+                    </div>
+                </div>
+
+                <div class="user-avatar">
+                    <div class="avatar-emoji" id="user-avatar">🦸</div>
+                    <div class="level-badge" id="level-badge">1</div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Power-ups Container -->
+        <div class="power-ups-container" id="power-ups">
+            <div class="power-up-badge" data-type="doubleXP" title="2x XP Boost">
+                ⚡
+                <span class="power-up-count" id="doubleXP-count">0</span>
+            </div>
+            <div class="power-up-badge" data-type="timeFreeze" title="Time Freeze">
+                ⏰
+                <span class="power-up-count" id="timeFreeze-count">0</span>
+            </div>
+            <div class="power-up-badge" data-type="helperBot" title="Helper Bot">
+                🤖
+                <span class="power-up-count" id="helperBot-count">0</span>
+            </div>
+        </div>
+
+        <!-- Sound Toggle -->
+        <div class="sound-toggle" id="sound-toggle">
+            <span id="sound-icon">🔊</span>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="main-content">
+            <!-- Sidebar Navigation -->
+            <nav class="sidebar">
+                <button class="nav-btn active" data-view="quests">
+                    <span class="nav-icon">⚔️</span>
+                    <span class="nav-text">Quests</span>
+                </button>
+                <button class="nav-btn" data-view="rewards">
+                    <span class="nav-icon">🎁</span>
+                    <span class="nav-text">Rewards</span>
+                </button>
+                <button class="nav-btn" data-view="achievements">
+                    <span class="nav-icon">🏆</span>
+                    <span class="nav-text">Achievements</span>
+                </button>
+                <button class="nav-btn" data-view="leaderboard">
+                    <span class="nav-icon">👑</span>
+                    <span class="nav-text">Leaderboard</span>
+                </button>
+                <button class="nav-btn" data-view="settings">
+                    <span class="nav-icon">⚙️</span>
+                    <span class="nav-text">Settings</span>
+                </button>
+            </nav>
+
+            <!-- Content Views -->
+            <div class="content-area">
+                <!-- Quests View -->
+                <div class="view-container active" id="quests-view">
+                    <!-- Daily Challenge Banner -->
+                    <div class="daily-challenge-banner" id="daily-challenge">
+                        <div class="challenge-info">
+                            <div class="challenge-icon">🎯</div>
+                            <div class="challenge-text">
+                                <h3>Daily Challenge</h3>
+                                <p id="challenge-description">Loading...</p>
+                            </div>
+                        </div>
+                        <div class="challenge-progress">
+                            <div class="challenge-progress-bar" id="challenge-progress-bar" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <div class="view-header">
+                        <h2 class="view-title">🗡️ Today's Quests</h2>
+                        <button class="add-quest-btn" id="add-quest-btn">
+                            <span>➕</span> New Quest
+                        </button>
+                    </div>
+
+                    <div class="quest-filters">
+                        <button class="filter-btn active" data-filter="all">All</button>
+                        <button class="filter-btn" data-filter="daily">Daily</button>
+                        <button class="filter-btn" data-filter="weekly">Weekly</button>
+                        <button class="filter-btn" data-filter="epic">Epic</button>
+                    </div>
+
+                    <div class="quests-grid" id="quests-grid">
+                        <!-- Quest cards will be dynamically added here -->
+                    </div>
+                </div>
+
+                <!-- Rewards View -->
+                <div class="view-container" id="rewards-view">
+                    <div class="view-header">
+                        <h2 class="view-title">🎁 Reward Shop</h2>
+                        <div class="points-display">
+                            <span class="points-icon">💎</span>
+                            <span id="available-points">0</span> Points
+                        </div>
+                    </div>
+
+                    <div class="rewards-grid" id="rewards-grid">
+                        <!-- Reward cards will be dynamically added here -->
+                    </div>
+                </div>
+
+                <!-- Achievements View -->
+                <div class="view-container" id="achievements-view">
+                    <div class="view-header">
+                        <h2 class="view-title">🏆 Achievements</h2>
+                    </div>
+
+                    <div class="achievements-grid" id="achievements-grid">
+                        <!-- Achievement badges will be dynamically added here -->
+                    </div>
+                </div>
+
+                <!-- Leaderboard View -->
+                <div class="view-container" id="leaderboard-view">
+                    <div class="view-header">
+                        <h2 class="view-title">👑 Hall of Champions</h2>
+                    </div>
+
+                    <div class="leaderboard-list" id="leaderboard-list">
+                        <!-- Leaderboard entries will be dynamically added here -->
+                    </div>
+                </div>
+
+                <!-- Settings View -->
+                <div class="view-container" id="settings-view">
+                    <div class="view-header">
+                        <h2 class="view-title">⚙️ Settings</h2>
+                    </div>
+
+                    <div class="settings-content">
+                        <div class="setting-group">
+                            <h3>Profile</h3>
+                            <div class="setting-item">
+                                <label>Display Name</label>
+                                <input type="text" id="display-name" placeholder="Your hero name">
+                            </div>
+                            <div class="setting-item">
+                                <label>Avatar</label>
+                                <div class="avatar-selector" id="avatar-selector">
+                                    <!-- Avatar options -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="setting-group">
+                            <h3>Notifications</h3>
+                            <div class="setting-item">
+                                <label>Daily Reminders</label>
+                                <input type="time" id="reminder-time" value="09:00">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quest Modal -->
+        <div class="modal" id="quest-modal">
+            <div class="modal-content quest-modal-content">
+                <button class="modal-close" id="modal-close">✖️</button>
+                <h3 class="modal-title">Quest Details</h3>
+                <div class="quest-details" id="quest-details">
+                    <!-- Quest details will be shown here -->
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-primary" id="start-quest-btn">Start Quest</button>
+                    <button class="btn btn-success" id="complete-quest-btn">Complete Quest</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Notification Toast -->
+        <div class="notification-toast" id="notification">
+            <span class="notification-icon" id="notification-icon">🎉</span>
+            <span class="notification-message" id="notification-message"></span>
+        </div>
+
+        <!-- Level Up Animation -->
+        <div class="level-up-animation" id="level-up">
+            <div class="level-up-content">
+                <h2>LEVEL UP!</h2>
+                <div class="new-level" id="new-level">2</div>
+                <div class="level-up-rewards" id="level-rewards">
+                    <!-- Rewards will be shown here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

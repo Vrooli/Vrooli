@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartFile - AI-Powered File & Photo Manager</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Animated Background -->
+        <div class="background-animation">
+            <div class="floating-shape shape-1"></div>
+            <div class="floating-shape shape-2"></div>
+            <div class="floating-shape shape-3"></div>
+            <div class="floating-shape shape-4"></div>
+            <div class="floating-shape shape-5"></div>
+        </div>
+
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">
+                <div class="logo-icon">
+                    <svg viewBox="0 0 40 40" fill="none">
+                        <rect x="5" y="5" width="12" height="12" rx="2" fill="currentColor" opacity="0.8"/>
+                        <rect x="23" y="5" width="12" height="12" rx="2" fill="currentColor" opacity="0.6"/>
+                        <rect x="5" y="23" width="12" height="12" rx="2" fill="currentColor" opacity="0.6"/>
+                        <rect x="23" y="23" width="12" height="12" rx="2" fill="currentColor" opacity="0.4"/>
+                        <circle cx="20" cy="20" r="3" fill="currentColor"/>
+                    </svg>
+                </div>
+                <span class="logo-text">SmartFile</span>
+            </div>
+
+            <nav class="nav-menu">
+                <button class="nav-item active" data-view="organize">
+                    <span class="nav-icon">📁</span>
+                    <span class="nav-label">Organize</span>
+                </button>
+                <button class="nav-item" data-view="search">
+                    <span class="nav-icon">🔍</span>
+                    <span class="nav-label">Search</span>
+                </button>
+                <button class="nav-item" data-view="duplicates">
+                    <span class="nav-icon">🔄</span>
+                    <span class="nav-label">Duplicates</span>
+                </button>
+                <button class="nav-item" data-view="tags">
+                    <span class="nav-icon">🏷️</span>
+                    <span class="nav-label">Tags</span>
+                </button>
+                <button class="nav-item" data-view="insights">
+                    <span class="nav-icon">📊</span>
+                    <span class="nav-label">Insights</span>
+                </button>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="storage-indicator">
+                    <div class="storage-label">Storage Used</div>
+                    <div class="storage-bar">
+                        <div class="storage-fill" style="width: 65%;"></div>
+                    </div>
+                    <div class="storage-text">6.5 GB / 10 GB</div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="header">
+                <div class="search-bar">
+                    <input type="text" id="semantic-search" class="search-input" placeholder="Search using natural language...">
+                    <button class="search-btn">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                            <circle cx="9" cy="9" r="7" stroke="currentColor" stroke-width="2"/>
+                            <path d="M14 14L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="header-actions">
+                    <button class="action-btn upload-btn" id="upload-btn">
+                        <span class="btn-icon">⬆</span>
+                        <span class="btn-text">Upload</span>
+                    </button>
+                    <button class="action-btn organize-btn" id="ai-organize-btn">
+                        <span class="btn-icon">✨</span>
+                        <span class="btn-text">AI Organize</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- View Container -->
+            <div class="view-container">
+                <!-- Organize View -->
+                <section class="view-panel active" id="organize-view">
+                    <div class="view-header">
+                        <h2 class="view-title">Your Files</h2>
+                        <div class="view-controls">
+                            <button class="view-toggle grid-view active" data-layout="grid">
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                                    <rect x="1" y="1" width="5" height="5"/>
+                                    <rect x="9" y="1" width="5" height="5"/>
+                                    <rect x="1" y="9" width="5" height="5"/>
+                                    <rect x="9" y="9" width="5" height="5"/>
+                                </svg>
+                            </button>
+                            <button class="view-toggle list-view" data-layout="list">
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                                    <rect x="1" y="2" width="14" height="2"/>
+                                    <rect x="1" y="7" width="14" height="2"/>
+                                    <rect x="1" y="12" width="14" height="2"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="file-grid" id="file-grid">
+                        <!-- Files will be loaded here -->
+                        <div class="upload-zone" id="drop-zone">
+                            <div class="upload-icon">
+                                <svg width="64" height="64" viewBox="0 0 24 24" fill="none">
+                                    <path d="M12 2L12 14M12 2L8 6M12 2L16 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                    <path d="M2 17L2 19C2 20.1046 2.89543 21 4 21L20 21C21.1046 21 22 20.1046 22 19L22 17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                </svg>
+                            </div>
+                            <div class="upload-text">
+                                <p class="upload-primary">Drop files here or click to upload</p>
+                                <p class="upload-secondary">Supports images, documents, and more</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Search View -->
+                <section class="view-panel" id="search-view">
+                    <div class="view-header">
+                        <h2 class="view-title">Semantic Search</h2>
+                    </div>
+                    <div class="search-results" id="search-results">
+                        <div class="empty-state">
+                            <span class="empty-icon">🔍</span>
+                            <p>Search for files using natural language</p>
+                            <p class="empty-hint">Try "photos from last summer" or "documents about project X"</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Duplicates View -->
+                <section class="view-panel" id="duplicates-view">
+                    <div class="view-header">
+                        <h2 class="view-title">Duplicate Files</h2>
+                        <button class="scan-btn" id="scan-duplicates">
+                            <span>Scan for Duplicates</span>
+                        </button>
+                    </div>
+                    <div class="duplicates-container" id="duplicates-container">
+                        <div class="empty-state">
+                            <span class="empty-icon">🔄</span>
+                            <p>No duplicates found</p>
+                            <p class="empty-hint">Click 'Scan for Duplicates' to find similar files</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Tags View -->
+                <section class="view-panel" id="tags-view">
+                    <div class="view-header">
+                        <h2 class="view-title">Smart Tags</h2>
+                    </div>
+                    <div class="tags-cloud" id="tags-cloud">
+                        <!-- Tags will be loaded here -->
+                    </div>
+                    <div class="tagged-files" id="tagged-files">
+                        <!-- Tagged files will appear here -->
+                    </div>
+                </section>
+
+                <!-- Insights View -->
+                <section class="view-panel" id="insights-view">
+                    <div class="view-header">
+                        <h2 class="view-title">Storage Insights</h2>
+                    </div>
+                    <div class="insights-grid">
+                        <div class="insight-card">
+                            <div class="insight-icon">📷</div>
+                            <div class="insight-content">
+                                <div class="insight-value">1,234</div>
+                                <div class="insight-label">Photos</div>
+                            </div>
+                        </div>
+                        <div class="insight-card">
+                            <div class="insight-icon">📄</div>
+                            <div class="insight-content">
+                                <div class="insight-value">567</div>
+                                <div class="insight-label">Documents</div>
+                            </div>
+                        </div>
+                        <div class="insight-card">
+                            <div class="insight-icon">🎥</div>
+                            <div class="insight-content">
+                                <div class="insight-value">89</div>
+                                <div class="insight-label">Videos</div>
+                            </div>
+                        </div>
+                        <div class="insight-card">
+                            <div class="insight-icon">🎵</div>
+                            <div class="insight-content">
+                                <div class="insight-value">456</div>
+                                <div class="insight-label">Audio Files</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="storage-chart"></canvas>
+                    </div>
+                </section>
+            </div>
+        </main>
+
+        <!-- File Preview Modal -->
+        <div class="modal" id="file-modal" style="display: none;">
+            <div class="modal-content">
+                <button class="modal-close" id="close-modal">&times;</button>
+                <div class="preview-container" id="preview-container">
+                    <!-- File preview will be loaded here -->
+                </div>
+                <div class="file-details" id="file-details">
+                    <!-- File details will be loaded here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- AI Processing Indicator -->
+        <div class="ai-processing" id="ai-processing" style="display: none;">
+            <div class="processing-animation">
+                <div class="pulse-ring"></div>
+                <div class="pulse-ring"></div>
+                <div class="pulse-ring"></div>
+            </div>
+            <div class="processing-text">AI is organizing your files...</div>
+        </div>
+    </div>
+
+    <!-- Hidden file input -->
+    <input type="file" id="file-input" multiple style="display: none;">
+
+    <script src="script.js"></script>
+</body>
+</html>

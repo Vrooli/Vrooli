@@ -1,0 +1,266 @@
+{
+  "name": "competitor-website-monitor",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "competitor-monitor/check-website",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n  \"targetId\": \"test-target-123\",\n  \"url\": \"https://example.com\",\n  \"selector\": \"\",\n  \"competitorId\": \"test-competitor-456\"\n}",
+        "options": {}
+      },
+      "id": "provide-defaults",
+      "name": "Provide Defaults",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [450, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge webhook or manual input\nconst input = $input.all()[0].json;\n\nconst targetId = input.targetId;\nconst url = input.url;\nconst selector = input.selector || '';\nconst competitorId = input.competitorId;\n\nif (!url) {\n  throw new Error('URL is required for website monitoring');\n}\n\nreturn {\n  targetId,\n  url,\n  selector,\n  competitorId,\n  timestamp: new Date().toISOString()\n};"
+      },
+      "id": "merge-inputs",
+      "name": "Merge Inputs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "options": {
+          "timeout": 30000,
+          "retry": {
+            "maxTries": 3,
+            "waitBetweenTries": 5000
+          }
+        }
+      },
+      "id": "fetch-content",
+      "name": "Fetch Website Content",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const crypto = require('crypto');\n\n// Get the fetched content\nconst html = $input.all()[0].json.data || $input.all()[0].json;\nconst targetId = $input.all()[0].json.targetId;\nconst selector = $input.all()[0].json.selector;\n\n// Extract relevant content if selector provided\nlet content = html;\nif (selector && typeof html === 'string') {\n  // Simple extraction - in production would use cheerio or similar\n  const regex = new RegExp(`<${selector}[^>]*>([\\s\\S]*?)<\\/${selector}>`, 'gi');\n  const matches = html.match(regex);\n  content = matches ? matches.join('\\n') : html;\n}\n\n// Generate content hash\nconst contentHash = crypto\n  .createHash('sha256')\n  .update(typeof content === 'string' ? content : JSON.stringify(content))\n  .digest('hex');\n\n// Clean content for storage (remove scripts, styles, etc.)\nlet cleanContent = content;\nif (typeof content === 'string') {\n  cleanContent = content\n    .replace(/<script\\b[^<]*(?:(?!<\\/script>)<[^<]*)*<\\/script>/gi, '')\n    .replace(/<style\\b[^<]*(?:(?!<\\/style>)<[^<]*)*<\\/style>/gi, '')\n    .replace(/<[^>]+>/g, ' ')\n    .replace(/\\s+/g, ' ')\n    .trim();\n}\n\nreturn {\n  targetId,\n  contentHash,\n  content: cleanContent,\n  fullContent: content,\n  timestamp: new Date().toISOString()\n};"
+      },
+      "id": "process-content",
+      "name": "Process Content",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT last_content_hash, last_checked FROM monitoring_targets WHERE id = $1",
+        "options": {
+          "queryParams": "={{ $json.targetId }}"
+        }
+      },
+      "id": "get-last-hash",
+      "name": "Get Last Hash",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1250, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.contentHash }}",
+              "value2": "={{ $json.last_content_hash }}",
+              "operation": "notEqual"
+            }
+          ]
+        }
+      },
+      "id": "check-change",
+      "name": "Check for Changes",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1450, 400]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:5678/webhook/ollama",
+        "authentication": "none",
+        "method": "POST",
+        "body": {
+          "model": "llama3.2",
+          "prompt": "Analyze this website content change for business relevance. Old content: {{ $json.oldContent }}\\n\\nNew content: {{ $json.content }}\\n\\nProvide: 1) Summary of changes, 2) Business impact assessment, 3) Relevance score (0-1), 4) Recommended actions",
+          "temperature": 0.3
+        },
+        "options": {}
+      },
+      "id": "analyze-change",
+      "name": "Analyze Change with AI",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1650, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO change_history (target_id, change_type, title, description, old_content, new_content, ai_analysis, relevance_score, severity) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id",
+        "options": {
+          "queryParams": "={{ $json.targetId }}, 'content', {{ $json.title }}, {{ $json.description }}, {{ $json.oldContent }}, {{ $json.newContent }}, {{ $json.aiAnalysis }}, {{ $json.relevanceScore }}, {{ $json.severity }}"
+        }
+      },
+      "id": "save-change",
+      "name": "Save Change",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1850, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE monitoring_targets SET last_checked = NOW(), last_content_hash = $1 WHERE id = $2",
+        "options": {
+          "queryParams": "={{ $json.contentHash }}, {{ $json.targetId }}"
+        }
+      },
+      "id": "update-target",
+      "name": "Update Target",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1650, 500]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n  \"status\": \"success\",\n  \"message\": \"No changes detected\",\n  \"targetId\": \"{{ $json.targetId }}\",\n  \"lastChecked\": \"{{ $json.timestamp }}\"\n}",
+        "options": {}
+      },
+      "id": "no-change-response",
+      "name": "No Change Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [1850, 500]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.relevanceScore }}",
+              "value2": 0.7,
+              "operation": "largerEqual"
+            }
+          ]
+        }
+      },
+      "id": "check-relevance",
+      "name": "Check Relevance",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [2050, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:5678/webhook/competitor-monitor/send-alert",
+        "authentication": "none",
+        "method": "POST",
+        "body": {
+          "changeId": "={{ $json.id }}",
+          "competitorId": "={{ $json.competitorId }}",
+          "severity": "={{ $json.severity }}",
+          "title": "={{ $json.title }}",
+          "description": "={{ $json.description }}"
+        },
+        "options": {}
+      },
+      "id": "trigger-alert",
+      "name": "Trigger Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2250, 200]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n  \"status\": \"success\",\n  \"message\": \"Change detected and analyzed\",\n  \"changeId\": \"{{ $json.id }}\",\n  \"relevanceScore\": {{ $json.relevanceScore }},\n  \"alertSent\": {{ $json.alertSent || false }}\n}",
+        "options": {}
+      },
+      "id": "success-response",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [2450, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{"node": "Merge Inputs", "type": "main", "index": 0}]]
+    },
+    "Manual Trigger": {
+      "main": [[{"node": "Provide Defaults", "type": "main", "index": 0}]]
+    },
+    "Provide Defaults": {
+      "main": [[{"node": "Merge Inputs", "type": "main", "index": 0}]]
+    },
+    "Merge Inputs": {
+      "main": [[{"node": "Fetch Website Content", "type": "main", "index": 0}]]
+    },
+    "Fetch Website Content": {
+      "main": [[{"node": "Process Content", "type": "main", "index": 0}]]
+    },
+    "Process Content": {
+      "main": [[{"node": "Get Last Hash", "type": "main", "index": 0}]]
+    },
+    "Get Last Hash": {
+      "main": [[{"node": "Check for Changes", "type": "main", "index": 0}]]
+    },
+    "Check for Changes": {
+      "main": [
+        [{"node": "Analyze Change with AI", "type": "main", "index": 0}],
+        [{"node": "Update Target", "type": "main", "index": 0}]
+      ]
+    },
+    "Analyze Change with AI": {
+      "main": [[{"node": "Save Change", "type": "main", "index": 0}]]
+    },
+    "Save Change": {
+      "main": [[{"node": "Check Relevance", "type": "main", "index": 0}]]
+    },
+    "Check Relevance": {
+      "main": [
+        [{"node": "Trigger Alert", "type": "main", "index": 0}],
+        [{"node": "Success Response", "type": "main", "index": 0}]
+      ]
+    },
+    "Trigger Alert": {
+      "main": [[{"node": "Success Response", "type": "main", "index": 0}]]
+    },
+    "Update Target": {
+      "main": [[{"node": "No Change Response", "type": "main", "index": 0}]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

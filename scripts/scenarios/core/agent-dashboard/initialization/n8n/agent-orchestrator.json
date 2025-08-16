@@ -1,0 +1,273 @@
+{
+  "name": "Agent Orchestrator",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "agent-dashboard/orchestrate",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Provide defaults for manual testing\nconst defaults = {\n  task: $json.task || 'Analyze the current system load and suggest which agents to activate for optimal performance',\n  context: $json.context || {\n    current_workload: 'moderate',\n    priority: 'efficiency',\n    available_agents: ['claude-code', 'agent-s2', 'huginn', 'n8n-workers']\n  },\n  constraints: $json.constraints || {\n    max_agents: 5,\n    resource_limit: 'medium',\n    response_time: 'fast'\n  }\n};\n\n// Only use defaults if coming from manual trigger\nconst isManual = $execution.resumeUrl === undefined;\nif (isManual) {\n  return [{json: defaults}];\n}\n\n// Otherwise pass through webhook data\nreturn items;"
+      },
+      "id": "set_defaults",
+      "name": "Set Defaults",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 500]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  name, \n  type, \n  status, \n  capabilities::jsonb as capabilities, \n  metrics::jsonb as metrics,\n  last_active,\n  resource_usage::jsonb as resource_usage\nFROM agent_dashboard.agents \nWHERE status != 'terminated'\nORDER BY priority DESC, name ASC",
+        "options": {}
+      },
+      "id": "get_all_agents",
+      "name": "Get All Agents",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [650, 400],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-agent-dashboard",
+          "name": "Agent Dashboard DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst agents = items[0].json;\n\n// Build a comprehensive problem statement for chain-of-thought reasoning\nconst problemStatement = `\nYou are orchestrating a multi-agent AI system. Your task is to determine the optimal agent configuration.\n\nCURRENT TASK:\n${input.task}\n\nAVAILABLE AGENTS:\n${agents.map(a => `- ${a.name} (${a.type}): Status=${a.status}, Capabilities=${JSON.stringify(a.capabilities || [])}, Last Active=${a.last_active || 'Never'}`).join('\\n')}\n\nCONTEXT:\n${JSON.stringify(input.context, null, 2)}\n\nCONSTRAINTS:\n- Maximum agents: ${input.constraints.max_agents}\n- Resource limit: ${input.constraints.resource_limit}\n- Response time requirement: ${input.constraints.response_time}\n\nAnalyze this situation and determine:\n1. Which agents should be activated/deactivated\n2. How they should collaborate\n3. The execution order and dependencies\n4. Resource allocation strategy\n5. Fallback plans if agents fail\n`;\n\nreturn [{\n  json: {\n    problem: problemStatement,\n    validation_criteria: [\n      \"Agent selection must respect max_agents constraint\",\n      \"Resource usage must stay within limits\",\n      \"Selected agents must have required capabilities\",\n      \"Plan must include error handling\"\n    ],\n    expected_format: {\n      agents_to_activate: [\n        {\n          name: \"agent_name\",\n          reason: \"why this agent is needed\",\n          priority: \"1-5\",\n          role: \"specific role in the task\",\n          dependencies: [\"other_agent_names\"]\n        }\n      ],\n      agents_to_deactivate: [\n        {\n          name: \"agent_name\",\n          reason: \"why deactivating\"\n        }\n      ],\n      execution_plan: {\n        phases: [\n          {\n            phase: \"phase_name\",\n            agents_involved: [\"agent_names\"],\n            actions: [\"specific actions\"],\n            success_criteria: \"what defines success\"\n          }\n        ],\n        coordination_strategy: \"how agents will communicate\",\n        resource_allocation: {\n          cpu_distribution: {},\n          memory_distribution: {}\n        }\n      },\n      fallback_strategy: \"what to do if primary plan fails\",\n      expected_outcome: \"what will be achieved\",\n      estimated_duration: \"time estimate\",\n      confidence_score: 0.0\n    },\n    max_iterations: 3,\n    model: \"llama3.2\",\n    temperature: 0.3\n  }\n}];"
+      },
+      "id": "prepare_chain_of_thought",
+      "name": "Prepare Chain of Thought",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "workflow": "={{ $fromAI('WORKFLOW_ID_chain-of-thought-orchestrator', 'string') }}",
+        "workflowData": "={{ JSON.stringify($json) }}",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "call_chain_of_thought",
+      "name": "Call Chain of Thought Orchestrator",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [1050, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const orchestrationPlan = items[0].json;\n\n// Extract the final solution from chain-of-thought output\nlet solution;\ntry {\n  if (orchestrationPlan.final_solution) {\n    solution = typeof orchestrationPlan.final_solution === 'string' \n      ? JSON.parse(orchestrationPlan.final_solution)\n      : orchestrationPlan.final_solution;\n  } else if (orchestrationPlan.solution) {\n    solution = typeof orchestrationPlan.solution === 'string'\n      ? JSON.parse(orchestrationPlan.solution)\n      : orchestrationPlan.solution;\n  } else {\n    // Fallback to the raw output\n    solution = orchestrationPlan;\n  }\n} catch (e) {\n  console.error('Parse error:', e);\n  solution = {\n    agents_to_activate: [],\n    agents_to_deactivate: [],\n    execution_plan: {\n      phases: [{\n        phase: \"error_recovery\",\n        agents_involved: [],\n        actions: [\"Manual intervention required\"],\n        success_criteria: \"System stabilized\"\n      }]\n    },\n    fallback_strategy: \"Alert human operator\",\n    error: e.message\n  };\n}\n\n// Prepare activation commands\nconst activationCommands = (solution.agents_to_activate || []).map(agent => ({\n  command: 'activate',\n  agent_name: agent.name,\n  priority: agent.priority || 3,\n  role: agent.role,\n  config: {\n    dependencies: agent.dependencies || [],\n    resource_limit: solution.execution_plan?.resource_allocation || {}\n  }\n}));\n\nconst deactivationCommands = (solution.agents_to_deactivate || []).map(agent => ({\n  command: 'deactivate',\n  agent_name: agent.name,\n  reason: agent.reason\n}));\n\nreturn [{\n  json: {\n    orchestration_id: crypto.randomUUID(),\n    timestamp: new Date().toISOString(),\n    plan: solution,\n    commands: [...activationCommands, ...deactivationCommands],\n    validation_passed: orchestrationPlan.validation_passed || false,\n    reasoning_chain: orchestrationPlan.reasoning_chain || [],\n    confidence_score: solution.confidence_score || 0.7\n  }\n}];"
+      },
+      "id": "parse_orchestration_plan",
+      "name": "Parse Orchestration Plan",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \n  const plan = $json;\n  const values = [\n    plan.orchestration_id,\n    JSON.stringify(plan.plan),\n    JSON.stringify(plan.commands),\n    plan.confidence_score,\n    'pending'\n  ];\n  \n  return `INSERT INTO agent_dashboard.orchestration_logs \n    (id, plan, commands, confidence_score, status, created_at) \n    VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP) \n    RETURNING id, status`;\n}}",
+        "additionalFields": {
+          "queryParams": "={{ $json.orchestration_id }},{{ JSON.stringify($json.plan) }},{{ JSON.stringify($json.commands) }},{{ $json.confidence_score }},pending"
+        },
+        "options": {}
+      },
+      "id": "log_orchestration",
+      "name": "Log Orchestration",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1450, 400],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-agent-dashboard",
+          "name": "Agent Dashboard DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "database",
+        "operation": "set",
+        "key": "={{ 'agent_orchestration:' + $json.orchestration_id }}",
+        "value": "={{ JSON.stringify($json) }}",
+        "keyType": "automatic",
+        "expire": true,
+        "ttl": 3600,
+        "options": {}
+      },
+      "id": "cache_plan",
+      "name": "Cache Plan in Redis",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [1650, 400],
+      "credentials": {
+        "redis": {
+          "id": "redis-agent-dashboard",
+          "name": "Agent Dashboard Redis"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const orchestration = $input.first().json;\n\nreturn [{\n  json: {\n    success: true,\n    orchestration_id: orchestration.orchestration_id,\n    message: `Orchestration plan created with ${orchestration.commands.length} commands`,\n    plan_summary: {\n      agents_to_activate: orchestration.plan.agents_to_activate?.length || 0,\n      agents_to_deactivate: orchestration.plan.agents_to_deactivate?.length || 0,\n      phases: orchestration.plan.execution_plan?.phases?.length || 0,\n      estimated_duration: orchestration.plan.estimated_duration || 'unknown',\n      confidence: orchestration.confidence_score\n    },\n    commands: orchestration.commands,\n    execution_url: `/api/orchestration/${orchestration.orchestration_id}/execute`,\n    timestamp: orchestration.timestamp\n  }\n}];"
+      },
+      "id": "format_response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1850, 300]
+    },
+    {
+      "parameters": {},
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2050, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get All Agents",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Defaults",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Defaults": {
+      "main": [
+        [
+          {
+            "node": "Get All Agents",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get All Agents": {
+      "main": [
+        [
+          {
+            "node": "Prepare Chain of Thought",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Chain of Thought": {
+      "main": [
+        [
+          {
+            "node": "Call Chain of Thought Orchestrator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Chain of Thought Orchestrator": {
+      "main": [
+        [
+          {
+            "node": "Parse Orchestration Plan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Orchestration Plan": {
+      "main": [
+        [
+          {
+            "node": "Log Orchestration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Orchestration": {
+      "main": [
+        [
+          {
+            "node": "Cache Plan in Redis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cache Plan in Redis": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "2.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "agent-dashboard"
+  },
+  "id": "agent-orchestrator",
+  "tags": []
+}

@@ -1,0 +1,300 @@
+#!/bin/bash
+
+# Nutrition Tracker CLI
+# Provides command-line interface for nutrition tracking
+
+set -e
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# API endpoints
+API_BASE="http://localhost:8081/api"
+N8N_BASE="http://localhost:5678/webhook"
+
+# Default user ID
+USER_ID="${NUTRITION_USER_ID:-demo-user-123}"
+
+# Show help
+show_help() {
+    cat << EOF
+Nutrition Tracker CLI - Track your nutrition with AI
+
+Usage: nutrition-tracker [command] [options]
+
+Commands:
+    track <description>     Track a food item (e.g., "2 eggs with toast")
+    search <query>          Search for foods in the database
+    goals                   View or set nutrition goals
+    report [date]          Generate nutrition report for a date
+    suggest                Get AI meal suggestions
+    history [days]         Show meal history (default: 7 days)
+    
+Options:
+    --meal-type <type>     Specify meal type (breakfast/lunch/dinner/snack)
+    --user <id>            Override user ID
+    --json                 Output in JSON format
+    --help                 Show this help message
+
+Examples:
+    nutrition-tracker track "grilled chicken salad with olive oil"
+    nutrition-tracker track "apple and peanut butter" --meal-type snack
+    nutrition-tracker search "chicken"
+    nutrition-tracker report today
+    nutrition-tracker suggest --meal-type lunch
+    nutrition-tracker goals
+
+Environment Variables:
+    NUTRITION_USER_ID      Set default user ID
+
+EOF
+}
+
+# Track food
+track_food() {
+    local description="$1"
+    local meal_type="${2:-$(get_meal_type)}"
+    
+    if [ -z "$description" ]; then
+        echo -e "${RED}Error: Food description required${NC}"
+        echo "Usage: nutrition-tracker track <description>"
+        exit 1
+    fi
+    
+    echo -e "${BLUE}Analyzing: ${NC}$description"
+    
+    response=$(curl -s -X POST "$N8N_BASE/nutrition-analyzer" \
+        -H "Content-Type: application/json" \
+        -d "{
+            \"food_description\": \"$description\",
+            \"meal_type\": \"$meal_type\",
+            \"user_id\": \"$USER_ID\"
+        }")
+    
+    if echo "$response" | grep -q "success"; then
+        calories=$(echo "$response" | grep -oP '"total_calories":\K[0-9]+' || echo "0")
+        protein=$(echo "$response" | grep -oP '"protein_grams":\K[0-9]+' || echo "0")
+        carbs=$(echo "$response" | grep -oP '"carbs_grams":\K[0-9]+' || echo "0")
+        fat=$(echo "$response" | grep -oP '"fat_grams":\K[0-9]+' || echo "0")
+        
+        echo -e "${GREEN}✓ Food tracked successfully!${NC}"
+        echo -e "  Calories: ${YELLOW}$calories kcal${NC}"
+        echo -e "  Protein:  ${YELLOW}$protein g${NC}"
+        echo -e "  Carbs:    ${YELLOW}$carbs g${NC}"
+        echo -e "  Fat:      ${YELLOW}$fat g${NC}"
+    else
+        echo -e "${RED}Failed to analyze food${NC}"
+        exit 1
+    fi
+}
+
+# Search foods
+search_foods() {
+    local query="$1"
+    
+    if [ -z "$query" ]; then
+        echo -e "${RED}Error: Search query required${NC}"
+        exit 1
+    fi
+    
+    echo -e "${BLUE}Searching for: ${NC}$query"
+    
+    response=$(curl -s "$API_BASE/foods/search?q=$query")
+    
+    # Parse and display results
+    echo "$response" | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+if data:
+    for food in data[:10]:  # Show top 10 results
+        print(f\"• {food.get('name', 'Unknown')} - {food.get('calories', 0)} cal per {food.get('serving_size', '')} {food.get('serving_unit', '')}\")
+else:
+    print('No results found')
+" 2>/dev/null || echo "No results found"
+}
+
+# View or set goals
+manage_goals() {
+    local action="${1:-view}"
+    
+    if [ "$action" = "view" ]; then
+        echo -e "${BLUE}Nutrition Goals:${NC}"
+        response=$(curl -s "$API_BASE/goals?user_id=$USER_ID")
+        
+        echo "$response" | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+print(f\"  Daily Calories: {data.get('daily_calories', 2000)} kcal\")
+print(f\"  Protein: {data.get('protein_grams', 75)}g\")
+print(f\"  Carbs: {data.get('carbs_grams', 225)}g\")
+print(f\"  Fat: {data.get('fat_grams', 65)}g\")
+print(f\"  Fiber: {data.get('fiber_grams', 25)}g\")
+" 2>/dev/null || echo "Error loading goals"
+    fi
+}
+
+# Generate report
+generate_report() {
+    local date="${1:-today}"
+    
+    echo -e "${BLUE}Nutrition Report - $date${NC}"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    
+    response=$(curl -s "$API_BASE/report?user_id=$USER_ID&date=$date")
+    
+    echo "$response" | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+
+# Display summary
+print(f\"Total Calories: {data.get('total_calories', 0)} / {data.get('goal_calories', 2000)} kcal\")
+print(f\"Protein: {data.get('total_protein', 0)} / {data.get('goal_protein', 75)}g\")
+print(f\"Carbs: {data.get('total_carbs', 0)} / {data.get('goal_carbs', 225)}g\")
+print(f\"Fat: {data.get('total_fat', 0)} / {data.get('goal_fat', 65)}g\")
+print()
+
+# Display meals
+meals = data.get('meals', [])
+if meals:
+    print('Meals:')
+    for meal in meals:
+        print(f\"  • {meal.get('meal_type', '').title()}: {meal.get('food_description', 'Unknown')} ({meal.get('calories', 0)} cal)\")
+" 2>/dev/null || echo "Error generating report"
+}
+
+# Get meal suggestions
+get_suggestions() {
+    local meal_type="${1:-$(get_next_meal_type)}"
+    
+    echo -e "${BLUE}AI Meal Suggestions for $meal_type:${NC}"
+    
+    response=$(curl -s -X POST "$N8N_BASE/meal-suggester" \
+        -H "Content-Type: application/json" \
+        -d "{
+            \"user_id\": \"$USER_ID\",
+            \"meal_type\": \"$meal_type\"
+        }")
+    
+    echo "$response" | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+suggestions = data.get('suggestions', [])
+
+for i, suggestion in enumerate(suggestions[:3], 1):
+    print(f\"{i}. {suggestion.get('meal_name', 'Unknown')}\")
+    print(f\"   {suggestion.get('calories', 0)} cal • {suggestion.get('protein', 0)}g protein\")
+    print(f\"   {suggestion.get('recommendation_reason', '')}\")
+    print()
+" 2>/dev/null || echo "Error getting suggestions"
+}
+
+# Get meal type based on time
+get_meal_type() {
+    hour=$(date +%H)
+    if [ $hour -lt 11 ]; then
+        echo "breakfast"
+    elif [ $hour -lt 15 ]; then
+        echo "lunch"
+    elif [ $hour -lt 20 ]; then
+        echo "dinner"
+    else
+        echo "snack"
+    fi
+}
+
+# Get next meal type
+get_next_meal_type() {
+    hour=$(date +%H)
+    if [ $hour -lt 10 ]; then
+        echo "breakfast"
+    elif [ $hour -lt 14 ]; then
+        echo "lunch"
+    elif [ $hour -lt 19 ]; then
+        echo "dinner"
+    else
+        echo "snack"
+    fi
+}
+
+# Show meal history
+show_history() {
+    local days="${1:-7}"
+    
+    echo -e "${BLUE}Meal History (Last $days days):${NC}"
+    
+    response=$(curl -s "$API_BASE/meals/history?user_id=$USER_ID&days=$days")
+    
+    echo "$response" | python3 -c "
+import json, sys
+from datetime import datetime
+
+data = json.load(sys.stdin)
+meals = data.get('meals', [])
+
+current_date = None
+for meal in meals:
+    meal_date = meal.get('meal_date', '')
+    if meal_date != current_date:
+        if current_date:
+            print()
+        print(f\"📅 {meal_date}\")
+        current_date = meal_date
+    
+    meal_type = meal.get('meal_type', '').title()
+    description = meal.get('food_description', 'Unknown')
+    calories = meal.get('calories', 0)
+    print(f\"  • {meal_type}: {description} ({calories} cal)\")
+" 2>/dev/null || echo "Error loading history"
+}
+
+# Main command processing
+case "$1" in
+    track)
+        shift
+        meal_type=""
+        while [[ $# -gt 0 ]]; do
+            case $1 in
+                --meal-type)
+                    meal_type="$2"
+                    shift 2
+                    ;;
+                *)
+                    description="$1"
+                    shift
+                    ;;
+            esac
+        done
+        track_food "$description" "$meal_type"
+        ;;
+    search)
+        search_foods "$2"
+        ;;
+    goals)
+        manage_goals "$2"
+        ;;
+    report)
+        generate_report "$2"
+        ;;
+    suggest)
+        meal_type=""
+        if [ "$2" = "--meal-type" ]; then
+            meal_type="$3"
+        fi
+        get_suggestions "$meal_type"
+        ;;
+    history)
+        show_history "$2"
+        ;;
+    --help|help)
+        show_help
+        ;;
+    *)
+        echo -e "${RED}Unknown command: $1${NC}"
+        echo "Use 'nutrition-tracker --help' for usage information"
+        exit 1
+        ;;
+esac

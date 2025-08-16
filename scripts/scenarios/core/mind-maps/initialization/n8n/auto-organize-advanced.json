@@ -1,0 +1,464 @@
+{
+  "name": "mind-maps-auto-organize-advanced",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "mind-maps/auto-organize-advanced",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n  \"mapId\": \"test-map-001\",\n  \"userId\": \"test-user\",\n  \"analyzeDepth\": \"deep\",\n  \"autoApply\": false,\n  \"includeAISuggestions\": true\n}",
+        "options": {}
+      },
+      "id": "provide-defaults",
+      "name": "Provide Defaults",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [450, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge webhook or manual input\nconst input = $input.all()[0].json;\n\nconst mapId = input.mapId;\nconst userId = input.userId || 'anonymous';\nconst analyzeDepth = input.analyzeDepth || 'standard';\nconst autoApply = input.autoApply !== undefined ? input.autoApply : false;\nconst includeAISuggestions = input.includeAISuggestions !== undefined ? input.includeAISuggestions : true;\n\nif (!mapId) {\n  throw new Error('Mind map ID is required');\n}\n\nreturn {\n  mapId,\n  userId,\n  analyzeDepth,\n  autoApply,\n  includeAISuggestions\n};"
+      },
+      "id": "merge-inputs",
+      "name": "Merge Inputs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  n.id, \n  n.title, \n  n.content, \n  n.parent_id,\n  n.position_x,\n  n.position_y,\n  n.node_type,\n  n.metadata,\n  ARRAY_AGG(DISTINCT c.child_id) as children,\n  ARRAY_AGG(DISTINCT conn.to_node_id) as connections\nFROM mind_map_nodes n\nLEFT JOIN mind_map_nodes c ON c.parent_id = n.id\nLEFT JOIN mind_map_connections conn ON conn.from_node_id = n.id\nWHERE n.map_id = $1\nGROUP BY n.id, n.title, n.content, n.parent_id, n.position_x, n.position_y, n.node_type, n.metadata",
+        "options": {
+          "queryParams": "={{ $json.mapId }}"
+        }
+      },
+      "id": "fetch-nodes",
+      "name": "Fetch Mind Map Nodes",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [850, 400],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-default",
+          "name": "PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:5678/webhook/chain-of-thought",
+        "authentication": "none",
+        "method": "POST",
+        "body": {
+          "problem": "Analyze this mind map structure and suggest improvements for better organization",
+          "context": "={{ JSON.stringify($json) }}",
+          "steps": [
+            "Identify clusters of related nodes that should be grouped together",
+            "Find nodes that are misplaced or could have better parents",
+            "Detect missing connections between related concepts",
+            "Suggest new intermediate nodes to bridge conceptual gaps",
+            "Identify potential hierarchical improvements",
+            "Find duplicate or redundant nodes that could be merged"
+          ],
+          "model": "llama3.2",
+          "outputFormat": "json_structured",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "clusters": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": { "type": "string" },
+                    "theme": { "type": "string" },
+                    "nodeIds": { "type": "array", "items": { "type": "string" } },
+                    "suggestedParent": { "type": "string" }
+                  }
+                }
+              },
+              "reorganizations": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "nodeId": { "type": "string" },
+                    "currentParent": { "type": "string" },
+                    "suggestedParent": { "type": "string" },
+                    "reason": { "type": "string" }
+                  }
+                }
+              },
+              "newConnections": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "fromNodeId": { "type": "string" },
+                    "toNodeId": { "type": "string" },
+                    "relationshipType": { "type": "string" },
+                    "strength": { "type": "number" }
+                  }
+                }
+              },
+              "newNodes": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "title": { "type": "string" },
+                    "content": { "type": "string" },
+                    "suggestedParent": { "type": "string" },
+                    "nodeType": { "type": "string" },
+                    "purpose": { "type": "string" }
+                  }
+                }
+              },
+              "mergesuggestions": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "nodeIds": { "type": "array", "items": { "type": "string" } },
+                    "mergedTitle": { "type": "string" },
+                    "reason": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "options": {}
+      },
+      "id": "analyze-with-cot",
+      "name": "Analyze with Chain of Thought",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1050, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.analyzeDepth }}",
+              "value2": "deep"
+            }
+          ]
+        }
+      },
+      "id": "check-depth",
+      "name": "Check Analysis Depth",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1250, 400]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:5678/webhook/embedding-generator",
+        "authentication": "none",
+        "method": "POST",
+        "body": {
+          "texts": "={{ $('fetch-nodes').all().map(item => item.json.title + ' ' + item.json.content) }}",
+          "model": "nomic-embed-text",
+          "returnFormat": "vectors"
+        },
+        "options": {}
+      },
+      "id": "generate-embeddings",
+      "name": "Generate Node Embeddings",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1450, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Calculate semantic similarity between nodes using embeddings\nconst embeddings = $json.embeddings || [];\nconst nodes = $('fetch-nodes').all().map(item => item.json);\nconst threshold = 0.8; // Similarity threshold\n\nconst semanticConnections = [];\n\n// Function to calculate cosine similarity\nfunction cosineSimilarity(vec1, vec2) {\n  let dotProduct = 0;\n  let norm1 = 0;\n  let norm2 = 0;\n  \n  for (let i = 0; i < vec1.length; i++) {\n    dotProduct += vec1[i] * vec2[i];\n    norm1 += vec1[i] * vec1[i];\n    norm2 += vec2[i] * vec2[i];\n  }\n  \n  return dotProduct / (Math.sqrt(norm1) * Math.sqrt(norm2));\n}\n\n// Find semantically similar nodes\nfor (let i = 0; i < embeddings.length; i++) {\n  for (let j = i + 1; j < embeddings.length; j++) {\n    const similarity = cosineSimilarity(embeddings[i], embeddings[j]);\n    \n    if (similarity > threshold) {\n      // Check if connection doesn't already exist\n      const node1 = nodes[i];\n      const node2 = nodes[j];\n      \n      if (!node1.connections?.includes(node2.id) && !node2.connections?.includes(node1.id)) {\n        semanticConnections.push({\n          fromNodeId: node1.id,\n          toNodeId: node2.id,\n          relationshipType: 'semantic_similarity',\n          strength: similarity\n        });\n      }\n    }\n  }\n}\n\nreturn {\n  semanticConnections,\n  nodeCount: nodes.length,\n  connectionsFound: semanticConnections.length\n};"
+      },
+      "id": "find-semantic-connections",
+      "name": "Find Semantic Connections",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1650, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge AI suggestions with semantic analysis\nconst aiSuggestions = $('analyze-with-cot').item.json;\nconst semanticAnalysis = $('find-semantic-connections').item.json || { semanticConnections: [] };\nconst baseAnalysis = $('analyze-with-cot').item.json;\n\n// Merge new connections from both sources\nconst allNewConnections = [\n  ...(aiSuggestions.newConnections || []),\n  ...(semanticAnalysis.semanticConnections || [])\n];\n\n// Remove duplicates\nconst uniqueConnections = allNewConnections.filter((conn, index, self) =>\n  index === self.findIndex((c) => \n    c.fromNodeId === conn.fromNodeId && c.toNodeId === conn.toNodeId\n  )\n);\n\nreturn {\n  clusters: aiSuggestions.clusters || [],\n  reorganizations: aiSuggestions.reorganizations || [],\n  newConnections: uniqueConnections,\n  newNodes: aiSuggestions.newNodes || [],\n  mergeSuggestions: aiSuggestions.mergeSuggestions || [],\n  analysisType: 'deep',\n  semanticConnectionsFound: semanticAnalysis.connectionsFound || 0\n};"
+      },
+      "id": "merge-analyses",
+      "name": "Merge Analyses",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1850, 350]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $('merge-inputs').item.json.autoApply }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "check-auto-apply",
+      "name": "Check Auto Apply",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [2050, 400]
+    },
+    {
+      "parameters": {
+        "batchSize": 10,
+        "options": {}
+      },
+      "id": "batch-updates",
+      "name": "Batch Updates",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 2,
+      "position": [2250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO mind_map_connections (from_node_id, to_node_id, relationship_type, strength, map_id)\nVALUES ($1, $2, $3, $4, $5)\nON CONFLICT (from_node_id, to_node_id) DO UPDATE\nSET relationship_type = EXCLUDED.relationship_type,\n    strength = EXCLUDED.strength,\n    updated_at = NOW()",
+        "options": {
+          "queryParams": "={{ $json.fromNodeId }}, {{ $json.toNodeId }}, {{ $json.relationshipType }}, {{ $json.strength }}, {{ $('merge-inputs').item.json.mapId }}"
+        }
+      },
+      "id": "apply-connections",
+      "name": "Apply New Connections",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [2450, 300],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-default",
+          "name": "PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format the final response\nconst suggestions = $json;\nconst applied = $('merge-inputs').item.json.autoApply;\n\nreturn {\n  success: true,\n  message: applied ? 'Mind map reorganization applied successfully' : 'Analysis complete - suggestions ready for review',\n  mapId: $('merge-inputs').item.json.mapId,\n  statistics: {\n    clustersIdentified: suggestions.clusters?.length || 0,\n    reorganizationsSuggested: suggestions.reorganizations?.length || 0,\n    newConnectionsFound: suggestions.newConnections?.length || 0,\n    newNodesSuggested: suggestions.newNodes?.length || 0,\n    mergeCandidates: suggestions.mergeSuggestions?.length || 0,\n    semanticConnectionsFound: suggestions.semanticConnectionsFound || 0\n  },\n  suggestions: applied ? null : suggestions,\n  applied: applied\n};"
+      },
+      "id": "format-response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2250, 500]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2450, 500]
+    }
+  ],
+  "connections": {
+    "webhook-trigger": {
+      "main": [
+        [
+          {
+            "node": "merge-inputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "manual-trigger": {
+      "main": [
+        [
+          {
+            "node": "provide-defaults",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "provide-defaults": {
+      "main": [
+        [
+          {
+            "node": "merge-inputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "merge-inputs": {
+      "main": [
+        [
+          {
+            "node": "fetch-nodes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "fetch-nodes": {
+      "main": [
+        [
+          {
+            "node": "analyze-with-cot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "analyze-with-cot": {
+      "main": [
+        [
+          {
+            "node": "check-depth",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check-depth": {
+      "main": [
+        [
+          {
+            "node": "generate-embeddings",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "check-auto-apply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "generate-embeddings": {
+      "main": [
+        [
+          {
+            "node": "find-semantic-connections",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "find-semantic-connections": {
+      "main": [
+        [
+          {
+            "node": "merge-analyses",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "merge-analyses": {
+      "main": [
+        [
+          {
+            "node": "check-auto-apply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check-auto-apply": {
+      "main": [
+        [
+          {
+            "node": "batch-updates",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "format-response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "batch-updates": {
+      "main": [
+        [
+          {
+            "node": "apply-connections",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "apply-connections": {
+      "main": [
+        [
+          {
+            "node": "format-response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "format-response": {
+      "main": [
+        [
+          {
+            "node": "respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": {},
+  "versionId": "1.0.0",
+  "triggerCount": 2,
+  "tags": []
+}

@@ -1,0 +1,26 @@
+{
+  "collections": [
+    {
+      "name": "travel_embeddings",
+      "vectors": {
+        "size": 768,
+        "distance": "Cosine"
+      },
+      "payload_schema": {
+        "travel_id": "keyword",
+        "location": "text",
+        "country": "text",
+        "city": "text",
+        "type": "keyword",
+        "date": "datetime"
+      },
+      "optimizers_config": {
+        "indexing_threshold": 10000
+      },
+      "hnsw_config": {
+        "m": 16,
+        "ef_construct": 100
+      }
+    }
+  ]
+}

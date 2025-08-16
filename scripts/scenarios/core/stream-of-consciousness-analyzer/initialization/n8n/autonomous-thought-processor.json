@@ -1,0 +1,276 @@
+{
+  "name": "Stream of Consciousness - Autonomous Thought Processor",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "autonomous-thought-processor",
+        "responseMode": "responseNode",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Provide defaults for manual testing\nreturn [{\n  json: {\n    text: \"Just had an amazing conversation about the future of AI and creativity. We discussed how AI could augment human creativity rather than replace it. This connects to my earlier thoughts about education reform - we need to teach people how to collaborate with AI systems. Also reminded me of that article I read about emergent behaviors in large language models. Should write a blog post about this. Oh, and I need to call mom tomorrow about her birthday plans.\",\n    campaign: \"personal-insights\",\n    user_id: \"test-user\",\n    timestamp: new Date().toISOString(),\n    context: {\n      previous_themes: [\"AI\", \"creativity\", \"education\"],\n      mood: \"inspired\",\n      energy_level: \"high\"\n    }\n  }\n}];"
+      },
+      "id": "provide-defaults",
+      "name": "Provide Defaults",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 500]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.N8N_URL || 'http://localhost:5678' }}/webhook/react-loop",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "task",
+              "value": "={{ 'Process and organize this stream of consciousness into structured, actionable insights' }}"
+            },
+            {
+              "name": "context",
+              "value": "={{ { \n  text: $json.text,\n  campaign: $json.campaign,\n  user_id: $json.user_id,\n  context: $json.context || {},\n  timestamp: $json.timestamp\n} }}"
+            },
+            {
+              "name": "tools",
+              "value": "={{ [\n  {\n    name: 'extract_themes',\n    description: 'Extract main themes and topics from text',\n    parameters: { text: 'string' }\n  },\n  {\n    name: 'identify_connections',\n    description: 'Find connections between different ideas',\n    parameters: { themes: 'array' }\n  },\n  {\n    name: 'generate_insights',\n    description: 'Generate deeper insights from themes',\n    parameters: { themes: 'array', connections: 'array' }\n  },\n  {\n    name: 'extract_tasks',\n    description: 'Extract actionable tasks and reminders',\n    parameters: { text: 'string' }\n  },\n  {\n    name: 'categorize_content',\n    description: 'Categorize content by type and priority',\n    parameters: { content: 'object' }\n  },\n  {\n    name: 'suggest_next_steps',\n    description: 'Suggest follow-up actions and explorations',\n    parameters: { insights: 'array', tasks: 'array' }\n  }\n] }}"
+            },
+            {
+              "name": "max_iterations",
+              "value": 5
+            },
+            {
+              "name": "model",
+              "value": "llama3.2"
+            },
+            {
+              "name": "temperature",
+              "value": 0.7
+            },
+            {
+              "name": "system_prompt",
+              "value": "You are a mindful AI assistant helping to organize streams of consciousness into structured, meaningful insights. Focus on:\n1. Identifying patterns and connections\n2. Extracting actionable items\n3. Generating creative insights\n4. Preserving the emotional context\n5. Suggesting areas for deeper exploration\n\nBe thorough but concise. Maintain the user's voice and intent."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "react-processing",
+      "name": "ReAct Loop Processing",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse ReAct results and structure for storage\nconst reactResult = $json;\nconst originalData = $input.first().json;\n\n// Extract structured insights from ReAct processing\nlet processedData = {\n  themes: [],\n  connections: [],\n  insights: [],\n  tasks: [],\n  categories: {},\n  next_steps: [],\n  metadata: {}\n};\n\ntry {\n  // Parse the ReAct execution results\n  const result = reactResult.result || reactResult;\n  const actions = result.actions || [];\n  const finalThought = result.final_answer || '';\n  \n  // Extract data from each action taken\n  actions.forEach(action => {\n    switch(action.tool) {\n      case 'extract_themes':\n        processedData.themes = action.result?.themes || [];\n        break;\n      case 'identify_connections':\n        processedData.connections = action.result?.connections || [];\n        break;\n      case 'generate_insights':\n        processedData.insights = action.result?.insights || [];\n        break;\n      case 'extract_tasks':\n        processedData.tasks = action.result?.tasks || [];\n        break;\n      case 'categorize_content':\n        processedData.categories = action.result?.categories || {};\n        break;\n      case 'suggest_next_steps':\n        processedData.next_steps = action.result?.next_steps || [];\n        break;\n    }\n  });\n  \n  // Add emotional and contextual metadata\n  processedData.metadata = {\n    campaign: originalData.campaign,\n    user_id: originalData.user_id,\n    timestamp: originalData.timestamp,\n    word_count: originalData.text.split(' ').length,\n    processing_method: 'react-loop',\n    iterations_used: result.iterations || 1,\n    mood: originalData.context?.mood || 'neutral',\n    energy_level: originalData.context?.energy_level || 'medium',\n    previous_themes: originalData.context?.previous_themes || [],\n    final_summary: finalThought\n  };\n  \n  // Calculate insight quality score\n  const insightScore = (\n    (processedData.themes.length * 2) +\n    (processedData.connections.length * 3) +\n    (processedData.insights.length * 4) +\n    (processedData.tasks.length * 1)\n  ) / 10;\n  \n  processedData.metadata.insight_score = Math.min(10, insightScore);\n  \n} catch (e) {\n  console.error('Error parsing ReAct results:', e);\n  // Fallback to basic processing\n  processedData.themes = ['Unprocessed thought'];\n  processedData.metadata = {\n    ...processedData.metadata,\n    error: e.message,\n    processing_method: 'fallback'\n  };\n}\n\nreturn [{\n  json: {\n    original_text: originalData.text,\n    processed: processedData,\n    analysis_timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "structure-results",
+      "name": "Structure Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.N8N_URL || 'http://localhost:5678' }}/webhook/embedding-generator",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "texts",
+              "value": "={{ [\n  $json.original_text,\n  $json.processed.insights.join(' '),\n  $json.processed.themes.join(' ')\n] }}"
+            },
+            {
+              "name": "model",
+              "value": "nomic-embed-text"
+            },
+            {
+              "name": "metadata",
+              "value": "={{ {\n  type: 'stream-of-consciousness',\n  campaign: $json.processed.metadata.campaign\n} }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "generate-embeddings",
+      "name": "Generate Multi-Embeddings",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1050, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO stream_entries (\n  user_id,\n  campaign,\n  raw_text,\n  processed_data,\n  embedding_vector,\n  insight_embedding,\n  theme_embedding,\n  insight_score,\n  created_at\n) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)\nRETURNING id, created_at",
+        "additionalFields": {
+          "queryParams": "={{ [\n  $json.processed.metadata.user_id || 'default',\n  $json.processed.metadata.campaign || 'general',\n  $json.original_text,\n  JSON.stringify($json.processed),\n  JSON.stringify($json.embeddings[0]),\n  JSON.stringify($json.embeddings[1] || $json.embeddings[0]),\n  JSON.stringify($json.embeddings[2] || $json.embeddings[0]),\n  $json.processed.metadata.insight_score || 0,\n  $json.analysis_timestamp\n] }}"
+        }
+      },
+      "id": "save-to-postgres",
+      "name": "Save to PostgreSQL",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.3,
+      "position": [1250, 400],
+      "credentials": {
+        "postgres": {
+          "id": "1",
+          "name": "PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.QDRANT_URL || 'http://localhost:6333' }}/collections/stream_thoughts/points",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "points",
+              "value": "={{ [\n  {\n    id: String($json.id) + '_main',\n    vector: $input.first().json.embeddings[0],\n    payload: {\n      entry_id: $json.id,\n      type: 'main',\n      text: $input.first().json.original_text,\n      campaign: $input.first().json.processed.metadata.campaign,\n      user_id: $input.first().json.processed.metadata.user_id,\n      themes: $input.first().json.processed.themes,\n      insights: $input.first().json.processed.insights,\n      tasks: $input.first().json.processed.tasks,\n      connections: $input.first().json.processed.connections,\n      next_steps: $input.first().json.processed.next_steps,\n      categories: $input.first().json.processed.categories,\n      insight_score: $input.first().json.processed.metadata.insight_score,\n      mood: $input.first().json.processed.metadata.mood,\n      energy_level: $input.first().json.processed.metadata.energy_level,\n      created_at: $json.created_at\n    }\n  },\n  {\n    id: String($json.id) + '_insights',\n    vector: $input.first().json.embeddings[1] || $input.first().json.embeddings[0],\n    payload: {\n      entry_id: $json.id,\n      type: 'insights',\n      insights: $input.first().json.processed.insights,\n      campaign: $input.first().json.processed.metadata.campaign,\n      created_at: $json.created_at\n    }\n  },\n  {\n    id: String($json.id) + '_themes',\n    vector: $input.first().json.embeddings[2] || $input.first().json.embeddings[0],\n    payload: {\n      entry_id: $json.id,\n      type: 'themes',\n      themes: $input.first().json.processed.themes,\n      campaign: $input.first().json.processed.metadata.campaign,\n      created_at: $json.created_at\n    }\n  }\n] }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "store-in-qdrant",
+      "name": "Store Multi-Vector in Qdrant",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1450, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.N8N_URL || 'http://localhost:5678' }}/webhook/smart-notification",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "type",
+              "value": "thought_processed"
+            },
+            {
+              "name": "priority",
+              "value": "={{ $json.processed.metadata.insight_score > 7 ? 'high' : ($json.processed.metadata.insight_score > 4 ? 'medium' : 'low') }}"
+            },
+            {
+              "name": "title",
+              "value": "Thought Stream Processed"
+            },
+            {
+              "name": "message",
+              "value": "={{ `Found ${$json.processed.insights.length} insights, ${$json.processed.tasks.length} tasks, and ${$json.processed.connections.length} connections in your ${$json.processed.metadata.campaign} stream.` }}"
+            },
+            {
+              "name": "data",
+              "value": "={{ {\n  entry_id: $json.id,\n  campaign: $json.processed.metadata.campaign,\n  insight_score: $json.processed.metadata.insight_score,\n  top_themes: $json.processed.themes.slice(0, 3),\n  task_count: $json.processed.tasks.length\n} }}"
+            },
+            {
+              "name": "channels",
+              "value": "={{ ['in_app', $json.processed.tasks.length > 0 ? 'email' : null].filter(Boolean) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "send-notification",
+      "name": "Send Smart Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1650, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare response with all processed data\nconst response = {\n  success: true,\n  entry_id: $json.id,\n  processed: $input.first().json.processed,\n  created_at: $json.created_at,\n  vectors_stored: 3,\n  notification_sent: true\n};\n\nreturn [{ json: response }];"
+      },
+      "id": "prepare-response",
+      "name": "Prepare Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1850, 400]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2050, 400]
+    }
+  ],
+  "connections": {
+    "webhook-trigger": {
+      "main": [[{"node": "react-processing", "type": "main", "index": 0}]]
+    },
+    "manual-trigger": {
+      "main": [[{"node": "provide-defaults", "type": "main", "index": 0}]]
+    },
+    "provide-defaults": {
+      "main": [[{"node": "react-processing", "type": "main", "index": 0}]]
+    },
+    "react-processing": {
+      "main": [[{"node": "structure-results", "type": "main", "index": 0}]]
+    },
+    "structure-results": {
+      "main": [[{"node": "generate-embeddings", "type": "main", "index": 0}]]
+    },
+    "generate-embeddings": {
+      "main": [[{"node": "save-to-postgres", "type": "main", "index": 0}]]
+    },
+    "save-to-postgres": {
+      "main": [[{"node": "store-in-qdrant", "type": "main", "index": 0}]]
+    },
+    "store-in-qdrant": {
+      "main": [[{"node": "send-notification", "type": "main", "index": 0}]]
+    },
+    "send-notification": {
+      "main": [[{"node": "prepare-response", "type": "main", "index": 0}]]
+    },
+    "prepare-response": {
+      "main": [[{"node": "respond", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "pinData": {},
+  "versionId": "1.0.0",
+  "triggerCount": 1,
+  "tags": [
+    {
+      "name": "stream-of-consciousness",
+      "createdAt": "2025-01-17T20:30:00.000Z"
+    },
+    {
+      "name": "react-loop",
+      "createdAt": "2025-01-17T20:30:00.000Z"
+    },
+    {
+      "name": "autonomous",
+      "createdAt": "2025-01-17T20:30:00.000Z"
+    }
+  ]
+}

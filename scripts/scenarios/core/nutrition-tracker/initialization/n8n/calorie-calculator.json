@@ -1,0 +1,244 @@
+{
+  "name": "calorie-calculator",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "calorie-calculator",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 100]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "age",
+              "value": "30"
+            },
+            {
+              "name": "gender",
+              "value": "male"
+            },
+            {
+              "name": "weight_kg",
+              "value": "75"
+            },
+            {
+              "name": "height_cm",
+              "value": "175"
+            },
+            {
+              "name": "activity_level",
+              "value": "moderately_active"
+            },
+            {
+              "name": "weight_goal",
+              "value": "maintain"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "default-values",
+      "name": "Default Values",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [450, 100]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "mergeByFields": {
+          "values": [
+            {
+              "field1": "age",
+              "field2": "age"
+            }
+          ]
+        },
+        "joinMode": "keepEverything",
+        "options": {}
+      },
+      "id": "merge-inputs",
+      "name": "Merge",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [650, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Calculate BMR using Mifflin-St Jeor Equation\nconst age = parseFloat($input.item.json.age);\nconst weight_kg = parseFloat($input.item.json.weight_kg);\nconst height_cm = parseFloat($input.item.json.height_cm);\nconst gender = $input.item.json.gender;\nconst activity_level = $input.item.json.activity_level;\nconst weight_goal = $input.item.json.weight_goal;\n\nlet bmr;\nif (gender === 'male') {\n  bmr = (10 * weight_kg) + (6.25 * height_cm) - (5 * age) + 5;\n} else {\n  bmr = (10 * weight_kg) + (6.25 * height_cm) - (5 * age) - 161;\n}\n\n// Activity multipliers\nconst activity_multipliers = {\n  sedentary: 1.2,\n  lightly_active: 1.375,\n  moderately_active: 1.55,\n  very_active: 1.725,\n  extremely_active: 1.9\n};\n\nconst tdee = Math.round(bmr * (activity_multipliers[activity_level] || 1.55));\n\n// Weight goal adjustments\nlet daily_calories = tdee;\nlet calorie_adjustment = 0;\n\nif (weight_goal === 'lose') {\n  calorie_adjustment = -500; // 0.5 kg per week loss\n  daily_calories = tdee - 500;\n} else if (weight_goal === 'gain') {\n  calorie_adjustment = 300; // 0.3 kg per week gain\n  daily_calories = tdee + 300;\n}\n\n// Calculate macro recommendations (moderate balanced approach)\nconst protein_percent = weight_goal === 'gain' ? 0.30 : 0.25;\nconst carbs_percent = 0.45;\nconst fat_percent = 0.30;\n\nconst protein_calories = daily_calories * protein_percent;\nconst carbs_calories = daily_calories * carbs_percent;\nconst fat_calories = daily_calories * fat_percent;\n\nconst protein_grams = Math.round(protein_calories / 4);\nconst carbs_grams = Math.round(carbs_calories / 4);\nconst fat_grams = Math.round(fat_calories / 9);\n\n// Minimum protein recommendation\nconst min_protein = Math.round(weight_kg * 1.6); // 1.6g per kg for active individuals\n\nreturn {\n  bmr: Math.round(bmr),\n  tdee: tdee,\n  daily_calories: daily_calories,\n  calorie_adjustment: calorie_adjustment,\n  macros: {\n    protein_grams: Math.max(protein_grams, min_protein),\n    carbs_grams: carbs_grams,\n    fat_grams: fat_grams,\n    fiber_grams: Math.round(daily_calories / 100), // 10-14g per 1000 calories\n    sugar_limit: Math.round(daily_calories * 0.10 / 4), // 10% of calories max\n    sodium_limit: 2300 // mg per day\n  },\n  water_ml: Math.round(weight_kg * 35), // 35ml per kg body weight\n  notes: `Based on ${gender}, ${age} years, ${weight_kg}kg, ${height_cm}cm, ${activity_level} activity, goal: ${weight_goal}`\n};"
+      },
+      "id": "calculate-calories",
+      "name": "Calculate Calories & Macros",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://n8n:5678/webhook/ollama",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "prompt",
+              "value": "={{ `Based on these nutrition goals:\n- Daily calories: ${$json.daily_calories}\n- Protein: ${$json.macros.protein_grams}g\n- Carbs: ${$json.macros.carbs_grams}g\n- Fat: ${$json.macros.fat_grams}g\n- Fiber: ${$json.macros.fiber_grams}g\n\nProvide 3 practical meal suggestions for today that help meet these targets. Include specific foods and portions.\n\nReturn as JSON with keys: breakfast, lunch, dinner, snacks (each with description and estimated_macros)` }}"
+            },
+            {
+              "name": "model",
+              "value": "llama3.2:3b"
+            },
+            {
+              "name": "format",
+              "value": "json"
+            },
+            {
+              "name": "temperature",
+              "value": "0.7"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "generate-meal-suggestions",
+      "name": "Generate Meal Suggestions",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1050, 200]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "success"
+            }
+          ]
+        },
+        "options": {
+          "dotNotation": false
+        }
+      },
+      "id": "format-response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [1250, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "respond-to-webhook",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1450, 300]
+    }
+  ],
+  "connections": {
+    "webhook-trigger": {
+      "main": [
+        [
+          {
+            "node": "merge-inputs",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "manual-trigger": {
+      "main": [
+        [
+          {
+            "node": "default-values",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "default-values": {
+      "main": [
+        [
+          {
+            "node": "merge-inputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "merge-inputs": {
+      "main": [
+        [
+          {
+            "node": "calculate-calories",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "calculate-calories": {
+      "main": [
+        [
+          {
+            "node": "generate-meal-suggestions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "generate-meal-suggestions": {
+      "main": [
+        [
+          {
+            "node": "format-response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "format-response": {
+      "main": [
+        [
+          {
+            "node": "respond-to-webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [],
+  "id": "calorie-calculator"
+}

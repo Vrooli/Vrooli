@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent Command Center - AI Operations Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-cyan: #00ffff;
+            --primary-magenta: #ff00ff;
+            --primary-yellow: #ffff00;
+            --dark-bg: #0a0a0f;
+            --dark-surface: #151521;
+            --dark-panel: #1a1a2e;
+            --accent-green: #00ff88;
+            --accent-red: #ff0055;
+            --accent-orange: #ff8800;
+            --text-primary: #ffffff;
+            --text-secondary: #8892b0;
+            --grid-color: rgba(0, 255, 255, 0.1);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        @keyframes scan {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(100vh); }
+        }
+
+        @keyframes flicker {
+            0%, 100% { opacity: 1; }
+            92% { opacity: 1; }
+            93% { opacity: 0.4; }
+            94% { opacity: 1; }
+            96% { opacity: 0.4; }
+            98% { opacity: 1; }
+        }
+
+        @keyframes dataStream {
+            0% { transform: translateY(100%); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateY(-100%); opacity: 0; }
+        }
+
+        @keyframes rotate3d {
+            0% { transform: rotateX(0) rotateY(0); }
+            100% { transform: rotateX(360deg) rotateY(360deg); }
+        }
+
+        @keyframes glitch {
+            0%, 100% { clip-path: inset(0 0 0 0); transform: translate(0); }
+            20% { clip-path: inset(20% 0 30% 0); transform: translate(-2px, 2px); }
+            40% { clip-path: inset(50% 0 20% 0); transform: translate(2px, -2px); }
+            60% { clip-path: inset(10% 0 60% 0); transform: translate(-1px, 1px); }
+            80% { clip-path: inset(80% 0 5% 0); transform: translate(1px, -1px); }
+        }
+
+        body {
+            font-family: 'Exo 2', sans-serif;
+            background: var(--dark-bg);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Cyberpunk grid background */
+        .cyber-grid {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(var(--grid-color) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+            background-size: 50px 50px;
+            z-index: 0;
+            animation: pulse 4s ease-in-out infinite;
+        }
+
+        /* Scanning line effect */
+        .scan-line {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--primary-cyan), transparent);
+            animation: scan 8s linear infinite;
+            z-index: 1;
+        }
+
+        /* Main container */
+        .command-center {
+            position: relative;
+            z-index: 2;
+            padding: 20px;
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 30px;
+            background: linear-gradient(135deg, var(--dark-panel) 0%, rgba(26, 26, 46, 0.8) 100%);
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            margin-bottom: 30px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0, 255, 255, 0.2), transparent);
+            animation: scan 4s linear infinite;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .logo-icon {
+            width: 60px;
+            height: 60px;
+            position: relative;
+            animation: rotate3d 20s linear infinite;
+            transform-style: preserve-3d;
+        }
+
+        .logo-cube {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transform-style: preserve-3d;
+        }
+
+        .cube-face {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            border: 2px solid var(--primary-cyan);
+            background: rgba(0, 255, 255, 0.1);
+        }
+
+        .cube-face.front { transform: translateZ(30px); }
+        .cube-face.back { transform: rotateY(180deg) translateZ(30px); }
+        .cube-face.left { transform: rotateY(-90deg) translateZ(30px); }
+        .cube-face.right { transform: rotateY(90deg) translateZ(30px); }
+        .cube-face.top { transform: rotateX(90deg) translateZ(30px); }
+        .cube-face.bottom { transform: rotateX(-90deg) translateZ(30px); }
+
+        .logo-text {
+            font-family: 'Orbitron', monospace;
+            font-size: 32px;
+            font-weight: 900;
+            color: var(--primary-cyan);
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            position: relative;
+            animation: flicker 3s ease-in-out infinite;
+        }
+
+        .logo-text::after {
+            content: 'AGENT COMMAND';
+            position: absolute;
+            top: 0;
+            left: 0;
+            color: var(--primary-magenta);
+            animation: glitch 2s infinite;
+            z-index: -1;
+        }
+
+        /* System status bar */
+        .system-status {
+            display: flex;
+            gap: 30px;
+            align-items: center;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 20px;
+            background: rgba(0, 255, 255, 0.1);
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 14px;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.active { background: var(--accent-green); box-shadow: 0 0 10px var(--accent-green); }
+        .status-dot.warning { background: var(--accent-orange); box-shadow: 0 0 10px var(--accent-orange); }
+        .status-dot.error { background: var(--accent-red); box-shadow: 0 0 10px var(--accent-red); }
+
+        /* Main grid layout */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        /* Agent cards */
+        .agent-card {
+            background: linear-gradient(135deg, var(--dark-panel), rgba(26, 26, 46, 0.9));
+            border: 1px solid rgba(0, 255, 255, 0.2);
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .agent-card:hover {
+            border-color: var(--primary-cyan);
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 255, 255, 0.3);
+        }
+
+        .agent-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--primary-cyan), transparent);
+            animation: scan 3s linear infinite;
+        }
+
+        .agent-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .agent-name {
+            font-family: 'Orbitron', monospace;
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--primary-cyan);
+            text-transform: uppercase;
+        }
+
+        .agent-type {
+            padding: 5px 10px;
+            background: rgba(255, 255, 0, 0.1);
+            border: 1px solid var(--primary-yellow);
+            color: var(--primary-yellow);
+            font-size: 12px;
+            font-family: 'Share Tech Mono', monospace;
+        }
+
+        .agent-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .status-badge {
+            padding: 5px 15px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            border: 1px solid;
+        }
+
+        .status-badge.active {
+            background: rgba(0, 255, 136, 0.1);
+            border-color: var(--accent-green);
+            color: var(--accent-green);
+        }
+
+        .status-badge.inactive {
+            background: rgba(136, 146, 176, 0.1);
+            border-color: var(--text-secondary);
+            color: var(--text-secondary);
+        }
+
+        .status-badge.error {
+            background: rgba(255, 0, 85, 0.1);
+            border-color: var(--accent-red);
+            color: var(--accent-red);
+        }
+
+        /* Metrics display */
+        .agent-metrics {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .metric {
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(0, 255, 255, 0.1);
+        }
+
+        .metric-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .metric-value {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 20px;
+            color: var(--primary-cyan);
+        }
+
+        /* Control buttons */
+        .agent-controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        .control-btn {
+            flex: 1;
+            padding: 10px;
+            background: transparent;
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            color: var(--primary-cyan);
+            font-family: 'Orbitron', monospace;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .control-btn:hover {
+            background: rgba(0, 255, 255, 0.1);
+            border-color: var(--primary-cyan);
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+        }
+
+        .control-btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: rgba(0, 255, 255, 0.3);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .control-btn:active::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        /* Command terminal */
+        .command-terminal {
+            background: var(--dark-surface);
+            border: 1px solid rgba(0, 255, 255, 0.2);
+            padding: 20px;
+            margin-top: 30px;
+            position: relative;
+        }
+
+        .terminal-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(0, 255, 255, 0.1);
+        }
+
+        .terminal-title {
+            font-family: 'Share Tech Mono', monospace;
+            color: var(--accent-green);
+            font-size: 14px;
+        }
+
+        .terminal-content {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            color: var(--accent-green);
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .terminal-line {
+            margin-bottom: 5px;
+            opacity: 0;
+            animation: fadeIn 0.5s forwards;
+        }
+
+        @keyframes fadeIn {
+            to { opacity: 1; }
+        }
+
+        .terminal-prompt {
+            color: var(--primary-cyan);
+        }
+
+        /* Data stream visualization */
+        .data-stream {
+            position: fixed;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 60px;
+            height: 400px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            overflow: hidden;
+        }
+
+        .data-particle {
+            position: absolute;
+            width: 4px;
+            height: 20px;
+            background: linear-gradient(180deg, transparent, var(--primary-cyan), transparent);
+            animation: dataStream 3s linear infinite;
+        }
+
+        /* Orchestration panel */
+        .orchestration-panel {
+            background: linear-gradient(135deg, var(--dark-panel), rgba(26, 26, 46, 0.9));
+            border: 1px solid rgba(255, 0, 255, 0.3);
+            padding: 30px;
+            margin-top: 30px;
+            position: relative;
+        }
+
+        .orchestration-title {
+            font-family: 'Orbitron', monospace;
+            font-size: 24px;
+            color: var(--primary-magenta);
+            margin-bottom: 20px;
+            text-transform: uppercase;
+        }
+
+        .orchestration-controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .orchestrate-btn {
+            padding: 15px;
+            background: linear-gradient(135deg, rgba(255, 0, 255, 0.1), rgba(0, 255, 255, 0.1));
+            border: 1px solid rgba(255, 0, 255, 0.5);
+            color: var(--text-primary);
+            font-family: 'Orbitron', monospace;
+            font-weight: 600;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .orchestrate-btn:hover {
+            background: linear-gradient(135deg, rgba(255, 0, 255, 0.2), rgba(0, 255, 255, 0.2));
+            box-shadow: 0 0 30px rgba(255, 0, 255, 0.5);
+            transform: scale(1.05);
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .header {
+                flex-direction: column;
+                gap: 20px;
+            }
+            
+            .system-status {
+                flex-direction: column;
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Background effects -->
+    <div class="cyber-grid"></div>
+    <div class="scan-line"></div>
+    
+    <!-- Data stream visualization -->
+    <div class="data-stream">
+        <div class="data-particle" style="animation-delay: 0s;"></div>
+        <div class="data-particle" style="animation-delay: 0.5s;"></div>
+        <div class="data-particle" style="animation-delay: 1s;"></div>
+        <div class="data-particle" style="animation-delay: 1.5s;"></div>
+        <div class="data-particle" style="animation-delay: 2s;"></div>
+        <div class="data-particle" style="animation-delay: 2.5s;"></div>
+    </div>
+
+    <div class="command-center">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <div class="logo-icon">
+                    <div class="logo-cube">
+                        <div class="cube-face front"></div>
+                        <div class="cube-face back"></div>
+                        <div class="cube-face left"></div>
+                        <div class="cube-face right"></div>
+                        <div class="cube-face top"></div>
+                        <div class="cube-face bottom"></div>
+                    </div>
+                </div>
+                <div class="logo-text">AGENT COMMAND</div>
+            </div>
+            
+            <div class="system-status">
+                <div class="status-indicator">
+                    <div class="status-dot active"></div>
+                    <span>SYSTEM ONLINE</span>
+                </div>
+                <div class="status-indicator">
+                    <div class="status-dot warning"></div>
+                    <span>5 AGENTS ACTIVE</span>
+                </div>
+                <div class="status-indicator">
+                    <div class="status-dot active"></div>
+                    <span>CPU: 42%</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Agent Dashboard Grid -->
+        <div class="dashboard-grid" id="agentGrid">
+            <!-- Agent cards will be dynamically inserted here -->
+        </div>
+
+        <!-- Orchestration Panel -->
+        <div class="orchestration-panel">
+            <h2 class="orchestration-title">Neural Orchestration</h2>
+            <div class="orchestration-controls">
+                <button class="orchestrate-btn" onclick="orchestrateAgents('optimize')">
+                    Optimize Resources
+                </button>
+                <button class="orchestrate-btn" onclick="orchestrateAgents('scale')">
+                    Auto-Scale Agents
+                </button>
+                <button class="orchestrate-btn" onclick="orchestrateAgents('balance')">
+                    Load Balance
+                </button>
+                <button class="orchestrate-btn" onclick="orchestrateAgents('emergency')">
+                    Emergency Protocol
+                </button>
+            </div>
+        </div>
+
+        <!-- Command Terminal -->
+        <div class="command-terminal">
+            <div class="terminal-header">
+                <span class="terminal-title">[AGENT-COMMAND-TERMINAL v2.0.1]</span>
+            </div>
+            <div class="terminal-content" id="terminalOutput">
+                <div class="terminal-line">
+                    <span class="terminal-prompt">$></span> System initialized...
+                </div>
+                <div class="terminal-line" style="animation-delay: 0.5s;">
+                    <span class="terminal-prompt">$></span> Connecting to agent network...
+                </div>
+                <div class="terminal-line" style="animation-delay: 1s;">
+                    <span class="terminal-prompt">$></span> Loading agent manifests...
+                </div>
+                <div class="terminal-line" style="animation-delay: 1.5s;">
+                    <span class="terminal-prompt">$></span> Ready for operations.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,321 @@
+{
+  "name": "mind-maps-update-mindmap",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "PUT",
+        "path": "mind-maps/update/:id",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "id": "webhook_1"
+    },
+    {
+      "parameters": {
+        "operation": "execute",
+        "query": "UPDATE mind_maps SET title = COALESCE($2, title), description = COALESCE($3, description), campaign_id = COALESCE($4, campaign_id), metadata = COALESCE($5, metadata), updated_at = NOW() WHERE id = $1 RETURNING *",
+        "additionalFields": {
+          "queryParams": "={{ [\n  $json.params.id,\n  $json.body.title || null,\n  $json.body.description || null,\n  $json.body.campaign_id || null,\n  $json.body.metadata ? JSON.stringify($json.body.metadata) : null\n] }}"
+        }
+      },
+      "name": "Update Mind Map",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [650, 300],
+      "id": "update_mindmap",
+      "credentials": {
+        "postgres": {
+          "id": "vrooli-postgres",
+          "name": "Vrooli PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "mind-maps/nodes/add",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "name": "Add Node Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 500],
+      "id": "add_node_webhook"
+    },
+    {
+      "parameters": {
+        "functionCode": "const { v4: uuidv4 } = require('uuid');\nconst nodeId = uuidv4();\n\nreturn {\n  id: nodeId,\n  mind_map_id: $json.mind_map_id,\n  content: $json.content || 'New Node',\n  type: $json.type || 'child',\n  position_x: $json.position_x || 0,\n  position_y: $json.position_y || 0,\n  parent_id: $json.parent_id || null,\n  metadata: $json.metadata || { color: '#764ba2', size: 'medium' }\n};"
+      },
+      "name": "Prepare Node Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [450, 500],
+      "id": "prepare_node"
+    },
+    {
+      "parameters": {
+        "operation": "execute",
+        "query": "INSERT INTO mind_map_nodes (id, mind_map_id, content, type, position_x, position_y, parent_id, metadata, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW()) RETURNING *",
+        "additionalFields": {
+          "queryParams": "={{ [\n  $json.id,\n  $json.mind_map_id,\n  $json.content,\n  $json.type,\n  $json.position_x,\n  $json.position_y,\n  $json.parent_id,\n  JSON.stringify($json.metadata)\n] }}"
+        }
+      },
+      "name": "Insert Node",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [650, 500],
+      "id": "insert_node",
+      "credentials": {
+        "postgres": {
+          "id": "vrooli-postgres",
+          "name": "Vrooli PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:5678/webhook/embed",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "={{ $json.content }}"
+            },
+            {
+              "name": "model",
+              "value": "nomic-embed-text"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Generate Node Embedding",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [850, 500],
+      "id": "generate_node_embedding"
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "collection": "mind_map_nodes",
+        "points": "={{ [{\n  id: $('Insert Node').item.json.id,\n  vector: $json.embedding,\n  payload: {\n    node_id: $('Insert Node').item.json.id,\n    mind_map_id: $('Insert Node').item.json.mind_map_id,\n    content: $('Insert Node').item.json.content,\n    type: $('Insert Node').item.json.type,\n    parent_id: $('Insert Node').item.json.parent_id,\n    metadata: $('Insert Node').item.json.metadata\n  }\n}] }}",
+        "options": {}
+      },
+      "name": "Store in Qdrant",
+      "type": "n8n-nodes-community.qdrant",
+      "typeVersion": 1,
+      "position": [1050, 500],
+      "id": "store_qdrant",
+      "credentials": {
+        "qdrantApi": {
+          "id": "vrooli-qdrant",
+          "name": "Vrooli Qdrant"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "DELETE",
+        "path": "mind-maps/nodes/:nodeId",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "name": "Delete Node Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 700],
+      "id": "delete_node_webhook"
+    },
+    {
+      "parameters": {
+        "operation": "execute",
+        "query": "DELETE FROM mind_map_nodes WHERE id = $1 RETURNING *",
+        "additionalFields": {
+          "queryParams": "={{ [$json.params.nodeId] }}"
+        }
+      },
+      "name": "Delete Node",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [450, 700],
+      "id": "delete_node",
+      "credentials": {
+        "postgres": {
+          "id": "vrooli-postgres",
+          "name": "Vrooli PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "collection": "mind_map_nodes",
+        "pointsDelete": {
+          "ids": "={{ [$json.id] }}"
+        },
+        "options": {}
+      },
+      "name": "Remove from Qdrant",
+      "type": "n8n-nodes-community.qdrant",
+      "typeVersion": 1,
+      "position": [650, 700],
+      "id": "remove_qdrant",
+      "credentials": {
+        "qdrantApi": {
+          "id": "vrooli-qdrant",
+          "name": "Vrooli Qdrant"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "success"
+            },
+            {
+              "name": "message",
+              "value": "={{ $node.name === 'Update Mind Map' ? 'Mind map updated' : $node.name === 'Store in Qdrant' ? 'Node added' : 'Node deleted' }}"
+            }
+          ]
+        }
+      },
+      "name": "Format Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [1250, 500],
+      "id": "format_response"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Update Mind Map",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Mind Map": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add Node Webhook": {
+      "main": [
+        [
+          {
+            "node": "Prepare Node Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Node Data": {
+      "main": [
+        [
+          {
+            "node": "Insert Node",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Node": {
+      "main": [
+        [
+          {
+            "node": "Generate Node Embedding",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Node Embedding": {
+      "main": [
+        [
+          {
+            "node": "Store in Qdrant",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store in Qdrant": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Node Webhook": {
+      "main": [
+        [
+          {
+            "node": "Delete Node",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Node": {
+      "main": [
+        [
+          {
+            "node": "Remove from Qdrant",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Remove from Qdrant": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": {},
+  "versionId": "1.0.0",
+  "triggerCount": 3,
+  "tags": []
+}

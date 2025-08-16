@@ -1,0 +1,257 @@
+{
+  "name": "Smart File Manager - Image Analyzer",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "smart-file-manager/analyze-image",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 500]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Provide test defaults for manual testing\nreturn {\n  file_id: 'test-image-001',\n  image_path: '/test/sample-image.jpg',\n  mime_type: 'image/jpeg',\n  analyze_options: {\n    extract_text: true,\n    detect_objects: true,\n    generate_tags: true,\n    suggest_organization: true\n  }\n};"
+      },
+      "id": "set_test_defaults",
+      "name": "Set Test Defaults",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [400, 500]
+    },
+    {
+      "parameters": {},
+      "id": "merge_triggers",
+      "name": "Merge Triggers",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [600, 400]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "propertyName": "file_data",
+        "query": "SELECT * FROM files WHERE file_id = '{{ $json.file_id }}' AND mime_type LIKE 'image/%'",
+        "options": {}
+      },
+      "id": "get_image_metadata",
+      "name": "Get Image Metadata",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [800, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5678/webhook/ollama",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "llava"
+            },
+            {
+              "name": "prompt",
+              "value": "Analyze this image and provide: 1) A detailed description, 2) List of objects detected, 3) Scene type (indoor/outdoor/document/screenshot/etc), 4) Any visible text, 5) Suggested tags for organization, 6) Quality assessment. Format as JSON."
+            },
+            {
+              "name": "images",
+              "value": "={{ [$json.image_path] }}"
+            },
+            {
+              "name": "format",
+              "value": "json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "analyze_with_vision",
+      "name": "Analyze with Vision Model",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1000, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Parse vision model response and structure data\nconst analysis = $json;\nconst fileData = $('Get Image Metadata').first().file_data[0];\n\n// Parse the LLM response (assuming it returns JSON-like structure)\nlet parsedAnalysis;\ntry {\n  parsedAnalysis = typeof analysis.response === 'string' ? JSON.parse(analysis.response) : analysis.response;\n} catch (e) {\n  // Fallback parsing if not proper JSON\n  parsedAnalysis = {\n    description: analysis.response || 'Unable to analyze',\n    objects: [],\n    scene_type: 'unknown',\n    text_detected: false,\n    tags: [],\n    quality: 'medium'\n  };\n}\n\nreturn {\n  file_id: fileData.file_id,\n  file_path: fileData.file_path,\n  analysis: {\n    description: parsedAnalysis.description,\n    detected_objects: parsedAnalysis.objects || [],\n    scene_type: parsedAnalysis.scene_type || 'unknown',\n    has_text: parsedAnalysis.text_detected || false,\n    extracted_text: parsedAnalysis.extracted_text || '',\n    suggested_tags: parsedAnalysis.tags || [],\n    quality_score: calculateQualityScore(parsedAnalysis),\n    confidence: 0.85\n  },\n  suggestions: generateOrganizationSuggestions(parsedAnalysis, fileData),\n  timestamp: new Date().toISOString()\n};\n\nfunction calculateQualityScore(analysis) {\n  let score = 0.5;\n  if (analysis.quality === 'high') score = 0.9;\n  else if (analysis.quality === 'low') score = 0.3;\n  if (analysis.objects?.length > 3) score += 0.1;\n  if (analysis.text_detected) score += 0.1;\n  return Math.min(score, 1.0);\n}\n\nfunction generateOrganizationSuggestions(analysis, fileData) {\n  const suggestions = [];\n  \n  // Suggest folder based on content\n  if (analysis.objects?.includes('person') || analysis.objects?.includes('face')) {\n    suggestions.push({\n      type: 'folder',\n      value: '/Personal/Photos',\n      reason: 'Contains people'\n    });\n  }\n  \n  if (analysis.scene_type === 'document' || analysis.scene_type === 'screenshot') {\n    suggestions.push({\n      type: 'folder',\n      value: '/Documents/Images',\n      reason: 'Document or screenshot'\n    });\n  }\n  \n  if (analysis.scene_type === 'outdoor') {\n    suggestions.push({\n      type: 'folder',\n      value: '/Photos/Nature',\n      reason: 'Outdoor scene'\n    });\n  }\n  \n  // Add suggested tags\n  (analysis.tags || []).forEach(tag => {\n    suggestions.push({\n      type: 'tag',\n      value: tag,\n      reason: 'AI-suggested tag'\n    });\n  });\n  \n  return suggestions;\n}"
+      },
+      "id": "process_analysis",
+      "name": "Process Analysis Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO image_analysis (file_id, description, detected_objects, scene_type, has_text, extracted_text, quality_score, analysis_timestamp) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (file_id) DO UPDATE SET description = $2, detected_objects = $3, scene_type = $4, has_text = $5, extracted_text = $6, quality_score = $7, analysis_timestamp = $8",
+        "options": {
+          "queryParams": "={{ $json.file_id }},{{ $json.analysis.description }},{{ JSON.stringify($json.analysis.detected_objects) }},{{ $json.analysis.scene_type }},{{ $json.analysis.has_text }},{{ $json.analysis.extracted_text }},{{ $json.analysis.quality_score }},{{ $json.timestamp }}"
+        }
+      },
+      "id": "store_analysis",
+      "name": "Store Analysis Results",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1400, 400]
+    },
+    {
+      "parameters": {
+        "batchSize": 10,
+        "options": {}
+      },
+      "id": "batch_suggestions",
+      "name": "Batch Suggestions",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [1600, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO file_suggestions (file_id, suggestion_type, suggested_value, reason, confidence, status) VALUES ($1, $2, $3, $4, $5, 'pending')",
+        "options": {
+          "queryParams": "={{ $json.file_id }},{{ $json.type }},{{ $json.value }},{{ $json.reason }},{{ $json.analysis?.confidence || 0.8 }}"
+        }
+      },
+      "id": "store_suggestions",
+      "name": "Store Suggestions",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1800, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.analysis.has_text }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check_has_text",
+      "name": "Has Text?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1400, 500]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5678/webhook/smart-file-manager/generate-embeddings",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "file_id",
+              "value": "={{ $json.file_id }}"
+            },
+            {
+              "name": "content",
+              "value": "={{ $json.analysis.description + ' ' + $json.analysis.extracted_text }}"
+            },
+            {
+              "name": "metadata",
+              "value": "={{ { type: 'image', has_text: true, scene: $json.analysis.scene_type } }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "generate_text_embeddings",
+      "name": "Generate Text Embeddings",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1600, 500]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \n  \"success\": true, \n  \"file_id\": $json.file_id,\n  \"analysis\": $json.analysis,\n  \"suggestions_count\": $json.suggestions.length,\n  \"embeddings_generated\": $json.analysis.has_text,\n  \"processing_time_ms\": Date.now() - new Date($json.timestamp).getTime()\n} }}"
+      },
+      "id": "success_response",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2000, 400]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": { 
+      "main": [[{ "node": "Merge Triggers", "type": "main", "index": 0 }]] 
+    },
+    "Manual Trigger": { 
+      "main": [[{ "node": "Set Test Defaults", "type": "main", "index": 0 }]] 
+    },
+    "Set Test Defaults": { 
+      "main": [[{ "node": "Merge Triggers", "type": "main", "index": 1 }]] 
+    },
+    "Merge Triggers": { 
+      "main": [[{ "node": "Get Image Metadata", "type": "main", "index": 0 }]] 
+    },
+    "Get Image Metadata": { 
+      "main": [[{ "node": "Analyze with Vision Model", "type": "main", "index": 0 }]] 
+    },
+    "Analyze with Vision Model": { 
+      "main": [[{ "node": "Process Analysis Results", "type": "main", "index": 0 }]] 
+    },
+    "Process Analysis Results": { 
+      "main": [[
+        { "node": "Store Analysis Results", "type": "main", "index": 0 },
+        { "node": "Batch Suggestions", "type": "main", "index": 0 },
+        { "node": "Has Text?", "type": "main", "index": 0 }
+      ]] 
+    },
+    "Store Analysis Results": { 
+      "main": [[{ "node": "Success Response", "type": "main", "index": 0 }]] 
+    },
+    "Batch Suggestions": { 
+      "main": [[{ "node": "Store Suggestions", "type": "main", "index": 0 }]] 
+    },
+    "Store Suggestions": { 
+      "main": [[{ "node": "Batch Suggestions", "type": "main", "index": 0 }]] 
+    },
+    "Has Text?": {
+      "main": [
+        [{ "node": "Generate Text Embeddings", "type": "main", "index": 0 }],
+        []
+      ]
+    }
+  },
+  "active": true,
+  "settings": { "executionOrder": "v1" },
+  "versionId": "1",
+  "id": "smart-image-analyzer",
+  "meta": { "instanceId": "smart-file-manager" },
+  "tags": [{ "id": "1", "name": "smart-file-manager" }, { "id": "2", "name": "image-analysis" }]
+}

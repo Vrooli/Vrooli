@@ -1,0 +1,288 @@
+{
+  "name": "Morning Vision - Conversation Handler",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "vision-conversation",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Provide defaults for manual testing\nconst defaults = {\n  message: \"Good morning! I'm feeling energized today. Let's talk about what we should focus on with Vrooli. I've been thinking about improving our scenario testing and maybe adding some new agent capabilities.\",\n  session_id: \"test-session-\" + Date.now(),\n  user_id: \"test-user\",\n  context: {\n    time_of_day: \"morning\",\n    energy_level: 8,\n    mood: \"optimistic\",\n    location: \"park\"\n  }\n};\n\n// Only use defaults if coming from manual trigger\nconst isManual = $('Manual').first() !== undefined;\nif (isManual) {\n  return [{json: defaults}];\n}\n\n// Otherwise pass through webhook data\nreturn items;"
+      },
+      "id": "defaults",
+      "name": "Defaults",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare conversation prompt for Ollama\nconst input = $json;\n\nconst systemPrompt = `You are a thoughtful AI companion for morning walks. Your role is to help brainstorm ideas, understand the current state of the Vrooli project, and collaboratively plan the day ahead. Be encouraging, insightful, and help connect ideas. Keep responses conversational and suitable for voice interaction.\n\nContext:\n- Time: ${input.context?.time_of_day || 'morning'}\n- Energy Level: ${input.context?.energy_level || 7}/10\n- Mood: ${input.context?.mood || 'neutral'}\n- Location: ${input.context?.location || 'walking'}`;\n\nconst prompt = `${systemPrompt}\n\nUser: ${input.message}\n\nProvide a thoughtful, encouraging response that helps with planning and brainstorming for the day ahead.`;\n\nreturn [{\n  json: {\n    prompt: prompt,\n    model: \"llama3.2\",\n    type: \"generation\",\n    temperature: 0.8,\n    quiet: true,\n    original_input: input\n  }\n}];"
+      },
+      "id": "prepare-conversation",
+      "name": "Prepare Conversation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "workflow": "ollama",
+        "workflowData": "={{ JSON.stringify($json) }}",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "call-ollama",
+      "name": "Call Shared Ollama",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "workflow": "chain-of-thought-orchestrator",
+        "workflowData": "={{ JSON.stringify({ problem: 'Extract actionable insights and tasks from this conversation', context: { conversation: $json.response, user_message: $json.original_input.message, session_context: $json.original_input.context }, steps: ['Identify key topics discussed', 'Extract actionable tasks with clear next steps', 'Determine priority levels (high/medium/low)', 'Suggest 3 focus areas for the day', 'Note any breakthrough insights or important realizations'], model: 'llama3.2', format: 'json' }) }}",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "extract-insights",
+      "name": "Extract Insights via CoT",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [1050, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse the insights from Chain of Thought\nconst conversation = $input.all()[0].json;\nconst insightsResponse = $input.all()[1]?.json || {};\n\nlet insights = {};\ntry {\n  // Parse the response if it's a string\n  if (typeof insightsResponse.response === 'string') {\n    insights = JSON.parse(insightsResponse.response);\n  } else if (insightsResponse.result) {\n    insights = insightsResponse.result;\n  } else {\n    insights = insightsResponse;\n  }\n} catch (error) {\n  // Fallback if parsing fails\n  insights = {\n    topics: [],\n    tasks: [],\n    priorities: [],\n    focus_areas: [],\n    breakthroughs: []\n  };\n}\n\n// Structure the insights properly\nconst structuredInsights = {\n  topics: insights.topics || insights['key_topics'] || [],\n  tasks: insights.tasks || insights['actionable_tasks'] || [],\n  priorities: insights.priorities || insights['priority_levels'] || [],\n  focus_areas: insights.focus_areas || insights['suggested_focus_areas'] || [],\n  breakthroughs: insights.breakthroughs || insights['breakthrough_insights'] || []\n};\n\nreturn [{\n  json: {\n    session_id: conversation.original_input.session_id,\n    user_id: conversation.original_input.user_id,\n    user_message: conversation.original_input.message,\n    ai_response: conversation.response,\n    insights: structuredInsights,\n    context: conversation.original_input.context,\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "process-insights",
+      "name": "Process Insights",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.insights.tasks.length }}",
+              "operation": "larger",
+              "value2": 0
+            }
+          ]
+        }
+      },
+      "id": "has-tasks",
+      "name": "Has Tasks?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1450, 400]
+    },
+    {
+      "parameters": {
+        "workflow": "embedding-generator",
+        "workflowData": "={{ JSON.stringify({ text: $json.user_message + ' ' + $json.ai_response, metadata: { session_id: $json.session_id, type: 'vision_walk_conversation', timestamp: $json.timestamp, insights: $json.insights }, collection: 'vision_walk_memories' }) }}",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "generate-embedding",
+      "name": "Generate Embedding",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [1450, 250]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Create tasks in a format suitable for task-planner scenario\nconst data = $json;\nconst tasks = data.insights.tasks || [];\n\nconst formattedTasks = tasks.map((task, index) => ({\n  title: typeof task === 'string' ? task : task.title || task.description,\n  description: typeof task === 'string' ? '' : task.details || '',\n  priority: data.insights.priorities[index] || 'medium',\n  source: 'morning-vision-walk',\n  session_id: data.session_id,\n  created_at: new Date().toISOString(),\n  due_date: null,\n  tags: ['vision-walk', 'brainstorming']\n}));\n\nreturn [{\n  json: {\n    tasks: formattedTasks,\n    session_id: data.session_id,\n    notification: {\n      type: 'tasks_created',\n      count: formattedTasks.length,\n      source: 'Morning Vision Walk'\n    }\n  }\n}];"
+      },
+      "id": "format-tasks",
+      "name": "Format Tasks",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1650, 350]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare final response\nconst data = $json;\n\nreturn [{\n  json: {\n    success: true,\n    response: data.ai_response,\n    session_id: data.session_id,\n    insights: {\n      topics_discussed: data.insights.topics,\n      tasks_extracted: data.insights.tasks.length,\n      focus_areas: data.insights.focus_areas,\n      breakthroughs: data.insights.breakthroughs\n    },\n    metadata: {\n      timestamp: data.timestamp,\n      context: data.context,\n      embedding_stored: true\n    }\n  }\n}];"
+      },
+      "id": "prepare-response",
+      "name": "Prepare Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1850, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "webhook-response",
+      "name": "Webhook Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2050, 400]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Defaults",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual": {
+      "main": [
+        [
+          {
+            "node": "Defaults",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Defaults": {
+      "main": [
+        [
+          {
+            "node": "Prepare Conversation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Conversation": {
+      "main": [
+        [
+          {
+            "node": "Call Shared Ollama",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Shared Ollama": {
+      "main": [
+        [
+          {
+            "node": "Extract Insights via CoT",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Insights via CoT": {
+      "main": [
+        [
+          {
+            "node": "Process Insights",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Insights": {
+      "main": [
+        [
+          {
+            "node": "Has Tasks?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Generate Embedding",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Tasks?": {
+      "main": [
+        [
+          {
+            "node": "Format Tasks",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Tasks": {
+      "main": [
+        [
+          {
+            "node": "Prepare Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Embedding": {
+      "main": [
+        [
+          {
+            "node": "Prepare Response",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Prepare Response": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": ["morning-vision", "conversation", "brainstorming"]
+}

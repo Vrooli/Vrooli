@@ -1,0 +1,309 @@
+{
+  "name": "competitor-alert-manager",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "competitor-monitor/send-alert",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n  \"competitorId\": \"test-competitor-123\",\n  \"competitorName\": \"Example Corp\",\n  \"targetUrl\": \"https://example.com/pricing\",\n  \"analysis\": {\n    \"relevance_score\": 85,\n    \"change_category\": \"pricing\",\n    \"impact_level\": \"high\",\n    \"key_insights\": [\"Competitor reduced prices by 20%\", \"New tiered pricing introduced\"],\n    \"recommended_actions\": [\"Review our pricing strategy\", \"Consider matching the discount\"],\n    \"summary\": \"Major pricing change detected that could impact our market position\"\n  },\n  \"timestamp\": \"{{ new Date().toISOString() }}\"\n}",
+        "options": {}
+      },
+      "id": "provide-defaults",
+      "name": "Provide Defaults",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [450, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge webhook or manual input\nconst input = $input.all()[0].json;\n\n// Generate alert ID\nconst alertId = `alert_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;\n\n// Determine alert priority based on impact level and relevance score\nlet priority = 'medium';\nif (input.analysis?.impact_level === 'critical' || input.analysis?.relevance_score >= 90) {\n  priority = 'critical';\n} else if (input.analysis?.impact_level === 'high' || input.analysis?.relevance_score >= 75) {\n  priority = 'high';\n} else if (input.analysis?.impact_level === 'low' || input.analysis?.relevance_score < 50) {\n  priority = 'low';\n}\n\n// Format alert title\nconst alertTitle = `${input.competitorName || 'Competitor'} - ${input.analysis?.change_category || 'Change'} Alert`;\n\nreturn {\n  alertId,\n  competitorId: input.competitorId,\n  competitorName: input.competitorName,\n  targetUrl: input.targetUrl,\n  alertTitle,\n  priority,\n  analysis: input.analysis,\n  timestamp: input.timestamp || new Date().toISOString(),\n  channels: ['email', 'dashboard'] // Default notification channels\n};"
+      },
+      "id": "prepare-alert",
+      "name": "Prepare Alert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO alerts (\n  id,\n  competitor_id,\n  title,\n  priority,\n  url,\n  category,\n  summary,\n  insights,\n  actions,\n  relevance_score,\n  status,\n  created_at\n) VALUES (\n  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12\n) RETURNING *;",
+        "additionalFields": {
+          "queryParams": "={{ $json.alertId }},{{ $json.competitorId }},{{ $json.alertTitle }},{{ $json.priority }},{{ $json.targetUrl }},{{ $json.analysis.change_category }},{{ $json.analysis.summary }},{{ JSON.stringify($json.analysis.key_insights) }},{{ JSON.stringify($json.analysis.recommended_actions) }},{{ $json.analysis.relevance_score }},unread,{{ $json.timestamp }}"
+        }
+      },
+      "id": "save-alert",
+      "name": "Save Alert",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [850, 400],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-creds",
+          "name": "PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const alert = $json;\n\n// Format email content\nconst emailHtml = `\n<div style=\"font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;\">\n  <div style=\"background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 10px 10px 0 0;\">\n    <h2 style=\"margin: 0;\">⚠️ Competitor Alert: ${alert.priority.toUpperCase()}</h2>\n    <p style=\"margin: 5px 0 0 0; opacity: 0.9;\">${alert.alertTitle}</p>\n  </div>\n  \n  <div style=\"background: white; padding: 20px; border: 1px solid #e0e0e0; border-top: none;\">\n    <div style=\"background: #f5f5f5; padding: 15px; border-radius: 5px; margin-bottom: 20px;\">\n      <h3 style=\"margin: 0 0 10px 0; color: #333;\">Summary</h3>\n      <p style=\"margin: 0; color: #666;\">${alert.analysis.summary}</p>\n    </div>\n    \n    <div style=\"margin-bottom: 20px;\">\n      <h3 style=\"color: #333; margin-bottom: 10px;\">📊 Key Insights</h3>\n      <ul style=\"color: #666; margin: 0; padding-left: 20px;\">\n        ${alert.analysis.key_insights.map(insight => `<li style=\"margin-bottom: 5px;\">${insight}</li>`).join('')}\n      </ul>\n    </div>\n    \n    <div style=\"margin-bottom: 20px;\">\n      <h3 style=\"color: #333; margin-bottom: 10px;\">🎯 Recommended Actions</h3>\n      <ul style=\"color: #666; margin: 0; padding-left: 20px;\">\n        ${alert.analysis.recommended_actions.map(action => `<li style=\"margin-bottom: 5px;\">${action}</li>`).join('')}\n      </ul>\n    </div>\n    \n    <div style=\"background: #f9f9f9; padding: 10px; border-radius: 5px;\">\n      <p style=\"margin: 0; font-size: 12px; color: #999;\">\n        <strong>Competitor:</strong> ${alert.competitorName}<br>\n        <strong>URL:</strong> <a href=\"${alert.targetUrl}\" style=\"color: #667eea;\">${alert.targetUrl}</a><br>\n        <strong>Category:</strong> ${alert.analysis.change_category}<br>\n        <strong>Relevance Score:</strong> ${alert.analysis.relevance_score}/100<br>\n        <strong>Detected:</strong> ${new Date(alert.timestamp).toLocaleString()}\n      </p>\n    </div>\n  </div>\n</div>\n`;\n\nreturn {\n  ...alert,\n  emailContent: {\n    subject: `🚨 ${alert.priority.toUpperCase()} Priority: ${alert.alertTitle}`,\n    html: emailHtml,\n    text: `Competitor Alert\\n\\n${alert.alertTitle}\\n\\nSummary: ${alert.analysis.summary}\\n\\nView details in your dashboard.`\n  }\n};"
+      },
+      "id": "format-email",
+      "name": "Format Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "resource": "messageHtml",
+        "fromEmail": "competitor-monitor@vrooli.local",
+        "toEmail": "={{ $env.ALERT_EMAIL || 'admin@vrooli.local' }}",
+        "subject": "={{ $json.emailContent.subject }}",
+        "html": "={{ $json.emailContent.html }}",
+        "options": {}
+      },
+      "id": "send-email",
+      "name": "Send Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1250, 300],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const alert = $json;\n\n// Create dashboard notification payload\nconst dashboardNotification = {\n  type: 'competitor_alert',\n  alertId: alert.alertId,\n  competitorId: alert.competitorId,\n  competitorName: alert.competitorName,\n  priority: alert.priority,\n  title: alert.alertTitle,\n  summary: alert.analysis.summary,\n  category: alert.analysis.change_category,\n  relevanceScore: alert.analysis.relevance_score,\n  timestamp: alert.timestamp,\n  url: alert.targetUrl,\n  insights: alert.analysis.key_insights,\n  actions: alert.analysis.recommended_actions\n};\n\n// Store in Redis for real-time dashboard updates\nreturn {\n  ...alert,\n  dashboardNotification\n};"
+      },
+      "id": "prepare-dashboard-notification",
+      "name": "Prepare Dashboard Notification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 500]
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "key": "={{ 'competitor_alert:' + $json.alertId }}",
+        "value": "={{ JSON.stringify($json.dashboardNotification) }}",
+        "keyType": "string",
+        "expire": true,
+        "ttl": 86400,
+        "options": {}
+      },
+      "id": "store-in-redis",
+      "name": "Store in Redis",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [1250, 500],
+      "credentials": {
+        "redis": {
+          "id": "redis-creds",
+          "name": "Redis"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "publish",
+        "channel": "competitor_alerts",
+        "messageData": "={{ JSON.stringify($json.dashboardNotification) }}"
+      },
+      "id": "publish-to-channel",
+      "name": "Publish to Channel",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [1450, 500],
+      "credentials": {
+        "redis": {
+          "id": "redis-creds",
+          "name": "Redis"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "success"
+            },
+            {
+              "name": "message",
+              "value": "Alert sent successfully"
+            },
+            {
+              "name": "alertId",
+              "value": "={{ $node['Prepare Alert'].json.alertId }}"
+            }
+          ],
+          "boolean": [
+            {
+              "name": "emailSent",
+              "value": "={{ $node['Send Email'].error ? false : true }}"
+            },
+            {
+              "name": "dashboardUpdated",
+              "value": "={{ $node['Store in Redis'].error ? false : true }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "format-response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [1650, 400]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Prepare Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Provide Defaults",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Provide Defaults": {
+      "main": [
+        [
+          {
+            "node": "Prepare Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Alert": {
+      "main": [
+        [
+          {
+            "node": "Save Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Alert": {
+      "main": [
+        [
+          {
+            "node": "Format Email",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prepare Dashboard Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Email": {
+      "main": [
+        [
+          {
+            "node": "Send Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Dashboard Notification": {
+      "main": [
+        [
+          {
+            "node": "Store in Redis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store in Redis": {
+      "main": [
+        [
+          {
+            "node": "Publish to Channel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Publish to Channel": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "competitor-alert-manager"
+  },
+  "tags": []
+}

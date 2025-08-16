@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Competitor Intelligence Monitor</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="dashboard">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <circle cx="12" cy="12" r="10"/>
+                        <path d="M12 6v6l4 2"/>
+                    </svg>
+                    <h1>Competitor Intelligence</h1>
+                </div>
+                <div class="header-actions">
+                    <button id="addCompetitor" class="btn btn-primary">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <line x1="12" y1="5" x2="12" y2="19"/>
+                            <line x1="5" y1="12" x2="19" y2="12"/>
+                        </svg>
+                        Add Competitor
+                    </button>
+                    <button id="scanNow" class="btn btn-secondary">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <polyline points="23 4 23 10 17 10"/>
+                            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                        </svg>
+                        Scan Now
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Sidebar -->
+            <aside class="sidebar">
+                <nav class="nav">
+                    <button class="nav-item active" data-view="overview">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <rect x="3" y="3" width="7" height="7"/>
+                            <rect x="14" y="3" width="7" height="7"/>
+                            <rect x="14" y="14" width="7" height="7"/>
+                            <rect x="3" y="14" width="7" height="7"/>
+                        </svg>
+                        Overview
+                    </button>
+                    <button class="nav-item" data-view="competitors">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                            <circle cx="9" cy="7" r="4"/>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                        </svg>
+                        Competitors
+                    </button>
+                    <button class="nav-item" data-view="changes">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                        </svg>
+                        Changes
+                    </button>
+                    <button class="nav-item" data-view="alerts">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                        </svg>
+                        Alerts
+                    </button>
+                    <button class="nav-item" data-view="settings">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <circle cx="12" cy="12" r="3"/>
+                            <path d="M12 1v6M12 17v6M4.22 4.22l4.24 4.24M15.54 15.54l4.24 4.24M1 12h6M17 12h6M4.22 19.78l4.24-4.24M15.54 8.46l4.24-4.24"/>
+                        </svg>
+                        Settings
+                    </button>
+                </nav>
+            </aside>
+
+            <!-- Content Area -->
+            <main class="content">
+                <!-- Overview View -->
+                <div id="overviewView" class="view active">
+                    <div class="view-header">
+                        <h2>Intelligence Overview</h2>
+                        <div class="time-filter">
+                            <button class="filter-btn active">24h</button>
+                            <button class="filter-btn">7d</button>
+                            <button class="filter-btn">30d</button>
+                        </div>
+                    </div>
+
+                    <!-- Stats Cards -->
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                                    <circle cx="9" cy="7" r="4"/>
+                                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                                    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                                </svg>
+                            </div>
+                            <div class="stat-content">
+                                <div class="stat-value">12</div>
+                                <div class="stat-label">Active Competitors</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon pulse">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                                </svg>
+                            </div>
+                            <div class="stat-content">
+                                <div class="stat-value">47</div>
+                                <div class="stat-label">Changes Today</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon alert">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                                    <line x1="12" y1="9" x2="12" y2="13"/>
+                                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                                </svg>
+                            </div>
+                            <div class="stat-content">
+                                <div class="stat-value">3</div>
+                                <div class="stat-label">Critical Alerts</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <circle cx="12" cy="12" r="10"/>
+                                    <polyline points="12 6 12 12 16 14"/>
+                                </svg>
+                            </div>
+                            <div class="stat-content">
+                                <div class="stat-value">2h</div>
+                                <div class="stat-label">Last Scan</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Activity Timeline -->
+                    <div class="activity-section">
+                        <h3>Recent Activity</h3>
+                        <div class="timeline" id="timeline">
+                            <!-- Timeline items will be added dynamically -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Competitors View -->
+                <div id="competitorsView" class="view">
+                    <div class="view-header">
+                        <h2>Competitor Profiles</h2>
+                        <input type="search" class="search-input" placeholder="Search competitors...">
+                    </div>
+                    <div class="competitors-grid" id="competitorsGrid">
+                        <!-- Competitor cards will be added dynamically -->
+                    </div>
+                </div>
+
+                <!-- Changes View -->
+                <div id="changesView" class="view">
+                    <div class="view-header">
+                        <h2>Detected Changes</h2>
+                        <div class="filter-group">
+                            <select class="filter-select">
+                                <option>All Types</option>
+                                <option>Website</option>
+                                <option>GitHub</option>
+                                <option>Social Media</option>
+                            </select>
+                            <select class="filter-select">
+                                <option>All Severity</option>
+                                <option>Critical</option>
+                                <option>High</option>
+                                <option>Medium</option>
+                                <option>Low</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="changes-list" id="changesList">
+                        <!-- Change items will be added dynamically -->
+                    </div>
+                </div>
+
+                <!-- Alerts View -->
+                <div id="alertsView" class="view">
+                    <div class="view-header">
+                        <h2>Alert Configuration</h2>
+                        <button class="btn btn-primary">New Alert Rule</button>
+                    </div>
+                    <div class="alerts-container" id="alertsContainer">
+                        <!-- Alert rules will be added dynamically -->
+                    </div>
+                </div>
+
+                <!-- Settings View -->
+                <div id="settingsView" class="view">
+                    <div class="view-header">
+                        <h2>Settings</h2>
+                    </div>
+                    <div class="settings-sections">
+                        <div class="settings-section">
+                            <h3>Scan Configuration</h3>
+                            <div class="setting-item">
+                                <label>Scan Frequency</label>
+                                <select class="setting-select">
+                                    <option>Every 15 minutes</option>
+                                    <option>Every hour</option>
+                                    <option>Every 6 hours</option>
+                                    <option>Daily</option>
+                                </select>
+                            </div>
+                            <div class="setting-item">
+                                <label>AI Analysis Depth</label>
+                                <input type="range" min="1" max="5" value="3" class="setting-range">
+                            </div>
+                        </div>
+                        <div class="settings-section">
+                            <h3>Notifications</h3>
+                            <div class="setting-item">
+                                <label>
+                                    <input type="checkbox" checked> Email notifications
+                                </label>
+                            </div>
+                            <div class="setting-item">
+                                <label>
+                                    <input type="checkbox" checked> Critical alerts only
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Modal for Adding Competitor -->
+    <div id="competitorModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add Competitor</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Company Name</label>
+                    <input type="text" id="companyName" class="form-input" placeholder="Enter company name">
+                </div>
+                <div class="form-group">
+                    <label>Website URL</label>
+                    <input type="url" id="websiteUrl" class="form-input" placeholder="https://example.com">
+                </div>
+                <div class="form-group">
+                    <label>GitHub Repository</label>
+                    <input type="text" id="githubRepo" class="form-input" placeholder="owner/repository">
+                </div>
+                <div class="form-group">
+                    <label>Monitoring Focus</label>
+                    <select id="monitoringFocus" class="form-select">
+                        <option>Product Updates</option>
+                        <option>Pricing Changes</option>
+                        <option>Feature Releases</option>
+                        <option>Company News</option>
+                        <option>All Changes</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveCompetitor()">Add Competitor</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

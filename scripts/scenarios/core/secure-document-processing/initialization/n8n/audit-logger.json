@@ -1,0 +1,304 @@
+{
+  "name": "Audit Logger",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "audit-log",
+        "responseMode": "responseNode",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [200, 300],
+      "webhookId": "audit-log"
+    },
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 100]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Provide defaults for manual testing\nconst isManual = $execution.mode === 'manual';\n\nif (isManual) {\n  return {\n    event: 'document_accessed',\n    severity: 'info',\n    user: {\n      id: 'test-user',\n      role: 'admin',\n      ip: '127.0.0.1'\n    },\n    resource: {\n      type: 'document',\n      id: 'doc_123',\n      name: 'test-document.pdf'\n    },\n    action: {\n      type: 'read',\n      details: 'User accessed encrypted document'\n    },\n    compliance: {\n      framework: 'hipaa',\n      requirement: 'audit_trail'\n    }\n  };\n}\n\nreturn $input.item.json;"
+      },
+      "id": "default_provider",
+      "name": "Default Provider",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [400, 100]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process and enrich audit log entry\nconst input = $input.item.json;\nconst timestamp = new Date().toISOString();\nconst auditId = `audit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;\n\n// Define severity levels and their properties\nconst severityLevels = {\n  'critical': { level: 1, color: '#ef4444', icon: '🔴', alert: true },\n  'warning': { level: 2, color: '#f59e0b', icon: '🟡', alert: true },\n  'info': { level: 3, color: '#10b981', icon: '🟢', alert: false },\n  'debug': { level: 4, color: '#6b7280', icon: '⚪', alert: false }\n};\n\n// Security event patterns that trigger automatic escalation\nconst securityPatterns = [\n  { pattern: /unauthorized/i, severity: 'critical', category: 'access_violation' },\n  { pattern: /failed.*auth/i, severity: 'warning', category: 'authentication' },\n  { pattern: /decrypt.*fail/i, severity: 'critical', category: 'encryption' },\n  { pattern: /tamper/i, severity: 'critical', category: 'integrity' },\n  { pattern: /breach/i, severity: 'critical', category: 'security_incident' },\n  { pattern: /expired/i, severity: 'warning', category: 'compliance' },\n  { pattern: /rotation/i, severity: 'info', category: 'maintenance' }\n];\n\n// Compliance tracking\nconst complianceTracking = {\n  'hipaa': {\n    requiredFields: ['user.id', 'resource.id', 'action.type', 'timestamp'],\n    retentionDays: 2555, // 7 years\n    encryptionRequired: true\n  },\n  'gdpr': {\n    requiredFields: ['user.id', 'action.type', 'timestamp', 'lawfulBasis'],\n    retentionDays: 1095, // 3 years\n    encryptionRequired: true\n  },\n  'sox': {\n    requiredFields: ['user.id', 'resource.id', 'action.type', 'timestamp', 'financialImpact'],\n    retentionDays: 2555,\n    encryptionRequired: true\n  },\n  'pci': {\n    requiredFields: ['user.id', 'action.type', 'timestamp', 'cardDataAccess'],\n    retentionDays: 730, // 2 years\n    encryptionRequired: true\n  }\n};\n\n// Determine severity based on event patterns\nlet severity = input.severity || 'info';\nlet category = input.category || 'general';\nconst eventString = JSON.stringify(input).toLowerCase();\n\nfor (const pattern of securityPatterns) {\n  if (pattern.pattern.test(eventString)) {\n    // Escalate severity if pattern matches\n    const currentLevel = severityLevels[severity].level;\n    const patternLevel = severityLevels[pattern.severity].level;\n    if (patternLevel < currentLevel) {\n      severity = pattern.severity;\n      category = pattern.category;\n    }\n  }\n}\n\n// Get compliance requirements\nconst framework = input.compliance?.framework || 'hipaa';\nconst requirements = complianceTracking[framework];\n\n// Validate required fields for compliance\nconst missingFields = [];\nif (requirements) {\n  for (const field of requirements.requiredFields) {\n    const fieldParts = field.split('.');\n    let value = input;\n    for (const part of fieldParts) {\n      value = value?.[part];\n    }\n    if (!value) {\n      missingFields.push(field);\n    }\n  }\n}\n\n// Build comprehensive audit entry\nconst auditEntry = {\n  id: auditId,\n  timestamp: timestamp,\n  event: input.event || 'unknown_event',\n  severity: severity,\n  severityInfo: severityLevels[severity],\n  category: category,\n  \n  // User information\n  user: {\n    id: input.user?.id || 'system',\n    role: input.user?.role || 'unknown',\n    ip: input.user?.ip || 'unknown',\n    userAgent: input.user?.userAgent || null,\n    sessionId: input.user?.sessionId || null\n  },\n  \n  // Resource information\n  resource: {\n    type: input.resource?.type || 'unknown',\n    id: input.resource?.id || null,\n    name: input.resource?.name || null,\n    path: input.resource?.path || null,\n    size: input.resource?.size || null\n  },\n  \n  // Action details\n  action: {\n    type: input.action?.type || 'unknown',\n    method: input.action?.method || null,\n    details: input.action?.details || null,\n    result: input.action?.result || 'unknown',\n    duration: input.action?.duration || null\n  },\n  \n  // Compliance information\n  compliance: {\n    framework: framework,\n    requirements: requirements,\n    compliant: missingFields.length === 0,\n    missingFields: missingFields,\n    retentionDate: new Date(Date.now() + (requirements?.retentionDays || 2555) * 24 * 60 * 60 * 1000).toISOString()\n  },\n  \n  // Additional context\n  context: {\n    environment: process.env.NODE_ENV || 'production',\n    hostname: process.env.HOSTNAME || 'secure-vault',\n    service: 'secure-document-processing',\n    version: '1.0.0'\n  },\n  \n  // Security metadata\n  security: {\n    encrypted: true,\n    signed: true,\n    hashAlgorithm: 'sha256',\n    alertRequired: severityLevels[severity].alert\n  }\n};\n\n// Calculate entry hash for integrity\nconst crypto = require('crypto');\nconst hash = crypto.createHash('sha256');\nhash.update(JSON.stringify(auditEntry));\nauditEntry.hash = hash.digest('hex');\n\nreturn auditEntry;"
+      },
+      "id": "process_audit",
+      "name": "Process Audit Entry",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [600, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.security.alertRequired }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "check_alert",
+      "name": "Check Alert Required",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [800, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5678/webhook/ollama",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "prompt",
+              "value": "=You are a security analyst. Analyze this audit log entry and provide a brief security assessment:\n\nEvent: {{ $json.event }}\nSeverity: {{ $json.severity }}\nUser: {{ $json.user.id }} ({{ $json.user.role }})\nResource: {{ $json.resource.type }} - {{ $json.resource.name }}\nAction: {{ $json.action.type }} - {{ $json.action.details }}\n\nProvide a 1-2 sentence security assessment and any recommended actions."
+            },
+            {
+              "name": "model",
+              "value": "llama3.2"
+            },
+            {
+              "name": "temperature",
+              "value": "0.3"
+            },
+            {
+              "name": "max_tokens",
+              "value": "200"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "security_analysis",
+      "name": "Security Analysis",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1000, 200]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Merge security analysis if performed\nconst auditEntry = $input.all()[0].json;\nconst analysis = $input.all()[1]?.json;\n\nif (analysis && analysis.response) {\n  auditEntry.securityAnalysis = {\n    timestamp: new Date().toISOString(),\n    assessment: analysis.response,\n    analyzed: true\n  };\n}\n\nreturn auditEntry;"
+      },
+      "id": "merge_analysis",
+      "name": "Merge Analysis",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 300]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": "public",
+        "table": "audit_logs",
+        "columns": "id,timestamp,event,severity,category,user_id,user_role,user_ip,resource_type,resource_id,resource_name,action_type,action_details,action_result,compliance_framework,compliant,hash,security_analysis",
+        "additionalFields": {}
+      },
+      "id": "store_audit",
+      "name": "Store in Database",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1400, 300],
+      "credentials": {
+        "postgres": {
+          "id": "1",
+          "name": "Postgres"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5678/webhook/cache-manager",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "action",
+              "value": "set"
+            },
+            {
+              "name": "key",
+              "value": "={{ 'audit:latest:' + $json.category }}"
+            },
+            {
+              "name": "value",
+              "value": "={{ JSON.stringify($json) }}"
+            },
+            {
+              "name": "ttl",
+              "value": "3600"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "cache_latest",
+      "name": "Cache Latest Entry",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1400, 500]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({\n  success: true,\n  auditId: $json.id,\n  timestamp: $json.timestamp,\n  event: $json.event,\n  severity: $json.severity,\n  category: $json.category,\n  compliance: {\n    framework: $json.compliance.framework,\n    compliant: $json.compliance.compliant,\n    retentionDate: $json.compliance.retentionDate\n  },\n  hash: $json.hash,\n  securityAnalysis: $json.securityAnalysis || null,\n  message: 'Audit log entry successfully recorded'\n}) }}",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1600, 300]
+    }
+  ],
+  "connections": {
+    "webhook_trigger": {
+      "main": [
+        [
+          {
+            "node": "process_audit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "manual_trigger": {
+      "main": [
+        [
+          {
+            "node": "default_provider",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "default_provider": {
+      "main": [
+        [
+          {
+            "node": "process_audit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "process_audit": {
+      "main": [
+        [
+          {
+            "node": "check_alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check_alert": {
+      "main": [
+        [
+          {
+            "node": "security_analysis",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "merge_analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "security_analysis": {
+      "main": [
+        [
+          {
+            "node": "merge_analysis",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "merge_analysis": {
+      "main": [
+        [
+          {
+            "node": "store_audit",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "cache_latest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "store_audit": {
+      "main": [
+        [
+          {
+            "node": "respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "cache_latest": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "",
+    "saveExecutionProgress": true,
+    "saveDataSuccessExecution": "all"
+  },
+  "tags": [],
+  "pinData": {},
+  "versionId": "1.0.0",
+  "triggerCount": 1
+}

@@ -1,0 +1,55 @@
+{
+  "name": "nutrition-tracker",
+  "version": "1.0.0",
+  "description": "Smart nutrition tracking with calorie counting and AI-powered meal suggestions",
+  "category": "saas-applications",
+  "resources": {
+    "n8n": {
+      "enabled": true,
+      "workflows": [
+        "nutrition-analyzer",
+        "calorie-calculator",
+        "macro-tracker",
+        "meal-suggester"
+      ]
+    },
+    "postgres": {
+      "enabled": true,
+      "schema": "schema.sql",
+      "seed": "seed.sql"
+    },
+    "redis": {
+      "enabled": true
+    },
+    "qdrant": {
+      "enabled": true,
+      "collections": ["meals", "recipes", "nutrition_data"]
+    },
+    "ollama": {
+      "enabled": true,
+      "models": ["llama3.2:3b", "nomic-embed-text"]
+    }
+  },
+  "ports": {
+    "ui": {
+      "range": [8900, 8999]
+    },
+    "api": {
+      "range": [3900, 3999]
+    }
+  },
+  "lifecycle": {
+    "start": ["ui", "api"],
+    "health_check": {
+      "enabled": true,
+      "interval": 30
+    }
+  },
+  "dependencies": {
+    "shared_workflows": [
+      "ollama",
+      "embedding-generator",
+      "rate-limiter"
+    ]
+  }
+}

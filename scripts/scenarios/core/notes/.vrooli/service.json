@@ -1,0 +1,219 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "parent": "vrooli",
+    "name": "notes",
+    "displayName": "SmartNotes",
+    "description": "Local AI-enabled note-taking with intelligent organization, semantic search, and real-time suggestions",
+    "version": "1.0.0",
+    "type": "productivity-application",
+    "category": "productivity",
+    "tags": [
+      "notes",
+      "markdown",
+      "knowledge-base",
+      "ai-powered",
+      "semantic-search",
+      "tagging",
+      "organization",
+      "javascript-ui",
+      "productivity"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "SERVICE_PORT",
+      "range": "8950-8999",
+      "fallback": "auto",
+      "description": "SmartNotes API port"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "range": "3950-3999",
+      "fallback": "auto",
+      "description": "SmartNotes UI port"
+    }
+  },
+  "resources": {
+    "automation": {
+      "n8n": {
+        "type": "n8n",
+        "enabled": true,
+        "required": true,
+        "shared_workflows": [
+          "ollama",
+          "embedding-generator",
+          "semantic-search",
+          "structured-data-extractor",
+          "chain-of-thought-orchestrator",
+          "react-loop-engine",
+          "smart-semantic-search"
+        ],
+        "initialization": [
+          {
+            "file": "initialization/n8n/note-processor.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/smart-tagging.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/note-search.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/daily-summary.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/smart-suggestions.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/intelligent-note-analyzer.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/intelligent-note-linker.json",
+            "type": "workflow"
+          }
+        ]
+      }
+    },
+    "storage": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store notes, folders, tags, and user preferences",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "schema"
+          }
+        ]
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "purpose": "Vector storage for semantic search across notes",
+        "initialization": [
+          {
+            "file": "initialization/qdrant/collections.json",
+            "type": "collection"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": false,
+        "purpose": "Cache recent notes and real-time collaboration"
+      }
+    },
+    "ai": {
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "purpose": "AI-powered note suggestions and summarization"
+      }
+    }
+  },
+  "lifecycle": {
+    "version": "1.0.0",
+    "setup": {
+      "description": "Initialize SmartNotes",
+      "steps": [
+        {
+          "name": "base-setup",
+          "run": "bash scripts/lib/setup.sh",
+          "description": "Execute generic setup"
+        },
+        {
+          "name": "add-data",
+          "run": "scripts/resources/injection/engine.sh .",
+          "description": "Add notes data to resources"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && chmod +x notes && ln -sf $(pwd)/notes /usr/local/bin/notes 2>/dev/null || true",
+          "description": "Install CLI command"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o notes-api main.go",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "setup-ui",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '📝 SmartNotes initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${SERVICE_PORT}'",
+          "description": "Display service URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start SmartNotes services",
+      "steps": [
+        {
+          "name": "start-api-server",
+          "run": "cd api && PORT=$SERVICE_PORT N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} POSTGRES_URL=postgres://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/notes QDRANT_URL=http://localhost:${RESOURCE_PORTS[qdrant]} REDIS_URL=redis://localhost:${RESOURCE_PORTS[redis]} ./notes-api &",
+          "description": "Start API server",
+          "background": true,
+          "condition": {
+            "file_exists": "api/notes-api"
+          }
+        },
+        {
+          "name": "start-ui-server",
+          "run": "cd ui && PORT=$UI_PORT API_URL=http://localhost:$SERVICE_PORT npm start &",
+          "description": "Start UI server",
+          "background": true
+        },
+        {
+          "name": "wait-for-services",
+          "run": "sleep 3",
+          "description": "Wait for services to start"
+        },
+        {
+          "name": "show-running",
+          "run": "echo '🚀 SmartNotes running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${SERVICE_PORT}'",
+          "description": "Display running services"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test SmartNotes services",
+      "steps": [
+        {
+          "name": "test-api",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/health",
+          "description": "Test API health"
+        },
+        {
+          "name": "test-notes",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/api/notes",
+          "description": "Test notes endpoint"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop SmartNotes services",
+      "steps": [
+        {
+          "name": "stop-services",
+          "run": "pkill -f 'notes-api' || true; pkill -f 'npm.*notes' || true",
+          "description": "Stop all services"
+        }
+      ]
+    }
+  }
+}

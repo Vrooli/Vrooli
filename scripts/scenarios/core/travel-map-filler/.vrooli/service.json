@@ -1,0 +1,199 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "parent": "vrooli",
+    "name": "travel-map-filler",
+    "displayName": "Travel Map Filler",
+    "description": "Interactive world map for tracking and visualizing your travel history with stats and achievements",
+    "version": "1.0.0",
+    "type": "personal-tracking-application",
+    "category": "lifestyle",
+    "tags": [
+      "travel",
+      "map",
+      "visualization",
+      "tracking",
+      "world",
+      "countries",
+      "cities",
+      "javascript-ui",
+      "interactive",
+      "achievements"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "SERVICE_PORT",
+      "range": "8760-8769",
+      "fallback": "auto",
+      "description": "Travel Map API port"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "range": "3760-3769",
+      "fallback": "auto",
+      "description": "Travel Map UI port"
+    }
+  },
+  "resources": {
+    "automation": {
+      "n8n": {
+        "type": "n8n",
+        "enabled": true,
+        "required": true,
+        "shared_workflows": [
+          "ollama",
+          "embedding-generator"
+        ],
+        "initialization": [
+          {
+            "file": "initialization/n8n/travel-tracker.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/travel-list.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/travel-search.json",
+            "type": "workflow"
+          }
+        ]
+      }
+    },
+    "storage": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store travel history, locations, achievements, and user preferences",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "schema"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": false,
+        "purpose": "Cache map data and user sessions for fast loading"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": false,
+        "purpose": "Store embeddings for semantic search of travel locations",
+        "initialization": [
+          {
+            "file": "initialization/qdrant/collections.json",
+            "type": "collection"
+          }
+        ]
+      }
+    },
+    "ai": {
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": false,
+        "purpose": "Generate travel recommendations and insights"
+      }
+    }
+  },
+  "lifecycle": {
+    "version": "1.0.0",
+    "setup": {
+      "description": "Initialize Travel Map Filler",
+      "steps": [
+        {
+          "name": "base-setup",
+          "run": "bash scripts/lib/setup.sh",
+          "description": "Execute generic setup"
+        },
+        {
+          "name": "add-data",
+          "run": "scripts/resources/injection/engine.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && chmod +x travel-map && ln -sf $(pwd)/travel-map /usr/local/bin/travel-map 2>/dev/null || true",
+          "description": "Install CLI command"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o travel-map-api main.go",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "setup-ui",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🗺️ Travel Map Filler initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${SERVICE_PORT}'",
+          "description": "Display service URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start Travel Map services",
+      "steps": [
+        {
+          "name": "start-api-server",
+          "run": "cd api && PORT=$SERVICE_PORT N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} POSTGRES_URL=postgres://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/travel_map REDIS_URL=redis://localhost:${RESOURCE_PORTS[redis]} ./travel-map-api &",
+          "description": "Start API server",
+          "background": true,
+          "condition": {
+            "file_exists": "api/travel-map-api"
+          }
+        },
+        {
+          "name": "start-ui-server",
+          "run": "cd ui && PORT=$UI_PORT API_URL=http://localhost:$SERVICE_PORT npm start &",
+          "description": "Start UI server",
+          "background": true
+        },
+        {
+          "name": "wait-for-services",
+          "run": "sleep 3",
+          "description": "Wait for services to start"
+        },
+        {
+          "name": "show-running",
+          "run": "echo '✈️ Travel Map running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${SERVICE_PORT}'",
+          "description": "Display running services"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test Travel Map services",
+      "steps": [
+        {
+          "name": "test-api",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/health",
+          "description": "Test API health"
+        },
+        {
+          "name": "test-travels",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/api/travels",
+          "description": "Test travels endpoint"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop Travel Map services",
+      "steps": [
+        {
+          "name": "stop-services",
+          "run": "pkill -f 'travel-map-api' || true; pkill -f 'npm.*travel-map' || true",
+          "description": "Stop all services"
+        }
+      ]
+    }
+  }
+}

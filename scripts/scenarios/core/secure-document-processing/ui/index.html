@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SecureVault Pro - Enterprise Document Security</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1e40af;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --bg-dark: #0f172a;
+            --bg-card: #1e293b;
+            --bg-hover: #334155;
+            --border: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, var(--bg-dark) 0%, #1a1f3a 100%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Security pattern background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: 
+                radial-gradient(circle at 20% 80%, rgba(37, 99, 235, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(16, 185, 129, 0.1) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* Navigation Header */
+        .nav-header {
+            background: rgba(30, 41, 59, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .nav-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--success) 100%);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        .logo-text {
+            font-size: 1.25rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+
+        .nav-stats {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .stat-value {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .security-badge {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid var(--success);
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .security-badge i {
+            color: var(--success);
+        }
+
+        .security-badge span {
+            color: var(--success);
+            font-weight: 500;
+            font-size: 0.875rem;
+        }
+
+        /* Main Layout */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 2rem;
+        }
+
+        /* Upload Area */
+        .upload-section {
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 2rem;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .upload-zone {
+            border: 2px dashed var(--border);
+            border-radius: 12px;
+            padding: 3rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .upload-zone:hover {
+            border-color: var(--primary);
+            background: rgba(37, 99, 235, 0.05);
+        }
+
+        .upload-zone.dragover {
+            border-color: var(--success);
+            background: rgba(16, 185, 129, 0.1);
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            color: var(--primary);
+            margin-bottom: 1rem;
+        }
+
+        .upload-text {
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+        }
+
+        .upload-button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.75rem 2rem;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .upload-button:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        /* Encryption Options */
+        .encryption-options {
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .option-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .option-label {
+            display: block;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        .option-select {
+            width: 100%;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 0.75rem;
+            border-radius: 8px;
+            font-size: 0.875rem;
+        }
+
+        .option-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            cursor: pointer;
+        }
+
+        .option-checkbox input {
+            width: 20px;
+            height: 20px;
+            accent-color: var(--primary);
+        }
+
+        /* Document List */
+        .document-list {
+            margin-top: 2rem;
+        }
+
+        .document-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.3s ease;
+        }
+
+        .document-item:hover {
+            background: var(--bg-hover);
+            transform: translateX(4px);
+        }
+
+        .document-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .document-icon {
+            width: 40px;
+            height: 40px;
+            background: rgba(37, 99, 235, 0.1);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary);
+        }
+
+        .document-details {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .document-name {
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .document-meta {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .document-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .status-encrypted {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+        }
+
+        .status-processing {
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--warning);
+        }
+
+        .status-pending {
+            background: rgba(100, 116, 139, 0.1);
+            color: var(--text-secondary);
+        }
+
+        /* Sidebar */
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        .sidebar-card {
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+
+        .card-title {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* Audit Log */
+        .audit-log {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .audit-entry {
+            padding: 0.75rem;
+            border-left: 3px solid transparent;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        .audit-entry.audit-success {
+            border-left-color: var(--success);
+            background: rgba(16, 185, 129, 0.05);
+        }
+
+        .audit-entry.audit-warning {
+            border-left-color: var(--warning);
+            background: rgba(245, 158, 11, 0.05);
+        }
+
+        .audit-entry.audit-danger {
+            border-left-color: var(--danger);
+            background: rgba(239, 68, 68, 0.05);
+        }
+
+        .audit-time {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .audit-message {
+            color: var(--text-secondary);
+            margin-top: 0.25rem;
+        }
+
+        /* Compliance Status */
+        .compliance-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .compliance-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .compliance-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+        }
+
+        .compliance-icon.compliant {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--success);
+        }
+
+        .compliance-icon.non-compliant {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--danger);
+        }
+
+        .compliance-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .stat-card {
+            background: var(--bg-hover);
+            padding: 1rem;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-card-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .stat-card-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-top: 0.25rem;
+        }
+
+        /* Loading Animation */
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .loading {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 1rem;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .nav-stats {
+                display: none;
+            }
+
+            .sidebar {
+                grid-template-columns: 1fr;
+            }
+
+            .compliance-grid, .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation Header -->
+    <nav class="nav-header">
+        <div class="nav-container">
+            <div class="logo">
+                <div class="logo-icon">
+                    <i class="fas fa-shield-alt"></i>
+                </div>
+                <div class="logo-text">SecureVault Pro</div>
+            </div>
+            <div class="nav-stats">
+                <div class="stat-item">
+                    <span class="stat-value" id="totalDocs">0</span>
+                    <span class="stat-label">Documents</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-value" id="encryptedDocs">0</span>
+                    <span class="stat-label">Encrypted</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-value" id="activeJobs">0</span>
+                    <span class="stat-label">Active Jobs</span>
+                </div>
+                <div class="security-badge">
+                    <i class="fas fa-lock"></i>
+                    <span>AES-256 Secured</span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <div class="container">
+        <div class="main-grid">
+            <!-- Main Content -->
+            <main>
+                <!-- Upload Section -->
+                <section class="upload-section">
+                    <div class="section-header">
+                        <h2 class="section-title">Secure Document Upload</h2>
+                        <button class="upload-button" onclick="processDocuments()">
+                            <i class="fas fa-play"></i> Process Queue
+                        </button>
+                    </div>
+
+                    <div class="upload-zone" id="uploadZone" ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)">
+                        <i class="fas fa-cloud-upload-alt upload-icon"></i>
+                        <p class="upload-text">Drag & drop files here or click to browse</p>
+                        <button class="upload-button" onclick="document.getElementById('fileInput').click()">
+                            Select Files
+                        </button>
+                        <input type="file" id="fileInput" multiple onchange="handleFileSelect(event)">
+                    </div>
+
+                    <!-- Encryption Options -->
+                    <div class="encryption-options">
+                        <h3 style="margin-bottom: 1rem; font-size: 1.125rem;">Security Options</h3>
+                        
+                        <div class="option-group">
+                            <label class="option-label">Encryption Level</label>
+                            <select class="option-select" id="encryptionLevel">
+                                <option value="aes256">AES-256-GCM (Recommended)</option>
+                                <option value="aes128">AES-128-GCM</option>
+                                <option value="rsa4096">RSA-4096 + AES-256</option>
+                                <option value="quantum">Quantum-Resistant (Experimental)</option>
+                            </select>
+                        </div>
+
+                        <div class="option-group">
+                            <label class="option-label">Compliance Framework</label>
+                            <select class="option-select" id="complianceFramework">
+                                <option value="hipaa">HIPAA</option>
+                                <option value="gdpr">GDPR</option>
+                                <option value="sox">SOX</option>
+                                <option value="pci">PCI-DSS</option>
+                                <option value="fedramp">FedRAMP</option>
+                            </select>
+                        </div>
+
+                        <div class="option-group">
+                            <label class="option-checkbox">
+                                <input type="checkbox" id="enableAudit" checked>
+                                <span>Enable audit logging</span>
+                            </label>
+                        </div>
+
+                        <div class="option-group">
+                            <label class="option-checkbox">
+                                <input type="checkbox" id="enableVersioning" checked>
+                                <span>Enable document versioning</span>
+                            </label>
+                        </div>
+
+                        <div class="option-group">
+                            <label class="option-checkbox">
+                                <input type="checkbox" id="enableRedaction">
+                                <span>Auto-redact sensitive data</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Document List -->
+                    <div class="document-list">
+                        <h3 style="margin-bottom: 1rem; font-size: 1.125rem;">Recent Documents</h3>
+                        <div id="documentList">
+                            <!-- Documents will be added here dynamically -->
+                        </div>
+                    </div>
+                </section>
+            </main>
+
+            <!-- Sidebar -->
+            <aside class="sidebar">
+                <!-- Audit Log -->
+                <div class="sidebar-card">
+                    <h3 class="card-title">
+                        <i class="fas fa-history"></i>
+                        Audit Log
+                    </h3>
+                    <div class="audit-log" id="auditLog">
+                        <div class="audit-entry audit-success">
+                            <div class="audit-time">2024-01-17 14:32:15</div>
+                            <div class="audit-message">System initialized with AES-256 encryption</div>
+                        </div>
+                        <div class="audit-entry audit-warning">
+                            <div class="audit-time">2024-01-17 14:32:10</div>
+                            <div class="audit-message">Vault connection established</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Compliance Status -->
+                <div class="sidebar-card">
+                    <h3 class="card-title">
+                        <i class="fas fa-check-circle"></i>
+                        Compliance Status
+                    </h3>
+                    <div class="compliance-grid">
+                        <div class="compliance-item">
+                            <div class="compliance-icon compliant">
+                                <i class="fas fa-check"></i>
+                            </div>
+                            <span class="compliance-label">HIPAA</span>
+                        </div>
+                        <div class="compliance-item">
+                            <div class="compliance-icon compliant">
+                                <i class="fas fa-check"></i>
+                            </div>
+                            <span class="compliance-label">GDPR</span>
+                        </div>
+                        <div class="compliance-item">
+                            <div class="compliance-icon compliant">
+                                <i class="fas fa-check"></i>
+                            </div>
+                            <span class="compliance-label">SOX</span>
+                        </div>
+                        <div class="compliance-item">
+                            <div class="compliance-icon non-compliant">
+                                <i class="fas fa-times"></i>
+                            </div>
+                            <span class="compliance-label">FedRAMP</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Processing Stats -->
+                <div class="sidebar-card">
+                    <h3 class="card-title">
+                        <i class="fas fa-chart-bar"></i>
+                        Processing Stats
+                    </h3>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-card-value">1.2s</div>
+                            <div class="stat-card-label">Avg Time</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-card-value">99.9%</div>
+                            <div class="stat-card-label">Success Rate</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-card-value">256</div>
+                            <div class="stat-card-label">Bit Encryption</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-card-value">5.4GB</div>
+                            <div class="stat-card-label">Processed</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="sidebar-card">
+                    <h3 class="card-title">
+                        <i class="fas fa-bolt"></i>
+                        Quick Actions
+                    </h3>
+                    <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                        <button class="upload-button" style="width: 100%;" onclick="exportAuditLog()">
+                            <i class="fas fa-download"></i> Export Audit Log
+                        </button>
+                        <button class="upload-button" style="width: 100%; background: var(--warning);" onclick="rotateKeys()">
+                            <i class="fas fa-key"></i> Rotate Keys
+                        </button>
+                        <button class="upload-button" style="width: 100%; background: var(--danger);" onclick="purgeExpired()">
+                            <i class="fas fa-trash"></i> Purge Expired
+                        </button>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
