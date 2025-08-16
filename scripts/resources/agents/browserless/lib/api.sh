@@ -583,8 +583,88 @@ export default async ({ page }) => {
     pageErrors: [],
     networkErrors: [],
     executionStatus: {},
+    screenshots: [],
     startTime: new Date().toISOString(),
     success: false
+  };
+  
+  const takeScreenshot = async (label) => {
+    try {
+      const buffer = await page.screenshot({ fullPage: false });
+      const base64 = buffer.toString('base64');
+      executionData.screenshots.push({
+        label,
+        timestamp: new Date().toISOString(),
+        length: base64.length,
+        data: base64.substring(0, 120000)
+      });
+      console.log(`Screenshot captured: ${label}`);
+    } catch (e) {
+      console.log('Screenshot failed:', e.message);
+    }
+  };
+  
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+  
+  const waitForStableUI = async (totalMs = 5000, stepMs = 400, requiredStable = 2) => {
+    const deadline = Date.now() + totalMs;
+    let prev = null;
+    let stableCount = 0;
+    while (Date.now() < deadline) {
+      const sig = await page.evaluate(() => {
+        const btn = document.querySelector('[data-test-id="execute-workflow-button"]');
+        const dropdown = document.querySelector('.action-dropdown-container button');
+        const nodes = document.querySelectorAll('*').length;
+        const bodyLen = document.body ? document.body.innerText.length : 0;
+        return { btn: !!btn, dropdown: !!dropdown, nodes, bodyLen };
+      }).catch(() => null);
+      if (!sig) { await sleep(stepMs); continue; }
+      const key = JSON.stringify(sig);
+      if (key === prev) {
+        stableCount += 1;
+        if (stableCount >= requiredStable) return true;
+      } else {
+        prev = key;
+        stableCount = 0;
+      }
+      await sleep(stepMs);
+    }
+    return false;
+  };
+  
+  const safeHas = async (selector, timeout = 1500, attempts = 3) => {
+    for (let i = 0; i < attempts; i++) {
+      try {
+        const el = await Promise.race([
+          page.$(selector),
+          sleep(timeout).then(() => null)
+        ]);
+        return el !== null;
+      } catch (e) {
+        if (String(e.message || '').includes('detached Frame')) {
+          await sleep(300);
+          continue;
+        }
+        throw e;
+      }
+    }
+    return false;
+  };
+  
+  const safeWaitForSelector = async (selector, timeout = 2000, attempts = 3) => {
+    for (let i = 0; i < attempts; i++) {
+      try {
+        await page.waitForSelector(selector, { timeout });
+        return true;
+      } catch (e) {
+        if (String(e.message || '').includes('detached Frame')) {
+          await sleep(300);
+          continue;
+        }
+        return false;
+      }
+    }
+    return false;
   };
   
   try {
@@ -616,20 +696,128 @@ export default async ({ page }) => {
       });
     });
     
+    console.log('Setting page default timeouts...');
+    try { page.setDefaultNavigationTimeout(%TIMEOUT%); } catch (e) { console.log('setDefaultNavigationTimeout failed:', e.message); }
+    try { page.setDefaultTimeout(%TIMEOUT%); } catch (e) { console.log('setDefaultTimeout failed:', e.message); }
     console.log('Navigating to workflow:', '%WORKFLOW_URL%');
     
-    // Navigate to workflow
-    await page.goto('%WORKFLOW_URL%', {
-      waitUntil: 'networkidle2',
-      timeout: %TIMEOUT%
-    });
+    // Navigate to workflow with better error handling
+    try {
+      await page.goto('%WORKFLOW_URL%', {
+        waitUntil: 'domcontentloaded',
+        timeout: %TIMEOUT%
+      });
+      await safeWaitForSelector('body', 5000);
+      await takeScreenshot('after-goto-workflow');
+    } catch (navError) {
+      console.log('Navigation error:', navError.message);
+      await takeScreenshot('goto-error');
+      // Continue anyway, might be a redirect to auth
+    }
     
-    // Check if we landed on a signin page and authenticate
+    // Wait a moment for any redirects and console errors to appear
+    await sleep(3000);
+    await takeScreenshot('post-redirect-wait');
+    
+    // Enhanced authentication detection and handling
     const currentUrl = page.url();
     console.log('Current URL after navigation:', currentUrl);
     
-    if (currentUrl.includes('/signin') || currentUrl.includes('/login')) {
+    // Check for authentication requirements using multiple patterns
+    console.log('Checking authentication requirements...');
+    
+    // URL-based checks
+    const urlCheck = currentUrl.includes('/signin') || currentUrl.includes('/login') || currentUrl.includes('/auth');
+    
+    // Console error-based checks (check for 401 Unauthorized errors)
+    let has401Error = false;
+    for (const log of executionData.consoleLogs) {
+      if (log.type === 'error' && log.text.includes('401') && log.text.includes('Unauthorized')) {
+        has401Error = true;
+        console.log('Found 401 Unauthorized error in console logs');
+        break;
+      }
+    }
+    
+    // Element-based checks with retry handling to mitigate detached frames
+    let emailFieldCheck = false;
+    try {
+      emailFieldCheck = await page.evaluate(() => !!document.querySelector('input[type="email"], [data-test-id="user-email"]'));
+    } catch (e) { emailFieldCheck = false; }
+    let inputEmailCheck = emailFieldCheck;
+    let signinClassCheck = false;
+    let loginFormCheck = false;
+    let passwordFieldCheck = false;
+    let executeButtonMissing = false;
+    
+    try {
+      signinClassCheck = await page.evaluate(() => !!document.querySelector('.signin'));
+    } catch (e) { signinClassCheck = false; }
+    
+    try {
+      loginFormCheck = await page.evaluate(() => !!document.querySelector('.login-form'));
+    } catch (e) { loginFormCheck = false; }
+    
+    try {
+      passwordFieldCheck = await page.evaluate(() => !!document.querySelector('input[type="password"]'));
+    } catch (e) { passwordFieldCheck = false; }
+    
+    try {
+      executeButtonMissing = await page.evaluate(() => !document.querySelector('[data-test-id="execute-workflow-button"]'));
+    } catch (e) { executeButtonMissing = false; }
+    
+    console.log('Auth detection results:');
+    console.log('  URL contains auth path:', urlCheck);
+    console.log('  Has 401 error:', has401Error);
+    console.log('  Has email test-id field:', emailFieldCheck);
+    console.log('  Has email input:', inputEmailCheck);
+    console.log('  Has signin class:', signinClassCheck);
+    console.log('  Has login form:', loginFormCheck);
+    console.log('  Has password field:', passwordFieldCheck);
+    console.log('  Execute button missing:', executeButtonMissing);
+    
+    const needsAuth = urlCheck || has401Error || emailFieldCheck || inputEmailCheck || 
+                     signinClassCheck || loginFormCheck || passwordFieldCheck || executeButtonMissing;
+    console.log('Authentication needed:', needsAuth);
+    
+    if (needsAuth) {
       console.log('Authentication required - attempting login');
+      
+      // If we detected 401 but not on login page, navigate to login
+      if (has401Error && !urlCheck) {
+        console.log('401 error detected but not on login page, navigating to signin');
+        const loginUrl = '%WORKFLOW_URL%'.replace('/workflow/', '/signin');
+        console.log('Login URL:', loginUrl);
+        
+        try {
+          await page.goto(loginUrl, {
+            waitUntil: 'networkidle2',
+            timeout: 15000
+          });
+          console.log('Successfully navigated to login page');
+          await takeScreenshot('login-page');
+        } catch (navError) {
+          console.log('Failed to navigate to login page:', navError.message);
+          // Try alternative login URL
+          const altLoginUrl = '%WORKFLOW_URL%'.replace('/workflow/', '/login');
+          try {
+            await page.goto(altLoginUrl, {
+              waitUntil: 'networkidle2', 
+              timeout: 15000
+            });
+            console.log('Successfully navigated to alternative login page');
+            await takeScreenshot('alt-login-page');
+          } catch (altNavError) {
+            console.log('Failed to navigate to alternative login page:', altNavError.message);
+            await takeScreenshot('login-nav-failed');
+            throw new Error('Cannot access login page');
+          }
+        }
+        
+        // Wait for login page to load
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        await takeScreenshot('login-page-waited');
+      }
       
       // Get credentials
       const email = '%N8N_EMAIL%';
@@ -638,36 +826,162 @@ export default async ({ page }) => {
       console.log('Using credentials for login');
       console.log('Email:', email);
       console.log('Password length:', password ? password.length : 0);
+      console.log('Email valid check:', email && email !== '%N8N_EMAIL%');
+      console.log('Password valid check:', password && password !== '%N8N_PASSWORD%');
       
-      if (email && password && email !== 'PLACEHOLDER_EMAIL' && password !== 'PLACEHOLDER_PASSWORD') {
-        // Fill login form using the proven working approach
-        await page.waitForSelector('input[type=email]', { timeout: 5000 });
-        await page.type('input[type=email]', email);
-        await page.type('input[type=password]', password);
+      if (email && password && email.length > 0 && password.length > 0) {
+        // Try multiple selectors for email/username field
+        const emailSelectors = [
+          '[data-test-id="user-email"]',
+          'input[type="email"]',
+          'input[name="email"]',
+          'input[placeholder*="email" i]',
+          'input[placeholder*="username" i]',
+          '#email',
+          '#username'
+        ];
         
-        // Use Enter key instead of button click (more reliable)
-        console.log('Submitting login form with Enter key');
-        await page.focus('input[type=password]');
-        await page.keyboard.press('Enter');
+        const passwordSelectors = [
+          '[data-test-id="user-password"]',
+          'input[type="password"]',
+          'input[name="password"]',
+          '#password'
+        ];
         
-        // Wait for login to complete with error handling
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        try {
-          await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 8000 });
-          console.log('Navigation completed after login');
-        } catch (navError) {
-          console.log('Navigation timeout, checking current URL');
+        let emailField = null;
+        let passwordField = null;
+        
+        // Find email field
+        // Prefer evaluation to avoid frame detaches
+        for (const selector of emailSelectors) {
+          const found = await page.evaluate((sel) => !!document.querySelector(sel), selector).catch(() => false);
+          if (found) {
+            emailField = selector;
+            console.log(`Found email field: ${selector}`);
+            break;
+          }
         }
         
-        console.log('Login completed, new URL:', page.url());
-        
-        // Check if login was successful
-        const afterLoginUrl = page.url();
-        if (afterLoginUrl.includes('/signin') || afterLoginUrl.includes('/login')) {
-          throw new Error('Login failed - still on signin page');
+        // Find password field
+        for (const selector of passwordSelectors) {
+          const found = await page.evaluate((sel) => !!document.querySelector(sel), selector).catch(() => false);
+          if (found) {
+            passwordField = selector;
+            console.log(`Found password field: ${selector}`);
+            break;
+          }
         }
         
-        console.log('Authentication successful');
+        if (emailField && passwordField) {
+          // Clear and fill login form
+          // Fill via evaluate to reduce selector race
+          await page.evaluate(({ emailField, email }) => {
+            const el = document.querySelector(emailField);
+            if (el) { (el).value = ''; (el).dispatchEvent(new Event('input', { bubbles: true })); (el).focus(); }
+          }, { emailField, email });
+          await page.type(emailField, email);
+          await takeScreenshot('email-filled');
+          await page.evaluate(({ passwordField }) => {
+            const el = document.querySelector(passwordField);
+            if (el) { (el).value = ''; (el).dispatchEvent(new Event('input', { bubbles: true })); (el).focus(); }
+          }, { passwordField });
+          await page.type(passwordField, password);
+          await takeScreenshot('password-filled');
+          
+          // Small settle to avoid frame detaches
+          await sleep(300);
+          
+          // Submit form - try button first, then Enter key
+          try {
+            const submitSelectors = [
+              'button[type="submit"]',
+              'button[data-test-id="signin-button"]',
+              'button:contains("Sign in")',
+              'button:contains("Login")',
+              '.signin-button',
+              '.login-button'
+            ];
+            
+            let submitted = false;
+            for (const selector of submitSelectors) {
+              try {
+                await page.waitForSelector(selector, { timeout: 1000 });
+                await page.click(selector);
+                await takeScreenshot(`clicked-submit-${selector}`);
+                console.log(`Clicked submit button: ${selector}`);
+                submitted = true;
+                break;
+              } catch (e) {
+                // Continue to next selector
+              }
+            }
+            
+            if (!submitted) {
+              // Fallback to Enter key
+              console.log('No submit button found, using Enter key');
+              await page.focus(passwordField);
+              await page.keyboard.press('Enter');
+            }
+          } catch (submitError) {
+            console.log('Submit button not found, using Enter key');
+            await page.focus(passwordField);
+            await page.keyboard.press('Enter');
+          }
+          
+          // Wait for login to complete with error handling
+          await new Promise(resolve => setTimeout(resolve, 3000));
+          await takeScreenshot('post-login-wait');
+          // Prefer waiting for app content rather than navigation event (SPA)
+          try {
+            await page.waitForFunction(() => !!document.querySelector('[data-test-id="execute-workflow-button"], .action-dropdown-container button'), { timeout: 20000 });
+            console.log('Detected app UI after login');
+          } catch (navError) {
+            console.log('UI not detected after login, will continue');
+          }
+          
+          await sleep(500);
+          await takeScreenshot('after-login-navigation');
+          console.log('Login completed, new URL:', page.url());
+          
+          // Stabilize UI after login (short)
+          console.log('Waiting for stable UI...');
+          await waitForStableUI(2000, 400, 2);
+          await takeScreenshot('after-login-stable');
+          
+          // Check if login was successful
+          const afterLoginUrl = page.url();
+          const stillNeedsAuth = afterLoginUrl.includes('/signin') || 
+                               afterLoginUrl.includes('/login') ||
+                               afterLoginUrl.includes('/auth') ||
+                               await page.evaluate(() => !!document.querySelector('[data-test-id="user-email"]')).catch(() => false);
+          
+          if (stillNeedsAuth) {
+            throw new Error('Login failed - still on authentication page');
+          }
+          
+          console.log('Authentication successful');
+          
+          // Navigate back to workflow after successful authentication
+          const currentUrlAfterAuth = page.url();
+          if (!currentUrlAfterAuth.includes('/workflow/')) {
+            console.log('Navigating back to workflow after authentication');
+            try {
+              await page.goto('%WORKFLOW_URL%', {
+                waitUntil: 'domcontentloaded',
+                timeout: 15000
+              });
+              await takeScreenshot('workflow-after-auth');
+              console.log('Successfully returned to workflow page');
+            } catch (returnNavError) {
+              console.log('Warning: Failed to return to workflow page:', returnNavError.message);
+              await takeScreenshot('return-to-workflow-failed');
+              // Continue anyway, might still work
+            }
+          }
+          
+        } else {
+          throw new Error('Login form fields not found');
+        }
       } else {
         throw new Error('Authentication required but no valid credentials provided');
       }
@@ -676,11 +990,13 @@ export default async ({ page }) => {
     // Wait for page to load after potential authentication
     await new Promise(resolve => setTimeout(resolve, 3000));
     
+    await takeScreenshot('before-find-execute');
     console.log('Looking for execute button...');
     
-    // Try multiple selectors for execute button
+    // Enhanced execute button logic with trigger selection
     const executeSelectors = [
       '[data-test-id="execute-workflow-button"]',
+      'button[aria-label="Execute workflow"]',
       'button[title*="Execute"]',
       'button[title*="Run"]',
       '.execute-button',
@@ -689,23 +1005,116 @@ export default async ({ page }) => {
     
     let executeButton = null;
     for (const selector of executeSelectors) {
-      try {
-        console.log(`Trying execute selector: ${selector}`);
-        await page.waitForSelector(selector, { timeout: 3000 });
+      console.log(`Trying execute selector: ${selector}`);
+      const found = await page.evaluate((sel) => !!document.querySelector(sel), selector).catch(() => false);
+      if (found) {
         executeButton = selector;
         console.log(`Found execute button: ${selector}`);
         break;
-      } catch (e) {
+      } else {
         console.log(`Execute selector ${selector} not found`);
       }
     }
     
     if (!executeButton) {
+      await takeScreenshot('no-execute-button');
       throw new Error('No execute button found');
     }
     
+    await takeScreenshot('execute-button-found');
+    
+    // Check if there's a dropdown for trigger selection - look for chevron specifically
+    const dropdownSelector = '[data-test-id="execute-workflow-button"] ._chevron_p52lz_142, .action-dropdown-container button, ._chevron_p52lz_142';
+    let hasDropdown = await page.evaluate((sel) => !!document.querySelector(sel), dropdownSelector).catch(() => false);
+    
+          if (hasDropdown) {
+        console.log('Opening trigger selection dropdown...');
+        // Click the chevron directly
+        const opened = await page.evaluate((sel) => {
+          const chevron = document.querySelector(sel);
+          if (chevron) { 
+            chevron.dispatchEvent(new MouseEvent('click', { bubbles: true })); 
+            return true; 
+          }
+          return false;
+        }, dropdownSelector).catch(() => false);
+        console.log('Dropdown chevron clicked:', opened);
+        await new Promise(resolve => setTimeout(resolve, 500)); // Brief wait for dropdown
+        await takeScreenshot('dropdown-opened');
+      
+      // Wait for dropdown menu to appear
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      await takeScreenshot('dropdown-waited');
+      
+      // Look for Manual Trigger option by text using evaluate
+      let manualTriggerFound = await page.evaluate(() => {
+        const candidates = Array.from(document.querySelectorAll('.el-dropdown-menu__item, li, [role="menuitem"], .dropdown-item, button, a'));
+        const match = candidates.find(el => /manual trigger|manual/i.test(el.textContent || ''));
+        if (match) {
+          match.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+          return true;
+        }
+        return false;
+      }).catch(() => false);
+      
+      if (!manualTriggerFound) {
+        // Secondary scan within any open popover containers
+        manualTriggerFound = await page.evaluate(() => {
+          const popovers = Array.from(document.querySelectorAll('[role="menu"], .el-dropdown-menu, .el-popper'));
+          for (const pop of popovers) {
+            const items = Array.from(pop.querySelectorAll('*'));
+            const match = items.find(el => /manual trigger|manual/i.test(el.textContent || ''));
+            if (match) {
+              match.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+              return true;
+            }
+          }
+          return false;
+        }).catch(() => false);
+      }
+      
+      if (!manualTriggerFound) {
+        console.log('Manual trigger option not found in dropdown, proceeding with default');
+        await takeScreenshot('manual-trigger-not-found');
+        // Close dropdown by clicking elsewhere
+        await page.click('body');
+      } else {
+        console.log('Manual trigger selected successfully');
+        await takeScreenshot('manual-trigger-selected');
+        // Wait for dropdown to close and button to update
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Verify main execute shows Manual selected
+        try {
+          await page.waitForFunction(() => {
+            const btn = document.querySelector('[data-test-id="execute-workflow-button"]');
+            return btn && /manual/i.test(btn.textContent || '');
+          }, { timeout: 4000 });
+          console.log('Verified: Execute button shows Manual selected');
+          await takeScreenshot('manual-verified');
+        } catch (e) {
+          console.log('Warning: Execute button did not update to Manual in time');
+          await takeScreenshot('manual-verify-failed');
+        }
+      }
+    }
+    
     console.log('Clicking execute button...');
-    await page.click(executeButton);
+    await takeScreenshot('before-click-execute');
+    // Click via evaluate to avoid handle invalidation during frame swaps
+    await page.evaluate((sel) => {
+      const el = document.querySelector(sel);
+      if (el) (el).dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    }, executeButton);
+    await takeScreenshot('after-click-execute');
+    
+    // Additional fallback: trigger run via keyboard shortcut (Ctrl/Cmd + Enter)
+    try {
+      await page.keyboard.down('Control');
+      await page.keyboard.press('Enter');
+      await page.keyboard.up('Control');
+      console.log('Fallback: triggered Ctrl+Enter');
+      await takeScreenshot('after-hotkey-execute');
+    } catch (e) { /* ignore */ }
     
     // If input data is provided, try to fill it in
     const inputData = '%INPUT_DATA%';
@@ -783,11 +1192,12 @@ export default async ({ page }) => {
       }
     }
     
+    await takeScreenshot('before-monitoring');
     console.log('Workflow execution triggered, monitoring...');
     
-    // Wait and monitor for execution completion
+    // Wait and monitor for execution completion (cap polls for debug visibility)
     let pollCount = 0;
-    const maxPolls = Math.floor(%TIMEOUT% / 2000); // Poll every 2 seconds
+    const maxPolls = Math.max(1, Math.min(3, Math.floor(%TIMEOUT% / 2000))); // Poll every 2s, up to 3 polls
     
     while (pollCount < maxPolls) {
       await new Promise(resolve => setTimeout(resolve, 2000));
@@ -896,7 +1306,7 @@ EOF
     
     # Execute the function via browserless
     local response
-    response=$(curl -X POST "$BROWSERLESS_BASE_URL/chrome/function" \
+    response=$(curl -X POST "$BROWSERLESS_BASE_URL/chrome/function?timeout=$timeout" \
         -H "Content-Type: application/javascript" \
         -d "$function_code" \
         --silent \
