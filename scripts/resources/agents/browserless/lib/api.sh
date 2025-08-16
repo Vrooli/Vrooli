@@ -188,6 +188,7 @@ browserless::test_pdf() {
     browserless::ensure_test_output_dir
     
     local output_file="${2:-${OUTPUT:-$BROWSERLESS_TEST_OUTPUT_DIR/document_test.pdf}}"
+    local temp_file="/tmp/browserless_pdf_$$"
     
     log::header "${MSG_USAGE_PDF}"
     
@@ -199,7 +200,9 @@ browserless::test_pdf() {
     log::info "Generating PDF from: $test_url"
     log::info "Output file: $output_file"
     
-    if curl -X POST "$BROWSERLESS_BASE_URL/chrome/pdf" \
+    # First save to temp file and capture HTTP status
+    local http_status
+    http_status=$(curl -X POST "$BROWSERLESS_BASE_URL/chrome/pdf" \
         -H "Content-Type: application/json" \
         -d "{
             \"url\": \"$test_url\",
@@ -214,18 +217,69 @@ browserless::test_pdf() {
                 }
             }
         }" \
-        --output "$output_file" \
+        --output "$temp_file" \
+        --write-out "%{http_code}" \
         --silent \
         --show-error \
-        --max-time 60; then
-        
-        log::success "✓ PDF saved to: $output_file"
-        if [[ -f "$output_file" ]]; then
-            log::info "File size: $(du -h "$output_file" | cut -f1)"
+        --max-time 60)
+    
+    local curl_exit_code=$?
+    
+    # Check curl succeeded
+    if [[ $curl_exit_code -ne 0 ]]; then
+        log::error "Failed to connect to browserless service (exit code: $curl_exit_code)"
+        trash::safe_remove "$temp_file" --temp
+        return 1
+    fi
+    
+    # Check HTTP status
+    if [[ "$http_status" != "200" ]]; then
+        log::error "PDF request failed with HTTP status: $http_status"
+        if [[ -f "$temp_file" ]]; then
+            log::debug "Error response: $(head -c 200 "$temp_file" 2>/dev/null || echo 'No response body')"
+            trash::safe_remove "$temp_file" --temp
         fi
+        return 1
+    fi
+    
+    # Validate file exists and has content
+    if [[ ! -f "$temp_file" ]] || [[ ! -s "$temp_file" ]]; then
+        log::error "No PDF data received"
+        trash::safe_remove "$temp_file" --temp
+        return 1
+    fi
+    
+    # Check if it's actually a PDF using file command
+    if command -v file &> /dev/null; then
+        local file_type
+        file_type=$(file -b --mime-type "$temp_file" 2>/dev/null || echo "unknown")
+        if [[ "$file_type" != application/pdf ]]; then
+            log::error "Response is not a PDF (detected: $file_type)"
+            log::debug "Response preview: $(head -c 100 "$temp_file" 2>/dev/null || echo 'Cannot read file')"
+            trash::safe_remove "$temp_file" --temp
+            return 1
+        fi
+    fi
+    
+    # Check minimum file size (real PDFs should be at least a few KB)
+    local file_size
+    file_size=$(stat -f%z "$temp_file" 2>/dev/null || stat -c%s "$temp_file" 2>/dev/null || echo "0")
+    if [[ "$file_size" -lt 1024 ]]; then
+        log::error "PDF file too small ($file_size bytes) - likely an error message"
+        log::debug "Content: $(cat "$temp_file" 2>/dev/null || echo 'Cannot read file')"
+        trash::safe_remove "$temp_file" --temp
+        return 1
+    fi
+    
+    # All checks passed, move to final location
+    if mv "$temp_file" "$output_file"; then
+        log::success "✓ PDF saved to: $output_file"
+        log::info "File size: $(du -h "$output_file" | cut -f1)"
+        log::info "Validated as: $(file -b --mime-type "$output_file" 2>/dev/null || echo 'PDF file')"
         return 0
     else
-        log::error "Failed to generate PDF"
+        log::error "Failed to save PDF to: $output_file"
+        trash::safe_remove "$temp_file" --temp
         return 1
     fi
 }
@@ -573,6 +627,8 @@ export default async ({ page }) => {
     // Check if we landed on a signin page
     const currentUrl = page.url();
     console.log('Current URL after navigation:', currentUrl);
+    console.log('URL includes signin:', currentUrl.includes('/signin'));
+    console.log('URL includes login:', currentUrl.includes('/login'));
     
     if (currentUrl.includes('/signin') || currentUrl.includes('/login')) {
       console.log('Authentication required - attempting login');
@@ -584,6 +640,11 @@ export default async ({ page }) => {
         // Fill in credentials using environment variables passed from shell
         const email = '%N8N_EMAIL%';
         const password = '%N8N_PASSWORD%';
+        
+        console.log('Credential check - email:', email);
+        console.log('Credential check - password length:', password ? password.length : 0);
+        console.log('Email placeholder check:', email !== '%N8N_EMAIL%');
+        console.log('Password placeholder check:', password !== '%N8N_PASSWORD%');
         
         if (email && email !== '%N8N_EMAIL%' && password && password !== '%N8N_PASSWORD%') {
           console.log('Using provided credentials for login');
@@ -782,6 +843,20 @@ EOF
     # Inject N8N credentials if available
     local n8n_email="${N8N_EMAIL:-}"
     local n8n_password="${N8N_PASSWORD:-}"
+    
+    # Log credential status  
+    if [[ -n "$n8n_email" ]]; then
+        log::info "🔐 Found N8N email credential: $n8n_email"
+    else
+        log::info "⚠️  No N8N_EMAIL environment variable found"
+    fi
+    
+    if [[ -n "$n8n_password" ]]; then
+        log::info "🔐 Found N8N password credential: [${#n8n_password} characters]"
+    else
+        log::info "⚠️  No N8N_PASSWORD environment variable found"
+    fi
+    
     function_code="${function_code//%N8N_EMAIL%/$n8n_email}"
     function_code="${function_code//%N8N_PASSWORD%/$n8n_password}"
     

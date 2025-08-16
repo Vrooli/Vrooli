@@ -99,7 +99,7 @@ browserless_screenshot() {
         return 1
     fi
     
-    browserless::screenshot "$url" "$output"
+    browserless::safe_screenshot "$url" "$output"
 }
 
 # Generate PDF
@@ -113,7 +113,7 @@ browserless_pdf() {
         return 1
     fi
     
-    browserless::pdf "$url" "$output"
+    browserless::test_pdf "$url" "$output"
 }
 
 # Test all APIs

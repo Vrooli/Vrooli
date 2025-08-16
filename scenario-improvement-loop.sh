@@ -20,9 +20,9 @@ LOG_FILE="${PROJECT_DIR}/scenario-improvement-loop.log"
 PID_FILE="${PROJECT_DIR}/scenario-improvement-loop.pid"
 
 # Configuration
-INTERVAL_SECONDS=180  # 3 minutes (allows overlap between Claude instances)
+INTERVAL_SECONDS=300  # 5 minutes (allows overlap between Claude instances)
 MAX_TURNS=20
-TIMEOUT=3600  # 1 hour timeout per execution
+TIMEOUT=1800  # 30 minutes timeout per execution
 MAX_CONCURRENT_CLAUDE=5  # Maximum concurrent Claude processes
 RUNNING_PIDS_FILE="${PROJECT_DIR}/claude-pids.txt"
 
