@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# n8n Docker Management - Minimal wrapper delegating to core
+# n8n Docker Management - Simplified using docker-resource-utils.sh
 
 # Source guard to prevent multiple sourcing
 [[ -n "${_N8N_DOCKER_SOURCED:-}" ]] && return 0
@@ -11,7 +11,7 @@ N8N_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck disable=SC1091
 source "${N8N_LIB_DIR}/../../../../lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "${var_SCRIPTS_RESOURCES_LIB_DIR}/docker-utils.sh"
+source "${var_SCRIPTS_RESOURCES_LIB_DIR}/docker-resource-utils.sh"
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_LIB_DIR}/wait-utils.sh"
 # shellcheck disable=SC1091
@@ -60,13 +60,13 @@ n8n::start() {
     # Start database if needed
     if [[ "$DATABASE_TYPE" == "postgres" ]] && n8n::postgres_exists && ! n8n::postgres_running; then
         log::info "Starting PostgreSQL..."
-        docker start "$N8N_DB_CONTAINER_NAME" >/dev/null 2>&1
-        sleep 3
+        docker::start_container "$N8N_DB_CONTAINER_NAME"
+        sleep ${N8N_DB_START_WAIT:-3}
     fi
     
     # Start n8n
     log::info "Starting n8n..."
-    docker start "$N8N_CONTAINER_NAME" >/dev/null 2>&1
+    docker::start_container "$N8N_CONTAINER_NAME"
     
     # Wait for ready
     # wait::for_http expects: (url, expected_code, timeout, headers)
@@ -74,13 +74,19 @@ n8n::start() {
         log::success "✅ n8n is ready on port $N8N_PORT"
         log::info "Access n8n at: $N8N_BASE_URL"
         
-        # Update firewall rules for Docker-to-host connectivity
+        # Optionally update firewall rules for Docker-to-host connectivity
         # This ensures n8n can reach native services like Ollama
-        if [[ -f "${var_ROOT_DIR}/scripts/lib/firewall/firewall.sh" ]]; then
-            log::debug "Updating firewall rules for Docker connectivity..."
-            sudo "${var_ROOT_DIR}/scripts/lib/firewall/firewall.sh" setup 2>/dev/null || {
-                log::debug "Firewall update requires sudo (skipped)"
-            }
+        # Only runs if N8N_UPDATE_FIREWALL is explicitly set to "true"
+        if [[ "${N8N_UPDATE_FIREWALL:-false}" == "true" ]] && [[ -f "${var_ROOT_DIR}/scripts/lib/firewall/firewall.sh" ]]; then
+            log::info "Updating firewall rules for Docker connectivity (requires sudo)..."
+            if sudo "${var_ROOT_DIR}/scripts/lib/firewall/firewall.sh" setup 2>/dev/null; then
+                log::debug "Firewall rules updated successfully"
+            else
+                log::warn "Failed to update firewall rules - n8n may not reach host services"
+                log::info "To manually update: sudo ${var_ROOT_DIR}/scripts/lib/firewall/firewall.sh setup"
+            fi
+        elif [[ "${N8N_UPDATE_FIREWALL:-false}" == "true" ]]; then
+            log::debug "Firewall script not found - skipping firewall update"
         fi
         
         return 0
@@ -96,13 +102,13 @@ n8n::start() {
 n8n::stop() {
     log::info "Stopping n8n..."
     
-    if docker::is_running "$N8N_CONTAINER_NAME"; then
-        docker stop "$N8N_CONTAINER_NAME" >/dev/null 2>&1
+    if docker::container_exists "$N8N_CONTAINER_NAME"; then
+        docker::stop_container "$N8N_CONTAINER_NAME"
     fi
     
     if [[ "$DATABASE_TYPE" == "postgres" ]] && n8n::postgres_running; then
         log::info "Stopping PostgreSQL..."
-        docker stop "$N8N_DB_CONTAINER_NAME" >/dev/null 2>&1
+        docker::stop_container "$N8N_DB_CONTAINER_NAME"
     fi
     
     log::info "n8n stopped"
@@ -114,7 +120,7 @@ n8n::stop() {
 n8n::restart() {
     log::info "Restarting n8n..."
     n8n::stop
-    sleep 2
+    sleep ${N8N_RESTART_WAIT:-2}
     n8n::start
 }
 
@@ -128,10 +134,6 @@ n8n::logs() {
     fi
     
     log::info "Showing n8n logs (last ${LINES:-50} lines)..."
-    docker logs --tail "${LINES:-50}" "$N8N_CONTAINER_NAME"
+    docker::get_logs "$N8N_CONTAINER_NAME" "${LINES:-50}"
 }
-
-
-
-
 

@@ -16,8 +16,8 @@ fi
 # Define fallback functions if not loaded
 if ! declare -f judge0::is_running >/dev/null 2>&1; then
     judge0::is_running() {
-        if declare -f judge0::docker::is_running >/dev/null 2>&1; then
-            judge0::docker::is_running
+        if declare -f docker::is_running >/dev/null 2>&1; then
+            docker::is_running "${JUDGE0_CONTAINER_NAME:-vrooli-judge0-server}"
         else
             # Fallback check
             docker ps --format "{{.Names}}" | grep -q "^${JUDGE0_CONTAINER_NAME:-vrooli-judge0-server}$"

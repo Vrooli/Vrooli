@@ -441,6 +441,122 @@ docker_resource::find_available_port() {
 }
 
 #######################################
+# Create service with multiple port mappings
+# Args: $1 - name, $2 - image, $3 - network, $4 - volumes (space-separated),
+#       $5 - health_cmd, $6 - port_mappings (space-separated "host:container" pairs)
+# Returns: 0 on success, 1 on failure
+#######################################
+docker_resource::create_multi_port_service() {
+    local name="$1"
+    local image="$2"
+    local network="$3"
+    local volumes="$4"
+    local health_cmd="$5"
+    local port_mappings="$6"
+    
+    log::debug "Creating multi-port service container: $name"
+    
+    # Create network
+    docker::create_network "$network"
+    
+    # Build docker run command
+    local cmd=("docker" "run" "-d")
+    cmd+=("--name" "$name")
+    cmd+=("--network" "$network")
+    cmd+=("--restart" "unless-stopped")
+    
+    # Add port mappings
+    if [[ -n "$port_mappings" ]]; then
+        for port_map in $port_mappings; do
+            cmd+=("-p" "$port_map")
+        done
+    fi
+    
+    # Add volumes
+    if [[ -n "$volumes" ]]; then
+        for volume in $volumes; do
+            cmd+=("-v" "$volume")
+        done
+    fi
+    
+    # Add health check if specified
+    if [[ -n "$health_cmd" ]]; then
+        cmd+=("--health-cmd" "$health_cmd")
+        cmd+=("--health-interval" "30s")
+        cmd+=("--health-timeout" "5s")
+        cmd+=("--health-retries" "3")
+    fi
+    
+    # Add image
+    cmd+=("$image")
+    
+    # Execute command
+    "${cmd[@]}" >/dev/null 2>&1
+}
+
+#######################################
+# Create service with additional Docker options
+# Args: $1 - name, $2 - image, $3 - port_mappings, $4 - network,
+#       $5 - volumes, $6 - health_cmd, $7 - docker_opts (additional docker run options)
+# Returns: 0 on success, 1 on failure
+#######################################
+docker_resource::create_service_with_opts() {
+    local name="$1"
+    local image="$2"
+    local port_mappings="$3"
+    local network="$4"
+    local volumes="$5"
+    local health_cmd="$6"
+    local docker_opts="$7"
+    
+    log::debug "Creating service container with options: $name"
+    
+    # Create network
+    docker::create_network "$network"
+    
+    # Build docker run command
+    local cmd=("docker" "run" "-d")
+    cmd+=("--name" "$name")
+    cmd+=("--network" "$network")
+    cmd+=("--restart" "unless-stopped")
+    
+    # Add port mappings
+    if [[ -n "$port_mappings" ]]; then
+        for port_map in $port_mappings; do
+            cmd+=("-p" "$port_map")
+        done
+    fi
+    
+    # Add volumes
+    if [[ -n "$volumes" ]]; then
+        for volume in $volumes; do
+            cmd+=("-v" "$volume")
+        done
+    fi
+    
+    # Add custom Docker options (e.g., --shm-size, --cap-add, etc.)
+    if [[ -n "$docker_opts" ]]; then
+        # Parse docker_opts as an array to handle options with values
+        eval "local opts_array=($docker_opts)"
+        cmd+=("${opts_array[@]}")
+    fi
+    
+    # Add health check if specified
+    if [[ -n "$health_cmd" ]]; then
+        cmd+=("--health-cmd" "$health_cmd")
+        cmd+=("--health-interval" "30s")
+        cmd+=("--health-timeout" "5s")
+        cmd+=("--health-retries" "3")
+    fi
+    
+    # Add image
+    cmd+=("$image")
+    
+    # Execute command
+    "${cmd[@]}" >/dev/null 2>&1
+}
+
+#######################################
 # Safe data removal with confirmation
 # Args: $1 - resource_name, $2 - data_paths (space-separated), $3 - force (yes/no)
 # Returns: 0 on success, 1 on failure
@@ -470,4 +586,190 @@ docker_resource::remove_data() {
     
     log::success "✅ $resource_name data removed"
     return 0
+}
+
+#######################################
+# Execute command in container with running check
+# Args: $1 - container_name, $@ - command to execute
+# Returns: Command exit code
+#######################################
+docker_resource::exec() {
+    local container_name="$1"
+    shift
+    
+    if ! docker::is_running "$container_name"; then
+        log::error "Container is not running: $container_name"
+        return 1
+    fi
+    
+    docker::exec "$container_name" "$@"
+}
+
+#######################################
+# Execute command with interactive TTY support
+# Args: $1 - container_name, $@ - command to execute
+# Returns: Command exit code
+#######################################
+docker_resource::exec_interactive() {
+    local container_name="$1"
+    shift
+    
+    if ! docker::is_running "$container_name"; then
+        log::error "Container is not running: $container_name"
+        return 1
+    fi
+    
+    # Use -it only if we have a TTY
+    local docker_flags=""
+    if [[ -t 0 ]]; then
+        docker_flags="-it"
+    fi
+    
+    docker exec $docker_flags "$container_name" "$@"
+}
+
+#######################################
+# Get container statistics wrapper
+# Args: $1 - container_name, $2 - format (optional)
+# Returns: Stats via stdout
+#######################################
+docker_resource::get_stats() {
+    local container_name="$1"
+    local format="${2:-}"
+    
+    if ! docker::is_running "$container_name"; then
+        log::error "Container is not running: $container_name"
+        return 1
+    fi
+    
+    if [[ -n "$format" ]] && [[ "$format" == "json" ]]; then
+        docker stats "$container_name" --no-stream --format "json" 2>/dev/null
+    else
+        docker::get_stats "$container_name"
+    fi
+}
+
+#######################################
+# Show standardized connection info for a resource
+# Args: $1 - resource_name, $2 - primary_url, $@ - additional info lines
+# Example: docker_resource::show_connection_info "QuestDB" "http://localhost:9000" "PostgreSQL: localhost:8812" "InfluxDB: localhost:9009"
+#######################################
+docker_resource::show_connection_info() {
+    local resource_name="$1"
+    local primary_url="$2"
+    shift 2
+    
+    log::info "${resource_name} Connection Information:"
+    log::info "  Primary URL: ${primary_url}"
+    
+    # Print any additional info lines
+    for info_line in "$@"; do
+        log::info "  ${info_line}"
+    done
+}
+
+#######################################
+# Generate standardized client metadata JSON
+# Args: $1 - client_id, $2 - resource, $3 - container, $4 - network, $5 - port(s), $6 - base_url
+# Returns: JSON string via stdout
+#######################################
+docker_resource::generate_client_metadata() {
+    local client_id="$1"
+    local resource="$2"
+    local container="$3"
+    local network="$4"
+    local ports="$5"  # Can be single port or JSON object for multi-port
+    local base_url="$6"
+    
+    # Check if ports is a JSON object (contains '{')
+    if [[ "$ports" == *"{"* ]]; then
+        # Multi-port JSON object
+        cat << EOF
+{
+  "clientId": "${client_id}",
+  "resource": "${resource}",
+  "container": "${container}",
+  "network": "${network}",
+  "ports": ${ports},
+  "baseUrl": "${base_url}",
+  "created": "$(date -Iseconds)"
+}
+EOF
+    else
+        # Single port number
+        cat << EOF
+{
+  "clientId": "${client_id}",
+  "resource": "${resource}",
+  "container": "${container}",
+  "network": "${network}",
+  "port": ${ports},
+  "baseUrl": "${base_url}",
+  "created": "$(date -Iseconds)"
+}
+EOF
+    fi
+}
+
+#######################################
+# Simplified client instance creation for multi-port resources
+# Args: $1 - resource_name, $2 - client_id, $3 - image, $4 - port_ranges (JSON), $5 - volumes, $6 - env_vars
+# Returns: 0 on success with port info via stdout, 1 on failure
+#######################################
+docker_resource::create_multi_port_client() {
+    local resource_name="$1"
+    local client_id="$2"
+    local image="$3"
+    local port_ranges="$4"  # JSON like {"http": [9000, 9050], "pg": [8812, 8850]}
+    local volumes="$5"
+    local env_vars="$6"
+    
+    local client_container="${resource_name}-client-${client_id}"
+    local client_network="vrooli-${client_id}-network"
+    
+    # Create network
+    docker::create_network "$client_network"
+    
+    # Allocate ports based on ranges
+    local allocated_ports="{}"
+    local port_mappings=""
+    
+    # Parse port ranges and allocate (simplified for now - would need jq in production)
+    # For demonstration, using fixed offsets
+    local base_offset=$((RANDOM % 100))
+    
+    # Build docker command
+    local cmd=("docker" "run" "-d")
+    cmd+=("--name" "$client_container")
+    cmd+=("--network" "$client_network")
+    cmd+=("--restart" "unless-stopped")
+    
+    # Add port mappings (resource-specific logic needed here)
+    for port_map in $port_mappings; do
+        cmd+=("-p" "$port_map")
+    done
+    
+    # Add volumes
+    if [[ -n "$volumes" ]]; then
+        for volume in $volumes; do
+            cmd+=("-v" "$volume")
+        done
+    fi
+    
+    # Add environment variables
+    if [[ -n "$env_vars" ]]; then
+        for env_var in $env_vars; do
+            cmd+=("-e" "$env_var")
+        done
+    fi
+    
+    cmd+=("$image")
+    
+    # Execute
+    if "${cmd[@]}" >/dev/null 2>&1; then
+        echo "$allocated_ports"
+        return 0
+    else
+        return 1
+    fi
 }

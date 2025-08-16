@@ -136,8 +136,8 @@ comfyui::cli_logs() {
     local lines="${1:-50}"
     local container_name="${COMFYUI_CONTAINER_NAME:-comfyui}"
     
-    if command -v docker::logs &>/dev/null; then
-        docker::logs
+    if command -v comfyui::docker::logs &>/dev/null; then
+        comfyui::docker::logs
     else
         docker logs --tail "$lines" "$container_name"
     fi

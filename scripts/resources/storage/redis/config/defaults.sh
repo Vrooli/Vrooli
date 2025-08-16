@@ -39,7 +39,7 @@ REDIS_PROTECTED_MODE="${REDIS_PROTECTED_MODE:-no}"  # Disabled for local develop
 
 # Logging Configuration
 REDIS_LOGLEVEL="${REDIS_LOGLEVEL:-notice}"  # Options: debug, verbose, notice, warning
-REDIS_LOGFILE="${REDIS_LOGFILE:-/var/log/redis/redis.log}"
+REDIS_LOGFILE="${REDIS_LOGFILE:-/dev/stdout}"  # Log to stdout (better for Docker logging)
 
 # Performance Configuration
 REDIS_TCP_BACKLOG="${REDIS_TCP_BACKLOG:-511}"

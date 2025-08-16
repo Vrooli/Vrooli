@@ -197,26 +197,48 @@ browserless_credentials() {
     fi
 }
 
-# Execute n8n workflow via browser automation
+# Execute n8n workflow via browser automation with enhanced session management
 browserless_execute_workflow() {
     local workflow_id="${1:-}"
     local n8n_url="${2:-http://localhost:5678}"
     local timeout="${3:-60000}"
     local input_data="${4:-}"
+    local use_persistent_session="${5:-true}"
+    local session_id="${6:-}"
     
     if [[ -z "$workflow_id" ]]; then
         log::error "Workflow ID required"
-        echo "Usage: resource-browserless execute-workflow <workflow-id> [n8n-url] [timeout-ms] [input-json]"
+        echo "Usage: resource-browserless execute-workflow <workflow-id> [n8n-url] [timeout-ms] [input-json] [persistent-session] [session-id]"
+        echo ""
+        echo "Enhanced Features:"
+        echo "  • Persistent browser sessions (cookies, auth state preserved)"
+        echo "  • Extended execution monitoring (waits for actual completion)"
+        echo "  • High-quality final state screenshots"
+        echo "  • Comprehensive execution state tracking"
+        echo ""
+        echo "Parameters:"
+        echo "  workflow-id        : N8N workflow ID (required)"
+        echo "  n8n-url           : N8N instance URL (default: http://localhost:5678)"
+        echo "  timeout-ms        : Timeout in milliseconds (default: 60000)"
+        echo "  input-json        : Input data as JSON, @file, or \$ENV_VAR (optional)"
+        echo "  persistent-session: Use persistent session (true/false, default: true)"
+        echo "  session-id        : Custom session ID (auto-generated if not provided)"
         echo ""
         echo "Examples:"
-        echo "  # Execute workflow without input"
+        echo "  # Execute workflow with persistent session (recommended)"
         echo "  resource-browserless execute-workflow my-workflow"
         echo ""
+        echo "  # Execute with custom session ID for reuse"
+        echo "  resource-browserless execute-workflow my-workflow http://localhost:5678 60000 '{}' true my-session-1"
+        echo ""
+        echo "  # Execute without session persistence (fresh browser each time)"
+        echo "  resource-browserless execute-workflow my-workflow http://localhost:5678 60000 '{}' false"
+        echo ""
         echo "  # Execute with JSON input data"
-        echo "  resource-browserless execute-workflow embedding-generator http://localhost:5678 30000 '{\"text\":\"Hello world\"}'"
+        echo "  resource-browserless execute-workflow embedding-generator http://localhost:5678 60000 '{\"text\":\"Hello world\"}'"
         echo ""
         echo "  # Execute with JSON file input"
-        echo "  resource-browserless execute-workflow my-workflow http://localhost:5678 30000 @input.json"
+        echo "  resource-browserless execute-workflow my-workflow http://localhost:5678 60000 @input.json"
         echo ""
         echo "  # Execute with environment variable input"
         echo "  export WORKFLOW_INPUT='{\"text\":\"test\"}'"
@@ -224,7 +246,7 @@ browserless_execute_workflow() {
         return 1
     fi
     
-    browserless::execute_n8n_workflow "$workflow_id" "$n8n_url" "$timeout" "$input_data"
+    browserless::execute_n8n_workflow "$workflow_id" "$n8n_url" "$timeout" "$input_data" "$use_persistent_session" "$session_id"
 }
 
 # Capture console logs from any URL

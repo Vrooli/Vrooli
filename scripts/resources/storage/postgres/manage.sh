@@ -574,7 +574,8 @@ postgres::upgrade() {
     log::info "Upgrading PostgreSQL Docker image..."
     
     # Pull latest image
-    if ! postgres::docker::pull_image; then
+    log::info "${MSG_PULLING_IMAGE}"
+    if ! docker::pull_image "$POSTGRES_IMAGE"; then
         log::error "Failed to pull latest PostgreSQL image"
         return 1
     fi

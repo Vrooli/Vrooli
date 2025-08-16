@@ -30,7 +30,8 @@ postgres::install() {
     fi
     
     # Pull Docker image
-    if ! postgres::docker::pull_image; then
+    log::info "${MSG_PULLING_IMAGE}"
+    if ! docker::pull_image "$POSTGRES_IMAGE"; then
         log::error "${MSG_INSTALL_FAILED}: Failed to pull Docker image"
         return 1
     fi
@@ -143,7 +144,7 @@ postgres::install::pre_checks() {
     local checks_passed=true
     
     log::info "${MSG_CHECKING_DOCKER}"
-    if ! postgres::docker::check_docker; then
+    if ! docker::check_daemon; then
         log::error "${MSG_DOCKER_NOT_FOUND}"
         checks_passed=false
     fi

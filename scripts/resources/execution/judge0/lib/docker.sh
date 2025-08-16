@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
-# Judge0 Docker Management Module
-# Handles Docker container lifecycle operations
+# Judge0 Docker Management - Simplified with docker-resource-utils.sh
+# Handles multi-service Judge0 container lifecycle operations
+
+# Source simplified docker utilities
+_JUDGE0_DOCKER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${_JUDGE0_DOCKER_DIR}/../../../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_SCRIPTS_RESOURCES_LIB_DIR}/docker-resource-utils.sh"
 
 #######################################
 # Start Judge0 services
@@ -63,7 +70,7 @@ judge0::docker::restart() {
     log::info "$JUDGE0_MSG_RESTART"
     
     if judge0::docker::stop; then
-        sleep 2
+        sleep ${JUDGE0_RESTART_WAIT:-2}
         judge0::docker::start
     else
         return 1
@@ -100,14 +107,9 @@ judge0::docker::uninstall() {
         return 0
     fi
     
-    if [[ "$force" != "yes" ]]; then
-        log::warning "This will remove Judge0 and all its data"
-        read -p "Are you sure? (y/N) " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            log::info "Uninstall cancelled"
-            return 0
-        fi
+    # Use simplified data removal confirmation
+    if ! docker_resource::remove_data "Judge0" "${JUDGE0_DATA_DIR}" "$force"; then
+        return 0  # User cancelled
     fi
     
     log::info "$JUDGE0_MSG_UNINSTALL"
@@ -117,19 +119,14 @@ judge0::docker::uninstall() {
     
     local compose_file="${JUDGE0_CONFIG_DIR}/docker-compose.yml"
     
-    # Remove containers and volumes
+    # Remove containers and volumes using docker-compose
     if [[ -f "$compose_file" ]]; then
         docker compose -f "$compose_file" down -v >/dev/null 2>&1
     fi
     
-    # Remove network
-    docker::remove_network "$JUDGE0_NETWORK_NAME"
-    
-    # Remove main volume
-    docker volume rm "$JUDGE0_VOLUME_NAME" >/dev/null 2>&1
-    
-    # Clean up data
-    judge0::cleanup_data "$force"
+    # Remove network and volume
+    docker network rm "$JUDGE0_NETWORK_NAME" >/dev/null 2>&1 || true
+    docker volume rm "$JUDGE0_VOLUME_NAME" >/dev/null 2>&1 || true
     
     log::success "Judge0 uninstalled successfully"
 }
@@ -143,9 +140,9 @@ judge0::docker::update() {
     # Get current version
     local current_version=$(judge0::get_version)
     
-    # Pull latest image
+    # Pull latest image using simplified utility
     local latest_image="${JUDGE0_IMAGE}:latest"
-    if ! docker pull "$latest_image" >/dev/null 2>&1; then
+    if ! docker::pull_image "$latest_image"; then
         log::error "Failed to pull latest Judge0 image"
         return 1
     fi
@@ -177,56 +174,6 @@ judge0::docker::update() {
 }
 
 #######################################
-# Execute command in Judge0 container
-# Arguments:
-#   $@ - Command to execute
-#######################################
-judge0::docker::exec() {
-    if ! judge0::is_running; then
-        log::error "Judge0 is not running"
-        return 1
-    fi
-    
-    docker exec -it "$JUDGE0_CONTAINER_NAME" "$@"
-}
-
-#######################################
-# Show Judge0 container resource usage
-#######################################
-judge0::docker::stats() {
-    if ! judge0::is_running; then
-        log::error "Judge0 is not running"
-        return 1
-    fi
-    
-    log::info "Judge0 Container Statistics:"
-    
-    # Server stats
-    echo "📊 Server:"
-    docker stats "$JUDGE0_CONTAINER_NAME" --no-stream
-    
-    # Worker stats
-    echo
-    echo "👷 Workers:"
-    for i in $(seq 1 "$JUDGE0_WORKERS_COUNT"); do
-        local worker_name="${JUDGE0_WORKERS_NAME}-${i}"
-        if docker::is_running "$worker_name"; then
-            docker stats "$worker_name" --no-stream
-        fi
-    done
-    
-    # Database stats
-    echo
-    echo "🗄️  Database:"
-    docker stats "${JUDGE0_CONTAINER_NAME}-db" --no-stream
-    
-    # Redis stats
-    echo
-    echo "💾 Redis:"
-    docker stats "${JUDGE0_CONTAINER_NAME}-redis" --no-stream
-}
-
-#######################################
 # Scale Judge0 workers
 # Arguments:
 #   $1 - Number of workers
@@ -252,22 +199,3 @@ judge0::docker::scale_workers() {
     fi
 }
 
-#######################################
-# Check if Judge0 container exists
-# Returns: 0 if exists, 1 if not
-#######################################
-judge0::docker::container_exists() {
-    docker ps -a --format "{{.Names}}" | grep -q "^${JUDGE0_CONTAINER_NAME}$"
-}
-
-#######################################
-# Check if Judge0 container is running
-# Returns: 0 if running, 1 if not
-#######################################
-judge0::docker::is_running() {
-    docker ps --format "{{.Names}}" | grep -q "^${JUDGE0_CONTAINER_NAME}$"
-}
-
-# Export functions for use by other modules
-export -f judge0::docker::container_exists
-export -f judge0::docker::is_running

@@ -466,19 +466,8 @@ vault_logs() {
     local follow="${2:-false}"
     local container_name="${VAULT_CONTAINER_NAME:-vault}"
     
-    if command -v vault::docker::show_logs &>/dev/null; then
-        if [[ "$follow" == "true" ]]; then
-            vault::docker::show_logs "$lines" "follow"
-        else
-            vault::docker::show_logs "$lines"
-        fi
-    else
-        if [[ "$follow" == "true" ]]; then
-            docker logs --tail "$lines" -f "$container_name"
-        else
-            docker logs --tail "$lines" "$container_name"
-        fi
-    fi
+    # Use shared utility with follow support
+    docker_resource::show_logs_with_follow "$container_name" "$lines" "$follow"
 }
 
 # Diagnose Vault issues

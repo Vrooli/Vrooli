@@ -24,6 +24,10 @@ redis::docker::create_container() {
     # Ensure volumes exist
     redis::common::create_volumes || return 1
     
+    # Pull image if needed
+    log::info "${MSG_PULLING_IMAGE}"
+    docker::pull_image "$REDIS_IMAGE"
+    
     log::info "${MSG_STARTING_CONTAINER}"
     
     # Create Redis service with ultra-simple API (data + config volumes, logs to stdout)
@@ -131,24 +135,7 @@ redis::docker::remove_container() {
     return 0
 }
 
-#######################################
-# Pull Redis Docker image
-# Returns: 0 on success, 1 on failure
-#######################################
-redis::docker::pull_image() {
-    log::info "${MSG_PULLING_IMAGE}"
-    docker::pull_image "$REDIS_IMAGE"
-}
 
-#######################################
-# Show Redis container logs
-# Arguments: $1 - number of lines (optional)
-# Returns: 0 on success, 1 on failure
-#######################################
-redis::docker::show_logs() {
-    local lines="${1:-50}"
-    docker::get_logs "$REDIS_CONTAINER_NAME" "$lines"
-}
 
 #######################################
 # Execute Redis CLI command

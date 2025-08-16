@@ -1,200 +1,43 @@
 #!/usr/bin/env bash
-# Vault Docker Management Functions
-# Container lifecycle and Docker-specific operations
+# Vault Docker Management - Ultra-Simplified
+# Uses docker-resource-utils.sh for minimal boilerplate
 
-# Source required utilities
-VAULT_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# Source var.sh to get proper directory variables
+_VAULT_DOCKER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
-source "${VAULT_LIB_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
+source "${_VAULT_DOCKER_DIR}/../../../../lib/utils/var.sh"
+
+# Source shared libraries
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/sudo.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_SCRIPTS_RESOURCES_LIB_DIR}/docker-resource-utils.sh"
+# shellcheck disable=SC1091
+source "${var_SCRIPTS_RESOURCES_LIB_DIR}/backup-framework.sh"
+# shellcheck disable=SC1091
+source "${_VAULT_DOCKER_DIR}/vault-storage-strategies.sh"
 
-#######################################
-# Determine best storage strategy
-# Returns: volumes, bind, or inmem
-#######################################
-vault::docker::determine_storage_strategy() {
-    if [[ -n "${VAULT_STORAGE_STRATEGY:-}" ]] && [[ "${VAULT_STORAGE_STRATEGY}" != "auto" ]]; then
-        echo "${VAULT_STORAGE_STRATEGY}"
-        return 0
-    fi
-    
-    # Auto-detect best strategy
-    if [[ -f /.dockerenv ]]; then
-        # Running inside container/CI
-        echo "inmem"
-    elif command -v docker &>/dev/null && docker volume ls &>/dev/null 2>&1; then
-        # Docker available with volume support
-        echo "volumes"
-    elif [[ -w "${HOME}" ]]; then
-        # Can write to home directory
-        echo "bind"
-    else
-        # Restricted environment
-        echo "inmem"
-    fi
-}
 
-#######################################
-# Create Docker volumes for Vault
-# Returns: 0 on success, 1 on failure
-#######################################
-vault::docker::create_volumes() {
-    local volumes=("${VAULT_VOLUME_DATA}" "${VAULT_VOLUME_CONFIG}" "${VAULT_VOLUME_LOGS}")
-    
-    for volume in "${volumes[@]}"; do
-        if ! docker volume inspect "${volume}" >/dev/null 2>&1; then
-            log::info "Creating Docker volume: ${volume}"
-            if ! docker volume create "${volume}" >/dev/null 2>&1; then
-                log::error "Failed to create volume: ${volume}"
-                return 1
-            fi
-        else
-            log::info "Volume already exists: ${volume}"
-        fi
-    done
-    
-    return 0
-}
 
-#######################################
-# Remove Docker volumes for Vault
-# Arguments:
-#   $1 - force removal (yes/no)
-#######################################
-vault::docker::remove_volumes() {
-    local force="${1:-no}"
-    local volumes=("${VAULT_VOLUME_DATA}" "${VAULT_VOLUME_CONFIG}" "${VAULT_VOLUME_LOGS}")
-    
-    for volume in "${volumes[@]}"; do
-        if docker volume inspect "${volume}" >/dev/null 2>&1; then
-            if [[ "${force}" == "yes" ]]; then
-                log::info "Removing Docker volume: ${volume}"
-                docker volume rm "${volume}" >/dev/null 2>&1 || true
-            else
-                log::warn "Volume exists but not removing (use --remove-data yes): ${volume}"
-            fi
-        fi
-    done
-}
 
-#######################################
-# Copy configuration to Docker volume
-# Returns: 0 on success, 1 on failure
-#######################################
-vault::docker::copy_config_to_volume() {
-    local temp_config="/tmp/vault-config-$$"
-    
-    # Create temporary config directory
-    mkdir -p "${temp_config}"
-    
-    # Generate configuration
-    vault::create_config "${VAULT_MODE}"
-    
-    # Copy local config to temp
-    if [[ -f "${VAULT_CONFIG_DIR}/vault.hcl" ]]; then
-        cp "${VAULT_CONFIG_DIR}/vault.hcl" "${temp_config}/vault.hcl"
-    fi
-    
-    # Copy TLS certificates if they exist
-    if [[ -d "${VAULT_CONFIG_DIR}/tls" ]]; then
-        cp -r "${VAULT_CONFIG_DIR}/tls" "${temp_config}/tls"
-    fi
-    
-    # Use Alpine container to copy files to volume
-    log::info "Copying configuration to Docker volume..."
-    docker run --rm \
-        -v "${VAULT_VOLUME_CONFIG}:/target" \
-        -v "${temp_config}:/source:ro" \
-        alpine sh -c "cp -r /source/* /target/ && chmod -R 755 /target"
-    
-    local result=$?
-    
-    # Clean up temp directory
-    trash::safe_remove "${temp_config}" --temp
-    
-    return ${result}
-}
 
-#######################################
-# Prepare bind mount directories with correct permissions
-# Returns: 0 on success, 1 on failure
-#######################################
-vault::docker::prepare_bind_directories() {
-    local dirs=("${VAULT_DATA_DIR}" "${VAULT_CONFIG_DIR}" "${VAULT_LOGS_DIR}")
-    
-    for dir in "${dirs[@]}"; do
-        if [[ ! -d "${dir}" ]]; then
-            if ! mkdir -p "${dir}" 2>/dev/null; then
-                log::error "Cannot create directory: ${dir}"
-                log::info "Try: sudo mkdir -p ${dir} && sudo chown $(sudo::get_actual_user 2>/dev/null || echo '\$USER'):$(sudo::get_actual_group 2>/dev/null || echo '\$USER') ${dir}"
-                return 1
-            fi
-        fi
-        
-        # Check if directory is writable
-        if [[ ! -w "${dir}" ]]; then
-            log::error "Directory not writable: ${dir}"
-            log::info "Try: sudo chown $(sudo::get_actual_user 2>/dev/null || echo '\$USER'):$(sudo::get_actual_group 2>/dev/null || echo '\$USER') ${dir}"
-            return 1
-        fi
-        
-        # Set permissions
-        chmod 755 "${dir}" 2>/dev/null || true
-    done
-    
-    # Special handling for TLS files
-    if [[ -d "${VAULT_CONFIG_DIR}/tls" ]]; then
-        chmod 755 "${VAULT_CONFIG_DIR}/tls" 2>/dev/null || true
-        chmod 644 "${VAULT_CONFIG_DIR}/tls"/*.crt 2>/dev/null || true
-        chmod 640 "${VAULT_CONFIG_DIR}/tls"/*.key 2>/dev/null || true
-    fi
-    
-    return 0
-}
 
 #######################################
 # Preflight check for container startup
 # Returns: 0 if ready, 1 if issues found
 #######################################
 vault::docker::preflight_check() {
-    local issues=()
-    
-    # Check Docker access
-    if ! docker ps >/dev/null 2>&1; then
-        issues+=("Docker daemon not accessible")
+    # Check Docker access using simplified utility
+    if ! docker::check_daemon; then
+        log::error "Docker daemon not accessible"
+        return 1
     fi
     
     # Check port availability
-    if lsof -i ":${VAULT_PORT}" >/dev/null 2>&1; then
-        issues+=("Port ${VAULT_PORT} is already in use")
-    fi
-    
-    # Check storage strategy requirements
-    local strategy=$(vault::docker::determine_storage_strategy)
-    
-    case "${strategy}" in
-        volumes)
-            # Check if we can create volumes
-            if ! docker volume ls >/dev/null 2>&1; then
-                issues+=("Cannot access Docker volumes")
-            fi
-            ;;
-        bind)
-            # Check directory permissions
-            if ! vault::docker::prepare_bind_directories; then
-                issues+=("Cannot prepare bind mount directories")
-            fi
-            ;;
-    esac
-    
-    if [[ ${#issues[@]} -gt 0 ]]; then
-        log::error "Preflight check failed:"
-        for issue in "${issues[@]}"; do
-            log::error "  - ${issue}"
-        done
+    if ! docker::is_port_available "${VAULT_PORT}"; then
+        log::error "Port ${VAULT_PORT} is already in use"
         return 1
     fi
     
@@ -202,33 +45,7 @@ vault::docker::preflight_check() {
     return 0
 }
 
-#######################################
-# Create Docker network for Vault
-#######################################
-vault::docker::create_network() {
-    if ! docker network inspect "$VAULT_NETWORK_NAME" >/dev/null 2>&1; then
-        log::info "Creating Vault network: $VAULT_NETWORK_NAME"
-        docker network create "$VAULT_NETWORK_NAME" >/dev/null 2>&1
-    fi
-}
 
-#######################################
-# Remove Docker network for Vault
-#######################################
-vault::docker::remove_network() {
-    if docker network inspect "$VAULT_NETWORK_NAME" >/dev/null 2>&1; then
-        log::info "Removing Vault network: $VAULT_NETWORK_NAME"
-        docker network rm "$VAULT_NETWORK_NAME" >/dev/null 2>&1 || true
-    fi
-}
-
-#######################################
-# Pull Vault Docker image
-#######################################
-vault::docker::pull_image() {
-    log::info "Pulling Vault image: $VAULT_IMAGE"
-    docker pull "$VAULT_IMAGE"
-}
 
 #######################################
 # Start Vault container
@@ -245,135 +62,104 @@ vault::docker::start_container() {
         return 1
     fi
     
+    # Pull image if needed
+    log::info "Pulling Vault image: $VAULT_IMAGE"
+    docker::pull_image "$VAULT_IMAGE"
+    
     vault::message "info" "MSG_VAULT_START_STARTING"
     
     # Determine storage strategy
-    local strategy=$(vault::docker::determine_storage_strategy)
+    local strategy=$(vault::storage::determine_strategy)
     log::info "Using storage strategy: ${strategy}"
     
-    # Ensure network exists
-    vault::docker::create_network
-    
-    # Prepare storage based on strategy
-    case "${strategy}" in
-        volumes)
-            # Create Docker volumes
-            if ! vault::docker::create_volumes; then
-                log::error "Failed to create Docker volumes"
-                return 1
-            fi
-            # Copy configuration to volume
-            if ! vault::docker::copy_config_to_volume; then
-                log::error "Failed to copy configuration to volume"
-                return 1
-            fi
-            ;;
-        bind)
-            # Prepare bind mount directories
-            if ! vault::docker::prepare_bind_directories; then
-                log::error "Failed to prepare bind mount directories"
-                return 1
-            fi
-            # Ensure directories and config exist
-            vault::ensure_directories
-            vault::create_config "$VAULT_MODE"
-            ;;
-        inmem)
-            # In-memory storage, minimal setup needed
-            vault::ensure_directories
-            vault::create_config "$VAULT_MODE"
-            ;;
-    esac
-    
-    # Build Docker command
-    local docker_args=(
-        --detach
-        --name "$VAULT_CONTAINER_NAME"
-        --network "$VAULT_NETWORK_NAME"
-        --publish "${VAULT_PORT}:${VAULT_PORT}"
-        --cap-add=IPC_LOCK
-        --restart unless-stopped
-        --health-cmd "vault status -tls-skip-verify || exit 1"
-        --health-interval 10s
-        --health-timeout 5s
-        --health-retries 3
-        --health-start-period 10s
-    )
-    
-    # Add storage volumes based on strategy
-    case "${strategy}" in
-        volumes)
-            docker_args+=(
-                --volume "${VAULT_VOLUME_DATA}:/vault/data"
-                --volume "${VAULT_VOLUME_CONFIG}:/vault/config"
-                --volume "${VAULT_VOLUME_LOGS}:/vault/logs"
-            )
-            ;;
-        bind)
-            docker_args+=(
-                --volume "${VAULT_DATA_DIR}:/vault/data"
-                --volume "${VAULT_CONFIG_DIR}:/vault/config"
-                --volume "${VAULT_LOGS_DIR}:/vault/logs"
-            )
-            ;;
-        inmem)
-            # No volumes for in-memory storage
-            # Only mount config if in production mode
-            if [[ "$VAULT_MODE" == "prod" ]]; then
-                docker_args+=(--volume "${VAULT_CONFIG_DIR}:/vault/config:ro")
-            fi
-            ;;
-    esac
-    
-    # Add environment variables
-    local env_vars=()
-    
-    if [[ "$VAULT_MODE" == "dev" ]]; then
-        env_vars+=(
-            "VAULT_ADDR=http://0.0.0.0:${VAULT_PORT}"
-            "VAULT_API_ADDR=http://localhost:${VAULT_PORT}"
-            "VAULT_DEV_ROOT_TOKEN_ID=${VAULT_DEV_ROOT_TOKEN_ID}"
-            "VAULT_DEV_LISTEN_ADDRESS=${VAULT_DEV_LISTEN_ADDRESS}"
-        )
-        vault::message "warn" "MSG_VAULT_DEV_MODE_WARNING"
-    else
-        # Production mode
-        if [[ -f "${VAULT_CONFIG_DIR}/tls/server.crt" ]]; then
-            # HTTPS if TLS certificates exist
-            env_vars+=(
-                "VAULT_ADDR=https://0.0.0.0:${VAULT_PORT}"
-                "VAULT_API_ADDR=https://localhost:${VAULT_PORT}"
-                "VAULT_SKIP_VERIFY=true"  # For self-signed certificates
-            )
-        else
-            # HTTP fallback
-            env_vars+=(
-                "VAULT_ADDR=http://0.0.0.0:${VAULT_PORT}"
-                "VAULT_API_ADDR=http://localhost:${VAULT_PORT}"
-            )
-        fi
+    # Prepare storage
+    if ! vault::storage::prepare "${strategy}"; then
+        log::error "Failed to prepare storage"
+        return 1
     fi
     
-    # Add environment variables to Docker args
-    for env_var in "${env_vars[@]}"; do
-        docker_args+=(--env "$env_var")
-    done
+    # Get volumes based on strategy
+    local volumes=$(vault::storage::get_volumes "${strategy}")
     
-    # Start container
-    local container_id
+    # Prepare health check command
+    local health_cmd="vault status -tls-skip-verify || exit 1"
+    
+    # Prepare command arguments based on mode
+    local command_args=()
     if [[ "$VAULT_MODE" == "dev" ]]; then
         # Development mode - auto-initialized and unsealed
-        container_id=$(docker run "${docker_args[@]}" "$VAULT_IMAGE" server -dev)
+        command_args=("server" "-dev")
     else
         # Production mode - requires manual initialization
         if [[ "${strategy}" == "inmem" ]]; then
-            # Use inline config for in-memory storage
-            container_id=$(docker run "${docker_args[@]}" \
-                -e 'VAULT_LOCAL_CONFIG={"storage": {"inmem": {}}, "listener": {"tcp": {"address": "0.0.0.0:8200", "tls_disable": "1"}}, "ui": true}' \
-                "$VAULT_IMAGE" server)
+            # Use inline config for in-memory storage via environment variable
+            command_args=("server")
         else
-            container_id=$(docker run "${docker_args[@]}" "$VAULT_IMAGE" server -config=/vault/config)
+            command_args=("server" "-config=/vault/config")
         fi
+    fi
+    
+    # Create network
+    docker::create_network "$VAULT_NETWORK_NAME"
+    
+    # Build container with Vault-specific requirements
+    local cmd=("docker" "run" "-d")
+    cmd+=("--name" "$VAULT_CONTAINER_NAME")
+    cmd+=("--network" "$VAULT_NETWORK_NAME")
+    cmd+=("--publish" "${VAULT_PORT}:${VAULT_PORT}")
+    cmd+=("--cap-add=IPC_LOCK")
+    cmd+=("--restart" "unless-stopped")
+    cmd+=("--health-cmd" "$health_cmd")
+    cmd+=("--health-interval" "10s")
+    cmd+=("--health-timeout" "5s")
+    cmd+=("--health-retries" "3")
+    cmd+=("--health-start-period" "10s")
+    
+    # Add volumes
+    if [[ -n "$volumes" ]]; then
+        for volume in $volumes; do
+            cmd+=("--volume" "$volume")
+        done
+    fi
+    
+    # Add environment variables based on mode
+    if [[ "$VAULT_MODE" == "dev" ]]; then
+        # Dev mode environment
+        cmd+=("--env" "VAULT_ADDR=http://0.0.0.0:${VAULT_PORT}")
+        cmd+=("--env" "VAULT_API_ADDR=http://localhost:${VAULT_PORT}")
+        cmd+=("--env" "VAULT_DEV_ROOT_TOKEN_ID=${VAULT_DEV_ROOT_TOKEN_ID}")
+        cmd+=("--env" "VAULT_DEV_LISTEN_ADDRESS=${VAULT_DEV_LISTEN_ADDRESS}")
+    else
+        # Production mode environment
+        if [[ -f "${VAULT_CONFIG_DIR}/tls/server.crt" ]]; then
+            # HTTPS if TLS certificates exist
+            cmd+=("--env" "VAULT_ADDR=https://0.0.0.0:${VAULT_PORT}")
+            cmd+=("--env" "VAULT_API_ADDR=https://localhost:${VAULT_PORT}")
+            cmd+=("--env" "VAULT_SKIP_VERIFY=true")
+        else
+            # HTTP fallback
+            cmd+=("--env" "VAULT_ADDR=http://0.0.0.0:${VAULT_PORT}")
+            cmd+=("--env" "VAULT_API_ADDR=http://localhost:${VAULT_PORT}")
+        fi
+        
+        # Add inline config for in-memory storage
+        if [[ "${strategy}" == "inmem" ]]; then
+            cmd+=("--env" 'VAULT_LOCAL_CONFIG={"storage": {"inmem": {}}, "listener": {"tcp": {"address": "0.0.0.0:8200", "tls_disable": "1"}}, "ui": true}')
+        fi
+    fi
+    
+    # Add image and command
+    cmd+=("$VAULT_IMAGE" "${command_args[@]}")
+    
+    # Execute container creation
+    local container_id
+    if container_id=$("${cmd[@]}" 2>&1); then
+        if [[ "$VAULT_MODE" == "dev" ]]; then
+            vault::message "warn" "MSG_VAULT_DEV_MODE_WARNING"
+        fi
+    else
+        log::error "Failed to create container: $container_id"
+        return 1
     fi
     
     if [[ -n "$container_id" ]]; then
@@ -414,7 +200,7 @@ vault::docker::stop_container() {
     
     vault::message "info" "MSG_VAULT_STOP_STOPPING"
     
-    if docker stop "$VAULT_CONTAINER_NAME" >/dev/null 2>&1; then
+    if docker::stop_container "$VAULT_CONTAINER_NAME"; then
         vault::message "success" "MSG_VAULT_STOP_SUCCESS"
         return 0
     else
@@ -429,11 +215,7 @@ vault::docker::stop_container() {
 vault::docker::restart_container() {
     vault::message "info" "MSG_VAULT_RESTART_RESTARTING"
     
-    vault::docker::stop_container
-    sleep 2
-    vault::docker::start_container
-    
-    if [[ $? -eq 0 ]]; then
+    if docker::restart_container "$VAULT_CONTAINER_NAME"; then
         vault::message "success" "MSG_VAULT_RESTART_SUCCESS"
         return 0
     else
@@ -452,63 +234,18 @@ vault::docker::remove_container() {
     
     if vault::is_installed; then
         log::info "Removing Vault container: $VAULT_CONTAINER_NAME"
-        docker rm "$VAULT_CONTAINER_NAME" >/dev/null 2>&1 || true
+        docker::remove_container "$VAULT_CONTAINER_NAME" "true"
     fi
 }
 
-#######################################
-# Show Vault container logs
-# Arguments:
-#   $1 - number of lines (optional, default 50)
-#   $2 - follow flag (optional, 'follow' to tail)
-#######################################
-vault::docker::show_logs() {
-    local lines="${1:-50}"
-    local follow_flag="${2:-}"
-    
-    if ! vault::is_installed; then
-        log::error "Vault container not found"
-        return 1
-    fi
-    
-    local docker_logs_args=(
-        --timestamps
-        --tail "$lines"
-    )
-    
-    if [[ "$follow_flag" == "follow" ]]; then
-        docker_logs_args+=(--follow)
-    fi
-    
-    log::info "Showing Vault logs (last $lines lines):"
-    docker logs "${docker_logs_args[@]}" "$VAULT_CONTAINER_NAME"
-}
 
-#######################################
-# Execute command inside Vault container
-# Arguments:
-#   $@ - command to execute
-#######################################
-vault::docker::exec() {
-    if ! vault::is_running; then
-        log::error "Vault container is not running"
-        return 1
-    fi
-    
-    docker exec -it "$VAULT_CONTAINER_NAME" "$@"
-}
 
 #######################################
 # Get Vault container resource usage
 #######################################
 vault::docker::get_resource_usage() {
-    if ! vault::is_running; then
-        log::error "Vault container is not running"
-        return 1
-    fi
-    
     log::info "Vault container resource usage:"
-    docker stats --no-stream --format "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}\t{{.BlockIO}}" "$VAULT_CONTAINER_NAME"
+    docker_resource::get_stats "$VAULT_CONTAINER_NAME"
 }
 
 #######################################
@@ -520,17 +257,9 @@ vault::docker::cleanup() {
     # Remove container
     vault::docker::remove_container
     
-    # Check storage strategy for volume cleanup
-    local strategy=$(vault::docker::determine_storage_strategy)
-    
-    if [[ "${strategy}" == "volumes" ]]; then
-        # Optionally remove volumes based on VAULT_REMOVE_DATA
-        if [[ "${VAULT_REMOVE_DATA:-no}" == "yes" ]]; then
-            vault::docker::remove_volumes "yes"
-        else
-            log::info "Docker volumes preserved (use --remove-data yes to remove)"
-        fi
-    fi
+    # Clean up storage resources
+    local strategy=$(vault::storage::determine_strategy)
+    vault::storage::cleanup "${strategy}" "${VAULT_REMOVE_DATA:-no}"
     
     # Remove network (only if no other containers are using it)
     if docker network inspect "$VAULT_NETWORK_NAME" >/dev/null 2>&1; then
@@ -538,7 +267,8 @@ vault::docker::cleanup() {
         network_containers=$(docker network inspect "$VAULT_NETWORK_NAME" --format '{{len .Containers}}' 2>/dev/null || echo "0")
         
         if [[ "$network_containers" -eq 0 ]]; then
-            vault::docker::remove_network
+            log::info "Removing Vault network: $VAULT_NETWORK_NAME"
+            docker network rm "$VAULT_NETWORK_NAME" >/dev/null 2>&1 || true
         else
             log::info "Network $VAULT_NETWORK_NAME has other containers, keeping it"
         fi
@@ -547,84 +277,28 @@ vault::docker::cleanup() {
 
 #######################################
 # Repair permissions for Vault directories
+# Delegates to storage strategies module
 # Returns: 0 on success, 1 on failure
 #######################################
 vault::docker::repair_permissions() {
-    log::info "Attempting to repair Vault directory permissions..."
-    
-    local dirs=("${VAULT_DATA_DIR}" "${VAULT_CONFIG_DIR}" "${VAULT_LOGS_DIR}")
-    local repaired=0
-    local failed=0
-    
-    for dir in "${dirs[@]}"; do
-        if [[ -d "${dir}" ]]; then
-            # Try to fix ownership
-            if sudo::restore_owner "${dir}" -R; then
-                log::info "Fixed ownership for: ${dir}"
-                repaired=$((repaired + 1))
-            else
-                log::warn "Cannot fix ownership for ${dir} without elevated permissions"
-                failed=$((failed + 1))
-            fi
-            
-            # Try to fix permissions
-            if chmod -R 755 "${dir}" 2>/dev/null; then
-                log::info "Fixed permissions for: ${dir}"
-            else
-                log::warn "Cannot fix permissions for ${dir}"
-            fi
-        fi
-    done
-    
-    if [[ ${failed} -gt 0 ]]; then
-        log::error "Some directories need elevated permissions to repair"
-        log::info "Run the following command with sudo:"
-        log::info "  sudo chown -R $(sudo::get_actual_user 2>/dev/null || echo '\$USER'):$(sudo::get_actual_group 2>/dev/null || echo '\$USER') ${VAULT_DATA_DIR%/*}"
-        log::info "  sudo chmod -R 755 ${VAULT_DATA_DIR%/*}"
-        return 1
-    fi
-    
-    if [[ ${repaired} -gt 0 ]]; then
-        log::info "Successfully repaired ${repaired} directories"
-    fi
-    
-    return 0
+    vault::storage::repair_permissions
 }
 
 #######################################
 # Check Docker prerequisites
 #######################################
 vault::docker::check_prerequisites() {
-    # Check if Docker is installed
-    if ! command -v docker >/dev/null 2>&1; then
-        log::error "Docker is not installed or not in PATH"
-        return 1
-    fi
-    
-    # Check if Docker daemon is running
-    if ! docker info >/dev/null 2>&1; then
-        log::error "Docker daemon is not running or not accessible"
-        log::info "Try: sudo systemctl start docker"
-        return 1
-    fi
-    
-    # Check if user can run Docker commands
-    if ! docker ps >/dev/null 2>&1; then
-        log::error "Cannot execute Docker commands - check permissions"
-        log::info "Try: sudo usermod -aG docker \$USER && newgrp docker"
-        return 1
-    fi
-    
-    return 0
+    # Use simplified Docker check
+    docker::check_daemon
 }
 
 #######################################
 # Backup Vault container data
 # Arguments:
-#   $1 - backup file path (optional)
+#   $1 - backup label (optional)
 #######################################
 vault::docker::backup() {
-    local backup_file="${1:-${HOME}/vault-backup-$(date +%Y%m%d-%H%M%S).tar.gz}"
+    local label="${1:-manual}"
     
     if ! vault::is_installed; then
         log::error "Vault container not found"
@@ -633,10 +307,11 @@ vault::docker::backup() {
     
     vault::message "info" "MSG_VAULT_BACKUP_START"
     
-    # Create backup of data directory
-    if tar -czf "$backup_file" -C "$(dirname "$VAULT_DATA_DIR")" "$(basename "$VAULT_DATA_DIR")" 2>/dev/null; then
+    # Use backup framework to store backup
+    local backup_path
+    if backup_path=$(backup::store "vault" "$VAULT_DATA_DIR" "$label"); then
         vault::message "success" "MSG_VAULT_BACKUP_SUCCESS"
-        log::info "Backup saved to: $backup_file"
+        log::info "Backup saved to: $backup_path"
         return 0
     else
         vault::message "error" "MSG_VAULT_BACKUP_FAILED"
@@ -647,20 +322,10 @@ vault::docker::backup() {
 #######################################
 # Restore Vault container data
 # Arguments:
-#   $1 - backup file path
+#   $1 - backup identifier (ID or "latest")
 #######################################
 vault::docker::restore() {
-    local backup_file="$1"
-    
-    if [[ -z "$backup_file" ]]; then
-        log::error "Backup file path required"
-        return 1
-    fi
-    
-    if [[ ! -f "$backup_file" ]]; then
-        log::error "Backup file not found: $backup_file"
-        return 1
-    fi
+    local backup_id="${1:-latest}"
     
     vault::message "info" "MSG_VAULT_RESTORE_START"
     
@@ -669,13 +334,125 @@ vault::docker::restore() {
         vault::docker::stop_container
     fi
     
-    # Restore data directory
-    if tar -xzf "$backup_file" -C "$(dirname "$VAULT_DATA_DIR")" 2>/dev/null; then
+    # Get backup path
+    local backup_path
+    if [[ "$backup_id" == "latest" ]]; then
+        backup_path=$(backup::get_latest "vault")
+    else
+        backup_path=$(backup::get_by_id "vault" "$backup_id")
+    fi
+    
+    if [[ -z "$backup_path" ]]; then
+        log::error "Backup not found: $backup_id"
+        return 1
+    fi
+    
+    # Extract backup to temp location
+    local temp_dir
+    if temp_dir=$(backup::extract "vault" "$backup_path"); then
+        # Clear existing data and restore from backup
+        rm -rf "${VAULT_DATA_DIR:?}"/*
+        cp -r "$temp_dir"/* "$VAULT_DATA_DIR/"
+        rm -rf "$temp_dir"
+        
         vault::message "success" "MSG_VAULT_RESTORE_SUCCESS"
-        log::info "Restored from: $backup_file"
+        log::info "Restored from: $backup_path"
         return 0
     else
         vault::message "error" "MSG_VAULT_RESTORE_FAILED"
         return 1
     fi
+}
+
+#######################################
+# Create client-specific Vault instance
+# Arguments: $1 - client ID
+# Returns: 0 on success, 1 on failure
+#######################################
+vault::docker::create_client_instance() {
+    local client_id="$1"
+    
+    if [[ -z "$client_id" ]]; then
+        log::error "Missing client_id parameter"
+        return 1
+    fi
+    
+    log::info "Creating Vault client instance for: ${client_id}"
+    
+    # Use simplified client creation from docker-resource-utils
+    local client_port project_config_dir
+    project_config_dir="$(secrets::get_project_config_dir)"
+    
+    # Generate client-specific configuration
+    vault::create_config "prod"  # Always use prod mode for clients
+    
+    client_port=$(docker_resource::create_client_instance \
+        "vault" \
+        "$client_id" \
+        "$VAULT_IMAGE" \
+        "8200" \
+        "8300" \
+        "8399" \
+        "$project_config_dir" \
+        "${VAULT_CONFIG_DIR}/vault.hcl")
+    
+    if [[ $? -eq 0 && -n "$client_port" ]]; then
+        # Generate metadata using helper
+        local client_container="vault-client-${client_id}"
+        local client_network="vrooli-${client_id}-network"
+        local metadata
+        metadata=$(docker_resource::generate_client_metadata \
+            "${client_id}" \
+            "vault" \
+            "${client_container}" \
+            "${client_network}" \
+            "${client_port}" \
+            "http://localhost:${client_port}")
+        
+        # Save metadata
+        local client_config_file="${project_config_dir}/clients/${client_id}/vault.json"
+        echo "$metadata" > "$client_config_file"
+        
+        log::success "Vault client instance created successfully"
+        log::info "   Client: ${client_id}"
+        log::info "   Port: ${client_port}"
+        log::info "   URL: http://localhost:${client_port}"
+        
+        return 0
+    else
+        log::error "Failed to create Vault client instance"
+        return 1
+    fi
+}
+
+#######################################
+# Destroy client-specific Vault instance
+# Arguments: $1 - client ID
+# Returns: 0 on success, 1 on failure
+#######################################
+vault::docker::destroy_client_instance() {
+    local client_id="$1"
+    
+    if [[ -z "$client_id" ]]; then
+        log::error "Missing client_id parameter"
+        return 1
+    fi
+    
+    log::info "Destroying Vault client instance: ${client_id}"
+    
+    # Use simplified client removal
+    local project_config_dir
+    project_config_dir="$(secrets::get_project_config_dir)"
+    
+    docker_resource::remove_client_instance \
+        "vault" \
+        "$client_id" \
+        "$project_config_dir" \
+        "true"
+    
+    # Remove client configuration metadata safely
+    trash::safe_remove "${project_config_dir}/clients/${client_id}/vault.json" --no-confirm 2>/dev/null || true
+    
+    log::success "Vault client instance destroyed successfully"
+    return 0
 }

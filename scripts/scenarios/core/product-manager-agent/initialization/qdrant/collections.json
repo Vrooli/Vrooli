@@ -1,0 +1,68 @@
+{
+  "collections": [
+    {
+      "name": "product_features",
+      "vectors": {
+        "size": 1536,
+        "distance": "Cosine"
+      },
+      "payload_schema": {
+        "feature_id": "keyword",
+        "product_id": "keyword",
+        "title": "text",
+        "description": "text",
+        "priority": "keyword",
+        "status": "keyword",
+        "tags": "keyword[]"
+      }
+    },
+    {
+      "name": "product_decisions",
+      "vectors": {
+        "size": 1536,
+        "distance": "Cosine"
+      },
+      "payload_schema": {
+        "decision_id": "keyword",
+        "product_id": "keyword",
+        "title": "text",
+        "context": "text",
+        "decision": "text",
+        "rationale": "text",
+        "status": "keyword"
+      }
+    },
+    {
+      "name": "market_research",
+      "vectors": {
+        "size": 1536,
+        "distance": "Cosine"
+      },
+      "payload_schema": {
+        "research_id": "keyword",
+        "product_id": "keyword",
+        "title": "text",
+        "summary": "text",
+        "research_type": "keyword",
+        "opportunities": "text[]",
+        "threats": "text[]"
+      }
+    },
+    {
+      "name": "user_feedback",
+      "vectors": {
+        "size": 1536,
+        "distance": "Cosine"
+      },
+      "payload_schema": {
+        "feedback_id": "keyword",
+        "product_id": "keyword",
+        "feature_id": "keyword",
+        "content": "text",
+        "sentiment": "keyword",
+        "priority": "keyword",
+        "tags": "keyword[]"
+      }
+    }
+  ]
+}

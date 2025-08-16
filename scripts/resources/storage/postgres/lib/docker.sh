@@ -1,96 +1,19 @@
 #!/usr/bin/env bash
-# PostgreSQL Docker Management
-# Functions for managing PostgreSQL Docker containers
+# PostgreSQL Docker Management - Ultra-Simplified
+# Uses docker-resource-utils.sh for minimal boilerplate
 
-#######################################
-# Create Docker network if it doesn't exist
-# Returns: 0 on success, 1 on failure
-#######################################
-postgres::docker::create_network() {
-    if ! docker network ls | grep -q "\s${POSTGRES_NETWORK}\s"; then
-        log::debug "Creating Docker network: ${POSTGRES_NETWORK}"
-        if docker network create "${POSTGRES_NETWORK}" >/dev/null 2>&1; then
-            log::debug "Docker network created successfully"
-            return 0
-        else
-            log::error "Failed to create Docker network"
-            return 1
-        fi
-    else
-        log::debug "Docker network already exists: ${POSTGRES_NETWORK}"
-        return 0
-    fi
-}
+# Source var.sh to get proper directory variables
+_POSTGRES_DOCKER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${_POSTGRES_DOCKER_DIR}/../../../../lib/utils/var.sh"
 
-#######################################
-# Pull PostgreSQL Docker image
-# Returns: 0 on success, 1 on failure
-#######################################
-postgres::docker::pull_image() {
-    log::info "${MSG_PULLING_IMAGE}"
-    
-    if docker pull "${POSTGRES_IMAGE}" 2>&1 | while read -r line; do
-        if [[ "$line" =~ "Pulling from" ]] || [[ "$line" =~ "Status:" ]]; then
-            log::debug "$line"
-        fi
-    done; then
-        log::debug "PostgreSQL image pulled successfully"
-        return 0
-    else
-        log::error "Failed to pull PostgreSQL image"
-        return 1
-    fi
-}
+# Source shared libraries
+# shellcheck disable=SC1091
+source "${var_LIB_SERVICE_DIR}/secrets.sh"
+# shellcheck disable=SC1091
+source "${var_SCRIPTS_RESOURCES_LIB_DIR}/docker-resource-utils.sh"
 
-#######################################
-# Create basic PostgreSQL configuration
-# Arguments:
-#   $1 - config file path
-#   $2 - template name
-# Returns: 0 on success, 1 on failure
-#######################################
-postgres::docker::create_basic_config() {
-    local config_file="$1"
-    local template="$2"
-    
-    cat > "$config_file" << EOF
-# Basic PostgreSQL Configuration - Generated for template: $template
-# This is a fallback configuration when template file is not found
 
-# Connection settings
-max_connections = 100
-listen_addresses = '*'
-port = 5432
-
-# Memory settings
-shared_buffers = 128MB
-work_mem = 4MB
-maintenance_work_mem = 64MB
-
-# WAL settings
-wal_level = replica
-fsync = on
-synchronous_commit = on
-
-# Logging
-log_timezone = 'UTC'
-log_statement = 'none'
-log_min_duration_statement = -1
-log_line_prefix = '%t [%p]: [%l-1] user=%u,db=%d '
-
-# Locale settings
-lc_messages = 'en_US.UTF-8'
-lc_monetary = 'en_US.UTF-8'
-lc_numeric = 'en_US.UTF-8'
-lc_time = 'en_US.UTF-8'
-default_text_search_config = 'pg_catalog.english'
-
-# Autovacuum
-autovacuum = on
-EOF
-    
-    return 0
-}
 
 #######################################
 # Create and start PostgreSQL container
@@ -108,16 +31,16 @@ postgres::docker::create_container() {
     local template="${4:-development}"
     local container_name="${POSTGRES_CONTAINER_PREFIX}-${instance_name}"
     local data_dir="${POSTGRES_INSTANCES_DIR}/${instance_name}/data"
-    local volume_name="${POSTGRES_VOLUME_PREFIX}-${instance_name}"
+    local config_dir="${POSTGRES_INSTANCES_DIR}/${instance_name}/config"
     
-    # Ensure network exists
-    postgres::docker::create_network || return 1
+    # Pull image if needed
+    log::info "${MSG_PULLING_IMAGE}"
+    docker::pull_image "$POSTGRES_IMAGE"
     
     # Ensure directories exist
     postgres::common::create_directories "$instance_name"
     
     # Prepare configuration template
-    local config_dir="${POSTGRES_INSTANCES_DIR}/${instance_name}/config"
     mkdir -p "$config_dir"
     
     # Copy template configuration
@@ -126,84 +49,64 @@ postgres::docker::create_container() {
         cp "$template_file" "$config_dir/postgresql.conf"
         log::info "Applied '$template' template configuration"
     else
-        log::warn "Template '$template' not found, using default configuration"
-        # Create basic configuration if template doesn't exist
-        postgres::docker::create_basic_config "$config_dir/postgresql.conf" "$template"
+        # Fall back to development template if specified template not found
+        local fallback_template="${POSTGRES_TEMPLATE_DIR}/development.conf"
+        if [[ -f "$fallback_template" ]]; then
+            log::warn "Template '$template' not found, using development template"
+            cp "$fallback_template" "$config_dir/postgresql.conf"
+        else
+            log::error "No PostgreSQL configuration templates available"
+            return 1
+        fi
     fi
     
     log::info "${MSG_STARTING_CONTAINER}"
     
-    # Build docker run command
-    local docker_cmd=(
-        "docker" "run" "-d"
-        "--name" "${container_name}"
-        "--network" "${POSTGRES_NETWORK}"
-        "-p" "${port}:5432"
-        "-v" "${data_dir}:/var/lib/postgresql/data"
-        "-v" "${config_dir}/postgresql.conf:/etc/postgresql/postgresql.conf"
-        "-e" "POSTGRES_USER=${POSTGRES_DEFAULT_USER}"
-        "-e" "POSTGRES_PASSWORD=${password}"
-        "-e" "POSTGRES_DB=${POSTGRES_DEFAULT_DB}"
-        "-e" "POSTGRES_INITDB_ARGS=--encoding=${POSTGRES_DEFAULT_ENCODING} --locale=${POSTGRES_DEFAULT_LOCALE}"
-        "--restart" "unless-stopped"
-        "--health-cmd" "pg_isready -U ${POSTGRES_DEFAULT_USER} -d ${POSTGRES_DEFAULT_DB}"
-        "--health-interval" "${POSTGRES_HEALTH_CHECK_INTERVAL}s"
-        "--health-timeout" "${POSTGRES_HEALTH_CHECK_TIMEOUT}s"
-        "--health-retries" "${POSTGRES_HEALTH_CHECK_RETRIES}"
-        "${POSTGRES_IMAGE}"
+    # Validate required environment variables
+    docker_resource::validate_env_vars "POSTGRES_IMAGE" "POSTGRES_DEFAULT_USER" "POSTGRES_DEFAULT_DB" || return 1
+    
+    # Prepare environment variables array
+    local env_vars=(
+        "POSTGRES_USER=${POSTGRES_DEFAULT_USER}"
+        "POSTGRES_PASSWORD=${password}"
+        "POSTGRES_DB=${POSTGRES_DEFAULT_DB}"
+        "POSTGRES_INITDB_ARGS=--encoding=${POSTGRES_DEFAULT_ENCODING} --locale=${POSTGRES_DEFAULT_LOCALE}"
+    )
+    
+    # Port mappings and volumes
+    local port_mappings="${port}:5432"
+    local volumes="${data_dir}:/var/lib/postgresql/data ${config_dir}/postgresql.conf:/etc/postgresql/postgresql.conf:ro"
+    
+    # Health check command with configurable params
+    local health_cmd="pg_isready -U ${POSTGRES_DEFAULT_USER} -d ${POSTGRES_DEFAULT_DB}"
+    
+    # Set health check environment variables for advanced function
+    export DOCKER_HEALTH_INTERVAL="${POSTGRES_HEALTH_CHECK_INTERVAL}s"
+    export DOCKER_HEALTH_TIMEOUT="${POSTGRES_HEALTH_CHECK_TIMEOUT}s"
+    export DOCKER_HEALTH_RETRIES="${POSTGRES_HEALTH_CHECK_RETRIES}"
+    
+    # Command arguments for PostgreSQL
+    local entrypoint_cmd=(
         "-c" "config_file=/etc/postgresql/postgresql.conf"
     )
     
-    # Template configuration is now handled via mounted config file
-    # This provides more comprehensive and maintainable configuration
-    log::debug "Using template configuration: $template"
-    
-    # Run the container and capture any errors
-    local docker_output
-    local docker_exit_code
-    
-    docker_output=$("${docker_cmd[@]}" 2>&1)
-    docker_exit_code=$?
-    
-    if [[ $docker_exit_code -eq 0 ]]; then
+    # Use advanced creation function
+    if docker_resource::create_service_advanced \
+        "${container_name}" \
+        "${POSTGRES_IMAGE}" \
+        "$port_mappings" \
+        "${POSTGRES_NETWORK}" \
+        "$volumes" \
+        "env_vars" \
+        "" \
+        "$health_cmd" \
+        "entrypoint_cmd"; then
+        
         log::debug "PostgreSQL container created successfully"
-        
-        # Wait a moment for container to initialize
-        sleep "${POSTGRES_INITIALIZATION_WAIT}"
-        
+        sleep "${POSTGRES_INITIALIZATION_WAIT:-3}"
         return 0
     else
         log::error "Failed to create PostgreSQL container"
-        
-        # Parse and display specific error messages
-        if echo "$docker_output" | grep -qi "bind.*failed.*port is already allocated"; then
-            log::error "Port $port is already in use by another service"
-            log::info "Try using a different port or stop the conflicting service"
-            # Try to show what's using the port
-            if command -v lsof >/dev/null 2>&1; then
-                local port_user=$(lsof -i :${port} -sTCP:LISTEN 2>/dev/null | grep -v "^COMMAND" | head -1)
-                if [[ -n "$port_user" ]]; then
-                    log::info "Port $port is currently used by: $(echo "$port_user" | awk '{print $1}')"
-                fi
-            fi
-        elif echo "$docker_output" | grep -qi "bind.*address already in use"; then
-            log::error "Port $port is already in use by another service"
-            log::info "Try using a different port or stop the conflicting service"
-        elif echo "$docker_output" | grep -qi "conflict.*already in use by container"; then
-            log::error "Container name '$container_name' is already in use"
-            log::info "This usually means the instance wasn't properly cleaned up"
-            log::info "Try: docker rm -f $container_name"
-        elif echo "$docker_output" | grep -qi "permission denied"; then
-            log::error "Permission denied - ensure Docker daemon is accessible"
-            log::info "You may need to run: sudo usermod -aG docker \$USER && newgrp docker"
-        elif echo "$docker_output" | grep -qi "no such image"; then
-            log::error "PostgreSQL Docker image not found: ${POSTGRES_IMAGE}"
-            log::info "Run: ./manage.sh --action install"
-        else
-            # Show the actual Docker error for debugging
-            log::debug "Docker error output: $docker_output"
-        fi
-        
         return 1
     fi
 }
@@ -230,7 +133,7 @@ postgres::docker::start() {
     
     log::info "Starting PostgreSQL instance '$instance_name'..."
     
-    if docker start "${container_name}" >/dev/null 2>&1; then
+    if docker::start_container "${container_name}"; then
         # Wait for container to be ready
         if postgres::common::wait_for_ready "$instance_name"; then
             local port=$(postgres::common::get_instance_config "$instance_name" "port")
@@ -269,7 +172,7 @@ postgres::docker::stop() {
     
     log::info "Stopping PostgreSQL instance '$instance_name'..."
     
-    if docker stop "${container_name}" >/dev/null 2>&1; then
+    if docker::stop_container "${container_name}"; then
         log::success "${MSG_STOP_SUCCESS}"
         return 0
     else
@@ -286,20 +189,21 @@ postgres::docker::stop() {
 #######################################
 postgres::docker::restart() {
     local instance_name="${1:-main}"
+    local container_name="${POSTGRES_CONTAINER_PREFIX}-${instance_name}"
     
     log::info "Restarting PostgreSQL instance '$instance_name'..."
     
-    # Stop if running
-    if postgres::common::is_running "$instance_name"; then
-        postgres::docker::stop "$instance_name" || return 1
-        sleep 2
-    fi
-    
-    # Start again
-    if postgres::docker::start "$instance_name"; then
-        log::success "${MSG_RESTART_SUCCESS}"
-        return 0
+    if docker::restart_container "${container_name}"; then
+        # Wait for container to be ready
+        if postgres::common::wait_for_ready "$instance_name"; then
+            log::success "${MSG_RESTART_SUCCESS}"
+            return 0
+        else
+            log::error "PostgreSQL restart failed - container not ready"
+            return 1
+        fi
     else
+        log::error "Failed to restart PostgreSQL"
         return 1
     fi
 }
@@ -321,49 +225,16 @@ postgres::docker::remove() {
         return 0
     fi
     
-    # Stop container if running
-    if postgres::common::is_running "$instance_name"; then
-        # Try graceful stop first, with timeout
-        if ! timeout 30 docker stop "${container_name}" >/dev/null 2>&1; then
-            if [[ "$force" == "true" || "$force" == "yes" ]]; then
-                log::warn "Graceful stop timed out, force stopping container"
-                docker kill "${container_name}" >/dev/null 2>&1 || true
-            else
-                log::error "Failed to stop container within 30 seconds. Use --force yes to force removal."
-                return 1
-            fi
-        fi
-    fi
-    
     log::info "Removing PostgreSQL instance '$instance_name'..."
     
-    if docker rm "${container_name}" >/dev/null 2>&1; then
+    # Use simplified docker::remove_container with force flag
+    if docker::remove_container "${container_name}" "$force"; then
         log::debug "PostgreSQL container removed successfully"
         return 0
     else
         log::error "Failed to remove PostgreSQL container"
         return 1
     fi
-}
-
-#######################################
-# Execute command in PostgreSQL container
-# Arguments:
-#   $1 - instance name
-#   $@ - Command to execute
-# Returns: Command exit code
-#######################################
-postgres::docker::exec() {
-    local instance_name="$1"
-    shift
-    local container_name="${POSTGRES_CONTAINER_PREFIX}-${instance_name}"
-    
-    if ! postgres::common::is_running "$instance_name"; then
-        log::error "PostgreSQL instance '$instance_name' is not running"
-        return 1
-    fi
-    
-    docker exec "${container_name}" "$@"
 }
 
 #######################################
@@ -389,40 +260,91 @@ postgres::docker::exec_sql() {
 }
 
 #######################################
-# Get container statistics
-# Arguments:
-#   $1 - instance name
-# Output: JSON with container stats
+# Create client-specific PostgreSQL instance
+# Arguments: $1 - client ID
+# Returns: 0 on success, 1 on failure
 #######################################
-postgres::docker::stats() {
-    local instance_name="${1:-main}"
-    local container_name="${POSTGRES_CONTAINER_PREFIX}-${instance_name}"
+postgres::docker::create_client_instance() {
+    local client_id="$1"
     
-    if ! postgres::common::is_running "$instance_name"; then
-        echo "{\"error\": \"Container not running\"}"
+    if [[ -z "$client_id" ]]; then
+        log::error "Missing required parameter: client_id"
         return 1
     fi
     
-    docker stats "${container_name}" --no-stream --format "json" 2>/dev/null || echo "{}"
+    log::info "Creating PostgreSQL client instance for: ${client_id}"
+    
+    # Use simplified client creation
+    local client_port project_config_dir
+    project_config_dir="$(secrets::get_project_config_dir)"
+    
+    client_port=$(docker_resource::create_client_instance \
+        "postgres" \
+        "$client_id" \
+        "$POSTGRES_IMAGE" \
+        "5432" \
+        "${POSTGRES_CLIENT_PORT_START:-5434}" \
+        "${POSTGRES_CLIENT_PORT_END:-5450}" \
+        "$project_config_dir" \
+        "${POSTGRES_TEMPLATE_DIR}/development.conf")
+    
+    if [[ $? -eq 0 && -n "$client_port" ]]; then
+        # Save client configuration metadata
+        local client_config_file="${project_config_dir}/clients/${client_id}/postgres.json"
+        cat > "$client_config_file" << EOF
+{
+  "clientId": "${client_id}",
+  "resource": "postgres", 
+  "container": "postgres-client-${client_id}",
+  "network": "vrooli-${client_id}-network",
+  "port": ${client_port},
+  "database": "postgres",
+  "username": "postgres",
+  "baseUrl": "postgresql://postgres@localhost:${client_port}/postgres",
+  "created": "$(date -Iseconds)"
+}
+EOF
+        
+        log::success "PostgreSQL client instance created successfully"
+        log::info "   Client: ${client_id}"
+        log::info "   Port: ${client_port}"
+        log::info "   URL: postgresql://postgres@localhost:${client_port}/postgres"
+        
+        return 0
+    else
+        log::error "Failed to create PostgreSQL client instance"
+        return 1
+    fi
 }
 
 #######################################
-# Check Docker availability
-# Returns: 0 if available, 1 if not
+# Destroy client-specific PostgreSQL instance
+# Arguments: $1 - client ID
+# Returns: 0 on success, 1 on failure
 #######################################
-postgres::docker::check_docker() {
-    if ! command -v docker >/dev/null 2>&1; then
-        log::error "Docker is not installed"
-        log::info "Please install Docker: https://docs.docker.com/get-docker/"
+postgres::docker::destroy_client_instance() {
+    local client_id="$1"
+    
+    if [[ -z "$client_id" ]]; then
+        log::error "Missing required parameter: client_id"
         return 1
     fi
     
-    if ! docker info >/dev/null 2>&1; then
-        log::error "Docker daemon is not running"
-        log::info "Please start Docker and try again"
-        return 1
-    fi
+    log::info "Destroying PostgreSQL client instance: ${client_id}"
     
-    log::debug "Docker is available and running"
+    # Use simplified client removal
+    local project_config_dir
+    project_config_dir="$(secrets::get_project_config_dir)"
+    
+    docker_resource::remove_client_instance \
+        "postgres" \
+        "$client_id" \
+        "$project_config_dir" \
+        "true"
+    
+    # Remove client configuration metadata safely
+    trash::safe_remove "${project_config_dir}/clients/${client_id}/postgres.json" --no-confirm 2>/dev/null || true
+    
+    log::success "PostgreSQL client instance destroyed successfully"
     return 0
 }

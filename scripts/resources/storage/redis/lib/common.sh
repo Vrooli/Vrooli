@@ -139,7 +139,7 @@ daemonize no
 supervised no
 pidfile /var/run/redis_6379.pid
 loglevel ${REDIS_LOGLEVEL}
-logfile ${REDIS_LOGFILE}
+# logfile disabled - Redis will log to stdout for Docker
 databases ${REDIS_DATABASES}
 
 # Memory Management

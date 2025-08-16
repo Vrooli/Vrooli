@@ -136,13 +136,11 @@ node_red::cli_uninstall() {
 # Show logs with line count
 node_red::cli_logs() {
     local lines="${1:-50}"
-    local container_name="${CONTAINER_NAME:-node-red}"
+    local follow="${2:-false}"
+    local container_name="${NODE_RED_CONTAINER_NAME:-node-red}"
     
-    if command -v node_red::view_logs &>/dev/null; then
-        node_red::view_logs "$lines"
-    else
-        docker logs --tail "$lines" "$container_name"
-    fi
+    # Use shared utility with follow support
+    docker_resource::show_logs_with_follow "$container_name" "$lines" "$follow"
 }
 
 # Show credentials for Node-RED integration

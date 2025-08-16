@@ -1,209 +1,313 @@
 #!/usr/bin/env bash
-# QuestDB Docker Management Functions
+# QuestDB Docker Management - Ultra-Simplified
+# Uses docker-resource-utils.sh for minimal boilerplate
 
-QUESTDB_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# Source var.sh to get proper directory variables
+_QUESTDB_DOCKER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${_QUESTDB_DOCKER_DIR}/../../../../lib/utils/var.sh"
 
-#######################################
-# Check if QuestDB container is running
-# Returns:
-#   0 if running, 1 otherwise
-#######################################
-questdb::docker::is_running() {
-    docker ps --format '{{.Names}}' | grep -q "^${QUESTDB_CONTAINER_NAME}$"
-}
-
-#######################################
-# Check if QuestDB container exists
-# Returns:
-#   0 if exists, 1 otherwise
-#######################################
-questdb::docker::container_exists() {
-    docker ps -a --format '{{.Names}}' | grep -q "^${QUESTDB_CONTAINER_NAME}$"
-}
+# Source shared libraries
+# shellcheck disable=SC1091
+source "${var_LIB_SERVICE_DIR}/secrets.sh"
+# shellcheck disable=SC1091
+source "${var_SCRIPTS_RESOURCES_LIB_DIR}/docker-resource-utils.sh"
+# shellcheck disable=SC1091
+source "${_QUESTDB_DOCKER_DIR}/common.sh"
 
 #######################################
-# Create Docker network if not exists
-# Returns:
-#   0 on success, 1 on failure
+# Create and start QuestDB container
+# Returns: 0 on success, 1 on failure
 #######################################
-questdb::docker::create_network() {
-    if ! docker network ls --format '{{.Name}}' | grep -q "^${QUESTDB_NETWORK_NAME}$"; then
-        echo_info "${QUESTDB_INSTALL_MESSAGES["creating_network"]}"
-        docker network create "${QUESTDB_NETWORK_NAME}" || return 1
+questdb::docker::create_container() {
+    # Ensure directories exist
+    questdb::common::create_dirs || return 1
+    
+    # Pull image if needed
+    log::info "Pulling QuestDB image..."
+    docker::pull_image "$QUESTDB_IMAGE"
+    
+    log::info "Creating QuestDB time-series database container..."
+    
+    # Prepare port mappings for triple-port setup
+    local port_mappings="${QUESTDB_HTTP_PORT}:9000 ${QUESTDB_PG_PORT}:8812 ${QUESTDB_ILP_PORT}:9009"
+    
+    # Prepare volumes
+    local volumes="${QUESTDB_DATA_DIR}:/var/lib/questdb ${QUESTDB_CONFIG_DIR}:/questdb/conf ${QUESTDB_LOG_DIR}:/var/log/questdb"
+    
+    # Prepare Docker options (ulimit for performance)
+    local docker_opts="--ulimit nofile=65536:65536 -e QDB_PG_USER=${QUESTDB_PG_USER} -e QDB_PG_PASSWORD=${QUESTDB_PG_PASSWORD}"
+    
+    # Use multi-port service creation with options
+    if docker_resource::create_service_with_opts \
+        "$QUESTDB_CONTAINER_NAME" \
+        "$QUESTDB_IMAGE" \
+        "$port_mappings" \
+        "$QUESTDB_NETWORK_NAME" \
+        "$volumes" \
+        "curl -f http://localhost:9000/status || exit 1" \
+        "$docker_opts"; then
+        
+        # Wait for container to be ready
+        if questdb::common::wait_for_ready; then
+            log::success "QuestDB time-series database is ready"
+            questdb::docker::show_connection_info
+            return 0
+        else
+            log::error "QuestDB failed to become ready"
+            return 1
+        fi
+    else
+        log::error "Failed to create QuestDB container"
+        return 1
     fi
-    return 0
 }
 
 #######################################
 # Start QuestDB container
-# Returns:
-#   0 on success, 1 on failure
+# Returns: 0 on success, 1 on failure
 #######################################
 questdb::docker::start() {
-    echo_info "${QUESTDB_STATUS_MESSAGES["starting"]}"
-    
-    # Check if already running
-    if questdb::docker::is_running; then
-        echo_info "QuestDB is already running"
-        return 0
+    if ! docker::container_exists "$QUESTDB_CONTAINER_NAME"; then
+        log::error "QuestDB container does not exist. Run install first."
+        return 1
     fi
     
-    # Create network if needed
-    questdb::docker::create_network || return 1
+    log::info "Starting QuestDB container..."
     
-    # Start container
-    if questdb::docker::container_exists; then
-        docker start "${QUESTDB_CONTAINER_NAME}" || return 1
+    if docker::start_container "$QUESTDB_CONTAINER_NAME"; then
+        if questdb::common::wait_for_ready; then
+            log::success "QuestDB time-series database is running"
+            questdb::docker::show_connection_info
+            return 0
+        else
+            log::error "QuestDB failed to start properly"
+            return 1
+        fi
     else
-        # Run new container
-        cd "${QUESTDB_LIB_DIR}/../docker" || return 1
-        docker-compose up -d || return 1
-        cd - > /dev/null || return 1
+        log::error "Failed to start QuestDB container"
+        return 1
     fi
-    
-    # Wait for container to be healthy
-    questdb::docker::wait_healthy || return 1
-    
-    echo_success "${QUESTDB_STATUS_MESSAGES["ready"]}"
-    return 0
 }
 
 #######################################
 # Stop QuestDB container
-# Returns:
-#   0 on success, 1 on failure
+# Returns: 0 on success, 1 on failure
 #######################################
 questdb::docker::stop() {
-    echo_info "${QUESTDB_STATUS_MESSAGES["stopping"]}"
-    
-    if ! questdb::docker::is_running; then
-        echo_info "QuestDB is not running"
+    if ! docker::container_exists "$QUESTDB_CONTAINER_NAME"; then
+        log::warn "QuestDB container does not exist"
         return 0
     fi
     
-    docker stop "${QUESTDB_CONTAINER_NAME}" || return 1
-    echo_success "QuestDB stopped"
-    return 0
+    log::info "Stopping QuestDB container..."
+    
+    if docker::stop_container "$QUESTDB_CONTAINER_NAME"; then
+        log::success "QuestDB stopped successfully"
+        return 0
+    else
+        log::error "Failed to stop QuestDB"
+        return 1
+    fi
 }
 
 #######################################
 # Restart QuestDB container
-# Returns:
-#   0 on success, 1 on failure
+# Returns: 0 on success, 1 on failure
 #######################################
 questdb::docker::restart() {
-    questdb::docker::stop || return 1
-    sleep 2
-    questdb::docker::start || return 1
-}
-
-#######################################
-# Wait for QuestDB to be healthy
-# Returns:
-#   0 if healthy, 1 on timeout
-#######################################
-questdb::docker::wait_healthy() {
-    echo_info "${QUESTDB_STATUS_MESSAGES["waiting"]}"
+    log::info "Restarting QuestDB container..."
     
-    local max_wait="${QUESTDB_STARTUP_MAX_WAIT}"
-    local interval="${QUESTDB_STARTUP_WAIT_INTERVAL}"
-    local elapsed=0
-    
-    while (( elapsed < max_wait )); do
-        if questdb::docker::health_check; then
+    if docker::restart_container "$QUESTDB_CONTAINER_NAME"; then
+        if questdb::common::wait_for_ready; then
+            log::success "QuestDB restarted successfully"
+            questdb::docker::show_connection_info
             return 0
+        else
+            log::error "QuestDB failed to restart properly"
+            return 1
         fi
-        
-        sleep "${interval}"
-        ((elapsed += interval))
-        echo -n "."
-    done
-    
-    echo ""
-    echo_error "QuestDB failed to become healthy after ${max_wait} seconds"
-    return 1
-}
-
-#######################################
-# Check QuestDB health
-# Returns:
-#   0 if healthy, 1 otherwise
-#######################################
-questdb::docker::health_check() {
-    if ! questdb::docker::is_running; then
-        return 1
-    fi
-    
-    # Check HTTP endpoint
-    local response
-    response=$(curl -s -o /dev/null -w "%{http_code}" "${QUESTDB_BASE_URL}/status" 2>/dev/null || echo "000")
-    
-    [[ "$response" == "200" ]]
-}
-
-#######################################
-# View QuestDB logs
-# Arguments:
-#   $1 - Follow logs (true/false)
-# Returns:
-#   0 on success, 1 on failure
-#######################################
-questdb::docker::logs() {
-    local follow="${1:-false}"
-    
-    if ! questdb::docker::container_exists; then
-        echo_error "QuestDB container does not exist"
-        return 1
-    fi
-    
-    if [[ "$follow" == "true" ]]; then
-        docker logs -f "${QUESTDB_CONTAINER_NAME}"
     else
-        docker logs --tail 100 "${QUESTDB_CONTAINER_NAME}"
-    fi
-}
-
-#######################################
-# Get container statistics
-# Returns:
-#   JSON with container stats
-#######################################
-questdb::docker::stats() {
-    if ! questdb::docker::is_running; then
-        echo "{}"
+        log::error "Failed to restart QuestDB"
         return 1
     fi
-    
-    docker stats "${QUESTDB_CONTAINER_NAME}" --no-stream --format "json" | jq -r '.'
 }
 
 #######################################
-# Execute command in container
-# Arguments:
-#   $@ - Command to execute
-# Returns:
-#   Command exit code
+# Remove QuestDB container
+# Arguments: $1 - remove data (yes/no)
+# Returns: 0 on success, 1 on failure
+#######################################
+questdb::docker::remove_container() {
+    local remove_data="${1:-no}"
+    
+    # Stop and remove container
+    docker::remove_container "$QUESTDB_CONTAINER_NAME" "true"
+    
+    # Remove data if requested
+    if [[ "$remove_data" == "yes" ]]; then
+        docker_resource::remove_data "QuestDB" "${QUESTDB_DATA_DIR} ${QUESTDB_CONFIG_DIR} ${QUESTDB_LOG_DIR}" "yes"
+    fi
+    
+    return 0
+}
+
+
+#######################################
+# Execute SQL query using PostgreSQL wire protocol
+# Arguments: $@ - SQL query
+# Returns: Query exit code
+#######################################
+questdb::docker::exec_sql() {
+    local query="$*"
+    docker_resource::exec "$QUESTDB_CONTAINER_NAME" psql -h localhost -p 8812 -U "${QUESTDB_PG_USER}" -d qdb -c "$query"
+}
+
+#######################################
+# Execute command in QuestDB container
+# Arguments: $@ - Command to execute
+# Returns: Command exit code
 #######################################
 questdb::docker::exec() {
-    if ! questdb::docker::is_running; then
-        echo_error "QuestDB is not running"
-        return 1
-    fi
-    
-    docker exec "${QUESTDB_CONTAINER_NAME}" "$@"
+    docker_resource::exec "$QUESTDB_CONTAINER_NAME" "$@"
 }
 
 #######################################
-# Export Docker functions
+# Show connection information
 #######################################
-export -f questdb::docker::is_running
-export -f questdb::docker::container_exists
-export -f questdb::docker::create_network
-export -f questdb::docker::start
-export -f questdb::docker::stop
-export -f questdb::docker::restart
-export -f questdb::docker::wait_healthy
-export -f questdb::docker::health_check
-export -f questdb::docker::logs
-export -f questdb::docker::stats
-export -f questdb::docker::exec
+questdb::docker::show_connection_info() {
+    local additional_info=(
+        "PostgreSQL Wire: ${QUESTDB_PG_URL}"
+        "InfluxDB Line: localhost:${QUESTDB_ILP_PORT}"
+        "Management UI: ${QUESTDB_BASE_URL} (web console)"
+    )
+    
+    if [[ "${QUESTDB_HTTP_SECURITY_READONLY}" == "true" ]]; then
+        additional_info+=("⚠️  HTTP API is in read-only mode")
+    fi
+    
+    docker_resource::show_connection_info "QuestDB Time-Series Database" "${QUESTDB_BASE_URL}" "${additional_info[@]}"
+}
+
+#######################################
+# Create client-specific QuestDB instance
+# Arguments: $1 - client ID
+# Returns: 0 on success, 1 on failure
+#######################################
+questdb::docker::create_client_instance() {
+    local client_id="$1"
+    
+    if [[ -z "$client_id" ]]; then
+        log::error "Missing required parameter: client_id"
+        return 1
+    fi
+    
+    log::info "Creating QuestDB client instance for: ${client_id}"
+    
+    local project_config_dir
+    project_config_dir="$(secrets::get_project_config_dir)"
+    
+    # Allocate three ports for QuestDB
+    local client_http_port client_pg_port client_ilp_port
+    client_http_port=$(docker_resource::find_available_port "9020" "9050")
+    client_pg_port=$(docker_resource::find_available_port "8820" "8850") 
+    client_ilp_port=$(docker_resource::find_available_port "9060" "9090")
+    
+    if [[ -z "$client_http_port" || -z "$client_pg_port" || -z "$client_ilp_port" ]]; then
+        log::error "Could not allocate required ports for QuestDB client"
+        return 1
+    fi
+    
+    # Create client directories
+    local client_base_dir="${project_config_dir}/clients/${client_id}/questdb"
+    mkdir -p "${client_base_dir}"/{data,config,logs}
+    
+    local client_container="questdb-client-${client_id}"
+    local client_network="vrooli-${client_id}-network"
+    
+    # Prepare configuration for multi-port client
+    local port_mappings="${client_http_port}:9000 ${client_pg_port}:8812 ${client_ilp_port}:9009"
+    local volumes="${client_base_dir}/data:/var/lib/questdb ${client_base_dir}/config:/questdb/conf ${client_base_dir}/logs:/var/log/questdb"
+    local docker_opts="-e QDB_PG_USER=admin -e QDB_PG_PASSWORD=quest --ulimit nofile=65536:65536"
+    
+    # Create container
+    if docker_resource::create_service_with_opts \
+        "$client_container" \
+        "$QUESTDB_IMAGE" \
+        "$port_mappings" \
+        "$client_network" \
+        "$volumes" \
+        "curl -f http://localhost:9000/status || exit 1" \
+        "$docker_opts"; then
+        
+        # Generate metadata JSON
+        local ports_json='{
+    "http": '${client_http_port}',
+    "postgresql": '${client_pg_port}',
+    "influxdb": '${client_ilp_port}'
+  }'
+        
+        local metadata
+        metadata=$(docker_resource::generate_client_metadata \
+            "${client_id}" \
+            "questdb" \
+            "${client_container}" \
+            "${client_network}" \
+            "${ports_json}" \
+            "http://localhost:${client_http_port}")
+        
+        # Save metadata with extended URLs
+        local client_config_file="${project_config_dir}/clients/${client_id}/questdb.json"
+        # Add urls field to metadata
+        echo "$metadata" | sed 's/}$/,/' > "$client_config_file"
+        cat >> "$client_config_file" << EOF
+  "urls": {
+    "http": "http://localhost:${client_http_port}",
+    "postgresql": "postgresql://admin:quest@localhost:${client_pg_port}/qdb",
+    "influxdb": "localhost:${client_ilp_port}"
+  }
+}
+EOF
+        
+        log::success "QuestDB client instance created successfully"
+        log::info "   Client: ${client_id}"
+        log::info "   HTTP Port: ${client_http_port} | PostgreSQL Port: ${client_pg_port} | InfluxDB Port: ${client_ilp_port}"
+        log::info "   Web Console: http://localhost:${client_http_port}"
+        
+        return 0
+    else
+        log::error "Failed to create QuestDB client instance"
+        return 1
+    fi
+}
+
+#######################################
+# Destroy client-specific QuestDB instance
+# Arguments: $1 - client ID
+# Returns: 0 on success, 1 on failure
+#######################################
+questdb::docker::destroy_client_instance() {
+    local client_id="$1"
+    
+    if [[ -z "$client_id" ]]; then
+        log::error "Missing required parameter: client_id"
+        return 1
+    fi
+    
+    log::info "Destroying QuestDB client instance: ${client_id}"
+    
+    local project_config_dir
+    project_config_dir="$(secrets::get_project_config_dir)"
+    
+    docker_resource::remove_client_instance \
+        "questdb" \
+        "$client_id" \
+        "$project_config_dir" \
+        "true"
+    
+    # Remove client configuration metadata safely
+    trash::safe_remove "${project_config_dir}/clients/${client_id}/questdb.json" --no-confirm 2>/dev/null || true
+    
+    log::success "QuestDB client instance destroyed successfully"
+    return 0
+}

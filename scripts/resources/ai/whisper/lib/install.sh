@@ -63,25 +63,25 @@ whisper::install() {
     # Stop existing container if running
     if common::is_running "$WHISPER_CONTAINER_NAME"; then
         log::info "Stopping existing Whisper container..."
-        docker::stop_container
+        whisper::docker::stop_container
     fi
     
     # Remove existing container if it exists
     if common::container_exists "$WHISPER_CONTAINER_NAME"; then
         log::info "Removing existing Whisper container..."
-        docker::remove_container
+        whisper::docker::remove_container
     fi
     
     # Pull the Docker image
     log::info "Pulling Whisper Docker image..."
-    if ! docker::pull_image; then
+    if ! whisper::docker::pull_image; then
         log::error "Failed to pull Whisper Docker image"
         return 1
     fi
     
     # Start the container
     log::info "Starting Whisper container..."
-    if ! docker::start_container; then
+    if ! whisper::docker::start_container; then
         log::error "Failed to start Whisper container"
         return 1
     fi
@@ -108,13 +108,13 @@ whisper::uninstall() {
     # Stop container if running
     if common::is_running "$WHISPER_CONTAINER_NAME"; then
         log::info "Stopping Whisper container..."
-        docker::stop_container
+        whisper::docker::stop_container
     fi
     
     # Remove container if it exists
     if common::container_exists "$WHISPER_CONTAINER_NAME"; then
         log::info "Removing Whisper container..."
-        docker::remove_container
+        whisper::docker::remove_container
     fi
     
     # Clean up whisper cleanup
@@ -138,7 +138,7 @@ whisper::start() {
     fi
     
     log::info "Starting Whisper container..."
-    if docker::start_container; then
+    if whisper::docker::start_container; then
         log::info "Waiting for service to be ready..."
         if whisper::wait_for_health; then
             log::success "✅ Whisper started successfully"
@@ -162,7 +162,7 @@ whisper::stop() {
     fi
     
     log::info "Stopping Whisper container..."
-    if docker::stop_container; then
+    if whisper::docker::stop_container; then
         log::success "✅ Whisper stopped successfully"
     else
         log::error "Failed to stop Whisper container"
@@ -176,7 +176,7 @@ whisper::stop() {
 whisper::restart() {
     log::info "Restarting Whisper service..."
     
-    if docker::restart_container; then
+    if whisper::docker::restart_container; then
         log::info "Waiting for service to be ready..."
         if whisper::wait_for_health; then
             log::success "✅ Whisper restarted successfully"
@@ -194,12 +194,12 @@ whisper::restart() {
 # Show Whisper logs
 #######################################
 whisper::show_logs() {
-    docker::show_logs
+    whisper::docker::show_logs
 }
 
 #######################################
 # Get Whisper container stats
 #######################################
 whisper::get_stats() {
-    docker::show_stats
+    whisper::docker::show_stats
 }

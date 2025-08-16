@@ -1,0 +1,214 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "parent": "vrooli",
+    "name": "product-manager-agent",
+    "displayName": "Product Manager Agent",
+    "description": "AI-powered product management assistant for strategic decision-making, feature prioritization, and roadmap planning",
+    "version": "1.0.0",
+    "type": "vrooli-helpers",
+    "category": "business",
+    "tags": [
+      "product-management",
+      "strategy",
+      "roadmap",
+      "prioritization",
+      "decision-making",
+      "analytics",
+      "business-intelligence",
+      "javascript-ui",
+      "professional"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "SERVICE_PORT",
+      "range": "9200-9299",
+      "fallback": "auto",
+      "description": "Product Manager Agent API port"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "range": "4200-4299",
+      "fallback": "auto",
+      "description": "Product Manager Agent UI port"
+    }
+  },
+  "resources": {
+    "automation": {
+      "n8n": {
+        "type": "n8n",
+        "enabled": true,
+        "required": true,
+        "shared_workflows": [
+          "ollama",
+          "embedding-generator",
+          "chain-of-thought-orchestrator",
+          "structured-data-extractor",
+          "universal-rag-pipeline",
+          "web-researcher"
+        ],
+        "initialization": [
+          {
+            "file": "initialization/n8n/feature-prioritizer.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/market-researcher.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/competitor-analyzer.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/roadmap-generator.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/decision-analyzer.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/user-feedback-processor.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/sprint-planner.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/roi-calculator.json",
+            "type": "workflow"
+          }
+        ]
+      }
+    },
+    "storage": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store products, features, decisions, roadmaps, sprints, and analytics data",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "schema"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": true,
+        "purpose": "Cache real-time analytics, decision trees, and active sprint data"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store and search vector embeddings of features, decisions, and market research for semantic retrieval",
+        "initialization": [
+          {
+            "file": "initialization/qdrant/collections.json",
+            "type": "collections"
+          }
+        ]
+      }
+    }
+  },
+  "lifecycle": {
+    "version": "1.0.0",
+    "setup": {
+      "description": "Initialize Product Manager Agent",
+      "steps": [
+        {
+          "name": "base-setup",
+          "run": "bash scripts/lib/setup.sh",
+          "description": "Execute generic setup"
+        },
+        {
+          "name": "add-data",
+          "run": "scripts/resources/injection/engine.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && chmod +x product-manager && sudo ln -sf $(pwd)/product-manager /usr/local/bin/product-manager",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o product-manager-api main.go",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "setup-ui",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '📊 Product Manager Agent initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${SERVICE_PORT}'",
+          "description": "Display service URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start Product Manager Agent services",
+      "steps": [
+        {
+          "name": "start-api-server",
+          "run": "cd api && PORT=$SERVICE_PORT N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} POSTGRES_URL=postgres://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/product_manager REDIS_URL=redis://localhost:${RESOURCE_PORTS[redis]} QDRANT_URL=http://localhost:${RESOURCE_PORTS[qdrant]} ./product-manager-api &",
+          "description": "Start API server",
+          "background": true,
+          "condition": {
+            "file_exists": "api/product-manager-api"
+          }
+        },
+        {
+          "name": "start-ui-server",
+          "run": "cd ui && PORT=$UI_PORT API_URL=http://localhost:$SERVICE_PORT npm start &",
+          "description": "Start UI server",
+          "background": true
+        },
+        {
+          "name": "wait-for-services",
+          "run": "sleep 3",
+          "description": "Wait for services to start"
+        },
+        {
+          "name": "show-running",
+          "run": "echo '🚀 Product Manager Agent running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${SERVICE_PORT}'",
+          "description": "Display running services"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test Product Manager Agent services",
+      "steps": [
+        {
+          "name": "test-api",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/health",
+          "description": "Test API health"
+        },
+        {
+          "name": "test-features",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/api/features",
+          "description": "Test features endpoint"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop Product Manager Agent services",
+      "steps": [
+        {
+          "name": "stop-services",
+          "run": "pkill -f 'product-manager-api' || true; pkill -f 'npm.*product-manager' || true",
+          "description": "Stop all services"
+        }
+      ]
+    }
+  }
+}

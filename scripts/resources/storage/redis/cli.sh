@@ -125,12 +125,11 @@ redis::cli_monitor() {
 # Show logs with line count
 redis::cli_logs() {
     local lines="${1:-50}"
+    local follow="${2:-false}"
+    local container_name="${REDIS_CONTAINER_NAME:-redis}"
     
-    if command -v redis::docker::show_logs &>/dev/null; then
-        redis::docker::show_logs "$lines"
-    else
-        docker logs --tail "$lines" "${REDIS_CONTAINER_NAME:-redis}"
-    fi
+    # Use shared utility with follow support
+    docker_resource::show_logs_with_follow "$container_name" "$lines" "$follow"
 }
 
 # Inject Redis command

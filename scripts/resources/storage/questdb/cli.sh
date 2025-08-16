@@ -423,17 +423,8 @@ questdb_logs() {
     local follow="${2:-false}"
     local container_name="${QUESTDB_CONTAINER_NAME:-questdb}"
     
-    if [[ "$follow" == "true" ]]; then
-        docker logs -f --tail "$lines" "$container_name" 2>/dev/null || {
-            log::error "Failed to show logs - is QuestDB running?"
-            return 1
-        }
-    else
-        docker logs --tail "$lines" "$container_name" 2>/dev/null || {
-            log::error "Failed to show logs - is QuestDB running?"
-            return 1
-        }
-    fi
+    # Use shared utility with follow support
+    docker_resource::show_logs_with_follow "$container_name" "$lines" "$follow"
 }
 
 # Custom help function with QuestDB-specific examples

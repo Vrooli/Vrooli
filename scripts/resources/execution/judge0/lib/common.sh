@@ -57,7 +57,7 @@ fi
 #   0 if installed, 1 if not
 #######################################
 judge0::is_installed() {
-    judge0::docker::container_exists
+    docker::container_exists "$JUDGE0_CONTAINER_NAME"
 }
 
 #######################################
@@ -66,7 +66,7 @@ judge0::is_installed() {
 #   0 if running, 1 if not
 #######################################
 judge0::is_running() {
-    judge0::docker::is_running
+    docker::is_running "$JUDGE0_CONTAINER_NAME"
 }
 
 #######################################

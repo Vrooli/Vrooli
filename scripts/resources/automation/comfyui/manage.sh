@@ -54,19 +54,19 @@ manage::main() {
             install::uninstall
             ;;
         start)
-            docker::start
+            comfyui::docker::start
             ;;
         stop)
-            docker::stop
+            comfyui::docker::stop
             ;;
         restart)
-            docker::restart
+            comfyui::docker::restart
             ;;
         status)
             status::status
             ;;
         logs)
-            docker::logs
+            comfyui::docker::logs
             ;;
         info)
             status::info

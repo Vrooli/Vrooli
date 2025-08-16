@@ -1,6 +1,17 @@
 #!/usr/bin/env bash
-# Agent S2 Docker Operations
-# Docker container and image management
+# Agent S2 Docker Operations - Ultra-Simplified
+# Uses docker-resource-utils.sh for minimal boilerplate
+
+# Source var.sh to get proper directory variables
+_AGENTS2_DOCKER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${_AGENTS2_DOCKER_DIR}/../../../../lib/utils/var.sh"
+
+# Source shared libraries
+# shellcheck disable=SC1091
+source "${var_LIB_SERVICE_DIR}/secrets.sh"
+# shellcheck disable=SC1091
+source "${var_SCRIPTS_RESOURCES_LIB_DIR}/docker-resource-utils.sh"
 
 #######################################
 # Build Agent S2 Docker image
@@ -18,14 +29,12 @@ agents2::docker_build() {
         return 1
     fi
     
-    # Build with proper arguments - note context is at AGENT_S2_SCRIPT_DIR level
+    # Build with proper arguments
     local build_args=(
         --build-arg "VNC_PASSWORD=$AGENTS2_VNC_PASSWORD"
         --build-arg "USER_ID=$AGENTS2_USER_ID"
         --build-arg "GROUP_ID=$AGENTS2_GROUP_ID"
-        -f "$dockerfile"
-        -t "$AGENTS2_IMAGE_NAME"
-        "$build_dir"
+        -f "$dockerfile" -t "$AGENTS2_IMAGE_NAME" "$build_dir"
     )
     
     if docker build "${build_args[@]}"; then
@@ -42,24 +51,35 @@ agents2::docker_build() {
 # Returns: 0 if successful or exists, 1 if failed
 #######################################
 agents2::docker_create_network() {
-    if docker network ls --format "{{.Name}}" | grep -q "^${AGENTS2_NETWORK_NAME}$"; then
-        log::info "$MSG_NETWORK_EXISTS: $AGENTS2_NETWORK_NAME"
-        return 0
-    fi
-    
-    log::info "$MSG_CREATING_NETWORK"
-    if docker network create "$AGENTS2_NETWORK_NAME"; then
-        log::success "$MSG_NETWORK_CREATED"
-        return 0
-    else
-        log::error "$MSG_NETWORK_FAILED"
-        return 1
-    fi
+    docker::create_network "$AGENTS2_NETWORK_NAME"
 }
 
 #######################################
-# Start Agent S2 container
-# Returns: 0 if successful, 1 if failed
+# Wait for Agent S2 to be ready
+# Returns: 0 if ready, 1 if failed
+#######################################
+agents2::wait_for_ready() {
+    local max_wait="${AGENTS2_STARTUP_MAX_WAIT:-120}"
+    local wait_interval="${AGENTS2_STARTUP_WAIT_INTERVAL:-5}"
+    local elapsed=0
+    
+    log::info "$MSG_WAITING_READY"
+    
+    while [[ $elapsed -lt $max_wait ]]; do
+        if agents2::is_healthy; then
+            return 0
+        fi
+        sleep "$wait_interval"
+        elapsed=$((elapsed + wait_interval))
+    done
+    
+    log::warn "Service did not become ready within ${max_wait} seconds"
+    return 1
+}
+
+#######################################
+# Create and start Agent S2 container
+# Returns: 0 on success, 1 on failure
 #######################################
 agents2::docker_start() {
     if agents2::is_running; then
@@ -75,66 +95,51 @@ agents2::docker_start() {
     # Remove existing stopped container
     if agents2::container_exists && ! agents2::is_running; then
         log::info "Removing existing stopped container..."
-        docker rm "$AGENTS2_CONTAINER_NAME" >/dev/null 2>&1 || true
+        docker::remove_container "$AGENTS2_CONTAINER_NAME" "true"
     fi
     
-    # Load environment variables from resources.local.json
+    # Load environment and save configuration
     agents2::load_environment_from_config
-    
-    # Ensure network exists
-    agents2::docker_create_network || return 1
-    
-    # Save environment configuration
     agents2::save_env_config || return 1
     
     log::info "$MSG_STARTING_CONTAINER"
     
-    # Build Docker run command
-    local docker_cmd=(
-        docker run -d
-        --name "$AGENTS2_CONTAINER_NAME"
-        --restart unless-stopped
-        --network "$AGENTS2_NETWORK_NAME"
-        --add-host=host.docker.internal:host-gateway
-        -p "${AGENTS2_PORT}:4113"
-        -p "${AGENTS2_VNC_PORT}:5900"
-        -e "OPENAI_API_KEY=$AGENTS2_OPENAI_API_KEY"
-        -e "ANTHROPIC_API_KEY=$AGENTS2_ANTHROPIC_API_KEY"
-        -e "AGENTS2_LLM_PROVIDER=$AGENTS2_LLM_PROVIDER"
-        -e "AGENTS2_LLM_MODEL=$AGENTS2_LLM_MODEL"
-        -e "AGENTS2_OLLAMA_BASE_URL=$AGENTS2_OLLAMA_BASE_URL"
-        -e "AGENTS2_ENABLE_AI=$AGENTS2_ENABLE_AI"
-        -e "AGENTS2_ENABLE_SEARCH=$AGENTS2_ENABLE_SEARCH"
-        -e "DISPLAY=$AGENTS2_DISPLAY"
-        -e "AGENT_S2_VIRUSTOTAL_API_KEY=$AGENTS2_VIRUSTOTAL_API_KEY"
-        -v "${AGENTS2_DATA_DIR}/logs:/var/log/supervisor:rw"
-        -v "${AGENTS2_DATA_DIR}/cache:/home/agents2/.cache:rw"
-        -v "${AGENTS2_DATA_DIR}/models:/home/agents2/.agent-s2/models:rw"
-        -v "${AGENTS2_DATA_DIR}/sessions:/home/agents2/.agent-s2/sessions:rw"
-        --cap-add NET_ADMIN
-        --cap-add NET_RAW
-        --security-opt "$AGENTS2_SECURITY_OPT"
-        --shm-size "$AGENTS2_SHM_SIZE"
-        --memory "$AGENTS2_MEMORY_LIMIT"
-        --cpus "$AGENTS2_CPU_LIMIT"
-    )
+    # Create network and prepare volumes
+    agents2::docker_create_network
     
-    # Add host display access if enabled (security risk)
+    local volumes="${AGENTS2_DATA_DIR}/logs:/var/log/supervisor:rw ${AGENTS2_DATA_DIR}/cache:/home/agents2/.cache:rw ${AGENTS2_DATA_DIR}/models:/home/agents2/.agent-s2/models:rw ${AGENTS2_DATA_DIR}/sessions:/home/agents2/.agent-s2/sessions:rw"
+    
     if [[ "$AGENTS2_ENABLE_HOST_DISPLAY" == "yes" ]]; then
         log::warn "⚠️  Host display access enabled - this is a security risk!"
-        docker_cmd+=(
-            -v "/tmp/.X11-unix:/tmp/.X11-unix:rw"
-            -e "DISPLAY=${DISPLAY:-:0}"
-        )
+        volumes="$volumes /tmp/.X11-unix:/tmp/.X11-unix:rw"
     fi
     
-    # Add the image name
-    docker_cmd+=("$AGENTS2_IMAGE_NAME")
+    # Build docker run command with Agent S2-specific requirements
+    local cmd=(docker run -d --name "$AGENTS2_CONTAINER_NAME" --network "$AGENTS2_NETWORK_NAME" --restart unless-stopped)
+    cmd+=(--add-host=host.docker.internal:host-gateway -p "${AGENTS2_PORT}:4113" -p "${AGENTS2_VNC_PORT}:5900")
     
-    if "${docker_cmd[@]}"; then
+    # Environment variables
+    cmd+=(-e "OPENAI_API_KEY=$AGENTS2_OPENAI_API_KEY" -e "ANTHROPIC_API_KEY=$AGENTS2_ANTHROPIC_API_KEY")
+    cmd+=(-e "AGENTS2_LLM_PROVIDER=$AGENTS2_LLM_PROVIDER" -e "AGENTS2_LLM_MODEL=$AGENTS2_LLM_MODEL")
+    cmd+=(-e "AGENTS2_OLLAMA_BASE_URL=$AGENTS2_OLLAMA_BASE_URL" -e "AGENTS2_ENABLE_AI=$AGENTS2_ENABLE_AI")
+    cmd+=(-e "AGENTS2_ENABLE_SEARCH=$AGENTS2_ENABLE_SEARCH" -e "DISPLAY=$AGENTS2_DISPLAY")
+    cmd+=(-e "AGENT_S2_VIRUSTOTAL_API_KEY=$AGENTS2_VIRUSTOTAL_API_KEY")
+    
+    # Add volumes
+    for volume in $volumes; do
+        cmd+=(-v "$volume")
+    done
+    
+    # Host display environment if enabled
+    [[ "$AGENTS2_ENABLE_HOST_DISPLAY" == "yes" ]] && cmd+=(-e "DISPLAY=${DISPLAY:-:0}")
+    
+    # Security and resource constraints
+    cmd+=(--cap-add NET_ADMIN --cap-add NET_RAW --security-opt "$AGENTS2_SECURITY_OPT")
+    cmd+=(--shm-size "$AGENTS2_SHM_SIZE" --memory "$AGENTS2_MEMORY_LIMIT" --cpus "$AGENTS2_CPU_LIMIT")
+    cmd+=("$AGENTS2_IMAGE_NAME")
+    
+    if "${cmd[@]}" >/dev/null 2>&1; then
         log::success "$MSG_CONTAINER_STARTED"
-        
-        # Wait for service to be ready
         sleep "$AGENTS2_INITIALIZATION_WAIT"
         
         if agents2::wait_for_ready; then
@@ -158,16 +163,13 @@ agents2::docker_start() {
 agents2::docker_stop() {
     if ! agents2::is_running; then
         log::info "$MSG_CONTAINER_NOT_RUNNING"
-        # Still clean NAT rules in case container stopped uncleanly
         agents2::cleanup_nat_rules
         return 0
     fi
     
     log::info "$MSG_STOPPING_CONTAINER"
-    if docker stop "$AGENTS2_CONTAINER_NAME" >/dev/null 2>&1; then
+    if docker::stop_container "$AGENTS2_CONTAINER_NAME"; then
         log::success "$MSG_CONTAINER_STOPPED"
-        
-        # CRITICAL: Clean up NAT redirection rules to prevent future hijacking
         agents2::cleanup_nat_rules
         return 0
     else
@@ -182,15 +184,25 @@ agents2::docker_stop() {
 #######################################
 agents2::docker_restart() {
     log::info "Restarting Agent S2..."
-    agents2::docker_stop
-    sleep 2
-    agents2::docker_start
+    if docker::restart_container "$AGENTS2_CONTAINER_NAME"; then
+        sleep "$AGENTS2_INITIALIZATION_WAIT"
+        
+        if agents2::wait_for_ready; then
+            log::success "$MSG_SERVICE_HEALTHY"
+            return 0
+        else
+            log::warn "$MSG_HEALTH_CHECK_FAILED"
+            return 0
+        fi
+    else
+        log::error "Failed to restart Agent S2"
+        return 1
+    fi
 }
 
 #######################################
 # Show container logs
-# Arguments:
-#   $1 - number of lines to show (optional, default: follow)
+# Arguments: $1 - number of lines to show (optional, default: follow)
 #######################################
 agents2::docker_logs() {
     if ! agents2::container_exists; then
@@ -199,7 +211,7 @@ agents2::docker_logs() {
     fi
     
     if [[ -n "${1:-}" ]]; then
-        docker logs --tail "$1" "$AGENTS2_CONTAINER_NAME"
+        docker::get_logs "$AGENTS2_CONTAINER_NAME" "$1"
     else
         log::info "Showing Agent S2 logs (Ctrl+C to exit)..."
         docker logs -f "$AGENTS2_CONTAINER_NAME"
@@ -208,8 +220,7 @@ agents2::docker_logs() {
 
 #######################################
 # Execute command in container
-# Arguments:
-#   $@ - command to execute
+# Arguments: $@ - command to execute
 # Returns: exit code from command
 #######################################
 agents2::docker_exec() {
@@ -240,24 +251,21 @@ agents2::docker_stats() {
 agents2::docker_cleanup() {
     local success=true
     
-    # Stop container if running
-    if agents2::is_running; then
-        agents2::docker_stop || success=false
-    fi
+    # Stop and remove container
+    agents2::is_running && { agents2::docker_stop || success=false; }
     
-    # Remove container
     if agents2::container_exists; then
         log::info "Removing container..."
-        docker rm "$AGENTS2_CONTAINER_NAME" >/dev/null 2>&1 || success=false
+        docker::remove_container "$AGENTS2_CONTAINER_NAME" "true" || success=false
     fi
     
-    # Remove network (only if no other containers are using it)
+    # Remove network if empty
     if docker network ls --format "{{.Name}}" | grep -q "^${AGENTS2_NETWORK_NAME}$"; then
-        if ! docker network inspect "$AGENTS2_NETWORK_NAME" --format '{{len .Containers}}' | grep -q '^0$'; then
-            log::info "Network has other containers, skipping removal"
-        else
+        if docker network inspect "$AGENTS2_NETWORK_NAME" --format '{{len .Containers}}' | grep -q '^0$'; then
             log::info "Removing network..."
             docker network rm "$AGENTS2_NETWORK_NAME" >/dev/null 2>&1 || success=false
+        else
+            log::info "Network has other containers, skipping removal"
         fi
     fi
     
@@ -346,6 +354,7 @@ agents2::cleanup_nat_rules() {
 # Export functions for subshell availability
 export -f agents2::docker_build
 export -f agents2::docker_create_network
+export -f agents2::wait_for_ready
 export -f agents2::docker_start
 export -f agents2::docker_stop
 export -f agents2::docker_restart

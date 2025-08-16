@@ -19,7 +19,7 @@ postgres::status::check() {
     fi
     
     # Check Docker
-    if postgres::docker::check_docker >/dev/null 2>&1; then
+    if docker::check_daemon >/dev/null 2>&1; then
         [[ "$verbose" == "true" ]] && log::success "Docker: Available"
     else
         [[ "$verbose" == "true" ]] && log::error "Docker: Not available"
@@ -214,7 +214,12 @@ postgres::status::show_resources() {
     
     # Get container stats
     local container_name="${POSTGRES_CONTAINER_PREFIX}-${instance_name}"
-    local stats=$(postgres::docker::stats "$instance_name")
+    local stats
+    if postgres::common::is_running "$instance_name"; then
+        stats=$(docker stats "${container_name}" --no-stream --format "json" 2>/dev/null || echo "{}")
+    else
+        stats='{"error": "Container not running"}'
+    fi
     
     if [[ -n "$stats" && "$stats" != "{}" ]]; then
         # Parse JSON stats (simplified, real implementation would use jq)
@@ -297,7 +302,7 @@ postgres::status::diagnose() {
     
     # Check Docker
     log::info "1. Checking Docker..."
-    if postgres::docker::check_docker; then
+    if docker::check_daemon; then
         log::success "   Docker is available"
     else
         log::error "   Docker is not available"

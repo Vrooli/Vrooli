@@ -338,10 +338,15 @@ judge0_info() {
 
 # Show logs
 judge0_logs() {
-    if command -v judge0::docker::logs &>/dev/null; then
-        judge0::docker::logs
+    local lines="${1:-100}"
+    local follow="${2:-false}"
+    local container_name="${JUDGE0_CONTAINER_NAME:-judge0-server}"
+    
+    # Use shared utility with follow support
+    if command -v docker_resource::show_logs_with_follow &>/dev/null; then
+        docker_resource::show_logs_with_follow "$container_name" "$lines" "$follow"
     else
-        docker logs judge0-server 2>/dev/null || docker logs judge0_server 2>/dev/null || {
+        docker logs --tail "$lines" "$container_name" 2>/dev/null || {
             log::error "Unable to retrieve logs"
             return 1
         }

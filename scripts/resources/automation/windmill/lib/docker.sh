@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Windmill Docker Management Functions
-# All Docker Compose operations for Windmill multi-container setup
+# Windmill Docker Management - Simplified with docker-resource-utils.sh
+# Windmill requires Docker Compose for multi-service orchestration
 
 # Source required utilities
 WINDMILL_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -8,21 +8,26 @@ WINDMILL_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${WINDMILL_LIB_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_SCRIPTS_RESOURCES_LIB_DIR}/docker-resource-utils.sh"
 
 #######################################
 # Start Windmill services using Docker Compose
 # Returns: 0 if successful, 1 otherwise
 #######################################
 windmill::compose_up() {
+    # Ensure Docker daemon is available
+    docker::check_daemon || return 1
+    
     log::info "Starting Windmill services..."
     
-    if ! windmill::compose_cmd up -d; then
+    if windmill::compose_cmd up -d; then
+        log::success "Windmill services started successfully"
+        return 0
+    else
         log::error "Failed to start Windmill services"
         return 1
     fi
-    
-    log::success "Windmill services started successfully"
-    return 0
 }
 
 #######################################
@@ -32,13 +37,13 @@ windmill::compose_up() {
 windmill::compose_down() {
     log::info "Stopping Windmill services..."
     
-    if ! windmill::compose_cmd down; then
+    if windmill::compose_cmd down; then
+        log::success "Windmill services stopped successfully"
+        return 0
+    else
         log::error "Failed to stop Windmill services"
         return 1
     fi
-    
-    log::success "Windmill services stopped successfully"
-    return 0
 }
 
 #######################################
@@ -48,13 +53,13 @@ windmill::compose_down() {
 windmill::compose_down_volumes() {
     log::info "Stopping Windmill services and removing volumes..."
     
-    if ! windmill::compose_cmd down -v; then
+    if windmill::compose_cmd down -v; then
+        log::success "Windmill services stopped and volumes removed"
+        return 0
+    else
         log::error "Failed to stop Windmill services and remove volumes"
         return 1
     fi
-    
-    log::success "Windmill services stopped and volumes removed"
-    return 0
 }
 
 #######################################
@@ -64,13 +69,13 @@ windmill::compose_down_volumes() {
 windmill::compose_restart() {
     log::info "Restarting Windmill services..."
     
-    if ! windmill::compose_cmd restart; then
+    if windmill::compose_cmd restart; then
+        log::success "Windmill services restarted successfully"
+        return 0
+    else
         log::error "Failed to restart Windmill services"
         return 1
     fi
-    
-    log::success "Windmill services restarted successfully"
-    return 0
 }
 
 #######################################
@@ -122,7 +127,7 @@ windmill::restart_workers() {
     fi
     
     # Restart native worker if enabled
-    if windmill::compose_cmd ps --services | grep -q "windmill-worker-native"; then
+    if windmill::compose_cmd ps --services 2>/dev/null | grep -q "windmill-worker-native"; then
         if ! windmill::compose_cmd restart windmill-worker-native; then
             log::error "Failed to restart native worker"
             return 1
@@ -188,45 +193,22 @@ windmill::restart_service() {
 windmill::show_logs() {
     local service="${1:-all}"
     local follow="${2:-false}"
-    local compose_args=("logs")
+    local compose_args=("logs" "--timestamps" "--tail=100")
     
-    if [[ "$follow" == "true" ]]; then
-        compose_args+=("--follow")
-    fi
-    
-    # Add timestamps and tail last 100 lines
-    compose_args+=("--timestamps" "--tail=100")
+    [[ "$follow" == "true" ]] && compose_args+=("--follow")
     
     case "$service" in
-        "server")
-            compose_args+=("windmill-app")
-            ;;
-        "worker"|"workers")
-            compose_args+=("windmill-worker" "windmill-worker-native")
-            ;;
-        "db"|"database")
-            compose_args+=("windmill-db")
-            ;;
-        "lsp")
-            compose_args+=("windmill-lsp")
-            ;;
-        "multiplayer")
-            compose_args+=("windmill-multiplayer")
-            ;;
-        "all")
-            # Don't specify service to show all logs
-            ;;
-        *)
-            # Assume it's a specific container name
-            compose_args+=("$service")
-            ;;
+        "server") compose_args+=("windmill-app") ;;
+        "worker"|"workers") compose_args+=("windmill-worker" "windmill-worker-native") ;;
+        "db"|"database") compose_args+=("windmill-db") ;;
+        "lsp") compose_args+=("windmill-lsp") ;;
+        "multiplayer") compose_args+=("windmill-multiplayer") ;;
+        "all") ;; # Show all services
+        *) compose_args+=("$service") ;; # Specific container name
     esac
     
     log::info "Showing logs for: $service"
-    
-    if [[ "$follow" == "true" ]]; then
-        log::info "Press Ctrl+C to stop following logs"
-    fi
+    [[ "$follow" == "true" ]] && log::info "Press Ctrl+C to stop following logs"
     
     windmill::compose_cmd "${compose_args[@]}"
 }
@@ -243,10 +225,7 @@ windmill::get_compose_status() {
     
     log::info "Windmill service status:"
     echo
-    
-    # Show compose status
     windmill::compose_cmd ps
-    
     echo
     
     # Show resource usage if services are running
@@ -258,10 +237,9 @@ windmill::get_compose_status() {
         local container_ids
         container_ids=$(windmill::compose_cmd ps -q 2>/dev/null)
         
-        if [[ -n "$container_ids" ]]; then
-            # Show resource stats for running containers
+        [[ -n "$container_ids" ]] && {
             docker stats --no-stream --format "table {{.Container}}\t{{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.MemPerc}}" $container_ids 2>/dev/null || true
-        fi
+        }
     fi
 }
 
@@ -272,13 +250,13 @@ windmill::get_compose_status() {
 windmill::pull_images() {
     log::info "Pulling latest Windmill images..."
     
-    if ! windmill::compose_cmd pull; then
+    if windmill::compose_cmd pull; then
+        log::success "Windmill images updated successfully"
+        return 0
+    else
         log::error "Failed to pull Windmill images"
         return 1
     fi
-    
-    log::success "Windmill images updated successfully"
-    return 0
 }
 
 #######################################
@@ -293,37 +271,32 @@ windmill::cleanup() {
     log::info "Cleaning up Windmill containers..."
     
     # Stop and remove containers and networks
-    if ! windmill::compose_down; then
-        log::warn "Failed to gracefully stop services, forcing removal..."
-    fi
+    windmill::compose_down || log::warn "Failed to gracefully stop services, forcing removal..."
     
     # Remove containers forcefully if still running
     local containers
     containers=$(docker ps -aq --filter "name=${WINDMILL_PROJECT_NAME}" 2>/dev/null || true)
-    if [[ -n "$containers" ]]; then
+    [[ -n "$containers" ]] && {
         log::info "Removing remaining containers..."
         docker rm -f $containers 2>/dev/null || true
-    fi
+    }
     
     # Remove custom networks
     local networks
     networks=$(docker network ls --filter "name=${WINDMILL_PROJECT_NAME}" --format "{{.Name}}" 2>/dev/null || true)
-    if [[ -n "$networks" ]]; then
+    [[ -n "$networks" ]] && {
         log::info "Removing networks..."
         for network in $networks; do
             docker network rm "$network" 2>/dev/null || true
         done
-    fi
+    }
     
     # Remove images if requested
     if [[ "$remove_images" == "true" ]]; then
         log::info "Removing Windmill images..."
-        
         local images
         images=$(docker images --filter "reference=ghcr.io/windmill-labs/windmill" --format "{{.ID}}" 2>/dev/null || true)
-        if [[ -n "$images" ]]; then
-            docker rmi $images 2>/dev/null || true
-        fi
+        [[ -n "$images" ]] && docker rmi $images 2>/dev/null || true
     fi
     
     log::success "Windmill cleanup completed"
@@ -338,19 +311,17 @@ windmill::deploy() {
     log::info "Deploying Windmill services..."
     
     # Create and start services
-    if ! windmill::compose_up; then
-        return 1
-    fi
+    windmill::compose_up || return 1
     
     # Wait for services to become healthy
-    if ! windmill::wait_for_health; then
+    if windmill::wait_for_health; then
+        log::success "Windmill deployed successfully!"
+        return 0
+    else
         log::error "Windmill deployment failed - services not healthy"
         log::info "Check logs with: $0 --action logs"
         return 1
     fi
-    
-    log::success "Windmill deployed successfully!"
-    return 0
 }
 
 #######################################
@@ -373,20 +344,19 @@ windmill::backup_data() {
     }
     
     # Backup database if using internal PostgreSQL
-    if windmill::compose_cmd ps --services | grep -q "windmill-db"; then
+    if windmill::compose_cmd ps --services 2>/dev/null | grep -q "windmill-db"; then
         log::info "Backing up PostgreSQL database..."
         
-        if ! windmill::compose_cmd exec -T windmill-db pg_dump -U postgres -d windmill > "$backup_path/database.sql"; then
+        if windmill::compose_cmd exec -T windmill-db pg_dump -U postgres -d windmill > "$backup_path/database.sql"; then
+            log::success "Database backup completed"
+        else
             log::error "Failed to backup database"
             return 1
         fi
-        
-        log::success "Database backup completed"
     fi
     
-    # Backup volumes
+    # Backup volumes using simplified approach
     log::info "Backing up Docker volumes..."
-    
     local volumes
     volumes=$(windmill::compose_cmd config --volumes 2>/dev/null || true)
     
@@ -396,20 +366,19 @@ windmill::backup_data() {
         
         log::info "Backing up volume: $volume"
         
-        # Use a temporary container to copy volume data
+        # Use simplified volume backup pattern
         docker run --rm \
             -v "${WINDMILL_PROJECT_NAME}_$volume:/volume:ro" \
             -v "$volume_backup_dir:/backup" \
             alpine:latest \
-            tar -czf "/backup/data.tar.gz" -C /volume . 2>/dev/null || {
+            tar -czf "/backup/data.tar.gz" -C /volume . 2>/dev/null || \
             log::warn "Failed to backup volume: $volume"
-        }
     done
     
     # Backup configuration files
     log::info "Backing up configuration files..."
-    cp "$WINDMILL_ENV_FILE" "$backup_path/environment" 2>/dev/null || true
-    cp "$WINDMILL_COMPOSE_FILE" "$backup_path/docker-compose.yml" 2>/dev/null || true
+    [[ -f "$WINDMILL_ENV_FILE" ]] && cp "$WINDMILL_ENV_FILE" "$backup_path/environment"
+    [[ -f "$WINDMILL_COMPOSE_FILE" ]] && cp "$WINDMILL_COMPOSE_FILE" "$backup_path/docker-compose.yml"
     
     # Create backup manifest
     cat > "$backup_path/backup_info.txt" << EOF
@@ -429,21 +398,17 @@ EOF
     
     # Compress backup
     log::info "Compressing backup..."
-    
     local compressed_backup="$backup_dir/windmill_backup_$timestamp.tar.gz"
+    
     if tar -czf "$compressed_backup" -C "$backup_dir" "windmill_backup_$timestamp"; then
-        # Remove uncompressed backup directory
-        # Direct trash removal
-        trash::safe_remove "$backup_path" --temp
-        trash::safe_remove "$backup_path" --temp
+        trash::safe_remove "$backup_path" --temp || true
         log::success "Backup completed: $compressed_backup"
         echo "$compressed_backup"
+        return 0
     else
         log::error "Failed to compress backup"
         return 1
     fi
-    
-    return 0
 }
 
 #######################################
@@ -455,10 +420,10 @@ EOF
 windmill::restore_data() {
     local backup_file="$1"
     
-    if [[ ! -f "$backup_file" ]]; then
+    [[ ! -f "$backup_file" ]] && {
         log::error "Backup file not found: $backup_file"
         return 1
-    fi
+    }
     
     log::info "Restoring from backup: $backup_file"
     
@@ -473,9 +438,7 @@ windmill::restore_data() {
     log::info "Extracting backup..."
     if ! tar -xzf "$backup_file" -C "$restore_dir"; then
         log::error "Failed to extract backup file"
-        # Direct trash removal
-        trash::safe_remove "$restore_dir" --temp
-        trash::safe_remove "$restore_dir" --temp
+        trash::safe_remove "$restore_dir" --temp || true
         return 1
     fi
     
@@ -483,58 +446,52 @@ windmill::restore_data() {
     local backup_dir
     backup_dir=$(find "$restore_dir" -maxdepth 1 -type d -name "windmill_backup_*" | head -n1)
     
-    if [[ ! -d "$backup_dir" ]]; then
+    [[ ! -d "$backup_dir" ]] && {
         log::error "Invalid backup structure"
-        # Direct trash removal
-        trash::safe_remove "$restore_dir" --temp
-        trash::safe_remove "$restore_dir" --temp
+        trash::safe_remove "$restore_dir" --temp || true
         return 1
-    fi
+    }
     
     # Stop services before restore
     log::info "Stopping Windmill services..."
     windmill::compose_down_volumes || true
     
     # Restore configuration files
-    if [[ -f "$backup_dir/environment" ]]; then
+    [[ -f "$backup_dir/environment" ]] && {
         log::info "Restoring environment configuration..."
         cp "$backup_dir/environment" "$WINDMILL_ENV_FILE"
-    fi
+    }
     
     # Start services to create volumes
     log::info "Starting services..."
     if ! windmill::compose_up; then
         log::error "Failed to start services for restore"
-        # Direct trash removal
-        trash::safe_remove "$restore_dir" --temp
-        trash::safe_remove "$restore_dir" --temp
+        trash::safe_remove "$restore_dir" --temp || true
         return 1
     fi
     
     # Wait for database to be ready
-    sleep 10
+    sleep ${WINDMILL_INITIALIZATION_WAIT:-10}
     
     # Restore database
-    if [[ -f "$backup_dir/database.sql" ]]; then
+    [[ -f "$backup_dir/database.sql" ]] && {
         log::info "Restoring database..."
         
-        if ! windmill::compose_cmd exec -T windmill-db psql -U postgres -d windmill < "$backup_dir/database.sql"; then
+        if windmill::compose_cmd exec -T windmill-db psql -U postgres -d windmill < "$backup_dir/database.sql"; then
+            log::success "Database restored successfully"
+        else
             log::error "Failed to restore database"
-            # Direct trash removal
-        trash::safe_remove "$restore_dir" --temp
-        trash::safe_remove "$restore_dir" --temp
+            trash::safe_remove "$restore_dir" --temp || true
             return 1
         fi
-        
-        log::success "Database restored successfully"
-    fi
+    }
     
     # Restore volumes
-    if [[ -d "$backup_dir/volumes" ]]; then
+    [[ -d "$backup_dir/volumes" ]] && {
         log::info "Restoring volumes..."
         
         for volume_backup in "$backup_dir/volumes"/*; do
-            if [[ -d "$volume_backup" && -f "$volume_backup/data.tar.gz" ]]; then
+            [[ -d "$volume_backup" && -f "$volume_backup/data.tar.gz" ]] && {
                 local volume_name=$(basename "$volume_backup")
                 
                 log::info "Restoring volume: $volume_name"
@@ -544,12 +501,11 @@ windmill::restore_data() {
                     -v "${WINDMILL_PROJECT_NAME}_$volume_name:/volume" \
                     -v "$volume_backup:/backup" \
                     alpine:latest \
-                    sh -c "cd /volume && tar -xzf /backup/data.tar.gz" || {
+                    sh -c "cd /volume && tar -xzf /backup/data.tar.gz" || \
                     log::warn "Failed to restore volume: $volume_name"
-                }
-            fi
+            }
         done
-    fi
+    }
     
     # Restart services
     log::info "Restarting services..."
@@ -563,9 +519,7 @@ windmill::restore_data() {
     fi
     
     # Cleanup
-    # Direct trash removal
-        trash::safe_remove "$restore_dir" --temp
-        trash::safe_remove "$restore_dir" --temp
+    trash::safe_remove "$restore_dir" --temp || true
     
     return 0
 }

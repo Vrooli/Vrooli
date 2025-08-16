@@ -27,7 +27,7 @@ install::install() {
         if ! common::is_running; then
             log::info "ComfyUI is installed but not running"
             log::info "Starting ComfyUI..."
-            docker::start
+            comfyui::docker::start
         else
             log::success "ComfyUI is already running"
             local port="${COMFYUI_CUSTOM_PORT:-$COMFYUI_DEFAULT_PORT}"
@@ -102,7 +102,7 @@ install::install() {
         5
     
     # Step 4: Pull Docker image
-    if ! docker::pull_image; then
+    if ! comfyui::docker::pull_image; then
         resources::handle_error \
             "Failed to pull ComfyUI Docker image" \
             "network" \
@@ -111,7 +111,7 @@ install::install() {
     fi
     
     # Step 5: Start container
-    if ! docker::start_container; then
+    if ! comfyui::docker::start_container; then
         resources::handle_error \
             "Failed to start ComfyUI container" \
             "system" \
@@ -190,7 +190,7 @@ install::uninstall() {
     
     # Step 1: Remove container
     if common::container_exists; then
-        if ! docker::remove_container; then
+        if ! comfyui::docker::remove_container; then
             log::error "Failed to remove container"
             log::info "You may need to remove it manually:"
             log::info "  docker stop $COMFYUI_CONTAINER_NAME"

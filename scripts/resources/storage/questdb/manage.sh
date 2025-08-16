@@ -96,7 +96,7 @@ questdb::parse_arguments() {
         --name "tail" \
         --flag "f" \
         --desc "Follow logs in real-time" \
-        --type "flag" \
+        --type "value" \
         --default "false"
     
     # Parse arguments
