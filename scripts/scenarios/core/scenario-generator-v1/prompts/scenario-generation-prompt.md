@@ -67,19 +67,19 @@ You should choose from these proven resources based on the scenario requirements
 ## Essential Documentation to Reference
 
 ### 1. Scenario Structure Template
-**Location**: `/home/matthalloran8/Vrooli/scripts/scenarios/templates/SCENARIO_TEMPLATE/`
+**Location**: `scripts/scenarios/templates/full/`
 - Study the complete template structure
 - Follow the exact directory layout and file organization
 - Use the service.json format precisely
 
 ### 2. Resource Documentation
-**Location**: `/home/matthalloran8/Vrooli/scripts/resources/docs/`
+**Location**: `scripts/resources/docs/`
 - Read resource-specific setup instructions
 - Understand integration patterns between resources
 - Follow established conventions for resource configuration
 
 ### 3. Example Scenarios
-**Locations**: `/home/matthalloran8/Vrooli/scripts/scenarios/core/*/`
+**Locations**: `scripts/scenarios/core/*/`
 Study these successful patterns:
 - `research-assistant/`: Information gathering and synthesis
 - `document-manager/`: Intelligent document workflows  

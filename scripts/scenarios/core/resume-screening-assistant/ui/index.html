@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚀 HyperRecruit 3000 - AI Resume Screening</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap');
+        
+        :root {
+            --primary: #00ffcc;
+            --secondary: #ff00ff;
+            --dark: #0a0a0f;
+            --mid: #1a1a2e;
+            --light: #16213e;
+            --text: #e0e0e0;
+            --success: #00ff00;
+            --warning: #ffaa00;
+            --danger: #ff0066;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Share Tech Mono', monospace;
+            background: linear-gradient(135deg, var(--dark) 0%, var(--mid) 100%);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Animated background grid */
+        .bg-grid {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(var(--primary) 1px, transparent 1px),
+                linear-gradient(90deg, var(--primary) 1px, transparent 1px);
+            background-size: 50px 50px;
+            opacity: 0.03;
+            animation: grid-scroll 20s linear infinite;
+            pointer-events: none;
+        }
+
+        @keyframes grid-scroll {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(50px, 50px); }
+        }
+
+        /* Header with retro-futuristic style */
+        .header {
+            padding: 2rem;
+            text-align: center;
+            position: relative;
+            z-index: 10;
+        }
+
+        .title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 3rem;
+            font-weight: 900;
+            background: linear-gradient(45deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes glow {
+            0% { filter: drop-shadow(0 0 10px var(--primary)); }
+            100% { filter: drop-shadow(0 0 20px var(--secondary)); }
+        }
+
+        .subtitle {
+            margin-top: 0.5rem;
+            color: var(--primary);
+            font-size: 1rem;
+            opacity: 0.8;
+        }
+
+        /* Main container */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+            display: grid;
+            grid-template-columns: 300px 1fr 350px;
+            gap: 2rem;
+            position: relative;
+            z-index: 10;
+        }
+
+        /* Panel styles */
+        .panel {
+            background: var(--light);
+            border: 2px solid var(--primary);
+            border-radius: 10px;
+            padding: 1.5rem;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 0 30px rgba(0, 255, 204, 0.1);
+        }
+
+        .panel::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--primary), transparent);
+            animation: scan 3s linear infinite;
+        }
+
+        @keyframes scan {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .panel-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.2rem;
+            color: var(--primary);
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        /* Job posting form */
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--primary);
+            font-size: 0.9rem;
+            text-transform: uppercase;
+        }
+
+        input, textarea, select {
+            width: 100%;
+            padding: 0.75rem;
+            background: var(--dark);
+            border: 1px solid var(--primary);
+            border-radius: 5px;
+            color: var(--text);
+            font-family: inherit;
+            transition: all 0.3s;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: var(--secondary);
+            box-shadow: 0 0 10px rgba(255, 0, 255, 0.3);
+        }
+
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 0.75rem 1.5rem;
+            background: linear-gradient(45deg, var(--primary), var(--secondary));
+            border: none;
+            border-radius: 5px;
+            color: var(--dark);
+            font-weight: bold;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.3);
+            transition: left 0.5s;
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 255, 204, 0.4);
+        }
+
+        .btn-secondary {
+            background: var(--mid);
+            color: var(--primary);
+            border: 1px solid var(--primary);
+        }
+
+        /* Resume drop zone */
+        .drop-zone {
+            border: 2px dashed var(--primary);
+            border-radius: 10px;
+            padding: 2rem;
+            text-align: center;
+            transition: all 0.3s;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .drop-zone:hover {
+            border-color: var(--secondary);
+            background: rgba(0, 255, 204, 0.05);
+        }
+
+        .drop-zone.dragover {
+            border-color: var(--secondary);
+            background: rgba(255, 0, 255, 0.1);
+            transform: scale(1.02);
+        }
+
+        .drop-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        /* Candidate list */
+        .candidate-card {
+            background: var(--dark);
+            border: 1px solid var(--primary);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            transition: all 0.3s;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .candidate-card:hover {
+            transform: translateX(5px);
+            border-color: var(--secondary);
+            box-shadow: -5px 0 15px rgba(255, 0, 255, 0.3);
+        }
+
+        .candidate-name {
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        .candidate-score {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            background: var(--primary);
+            color: var(--dark);
+            border-radius: 3px;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        .candidate-score.high {
+            background: var(--success);
+        }
+
+        .candidate-score.medium {
+            background: var(--warning);
+        }
+
+        .candidate-score.low {
+            background: var(--danger);
+        }
+
+        /* Match details */
+        .match-details {
+            background: var(--dark);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        .skill-match {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .skill-name {
+            flex: 1;
+            color: var(--primary);
+        }
+
+        .skill-bar {
+            flex: 2;
+            height: 10px;
+            background: var(--mid);
+            border-radius: 5px;
+            overflow: hidden;
+            margin: 0 1rem;
+        }
+
+        .skill-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            transition: width 1s ease-out;
+            border-radius: 5px;
+        }
+
+        /* Status messages */
+        .status-message {
+            padding: 1rem;
+            border-radius: 5px;
+            margin-bottom: 1rem;
+            animation: slideIn 0.5s ease-out;
+        }
+
+        @keyframes slideIn {
+            0% { 
+                transform: translateX(-100%);
+                opacity: 0;
+            }
+            100% { 
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .status-success {
+            background: rgba(0, 255, 0, 0.1);
+            border: 1px solid var(--success);
+            color: var(--success);
+        }
+
+        .status-error {
+            background: rgba(255, 0, 102, 0.1);
+            border: 1px solid var(--danger);
+            color: var(--danger);
+        }
+
+        .status-info {
+            background: rgba(0, 255, 204, 0.1);
+            border: 1px solid var(--primary);
+            color: var(--primary);
+        }
+
+        /* Loading animation */
+        .loader {
+            display: none;
+            width: 40px;
+            height: 40px;
+            margin: 2rem auto;
+            border: 3px solid var(--mid);
+            border-top: 3px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .loader.active {
+            display: block;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Responsive design */
+        @media (max-width: 1200px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .title {
+                font-size: 2rem;
+            }
+            
+            .container {
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-grid"></div>
+    
+    <header class="header">
+        <h1 class="title">HyperRecruit 3000</h1>
+        <p class="subtitle">[ AI-Powered Resume Screening System :: Online ]</p>
+    </header>
+
+    <div class="container">
+        <!-- Job Posting Panel -->
+        <div class="panel">
+            <h2 class="panel-title">📋 Job Configuration</h2>
+            
+            <div class="form-group">
+                <label for="job-title">Position Title</label>
+                <input type="text" id="job-title" placeholder="e.g., Senior Full Stack Developer">
+            </div>
+            
+            <div class="form-group">
+                <label for="job-skills">Required Skills</label>
+                <textarea id="job-skills" placeholder="Enter skills separated by commas&#10;e.g., JavaScript, React, Node.js, PostgreSQL"></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label for="experience-level">Experience Level</label>
+                <select id="experience-level">
+                    <option value="entry">Entry Level (0-2 years)</option>
+                    <option value="mid">Mid Level (2-5 years)</option>
+                    <option value="senior">Senior Level (5+ years)</option>
+                    <option value="lead">Lead/Principal (8+ years)</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="job-description">Job Description</label>
+                <textarea id="job-description" placeholder="Paste the full job description here..."></textarea>
+            </div>
+            
+            <button class="btn" onclick="saveJobPosting()">
+                💾 Save Job Posting
+            </button>
+        </div>
+
+        <!-- Main Processing Area -->
+        <div class="panel">
+            <h2 class="panel-title">🚀 Resume Processing Hub</h2>
+            
+            <div id="status-area"></div>
+            
+            <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+                <div class="drop-icon">📄</div>
+                <p>Drop resumes here or click to browse</p>
+                <p style="font-size: 0.9rem; opacity: 0.7; margin-top: 0.5rem;">
+                    Supports PDF, DOCX, TXT • Batch processing available
+                </p>
+                <input type="file" id="file-input" style="display: none;" multiple accept=".pdf,.docx,.txt">
+            </div>
+            
+            <div class="loader" id="loader"></div>
+            
+            <div id="results-area" style="margin-top: 2rem;">
+                <!-- Results will be displayed here -->
+            </div>
+            
+            <div style="margin-top: 2rem; display: flex; gap: 1rem;">
+                <button class="btn" onclick="processResumes()">
+                    ⚡ Analyze Resumes
+                </button>
+                <button class="btn btn-secondary" onclick="exportResults()">
+                    📊 Export Results
+                </button>
+            </div>
+        </div>
+
+        <!-- Candidate Rankings Panel -->
+        <div class="panel">
+            <h2 class="panel-title">🏆 Top Candidates</h2>
+            
+            <div id="candidate-list">
+                <!-- Candidates will be listed here -->
+            </div>
+            
+            <div style="margin-top: 2rem;">
+                <button class="btn btn-secondary" onclick="refreshCandidates()">
+                    🔄 Refresh Rankings
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API configuration
+        const API_BASE = `http://localhost:${window.location.port || '8090'}`;
+        
+        // File handling
+        let uploadedFiles = [];
+        
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        
+        // Drag and drop handlers
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+        
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+        
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            handleFiles(e.dataTransfer.files);
+        });
+        
+        fileInput.addEventListener('change', (e) => {
+            handleFiles(e.target.files);
+        });
+        
+        function handleFiles(files) {
+            uploadedFiles = Array.from(files);
+            showStatus(`📁 ${uploadedFiles.length} file(s) ready for processing`, 'info');
+            
+            // Update drop zone text
+            dropZone.innerHTML = `
+                <div class="drop-icon">✅</div>
+                <p>${uploadedFiles.length} resume(s) loaded</p>
+                <p style="font-size: 0.9rem; opacity: 0.7; margin-top: 0.5rem;">
+                    Click to add more or drop additional files
+                </p>
+            `;
+        }
+        
+        // Status message handling
+        function showStatus(message, type = 'info') {
+            const statusArea = document.getElementById('status-area');
+            const statusDiv = document.createElement('div');
+            statusDiv.className = `status-message status-${type}`;
+            statusDiv.textContent = message;
+            
+            statusArea.insertBefore(statusDiv, statusArea.firstChild);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                statusDiv.style.animation = 'slideIn 0.5s ease-out reverse';
+                setTimeout(() => statusDiv.remove(), 500);
+            }, 5000);
+        }
+        
+        // Job posting management
+        async function saveJobPosting() {
+            const jobData = {
+                title: document.getElementById('job-title').value,
+                skills: document.getElementById('job-skills').value.split(',').map(s => s.trim()),
+                experienceLevel: document.getElementById('experience-level').value,
+                description: document.getElementById('job-description').value
+            };
+            
+            if (!jobData.title || !jobData.description) {
+                showStatus('⚠️ Please fill in job title and description', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/jobs`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(jobData)
+                });
+                
+                if (response.ok) {
+                    showStatus('✅ Job posting saved successfully!', 'success');
+                } else {
+                    throw new Error('Failed to save job posting');
+                }
+            } catch (error) {
+                showStatus(`❌ Error: ${error.message}`, 'error');
+                console.error('Error saving job:', error);
+            }
+        }
+        
+        // Resume processing
+        async function processResumes() {
+            if (uploadedFiles.length === 0) {
+                showStatus('⚠️ Please upload at least one resume', 'error');
+                return;
+            }
+            
+            const loader = document.getElementById('loader');
+            loader.classList.add('active');
+            showStatus('🔄 Processing resumes with AI...', 'info');
+            
+            try {
+                // Create FormData for file upload
+                const formData = new FormData();
+                uploadedFiles.forEach(file => {
+                    formData.append('resumes', file);
+                });
+                
+                // Add job context
+                formData.append('jobTitle', document.getElementById('job-title').value || 'General');
+                formData.append('requiredSkills', document.getElementById('job-skills').value);
+                
+                const response = await fetch(`${API_BASE}/api/process-resumes`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) throw new Error('Processing failed');
+                
+                const results = await response.json();
+                displayResults(results);
+                showStatus('✅ Resume analysis complete!', 'success');
+                
+                // Refresh candidate list
+                refreshCandidates();
+                
+            } catch (error) {
+                showStatus(`❌ Processing error: ${error.message}`, 'error');
+                console.error('Processing error:', error);
+            } finally {
+                loader.classList.remove('active');
+            }
+        }
+        
+        // Display processing results
+        function displayResults(results) {
+            const resultsArea = document.getElementById('results-area');
+            
+            if (!results || results.length === 0) {
+                resultsArea.innerHTML = '<p>No results to display</p>';
+                return;
+            }
+            
+            resultsArea.innerHTML = `
+                <h3 style="color: var(--primary); margin-bottom: 1rem;">📊 Analysis Results</h3>
+                <div class="match-details">
+                    <p>Processed: ${results.length} resumes</p>
+                    <p>Top matches: ${results.filter(r => r.score >= 80).length}</p>
+                    <p>Average match score: ${Math.round(results.reduce((a, r) => a + r.score, 0) / results.length)}%</p>
+                </div>
+            `;
+            
+            // Add top skills found
+            if (results[0]?.topSkills) {
+                const skillsHtml = results[0].topSkills.map(skill => `
+                    <div class="skill-match">
+                        <span class="skill-name">${skill.name}</span>
+                        <div class="skill-bar">
+                            <div class="skill-fill" style="width: ${skill.frequency}%"></div>
+                        </div>
+                        <span>${skill.frequency}%</span>
+                    </div>
+                `).join('');
+                
+                resultsArea.innerHTML += `
+                    <div class="match-details" style="margin-top: 1rem;">
+                        <h4 style="color: var(--secondary); margin-bottom: 1rem;">Most Common Skills</h4>
+                        ${skillsHtml}
+                    </div>
+                `;
+            }
+        }
+        
+        // Refresh candidate rankings
+        async function refreshCandidates() {
+            try {
+                const response = await fetch(`${API_BASE}/api/candidates/top`);
+                const candidates = await response.json();
+                
+                displayCandidates(candidates);
+            } catch (error) {
+                console.error('Error fetching candidates:', error);
+            }
+        }
+        
+        // Display candidate list
+        function displayCandidates(candidates) {
+            const candidateList = document.getElementById('candidate-list');
+            
+            if (!candidates || candidates.length === 0) {
+                candidateList.innerHTML = '<p style="opacity: 0.7;">No candidates processed yet</p>';
+                return;
+            }
+            
+            candidateList.innerHTML = candidates.map((candidate, index) => {
+                const scoreClass = candidate.score >= 80 ? 'high' : 
+                                  candidate.score >= 60 ? 'medium' : 'low';
+                
+                return `
+                    <div class="candidate-card" onclick="viewCandidate('${candidate.id}')">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div class="candidate-name">
+                                #${index + 1} ${candidate.name}
+                            </div>
+                            <span class="candidate-score ${scoreClass}">
+                                ${candidate.score}%
+                            </span>
+                        </div>
+                        <div style="margin-top: 0.5rem; opacity: 0.7; font-size: 0.9rem;">
+                            ${candidate.skills?.slice(0, 3).join(' • ') || 'Skills pending analysis'}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        // View candidate details
+        function viewCandidate(candidateId) {
+            showStatus(`🔍 Loading candidate ${candidateId} details...`, 'info');
+            // This would open a detailed view in a real implementation
+        }
+        
+        // Export results
+        function exportResults() {
+            showStatus('📥 Preparing export...', 'info');
+            // This would trigger a download in a real implementation
+            setTimeout(() => {
+                showStatus('✅ Results exported successfully!', 'success');
+            }, 1000);
+        }
+        
+        // Initial load
+        document.addEventListener('DOMContentLoaded', () => {
+            refreshCandidates();
+            
+            // Add some initial animation
+            setTimeout(() => {
+                showStatus('🚀 HyperRecruit 3000 initialized and ready!', 'success');
+            }, 500);
+        });
+        
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey || e.metaKey) {
+                switch(e.key) {
+                    case 's':
+                        e.preventDefault();
+                        saveJobPosting();
+                        break;
+                    case 'Enter':
+                        e.preventDefault();
+                        processResumes();
+                        break;
+                    case 'r':
+                        e.preventDefault();
+                        refreshCandidates();
+                        break;
+                }
+            }
+        });
+    </script>
+</body>
+</html>

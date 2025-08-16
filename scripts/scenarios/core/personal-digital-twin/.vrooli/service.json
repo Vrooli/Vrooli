@@ -33,6 +33,12 @@
       "description": "Chat interface API port"
     }
   },
+  "shared_workflows": [
+    "ollama",
+    "embedding-generator",
+    "smart-semantic-search",
+    "structured-data-extractor"
+  ],
   "resources": {
     "ai": {
       "ollama": {
@@ -56,11 +62,11 @@
         "purpose": "Store persona data, conversations, training jobs, and metadata",
         "initialization": [
           {
-            "file": "initialization/storage/postgres/schema.sql",
+            "file": "initialization/postgres/schema.sql",
             "type": "script"
           },
           {
-            "file": "initialization/storage/postgres/seed.sql",
+            "file": "initialization/postgres/seed.sql",
             "type": "script"
           }
         ]
@@ -72,7 +78,7 @@
         "purpose": "Vector database for semantic memory and document embeddings",
         "initialization": [
           {
-            "file": "initialization/storage/qdrant/collections.json",
+            "file": "initialization/qdrant/collections.json",
             "type": "script"
           }
         ]
@@ -91,31 +97,15 @@
         "required": true,
         "initialization": [
           {
-            "file": "initialization/automation/n8n/data-ingestion.json",
+            "file": "initialization/n8n/data-ingestion.json",
             "type": "workflow"
           },
           {
-            "file": "initialization/automation/n8n/model-training.json",
+            "file": "initialization/n8n/persona-chat.json",
             "type": "workflow"
           }
         ],
-        "purpose": "Data ingestion pipelines and model training workflows"
-      },
-      "windmill": {
-        "type": "windmill",
-        "enabled": true,
-        "required": false,
-        "initialization": [
-          {
-            "file": "initialization/automation/windmill/data-source-config.json",
-            "type": "app"
-          },
-          {
-            "file": "initialization/automation/windmill/persona-manager.json",
-            "type": "app"
-          }
-        ],
-        "purpose": "UI for persona management and data source configuration"
+        "purpose": "Data ingestion pipelines and chat workflows"
       }
     },
     "ai-processing": {
@@ -154,7 +144,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Personal Digital Twin initialized\\n  Management UI: http://localhost:${RESOURCE_PORTS[windmill]}\\n  Data Workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${SERVICE_PORT}\\n  Chat API: http://localhost:${CHAT_PORT}\\n  CLI: personal-digital-twin --help'",
+          "run": "echo '🚀 Personal Digital Twin initialized\\n  UI: http://localhost:3080\\n  Data Workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${SERVICE_PORT}\\n  Chat API: http://localhost:${CHAT_PORT}\\n  CLI: personal-digital-twin --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -169,6 +159,15 @@
           "background": true,
           "condition": {
             "file_exists": "api/personal-digital-twin-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && npm install && PORT=3080 npm run dev &",
+          "description": "Start UI server",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/package.json"
           }
         },
         {
@@ -191,7 +190,7 @@
         },
         {
           "name": "show-running-services",
-          "run": "echo '🚀 Personal Digital Twin running:\\n  Management UI: http://localhost:${RESOURCE_PORTS[windmill]}\\n  Data Workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$SERVICE_PORT\\n  Chat API: http://localhost:$CHAT_PORT\\n  CLI: personal-digital-twin --help'",
+          "run": "echo '🚀 Personal Digital Twin running:\\n  UI: http://localhost:3080\\n  Data Workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$SERVICE_PORT\\n  Chat API: http://localhost:$CHAT_PORT\\n  CLI: personal-digital-twin --help'",
           "description": "Display all running service URLs"
         }
       ]

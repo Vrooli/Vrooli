@@ -1,0 +1,223 @@
+{
+  "name": "News Enricher",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "news-enricher",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 500]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Default topic for testing\nreturn {\n  topic: 'climate change',\n  limit: 5\n};"
+      },
+      "id": "set_defaults",
+      "name": "Set Default Topic",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [400, 500]
+    },
+    {
+      "parameters": {},
+      "id": "merge_triggers",
+      "name": "Merge Triggers",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [600, 400]
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "query": "={{ 'SELECT id, title, summary, source, bias_score, bias_direction FROM articles WHERE title ILIKE \\'%' + $json.topic + '%\\' OR summary ILIKE \\'%' + $json.topic + '%\\' ORDER BY published_at DESC LIMIT ' + ($json.limit || 10) }}",
+        "options": {}
+      },
+      "id": "find_related_articles",
+      "name": "Find Related Articles",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [800, 400],
+      "credentials": {
+        "postgres": {
+          "id": "1",
+          "name": "Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const articles = $node['Find Related Articles'].all();\nconst topic = $node['Merge Triggers'].json.topic;\n\nif (!articles || articles.length === 0) {\n  return {\n    topic: topic,\n    article_count: 0,\n    perspectives: [],\n    bias_distribution: {},\n    consensus_points: [],\n    controversy_points: [],\n    timestamp: new Date().toISOString()\n  };\n}\n\n// Analyze bias distribution\nconst biasDistribution = {};\nconst sources = new Set();\nlet totalBiasScore = 0;\n\narticles.forEach(item => {\n  const article = item.json;\n  const direction = article.bias_direction || 'unknown';\n  biasDistribution[direction] = (biasDistribution[direction] || 0) + 1;\n  sources.add(article.source);\n  totalBiasScore += article.bias_score || 50;\n});\n\n// Create perspective summary\nconst perspectives = Object.entries(biasDistribution).map(([direction, count]) => ({\n  direction,\n  count,\n  percentage: Math.round((count / articles.length) * 100)\n}));\n\nreturn {\n  topic: topic,\n  article_count: articles.length,\n  unique_sources: sources.size,\n  perspectives: perspectives,\n  bias_distribution: biasDistribution,\n  average_bias_score: Math.round(totalBiasScore / articles.length),\n  articles: articles.map(item => ({\n    id: item.json.id,\n    title: item.json.title,\n    source: item.json.source,\n    bias_direction: item.json.bias_direction,\n    bias_score: item.json.bias_score\n  })),\n  analysis_timestamp: new Date().toISOString()\n};"
+      },
+      "id": "analyze_perspectives",
+      "name": "Analyze Perspectives",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1000, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5678/webhook/ollama",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "llama3.2"
+            },
+            {
+              "name": "prompt",
+              "value": "={{ 'Based on ' + $json.article_count + ' articles about \"' + $json.topic + '\" from ' + $json.unique_sources + ' sources, with the following bias distribution: ' + JSON.stringify($json.bias_distribution) + '\\n\\nGenerate:\\n1. Key consensus points (what all sides agree on)\\n2. Main controversy points (where perspectives differ)\\n3. Missing perspectives that should be considered\\n4. Recommended balanced reading approach\\n\\nKeep response concise and structured.' }}"
+            },
+            {
+              "name": "stream",
+              "value": "false"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "generate_insights",
+      "name": "Generate Insights",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1200, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const perspectives = $node['Analyze Perspectives'].json;\nconst insights = $json.response || $json.message || 'No insights generated';\n\nreturn {\n  topic: perspectives.topic,\n  article_count: perspectives.article_count,\n  unique_sources: perspectives.unique_sources,\n  perspectives: perspectives.perspectives,\n  average_bias_score: perspectives.average_bias_score,\n  insights: insights,\n  articles: perspectives.articles,\n  timestamp: new Date().toISOString()\n};"
+      },
+      "id": "prepare_response",
+      "name": "Prepare Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1400, 400]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "respond_webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1600, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Merge Triggers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Default Topic",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Default Topic": {
+      "main": [
+        [
+          {
+            "node": "Merge Triggers",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Triggers": {
+      "main": [
+        [
+          {
+            "node": "Find Related Articles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Related Articles": {
+      "main": [
+        [
+          {
+            "node": "Analyze Perspectives",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Perspectives": {
+      "main": [
+        [
+          {
+            "node": "Generate Insights",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Insights": {
+      "main": [
+        [
+          {
+            "node": "Prepare Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "templateId": "news-enricher"
+  },
+  "pinData": {},
+  "active": true
+}

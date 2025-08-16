@@ -1,0 +1,188 @@
+{
+  "name": "Perspective Aggregator",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "perspective-aggregator",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 500]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Provide default topic for testing\nreturn {\n  topic: 'Climate Change Policy',\n  articles: [\n    {\n      title: 'Climate Summit Calls for Urgent Action',\n      source: 'Progressive News',\n      bias_score: -45,\n      summary: 'Scientists warn of catastrophic consequences without immediate action'\n    },\n    {\n      title: 'Economic Concerns Over Climate Policies',\n      source: 'Conservative Tribune',\n      bias_score: 55,\n      summary: 'Business leaders worry about job losses from rapid transition'\n    },\n    {\n      title: 'Climate Summit Reaches Compromise',\n      source: 'Central Observer',\n      bias_score: 5,\n      summary: 'Nations agree on balanced approach to emissions reduction'\n    }\n  ],\n  request_id: 'test_' + Date.now()\n};"
+      },
+      "id": "set_defaults",
+      "name": "Set Default Topic",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [400, 500]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Group articles by perspective and find gaps\nconst data = $input.item.json;\nconst articles = data.articles || [];\n\n// Categorize articles by bias\nconst perspectives = {\n  'far-left': [],\n  'left': [],\n  'center-left': [],\n  'center': [],\n  'center-right': [],\n  'right': [],\n  'far-right': []\n};\n\narticles.forEach(article => {\n  const score = article.bias_score || 0;\n  let category;\n  \n  if (score < -66) category = 'far-left';\n  else if (score < -33) category = 'left';\n  else if (score < -10) category = 'center-left';\n  else if (score > 66) category = 'far-right';\n  else if (score > 33) category = 'right';\n  else if (score > 10) category = 'center-right';\n  else category = 'center';\n  \n  perspectives[category].push(article);\n});\n\n// Find missing perspectives\nconst missingPerspectives = [];\nconst coveredPerspectives = [];\n\nObject.keys(perspectives).forEach(key => {\n  if (perspectives[key].length === 0) {\n    missingPerspectives.push(key);\n  } else {\n    coveredPerspectives.push({\n      perspective: key,\n      count: perspectives[key].length,\n      articles: perspectives[key]\n    });\n  }\n});\n\n// Calculate diversity score (0-100)\nconst diversityScore = (Object.keys(perspectives).filter(k => perspectives[k].length > 0).length / 7) * 100;\n\n// Find the dominant narrative\nconst dominantPerspective = Object.keys(perspectives).reduce((a, b) => \n  perspectives[a].length > perspectives[b].length ? a : b\n);\n\nreturn {\n  topic: data.topic,\n  request_id: data.request_id,\n  total_articles: articles.length,\n  perspectives_covered: coveredPerspectives,\n  missing_perspectives: missingPerspectives,\n  diversity_score: Math.round(diversityScore),\n  dominant_perspective: dominantPerspective,\n  articles_by_perspective: perspectives,\n  original_articles: articles\n};"
+      },
+      "id": "analyze_perspectives",
+      "name": "Analyze Perspectives",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [600, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Prepare text classification request for finding balance suggestions\nconst analysis = $input.item.json;\n\n// Create a summary of perspectives for classification\nconst perspectiveSummary = analysis.perspectives_covered\n  .map(p => `${p.perspective}: ${p.count} articles`)\n  .join(', ');\n\nconst missingList = analysis.missing_perspectives.join(', ');\n\nreturn {\n  text: `Topic: ${analysis.topic}\\nCurrent coverage: ${perspectiveSummary}\\nMissing perspectives: ${missingList}\\nDiversity score: ${analysis.diversity_score}%`,\n  categories: ['well-balanced', 'left-leaning', 'right-leaning', 'needs-more-perspectives', 'single-sided'],\n  model: 'llama3.2',\n  confidence_threshold: 0.7,\n  analysis_data: analysis\n};"
+      },
+      "id": "prepare_classification",
+      "name": "Prepare Classification Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [800, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.N8N_BASE_URL }}/webhook/intelligent-text-classifier",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ text: $json.text, categories: $json.categories, model: $json.model, confidence_threshold: $json.confidence_threshold }) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "call_text_classifier",
+      "name": "Call Text Classifier (Shared)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1000, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Generate recommendations based on classification\nconst classification = $input.item.json;\nconst analysis = $node['prepare_classification'].json.analysis_data;\n\n// Extract classification results\nconst category = classification.category || 'unknown';\nconst confidence = classification.confidence || 0;\n\n// Generate recommendations based on missing perspectives\nconst recommendations = [];\n\nif (analysis.missing_perspectives.includes('far-left')) {\n  recommendations.push({\n    type: 'source',\n    suggestion: 'Add progressive sources like The Nation or Democracy Now',\n    perspective: 'far-left'\n  });\n}\n\nif (analysis.missing_perspectives.includes('far-right')) {\n  recommendations.push({\n    type: 'source',\n    suggestion: 'Include conservative sources like The Daily Wire or Breitbart',\n    perspective: 'far-right'\n  });\n}\n\nif (analysis.missing_perspectives.includes('center')) {\n  recommendations.push({\n    type: 'source',\n    suggestion: 'Add neutral sources like Reuters, AP News, or BBC',\n    perspective: 'center'\n  });\n}\n\n// Add general balance recommendations\nif (analysis.diversity_score < 50) {\n  recommendations.push({\n    type: 'balance',\n    suggestion: 'Coverage lacks diversity. Seek articles from at least 4 different perspective categories.',\n    perspective: 'general'\n  });\n}\n\nif (analysis.dominant_perspective !== 'center' && analysis.perspectives_covered.find(p => p.perspective === analysis.dominant_perspective)?.count > analysis.total_articles * 0.5) {\n  recommendations.push({\n    type: 'balance',\n    suggestion: `Coverage is dominated by ${analysis.dominant_perspective} perspective. Add contrasting viewpoints.`,\n    perspective: 'general'\n  });\n}\n\n// Calculate a balance score\nconst balanceScore = Math.round((analysis.diversity_score * 0.6) + \n  ((7 - analysis.missing_perspectives.length) / 7 * 40));\n\nreturn {\n  topic: analysis.topic,\n  request_id: analysis.request_id,\n  total_articles: analysis.total_articles,\n  diversity_score: analysis.diversity_score,\n  balance_score: balanceScore,\n  balance_classification: category,\n  classification_confidence: confidence,\n  dominant_perspective: analysis.dominant_perspective,\n  perspectives_summary: {\n    covered: analysis.perspectives_covered.length,\n    missing: analysis.missing_perspectives.length,\n    details: analysis.perspectives_covered\n  },\n  missing_perspectives: analysis.missing_perspectives,\n  recommendations: recommendations,\n  timestamp: new Date().toISOString()\n};"
+      },
+      "id": "generate_recommendations",
+      "name": "Generate Balance Recommendations",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1200, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "respond_webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1400, 300]
+    }
+  ],
+  "connections": {
+    "webhook_trigger": {
+      "main": [
+        [
+          {
+            "node": "analyze_perspectives",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "manual_trigger": {
+      "main": [
+        [
+          {
+            "node": "set_defaults",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "set_defaults": {
+      "main": [
+        [
+          {
+            "node": "analyze_perspectives",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "analyze_perspectives": {
+      "main": [
+        [
+          {
+            "node": "prepare_classification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "prepare_classification": {
+      "main": [
+        [
+          {
+            "node": "call_text_classifier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "call_text_classifier": {
+      "main": [
+        [
+          {
+            "node": "generate_recommendations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "generate_recommendations": {
+      "main": [
+        [
+          {
+            "node": "respond_webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "perspective-aggregator-v1",
+  "meta": {
+    "instanceId": "news-aggregator-bias-analysis"
+  },
+  "id": "perspective-aggregator",
+  "tags": []
+}

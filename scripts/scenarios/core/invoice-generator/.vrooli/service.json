@@ -1,0 +1,216 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "parent": "vrooli",
+    "name": "invoice-generator",
+    "displayName": "Invoice Generator Pro",
+    "description": "Professional invoice generation system with customizable templates, automated calculations, tax handling, and PDF export capabilities",
+    "version": "1.0.0",
+    "type": "business-application",
+    "category": "business",
+    "tags": [
+      "invoice",
+      "billing",
+      "accounting",
+      "pdf-generation",
+      "javascript-ui",
+      "business-automation",
+      "tax-calculation",
+      "payment-tracking"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "SERVICE_PORT",
+      "range": "8100-8199",
+      "fallback": "auto",
+      "description": "Invoice generator API port"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "range": "3100-3199",
+      "fallback": "auto",
+      "description": "Invoice Generator Pro UI port"
+    }
+  },
+  "resources": {
+    "automation": {
+      "n8n": {
+        "type": "n8n",
+        "enabled": true,
+        "required": true,
+        "shared_workflows": [
+          "ollama",
+          "document-converter-validator",
+          "structured-data-extractor"
+        ],
+        "initialization": [
+          {
+            "file": "initialization/n8n/invoice-processor.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/invoice-processor-ai.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/payment-tracker.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/recurring-invoice-handler.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/invoice-pdf-generator.json",
+            "type": "workflow"
+          }
+        ]
+      }
+    },
+    "ai": {
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": false,
+        "models": [
+          "llama3.2"
+        ]
+      }
+    },
+    "storage": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "invoice data, client information, payment tracking",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "script"
+          }
+        ]
+      }
+    }
+  },
+  "lifecycle": {
+    "version": "1.0.0",
+    "setup": {
+      "description": "Initialize Invoice Generator Pro",
+      "steps": [
+        {
+          "name": "base-setup",
+          "run": "bash scripts/lib/setup.sh",
+          "description": "Execute generic setup (e.g. network, system, git)"
+        },
+        {
+          "name": "add-data",
+          "run": "scripts/resources/injection/engine.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install-cli.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o invoice-generator-api main.go",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "setup-ui",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '💼 Invoice Generator Pro initialized\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${SERVICE_PORT}'",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start Invoice Generator Pro with API server",
+      "steps": [
+        {
+          "name": "start-api-server",
+          "run": "cd api && PORT=$SERVICE_PORT N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} POSTGRES_URL=postgres://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/invoice_generator ./invoice-generator-api &",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/invoice-generator-api"
+          }
+        },
+        {
+          "name": "wait-for-api",
+          "run": "sleep 2 && curl -sf http://localhost:$SERVICE_PORT/health > /dev/null",
+          "description": "Wait for API server to be ready",
+          "retry": {
+            "max_attempts": 15,
+            "delay": 1
+          }
+        },
+        {
+          "name": "start-ui-server",
+          "run": "cd ui && UI_PORT=$UI_PORT SERVICE_PORT=$SERVICE_PORT npm start &",
+          "description": "Start UI server in background",
+          "background": true
+        },
+        {
+          "name": "wait-for-ui",
+          "run": "sleep 2 && curl -sf http://localhost:$UI_PORT > /dev/null",
+          "description": "Wait for UI server to be ready",
+          "retry": {
+            "max_attempts": 10,
+            "delay": 1
+          }
+        },
+        {
+          "name": "show-running-services",
+          "run": "echo '💼 Services running:\\n  📄 UI Dashboard: http://localhost:$UI_PORT\\n  📊 n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  ⚙️ API: http://localhost:$SERVICE_PORT'",
+          "description": "Display all running service URLs"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test Invoice Generator Pro",
+      "steps": [
+        {
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build main.go && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/health",
+          "description": "Test API health endpoint"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop Invoice Generator Pro services",
+      "steps": [
+        {
+          "name": "stop-api-server",
+          "run": "pkill -f 'invoice-generator-api' || true",
+          "description": "Stop Go API server processes"
+        },
+        {
+          "name": "stop-ui-server",
+          "run": "pkill -f 'node.*server.js' || true",
+          "description": "Stop UI server process"
+        },
+        {
+          "name": "confirm-stop",
+          "run": "echo '🛑 Invoice Generator Pro services stopped'",
+          "description": "Confirm services stopped"
+        }
+      ]
+    }
+  }
+}

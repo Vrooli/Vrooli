@@ -1,0 +1,13 @@
+{
+  "name": "qr-generator-ui",
+  "version": "1.0.0",
+  "description": "Retro-style QR Code Generator UI",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx http-server . -p $PORT -c-1",
+    "dev": "npx http-server . -p 3100 -c-1"
+  },
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  }
+}

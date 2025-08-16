@@ -1,0 +1,207 @@
+name: study-buddy
+description: AI-powered study assistant with flashcards, quizzes, and spaced repetition
+version: 1.0.0
+
+health_checks:
+  - name: API Health Check
+    type: http
+    url: http://localhost:8500/health
+    expected_status: 200
+    timeout: 10
+    retries: 3
+
+  - name: UI Health Check
+    type: http
+    url: http://localhost:3500
+    expected_status: 200
+    timeout: 10
+    retries: 3
+
+  - name: Database Connection
+    type: postgres
+    host: localhost
+    port: 5432
+    database: study_buddy
+    query: "SELECT 1"
+    expected_rows: 1
+
+api_tests:
+  - name: Generate Flashcards
+    endpoint: /api/flashcards/generate
+    method: POST
+    body:
+      user_id: "test-user"
+      subject_id: "test-subject"
+      content: "The mitochondria is the powerhouse of the cell"
+      count: 3
+      difficulty: "medium"
+    expected_status: 200
+    expected_response:
+      success: true
+      flashcards: array
+
+  - name: Create Quiz
+    endpoint: /api/quiz/generate
+    method: POST
+    body:
+      user_id: "test-user"
+      subject_id: "test-subject"
+      topic: "Cell Biology"
+      question_count: 5
+      difficulty: "medium"
+    expected_status: 200
+    expected_response:
+      success: true
+      quiz_id: string
+
+  - name: Create Study Plan
+    endpoint: /api/study-plan/create
+    method: POST
+    body:
+      user_id: "test-user"
+      goal: "Master calculus basics"
+      deadline_days: 30
+      hours_per_day: 2
+    expected_status: 200
+    expected_response:
+      success: true
+      plan_id: string
+
+  - name: Track Study Session
+    endpoint: /api/session/track
+    method: POST
+    body:
+      user_id: "test-user"
+      subject_id: "test-subject"
+      session_type: "flashcards"
+      duration_minutes: 30
+      cards_reviewed: 15
+    expected_status: 200
+    expected_response:
+      success: true
+      session_id: string
+
+  - name: Analyze Progress
+    endpoint: /api/progress/analyze
+    method: GET
+    query:
+      user_id: "test-user"
+      subject_id: "test-subject"
+    expected_status: 200
+    expected_response:
+      success: true
+      analysis: object
+
+workflow_tests:
+  - name: Flashcard Generation Workflow
+    workflow: flashcard-generator
+    trigger: webhook
+    payload:
+      user_id: "test-user"
+      subject_id: "test-subject"
+      content: "Test content for flashcard generation"
+      count: 5
+    expected_output:
+      success: true
+      flashcards: array
+
+  - name: Quiz Generation Workflow
+    workflow: quiz-generator
+    trigger: webhook
+    payload:
+      user_id: "test-user"
+      subject_id: "test-subject"
+      topic: "Mathematics"
+      question_count: 10
+    expected_output:
+      success: true
+      questions: array
+
+  - name: Study Plan Generator Workflow
+    workflow: study-plan-generator
+    trigger: webhook
+    payload:
+      user_id: "test-user"
+      goal: "Learn Spanish basics"
+      current_level: "beginner"
+      available_hours: 10
+    expected_output:
+      success: true
+      plan: object
+
+ui_tests:
+  - name: Load Homepage
+    type: browser
+    url: http://localhost:3500
+    actions:
+      - wait_for_element: ".logo"
+      - assert_text: "Study Buddy"
+      - assert_element_exists: ".flashcard-container"
+
+  - name: Switch Study Modes
+    type: browser
+    url: http://localhost:3500
+    actions:
+      - click: "[data-mode='quiz']"
+      - assert_element_visible: ".quiz-container"
+      - click: "[data-mode='notes']"
+      - assert_element_visible: ".notes-container"
+      - click: "[data-mode='flashcards']"
+      - assert_element_visible: ".flashcard-container"
+
+  - name: Flip Flashcard
+    type: browser
+    url: http://localhost:3500
+    actions:
+      - wait_for_element: ".flashcard"
+      - click: ".flashcard"
+      - assert_class_exists: ".flashcard.flipped"
+
+integration_tests:
+  - name: Complete Study Session Flow
+    steps:
+      - api_call:
+          endpoint: /api/session/start
+          method: POST
+          body:
+            user_id: "test-user"
+            subject_id: "test-subject"
+      - workflow_call:
+          name: flashcard-generator
+          payload:
+            user_id: "test-user"
+            subject_id: "test-subject"
+            content: "Test material"
+      - api_call:
+          endpoint: /api/session/end
+          method: POST
+          body:
+            session_id: "{{session_id}}"
+      - verify_database:
+          table: study_sessions
+          condition: "user_id = 'test-user'"
+          expected_count: 1
+
+performance:
+  - name: API Response Time
+    endpoint: /api/flashcards/generate
+    max_response_time_ms: 3000
+    concurrent_requests: 10
+
+  - name: Database Query Performance
+    query: "SELECT * FROM flashcards WHERE user_id = $1 LIMIT 100"
+    max_execution_time_ms: 100
+
+cleanup:
+  - type: database
+    action: truncate
+    tables:
+      - flashcard_reviews
+      - quiz_attempts
+      - study_sessions
+      - spaced_repetition
+      - flashcards
+      - quiz_questions
+      - study_materials
+      - subjects
+      - users

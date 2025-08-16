@@ -52,6 +52,15 @@
         "purpose": "Real-time event streaming, caching, and app notifications"
       }
     },
+    "ai": {
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": false,
+        "models": ["phi3.5:3.8b", "llama3.2"],
+        "purpose": "AI-powered analysis for unhealthy apps and performance optimization recommendations"
+      }
+    },
     "automation": {
       "n8n": {
         "type": "n8n",
@@ -59,17 +68,27 @@
         "required": true,
         "initialization": [
           {
-            "file": "initialization/automation/n8n/app-health-checker.json",
+            "file": "initialization/n8n/app-health-monitor.json",
             "type": "workflow"
           },
           {
-            "file": "initialization/automation/n8n/auto-restart.json",
+            "file": "initialization/n8n/app-performance-analyzer.json",
             "type": "workflow"
           },
           {
-            "file": "initialization/automation/n8n/resource-monitor.json",
+            "file": "initialization/n8n/auto-restart.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/resource-monitor.json",
             "type": "workflow"
           }
+        ],
+        "shared_workflows": [
+          "ollama.json",
+          "cache-manager.json",
+          "rate-limiter.json",
+          "n8n-workflow-executor.json"
         ]
       },
       "node-red": {

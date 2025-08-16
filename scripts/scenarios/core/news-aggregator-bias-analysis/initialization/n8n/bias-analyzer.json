@@ -1,0 +1,164 @@
+{
+  "name": "Bias Analyzer",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bias-analyzer",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 500]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Provide default article for testing\nreturn {\n  article_id: 'test_article_' + Date.now(),\n  title: 'Climate Change Summit: World Leaders Gather to Discuss Action',\n  summary: 'World leaders meet at the UN Climate Summit to discuss urgent action on climate change, with disagreements over financial commitments and timelines.',\n  source: 'Test Source',\n  url: 'https://example.com/article',\n  category: 'world'\n};"
+      },
+      "id": "set_defaults",
+      "name": "Set Default Article",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [400, 500]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Extract article content for bias analysis\nconst article = $input.item.json;\n\nconst prompt = `Analyze the following news article for political bias. Consider:\n1. Language tone and word choice\n2. Sources cited and their diversity\n3. Presentation of different viewpoints\n4. Use of emotional vs. factual language\n5. What information might be missing or emphasized\n\nArticle Title: ${article.title}\nSource: ${article.source}\nSummary: ${article.summary || 'No summary available'}\nURL: ${article.url}\nCategory: ${article.category || 'general'}\n\nProvide:\n1. A bias score from -100 (far left) to +100 (far right), with 0 being center\n2. A bias rating: far-left, left, center-left, center, center-right, right, or far-right\n3. A brief explanation of the bias indicators found\n4. Number of distinct perspectives presented (1-5)\n5. Key phrases that indicate bias\n6. Suggested alternative sources for balance\n\nFormat your response as JSON with keys: bias_score, bias_rating, analysis, perspective_count, key_phrases, alternative_sources`;\n\nreturn {\n  prompt: prompt,\n  model: 'llama3.2',\n  type: 'reasoning',\n  quiet: true,\n  article: article\n};"
+      },
+      "id": "prepare_prompt",
+      "name": "Prepare Bias Analysis Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [600, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.N8N_BASE_URL || 'http://localhost:5678' }}/webhook/ollama",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ prompt: $json.prompt, model: $json.model, type: $json.type, quiet: $json.quiet }) }}",
+        "options": {}
+      },
+      "id": "call_ollama",
+      "name": "Call Ollama Workflow",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [800, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Parse the Ollama response and combine with article data\nconst ollamaResponse = $input.item.json;\nconst article = $node['prepare_prompt'].json.article;\n\ntry {\n  // Parse the response if it's a string\n  let analysis = ollamaResponse.response || ollamaResponse;\n  if (typeof analysis === 'string') {\n    try {\n      analysis = JSON.parse(analysis);\n    } catch (e) {\n      // If parsing fails, create a default response\n      analysis = {\n        bias_score: 0,\n        bias_rating: 'center',\n        analysis: analysis,\n        perspective_count: 1,\n        key_phrases: [],\n        alternative_sources: []\n      };\n    }\n  }\n\n  // Ensure bias_score is within range\n  if (typeof analysis.bias_score === 'number') {\n    analysis.bias_score = Math.max(-100, Math.min(100, analysis.bias_score));\n  } else {\n    analysis.bias_score = 0;\n  }\n\n  // Validate bias_rating\n  const validRatings = ['far-left', 'left', 'center-left', 'center', 'center-right', 'right', 'far-right'];\n  if (!validRatings.includes(analysis.bias_rating)) {\n    // Determine rating from score\n    if (analysis.bias_score < -66) analysis.bias_rating = 'far-left';\n    else if (analysis.bias_score < -33) analysis.bias_rating = 'left';\n    else if (analysis.bias_score < -10) analysis.bias_rating = 'center-left';\n    else if (analysis.bias_score > 66) analysis.bias_rating = 'far-right';\n    else if (analysis.bias_score > 33) analysis.bias_rating = 'right';\n    else if (analysis.bias_score > 10) analysis.bias_rating = 'center-right';\n    else analysis.bias_rating = 'center';\n  }\n\n  // Ensure perspective_count is valid\n  analysis.perspective_count = Math.max(1, Math.min(5, parseInt(analysis.perspective_count) || 1));\n\n  // Ensure arrays exist\n  if (!Array.isArray(analysis.key_phrases)) {\n    analysis.key_phrases = [];\n  }\n  if (!Array.isArray(analysis.alternative_sources)) {\n    analysis.alternative_sources = [];\n  }\n\n  return {\n    article_id: article.article_id,\n    title: article.title,\n    source: article.source,\n    url: article.url,\n    summary: article.summary,\n    category: article.category || 'general',\n    bias_score: analysis.bias_score,\n    bias_rating: analysis.bias_rating,\n    bias_analysis: analysis.analysis || 'Bias analysis completed',\n    perspective_count: analysis.perspective_count,\n    key_phrases: analysis.key_phrases,\n    alternative_sources: analysis.alternative_sources,\n    analyzed_at: new Date().toISOString()\n  };\n} catch (error) {\n  // Return a safe default if something goes wrong\n  return {\n    article_id: article.article_id,\n    title: article.title,\n    source: article.source,\n    url: article.url,\n    summary: article.summary,\n    category: article.category || 'general',\n    bias_score: 0,\n    bias_rating: 'center',\n    bias_analysis: 'Unable to complete bias analysis',\n    perspective_count: 1,\n    key_phrases: [],\n    alternative_sources: [],\n    analyzed_at: new Date().toISOString(),\n    error: error.message\n  };\n}"
+      },
+      "id": "process_response",
+      "name": "Process Bias Analysis",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1000, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "respond_webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1200, 300]
+    }
+  ],
+  "connections": {
+    "webhook_trigger": {
+      "main": [
+        [
+          {
+            "node": "prepare_prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "manual_trigger": {
+      "main": [
+        [
+          {
+            "node": "set_defaults",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "set_defaults": {
+      "main": [
+        [
+          {
+            "node": "prepare_prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "prepare_prompt": {
+      "main": [
+        [
+          {
+            "node": "call_ollama",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "call_ollama": {
+      "main": [
+        [
+          {
+            "node": "process_response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "process_response": {
+      "main": [
+        [
+          {
+            "node": "respond_webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "bias-analyzer-v2",
+  "meta": {
+    "instanceId": "news-aggregator-bias-analysis"
+  },
+  "id": "bias-analyzer",
+  "tags": []
+}

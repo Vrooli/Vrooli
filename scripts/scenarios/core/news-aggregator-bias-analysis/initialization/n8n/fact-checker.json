@@ -1,0 +1,212 @@
+{
+  "name": "Fact Checker",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "fact-checker",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 500]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Provide default claim for testing\nreturn {\n  article_id: 'test_article_' + Date.now(),\n  title: 'US Unemployment Rate Hits Historic Low',\n  claims: [\n    'The US unemployment rate dropped to 3.4%, the lowest since 1969',\n    'Job growth exceeded 500,000 in the last month',\n    'Wages increased by 5% year-over-year'\n  ],\n  source: 'Test News Source',\n  url: 'https://example.com/article',\n  published_date: new Date().toISOString()\n};"
+      },
+      "id": "set_defaults",
+      "name": "Set Default Claims",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [400, 500]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Extract key claims from article for fact-checking\nconst article = $input.item.json;\n\n// Extract claims - if not provided, generate search queries from title and summary\nlet claims = article.claims || [];\nif (claims.length === 0 && (article.title || article.summary)) {\n  // Generate search queries from title and summary\n  const text = `${article.title || ''} ${article.summary || ''}`;\n  \n  // Simple extraction of potential claims (numbers, statistics, quotes)\n  const patterns = [\n    /\\d+\\.?\\d*%/g,  // Percentages\n    /\\$?\\d+\\.?\\d*\\s*(billion|million|thousand)/gi,  // Money amounts\n    /\"[^\"]+\"/g,  // Quoted statements\n    /\\d{4}/g  // Years\n  ];\n  \n  const extractedClaims = [];\n  patterns.forEach(pattern => {\n    const matches = text.match(pattern);\n    if (matches) {\n      extractedClaims.push(...matches);\n    }\n  });\n  \n  // If we found claims, use them; otherwise use the title as a claim\n  claims = extractedClaims.length > 0 ? extractedClaims.slice(0, 5) : [article.title];\n}\n\n// Prepare research queries for fact-checking\nconst queries = claims.map(claim => {\n  // Clean up the claim for better search results\n  const cleanClaim = claim.replace(/[\"']/g, '').trim();\n  return `fact check ${cleanClaim} ${new Date().getFullYear()}`;\n});\n\nreturn {\n  article_id: article.article_id,\n  title: article.title,\n  source: article.source,\n  url: article.url,\n  claims: claims,\n  search_queries: queries,\n  published_date: article.published_date || new Date().toISOString()\n};"
+      },
+      "id": "prepare_research",
+      "name": "Prepare Research Queries",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [600, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5678/webhook/web-research-aggregator",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ queries: $json.search_queries.slice(0, 3), max_results_per_query: 3, include_summaries: true }) }}",
+        "options": {}
+      },
+      "id": "call_research",
+      "name": "Call Web Research Aggregator",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [800, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Analyze research results to fact-check claims\nconst research = $input.item.json;\nconst originalData = $node['prepare_research'].json;\n\n// Prepare prompt for fact-checking analysis\nconst researchSummary = research.results ? \n  research.results.map(r => `Source: ${r.source || 'Unknown'}\\nTitle: ${r.title}\\nSummary: ${r.summary || r.snippet || 'No summary'}`).join('\\n\\n') : \n  'No research results available';\n\nconst prompt = `Analyze the following claims against the research findings:\n\nOriginal Article: ${originalData.title}\nSource: ${originalData.source}\nPublished: ${originalData.published_date}\n\nClaims to verify:\n${originalData.claims.map((c, i) => `${i + 1}. ${c}`).join('\\n')}\n\nResearch findings:\n${researchSummary}\n\nFor each claim, provide:\n1. Verification status: verified, disputed, unverified, or partially-verified\n2. Confidence level: high, medium, or low\n3. Supporting or contradicting evidence found\n4. Additional context if needed\n\nAlso provide an overall credibility score from 0-100.\n\nFormat as JSON with keys: \nclaim_results (array with: claim, status, confidence, evidence, context),\ncredibility_score, summary`;\n\nreturn {\n  prompt: prompt,\n  model: 'llama3.2',\n  type: 'reasoning',\n  quiet: true,\n  original_data: originalData,\n  research_data: research\n};"
+      },
+      "id": "prepare_analysis",
+      "name": "Prepare Fact-Check Analysis",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1000, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5678/webhook/ollama",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ prompt: $json.prompt, model: $json.model, type: $json.type, quiet: $json.quiet }) }}",
+        "options": {}
+      },
+      "id": "call_ollama",
+      "name": "Call Ollama Workflow",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1200, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process fact-checking results\nconst ollamaResponse = $input.item.json;\nconst originalData = $node['prepare_analysis'].json.original_data;\nconst researchData = $node['prepare_analysis'].json.research_data;\n\ntry {\n  // Parse the response\n  let analysis = ollamaResponse.response || ollamaResponse;\n  if (typeof analysis === 'string') {\n    try {\n      analysis = JSON.parse(analysis);\n    } catch (e) {\n      // Create default response if parsing fails\n      analysis = {\n        claim_results: originalData.claims.map(claim => ({\n          claim: claim,\n          status: 'unverified',\n          confidence: 'low',\n          evidence: 'Unable to verify',\n          context: ''\n        })),\n        credibility_score: 50,\n        summary: 'Fact-checking incomplete'\n      };\n    }\n  }\n\n  // Ensure credibility_score is valid\n  if (typeof analysis.credibility_score !== 'number') {\n    analysis.credibility_score = 50;\n  }\n  analysis.credibility_score = Math.max(0, Math.min(100, analysis.credibility_score));\n\n  // Determine credibility rating\n  let credibility_rating;\n  if (analysis.credibility_score >= 80) credibility_rating = 'highly-credible';\n  else if (analysis.credibility_score >= 60) credibility_rating = 'mostly-credible';\n  else if (analysis.credibility_score >= 40) credibility_rating = 'partially-credible';\n  else if (analysis.credibility_score >= 20) credibility_rating = 'questionable';\n  else credibility_rating = 'not-credible';\n\n  // Count verification statuses\n  const statusCounts = {\n    verified: 0,\n    disputed: 0,\n    unverified: 0,\n    'partially-verified': 0\n  };\n  \n  if (Array.isArray(analysis.claim_results)) {\n    analysis.claim_results.forEach(result => {\n      if (statusCounts.hasOwnProperty(result.status)) {\n        statusCounts[result.status]++;\n      }\n    });\n  }\n\n  return {\n    article_id: originalData.article_id,\n    title: originalData.title,\n    source: originalData.source,\n    url: originalData.url,\n    fact_check_results: analysis.claim_results || [],\n    credibility_score: analysis.credibility_score,\n    credibility_rating: credibility_rating,\n    verification_summary: {\n      verified: statusCounts.verified,\n      disputed: statusCounts.disputed,\n      unverified: statusCounts.unverified,\n      partially_verified: statusCounts['partially-verified']\n    },\n    analysis_summary: analysis.summary || 'Fact-check complete',\n    sources_consulted: researchData.results ? researchData.results.length : 0,\n    checked_at: new Date().toISOString()\n  };\n} catch (error) {\n  // Return safe default on error\n  return {\n    article_id: originalData.article_id,\n    title: originalData.title,\n    source: originalData.source,\n    url: originalData.url,\n    fact_check_results: [],\n    credibility_score: 50,\n    credibility_rating: 'unknown',\n    verification_summary: {\n      verified: 0,\n      disputed: 0,\n      unverified: originalData.claims.length,\n      partially_verified: 0\n    },\n    analysis_summary: 'Unable to complete fact-checking',\n    sources_consulted: 0,\n    checked_at: new Date().toISOString(),\n    error: error.message\n  };\n}"
+      },
+      "id": "process_results",
+      "name": "Process Fact-Check Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1400, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "respond_webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1600, 300]
+    }
+  ],
+  "connections": {
+    "webhook_trigger": {
+      "main": [
+        [
+          {
+            "node": "prepare_research",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "manual_trigger": {
+      "main": [
+        [
+          {
+            "node": "set_defaults",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "set_defaults": {
+      "main": [
+        [
+          {
+            "node": "prepare_research",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "prepare_research": {
+      "main": [
+        [
+          {
+            "node": "call_research",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "call_research": {
+      "main": [
+        [
+          {
+            "node": "prepare_analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "prepare_analysis": {
+      "main": [
+        [
+          {
+            "node": "call_ollama",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "call_ollama": {
+      "main": [
+        [
+          {
+            "node": "process_results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "process_results": {
+      "main": [
+        [
+          {
+            "node": "respond_webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "fact-checker-v1",
+  "meta": {
+    "instanceId": "news-aggregator-bias-analysis"
+  },
+  "id": "fact-checker",
+  "tags": []
+}

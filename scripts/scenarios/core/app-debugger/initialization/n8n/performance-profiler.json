@@ -1,0 +1,116 @@
+{
+  "name": "App Debugger - Performance Profiler",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "performance-profiler",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 500]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "return {\n  app_name: 'test-app',\n  metric_type: 'memory'\n};"
+      },
+      "id": "set_test_defaults",
+      "name": "Set Test Defaults",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [400, 500]
+    },
+    {
+      "parameters": {},
+      "id": "merge_triggers",
+      "name": "Merge Triggers",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [600, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const input = $input.item.json;\nconst appName = input.app_name || 'unknown';\nconst metricType = input.metric_type || 'all';\n\n// Build metrics command\nlet command = '';\nif (metricType === 'memory' || metricType === 'all') {\n  command = `docker stats --no-stream --format '{{json .}}' ${appName}`;\n} else if (metricType === 'cpu') {\n  command = `top -b -n 1 | grep ${appName}`;\n}\n\nreturn {\n  command: command,\n  app_name: appName,\n  metric_type: metricType,\n  timestamp: new Date().toISOString()\n};"
+      },
+      "id": "build_metrics_cmd",
+      "name": "Build Metrics Command",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [800, 400]
+    },
+    {
+      "parameters": {
+        "command": "={{ $json.command }}",
+        "options": {}
+      },
+      "id": "fetch_metrics",
+      "name": "Fetch Metrics",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1000, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const metricsOutput = $input.item.json.stdout || '{}';\nconst metadata = $('Build Metrics Command').item.json;\n\nlet metrics = {};\ntry {\n  metrics = JSON.parse(metricsOutput);\n} catch (e) {\n  metrics = { raw: metricsOutput };\n}\n\n// Calculate performance indicators\nconst memUsage = metrics.MemPerc ? parseFloat(metrics.MemPerc.replace('%', '')) : 0;\nconst cpuUsage = metrics.CPUPerc ? parseFloat(metrics.CPUPerc.replace('%', '')) : 0;\n\nconst analysis = {\n  app_name: metadata.app_name,\n  timestamp: metadata.timestamp,\n  memory_usage_percent: memUsage,\n  cpu_usage_percent: cpuUsage,\n  memory_limit: metrics.MemLimit || 'unknown',\n  memory_usage: metrics.MemUsage || 'unknown',\n  performance_status: memUsage > 80 || cpuUsage > 80 ? 'critical' : memUsage > 60 || cpuUsage > 60 ? 'warning' : 'healthy',\n  recommendations: []\n};\n\nif (memUsage > 80) {\n  analysis.recommendations.push('Consider increasing memory allocation');\n}\nif (cpuUsage > 80) {\n  analysis.recommendations.push('CPU usage is high - check for infinite loops or optimize algorithms');\n}\n\nreturn analysis;"
+      },
+      "id": "analyze_performance",
+      "name": "Analyze Performance",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1200, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json, null, 2) }}",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1400, 300]
+    }
+  ],
+  "connections": {
+    "webhook_trigger": {
+      "main": [[{"node": "merge_triggers", "type": "main", "index": 0}]]
+    },
+    "manual_trigger": {
+      "main": [[{"node": "set_test_defaults", "type": "main", "index": 0}]]
+    },
+    "set_test_defaults": {
+      "main": [[{"node": "merge_triggers", "type": "main", "index": 1}]]
+    },
+    "merge_triggers": {
+      "main": [[{"node": "build_metrics_cmd", "type": "main", "index": 0}]]
+    },
+    "build_metrics_cmd": {
+      "main": [[{"node": "fetch_metrics", "type": "main", "index": 0}]]
+    },
+    "fetch_metrics": {
+      "main": [[{"node": "analyze_performance", "type": "main", "index": 0}]]
+    },
+    "analyze_performance": {
+      "main": [[{"node": "respond", "type": "main", "index": 0}]]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "id": "app-debugger-performance-profiler"
+}

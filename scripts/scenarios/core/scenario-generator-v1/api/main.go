@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -141,6 +143,7 @@ func main() {
 	
 	// Generation endpoints
 	api.HandleFunc("/generate", server.generateScenario).Methods("POST")
+	api.HandleFunc("/generate/n8n", server.generateScenarioN8N).Methods("POST")
 	api.HandleFunc("/generate/status/{id}", server.getGenerationStatus).Methods("GET")
 	
 	// Templates endpoints
@@ -378,6 +381,110 @@ func (s *APIServer) generateScenario(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusAccepted)
 	json.NewEncoder(w).Encode(response)
+}
+
+func (s *APIServer) generateScenarioN8N(w http.ResponseWriter, r *http.Request) {
+	var req map[string]interface{}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Validate required fields
+	scenarioName, ok := req["scenario_name"].(string)
+	if !ok || scenarioName == "" {
+		http.Error(w, "scenario_name is required", http.StatusBadRequest)
+		return
+	}
+	
+	description, ok := req["description"].(string)
+	if !ok || description == "" {
+		http.Error(w, "description is required", http.StatusBadRequest)
+		return
+	}
+
+	// Call n8n workflow
+	n8nURL := os.Getenv("N8N_WEBHOOK_URL")
+	if n8nURL == "" {
+		n8nPort := os.Getenv("N8N_PORT")
+		if n8nPort == "" {
+			n8nPort = "5678"
+		}
+		n8nURL = fmt.Sprintf("http://localhost:%s/webhook/generate-scenario", n8nPort)
+	}
+
+	// Prepare request body
+	reqBody, err := json.Marshal(req)
+	if err != nil {
+		http.Error(w, "Failed to prepare request", http.StatusInternalServerError)
+		return
+	}
+
+	// Call n8n workflow
+	client := &http.Client{Timeout: 180 * time.Second}
+	resp, err := client.Post(n8nURL, "application/json", bytes.NewBuffer(reqBody))
+	if err != nil {
+		log.Printf("Error calling n8n workflow: %v", err)
+		http.Error(w, "Failed to call generation workflow", http.StatusServiceUnavailable)
+		return
+	}
+	defer resp.Body.Close()
+
+	// Read response
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		http.Error(w, "Failed to read workflow response", http.StatusInternalServerError)
+		return
+	}
+
+	// Parse response
+	var n8nResp map[string]interface{}
+	if err := json.Unmarshal(body, &n8nResp); err != nil {
+		http.Error(w, "Invalid workflow response", http.StatusInternalServerError)
+		return
+	}
+
+	// Store scenario in database if successful
+	if summary, ok := n8nResp["summary"].(map[string]interface{}); ok {
+		if success, ok := summary["success"].(bool); ok && success {
+			// Create database record
+			scenarioID := uuid.New().String()
+			generationID := uuid.New().String()
+			if genID, ok := summary["generation_id"].(string); ok {
+				generationID = genID
+			}
+			
+			now := time.Now()
+			complexity := "intermediate"
+			if c, ok := req["complexity"].(string); ok {
+				complexity = c
+			}
+			
+			category := "saas-applications"
+			if cat, ok := req["category"].(string); ok {
+				category = cat
+			}
+
+			query := `
+				INSERT INTO scenarios (id, name, description, prompt, status, generation_id,
+				                      complexity, category, estimated_revenue, created_at, updated_at, completed_at)
+				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`
+
+			_, err = s.db.Exec(query,
+				scenarioID, scenarioName, description, "", "completed", generationID,
+				complexity, category, estimateRevenue(complexity), now, now, now,
+			)
+			
+			if err != nil {
+				log.Printf("Failed to store scenario in database: %v", err)
+			}
+		}
+	}
+
+	// Return n8n response
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(resp.StatusCode)
+	w.Write(body)
 }
 
 func (s *APIServer) runScenarioGeneration(scenarioID string, req GenerationRequest) {

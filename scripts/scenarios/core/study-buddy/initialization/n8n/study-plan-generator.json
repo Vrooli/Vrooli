@@ -1,0 +1,183 @@
+{
+  "name": "Study Plan Generator",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "study-plan/generate",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Provide defaults for manual testing\nconst defaults = {\n  user_id: 'test-user',\n  goal: 'Master calculus fundamentals for upcoming exam',\n  deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days from now\n  available_hours_per_day: 2,\n  current_level: 'beginner', // beginner, intermediate, advanced\n  learning_style: 'visual', // visual, auditory, kinesthetic, reading\n  subjects: ['mathematics', 'calculus'],\n  preferences: {\n    include_breaks: true,\n    use_spaced_repetition: true,\n    practice_problems: true,\n    video_resources: true\n  }\n};\n\n// Only use defaults if coming from manual trigger\nconst isManual = $execution.resumeUrl === undefined;\nif (isManual) {\n  return [{json: defaults}];\n}\n\n// Otherwise pass through webhook data\nreturn items;"
+      },
+      "id": "defaults",
+      "name": "Defaults",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 500]
+    },
+    {
+      "parameters": {
+        "operation": "callByName",
+        "workflowName": "ollama",
+        "workflowData": "={{ JSON.stringify({\n  prompt: `You are an expert educational planner creating personalized study plans.\n\nStudent Profile:\n- Goal: ${$json.goal}\n- Deadline: ${new Date($json.deadline).toLocaleDateString()}\n- Available study time: ${$json.available_hours_per_day} hours per day\n- Current level: ${$json.current_level}\n- Learning style: ${$json.learning_style}\n- Subjects: ${$json.subjects.join(', ')}\n\nPreferences:\n${JSON.stringify($json.preferences, null, 2)}\n\nCreate a comprehensive study plan with:\n1. Daily study sessions broken into focused blocks\n2. Weekly milestones and checkpoints\n3. Specific topics to cover in order\n4. Recommended resources and activities\n5. Practice and review sessions\n6. Buffer time for difficult concepts\n\nUse spaced repetition and active learning principles.\n\nReturn as JSON with this structure:\n{\n  \"plan_name\": \"descriptive name\",\n  \"duration_days\": number,\n  \"phases\": [\n    {\n      \"phase_number\": 1,\n      \"name\": \"phase name\",\n      \"duration_days\": number,\n      \"focus_areas\": [\"area1\", \"area2\"],\n      \"daily_schedule\": {\n        \"study_blocks\": [\n          {\n            \"time\": \"duration in minutes\",\n            \"activity\": \"description\",\n            \"resources\": [\"resource1\"]\n          }\n        ]\n      },\n      \"milestones\": [\"milestone1\", \"milestone2\"]\n    }\n  ],\n  \"review_schedule\": {\n    \"daily\": \"10 minutes flashcard review\",\n    \"weekly\": \"1 hour comprehensive review\"\n  },\n  \"success_metrics\": [\"metric1\", \"metric2\"]\n}`,\n  model: 'llama3.2:3b',\n  temperature: 0.6,\n  format: 'json'\n}) }}"
+      },
+      "id": "generate-plan",
+      "name": "Generate Study Plan",
+      "type": "n8n-nodes-base.n8n",
+      "typeVersion": 1,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst aiResponse = items[0].json;\n\nlet studyPlan = {};\ntry {\n  // Parse the AI response\n  const responseText = aiResponse.response || aiResponse.output || JSON.stringify(aiResponse);\n  studyPlan = typeof responseText === 'string' ? JSON.parse(responseText) : responseText;\n} catch (e) {\n  console.error('Parse error:', e);\n  // Generate fallback study plan\n  const daysUntilDeadline = Math.floor((new Date(input.deadline) - new Date()) / (1000 * 60 * 60 * 24));\n  \n  studyPlan = {\n    plan_name: `Study Plan for ${input.goal}`,\n    duration_days: daysUntilDeadline,\n    phases: [\n      {\n        phase_number: 1,\n        name: \"Foundation Building\",\n        duration_days: Math.floor(daysUntilDeadline * 0.3),\n        focus_areas: [\"Basic concepts\", \"Terminology\", \"Core principles\"],\n        daily_schedule: {\n          study_blocks: [\n            {\n              time: 45,\n              activity: \"Concept learning and note-taking\",\n              resources: [\"Textbook chapters\", \"Video lectures\"]\n            },\n            {\n              time: 30,\n              activity: \"Practice problems\",\n              resources: [\"Exercise sets\", \"Worksheets\"]\n            },\n            {\n              time: 15,\n              activity: \"Review and flashcards\",\n              resources: [\"Study Buddy flashcards\"]\n            }\n          ]\n        },\n        milestones: [\"Understand basic terminology\", \"Complete foundation exercises\"]\n      },\n      {\n        phase_number: 2,\n        name: \"Skill Development\",\n        duration_days: Math.floor(daysUntilDeadline * 0.4),\n        focus_areas: [\"Advanced concepts\", \"Problem-solving\", \"Applications\"],\n        daily_schedule: {\n          study_blocks: [\n            {\n              time: 60,\n              activity: \"Advanced topic study\",\n              resources: [\"Advanced materials\", \"Case studies\"]\n            },\n            {\n              time: 45,\n              activity: \"Complex problem practice\",\n              resources: [\"Challenge problems\", \"Past exams\"]\n            },\n            {\n              time: 15,\n              activity: \"Concept connections\",\n              resources: [\"Mind maps\", \"Summary notes\"]\n            }\n          ]\n        },\n        milestones: [\"Master intermediate concepts\", \"Solve complex problems\"]\n      },\n      {\n        phase_number: 3,\n        name: \"Mastery and Review\",\n        duration_days: Math.floor(daysUntilDeadline * 0.3),\n        focus_areas: [\"Synthesis\", \"Speed\", \"Accuracy\"],\n        daily_schedule: {\n          study_blocks: [\n            {\n              time: 30,\n              activity: \"Timed practice tests\",\n              resources: [\"Mock exams\", \"Quiz sets\"]\n            },\n            {\n              time: 45,\n              activity: \"Weak area focus\",\n              resources: [\"Personalized problem sets\"]\n            },\n            {\n              time: 30,\n              activity: \"Comprehensive review\",\n              resources: [\"All notes\", \"Flashcard decks\"]\n            }\n          ]\n        },\n        milestones: [\"Complete practice exams\", \"Achieve target scores\"]\n      }\n    ],\n    review_schedule: {\n      daily: \"15 minutes spaced repetition review\",\n      weekly: \"2 hour comprehensive topic review\"\n    },\n    success_metrics: [\n      \"Complete 80% of practice problems correctly\",\n      \"Finish all planned study sessions\",\n      \"Score above target on practice tests\"\n    ]\n  };\n}\n\n// Add metadata\nconst crypto = require('crypto');\nconst planWithMetadata = {\n  id: crypto.randomUUID(),\n  user_id: input.user_id,\n  ...studyPlan,\n  created_at: new Date().toISOString(),\n  deadline: input.deadline,\n  total_hours: input.available_hours_per_day * studyPlan.duration_days,\n  input_params: input\n};\n\nreturn [{json: planWithMetadata}];"
+      },
+      "id": "parse-plan",
+      "name": "Parse Study Plan",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO study_plans (id, user_id, plan_name, goal, deadline, duration_days, phases, review_schedule, success_metrics, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id, plan_name",
+        "options": {
+          "queryReplacement": "={{[\n  $json.id,\n  $json.user_id,\n  $json.plan_name,\n  $json.input_params.goal,\n  $json.deadline,\n  $json.duration_days,\n  JSON.stringify($json.phases),\n  JSON.stringify($json.review_schedule),\n  JSON.stringify($json.success_metrics),\n  $json.created_at\n]}}"
+        }
+      },
+      "id": "save-plan",
+      "name": "Save Study Plan",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1050, 400],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-study-buddy",
+          "name": "Study Buddy DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const savedPlan = items[0].json;\nconst fullPlan = $input.first().json;\n\n// Create calendar events for the first week\nconst calendarEvents = [];\nconst startDate = new Date();\n\nif (fullPlan.phases && fullPlan.phases[0]) {\n  const firstPhase = fullPlan.phases[0];\n  for (let day = 0; day < Math.min(7, firstPhase.duration_days); day++) {\n    const eventDate = new Date(startDate);\n    eventDate.setDate(eventDate.getDate() + day);\n    \n    firstPhase.daily_schedule.study_blocks.forEach((block, index) => {\n      calendarEvents.push({\n        date: eventDate.toISOString().split('T')[0],\n        time_slot: `Block ${index + 1}`,\n        duration_minutes: block.time,\n        activity: block.activity,\n        resources: block.resources\n      });\n    });\n  }\n}\n\nreturn [{\n  json: {\n    success: true,\n    message: 'Study plan generated successfully',\n    plan: {\n      id: fullPlan.id,\n      name: fullPlan.plan_name,\n      duration_days: fullPlan.duration_days,\n      total_hours: fullPlan.total_hours,\n      phases: fullPlan.phases,\n      review_schedule: fullPlan.review_schedule,\n      success_metrics: fullPlan.success_metrics\n    },\n    first_week_schedule: calendarEvents,\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "format-response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 400]
+    },
+    {
+      "parameters": {},
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1450, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Generate Study Plan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual": {
+      "main": [
+        [
+          {
+            "node": "Defaults",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Defaults": {
+      "main": [
+        [
+          {
+            "node": "Generate Study Plan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Study Plan": {
+      "main": [
+        [
+          {
+            "node": "Parse Study Plan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Study Plan": {
+      "main": [
+        [
+          {
+            "node": "Save Study Plan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Study Plan": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "pinData": {},
+  "versionId": "1.0.0",
+  "triggerCount": 2,
+  "tags": []
+}

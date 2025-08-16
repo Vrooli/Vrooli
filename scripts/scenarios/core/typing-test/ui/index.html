@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>⌨️ RETRO TYPING CHALLENGE</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="crt-container">
+        <div class="scanlines"></div>
+        <div class="main-wrapper">
+            <header class="game-header">
+                <h1 class="neon-title">
+                    <span class="glitch" data-text="TYPING">TYPING</span>
+                    <span class="arcade">CHALLENGE</span>
+                </h1>
+                <div class="subtitle">[ INSERT COIN TO CONTINUE ]</div>
+            </header>
+
+            <div class="game-stats">
+                <div class="stat-box">
+                    <span class="stat-label">WPM</span>
+                    <span class="stat-value" id="wpm">0</span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-label">ACC</span>
+                    <span class="stat-value" id="accuracy">100%</span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-label">TIME</span>
+                    <span class="stat-value" id="timer">60</span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-label">SCORE</span>
+                    <span class="stat-value" id="score">0</span>
+                </div>
+            </div>
+
+            <div class="game-area">
+                <div class="text-display" id="text-display">
+                    <span class="text-content" id="text-content"></span>
+                </div>
+                
+                <div class="input-area">
+                    <input type="text" id="typing-input" class="typing-input" 
+                           placeholder="Click here and start typing..." 
+                           autocomplete="off" spellcheck="false">
+                    <div class="input-hint">Press SPACE to start new game</div>
+                </div>
+
+                <div class="combo-meter">
+                    <div class="combo-label">COMBO</div>
+                    <div class="combo-bar">
+                        <div class="combo-fill" id="combo-fill"></div>
+                    </div>
+                    <div class="combo-multiplier" id="combo-multiplier">x1</div>
+                </div>
+            </div>
+
+            <div class="control-panel">
+                <button class="arcade-button" id="start-btn">
+                    <span class="button-label">START GAME</span>
+                </button>
+                <button class="arcade-button" id="mode-btn">
+                    <span class="button-label">MODE: CLASSIC</span>
+                </button>
+                <button class="arcade-button" id="difficulty-btn">
+                    <span class="button-label">LEVEL: EASY</span>
+                </button>
+                <button class="arcade-button" id="leaderboard-btn">
+                    <span class="button-label">HIGH SCORES</span>
+                </button>
+            </div>
+
+            <div class="leaderboard-panel" id="leaderboard-panel" style="display: none;">
+                <h2 class="panel-title">🏆 HIGH SCORES 🏆</h2>
+                <div class="leaderboard-tabs">
+                    <button class="tab-button active" data-period="today">TODAY</button>
+                    <button class="tab-button" data-period="week">WEEK</button>
+                    <button class="tab-button" data-period="all">ALL TIME</button>
+                </div>
+                <div class="leaderboard-list" id="leaderboard-list">
+                    <div class="loading-scores">Loading scores...</div>
+                </div>
+                <button class="close-button" id="close-leaderboard">✕</button>
+            </div>
+
+            <div class="game-over-panel" id="game-over-panel" style="display: none;">
+                <h2 class="game-over-title">GAME OVER</h2>
+                <div class="final-stats">
+                    <div class="final-stat">
+                        <span class="label">Final WPM:</span>
+                        <span class="value" id="final-wpm">0</span>
+                    </div>
+                    <div class="final-stat">
+                        <span class="label">Accuracy:</span>
+                        <span class="value" id="final-accuracy">0%</span>
+                    </div>
+                    <div class="final-stat">
+                        <span class="label">Total Score:</span>
+                        <span class="value" id="final-score">0</span>
+                    </div>
+                    <div class="final-stat">
+                        <span class="label">Best Combo:</span>
+                        <span class="value" id="final-combo">0</span>
+                    </div>
+                </div>
+                <div class="name-entry" id="name-entry">
+                    <input type="text" id="player-name" class="player-name-input" 
+                           placeholder="Enter your name" maxlength="10">
+                    <button class="submit-score-btn" id="submit-score">SUBMIT SCORE</button>
+                </div>
+                <button class="play-again-btn" id="play-again">PLAY AGAIN</button>
+            </div>
+
+            <footer class="game-footer">
+                <div class="footer-info">
+                    <span class="power-level">POWER: ████████░░</span>
+                    <span class="system-status">SYSTEM: ONLINE</span>
+                    <span class="credits">VROOLI ARCADE © 2025</span>
+                </div>
+            </footer>
+        </div>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+</html>

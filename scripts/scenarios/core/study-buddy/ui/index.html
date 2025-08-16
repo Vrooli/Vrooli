@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📚 STUDY QUEST '95 - Educational Adventure System</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            image-rendering: pixelated;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: crisp-edges;
+        }
+
+        @keyframes crt-flicker {
+            0% { opacity: 0.97; }
+            50% { opacity: 1; }
+            100% { opacity: 0.98; }
+        }
+
+        @keyframes scanlines {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(10px); }
+        }
+
+        @keyframes pixel-pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        @keyframes rainbow-text {
+            0% { color: #ff0000; }
+            16% { color: #ff8800; }
+            33% { color: #ffff00; }
+            50% { color: #00ff00; }
+            66% { color: #0088ff; }
+            83% { color: #8800ff; }
+            100% { color: #ff0000; }
+        }
+
+        body {
+            font-family: 'VT323', monospace;
+            background: #0a0a0a;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            color: #00ff00;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* CRT Screen Effect */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 0, 0, 0.15),
+                rgba(0, 0, 0, 0.15) 1px,
+                transparent 1px,
+                transparent 2px
+            );
+            pointer-events: none;
+            z-index: 9999;
+            animation: scanlines 8s linear infinite;
+        }
+
+        /* Retro glow effect */
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(ellipse at center, transparent 0%, rgba(0,255,0,0.02) 100%);
+            pointer-events: none;
+            z-index: 9998;
+            animation: crt-flicker 0.15s infinite;
+        }
+
+        .header {
+            background: linear-gradient(90deg, #1a1a2e 0%, #16213e 100%);
+            padding: 1rem 2rem;
+            border: 3px solid #00ff00;
+            border-bottom: 5px solid #00ff00;
+            box-shadow: 
+                0 0 20px rgba(0,255,0,0.5),
+                inset 0 0 20px rgba(0,255,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+        }
+
+        .header::before {
+            content: '╔══════════════════════════════════════════════════════════════╗';
+            position: absolute;
+            top: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #00ff00;
+            font-size: 20px;
+            letter-spacing: -2px;
+            opacity: 0.5;
+        }
+
+        .logo {
+            font-family: 'Press Start 2P', cursive;
+            font-size: 1.2rem;
+            color: #ffff00;
+            text-shadow: 
+                2px 2px 0 #ff00ff,
+                4px 4px 0 #00ffff,
+                6px 6px 8px rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            animation: pixel-pulse 2s ease-in-out infinite;
+        }
+
+        .logo::before {
+            content: '📚';
+            font-size: 2rem;
+            animation: rainbow-text 3s linear infinite;
+        }
+
+        .stats {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 0.5rem 1rem;
+            background: #000;
+            border: 2px solid #00ff00;
+            position: relative;
+        }
+
+        .stat-item::before {
+            content: '[';
+            position: absolute;
+            left: -5px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #ffff00;
+            font-size: 1.5rem;
+        }
+
+        .stat-item::after {
+            content: ']';
+            position: absolute;
+            right: -5px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #ffff00;
+            font-size: 1.5rem;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #00ffff;
+            text-shadow: 0 0 10px currentColor;
+            font-family: 'Press Start 2P', cursive;
+        }
+
+        .stat-label {
+            font-size: 1.2rem;
+            color: #00ff00;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-top: 0.25rem;
+        }
+
+        .main-container {
+            flex: 1;
+            display: flex;
+            padding: 2rem;
+            gap: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .sidebar {
+            background: #1a1a2e;
+            border: 3px solid #00ff00;
+            padding: 1.5rem;
+            width: 280px;
+            box-shadow: 
+                0 0 30px rgba(0,255,0,0.3),
+                inset 0 0 30px rgba(0,255,0,0.05);
+            position: relative;
+        }
+
+        .sidebar::before {
+            content: '◆ MISSION SELECT ◆';
+            position: absolute;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1a1a2e;
+            padding: 0 10px;
+            color: #ffff00;
+            font-family: 'Press Start 2P', cursive;
+            font-size: 0.7rem;
+            text-shadow: 0 0 5px currentColor;
+        }
+
+        .subject-list {
+            list-style: none;
+            margin-top: 2rem;
+        }
+
+        .subject-item {
+            padding: 0.75rem;
+            margin: 1rem 0;
+            border: 2px solid #00ff00;
+            background: #000;
+            cursor: pointer;
+            transition: all 0.1s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            position: relative;
+            font-size: 1.3rem;
+            text-transform: uppercase;
+        }
+
+        .subject-item::before {
+            content: '▶';
+            color: #ffff00;
+            margin-right: 0.5rem;
+            animation: pixel-pulse 1s ease-in-out infinite;
+        }
+
+        .subject-item:hover {
+            background: #00ff00;
+            color: #000;
+            transform: translateX(10px) scale(1.05);
+            box-shadow: 
+                5px 5px 0 #ff00ff,
+                10px 10px 0 #00ffff;
+            font-weight: bold;
+        }
+
+        .subject-item.active {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .content-area {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 1rem;
+            padding: 2rem;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .mode-selector {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .mode-btn {
+            flex: 1;
+            padding: 1rem;
+            border: 2px solid #e0e0e0;
+            background: white;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 1rem;
+            font-weight: 500;
+        }
+
+        .mode-btn:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(102, 126, 234, 0.2);
+        }
+
+        .mode-btn.active {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-color: transparent;
+        }
+
+        .flashcard-container {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 2rem;
+        }
+
+        .flashcard {
+            width: 100%;
+            max-width: 600px;
+            height: 350px;
+            perspective: 1000px;
+            cursor: pointer;
+        }
+
+        .flashcard-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+
+        .flashcard.flipped .flashcard-inner {
+            transform: rotateY(180deg);
+        }
+
+        .flashcard-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            border-radius: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            font-size: 1.25rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+
+        .flashcard-front {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .flashcard-back {
+            background: linear-gradient(135deg, #56ab2f, #a8e063);
+            color: white;
+            transform: rotateY(180deg);
+        }
+
+        .flashcard-controls {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .control-btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s;
+            background: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .control-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+        }
+
+        .btn-easy { background: #4ade80; color: white; }
+        .btn-medium { background: #fbbf24; color: white; }
+        .btn-hard { background: #f87171; color: white; }
+        .btn-skip { background: #94a3b8; color: white; }
+
+        .quiz-container {
+            display: none;
+        }
+
+        .quiz-question {
+            font-size: 1.5rem;
+            margin-bottom: 2rem;
+            color: #333;
+        }
+
+        .quiz-options {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .quiz-option {
+            padding: 1rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: white;
+        }
+
+        .quiz-option:hover {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.05);
+        }
+
+        .quiz-option.selected {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        .quiz-option.correct {
+            border-color: #4ade80;
+            background: rgba(74, 222, 128, 0.1);
+            animation: correctPulse 0.5s;
+        }
+
+        .quiz-option.incorrect {
+            border-color: #f87171;
+            background: rgba(248, 113, 113, 0.1);
+            animation: shake 0.5s;
+        }
+
+        @keyframes correctPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 2rem;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            transition: width 0.3s;
+            border-radius: 4px;
+        }
+
+        .study-timer {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: white;
+            padding: 1rem 1.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 500;
+        }
+
+        .timer-icon {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .streak-badge {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            background: #fbbf24;
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 1rem;
+            font-size: 0.75rem;
+            font-weight: bold;
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+
+        .notes-container {
+            display: none;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .note-input {
+            width: 100%;
+            min-height: 200px;
+            padding: 1rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            resize: vertical;
+            transition: border-color 0.3s;
+        }
+
+        .note-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .save-note-btn {
+            align-self: flex-end;
+            padding: 0.75rem 2rem;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s;
+        }
+
+        .save-note-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .floating-action {
+            position: fixed;
+            bottom: 2rem;
+            left: 2rem;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            transition: all 0.3s;
+            font-size: 1.5rem;
+        }
+
+        .floating-action:hover {
+            transform: scale(1.1) rotate(90deg);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">
+            STUDY QUEST '95
+        </div>
+        <div class="stats">
+            <div class="stat-item">
+                <div class="stat-value" id="streak">7</div>
+                <div class="stat-label">Day Streak</div>
+                <div class="streak-badge">🔥</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="xp">1,250</div>
+                <div class="stat-label">XP Points</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="mastered">42</div>
+                <div class="stat-label">Cards Mastered</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="sidebar">
+            <h3>Subjects</h3>
+            <ul class="subject-list">
+                <li class="subject-item active" data-subject="math">📐 Mathematics</li>
+                <li class="subject-item" data-subject="science">🔬 Science</li>
+                <li class="subject-item" data-subject="history">📜 History</li>
+                <li class="subject-item" data-subject="language">📝 Language Arts</li>
+                <li class="subject-item" data-subject="programming">💻 Programming</li>
+            </ul>
+            <button class="add-subject-btn" style="width: 100%; margin-top: 1rem; padding: 0.75rem; background: white; border: 2px dashed #667eea; border-radius: 0.5rem; cursor: pointer; color: #667eea;">
+                + Add Subject
+            </button>
+        </div>
+
+        <div class="content-area">
+            <div class="mode-selector">
+                <button class="mode-btn active" data-mode="flashcards">🎴 Flashcards</button>
+                <button class="mode-btn" data-mode="quiz">📝 Quiz</button>
+                <button class="mode-btn" data-mode="notes">📓 Notes</button>
+            </div>
+
+            <div class="progress-bar">
+                <div class="progress-fill" style="width: 35%;"></div>
+            </div>
+
+            <div class="flashcard-container" style="display: flex;">
+                <div class="flashcard" id="flashcard">
+                    <div class="flashcard-inner">
+                        <div class="flashcard-face flashcard-front">
+                            <div>What is the derivative of x²?</div>
+                        </div>
+                        <div class="flashcard-face flashcard-back">
+                            <div>2x</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="flashcard-controls">
+                    <button class="control-btn btn-easy">Easy</button>
+                    <button class="control-btn btn-medium">Medium</button>
+                    <button class="control-btn btn-hard">Hard</button>
+                    <button class="control-btn btn-skip">Skip</button>
+                </div>
+            </div>
+
+            <div class="quiz-container">
+                <div class="quiz-question">Which planet is known as the Red Planet?</div>
+                <div class="quiz-options">
+                    <div class="quiz-option" data-answer="venus">Venus</div>
+                    <div class="quiz-option" data-answer="mars">Mars</div>
+                    <div class="quiz-option" data-answer="jupiter">Jupiter</div>
+                    <div class="quiz-option" data-answer="saturn">Saturn</div>
+                </div>
+            </div>
+
+            <div class="notes-container">
+                <h3>Study Notes</h3>
+                <textarea class="note-input" placeholder="Type your study notes here..."></textarea>
+                <button class="save-note-btn">Save Note</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="study-timer">
+        <span class="timer-icon">⏱️</span>
+        <span id="timer">00:00</span>
+    </div>
+
+    <div class="floating-action">+</div>
+
+    <script src="script.js"></script>
+</body>
+</html>

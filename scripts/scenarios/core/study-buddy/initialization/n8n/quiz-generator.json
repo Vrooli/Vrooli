@@ -1,0 +1,384 @@
+{
+  "name": "study-buddy-quiz-generator",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "study-buddy/generate-quiz",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "material_id",
+              "name": "material_id",
+              "value": "={{ $json.material_id || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "subject",
+              "name": "subject",
+              "value": "={{ $json.subject || 'General Knowledge' }}",
+              "type": "string"
+            },
+            {
+              "id": "difficulty",
+              "name": "difficulty",
+              "value": "={{ $json.difficulty || 'medium' }}",
+              "type": "string"
+            },
+            {
+              "id": "question_count",
+              "name": "question_count",
+              "value": "={{ $json.question_count || 10 }}",
+              "type": "number"
+            },
+            {
+              "id": "question_types",
+              "name": "question_types",
+              "value": "={{ $json.question_types || ['multiple_choice', 'true_false'] }}",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-defaults",
+      "name": "Set Defaults",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.2,
+      "position": [450, 500]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "multiplex",
+        "options": {}
+      },
+      "id": "merge-inputs",
+      "name": "Merge",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.material_id }}",
+              "operation": "notEmpty"
+            }
+          ]
+        }
+      },
+      "id": "check-material",
+      "name": "Has Material ID?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": "public",
+        "table": "study_materials",
+        "limit": 1,
+        "where": {
+          "values": [
+            {
+              "column": "id",
+              "value": "={{ $json.material_id }}"
+            }
+          ]
+        }
+      },
+      "id": "fetch-material",
+      "name": "Fetch Study Material",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1050, 300],
+      "credentials": {
+        "postgres": {
+          "id": "study-buddy-postgres",
+          "name": "Study Buddy PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5678/webhook/ollama",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "prompt",
+              "value": "=Generate a quiz based on the following study material:\n\n{{ $json.content }}\n\nCreate {{ $('merge-inputs').item.json.question_count }} questions with these requirements:\n- Difficulty: {{ $('merge-inputs').item.json.difficulty }}\n- Question types: {{ $('merge-inputs').item.json.question_types.join(', ') }}\n- Each question should test understanding, not just memorization\n- Include explanations for correct answers\n\nFormat as JSON array with structure:\n[\n  {\n    \"question\": \"...\",\n    \"type\": \"multiple_choice|true_false|fill_blank\",\n    \"options\": [\"A\", \"B\", \"C\", \"D\"],\n    \"correct_answer\": \"A\",\n    \"explanation\": \"...\",\n    \"difficulty\": 1-5,\n    \"points\": 1-3\n  }\n]"
+            },
+            {
+              "name": "model",
+              "value": "llama3.2"
+            },
+            {
+              "name": "temperature",
+              "value": "0.6"
+            },
+            {
+              "name": "format",
+              "value": "json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "generate-from-material",
+      "name": "Generate from Material",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5678/webhook/ollama",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "prompt",
+              "value": "=Generate a quiz about {{ $json.subject }} with {{ $json.question_count }} questions.\n\nRequirements:\n- Difficulty: {{ $json.difficulty }}\n- Question types: {{ $json.question_types.join(', ') }}\n- Cover fundamental concepts and practical applications\n- Include explanations for learning\n\nFormat as JSON array with structure:\n[\n  {\n    \"question\": \"...\",\n    \"type\": \"multiple_choice|true_false|fill_blank\",\n    \"options\": [\"A\", \"B\", \"C\", \"D\"],\n    \"correct_answer\": \"A\",\n    \"explanation\": \"...\",\n    \"difficulty\": 1-5,\n    \"points\": 1-3\n  }\n]"
+            },
+            {
+              "name": "model",
+              "value": "llama3.2"
+            },
+            {
+              "name": "temperature",
+              "value": "0.7"
+            },
+            {
+              "name": "format",
+              "value": "json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "generate-generic",
+      "name": "Generate Generic Quiz",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1050, 500]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "multiplex",
+        "options": {}
+      },
+      "id": "merge-quiz-results",
+      "name": "Merge Results",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [1450, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const quizData = $input.first().json;\nconst userId = $('merge-inputs').first().json.user_id || 'default-user';\nconst subjectId = $('merge-inputs').first().json.subject_id;\n\n// Parse the quiz questions\nlet questions = [];\ntry {\n  if (typeof quizData.body === 'object' && quizData.body.response) {\n    questions = JSON.parse(quizData.body.response);\n  } else if (Array.isArray(quizData)) {\n    questions = quizData;\n  }\n} catch (e) {\n  // Handle parsing error\n  questions = [];\n}\n\n// Format for database insertion\nconst formattedQuestions = questions.map(q => ({\n  id: crypto.randomUUID(),\n  user_id: userId,\n  subject_id: subjectId,\n  question: q.question,\n  question_type: q.type,\n  options: JSON.stringify(q.options || []),\n  correct_answer: q.correct_answer,\n  explanation: q.explanation,\n  difficulty_level: q.difficulty || 2,\n  points: q.points || 1,\n  created_at: new Date().toISOString()\n}));\n\nreturn formattedQuestions;"
+      },
+      "id": "format-quiz",
+      "name": "Format Quiz Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1650, 400]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": "public",
+        "table": "quiz_questions",
+        "columns": "user_id,subject_id,question,question_type,options,correct_answer,explanation,difficulty_level,points",
+        "additionalFields": {}
+      },
+      "id": "save-questions",
+      "name": "Save Quiz Questions",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1850, 400],
+      "credentials": {
+        "postgres": {
+          "id": "study-buddy-postgres",
+          "name": "Study Buddy PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "id": "webhook-response",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2050, 400]
+    }
+  ],
+  "connections": {
+    "webhook-trigger": {
+      "main": [
+        [
+          {
+            "node": "merge-inputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "manual-trigger": {
+      "main": [
+        [
+          {
+            "node": "set-defaults",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "set-defaults": {
+      "main": [
+        [
+          {
+            "node": "merge-inputs",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "merge-inputs": {
+      "main": [
+        [
+          {
+            "node": "check-material",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check-material": {
+      "main": [
+        [
+          {
+            "node": "fetch-material",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "generate-generic",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "fetch-material": {
+      "main": [
+        [
+          {
+            "node": "generate-from-material",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "generate-from-material": {
+      "main": [
+        [
+          {
+            "node": "merge-quiz-results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "generate-generic": {
+      "main": [
+        [
+          {
+            "node": "merge-quiz-results",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "merge-quiz-results": {
+      "main": [
+        [
+          {
+            "node": "format-quiz",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "format-quiz": {
+      "main": [
+        [
+          {
+            "node": "save-questions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "save-questions": {
+      "main": [
+        [
+          {
+            "node": "webhook-response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "study-buddy"
+  },
+  "tags": []
+}

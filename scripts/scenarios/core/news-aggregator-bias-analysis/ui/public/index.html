@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📰 The Perspective Press - News Bias Analyzer</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="newspaper-container">
+        <header class="newspaper-header">
+            <div class="weather">☀️ 72°F</div>
+            <h1 class="newspaper-title">The Perspective Press</h1>
+            <div class="date" id="currentDate"></div>
+            <div class="tagline">✨ Every Story, Every Angle, Every Truth ✨</div>
+        </header>
+
+        <nav class="control-panel">
+            <div class="bias-filter">
+                <label>Bias Balance:</label>
+                <div class="bias-slider-container">
+                    <span class="bias-label left">LEFT</span>
+                    <input type="range" id="biasSlider" min="-100" max="100" value="0" class="bias-slider">
+                    <span class="bias-label right">RIGHT</span>
+                </div>
+                <div class="bias-indicator" id="biasIndicator">BALANCED</div>
+            </div>
+
+            <div class="category-filters">
+                <button class="category-btn active" data-category="all">All News</button>
+                <button class="category-btn" data-category="general">General</button>
+                <button class="category-btn" data-category="world">World</button>
+                <button class="category-btn" data-category="politics">Politics</button>
+                <button class="category-btn" data-category="tech">Technology</button>
+                <button class="category-btn" data-category="economics">Economics</button>
+            </div>
+
+            <button class="refresh-btn" id="refreshBtn">
+                <span class="refresh-icon">🔄</span> Refresh Feeds
+            </button>
+        </nav>
+
+        <div class="perspectives-banner" id="perspectivesBanner">
+            <h3>🔍 Multiple Perspectives Available</h3>
+            <p id="perspectiveCount">Loading perspectives...</p>
+        </div>
+
+        <main class="news-grid" id="newsGrid">
+            <div class="loading-spinner">
+                <div class="spinner"></div>
+                <p>Loading fresh perspectives...</p>
+            </div>
+        </main>
+
+        <aside class="sidebar">
+            <div class="feed-manager">
+                <h3>📡 News Sources</h3>
+                <div id="feedList" class="feed-list"></div>
+                <button class="add-feed-btn" id="addFeedBtn">+ Add Source</button>
+            </div>
+
+            <div class="bias-meter">
+                <h3>🎯 Bias Meter</h3>
+                <canvas id="biasMeter" width="200" height="100"></canvas>
+                <div class="bias-stats" id="biasStats">
+                    <div class="stat">
+                        <span class="stat-label">Left:</span>
+                        <span class="stat-value" id="leftCount">0</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Center:</span>
+                        <span class="stat-value" id="centerCount">0</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Right:</span>
+                        <span class="stat-value" id="rightCount">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="trending-topics">
+                <h3>🔥 Trending Topics</h3>
+                <div id="trendingList" class="trending-list"></div>
+            </div>
+        </aside>
+
+        <div id="articleModal" class="modal">
+            <div class="modal-content">
+                <span class="close-modal">&times;</span>
+                <div id="modalBody"></div>
+            </div>
+        </div>
+
+        <div id="addFeedModal" class="modal">
+            <div class="modal-content">
+                <span class="close-modal">&times;</span>
+                <h2>Add News Source</h2>
+                <form id="addFeedForm">
+                    <input type="text" id="feedName" placeholder="Source Name" required>
+                    <input type="url" id="feedUrl" placeholder="RSS Feed URL" required>
+                    <select id="feedCategory">
+                        <option value="general">General</option>
+                        <option value="world">World</option>
+                        <option value="politics">Politics</option>
+                        <option value="tech">Technology</option>
+                        <option value="economics">Economics</option>
+                    </select>
+                    <select id="feedBias">
+                        <option value="left">Left</option>
+                        <option value="center-left">Center-Left</option>
+                        <option value="center">Center</option>
+                        <option value="center-right">Center-Right</option>
+                        <option value="right">Right</option>
+                    </select>
+                    <button type="submit">Add Source</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

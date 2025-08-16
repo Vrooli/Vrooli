@@ -1,0 +1,239 @@
+{
+  "name": "Payment Tracker",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "payment-tracker",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [200, 300],
+      "webhookId": "payment-tracker",
+      "id": "webhook_trigger"
+    },
+    {
+      "parameters": {},
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 500],
+      "id": "manual_trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Test defaults for manual trigger\nreturn {\n  action: 'record_payment',\n  invoice_number: 'INV-2025-001',\n  payment: {\n    amount: 1000,\n    payment_date: new Date().toISOString().split('T')[0],\n    payment_method: 'bank_transfer',\n    reference: 'TXN-12345',\n    notes: 'Partial payment received'\n  }\n};"
+      },
+      "name": "Set Test Defaults",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [400, 500],
+      "id": "set_defaults"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "trigger_check",
+              "leftValue": "={{ $('Webhook Trigger').isExecuted }}",
+              "rightValue": "={{ true }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "Check Trigger Source",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [600, 400],
+      "id": "check_trigger"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM invoices WHERE invoice_number = '{{ $json.invoice_number }}'",
+        "options": {}
+      },
+      "name": "Get Invoice",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [800, 400],
+      "credentials": {
+        "postgres": {
+          "id": "postgres_invoice_generator",
+          "name": "Invoice Generator DB"
+        }
+      },
+      "id": "get_invoice"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Process payment and update invoice status\nconst input = $input.all()[0].json;\nconst invoice = $('Get Invoice').first().json;\n\nif (!invoice) {\n  throw new Error('Invoice not found');\n}\n\nconst payment = input.payment;\nif (!payment || !payment.amount) {\n  throw new Error('Payment amount is required');\n}\n\n// Get existing payments\nconst existingPayments = invoice.payments || [];\nconst totalPaid = existingPayments.reduce((sum, p) => sum + p.amount, 0);\nconst newTotalPaid = totalPaid + payment.amount;\n\n// Determine new status\nlet newStatus = invoice.status;\nif (newTotalPaid >= invoice.total) {\n  newStatus = 'paid';\n} else if (newTotalPaid > 0) {\n  newStatus = 'partial';\n}\n\n// Add new payment to history\nconst newPayment = {\n  ...payment,\n  payment_id: `PAY-${Date.now()}`,\n  payment_date: payment.payment_date || new Date().toISOString().split('T')[0],\n  recorded_at: new Date().toISOString()\n};\n\nexistingPayments.push(newPayment);\n\nreturn {\n  invoice_number: invoice.invoice_number,\n  new_status: newStatus,\n  total_paid: newTotalPaid,\n  balance_due: invoice.total - newTotalPaid,\n  payments: existingPayments,\n  latest_payment: newPayment\n};"
+      },
+      "name": "Process Payment",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1000, 400],
+      "id": "process_payment"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE invoices SET \n  status = '{{ $json.new_status }}',\n  payments = '{{ JSON.stringify($json.payments) }}',\n  updated_at = NOW()\nWHERE invoice_number = '{{ $json.invoice_number }}'\nRETURNING *",
+        "options": {}
+      },
+      "name": "Update Invoice",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1200, 400],
+      "credentials": {
+        "postgres": {
+          "id": "postgres_invoice_generator",
+          "name": "Invoice Generator DB"
+        }
+      },
+      "id": "update_invoice"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format response\nconst payment = $('Process Payment').first().json;\n\nreturn {\n  success: true,\n  message: 'Payment recorded successfully',\n  payment: payment.latest_payment,\n  invoice_status: {\n    invoice_number: payment.invoice_number,\n    status: payment.new_status,\n    total_paid: payment.total_paid,\n    balance_due: payment.balance_due,\n    is_fully_paid: payment.balance_due <= 0\n  }\n};"
+      },
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1400, 400],
+      "id": "format_response"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1600, 400],
+      "id": "respond"
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Check Trigger Source",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Test Defaults",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Test Defaults": {
+      "main": [
+        [
+          {
+            "node": "Check Trigger Source",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Trigger Source": {
+      "main": [
+        [
+          {
+            "node": "Get Invoice",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Invoice": {
+      "main": [
+        [
+          {
+            "node": "Process Payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Payment": {
+      "main": [
+        [
+          {
+            "node": "Update Invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Invoice": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "payment-tracker-v1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "invoice-generator"
+  },
+  "id": "payment-tracker",
+  "tags": []
+}

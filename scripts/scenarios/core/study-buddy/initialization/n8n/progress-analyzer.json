@@ -1,0 +1,128 @@
+{
+  "name": "Progress Analyzer",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "progress/analyze",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json: {\n    user_id: items[0]?.json?.user_id || 'test-user',\n    subject_id: items[0]?.json?.subject_id || null,\n    time_period: items[0]?.json?.time_period || '7d',\n    analysis_type: items[0]?.json?.analysis_type || 'comprehensive'\n  }\n}];"
+      },
+      "id": "defaults",
+      "name": "Defaults",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 500]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=WITH study_stats AS (\n  SELECT \n    COUNT(DISTINCT session_id) as total_sessions,\n    SUM(duration_minutes) as total_minutes,\n    AVG(duration_minutes) as avg_session_length,\n    COUNT(DISTINCT DATE(created_at)) as study_days\n  FROM study_sessions\n  WHERE user_id = '{{ $json.user_id }}'\n    AND created_at > NOW() - INTERVAL '{{ $json.time_period }}'\n    {{ $json.subject_id ? \"AND subject_id = '\" + $json.subject_id + \"'\" : \"\" }}\n),\nquiz_stats AS (\n  SELECT \n    COUNT(*) as quizzes_taken,\n    AVG(score) as avg_score,\n    MAX(score) as best_score,\n    MIN(score) as worst_score\n  FROM quiz_attempts\n  WHERE user_id = '{{ $json.user_id }}'\n    AND created_at > NOW() - INTERVAL '{{ $json.time_period }}'\n    {{ $json.subject_id ? \"AND subject_id = '\" + $json.subject_id + \"'\" : \"\" }}\n),\nflashcard_stats AS (\n  SELECT \n    COUNT(*) as cards_reviewed,\n    AVG(retention_score) as avg_retention,\n    COUNT(CASE WHEN mastered = true THEN 1 END) as cards_mastered\n  FROM flashcard_reviews\n  WHERE user_id = '{{ $json.user_id }}'\n    AND reviewed_at > NOW() - INTERVAL '{{ $json.time_period }}'\n    {{ $json.subject_id ? \"AND subject_id = '\" + $json.subject_id + \"'\" : \"\" }}\n)\nSELECT \n  s.*, q.*, f.*,\n  CASE \n    WHEN s.total_sessions > 10 THEN 'Consistent'\n    WHEN s.total_sessions > 5 THEN 'Regular'\n    WHEN s.total_sessions > 0 THEN 'Occasional'\n    ELSE 'Inactive'\n  END as study_consistency\nFROM study_stats s\nCROSS JOIN quiz_stats q\nCROSS JOIN flashcard_stats f",
+        "options": {}
+      },
+      "id": "fetch-stats",
+      "name": "Fetch Study Statistics",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [650, 400],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-study-buddy",
+          "name": "Study Buddy DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5678/webhook/ollama",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "prompt",
+              "value": "=Analyze this student's learning progress and provide personalized recommendations:\n\nStudy Statistics:\n- Total sessions: {{ $json.total_sessions }}\n- Total time: {{ $json.total_minutes }} minutes\n- Average session: {{ $json.avg_session_length }} minutes\n- Study days: {{ $json.study_days }}\n- Consistency: {{ $json.study_consistency }}\n\nQuiz Performance:\n- Quizzes taken: {{ $json.quizzes_taken }}\n- Average score: {{ $json.avg_score }}%\n- Best score: {{ $json.best_score }}%\n- Worst score: {{ $json.worst_score }}%\n\nFlashcard Progress:\n- Cards reviewed: {{ $json.cards_reviewed }}\n- Average retention: {{ $json.avg_retention }}%\n- Cards mastered: {{ $json.cards_mastered }}\n\nProvide:\n1. A brief analysis of their learning pattern\n2. Their strengths (2-3 points)\n3. Areas for improvement (2-3 points)\n4. Specific recommendations (3-4 actionable tips)\n5. Suggested next topics to study\n6. A motivational message\n\nFormat as JSON with keys: analysis, strengths, improvements, recommendations, next_topics, motivation"
+            },
+            {
+              "name": "model",
+              "value": "llama3.2:3b"
+            },
+            {
+              "name": "format",
+              "value": "json"
+            },
+            {
+              "name": "temperature",
+              "value": 0.8
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "generate-insights",
+      "name": "Generate Insights via Ollama",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const stats = $input.all()[0].json;\nconst aiInsights = $input.all()[1].json.response || {};\n\nlet insights;\ntry {\n  insights = typeof aiInsights === 'string' ? JSON.parse(aiInsights) : aiInsights;\n} catch (e) {\n  // Fallback insights\n  insights = {\n    analysis: \"Your study pattern shows dedication with room for consistency improvements.\",\n    strengths: [\n      \"Regular engagement with study materials\",\n      \"Good quiz completion rate\"\n    ],\n    improvements: [\n      \"Increase average session duration\",\n      \"Review flashcards more frequently\"\n    ],\n    recommendations: [\n      \"Try the Pomodoro technique for longer focus sessions\",\n      \"Review flashcards daily for 10 minutes\",\n      \"Take practice quizzes before each study session\",\n      \"Set specific daily study goals\"\n    ],\n    next_topics: [\n      \"Advanced concepts in your current subject\",\n      \"Practice problems and applications\"\n    ],\n    motivation: \"Keep up the great work! Every study session brings you closer to mastery.\"\n  };\n}\n\n// Calculate progress metrics\nconst progressScore = Math.round(\n  (stats.total_sessions * 2 + \n   (stats.avg_score || 0) + \n   (stats.avg_retention || 0)) / 4\n);\n\nconst streakDays = stats.study_days || 0;\nconst level = Math.floor(progressScore / 20) + 1;\n\nreturn [{\n  json: {\n    success: true,\n    user_id: $input.first().json.user_id,\n    period: $input.first().json.time_period,\n    statistics: {\n      study_sessions: stats.total_sessions || 0,\n      total_minutes: stats.total_minutes || 0,\n      avg_session_minutes: stats.avg_session_length || 0,\n      study_days: stats.study_days || 0,\n      consistency: stats.study_consistency || 'Inactive',\n      quizzes_taken: stats.quizzes_taken || 0,\n      avg_quiz_score: stats.avg_score || 0,\n      cards_reviewed: stats.cards_reviewed || 0,\n      cards_mastered: stats.cards_mastered || 0,\n      retention_rate: stats.avg_retention || 0\n    },\n    insights: insights,\n    gamification: {\n      level: level,\n      progress_score: progressScore,\n      streak_days: streakDays,\n      badges: [\n        streakDays >= 7 ? \"Week Warrior\" : null,\n        stats.cards_mastered >= 50 ? \"Flashcard Master\" : null,\n        stats.avg_score >= 80 ? \"Quiz Champion\" : null\n      ].filter(b => b !== null)\n    },\n    generated_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "format-analysis",
+      "name": "Format Analysis",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 400]
+    },
+    {
+      "parameters": {},
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1250, 300]
+    }
+  ],
+  "connections": {
+    "webhook-trigger": {
+      "main": [[{"node": "fetch-stats", "type": "main", "index": 0}]]
+    },
+    "manual-trigger": {
+      "main": [[{"node": "defaults", "type": "main", "index": 0}]]
+    },
+    "defaults": {
+      "main": [[{"node": "fetch-stats", "type": "main", "index": 0}]]
+    },
+    "fetch-stats": {
+      "main": [[{"node": "generate-insights", "type": "main", "index": 0}]]
+    },
+    "generate-insights": {
+      "main": [[{"node": "format-analysis", "type": "main", "index": 0}]]
+    },
+    "format-analysis": {
+      "main": [[{"node": "respond", "type": "main", "index": 0}]]
+    }
+  },
+  "active": true,
+  "settings": {"executionOrder": "v1"},
+  "id": "progress-analyzer"
+}

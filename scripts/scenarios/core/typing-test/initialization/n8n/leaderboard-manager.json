@@ -1,0 +1,243 @@
+{
+  "name": "Typing Test Leaderboard Manager",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "typing-test/submit-score",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_submit",
+      "name": "Webhook - Submit Score",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "typing-test/leaderboard",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_get",
+      "name": "Webhook - Get Leaderboard",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [200, 500]
+    },
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 700]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Provide test data for manual testing\nreturn {\n  action: 'submit',\n  data: {\n    name: 'TEST',\n    score: 12345,\n    wpm: 85,\n    accuracy: 95,\n    maxCombo: 45,\n    difficulty: 'medium',\n    mode: 'classic',\n    timestamp: new Date().toISOString()\n  }\n};"
+      },
+      "id": "test_data",
+      "name": "Test Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [400, 700]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.path }}",
+              "operation": "contains",
+              "value2": "submit"
+            }
+          ]
+        }
+      },
+      "id": "route_check",
+      "name": "Check Route",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [600, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Validate and process score submission\nconst body = $input.item.json.body || $input.item.json.data || {};\n\n// Validate required fields\nif (!body.name || !body.score || body.score < 0) {\n  throw new Error('Invalid score data');\n}\n\n// Sanitize name (max 10 chars, alphanumeric only)\nconst name = body.name.toString().toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 10);\n\nif (name.length === 0) {\n  throw new Error('Invalid player name');\n}\n\n// Create score record\nconst scoreRecord = {\n  id: 'score_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8),\n  name: name,\n  score: parseInt(body.score) || 0,\n  wpm: parseInt(body.wpm) || 0,\n  accuracy: parseInt(body.accuracy) || 0,\n  maxCombo: parseInt(body.maxCombo) || 0,\n  difficulty: body.difficulty || 'easy',\n  mode: body.mode || 'classic',\n  timestamp: new Date().toISOString(),\n  date: new Date().toISOString().split('T')[0],\n  week: getWeekNumber(new Date()),\n  month: new Date().getMonth() + 1,\n  year: new Date().getFullYear()\n};\n\nfunction getWeekNumber(date) {\n  const firstDayOfYear = new Date(date.getFullYear(), 0, 1);\n  const pastDaysOfYear = (date - firstDayOfYear) / 86400000;\n  return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);\n}\n\nreturn scoreRecord;"
+      },
+      "id": "process_score",
+      "name": "Process Score",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [800, 300]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": "public",
+        "table": "typing_scores",
+        "columns": "id,name,score,wpm,accuracy,max_combo,difficulty,mode,timestamp",
+        "values": "={{ $json.id }},={{ $json.name }},={{ $json.score }},={{ $json.wpm }},={{ $json.accuracy }},={{ $json.maxCombo }},={{ $json.difficulty }},={{ $json.mode }},={{ $json.timestamp }}",
+        "options": {}
+      },
+      "id": "save_score",
+      "name": "Save Score to DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [1000, 300],
+      "credentials": {
+        "postgres": {
+          "id": "shared-postgres",
+          "name": "Shared Postgres"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Get leaderboard based on period\nconst query = $input.item.json.query || {};\nconst period = query.period || 'today';\n\nlet dateFilter = '';\nconst today = new Date().toISOString().split('T')[0];\nconst currentWeek = getWeekNumber(new Date());\nconst currentYear = new Date().getFullYear();\n\nfunction getWeekNumber(date) {\n  const firstDayOfYear = new Date(date.getFullYear(), 0, 1);\n  const pastDaysOfYear = (date - firstDayOfYear) / 86400000;\n  return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);\n}\n\nswitch(period) {\n  case 'today':\n    dateFilter = `WHERE DATE(timestamp) = '${today}'`;\n    break;\n  case 'week':\n    dateFilter = `WHERE EXTRACT(WEEK FROM timestamp) = ${currentWeek} AND EXTRACT(YEAR FROM timestamp) = ${currentYear}`;\n    break;\n  case 'month':\n    dateFilter = `WHERE EXTRACT(MONTH FROM timestamp) = ${new Date().getMonth() + 1} AND EXTRACT(YEAR FROM timestamp) = ${currentYear}`;\n    break;\n  case 'all':\n  default:\n    dateFilter = '';\n    break;\n}\n\nreturn {\n  query: `SELECT name, score, wpm, accuracy, max_combo, difficulty, mode, timestamp \n          FROM typing_scores \n          ${dateFilter} \n          ORDER BY score DESC \n          LIMIT 50`,\n  period: period\n};"
+      },
+      "id": "prepare_query",
+      "name": "Prepare Query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [800, 500]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}",
+        "options": {}
+      },
+      "id": "fetch_scores",
+      "name": "Fetch Scores",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [1000, 500],
+      "credentials": {
+        "postgres": {
+          "id": "shared-postgres",
+          "name": "Shared Postgres"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Format response for score submission\nconst score = $node['Process Score'].json;\n\nreturn {\n  success: true,\n  message: 'Score submitted successfully!',\n  data: {\n    id: score.id,\n    name: score.name,\n    score: score.score,\n    rank: 'Calculating...',\n    timestamp: score.timestamp\n  }\n};"
+      },
+      "id": "format_submit_response",
+      "name": "Format Submit Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1200, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Format leaderboard response\nconst scores = $items().map(item => item.json);\n\n// If no scores, return empty leaderboard\nif (scores.length === 0 || !scores[0].name) {\n  return {\n    success: true,\n    period: $node['Prepare Query'].json.period,\n    scores: [],\n    message: 'No scores found for this period'\n  };\n}\n\n// Format scores for display\nconst formattedScores = scores.map((score, index) => ({\n  rank: index + 1,\n  name: score.name,\n  score: score.score,\n  wpm: score.wpm,\n  accuracy: score.accuracy,\n  maxCombo: score.max_combo,\n  difficulty: score.difficulty,\n  mode: score.mode,\n  timestamp: score.timestamp\n}));\n\nreturn {\n  success: true,\n  period: $node['Prepare Query'].json.period,\n  scores: formattedScores,\n  total: formattedScores.length\n};"
+      },
+      "id": "format_leaderboard_response",
+      "name": "Format Leaderboard Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1200, 500]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond_submit",
+      "name": "Respond - Submit",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1400, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond_leaderboard",
+      "name": "Respond - Leaderboard",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1400, 500]
+    }
+  ],
+  "connections": {
+    "Webhook - Submit Score": {
+      "main": [[{"node": "Check Route", "type": "main", "index": 0}]]
+    },
+    "Webhook - Get Leaderboard": {
+      "main": [[{"node": "Prepare Query", "type": "main", "index": 0}]]
+    },
+    "Manual Trigger": {
+      "main": [[{"node": "Test Data", "type": "main", "index": 0}]]
+    },
+    "Test Data": {
+      "main": [[{"node": "Check Route", "type": "main", "index": 0}]]
+    },
+    "Check Route": {
+      "main": [
+        [{"node": "Process Score", "type": "main", "index": 0}],
+        [{"node": "Prepare Query", "type": "main", "index": 0}]
+      ]
+    },
+    "Process Score": {
+      "main": [[{"node": "Save Score to DB", "type": "main", "index": 0}]]
+    },
+    "Save Score to DB": {
+      "main": [[{"node": "Format Submit Response", "type": "main", "index": 0}]]
+    },
+    "Prepare Query": {
+      "main": [[{"node": "Fetch Scores", "type": "main", "index": 0}]]
+    },
+    "Fetch Scores": {
+      "main": [[{"node": "Format Leaderboard Response", "type": "main", "index": 0}]]
+    },
+    "Format Submit Response": {
+      "main": [[{"node": "Respond - Submit", "type": "main", "index": 0}]]
+    },
+    "Format Leaderboard Response": {
+      "main": [[{"node": "Respond - Leaderboard", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "instanceId": "typing-test-leaderboard"
+  },
+  "tags": []
+}

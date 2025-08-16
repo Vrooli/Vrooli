@@ -1,0 +1,195 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "parent": "vrooli",
+    "name": "news-aggregator-bias-analysis",
+    "displayName": "News Aggregator & Bias Analysis",
+    "description": "Real-time news aggregation with AI-powered bias detection, fact-checking, and perspective analysis",
+    "version": "1.0.0",
+    "type": "news-application",
+    "category": "media",
+    "tags": [
+      "news",
+      "bias-detection",
+      "fact-checking",
+      "media-analysis",
+      "journalism",
+      "ai-analysis",
+      "rss",
+      "javascript-ui",
+      "perspective-aggregator"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "SERVICE_PORT",
+      "range": "8700-8799",
+      "fallback": "auto",
+      "description": "News Aggregator API port"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "range": "3700-3799",
+      "fallback": "auto",
+      "description": "News Aggregator UI port"
+    }
+  },
+  "resources": {
+    "automation": {
+      "n8n": {
+        "type": "n8n",
+        "enabled": true,
+        "required": true,
+        "shared_workflows": [
+          "ollama",
+          "structured-data-extractor"
+        ],
+        "initialization": [
+          {
+            "file": "initialization/n8n/rss-feed-fetcher.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/bias-analyzer.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/fact-checker.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/fact-checker-enhanced.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/news-enricher.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/perspective-aggregator.json",
+            "type": "workflow"
+          }
+        ]
+      }
+    },
+    "storage": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store news articles, sources, bias analysis results, fact-check records, and user preferences",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "schema"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": true,
+        "purpose": "Cache RSS feeds, trending topics, real-time updates, and analysis results"
+      }
+    }
+  },
+  "lifecycle": {
+    "version": "1.0.0",
+    "setup": {
+      "description": "Initialize News Aggregator & Bias Analysis",
+      "steps": [
+        {
+          "name": "base-setup",
+          "run": "bash scripts/lib/setup.sh",
+          "description": "Execute generic setup"
+        },
+        {
+          "name": "add-data",
+          "run": "scripts/resources/injection/engine.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install-cli.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o news-bias-api main.go",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "setup-ui",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo \"📰 News Aggregator initialized\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${SERVICE_PORT}\"",
+          "description": "Display service URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start News Aggregator services",
+      "steps": [
+        {
+          "name": "start-api-server",
+          "run": "cd api && PORT=$SERVICE_PORT N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} POSTGRES_URL=postgres://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/news_aggregator REDIS_URL=redis://localhost:${RESOURCE_PORTS[redis]} ./news-bias-api &",
+          "description": "Start API server",
+          "background": true,
+          "condition": {
+            "file_exists": "api/news-bias-api"
+          }
+        },
+        {
+          "name": "start-ui-server",
+          "run": "cd ui && PORT=$UI_PORT API_URL=http://localhost:$SERVICE_PORT npm start &",
+          "description": "Start UI server",
+          "background": true
+        },
+        {
+          "name": "wait-for-services",
+          "run": "sleep 3",
+          "description": "Wait for services to start"
+        },
+        {
+          "name": "show-running",
+          "run": "echo \"🚀 News Aggregator running:\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${SERVICE_PORT}\"",
+          "description": "Display running services"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test News Aggregator services",
+      "steps": [
+        {
+          "name": "test-api",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/health",
+          "description": "Test API health"
+        },
+        {
+          "name": "test-sources",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/api/sources",
+          "description": "Test sources endpoint"
+        },
+        {
+          "name": "test-articles",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/api/articles",
+          "description": "Test articles endpoint"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop News Aggregator services",
+      "steps": [
+        {
+          "name": "stop-services",
+          "run": "pkill -f \"news-bias-api\" || true; pkill -f \"npm.*news-aggregator\" || true",
+          "description": "Stop all services"
+        }
+      ]
+    }
+  }
+}

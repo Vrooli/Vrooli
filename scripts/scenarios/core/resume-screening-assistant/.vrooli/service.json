@@ -14,7 +14,8 @@
       "candidate-evaluation",
       "recruitment",
       "semantic-matching",
-      "windmill-ui",
+      "javascript-ui",
+      "retro-futuristic",
       "ai-assessment",
       "job-matching"
     ]
@@ -25,6 +26,12 @@
       "range": "8090-8999",
       "fallback": "auto",
       "description": "Resume screening assistant API port"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "range": "3000-3999",
+      "fallback": "auto",
+      "description": "HyperRecruit 3000 UI port"
     }
   },
   "resources": {
@@ -35,27 +42,16 @@
         "required": true,
         "initialization": [
           {
-            "file": "initialization/automation/n8n/job-management-workflow.json",
+            "file": "initialization/n8n/job-management-workflow.json",
             "type": "workflow"
           },
           {
-            "file": "initialization/automation/n8n/resume-processing-pipeline.json",
+            "file": "initialization/n8n/resume-processing-pipeline.json",
             "type": "workflow"
           },
           {
-            "file": "initialization/automation/n8n/semantic-search-workflow.json",
+            "file": "initialization/n8n/semantic-search-workflow.json",
             "type": "workflow"
-          }
-        ]
-      },
-      "windmill": {
-        "type": "windmill",
-        "enabled": true,
-        "required": true,
-        "initialization": [
-          {
-            "file": "initialization/automation/windmill/recruitment-app.json",
-            "type": "app"
           }
         ]
       }
@@ -79,11 +75,11 @@
         "purpose": "resume data, job listings, and assessment results",
         "initialization": [
           {
-            "file": "initialization/storage/postgres/schema.sql",
+            "file": "initialization/postgres/schema.sql",
             "type": "script"
           },
           {
-            "file": "initialization/storage/postgres/seed.sql",
+            "file": "initialization/postgres/seed.sql",
             "type": "script"
           }
         ]
@@ -122,8 +118,13 @@
           "description": "Build Go coordination API binary"
         },
         {
+          "name": "setup-ui",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies"
+        },
+        {
           "name": "show-urls",
-          "run": "echo '🚀 Resume Screening Assistant initialized\\n  Windmill Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Ollama API: http://localhost:${RESOURCE_PORTS[ollama]}\\n  Qdrant DB: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  API: http://localhost:${SERVICE_PORT}\\n  CLI: resume-screening-assistant --help'",
+          "run": "echo '🚀 Resume Screening Assistant initialized\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${SERVICE_PORT}\\n  CLI: resume-screening-assistant --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -150,8 +151,23 @@
           }
         },
         {
+          "name": "start-ui-server",
+          "run": "cd ui && UI_PORT=$UI_PORT SERVICE_PORT=$SERVICE_PORT npm start &",
+          "description": "Start UI server in background",
+          "background": true
+        },
+        {
+          "name": "wait-for-ui",
+          "run": "sleep 2 && curl -sf http://localhost:$UI_PORT/health > /dev/null",
+          "description": "Wait for UI server to be ready",
+          "retry": {
+            "max_attempts": 10,
+            "delay": 1
+          }
+        },
+        {
           "name": "show-running-services",
-          "run": "echo '🚀 Services running:\\n  Windmill Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$SERVICE_PORT\\n  CLI: resume-screening-assistant --help'",
+          "run": "echo '🚀 Services running:\\n  🎨 UI Dashboard: http://localhost:$UI_PORT\\n  📊 n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  ⚙️ API: http://localhost:$SERVICE_PORT\\n  🖥️ CLI: resume-screening-assistant --help'",
           "description": "Display all running service URLs"
         }
       ]
@@ -204,6 +220,11 @@
           "name": "stop-api-server",
           "run": "pkill -f 'resume-screening-assistant-api' || true",
           "description": "Stop Go API server processes"
+        },
+        {
+          "name": "stop-ui-server",
+          "run": "pkill -f 'node.*server.js' || true",
+          "description": "Stop UI server process"
         },
         {
           "name": "confirm-stop",

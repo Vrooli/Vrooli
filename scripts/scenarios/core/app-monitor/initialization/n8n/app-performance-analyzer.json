@@ -1,0 +1,468 @@
+{
+  "name": "App Performance Analyzer",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "app-performance-analysis",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 500]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Return test defaults for manual trigger\nreturn {\n  app_id: null,  // null means analyze all apps\n  time_range: '1h',  // 1h, 6h, 24h, 7d\n  metrics: ['cpu', 'memory', 'disk', 'network', 'requests'],\n  anomaly_detection: true,\n  generate_recommendations: true,\n  ai_analysis: true\n};"
+      },
+      "id": "set_test_defaults",
+      "name": "Set Test Defaults",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [400, 500]
+    },
+    {
+      "parameters": {},
+      "id": "merge_triggers",
+      "name": "Merge Triggers",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [600, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const params = $input.item.json;\n\n// Parse time range to minutes\nconst timeRangeMap = {\n  '1h': 60,\n  '6h': 360,\n  '24h': 1440,\n  '7d': 10080\n};\n\nconst minutesAgo = timeRangeMap[params.time_range] || 60;\nconst startTime = new Date(Date.now() - minutesAgo * 60000).toISOString();\n\nreturn {\n  ...params,\n  start_time: startTime,\n  end_time: new Date().toISOString(),\n  minutes_ago: minutesAgo\n};"
+      },
+      "id": "prepare_query",
+      "name": "Prepare Query Parameters",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [800, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT \n  a.id as app_id,\n  a.name as app_name,\n  a.status,\n  AVG(m.cpu_usage) as avg_cpu,\n  MAX(m.cpu_usage) as max_cpu,\n  AVG(m.memory_usage) as avg_memory,\n  MAX(m.memory_usage) as max_memory,\n  AVG(m.disk_usage) as avg_disk,\n  AVG(m.network_in + m.network_out) as avg_network,\n  COUNT(m.id) as metric_count,\n  AVG(m.response_time) as avg_response_time,\n  MAX(m.response_time) as max_response_time,\n  SUM(m.request_count) as total_requests,\n  SUM(m.error_count) as total_errors\nFROM apps a\nLEFT JOIN app_metrics m ON a.id = m.app_id\nWHERE m.timestamp >= '{{ $json.start_time }}'\n  AND m.timestamp <= '{{ $json.end_time }}'\n  {{ $json.app_id ? \"AND a.id = '\" + $json.app_id + \"'\" : \"\" }}\nGROUP BY a.id, a.name, a.status\nORDER BY a.name",
+        "options": {}
+      },
+      "id": "get_metrics",
+      "name": "Get App Metrics",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1000, 400],
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "process_each_app",
+      "name": "Process Each App",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [1200, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const metrics = $input.item.json;\nconst params = $('Prepare Query Parameters').item.json;\n\n// Calculate performance score\nlet performanceScore = 100;\n\n// CPU scoring (0-25 points)\nif (metrics.avg_cpu > 80) performanceScore -= 25;\nelse if (metrics.avg_cpu > 60) performanceScore -= 15;\nelse if (metrics.avg_cpu > 40) performanceScore -= 5;\n\n// Memory scoring (0-25 points)\nif (metrics.avg_memory > 80) performanceScore -= 25;\nelse if (metrics.avg_memory > 60) performanceScore -= 15;\nelse if (metrics.avg_memory > 40) performanceScore -= 5;\n\n// Response time scoring (0-25 points)\nif (metrics.avg_response_time > 1000) performanceScore -= 25;\nelse if (metrics.avg_response_time > 500) performanceScore -= 15;\nelse if (metrics.avg_response_time > 200) performanceScore -= 5;\n\n// Error rate scoring (0-25 points)\nconst errorRate = metrics.total_requests > 0 ? \n  (metrics.total_errors / metrics.total_requests) * 100 : 0;\nif (errorRate > 5) performanceScore -= 25;\nelse if (errorRate > 2) performanceScore -= 15;\nelse if (errorRate > 0.5) performanceScore -= 5;\n\n// Detect anomalies\nconst anomalies = [];\nif (metrics.max_cpu > metrics.avg_cpu * 2 && metrics.max_cpu > 50) {\n  anomalies.push({\n    type: 'cpu_spike',\n    severity: 'warning',\n    value: metrics.max_cpu,\n    threshold: metrics.avg_cpu * 2\n  });\n}\nif (metrics.max_memory > metrics.avg_memory * 1.5 && metrics.max_memory > 60) {\n  anomalies.push({\n    type: 'memory_spike',\n    severity: 'warning',\n    value: metrics.max_memory,\n    threshold: metrics.avg_memory * 1.5\n  });\n}\nif (metrics.max_response_time > metrics.avg_response_time * 3) {\n  anomalies.push({\n    type: 'response_time_spike',\n    severity: 'critical',\n    value: metrics.max_response_time,\n    threshold: metrics.avg_response_time * 3\n  });\n}\n\nreturn {\n  ...metrics,\n  performance_score: Math.max(0, performanceScore),\n  error_rate: errorRate,\n  anomalies: anomalies,\n  anomaly_count: anomalies.length,\n  requires_optimization: performanceScore < 70,\n  analysis_timestamp: new Date().toISOString(),\n  time_range: params.time_range,\n  anomaly_detection_enabled: params.anomaly_detection,\n  ai_analysis_enabled: params.ai_analysis,\n  generate_recommendations: params.generate_recommendations && (performanceScore < 80 || anomalies.length > 0)\n};"
+      },
+      "id": "calculate_performance",
+      "name": "Calculate Performance Score",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1400, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.generate_recommendations }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ]
+        }
+      },
+      "id": "check_recommendations",
+      "name": "Need Recommendations?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1600, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Prepare AI analysis prompt\nconst metrics = $input.item.json;\n\n// Build context for AI analysis\nconst context = {\n  app_name: metrics.app_name,\n  performance_score: metrics.performance_score,\n  avg_cpu: metrics.avg_cpu?.toFixed(2),\n  max_cpu: metrics.max_cpu?.toFixed(2),\n  avg_memory: metrics.avg_memory?.toFixed(2),\n  max_memory: metrics.max_memory?.toFixed(2),\n  avg_response_time: metrics.avg_response_time?.toFixed(0),\n  max_response_time: metrics.max_response_time?.toFixed(0),\n  error_rate: metrics.error_rate?.toFixed(2),\n  anomalies: metrics.anomalies,\n  time_range: metrics.time_range\n};\n\nconst prompt = `You are an expert DevOps engineer analyzing application performance metrics.\n\nApplication: ${context.app_name}\nPerformance Score: ${context.performance_score}/100\nTime Range: ${context.time_range}\n\nMetrics:\n- CPU: ${context.avg_cpu}% avg, ${context.max_cpu}% max\n- Memory: ${context.avg_memory}% avg, ${context.max_memory}% max\n- Response Time: ${context.avg_response_time}ms avg, ${context.max_response_time}ms max\n- Error Rate: ${context.error_rate}%\n\nDetected Anomalies: ${JSON.stringify(context.anomalies, null, 2)}\n\nProvide a concise analysis with:\n1. Root cause analysis of performance issues\n2. Specific optimization recommendations\n3. Priority actions (high/medium/low)\n4. Expected impact of each recommendation\n\nKeep response under 500 words and be specific and actionable.`;\n\nreturn {\n  ...metrics,\n  ai_prompt: prompt\n};"
+      },
+      "id": "prepare_ai_prompt",
+      "name": "Prepare AI Analysis Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1800, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:5678/webhook/ollama",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  prompt: $json.ai_prompt,\n  model: 'llama3.2',\n  type: 'reasoning',\n  quiet: true,\n  timeout_seconds: 30\n}) }}",
+        "options": {
+          "timeout": 35000
+        }
+      },
+      "id": "call_ollama_workflow",
+      "name": "Call Shared Ollama Workflow",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2000, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Parse AI recommendations and format response\nconst metrics = $('Calculate Performance Score').item.json;\nconst aiResponse = $input.item.json;\n\n// Extract AI analysis\nlet aiAnalysis = null;\nlet recommendations = [];\n\ntry {\n  if (aiResponse.response) {\n    aiAnalysis = aiResponse.response;\n    \n    // Try to extract structured recommendations\n    const lines = aiAnalysis.split('\\n');\n    let currentSection = '';\n    let priority = 'medium';\n    \n    for (const line of lines) {\n      if (line.includes('Priority actions')) {\n        currentSection = 'priority';\n      } else if (line.includes('high')) {\n        priority = 'high';\n      } else if (line.includes('medium')) {\n        priority = 'medium';\n      } else if (line.includes('low')) {\n        priority = 'low';\n      } else if (line.trim().startsWith('-') || line.trim().match(/^\\d+\\./)) {\n        const recommendation = line.replace(/^[\\-\\d\\.\\s]+/, '').trim();\n        if (recommendation) {\n          recommendations.push({\n            text: recommendation,\n            priority: priority,\n            type: 'ai_generated'\n          });\n        }\n      }\n    }\n  }\n} catch (error) {\n  console.error('Error parsing AI response:', error);\n}\n\n// Add rule-based recommendations if AI didn't provide any\nif (recommendations.length === 0) {\n  if (metrics.avg_cpu > 70) {\n    recommendations.push({\n      text: 'Consider scaling horizontally or optimizing CPU-intensive operations',\n      priority: 'high',\n      type: 'rule_based'\n    });\n  }\n  if (metrics.avg_memory > 70) {\n    recommendations.push({\n      text: 'Investigate memory leaks and optimize memory usage',\n      priority: 'high',\n      type: 'rule_based'\n    });\n  }\n  if (metrics.error_rate > 1) {\n    recommendations.push({\n      text: 'Review error logs and implement better error handling',\n      priority: 'critical',\n      type: 'rule_based'\n    });\n  }\n  if (metrics.avg_response_time > 500) {\n    recommendations.push({\n      text: 'Optimize database queries and implement caching',\n      priority: 'medium',\n      type: 'rule_based'\n    });\n  }\n}\n\nreturn {\n  ...metrics,\n  ai_analysis: aiAnalysis,\n  recommendations: recommendations,\n  recommendation_count: recommendations.length,\n  analysis_complete: true,\n  analysis_source: aiAnalysis ? 'ai_enhanced' : 'rule_based'\n};"
+      },
+      "id": "process_ai_recommendations",
+      "name": "Process AI Recommendations",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [2200, 300]
+    },
+    {
+      "parameters": {},
+      "id": "merge_analysis",
+      "name": "Merge Analysis Results",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [2400, 400]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "table": "performance_analysis",
+        "columns": "app_id,app_name,performance_score,avg_cpu,avg_memory,avg_response_time,error_rate,anomaly_count,recommendations,ai_analysis,analysis_timestamp",
+        "values": "={{ $json.app_id }},={{ $json.app_name }},={{ $json.performance_score }},={{ $json.avg_cpu }},={{ $json.avg_memory }},={{ $json.avg_response_time }},={{ $json.error_rate }},={{ $json.anomaly_count }},={{ JSON.stringify($json.recommendations) }},={{ $json.ai_analysis }},={{ $json.analysis_timestamp }}",
+        "options": {}
+      },
+      "id": "store_analysis",
+      "name": "Store Analysis Results",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [2600, 400],
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Check if all apps have been processed\nconst context = $('Process Each App').context;\nif (!context.noItemsLeft) {\n  // More apps to process\n  return { continue: true };\n}\n\n// All apps processed, prepare final response\nreturn { continue: false, all_apps_processed: true };"
+      },
+      "id": "check_more_apps",
+      "name": "Check More Apps",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [2800, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.continue }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ]
+        }
+      },
+      "id": "continue_processing",
+      "name": "Continue Processing?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [3000, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  COUNT(*) as total_apps,\n  AVG(performance_score) as avg_score,\n  COUNT(CASE WHEN performance_score < 70 THEN 1 END) as apps_needing_optimization,\n  SUM(anomaly_count) as total_anomalies,\n  COUNT(CASE WHEN recommendation_count > 0 THEN 1 END) as apps_with_recommendations\nFROM performance_analysis\nWHERE analysis_timestamp >= NOW() - INTERVAL '1 minute'",
+        "options": {}
+      },
+      "id": "get_summary",
+      "name": "Get Analysis Summary",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [3200, 500],
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Format final response\nconst summary = $input.item.json;\n\nreturn {\n  success: true,\n  timestamp: new Date().toISOString(),\n  summary: {\n    total_apps_analyzed: summary.total_apps || 0,\n    average_performance_score: parseFloat(summary.avg_score || 0).toFixed(1),\n    apps_needing_optimization: summary.apps_needing_optimization || 0,\n    total_anomalies_detected: summary.total_anomalies || 0,\n    apps_with_recommendations: summary.apps_with_recommendations || 0\n  },\n  message: `Performance analysis complete. ${summary.apps_needing_optimization || 0} apps need optimization.`\n};"
+      },
+      "id": "format_response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [3400, 500]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [3600, 500]
+    }
+  ],
+  "connections": {
+    "webhook_trigger": {
+      "main": [
+        [
+          {
+            "node": "merge_triggers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "manual_trigger": {
+      "main": [
+        [
+          {
+            "node": "set_test_defaults",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "set_test_defaults": {
+      "main": [
+        [
+          {
+            "node": "merge_triggers",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "merge_triggers": {
+      "main": [
+        [
+          {
+            "node": "prepare_query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "prepare_query": {
+      "main": [
+        [
+          {
+            "node": "get_metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_metrics": {
+      "main": [
+        [
+          {
+            "node": "process_each_app",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "process_each_app": {
+      "main": [
+        [
+          {
+            "node": "calculate_performance",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "calculate_performance": {
+      "main": [
+        [
+          {
+            "node": "check_recommendations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check_recommendations": {
+      "main": [
+        [
+          {
+            "node": "prepare_ai_prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "merge_analysis",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "prepare_ai_prompt": {
+      "main": [
+        [
+          {
+            "node": "call_ollama_workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "call_ollama_workflow": {
+      "main": [
+        [
+          {
+            "node": "process_ai_recommendations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "process_ai_recommendations": {
+      "main": [
+        [
+          {
+            "node": "merge_analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "merge_analysis": {
+      "main": [
+        [
+          {
+            "node": "store_analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "store_analysis": {
+      "main": [
+        [
+          {
+            "node": "check_more_apps",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check_more_apps": {
+      "main": [
+        [
+          {
+            "node": "continue_processing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "continue_processing": {
+      "main": [
+        [
+          {
+            "node": "process_each_app",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "get_summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_summary": {
+      "main": [
+        [
+          {
+            "node": "format_response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "format_response": {
+      "main": [
+        [
+          {
+            "node": "respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": true
+}

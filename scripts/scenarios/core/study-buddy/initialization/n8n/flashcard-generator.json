@@ -1,0 +1,212 @@
+{
+  "name": "Flashcard Generator",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "flashcards/generate",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Provide defaults for manual testing\nconst defaults = {\n  user_id: 'test-user',\n  subject_id: 'test-subject',\n  material_id: null,\n  content: 'The mitochondria is the powerhouse of the cell. It produces ATP through cellular respiration. Mitochondria have their own DNA and can replicate independently.',\n  count: 5,\n  difficulty: 'medium',\n  style: 'conceptual' // factual, conceptual, application\n};\n\n// Only use defaults if coming from manual trigger\nconst isManual = $execution.resumeUrl === undefined;\nif (isManual) {\n  return [{json: defaults}];\n}\n\n// Otherwise pass through webhook data\nreturn items;"
+      },
+      "id": "defaults",
+      "name": "Defaults",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 500]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5678/webhook/ollama",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "prompt",
+              "value": "={{ `You are an expert educator creating flashcards for effective learning.\n\nContent to create flashcards from:\n${$json.content}\n\nCreate ${$json.count} flashcards with:\n- Difficulty level: ${$json.difficulty}\n- Style: ${$json.style}\n- Clear, specific questions on the front\n- Concise, accurate answers on the back\n- Include hints where helpful\n\nRules:\n- Use active recall principles\n- Avoid yes/no questions when possible\n- Include context when needed\n- For harder cards, test deeper understanding\n\nReturn ONLY a JSON array with this structure:\n[\n  {\n    \"front\": \"question text\",\n    \"back\": \"answer text\",\n    \"hint\": \"optional hint\",\n    \"tags\": [\"relevant\", \"tags\"]\n  }\n]` }}"
+            },
+            {
+              "name": "model",
+              "value": "llama3.2"
+            },
+            {
+              "name": "type",
+              "value": "generation"
+            },
+            {
+              "name": "temperature",
+              "value": "={{ 0.7 }}"
+            },
+            {
+              "name": "format",
+              "value": "json"
+            },
+            {
+              "name": "quiet",
+              "value": "={{ true }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "generate-cards",
+      "name": "Call Shared Ollama",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst aiResponse = items[0].json;\n\nlet flashcards = [];\ntry {\n  // Parse the AI response\n  const responseText = aiResponse.response || aiResponse.output || JSON.stringify(aiResponse);\n  flashcards = typeof responseText === 'string' ? JSON.parse(responseText) : responseText;\n  \n  // Ensure it's an array\n  if (!Array.isArray(flashcards)) {\n    flashcards = [flashcards];\n  }\n} catch (e) {\n  console.error('Parse error:', e);\n  // Generate fallback flashcards based on content\n  flashcards = [\n    {\n      front: 'What is the primary function of mitochondria?',\n      back: 'To produce ATP (energy) through cellular respiration',\n      hint: 'Think about energy production',\n      tags: ['biology', 'cell', 'organelles']\n    },\n    {\n      front: 'What unique feature do mitochondria have regarding genetic material?',\n      back: 'Mitochondria have their own DNA separate from nuclear DNA',\n      hint: 'Consider their evolutionary origin',\n      tags: ['biology', 'genetics', 'evolution']\n    },\n    {\n      front: 'How do mitochondria reproduce within cells?',\n      back: 'They can replicate independently through binary fission',\n      hint: 'Similar to bacteria',\n      tags: ['biology', 'cell division']\n    }\n  ];\n}\n\n// Map difficulty level\nconst difficultyMap = {\n  'easy': 1,\n  'medium': 2,\n  'hard': 3,\n  'expert': 4\n};\n\nconst difficulty_level = difficultyMap[input.difficulty] || 2;\n\n// Generate IDs and prepare for database\nconst crypto = require('crypto');\nconst cardsToInsert = flashcards.slice(0, input.count).map(card => ({\n  id: crypto.randomUUID(),\n  user_id: input.user_id,\n  subject_id: input.subject_id,\n  material_id: input.material_id,\n  front: card.front || 'Question placeholder',\n  back: card.back || 'Answer placeholder',\n  hint: card.hint || null,\n  difficulty_level: difficulty_level,\n  tags: card.tags || [],\n  created_at: new Date().toISOString()\n}));\n\nreturn [{json: {cards: cardsToInsert, input: input}}];"
+      },
+      "id": "parse-flashcards",
+      "name": "Parse Flashcards",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \n  const cards = $json.cards;\n  const values = cards.map(c => \n    `('${c.id}', '${c.user_id}', '${c.subject_id}', ` +\n    `${c.material_id ? `'${c.material_id}'` : 'NULL'}, ` +\n    `'${c.front.replace(/'/g, \"''\")}', ` +\n    `'${c.back.replace(/'/g, \"''\")}', ` +\n    `${c.hint ? `'${c.hint.replace(/'/g, \"''\")}'` : 'NULL'}, ` +\n    `${c.difficulty_level}, ` +\n    `ARRAY[${c.tags.map(t => `'${t.replace(/'/g, \"''\")}'`).join(',')}]::TEXT[], ` +\n    `CURRENT_TIMESTAMP)`\n  ).join(', ');\n  \n  return `INSERT INTO flashcards (id, user_id, subject_id, material_id, front, back, hint, difficulty_level, tags, created_at) VALUES ${values} RETURNING id, front, back, hint`;\n}}",
+        "options": {}
+      },
+      "id": "save-flashcards",
+      "name": "Save Flashcards",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1050, 400],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-study-buddy",
+          "name": "Study Buddy DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const savedCards = items[0].json;\nconst input = $input.first().json.input;\n\n// Initialize spaced repetition for each card\nconst spacedRepData = savedCards.map(card => ({\n  user_id: input.user_id,\n  flashcard_id: card.id,\n  interval_days: 1,\n  easiness_factor: 2.5,\n  repetitions: 0,\n  next_review_date: new Date().toISOString().split('T')[0]\n}));\n\nreturn [{\n  json: {\n    success: true,\n    message: `Generated ${savedCards.length} flashcards successfully`,\n    flashcards: savedCards,\n    spaced_repetition_initialized: spacedRepData.length,\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "format-output",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 400]
+    },
+    {
+      "parameters": {},
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1450, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Call Shared Ollama",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual": {
+      "main": [
+        [
+          {
+            "node": "Defaults",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Defaults": {
+      "main": [
+        [
+          {
+            "node": "Call Shared Ollama",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Shared Ollama": {
+      "main": [
+        [
+          {
+            "node": "Parse Flashcards",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Flashcards": {
+      "main": [
+        [
+          {
+            "node": "Save Flashcards",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Flashcards": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "pinData": {},
+  "versionId": "1.0.0",
+  "triggerCount": 2,
+  "tags": []
+}

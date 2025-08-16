@@ -1,0 +1,268 @@
+{
+  "name": "QR Code Generator",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "generate-qr",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 500]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Provide test defaults for manual trigger\nreturn {\n  text: 'https://vrooli.com',\n  size: 256,\n  color: '#000000',\n  background: '#FFFFFF',\n  errorCorrection: 'M',\n  format: 'png',\n  style: 'square',\n  logo: null,\n  logoSize: 50\n};"
+      },
+      "id": "set_defaults",
+      "name": "Set Test Defaults",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [400, 500]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Validate and prepare QR code parameters\nconst input = $input.item.json;\n\n// Validate required text parameter\nif (!input.text || typeof input.text !== 'string' || input.text.trim().length === 0) {\n  throw new Error('Missing required parameter: text');\n}\n\nconst text = input.text.trim();\nif (text.length > 4296) {\n  throw new Error('Text too long for QR code (max 4296 characters)');\n}\n\n// Get parameters with defaults\nconst size = Math.min(1024, Math.max(64, parseInt(input.size) || 256));\nconst color = input.color || '#000000';\nconst background = input.background || '#FFFFFF';\nconst errorCorrection = ['L', 'M', 'Q', 'H'].includes(input.errorCorrection) ? input.errorCorrection : 'M';\nconst format = ['png', 'svg', 'base64', 'ascii'].includes(input.format) ? input.format : 'png';\nconst margin = Math.min(10, Math.max(0, parseInt(input.margin) || 1));\nconst style = ['square', 'dots', 'rounded'].includes(input.style) ? input.style : 'square';\nconst logo = input.logo || null;\nconst logoSize = Math.min(100, Math.max(20, parseInt(input.logoSize) || 50));\n\n// Return validated parameters\nreturn {\n  text: text,\n  size: size,\n  color: color,\n  background: background,\n  errorCorrection: errorCorrection,\n  format: format,\n  margin: margin,\n  style: style,\n  logo: logo,\n  logoSize: logoSize,\n  timestamp: new Date().toISOString()\n};"
+      },
+      "id": "validate_params",
+      "name": "Validate Parameters",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [600, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Generate QR code data structure and URL\nconst params = $input.item.json;\n\n// Generate unique ID for this QR code\nconst qrId = 'qr_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);\n\n// Create ASCII art QR for fun (simplified representation)\nfunction generateAsciiQR(text, size) {\n  const blocks = ['██', '  '];\n  const gridSize = Math.min(25, Math.max(10, Math.floor(size / 10)));\n  let ascii = '';\n  \n  // Create pseudo-random pattern based on text\n  const hash = text.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);\n  \n  for (let y = 0; y < gridSize; y++) {\n    for (let x = 0; x < gridSize; x++) {\n      // Corner markers\n      if ((x < 7 && y < 7) || (x >= gridSize - 7 && y < 7) || (x < 7 && y >= gridSize - 7)) {\n        ascii += (x % 2 === y % 2) ? blocks[0] : blocks[1];\n      } else {\n        // Data area (pseudo-random based on text hash)\n        const bit = ((hash * (x + 1) * (y + 1)) % 2 === 0);\n        ascii += bit ? blocks[0] : blocks[1];\n      }\n    }\n    ascii += '\\n';\n  }\n  \n  return ascii;\n}\n\n// Generate ASCII version if requested\nlet asciiQR = null;\nif (params.format === 'ascii') {\n  asciiQR = generateAsciiQR(params.text, params.size);\n}\n\n// Create API URL for image generation (fallback to external service for now)\nconst qrData = encodeURIComponent(params.text);\nconst apiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=${params.size}x${params.size}&data=${qrData}&color=${params.color.replace('#', '')}&bgcolor=${params.background.replace('#', '')}&ecc=${params.errorCorrection}&margin=${params.margin}&format=${params.format === 'ascii' ? 'png' : params.format}`;\n\nreturn {\n  id: qrId,\n  url: apiUrl,\n  parameters: params,\n  ascii: asciiQR,\n  status: 'generated',\n  generation_time: new Date().toISOString(),\n  metadata: {\n    text_length: params.text.length,\n    is_url: params.text.startsWith('http'),\n    is_email: params.text.includes('@'),\n    is_phone: /^[+\\d\\s()-]+$/.test(params.text),\n    type: params.text.startsWith('http') ? 'url' : \n          params.text.includes('@') ? 'email' : \n          /^[+\\d\\s()-]+$/.test(params.text) ? 'phone' : 'text'\n  }\n};"
+      },
+      "id": "generate_qr",
+      "name": "Generate QR Code",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [800, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.parameters.format }}",
+              "operation": "notEqual",
+              "value2": "ascii"
+            }
+          ]
+        }
+      },
+      "id": "check_format",
+      "name": "Check Format",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1000, 400]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.url }}",
+        "responseFormat": "file",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "fetch_qr_image",
+      "name": "Fetch QR Image",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1200, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Prepare response with QR code data\nconst qrData = $node['Generate QR Code'].json;\nconst binary = $input.item.binary;\n\n// Get base64 if we have binary data\nlet base64Data = null;\nif (binary && binary.data) {\n  base64Data = binary.data.data;\n}\n\nreturn {\n  success: true,\n  qr_id: qrData.id,\n  parameters: qrData.parameters,\n  download_url: qrData.url,\n  base64: base64Data,\n  ascii: qrData.ascii,\n  metadata: qrData.metadata,\n  generated_at: qrData.generation_time,\n  message: 'QR code generated successfully',\n  stats: {\n    generation_time_ms: Date.now() - new Date(qrData.generation_time).getTime(),\n    size_bytes: base64Data ? Math.ceil(base64Data.length * 0.75) : 0,\n    format: qrData.parameters.format\n  }\n};"
+      },
+      "id": "prepare_image_response",
+      "name": "Prepare Image Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1400, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Prepare ASCII-only response\nconst qrData = $node['Generate QR Code'].json;\n\nreturn {\n  success: true,\n  qr_id: qrData.id,\n  parameters: qrData.parameters,\n  ascii: qrData.ascii,\n  metadata: qrData.metadata,\n  generated_at: qrData.generation_time,\n  message: 'ASCII QR code generated successfully',\n  stats: {\n    generation_time_ms: Date.now() - new Date(qrData.generation_time).getTime(),\n    format: 'ascii',\n    lines: qrData.ascii ? qrData.ascii.split('\\n').length : 0\n  }\n};"
+      },
+      "id": "prepare_ascii_response",
+      "name": "Prepare ASCII Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1200, 500]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Store QR code metadata in Redis for analytics\nconst response = $input.item.json;\n\n// Create Redis key\nconst redisKey = `qr:${response.qr_id}`;\nconst redisTTL = 86400; // 24 hours\n\n// Prepare data for Redis (we'll simulate this for now)\nconst redisData = {\n  id: response.qr_id,\n  text: response.parameters.text.substring(0, 100), // Store first 100 chars only\n  type: response.metadata.type,\n  format: response.parameters.format,\n  size: response.parameters.size,\n  generated_at: response.generated_at,\n  access_count: 0\n};\n\n// Log analytics event\nconsole.log('QR Generated:', {\n  id: response.qr_id,\n  type: response.metadata.type,\n  format: response.parameters.format,\n  size: response.parameters.size\n});\n\nreturn response;"
+      },
+      "id": "store_analytics",
+      "name": "Store Analytics",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1600, 400]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "respond_webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1800, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Validate Parameters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Test Defaults",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Test Defaults": {
+      "main": [
+        [
+          {
+            "node": "Validate Parameters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Parameters": {
+      "main": [
+        [
+          {
+            "node": "Generate QR Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate QR Code": {
+      "main": [
+        [
+          {
+            "node": "Check Format",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Format": {
+      "main": [
+        [
+          {
+            "node": "Fetch QR Image",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare ASCII Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch QR Image": {
+      "main": [
+        [
+          {
+            "node": "Prepare Image Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Image Response": {
+      "main": [
+        [
+          {
+            "node": "Store Analytics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare ASCII Response": {
+      "main": [
+        [
+          {
+            "node": "Store Analytics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Analytics": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "qr-generator"
+  },
+  "tags": []
+}

@@ -1,0 +1,133 @@
+{
+  "name": "Typing Stats Processor",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "typing-test/process-stats",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_stats",
+      "name": "Webhook - Process Stats",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 500]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Default test data for manual trigger\nreturn {\n  sessionId: 'test_' + Date.now(),\n  wpm: 65,\n  accuracy: 92,\n  charactersTyped: 245,\n  errorCount: 8,\n  timeSpent: 60,\n  difficulty: 'medium',\n  textCompleted: true\n};"
+      },
+      "id": "test_defaults",
+      "name": "Test Defaults",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [400, 500]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process typing statistics\nconst stats = $input.item.json.body || $input.item.json;\n\n// Calculate performance metrics\nconst wpm = stats.wpm || 0;\nconst accuracy = stats.accuracy || 0;\nconst errorRate = 100 - accuracy;\n\n// Performance classification\nlet performanceLevel = 'beginner';\nlet recommendations = [];\n\nif (wpm >= 80 && accuracy >= 95) {\n  performanceLevel = 'expert';\n  recommendations.push('Challenge yourself with harder texts');\n  recommendations.push('Try speed typing competitions');\n} else if (wpm >= 60 && accuracy >= 90) {\n  performanceLevel = 'advanced';\n  recommendations.push('Focus on maintaining accuracy at higher speeds');\n  recommendations.push('Practice with technical or complex texts');\n} else if (wpm >= 40 && accuracy >= 85) {\n  performanceLevel = 'intermediate';\n  recommendations.push('Work on increasing speed without sacrificing accuracy');\n  recommendations.push('Practice with diverse text types');\n} else {\n  performanceLevel = 'beginner';\n  recommendations.push('Focus on accuracy before speed');\n  recommendations.push('Practice with easier texts first');\n  recommendations.push('Use proper finger positioning on home row');\n}\n\n// Identify problem areas\nconst problemAreas = [];\nif (accuracy < 85) {\n  problemAreas.push('accuracy');\n}\nif (wpm < 30) {\n  problemAreas.push('speed');\n}\nif (stats.errorCount > 20) {\n  problemAreas.push('consistency');\n}\n\n// Calculate improvement score\nconst improvementScore = Math.round(\n  (wpm * 0.6 + accuracy * 0.4) * (stats.textCompleted ? 1 : 0.8)\n);\n\nreturn {\n  sessionId: stats.sessionId,\n  timestamp: new Date().toISOString(),\n  metrics: {\n    wpm: wpm,\n    accuracy: accuracy,\n    errorRate: errorRate,\n    charactersTyped: stats.charactersTyped || 0,\n    errorCount: stats.errorCount || 0,\n    timeSpent: stats.timeSpent || 0\n  },\n  analysis: {\n    performanceLevel: performanceLevel,\n    improvementScore: improvementScore,\n    problemAreas: problemAreas,\n    recommendations: recommendations\n  },\n  difficulty: stats.difficulty || 'easy',\n  textCompleted: stats.textCompleted || false\n};"
+      },
+      "id": "analyze_stats",
+      "name": "Analyze Stats",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [600, 400]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": "public",
+        "table": "typing_sessions",
+        "columns": "session_id,total_chars,correct_chars,total_time,average_wpm,average_accuracy",
+        "values": "={{ $json.sessionId }},={{ $json.metrics.charactersTyped }},={{ Math.round($json.metrics.charactersTyped * $json.metrics.accuracy / 100) }},={{ $json.metrics.timeSpent }},={{ $json.metrics.wpm }},={{ $json.metrics.accuracy }}",
+        "options": {
+          "returnFields": "id"
+        }
+      },
+      "id": "save_session",
+      "name": "Save Session",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [800, 400],
+      "credentials": {
+        "postgres": {
+          "id": "shared-postgres",
+          "name": "Shared Postgres"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Generate personalized tips based on analysis\nconst analysis = $node['Analyze Stats'].json.analysis;\nconst metrics = $node['Analyze Stats'].json.metrics;\n\nconst tips = [];\n\n// Speed-based tips\nif (metrics.wpm < 30) {\n  tips.push({\n    category: 'speed',\n    tip: 'Try typing without looking at the keyboard',\n    priority: 'high'\n  });\n  tips.push({\n    category: 'speed',\n    tip: 'Practice common word combinations daily',\n    priority: 'medium'\n  });\n} else if (metrics.wpm < 50) {\n  tips.push({\n    category: 'speed',\n    tip: 'Focus on rhythm and flow rather than individual keys',\n    priority: 'medium'\n  });\n}\n\n// Accuracy-based tips\nif (metrics.accuracy < 80) {\n  tips.push({\n    category: 'accuracy',\n    tip: 'Slow down and focus on hitting the right keys',\n    priority: 'high'\n  });\n  tips.push({\n    category: 'accuracy',\n    tip: 'Practice problem letters separately',\n    priority: 'high'\n  });\n} else if (metrics.accuracy < 90) {\n  tips.push({\n    category: 'accuracy',\n    tip: 'Review your common mistakes and practice those patterns',\n    priority: 'medium'\n  });\n}\n\n// General improvement tips\nif (analysis.performanceLevel === 'expert') {\n  tips.push({\n    category: 'challenge',\n    tip: 'Try typing with punctuation and special characters',\n    priority: 'low'\n  });\n  tips.push({\n    category: 'challenge',\n    tip: 'Practice typing code or technical documentation',\n    priority: 'low'\n  });\n} else {\n  tips.push({\n    category: 'practice',\n    tip: 'Aim for 15-20 minutes of practice daily',\n    priority: 'medium'\n  });\n}\n\nreturn {\n  sessionId: $node['Analyze Stats'].json.sessionId,\n  analysis: analysis,\n  metrics: metrics,\n  personalizedTips: tips.slice(0, 3), // Return top 3 tips\n  nextGoals: {\n    wpm: Math.min(metrics.wpm + 10, 100),\n    accuracy: Math.min(metrics.accuracy + 5, 100)\n  }\n};"
+      },
+      "id": "generate_tips",
+      "name": "Generate Tips",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1000, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1200, 400]
+    }
+  ],
+  "connections": {
+    "Webhook - Process Stats": {
+      "main": [[{"node": "Analyze Stats", "type": "main", "index": 0}]]
+    },
+    "Manual Trigger": {
+      "main": [[{"node": "Test Defaults", "type": "main", "index": 0}]]
+    },
+    "Test Defaults": {
+      "main": [[{"node": "Analyze Stats", "type": "main", "index": 0}]]
+    },
+    "Analyze Stats": {
+      "main": [[{"node": "Save Session", "type": "main", "index": 0}]]
+    },
+    "Save Session": {
+      "main": [[{"node": "Generate Tips", "type": "main", "index": 0}]]
+    },
+    "Generate Tips": {
+      "main": [[{"node": "Respond", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "instanceId": "typing-stats-processor"
+  },
+  "tags": []
+}

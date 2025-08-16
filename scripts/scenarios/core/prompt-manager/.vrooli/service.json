@@ -1,141 +1,214 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
-    "parent": "vrooli",
     "name": "prompt-manager",
-    "displayName": "Prompt Manager",
-    "description": "Clean UX for storing prompts organized by campaigns",
+    "displayName": "Personal Prompt Manager",
+    "description": "Campaign-based prompt storage and management tool with API access, CLI, and web interface for organizing AI prompts",
     "version": "1.0.0",
-    "type": "application",
-    "category": "saas-applications",
+    "type": "productivity-application",
+    "category": "personal-tools",
     "tags": [
-      "prompts",
-      "campaigns",
-      "ai",
-      "management"
-    ]
+      "prompt-management",
+      "ai-tools",
+      "productivity",
+      "personal-assistant",
+      "campaign-organization",
+      "cli-tool"
+    ],
+    "author": {
+      "name": "Vrooli Team",
+      "email": "team@vrooli.com"
+    },
+    "repository": {
+      "type": "scenario",
+      "path": "scripts/scenarios/core/prompt-manager"
+    }
   },
   "resources": {
-    "storage": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "purpose": "prompt management data"
-      },
-      "qdrant": {
-        "type": "qdrant",
-        "enabled": true,
-        "required": false,
-        "purpose": "semantic search and similarity matching"
-      },
-      "redis": {
-        "type": "redis",
-        "enabled": true,
-        "required": false,
-        "purpose": "session management and caching"
+    "postgres": {
+      "enabled": true,
+      "version": "latest",
+      "database": "prompt_manager",
+      "description": "Primary data storage for campaigns, prompts, tags, and metadata",
+      "required": true,
+      "port": 5433,
+      "initialization": {
+        "schema": "initialization/storage/postgres/schema.sql",
+        "seed_data": "initialization/storage/postgres/seed.sql"
       }
     },
-    "ai": {
-      "ollama": {
-        "type": "ollama",
-        "enabled": true,
-        "required": false,
-        "models": [
-          "llama3.2",
-          "mistral"
-        ],
-        "purpose": "prompt enhancement and testing"
-      }
+    "qdrant": {
+      "enabled": true,
+      "version": "latest",
+      "description": "Vector database for semantic search of prompts",
+      "required": false,
+      "port": 6333,
+      "collections": [
+        {
+          "name": "prompts",
+          "vector_size": 384,
+          "distance": "Cosine"
+        }
+      ]
     },
-    "automation": {
-      "n8n": {
-        "type": "n8n",
-        "enabled": true,
-        "required": false,
-        "initialization": [
-          {
-            "file": "initialization/automation/n8n/prompt-backup.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/automation/n8n/campaign-sync.json",
-            "type": "workflow"
-          }
-        ]
-      }
+    "ollama": {
+      "enabled": false,
+      "version": "latest", 
+      "description": "Local LLM for prompt testing and enhancement suggestions",
+      "required": false,
+      "port": 11434,
+      "recommended_models": [
+        "nomic-embed-text",
+        "llama3.2"
+      ]
     }
   },
-  "ports": {
+  "services": {
     "api": {
-      "env_var": "SERVICE_PORT",
-      "range": "8090-8999",
-      "fallback": "auto",
-      "description": "Prompt manager API port"
+      "name": "prompt-manager-api",
+      "description": "Go backend API server providing RESTful endpoints",
+      "language": "go",
+      "port": 8085,
+      "path": "api/main.go",
+      "build_command": "go mod tidy && go build -o prompt-manager-api main.go",
+      "start_command": "./prompt-manager-api",
+      "health_check": "/health",
+      "endpoints": {
+        "campaigns": "/api/campaigns",
+        "prompts": "/api/prompts", 
+        "search": "/api/search/prompts",
+        "tags": "/api/tags",
+        "health": "/health"
+      },
+      "environment": {
+        "PORT": "8085",
+        "POSTGRES_URL": "postgres://postgres:postgres@localhost:5433/prompt_manager?sslmode=disable",
+        "QDRANT_URL": "http://localhost:6333",
+        "OLLAMA_URL": "http://localhost:11434"
+      }
+    },
+    "ui": {
+      "name": "prompt-manager-ui",
+      "description": "React web interface with campaign sidebar and prompt editor",
+      "language": "javascript",
+      "framework": "react",
+      "port": 3005,
+      "path": "ui",
+      "build_command": "npm install && npm run build",
+      "start_command": "npm start",
+      "environment": {
+        "PORT": "3005",
+        "REACT_APP_API_URL": "http://localhost:8085"
+      },
+      "features": [
+        "Campaign management",
+        "Prompt editor",
+        "Search functionality",
+        "Dark mode support",
+        "Responsive design",
+        "Copy to clipboard",
+        "Usage tracking"
+      ]
+    },
+    "cli": {
+      "name": "prompt-manager",
+      "description": "Command-line interface for quick prompt operations",
+      "language": "bash",
+      "path": "cli/prompt-manager",
+      "install_script": "cli/install-cli.sh",
+      "commands": [
+        "status",
+        "campaigns",
+        "add",
+        "list",
+        "search", 
+        "show",
+        "use",
+        "quick",
+        "help"
+      ],
+      "environment": {
+        "PROMPT_MANAGER_API_URL": "http://localhost:8085"
+      }
     }
   },
-  "lifecycle": {
-    "version": "1.0.0",
-    "setup": {
-      "description": "Initialize Prompt Manager",
-      "steps": [
-        {
-          "name": "base-setup",
-          "run": "bash scripts/lib/setup.sh",
-          "description": "Execute generic setup (e.g. network, system, git)"
-        },
-        {
-          "name": "add-data",
-          "run": "scripts/resources/injection/engine.sh .",
-          "description": "Add app data to resources"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '🚀 Prompt Manager initialized\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Redis Cache: redis://localhost:${RESOURCE_PORTS[redis]}\\n  PostgreSQL DB: postgres://localhost:${RESOURCE_PORTS[postgres]}'",
-          "description": "Display service access URLs"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Start prompt manager services",
-      "steps": [
-        {
-          "name": "start-services",
-          "run": "cd deployment && ./startup.sh",
-          "description": "Start prompt manager services"
-        }
-      ]
-    },
-    "test": {
-      "description": "Test prompt manager functionality",
-      "steps": [
-        {
-          "name": "run-tests",
-          "run": "bash test.sh",
-          "description": "Execute validation tests"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop prompt manager services",
-      "steps": [
-        {
-          "name": "stop-services",
-          "run": "pkill -f 'prompt-manager' || true",
-          "description": "Stop all prompt manager processes"
-        }
-      ]
-    },
-    "clean": {
-      "description": "Clean build artifacts and temporary files",
-      "steps": [
-        {
-          "name": "clean-artifacts",
-          "run": "rm -rf dist/ build/ .next/ node_modules/ .cache/ || true",
-          "description": "Remove build artifacts and temporary files"
-        }
+  "deployment": {
+    "startup_script": "deployment/startup.sh",
+    "validation_script": "deployment/validate.sh",
+    "dependencies": {
+      "system": [
+        "go",
+        "node",
+        "npm",
+        "curl",
+        "jq",
+        "psql"
+      ],
+      "go": [
+        "github.com/google/uuid",
+        "github.com/gorilla/handlers",
+        "github.com/gorilla/mux",
+        "github.com/lib/pq"
+      ],
+      "npm": [
+        "react",
+        "react-dom",
+        "axios",
+        "lucide-react",
+        "react-textarea-autosize",
+        "tailwindcss"
       ]
     }
+  },
+  "configuration": {
+    "app_config": "initialization/configuration/app-config.json",
+    "campaign_templates": "initialization/configuration/campaign-templates.json"
+  },
+  "testing": {
+    "test_specification": "scenario-test.yaml",
+    "test_types": [
+      "infrastructure",
+      "api",
+      "ui",
+      "cli", 
+      "integration",
+      "performance"
+    ]
+  },
+  "usage": {
+    "startup_time": "30-60 seconds",
+    "memory_usage": "~200MB",
+    "storage_requirements": "~50MB initial",
+    "recommended_hardware": {
+      "cpu": "1 core",
+      "ram": "512MB",
+      "storage": "1GB"
+    }
+  },
+  "features": {
+    "core": [
+      "Campaign-based organization",
+      "Full-text search",
+      "Usage tracking",
+      "Tag management",
+      "Multiple interfaces (Web, CLI, API)"
+    ],
+    "optional": [
+      "Semantic search (requires Qdrant)",
+      "Prompt testing (requires Ollama)",
+      "Vector embeddings"
+    ],
+    "planned": [
+      "Export functionality",
+      "Import from other tools",
+      "Collaboration features",
+      "Advanced analytics"
+    ]
+  },
+  "documentation": {
+    "quick_start": "Open http://localhost:3005 after startup",
+    "api_docs": "Available at http://localhost:8085/health",
+    "cli_help": "Run 'prompt-manager help' for CLI documentation"
   }
 }

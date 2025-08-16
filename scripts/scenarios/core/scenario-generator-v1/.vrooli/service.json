@@ -26,6 +26,26 @@
     }
   },
   "resources": {
+    "automation": {
+      "n8n": {
+        "type": "n8n",
+        "enabled": true,
+        "required": true,
+        "shared_workflows": [
+          "ollama",
+          "claude-code-executor",
+          "workflow-creator-fixer",
+          "file-list-writer"
+        ],
+        "initialization": [
+          {
+            "file": "initialization/n8n/scenario-generator-orchestrator.json",
+            "type": "workflow",
+            "description": "Main orchestration workflow for scenario generation"
+          }
+        ]
+      }
+    },
     "agents": {
       "claude-code": {
         "type": "claude-code",
@@ -34,12 +54,36 @@
         "purpose": "AI-powered scenario generation and code creation"
       }
     },
+    "ai": {
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "models": [
+          "phi3.5:3.8b",
+          "llama3.2",
+          "mistral"
+        ]
+      }
+    },
     "storage": {
       "postgres": {
         "type": "postgres",
         "enabled": true,
         "required": true,
-        "purpose": "scenario metadata and generation tracking"
+        "purpose": "scenario metadata and generation tracking",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "script"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": false,
+        "purpose": "Cache generation state and temporary workflow data"
       }
     }
   },
@@ -54,9 +98,9 @@
           "description": "Execute generic setup (e.g. network, system, git)"
         },
         {
-          "name": "initialize-database",
-          "run": "cd initialization && psql -h localhost -p ${RESOURCE_PORTS[postgres]} -U postgres -d postgres -f postgres/schema.sql || echo 'Database schema initialization completed'",
-          "description": "Initialize PostgreSQL database schema"
+          "name": "add-data",
+          "run": "scripts/resources/injection/engine.sh .",
+          "description": "Add scenario generator data to resources"
         },
         {
           "name": "check-claude-code",
@@ -70,7 +114,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Scenario Generator V1 initialized\\n  API: http://localhost:${SERVICE_PORT}\\n  Database: localhost:${RESOURCE_PORTS[postgres]}\\n  CLI: scenario-generator'",
+          "run": "echo '🚀 Scenario Generator V1 initialized\\n  n8n Workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${SERVICE_PORT}\\n  Database: localhost:${RESOURCE_PORTS[postgres]}\\n  CLI: scenario-generator'",
           "description": "Display service access information"
         }
       ]

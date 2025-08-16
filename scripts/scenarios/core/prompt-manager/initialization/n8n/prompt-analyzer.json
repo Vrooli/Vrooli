@@ -1,0 +1,208 @@
+{
+  "name": "Prompt Pattern Analyzer",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "analyze-prompt",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 150]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "prompt",
+              "value": "Create a REST API in Node.js that handles user authentication with JWT tokens and includes rate limiting"
+            },
+            {
+              "name": "analyze_structure",
+              "value": "true"
+            },
+            {
+              "name": "extract_requirements",
+              "value": "true"
+            },
+            {
+              "name": "identify_patterns",
+              "value": "true"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "manual_defaults",
+      "name": "Manual Test Defaults",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [450, 150]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Prepare data extraction request for the shared workflow\nconst input = $input.item.json;\nconst prompt = input.prompt || '';\n\nif (!prompt) {\n  throw new Error('Prompt is required for analysis');\n}\n\n// Define the extraction schema for prompt analysis\nconst extractionSchema = {\n  prompt_type: {\n    type: 'string',\n    description: 'Type of prompt (e.g., instructional, creative, analytical, conversational)',\n    enum: ['instructional', 'creative', 'analytical', 'conversational', 'technical', 'explanatory']\n  },\n  main_objective: {\n    type: 'string',\n    description: 'The primary goal or objective of the prompt'\n  },\n  key_components: {\n    type: 'array',\n    description: 'List of key components or requirements mentioned in the prompt',\n    items: {\n      type: 'string'\n    }\n  },\n  complexity_level: {\n    type: 'string',\n    description: 'Complexity level of the prompt',\n    enum: ['simple', 'moderate', 'complex', 'expert']\n  },\n  domain: {\n    type: 'string',\n    description: 'Primary domain or field (e.g., programming, marketing, education)'\n  },\n  action_verbs: {\n    type: 'array',\n    description: 'Action verbs used in the prompt',\n    items: {\n      type: 'string'\n    }\n  },\n  constraints: {\n    type: 'array',\n    description: 'Any constraints or limitations specified',\n    items: {\n      type: 'string'\n    }\n  },\n  expected_output: {\n    type: 'object',\n    description: 'Expected output characteristics',\n    properties: {\n      format: {\n        type: 'string',\n        description: 'Expected format (e.g., code, text, list, JSON)'\n      },\n      length: {\n        type: 'string',\n        description: 'Expected length (e.g., brief, detailed, comprehensive)'\n      },\n      style: {\n        type: 'string',\n        description: 'Expected style (e.g., formal, casual, technical)'\n      }\n    }\n  },\n  entities: {\n    type: 'array',\n    description: 'Named entities or specific technologies mentioned',\n    items: {\n      type: 'string'\n    }\n  },\n  implicit_requirements: {\n    type: 'array',\n    description: 'Requirements that are implied but not explicitly stated',\n    items: {\n      type: 'string'\n    }\n  }\n};\n\nreturn {\n  extraction_request: {\n    text: prompt,\n    schema: extractionSchema,\n    model: 'phi3.5:3.8b',\n    temperature: 0.3,\n    include_confidence: true,\n    output_format: 'json'\n  },\n  original_prompt: prompt,\n  analysis_options: {\n    analyze_structure: input.analyze_structure !== 'false',\n    extract_requirements: input.extract_requirements !== 'false',\n    identify_patterns: input.identify_patterns !== 'false'\n  }\n};"
+      },
+      "id": "prepare_extraction",
+      "name": "Prepare Extraction Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:5678/webhook/structured-data-extractor",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.extraction_request) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "call_extractor",
+      "name": "Call Structured Data Extractor",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process extraction results and perform additional analysis\nconst extractionResult = $input.item.json;\nconst originalData = $('Prepare Extraction Request').item.json;\nconst prompt = originalData.original_prompt;\nconst options = originalData.analysis_options;\n\nlet analysis = {\n  prompt: prompt,\n  timestamp: new Date().toISOString(),\n  extraction_successful: false\n};\n\ntry {\n  if (!extractionResult.success) {\n    throw new Error('Data extraction failed');\n  }\n  \n  const extractedData = extractionResult.extracted_data || {};\n  analysis.extraction_successful = true;\n  analysis.extracted_data = extractedData;\n  \n  // Perform structural analysis if requested\n  if (options.analyze_structure) {\n    const sentences = prompt.split(/[.!?]+/).filter(s => s.trim());\n    const words = prompt.split(/\\s+/);\n    \n    analysis.structure = {\n      sentence_count: sentences.length,\n      word_count: words.length,\n      avg_sentence_length: Math.round(words.length / sentences.length),\n      has_questions: /\\?/.test(prompt),\n      has_commands: /^(create|build|generate|write|develop|design|implement)/i.test(prompt),\n      has_examples: /(for example|e\\.g\\.|such as|like)/i.test(prompt),\n      has_numbers: /\\d/.test(prompt),\n      paragraph_count: prompt.split(/\\n\\n+/).length\n    };\n    \n    // Identify prompt patterns\n    const patterns = [];\n    if (/^(how|what|why|when|where|who)/i.test(prompt)) patterns.push('question-based');\n    if (/step[\\s-]?by[\\s-]?step/i.test(prompt)) patterns.push('step-by-step');\n    if (/list of|bullet points/i.test(prompt)) patterns.push('list-format');\n    if (/compare|contrast|difference/i.test(prompt)) patterns.push('comparative');\n    if (/explain|describe|define/i.test(prompt)) patterns.push('explanatory');\n    if (/create|build|generate/i.test(prompt)) patterns.push('generative');\n    if (/analyze|evaluate|assess/i.test(prompt)) patterns.push('analytical');\n    \n    analysis.structure.identified_patterns = patterns;\n  }\n  \n  // Extract requirements if requested\n  if (options.extract_requirements) {\n    const requirements = {\n      explicit: extractedData.key_components || [],\n      implicit: extractedData.implicit_requirements || [],\n      constraints: extractedData.constraints || [],\n      technical: []\n    };\n    \n    // Identify technical requirements\n    const techKeywords = [\n      'API', 'database', 'authentication', 'security', 'performance',\n      'scalability', 'testing', 'documentation', 'error handling',\n      'validation', 'logging', 'monitoring', 'deployment', 'CI/CD'\n    ];\n    \n    techKeywords.forEach(keyword => {\n      if (new RegExp(keyword, 'i').test(prompt)) {\n        requirements.technical.push(keyword);\n      }\n    });\n    \n    analysis.requirements = requirements;\n  }\n  \n  // Identify patterns if requested\n  if (options.identify_patterns) {\n    const patterns = {\n      prompt_patterns: [],\n      linguistic_features: [],\n      effectiveness_indicators: []\n    };\n    \n    // Check for common prompt patterns\n    if (/act as|you are|pretend/i.test(prompt)) patterns.prompt_patterns.push('role-playing');\n    if (/context:|background:|given:/i.test(prompt)) patterns.prompt_patterns.push('context-setting');\n    if (/format:|output:|return:/i.test(prompt)) patterns.prompt_patterns.push('output-specification');\n    if (/constraints?:|limitations?:|requirements?:/i.test(prompt)) patterns.prompt_patterns.push('constraint-definition');\n    if (/example:|e\\.g\\.|for instance/i.test(prompt)) patterns.prompt_patterns.push('example-provision');\n    \n    // Linguistic features\n    if (prompt.includes('please') || prompt.includes('could you')) patterns.linguistic_features.push('polite-language');\n    if (/!/.test(prompt)) patterns.linguistic_features.push('emphatic');\n    if (/\\b(must|should|need to|have to)\\b/i.test(prompt)) patterns.linguistic_features.push('modal-verbs');\n    if (/\\b(first|second|then|finally|lastly)\\b/i.test(prompt)) patterns.linguistic_features.push('sequential-markers');\n    \n    // Effectiveness indicators\n    if (extractedData.main_objective) patterns.effectiveness_indicators.push('clear-objective');\n    if (extractedData.expected_output?.format) patterns.effectiveness_indicators.push('specified-format');\n    if (extractedData.constraints?.length > 0) patterns.effectiveness_indicators.push('defined-constraints');\n    if (extractedData.entities?.length > 0) patterns.effectiveness_indicators.push('specific-entities');\n    \n    analysis.patterns = patterns;\n  }\n  \n  // Generate quality score\n  let qualityScore = 0;\n  let qualityFactors = [];\n  \n  if (extractedData.main_objective) {\n    qualityScore += 20;\n    qualityFactors.push('Clear objective identified');\n  }\n  \n  if (extractedData.key_components?.length > 2) {\n    qualityScore += 15;\n    qualityFactors.push('Multiple components specified');\n  }\n  \n  if (extractedData.expected_output?.format) {\n    qualityScore += 15;\n    qualityFactors.push('Output format specified');\n  }\n  \n  if (analysis.structure?.word_count > 20 && analysis.structure?.word_count < 200) {\n    qualityScore += 10;\n    qualityFactors.push('Appropriate length');\n  }\n  \n  if (extractedData.constraints?.length > 0) {\n    qualityScore += 10;\n    qualityFactors.push('Constraints defined');\n  }\n  \n  if (extractedData.entities?.length > 0) {\n    qualityScore += 10;\n    qualityFactors.push('Specific entities mentioned');\n  }\n  \n  if (analysis.patterns?.effectiveness_indicators?.length > 2) {\n    qualityScore += 10;\n    qualityFactors.push('Multiple effectiveness indicators');\n  }\n  \n  if (extractedData.action_verbs?.length > 0) {\n    qualityScore += 10;\n    qualityFactors.push('Action-oriented language');\n  }\n  \n  analysis.quality_assessment = {\n    score: Math.min(qualityScore, 100),\n    factors: qualityFactors,\n    rating: qualityScore >= 80 ? 'Excellent' : qualityScore >= 60 ? 'Good' : qualityScore >= 40 ? 'Fair' : 'Needs Improvement'\n  };\n  \n  // Generate improvement suggestions\n  const suggestions = [];\n  \n  if (!extractedData.main_objective) {\n    suggestions.push('Add a clear statement of the main objective');\n  }\n  \n  if (!extractedData.expected_output?.format) {\n    suggestions.push('Specify the expected output format');\n  }\n  \n  if (extractedData.key_components?.length < 2) {\n    suggestions.push('Break down the request into specific components');\n  }\n  \n  if (!extractedData.constraints || extractedData.constraints.length === 0) {\n    suggestions.push('Consider adding constraints or limitations for more focused results');\n  }\n  \n  if (analysis.structure?.word_count < 20) {\n    suggestions.push('Provide more context and detail');\n  }\n  \n  if (analysis.structure?.word_count > 200) {\n    suggestions.push('Consider breaking this into multiple prompts for clarity');\n  }\n  \n  if (!analysis.patterns?.prompt_patterns?.includes('example-provision')) {\n    suggestions.push('Include examples to clarify expectations');\n  }\n  \n  analysis.improvement_suggestions = suggestions;\n  \n} catch (error) {\n  analysis.error = {\n    message: error.message,\n    details: 'Failed to analyze prompt'\n  };\n}\n\nreturn analysis;"
+      },
+      "id": "analyze_prompt",
+      "name": "Analyze Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO prompt_analysis (prompt_id, prompt_text, analysis_data, quality_score, created_at) VALUES (gen_random_uuid(), '{{ $json.prompt }}', '{{ JSON.stringify($json) }}', {{ $json.quality_assessment.score }}, '{{ $json.timestamp }}') RETURNING id",
+        "additionalFields": {}
+      },
+      "id": "store_analysis",
+      "name": "Store Analysis Results",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1250, 300],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "respond_webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1450, 300]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Manual Test Defaults",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Test Defaults": {
+      "main": [
+        [
+          {
+            "node": "Prepare Extraction Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Prepare Extraction Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Extraction Request": {
+      "main": [
+        [
+          {
+            "node": "Call Structured Data Extractor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Structured Data Extractor": {
+      "main": [
+        [
+          {
+            "node": "Analyze Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Prompt": {
+      "main": [
+        [
+          {
+            "node": "Store Analysis Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Analysis Results": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "prompt-analyzer-v1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "prompt-manager"
+  },
+  "id": "prompt-analyzer",
+  "tags": []
+}

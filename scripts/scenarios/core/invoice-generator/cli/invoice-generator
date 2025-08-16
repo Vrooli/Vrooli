@@ -1,0 +1,241 @@
+#!/bin/bash
+
+# Invoice Generator CLI
+# Professional invoice generation and management
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+API_URL="${API_URL:-http://localhost:${SERVICE_PORT:-8100}}"
+
+show_help() {
+    cat << EOF
+Invoice Generator CLI - Professional invoice management
+
+Usage: invoice-generator <command> [options]
+
+Commands:
+    create          Create a new invoice
+    list            List all invoices
+    get <id>        Get invoice details
+    status <id>     Update invoice status
+    clients         List all clients
+    add-client      Add a new client
+    help            Show this help message
+
+Examples:
+    invoice-generator create --client "Acme Corp" --items "Web Development:40:150"
+    invoice-generator list
+    invoice-generator get INV-2025-001
+    invoice-generator status INV-2025-001 --status paid
+
+Environment Variables:
+    API_URL         API server URL (default: http://localhost:8100)
+    SERVICE_PORT    API server port (default: 8100)
+
+EOF
+}
+
+create_invoice() {
+    local client_name=""
+    local items=""
+    local due_days=30
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --client)
+                client_name="$2"
+                shift 2
+                ;;
+            --items)
+                items="$2"
+                shift 2
+                ;;
+            --due-days)
+                due_days="$2"
+                shift 2
+                ;;
+            *)
+                echo "Unknown option: $1"
+                exit 1
+                ;;
+        esac
+    done
+    
+    if [[ -z "$client_name" ]]; then
+        echo "Error: --client is required"
+        exit 1
+    fi
+    
+    # Generate invoice data
+    local issue_date=$(date +%Y-%m-%d)
+    local due_date=$(date -d "+${due_days} days" +%Y-%m-%d)
+    local invoice_number="INV-$(date +%Y)-$(printf "%04d" $RANDOM)"
+    
+    # Parse items (format: description:quantity:unit_price)
+    local items_json="[]"
+    if [[ -n "$items" ]]; then
+        items_json=$(echo "$items" | awk -F':' '{
+            printf "{\"description\":\"%s\",\"quantity\":%s,\"unit_price\":%s}", $1, $2, $3
+        }')
+        items_json="[$items_json]"
+    fi
+    
+    local payload=$(cat <<EOF
+{
+    "invoice_number": "$invoice_number",
+    "issue_date": "$issue_date",
+    "due_date": "$due_date",
+    "status": "draft",
+    "currency": "USD",
+    "items": $items_json,
+    "notes": "Thank you for your business!"
+}
+EOF
+    )
+    
+    echo "Creating invoice..."
+    curl -s -X POST "$API_URL/api/invoices" \
+        -H "Content-Type: application/json" \
+        -d "$payload" | jq '.'
+}
+
+list_invoices() {
+    echo "Fetching invoices..."
+    curl -s "$API_URL/api/invoices" | jq -r '
+        ["Invoice Number", "Status", "Total", "Balance Due", "Client"],
+        ["-------------", "------", "-----", "-----------", "------"],
+        (.[] | [.invoice_number, .status, "$\(.total_amount)", "$\(.balance_due)", .client_name // "N/A"]) |
+        @tsv' | column -t -s $'\t'
+}
+
+get_invoice() {
+    local invoice_id="$1"
+    
+    if [[ -z "$invoice_id" ]]; then
+        echo "Error: Invoice ID required"
+        exit 1
+    fi
+    
+    echo "Fetching invoice $invoice_id..."
+    curl -s "$API_URL/api/invoices/$invoice_id" | jq '.'
+}
+
+update_status() {
+    local invoice_id="$1"
+    shift
+    
+    local status=""
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --status)
+                status="$2"
+                shift 2
+                ;;
+            *)
+                echo "Unknown option: $1"
+                exit 1
+                ;;
+        esac
+    done
+    
+    if [[ -z "$invoice_id" ]] || [[ -z "$status" ]]; then
+        echo "Error: Invoice ID and --status required"
+        exit 1
+    fi
+    
+    echo "Updating invoice $invoice_id status to $status..."
+    curl -s -X PUT "$API_URL/api/invoices/$invoice_id/status" \
+        -H "Content-Type: application/json" \
+        -d "{\"status\":\"$status\"}" | jq '.'
+}
+
+list_clients() {
+    echo "Fetching clients..."
+    curl -s "$API_URL/api/clients" | jq -r '
+        ["Name", "Email", "Phone", "City"],
+        ["----", "-----", "-----", "----"],
+        (.[] | [.name, .email // "N/A", .phone // "N/A", .city // "N/A"]) |
+        @tsv' | column -t -s $'\t'
+}
+
+add_client() {
+    local name=""
+    local email=""
+    local phone=""
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --name)
+                name="$2"
+                shift 2
+                ;;
+            --email)
+                email="$2"
+                shift 2
+                ;;
+            --phone)
+                phone="$2"
+                shift 2
+                ;;
+            *)
+                echo "Unknown option: $1"
+                exit 1
+                ;;
+        esac
+    done
+    
+    if [[ -z "$name" ]]; then
+        echo "Error: --name is required"
+        exit 1
+    fi
+    
+    local payload=$(cat <<EOF
+{
+    "name": "$name",
+    "email": "$email",
+    "phone": "$phone",
+    "is_active": true
+}
+EOF
+    )
+    
+    echo "Adding client..."
+    curl -s -X POST "$API_URL/api/clients" \
+        -H "Content-Type: application/json" \
+        -d "$payload" | jq '.'
+}
+
+# Main command handling
+case "${1:-}" in
+    create)
+        shift
+        create_invoice "$@"
+        ;;
+    list)
+        list_invoices
+        ;;
+    get)
+        shift
+        get_invoice "$@"
+        ;;
+    status)
+        shift
+        update_status "$@"
+        ;;
+    clients)
+        list_clients
+        ;;
+    add-client)
+        shift
+        add_client "$@"
+        ;;
+    help|--help|-h|"")
+        show_help
+        ;;
+    *)
+        echo "Unknown command: $1"
+        echo "Run 'invoice-generator help' for usage"
+        exit 1
+        ;;
+esac

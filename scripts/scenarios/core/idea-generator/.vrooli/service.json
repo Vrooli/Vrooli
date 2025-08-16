@@ -35,29 +35,34 @@
         "type": "n8n",
         "enabled": true,
         "required": true,
+        "shared_workflows": [
+          "ollama",
+          "embedding-generator",
+          "smart-semantic-search"
+        ],
         "initialization": [
           {
-            "file": "initialization/automation/n8n/idea-generation-workflow.json",
+            "file": "initialization/n8n/idea-generation-workflow.json",
             "type": "workflow"
           },
           {
-            "file": "initialization/automation/n8n/document-processing-pipeline.json",
+            "file": "initialization/n8n/document-processing-pipeline.json",
             "type": "workflow"
           },
           {
-            "file": "initialization/automation/n8n/agent-refinement-workflow.json",
+            "file": "initialization/n8n/agent-refinement-workflow.json",
             "type": "workflow"
           },
           {
-            "file": "initialization/automation/n8n/semantic-search-workflow.json",
+            "file": "initialization/n8n/semantic-search-workflow.json",
             "type": "workflow"
           },
           {
-            "file": "initialization/automation/n8n/campaign-sync-workflow.json",
+            "file": "initialization/n8n/campaign-sync-workflow.json",
             "type": "workflow"
           },
           {
-            "file": "initialization/automation/n8n/chat-refinement-workflow.json",
+            "file": "initialization/n8n/chat-refinement-workflow.json",
             "type": "workflow"
           }
         ]

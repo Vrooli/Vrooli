@@ -1,0 +1,244 @@
+{
+  "name": "RSS Feed Fetcher",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "rss-feed-fetcher",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 500]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "return {\n  feeds: [\n    {\n      name: 'BBC News',\n      url: 'http://feeds.bbci.co.uk/news/rss.xml',\n      category: 'general',\n      bias_rating: 'center'\n    },\n    {\n      name: 'CNN',\n      url: 'http://rss.cnn.com/rss/cnn_topstories.rss',\n      category: 'general',\n      bias_rating: 'center-left'\n    },\n    {\n      name: 'Fox News',\n      url: 'https://moxie.foxnews.com/google-publisher/latest.xml',\n      category: 'general',\n      bias_rating: 'right'\n    },\n    {\n      name: 'Reuters',\n      url: 'https://feeds.reuters.com/reuters/topNews',\n      category: 'general',\n      bias_rating: 'center'\n    },\n    {\n      name: 'The Guardian',\n      url: 'https://www.theguardian.com/world/rss',\n      category: 'world',\n      bias_rating: 'left'\n    }\n  ]\n};"
+      },
+      "id": "set_defaults",
+      "name": "Set Default Feeds",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [400, 500]
+    },
+    {
+      "parameters": {},
+      "id": "merge_triggers",
+      "name": "Merge Triggers",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [600, 400]
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "query": "SELECT id, name, url, category FROM feeds WHERE active = true",
+        "options": {}
+      },
+      "id": "get_active_feeds",
+      "name": "Get Active Feeds",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [800, 400],
+      "credentials": {
+        "postgres": {
+          "id": "1",
+          "name": "Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "id": "fetch_rss",
+      "name": "Fetch RSS Feed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1000, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const xml = $input.item.json.data;\nconst feedInfo = $node['Get Active Feeds'].json;\n\n// Parse RSS XML (simplified)\nconst items = [];\nconst itemMatches = xml.match(/<item[^>]*>([\\s\\S]*?)<\\/item>/gi) || [];\n\nfor (const itemXml of itemMatches.slice(0, 10)) {\n  const title = (itemXml.match(/<title><!\\[CDATA\\[([^\\]]*)]\\]><\\/title>/) || \n                 itemXml.match(/<title>([^<]*)<\\/title>/) || ['', ''])[1].trim();\n  const link = (itemXml.match(/<link>([^<]*)<\\/link>/) || ['', ''])[1].trim();\n  const pubDate = (itemXml.match(/<pubDate>([^<]*)<\\/pubDate>/) || ['', new Date().toISOString()])[1];\n  const description = (itemXml.match(/<description><!\\[CDATA\\[([^\\]]*)]\\]><\\/description>/) ||\n                      itemXml.match(/<description>([^<]*)<\\/description>/) || ['', ''])[1].trim();\n  \n  if (title && link) {\n    items.push({\n      id: 'article_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8),\n      title: title.substring(0, 500),\n      url: link,\n      source: feedInfo.name,\n      category: feedInfo.category,\n      published_at: new Date(pubDate).toISOString(),\n      summary: description.substring(0, 1000),\n      fetched_at: new Date().toISOString()\n    });\n  }\n}\n\nreturn items;"
+      },
+      "id": "parse_rss",
+      "name": "Parse RSS Items",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1200, 400]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "table": "articles",
+        "columns": "id,title,url,source,category,published_at,summary,fetched_at,bias_score,bias_analysis,perspective_count",
+        "options": {
+          "onConflict": "update"
+        }
+      },
+      "id": "save_articles",
+      "name": "Save Articles",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [1400, 400],
+      "credentials": {
+        "postgres": {
+          "id": "1",
+          "name": "Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const articles = $node['Parse RSS Items'].json;\n\nreturn {\n  success: true,\n  fetched_count: articles.length,\n  timestamp: new Date().toISOString(),\n  message: `Fetched ${articles.length} articles`\n};"
+      },
+      "id": "prepare_response",
+      "name": "Prepare Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1600, 400]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "respond_webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1800, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Merge Triggers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Default Feeds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Default Feeds": {
+      "main": [
+        [
+          {
+            "node": "Merge Triggers",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Triggers": {
+      "main": [
+        [
+          {
+            "node": "Get Active Feeds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Active Feeds": {
+      "main": [
+        [
+          {
+            "node": "Fetch RSS Feed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch RSS Feed": {
+      "main": [
+        [
+          {
+            "node": "Parse RSS Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse RSS Items": {
+      "main": [
+        [
+          {
+            "node": "Save Articles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Articles": {
+      "main": [
+        [
+          {
+            "node": "Prepare Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "rss-fetcher-v1",
+  "id": "rss-feed-fetcher",
+  "meta": {
+    "instanceId": "news-aggregator"
+  },
+  "tags": []
+}

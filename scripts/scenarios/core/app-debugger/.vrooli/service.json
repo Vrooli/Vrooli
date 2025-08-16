@@ -1,0 +1,231 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "parent": "vrooli",
+    "name": "app-debugger",
+    "displayName": "App Debugger",
+    "description": "AI-assisted debugging and performance profiling for generated apps with automated fix suggestions",
+    "version": "1.0.0",
+    "type": "business-application",
+    "category": "development",
+    "tags": [
+      "debugging",
+      "performance",
+      "profiling",
+      "error-analysis",
+      "ai-assistance",
+      "monitoring",
+      "automation"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "SERVICE_PORT",
+      "range": "8100-8199",
+      "fallback": "auto",
+      "description": "App debugger API port"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "range": "3100-3199",
+      "fallback": "auto",
+      "description": "App debugger UI port"
+    }
+  },
+  "resources": {
+    "storage": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store debug sessions, error patterns, fix history, and performance metrics",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "script"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": true,
+        "purpose": "Real-time log streaming, caching, and session state management"
+      }
+    },
+    "ai": {
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "models": ["phi3.5:3.8b", "codellama:7b", "llama3.2"],
+        "purpose": "AI-powered error analysis, code understanding, and fix generation"
+      }
+    },
+    "automation": {
+      "n8n": {
+        "type": "n8n",
+        "enabled": true,
+        "required": true,
+        "initialization": [
+          {
+            "file": "initialization/n8n/debug-orchestrator.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/error-analyzer.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/fix-suggester.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/log-monitor.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/performance-profiler.json",
+            "type": "workflow"
+          }
+        ],
+        "shared_workflows": [
+          "ollama.json",
+          "cache-manager.json",
+          "rate-limiter.json"
+        ]
+      }
+    }
+  },
+  "lifecycle": {
+    "version": "1.0.0",
+    "setup": {
+      "description": "Initialize App Debugger with database schema and debugging workflows",
+      "steps": [
+        {
+          "name": "base-setup",
+          "run": "bash scripts/lib/setup.sh",
+          "description": "Execute generic setup (e.g. network, system, git)"
+        },
+        {
+          "name": "add-data",
+          "run": "scripts/resources/injection/engine.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && chmod +x app-debugger && sudo cp app-debugger /usr/local/bin/",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o app-debugger-api main.go",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "setup-ui",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "verify-docker-access",
+          "run": "docker version > /dev/null && echo '✅ Docker access verified' || echo '❌ Docker access required for debugging'",
+          "description": "Verify Docker access for container debugging"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🔍 App Debugger initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${SERVICE_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: app-debugger --help'",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start app debugger with API server and UI",
+      "steps": [
+        {
+          "name": "start-api-server",
+          "run": "cd api && PORT=$SERVICE_PORT N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} POSTGRES_URL=postgres://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/app_debugger REDIS_URL=redis://localhost:${RESOURCE_PORTS[redis]} OLLAMA_URL=http://localhost:${RESOURCE_PORTS[ollama]} ./app-debugger-api &",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/app-debugger-api"
+          }
+        },
+        {
+          "name": "start-ui-server",
+          "run": "cd ui && PORT=$UI_PORT API_URL=http://localhost:$SERVICE_PORT node server.js &",
+          "description": "Start UI server in background",
+          "background": true
+        },
+        {
+          "name": "wait-for-services",
+          "run": "sleep 3 && curl -sf http://localhost:$SERVICE_PORT/health > /dev/null && curl -sf http://localhost:$UI_PORT > /dev/null",
+          "description": "Wait for services to be ready",
+          "retry": {
+            "max_attempts": 15,
+            "delay": 1
+          }
+        },
+        {
+          "name": "show-running-services",
+          "run": "echo '🔍 App Debugger running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:$SERVICE_PORT\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: app-debugger --help'",
+          "description": "Display all running service URLs"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test app debugger API, UI, and workflows",
+      "steps": [
+        {
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build main.go && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-debug-session",
+          "run": "curl -sf -X POST http://localhost:$SERVICE_PORT/api/debug/start -H 'Content-Type: application/json' -d '{\"app_name\":\"test-app\"}'",
+          "description": "Test starting a debug session"
+        },
+        {
+          "name": "test-cli-commands",
+          "run": "app-debugger --version && app-debugger help",
+          "description": "Test CLI commands"
+        },
+        {
+          "name": "test-ui-response",
+          "run": "curl -sf http://localhost:$UI_PORT",
+          "description": "Test UI server response"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop app debugger services",
+      "steps": [
+        {
+          "name": "stop-api-server",
+          "run": "pkill -f 'app-debugger-api' || true",
+          "description": "Stop Go API server processes"
+        },
+        {
+          "name": "stop-ui-server",
+          "run": "pkill -f 'node server.js' || true",
+          "description": "Stop UI server processes"
+        },
+        {
+          "name": "confirm-stop",
+          "run": "echo '🛑 App Debugger services stopped'",
+          "description": "Confirm services stopped"
+        }
+      ]
+    }
+  }
+}

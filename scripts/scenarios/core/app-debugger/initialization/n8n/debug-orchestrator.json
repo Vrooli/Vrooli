@@ -1,0 +1,271 @@
+{
+  "name": "App Debugger - Debug Orchestrator",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "debug-orchestrator",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 500]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Test defaults for manual trigger\nreturn {\n  app_name: 'test-app',\n  debug_type: 'full',\n  include_logs: true,\n  include_performance: true,\n  include_errors: true\n};"
+      },
+      "id": "set_test_defaults",
+      "name": "Set Test Defaults",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [400, 500]
+    },
+    {
+      "parameters": {},
+      "id": "merge_triggers",
+      "name": "Merge Triggers",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [600, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Extract and validate input parameters\nconst input = $input.item.json;\n\nif (!input.app_name) {\n  throw new Error('app_name is required');\n}\n\nconst debugType = input.debug_type || 'full';\nconst includeLogs = input.include_logs !== false;\nconst includePerformance = input.include_performance !== false;\nconst includeErrors = input.include_errors !== false;\n\nreturn {\n  app_name: input.app_name,\n  debug_type: debugType,\n  include_logs: includeLogs,\n  include_performance: includePerformance,\n  include_errors: includeErrors,\n  timestamp: new Date().toISOString(),\n  session_id: 'debug_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8)\n};"
+      },
+      "id": "prepare_debug_session",
+      "name": "Prepare Debug Session",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [800, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5678/webhook/log-monitor",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "app_name",
+              "value": "={{ $json.app_name }}"
+            },
+            {
+              "name": "session_id",
+              "value": "={{ $json.session_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "get_logs",
+      "name": "Get Logs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1000, 300],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5678/webhook/performance-profiler",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "app_name",
+              "value": "={{ $('prepare_debug_session').item.json.app_name }}"
+            },
+            {
+              "name": "session_id",
+              "value": "={{ $('prepare_debug_session').item.json.session_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "get_performance",
+      "name": "Get Performance",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1000, 450],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5678/webhook/error-analyzer",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "app_name",
+              "value": "={{ $('prepare_debug_session').item.json.app_name }}"
+            },
+            {
+              "name": "session_id",
+              "value": "={{ $('prepare_debug_session').item.json.session_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "analyze_errors",
+      "name": "Analyze Errors",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1000, 600],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineAll"
+      },
+      "id": "combine_results",
+      "name": "Combine Results",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [1200, 450]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Combine all debug results\nconst sessionInfo = $('prepare_debug_session').item.json;\nconst logs = $('get_logs').item?.json || { error: 'Failed to fetch logs' };\nconst performance = $('get_performance').item?.json || { error: 'Failed to fetch performance data' };\nconst errors = $('analyze_errors').item?.json || { error: 'Failed to analyze errors' };\n\n// Build comprehensive debug report\nconst report = {\n  session_id: sessionInfo.session_id,\n  app_name: sessionInfo.app_name,\n  debug_type: sessionInfo.debug_type,\n  timestamp: sessionInfo.timestamp,\n  results: {\n    logs: sessionInfo.include_logs ? logs : null,\n    performance: sessionInfo.include_performance ? performance : null,\n    errors: sessionInfo.include_errors ? errors : null\n  },\n  summary: {\n    has_errors: errors.error_count > 0,\n    performance_issues: performance.issues?.length > 0,\n    recommendations: []\n  }\n};\n\n// Generate recommendations based on findings\nif (errors.error_count > 0) {\n  report.summary.recommendations.push('Critical errors detected - review error analysis');\n}\nif (performance.cpu_usage > 80) {\n  report.summary.recommendations.push('High CPU usage detected - consider optimization');\n}\nif (performance.memory_usage > 80) {\n  report.summary.recommendations.push('High memory usage detected - check for memory leaks');\n}\n\nreturn report;"
+      },
+      "id": "build_report",
+      "name": "Build Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1400, 450]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5678/webhook/ollama",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "prompt",
+              "value": "=Analyze this debug report and provide actionable insights:\n\n{{ JSON.stringify($json.results) }}\n\nProvide:\n1. Root cause analysis\n2. Specific fix recommendations\n3. Prevention strategies"
+            },
+            {
+              "name": "model",
+              "value": "codellama:7b"
+            },
+            {
+              "name": "type",
+              "value": "reasoning"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ai_analysis",
+      "name": "AI Analysis",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1600, 450],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Combine report with AI analysis\nconst report = $('build_report').item.json;\nconst aiAnalysis = $('ai_analysis').item?.json || { error: 'AI analysis failed' };\n\nreturn {\n  ...report,\n  ai_insights: aiAnalysis,\n  status: 'completed',\n  completed_at: new Date().toISOString()\n};"
+      },
+      "id": "final_report",
+      "name": "Final Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1800, 450]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "success"
+            },
+            {
+              "name": "message",
+              "value": "Debug session completed"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "respond_to_webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [2000, 300]
+    }
+  ],
+  "connections": {
+    "webhook_trigger": {
+      "main": [[{ "node": "merge_triggers", "type": "main", "index": 0 }]]
+    },
+    "manual_trigger": {
+      "main": [[{ "node": "set_test_defaults", "type": "main", "index": 0 }]]
+    },
+    "set_test_defaults": {
+      "main": [[{ "node": "merge_triggers", "type": "main", "index": 1 }]]
+    },
+    "merge_triggers": {
+      "main": [[{ "node": "prepare_debug_session", "type": "main", "index": 0 }]]
+    },
+    "prepare_debug_session": {
+      "main": [[
+        { "node": "get_logs", "type": "main", "index": 0 },
+        { "node": "get_performance", "type": "main", "index": 0 },
+        { "node": "analyze_errors", "type": "main", "index": 0 }
+      ]]
+    },
+    "get_logs": {
+      "main": [[{ "node": "combine_results", "type": "main", "index": 0 }]]
+    },
+    "get_performance": {
+      "main": [[{ "node": "combine_results", "type": "main", "index": 1 }]]
+    },
+    "analyze_errors": {
+      "main": [[{ "node": "combine_results", "type": "main", "index": 2 }]]
+    },
+    "combine_results": {
+      "main": [[{ "node": "build_report", "type": "main", "index": 0 }]]
+    },
+    "build_report": {
+      "main": [[{ "node": "ai_analysis", "type": "main", "index": 0 }]]
+    },
+    "ai_analysis": {
+      "main": [[{ "node": "final_report", "type": "main", "index": 0 }]]
+    },
+    "final_report": {
+      "main": [[{ "node": "respond_to_webhook", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1.0.0",
+  "id": "debug-orchestrator",
+  "meta": {
+    "instanceId": "app-debugger"
+  },
+  "tags": []
+}

@@ -228,6 +228,10 @@ func main() {
 	// Templates
 	api.HandleFunc("/templates", server.getTemplates).Methods("GET")
 	api.HandleFunc("/templates/{id}", server.getTemplate).Methods("GET")
+	
+	// N8N Workflow Integration endpoints
+	api.HandleFunc("/enhance", server.enhancePrompt).Methods("POST")
+	api.HandleFunc("/campaigns/manage", server.manageCampaignViaWorkflow).Methods("POST")
 
 	log.Printf("🚀 Prompt Manager API starting on port %s", port)
 	log.Printf("🗄️  Database: %s", postgresURL)
@@ -817,4 +821,77 @@ func (s *APIServer) getTemplates(w http.ResponseWriter, r *http.Request) {
 
 func (s *APIServer) getTemplate(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// N8N Workflow Integration Handlers
+func (s *APIServer) enhancePrompt(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Prompt           string `json:"prompt"`
+		EnhancementType  string `json:"enhancement_type"`
+		Context          string `json:"context"`
+		TargetAudience   string `json:"target_audience"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Call n8n webhook for prompt enhancement
+	n8nURL := os.Getenv("N8N_URL")
+	if n8nURL == "" {
+		n8nURL = "http://localhost:5678"
+	}
+
+	webhookURL := fmt.Sprintf("%s/webhook/prompt-enhancer-webhook", n8nURL)
+	
+	payload, _ := json.Marshal(req)
+	resp, err := http.Post(webhookURL, "application/json", strings.NewReader(string(payload)))
+	if err != nil {
+		http.Error(w, "Failed to enhance prompt", http.StatusInternalServerError)
+		return
+	}
+	defer resp.Body.Close()
+
+	var result map[string]interface{}
+	json.NewDecoder(resp.Body).Decode(&result)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(result)
+}
+
+func (s *APIServer) manageCampaignViaWorkflow(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Action       string   `json:"action"`
+		CampaignName string   `json:"campaign_name"`
+		Prompts      []string `json:"prompts"`
+		SearchQuery  string   `json:"search_query"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Call n8n webhook for campaign management
+	n8nURL := os.Getenv("N8N_URL")
+	if n8nURL == "" {
+		n8nURL = "http://localhost:5678"
+	}
+
+	webhookURL := fmt.Sprintf("%s/webhook/campaign-manager-webhook", n8nURL)
+	
+	payload, _ := json.Marshal(req)
+	resp, err := http.Post(webhookURL, "application/json", strings.NewReader(string(payload)))
+	if err != nil {
+		http.Error(w, "Failed to manage campaign", http.StatusInternalServerError)
+		return
+	}
+	defer resp.Body.Close()
+
+	var result map[string]interface{}
+	json.NewDecoder(resp.Body).Decode(&result)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(result)
 }

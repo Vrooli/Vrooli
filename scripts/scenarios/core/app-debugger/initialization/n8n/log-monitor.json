@@ -1,0 +1,176 @@
+{
+  "name": "App Debugger - Log Monitor",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "log-monitor",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 500]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "return {\n  app_name: 'test-app',\n  log_type: 'docker',\n  lines: 100,\n  filter: 'ERROR'\n};"
+      },
+      "id": "set_test_defaults",
+      "name": "Set Test Defaults",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [400, 500]
+    },
+    {
+      "parameters": {},
+      "id": "merge_triggers",
+      "name": "Merge Triggers",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [600, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const input = $input.item.json;\n\nconst appName = input.app_name || 'unknown';\nconst logType = input.log_type || 'docker';\nconst lines = input.lines || 50;\nconst filter = input.filter || '';\n\n// Build log retrieval command\nlet command = '';\nif (logType === 'docker') {\n  command = `docker logs --tail ${lines} ${appName} 2>&1`;\n  if (filter) {\n    command += ` | grep -i '${filter}'`;\n  }\n} else if (logType === 'file') {\n  const logPath = input.log_path || `/tmp/${appName}.log`;\n  command = `tail -n ${lines} ${logPath}`;\n  if (filter) {\n    command += ` | grep -i '${filter}'`;\n  }\n} else if (logType === 'systemd') {\n  command = `journalctl -u ${appName} -n ${lines} --no-pager`;\n  if (filter) {\n    command += ` | grep -i '${filter}'`;\n  }\n}\n\nreturn {\n  command: command,\n  app_name: appName,\n  log_type: logType,\n  timestamp: new Date().toISOString()\n};"
+      },
+      "id": "build_command",
+      "name": "Build Command",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [800, 400]
+    },
+    {
+      "parameters": {
+        "command": "={{ $json.command }}",
+        "options": {}
+      },
+      "id": "fetch_logs",
+      "name": "Fetch Logs",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1000, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const logs = $input.item.json.stdout || '';\nconst metadata = $('Build Command').item.json;\n\n// Parse logs for patterns\nconst lines = logs.split('\\n').filter(l => l.trim());\nconst errors = [];\nconst warnings = [];\nconst patterns = {\n  error: /error|exception|failed|fatal/i,\n  warning: /warn|warning|deprecated/i,\n  stackTrace: /^\\s+at\\s+/,\n  timestamp: /^\\d{4}-\\d{2}-\\d{2}[T\\s]\\d{2}:\\d{2}:\\d{2}/\n};\n\nlines.forEach((line, index) => {\n  if (patterns.error.test(line)) {\n    // Capture error with context\n    const context = lines.slice(Math.max(0, index - 2), Math.min(lines.length, index + 3));\n    errors.push({\n      line: line,\n      line_number: index + 1,\n      context: context.join('\\n')\n    });\n  } else if (patterns.warning.test(line)) {\n    warnings.push({\n      line: line,\n      line_number: index + 1\n    });\n  }\n});\n\n// Create summary\nconst summary = {\n  app_name: metadata.app_name,\n  log_type: metadata.log_type,\n  timestamp: metadata.timestamp,\n  total_lines: lines.length,\n  error_count: errors.length,\n  warning_count: warnings.length,\n  errors: errors.slice(0, 10),\n  warnings: warnings.slice(0, 10),\n  raw_logs: logs.substring(0, 5000)\n};\n\nreturn summary;"
+      },
+      "id": "analyze_logs",
+      "name": "Analyze Logs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1200, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.error_count }}",
+              "operation": "larger",
+              "value2": 0
+            }
+          ]
+        }
+      },
+      "id": "check_errors",
+      "name": "Check for Errors",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1400, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5678/webhook/error-analyzer",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "app_name",
+              "value": "={{ $json.app_name }}"
+            },
+            {
+              "name": "error_message",
+              "value": "={{ $json.errors[0].line }}"
+            },
+            {
+              "name": "stack_trace",
+              "value": "={{ $json.errors[0].context }}"
+            },
+            {
+              "name": "context",
+              "value": "={{ JSON.stringify({log_type: $json.log_type, timestamp: $json.timestamp}) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "trigger_analysis",
+      "name": "Trigger Error Analysis",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1600, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json, null, 2) }}",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1800, 400]
+    }
+  ],
+  "connections": {
+    "webhook_trigger": {
+      "main": [[{"node": "merge_triggers", "type": "main", "index": 0}]]
+    },
+    "manual_trigger": {
+      "main": [[{"node": "set_test_defaults", "type": "main", "index": 0}]]
+    },
+    "set_test_defaults": {
+      "main": [[{"node": "merge_triggers", "type": "main", "index": 1}]]
+    },
+    "merge_triggers": {
+      "main": [[{"node": "build_command", "type": "main", "index": 0}]]
+    },
+    "build_command": {
+      "main": [[{"node": "fetch_logs", "type": "main", "index": 0}]]
+    },
+    "fetch_logs": {
+      "main": [[{"node": "analyze_logs", "type": "main", "index": 0}]]
+    },
+    "analyze_logs": {
+      "main": [[{"node": "check_errors", "type": "main", "index": 0}]]
+    },
+    "check_errors": {
+      "main": [
+        [{"node": "trigger_analysis", "type": "main", "index": 0}],
+        [{"node": "respond", "type": "main", "index": 0}]
+      ]
+    },
+    "trigger_analysis": {
+      "main": [[{"node": "respond", "type": "main", "index": 0}]]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "id": "app-debugger-log-monitor"
+}
