@@ -1,6 +1,6 @@
 {
   "version": "2.0",
-  "last_updated": "2025-01-08",
+  "last_updated": "2025-01-17",
   "scenarios": [
     {
       "name": "scenario-generator-v1",
@@ -196,6 +196,60 @@
       "description": "Semantic file and photo management with AI-powered organization suggestions",
       "location": "core/smart-file-photo-manager",
       "category": "saas-applications",
+      "validated": false,
+      "enabled": true,
+      "ui": true
+    },
+    {
+      "name": "study-buddy",
+      "description": "AI-powered study assistant with flashcards, quizzes, and spaced repetition learning",
+      "location": "core/study-buddy",
+      "category": "saas-applications",
+      "validated": false,
+      "enabled": true,
+      "ui": true
+    },
+    {
+      "name": "typing-test",
+      "description": "Interactive typing speed and accuracy test with progress tracking",
+      "location": "core/typing-test",
+      "category": "saas-applications",
+      "validated": false,
+      "enabled": true,
+      "ui": true
+    },
+    {
+      "name": "qr-code-generator",
+      "description": "AI-enhanced QR code generator with custom designs and batch processing",
+      "location": "core/qr-code-generator",
+      "category": "saas-applications",
+      "validated": false,
+      "enabled": true,
+      "ui": true
+    },
+    {
+      "name": "invoice-generator",
+      "description": "Professional invoice creation with payment tracking and recurring billing",
+      "location": "core/invoice-generator",
+      "category": "saas-applications",
+      "validated": false,
+      "enabled": true,
+      "ui": true
+    },
+    {
+      "name": "news-aggregator-bias-analysis",
+      "description": "News aggregation with AI-powered bias detection and fact-checking",
+      "location": "core/news-aggregator-bias-analysis",
+      "category": "saas-applications",
+      "validated": false,
+      "enabled": true,
+      "ui": true
+    },
+    {
+      "name": "app-debugger",
+      "description": "AI-assisted debugging and performance profiling for generated apps",
+      "location": "core/app-debugger",
+      "category": "vrooli-helpers",
       "validated": false,
       "enabled": true,
       "ui": true
