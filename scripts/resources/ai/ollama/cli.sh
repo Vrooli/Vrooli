@@ -53,11 +53,11 @@ cli::init "ollama" "Ollama AI inference server management"
 cli::register_command "help" "Show this help message with examples" "ollama_show_help"
 
 # Register core commands - direct library function calls
-cli::register_command "install" "Install Ollama" "ollama::install" "modifies-system"
-cli::register_command "uninstall" "Uninstall Ollama" "ollama::uninstall" "modifies-system"
-cli::register_command "start" "Start Ollama" "ollama::start" "modifies-system"
-cli::register_command "stop" "Stop Ollama" "ollama::stop" "modifies-system"
-cli::register_command "restart" "Restart Ollama" "ollama::restart" "modifies-system"
+cli::register_command "install" "Install Ollama" "ollama_install" "modifies-system"
+cli::register_command "uninstall" "Uninstall Ollama" "ollama_uninstall" "modifies-system"
+cli::register_command "start" "Start Ollama" "ollama_start" "modifies-system"
+cli::register_command "stop" "Stop Ollama" "ollama_stop" "modifies-system"
+cli::register_command "restart" "Restart Ollama" "ollama_restart" "modifies-system"
 
 # Register status and monitoring commands
 cli::register_command "status" "Show service status" "ollama::status"
@@ -66,15 +66,15 @@ cli::register_command "test" "Test service functionality" "ollama::test"
 cli::register_command "info" "Show service information" "ollama::info"
 
 # Register model management commands
-cli::register_command "list-models" "List installed models" "ollama::list_models"
-cli::register_command "pull-model" "Pull a model from registry" "ollama::cli_pull_model"
-cli::register_command "show-model" "Show details about a model" "ollama::cli_show_model"
-cli::register_command "remove-model" "Remove a model" "ollama::cli_remove_model" "modifies-system"
+cli::register_command "list-models" "List installed models" "ollama_list_models"
+cli::register_command "pull-model" "Pull a model from registry" "ollama_pull_model"
+cli::register_command "show-model" "Show details about a model" "ollama_show_model"
+cli::register_command "remove-model" "Remove a model" "ollama_remove_model" "modifies-system"
 
 # Register AI interaction commands
-cli::register_command "chat" "Start interactive chat with a model" "ollama::cli_chat"
-cli::register_command "generate" "Generate text using a model" "ollama::cli_generate"
-cli::register_command "send-prompt" "Send prompt to model" "ollama::cli_send_prompt"
+cli::register_command "chat" "Start interactive chat with a model" "ollama_chat"
+cli::register_command "generate" "Generate text using a model" "ollama_generate"
+cli::register_command "send-prompt" "Send prompt to model" "ollama_generate"
 
 ################################################################################
 # Resource-specific command implementations

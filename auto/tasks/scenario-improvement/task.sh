@@ -6,7 +6,8 @@
 set -euo pipefail
 
 LOOP_TASK="scenario-improvement"
-TASK_PROMPTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")"/../prompts && pwd)"
+TASK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TASK_PROMPTS_DIR="${TASK_DIR}/prompts"
 
 # Candidates in priority order
 task_prompt_candidates() {
@@ -28,9 +29,9 @@ task_build_helper_context() {
 task_build_prompt() {
 	local base="$1"; local summary="$2"; local helper="$3"
 	if [[ -n "$summary" ]]; then
-		echo -e "Context summary from previous runs:\n${summary}\n\n${helper}\n\n${ULTRA_THINK_PREFIX}${base}"
+		printf '%s\n\n%s\n\n%s\n\n%s' "Context summary from previous runs:" "$summary" "$helper" "${ULTRA_THINK_PREFIX}${base}"
 	else
-		echo -e "${helper}\n\n${ULTRA_THINK_PREFIX}${base}"
+		printf '%s\n\n%s' "$helper" "${ULTRA_THINK_PREFIX}${base}"
 	fi
 }
 

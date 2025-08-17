@@ -5,4 +5,8 @@
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-exec "${SCRIPT_DIR}/task-manager.sh" --task scenario-improvement "${@:-run-loop}"
+if (($#)); then
+	exec "${SCRIPT_DIR}/task-manager.sh" --task scenario-improvement "$@"
+else
+	exec "${SCRIPT_DIR}/task-manager.sh" --task scenario-improvement run-loop
+fi

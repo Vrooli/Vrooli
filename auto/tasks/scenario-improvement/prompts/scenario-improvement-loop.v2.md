@@ -3,8 +3,8 @@
 ### TL;DR — One Iteration in 5 Steps
 
 1) Select ONE scenario in `scripts/scenarios/core/` using the selection tools:
-   - Recommend: `auto/tools/scenario-recommend.sh` (respects cooldown; optional GOALS, K)
-   - Record pick: `auto/tools/scenario-select.sh <name>`
+   - Recommend: `auto/tools/selection/scenario-recommend.sh` (respects cooldown; optional GOALS, K)
+   - Record pick: `auto/tools/selection/scenario-select.sh <name>`
 2) Investigate the current status of the scenario, in terms of file structure, code completeness, and accuracy to the scenario's purpose.
 3) Think deeply on how this scenario fits into Vrooli, and what ways it might help other scenarios.
 4) Think deeply on what it takes to properly implement this scenario, especially in relation to leveraging shared resources and the CLI of other scenarios.
@@ -13,7 +13,7 @@
 7) If a gate fails twice, stop, capture diagnostics, and defer heavier changes.
 8) Append ≤10 lines to `/tmp/vrooli-scenario-improvement.md` (schema below).
 
-Use `auto/prompts/cheatsheet.md` for metrics and jq helpers. Read `auto/data/scenario-summary.txt` (if present) before deciding.
+Use `auto/tasks/scenario-improvement/prompts/cheatsheet.md` for metrics and jq helpers. Read `auto/data/scenario-improvement/summary.txt` (if present) before deciding.
 
 ---
 
@@ -39,16 +39,16 @@ Use `auto/prompts/cheatsheet.md` for metrics and jq helpers. Read `auto/data/sce
 - ❌ Do NOT use git commands except `git status`/`git diff` for inspection.
 - ❌ Avoid `vrooli develop` unless you identify and mitigate the CPU issue first.
 
-> Note: Operational commands, workarounds, and jq helpers are in `auto/prompts/cheatsheet.md`.
+> Note: Operational commands, workarounds, and jq helpers are in `auto/tasks/scenario-improvement/prompts/cheatsheet.md`.
 
 ---
 
 ### 🧭 Scenario Selection — Highly Recommended Flow
 
 Always prefer the selection tools to choose what to work on:
-- Recommend top-K with cooldown: `K=5 GOALS="n8n reliability, UI variety" auto/tools/scenario-recommend.sh`
+- Recommend top-K with cooldown: `K=5 GOALS="n8n reliability, UI variety" auto/tools/selection/scenario-recommend.sh`
   - Cooldown is derived from `MAX_CONCURRENT_WORKERS` to avoid agents colliding on the same scenarios.
-- Record your pick: `auto/tools/scenario-select.sh <scenario>`
+- Record your pick: `auto/tools/selection/scenario-select.sh <scenario>`
 
 Then apply the rubric to break ties or justify a different choice:
 1) Highest cross-scenario impact (e.g., adopting shared workflows) with low risk
@@ -57,7 +57,7 @@ Then apply the rubric to break ties or justify a different choice:
 4) Clear, incremental UI/UX or init structure improvements that increase reliability
 
 Before choosing, read:
-- `auto/data/scenario-summary.txt` if present
+- `auto/data/scenario-improvement/summary.txt` if present
 - `scripts/scenarios/catalog.json`
 - `scripts/scenarios/README.md`
 - `scripts/scenarios/tools/app-structure.json`
@@ -71,14 +71,14 @@ Perform exactly these steps:
    - Confirm structure: `.vrooli/service.json`, `initialization/`, `ui/`, tests, etc.
    - Identify the smallest high-value change aligned with the rubric.
 
-2) Make ONE minimal change
+2) Make ONE minimal change (can be across multiple files, but the changes must all be related)
    - Keep edits within `scripts/scenarios/core/<scenario>/...`
    - Prefer adopting a shared workflow over adding bespoke logic
    - If you must add a new shared workflow, place it in `initialization/n8n/` and document why it’s reusable
 
 3) Validate (all gates must pass)
    - Convert: `vrooli scenario convert <name> --force`
-   - Start: `vrooli scenario start <name>` (stop with Ctrl+C from same terminal)
+   - Start: `vrooli app start <name>` (stop with Ctrl+C from same terminal)
    - Verify:
      - API/CLI outputs match expectations, and/or
      - Browserless screenshot shows the expected UI state
@@ -104,23 +104,25 @@ All three must be satisfied for success:
 ---
 
 ### 🔁 Browserless + n8n Workaround
-If n8n webhooks/api are unreliable, run via Browserless instead of using n8n API directly. Use environment variables for credentials/configuration. Do not commit secrets.
-
-Example (conceptual):
+If n8n webhooks/api are unreliable, run via Browserless instead of using n8n API directly. Example:
 ```bash
 export N8N_EMAIL="$N8N_EMAIL"
 export N8N_PASSWORD="$N8N_PASSWORD"
 vrooli resource browserless execute-workflow "<workflowId>" http://localhost:5678 60000 '{"text":"test"}'
 ```
-Prefer calling the shared `ollama.json` workflow over direct Ollama API calls. Prefer calling resources using bash (see `ollama.json`'s implementation for reference) over API calls, as this is known from experience to be a better approach.
+Use environment variables for credentials/configuration. Do not commit secrets.
+
+**NOTE:** You cannot run a workflow unless it is injected and activated by n8n, which happens automatically (at least it should) by running `vrooli scenario convert <scenario-name> --force`, followed by `vrooli scenario start <scenario-name>`. You must then use the n8n resource (see `vrooli resource n8n help`) to list workflows and find the workflow ID, which is needed for the browserless execute-workflow command.
+
+NOTE 2: Prefer calling the shared `ollama.json` workflow over direct Ollama API calls. Prefer calling resources using bash (see `ollama.json`'s implementation for reference) over API calls, as this is known from experience to be a better approach.
 
 ---
 
 ### 📚 Tools & References
 - Selection tools (use these first):
-  - `auto/tools/scenario-recommend.sh` — recommends top-K with cooldown; honors `MAX_CONCURRENT_WORKERS`, optional `GOALS`, `K`
-  - `auto/tools/scenario-select.sh <name>` — records your pick in the events ledger
-- Metrics, jq helpers: `auto/prompts/cheatsheet.md`
+  - `auto/tools/selection/scenario-recommend.sh` — recommends top-K with cooldown; honors `MAX_CONCURRENT_WORKERS`, optional `GOALS`, `K`
+  - `auto/tools/selection/scenario-select.sh <name>` — records your pick in the events ledger
+- Metrics, jq helpers: `auto/tasks/scenario-improvement/prompts/cheatsheet.md`
 - Loop artifacts:
   - Events ledger: `auto/data/scenario-improvement/events.ndjson`
   - Summaries: `auto/data/scenario-improvement/summary.json`, `auto/data/scenario-improvement/summary.txt`
@@ -130,7 +132,7 @@ Prefer calling the shared `ollama.json` workflow over direct Ollama API calls. P
   - `scripts/scenarios/tools/app-structure.json`
 - Project context: `docs/context.md`
 
-Before each iteration, skim `auto/data/scenario-summary.txt` if present to learn from recent results.
+Before each iteration, skim `auto/data/scenario-improvement/summary.txt` if present to learn from recent results.
 
 ---
 
@@ -239,7 +241,7 @@ This appendix preserves important specifics from the original prompt while keepi
   - See `initialization/n8n/README.md` for details.
 
 ### When to add a new scenario (curated list)
-If existing scenarios are structurally sound and validated, you may add one from this list:
+If all existing scenarios are structurally sound and validated (very unlikely at this stage of the app!), you may add one from this list (if it hasn't already been added):
 - stream-of-consciousness-analyzer to convert unstructured text/voice to organized notes. Organized by "campaign", where each one allows me to add notes and documents as context to guide the agent that organizes the thoughts
 - agent-dashboard to manage all active agents (e.g. huginn, claude-code, agent-s2)
 - ci-cd-healer to fix CI/CD pipelines (you are FORBIDDEN from testing this one or touching any of our CI/CD cod)

@@ -21,7 +21,7 @@ if [[ "${1:-}" == "--prompt" ]]; then
 fi
 CMD="${1:-run-loop}"; shift || true
 
-TASK_FILE="${TASKS_DIR}/${TASK_NAME}.sh"
+TASK_FILE="${TASKS_DIR}/${TASK_NAME}/task.sh"
 if [[ ! -f "$TASK_FILE" ]]; then
 	echo "FATAL: Task module not found: $TASK_FILE" >&2
 	exit 1

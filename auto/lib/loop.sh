@@ -42,7 +42,7 @@ MAX_TURNS=${MAX_TURNS:-25}
 TIMEOUT=${TIMEOUT:-1800}
 MAX_CONCURRENT_WORKERS=${MAX_CONCURRENT_WORKERS:-5}
 MAX_TCP_CONNECTIONS=${MAX_TCP_CONNECTIONS:-15}
-LOOP_TCP_FILTER="${LOOP_TCP_FILTER:-claude|anthropic|443}"
+LOOP_TCP_FILTER="${LOOP_TCP_FILTER:-}"
 OLLAMA_SUMMARY_MODEL="${OLLAMA_SUMMARY_MODEL:-llama3.2:3b}"
 ULTRA_THINK_PREFIX="${ULTRA_THINK_PREFIX:-Ultra think. }"
 ALLOWED_TOOLS="${ALLOWED_TOOLS:-Read,Write,Edit,Bash,LS,Glob,Grep}"
@@ -109,12 +109,17 @@ update_summary_files() {
 	fi
 	# Optional NL summary via Ollama
 	if command -v resource-ollama >/dev/null 2>&1 && [[ -s "$SUMMARY_JSON" ]]; then
-		local p; p=$(mktemp -p "$TMP_DIR")
-		{
-			printf "Summarize this task metrics in 5-10 lines. Be concise.\nJSON:\n"; cat "$SUMMARY_JSON"
-		} > "$p"
-		resource-ollama generate "$OLLAMA_SUMMARY_MODEL" "$(cat "$p")" > "$SUMMARY_TXT" 2>/dev/null || true
-		rm -f "$p"
+		# Quick health/model check; skip if not healthy
+		if resource-ollama info >/dev/null 2>&1 || resource-ollama list-models >/dev/null 2>&1; then
+			local p; p=$(mktemp -p "$TMP_DIR")
+			{
+				printf "Summarize this task metrics in 5-10 lines. Be concise.\nJSON:\n"; cat "$SUMMARY_JSON"
+			} > "$p"
+			if OUT=$(resource-ollama generate "$OLLAMA_SUMMARY_MODEL" "$(cat "$p")" 2>/dev/null); then
+				printf '%s\n' "$OUT" > "$SUMMARY_TXT"
+			fi
+			rm -f "$p"
+		fi
 	fi
 	rm -f "$tmp_input" 2>/dev/null || true
 }
@@ -185,10 +190,14 @@ select_prompt() {
 check_worker_available() {
 	local missing=()
 	command -v timeout >/dev/null 2>&1 || missing+=(timeout)
-	if declare -F task_check_worker_available >/dev/null 2>&1; then task_check_worker_available || missing+=(worker); fi
-	if ((${#missing[@]})); then log_with_timestamp "WARNING: Missing tools: ${missing[*]}"; fi
-	# still proceed if core tools exist
-	command -v timeout >/dev/null 2>&1
+	if declare -F task_check_worker_available >/dev/null 2>&1; then
+		if ! task_check_worker_available; then missing+=(worker); fi
+	fi
+	if ((${#missing[@]})); then
+		log_with_timestamp "WARNING: Missing tools: ${missing[*]}"
+		return 1
+	fi
+	return 0
 }
 
 prepare_worker_env() {
@@ -239,26 +248,31 @@ run_iteration() {
 	[[ -r "$prompt_path" ]] || { log_with_timestamp "ERROR: Prompt not readable: $prompt_path"; return 1; }
 	local full_prompt; full_prompt=$(compose_prompt "$prompt_path")
 	prepare_worker_env
-	local start; start=$(date +%s)
+	# Launch a wrapper subshell in background; run the pipeline in foreground within the subshell
 	(
 		set +e
 		trap '' EXIT
+		local start; start=$(date +%s)
 		local tmp_out; tmp_out=$(mktemp -p "$TMP_DIR" "${LOOP_TASK}-${iter}-XXXX.log")
-		# Launch worker with timeout in background and capture wrapper PID
-		timeout --kill-after=30 "$TIMEOUT" resource-claude-code run "$full_prompt" 2>&1 | tee "$tmp_out" &
-		local worker_pid=$!
-		# Record worker PID and start event now
-		append_worker_pid "$worker_pid"
-		emit_start_event "$prompt_path" "$iter" "$worker_pid"
-		# Wait for worker to finish
-		wait "$worker_pid" 2>/dev/null; local exitc=$?
+		# Run worker pipeline in foreground; capture the exit code of timeout (the first command)
+		timeout --kill-after=30 "$TIMEOUT" resource-claude-code run "$full_prompt" 2>&1 | tee "$tmp_out"
+		local exitc=${PIPESTATUS[0]}
 		local end; end=$(date +%s); local dur=$((end-start))
-		if [[ $exitc -eq 0 ]]; then log_with_timestamp "Iteration #$iter succeeded in ${dur}s"; elif [[ $exitc -eq 124 ]]; then log_with_timestamp "Iteration #$iter timed out in ${dur}s"; else log_with_timestamp "Iteration #$iter failed (exit=$exitc) in ${dur}s"; fi
-		emit_finish_event "$iter" "$worker_pid" "$exitc" "$dur"
+		if [[ $exitc -eq 0 ]]; then
+			log_with_timestamp "Iteration #$iter succeeded in ${dur}s"
+		elif [[ $exitc -eq 124 ]]; then
+			log_with_timestamp "Iteration #$iter timed out in ${dur}s"
+		else
+			log_with_timestamp "Iteration #$iter failed (exit=$exitc) in ${dur}s"
+		fi
+		emit_finish_event "$iter" "$$" "$exitc" "$dur"
 		update_summary_files || true
 		rm -f "$tmp_out"
 		exit $exitc
 	) &
+	local wrapper_pid=$!
+	append_worker_pid "$wrapper_pid"
+	emit_start_event "$prompt_path" "$iter" "$wrapper_pid"
 	return 0
 }
 
@@ -306,7 +320,7 @@ check_and_rotate() {
 run_loop() {
 	# Lock to prevent duplicate instances
 	if command -v flock >/dev/null 2>&1; then
-		exec 9>"$LOCK_FILE" || true
+		exec 9>"$LOCK_FILE"
 		if ! flock -n 9; then echo "Another instance appears to be running (lock held)."; exit 1; fi
 	else
 		log_with_timestamp "WARNING: flock not available; running without lock"
@@ -375,13 +389,14 @@ loop_dispatch() {
 		json)
 			local sub="${1:-summary}"; shift || true
 			if [[ ! -f "$EVENTS_JSONL" ]]; then echo "Events file not found: $EVENTS_JSONL"; exit 1; fi
+			if ! command -v jq >/dev/null 2>&1; then echo "jq is required for json subcommands"; exit 1; fi
 			case "$sub" in
 				summary) tail -n 2000 "$EVENTS_JSONL" | jq -s 'def finishes: map(select(.type=="finish")); (. // []) as $e | ($e|finishes) as $fin | {runs: ($fin|length), ok: ($fin|map(select(.exit_code==0))|length), timeout: ($fin|map(select(.exit_code==124))|length), fail: ($fin|map(select(.exit_code!=0 and .exit_code!=124))|length)} | . + {success_rate: (if .runs==0 then 0 else (.ok/.runs) end)}' ;;
 				recent) n="${1:-10}"; tail -n 2000 "$EVENTS_JSONL" | jq -c 'select(.type=="finish") | {ts,task,iteration,exit_code,duration_sec}' | tail -n "$n" ;;
 				inflight) tail -n 2000 "$EVENTS_JSONL" | jq -s '[ group_by(.pid) | map({pid: .[0].pid, started:(map(select(.type=="start"))|length), finished:(map(select(.type=="finish"))|length)}) | map(select(.started > .finished)) ]' ;;
 				durations) tail -n 2000 "$EVENTS_JSONL" | jq -s 'def finishes: map(select(.type=="finish")); (. // []) as $e | ($e|finishes|map(.duration_sec)|map(select(type=="number"))) as $d | {avg:(if ($d|length)==0 then null else ($d|add/($d|length)) end), p50:($d|sort|.[(length*0.5|floor)]), p90:($d|sort|.[(length*0.9|floor)]), p95:($d|sort|.[(length*0.95|floor)]), p99:($d|sort|.[(length*0.99|floor)]), min:($d|min), max:($d|max)}' ;;
 				errors) n="${1:-5}"; tail -n 2000 "$EVENTS_JSONL" | jq -c 'select(.type=="finish" and .exit_code!=0) | {ts,task,iteration,exit_code,duration_sec}' | tail -n "$n" ;;
-				hourly) tail -n 2000 "$EVENTS_JSONL" | jq -s '[ .[] | select(.type=="finish") | {h: (.ts|split(":")[0]), exit_code, duration_sec} ] | group_by(.h) | map({hour: .[0].h, count: length, ok: (map(select(.exit_code==0))|length), timeout: (map(select(.exit_code==124))|length), avg_duration: (map(.duration_sec)|add/length)})' ;;
+				hourly) tail -n 2000 "$EVENTS_JSONL" | jq -s '[ .[] | select(.type=="finish") | {h: (.ts|split(":"))[0], exit_code, duration_sec} ] | group_by(.h) | map({hour: .[0].h, count: length, ok: (map(select(.exit_code==0))|length), timeout: (map(select(.exit_code==124))|length), avg_duration: (map(.duration_sec)|add/length)})' ;;
 				*) echo "Unknown json subcommand: $sub"; exit 1 ;;
 			esac
 			;;
