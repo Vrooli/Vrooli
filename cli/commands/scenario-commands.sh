@@ -28,7 +28,7 @@ source "${CLI_DIR}/../../scripts/lib/utils/format.sh"
 
 # Check if API is running
 check_api() {
-	if ! curl -s "${API_BASE}/health" >/dev/null 2>&1; then
+	if ! curl -s --connect-timeout 2 --max-time 5 "${API_BASE}/health" >/dev/null 2>&1; then
 		log::error "Scenario API is not running"
 		echo "Start it with: ${var_ROOT_DIR}/api/start.sh"
 		return 1
@@ -55,7 +55,8 @@ SUBCOMMANDS:
 OPTIONS:
     --help, -h              Show this help message
     --verbose, -v           Show detailed output
-    --json                  Output list in JSON (list command)
+    --json                  Output in JSON format (alias for --format json)
+    --format <type>         Output format: text, json
 
 EXAMPLES:
     vrooli scenario list                      # List all scenarios
@@ -77,16 +78,24 @@ scenario_list() {
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
 			--json) output_format="json" ;;
+			--format)
+				output_format="${2:-text}"
+				shift 1
+				;;
 			--help|-h) show_scenario_help; return 0 ;;
 			*) ;;
 		esac
 		shift || true
 	done
 	
-	log::header "Available Scenarios"
+	# Validate format
+	if [[ "$output_format" != "text" && "$output_format" != "json" ]]; then
+		log::error "Invalid format: $output_format. Use 'text' or 'json'"
+		return 1
+	fi
 	
 	local response
-	response=$(curl -s "${API_BASE}/scenarios")
+	response=$(curl -s --connect-timeout 2 --max-time 5 "${API_BASE}/scenarios")
 	
 	if ! echo "$response" | jq -e '.success' >/dev/null 2>&1; then
 		log::error "Failed to list scenarios"
@@ -115,6 +124,7 @@ scenario_list() {
 	format::table "$output_format" "Name" "Enabled" "Category" "Description" -- "${rows[@]}"
 	
 	if [[ "$output_format" == "text" ]]; then
+		log::header "Available Scenarios"
 		local total_count enabled_count
 		total_count=$(echo "$response" | jq '.data | length')
 		enabled_count=$(echo "$response" | jq '[.data[] | select(.enabled == true)] | length')
@@ -134,11 +144,21 @@ scenario_info() {
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
 			--json) output_format="json" ;;
+			--format)
+				output_format="${2:-text}"
+				shift 1
+				;;
 			--help|-h) show_scenario_help; return 0 ;;
 			*) ;;
 		esac
 		shift || true
 	done
+	
+	# Validate format
+	if [[ "$output_format" != "text" && "$output_format" != "json" ]]; then
+		log::error "Invalid format: $output_format. Use 'text' or 'json'"
+		return 1
+	fi
 	
 	if [[ -z "$scenario_name" ]]; then
 		log::error "Scenario name required"
@@ -149,7 +169,7 @@ scenario_info() {
 	check_api || return 1
 	
 	local response
-	response=$(curl -s "${API_BASE}/scenarios/${scenario_name}")
+	response=$(curl -s --connect-timeout 2 --max-time 5 "${API_BASE}/scenarios/${scenario_name}")
 	
 	if ! echo "$response" | jq -e '.success' >/dev/null 2>&1; then
 		log::error "$(echo "$response" | jq -r '.error // "Failed to get scenario"')"
@@ -187,31 +207,33 @@ scenario_info() {
 	fi
 	
 	# Text output
-	log::header "Scenario: $scenario_name"
-	echo ""
-	echo "📍 Location: $path"
-	echo "📁 Category: $category"
-	echo "🔧 Status: $([ "$enabled" == "true" ] && echo "✅ Enabled" || echo "❌ Disabled")"
-	echo "📝 Description: $description"
-	
-	if [[ "$has_service" == "true" ]]; then
+	if [[ "$output_format" == "text" ]]; then
+		log::header "Scenario: $scenario_name"
 		echo ""
-		echo "✅ Has service.json configuration"
-	else
+		echo "📍 Location: $path"
+		echo "📁 Category: $category"
+		echo "🔧 Status: $([ "$enabled" == "true" ] && echo "✅ Enabled" || echo "❌ Disabled")"
+		echo "📝 Description: $description"
+		
+		if [[ "$has_service" == "true" ]]; then
+			echo ""
+			echo "✅ Has service.json configuration"
+		else
+			echo ""
+			log::warning "No service.json found"
+		fi
+		
+		# Check for generated app
+		local app_path="$HOME/generated-apps/$scenario_name"
 		echo ""
-		log::warning "No service.json found"
-	fi
-	
-	# Check for generated app
-	local app_path="$HOME/generated-apps/$scenario_name"
-	echo ""
-	echo "Generated App:"
-	echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-	if [[ -d "$app_path" ]]; then
-		echo "✅ App exists: $app_path"
-	else
-		echo "❌ Not generated yet"
-		echo "   Run: vrooli scenario convert $scenario_name"
+		echo "Generated App:"
+		echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+		if [[ -d "$app_path" ]]; then
+			echo "✅ App exists: $app_path"
+		else
+			echo "❌ Not generated yet"
+			echo "   Run: vrooli scenario convert $scenario_name"
+		fi
 	fi
 }
 

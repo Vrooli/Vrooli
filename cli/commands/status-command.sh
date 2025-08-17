@@ -10,7 +10,7 @@
 #
 ################################################################################
 
-set -uo pipefail
+set -euo pipefail
 
 # Get CLI directory
 CLI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -18,8 +18,6 @@ CLI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${CLI_DIR}/../../scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE:-${CLI_DIR}/../../scripts/lib/utils/log.sh}"
-# shellcheck disable=SC1091
-source "${var_JSON_FILE:-${CLI_DIR}/../../scripts/lib/utils/json.sh}"
 # shellcheck disable=SC1091
 source "${CLI_DIR}/../../scripts/lib/utils/format.sh"
 
@@ -36,7 +34,8 @@ USAGE:
     vrooli status [options]
 
 OPTIONS:
-    --json              Output in JSON format
+    --json              Output in JSON format (alias for --format json)
+    --format <type>     Output format: text, json
     --verbose, -v       Show detailed information
     --resources         Show only resource status
     --apps              Show only app status
@@ -54,10 +53,10 @@ EOF
 
 # Check if API is available
 check_api() {
-    if ! curl -s -f "${API_BASE}/health" >/dev/null 2>&1; then
-        return 1
-    fi
-    return 0
+	if ! curl -s -f --connect-timeout 2 --max-time 5 "${API_BASE}/health" >/dev/null 2>&1; then
+		return 1
+	fi
+	return 0
 }
 
 
@@ -169,7 +168,7 @@ collect_app_data() {
     
     # Get app list from API
     local response
-    response=$(curl -s "${API_BASE}/apps" 2>/dev/null || echo '{"success": false}')
+    response=$(curl -s --connect-timeout 2 --max-time 5 "${API_BASE}/apps" 2>/dev/null || echo '{"success": false}')
     
     if ! echo "$response" | jq -e '.success' >/dev/null 2>&1; then
         echo "error:Failed to get app list"
@@ -302,11 +301,13 @@ format_system_data() {
         local docker_icon="✅"
         [[ "$docker" == "unavailable" ]] && docker_icon="❌"
         
-        format::table text "Metric" "Value" "Status" -- \
-            "Memory:${memory}% used:$([ -n "${memory}" ] && [ ${memory%.*} -gt 80 ] && echo '⚠️' || echo '✅')" \
-            "Disk:${disk}% used:$([ -n "${disk}" ] && [ ${disk%.*} -gt 80 ] && echo '⚠️' || echo '✅')" \
-            "Load:${load}:📊" \
-            "Docker:${docker}:${docker_icon}"
+        local rows=()
+        rows+=("Memory:${memory}% used:$([ -n "${memory}" ] && [ ${memory%.*} -gt 80 ] && echo '⚠️' || echo '✅')")
+        rows+=("Disk:${disk}% used:$([ -n "${disk}" ] && [ ${disk%.*} -gt 80 ] && echo '⚠️' || echo '✅')")
+        rows+=("Load:${load}:📊")
+        rows+=("Docker:${docker}:${docker_icon}")
+        
+        format::table "$format" "Metric" "Value" "Status" -- "${rows[@]}"
     fi
 }
 
@@ -321,7 +322,7 @@ format_component_data() {
         local error_msg
         error_msg=$(echo "$raw_data" | grep "^message:" | cut -d: -f2-)
         if [[ "$format" == "json" ]]; then
-            echo "{\"error\": \"$error_msg\"}"
+            format::key_value json error "$error_msg"
         else
             echo "${component^}: $error_msg"
         fi
@@ -392,7 +393,7 @@ format_component_data() {
             if [[ ${#table_rows[@]} -gt 0 ]]; then
                 local header_name="Resource"
                 [[ "$component" == "apps" ]] && header_name="App"
-                format::table text "$header_name" "Status" "" -- "${table_rows[@]}"
+                format::table "$format" "$header_name" "Status" "" -- "${table_rows[@]}"
             fi
         fi
     fi
@@ -413,6 +414,10 @@ show_status() {
             --json)
                 output_format="json"
                 shift
+                ;;
+            --format)
+                output_format="${2:-text}"
+                shift 2
                 ;;
             --verbose|-v)
                 verbose="true"
@@ -440,6 +445,12 @@ show_status() {
         esac
     done
     
+    # Validate format
+    if [[ "$output_format" != "text" && "$output_format" != "json" ]]; then
+        log::error "Invalid format: $output_format. Use 'text' or 'json'"
+        return 1
+    fi
+    
     if [[ "$output_format" == "json" ]]; then
         # JSON output using format library
         local components=()
@@ -458,7 +469,7 @@ show_status() {
         
         local json_output
         json_output=$(format::json_object "${components[@]}")
-        echo "$json_output" | jq '.' 2>/dev/null || echo "$json_output"
+        echo "$json_output"
     else
         # Text output
         echo ""

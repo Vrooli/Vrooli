@@ -8,8 +8,8 @@ Local AI and automation tools that extend Vrooli's capabilities through modular 
 # Discover what's running
 ./index.sh --action discover
 
-# Install specific resources
-./scripts/manage.sh setup --resources "ollama,n8n,agent-s2"
+# Install specific resources via CLI
+./scripts/resources/index.sh --action install --resources "ollama,n8n,agent-s2"
 
 # Check resource status
 ./index.sh --action status --resources ollama
@@ -38,10 +38,12 @@ Local AI and automation tools that extend Vrooli's capabilities through modular 
 ## 🔧 Management
 
 - **Discovery**: `./index.sh --action discover`
-- **Installation**: See [setup documentation](../main/README.md)
+- **Installation/Start/Stop/Status (CLI)**: `./scripts/resources/index.sh --action <install|start|stop|status> --resources <name1,name2>`
 - **Configuration**: `~/.vrooli/service.json`
 - **Validation**: Three-layer testing system (`./tools/validate-interfaces.sh`)
 - **Compliance**: Auto-fix interface issues (`./tools/fix-interface-compliance.sh`)
+
+> Note on `manage.sh`: Some legacy resources may include a `manage.sh` script. This is deprecated and not recommended; new resources should use the CLI entrypoints via `scripts/resources/index.sh` and resource-specific CLI functions.
 
 ## 🎯 Scenario Deployment
 
@@ -53,22 +55,22 @@ enabling complete application deployment from JSON specifications.
 Each resource follows a consistent structure:
 ```
 resource-name/
-├── manage.sh           # Main management script
 ├── lib/               # Functionality libraries
 ├── config/            # Configuration files
 ├── docs/              # Resource-specific documentation
-└── examples/          # Usage examples
+├── examples/          # Usage examples
+└── cli/               # (Preferred) CLI entrypoints for actions
 ```
 
 ## 🔍 Common Operations
 
 ```bash
-# Install and start a resource
-./ai/ollama/manage.sh --action install
-./ai/ollama/manage.sh --action start
+# Install and start a resource (CLI)
+./scripts/resources/index.sh --action install --resources ollama
+./scripts/resources/index.sh --action start --resources ollama
 
-# View logs
-./automation/n8n/manage.sh --action logs
+# View logs (resource-specific helper)
+./scripts/resources/index.sh --action logs --resources n8n
 
 # Check health across all resources
 ./index.sh --action discover

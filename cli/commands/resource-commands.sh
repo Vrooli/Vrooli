@@ -63,6 +63,8 @@ RESOURCE COMMANDS:
 
 OPTIONS:
     --help, -h              Show this help message
+    --json                  Output in JSON format (alias for --format json)
+    --format <type>         Output format: text, json
     --verbose, -v           Show detailed output
 
 EXAMPLES:
@@ -596,6 +598,12 @@ resource_list() {
         esac
     done
     
+    # Validate format
+    if [[ "$format" != "text" && "$format" != "json" ]]; then
+        log::error "Invalid format: $format. Use 'text' or 'json'"
+        return 1
+    fi
+    
     # Get structured data (format-agnostic)
     local resource_data
     resource_data=$(get_resource_list_data "$include_connection" "$only_running")
@@ -627,6 +635,12 @@ resource_status_core() {
                 ;;
         esac
     done
+    
+    # Validate format
+    if [[ "$format" != "text" && "$format" != "json" ]]; then
+        log::error "Invalid format: $format. Use 'text' or 'json'"
+        return 1
+    fi
     
     if [[ -z "$resource_name" ]]; then
         # Show status of all enabled resources
@@ -716,28 +730,35 @@ resource_start() {
 
 # Start all enabled resources
 resource_start_all() {
-    # Handle help flag
-    if [[ "${1:-}" == "--help" ]] || [[ "${1:-}" == "-h" ]]; then
-        echo "Usage: vrooli resource start-all"
-        echo ""
-        echo "Start all resources that are marked as enabled in the configuration."
-        echo ""
-        echo "This will start resources from service.json that have 'enabled: true'."
-        return 0
-    fi
-    
-    log::header "Starting All Enabled Resources"
-    
-    # Check which config file exists
-    local config_file=""
-    if [[ -f "$RESOURCES_CONFIG" ]]; then
-        config_file="$RESOURCES_CONFIG"
-    elif [[ -f "$RESOURCES_CONFIG_LEGACY" ]]; then
-        config_file="$RESOURCES_CONFIG_LEGACY"
-    else
-        log::warning "No resource configuration found"
-        return 0
-    fi
+	# Handle help flag
+	if [[ "${1:-}" == "--help" ]] || [[ "${1:-}" == "-h" ]]; then
+		echo "Usage: vrooli resource start-all"
+		echo ""
+		echo "Start all resources that are marked as enabled in the configuration."
+		echo ""
+		echo "This will start resources from service.json that have 'enabled: true'."
+		return 0
+	fi
+	
+	local output_format="text"
+	for arg in "$@"; do
+		if [[ "$arg" == "--json" ]]; then output_format="json"; fi
+	done
+	
+	if [[ "$output_format" == "text" ]]; then
+		log::header "Starting All Enabled Resources"
+	fi
+	
+	# Check which config file exists
+	local config_file=""
+	if [[ -f "$RESOURCES_CONFIG" ]]; then
+		config_file="$RESOURCES_CONFIG"
+	elif [[ -f "$RESOURCES_CONFIG_LEGACY" ]]; then
+		config_file="$RESOURCES_CONFIG_LEGACY"
+	else
+		log::warning "No resource configuration found"
+		return 0
+	fi
     
     # Parse enabled resources from config
     local enabled_resources
@@ -850,24 +871,31 @@ resource_stop() {
 
 # Stop all running resources
 resource_stop_all() {
-    # Handle help flag
-    if [[ "${1:-}" == "--help" ]] || [[ "${1:-}" == "-h" ]]; then
-        echo "Usage: vrooli resource stop-all"
-        echo ""
-        echo "Stop all currently running resources."
-        echo ""
-        echo "This will attempt to gracefully stop all resources that are running."
-        return 0
-    fi
-    
-    log::header "Stopping All Resources"
-    
-    # Use the auto-install module if available
-    if command -v resource_auto::stop_all >/dev/null 2>&1; then
-        resource_auto::stop_all
-    else
-        # Fallback to Docker-based approach
-        log::info "Stopping Docker containers..."
+	# Handle help flag
+	if [[ "${1:-}" == "--help" ]] || [[ "${1:-}" == "-h" ]]; then
+		echo "Usage: vrooli resource stop-all"
+		echo ""
+		echo "Stop all currently running resources."
+		echo ""
+		echo "This will attempt to gracefully stop all resources that are running."
+		return 0
+	fi
+	
+	local output_format="text"
+	for arg in "$@"; do
+		if [[ "$arg" == "--json" ]]; then output_format="json"; fi
+	done
+	
+	if [[ "$output_format" == "text" ]]; then
+		log::header "Stopping All Resources"
+	fi
+	
+	# Use the auto-install module if available
+	if command -v resource_auto::stop_all >/dev/null 2>&1; then
+		resource_auto::stop_all
+	else
+		# Fallback to Docker-based approach
+		log::info "Stopping Docker containers..."
         
         local stopped_count=0
         

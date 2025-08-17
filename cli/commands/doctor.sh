@@ -21,7 +21,7 @@ show_help() {
 🩺 Vrooli Doctor - Environment Preflight
 
 USAGE:
-    vrooli doctor [--json]
+    vrooli doctor [--json|--format <type>]
 
 Checks:
     - jq, curl, git, docker, go, lsof, tput
@@ -29,8 +29,9 @@ Checks:
     - Config presence: ".vrooli/service.json"
 
 OPTIONS:
-    --json      Emit JSON output
-    --help,-h   Show this help message
+    --json              Emit JSON output (alias for --format json)
+    --format <type>     Output format: text, json
+    --help,-h           Show this help message
 EOF
 }
 
@@ -57,11 +58,21 @@ main() {
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
 			--json) output_format="json" ;;
+			--format)
+				output_format="${2:-text}"
+				shift 1
+				;;
 			--help|-h) show_help; return 0 ;;
 			*) ;;
 		esac
 		shift || true
 	done
+	
+	# Validate format
+	if [[ "$output_format" != "text" && "$output_format" != "json" ]]; then
+		echo "Error: Invalid format: $output_format. Use 'text' or 'json'" >&2
+		return 1
+	fi
 	
 	local checks=(jq curl git docker go lsof tput)
 	local rows=()
@@ -98,7 +109,7 @@ main() {
 		format::table json "check" "status" -- "${rows[@]}"
 	else
 		log::header "Vrooli Doctor"
-		format::table text "Check" "Status" -- "${rows[@]}"
+		format::table "$output_format" "Check" "Status" -- "${rows[@]}"
 		
 		# Hints
 		echo ""

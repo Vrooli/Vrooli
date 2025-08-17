@@ -78,11 +78,10 @@ QUICK START:
     3. Run 'vrooli app list' to see generated applications
 
 CONFIGURATION:
-    • Main config: ~/.vrooli/config.json
-    • Resources: ~/.vrooli/resources.local.json
+    • Main config: .vrooli/service.json
     • Apps directory: ~/generated-apps/
 
-For detailed documentation: https://docs.vrooli.com/cli
+For detailed documentation: docs/
 Report issues: https://github.com/Vrooli/Vrooli/issues
 
 EOF

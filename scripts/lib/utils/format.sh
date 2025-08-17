@@ -10,6 +10,7 @@
 #   format::output "json" key1 value1 key2 value2
 #   format::list "text" "${array[@]}"
 #   format::table "json" "${headers[@]}" -- "${rows[@]}"
+#   format::table "text" "${headers[@]}" -- "${rows[@]}"
 #
 ################################################################################
 
@@ -20,7 +21,7 @@ source "${SCRIPT_DIR}/var.sh" 2>/dev/null || true
 ################################################################################
 # Main Output Formatter
 # Args: format_type data_type [data...]
-# format_type: json|text|table|yaml
+# format_type: json|text
 # data_type: kv|list|table|raw
 ################################################################################
 format::output() {
@@ -83,7 +84,12 @@ format::key_value() {
                 json_obj="${json_obj}\"${key}\":${value}"
             else
                 # String
-                value="${value//\"/\\\"}"  # Escape quotes
+                # Escape backslashes, quotes, and control characters
+                value="${value//\\/\\\\}"
+                value="${value//\"/\\\"}"
+                value="${value//$'\n'/\\n}"
+                value="${value//$'\r'/\\r}"
+                value="${value//$'\t'/\\t}"
                 json_obj="${json_obj}\"${key}\":\"${value}\""
             fi
         done
@@ -127,7 +133,11 @@ format::list() {
                [[ "$item" == "true" || "$item" == "false" || "$item" == "null" ]]; then
                 json_array="${json_array}${item}"
             else
+                item="${item//\\/\\\\}"  # Escape backslashes
                 item="${item//\"/\\\"}"  # Escape quotes
+                item="${item//$'\n'/\\n}"
+                item="${item//$'\r'/\\r}"
+                item="${item//$'\t'/\\t}"
                 json_array="${json_array}\"${item}\""
             fi
         done
@@ -189,7 +199,7 @@ format::table() {
                 local value="${values[$i]:-}"
                 
                 # Auto-detect type
-                if [[ "$value" =~ ^[0-9]+$ ]] || [[ "$value" == "true" || "$value" == "false" ]]; then
+                if [[ "$value" =~ ^[0-9]+$ ]] || [[ "$value" =~ ^[0-9]+\.[0-9]+$ ]] || [[ "$value" == "true" || "$value" == "false" || "$value" == "null" ]]; then
                     echo -n "\"${header}\": ${value}"
                 else
                     value="${value//\"/\\\"}"

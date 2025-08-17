@@ -132,8 +132,16 @@ update_summary_files() {
 
 # Kill process tree helper
 kill_tree() {
-	local pid="$1" sig="${2:-TERM}"; kill -s "$sig" "$pid" 2>/dev/null || true
-	# Kill children
+	local pid="$1" sig="${2:-TERM}"
+	# Try to kill the entire process group first (more robust for pipelines)
+	local pgid
+	pgid=$(ps -o pgid= -p "$pid" 2>/dev/null | tr -d ' ' || true)
+	if [[ -n "${pgid:-}" ]]; then
+		kill -s "$sig" -- -"$pgid" 2>/dev/null || true
+	fi
+	# Also signal the specific PID
+	kill -s "$sig" "$pid" 2>/dev/null || true
+	# Kill children by parent relationship as a fallback
 	if command -v pkill >/dev/null 2>&1; then
 		pkill -$sig -P "$pid" 2>/dev/null || true
 	fi
@@ -164,12 +172,21 @@ cleanup_finished_workers() {
 }
 
 current_tcp_connections() {
+	# Process-aware gating: count matching worker processes rather than raw TCP lines
 	# Allow disable by empty filter
 	if [[ -z "${LOOP_TCP_FILTER}" ]]; then echo 0; return 0; fi
+	# Prefer pgrep for process counting
+	if command -v pgrep >/dev/null 2>&1; then
+		local cnt
+		cnt=$(pgrep -fal "${LOOP_TCP_FILTER}" 2>/dev/null | wc -l | awk '{print $1}')
+		echo "${cnt:-0}"
+		return 0
+	fi
+	# Fallback: ss with process details if available
 	if command -v ss >/dev/null 2>&1; then
-		ss -tn state established 2>/dev/null | grep -E "(${LOOP_TCP_FILTER})" | wc -l
+		ss -ptn 2>/dev/null | grep -E "(${LOOP_TCP_FILTER})" | wc -l
 	elif command -v netstat >/dev/null 2>&1; then
-		netstat -tan 2>/dev/null | grep ESTABLISHED | grep -E "(${LOOP_TCP_FILTER})" | wc -l
+		netstat -tanp 2>/dev/null | grep -E "(${LOOP_TCP_FILTER})" | wc -l
 	else
 		echo 0
 	fi
@@ -179,12 +196,12 @@ can_start_new_worker() {
 	cleanup_finished_workers
 	local running=0; [[ -f "$PIDS_FILE" ]] && running=$(wc -l < "$PIDS_FILE")
 	if [[ $running -ge $MAX_CONCURRENT_WORKERS ]]; then log_with_timestamp "Max concurrent workers reached ($MAX_CONCURRENT_WORKERS)"; return 1; fi
-	# Disable TCP gating for explicit plan-only modes
+	# Disable gating for explicit plan-only modes
 	if [[ "${RESOURCE_IMPROVEMENT_MODE:-}" == "plan" || "${SCENARIO_IMPROVEMENT_MODE:-}" == "plan" ]]; then
 		return 0
 	fi
 	local c; c=$(current_tcp_connections || echo 0)
-	if [[ $c -gt $MAX_TCP_CONNECTIONS ]]; then log_with_timestamp "Too many TCP connections ($c > $MAX_TCP_CONNECTIONS)"; return 1; fi
+	if [[ $c -gt $MAX_TCP_CONNECTIONS ]]; then log_with_timestamp "Too many worker processes matched filter ($c > $MAX_TCP_CONNECTIONS)"; return 1; fi
 	return 0
 }
 
@@ -397,7 +414,7 @@ loop_dispatch() {
 			local maxflag="${1:-}"; local maxval=""; if [[ "$maxflag" == "--max" ]]; then maxval="${2:-}"; shift 2 || true; export RUN_MAX_ITERATIONS="$maxval"; fi
 			run_loop
 			;;
-		start) nohup "$0" run-loop >/dev/null 2>&1 & echo "Started loop (task=$LOOP_TASK) PID: $!" ;;
+		start) nohup "$0" --task "$LOOP_TASK" run-loop >/dev/null 2>&1 & echo "Started loop (task=$LOOP_TASK) PID: $!" ;;
 		stop)
 			if [[ -f "$PID_FILE" ]]; then
 				local main_pid; main_pid=$(cat "$PID_FILE")

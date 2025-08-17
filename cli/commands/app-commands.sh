@@ -71,6 +71,8 @@ MANAGEMENT COMMANDS:
 
 OPTIONS:
     --help, -h              Show this help message
+    --json                  Output in JSON format (alias for --format json)
+    --format <type>         Output format: text, json
     --follow                Follow logs in real-time (for logs command)
 
 EXAMPLES:
@@ -96,6 +98,10 @@ app_list() {
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
 			--json) output_format="json" ;;
+			--format)
+				output_format="${2:-text}"
+				shift 1
+				;;
 			--verbose|-v) verbose="true" ;;
 			--help|-h) show_app_help; return 0 ;;
 			*) ;; # ignore unknowns for forward-compat
@@ -103,13 +109,19 @@ app_list() {
 		shift || true
 	done
 	
+	# Validate format
+	if [[ "$output_format" != "text" && "$output_format" != "json" ]]; then
+		log::error "Invalid format: $output_format. Use 'text' or 'json'"
+		return 1
+	fi
+	
 	local apps
 	local use_api=false
 	
 	# Try to use API if available
 	if check_api; then
 		local response
-		response=$(curl -s --connect-timeout 2 "${API_BASE}/apps" 2>/dev/null)
+		response=$(curl -s --connect-timeout 2 --max-time 5 "${API_BASE}/apps" 2>/dev/null)
 		
 		if echo "$response" | jq -e '.success' >/dev/null 2>&1; then
 			apps=$(echo "$response" | jq -r '.data')
@@ -291,12 +303,33 @@ app_list() {
 # Show app status
 app_status() {
 	local app_name="${1:-}"
+	local output_format="text"
+	shift || true
+	while [[ $# -gt 0 ]]; do
+		case "$1" in
+			--json) output_format="json" ;;
+			--format)
+				output_format="${2:-text}"
+				shift 1
+				;;
+			--help|-h) show_app_help; return 0 ;;
+			*) ;;
+		esac
+		shift || true
+	done
+	
+	# Validate format
+	if [[ "$output_format" != "text" && "$output_format" != "json" ]]; then
+		log::error "Invalid format: $output_format. Use 'text' or 'json'"
+		return 1
+	fi
+	
 	[[ -z "$app_name" ]] && { log::error "App name required"; return 1; }
 	
 	check_api || return 1
 	
 	local response
-	response=$(curl -s "${API_BASE}/apps/${app_name}")
+	response=$(curl -s --connect-timeout 2 --max-time 5 "${API_BASE}/apps/${app_name}")
 	
 	if ! echo "$response" | jq -e '.success' >/dev/null 2>&1; then
 		log::error "$(echo "$response" | jq -r '.error // "Failed to get app status"')"
@@ -307,6 +340,32 @@ app_status() {
 	app=$(echo "$response" | jq -r '.data.app')
 	backups=$(echo "$response" | jq -r '.data.backups')
 	
+	if [[ "$output_format" == "json" ]]; then
+		# Build JSON via format helpers
+		local name path modified has_git customized protected runtime_status
+		name="$app_name"
+		path=$(echo "$app" | jq -r '.path // ""')
+		modified=$(echo "$app" | jq -r '.modified // ""')
+		has_git=$(echo "$app" | jq -r '.has_git // false')
+		customized=$(echo "$app" | jq -r '.customized // false')
+		protected=$(echo "$app" | jq -r '.protected // false')
+		runtime_status=$(echo "$app" | jq -r '.runtime_status // "unknown"')
+		
+		local base_json
+		base_json=$(format::key_value json \
+			name "$name" \
+			path "$path" \
+			modified "$modified" \
+			has_git "$has_git" \
+			customized "$customized" \
+			protected "$protected" \
+			runtime_status "$runtime_status" \
+			backups "$backups")
+		echo "$base_json"
+		return 0
+	fi
+	
+	# Text output
 	log::header "App Status: $app_name"
 	echo ""
 	echo "📍 Location: $(echo "$app" | jq -r '.path')"

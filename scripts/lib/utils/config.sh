@@ -112,12 +112,6 @@ config::init() {
         log::info "Consider creating one to define lifecycle phases"
     fi
     
-    # Check for old configuration files and warn user
-    if [[ -f "${vrooli_dir}/resources.local.json" ]] || [[ -f "${vrooli_dir}/execution.local.json" ]]; then
-        log::warning "Found old configuration files (resources.local.json/execution.local.json)"
-        log::info "These files have been replaced by the unified service.json format."
-    fi
-    
     return 0
 }
 

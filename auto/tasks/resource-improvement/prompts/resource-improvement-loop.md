@@ -121,6 +121,9 @@ Per resource (examples using resource CLIs):
 - Prefer CLIs and shared workflows; avoid bespoke code/edits
 - All validation gates pass; resource remains running after test (except Whisper as noted)
 - Logs concise; secrets redacted; commands time-bounded
+- Resource health/status checks use `scripts/lib/utils/format.sh` to provide json support automatically, using NO json-specific logic in the resource's health/status checks itself - let `format.sh` do all the work!
+- Resource CLIs are thin wrappers over the lib/ functions, and call them directly instead of going through a manage.sh or other intermediary.
+- Resources elegantly use shared functions to reduce the amount of code they have to define themselves
 
 ---
 
@@ -128,6 +131,7 @@ Per resource (examples using resource CLIs):
 - Redact secrets; use env vars
 - Avoid printing configs/credentials
 - Do not modify platform resources beyond allowed operations
+- Do not modify shared helper functions, as that can break future iterations
 - Respect timeouts (e.g., `timeout 30`)
 
 ---
@@ -136,6 +140,140 @@ Per resource (examples using resource CLIs):
 Append one compact line per iteration to `/tmp/vrooli-resource-improvement.md`:
 - `iteration | resource | action | rationale | commands | result | issues | next | running`
 Keep file under 1000 lines; prune periodically.
+
+---
+
+### 🧱 Core resources — ranked by importance
+Use this ranked list to decide what to fix first and how resources fit together. In general, fix upstream dependencies before dependents, and ensure each service starts and remains running (Whisper is the only exception after tests).
+
+1) Vault (secrets)
+- What it does: Central, secure storage for API keys, credentials, and tokens used across providers (e.g., OpenRouter keys) and services.
+- Use when: Any resource needs credentials; initialize/seal-unseal before others. Start first.
+- Depends on: OS/filesystem, network.
+- Signals to prioritize: Auth failures on dependent services (401/403), missing env secrets, provider API errors across multiple tools.
+
+2) PostgreSQL (database)
+- What it does: Primary relational datastore for services, workflows, and app state.
+- Use when: Scenarios or workflows need persistence; almost always-on.
+- Depends on: Disk I/O, network, Vault (if credentials are read from Vault).
+- Signals: Connection refused/timeouts, migration errors, missing tables, app boot failures.
+
+3) Redis (cache/queue)
+- What it does: Caching, queues, rate-limiting, pub/sub for background work.
+- Use when: Workflows require fast ephemeral state, task queues, or locks.
+- Depends on: Network.
+- Signals: Slow workflows, timeouts, rate-limit anomalies, queue backlogs.
+
+4) Object storage (S3/MinIO)
+- What it does: Stores artifacts (logs, files, screenshots, model assets).
+- Use when: Any scenario needs durable files beyond the DB.
+- Depends on: Network, credentials (often from Vault).
+- Signals: Upload/download errors, 403 from bucket, missing artifacts.
+
+5) QuestDB (time-series)
+- What it does: High-ingest time-series database for metrics, logs, and telemetry that drive automations and reliability loops.
+- Use when: You need durable, queryable time-series for monitoring, analytics, and scenario feedback.
+- Depends on: Disk throughput, network; credentials via Vault if configured.
+- Signals: Ingest lag, slow queries, disk saturation, missing telemetry for downstream decisions.
+
+6) Huginn (event automation)
+- What it does: Agent-based event automation (webhooks, scrapers, watchers) for resilient, decoupled workflows.
+- Use when: You need reliable event pipelines, triggers, and long-lived watchers; prefer as a backbone for event-first flows.
+- Depends on: PostgreSQL (typical), Redis (optional), Browserless for headless flows, credentials via Vault.
+- Signals: Agent failures, delayed jobs, webhook misses, credential errors.
+
+7) n8n (workflow engine) and alternates (node-red, windmill)
+- What it does: Orchestrates shared and scenario-specific automations; complements Huginn for visual/scheduled workflows.
+- Use when: Cross-resource automations, scheduled jobs, integration glue; choose the engine suited to the scenario’s nodes.
+- Depends on: PostgreSQL, Redis (if configured), Browserless (for fallback-driven flows), resource CLIs.
+- Signals: Webhook/API instability, workflow activation failures, node credential errors.
+
+8) Browserless (headless browser)
+- What it does: Reliable headless Chrome for UI validation, scraping, and API fallbacks when webhooks misbehave.
+- Use when: Validating UIs/screenshots, replacing brittle third-party webhooks.
+- Depends on: Network, sufficient CPU/memory.
+- Signals: Screenshot failures, navigation timeouts, high memory pressure.
+
+9) OpenRouter (AI provider hub)
+- What it does: Unified API to many model providers; used for breadth, availability, and cost routing.
+- Use when: You need external models beyond local capabilities or for redundancy.
+- Depends on: Vault (API key), network egress, optionally Cloudflare AI Gateway.
+- Signals: Auth errors, rate limits, provider unavailability across models.
+
+10) Ollama (local models)
+- What it does: Runs local LLMs/VLMs for low-latency and private workloads.
+- Use when: On-box inference is preferred, cost control, or offline/low-latency needs.
+- Depends on: CPU/GPU, disk for models; optional workflows (Huginn/n8n) invoking it.
+- Signals: Model not found, OOM, slow generation; pull baseline models early.
+
+11) Cline (IDE agent)
+- What it does: IDE-based coding agent leveraging local (Ollama) and/or external (OpenRouter) models; helps automate development within the editor.
+- Use when: Automating dev tasks in VS Code; prefer once OpenRouter and/or Ollama are healthy.
+- Depends on: OpenRouter and/or Ollama; Vault for keys; optional Cloudflare AI Gateway.
+- Signals: Tool auth failures, stalled tasks, missing model endpoints.
+
+12) Cloudflare AI Gateway (resilience/cost)
+- What it does: Proxy layer for AI traffic providing caching, rate limiting, analytics, retries, and model fallbacks.
+- Use when: You need resilience, cost control, and observability across AI calls.
+- Depends on: Network; configured providers (e.g., OpenRouter).
+- Signals: Elevated error rates, request spikes, provider flakiness.
+
+13) Whisper (speech-to-text)
+- What it does: Heavy STT workloads (local or via resource integration); often memory/compute intensive.
+- Use when: Audio transcription is required by scenarios.
+- Depends on: CPU/GPU, disk for model assets.
+- Special note: May be stopped post-test due to resource usage; otherwise keep running like others.
+
+14) Additional core resources (start when needed and keep running if scenarios rely on them)
+- Document parsing: unstructured-io — robust text extraction from diverse file types; use before RAG/indexing steps; depends on CPU/disk and often object storage.
+- Image pipelines: comfyui — image generation/processing workflows; GPU/CPU intensive; ensure model assets on fast storage.
+- Vector DB: qdrant — vector search for embeddings/RAG; depends on disk/memory; use once ingestion is ready; watch for memory pressure and recall.
+- Search meta-engine: searxng — privacy-preserving metasearch across engines; network dependent; use for research/fallback discovery.
+- Code execution: judge0 — sandboxed code run; CPU/network heavy; ensure resource limits and isolation.
+- Agent runners: agent-s2, claude-code — coding/automation agents alternative to or complementing Cline; depend on OpenRouter/Ollama credentials and editor/runtime integrations.
+
+Priorities and order of operations
+- Start/fix in this order: Vault → PostgreSQL/Redis/Object storage → QuestDB → Huginn → n8n (or alternate engine) → Browserless → OpenRouter/Ollama → Cline/agents → additional core resources.
+- If a dependent is unhealthy, fix its upstreams first (e.g., fix Vault before OpenRouter; fix OpenRouter/Ollama before Cline).
+
+---
+
+### 📎 When to add a new resource (curated list)
+Only consider adding a new resource if at least 75% of existing ones are healthy and validated. Favor small, reversible steps and ensure the new resource starts and remains running by default (exception: Whisper as noted).
+
+- Cline (VS Code agent)
+  - Autonomous coding agent typically for human-in-the-loop (though I'm hoping we can set it up to run autonomously like we do with claude-code); supports OpenRouter and local models via OpenAI-compatible endpoints (Ollama/LM Studio). Useful for dev automation and IDE workflows.
+  - Notes: Prefer using with `resource-ollama` and/or `openrouter` credentials; keep long-running tasks bounded.
+- TARS-desktop (UI automation agent)
+  - GUI agent based on UI-TARS to control the desktop via natural language with vision; useful for end-to-end UI/system tasks where browser automation is insufficient.
+  - Notes: Requires OS permissions (accessibility/screen capture). Keep it running if scenarios depend on it.
+- OpenCode (VS Code agent alt)
+  - Alternative IDE agent similar to Cline. Validate availability; if unavailable, use Cline/Codea as a substitute.
+  - Notes: Same operational guidance as Cline.
+- Geth (Ethereum client)
+  - Production-grade Ethereum execution client for on-chain tasks, local devnets, or crypto experiments.
+  - Notes: Prefer snap/pruned sync modes for resource limits; expose JSON-RPC cautiously.
+- SageMath (math engine)
+  - Open-source system for symbolic/numeric math (calculus, algebra, number theory) supporting research-heavy scenarios.
+  - Notes: Heavy; run on-demand but keep service resident if scenarios repeatedly call it.
+- BTCPay Server (payments)
+  - Self-hosted, non-custodial Bitcoin payment gateway (Lightning optional) for accepting crypto in apps.
+  - Notes: Prefer Docker deploy with pruning if limited; ensure wallet/xpub flows avoid private key exposure.
+- OpenRouter (AI provider hub)
+  - Unified API to many model providers; good for breadth and cost routing.
+  - Notes: Store keys securely; respect model/endpoint quotas.
+- Cloudflare AI Gateway (resiliency/cost)
+  - Proxy for AI traffic with caching, rate limiting, analytics, and model fallbacks; use as a resilient layer behind OpenRouter or direct providers.
+  - Notes: Configure authenticated gateway; define fallbacks and retries.
+- Matrix Synapse (communications)
+  - Self-hosted Matrix homeserver for federated chat/rooms/bots across scenarios.
+  - Notes: Use Postgres; set up well-known, TLS, and TURN for calls.
+- Home Assistant (home automation)
+  - Local-first automation hub with 3000+ integrations; useful for IoT, presence, energy, dashboards.
+  - Notes: Prefer supervised/container installs; keep add-ons minimal.
+- Neo4j (graph database)
+  - Native property graph DB for knowledge graphs, recommendations, dependency and impact analysis.
+  - Notes: Use Community/Enterprise appropriately; secure Bolt/HTTP; plan memory for graph size.
 
 ---
 
