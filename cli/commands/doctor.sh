@@ -15,6 +15,10 @@ source "${CLI_DIR}/../../scripts/lib/utils/var.sh"
 source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
 source "${CLI_DIR}/../../scripts/lib/utils/format.sh"
+# shellcheck disable=SC1091
+source "${CLI_DIR}/../lib/arg-parser.sh"
+# shellcheck disable=SC1091
+source "${CLI_DIR}/../lib/output-formatter.sh"
 
 show_help() {
 	cat << EOF
@@ -54,25 +58,38 @@ check_port_free() {
 }
 
 main() {
-	local output_format="text"
-	while [[ $# -gt 0 ]]; do
-		case "$1" in
-			--json) output_format="json" ;;
-			--format)
-				output_format="${2:-text}"
-				shift 1
-				;;
-			--help|-h) show_help; return 0 ;;
-			*) ;;
-		esac
-		shift || true
-	done
-	
-	# Validate format
-	if [[ "$output_format" != "text" && "$output_format" != "json" ]]; then
-		echo "Error: Invalid format: $output_format. Use 'text' or 'json'" >&2
+	# Parse common arguments
+	local parsed_args
+	parsed_args=$(parse_combined_args "$@")
+	if [[ $? -ne 0 ]]; then
 		return 1
 	fi
+	
+	local verbose
+	verbose=$(extract_arg "$parsed_args" "verbose")
+	local help_requested
+	help_requested=$(extract_arg "$parsed_args" "help")
+	local output_format
+	output_format=$(extract_arg "$parsed_args" "format")
+	local remaining_args
+	remaining_args=$(extract_arg "$parsed_args" "remaining")
+	
+	# Handle help request
+	if [[ "$help_requested" == "true" ]]; then
+		show_help
+		return 0
+	fi
+	
+	# Check for unknown arguments
+	local args_array
+	mapfile -t args_array < <(args_to_array "$remaining_args")
+	
+	for arg in "${args_array[@]}"; do
+		if [[ "$arg" =~ ^- ]]; then
+			cli::format_error "$output_format" "Unknown option: $arg"
+			return 1
+		fi
+	done
 	
 	local checks=(jq curl git docker go lsof tput)
 	local rows=()

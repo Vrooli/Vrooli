@@ -58,6 +58,11 @@ EVENTS_MAX_LINES=${EVENTS_MAX_LINES:-200000}
 ITERATION_LOG_MAX_LINES=${ITERATION_LOG_MAX_LINES:-10000}
 ITERATION_LOG_TAIL_LINES=${ITERATION_LOG_TAIL_LINES:-200}
 
+# Redact helper for log sanitization
+redact() {
+	sed -E 's/([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})/[redacted-email]/g; s/(api|token|secret|password|passwd|key)=[^ ]+/\1=[REDACTED]/ig'
+}
+
 log_with_timestamp() {
 	echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"
 }
@@ -175,11 +180,15 @@ current_tcp_connections() {
 	# Process-aware gating: count matching worker processes rather than raw TCP lines
 	# Allow disable by empty filter
 	if [[ -z "${LOOP_TCP_FILTER}" ]]; then echo 0; return 0; fi
-	# Prefer pgrep for process counting
+	# Prefer pgrep for process counting with more precise filtering
 	if command -v pgrep >/dev/null 2>&1; then
 		local cnt
-		cnt=$(pgrep -fal "${LOOP_TCP_FILTER}" 2>/dev/null | wc -l | awk '{print $1}')
-		echo "${cnt:-0}"
+		# Count only actual claude processes, not bash processes containing "claude"
+		cnt=$(pgrep -f "^claude" 2>/dev/null | wc -l | awk '{print $1}')
+		# Also count resource-claude-code processes specifically
+		local resource_cnt
+		resource_cnt=$(pgrep -f "resource-claude-code" 2>/dev/null | wc -l | awk '{print $1}')
+		echo $((cnt + resource_cnt))
 		return 0
 	fi
 	# Fallback: ss with process details if available
@@ -273,10 +282,14 @@ run_iteration() {
 	local iter="$1"; log_with_timestamp "Starting iteration #$iter (task=$LOOP_TASK)"
 	# Prepare env before gating so per-task overrides (e.g., MAX_CONCURRENT_WORKERS) take effect
 	prepare_worker_env
-	can_start_new_worker || return 1
+	can_start_new_worker || { log_with_timestamp "ERROR: Cannot start new worker (gating or concurrency limit)"; return 1; }
 	local prompt_path; prompt_path=$(select_prompt) || { log_with_timestamp "ERROR: No prompt found"; return 1; }
 	[[ -r "$prompt_path" ]] || { log_with_timestamp "ERROR: Prompt not readable: $prompt_path"; return 1; }
 	local full_prompt; full_prompt=$(compose_prompt "$prompt_path")
+	if [[ -z "$full_prompt" ]]; then
+		log_with_timestamp "ERROR: Failed to compose prompt"
+		return 1
+	fi
 	# Launch a wrapper subshell in background; run the pipeline in foreground within the subshell
 	(
 		set +e
@@ -286,8 +299,12 @@ run_iteration() {
 		local tmp_out; tmp_out=$(mktemp -p "$TMP_DIR" "${LOOP_TASK}-${iter}-XXXX.log")
 		# Run worker pipeline in foreground; capture the exit code of timeout (the first command)
 		# Use more aggressive timeout with proper signal escalation
-		timeout --signal=TERM --kill-after=30 "$TIMEOUT" resource-claude-code run "$full_prompt" 2>&1 | tee "$tmp_out"
-		local exitc=${PIPESTATUS[0]}
+		if ! timeout --signal=TERM --kill-after=30 "$TIMEOUT" resource-claude-code run "$full_prompt" 2>&1 | tee "$tmp_out"; then
+			local exitc=${PIPESTATUS[0]}
+			log_with_timestamp "ERROR: Worker execution failed with exit code $exitc"
+		else
+			local exitc=${PIPESTATUS[0]}
+		fi
 		local end; end=$(date +%s); local dur=$((end-start))
 		if [[ $exitc -eq 0 ]]; then
 			log_with_timestamp "Iteration #$iter succeeded in ${dur}s"
@@ -331,8 +348,12 @@ run_iteration_sync() {
 	set +e
 	emit_start_event "$prompt_path" "$iter" "$$"
 	# Use more aggressive timeout with proper signal escalation
-	timeout --signal=TERM --kill-after=30 "$TIMEOUT" resource-claude-code run "$full_prompt" 2>&1 | tee "$tmp_out"
-	local exitc=${PIPESTATUS[0]}
+	if ! timeout --signal=TERM --kill-after=30 "$TIMEOUT" resource-claude-code run "$full_prompt" 2>&1 | tee "$tmp_out"; then
+		local exitc=${PIPESTATUS[0]}
+		log_with_timestamp "ERROR: Worker execution failed with exit code $exitc"
+	else
+		local exitc=${PIPESTATUS[0]}
+	fi
 	set -e
 	local end; end=$(date +%s); local dur=$((end-start))
 	# Persist worker output (redacted) and append tail to main log
@@ -374,6 +395,15 @@ check_and_rotate() {
 			find "$(dirname "$EVENTS_JSONL")" -maxdepth 1 -type f -name "$(basename "$EVENTS_JSONL").*" -printf '%T@ %p\n' 2>/dev/null | sort -nr | awk 'NR>ENVIRON["ROTATE_KEEP"]{print $2}' ROTATE_KEEP=$((ROTATE_KEEP)) | xargs -r rm -f --
 		fi
 	fi
+	# Clean up temporary files (empty files and old logs)
+	if [[ -d "$TMP_DIR" ]]; then
+		# Remove empty temporary files older than 1 hour
+		find "$TMP_DIR" -name "tmp.*" -size 0 -mmin +60 -delete 2>/dev/null || true
+		# Remove temporary log files older than 24 hours
+		find "$TMP_DIR" -name "*.log" -mtime +1 -delete 2>/dev/null || true
+		# Remove any temporary files older than 7 days
+		find "$TMP_DIR" -type f -mtime +7 -delete 2>/dev/null || true
+	fi
 }
 
 run_loop() {
@@ -399,11 +429,6 @@ run_loop() {
 		if [[ -n "$max_iter" ]] && [[ $i -ge $max_iter ]]; then log_with_timestamp "Reached max iterations ($max_iter); exiting."; break; fi
 		((i++))
 	done
-}
-
-# Redact helper for dry-run
-redact() {
-	sed -E 's/([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})/[redacted-email]/g; s/(api|token|secret|password|passwd|key)=[^ ]+/\1=[REDACTED]/ig'
 }
 
 # Common subcommands
@@ -450,6 +475,16 @@ loop_dispatch() {
 					echo "No events file to rotate"
 				fi
 			fi
+			# optional temp cleanup
+			if [[ "${1:-}" == "--temp" ]]; then
+				if [[ -d "$TMP_DIR" ]]; then
+					local cleaned=0
+					cleaned=$(find "$TMP_DIR" -name "tmp.*" -size 0 -delete -print 2>/dev/null | wc -l)
+					echo "Cleaned up $cleaned empty temporary files"
+				else
+					echo "No temp directory to clean"
+				fi
+			fi
 			;;
 		json)
 			local sub="${1:-summary}"; shift || true
@@ -485,8 +520,46 @@ loop_dispatch() {
 Generic Loop Core (task=$LOOP_TASK)
 Commands:
   run-loop [--max N] | start | stop | force-stop | status | logs [-f]
-  rotate [--events [KEEP]] | json <name> | dry-run | health | once | help
+  rotate [--events [KEEP] | --temp] | json <name> | dry-run | health | once | cleanup | help
 EOF
+			;;
+		cleanup)
+			log_with_timestamp "Manual cleanup requested"
+			# Clean up temporary files
+			if [[ -d "$TMP_DIR" ]]; then
+				local cleaned=0
+				cleaned=$(find "$TMP_DIR" -name "tmp.*" -size 0 -delete -print 2>/dev/null | wc -l)
+				log_with_timestamp "Cleaned up $cleaned empty temporary files"
+				# Also clean old log files
+				local old_logs=0
+				old_logs=$(find "$TMP_DIR" -name "*.log" -mtime +1 -delete -print 2>/dev/null | wc -l)
+				log_with_timestamp "Cleaned up $old_logs old log files"
+			fi
+			# Clean up any orphaned PID files
+			if [[ -f "$PID_FILE" ]]; then
+				local pid; pid=$(cat "$PID_FILE" 2>/dev/null || echo "")
+				if [[ -n "$pid" ]] && ! kill -0 "$pid" 2>/dev/null; then
+					rm -f "$PID_FILE"
+					log_with_timestamp "Removed stale PID file"
+				fi
+			fi
+			if [[ -f "$PIDS_FILE" ]]; then
+				local valid_pids=0
+				while IFS= read -r pid; do
+					if kill -0 "$pid" 2>/dev/null; then
+						echo "$pid" >> "$TMP_DIR/valid_pids.tmp"
+						((valid_pids++))
+					fi
+				done < "$PIDS_FILE"
+				if [[ $valid_pids -eq 0 ]]; then
+					rm -f "$PIDS_FILE"
+					log_with_timestamp "Removed empty workers PID file"
+				else
+					mv "$TMP_DIR/valid_pids.tmp" "$PIDS_FILE"
+					log_with_timestamp "Updated workers PID file with $valid_pids valid PIDs"
+				fi
+			fi
+			echo "Cleanup completed"
 			;;
 		*) run_loop ;;
 	esac

@@ -25,7 +25,8 @@ NC='\033[0m'
 
 # Source utilities for display
 # shellcheck disable=SC1091
-VROOLI_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+CLI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VROOLI_ROOT="$(cd "$CLI_DIR/../.." && pwd)"
 # Unset source guards to ensure utilities are properly loaded when exec'd from CLI
 unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED 2>/dev/null || true
 source "${VROOLI_ROOT}/scripts/lib/utils/var.sh"
@@ -35,6 +36,10 @@ source "${var_LOG_FILE}"
 source "${var_LIB_UTILS_DIR}/flow.sh"
 # shellcheck disable=SC1091
 source "${VROOLI_ROOT}/scripts/lib/utils/format.sh"
+# shellcheck disable=SC1091
+source "${CLI_DIR}/../lib/arg-parser.sh"
+# shellcheck disable=SC1091
+source "${CLI_DIR}/../lib/output-formatter.sh"
 
 # Check if API is running
 check_api() {
@@ -91,29 +96,38 @@ EOF
 
 # List all apps
 app_list() {
-	local output_format="text"
-	local verbose="false"
-	
-	# Parse options for list command
-	while [[ $# -gt 0 ]]; do
-		case "$1" in
-			--json) output_format="json" ;;
-			--format)
-				output_format="${2:-text}"
-				shift 1
-				;;
-			--verbose|-v) verbose="true" ;;
-			--help|-h) show_app_help; return 0 ;;
-			*) ;; # ignore unknowns for forward-compat
-		esac
-		shift || true
-	done
-	
-	# Validate format
-	if [[ "$output_format" != "text" && "$output_format" != "json" ]]; then
-		log::error "Invalid format: $output_format. Use 'text' or 'json'"
+	# Parse common arguments
+	local parsed_args
+	parsed_args=$(parse_combined_args "$@")
+	if [[ $? -ne 0 ]]; then
 		return 1
 	fi
+	
+	local verbose
+	verbose=$(extract_arg "$parsed_args" "verbose")
+	local help_requested
+	help_requested=$(extract_arg "$parsed_args" "help")
+	local output_format
+	output_format=$(extract_arg "$parsed_args" "format")
+	local remaining_args
+	remaining_args=$(extract_arg "$parsed_args" "remaining")
+	
+	# Handle help request
+	if [[ "$help_requested" == "true" ]]; then
+		show_app_help
+		return 0
+	fi
+	
+	# Check for unknown arguments
+	local args_array
+	mapfile -t args_array < <(args_to_array "$remaining_args")
+	
+	for arg in "${args_array[@]}"; do
+		if [[ "$arg" =~ ^- ]]; then
+			cli::format_error "$output_format" "Unknown option: $arg"
+			return 1
+		fi
+	done
 	
 	local apps
 	local use_api=false
@@ -276,25 +290,25 @@ app_list() {
 		done < <(pm::list 2>/dev/null)
 	fi
 	
+	# Format output using CLI formatter
 	if [[ "$output_format" == "json" ]]; then
-		# Build JSON using formatter
+		# Build JSON structure
 		local table_json
 		table_json=$(format::table json "Name" "Runtime" "URL" "Git" "Modified" -- "${rows[@]}")
-		local json_output
-		json_output=$(format::json_object \
-			"location" "\"$generated_dir\"" \
+		
+		cli::format_result json true "App list retrieved successfully" \
+			"location" "$generated_dir" \
 			"total" "$count" \
 			"running" "$running_count" \
-			"apps" "$table_json")
-		echo "$json_output" | jq '.' 2>/dev/null || echo "$json_output"
+			"apps" "$table_json"
 	else
 		# Text output
-		format::key_value text location "$generated_dir"
+		cli::format_header text "📦 Generated Applications"
+		cli::format_output text kv location "$generated_dir"
 		echo ""
-		format::table text "Name" "Runtime" "URL" "Git" "Modified" -- "${rows[@]}"
+		cli::format_table text "Name" "Runtime" "URL" "Git" "Modified" -- "${rows[@]}"
 		echo ""
-		format::key_value text total "$count" running "$running_count"
-		echo ""
+		cli::format_summary text total "$count" running "$running_count"
 		echo "Use 'vrooli app start <name>' to start an app"
 		echo "Use 'vrooli app logs <name>' to view logs"
 	fi
@@ -302,29 +316,45 @@ app_list() {
 
 # Show app status
 app_status() {
-	local app_name="${1:-}"
-	local output_format="text"
-	shift || true
-	while [[ $# -gt 0 ]]; do
-		case "$1" in
-			--json) output_format="json" ;;
-			--format)
-				output_format="${2:-text}"
-				shift 1
-				;;
-			--help|-h) show_app_help; return 0 ;;
-			*) ;;
-		esac
-		shift || true
-	done
-	
-	# Validate format
-	if [[ "$output_format" != "text" && "$output_format" != "json" ]]; then
-		log::error "Invalid format: $output_format. Use 'text' or 'json'"
+	# Parse common arguments
+	local parsed_args
+	parsed_args=$(parse_combined_args "$@")
+	if [[ $? -ne 0 ]]; then
 		return 1
 	fi
 	
-	[[ -z "$app_name" ]] && { log::error "App name required"; return 1; }
+	local verbose
+	verbose=$(extract_arg "$parsed_args" "verbose")
+	local help_requested
+	help_requested=$(extract_arg "$parsed_args" "help")
+	local output_format
+	output_format=$(extract_arg "$parsed_args" "format")
+	local remaining_args
+	remaining_args=$(extract_arg "$parsed_args" "remaining")
+	
+	# Handle help request
+	if [[ "$help_requested" == "true" ]]; then
+		show_app_help
+		return 0
+	fi
+	
+	# Get app name from remaining arguments
+	local args_array
+	mapfile -t args_array < <(args_to_array "$remaining_args")
+	local app_name="${args_array[0]:-}"
+	
+	# Check for unknown arguments
+	for arg in "${args_array[@]:1}"; do
+		if [[ "$arg" =~ ^- ]]; then
+			cli::format_error "$output_format" "Unknown option: $arg"
+			return 1
+		fi
+	done
+	
+	[[ -z "$app_name" ]] && { 
+		cli::format_error "$output_format" "App name required" 
+		return 1 
+	}
 	
 	check_api || return 1
 	
@@ -340,8 +370,9 @@ app_status() {
 	app=$(echo "$response" | jq -r '.data.app')
 	backups=$(echo "$response" | jq -r '.data.backups')
 	
+	# Format output using CLI formatter
 	if [[ "$output_format" == "json" ]]; then
-		# Build JSON via format helpers
+		# Extract app data
 		local name path modified has_git customized protected runtime_status
 		name="$app_name"
 		path=$(echo "$app" | jq -r '.path // ""')
@@ -351,60 +382,63 @@ app_status() {
 		protected=$(echo "$app" | jq -r '.protected // false')
 		runtime_status=$(echo "$app" | jq -r '.runtime_status // "unknown"')
 		
-		local base_json
-		base_json=$(format::key_value json \
-			name "$name" \
-			path "$path" \
-			modified "$modified" \
-			has_git "$has_git" \
-			customized "$customized" \
-			protected "$protected" \
-			runtime_status "$runtime_status" \
-			backups "$backups")
-		echo "$base_json"
-		return 0
-	fi
-	
-	# Text output
-	log::header "App Status: $app_name"
-	echo ""
-	echo "📍 Location: $(echo "$app" | jq -r '.path')"
-	echo "📅 Modified: $(echo "$app" | jq -r '.modified' | cut -d'T' -f1)"
-	
-	# Git status
-	if [[ $(echo "$app" | jq -r '.has_git') == "true" ]]; then
-		echo ""
-		echo "Git Repository:"
-		echo "━━━━━━━━━━━━━━━"
-		if [[ $(echo "$app" | jq -r '.customized') == "true" ]]; then
-			echo "🔧 Has customizations"
+		# Build app data JSON
+		local app_json
+		app_json=$(format::key_value json \
+			"name" "$name" \
+			"path" "$path" \
+			"modified" "$modified" \
+			"has_git" "$has_git" \
+			"customized" "$customized" \
+			"protected" "$protected" \
+			"runtime_status" "$runtime_status")
+		
+		cli::format_result json true "App status retrieved successfully" \
+			"app" "$app_json" \
+			"backups" "$backups"
+	else
+		# Text output
+		cli::format_header text "📦 App Status: $app_name"
+		
+		cli::format_output text kv \
+			"Location" "$(echo "$app" | jq -r '.path')" \
+			"Modified" "$(echo "$app" | jq -r '.modified' | cut -d'T' -f1)"
+		
+		# Git status
+		if [[ $(echo "$app" | jq -r '.has_git') == "true" ]]; then
+			echo ""
+			echo "Git Repository:"
+			echo "━━━━━━━━━━━━━━━"
+			if [[ $(echo "$app" | jq -r '.customized') == "true" ]]; then
+				echo "🔧 Has customizations"
+			else
+				echo "✅ Clean (no customizations)"
+			fi
 		else
-			echo "✅ Clean (no customizations)"
+			echo ""
+			echo "⚠️  No Git repository"
 		fi
-	else
+		
+		# Protection
 		echo ""
-		echo "⚠️  No Git repository"
-	fi
-	
-	# Protection
-	echo ""
-	echo "Protection Status:"
-	echo "━━━━━━━━━━━━━━━━━"
-	if [[ $(echo "$app" | jq -r '.protected') == "true" ]]; then
-		echo "🔒 Protected"
-	else
-		echo "🔓 Not Protected"
-	fi
-	
-	# Backups
-	echo ""
-	echo "Backups:"
-	echo "━━━━━━━━━━━━━━━"
-	if [[ $backups -gt 0 ]]; then
-		echo "💾 Available backups: $backups"
-		echo "   Use 'vrooli app restore $app_name --from latest' to restore"
-	else
-		echo "📭 No backups found"
+		echo "Protection Status:"
+		echo "━━━━━━━━━━━━━━━━━"
+		if [[ $(echo "$app" | jq -r '.protected') == "true" ]]; then
+			echo "🔒 Protected"
+		else
+			echo "🔓 Not Protected"
+		fi
+		
+		# Backups
+		echo ""
+		echo "Backups:"
+		echo "━━━━━━━━━━━━━━━"
+		if [[ $backups -gt 0 ]]; then
+			echo "💾 Available backups: $backups"
+			echo "   Use 'vrooli app restore $app_name --from latest' to restore"
+		else
+			echo "📭 No backups found"
+		fi
 	fi
 }
 

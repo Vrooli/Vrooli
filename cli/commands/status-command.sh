@@ -14,12 +14,19 @@ set -euo pipefail
 
 # Get CLI directory
 CLI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VROOLI_ROOT="$(cd "$CLI_DIR/../.." && pwd)"
+
+# Source utilities
 # shellcheck disable=SC1091
-source "${CLI_DIR}/../../scripts/lib/utils/var.sh"
+source "${VROOLI_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE:-${CLI_DIR}/../../scripts/lib/utils/log.sh}"
 # shellcheck disable=SC1091
-source "${CLI_DIR}/../../scripts/lib/utils/format.sh"
+source "${VROOLI_ROOT}/scripts/lib/utils/format.sh"
+# shellcheck disable=SC1091
+source "${CLI_DIR}/../lib/arg-parser.sh"
+# shellcheck disable=SC1091
+source "${CLI_DIR}/../lib/output-formatter.sh"
 
 # Configuration paths
 RESOURCES_CONFIG="${var_ROOT_DIR}/.vrooli/service.json"
@@ -402,119 +409,148 @@ format_component_data() {
 
 # Main status display
 show_status() {
-    local output_format="text"
-    local verbose="false"
     local show_resources="true"
     local show_apps="true"
     local show_system="true"
     
-    # Parse arguments
-    while [[ $# -gt 0 ]]; do
-        case $1 in
-            --json)
-                output_format="json"
-                shift
-                ;;
-            --format)
-                output_format="${2:-text}"
-                shift 2
-                ;;
-            --verbose|-v)
-                verbose="true"
-                shift
-                ;;
+    # Parse common arguments
+    local parsed_args
+    parsed_args=$(parse_combined_args "$@")
+    if [[ $? -ne 0 ]]; then
+        return 1
+    fi
+    
+    local verbose
+    verbose=$(extract_arg "$parsed_args" "verbose")
+    local help_requested
+    help_requested=$(extract_arg "$parsed_args" "help")
+    local output_format
+    output_format=$(extract_arg "$parsed_args" "format")
+    local remaining_args
+    remaining_args=$(extract_arg "$parsed_args" "remaining")
+    
+    # Handle help request
+    if [[ "$help_requested" == "true" ]]; then
+        show_status_help
+        return 0
+    fi
+    
+    # Parse remaining arguments for status-specific options
+    local args_array
+    mapfile -t args_array < <(args_to_array "$remaining_args")
+    
+    for arg in "${args_array[@]}"; do
+        case "$arg" in
             --resources)
                 show_apps="false"
                 show_system="false"
-                shift
                 ;;
             --apps)
                 show_resources="false"
                 show_system="false"
-                shift
-                ;;
-            --help|-h)
-                show_status_help
-                return 0
                 ;;
             *)
-                log::error "Unknown option: $1"
+                cli::format_error "$output_format" "Unknown option: $arg"
                 show_status_help
                 return 1
                 ;;
         esac
     done
     
-    # Validate format
-    if [[ "$output_format" != "text" && "$output_format" != "json" ]]; then
-        log::error "Invalid format: $output_format. Use 'text' or 'json'"
-        return 1
+    # Collect data
+    local system_data=""
+    local resource_data=""
+    local app_data=""
+    
+    if [[ "$show_system" == "true" ]]; then
+        system_data=$(get_system_data)
     fi
     
+    if [[ "$show_resources" == "true" ]]; then
+        resource_data=$(get_resource_data "$verbose")
+    fi
+    
+    if [[ "$show_apps" == "true" ]]; then
+        app_data=$(get_app_data "$verbose")
+    fi
+    
+    # Format output using CLI formatter
     if [[ "$output_format" == "json" ]]; then
-        # JSON output using format library
-        local components=()
+        # Build JSON structure
+        local json_components=()
         
         if [[ "$show_system" == "true" ]]; then
-            components+=("system" "$(format_system_data json "$(get_system_data)")")
+            json_components+=("system" "$(format_system_data json "$system_data")")
         fi
         
         if [[ "$show_resources" == "true" ]]; then
-            components+=("resources" "$(format_component_data json resources "$(get_resource_data "$verbose")")")
+            json_components+=("resources" "$(format_component_data json resources "$resource_data")")
         fi
         
         if [[ "$show_apps" == "true" ]]; then
-            components+=("apps" "$(format_component_data json apps "$(get_app_data "$verbose")")")
+            json_components+=("apps" "$(format_component_data json apps "$app_data")")
         fi
         
+        # Add overall health status
+        local health_status="healthy"
+        local health_details=()
+        
+        if ! docker info >/dev/null 2>&1; then
+            health_status="warning"
+            health_details+=("Docker unavailable")
+        fi
+        
+        if [[ "$show_apps" == "true" ]] && ! check_api; then
+            health_status="warning"
+            health_details+=("API offline")
+        fi
+        
+        json_components+=("health" "$(cli::format_status json "$health_status" "Overall system status" "${health_details[@]}")")
+        
+        # Combine all components
         local json_output
-        json_output=$(format::json_object "${components[@]}")
+        json_output=$(format::json_object "${json_components[@]}")
         echo "$json_output"
     else
         # Text output
-        echo ""
-        echo "🚀 Vrooli System Status"
-        echo "=================================================="
+        cli::format_header text "🚀 Vrooli System Status"
         
         if [[ "$show_system" == "true" ]]; then
-            echo ""
-            echo "📊 System Metrics"
-            echo "------------------"
-            format_system_data text "$(get_system_data)" || true
+            cli::format_header text "📊 System Metrics"
+            format_system_data text "$system_data" || true
             echo ""
         fi
         
         if [[ "$show_resources" == "true" ]]; then
-            echo "🔧 Resources"
-            echo "-------------"
-            format_component_data text resources "$(get_resource_data "$verbose")" || true
+            cli::format_header text "🔧 Resources"
+            format_component_data text resources "$resource_data" || true
             echo ""
         fi
         
         if [[ "$show_apps" == "true" ]]; then
-            echo "📦 Applications"
-            echo "----------------"
-            format_component_data text apps "$(get_app_data "$verbose")" || true
+            cli::format_header text "📦 Applications"
+            format_component_data text apps "$app_data" || true
             echo ""
         fi
         
-        # Quick health check
-        local health_status="✅ Healthy"
+        # Overall health status
+        local health_status="healthy"
+        local health_message="System is healthy"
         
-        # Check if Docker is available
         if ! docker info >/dev/null 2>&1; then
-            health_status="⚠️  Docker unavailable"
+            health_status="warning"
+            health_message="Docker unavailable"
         fi
         
-        # Check if API is available
         if [[ "$show_apps" == "true" ]] && ! check_api; then
-            health_status="⚠️  API offline"
+            health_status="warning"
+            health_message="API offline"
         fi
         
-        echo "Overall: ${health_status}"
-        echo ""
+        cli::format_status text "$health_status" "$health_message"
         
         if [[ "$verbose" == "false" ]]; then
+            echo ""
             echo "Use 'vrooli status --verbose' for detailed information"
         fi
     fi

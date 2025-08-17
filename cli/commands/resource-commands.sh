@@ -25,6 +25,10 @@ source "${var_RESOURCES_COMMON_FILE}" 2>/dev/null || true
 source "${var_LIB_DIR}/resources/auto-install.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${CLI_DIR}/../../scripts/lib/utils/format.sh"
+# shellcheck disable=SC1091
+source "${CLI_DIR}/../lib/arg-parser.sh"
+# shellcheck disable=SC1091
+source "${CLI_DIR}/../lib/output-formatter.sh"
 
 # Resource paths
 RESOURCES_DIR="${var_SCRIPTS_RESOURCES_DIR}"
@@ -569,40 +573,49 @@ format_resource_status_data() {
 
 # List all available resources (completely format-agnostic)
 resource_list() {
-    local format="text"
+    # Parse common arguments
+    local parsed_args
+    parsed_args=$(parse_combined_args "$@")
+    if [[ $? -ne 0 ]]; then
+        return 1
+    fi
+    
+    local verbose
+    verbose=$(extract_arg "$parsed_args" "verbose")
+    local help_requested
+    help_requested=$(extract_arg "$parsed_args" "help")
+    local format
+    format=$(extract_arg "$parsed_args" "format")
+    local remaining_args
+    remaining_args=$(extract_arg "$parsed_args" "remaining")
+    
+    # Handle help request
+    if [[ "$help_requested" == "true" ]]; then
+        show_resource_help
+        return 0
+    fi
+    
+    # Parse remaining arguments for resource-specific options
     local include_connection="false"
     local only_running="false"
     
-    # Parse arguments
-    while [[ $# -gt 0 ]]; do
-        case $1 in
-            --format)
-                format="$2"
-                shift 2
-                ;;
-            --json)
-                format="json"
-                shift
-                ;;
+    local args_array
+    mapfile -t args_array < <(args_to_array "$remaining_args")
+    
+    for arg in "${args_array[@]}"; do
+        case "$arg" in
             --include-connection-info)
                 include_connection="true"
-                shift
                 ;;
             --only-running)
                 only_running="true"
-                shift
                 ;;
             *)
-                shift
+                cli::format_error "$format" "Unknown option: $arg"
+                return 1
                 ;;
         esac
     done
-    
-    # Validate format
-    if [[ "$format" != "text" && "$format" != "json" ]]; then
-        log::error "Invalid format: $format. Use 'text' or 'json'"
-        return 1
-    fi
     
     # Get structured data (format-agnostic)
     local resource_data
@@ -615,32 +628,40 @@ resource_list() {
 
 # Show resource status (completely format-agnostic)
 resource_status_core() {
-    local resource_name="${1:-}"
-    local format="text"
-    
-    # Parse arguments
-    while [[ $# -gt 0 ]]; do
-        case $1 in
-            --format)
-                format="$2"
-                shift 2
-                ;;
-            --json)
-                format="json"
-                shift
-                ;;
-            *)
-                resource_name="$1"
-                shift
-                ;;
-        esac
-    done
-    
-    # Validate format
-    if [[ "$format" != "text" && "$format" != "json" ]]; then
-        log::error "Invalid format: $format. Use 'text' or 'json'"
+    # Parse common arguments
+    local parsed_args
+    parsed_args=$(parse_combined_args "$@")
+    if [[ $? -ne 0 ]]; then
         return 1
     fi
+    
+    local verbose
+    verbose=$(extract_arg "$parsed_args" "verbose")
+    local help_requested
+    help_requested=$(extract_arg "$parsed_args" "help")
+    local format
+    format=$(extract_arg "$parsed_args" "format")
+    local remaining_args
+    remaining_args=$(extract_arg "$parsed_args" "remaining")
+    
+    # Handle help request
+    if [[ "$help_requested" == "true" ]]; then
+        show_resource_help
+        return 0
+    fi
+    
+    # Get resource name from remaining arguments
+    local args_array
+    mapfile -t args_array < <(args_to_array "$remaining_args")
+    local resource_name="${args_array[0]:-}"
+    
+    # Check for unknown arguments
+    for arg in "${args_array[@]:1}"; do
+        if [[ "$arg" =~ ^- ]]; then
+            cli::format_error "$format" "Unknown option: $arg"
+            return 1
+        fi
+    done
     
     if [[ -z "$resource_name" ]]; then
         # Show status of all enabled resources
