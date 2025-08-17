@@ -25,7 +25,6 @@ source "${CLI_DIR}/../../scripts/lib/utils/format.sh"
 
 # Configuration paths
 RESOURCES_CONFIG="${var_ROOT_DIR}/.vrooli/service.json"
-RESOURCES_CONFIG_LEGACY="${var_ROOT_DIR}/.vrooli/resources.local.json"
 API_BASE="http://localhost:${VROOLI_API_PORT:-8090}"
 
 # Show help for status command
@@ -77,16 +76,9 @@ get_docker_status() {
 collect_resource_data() {
     local verbose="${1:-false}"
     
-    # Check which config file exists
-    local config_file=""
-    if [[ -f "$RESOURCES_CONFIG" ]]; then
-        config_file="$RESOURCES_CONFIG"
-    elif [[ -f "$RESOURCES_CONFIG_LEGACY" ]]; then
-        config_file="$RESOURCES_CONFIG_LEGACY"
-    fi
-    
-    if [[ -z "$config_file" ]] || [[ ! -f "$config_file" ]]; then
-        echo "error:No resource configuration found"
+    # Check if config file exists
+    if [[ ! -f "$RESOURCES_CONFIG" ]]; then
+        echo "error:No resource configuration found at $RESOURCES_CONFIG"
         return
     fi
     
@@ -119,7 +111,7 @@ collect_resource_data() {
                 echo "resource:${name}:${container_status}"
             fi
         fi
-    done < <(jq -r "$jq_query" "$config_file" 2>/dev/null || true)
+    done < <(jq -r "$jq_query" "$RESOURCES_CONFIG" 2>/dev/null || true)
     
     # Always output summary
     echo "enabled:${enabled_count}"

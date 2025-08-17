@@ -45,7 +45,7 @@ You can control loops either via the per-task shims or the central manager. Repl
 
 ### Using the shims (optional)
 
-Convenience wrappers exist for the common loops:
+Convenience shims exist for the common loops (delegate to `task-manager.sh`):
 
 ```bash
 # Scenario improvement loop
@@ -56,9 +56,9 @@ Convenience wrappers exist for the common loops:
 /home/matthalloran8/Vrooli/auto/manage-resource-loop.sh start
 /home/matthalloran8/Vrooli/auto/manage-resource-loop.sh stop
 
-# Simple wrappers that run the loop in the foreground
-/home/matthalloran8/Vrooli/auto/scenario-improvement-loop.sh
-/home/matthalloran8/Vrooli/auto/resource-improvement-loop.sh
+# Foreground run via central manager (formerly simple wrappers)
+/home/matthalloran8/Vrooli/auto/task-manager.sh --task scenario-improvement run-loop
+/home/matthalloran8/Vrooli/auto/task-manager.sh --task resource-improvement run-loop
 ```
 
 

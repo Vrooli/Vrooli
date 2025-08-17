@@ -15,18 +15,18 @@ set -euo pipefail
 
 # Determine Vrooli root directory
 if [[ -n "${VROOLI_ROOT:-}" ]]; then
-    # Use environment variable if set
-    VROOLI_ROOT="${VROOLI_ROOT}"
+	# Use environment variable if set
+	VROOLI_ROOT="${VROOLI_ROOT}"
 elif [[ -L "${BASH_SOURCE[0]}" ]]; then
-    # If this script is a symlink, resolve it
-    SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
-    VROOLI_ROOT="$(cd "$(dirname "$SCRIPT_PATH")/.." && pwd)"
+	# If this script is a symlink, resolve it
+	SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
+	VROOLI_ROOT="$(cd "$(dirname "$SCRIPT_PATH")/.." && pwd)"
 elif git rev-parse --show-toplevel >/dev/null 2>&1; then
-    # Try to find git root
-    VROOLI_ROOT="$(git rev-parse --show-toplevel)"
+	# Try to find git root
+	VROOLI_ROOT="$(git rev-parse --show-toplevel)"
 else
-    # Fallback to relative path from script location
-    VROOLI_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+	# Fallback to relative path from script location
+	VROOLI_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 fi
 
 export VROOLI_ROOT
@@ -34,9 +34,9 @@ export VROOLI_ROOT
 # Source common utilities
 # shellcheck disable=SC1091
 source "${VROOLI_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || {
-    echo "Error: Cannot find Vrooli utilities at ${VROOLI_ROOT}/scripts/lib/utils/var.sh"
-    echo "Please ensure VROOLI_ROOT is set correctly or run from within the Vrooli repository"
-    exit 1
+	echo "Error: Cannot find Vrooli utilities at ${VROOLI_ROOT}/scripts/lib/utils/var.sh"
+	echo "Please ensure VROOLI_ROOT is set correctly or run from within the Vrooli repository"
+	exit 1
 }
 
 # shellcheck disable=SC1091
@@ -48,14 +48,14 @@ CLI_VERSION="1.0.0"
 
 # Show version
 show_version() {
-    echo "Vrooli CLI v${CLI_VERSION}"
-    echo "Vrooli Platform v${VROOLI_VERSION}"
-    echo "Root: ${VROOLI_ROOT}"
+	echo "Vrooli CLI v${CLI_VERSION}"
+	echo "Vrooli Platform v${VROOLI_VERSION}"
+	echo "Root: ${VROOLI_ROOT}"
 }
 
 # Show main help
 show_main_help() {
-    cat << EOF
+	cat << EOF
 🚀 Vrooli CLI - Command-line interface for Vrooli operations
 
 USAGE:
@@ -110,7 +110,6 @@ EXAMPLES:
     vrooli test                         # Run all tests
     vrooli test resources --verbose     # Test resources with details
     vrooli app list                     # List generated apps
-    vrooli app list                     # Show all generated apps
     vrooli app logs my-app              # Show app logs
 
 For more help on a specific command:
@@ -122,77 +121,84 @@ EOF
 
 # Main command router
 main() {
-    # Handle no arguments
-    if [[ $# -eq 0 ]]; then
-        # Built-in help (no external script needed)
-        show_main_help
-    fi
-    
-    local command="$1"
-    shift
-    
-    case "$command" in
-        # Lifecycle commands (delegate to manage.sh)
-        setup|develop|build|deploy|clean|backup|restore)
-            # Clear source guards to allow manage.sh to load functions properly
-            unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED
-            exec "${VROOLI_ROOT}/scripts/manage.sh" "$command" "$@"
-            ;;
-        
-        # Status command
-        status)
-            # Clear source guards to allow status-command.sh to load functions properly
-            unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED
-            exec "${VROOLI_ROOT}/cli/commands/status-command.sh" "$@"
-            ;;
-        
-        # Test commands (delegate to test-commands.sh)
-        test)
-            # Clear source guards to allow test-commands.sh to load functions properly
-            unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED
-            exec "${VROOLI_ROOT}/cli/commands/test-commands.sh" "$@"
-            ;;
-        
-        # App management commands
-        app)
-            # Clear source guards to allow app-commands.sh to load functions properly
-            unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED
-            exec "${VROOLI_ROOT}/cli/commands/app-commands.sh" "$@"
-            ;;
-        
-        # Scenario commands  
-        scenario)
-            # Clear source guards to allow scenario-commands.sh to load functions properly
-            unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED
-            exec "${VROOLI_ROOT}/cli/commands/scenario-commands.sh" "$@"
-            ;;
-            
-        # Resource commands
-        resource)
-            # Clear source guards to allow resource-commands.sh to load functions properly
-            unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED
-            exec "${VROOLI_ROOT}/cli/commands/resource-commands.sh" "$@"
-            ;;
-            
-        
-        # Version command
-        version|--version|-v)
-            show_version
-            ;;
-            
-        # Help and unknown commands
-        help|--help|-h)
-            # Built-in help (no external script needed)
-        show_main_help
-            ;;
-            
-        *)
-            log::error "Unknown command: $command"
-            echo ""
-            echo "Run 'vrooli --help' for usage information"
-            exit 1
-            ;;
-    esac
+	# Handle no arguments
+	if [[ $# -eq 0 ]]; then
+		# Built-in help (no external script needed)
+		show_main_help
+		exit 0
+	fi
+	
+	local command="$1"
+	shift
+	
+	case "$command" in
+		# Lifecycle commands (delegate to manage.sh)
+		setup|develop|build|deploy|clean|backup|restore)
+			# Clear source guards to allow manage.sh to load functions properly
+			unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED
+			exec "${VROOLI_ROOT}/scripts/manage.sh" "$command" "$@"
+			;;
+		
+		# Status command
+		status)
+			# Clear source guards to allow status-command.sh to load functions properly
+			unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED
+			exec "${VROOLI_ROOT}/cli/commands/status-command.sh" "$@"
+			;;
+		
+		# Test commands (delegate to test-commands.sh)
+		test)
+			# Clear source guards to allow test-commands.sh to load functions properly
+			unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED
+			exec "${VROOLI_ROOT}/cli/commands/test-commands.sh" "$@"
+			;;
+		
+		# App management commands
+		app)
+			# Clear source guards to allow app-commands.sh to load functions properly
+			unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED
+			exec "${VROOLI_ROOT}/cli/commands/app-commands.sh" "$@"
+			;;
+		
+		# Scenario commands  
+		scenario)
+			# Clear source guards to allow scenario-commands.sh to load functions properly
+			unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED
+			exec "${VROOLI_ROOT}/cli/commands/scenario-commands.sh" "$@"
+			;;
+			
+		# Resource commands
+		resource)
+			# Clear source guards to allow resource-commands.sh to load functions properly
+			unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED
+			exec "${VROOLI_ROOT}/cli/commands/resource-commands.sh" "$@"
+			;;
+			
+		# Doctor / preflight checks
+		doctor)
+			unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED
+			exec "${VROOLI_ROOT}/cli/commands/doctor.sh" "$@"
+			;;
+			
+		
+		# Version command
+		version|--version|-v)
+			show_version
+			;;
+			
+		# Help and unknown commands
+		help|--help|-h)
+			# Built-in help (no external script needed)
+		show_main_help
+			;;
+			
+		*)
+			log::error "Unknown command: $command"
+			echo ""
+			echo "Run 'vrooli --help' for usage information"
+			exit 1
+			;;
+	esac
 }
 
 # Execute main function with all arguments

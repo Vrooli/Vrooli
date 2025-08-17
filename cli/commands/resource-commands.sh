@@ -29,7 +29,6 @@ source "${CLI_DIR}/../../scripts/lib/utils/format.sh"
 # Resource paths
 RESOURCES_DIR="${var_SCRIPTS_RESOURCES_DIR}"
 RESOURCES_CONFIG="${var_ROOT_DIR}/.vrooli/service.json"
-RESOURCES_CONFIG_LEGACY="${var_ROOT_DIR}/.vrooli/resources.local.json"
 RESOURCE_REGISTRY="${var_ROOT_DIR}/.vrooli/resource-registry"
 
 # Show help for resource commands
@@ -252,14 +251,9 @@ collect_resource_list_data() {
     local include_connection="${1:-false}"
     local only_running="${2:-false}"
     
-    # Check which config file exists
-    local config_file=""
-    if [[ -f "$RESOURCES_CONFIG" ]]; then
-        config_file="$RESOURCES_CONFIG"
-    elif [[ -f "$RESOURCES_CONFIG_LEGACY" ]]; then
-        config_file="$RESOURCES_CONFIG_LEGACY"
-    else
-        echo "error:No resource configuration found"
+    # Check if config file exists
+    if [[ ! -f "$RESOURCES_CONFIG" ]]; then
+        echo "error:No resource configuration found at $RESOURCES_CONFIG"
         return
     fi
     
@@ -273,7 +267,7 @@ collect_resource_list_data() {
         .resources | to_entries[] as $category | 
         $category.value | to_entries[] | 
         "\($category.key)/\(.key)/\(.value.enabled)"
-    ' "$config_file" 2>/dev/null)
+    ' "$RESOURCES_CONFIG" 2>/dev/null)
     
     if [[ -z "$all_resources" ]]; then
         echo "error:No resources found in configuration"
@@ -612,7 +606,7 @@ resource_list() {
 
 
 # Show resource status (completely format-agnostic)
-resource_status() {
+resource_status_core() {
     local resource_name="${1:-}"
     local format="text"
     
@@ -651,112 +645,9 @@ resource_status() {
     fi
 }
 
-# Batch check Docker container status for all resources
-batch_check_docker_status() {
-    # Get all running containers in one call
-    local running_containers=""
-    if command -v docker >/dev/null 2>&1; then
-        running_containers=$(docker ps --format '{{.Names}}' 2>/dev/null || true)
-    fi
-    
-    # Create a lookup for running containers
-    declare -A container_status
-    while IFS= read -r container_name; do
-        [[ -n "$container_name" ]] && container_status["$container_name"]="running"
-    done <<< "$running_containers"
-    
-    # Output as JSON for easy parsing using jq for safety
-    if [[ ${#container_status[@]} -gt 0 ]]; then
-        # Build JSON object with jq to ensure proper escaping
-        local json_pairs=()
-        for container in "${!container_status[@]}"; do
-            json_pairs+=("\"$container\":\"${container_status[$container]}\"")
-        done
-        echo "{$(IFS=,; echo "${json_pairs[*]}")}"
-    else
-        echo "{}"
-    fi
-}
-
-
-# Show resource status
+# Backward-compatible wrapper: delegate to format-agnostic core
 resource_status() {
-    local resource_name="${1:-}"
-    
-    if [[ -z "$resource_name" ]]; then
-        # Show status of all enabled resources
-        log::header "Resource Status Overview"
-        
-        # Check which config file exists
-        local config_file=""
-        if [[ -f "$RESOURCES_CONFIG" ]]; then
-            config_file="$RESOURCES_CONFIG"
-        elif [[ -f "$RESOURCES_CONFIG_LEGACY" ]]; then
-            config_file="$RESOURCES_CONFIG_LEGACY"
-        else
-            log::warning "No resource configuration found"
-            return 0
-        fi
-        
-        # Parse enabled resources from config
-        local enabled_resources
-        enabled_resources=$(jq -r '
-            .resources | to_entries[] as $category | 
-            $category.value | to_entries[] | 
-            select(.value.enabled == true) | 
-            "\($category.key)/\(.key)"
-        ' "$config_file" 2>/dev/null)
-        
-        if [[ -z "$enabled_resources" ]]; then
-            log::info "No resources are enabled"
-            return 0
-        fi
-        
-        while IFS= read -r resource_path; do
-            local category="${resource_path%%/*}"
-            local name="${resource_path#*/}"
-            
-            echo ""
-            echo "📦 $name ($category)"
-            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-            
-            # Try to use resource CLI if available
-            if has_resource_cli "$name"; then
-                if command -v "resource-${name}" >/dev/null 2>&1; then
-                    # Clear source guards to allow resource CLI to source its dependencies
-                    (unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED; "resource-${name}" status 2>/dev/null) || echo "Status check failed"
-                fi
-            else
-                # Fallback to basic status
-                if command -v docker >/dev/null 2>&1 && docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^${name}$" || false; then
-                    echo "Status: 🟢 Running (Docker)"
-                else
-                    echo "Status: ⭕ Not running"
-                fi
-            fi
-        done <<< "$enabled_resources"
-    else
-        # Show status of specific resource
-        if has_resource_cli "$resource_name"; then
-            route_to_resource_cli "$resource_name" status
-        else
-            # Basic status check
-            echo "📦 Resource: $resource_name"
-            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-            
-            if command -v docker >/dev/null 2>&1 && docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^${resource_name}$" || false; then
-                echo "Status: 🟢 Running (Docker)"
-                docker ps --filter "name=^${resource_name}$" --format "table {{.Status}}\t{{.Ports}}" | tail -n 1
-            else
-                echo "Status: ⭕ Not running"
-                
-                # Check if container exists but stopped
-                if command -v docker >/dev/null 2>&1 && docker ps -a --format '{{.Names}}' 2>/dev/null | grep -q "^${resource_name}$" || false; then
-                    echo "Container exists but is stopped"
-                fi
-            fi
-        fi
-    fi
+    resource_status_core "$@"
 }
 
 # Install a resource
@@ -855,7 +746,7 @@ resource_start_all() {
         $category.value | to_entries[] | 
         select(.value.enabled == true) | 
         "\($category.key)/\(.key)"
-    ' "$config_file" 2>/dev/null)
+    ' "$RESOURCES_CONFIG" 2>/dev/null)
     
     if [[ -z "$enabled_resources" ]]; then
         log::info "No resources are enabled"
@@ -1040,7 +931,7 @@ main() {
                     resource_list "$@"
                     ;;
                 status)
-                    resource_status "$@"
+                    resource_status_core "$@"
                     ;;
                 install)
                     resource_install "$@"

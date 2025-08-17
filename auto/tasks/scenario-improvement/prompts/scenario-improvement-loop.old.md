@@ -36,6 +36,6 @@ Then, take a minute to understand the current state of the scenarios. They are i
 
 
 
-Remember, changes in *generated* apps are ephemeral - you may change the generated app code for quick, iterative debugging, but once you find a solution you MUST update the scenario for it to persist.
+
 
 Remember, some scenarios are used to increase the power and capability of Vrooli itself, which means they can call each other using their clis. For example, morning-vision-walk would likely rely heavily on stream-of-consciousness-analyzer, product-manager-agent, and maybe even life-coach. Other scenarios are demonstrations of what we can do and apps that might generate revenue. This includes scenarios which are intended to be deployed as a SaaS app or to a customer on Upwork, as well as scenarios which would be used internally by businesses or individuals with a local Vrooli server. The possibilities are only bounded by our current set of resources, which should hopefully be improved soon (but NOT in this chat).
