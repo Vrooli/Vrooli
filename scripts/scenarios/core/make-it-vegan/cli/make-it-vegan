@@ -1,0 +1,121 @@
+#!/bin/bash
+
+API_URL="${MAKE_IT_VEGAN_API_URL:-http://localhost:8080}"
+
+show_help() {
+    cat << EOF
+Make It Vegan - Plant-Based Food Companion
+
+Usage: make-it-vegan <command> [options]
+
+Commands:
+    check <ingredients>        Check if ingredients are vegan
+    substitute <ingredient>    Find vegan alternatives
+    veganize <recipe>         Convert a recipe to vegan
+    products                  List common non-vegan ingredients
+    help                      Show this help message
+
+Examples:
+    make-it-vegan check "milk, eggs, flour"
+    make-it-vegan substitute "cheese" --context "pizza"
+    make-it-vegan veganize "scrambled eggs with bacon"
+
+Options:
+    --context <use>           Context for substitution (e.g., "baking", "pizza")
+    --json                    Output in JSON format
+EOF
+}
+
+check_ingredients() {
+    local ingredients="$1"
+    local response=$(curl -s -X POST "$API_URL/api/check" \
+        -H "Content-Type: application/json" \
+        -d "{\"ingredients\":\"$ingredients\"}")
+    
+    if [[ "$2" == "--json" ]]; then
+        echo "$response"
+    else
+        echo "$response" | jq -r '.analysis // .message // .'
+    fi
+}
+
+find_substitute() {
+    local ingredient="$1"
+    shift
+    local context="general cooking"
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --context)
+                context="$2"
+                shift 2
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    local response=$(curl -s -X POST "$API_URL/api/substitute" \
+        -H "Content-Type: application/json" \
+        -d "{\"ingredient\":\"$ingredient\",\"context\":\"$context\"}")
+    
+    if [[ "$json_output" == "true" ]]; then
+        echo "$response"
+    else
+        echo "Vegan alternatives for $ingredient (used as $context):"
+        echo "$response" | jq -r '.alternatives[]? | "- \(.name): \(.description)"'
+    fi
+}
+
+veganize_recipe() {
+    local recipe="$1"
+    local response=$(curl -s -X POST "$API_URL/api/veganize" \
+        -H "Content-Type: application/json" \
+        -d "{\"recipe\":\"$recipe\"}")
+    
+    if [[ "$2" == "--json" ]]; then
+        echo "$response"
+    else
+        echo "Vegan Version:"
+        echo "$response" | jq -r '.veganVersion.fullText // .message // .'
+    fi
+}
+
+list_products() {
+    local response=$(curl -s "$API_URL/api/products")
+    
+    if [[ "$1" == "--json" ]]; then
+        echo "$response"
+    else
+        echo "Common Non-Vegan Ingredients:"
+        echo "$response" | jq -r 'to_entries[] | "\n\(.key | ascii_upcase):\n\(.value | join(", "))"'
+    fi
+}
+
+case "$1" in
+    check)
+        check_ingredients "$2" "$3"
+        ;;
+    substitute)
+        find_substitute "$2" "${@:3}"
+        ;;
+    veganize)
+        veganize_recipe "$2" "$3"
+        ;;
+    products)
+        list_products "$2"
+        ;;
+    help|--help|-h)
+        show_help
+        ;;
+    *)
+        echo "Unknown command: $1"
+        echo "Use 'make-it-vegan help' for usage information"
+        exit 1
+        ;;
+esac

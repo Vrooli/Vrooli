@@ -1,0 +1,207 @@
+{
+  "name": "color-harmony-analyzer",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "color-harmony-analyzer",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "colors",
+              "value": "[\"#3B82F6\", \"#60A5FA\", \"#93C5FD\", \"#DBEAFE\", \"#1E40AF\"]"
+            },
+            {
+              "name": "harmony_type",
+              "value": "complementary"
+            }
+          ]
+        }
+      },
+      "id": "default-values",
+      "name": "Default Values",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [450, 500]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $node['Manual Trigger'].json ? 'manual' : 'webhook' }}",
+              "value2": "manual"
+            }
+          ]
+        }
+      },
+      "id": "input-router",
+      "name": "Input Router",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Analyze color harmony relationships\nconst colors = typeof $input.item.json.colors === 'string' \n  ? JSON.parse($input.item.json.colors) \n  : $input.item.json.colors;\n\nconst harmonyType = $input.item.json.harmony_type || 'auto';\n\n// Convert hex to RGB for analysis\nfunction hexToRgb(hex) {\n  const result = /^#?([a-f\\d]{2})([a-f\\d]{2})([a-f\\d]{2})$/i.exec(hex);\n  return result ? {\n    r: parseInt(result[1], 16),\n    g: parseInt(result[2], 16),\n    b: parseInt(result[3], 16)\n  } : null;\n}\n\n// Convert RGB to HSL for harmony analysis\nfunction rgbToHsl(r, g, b) {\n  r /= 255;\n  g /= 255;\n  b /= 255;\n  \n  const max = Math.max(r, g, b);\n  const min = Math.min(r, g, b);\n  let h, s, l = (max + min) / 2;\n  \n  if (max === min) {\n    h = s = 0;\n  } else {\n    const d = max - min;\n    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);\n    \n    switch(max) {\n      case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;\n      case g: h = ((b - r) / d + 2) / 6; break;\n      case b: h = ((r - g) / d + 4) / 6; break;\n    }\n  }\n  \n  return {\n    h: Math.round(h * 360),\n    s: Math.round(s * 100),\n    l: Math.round(l * 100)\n  };\n}\n\n// Analyze the colors\nconst analysis = colors.map(color => {\n  const rgb = hexToRgb(color);\n  const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);\n  return {\n    hex: color,\n    rgb: rgb,\n    hsl: hsl\n  };\n});\n\n// Calculate harmony score\nconst hueVariance = analysis.reduce((acc, color, i, arr) => {\n  if (i === 0) return 0;\n  return acc + Math.abs(color.hsl.h - arr[i-1].hsl.h);\n}, 0) / (analysis.length - 1);\n\nconst saturationRange = Math.max(...analysis.map(c => c.hsl.s)) - Math.min(...analysis.map(c => c.hsl.s));\nconst lightnessRange = Math.max(...analysis.map(c => c.hsl.l)) - Math.min(...analysis.map(c => c.hsl.l));\n\nreturn {\n  colors: colors,\n  analysis: analysis,\n  harmony_metrics: {\n    hue_variance: hueVariance,\n    saturation_range: saturationRange,\n    lightness_range: lightnessRange,\n    harmony_type: harmonyType\n  },\n  formatted_data: JSON.stringify({\n    colors: analysis,\n    metrics: {\n      hue_variance: hueVariance,\n      saturation_range: saturationRange,\n      lightness_range: lightnessRange\n    }\n  })\n};"
+      },
+      "id": "color-analysis",
+      "name": "Color Analysis",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.service.n8n.url }}/webhook/ollama",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "prompt",
+              "value": "Analyze this color palette harmony:\n\nColors: {{ $json.formatted_data }}\n\nProvide:\n1. Harmony type (complementary, analogous, triadic, split-complementary, tetradic, or monochromatic)\n2. Strengths of the palette\n3. Potential improvements\n4. Best use cases\n5. Suggested variations\n\nReturn as JSON with keys: harmony_type, strengths, improvements, use_cases, variations"
+            },
+            {
+              "name": "model",
+              "value": "llama3.2"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ai-harmony-analysis",
+      "name": "AI Harmony Analysis",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1050, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format the harmony analysis response\ntry {\n  const response = $input.item.json.response;\n  const metrics = $input.item.json.harmony_metrics;\n  const analysis = $input.item.json.analysis;\n  \n  // Extract JSON from AI response\n  const jsonMatch = response.match(/\\{[\\s\\S]*\\}/);\n  let aiAnalysis = {};\n  \n  if (jsonMatch) {\n    try {\n      aiAnalysis = JSON.parse(jsonMatch[0]);\n    } catch (e) {\n      // Fallback if parsing fails\n      aiAnalysis = {\n        harmony_type: metrics.harmony_type,\n        strengths: ['Well-balanced palette'],\n        improvements: ['Consider adjusting saturation levels'],\n        use_cases: ['Web design', 'Branding'],\n        variations: []\n      };\n    }\n  }\n  \n  // Calculate harmony score (0-100)\n  let harmonyScore = 100;\n  \n  // Deduct points for poor hue distribution\n  if (metrics.hue_variance < 20) harmonyScore -= 15; // Too similar\n  if (metrics.hue_variance > 180) harmonyScore -= 10; // Too disparate\n  \n  // Deduct points for poor saturation range\n  if (metrics.saturation_range < 10) harmonyScore -= 10; // Too uniform\n  if (metrics.saturation_range > 80) harmonyScore -= 15; // Too varied\n  \n  // Deduct points for poor lightness range\n  if (metrics.lightness_range < 20) harmonyScore -= 10; // Poor contrast\n  if (metrics.lightness_range > 90) harmonyScore -= 5; // Excessive contrast\n  \n  return {\n    success: true,\n    colors: $input.item.json.colors,\n    color_data: analysis,\n    harmony: {\n      type: aiAnalysis.harmony_type || 'custom',\n      score: Math.max(0, harmonyScore),\n      metrics: metrics,\n      strengths: aiAnalysis.strengths || [],\n      improvements: aiAnalysis.improvements || [],\n      use_cases: aiAnalysis.use_cases || [],\n      variations: aiAnalysis.variations || []\n    },\n    suggestions: {\n      optimal_hue_variance: '30-120 degrees',\n      optimal_saturation_range: '20-60%',\n      optimal_lightness_range: '30-70%'\n    },\n    timestamp: new Date().toISOString()\n  };\n} catch (error) {\n  return {\n    success: false,\n    error: 'Failed to analyze harmony: ' + error.message,\n    colors: $input.item.json.colors\n  };\n}"
+      },
+      "id": "format-harmony-response",
+      "name": "Format Harmony Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 400]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1450, 400]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Input Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Default Values",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Default Values": {
+      "main": [
+        [
+          {
+            "node": "Input Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Input Router": {
+      "main": [
+        [
+          {
+            "node": "Color Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Color Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Color Analysis": {
+      "main": [
+        [
+          {
+            "node": "AI Harmony Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Harmony Analysis": {
+      "main": [
+        [
+          {
+            "node": "Format Harmony Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Harmony Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

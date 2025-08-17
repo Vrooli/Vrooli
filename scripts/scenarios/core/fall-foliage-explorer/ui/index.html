@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fall Foliage Explorer - Track Autumn's Beauty</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header with autumn theme -->
+        <header class="autumn-header">
+            <div class="header-content">
+                <div class="logo-section">
+                    <svg class="leaf-icon" viewBox="0 0 24 24" width="32" height="32">
+                        <path d="M17,8C8,10 5.9,16.17 3.82,21.34L5.71,22L6.66,19.7C7.14,19.87 7.64,20 8,20C19,20 22,3 22,3C21,5 14,5.25 9,6.25C4,7.25 2,11.5 2,13.5C2,15.5 3.75,17.25 3.75,17.25C7,8 17,8 17,8Z" />
+                    </svg>
+                    <h1>Fall Foliage Explorer</h1>
+                </div>
+                <nav class="nav-menu">
+                    <button class="nav-btn active" data-view="map">Map View</button>
+                    <button class="nav-btn" data-view="timeline">Timeline</button>
+                    <button class="nav-btn" data-view="regions">Regions</button>
+                    <button class="nav-btn" data-view="planner">Trip Planner</button>
+                </nav>
+            </div>
+        </header>
+
+        <!-- Main content area -->
+        <main class="main-content">
+            <!-- Map View -->
+            <div id="map-view" class="view-panel active">
+                <div class="map-controls">
+                    <div class="time-slider-container">
+                        <label for="time-slider">
+                            <span class="slider-label">Foliage Timeline</span>
+                            <span id="selected-date" class="selected-date">October 15, 2025</span>
+                        </label>
+                        <input type="range" id="time-slider" min="0" max="60" value="30" class="autumn-slider">
+                        <div class="slider-labels">
+                            <span>Sep 1</span>
+                            <span>Oct 1</span>
+                            <span>Nov 1</span>
+                        </div>
+                    </div>
+                    <div class="legend">
+                        <h3>Foliage Status</h3>
+                        <div class="legend-item">
+                            <span class="legend-color" style="background: #2d5a2d;"></span>
+                            <span>Not Started</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-color" style="background: #8b7355;"></span>
+                            <span>Progressing</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-color" style="background: #ff8c00;"></span>
+                            <span>Near Peak</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-color" style="background: #dc143c;"></span>
+                            <span>Peak</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-color" style="background: #8b4513;"></span>
+                            <span>Past Peak</span>
+                        </div>
+                    </div>
+                </div>
+                <div id="map" class="foliage-map"></div>
+            </div>
+
+            <!-- Timeline View -->
+            <div id="timeline-view" class="view-panel">
+                <div class="timeline-container">
+                    <h2>Foliage Progression Timeline</h2>
+                    <div class="timeline-grid" id="timeline-grid">
+                        <!-- Timeline will be populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Regions View -->
+            <div id="regions-view" class="view-panel">
+                <div class="regions-container">
+                    <h2>Popular Foliage Destinations</h2>
+                    <div class="regions-grid" id="regions-grid">
+                        <!-- Regions will be populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Trip Planner View -->
+            <div id="planner-view" class="view-panel">
+                <div class="planner-container">
+                    <h2>Plan Your Foliage Trip</h2>
+                    <div class="planner-form">
+                        <div class="form-group">
+                            <label for="trip-name">Trip Name</label>
+                            <input type="text" id="trip-name" placeholder="Autumn Adventure 2025">
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="start-date">Start Date</label>
+                                <input type="date" id="start-date">
+                            </div>
+                            <div class="form-group">
+                                <label for="end-date">End Date</label>
+                                <input type="date" id="end-date">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Select Regions</label>
+                            <div id="region-selector" class="region-selector">
+                                <!-- Regions will be populated -->
+                            </div>
+                        </div>
+                        <button class="save-trip-btn">Save Trip Plan</button>
+                    </div>
+                    <div class="saved-trips">
+                        <h3>Saved Trips</h3>
+                        <div id="saved-trips-list">
+                            <!-- Saved trips will appear here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Floating info panel -->
+        <div id="info-panel" class="info-panel">
+            <button class="close-btn" onclick="closeInfoPanel()">×</button>
+            <h3 id="info-title">Region Details</h3>
+            <div id="info-content">
+                <!-- Dynamic content -->
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

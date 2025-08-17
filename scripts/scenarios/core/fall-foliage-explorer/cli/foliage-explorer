@@ -1,0 +1,96 @@
+#!/bin/bash
+
+# Fall Foliage Explorer CLI
+
+API_URL="${API_URL:-http://localhost:8920}"
+
+show_help() {
+    cat << EOF
+Fall Foliage Explorer CLI
+
+Usage: foliage-explorer [command] [options]
+
+Commands:
+    regions                List all foliage regions
+    status <region_id>     Get current foliage status for a region
+    predict <region_id>    Trigger prediction for a region
+    timeline               Show foliage timeline
+    help                   Show this help message
+
+Examples:
+    foliage-explorer regions
+    foliage-explorer status 1
+    foliage-explorer predict 2
+
+EOF
+}
+
+list_regions() {
+    echo "Fetching foliage regions..."
+    curl -s "${API_URL}/api/regions" | jq '.' 2>/dev/null || echo "Error: Could not fetch regions"
+}
+
+get_status() {
+    local region_id="$1"
+    if [ -z "$region_id" ]; then
+        echo "Error: Please provide a region ID"
+        exit 1
+    fi
+    
+    echo "Fetching foliage status for region $region_id..."
+    curl -s "${API_URL}/api/foliage?region_id=${region_id}" | jq '.' 2>/dev/null || echo "Error: Could not fetch status"
+}
+
+trigger_predict() {
+    local region_id="$1"
+    if [ -z "$region_id" ]; then
+        echo "Error: Please provide a region ID"
+        exit 1
+    fi
+    
+    echo "Triggering prediction for region $region_id..."
+    curl -s -X POST "${API_URL}/api/predict" \
+        -H "Content-Type: application/json" \
+        -d "{\"region_id\": \"${region_id}\"}" | jq '.' 2>/dev/null || echo "Error: Could not trigger prediction"
+}
+
+show_timeline() {
+    echo "Fall Foliage Timeline 2025"
+    echo "=========================="
+    echo ""
+    echo "September:"
+    echo "  Week 3: Berkshires (MA) - Beginning"
+    echo "  Week 4: Adirondacks (NY) - Progressing"
+    echo ""
+    echo "October:"
+    echo "  Week 1: White Mountains (NH), Green Mountains (VT) - Peak"
+    echo "  Week 2: Great Smoky Mountains (TN) - Near Peak"
+    echo "  Week 3: Blue Ridge Parkway (VA) - Peak"
+    echo ""
+    echo "November:"
+    echo "  Week 1: Southern regions past peak"
+}
+
+# Main command handling
+case "$1" in
+    regions)
+        list_regions
+        ;;
+    status)
+        get_status "$2"
+        ;;
+    predict)
+        trigger_predict "$2"
+        ;;
+    timeline)
+        show_timeline
+        ;;
+    help|--help|-h)
+        show_help
+        ;;
+    *)
+        echo "Unknown command: $1"
+        echo "Use 'foliage-explorer help' for usage information"
+        exit 1
+        ;;
+esac

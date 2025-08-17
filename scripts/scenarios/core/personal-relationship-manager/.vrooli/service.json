@@ -1,0 +1,97 @@
+{
+  "version": "1.0.0",
+  "service": {
+    "parent": "vrooli",
+    "name": "personal-relationship-manager",
+    "displayName": "Circle of Care - Personal Relationship Manager",
+    "description": "Thoughtful relationship management system that helps nurture connections with birthday reminders, gift suggestions, and meaningful interaction tracking",
+    "version": "1.0.0",
+    "type": "business-application",
+    "category": "lifestyle",
+    "tags": [
+      "relationships",
+      "personal-crm",
+      "gift-ideas",
+      "birthday-reminders",
+      "social"
+    ],
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://vrooli.com"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scripts/scenarios/core/personal-relationship-manager"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "./README.md",
+    "support": {
+      "email": "support@vrooli.com",
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "SERVICE_PORT",
+      "range": "39001",
+      "fallback": "auto",
+      "description": "Main API port"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "range": "39002",
+      "fallback": "auto",
+      "description": "UI server port"
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "enabled": true,
+        "required": true
+      },
+      "n8n": {
+        "enabled": true,
+        "required": true
+      },
+      "ollama": {
+        "enabled": true,
+        "required": true
+      },
+      "redis": {
+        "enabled": true,
+        "required": false
+      }
+    },
+    "scenarios": []
+  },
+  "initialization": {
+    "postgres": {
+      "schemas": ["initialization/postgres/schema.sql"],
+      "seeds": ["initialization/postgres/seed.sql"]
+    },
+    "n8n": {
+      "workflows": [
+        "initialization/n8n/birthday-reminder.json",
+        "initialization/n8n/gift-suggester.json",
+        "initialization/n8n/relationship-insights.json",
+        "initialization/n8n/contact-enricher.json"
+      ]
+    }
+  },
+  "features": {
+    "ui": true,
+    "api": true,
+    "cli": true,
+    "automation": true
+  },
+  "deployment": {
+    "scalable": true,
+    "multi_tenant": true
+  }
+}

@@ -1,0 +1,158 @@
+{
+  "name": "Market Researcher",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "market-researcher",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "industry",
+              "value": "SaaS"
+            },
+            {
+              "name": "target_market",
+              "value": "small businesses"
+            },
+            {
+              "name": "research_depth",
+              "value": "comprehensive"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "default-values",
+      "name": "Default Values",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [450, 500]
+    },
+    {
+      "parameters": {
+        "command": "# Use browserless to search for market data\nindustry=\"{{ $json.industry || 'SaaS' }}\"\ntarget=\"{{ $json.target_market || 'small businesses' }}\"\n\n# Simulate market research (in production, would use browserless)\necho \"{\n  \\\"market_size\\\": \\\"$150B globally\\\",\n  \\\"growth_rate\\\": \\\"12% annually\\\",\n  \\\"key_players\\\": [\\\"Salesforce\\\", \\\"HubSpot\\\", \\\"Zendesk\\\"],\n  \\\"trends\\\": [\\\"AI integration\\\", \\\"No-code platforms\\\", \\\"Vertical SaaS\\\"],\n  \\\"opportunities\\\": [\\\"Underserved niches\\\", \\\"Local market gaps\\\"]\n}\""
+      },
+      "id": "web-search",
+      "name": "Web Search",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [650, 350]
+    },
+    {
+      "parameters": {
+        "url": "${service.n8n.url}/webhook/embedding-generator",
+        "authentication": "none",
+        "method": "POST",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "{{ JSON.stringify($json) }}"
+            },
+            {
+              "name": "collection",
+              "value": "market_research"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "store-embeddings",
+      "name": "Store Research Embeddings",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [850, 350]
+    },
+    {
+      "parameters": {
+        "url": "${service.n8n.url}/webhook/ollama",
+        "authentication": "none",
+        "method": "POST",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "prompt",
+              "value": "Based on this market research data, provide strategic insights:\n\n{{ JSON.stringify($('Web Search').item.json) }}\n\nGenerate:\n1. Top 3 opportunities\n2. Main risks\n3. Recommended entry strategy\n4. Competitive advantages needed\n\nFormat as actionable insights."
+            },
+            {
+              "name": "model",
+              "value": "llama3.2"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "generate-insights",
+      "name": "Generate Insights",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1050, 350]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "success"
+            },
+            {
+              "name": "research_type",
+              "value": "market_analysis"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "format-response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [1250, 350]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{"node": "Web Search", "type": "main", "index": 0}]]
+    },
+    "Manual Trigger": {
+      "main": [[{"node": "Default Values", "type": "main", "index": 0}]]
+    },
+    "Default Values": {
+      "main": [[{"node": "Web Search", "type": "main", "index": 0}]]
+    },
+    "Web Search": {
+      "main": [[{"node": "Store Research Embeddings", "type": "main", "index": 0}]]
+    },
+    "Store Research Embeddings": {
+      "main": [[{"node": "Generate Insights", "type": "main", "index": 0}]]
+    },
+    "Generate Insights": {
+      "main": [[{"node": "Format Response", "type": "main", "index": 0}]]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

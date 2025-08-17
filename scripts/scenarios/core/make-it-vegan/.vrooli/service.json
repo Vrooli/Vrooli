@@ -1,0 +1,326 @@
+{
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "parent": "vrooli",
+    "name": "make-it-vegan",
+    "displayName": "Make It Vegan - Plant-Based Food Companion",
+    "description": "Intelligent food analysis tool that identifies vegan foods, explains ingredients, and suggests plant-based alternatives",
+    "version": "1.0.0",
+    "type": "business-application",
+    "category": "health-fitness",
+    "tags": [
+      "vegan",
+      "nutrition",
+      "food",
+      "plant-based",
+      "ingredients"
+    ],
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://vrooli.com"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scripts/scenarios/core/make-it-vegan"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "./README.md",
+    "support": {
+      "email": "support@vrooli.com",
+      "issues": "https://github.com/Vrooli/Vrooli/issues",
+      "chat": "https://discord.gg/vrooli"
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "SERVICE_PORT",
+      "range": "41010-41019",
+      "fallback": "auto",
+      "description": "Main API port"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "range": "41020-41029",
+      "fallback": "auto",
+      "description": "UI server port"
+    }
+  },
+  "resources": {
+    "automation": {
+      "n8n": {
+        "type": "n8n",
+        "enabled": true,
+        "required": true,
+        "initialization": [
+          {
+            "file": "initialization/n8n/vegan-checker.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/alternative-finder.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/recipe-veganizer.json",
+            "type": "workflow"
+          }
+        ]
+      }
+    },
+    "ai": {
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "models": ["llama3.2"],
+        "purpose": "Analyze ingredients, suggest alternatives, and veganize recipes"
+      }
+    },
+    "storage": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": false,
+        "purpose": "Store ingredient database and user preferences"
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": false,
+        "purpose": "Cache common ingredient queries for instant responses"
+      }
+    }
+  },
+  "lifecycle": {
+    "version": "1.0.0",
+    "setup": {
+      "description": "Initialize Make It Vegan",
+      "steps": [
+        {
+          "name": "base-setup",
+          "run": "bash scripts/lib/setup.sh",
+          "description": "Execute generic setup (e.g. network, system, git)"
+        },
+        {
+          "name": "add-data",
+          "run": "scripts/resources/injection/engine.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && chmod +x make-it-vegan && sudo ln -sf $(pwd)/make-it-vegan /usr/local/bin/make-it-vegan",
+          "description": "Install CLI command globally",
+          "condition": {
+            "file_exists": "cli/make-it-vegan"
+          }
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o make-it-vegan-api main.go",
+          "description": "Build Go API server",
+          "condition": {
+            "file_exists": "api/go.mod"
+          }
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🥬 Make It Vegan initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${SERVICE_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: make-it-vegan --help'",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start Make It Vegan services",
+      "steps": [
+        {
+          "name": "start-api-server",
+          "run": "cd api && PORT=$SERVICE_PORT N8N_URL=http://localhost:${RESOURCE_PORTS[n8n]} ./make-it-vegan-api &",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/make-it-vegan-api"
+          }
+        },
+        {
+          "name": "start-ui-server",
+          "run": "cd ui && PORT=$UI_PORT API_URL=http://localhost:$SERVICE_PORT node server.js &",
+          "description": "Start UI server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/server.js"
+          }
+        },
+        {
+          "name": "wait-for-api",
+          "run": "sleep 2 && curl -sf http://localhost:$SERVICE_PORT/health > /dev/null",
+          "description": "Wait for API server to be ready",
+          "retry": {
+            "max_attempts": 15,
+            "delay": 1
+          }
+        },
+        {
+          "name": "wait-for-ui",
+          "run": "sleep 1 && curl -sf http://localhost:$UI_PORT > /dev/null",
+          "description": "Wait for UI server to be ready",
+          "retry": {
+            "max_attempts": 10,
+            "delay": 1
+          }
+        },
+        {
+          "name": "show-running-services",
+          "run": "echo '🥬 Make It Vegan is running!\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${SERVICE_PORT}\\n  CLI: make-it-vegan --help'",
+          "description": "Display all running service URLs"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test Make It Vegan functionality",
+      "steps": [
+        {
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build main.go && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/go.mod"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/health",
+          "description": "Test API health endpoint"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop Make It Vegan services",
+      "steps": [
+        {
+          "name": "stop-api-server",
+          "run": "pkill -f 'make-it-vegan-api' || true",
+          "description": "Stop Go API server processes"
+        },
+        {
+          "name": "stop-ui-server",
+          "run": "pkill -f 'node server.js' || true",
+          "description": "Stop UI server processes"
+        },
+        {
+          "name": "confirm-stop",
+          "run": "echo '🛑 Make It Vegan services stopped'",
+          "description": "Confirm services stopped"
+        }
+      ]
+    }
+  },
+  "deployment": {
+    "target": "docker",
+    "strategy": "rolling-update",
+    "urls": {
+      "application": "http://localhost:{{ UI_PORT }}",
+      "api": "http://localhost:{{ SERVICE_PORT }}",
+      "health": "http://localhost:{{ SERVICE_PORT }}/health"
+    },
+    "monitoring": {
+      "enabled": true,
+      "healthChecks": {
+        "application": {
+          "endpoint": "{{ urls.health }}",
+          "interval": "30s",
+          "timeout": "5s",
+          "threshold": 3
+        }
+      }
+    },
+    "testing": {
+      "enabled": true,
+      "timeout": "10m",
+      "script": "./test.sh",
+      "ui": {
+        "required": true,
+        "type": "javascript",
+        "url": "{{ urls.application }}"
+      }
+    }
+  },
+  "metadata": {
+    "businessModel": {
+      "purpose": "commercial",
+      "valueProposition": "Instant vegan food analysis and plant-based alternative finder for conscious consumers",
+      "targetMarket": "Vegans, vegetarians, people with dietary restrictions, eco-conscious consumers",
+      "painPoints": [
+        "Hard to identify hidden non-vegan ingredients",
+        "Finding appropriate vegan substitutes is challenging",
+        "Converting traditional recipes to vegan is time-consuming"
+      ],
+      "solution": "AI-powered ingredient analysis with smart alternative suggestions and recipe conversion",
+      "competitiveAdvantage": "Combines instant ingredient checking with contextual alternatives and recipe conversion",
+      "revenuePotential": {
+        "initial": "$8,000",
+        "recurring": "$1,500/month",
+        "expansion": "$30,000/year",
+        "totalEstimate": "$20,000"
+      },
+      "marketDemand": {
+        "level": "high",
+        "growth": "20% YoY",
+        "evidence": "Growing vegan and plant-based food market"
+      }
+    },
+    "performance": {
+      "targets": {
+        "initializationTime": "45s",
+        "responseTime": {
+          "p50": "200ms",
+          "p95": "800ms",
+          "p99": "1500ms"
+        }
+      },
+      "resources": {
+        "cpu": {
+          "minimum": "0.25",
+          "target": "0.5",
+          "maximum": "1.0"
+        },
+        "memory": {
+          "minimum": "256Mi",
+          "target": "512Mi",
+          "maximum": "1Gi"
+        }
+      }
+    },
+    "customization": {
+      "variables": {
+        "APP_NAME": {
+          "type": "string",
+          "default": "Make It Vegan",
+          "description": "Application display name"
+        }
+      },
+      "features": {
+        "authentication": {
+          "enabled": false,
+          "provider": "local"
+        },
+        "notifications": {
+          "enabled": false
+        }
+      }
+    }
+  }
+}

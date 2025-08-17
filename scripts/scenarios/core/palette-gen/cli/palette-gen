@@ -1,0 +1,135 @@
+#!/bin/bash
+
+set -e
+
+API_URL="${PALETTE_GEN_API_URL:-http://localhost:8780}"
+
+show_help() {
+    cat << EOF
+Palette Generator CLI - Generate and manage color palettes
+
+Usage: palette-gen <command> [options]
+
+Commands:
+    generate <theme>    Generate a palette for a theme
+    suggest <use_case>  Get palette suggestions for a use case
+    export <format>     Export palette in different formats (css, json, scss)
+    help               Show this help message
+
+Options:
+    --style <style>     Palette style (minimal, vibrant, pastel, dark)
+    --colors <num>      Number of colors (3-10)
+    --base <color>      Base color to build palette from
+
+Examples:
+    palette-gen generate "ocean sunset" --style vibrant --colors 5
+    palette-gen suggest "e-commerce"
+    palette-gen export css --palette "#FF6B6B,#4ECDC4,#45B7D1"
+
+EOF
+}
+
+generate_palette() {
+    local theme="$1"
+    shift
+    
+    local style=""
+    local num_colors=5
+    local base_color=""
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --style)
+                style="$2"
+                shift 2
+                ;;
+            --colors)
+                num_colors="$2"
+                shift 2
+                ;;
+            --base)
+                base_color="$2"
+                shift 2
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    local data=$(cat <<EOF
+{
+    "theme": "$theme",
+    "style": "$style",
+    "num_colors": $num_colors,
+    "base_color": "$base_color"
+}
+EOF
+    )
+    
+    curl -s -X POST "$API_URL/generate" \
+        -H "Content-Type: application/json" \
+        -d "$data" | jq '.'
+}
+
+suggest_palettes() {
+    local use_case="$1"
+    
+    curl -s -X POST "$API_URL/suggest" \
+        -H "Content-Type: application/json" \
+        -d "{\"use_case\": \"$use_case\"}" | jq '.'
+}
+
+export_palette() {
+    local format="$1"
+    local palette="$2"
+    
+    if [[ -z "$palette" ]]; then
+        echo "Error: Please provide palette colors with --palette"
+        exit 1
+    fi
+    
+    IFS=',' read -ra colors <<< "$palette"
+    local json_array=$(printf '"%s",' "${colors[@]}" | sed 's/,$//')
+    
+    curl -s -X POST "$API_URL/export" \
+        -H "Content-Type: application/json" \
+        -d "{\"format\": \"$format\", \"palette\": [$json_array]}" | jq -r '.export'
+}
+
+case "$1" in
+    generate)
+        shift
+        generate_palette "$@"
+        ;;
+    suggest)
+        shift
+        suggest_palettes "$@"
+        ;;
+    export)
+        shift
+        format="$1"
+        shift
+        palette=""
+        while [[ $# -gt 0 ]]; do
+            case $1 in
+                --palette)
+                    palette="$2"
+                    shift 2
+                    ;;
+                *)
+                    shift
+                    ;;
+            esac
+        done
+        export_palette "$format" "$palette"
+        ;;
+    help|--help|-h)
+        show_help
+        ;;
+    *)
+        echo "Unknown command: $1"
+        show_help
+        exit 1
+        ;;
+esac

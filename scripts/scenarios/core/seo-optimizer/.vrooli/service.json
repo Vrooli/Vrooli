@@ -1,0 +1,210 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "parent": "vrooli",
+    "name": "seo-optimizer",
+    "displayName": "SEO Optimizer",
+    "description": "Comprehensive SEO analysis and optimization platform for improving search rankings",
+    "version": "1.0.0",
+    "type": "business-application",
+    "category": "marketing",
+    "tags": [
+      "seo",
+      "search-optimization",
+      "keyword-research",
+      "content-optimization",
+      "technical-seo",
+      "rank-tracking",
+      "competitor-analysis",
+      "javascript-ui"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "SERVICE_PORT",
+      "range": "9220-9229",
+      "fallback": "auto",
+      "description": "SEO Optimizer API port"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "range": "4220-4229",
+      "fallback": "auto",
+      "description": "SEO Optimizer UI port"
+    }
+  },
+  "resources": {
+    "automation": {
+      "n8n": {
+        "type": "n8n",
+        "enabled": true,
+        "required": true,
+        "shared_workflows": [
+          "ollama",
+          "embedding-generator",
+          "structured-data-extractor"
+        ],
+        "initialization": [
+          {
+            "file": "initialization/n8n/seo-audit.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/keyword-researcher.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/content-optimizer.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/competitor-analyzer.json",
+            "type": "workflow"
+          }
+        ]
+      }
+    },
+    "storage": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store SEO audits, keyword data, rankings, and competitor analysis",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "schema"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": true,
+        "purpose": "Cache SEO analysis results and API responses"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": false,
+        "purpose": "Store content embeddings for semantic SEO analysis",
+        "initialization": [
+          {
+            "file": "initialization/qdrant/collections.json",
+            "type": "collection"
+          }
+        ]
+      }
+    },
+    "ai": {
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "models": ["llama3.2:3b", "nomic-embed-text"]
+      }
+    },
+    "agents": {
+      "browserless": {
+        "type": "browserless",
+        "enabled": true,
+        "required": true,
+        "purpose": "Web crawling for SEO audits and competitor analysis"
+      }
+    }
+  },
+  "lifecycle": {
+    "version": "1.0.0",
+    "setup": {
+      "description": "Initialize SEO Optimizer",
+      "steps": [
+        {
+          "name": "base-setup",
+          "run": "bash scripts/lib/setup.sh",
+          "description": "Execute generic setup"
+        },
+        {
+          "name": "add-data",
+          "run": "scripts/resources/injection/engine.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "install-cli",
+          "run": "chmod +x cli/seo-optimizer",
+          "description": "Make CLI executable"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o seo-optimizer-api main.go",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "setup-ui",
+          "run": "cd ui && npm init -y && npm install express",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🔍 SEO Optimizer initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${SERVICE_PORT}'",
+          "description": "Display service URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start SEO Optimizer services",
+      "steps": [
+        {
+          "name": "start-api-server",
+          "run": "cd api && PORT=$SERVICE_PORT N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} POSTGRES_URL=postgres://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/seo_optimizer REDIS_URL=redis://localhost:${RESOURCE_PORTS[redis]} QDRANT_URL=http://localhost:${RESOURCE_PORTS[qdrant]} ./seo-optimizer-api &",
+          "description": "Start API server",
+          "background": true,
+          "condition": {
+            "file_exists": "api/seo-optimizer-api"
+          }
+        },
+        {
+          "name": "start-ui-server",
+          "run": "cd ui && PORT=$UI_PORT API_URL=http://localhost:$SERVICE_PORT node server.js &",
+          "description": "Start UI server",
+          "background": true
+        },
+        {
+          "name": "wait-for-services",
+          "run": "sleep 3",
+          "description": "Wait for services to start"
+        },
+        {
+          "name": "show-running",
+          "run": "echo '🚀 SEO Optimizer running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${SERVICE_PORT}'",
+          "description": "Display running services"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test SEO Optimizer services",
+      "steps": [
+        {
+          "name": "test-api",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/health",
+          "description": "Test API health"
+        },
+        {
+          "name": "test-audit",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/api/audit",
+          "description": "Test audit endpoint"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop SEO Optimizer services",
+      "steps": [
+        {
+          "name": "stop-services",
+          "run": "pkill -f 'seo-optimizer-api' || true; pkill -f 'node.*server.js' || true",
+          "description": "Stop all services"
+        }
+      ]
+    }
+  }
+}

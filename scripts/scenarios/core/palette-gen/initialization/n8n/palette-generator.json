@@ -1,0 +1,196 @@
+{
+  "name": "palette-generator",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "palette-generator",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "theme",
+              "value": "modern tech startup"
+            },
+            {
+              "name": "style",
+              "value": "vibrant"
+            }
+          ],
+          "number": [
+            {
+              "name": "num_colors",
+              "value": 5
+            }
+          ]
+        }
+      },
+      "id": "default-values",
+      "name": "Default Values",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [450, 500]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $node['Manual Trigger'].json ? 'manual' : 'webhook' }}",
+              "value2": "manual"
+            }
+          ]
+        }
+      },
+      "id": "input-router",
+      "name": "Input Router",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.service.n8n.url }}/webhook/ollama",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "prompt",
+              "value": "You are a professional color palette generator. Generate a color palette for the theme: '{{ $json.theme }}' with style '{{ $json.style || 'balanced' }}'.\n\nNumber of colors needed: {{ $json.num_colors || 5 }}\n\nConsiderations:\n- Use color theory principles (complementary, analogous, triadic, etc.)\n- Ensure good contrast ratios for accessibility\n- Include primary, secondary, and accent colors\n- Consider the emotional impact of colors\n\nReturn ONLY a valid JSON object in this exact format:\n{\n  \"palette\": [\"#hex1\", \"#hex2\", \"#hex3\", \"#hex4\", \"#hex5\"],\n  \"name\": \"Descriptive Palette Name\",\n  \"description\": \"Brief description of the palette\",\n  \"harmony_type\": \"complementary|analogous|triadic|split-complementary|tetradic|monochromatic\",\n  \"primary\": \"#hex\",\n  \"secondary\": \"#hex\",\n  \"accent\": \"#hex\"\n}"
+            },
+            {
+              "name": "model",
+              "value": "llama3.2:latest"
+            },
+            {
+              "name": "temperature",
+              "value": "0.7"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "generate-palette",
+      "name": "Generate Palette",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "try {\n  const response = $input.first().json;\n  \n  // Extract JSON from the response\n  let paletteData;\n  \n  // Try to parse the response directly if it's already JSON\n  if (response.response) {\n    const text = response.response;\n    const jsonMatch = text.match(/\\{[\\s\\S]*\\}/g);\n    \n    if (jsonMatch) {\n      paletteData = JSON.parse(jsonMatch[0]);\n    } else {\n      throw new Error('No JSON found in response');\n    }\n  } else if (response.palette) {\n    // Already in correct format\n    paletteData = response;\n  } else {\n    throw new Error('Unexpected response format');\n  }\n  \n  // Validate palette data\n  if (!paletteData.palette || !Array.isArray(paletteData.palette)) {\n    throw new Error('Invalid palette format');\n  }\n  \n  // Ensure all colors are valid hex codes\n  const validatedPalette = paletteData.palette.map(color => {\n    if (!/^#[0-9A-F]{6}$/i.test(color)) {\n      // Try to fix common issues\n      if (color.startsWith('#') && color.length === 7) {\n        return color.toUpperCase();\n      }\n      throw new Error(`Invalid hex color: ${color}`);\n    }\n    return color.toUpperCase();\n  });\n  \n  return {\n    success: true,\n    palette: validatedPalette,\n    name: paletteData.name || 'Generated Palette',\n    theme: $node['Input Router'].json.theme,\n    style: $node['Input Router'].json.style || 'balanced',\n    description: paletteData.description || 'AI-generated color palette',\n    harmony_type: paletteData.harmony_type || 'custom',\n    primary: paletteData.primary || validatedPalette[0],\n    secondary: paletteData.secondary || validatedPalette[1],\n    accent: paletteData.accent || validatedPalette[validatedPalette.length - 1],\n    metadata: {\n      generated_at: new Date().toISOString(),\n      num_colors: validatedPalette.length,\n      model: 'llama3.2'\n    }\n  };\n} catch (error) {\n  // Return a fallback palette on error\n  const fallbackPalettes = {\n    'vibrant': ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7'],\n    'pastel': ['#FFD3E1', '#C9F0FF', '#FFE5CC', '#E8D5FF', '#D4F1D4'],\n    'dark': ['#2C3E50', '#34495E', '#7F8C8D', '#95A5A6', '#BDC3C7'],\n    'earthy': ['#8B4513', '#A0522D', '#CD853F', '#DEB887', '#F5DEB3'],\n    'minimal': ['#000000', '#333333', '#666666', '#999999', '#CCCCCC']\n  };\n  \n  const style = $node['Input Router'].json.style || 'vibrant';\n  const palette = fallbackPalettes[style] || fallbackPalettes.vibrant;\n  \n  return {\n    success: true,\n    palette: palette,\n    name: 'Fallback ' + style.charAt(0).toUpperCase() + style.slice(1),\n    theme: $node['Input Router'].json.theme || 'default',\n    style: style,\n    description: 'Pre-defined fallback palette',\n    harmony_type: 'curated',\n    primary: palette[0],\n    secondary: palette[1],\n    accent: palette[palette.length - 1],\n    metadata: {\n      generated_at: new Date().toISOString(),\n      num_colors: palette.length,\n      fallback: true,\n      error: error.message\n    }\n  };\n}"
+      },
+      "id": "format-response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 400]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1250, 400]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Input Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Default Values",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Default Values": {
+      "main": [
+        [
+          {
+            "node": "Input Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Input Router": {
+      "main": [
+        [
+          {
+            "node": "Generate Palette",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Generate Palette",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Palette": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

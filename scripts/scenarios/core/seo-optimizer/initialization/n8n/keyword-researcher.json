@@ -1,0 +1,177 @@
+{
+  "name": "keyword-researcher",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [260, 300]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "keyword-research",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [260, 500]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "seed_keyword",
+              "value": "digital marketing"
+            },
+            {
+              "name": "target_location",
+              "value": "United States"
+            },
+            {
+              "name": "language",
+              "value": "en"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "default-values",
+      "name": "Default Values",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.N8N_URL }}/webhook/ollama",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "prompt",
+              "value": "Generate a comprehensive list of related keywords and search queries for: {{ $json.seed_keyword }}\n\nTarget location: {{ $json.target_location }}\nLanguage: {{ $json.language }}\n\nProvide:\n1. Long-tail keywords (3-5 words)\n2. Question-based queries\n3. Commercial intent keywords\n4. Informational keywords\n5. Transactional keywords\n6. LSI (Latent Semantic Indexing) keywords\n7. Competitor brand keywords\n8. Local SEO keywords if applicable\n\nFor each keyword, estimate:\n- Search volume (High/Medium/Low)\n- Competition difficulty (High/Medium/Low)\n- Commercial value (High/Medium/Low)\n- Search intent (Informational/Commercial/Transactional/Navigational)\n\nFormat as JSON array with at least 30 keyword suggestions."
+            },
+            {
+              "name": "model",
+              "value": "llama3.2"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "generate-keywords",
+      "name": "Generate Keywords",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [660, 400],
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "n8n-auth",
+          "name": "n8n Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.N8N_URL }}/webhook/embedding-generator",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "={{ $json.keywords.map(k => k.keyword).join(' ') }}"
+            },
+            {
+              "name": "collection",
+              "value": "seo_keywords"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "generate-embeddings",
+      "name": "Generate Embeddings",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [860, 400],
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "n8n-auth",
+          "name": "n8n Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "research_id",
+              "value": "={{ $now.toMillis() }}"
+            },
+            {
+              "name": "seed_keyword",
+              "value": "={{ $('default-values').item.json.seed_keyword || $json.seed_keyword }}"
+            },
+            {
+              "name": "timestamp",
+              "value": "={{ $now.toISO() }}"
+            }
+          ],
+          "object": [
+            {
+              "name": "keyword_data",
+              "value": "={{ $('generate-keywords').item.json }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "format-results",
+      "name": "Format Results",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [1060, 400]
+    }
+  ],
+  "connections": {
+    "manual-trigger": {
+      "main": [[{"node": "default-values", "type": "main", "index": 0}]]
+    },
+    "webhook-trigger": {
+      "main": [[{"node": "generate-keywords", "type": "main", "index": 0}]]
+    },
+    "default-values": {
+      "main": [[{"node": "generate-keywords", "type": "main", "index": 0}]]
+    },
+    "generate-keywords": {
+      "main": [[{"node": "generate-embeddings", "type": "main", "index": 0}]]
+    },
+    "generate-embeddings": {
+      "main": [[{"node": "format-results", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "templateId": "keyword-researcher"
+  },
+  "pinData": {},
+  "versionId": "1.0.0",
+  "triggerCount": 2,
+  "tags": []
+}

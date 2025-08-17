@@ -1,0 +1,338 @@
+{
+  "name": "Market Researcher",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "market-researcher",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "research_topic",
+              "value": "={{ $json.topic || 'Project management software market trends' }}"
+            },
+            {
+              "name": "industry",
+              "value": "={{ $json.industry || 'SaaS' }}"
+            },
+            {
+              "name": "target_market",
+              "value": "={{ $json.target_market || 'Small to medium businesses' }}"
+            },
+            {
+              "name": "research_depth",
+              "value": "={{ $json.depth || 'comprehensive' }}"
+            },
+            {
+              "name": "specific_questions",
+              "value": "={{ $json.questions || 'What are the key pain points? Who are the main competitors? What is the market size?' }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "defaults-node",
+      "name": "Set Defaults",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [450, 500]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "multiplex",
+        "options": {}
+      },
+      "id": "merge-inputs",
+      "name": "Merge",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.service.n8n.url }}/webhook/web-research-aggregator",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "{{ $json.research_topic }} {{ $json.industry }} market analysis trends 2024"
+            },
+            {
+              "name": "max_results",
+              "value": "10"
+            },
+            {
+              "name": "search_depth",
+              "value": "deep"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 90000
+        }
+      },
+      "id": "web-research",
+      "name": "Web Research",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.service.n8n.url }}/webhook/smart-semantic-search",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "{{ $json.research_topic }} {{ $json.target_market }}"
+            },
+            {
+              "name": "collection",
+              "value": "market_research"
+            },
+            {
+              "name": "top_k",
+              "value": "5"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "semantic-search",
+      "name": "Search Existing Research",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [850, 500]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.service.n8n.url }}/webhook/chain-of-thought-orchestrator",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "task",
+              "value": "Analyze market research data for {{ $json.research_topic }}"
+            },
+            {
+              "name": "context",
+              "value": "Industry: {{ $json.industry }}\nTarget Market: {{ $json.target_market }}\nWeb Research: {{ JSON.stringify($('web-research').first().json) }}\nPrevious Research: {{ JSON.stringify($('semantic-search').first().json) }}"
+            },
+            {
+              "name": "reasoning_steps",
+              "value": "1. Identify market size and growth rate\n2. List key competitors and their strengths\n3. Analyze customer pain points and needs\n4. Identify market opportunities and gaps\n5. Assess risks and challenges\n6. Recommend strategic positioning"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "market-analysis",
+      "name": "Analyze Market Data",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1050, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Compile comprehensive market research report\nconst topic = $input.first().json.research_topic;\nconst industry = $input.first().json.industry;\nconst targetMarket = $input.first().json.target_market;\nconst marketAnalysis = $('market-analysis').first().json;\nconst webResearch = $('web-research').first().json;\nconst semanticResults = $('semantic-search').first().json;\n\n// Extract key insights\nconst insights = {\n  market_overview: {\n    topic: topic,\n    industry: industry,\n    target_market: targetMarket,\n    research_date: new Date().toISOString()\n  },\n  key_findings: [],\n  competitors: [],\n  opportunities: [],\n  challenges: [],\n  recommendations: []\n};\n\n// Parse market analysis response\nif (marketAnalysis && marketAnalysis.analysis) {\n  const analysis = marketAnalysis.analysis;\n  \n  // Extract structured data from analysis\n  if (analysis.includes('competitors')) {\n    insights.competitors = extractListItems(analysis, 'competitors');\n  }\n  if (analysis.includes('opportunities')) {\n    insights.opportunities = extractListItems(analysis, 'opportunities');\n  }\n  if (analysis.includes('challenges') || analysis.includes('risks')) {\n    insights.challenges = extractListItems(analysis, 'challenges|risks');\n  }\n  if (analysis.includes('recommend')) {\n    insights.recommendations = extractListItems(analysis, 'recommend');\n  }\n}\n\n// Add web research sources\nif (webResearch && webResearch.results) {\n  insights.sources = webResearch.results.slice(0, 5).map(r => ({\n    title: r.title,\n    url: r.url,\n    relevance: r.relevance || 'high'\n  }));\n}\n\n// Calculate market opportunity score\nconst opportunityScore = calculateOpportunityScore(insights);\ninsights.opportunity_score = opportunityScore;\n\n// Helper functions\nfunction extractListItems(text, keyword) {\n  const regex = new RegExp(`${keyword}[^\\n]*:\\s*([^\\n]+(?:\\n(?!\\n)[^\\n]+)*)`, 'gi');\n  const match = regex.exec(text);\n  if (match) {\n    return match[1].split(/[\\n•\\-\\*]/).filter(item => item.trim()).map(item => item.trim());\n  }\n  return [];\n}\n\nfunction calculateOpportunityScore(insights) {\n  let score = 5; // Base score\n  \n  // Increase score for opportunities\n  score += Math.min(insights.opportunities.length * 0.5, 2);\n  \n  // Decrease score for challenges\n  score -= Math.min(insights.challenges.length * 0.3, 1.5);\n  \n  // Adjust for competition\n  if (insights.competitors.length > 5) {\n    score -= 1;\n  } else if (insights.competitors.length < 3) {\n    score += 1;\n  }\n  \n  return Math.max(1, Math.min(10, Math.round(score * 10) / 10));\n}\n\nreturn insights;"
+      },
+      "id": "compile-insights",
+      "name": "Compile Market Insights",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 400]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.service.n8n.url }}/webhook/ollama",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "prompt",
+              "value": "Based on the market research insights below, answer these specific questions:\n\n{{ $('defaults-node').first().json.specific_questions }}\n\nMarket Insights:\n{{ JSON.stringify($json, null, 2) }}\n\nProvide clear, actionable answers with supporting data where available. Format as a business report."
+            },
+            {
+              "name": "model",
+              "value": "llama3.2"
+            },
+            {
+              "name": "temperature",
+              "value": "0.5"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "answer-questions",
+      "name": "Answer Specific Questions",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1450, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.service.n8n.url }}/webhook/embedding-generator",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "texts",
+              "value": "Market Research: {{ $json.market_overview.topic }} | Industry: {{ $json.market_overview.industry }} | Target: {{ $json.market_overview.target_market }} | Key Findings: {{ $json.key_findings.join(', ') }} | Opportunities: {{ $json.opportunities.join(', ') }}"
+            },
+            {
+              "name": "collection",
+              "value": "market_research"
+            },
+            {
+              "name": "metadata",
+              "value": "{{ JSON.stringify({topic: $json.market_overview.topic, industry: $json.market_overview.industry, date: $json.market_overview.research_date, score: $json.opportunity_score}) }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "store-research",
+      "name": "Store Research Embeddings",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1450, 500]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "success"
+            },
+            {
+              "name": "research_id",
+              "value": "={{ 'MR-' + Date.now() }}"
+            },
+            {
+              "name": "timestamp",
+              "value": "={{ new Date().toISOString() }}"
+            }
+          ],
+          "object": [
+            {
+              "name": "market_insights",
+              "value": "={{ $('compile-insights').first().json }}"
+            },
+            {
+              "name": "specific_answers",
+              "value": "={{ $('answer-questions').first().json }}"
+            },
+            {
+              "name": "metadata",
+              "value": "={{ {topic: $('defaults-node').first().json.research_topic, industry: $('defaults-node').first().json.industry, target_market: $('defaults-node').first().json.target_market, depth: $('defaults-node').first().json.research_depth} }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "format-response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [1650, 400]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "body",
+              "value": "={{ JSON.stringify($json) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "respond-to-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 2,
+      "position": [1850, 400]
+    }
+  ],
+  "connections": {
+    "webhook-trigger": {
+      "main": [[{"node": "merge-inputs", "type": "main", "index": 0}]]
+    },
+    "manual-trigger": {
+      "main": [[{"node": "defaults-node", "type": "main", "index": 0}]]
+    },
+    "defaults-node": {
+      "main": [[{"node": "merge-inputs", "type": "main", "index": 1}]]
+    },
+    "merge-inputs": {
+      "main": [
+        [
+          {"node": "web-research", "type": "main", "index": 0},
+          {"node": "semantic-search", "type": "main", "index": 0}
+        ]
+      ]
+    },
+    "web-research": {
+      "main": [[{"node": "market-analysis", "type": "main", "index": 0}]]
+    },
+    "semantic-search": {
+      "main": [[{"node": "market-analysis", "type": "main", "index": 0}]]
+    },
+    "market-analysis": {
+      "main": [[{"node": "compile-insights", "type": "main", "index": 0}]]
+    },
+    "compile-insights": {
+      "main": [
+        [
+          {"node": "answer-questions", "type": "main", "index": 0},
+          {"node": "store-research", "type": "main", "index": 0}
+        ]
+      ]
+    },
+    "answer-questions": {
+      "main": [[{"node": "format-response", "type": "main", "index": 0}]]
+    },
+    "store-research": {
+      "main": [[{"node": "format-response", "type": "main", "index": 0}]]
+    },
+    "format-response": {
+      "main": [[{"node": "respond-to-webhook", "type": "main", "index": 0}]]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": []
+}

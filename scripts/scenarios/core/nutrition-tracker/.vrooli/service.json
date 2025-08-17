@@ -1,55 +1,113 @@
 {
-  "name": "nutrition-tracker",
-  "version": "1.0.0",
-  "description": "Smart nutrition tracking with calorie counting and AI-powered meal suggestions",
-  "category": "saas-applications",
-  "resources": {
-    "n8n": {
+  "service": {
+    "name": "nutrition-tracker",
+    "description": "Smart nutrition tracking with calorie counting, macro tracking, and AI-powered meal suggestions",
+    "version": "1.0.0",
+    "category": "saas-applications",
+    "enabled": true,
+    "ui": true,
+    "api": {
+      "type": "go",
+      "port": "${PORT}",
+      "command": "./nutrition-tracker-api"
+    },
+    "cli": {
       "enabled": true,
-      "workflows": [
-        "nutrition-analyzer",
-        "calorie-calculator",
-        "macro-tracker",
-        "meal-suggester"
+      "command": "./cli/nutrition-tracker"
+    },
+    "ui_config": {
+      "type": "javascript",
+      "port": "${UI_PORT}",
+      "start_command": "node server.js"
+    },
+    "resources": {
+      "automation": {
+        "n8n": {
+          "required": true
+        }
+      },
+      "databases": {
+        "postgres": {
+          "required": true
+        },
+        "redis": {
+          "required": true
+        },
+        "qdrant": {
+          "required": true
+        }
+      },
+      "ai": {
+        "ollama": {
+          "required": true,
+          "models": ["llama3.2"]
+        }
+      }
+    },
+    "initialization": {
+      "n8n": [
+        {
+          "source": "initialization/n8n/calorie-calculator.json",
+          "active": true
+        },
+        {
+          "source": "initialization/n8n/macro-tracker.json",
+          "active": true
+        },
+        {
+          "source": "initialization/n8n/meal-suggester.json",
+          "active": true
+        },
+        {
+          "source": "initialization/n8n/nutrition-analyzer.json",
+          "active": true
+        }
+      ],
+      "postgres": [
+        {
+          "source": "initialization/postgres/schema.sql",
+          "type": "schema"
+        },
+        {
+          "source": "initialization/postgres/seed.sql",
+          "type": "seed"
+        }
       ]
     },
-    "postgres": {
-      "enabled": true,
-      "schema": "schema.sql",
-      "seed": "seed.sql"
+    "lifecycle": {
+      "setup": [
+        "cd api && go build -o nutrition-tracker-api main.go",
+        "chmod +x cli/nutrition-tracker",
+        "cd ui && npm install"
+      ],
+      "develop": [
+        "cd api && ./nutrition-tracker-api &",
+        "cd ui && node server.js &"
+      ],
+      "test": [
+        "./test/validate.sh"
+      ],
+      "stop": [
+        "pkill -f nutrition-tracker-api",
+        "pkill -f 'node server.js'"
+      ]
     },
-    "redis": {
-      "enabled": true
-    },
-    "qdrant": {
-      "enabled": true,
-      "collections": ["meals", "recipes", "nutrition_data"]
-    },
-    "ollama": {
-      "enabled": true,
-      "models": ["llama3.2:3b", "nomic-embed-text"]
+    "environment": {
+      "API_PORT": "${PORT:-8090}",
+      "UI_PORT": "${UI_PORT:-3090}",
+      "POSTGRES_HOST": "${POSTGRES_HOST:-localhost}",
+      "POSTGRES_PORT": "${POSTGRES_PORT:-5432}",
+      "POSTGRES_DB": "nutrition_tracker",
+      "POSTGRES_USER": "${POSTGRES_USER:-postgres}",
+      "POSTGRES_PASSWORD": "${POSTGRES_PASSWORD}",
+      "REDIS_HOST": "${REDIS_HOST:-localhost}",
+      "REDIS_PORT": "${REDIS_PORT:-6379}",
+      "QDRANT_HOST": "${QDRANT_HOST:-localhost}",
+      "QDRANT_PORT": "${QDRANT_PORT:-6333}",
+      "OLLAMA_HOST": "${OLLAMA_HOST:-localhost}",
+      "OLLAMA_PORT": "${OLLAMA_PORT:-11434}",
+      "N8N_HOST": "${N8N_HOST:-localhost}",
+      "N8N_PORT": "${N8N_PORT:-5678}"
     }
-  },
-  "ports": {
-    "ui": {
-      "range": [8900, 8999]
-    },
-    "api": {
-      "range": [3900, 3999]
-    }
-  },
-  "lifecycle": {
-    "start": ["ui", "api"],
-    "health_check": {
-      "enabled": true,
-      "interval": 30
-    }
-  },
-  "dependencies": {
-    "shared_workflows": [
-      "ollama",
-      "embedding-generator",
-      "rate-limiter"
-    ]
   }
 }

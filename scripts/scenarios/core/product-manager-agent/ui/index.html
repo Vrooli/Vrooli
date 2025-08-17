@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Manager Agent</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <nav class="sidebar">
+            <div class="logo">
+                <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                    <rect width="32" height="32" rx="8" fill="url(#gradient)"/>
+                    <path d="M16 8L20 12L16 16L12 12L16 8Z" fill="white"/>
+                    <path d="M16 16L20 20L16 24L12 20L16 16Z" fill="white" opacity="0.7"/>
+                    <defs>
+                        <linearGradient id="gradient" x1="0" y1="0" x2="32" y2="32">
+                            <stop stop-color="#667eea"/>
+                            <stop offset="1" stop-color="#764ba2"/>
+                        </linearGradient>
+                    </defs>
+                </svg>
+                <span>Product Manager</span>
+            </div>
+            <ul class="nav-menu">
+                <li class="nav-item active" data-view="dashboard">
+                    <span class="icon">📊</span>
+                    <span>Dashboard</span>
+                </li>
+                <li class="nav-item" data-view="features">
+                    <span class="icon">✨</span>
+                    <span>Features</span>
+                </li>
+                <li class="nav-item" data-view="roadmap">
+                    <span class="icon">🗺️</span>
+                    <span>Roadmap</span>
+                </li>
+                <li class="nav-item" data-view="analytics">
+                    <span class="icon">📈</span>
+                    <span>Analytics</span>
+                </li>
+                <li class="nav-item" data-view="decisions">
+                    <span class="icon">🎯</span>
+                    <span>Decisions</span>
+                </li>
+            </ul>
+        </nav>
+
+        <main class="main-content">
+            <header class="top-bar">
+                <h1 id="view-title">Dashboard</h1>
+                <div class="actions">
+                    <button class="btn btn-primary" id="new-feature-btn">
+                        <span>+ New Feature</span>
+                    </button>
+                </div>
+            </header>
+
+            <div class="content-area">
+                <!-- Dashboard View -->
+                <div id="dashboard-view" class="view active">
+                    <div class="metrics-grid">
+                        <div class="metric-card">
+                            <div class="metric-value">24</div>
+                            <div class="metric-label">Active Features</div>
+                            <div class="metric-change positive">+3 this week</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value">87%</div>
+                            <div class="metric-label">Sprint Progress</div>
+                            <div class="metric-change">2 days remaining</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value">4.2</div>
+                            <div class="metric-label">Avg Priority Score</div>
+                            <div class="metric-change positive">+0.3</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value">$125K</div>
+                            <div class="metric-label">Projected ROI</div>
+                            <div class="metric-change positive">+15%</div>
+                        </div>
+                    </div>
+
+                    <div class="dashboard-grid">
+                        <div class="card">
+                            <h2>Priority Features</h2>
+                            <div id="priority-features-list" class="feature-list">
+                                <div class="feature-item critical">
+                                    <span class="priority-badge">CRITICAL</span>
+                                    <div class="feature-name">Dark Mode Support</div>
+                                    <div class="feature-score">Score: 8.4</div>
+                                </div>
+                                <div class="feature-item high">
+                                    <span class="priority-badge">HIGH</span>
+                                    <div class="feature-name">API Rate Limiting</div>
+                                    <div class="feature-score">Score: 7.2</div>
+                                </div>
+                                <div class="feature-item medium">
+                                    <span class="priority-badge">MEDIUM</span>
+                                    <div class="feature-name">Export to PDF</div>
+                                    <div class="feature-score">Score: 5.1</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <h2>Recent Decisions</h2>
+                            <div class="decision-list">
+                                <div class="decision-item">
+                                    <div class="decision-title">Migrate to TypeScript</div>
+                                    <div class="decision-meta">Approved • 2 days ago</div>
+                                </div>
+                                <div class="decision-item">
+                                    <div class="decision-title">Implement WebSocket support</div>
+                                    <div class="decision-meta">Under Review • 5 days ago</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Features View -->
+                <div id="features-view" class="view">
+                    <div class="features-container">
+                        <div class="features-toolbar">
+                            <input type="text" placeholder="Search features..." class="search-input" id="feature-search">
+                            <select class="filter-select">
+                                <option>All Priorities</option>
+                                <option>Critical</option>
+                                <option>High</option>
+                                <option>Medium</option>
+                                <option>Low</option>
+                            </select>
+                        </div>
+                        <div id="features-grid" class="features-grid">
+                            <!-- Features will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Other views will be added as needed -->
+            </div>
+        </main>
+
+        <!-- Feature Modal -->
+        <div id="feature-modal" class="modal">
+            <div class="modal-content">
+                <h2>Add New Feature</h2>
+                <form id="feature-form">
+                    <div class="form-group">
+                        <label>Feature Name</label>
+                        <input type="text" name="name" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Description</label>
+                        <textarea name="description" rows="3" required></textarea>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Reach (users affected)</label>
+                            <input type="number" name="reach" min="1" value="100">
+                        </div>
+                        <div class="form-group">
+                            <label>Impact (1-5)</label>
+                            <input type="number" name="impact" min="1" max="5" value="3">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Confidence (0-1)</label>
+                            <input type="number" name="confidence" min="0" max="1" step="0.1" value="0.8">
+                        </div>
+                        <div class="form-group">
+                            <label>Effort (1-10)</label>
+                            <input type="number" name="effort" min="1" max="10" value="5">
+                        </div>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-secondary" id="cancel-modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Add Feature</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

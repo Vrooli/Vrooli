@@ -1,0 +1,125 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "parent": "vrooli",
+    "name": "local-info-scout",
+    "displayName": "Local Info Scout",
+    "description": "Intelligent location-based discovery tool for finding nearby places and services",
+    "version": "1.0.0",
+    "type": "consumer-application",
+    "category": "discovery",
+    "tags": [
+      "local",
+      "search",
+      "maps",
+      "discovery",
+      "places",
+      "restaurants",
+      "services",
+      "location",
+      "javascript-ui"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "SERVICE_PORT",
+      "range": "8900-8999",
+      "fallback": "auto",
+      "description": "Local Info Scout API port"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "range": "3900-3999",
+      "fallback": "auto",
+      "description": "Local Info Scout UI port"
+    }
+  },
+  "components": {
+    "api": {
+      "enabled": true,
+      "language": "go",
+      "path": "api",
+      "main": "main.go"
+    },
+    "ui": {
+      "enabled": true,
+      "framework": "javascript",
+      "path": "ui",
+      "main": "server.js"
+    },
+    "cli": {
+      "enabled": true,
+      "language": "go",
+      "path": "cli",
+      "command": "local-scout"
+    }
+  },
+  "resources": {
+    "n8n": {
+      "enabled": true,
+      "required": true
+    },
+    "postgres": {
+      "enabled": true,
+      "required": true
+    },
+    "redis": {
+      "enabled": true,
+      "required": true
+    },
+    "ollama": {
+      "enabled": true,
+      "required": true
+    },
+    "browserless": {
+      "enabled": true,
+      "required": false
+    }
+  },
+  "initialization": {
+    "n8n": [
+      {
+        "name": "local-search",
+        "file": "initialization/n8n/local-search.json",
+        "active": true
+      },
+      {
+        "name": "place-details",
+        "file": "initialization/n8n/place-details.json",
+        "active": true
+      }
+    ],
+    "postgres": [
+      {
+        "file": "initialization/postgres/schema.sql",
+        "type": "schema"
+      }
+    ]
+  },
+  "dependencies": {
+    "shared_workflows": [
+      "ollama",
+      "rate-limiter"
+    ]
+  },
+  "healthcheck": {
+    "enabled": true,
+    "interval": 30,
+    "timeout": 10,
+    "retries": 3,
+    "endpoints": [
+      {
+        "type": "http",
+        "url": "http://localhost:${SERVICE_PORT}/health",
+        "method": "GET",
+        "expected_status": 200
+      }
+    ]
+  },
+  "logging": {
+    "level": "info",
+    "format": "json",
+    "output": "stdout"
+  }
+}

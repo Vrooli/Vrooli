@@ -1,0 +1,280 @@
+{
+  "name": "ROI Calculator",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "roi-calculator"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "project_name",
+              "name": "project_name",
+              "value": "AI Chat Feature",
+              "type": "string"
+            },
+            {
+              "id": "investment_cost",
+              "name": "investment_cost",
+              "value": "50000",
+              "type": "number"
+            },
+            {
+              "id": "dev_hours",
+              "name": "dev_hours",
+              "value": "400",
+              "type": "number"
+            },
+            {
+              "id": "expected_revenue_monthly",
+              "name": "expected_revenue_monthly",
+              "value": "15000",
+              "type": "number"
+            },
+            {
+              "id": "expected_cost_savings",
+              "name": "expected_cost_savings",
+              "value": "8000",
+              "type": "number"
+            },
+            {
+              "id": "time_horizon_months",
+              "name": "time_horizon_months",
+              "value": "24",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "project_name",
+              "name": "project_name",
+              "value": "={{ $json.project_name || $('Manual Trigger').item.json.project_name }}",
+              "type": "string"
+            },
+            {
+              "id": "investment_cost",
+              "name": "investment_cost",
+              "value": "={{ $json.investment_cost || $('Manual Trigger').item.json.investment_cost }}",
+              "type": "number"
+            },
+            {
+              "id": "dev_hours",
+              "name": "dev_hours",
+              "value": "={{ $json.dev_hours || $('Manual Trigger').item.json.dev_hours }}",
+              "type": "number"
+            },
+            {
+              "id": "expected_revenue_monthly",
+              "name": "expected_revenue_monthly",
+              "value": "={{ $json.expected_revenue_monthly || $('Manual Trigger').item.json.expected_revenue_monthly }}",
+              "type": "number"
+            },
+            {
+              "id": "expected_cost_savings",
+              "name": "expected_cost_savings",
+              "value": "={{ $json.expected_cost_savings || $('Manual Trigger').item.json.expected_cost_savings }}",
+              "type": "number"
+            },
+            {
+              "id": "time_horizon_months",
+              "name": "time_horizon_months",
+              "value": "={{ $json.time_horizon_months || $('Manual Trigger').item.json.time_horizon_months }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "merge-inputs",
+      "name": "Merge Inputs",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [450, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.item.json;\n\n// Extract values\nconst investmentCost = Number(input.investment_cost) || 0;\nconst devHours = Number(input.dev_hours) || 0;\nconst monthlyRevenue = Number(input.expected_revenue_monthly) || 0;\nconst monthlySavings = Number(input.expected_cost_savings) || 0;\nconst timeHorizon = Number(input.time_horizon_months) || 12;\n\n// Calculate hourly rate (assuming $125/hour average)\nconst hourlyRate = 125;\nconst devCost = devHours * hourlyRate;\nconst totalInvestment = investmentCost + devCost;\n\n// Monthly net benefit\nconst monthlyBenefit = monthlyRevenue + monthlySavings;\n\n// Calculate ROI metrics\nconst totalReturn = monthlyBenefit * timeHorizon;\nconst netProfit = totalReturn - totalInvestment;\nconst roi = (netProfit / totalInvestment) * 100;\nconst paybackPeriod = totalInvestment / monthlyBenefit;\n\n// Calculate NPV with 10% annual discount rate\nconst annualDiscountRate = 0.10;\nconst monthlyDiscountRate = Math.pow(1 + annualDiscountRate, 1/12) - 1;\nlet npv = -totalInvestment;\nfor (let month = 1; month <= timeHorizon; month++) {\n  npv += monthlyBenefit / Math.pow(1 + monthlyDiscountRate, month);\n}\n\n// Calculate IRR (simplified)\nconst monthlyReturn = monthlyBenefit / totalInvestment;\nconst irr = monthlyReturn * 12 * 100;\n\n// Risk-adjusted ROI (assuming 20% risk factor)\nconst riskFactor = 0.2;\nconst riskAdjustedROI = roi * (1 - riskFactor);\n\n// Break-even analysis\nconst breakEvenMonth = Math.ceil(paybackPeriod);\nconst profitAfterYear1 = (monthlyBenefit * 12) - totalInvestment;\nconst profitAfterYear2 = (monthlyBenefit * 24) - totalInvestment;\n\n// Sensitivity analysis\nconst scenarios = [\n  {\n    scenario: 'Pessimistic',\n    factor: 0.7,\n    monthlyBenefit: monthlyBenefit * 0.7,\n    roi: ((monthlyBenefit * 0.7 * timeHorizon - totalInvestment) / totalInvestment) * 100\n  },\n  {\n    scenario: 'Realistic',\n    factor: 1.0,\n    monthlyBenefit: monthlyBenefit,\n    roi: roi\n  },\n  {\n    scenario: 'Optimistic',\n    factor: 1.3,\n    monthlyBenefit: monthlyBenefit * 1.3,\n    roi: ((monthlyBenefit * 1.3 * timeHorizon - totalInvestment) / totalInvestment) * 100\n  }\n];\n\n// Determine investment recommendation\nlet recommendation = '';\nlet confidence = 'medium';\n\nif (roi > 100 && paybackPeriod < 12) {\n  recommendation = 'Strongly Recommended';\n  confidence = 'high';\n} else if (roi > 50 && paybackPeriod < 18) {\n  recommendation = 'Recommended';\n  confidence = 'medium-high';\n} else if (roi > 20 && paybackPeriod < 24) {\n  recommendation = 'Consider with Caution';\n  confidence = 'medium';\n} else {\n  recommendation = 'Not Recommended';\n  confidence = 'low';\n}\n\nreturn {\n  project: input.project_name,\n  investment: {\n    developmentCost: devCost,\n    otherCosts: investmentCost,\n    totalInvestment: totalInvestment\n  },\n  returns: {\n    monthlyRevenue: monthlyRevenue,\n    monthlySavings: monthlySavings,\n    monthlyBenefit: monthlyBenefit,\n    totalReturn: totalReturn,\n    netProfit: netProfit\n  },\n  metrics: {\n    roi: Math.round(roi * 100) / 100,\n    riskAdjustedROI: Math.round(riskAdjustedROI * 100) / 100,\n    paybackPeriod: Math.round(paybackPeriod * 10) / 10,\n    npv: Math.round(npv),\n    irr: Math.round(irr * 100) / 100,\n    breakEvenMonth: breakEvenMonth\n  },\n  yearlyProjections: {\n    year1Profit: Math.round(profitAfterYear1),\n    year2Profit: Math.round(profitAfterYear2)\n  },\n  sensitivityAnalysis: scenarios,\n  recommendation: {\n    decision: recommendation,\n    confidence: confidence,\n    reasoning: `ROI: ${Math.round(roi)}%, Payback: ${Math.round(paybackPeriod)} months`\n  },\n  calculatedAt: new Date().toISOString()\n};"
+      },
+      "id": "calculate-roi",
+      "name": "Calculate ROI",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.service.n8n.url }}/webhook/ollama",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"llama3.2\",\n  \"prompt\": \"Analyze this ROI calculation and provide strategic insights:\\n\\nProject: {{ $json.project }}\\nROI: {{ $json.metrics.roi }}%\\nPayback Period: {{ $json.metrics.paybackPeriod }} months\\nNPV: ${{ $json.metrics.npv }}\\n\\nProvide:\\n1. Key risk factors to consider\\n2. Market timing considerations\\n3. Competitive advantage assessment\\n4. Resource allocation recommendations\\n5. Alternative investment options\\n6. Implementation strategy\\n\\nBe concise and strategic.\",\n  \"stream\": false\n}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "strategic-analysis",
+      "name": "Strategic Analysis",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const roiData = $input.all[0].json;\nconst strategicInsights = JSON.parse($input.all[1].json.response || '{}');\n\nreturn {\n  ...roiData,\n  strategicInsights: {\n    riskFactors: strategicInsights.riskFactors || [],\n    marketTiming: strategicInsights.marketTiming || 'neutral',\n    competitiveAdvantage: strategicInsights.competitiveAdvantage || 'medium',\n    resourceRecommendations: strategicInsights.resourceRecommendations || [],\n    alternatives: strategicInsights.alternatives || [],\n    implementationStrategy: strategicInsights.implementationStrategy || {}\n  }\n};"
+      },
+      "id": "combine-results",
+      "name": "Combine Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.service.postgres.url }}/roi-calculations",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "save-calculation",
+      "name": "Save Calculation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1250, 400]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "success"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "response",
+      "name": "Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1450, 400]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Merge Inputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Merge Inputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Inputs": {
+      "main": [
+        [
+          {
+            "node": "Calculate ROI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate ROI": {
+      "main": [
+        [
+          {
+            "node": "Strategic Analysis",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Combine Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Strategic Analysis": {
+      "main": [
+        [
+          {
+            "node": "Combine Results",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Combine Results": {
+      "main": [
+        [
+          {
+            "node": "Save Calculation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Calculation": {
+      "main": [
+        [
+          {
+            "node": "Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "roi-calculator"
+  },
+  "id": "roi-calculator",
+  "tags": []
+}

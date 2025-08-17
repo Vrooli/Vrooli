@@ -1,0 +1,15 @@
+{
+  "name": "make-it-vegan-ui",
+  "version": "1.0.0",
+  "description": "UI for Make It Vegan - Plant-based food companion",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "author": "Vrooli",
+  "license": "MIT"
+}

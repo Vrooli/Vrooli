@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Palette Gen - AI Color Palette Generator</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎨 Palette Gen</h1>
+            <p>AI-powered color palette generator for designers and developers</p>
+        </header>
+
+        <main>
+            <section class="generator-section">
+                <div class="input-panel">
+                    <h2>Generate Palette</h2>
+                    
+                    <div class="form-group">
+                        <label for="theme">Theme or Concept</label>
+                        <input type="text" id="theme" placeholder="e.g., Ocean sunset, Tech startup, Vintage bookstore">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="style">Style</label>
+                        <select id="style">
+                            <option value="">Auto</option>
+                            <option value="vibrant">Vibrant</option>
+                            <option value="pastel">Pastel</option>
+                            <option value="dark">Dark</option>
+                            <option value="minimal">Minimal</option>
+                            <option value="earthy">Earthy</option>
+                            <option value="neon">Neon</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="numColors">Number of Colors</label>
+                        <input type="range" id="numColors" min="3" max="10" value="5">
+                        <span id="numColorsValue">5</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="baseColor">Base Color (Optional)</label>
+                        <div class="color-input-wrapper">
+                            <input type="color" id="baseColor" value="#3B82F6">
+                            <input type="text" id="baseColorHex" value="#3B82F6">
+                        </div>
+                    </div>
+
+                    <button id="generateBtn" class="btn-primary">Generate Palette</button>
+                </div>
+
+                <div class="output-panel">
+                    <div id="paletteDisplay" class="palette-display">
+                        <div class="placeholder">
+                            <p>Your palette will appear here</p>
+                        </div>
+                    </div>
+
+                    <div id="paletteInfo" class="palette-info hidden">
+                        <h3 id="paletteName"></h3>
+                        <p id="paletteDescription"></p>
+                    </div>
+
+                    <div id="exportOptions" class="export-options hidden">
+                        <h3>Export Options</h3>
+                        <div class="export-buttons">
+                            <button class="btn-secondary" data-format="css">CSS</button>
+                            <button class="btn-secondary" data-format="scss">SCSS</button>
+                            <button class="btn-secondary" data-format="json">JSON</button>
+                            <button class="btn-secondary" data-format="svg">SVG</button>
+                        </div>
+                        <pre id="exportCode" class="export-code hidden"></pre>
+                    </div>
+                </div>
+            </section>
+
+            <section class="suggestions-section">
+                <h2>Quick Suggestions</h2>
+                <div class="suggestion-grid">
+                    <button class="suggestion-btn" data-theme="Modern Tech" data-style="minimal">
+                        <span class="suggestion-preview" style="background: linear-gradient(90deg, #1e40af, #3b82f6, #60a5fa)"></span>
+                        <span>Modern Tech</span>
+                    </button>
+                    <button class="suggestion-btn" data-theme="Sunset Beach" data-style="vibrant">
+                        <span class="suggestion-preview" style="background: linear-gradient(90deg, #ff6b6b, #ffa500, #ffd93d)"></span>
+                        <span>Sunset Beach</span>
+                    </button>
+                    <button class="suggestion-btn" data-theme="Forest Mist" data-style="earthy">
+                        <span class="suggestion-preview" style="background: linear-gradient(90deg, #228b22, #6b8e23, #8fbc8f)"></span>
+                        <span>Forest Mist</span>
+                    </button>
+                    <button class="suggestion-btn" data-theme="Candy Shop" data-style="pastel">
+                        <span class="suggestion-preview" style="background: linear-gradient(90deg, #ffb3d9, #b3e5ff, #ffffb3)"></span>
+                        <span>Candy Shop</span>
+                    </button>
+                    <button class="suggestion-btn" data-theme="Midnight City" data-style="dark">
+                        <span class="suggestion-preview" style="background: linear-gradient(90deg, #1a1a2e, #16213e, #0f3460)"></span>
+                        <span>Midnight City</span>
+                    </button>
+                    <button class="suggestion-btn" data-theme="Retro Wave" data-style="neon">
+                        <span class="suggestion-preview" style="background: linear-gradient(90deg, #ff00ff, #00ffff, #ffff00)"></span>
+                        <span>Retro Wave</span>
+                    </button>
+                </div>
+            </section>
+
+            <section class="history-section">
+                <h2>Recent Palettes</h2>
+                <div id="historyContainer" class="history-container">
+                    <p class="empty-state">No palettes generated yet</p>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <div id="toast" class="toast"></div>
+    
+    <script src="script.js"></script>
+</body>
+</html>

@@ -5,36 +5,17 @@
     "parent": "vrooli",
     "name": "picker-wheel",
     "displayName": "Picker Wheel",
-    "description": "Fun random selection tool with customizable spinning wheel for decision-making and games",
+    "description": "Fun random selection wheel with customizable options and animated spinning",
     "version": "1.0.0",
     "type": "entertainment-application",
-    "category": "entertainment",
+    "category": "saas-applications",
     "tags": [
-      "random",
-      "selection",
-      "wheel",
-      "decision",
-      "game",
-      "picker",
-      "spinner",
-      "javascript-ui",
-      "retro",
-      "casino"
+      "decision-making",
+      "random-selection",
+      "entertainment",
+      "arcade-style",
+      "interactive-ui"
     ]
-  },
-  "ports": {
-    "api": {
-      "env_var": "SERVICE_PORT",
-      "range": "8700-8799",
-      "fallback": "auto",
-      "description": "Picker Wheel API port"
-    },
-    "ui": {
-      "env_var": "UI_PORT",
-      "range": "3700-3799",
-      "fallback": "auto",
-      "description": "Picker Wheel UI port"
-    }
   },
   "resources": {
     "automation": {
@@ -42,9 +23,6 @@
         "type": "n8n",
         "enabled": true,
         "required": true,
-        "shared_workflows": [
-          "ollama"
-        ],
         "initialization": [
           {
             "file": "initialization/n8n/wheel-spinner.json",
@@ -61,12 +39,21 @@
         ]
       }
     },
+    "ai": {
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": false,
+        "models": ["llama3.2:3b"],
+        "purpose": "intelligent option suggestions"
+      }
+    },
     "storage": {
       "postgres": {
         "type": "postgres",
         "enabled": true,
         "required": true,
-        "purpose": "Store wheel configurations, spin history, and user preferences",
+        "purpose": "wheel configurations and history",
         "initialization": [
           {
             "file": "initialization/postgres/schema.sql",
@@ -77,9 +64,23 @@
       "redis": {
         "type": "redis",
         "enabled": true,
-        "required": true,
-        "purpose": "Cache active wheel sessions and real-time spin animations"
+        "required": false,
+        "purpose": "session caching and real-time updates"
       }
+    }
+  },
+  "ports": {
+    "ui": {
+      "env_var": "UI_PORT",
+      "range": "3500-3599",
+      "fallback": "auto",
+      "description": "Picker Wheel UI port"
+    },
+    "api": {
+      "env_var": "API_PORT",
+      "range": "8500-8599",
+      "fallback": "auto",
+      "description": "Picker Wheel API port"
     }
   },
   "lifecycle": {
@@ -99,77 +100,64 @@
         },
         {
           "name": "install-cli",
-          "run": "cd cli && ./install-cli.sh",
-          "description": "Install CLI command globally"
+          "run": "cd cli && chmod +x picker-wheel && ./picker-wheel --version",
+          "description": "Install CLI command"
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod download && go build -o picker-wheel-api main.go",
+          "run": "cd api && go mod tidy && go mod download && go build -o picker-wheel-api main.go",
           "description": "Build Go API binary"
         },
         {
-          "name": "setup-ui",
+          "name": "install-ui-deps",
           "run": "cd ui && npm install",
           "description": "Install UI dependencies"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '🎰 Picker Wheel initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${SERVICE_PORT}'",
-          "description": "Display service URLs"
         }
       ]
     },
     "develop": {
-      "description": "Start Picker Wheel services",
+      "description": "Start Picker Wheel app",
       "steps": [
         {
-          "name": "start-api-server",
-          "run": "cd api && PORT=$SERVICE_PORT N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} POSTGRES_URL=postgres://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/picker_wheel REDIS_URL=redis://localhost:${RESOURCE_PORTS[redis]} ./picker-wheel-api &",
+          "name": "start-api",
+          "run": "cd api && PORT=$API_PORT ./picker-wheel-api &",
           "description": "Start API server",
-          "background": true,
-          "condition": {
-            "file_exists": "api/picker-wheel-api"
-          }
+          "background": true
         },
         {
-          "name": "start-ui-server",
-          "run": "cd ui && PORT=$UI_PORT API_URL=http://localhost:$SERVICE_PORT npm start &",
+          "name": "start-ui",
+          "run": "cd ui && PORT=$UI_PORT API_PORT=$API_PORT node server.js &",
           "description": "Start UI server",
           "background": true
         },
         {
-          "name": "wait-for-services",
-          "run": "sleep 3",
-          "description": "Wait for services to start"
-        },
-        {
-          "name": "show-running",
-          "run": "echo '🎯 Picker Wheel running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${SERVICE_PORT}'",
-          "description": "Display running services"
+          "name": "show-urls",
+          "run": "echo '🎯 Picker Wheel running:\\n  UI: http://localhost:'$UI_PORT'\\n  API: http://localhost:'$API_PORT",
+          "description": "Display service URLs"
         }
       ]
     },
     "test": {
-      "description": "Test Picker Wheel services",
+      "description": "Test Picker Wheel",
       "steps": [
         {
-          "name": "test-api",
-          "run": "curl -sf http://localhost:$SERVICE_PORT/health",
-          "description": "Test API health"
+          "name": "test-api-build",
+          "run": "cd api && go build -o test-build main.go && rm test-build",
+          "description": "Test Go compilation"
         },
         {
-          "name": "test-wheels",
-          "run": "curl -sf http://localhost:$SERVICE_PORT/api/wheels",
-          "description": "Test wheels endpoint"
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$API_PORT/health",
+          "description": "Test API health endpoint"
         }
       ]
     },
     "stop": {
-      "description": "Stop Picker Wheel services",
+      "description": "Stop Picker Wheel",
       "steps": [
         {
           "name": "stop-services",
-          "run": "pkill -f 'picker-wheel-api' || true; pkill -f 'npm.*picker-wheel' || true",
+          "run": "pkill -f 'picker-wheel-api' || true; pkill -f 'node server.js' || true",
           "description": "Stop all services"
         }
       ]

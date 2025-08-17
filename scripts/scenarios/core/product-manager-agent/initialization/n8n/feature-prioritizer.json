@@ -1,0 +1,249 @@
+{
+  "name": "Feature Prioritizer",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "feature-prioritizer",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "features",
+              "value": "={{ $json.features || '[{\"name\":\"Dark Mode\",\"description\":\"Add dark mode support\",\"reach\":1000,\"impact\":3,\"confidence\":0.8,\"effort\":5}]' }}"
+            },
+            {
+              "name": "prioritization_method",
+              "value": "={{ $json.method || 'RICE' }}"
+            },
+            {
+              "name": "context",
+              "value": "={{ $json.context || 'General product improvement' }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "defaults-node",
+      "name": "Set Defaults",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [450, 500]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "multiplex",
+        "options": {}
+      },
+      "id": "merge-inputs",
+      "name": "Merge",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.service.n8n.url }}/webhook/extract",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "={{ $json.features }}"
+            },
+            {
+              "name": "schema",
+              "value": "{\"features\":[{\"name\":\"string\",\"description\":\"string\",\"reach\":\"number\",\"impact\":\"number 1-5\",\"confidence\":\"number 0-1\",\"effort\":\"number 1-10\"}]}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "extract-features",
+      "name": "Extract Feature Data",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Calculate RICE scores and prioritize features\nconst features = $input.first().json.features || [];\nconst method = $input.first().json.prioritization_method || 'RICE';\n\n// Calculate scores based on method\nconst scoredFeatures = features.map(feature => {\n  let score = 0;\n  \n  if (method === 'RICE') {\n    // RICE = (Reach * Impact * Confidence) / Effort\n    const reach = feature.reach || 100;\n    const impact = feature.impact || 3;\n    const confidence = feature.confidence || 0.5;\n    const effort = feature.effort || 5;\n    \n    score = (reach * impact * confidence) / effort;\n  } else if (method === 'VALUE_EFFORT') {\n    // Simple value/effort ratio\n    const value = (feature.impact || 3) * (feature.confidence || 0.5);\n    const effort = feature.effort || 5;\n    score = value / effort;\n  } else if (method === 'WEIGHTED') {\n    // Custom weighted scoring\n    const businessValue = feature.impact || 3;\n    const userValue = Math.min(feature.reach / 200, 5) || 2;\n    const technicalRisk = 1 - (feature.confidence || 0.5);\n    const effort = feature.effort || 5;\n    \n    score = ((businessValue * 0.4) + (userValue * 0.4) - (technicalRisk * 0.2)) / effort;\n  }\n  \n  return {\n    ...feature,\n    score: Math.round(score * 100) / 100,\n    priority: null // Will be set after sorting\n  };\n});\n\n// Sort by score descending\nscoredFeatures.sort((a, b) => b.score - a.score);\n\n// Assign priority levels\nscoredFeatures.forEach((feature, index) => {\n  if (index === 0) {\n    feature.priority = 'CRITICAL';\n    feature.priority_rank = 1;\n  } else if (index <= 2) {\n    feature.priority = 'HIGH';\n    feature.priority_rank = index + 1;\n  } else if (index <= 5) {\n    feature.priority = 'MEDIUM';\n    feature.priority_rank = index + 1;\n  } else {\n    feature.priority = 'LOW';\n    feature.priority_rank = index + 1;\n  }\n});\n\nreturn {\n  method,\n  total_features: scoredFeatures.length,\n  prioritized_features: scoredFeatures,\n  timestamp: new Date().toISOString()\n};"
+      },
+      "id": "calculate-scores",
+      "name": "Calculate Priority Scores",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 400]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.service.n8n.url }}/webhook/ollama",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "prompt",
+              "value": "Analyze these prioritized features and provide strategic recommendations:\n\nFeatures: {{ JSON.stringify($json.prioritized_features) }}\n\nContext: {{ $json.context }}\n\nProvide:\n1. Top 3 features to implement first with justification\n2. Potential risks or dependencies to consider\n3. Suggested timeline for implementation\n4. Resource allocation recommendations\n\nBe concise and actionable."
+            },
+            {
+              "name": "model",
+              "value": "llama3.2"
+            },
+            {
+              "name": "temperature",
+              "value": "0.7"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "ai-recommendations",
+      "name": "Generate AI Recommendations",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1250, 400]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.service.n8n.url }}/webhook/embed",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "texts",
+              "value": "={{ $json.prioritized_features.map(f => f.name + ': ' + f.description).join('\\n') }}"
+            },
+            {
+              "name": "collection",
+              "value": "product_features"
+            },
+            {
+              "name": "metadata",
+              "value": "={{ JSON.stringify({priority: $json.prioritized_features[0].priority, timestamp: $json.timestamp}) }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "store-embeddings",
+      "name": "Store Feature Embeddings",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1450, 500]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "success"
+            }
+          ],
+          "number": [
+            {
+              "name": "features_processed",
+              "value": "={{ $('calculate-scores').first().json.total_features }}"
+            }
+          ],
+          "object": [
+            {
+              "name": "prioritization_results",
+              "value": "={{ $('calculate-scores').first().json }}"
+            },
+            {
+              "name": "ai_recommendations",
+              "value": "={{ $('ai-recommendations').first().json }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "format-response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [1650, 400]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "body",
+              "value": "={{ JSON.stringify($json) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "respond-to-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 2,
+      "position": [1850, 400]
+    }
+  ],
+  "connections": {
+    "webhook-trigger": {
+      "main": [[{"node": "merge-inputs", "type": "main", "index": 0}]]
+    },
+    "manual-trigger": {
+      "main": [[{"node": "defaults-node", "type": "main", "index": 0}]]
+    },
+    "defaults-node": {
+      "main": [[{"node": "merge-inputs", "type": "main", "index": 1}]]
+    },
+    "merge-inputs": {
+      "main": [[{"node": "extract-features", "type": "main", "index": 0}]]
+    },
+    "extract-features": {
+      "main": [[{"node": "calculate-scores", "type": "main", "index": 0}]]
+    },
+    "calculate-scores": {
+      "main": [
+        [
+          {"node": "ai-recommendations", "type": "main", "index": 0},
+          {"node": "store-embeddings", "type": "main", "index": 0}
+        ]
+      ]
+    },
+    "ai-recommendations": {
+      "main": [[{"node": "format-response", "type": "main", "index": 0}]]
+    },
+    "store-embeddings": {
+      "main": [[{"node": "format-response", "type": "main", "index": 0}]]
+    },
+    "format-response": {
+      "main": [[{"node": "respond-to-webhook", "type": "main", "index": 0}]]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": []
+}

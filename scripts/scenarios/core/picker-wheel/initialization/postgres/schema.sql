@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS wheels (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     times_used INTEGER DEFAULT 0,
     is_public BOOLEAN DEFAULT false,
+    session_id VARCHAR(255),
     tags TEXT[]
 );
 

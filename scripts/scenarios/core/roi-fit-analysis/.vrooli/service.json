@@ -1,0 +1,145 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "parent": "vrooli",
+    "name": "roi-fit-analysis",
+    "displayName": "ROI Fit Analysis",
+    "description": "Deep financial research tool for ROI analysis and investment decision-making",
+    "version": "1.0.0",
+    "type": "business-application",
+    "category": "finance",
+    "tags": [
+      "roi",
+      "investment",
+      "financial-analysis",
+      "market-research",
+      "business-strategy",
+      "decision-making",
+      "risk-assessment",
+      "opportunity-analysis",
+      "javascript-ui"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "SERVICE_PORT",
+      "range": "8700-8799",
+      "fallback": "auto",
+      "description": "ROI Fit Analysis API port"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "range": "3700-3799",
+      "fallback": "auto",
+      "description": "ROI Fit Analysis UI port"
+    }
+  },
+  "components": {
+    "api": {
+      "enabled": true,
+      "language": "go",
+      "path": "api",
+      "main": "main.go"
+    },
+    "ui": {
+      "enabled": true,
+      "framework": "javascript",
+      "path": "ui", 
+      "main": "server.js"
+    },
+    "cli": {
+      "enabled": true,
+      "language": "go",
+      "path": "cli",
+      "command": "roi-fit"
+    }
+  },
+  "resources": {
+    "n8n": {
+      "enabled": true,
+      "required": true
+    },
+    "postgres": {
+      "enabled": true,
+      "required": true
+    },
+    "redis": {
+      "enabled": true,
+      "required": true
+    },
+    "qdrant": {
+      "enabled": true,
+      "required": false
+    },
+    "ollama": {
+      "enabled": true,
+      "required": true
+    },
+    "browserless": {
+      "enabled": true,
+      "required": true
+    }
+  },
+  "initialization": {
+    "n8n": [
+      {
+        "name": "roi-analyzer",
+        "file": "initialization/n8n/roi-analyzer.json",
+        "active": true
+      },
+      {
+        "name": "market-researcher",
+        "file": "initialization/n8n/market-researcher.json",
+        "active": true
+      },
+      {
+        "name": "financial-calculator",
+        "file": "initialization/n8n/financial-calculator.json",
+        "active": true
+      },
+      {
+        "name": "competitive-landscape-analyzer",
+        "file": "initialization/n8n/competitive-landscape-analyzer.json",
+        "active": true
+      },
+      {
+        "name": "enhanced-market-researcher",
+        "file": "initialization/n8n/enhanced-market-researcher.json",
+        "active": true
+      }
+    ],
+    "postgres": [
+      {
+        "file": "initialization/postgres/schema.sql",
+        "type": "schema"
+      }
+    ]
+  },
+  "dependencies": {
+    "shared_workflows": [
+      "ollama",
+      "embedding-generator",
+      "structured-data-extractor"
+    ]
+  },
+  "healthcheck": {
+    "enabled": true,
+    "interval": 30,
+    "timeout": 10,
+    "retries": 3,
+    "endpoints": [
+      {
+        "type": "http",
+        "url": "http://localhost:${SERVICE_PORT}/health",
+        "method": "GET",
+        "expected_status": 200
+      }
+    ]
+  },
+  "logging": {
+    "level": "info",
+    "format": "json",
+    "output": "stdout"
+  }
+}

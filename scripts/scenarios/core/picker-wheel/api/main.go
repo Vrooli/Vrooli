@@ -65,9 +65,9 @@ func init() {
 }
 
 func main() {
-    port := os.Getenv("PORT")
+    port := os.Getenv("SERVICE_PORT")
     if port == "" {
-        port = "9851"
+        port = "8500"
     }
 
     router := mux.NewRouter()

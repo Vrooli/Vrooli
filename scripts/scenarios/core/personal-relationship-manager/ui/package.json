@@ -1,0 +1,18 @@
+{
+  "name": "personal-relationship-manager-ui",
+  "version": "1.0.0",
+  "description": "Warm and thoughtful UI for managing personal relationships",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.0.3"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

@@ -1,0 +1,225 @@
+{
+  "name": "foliage-predictor",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "foliage-predictor-webhook"
+    },
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 100]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "region_id",
+              "value": "={{ $json.region_id || '1' }}"
+            }
+          ]
+        }
+      },
+      "id": "set-defaults",
+      "name": "Set Defaults",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [450, 100]
+    },
+    {
+      "parameters": {
+        "command": "psql -h ${service.postgres.host} -p ${service.postgres.port} -U ${service.postgres.user} -d ${service.postgres.database} -t -A -c \"SELECT json_build_object('region', json_build_object('id', r.id, 'name', r.name, 'state', r.state, 'typical_peak_week', r.typical_peak_week), 'recent_weather', (SELECT json_agg(json_build_object('date', date, 'high', temperature_high_c, 'low', temperature_low_c, 'precip', precipitation_mm)) FROM weather_data WHERE region_id = r.id AND date >= CURRENT_DATE - INTERVAL '14 days' ORDER BY date DESC), 'historical_observations', (SELECT json_agg(json_build_object('date', observation_date, 'status', peak_status, 'intensity', color_intensity)) FROM foliage_observations WHERE region_id = r.id AND observation_date >= CURRENT_DATE - INTERVAL '1 year' ORDER BY observation_date DESC LIMIT 30)) FROM regions r WHERE r.id = {{ $json.region_id }};\""
+      },
+      "id": "get-region-context",
+      "name": "Get Region Context",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [650, 200]
+    },
+    {
+      "parameters": {
+        "url": "${service.n8n.url}/webhook/ollama",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "prompt",
+              "value": "You are a foliage prediction expert. Based on the following data, predict when fall foliage will peak and provide a confidence score (0-1).\n\nRegion: {{ $json.region.name }}, {{ $json.region.state }}\nTypical peak week: Week {{ $json.region.typical_peak_week }} of the year\n\nRecent weather (last 14 days):\n{{ $json.recent_weather }}\n\nHistorical observations:\n{{ $json.historical_observations }}\n\nProvide your prediction in JSON format:\n{\n  \"predicted_peak_date\": \"YYYY-MM-DD\",\n  \"confidence_score\": 0.0-1.0,\n  \"peak_window_start\": \"YYYY-MM-DD\",\n  \"peak_window_end\": \"YYYY-MM-DD\",\n  \"factors\": [\n    \"list of key factors influencing prediction\"\n  ],\n  \"foliage_progression\": \"not_started|progressing|near_peak|peak|past_peak\"\n}"
+            },
+            {
+              "name": "model",
+              "value": "llama3.2"
+            },
+            {
+              "name": "format",
+              "value": "json"
+            }
+          ]
+        }
+      },
+      "id": "call-ollama",
+      "name": "Call Ollama Workflow",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "functionCode": "const prediction = JSON.parse($input.first().json.response);\nconst context = $node['Get Region Context'].json;\n\nreturn {\n  region_id: context.region.id,\n  predicted_peak_date: prediction.predicted_peak_date,\n  confidence_score: prediction.confidence_score,\n  peak_window_start: prediction.peak_window_start,\n  peak_window_end: prediction.peak_window_end,\n  factors: prediction.factors,\n  foliage_progression: prediction.foliage_progression\n};"
+      },
+      "id": "parse-prediction",
+      "name": "Parse Prediction",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1050, 200]
+    },
+    {
+      "parameters": {
+        "command": "psql -h ${service.postgres.host} -p ${service.postgres.port} -U ${service.postgres.user} -d ${service.postgres.database} -c \"INSERT INTO foliage_predictions (region_id, prediction_date, predicted_peak_date, confidence_score, model_version, factors) VALUES ({{ $json.region_id }}, CURRENT_DATE, '{{ $json.predicted_peak_date }}', {{ $json.confidence_score }}, 'ollama-llama3.2', '{{ $json.factors }}');\""
+      },
+      "id": "store-prediction",
+      "name": "Store Prediction",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1250, 200]
+    },
+    {
+      "parameters": {
+        "command": "psql -h ${service.postgres.host} -p ${service.postgres.port} -U ${service.postgres.user} -d ${service.postgres.database} -c \"INSERT INTO foliage_observations (region_id, observation_date, peak_status, source) VALUES ({{ $json.region_id }}, CURRENT_DATE, '{{ $json.foliage_progression }}', 'predicted') ON CONFLICT (region_id, observation_date, source) DO UPDATE SET peak_status = EXCLUDED.peak_status;\""
+      },
+      "id": "update-status",
+      "name": "Update Current Status",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1450, 200]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "success"
+            }
+          ],
+          "object": [
+            {
+              "name": "prediction",
+              "value": "={{ $json }}"
+            }
+          ]
+        }
+      },
+      "id": "format-response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [1650, 200]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Defaults",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get Region Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Defaults": {
+      "main": [
+        [
+          {
+            "node": "Get Region Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Region Context": {
+      "main": [
+        [
+          {
+            "node": "Call Ollama Workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Ollama Workflow": {
+      "main": [
+        [
+          {
+            "node": "Parse Prediction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Prediction": {
+      "main": [
+        [
+          {
+            "node": "Store Prediction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Prediction": {
+      "main": [
+        [
+          {
+            "node": "Update Current Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Current Status": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "foliage-predictor"
+}

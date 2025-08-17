@@ -1,0 +1,164 @@
+{
+  "name": "competitor-analyzer",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [260, 300]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "competitor-analyzer",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [260, 500]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "competitor_url",
+              "value": "https://competitor.example.com"
+            },
+            {
+              "name": "your_url",
+              "value": "https://your-site.example.com"
+            },
+            {
+              "name": "analysis_type",
+              "value": "comprehensive"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "default-values",
+      "name": "Default Values",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "command": "bash /vrooli/cli/vrooli resource browserless scrape '{{ $json.competitor_url }}' 'body' 30000"
+      },
+      "id": "scrape-competitor",
+      "name": "Scrape Competitor",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [660, 350]
+    },
+    {
+      "parameters": {
+        "command": "bash /vrooli/cli/vrooli resource browserless scrape '{{ $('default-values').item.json.your_url || $('webhook-trigger').item.json.your_url }}' 'body' 30000"
+      },
+      "id": "scrape-your-site",
+      "name": "Scrape Your Site",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [660, 450]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Extract SEO data from both sites for comparison\nfunction extractSEOData(html, url) {\n  const data = {};\n  \n  // Extract title\n  const titleMatch = html.match(/<title[^>]*>([^<]*)<\\/title>/i);\n  data.title = titleMatch ? titleMatch[1].trim() : '';\n  data.title_length = data.title.length;\n  \n  // Extract meta description\n  const metaDescMatch = html.match(/<meta[^>]*name=[\"']description[\"'][^>]*content=[\"']([^\"']*)[\"']/i);\n  data.meta_description = metaDescMatch ? metaDescMatch[1].trim() : '';\n  data.meta_description_length = data.meta_description.length;\n  \n  // Extract meta keywords\n  const metaKeywordsMatch = html.match(/<meta[^>]*name=[\"']keywords[\"'][^>]*content=[\"']([^\"']*)[\"']/i);\n  data.meta_keywords = metaKeywordsMatch ? metaKeywordsMatch[1].trim() : '';\n  \n  // Count headers\n  data.h1_count = (html.match(/<h1[^>]*>/gi) || []).length;\n  data.h2_count = (html.match(/<h2[^>]*>/gi) || []).length;\n  data.h3_count = (html.match(/<h3[^>]*>/gi) || []).length;\n  \n  // Extract h1 text\n  const h1Matches = html.match(/<h1[^>]*>([^<]*)<\\/h1>/gi) || [];\n  data.h1_texts = h1Matches.map(h => h.replace(/<[^>]*>/g, '').trim()).slice(0, 5);\n  \n  // Count images\n  const imgMatches = html.match(/<img[^>]*>/gi) || [];\n  data.total_images = imgMatches.length;\n  data.images_with_alt = imgMatches.filter(img => /alt=[\"'][^\"']+[\"']/i.test(img)).length;\n  \n  // Count links\n  const linkMatches = html.match(/<a[^>]*href=[\"'][^\"']*[\"'][^>]*>/gi) || [];\n  data.total_links = linkMatches.length;\n  data.internal_links = linkMatches.filter(link => !/https?:\\/\\//i.test(link) || link.includes(url)).length;\n  data.external_links = data.total_links - data.internal_links;\n  \n  // Extract text content\n  const textContent = html.replace(/<script[^>]*>[^<]*<\\/script>/gi, '')\n                          .replace(/<style[^>]*>[^<]*<\\/style>/gi, '')\n                          .replace(/<[^>]*>/g, ' ')\n                          .replace(/\\s+/g, ' ')\n                          .trim();\n  data.word_count = textContent.split(' ').filter(word => word.length > 0).length;\n  \n  // Check for structured data\n  data.has_schema = html.includes('application/ld+json') || html.includes('itemscope');\n  \n  // Check for Open Graph tags\n  data.has_og_tags = html.includes('property=\"og:');\n  \n  // Check for Twitter Card tags\n  data.has_twitter_cards = html.includes('name=\"twitter:');\n  \n  return data;\n}\n\nconst competitorHtml = $('scrape-competitor').item.json.stdout || '';\nconst yourHtml = $('scrape-your-site').item.json.stdout || '';\nconst competitorUrl = $('default-values').item.json.competitor_url || $('webhook-trigger').item.json.competitor_url;\nconst yourUrl = $('default-values').item.json.your_url || $('webhook-trigger').item.json.your_url;\n\nconst competitorData = extractSEOData(competitorHtml, competitorUrl);\nconst yourData = extractSEOData(yourHtml, yourUrl);\n\n// Calculate differences and identify gaps\nconst comparison = {\n  title_difference: competitorData.title_length - yourData.title_length,\n  meta_desc_difference: competitorData.meta_description_length - yourData.meta_description_length,\n  h1_difference: competitorData.h1_count - yourData.h1_count,\n  h2_difference: competitorData.h2_count - yourData.h2_count,\n  word_count_difference: competitorData.word_count - yourData.word_count,\n  image_optimization_gap: (competitorData.images_with_alt / Math.max(competitorData.total_images, 1)) - \n                          (yourData.images_with_alt / Math.max(yourData.total_images, 1)),\n  structured_data_gap: competitorData.has_schema && !yourData.has_schema,\n  og_tags_gap: competitorData.has_og_tags && !yourData.has_og_tags,\n  twitter_cards_gap: competitorData.has_twitter_cards && !yourData.has_twitter_cards\n};\n\nreturn {\n  competitor_url: competitorUrl,\n  your_url: yourUrl,\n  competitor_data: competitorData,\n  your_data: yourData,\n  comparison: comparison,\n  timestamp: new Date().toISOString()\n};"
+      },
+      "id": "compare-sites",
+      "name": "Compare Sites",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [860, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SERVICE_N8N_URL }}/webhook/ollama",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "prompt",
+              "value": "As an SEO competitive analysis expert, analyze these two websites and provide strategic recommendations:\n\nCOMPETITOR SITE ({{ $json.competitor_url }}):\n- Title: {{ $json.competitor_data.title }} ({{ $json.competitor_data.title_length }} chars)\n- Meta Description: {{ $json.competitor_data.meta_description_length }} chars\n- H1 Count: {{ $json.competitor_data.h1_count }}\n- H2 Count: {{ $json.competitor_data.h2_count }}\n- Word Count: {{ $json.competitor_data.word_count }}\n- Images: {{ $json.competitor_data.total_images }} ({{ $json.competitor_data.images_with_alt }} with alt)\n- Links: {{ $json.competitor_data.total_links }} total ({{ $json.competitor_data.internal_links }} internal)\n- Has Schema: {{ $json.competitor_data.has_schema }}\n- Has OG Tags: {{ $json.competitor_data.has_og_tags }}\n\nYOUR SITE ({{ $json.your_url }}):\n- Title: {{ $json.your_data.title }} ({{ $json.your_data.title_length }} chars)\n- Meta Description: {{ $json.your_data.meta_description_length }} chars\n- H1 Count: {{ $json.your_data.h1_count }}\n- H2 Count: {{ $json.your_data.h2_count }}\n- Word Count: {{ $json.your_data.word_count }}\n- Images: {{ $json.your_data.total_images }} ({{ $json.your_data.images_with_alt }} with alt)\n- Links: {{ $json.your_data.total_links }} total ({{ $json.your_data.internal_links }} internal)\n- Has Schema: {{ $json.your_data.has_schema }}\n- Has OG Tags: {{ $json.your_data.has_og_tags }}\n\nProvide competitive analysis as JSON:\n{\n  \"competitive_score\": number (0-100, how well you compare),\n  \"strengths\": [\"areas where you outperform competitor\"],\n  \"weaknesses\": [\"areas where competitor outperforms you\"],\n  \"opportunities\": {\n    \"quick_wins\": [\"easy improvements to match/beat competitor\"],\n    \"content_gaps\": [\"content areas competitor covers that you don't\"],\n    \"technical_gaps\": [\"technical SEO improvements needed\"],\n    \"structure_improvements\": [\"site structure recommendations\"]\n  },\n  \"competitor_strategies\": {\n    \"content_strategy\": \"analysis of their content approach\",\n    \"keyword_focus\": \"likely keyword strategy\",\n    \"user_experience\": \"UX elements to consider adopting\"\n  },\n  \"action_plan\": {\n    \"immediate\": [\"do within 1 week\"],\n    \"short_term\": [\"do within 1 month\"],\n    \"long_term\": [\"do within 3 months\"]\n  },\n  \"estimated_impact\": \"predicted improvement in rankings/traffic\"\n}"
+            },
+            {
+              "name": "model",
+              "value": "llama3.2:3b"
+            },
+            {
+              "name": "type",
+              "value": "reasoning"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "generate-analysis",
+      "name": "Generate Analysis",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1060, 400],
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "n8n-auth",
+          "name": "n8n Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Format the competitive analysis results\nconst aiResponse = $json.response || '{}';\nlet analysis;\n\ntry {\n  analysis = typeof aiResponse === 'string' ? JSON.parse(aiResponse) : aiResponse;\n} catch (e) {\n  analysis = {\n    competitive_score: 50,\n    error: 'Failed to parse analysis response',\n    raw_response: aiResponse\n  };\n}\n\nconst comparisonData = $('compare-sites').item.json;\n\nreturn {\n  analysis_id: Date.now().toString(),\n  timestamp: new Date().toISOString(),\n  competitor_url: comparisonData.competitor_url,\n  your_url: comparisonData.your_url,\n  raw_comparison: {\n    competitor_metrics: comparisonData.competitor_data,\n    your_metrics: comparisonData.your_data,\n    differences: comparisonData.comparison\n  },\n  competitive_analysis: analysis,\n  success: true\n};"
+      },
+      "id": "format-results",
+      "name": "Format Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1260, 400]
+    }
+  ],
+  "connections": {
+    "manual-trigger": {
+      "main": [[{"node": "default-values", "type": "main", "index": 0}]]
+    },
+    "webhook-trigger": {
+      "main": [[{"node": "scrape-competitor", "type": "main", "index": 0}]]
+    },
+    "default-values": {
+      "main": [[{"node": "scrape-competitor", "type": "main", "index": 0}]]
+    },
+    "scrape-competitor": {
+      "main": [[{"node": "scrape-your-site", "type": "main", "index": 0}]]
+    },
+    "scrape-your-site": {
+      "main": [[{"node": "compare-sites", "type": "main", "index": 0}]]
+    },
+    "compare-sites": {
+      "main": [[{"node": "generate-analysis", "type": "main", "index": 0}]]
+    },
+    "generate-analysis": {
+      "main": [[{"node": "format-results", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "templateId": "competitor-analyzer"
+  },
+  "pinData": {},
+  "versionId": "1.0.0",
+  "triggerCount": 2,
+  "tags": []
+}

@@ -289,6 +289,33 @@
       "validated": false,
       "enabled": true,
       "ui": true
+    },
+    {
+      "name": "roi-fit-analysis",
+      "description": "Deep financial research tool for ROI analysis and investment decision-making",
+      "location": "core/roi-fit-analysis",
+      "category": "saas-applications",
+      "validated": true,
+      "enabled": true,
+      "ui": true
+    },
+    {
+      "name": "palette-gen",
+      "description": "AI-powered color palette generator with harmony analysis and accessibility checking",
+      "location": "core/palette-gen",
+      "category": "saas-applications",
+      "validated": false,
+      "enabled": true,
+      "ui": true
+    },
+    {
+      "name": "fall-foliage-explorer",
+      "description": "Interactive map for tracking and forecasting fall foliage peaks across North America with real-time data",
+      "location": "core/fall-foliage-explorer",
+      "category": "saas-applications",
+      "validated": false,
+      "enabled": true,
+      "ui": true
     }
   ]
 }

@@ -1,0 +1,223 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "parent": "vrooli",
+    "name": "fall-foliage-explorer",
+    "displayName": "Fall Foliage Explorer",
+    "description": "Interactive map for tracking and forecasting fall foliage peaks across regions with real-time data",
+    "version": "1.0.0",
+    "type": "saas-application",
+    "category": "travel",
+    "tags": [
+      "foliage",
+      "autumn",
+      "travel",
+      "maps",
+      "weather",
+      "visualization",
+      "javascript-ui"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "SERVICE_PORT",
+      "range": "8920-8949",
+      "fallback": "auto",
+      "description": "Fall Foliage Explorer API port"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "range": "3920-3949",
+      "fallback": "auto",
+      "description": "Fall Foliage Explorer UI port"
+    }
+  },
+  "components": {
+    "api": {
+      "enabled": true,
+      "language": "go",
+      "path": "api",
+      "main": "main.go"
+    },
+    "ui": {
+      "enabled": true,
+      "framework": "javascript",
+      "path": "ui",
+      "main": "server.js"
+    },
+    "cli": {
+      "enabled": true,
+      "language": "bash",
+      "path": "cli",
+      "command": "foliage-explorer"
+    }
+  },
+  "resources": {
+    "storage": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "historical foliage data and user trips"
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": true,
+        "purpose": "real-time weather data caching"
+      }
+    },
+    "automation": {
+      "n8n": {
+        "type": "n8n",
+        "enabled": true,
+        "required": true
+      }
+    },
+    "ai": {
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "models": ["llama3.2:3b"],
+        "purpose": "foliage predictions and pattern analysis"
+      }
+    },
+    "agents": {
+      "browserless": {
+        "type": "browserless",
+        "enabled": true,
+        "required": false,
+        "purpose": "weather data scraping"
+      }
+    }
+  },
+  "initialization": {
+    "postgres": [
+      {
+        "file": "initialization/postgres/schema.sql",
+        "type": "schema"
+      }
+    ],
+    "n8n": [
+      {
+        "name": "foliage-data-fetcher",
+        "file": "initialization/n8n/foliage-data-fetcher.json",
+        "active": true
+      },
+      {
+        "name": "weather-integration",
+        "file": "initialization/n8n/weather-integration.json",
+        "active": true
+      },
+      {
+        "name": "foliage-predictor",
+        "file": "initialization/n8n/foliage-predictor.json",
+        "active": true
+      }
+    ]
+  },
+  "dependencies": {
+    "shared_workflows": ["rate-limiter", "ollama"]
+  },
+  "healthcheck": {
+    "enabled": true,
+    "interval": 30,
+    "timeout": 10,
+    "retries": 3,
+    "endpoints": [
+      {
+        "type": "http",
+        "url": "http://localhost:${SERVICE_PORT}/health",
+        "method": "GET",
+        "expected_status": 200
+      }
+    ]
+  },
+  "logging": {
+    "level": "info",
+    "format": "json",
+    "output": "stdout"
+  },
+  "lifecycle": {
+    "version": "1.0.0",
+    "setup": {
+      "description": "Initialize Fall Foliage Explorer",
+      "steps": [
+        {
+          "name": "base-setup",
+          "run": "bash scripts/lib/setup.sh",
+          "description": "Execute generic setup"
+        },
+        {
+          "name": "add-data",
+          "run": "scripts/resources/injection/engine.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && chmod +x foliage-explorer && ./install-cli.sh",
+          "description": "Install CLI command"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod tidy && go mod download && go build -o foliage-api main.go",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start Fall Foliage Explorer app",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && PORT=$SERVICE_PORT ./foliage-api &",
+          "description": "Start API server",
+          "background": true
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && PORT=$UI_PORT API_PORT=$SERVICE_PORT node server.js &",
+          "description": "Start UI server",
+          "background": true
+        },
+        {
+          "name": "show-urls",
+          "run": "echo 'Fall Foliage Explorer running:\\n  UI: http://localhost:'$UI_PORT'\\n  API: http://localhost:'$SERVICE_PORT",
+          "description": "Display service URLs"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test Fall Foliage Explorer",
+      "steps": [
+        {
+          "name": "test-api-build",
+          "run": "cd api && go build -o test-build main.go && rm test-build",
+          "description": "Test Go compilation"
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/health",
+          "description": "Test API health endpoint"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop Fall Foliage Explorer",
+      "steps": [
+        {
+          "name": "stop-services",
+          "run": "pkill -f 'foliage-api' || true; pkill -f 'node server.js' || true",
+          "description": "Stop all services"
+        }
+      ]
+    }
+  }
+}

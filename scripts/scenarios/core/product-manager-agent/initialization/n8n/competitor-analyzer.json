@@ -1,0 +1,338 @@
+{
+  "name": "Competitor Analyzer",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "competitor-analyzer",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "competitors",
+              "value": "={{ $json.competitors || 'Asana, Trello, Jira, Monday.com' }}"
+            },
+            {
+              "name": "industry",
+              "value": "={{ $json.industry || 'Project Management Software' }}"
+            },
+            {
+              "name": "analysis_focus",
+              "value": "={{ $json.focus || 'features, pricing, market_position, strengths, weaknesses' }}"
+            },
+            {
+              "name": "our_product",
+              "value": "={{ $json.our_product || 'AI-powered project management platform' }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "defaults-node",
+      "name": "Set Defaults",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [450, 500]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "multiplex",
+        "options": {}
+      },
+      "id": "merge-inputs",
+      "name": "Merge",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse competitors list and prepare for analysis\nconst competitorsList = $json.competitors.split(',').map(c => c.trim());\nconst analysisFocus = $json.analysis_focus.split(',').map(f => f.trim());\n\n// Create analysis tasks for each competitor\nconst analysisTasks = competitorsList.map(competitor => {\n  return {\n    competitor: competitor,\n    industry: $json.industry,\n    focus_areas: analysisFocus,\n    our_product: $json.our_product,\n    task_id: `CA-${competitor.replace(/\\s+/g, '_')}-${Date.now()}`\n  };\n});\n\nreturn analysisTasks;"
+      },
+      "id": "prepare-analysis",
+      "name": "Prepare Analysis Tasks",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "split-batch",
+      "name": "Split In Batches",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [1050, 400]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.service.n8n.url }}/webhook/web-research-aggregator",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "{{ $json.competitor }} {{ $json.industry }} features pricing reviews comparison 2024"
+            },
+            {
+              "name": "max_results",
+              "value": "5"
+            },
+            {
+              "name": "search_depth",
+              "value": "moderate"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "research-competitor",
+      "name": "Research Competitor",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1250, 400]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.service.n8n.url }}/webhook/ollama",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "prompt",
+              "value": "Analyze {{ $json.competitor }} as a competitor in the {{ $json.industry }} space.\n\nFocus areas: {{ $json.focus_areas.join(', ') }}\n\nResearch data: {{ JSON.stringify($('research-competitor').first().json) }}\n\nProvide a structured analysis including:\n1. Key Features and Capabilities\n2. Pricing Model and Tiers\n3. Target Market and Customer Base\n4. Unique Selling Points\n5. Main Strengths (top 3)\n6. Main Weaknesses (top 3)\n7. Market Position and Share\n8. Recent Updates or Changes\n\nBe specific and data-driven where possible."
+            },
+            {
+              "name": "model",
+              "value": "llama3.2"
+            },
+            {
+              "name": "temperature",
+              "value": "0.3"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "analyze-competitor",
+      "name": "Analyze Competitor",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1450, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Structure competitor analysis\nconst competitor = $json.competitor;\nconst analysis = $('analyze-competitor').first().json.response || '';\nconst research = $('research-competitor').first().json;\n\n// Parse analysis into structured format\nconst structuredAnalysis = {\n  competitor_name: competitor,\n  analysis_date: new Date().toISOString(),\n  features: extractSection(analysis, 'Features|Capabilities'),\n  pricing: extractSection(analysis, 'Pricing'),\n  target_market: extractSection(analysis, 'Target Market|Customer'),\n  unique_selling_points: extractSection(analysis, 'Unique|USP|Selling Points'),\n  strengths: extractListItems(analysis, 'Strengths'),\n  weaknesses: extractListItems(analysis, 'Weaknesses'),\n  market_position: extractSection(analysis, 'Market Position|Share'),\n  recent_updates: extractSection(analysis, 'Recent|Updates|Changes'),\n  sources: research.results ? research.results.slice(0, 3).map(r => r.url) : []\n};\n\n// Calculate competitive threat score\nstructuredAnalysis.threat_score = calculateThreatScore(structuredAnalysis);\n\n// Helper functions\nfunction extractSection(text, keywords) {\n  const regex = new RegExp(`(${keywords})[^\\n]*:[\\s]*([^\\n]+(?:\\n(?![0-9]\\.|\\n)[^\\n]+)*)`, 'gi');\n  const match = regex.exec(text);\n  return match ? match[2].trim() : '';\n}\n\nfunction extractListItems(text, keyword) {\n  const regex = new RegExp(`${keyword}[^\\n]*:[\\s]*([^\\n]+(?:\\n(?!\\n)[^\\n]+)*)`, 'gi');\n  const match = regex.exec(text);\n  if (match) {\n    return match[1].split(/[\\n•\\-\\*\\d\\.\\)]/).filter(item => item.trim()).map(item => item.trim()).slice(0, 3);\n  }\n  return [];\n}\n\nfunction calculateThreatScore(analysis) {\n  let score = 5;\n  \n  // More strengths = higher threat\n  score += Math.min(analysis.strengths.length * 0.5, 1.5);\n  \n  // More weaknesses = lower threat\n  score -= Math.min(analysis.weaknesses.length * 0.3, 0.9);\n  \n  // Adjust based on market position mentions\n  if (analysis.market_position.toLowerCase().includes('leader') || \n      analysis.market_position.toLowerCase().includes('dominant')) {\n    score += 2;\n  }\n  \n  return Math.max(1, Math.min(10, Math.round(score * 10) / 10));\n}\n\nreturn structuredAnalysis;"
+      },
+      "id": "structure-analysis",
+      "name": "Structure Analysis",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1650, 400]
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
+      "id": "aggregate-results",
+      "name": "Aggregate",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [1850, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Compile comprehensive competitive analysis report\nconst allAnalyses = $json.allItems || [];\nconst ourProduct = $('defaults-node').first().json.our_product;\nconst industry = $('defaults-node').first().json.industry;\n\n// Sort by threat score\nallAnalyses.sort((a, b) => b.threat_score - a.threat_score);\n\n// Compile insights\nconst competitiveInsights = {\n  report_id: `CAR-${Date.now()}`,\n  generated_at: new Date().toISOString(),\n  industry: industry,\n  our_product: ourProduct,\n  total_competitors_analyzed: allAnalyses.length,\n  \n  competitor_profiles: allAnalyses,\n  \n  market_insights: {\n    top_threats: allAnalyses.slice(0, 3).map(a => ({\n      name: a.competitor_name,\n      threat_score: a.threat_score,\n      key_strength: a.strengths[0] || 'Unknown'\n    })),\n    \n    common_features: findCommonElements(allAnalyses, 'features'),\n    pricing_patterns: analyzePricingPatterns(allAnalyses),\n    market_gaps: identifyMarketGaps(allAnalyses),\n    differentiation_opportunities: []\n  },\n  \n  strategic_recommendations: []\n};\n\n// Identify differentiation opportunities\nconst allWeaknesses = allAnalyses.flatMap(a => a.weaknesses);\nconst weaknessFrequency = countFrequency(allWeaknesses);\ncompetitiveInsights.market_insights.differentiation_opportunities = Object.entries(weaknessFrequency)\n  .filter(([_, count]) => count >= 2)\n  .map(([weakness, _]) => weakness)\n  .slice(0, 5);\n\n// Helper functions\nfunction findCommonElements(analyses, field) {\n  const allElements = analyses.flatMap(a => {\n    const value = a[field];\n    if (typeof value === 'string') {\n      return value.toLowerCase().split(/[,;\\n]/).map(s => s.trim()).filter(s => s);\n    }\n    return [];\n  });\n  const frequency = countFrequency(allElements);\n  return Object.entries(frequency)\n    .filter(([_, count]) => count >= Math.ceil(analyses.length / 2))\n    .map(([element, _]) => element)\n    .slice(0, 5);\n}\n\nfunction countFrequency(arr) {\n  return arr.reduce((acc, item) => {\n    acc[item] = (acc[item] || 0) + 1;\n    return acc;\n  }, {});\n}\n\nfunction analyzePricingPatterns(analyses) {\n  const pricingMentions = analyses.map(a => a.pricing.toLowerCase());\n  const patterns = [];\n  \n  if (pricingMentions.some(p => p.includes('free'))) {\n    patterns.push('Free tier commonly offered');\n  }\n  if (pricingMentions.some(p => p.includes('enterprise'))) {\n    patterns.push('Enterprise pricing prevalent');\n  }\n  if (pricingMentions.some(p => p.includes('per user') || p.includes('per seat'))) {\n    patterns.push('Per-user pricing model common');\n  }\n  if (pricingMentions.some(p => p.includes('usage') || p.includes('consumption'))) {\n    patterns.push('Usage-based pricing emerging');\n  }\n  \n  return patterns.length > 0 ? patterns : ['Varied pricing strategies'];\n}\n\nfunction identifyMarketGaps(analyses) {\n  const gaps = [];\n  const allFeatures = analyses.flatMap(a => a.features.toLowerCase());\n  \n  // Check for AI/ML mentions\n  if (!allFeatures.some(f => f.includes('ai') || f.includes('machine learning'))) {\n    gaps.push('Limited AI/ML integration');\n  }\n  \n  // Check for specific integrations\n  if (!allFeatures.some(f => f.includes('voice') || f.includes('audio'))) {\n    gaps.push('Voice/audio capabilities underserved');\n  }\n  \n  // Check for mobile\n  if (!allFeatures.some(f => f.includes('mobile') || f.includes('ios') || f.includes('android'))) {\n    gaps.push('Mobile experience gap');\n  }\n  \n  return gaps.length > 0 ? gaps : ['Market relatively saturated'];\n}\n\nreturn competitiveInsights;"
+      },
+      "id": "compile-report",
+      "name": "Compile Competitive Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2050, 400]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.service.n8n.url }}/webhook/chain-of-thought-orchestrator",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "task",
+              "value": "Generate strategic recommendations for {{ $json.our_product }} based on competitive analysis"
+            },
+            {
+              "name": "context",
+              "value": "Competitive Analysis: {{ JSON.stringify($json) }}"
+            },
+            {
+              "name": "reasoning_steps",
+              "value": "1. Identify our competitive advantages based on market gaps and competitor weaknesses\n2. Recommend features to prioritize based on common patterns\n3. Suggest pricing strategy based on market analysis\n4. Propose differentiation strategy\n5. Identify partnership or acquisition opportunities\n6. Recommend go-to-market approach"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "strategic-recommendations",
+      "name": "Generate Strategic Recommendations",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [2250, 400]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.service.n8n.url }}/webhook/embedding-generator",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "texts",
+              "value": "Competitive Analysis {{ $json.industry }}: Competitors analyzed: {{ $json.competitor_profiles.map(c => c.competitor_name).join(', ') }}. Top threats: {{ $json.market_insights.top_threats.map(t => t.name).join(', ') }}. Market gaps: {{ $json.market_insights.market_gaps.join(', ') }}. Opportunities: {{ $json.market_insights.differentiation_opportunities.join(', ') }}"
+            },
+            {
+              "name": "collection",
+              "value": "competitive_analysis"
+            },
+            {
+              "name": "metadata",
+              "value": "{{ JSON.stringify({report_id: $json.report_id, industry: $json.industry, date: $json.generated_at, competitors_count: $json.total_competitors_analyzed}) }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "store-analysis",
+      "name": "Store Analysis Embeddings",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [2450, 500]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "success"
+            }
+          ],
+          "object": [
+            {
+              "name": "competitive_analysis",
+              "value": "={{ $('compile-report').first().json }}"
+            },
+            {
+              "name": "strategic_recommendations",
+              "value": "={{ $('strategic-recommendations').first().json }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "format-response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [2650, 400]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "body",
+              "value": "={{ JSON.stringify($json) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "respond-to-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 2,
+      "position": [2850, 400]
+    }
+  ],
+  "connections": {
+    "webhook-trigger": {
+      "main": [[{"node": "merge-inputs", "type": "main", "index": 0}]]
+    },
+    "manual-trigger": {
+      "main": [[{"node": "defaults-node", "type": "main", "index": 0}]]
+    },
+    "defaults-node": {
+      "main": [[{"node": "merge-inputs", "type": "main", "index": 1}]]
+    },
+    "merge-inputs": {
+      "main": [[{"node": "prepare-analysis", "type": "main", "index": 0}]]
+    },
+    "prepare-analysis": {
+      "main": [[{"node": "split-batch", "type": "main", "index": 0}]]
+    },
+    "split-batch": {
+      "main": [[{"node": "research-competitor", "type": "main", "index": 0}]]
+    },
+    "research-competitor": {
+      "main": [[{"node": "analyze-competitor", "type": "main", "index": 0}]]
+    },
+    "analyze-competitor": {
+      "main": [[{"node": "structure-analysis", "type": "main", "index": 0}]]
+    },
+    "structure-analysis": {
+      "main": [[{"node": "split-batch", "type": "main", "index": 0}]]
+    },
+    "aggregate-results": {
+      "main": [[{"node": "compile-report", "type": "main", "index": 0}]]
+    },
+    "compile-report": {
+      "main": [
+        [
+          {"node": "strategic-recommendations", "type": "main", "index": 0},
+          {"node": "store-analysis", "type": "main", "index": 0}
+        ]
+      ]
+    },
+    "strategic-recommendations": {
+      "main": [[{"node": "format-response", "type": "main", "index": 0}]]
+    },
+    "store-analysis": {
+      "main": [[{"node": "format-response", "type": "main", "index": 0}]]
+    },
+    "format-response": {
+      "main": [[{"node": "respond-to-webhook", "type": "main", "index": 0}]]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": []
+}

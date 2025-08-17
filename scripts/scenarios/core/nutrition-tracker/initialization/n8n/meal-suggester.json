@@ -3,16 +3,15 @@
   "nodes": [
     {
       "parameters": {
+        "httpMethod": "POST",
         "path": "nutrition-tracker/meal-suggester",
         "responseMode": "responseNode",
-        "options": {
-          "responseCode": 200
-        }
+        "options": {}
       },
       "id": "webhook-trigger",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
-      "typeVersion": 1.1,
+      "typeVersion": 2,
       "position": [250, 300]
     },
     {
@@ -25,341 +24,125 @@
     },
     {
       "parameters": {
-        "values": {
-          "string": [
-            {
-              "name": "user_id",
-              "value": "demo-user-123"
-            },
-            {
-              "name": "meal_type",
-              "value": "lunch"
-            },
-            {
-              "name": "dietary_preferences",
-              "value": "balanced"
-            }
-          ],
-          "number": [
-            {
-              "name": "remaining_calories",
-              "value": 600
-            },
-            {
-              "name": "remaining_protein",
-              "value": 25
-            },
-            {
-              "name": "remaining_carbs",
-              "value": 75
-            },
-            {
-              "name": "remaining_fat",
-              "value": 20
-            }
-          ]
-        },
-        "options": {}
+        "jsCode": "// Provide defaults for manual testing\nconst defaults = {\n  user_id: 'test-user',\n  meal_type: 'lunch',\n  dietary_preferences: 'balanced',\n  remaining_calories: 600,\n  remaining_protein: 25,\n  remaining_carbs: 75,\n  remaining_fat: 20\n};\n\n// Only use defaults if coming from manual trigger\nconst isManual = $('Manual').first() !== undefined;\nif (isManual) {\n  return [{json: defaults}];\n}\n\n// Otherwise pass through webhook data\nreturn items;"
       },
-      "id": "default-values",
-      "name": "Default Values",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3,
-      "position": [450, 100]
-    },
-    {
-      "parameters": {
-        "mode": "combine",
-        "mergeByFields": {
-          "values": [
-            {
-              "field1": "user_id",
-              "field2": "user_id"
-            }
-          ]
-        },
-        "joinMode": "keepEverything",
-        "options": {}
-      },
-      "id": "merge-inputs",
-      "name": "Merge",
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 2.1,
-      "position": [650, 200]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "=SELECT \n  ug.daily_calories,\n  ug.protein_grams,\n  ug.carbs_grams,\n  ug.fat_grams,\n  ug.dietary_preferences,\n  ug.allergies,\n  COALESCE(ds.total_calories, 0) as consumed_calories,\n  COALESCE(ds.total_protein, 0) as consumed_protein,\n  COALESCE(ds.total_carbs, 0) as consumed_carbs,\n  COALESCE(ds.total_fat, 0) as consumed_fat\nFROM user_goals ug\nLEFT JOIN daily_summaries ds ON \n  ug.user_id = ds.user_id AND \n  ds.summary_date = CURRENT_DATE\nWHERE ug.user_id = '{{ $json.user_id }}'\nLIMIT 1;",
-        "options": {}
-      },
-      "id": "get-user-goals",
-      "name": "Get User Goals",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2,
-      "position": [850, 200],
-      "credentials": {
-        "postgres": {
-          "id": "nutrition-tracker-postgres",
-          "name": "Nutrition Tracker DB"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "// Prepare data for chain-of-thought orchestration\nconst data = $json;\n\nconst remainingCalories = data.daily_calories - data.consumed_calories;\nconst remainingProtein = data.protein_grams - data.consumed_protein;\nconst remainingCarbs = data.carbs_grams - data.consumed_carbs;\nconst remainingFat = data.fat_grams - data.consumed_fat;\n\nreturn {\n  problem: `Generate personalized meal suggestions for ${data.meal_type}`,\n  context: {\n    nutritional_targets: {\n      remaining_calories: remainingCalories,\n      remaining_protein: remainingProtein,\n      remaining_carbs: remainingCarbs,\n      remaining_fat: remainingFat\n    },\n    user_preferences: {\n      dietary_preferences: data.dietary_preferences || 'balanced',\n      allergies: data.allergies || 'none',\n      meal_type: data.meal_type\n    },\n    user_id: data.user_id\n  },\n  steps: [\n    \"Analyze user's remaining nutritional needs for the day\",\n    \"Consider dietary preferences and restrictions\",\n    \"Generate 3 diverse meal options that fit nutritional targets\",\n    \"Calculate precise macros for each suggestion\",\n    \"Provide preparation details and recommendations\"\n  ],\n  expected_output: \"3 detailed meal suggestions with nutritional information\"\n};"
-      },
-      "id": "prepare-cot-request",
-      "name": "Prepare CoT Request",
+      "id": "defaults",
+      "name": "Defaults",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1050, 200]
+      "position": [450, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge webhook or default data\nconst isManual = $('Manual').first() !== undefined;\nconst input = isManual ? $json : $('Webhook').first().json;\n\nconst prompt = `You are a nutrition expert creating personalized meal suggestions.\n\nUser needs:\n- Meal type: ${input.meal_type}\n- Remaining calories: ${input.remaining_calories}\n- Remaining protein: ${input.remaining_protein}g\n- Remaining carbs: ${input.remaining_carbs}g\n- Remaining fat: ${input.remaining_fat}g\n- Dietary preferences: ${input.dietary_preferences}\n\nGenerate 3 meal suggestions that:\n1. Fit within the nutritional targets\n2. Are diverse and interesting\n3. Match the meal type (breakfast/lunch/dinner/snack)\n4. Consider dietary preferences\n\nReturn ONLY a JSON array with exactly 3 meals:\n[\n  {\n    \"meal_name\": \"name of meal\",\n    \"description\": \"brief description\",\n    \"ingredients\": [\"ingredient1\", \"ingredient2\"],\n    \"calories\": number,\n    \"protein_g\": number,\n    \"carbs_g\": number,\n    \"fat_g\": number,\n    \"prep_time_min\": number,\n    \"reason\": \"why this meal fits the user's needs\"\n  }\n]`;\n\nreturn [{\n  json: {\n    prompt: prompt,\n    model: \"llama3.2\",\n    type: \"generation\",\n    temperature: 0.7,\n    format: \"json\",\n    quiet: true,\n    original_input: input\n  }\n}];"
+      },
+      "id": "prepare-prompt",
+      "name": "Prepare Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 400]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.N8N_URL || 'http://localhost:5678' }}/webhook/chain-of-thought-orchestrator",
+        "url": "{{ $env.service.n8n.url }}/webhook/ollama",
         "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "problem",
-              "value": "={{ $json.problem }}"
-            },
-            {
-              "name": "context",
-              "value": "={{ $json.context }}"
-            },
-            {
-              "name": "steps",
-              "value": "={{ $json.steps }}"
-            },
-            {
-              "name": "expected_output",
-              "value": "={{ $json.expected_output }}"
-            }
-          ]
-        },
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  prompt: $json.prompt,\n  model: $json.model,\n  type: $json.type,\n  quiet: $json.quiet,\n  timeout_seconds: $json.timeout_seconds || 120\n}) }}",
         "options": {
-          "timeout": 60000
+          "timeout": 180000
         }
       },
-      "id": "call-cot-orchestrator",
-      "name": "Call CoT Orchestrator",
+      "id": "generate-suggestions",
+      "name": "Call Shared Ollama",
       "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
-      "position": [1250, 200]
+      "typeVersion": 4.2,
+      "position": [850, 400]
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "={{ $env.N8N_URL || 'http://localhost:5678' }}/webhook/structured-data-extractor",
-        "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "text",
-              "value": "={{ $json.final_output || $json.response || $json }}"
-            },
-            {
-              "name": "schema",
-              "value": "={{ { \"type\": \"array\", \"items\": { \"type\": \"object\", \"properties\": { \"meal_name\": { \"type\": \"string\" }, \"description\": { \"type\": \"string\" }, \"ingredients\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } }, \"calories\": { \"type\": \"number\" }, \"protein\": { \"type\": \"number\" }, \"carbs\": { \"type\": \"number\" }, \"fat\": { \"type\": \"number\" }, \"prep_time\": { \"type\": \"number\" }, \"recommendation_reason\": { \"type\": \"string\" } } } } }}"
-            },
-            {
-              "name": "extraction_type",
-              "value": "meal_suggestions"
-            }
-          ]
-        }
+        "jsCode": "// Parse and validate the response from HTTP request\nconst httpResponse = $json;\nconst originalInput = $('Prepare Prompt').first().json.original_input;\n\ntry {\n  // Extract the actual response from the ollama HTTP response\n  let ollamaResponse = httpResponse.response;\n  \n  // Parse the JSON response\n  let suggestions = [];\n  \n  if (typeof ollamaResponse === 'string') {\n    suggestions = JSON.parse(ollamaResponse);\n  } else {\n    suggestions = ollamaResponse;\n  }\n  \n  // Ensure it's an array\n  if (!Array.isArray(suggestions)) {\n    suggestions = [suggestions];\n  }\n  \n  // Take only first 3 and enrich with metadata\n  const enrichedSuggestions = suggestions.slice(0, 3).map((meal, index) => ({\n    id: `meal_${Date.now()}_${index}`,\n    user_id: originalInput.user_id,\n    meal_type: originalInput.meal_type,\n    meal_name: meal.meal_name || `Meal Option ${index + 1}`,\n    description: meal.description || 'Nutritious meal',\n    ingredients: meal.ingredients || [],\n    calories: meal.calories || Math.round(originalInput.remaining_calories * 0.4),\n    protein_g: meal.protein_g || Math.round(originalInput.remaining_protein * 0.4),\n    carbs_g: meal.carbs_g || Math.round(originalInput.remaining_carbs * 0.4),\n    fat_g: meal.fat_g || Math.round(originalInput.remaining_fat * 0.4),\n    prep_time_min: meal.prep_time_min || 30,\n    reason: meal.reason || 'Balanced meal based on your targets',\n    created_at: new Date().toISOString()\n  }));\n  \n  return [{\n    json: {\n      success: true,\n      suggestions: enrichedSuggestions,\n      message: `Generated ${enrichedSuggestions.length} meal suggestions`,\n      user_id: originalInput.user_id,\n      meal_type: originalInput.meal_type\n    }\n  }];\n  \n} catch (error) {\n  // Fallback suggestions if parsing fails\n  return [{\n    json: {\n      success: false,\n      error: error.message,\n      suggestions: [\n        {\n          meal_name: 'Balanced Bowl',\n          description: 'A nutritious balanced meal',\n          ingredients: ['mixed vegetables', 'lean protein', 'whole grains'],\n          calories: Math.round(originalInput.remaining_calories * 0.4),\n          protein_g: Math.round(originalInput.remaining_protein * 0.4),\n          carbs_g: Math.round(originalInput.remaining_carbs * 0.4),\n          fat_g: Math.round(originalInput.remaining_fat * 0.4),\n          prep_time_min: 25,\n          reason: 'Balanced macronutrients'\n        }\n      ],\n      user_id: originalInput.user_id,\n      meal_type: originalInput.meal_type\n    }\n  }];\n}"
       },
-      "id": "extract-structured-data",
-      "name": "Extract Structured Data",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
-      "position": [1450, 200]
-    },
-    {
-      "parameters": {
-        "jsCode": "// Process extracted meal suggestions\nconst extraction = $json;\nconst cotData = $('call-cot-orchestrator').item.json;\nconst userData = $('prepare-cot-request').item.json.context;\n\nlet suggestions = [];\n\nif (extraction.success && extraction.data) {\n  suggestions = Array.isArray(extraction.data) ? extraction.data : [extraction.data];\n} else {\n  // Fallback if extraction failed\n  suggestions = [{\n    meal_name: 'Balanced Meal',\n    description: 'A nutritious meal tailored to your needs',\n    ingredients: ['Various healthy ingredients'],\n    calories: Math.round(userData.nutritional_targets.remaining_calories * 0.4),\n    protein: Math.round(userData.nutritional_targets.remaining_protein * 0.4),\n    carbs: Math.round(userData.nutritional_targets.remaining_carbs * 0.4),\n    fat: Math.round(userData.nutritional_targets.remaining_fat * 0.4),\n    prep_time: 30,\n    recommendation_reason: 'Balanced meal based on your remaining nutritional targets'\n  }];\n}\n\n// Ensure we have exactly 3 suggestions\nwhile (suggestions.length < 3) {\n  suggestions.push({\n    meal_name: `Alternative Meal ${suggestions.length + 1}`,\n    description: 'A healthy alternative option',\n    ingredients: ['Varied ingredients'],\n    calories: Math.round(userData.nutritional_targets.remaining_calories * 0.3),\n    protein: Math.round(userData.nutritional_targets.remaining_protein * 0.3),\n    carbs: Math.round(userData.nutritional_targets.remaining_carbs * 0.3),\n    fat: Math.round(userData.nutritional_targets.remaining_fat * 0.3),\n    prep_time: 25,\n    recommendation_reason: 'Alternative meal option'\n  });\n}\n\nreturn {\n  user_id: userData.user_id,\n  meal_type: userData.user_preferences.meal_type,\n  suggestions: suggestions.slice(0, 3),\n  generation_timestamp: new Date().toISOString(),\n  reasoning_steps: cotData.reasoning_steps || []\n};"
-      },
-      "id": "process-suggestions",
-      "name": "Process Suggestions",
+      "id": "process-response",
+      "name": "Process Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1650, 200]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "=INSERT INTO meal_suggestions (\n  user_id,\n  suggestion_date,\n  meal_type,\n  suggested_foods,\n  reason,\n  nutritional_match_score\n) VALUES (\n  '{{ $json.user_id }}',\n  CURRENT_DATE,\n  '{{ $json.meal_type }}',\n  '{{ JSON.stringify($json.suggestions) }}',\n  '{{ $json.suggestions[0].recommendation_reason }}',\n  {{ Math.floor(Math.random() * 15 + 85) }}\n) RETURNING *;",
-        "options": {}
-      },
-      "id": "save-suggestions",
-      "name": "Save Suggestions",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2,
-      "position": [1850, 200],
-      "credentials": {
-        "postgres": {
-          "id": "nutrition-tracker-postgres",
-          "name": "Nutrition Tracker DB"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "values": {
-          "string": [
-            {
-              "name": "status",
-              "value": "success"
-            },
-            {
-              "name": "meal_type",
-              "value": "={{ $json.meal_type }}"
-            }
-          ]
-        },
-        "options": {
-          "include": "selected"
-        },
-        "includeFields": "suggestions, user_id, suggestion_date"
-      },
-      "id": "format-response",
-      "name": "Format Response",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3,
-      "position": [2050, 200]
+      "position": [1050, 400]
     },
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ $json }}",
+        "responseBody": "={{ JSON.stringify($json) }}",
         "options": {}
       },
-      "id": "respond-to-webhook",
-      "name": "Respond",
+      "id": "webhook-response",
+      "name": "Webhook Response",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [2050, 300]
+      "position": [1250, 400]
     }
   ],
   "connections": {
-    "webhook-trigger": {
+    "Webhook": {
       "main": [
         [
           {
-            "node": "merge-inputs",
-            "type": "main",
-            "index": 1
-          }
-        ]
-      ]
-    },
-    "manual-trigger": {
-      "main": [
-        [
-          {
-            "node": "default-values",
+            "node": "Prepare Prompt",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "default-values": {
+    "Manual": {
       "main": [
         [
           {
-            "node": "merge-inputs",
+            "node": "Defaults",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "merge-inputs": {
+    "Defaults": {
       "main": [
         [
           {
-            "node": "get-user-goals",
+            "node": "Prepare Prompt",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "get-user-goals": {
+    "Prepare Prompt": {
       "main": [
         [
           {
-            "node": "prepare-cot-request",
+            "node": "Call Shared Ollama",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "prepare-cot-request": {
+    "Call Shared Ollama": {
       "main": [
         [
           {
-            "node": "call-cot-orchestrator",
+            "node": "Process Response",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "call-cot-orchestrator": {
+    "Process Response": {
       "main": [
         [
           {
-            "node": "extract-structured-data",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "extract-structured-data": {
-      "main": [
-        [
-          {
-            "node": "process-suggestions",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "process-suggestions": {
-      "main": [
-        [
-          {
-            "node": "save-suggestions",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "save-suggestions": {
-      "main": [
-        [
-          {
-            "node": "format-response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "format-response": {
-      "main": [
-        [
-          {
-            "node": "respond-to-webhook",
+            "node": "Webhook Response",
             "type": "main",
             "index": 0
           }
@@ -371,6 +154,6 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "tags": [],
+  "tags": ["nutrition", "meal-planning", "ai"],
   "id": "meal-suggester"
 }

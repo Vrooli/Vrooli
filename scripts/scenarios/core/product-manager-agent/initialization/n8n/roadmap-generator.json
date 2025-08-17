@@ -1,0 +1,321 @@
+{
+  "name": "Roadmap Generator",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "roadmap-generator",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "features",
+              "value": "={{ $json.features || '[]' }}"
+            },
+            {
+              "name": "timeline",
+              "value": "={{ $json.timeline || '6_months' }}"
+            },
+            {
+              "name": "team_capacity",
+              "value": "={{ $json.team_capacity || '5' }}"
+            },
+            {
+              "name": "product_vision",
+              "value": "={{ $json.product_vision || 'Build a world-class product that delights users' }}"
+            },
+            {
+              "name": "constraints",
+              "value": "={{ $json.constraints || '[]' }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "defaults-node",
+      "name": "Set Defaults",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [450, 500]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "multiplex",
+        "options": {}
+      },
+      "id": "merge-inputs",
+      "name": "Merge",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "command": "vrooli resource n8n execute-workflow feature-prioritizer",
+        "cwd": "/home/vrooli"
+      },
+      "id": "prioritize-features",
+      "name": "Prioritize Features",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [850, 400],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse timeline and calculate sprints\nconst timeline = $input.first().json.timeline || '6_months';\nconst teamCapacity = parseInt($input.first().json.team_capacity) || 5;\nconst features = $input.first().json.prioritized_features || [];\nconst constraints = $input.first().json.constraints || [];\n\n// Parse timeline to weeks\nlet totalWeeks = 26; // default 6 months\nif (timeline.includes('month')) {\n  const months = parseInt(timeline) || 6;\n  totalWeeks = months * 4;\n} else if (timeline.includes('quarter')) {\n  const quarters = parseInt(timeline) || 2;\n  totalWeeks = quarters * 13;\n} else if (timeline.includes('year')) {\n  const years = parseInt(timeline) || 1;\n  totalWeeks = years * 52;\n}\n\n// Calculate sprints (2-week sprints)\nconst totalSprints = Math.floor(totalWeeks / 2);\nconst capacityPerSprint = teamCapacity * 10; // story points per person per sprint\n\n// Initialize roadmap structure\nconst roadmap = {\n  vision: $input.first().json.product_vision,\n  timeline: {\n    start: new Date().toISOString(),\n    end: new Date(Date.now() + totalWeeks * 7 * 24 * 60 * 60 * 1000).toISOString(),\n    total_weeks: totalWeeks,\n    total_sprints: totalSprints\n  },\n  phases: [],\n  milestones: [],\n  risks: [],\n  dependencies: []\n};\n\n// Define phases based on timeline\nconst phaseDuration = Math.ceil(totalSprints / 3);\nconst phases = [\n  {\n    name: 'Foundation',\n    description: 'Core infrastructure and critical features',\n    sprints: [1, phaseDuration],\n    focus: 'stability',\n    features: []\n  },\n  {\n    name: 'Growth',\n    description: 'User-facing features and experience improvements',\n    sprints: [phaseDuration + 1, phaseDuration * 2],\n    focus: 'user_experience',\n    features: []\n  },\n  {\n    name: 'Optimization',\n    description: 'Performance, polish, and advanced features',\n    sprints: [phaseDuration * 2 + 1, totalSprints],\n    focus: 'performance',\n    features: []\n  }\n];\n\n// Allocate features to phases based on priority and effort\nlet currentCapacity = 0;\nlet currentPhase = 0;\nlet sprintNumber = 1;\n\nfeatures.forEach(feature => {\n  const effort = (feature.effort || 5) * 2; // Convert to story points\n  \n  // Check if we need to move to next phase\n  if (currentCapacity + effort > capacityPerSprint * phaseDuration && currentPhase < 2) {\n    currentPhase++;\n    currentCapacity = 0;\n    sprintNumber = phases[currentPhase].sprints[0];\n  }\n  \n  // Add feature to current phase\n  if (currentPhase < 3) {\n    phases[currentPhase].features.push({\n      ...feature,\n      estimated_sprint: sprintNumber,\n      story_points: effort,\n      phase: phases[currentPhase].name\n    });\n    \n    currentCapacity += effort;\n    \n    // Calculate which sprint this feature will be in\n    if (currentCapacity >= capacityPerSprint) {\n      sprintNumber++;\n      currentCapacity = currentCapacity % capacityPerSprint;\n    }\n  }\n});\n\n// Generate milestones\nphases.forEach((phase, index) => {\n  roadmap.milestones.push({\n    name: `${phase.name} Complete`,\n    date: new Date(Date.now() + phase.sprints[1] * 2 * 7 * 24 * 60 * 60 * 1000).toISOString(),\n    sprint: phase.sprints[1],\n    deliverables: phase.features.map(f => f.name),\n    success_criteria: `All ${phase.name.toLowerCase()} features deployed and stable`\n  });\n});\n\n// Add phases to roadmap\nroadmap.phases = phases;\n\n// Identify risks\nroadmap.risks = [\n  {\n    type: 'capacity',\n    description: 'Team capacity may be insufficient for planned features',\n    likelihood: features.length > totalSprints * 2 ? 'high' : 'medium',\n    impact: 'high',\n    mitigation: 'Prioritize ruthlessly, consider expanding team'\n  },\n  {\n    type: 'technical',\n    description: 'Technical debt may slow development',\n    likelihood: 'medium',\n    impact: 'medium',\n    mitigation: 'Allocate 20% of capacity to tech debt reduction'\n  }\n];\n\n// Add constraints as dependencies\nif (constraints.length > 0) {\n  roadmap.dependencies = constraints.map(c => ({\n    type: 'constraint',\n    description: c,\n    impact: 'May affect timeline or feature scope'\n  }));\n}\n\nreturn roadmap;"
+      },
+      "id": "generate-roadmap",
+      "name": "Generate Roadmap Structure",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 400]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.service.n8n.url }}/webhook/ollama",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "prompt",
+              "value": "=Analyze this product roadmap and provide strategic recommendations:\n\nRoadmap: {{ JSON.stringify($json) }}\n\nProvide:\n1. Key success factors for each phase\n2. Potential bottlenecks and how to address them\n3. Resource allocation recommendations\n4. Go-to-market timing suggestions\n5. Technical architecture considerations\n\nFormat as structured JSON with sections for each area."
+            },
+            {
+              "name": "model",
+              "value": "llama3.2:latest"
+            },
+            {
+              "name": "temperature",
+              "value": "0.7"
+            },
+            {
+              "name": "format",
+              "value": "json"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "analyze-roadmap",
+      "name": "Analyze Roadmap Strategy",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1250, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Combine roadmap with strategic analysis\nconst roadmap = $input.all()[0].json;\nconst analysis = $input.all()[1].json;\n\n// Create visualization data for frontend\nconst visualization = {\n  type: 'gantt',\n  data: roadmap.phases.map(phase => ({\n    id: phase.name,\n    text: phase.name,\n    start_date: new Date(Date.now() + (phase.sprints[0] - 1) * 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],\n    duration: (phase.sprints[1] - phase.sprints[0] + 1) * 14,\n    progress: 0,\n    features: phase.features.length,\n    story_points: phase.features.reduce((sum, f) => sum + f.story_points, 0)\n  })),\n  milestones: roadmap.milestones.map(m => ({\n    id: m.name,\n    text: m.name,\n    date: m.date.split('T')[0],\n    type: 'milestone'\n  }))\n};\n\n// Create sprint breakdown\nconst sprintPlan = [];\nlet currentSprint = 1;\nconst totalSprints = roadmap.timeline.total_sprints;\n\nfor (let i = 1; i <= totalSprints; i++) {\n  const phase = roadmap.phases.find(p => i >= p.sprints[0] && i <= p.sprints[1]);\n  const sprintFeatures = phase ? phase.features.filter(f => f.estimated_sprint === i) : [];\n  \n  sprintPlan.push({\n    sprint: i,\n    phase: phase ? phase.name : 'Buffer',\n    start_date: new Date(Date.now() + (i - 1) * 14 * 24 * 60 * 60 * 1000).toISOString(),\n    end_date: new Date(Date.now() + i * 14 * 24 * 60 * 60 * 1000).toISOString(),\n    features: sprintFeatures.map(f => f.name),\n    story_points: sprintFeatures.reduce((sum, f) => sum + f.story_points, 0),\n    capacity_used: Math.round((sprintFeatures.reduce((sum, f) => sum + f.story_points, 0) / ($input.first().json.team_capacity * 10)) * 100)\n  });\n}\n\n// Final output\nreturn {\n  roadmap,\n  analysis,\n  visualization,\n  sprint_plan: sprintPlan,\n  summary: {\n    total_features: roadmap.phases.reduce((sum, p) => sum + p.features.length, 0),\n    total_story_points: roadmap.phases.reduce((sum, p) => sum + p.features.reduce((s, f) => s + f.story_points, 0), 0),\n    timeline: roadmap.timeline,\n    phases: roadmap.phases.length,\n    milestones: roadmap.milestones.length,\n    identified_risks: roadmap.risks.length\n  },\n  generated_at: new Date().toISOString()\n};"
+      },
+      "id": "format-output",
+      "name": "Format Final Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1450, 400]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "success"
+            },
+            {
+              "name": "message",
+              "value": "Product roadmap generated successfully"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "success-response",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [1650, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "error"
+            },
+            {
+              "name": "message",
+              "value": "={{ $json.error.message || 'Failed to generate roadmap' }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "error-response",
+      "name": "Error Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [1650, 500],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "respond-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1850, 400]
+    }
+  ],
+  "connections": {
+    "webhook-trigger": {
+      "main": [
+        [
+          {
+            "node": "merge-inputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "manual-trigger": {
+      "main": [
+        [
+          {
+            "node": "defaults-node",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "defaults-node": {
+      "main": [
+        [
+          {
+            "node": "merge-inputs",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "merge-inputs": {
+      "main": [
+        [
+          {
+            "node": "prioritize-features",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "prioritize-features": {
+      "main": [
+        [
+          {
+            "node": "generate-roadmap",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "error-response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "generate-roadmap": {
+      "main": [
+        [
+          {
+            "node": "analyze-roadmap",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "analyze-roadmap": {
+      "main": [
+        [
+          {
+            "node": "format-output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "format-output": {
+      "main": [
+        [
+          {
+            "node": "success-response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "success-response": {
+      "main": [
+        [
+          {
+            "node": "respond-webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "error-response": {
+      "main": [
+        [
+          {
+            "node": "respond-webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "roadmap-generator-v1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "product-manager-roadmap"
+  },
+  "id": "roadmap-generator",
+  "tags": []
+}

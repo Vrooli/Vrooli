@@ -1,0 +1,138 @@
+{
+  "name": "Financial Calculator",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "financial-calculator",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "values": {
+          "number": [
+            {
+              "name": "initial_investment",
+              "value": 50000
+            },
+            {
+              "name": "monthly_revenue",
+              "value": 10000
+            },
+            {
+              "name": "monthly_costs",
+              "value": 7000
+            },
+            {
+              "name": "growth_rate",
+              "value": 0.1
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "default-values",
+      "name": "Default Values",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [450, 500]
+    },
+    {
+      "parameters": {
+        "command": "#!/bin/bash\n\n# Extract inputs\ninitial=${{ $json.initial_investment || 50000 }}\nrevenue=${{ $json.monthly_revenue || 10000 }}\ncosts=${{ $json.monthly_costs || 7000 }}\ngrowth=${{ $json.growth_rate || 0.1 }}\n\n# Calculate metrics\nmonthly_profit=$(echo \"$revenue - $costs\" | bc)\nannual_profit=$(echo \"$monthly_profit * 12\" | bc)\nroi=$(echo \"scale=2; ($annual_profit / $initial) * 100\" | bc)\npayback=$(echo \"scale=1; $initial / $monthly_profit\" | bc)\n\n# NPV calculation (simplified)\nnpv=$(echo \"scale=2; $annual_profit * 3.5\" | bc)  # 5 year NPV at 10% discount\n\n# Output JSON\ncat << EOF\n{\n  \"roi_percentage\": $roi,\n  \"payback_months\": $payback,\n  \"annual_profit\": $annual_profit,\n  \"npv_5year\": $npv,\n  \"break_even_month\": $(echo \"scale=0; $initial / $monthly_profit\" | bc),\n  \"profit_margin\": $(echo \"scale=2; ($monthly_profit / $revenue) * 100\" | bc)\n}\nEOF"
+      },
+      "id": "calculate-metrics",
+      "name": "Calculate Metrics",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [650, 350]
+    },
+    {
+      "parameters": {
+        "url": "${service.n8n.url}/webhook/ollama",
+        "authentication": "none",
+        "method": "POST",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "prompt",
+              "value": "Analyze these financial metrics and provide investment recommendation:\n\n{{ JSON.stringify($json) }}\n\nProvide:\n1. Investment grade (A-F)\n2. Risk level (Low/Medium/High)\n3. Key strengths\n4. Main concerns\n5. Overall recommendation\n\nBe concise and actionable."
+            },
+            {
+              "name": "model",
+              "value": "llama3.2"
+            },
+            {
+              "name": "temperature",
+              "value": "0.2"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ai-analysis",
+      "name": "AI Financial Analysis",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [850, 350]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "calculation_status",
+              "value": "complete"
+            },
+            {
+              "name": "timestamp",
+              "value": "={{ new Date().toISOString() }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "finalize",
+      "name": "Finalize Report",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [1050, 350]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{"node": "Calculate Metrics", "type": "main", "index": 0}]]
+    },
+    "Manual Trigger": {
+      "main": [[{"node": "Default Values", "type": "main", "index": 0}]]
+    },
+    "Default Values": {
+      "main": [[{"node": "Calculate Metrics", "type": "main", "index": 0}]]
+    },
+    "Calculate Metrics": {
+      "main": [[{"node": "AI Financial Analysis", "type": "main", "index": 0}]]
+    },
+    "AI Financial Analysis": {
+      "main": [[{"node": "Finalize Report", "type": "main", "index": 0}]]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

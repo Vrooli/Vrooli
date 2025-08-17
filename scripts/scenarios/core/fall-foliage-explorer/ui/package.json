@@ -1,0 +1,12 @@
+{
+  "name": "fall-foliage-explorer-ui",
+  "version": "1.0.0",
+  "description": "Interactive autumn foliage tracking and prediction UI",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": ["foliage", "autumn", "maps", "travel"],
+  "author": "Vrooli",
+  "license": "MIT"
+}

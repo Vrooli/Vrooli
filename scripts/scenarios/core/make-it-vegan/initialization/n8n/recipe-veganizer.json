@@ -1,0 +1,183 @@
+{
+  "name": "recipe-veganizer",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "veganize-recipe",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "recipe",
+              "value": "Classic Carbonara: pasta, eggs, bacon, parmesan cheese, black pepper"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "default_values",
+      "name": "Default Values",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [450, 500]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "multiplex",
+        "options": {}
+      },
+      "id": "merge_inputs",
+      "name": "Merge",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "{{service.n8n.url}}/webhook/ollama",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "llama3.2"
+            },
+            {
+              "name": "prompt",
+              "value": "You are a creative vegan chef. Convert this recipe to be completely vegan while maintaining the flavor profile and texture.\n\nOriginal Recipe: {{$json.recipe}}\n\nProvide:\n1. List of vegan substitutions for each non-vegan ingredient\n2. Modified recipe with all vegan ingredients\n3. Cooking tips to ensure the vegan version is delicious\n4. Nutritional highlights of the vegan version\n\nFormat as JSON with structure:\n{\"substitutions\": {\"ingredient\": \"vegan_alternative\"}, \"veganRecipe\": \"full recipe text\", \"tips\": [\"tip1\", \"tip2\"], \"nutrition\": \"nutrition highlights\"}"
+            },
+            {
+              "name": "temperature",
+              "value": "0.7"
+            },
+            {
+              "name": "max_tokens",
+              "value": "800"
+            },
+            {
+              "name": "format",
+              "value": "json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "call_ollama",
+      "name": "Call Ollama Workflow",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse the Ollama response\nconst ollamaResponse = $input.item.json;\nconst originalRecipe = $node[\"merge_inputs\"].json.recipe;\n\nlet result;\ntry {\n  // Try to parse as JSON\n  if (typeof ollamaResponse.response === 'string') {\n    result = JSON.parse(ollamaResponse.response);\n  } else {\n    result = ollamaResponse;\n  }\n} catch (e) {\n  // Fallback if not valid JSON\n  result = {\n    substitutions: {},\n    veganRecipe: 'Unable to parse recipe conversion',\n    tips: ['Please try again with a simpler recipe format'],\n    nutrition: 'Nutritional information unavailable',\n    error: e.message\n  };\n}\n\n// Return formatted response\nreturn {\n  originalRecipe: originalRecipe,\n  substitutions: result.substitutions || {},\n  veganRecipe: result.veganRecipe || '',\n  cookingTips: result.tips || [],\n  nutritionHighlights: result.nutrition || '',\n  timestamp: new Date().toISOString(),\n  success: !result.error\n};"
+      },
+      "id": "format_response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1050, 400]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "respond_webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1250, 400]
+    }
+  ],
+  "connections": {
+    "webhook_trigger": {
+      "main": [
+        [
+          {
+            "node": "merge_inputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "manual_trigger": {
+      "main": [
+        [
+          {
+            "node": "default_values",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "default_values": {
+      "main": [
+        [
+          {
+            "node": "merge_inputs",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "merge_inputs": {
+      "main": [
+        [
+          {
+            "node": "call_ollama",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "call_ollama": {
+      "main": [
+        [
+          {
+            "node": "format_response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "format_response": {
+      "main": [
+        [
+          {
+            "node": "respond_webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {},
+  "id": "recipe-veganizer"
+}

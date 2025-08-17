@@ -1,0 +1,153 @@
+{
+  "name": "Make It Vegan - Alternative Finder",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "make-it-vegan/substitute",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Default values for manual testing\nconst defaults = {\n  ingredient: \"cheese\",\n  context: \"pizza topping\",\n  preferences: \"nut-free\"\n};\n\nreturn [{json: defaults}];"
+      },
+      "id": "default_values",
+      "name": "Default Values",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge webhook or default data\nconst isManual = $('Manual Trigger').first() !== undefined;\nconst input = isManual ? $json : $('Webhook').first().json;\n\n// Prepare the prompt for Ollama\nconst ingredient = input.ingredient || 'unknown ingredient';\nconst context = input.context || 'general cooking';\nconst preferences = input.preferences || 'no specific preferences';\n\nconst prompt = `You are a vegan cooking expert. Suggest the best vegan alternatives for this non-vegan ingredient.\n\nIngredient to replace: ${ingredient}\nContext/Usage: ${context}\nDietary preferences/restrictions: ${preferences}\n\nProvide 3 alternatives ranked by suitability. For each alternative include:\n1. Name of the substitute\n2. Why it works well in this context\n3. Any adjustments needed when using it\n4. Where to find it (common stores)\n\nFormat as JSON:\n{\n  \"alternatives\": [\n    {\n      \"name\": \"substitute name\",\n      \"reason\": \"why it works\",\n      \"adjustments\": \"preparation tips\",\n      \"availability\": \"where to find\",\n      \"rating\": 1-5\n    }\n  ],\n  \"quickTip\": \"general advice for this substitution\"\n}`;\n\nreturn [{\n  json: {\n    prompt: prompt,\n    model: \"llama3.2\",\n    type: \"reasoning\",\n    quiet: true,\n    timeout_seconds: 30,\n    original_request: {\n      ingredient: ingredient,\n      context: context,\n      preferences: preferences\n    }\n  }\n}];"
+      },
+      "id": "prepare_ollama",
+      "name": "Prepare Ollama Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5678/webhook/ollama",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "call_ollama",
+      "name": "Call Ollama Workflow",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse the Ollama response\nconst ollamaResponse = $json;\nconst originalRequest = $node[\"prepare_ollama\"].json.original_request;\n\nlet result;\ntry {\n  // Extract the response text\n  const responseText = ollamaResponse.response || ollamaResponse.text || '';\n  \n  // Try to parse as JSON\n  if (typeof responseText === 'string') {\n    // Clean up the response (remove markdown code blocks if present)\n    const cleanedResponse = responseText.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();\n    result = JSON.parse(cleanedResponse);\n  } else {\n    result = responseText;\n  }\n} catch (e) {\n  // Fallback if not valid JSON - create a simple alternative\n  result = {\n    alternatives: [\n      {\n        name: \"Nutritional yeast (for cheese)\",\n        reason: \"Provides cheesy, umami flavor\",\n        adjustments: \"Use 1-2 tablespoons sprinkled on top\",\n        availability: \"Health food stores, most supermarkets\",\n        rating: 4\n      },\n      {\n        name: \"Cashew cream (for dairy)\",\n        reason: \"Rich, creamy texture\",\n        adjustments: \"Soak cashews and blend with water\",\n        availability: \"Any store with nuts\",\n        rating: 5\n      },\n      {\n        name: \"Aquafaba (for eggs)\",\n        reason: \"Great for binding and foaming\",\n        adjustments: \"Use 3 tbsp per egg\",\n        availability: \"From any can of chickpeas\",\n        rating: 4\n      }\n    ],\n    quickTip: \"Most vegan substitutes work best when you embrace their unique qualities rather than expecting exact replication.\"\n  };\n}\n\n// Format final response\nreturn [{\n  json: {\n    request: originalRequest,\n    alternatives: result.alternatives || [],\n    quickTip: result.quickTip || \"Experiment to find what works best for you!\",\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "format_response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 400]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "respond_webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1250, 400]
+    }
+  ],
+  "connections": {
+    "webhook_trigger": {
+      "main": [
+        [
+          {
+            "node": "prepare_ollama",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "manual_trigger": {
+      "main": [
+        [
+          {
+            "node": "default_values",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "default_values": {
+      "main": [
+        [
+          {
+            "node": "prepare_ollama",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "prepare_ollama": {
+      "main": [
+        [
+          {
+            "node": "call_ollama",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "call_ollama": {
+      "main": [
+        [
+          {
+            "node": "format_response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "format_response": {
+      "main": [
+        [
+          {
+            "node": "respond_webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

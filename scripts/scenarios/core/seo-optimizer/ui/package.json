@@ -1,0 +1,16 @@
+{
+  "name": "seo-optimizer-ui",
+  "version": "1.0.0",
+  "description": "Professional SEO analysis and optimization platform UI",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5"
+  },
+  "author": "Vrooli Team",
+  "license": "MIT"
+}

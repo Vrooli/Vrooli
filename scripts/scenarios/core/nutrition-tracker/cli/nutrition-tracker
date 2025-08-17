@@ -292,6 +292,9 @@ case "$1" in
     --help|help)
         show_help
         ;;
+    --version|version)
+        echo "nutrition-tracker v1.0.0"
+        ;;
     *)
         echo -e "${RED}Unknown command: $1${NC}"
         echo "Use 'nutrition-tracker --help' for usage information"

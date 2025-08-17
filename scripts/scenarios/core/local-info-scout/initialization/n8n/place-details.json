@@ -1,0 +1,102 @@
+{
+  "name": "place-details",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "place-details",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "place_id",
+              "value": "{{ $json.place_id }}"
+            }
+          ]
+        }
+      },
+      "id": "extract-place",
+      "name": "Extract Place ID",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "success"
+            },
+            {
+              "name": "name",
+              "value": "Sample Place"
+            },
+            {
+              "name": "address",
+              "value": "123 Main Street"
+            },
+            {
+              "name": "hours",
+              "value": "9AM - 9PM"
+            }
+          ],
+          "number": [
+            {
+              "name": "rating",
+              "value": 4.5
+            }
+          ],
+          "boolean": [
+            {
+              "name": "open_now",
+              "value": true
+            }
+          ]
+        }
+      },
+      "id": "mock-details",
+      "name": "Mock Place Details",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [650, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extract Place ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Place ID": {
+      "main": [
+        [
+          {
+            "node": "Mock Place Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

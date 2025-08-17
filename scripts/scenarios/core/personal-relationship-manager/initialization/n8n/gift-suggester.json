@@ -1,0 +1,194 @@
+{
+  "name": "Gift Suggester",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "gift-suggester",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 500]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Return test defaults for manual trigger\nreturn {\n  contact_id: 1,\n  name: 'Sarah',\n  interests: 'books, travel, coffee, photography',\n  occasion: 'birthday',\n  budget: '50-100',\n  past_gifts: 'travel journal, coffee subscription'\n};"
+      },
+      "id": "set_test_defaults",
+      "name": "Set Test Defaults",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [400, 500]
+    },
+    {
+      "parameters": {},
+      "id": "merge_triggers",
+      "name": "Merge Triggers",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [600, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Extract and validate input\nconst input = $input.item.json;\n\n// Validate required fields\nif (!input.contact_id || !input.name || !input.interests || !input.occasion) {\n  throw new Error('Missing required fields: contact_id, name, interests, or occasion');\n}\n\n// Build a thoughtful prompt for gift suggestions\nconst prompt = `You are a thoughtful gift advisor helping me find the perfect gift.\n\nPerson: ${input.name}\nOccasion: ${input.occasion}\nInterests: ${input.interests}\nBudget: $${input.budget || '50-100'}\n${input.past_gifts ? `Past gifts they've received: ${input.past_gifts}` : ''}\n\nGenerate 5 personalized, meaningful gift suggestions that show I really know and care about this person.\n\nFor each gift, provide:\n1. Gift name\n2. Why it's perfect for them (1-2 sentences showing how it connects to their interests)\n3. Estimated price\n4. Where to buy (general store type or online)\n\nFormat your response as a JSON array with this structure:\n[\n  {\n    \"name\": \"Gift name\",\n    \"description\": \"Why this gift is perfect for them\",\n    \"price\": 50,\n    \"store\": \"Where to buy\",\n    \"relevance_score\": 0.95\n  }\n]\n\nFocus on unique, thoughtful gifts that create experiences or lasting memories, not generic items.`;\n\nreturn {\n  prompt: prompt,\n  model: 'llama3.2',\n  type: 'reasoning',\n  quiet: true,\n  timeout_seconds: 60,\n  original_input: input\n};"
+      },
+      "id": "prepare_prompt",
+      "name": "Prepare Gift Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [800, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.service.n8n.url}}/webhook/ollama",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 65000
+        }
+      },
+      "id": "call_ollama",
+      "name": "Call Ollama for Suggestions",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1000, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process the Ollama response\nconst ollamaResponse = $input.item.json;\nconst originalInput = $('Prepare Gift Prompt').item.json.original_input;\n\nlet suggestions = [];\n\nif (ollamaResponse.success && ollamaResponse.response) {\n  try {\n    // Try to parse the AI response as JSON\n    const responseText = ollamaResponse.response;\n    \n    // Extract JSON from the response (might be wrapped in markdown)\n    const jsonMatch = responseText.match(/\\[\\s*\\{[\\s\\S]*\\}\\s*\\]/);;\n    if (jsonMatch) {\n      suggestions = JSON.parse(jsonMatch[0]);\n    } else {\n      // Try direct parse\n      suggestions = JSON.parse(responseText);\n    }\n    \n    // Validate and ensure proper structure\n    suggestions = suggestions.map(s => ({\n      name: s.name || 'Unknown Gift',\n      description: s.description || 'A thoughtful gift',\n      price: Number(s.price) || 50,\n      store: s.store || 'Online retailer',\n      relevance_score: s.relevance_score || 0.8\n    }));\n    \n  } catch (e) {\n    console.log('Failed to parse AI response, using fallback suggestions');\n    // Fallback suggestions based on interests\n    const interests = originalInput.interests.toLowerCase();\n    suggestions = [];\n    \n    if (interests.includes('book')) {\n      suggestions.push({\n        name: 'First Edition Book Collection',\n        description: 'A carefully curated set of first edition books from their favorite genre',\n        price: 75,\n        store: 'Rare book dealer or antiquarian bookshop',\n        relevance_score: 0.9\n      });\n    }\n    \n    if (interests.includes('travel')) {\n      suggestions.push({\n        name: 'Scratch-off World Map with Frame',\n        description: 'Beautiful wall art that lets them track and display all their adventures',\n        price: 45,\n        store: 'Travel specialty store',\n        relevance_score: 0.85\n      });\n    }\n    \n    if (interests.includes('coffee')) {\n      suggestions.push({\n        name: 'Coffee Tasting Experience',\n        description: 'Local roastery tour with cupping session and take-home beans',\n        price: 60,\n        store: 'Local coffee roastery',\n        relevance_score: 0.88\n      });\n    }\n    \n    if (interests.includes('photography')) {\n      suggestions.push({\n        name: 'Vintage Camera Display Piece',\n        description: 'Restored vintage camera as functional art for their space',\n        price: 85,\n        store: 'Antique shop or camera specialty store',\n        relevance_score: 0.82\n      });\n    }\n    \n    // Add a universal suggestion\n    suggestions.push({\n      name: 'Experience Day Package',\n      description: 'Voucher for a unique local experience aligned with their interests',\n      price: 70,\n      store: 'Experience gift websites',\n      relevance_score: 0.75\n    });\n  }\n}\n\n// Sort by relevance score\nsuggestions.sort((a, b) => b.relevance_score - a.relevance_score);\n\n// Limit to top 5\nsuggestions = suggestions.slice(0, 5);\n\nreturn {\n  success: true,\n  contact_id: originalInput.contact_id,\n  contact_name: originalInput.name,\n  occasion: originalInput.occasion,\n  budget: originalInput.budget,\n  suggestions: suggestions,\n  suggestion_count: suggestions.length,\n  generated_at: new Date().toISOString(),\n  metadata: {\n    model_used: 'llama3.2',\n    interests_analyzed: originalInput.interests,\n    past_gifts_considered: originalInput.past_gifts || 'none'\n  }\n};"
+      },
+      "id": "process_suggestions",
+      "name": "Process Gift Suggestions",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1200, 400]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "respond_to_webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1400, 300]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "webhook_trigger": {
+      "main": [
+        [
+          {
+            "node": "merge_triggers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "manual_trigger": {
+      "main": [
+        [
+          {
+            "node": "set_test_defaults",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "set_test_defaults": {
+      "main": [
+        [
+          {
+            "node": "merge_triggers",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "merge_triggers": {
+      "main": [
+        [
+          {
+            "node": "prepare_prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "prepare_prompt": {
+      "main": [
+        [
+          {
+            "node": "call_ollama",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "call_ollama": {
+      "main": [
+        [
+          {
+            "node": "process_suggestions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "process_suggestions": {
+      "main": [
+        [
+          {
+            "node": "respond_to_webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "gift-suggester-v1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "gift-suggester"
+  },
+  "id": "gift-suggester",
+  "tags": []
+}

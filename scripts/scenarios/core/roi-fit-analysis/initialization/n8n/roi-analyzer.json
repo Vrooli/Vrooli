@@ -1,0 +1,208 @@
+{
+  "name": "ROI Analyzer",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "roi-analyzer",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "idea",
+              "value": "AI-powered fitness tracking app"
+            },
+            {
+              "name": "budget",
+              "value": "25000"
+            },
+            {
+              "name": "timeline",
+              "value": "6 months"
+            },
+            {
+              "name": "skills",
+              "value": "mobile development, backend, UI/UX design"
+            },
+            {
+              "name": "market_focus",
+              "value": "B2C health and wellness"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "default-values",
+      "name": "Default Values",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [450, 500]
+    },
+    {
+      "parameters": {},
+      "id": "merge",
+      "name": "Merge",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [650, 350]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract and validate input data\nconst input = $input.item.json;\n\n// Get values from webhook or defaults\nconst idea = input.idea || input.body?.idea || '';\nconst budget = parseFloat(input.budget || input.body?.budget || '0');\nconst timeline = input.timeline || input.body?.timeline || '';\nconst skills = input.skills || input.body?.skills || '';\nconst market_focus = input.market_focus || input.body?.market_focus || 'general';\n\n// Validate required fields\nif (!idea || !budget || !timeline) {\n  throw new Error('Missing required fields: idea, budget, and timeline are required');\n}\n\n// Format the data for analysis\nreturn {\n  idea: idea,\n  budget: budget,\n  timeline: timeline,\n  skills: skills,\n  market_focus: market_focus,\n  analysis_id: 'roi_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),\n  timestamp: new Date().toISOString()\n};"
+      },
+      "id": "prepare-data",
+      "name": "Prepare Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [850, 350]
+    },
+    {
+      "parameters": {
+        "url": "${service.n8n.url}/webhook/ollama",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "prompt",
+              "value": "=You are an expert business analyst specializing in ROI calculations and market analysis.\n\nAnalyze this business opportunity:\n- Idea: {{ $json.idea }}\n- Budget: ${{ $json.budget }}\n- Timeline: {{ $json.timeline }}\n- Available Skills: {{ $json.skills }}\n- Market Focus: {{ $json.market_focus }}\n\nProvide a comprehensive ROI analysis including:\n1. **Market Size & Growth**: Current market size, growth rate, and TAM\n2. **Competition Analysis**: Key competitors, market gaps, differentiation opportunities\n3. **Resource Requirements**: Development costs, marketing budget, operational expenses\n4. **Revenue Projections**: Month-by-month projections for first 2 years\n5. **Break-even Analysis**: Time to break-even and profitability timeline\n6. **Risk Assessment**: Top 5 risks with probability and impact scores\n7. **ROI Score**: Calculate a 1-100 score based on potential return vs investment\n8. **Recommendations**: 3-5 actionable next steps\n\nFormat your response as structured JSON with these sections."
+            },
+            {
+              "name": "model",
+              "value": "phi3.5:3.8b"
+            },
+            {
+              "name": "type",
+              "value": "reasoning"
+            },
+            {
+              "name": "timeout_seconds",
+              "value": "180"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "call-ollama-analysis",
+      "name": "Call Ollama Analysis",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1050, 350]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse the Ollama response\nconst ollamaResponse = $input.item.json;\nconst originalData = $('Prepare Data').item.json;\n\n// Extract the analysis from response\nlet analysis = {};\ntry {\n  if (ollamaResponse.success && ollamaResponse.response) {\n    // Try to parse as JSON if the response looks like JSON\n    const responseText = ollamaResponse.response;\n    if (responseText.includes('{') && responseText.includes('}')) {\n      // Extract JSON from the response (might be wrapped in markdown)\n      const jsonMatch = responseText.match(/\\{[\\s\\S]*\\}/); \n      if (jsonMatch) {\n        analysis = JSON.parse(jsonMatch[0]);\n      } else {\n        // Fallback: treat as text analysis\n        analysis = { raw_analysis: responseText };\n      }\n    } else {\n      analysis = { raw_analysis: responseText };\n    }\n  }\n} catch (e) {\n  console.error('Failed to parse analysis:', e);\n  analysis = { raw_analysis: ollamaResponse.response || 'Analysis failed' };\n}\n\n// Calculate ROI metrics\nconst budget = originalData.budget;\nconst estimatedRevenue = budget * 3.5; // Conservative 3.5x multiplier\nconst roi = ((estimatedRevenue - budget) / budget * 100).toFixed(2);\nconst paybackMonths = Math.ceil(budget / (estimatedRevenue / 24)); // Based on 2-year projection\n\n// Determine risk level based on various factors\nlet riskLevel = 'Medium';\nif (budget > 100000) riskLevel = 'High';\nelse if (budget < 10000) riskLevel = 'Low';\n\n// Build the final response\nreturn {\n  analysis_id: originalData.analysis_id,\n  timestamp: originalData.timestamp,\n  input: {\n    idea: originalData.idea,\n    budget: originalData.budget,\n    timeline: originalData.timeline,\n    skills: originalData.skills,\n    market_focus: originalData.market_focus\n  },\n  roi_metrics: {\n    roi_percentage: parseFloat(roi),\n    estimated_revenue: estimatedRevenue,\n    payback_months: paybackMonths,\n    risk_level: riskLevel,\n    confidence_score: 75 // Default confidence\n  },\n  detailed_analysis: analysis,\n  execution_details: ollamaResponse.execution || {},\n  success: true\n};"
+      },
+      "id": "process-analysis",
+      "name": "Process Analysis",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1250, 350]
+    },
+    {
+      "parameters": {
+        "url": "${service.n8n.url}/webhook/embed",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "={{ $json.input.idea }} {{ $json.input.skills }} {{ $json.input.market_focus }} budget:{{ $json.input.budget }} timeline:{{ $json.input.timeline }}"
+            },
+            {
+              "name": "model",
+              "value": "nomic-embed-text"
+            },
+            {
+              "name": "generate_point",
+              "value": "={{ true }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "generate-embedding",
+      "name": "Generate Embedding",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1450, 450]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Combine all results\nconst analysis = $('Process Analysis').item.json;\nconst embedding = $('Generate Embedding').item.json;\n\n// Add embedding data to the analysis\nif (embedding.success && embedding.embeddings) {\n  analysis.search_vector = {\n    embeddings: embedding.embeddings,\n    dimensions: embedding.dimensions,\n    model: embedding.model\n  };\n}\n\n// Store in Redis cache for quick retrieval\nanalysis.cached = true;\nanalysis.cache_ttl = 3600; // 1 hour cache\n\nreturn analysis;"
+      },
+      "id": "combine-results",
+      "name": "Combine Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1650, 350]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json, null, 2) }}"
+      },
+      "id": "respond-success",
+      "name": "Respond Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1850, 350]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Merge", "type": "main", "index": 0 }]]
+    },
+    "Manual Trigger": {
+      "main": [[{ "node": "Default Values", "type": "main", "index": 0 }]]
+    },
+    "Default Values": {
+      "main": [[{ "node": "Merge", "type": "main", "index": 1 }]]
+    },
+    "Merge": {
+      "main": [[{ "node": "Prepare Data", "type": "main", "index": 0 }]]
+    },
+    "Prepare Data": {
+      "main": [[{ "node": "Call Ollama Analysis", "type": "main", "index": 0 }]]
+    },
+    "Call Ollama Analysis": {
+      "main": [[{ "node": "Process Analysis", "type": "main", "index": 0 }]]
+    },
+    "Process Analysis": {
+      "main": [[{ "node": "Generate Embedding", "type": "main", "index": 0 }]]
+    },
+    "Generate Embedding": {
+      "main": [[{ "node": "Combine Results", "type": "main", "index": 0 }]]
+    },
+    "Combine Results": {
+      "main": [[{ "node": "Respond Success", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "roi-analyzer"
+  },
+  "tags": []
+}

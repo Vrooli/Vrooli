@@ -1,0 +1,16 @@
+{
+  "name": "product-manager-ui",
+  "version": "1.0.0",
+  "description": "Product Manager Agent UI",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "npm start"
+  },
+  "keywords": ["product-management", "dashboard", "prioritization"],
+  "author": "Vrooli",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}

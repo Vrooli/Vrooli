@@ -6,7 +6,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-API_URL="${API_URL:-http://localhost:9851}"
+API_URL="${API_URL:-http://localhost:8500}"
 
 # Color codes
 RED='\033[0;31m'
@@ -175,6 +175,9 @@ case "${1:-help}" in
         ;;
     help|--help|-h)
         show_help
+        ;;
+    --version|-v|version)
+        echo "picker-wheel version 1.0.0"
         ;;
     *)
         echo -e "${RED}Unknown command: $1${NC}"

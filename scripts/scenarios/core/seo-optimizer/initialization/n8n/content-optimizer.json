@@ -1,0 +1,138 @@
+{
+  "name": "content-optimizer",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [260, 300]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "content-optimizer",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [260, 500]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "content",
+              "value": "Sample content for SEO optimization. This is a test article about web development and best practices."
+            },
+            {
+              "name": "target_keywords",
+              "value": "web development, best practices, SEO"
+            },
+            {
+              "name": "content_type",
+              "value": "blog"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "default-values",
+      "name": "Default Values",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Analyze content for SEO optimization\nconst content = $json.content || '';\nconst targetKeywords = ($json.target_keywords || '').split(',').map(k => k.trim()).filter(k => k);\nconst contentType = $json.content_type || 'general';\n\n// Basic content analysis\nconst words = content.toLowerCase().split(/\\s+/).filter(w => w.length > 0);\nconst wordCount = words.length;\nconst sentences = content.split(/[.!?]+/).filter(s => s.trim().length > 0);\nconst sentenceCount = sentences.length;\nconst paragraphs = content.split(/\\n\\n+/).filter(p => p.trim().length > 0);\n\n// Keyword analysis\nconst keywordAnalysis = {};\ntargetKeywords.forEach(keyword => {\n  const keywordLower = keyword.toLowerCase();\n  const keywordRegex = new RegExp('\\\\b' + keywordLower.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&') + '\\\\b', 'gi');\n  const matches = content.match(keywordRegex) || [];\n  const density = wordCount > 0 ? (matches.length / wordCount * 100).toFixed(2) : 0;\n  \n  keywordAnalysis[keyword] = {\n    count: matches.length,\n    density: parseFloat(density),\n    in_title: content.substring(0, 100).toLowerCase().includes(keywordLower),\n    in_first_paragraph: paragraphs[0] ? paragraphs[0].toLowerCase().includes(keywordLower) : false\n  };\n});\n\n// Readability metrics\nconst avgWordsPerSentence = sentenceCount > 0 ? Math.round(wordCount / sentenceCount) : 0;\nconst avgSentencesPerParagraph = paragraphs.length > 0 ? Math.round(sentenceCount / paragraphs.length) : 0;\n\n// Check for common SEO issues\nconst issues = [];\nif (wordCount < 300) issues.push('Content is too short (less than 300 words)');\nif (wordCount > 3000) issues.push('Content might be too long (over 3000 words)');\nif (avgWordsPerSentence > 25) issues.push('Sentences are too long on average');\nif (paragraphs.length < 3) issues.push('Not enough paragraphs for good structure');\n\n// Check keyword optimization\nObject.entries(keywordAnalysis).forEach(([keyword, data]) => {\n  if (data.density < 0.5) issues.push(`Keyword \"${keyword}\" density too low (${data.density}%)`);\n  if (data.density > 3) issues.push(`Keyword \"${keyword}\" density too high (${data.density}%)`);\n  if (!data.in_first_paragraph) issues.push(`Keyword \"${keyword}\" not in first paragraph`);\n});\n\nreturn {\n  content_analysis: {\n    word_count: wordCount,\n    sentence_count: sentenceCount,\n    paragraph_count: paragraphs.length,\n    avg_words_per_sentence: avgWordsPerSentence,\n    avg_sentences_per_paragraph: avgSentencesPerParagraph\n  },\n  keyword_analysis: keywordAnalysis,\n  issues: issues,\n  content_type: contentType,\n  original_content: content.substring(0, 500) + (content.length > 500 ? '...' : '')\n};"
+      },
+      "id": "analyze-content",
+      "name": "Analyze Content",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [660, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SERVICE_N8N_URL }}/webhook/ollama",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "prompt",
+              "value": "As an SEO content expert, analyze and optimize this content:\n\nContent Type: {{ $json.content_type }}\n\nContent Analysis:\n- Word Count: {{ $json.content_analysis.word_count }}\n- Sentences: {{ $json.content_analysis.sentence_count }}\n- Paragraphs: {{ $json.content_analysis.paragraph_count }}\n- Avg Words/Sentence: {{ $json.content_analysis.avg_words_per_sentence }}\n\nKeyword Analysis:\n{{ JSON.stringify($json.keyword_analysis, null, 2) }}\n\nIdentified Issues:\n{{ $json.issues.join('\\n') }}\n\nOriginal Content Sample:\n{{ $json.original_content }}\n\nProvide optimization recommendations as JSON:\n{\n  \"optimization_score\": number (0-100),\n  \"content_improvements\": {\n    \"structure\": [\"specific suggestions for structure\"],\n    \"readability\": [\"readability improvements\"],\n    \"keyword_optimization\": [\"keyword placement and density suggestions\"],\n    \"engagement\": [\"tips to increase engagement\"]\n  },\n  \"seo_enhancements\": {\n    \"title_suggestions\": [\"3 optimized title options\"],\n    \"meta_description\": \"optimized meta description (150-160 chars)\",\n    \"headers\": [\"suggested H2/H3 headers\"],\n    \"internal_links\": [\"topics to link to\"],\n    \"schema_markup\": \"recommended schema type\"\n  },\n  \"content_additions\": {\n    \"missing_topics\": [\"related topics to cover\"],\n    \"questions_to_answer\": [\"user questions to address\"],\n    \"cta_suggestions\": [\"call-to-action ideas\"]\n  },\n  \"priority_actions\": [\"top 3-5 most important optimizations\"]\n}"
+            },
+            {
+              "name": "model",
+              "value": "llama3.2:3b"
+            },
+            {
+              "name": "type",
+              "value": "reasoning"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "generate-optimization",
+      "name": "Generate Optimization",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [860, 400],
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "n8n-auth",
+          "name": "n8n Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Format the optimization results\nconst aiResponse = $json.response || '{}';\nlet optimization;\n\ntry {\n  optimization = typeof aiResponse === 'string' ? JSON.parse(aiResponse) : aiResponse;\n} catch (e) {\n  optimization = {\n    optimization_score: 50,\n    error: 'Failed to parse optimization response',\n    raw_response: aiResponse\n  };\n}\n\nconst contentAnalysis = $('analyze-content').item.json;\n\nreturn {\n  optimization_id: Date.now().toString(),\n  timestamp: new Date().toISOString(),\n  content_type: contentAnalysis.content_type,\n  original_analysis: {\n    word_count: contentAnalysis.content_analysis.word_count,\n    keyword_analysis: contentAnalysis.keyword_analysis,\n    issues_found: contentAnalysis.issues.length\n  },\n  optimization_results: optimization,\n  success: true\n};"
+      },
+      "id": "format-results",
+      "name": "Format Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1060, 400]
+    }
+  ],
+  "connections": {
+    "manual-trigger": {
+      "main": [[{"node": "default-values", "type": "main", "index": 0}]]
+    },
+    "webhook-trigger": {
+      "main": [[{"node": "analyze-content", "type": "main", "index": 0}]]
+    },
+    "default-values": {
+      "main": [[{"node": "analyze-content", "type": "main", "index": 0}]]
+    },
+    "analyze-content": {
+      "main": [[{"node": "generate-optimization", "type": "main", "index": 0}]]
+    },
+    "generate-optimization": {
+      "main": [[{"node": "format-results", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "templateId": "content-optimizer"
+  },
+  "pinData": {},
+  "versionId": "1.0.0",
+  "triggerCount": 2,
+  "tags": []
+}

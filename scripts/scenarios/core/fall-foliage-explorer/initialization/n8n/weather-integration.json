@@ -1,0 +1,163 @@
+{
+  "name": "weather-integration",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "weather-integration-webhook"
+    },
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 100]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "latitude",
+              "value": "44.0"
+            },
+            {
+              "name": "longitude",
+              "value": "-71.5"
+            },
+            {
+              "name": "days_ahead",
+              "value": "7"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-defaults",
+      "name": "Set Defaults",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [450, 100]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "multiplex",
+        "options": {}
+      },
+      "id": "merge-inputs",
+      "name": "Merge Inputs",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2,
+      "position": [650, 200]
+    },
+    {
+      "parameters": {
+        "url": "=http://localhost:{{ $env.N8N_PORT }}/webhook/ollama",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "=Generate realistic weather data for fall foliage analysis at latitude {{ $json.latitude }}, longitude {{ $json.longitude }} for the next {{ $json.days_ahead }} days. Consider this is autumn season. Return a JSON object with: temperature_avg (in Fahrenheit), temperature_min, temperature_max, precipitation_inches, humidity_percent, wind_speed_mph, and foliage_impact (score 1-10 where 10 is ideal for foliage viewing)."
+            },
+            {
+              "name": "model",
+              "value": "llama3.2:latest"
+            },
+            {
+              "name": "format",
+              "value": "json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "generate-weather",
+      "name": "Generate Weather Data",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse weather data from Ollama\nconst response = $input.item.json;\nlet weatherData = {};\n\ntry {\n  if (typeof response.response === 'string') {\n    weatherData = JSON.parse(response.response);\n  } else if (response.response) {\n    weatherData = response.response;\n  } else {\n    weatherData = response;\n  }\n} catch (e) {\n  // Generate fallback weather data\n  weatherData = {\n    temperature_avg: 55,\n    temperature_min: 45,\n    temperature_max: 65,\n    precipitation_inches: 0.1,\n    humidity_percent: 60,\n    wind_speed_mph: 8,\n    foliage_impact: 7\n  };\n}\n\n// Calculate foliage conditions based on weather\nconst isIdealTemp = weatherData.temperature_avg >= 40 && weatherData.temperature_avg <= 70;\nconst isLowWind = weatherData.wind_speed_mph < 15;\nconst isModerateHumidity = weatherData.humidity_percent >= 40 && weatherData.humidity_percent <= 70;\n\nlet conditions = 'fair';\nif (isIdealTemp && isLowWind && isModerateHumidity) {\n  conditions = 'excellent';\n} else if (isIdealTemp && isLowWind) {\n  conditions = 'good';\n} else if (weatherData.wind_speed_mph > 25 || weatherData.precipitation_inches > 1) {\n  conditions = 'poor';\n}\n\nreturn {\n  latitude: $input.item.json.latitude,\n  longitude: $input.item.json.longitude,\n  forecast_days: $input.item.json.days_ahead,\n  weather: weatherData,\n  viewing_conditions: conditions,\n  recommendation: conditions === 'excellent' ? 'Perfect day for foliage viewing!' : \n                   conditions === 'good' ? 'Good conditions for foliage viewing' :\n                   conditions === 'fair' ? 'Acceptable conditions, some weather impact' :\n                   'Poor conditions, consider rescheduling',\n  timestamp: new Date().toISOString()\n};"
+      },
+      "id": "process-weather",
+      "name": "Process Weather Impact",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1050, 200]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Defaults",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Defaults": {
+      "main": [
+        [
+          {
+            "node": "Merge Inputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Merge Inputs",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Inputs": {
+      "main": [
+        [
+          {
+            "node": "Generate Weather Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Weather Data": {
+      "main": [
+        [
+          {
+            "node": "Process Weather Impact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "versionId": "1.0.0",
+  "id": "weather-integration",
+  "meta": {
+    "instanceId": "fall-foliage-explorer"
+  },
+  "tags": []
+}

@@ -1,17 +1,17 @@
 {
-  "name": "macro-tracker",
+  "name": "NutriTrack - Macro Tracker",
   "nodes": [
     {
       "parameters": {
         "httpMethod": "POST",
-        "path": "macro-tracker",
+        "path": "nutrition-tracker/macro-tracker",
         "responseMode": "responseNode",
         "options": {}
       },
       "id": "webhook-trigger",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
-      "typeVersion": 1,
+      "typeVersion": 2,
       "position": [250, 300]
     },
     {
@@ -20,235 +20,150 @@
       "name": "Manual",
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
-      "position": [250, 100]
+      "position": [250, 500]
     },
     {
       "parameters": {
-        "values": {
-          "string": [
-            {
-              "name": "user_id",
-              "value": "demo-user-123"
-            },
-            {
-              "name": "date",
-              "value": "={{ new Date().toISOString().split('T')[0] }}"
-            }
-          ]
-        },
-        "options": {}
+        "jsCode": "// Provide defaults for manual testing\nconst defaults = {\n  user_id: 'test-user',\n  date: new Date().toISOString().split('T')[0],\n  meal_entries: [\n    {\n      meal_type: 'breakfast',\n      calories: 350,\n      protein: 25,\n      carbs: 40,\n      fat: 12\n    },\n    {\n      meal_type: 'lunch',\n      calories: 550,\n      protein: 35,\n      carbs: 60,\n      fat: 20\n    }\n  ],\n  daily_goals: {\n    calories: 2000,\n    protein: 150,\n    carbs: 250,\n    fat: 65\n  }\n};\n\n// Only use defaults if coming from manual trigger\nconst isManual = $('Manual').first() !== undefined;\nif (isManual) {\n  return [{json: defaults}];\n}\n\n// Otherwise pass through webhook data\nreturn items;"
       },
-      "id": "default-values",
-      "name": "Default Values",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3,
-      "position": [450, 100]
-    },
-    {
-      "parameters": {
-        "mode": "combine",
-        "mergeByFields": {
-          "values": [
-            {
-              "field1": "user_id",
-              "field2": "user_id"
-            }
-          ]
-        },
-        "joinMode": "keepEverything",
-        "options": {}
-      },
-      "id": "merge-inputs",
-      "name": "Merge",
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 2.1,
-      "position": [650, 200]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "=SELECT \n  COALESCE(SUM(mi.calories), 0) as total_calories,\n  COALESCE(SUM(mi.protein), 0) as total_protein,\n  COALESCE(SUM(mi.carbs), 0) as total_carbs,\n  COALESCE(SUM(mi.fat), 0) as total_fat,\n  COALESCE(SUM(mi.fiber), 0) as total_fiber,\n  COALESCE(SUM(mi.sugar), 0) as total_sugar,\n  COALESCE(SUM(mi.sodium), 0) as total_sodium,\n  COUNT(DISTINCT m.id) as meal_count,\n  COUNT(mi.id) as food_items_count\nFROM meals m\nLEFT JOIN meal_items mi ON m.id = mi.meal_id\nWHERE m.user_id = '{{ $json.user_id }}'\n  AND m.meal_date = '{{ $json.date }}';",
-        "options": {}
-      },
-      "id": "get-daily-totals",
-      "name": "Get Daily Totals",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2,
-      "position": [850, 200],
-      "credentials": {
-        "postgres": {
-          "id": "nutrition-tracker-postgres",
-          "name": "Nutrition Tracker DB"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "=SELECT \n  ug.daily_calories as target_calories,\n  ug.protein_grams as target_protein,\n  ug.carbs_grams as target_carbs,\n  ug.fat_grams as target_fat,\n  ug.fiber_grams as target_fiber,\n  ug.sugar_limit as target_sugar,\n  ug.sodium_limit as target_sodium,\n  ug.weight_goal,\n  ug.activity_level\nFROM user_goals ug\nWHERE ug.user_id = '{{ $json.user_id }}'\nORDER BY ug.created_at DESC\nLIMIT 1;",
-        "options": {}
-      },
-      "id": "get-user-goals",
-      "name": "Get User Goals",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2,
-      "position": [850, 400],
-      "credentials": {
-        "postgres": {
-          "id": "nutrition-tracker-postgres",
-          "name": "Nutrition Tracker DB"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "mode": "combine",
-        "mergeByFields": {
-          "values": []
-        },
-        "joinMode": "keepEverything",
-        "options": {}
-      },
-      "id": "combine-data",
-      "name": "Combine Data",
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 2.1,
-      "position": [1050, 300]
-    },
-    {
-      "parameters": {
-        "jsCode": "const totals = $input.all()[0].json;\nconst goals = $input.all()[1].json;\n\n// Calculate percentages and remaining amounts\nconst calculate = (current, target) => {\n  const percentage = target > 0 ? Math.round((current / target) * 100) : 0;\n  const remaining = Math.max(0, target - current);\n  const status = percentage < 80 ? 'low' : percentage > 120 ? 'high' : 'good';\n  return { current, target, percentage, remaining, status };\n};\n\nconst result = {\n  date: $node[\"merge-inputs\"].json.date,\n  user_id: $node[\"merge-inputs\"].json.user_id,\n  summary: {\n    meal_count: totals.meal_count || 0,\n    food_items_count: totals.food_items_count || 0\n  },\n  calories: calculate(totals.total_calories || 0, goals.target_calories || 2000),\n  macros: {\n    protein: calculate(totals.total_protein || 0, goals.target_protein || 50),\n    carbs: calculate(totals.total_carbs || 0, goals.target_carbs || 250),\n    fat: calculate(totals.total_fat || 0, goals.target_fat || 65)\n  },\n  micronutrients: {\n    fiber: calculate(totals.total_fiber || 0, goals.target_fiber || 25),\n    sugar: {\n      current: totals.total_sugar || 0,\n      limit: goals.target_sugar || 50,\n      percentage: Math.round(((totals.total_sugar || 0) / (goals.target_sugar || 50)) * 100),\n      status: (totals.total_sugar || 0) > (goals.target_sugar || 50) ? 'over_limit' : 'within_limit'\n    },\n    sodium: {\n      current: totals.total_sodium || 0,\n      limit: goals.target_sodium || 2300,\n      percentage: Math.round(((totals.total_sodium || 0) / (goals.target_sodium || 2300)) * 100),\n      status: (totals.total_sodium || 0) > (goals.target_sodium || 2300) ? 'over_limit' : 'within_limit'\n    }\n  },\n  recommendations: []\n};\n\n// Generate recommendations\nif (result.calories.percentage < 50 && new Date().getHours() > 18) {\n  result.recommendations.push(\"You're significantly under your calorie goal. Consider adding a healthy evening snack.\");\n}\n\nif (result.macros.protein.percentage < 70) {\n  result.recommendations.push(\"Your protein intake is low. Try adding lean meats, eggs, or legumes to your meals.\");\n}\n\nif (result.micronutrients.fiber.percentage < 60) {\n  result.recommendations.push(\"Increase fiber intake with whole grains, fruits, and vegetables.\");\n}\n\nif (result.micronutrients.sugar.status === 'over_limit') {\n  result.recommendations.push(\"You've exceeded your sugar limit. Consider reducing sugary drinks and snacks.\");\n}\n\nif (result.micronutrients.sodium.status === 'over_limit') {\n  result.recommendations.push(\"Sodium intake is high. Reduce processed foods and restaurant meals.\");\n}\n\nreturn result;"
-      },
-      "id": "calculate-progress",
-      "name": "Calculate Progress",
+      "id": "defaults",
+      "name": "Defaults",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1250, 300]
+      "position": [450, 500]
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "=INSERT INTO daily_summaries (\n  user_id,\n  summary_date,\n  total_calories,\n  total_protein,\n  total_carbs,\n  total_fat,\n  total_fiber,\n  total_sugar,\n  total_sodium\n) VALUES (\n  '{{ $json.user_id }}',\n  '{{ $json.date }}',\n  {{ $json.calories.current }},\n  {{ $json.macros.protein.current }},\n  {{ $json.macros.carbs.current }},\n  {{ $json.macros.fat.current }},\n  {{ $json.micronutrients.fiber.current }},\n  {{ $json.micronutrients.sugar.current }},\n  {{ $json.micronutrients.sodium.current }}\n)\nON CONFLICT (user_id, summary_date) \nDO UPDATE SET\n  total_calories = EXCLUDED.total_calories,\n  total_protein = EXCLUDED.total_protein,\n  total_carbs = EXCLUDED.total_carbs,\n  total_fat = EXCLUDED.total_fat,\n  total_fiber = EXCLUDED.total_fiber,\n  total_sugar = EXCLUDED.total_sugar,\n  total_sodium = EXCLUDED.total_sodium,\n  updated_at = CURRENT_TIMESTAMP\nRETURNING *;",
-        "options": {}
+        "jsCode": "// Calculate macro totals and remaining targets\nconst isManual = $('Manual').first() !== undefined;\nconst input = isManual ? $json : $('Webhook').first().json;\n\n// Calculate totals from meal entries\nlet totals = {\n  calories: 0,\n  protein: 0,\n  carbs: 0,\n  fat: 0\n};\n\nif (input.meal_entries && Array.isArray(input.meal_entries)) {\n  input.meal_entries.forEach(meal => {\n    totals.calories += meal.calories || 0;\n    totals.protein += meal.protein || 0;\n    totals.carbs += meal.carbs || 0;\n    totals.fat += meal.fat || 0;\n  });\n}\n\n// Get daily goals (with defaults if not provided)\nconst goals = input.daily_goals || {\n  calories: 2000,\n  protein: 150,\n  carbs: 250,\n  fat: 65\n};\n\n// Calculate remaining macros\nconst remaining = {\n  calories: Math.max(0, goals.calories - totals.calories),\n  protein: Math.max(0, goals.protein - totals.protein),\n  carbs: Math.max(0, goals.carbs - totals.carbs),\n  fat: Math.max(0, goals.fat - totals.fat)\n};\n\n// Calculate percentages\nconst percentages = {\n  calories: Math.min(100, (totals.calories / goals.calories * 100).toFixed(1)),\n  protein: Math.min(100, (totals.protein / goals.protein * 100).toFixed(1)),\n  carbs: Math.min(100, (totals.carbs / goals.carbs * 100).toFixed(1)),\n  fat: Math.min(100, (totals.fat / goals.fat * 100).toFixed(1))\n};\n\n// Calculate macro distribution\nconst totalCaloriesFromMacros = (totals.protein * 4) + (totals.carbs * 4) + (totals.fat * 9);\nconst macroDistribution = {\n  protein_percent: totalCaloriesFromMacros > 0 ? ((totals.protein * 4 / totalCaloriesFromMacros) * 100).toFixed(1) : 0,\n  carbs_percent: totalCaloriesFromMacros > 0 ? ((totals.carbs * 4 / totalCaloriesFromMacros) * 100).toFixed(1) : 0,\n  fat_percent: totalCaloriesFromMacros > 0 ? ((totals.fat * 9 / totalCaloriesFromMacros) * 100).toFixed(1) : 0\n};\n\nreturn [{\n  json: {\n    user_id: input.user_id,\n    date: input.date || new Date().toISOString().split('T')[0],\n    totals: totals,\n    goals: goals,\n    remaining: remaining,\n    percentages: percentages,\n    macro_distribution: macroDistribution,\n    meal_count: input.meal_entries ? input.meal_entries.length : 0,\n    status: {\n      on_track: percentages.calories <= 100,\n      protein_adequate: percentages.protein >= 80,\n      balanced: Math.abs(parseFloat(macroDistribution.protein_percent) - 30) < 10 &&\n                Math.abs(parseFloat(macroDistribution.carbs_percent) - 40) < 10 &&\n                Math.abs(parseFloat(macroDistribution.fat_percent) - 30) < 10\n    }\n  }\n}];"
       },
-      "id": "save-summary",
-      "name": "Save Daily Summary",
-      "type": "n8n-nodes-base.postgres",
+      "id": "calculate-macros",
+      "name": "Calculate Macros",
+      "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1450, 300],
-      "credentials": {
-        "postgres": {
-          "id": "nutrition-tracker-postgres",
-          "name": "Nutrition Tracker DB"
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Generate insights about macro intake\nconst data = $json;\n\nconst prompt = `You are a nutrition expert analyzing macro nutrient data.\n\nUser's daily macro intake:\n- Calories: ${data.totals.calories} / ${data.goals.calories} (${data.percentages.calories}%)\n- Protein: ${data.totals.protein}g / ${data.goals.protein}g (${data.percentages.protein}%)\n- Carbs: ${data.totals.carbs}g / ${data.goals.carbs}g (${data.percentages.carbs}%)\n- Fat: ${data.totals.fat}g / ${data.goals.fat}g (${data.percentages.fat}%)\n\nMacro distribution:\n- Protein: ${data.macro_distribution.protein_percent}%\n- Carbs: ${data.macro_distribution.carbs_percent}%\n- Fat: ${data.macro_distribution.fat_percent}%\n\nProvide a brief (2-3 sentences) personalized insight about their macro intake today. Focus on:\n1. What they're doing well\n2. One specific suggestion for improvement\n3. Be encouraging and constructive\n\nReturn ONLY the insight text, no JSON or formatting.`;\n\nreturn [{\n  json: {\n    prompt: prompt,\n    model: \"llama3.2\",\n    type: \"generation\",\n    temperature: 0.7,\n    format: \"text\",\n    quiet: true,\n    macro_data: data\n  }\n}];"
+      },
+      "id": "prepare-insight-prompt",
+      "name": "Prepare Insight Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5678/webhook/ollama",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  prompt: $json.prompt,\n  model: $json.model,\n  type: $json.type,\n  quiet: $json.quiet,\n  timeout_seconds: $json.timeout_seconds || 120\n}) }}",
+        "options": {
+          "timeout": 180000
         }
-      }
+      },
+      "id": "generate-insight",
+      "name": "Call Shared Ollama",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1050, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Combine macro data with AI insight from HTTP response\nconst httpResponse = $json;\nconst macroData = $('Prepare Insight Prompt').first().json.macro_data;\n\n// Extract the insight from the ollama HTTP response\nlet insight = \"Keep up the great work tracking your nutrition!\";\nif (httpResponse.response) {\n  insight = httpResponse.response;\n}\n\nreturn [{\n  json: {\n    success: true,\n    user_id: macroData.user_id,\n    date: macroData.date,\n    totals: macroData.totals,\n    goals: macroData.goals,\n    remaining: macroData.remaining,\n    percentages: macroData.percentages,\n    macro_distribution: macroData.macro_distribution,\n    meal_count: macroData.meal_count,\n    status: macroData.status,\n    insight: insight,\n    recommendations: {\n      need_more_protein: macroData.percentages.protein < 60,\n      reduce_carbs: parseFloat(macroData.macro_distribution.carbs_percent) > 50,\n      increase_healthy_fats: parseFloat(macroData.macro_distribution.fat_percent) < 20,\n      calorie_warning: macroData.percentages.calories > 90 ? \"approaching_limit\" : macroData.percentages.calories > 100 ? \"exceeded\" : \"on_track\"\n    },\n    created_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "format-response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 400]
     },
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ $node[\"calculate-progress\"].json }}",
+        "responseBody": "={{ JSON.stringify($json) }}",
         "options": {}
       },
-      "id": "respond-to-webhook",
-      "name": "Respond",
+      "id": "webhook-response",
+      "name": "Webhook Response",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1650, 300]
+      "position": [1450, 400]
     }
   ],
   "connections": {
-    "webhook-trigger": {
+    "Webhook": {
       "main": [
         [
           {
-            "node": "merge-inputs",
-            "type": "main",
-            "index": 1
-          }
-        ]
-      ]
-    },
-    "manual-trigger": {
-      "main": [
-        [
-          {
-            "node": "default-values",
+            "node": "Calculate Macros",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "default-values": {
+    "Manual": {
       "main": [
         [
           {
-            "node": "merge-inputs",
+            "node": "Defaults",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "merge-inputs": {
+    "Defaults": {
       "main": [
         [
           {
-            "node": "get-daily-totals",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "get-user-goals",
+            "node": "Calculate Macros",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "get-daily-totals": {
+    "Calculate Macros": {
       "main": [
         [
           {
-            "node": "combine-data",
+            "node": "Prepare Insight Prompt",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "get-user-goals": {
+    "Prepare Insight Prompt": {
       "main": [
         [
           {
-            "node": "combine-data",
-            "type": "main",
-            "index": 1
-          }
-        ]
-      ]
-    },
-    "combine-data": {
-      "main": [
-        [
-          {
-            "node": "calculate-progress",
+            "node": "Call Shared Ollama",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "calculate-progress": {
+    "Call Shared Ollama": {
       "main": [
         [
           {
-            "node": "save-summary",
+            "node": "Format Response",
             "type": "main",
             "index": 0
-          },
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
           {
-            "node": "respond-to-webhook",
+            "node": "Webhook Response",
             "type": "main",
             "index": 0
           }
@@ -260,6 +175,6 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "tags": [],
+  "tags": ["nutrition", "macros", "tracking", "ai"],
   "id": "macro-tracker"
 }
