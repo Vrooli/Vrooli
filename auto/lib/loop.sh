@@ -58,6 +58,12 @@ EVENTS_MAX_LINES=${EVENTS_MAX_LINES:-200000}
 ITERATION_LOG_MAX_LINES=${ITERATION_LOG_MAX_LINES:-10000}
 ITERATION_LOG_TAIL_LINES=${ITERATION_LOG_TAIL_LINES:-200}
 
+# Error classification exit codes
+API_QUOTA_EXHAUSTED=142
+CONFIGURATION_ERROR=143
+WORKER_UNAVAILABLE=144
+TIMEOUT_ERROR=124  # Already used by timeout command
+
 # Redact helper for log sanitization
 redact() {
 	sed -E 's/([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})/[redacted-email]/g; s/(api|token|secret|password|passwd|key)=[^ ]+/\1=[REDACTED]/ig'
@@ -96,12 +102,15 @@ update_summary_files() {
 		  ($fin | map(.duration_sec) | map(select(type=="number"))) as $durs |
 		  ($fin | map(select(.exit_code==0)) | length) as $ok |
 		  ($fin | map(select(.exit_code==124)) | length) as $to |
-		  ($fin | map(select(.exit_code!=0 and .exit_code!=124)) | length) as $fail |
+		  ($fin | map(select(.exit_code==142)) | length) as $quota |
+		  ($fin | map(select(.exit_code==143)) | length) as $config |
+		  ($fin | map(select(.exit_code==144)) | length) as $worker |
+		  ($fin | map(select(.exit_code!=0 and .exit_code!=124 and .exit_code!=142 and .exit_code!=143 and .exit_code!=144)) | length) as $other |
 		  ($fin | length) as $runs |
 		  {
 		    task: ("'""${LOOP_TASK}""'"),
 		    generated_at: (now | todateiso8601),
-		    totals: { runs: $runs, ok: $ok, timeout: $to, fail: $fail },
+		    totals: { runs: $runs, ok: $ok, timeout: $to, quota_exhausted: $quota, config_error: $config, worker_error: $worker, other_failures: $other },
 		    success_rate: (if $runs==0 then 0 else ($ok / $runs) end),
 		    duration_sec: {
 		      avg: (if ($durs|length)==0 then null else ($durs|add/($durs|length)) end),
@@ -173,6 +182,23 @@ cleanup_finished_workers() {
 			if kill -0 "$pid" 2>/dev/null; then echo "$pid" >> "$tmp"; else log_with_timestamp "Worker $pid finished"; fi
 		done < "$PIDS_FILE"
 		mv "$tmp" "$PIDS_FILE"
+	fi
+}
+
+# Clean up orphaned events (start events without matching finish events)
+cleanup_orphaned_events() {
+	if [[ -f "$EVENTS_JSONL" ]]; then
+		local tmp_file; tmp_file=$(mktemp -p "$TMP_DIR")
+		# Simple approach: remove all start events since they're all orphaned
+		if command -v jq >/dev/null 2>&1; then
+			# Keep only non-start events (finish events and other events)
+			jq -c 'map(select(.type != "start"))' "$EVENTS_JSONL" > "$tmp_file" 2>/dev/null || cp "$EVENTS_JSONL" "$tmp_file"
+		else
+			# Fallback: simple cleanup without jq - just remove start events
+			grep -v '"type":"start"' "$EVENTS_JSONL" > "$tmp_file" 2>/dev/null || cp "$EVENTS_JSONL" "$tmp_file"
+		fi
+		mv "$tmp_file" "$EVENTS_JSONL"
+		log_with_timestamp "Cleaned up orphaned events"
 	fi
 }
 
@@ -293,26 +319,49 @@ run_iteration() {
 	# Launch a wrapper subshell in background; run the pipeline in foreground within the subshell
 	(
 		set +e
-		# Cleanup function for TCP connections (avoid pkill patterns; rely on wrapper lifecycle)
-		trap - EXIT
 		local start; start=$(date +%s)
 		local tmp_out; tmp_out=$(mktemp -p "$TMP_DIR" "${LOOP_TASK}-${iter}-XXXX.log")
+		local exitc=1  # Default to failure
+		local dur=0
+		
+		# Ensure finish event is emitted even on early exit
+		trap 'emit_finish_event "$iter" "$$" "$exitc" "$dur"; update_summary_files || true; rm -f "$tmp_out"; exit $exitc' EXIT
+		
 		# Run worker pipeline in foreground; capture the exit code of timeout (the first command)
 		# Use more aggressive timeout with proper signal escalation
 		if ! timeout --signal=TERM --kill-after=30 "$TIMEOUT" resource-claude-code run "$full_prompt" 2>&1 | tee "$tmp_out"; then
-			local exitc=${PIPESTATUS[0]}
+			exitc=${PIPESTATUS[0]}
 			log_with_timestamp "ERROR: Worker execution failed with exit code $exitc"
 		else
-			local exitc=${PIPESTATUS[0]}
+			exitc=${PIPESTATUS[0]}
 		fi
-		local end; end=$(date +%s); local dur=$((end-start))
+		
+		local end; end=$(date +%s); dur=$((end-start))
+		
+		# Enhanced error classification
 		if [[ $exitc -eq 0 ]]; then
 			log_with_timestamp "Iteration #$iter succeeded in ${dur}s"
 		elif [[ $exitc -eq 124 ]]; then
 			log_with_timestamp "Iteration #$iter timed out in ${dur}s"
 		else
+			# Check for specific error patterns in output
+			if [[ -f "$tmp_out" ]]; then
+				if grep -q "Claude AI usage limit reached" "$tmp_out" 2>/dev/null; then
+					exitc=$API_QUOTA_EXHAUSTED
+					log_with_timestamp "WARNING: Claude API quota exhausted, marking as quota error"
+					# Set flag for quota exhaustion
+					echo "$(date +%s)" > "${DATA_DIR}/quota_exhausted.flag" 2>/dev/null || true
+				elif grep -q "command not found\|No such file or directory" "$tmp_out" 2>/dev/null; then
+					exitc=$WORKER_UNAVAILABLE
+					log_with_timestamp "WARNING: Worker unavailable, marking as worker error"
+				elif grep -q "permission denied\|access denied" "$tmp_out" 2>/dev/null; then
+					exitc=$CONFIGURATION_ERROR
+					log_with_timestamp "WARNING: Configuration error detected"
+				fi
+			fi
 			log_with_timestamp "Iteration #$iter failed (exit=$exitc) in ${dur}s"
 		fi
+		
 		# Persist worker output (redacted) and append tail to main log
 		if [[ -f "$tmp_out" ]]; then
 			local iter_log="${ITERATIONS_DIR}/iter-${iter}.log"
@@ -323,10 +372,6 @@ run_iteration() {
 				echo "===== End iteration #$iter worker output ====="
 			} >> "$LOG_FILE" 2>/dev/null || true
 		fi
-		emit_finish_event "$iter" "$$" "$exitc" "$dur"
-		update_summary_files || true
-		rm -f "$tmp_out"
-		exit $exitc
 	) &
 	local wrapper_pid=$!
 	append_worker_pid "$wrapper_pid"
@@ -345,17 +390,46 @@ run_iteration_sync() {
 	local full_prompt; full_prompt=$(compose_prompt "$prompt_path")
 	local start; start=$(date +%s)
 	local tmp_out; tmp_out=$(mktemp -p "$TMP_DIR" "${LOOP_TASK}-${iter}-XXXX.log")
+	local exitc=1  # Default to failure
+	local dur=0
+	
 	set +e
 	emit_start_event "$prompt_path" "$iter" "$$"
 	# Use more aggressive timeout with proper signal escalation
 	if ! timeout --signal=TERM --kill-after=30 "$TIMEOUT" resource-claude-code run "$full_prompt" 2>&1 | tee "$tmp_out"; then
-		local exitc=${PIPESTATUS[0]}
+		exitc=${PIPESTATUS[0]}
 		log_with_timestamp "ERROR: Worker execution failed with exit code $exitc"
 	else
-		local exitc=${PIPESTATUS[0]}
+		exitc=${PIPESTATUS[0]}
 	fi
 	set -e
-	local end; end=$(date +%s); local dur=$((end-start))
+	
+	local end; end=$(date +%s); dur=$((end-start))
+	
+	# Enhanced error classification (same as async version)
+	if [[ $exitc -eq 0 ]]; then
+		log_with_timestamp "Iteration #$iter succeeded in ${dur}s"
+	elif [[ $exitc -eq 124 ]]; then
+		log_with_timestamp "Iteration #$iter timed out in ${dur}s"
+	else
+		# Check for specific error patterns in output
+		if [[ -f "$tmp_out" ]]; then
+			if grep -q "Claude AI usage limit reached" "$tmp_out" 2>/dev/null; then
+				exitc=$API_QUOTA_EXHAUSTED
+				log_with_timestamp "WARNING: Claude API quota exhausted, marking as quota error"
+				# Set flag for quota exhaustion
+				echo "$(date +%s)" > "${DATA_DIR}/quota_exhausted.flag" 2>/dev/null || true
+			elif grep -q "command not found\|No such file or directory" "$tmp_out" 2>/dev/null; then
+				exitc=$WORKER_UNAVAILABLE
+				log_with_timestamp "WARNING: Worker unavailable, marking as worker error"
+			elif grep -q "permission denied\|access denied" "$tmp_out" 2>/dev/null; then
+				exitc=$CONFIGURATION_ERROR
+				log_with_timestamp "WARNING: Configuration error detected"
+			fi
+		fi
+		log_with_timestamp "Iteration #$iter failed (exit=$exitc) in ${dur}s"
+	fi
+	
 	# Persist worker output (redacted) and append tail to main log
 	if [[ -f "$tmp_out" ]]; then
 		local iter_log="${ITERATIONS_DIR}/iter-${iter}.log"
@@ -420,6 +494,22 @@ run_loop() {
 	local i=1
 	local max_iter="${RUN_MAX_ITERATIONS:-}" # optional bound via env
 	while true; do
+		# Check for API quota exhaustion before starting new iteration
+		if [[ -f "${DATA_DIR}/quota_exhausted.flag" ]]; then
+			local quota_reset_time
+			quota_reset_time=$(cat "${DATA_DIR}/quota_exhausted.flag" 2>/dev/null || echo "")
+			if [[ -n "$quota_reset_time" ]]; then
+				local current_time=$(date +%s)
+				local time_until_reset=$((quota_reset_time + 3600 - current_time))  # Assume 1 hour reset
+				if [[ $time_until_reset -gt 0 ]]; then
+					log_with_timestamp "API quota exhausted, waiting ${time_until_reset}s until estimated reset"
+					sleep $time_until_reset
+				fi
+				rm -f "${DATA_DIR}/quota_exhausted.flag"
+				log_with_timestamp "Resuming loop after quota reset"
+			fi
+		fi
+		
 		log_with_timestamp "--- Iteration $i ---"
 		if run_iteration "$i"; then log_with_timestamp "Iteration $i dispatched"; else log_with_timestamp "Iteration $i skipped"; fi
 		check_and_rotate
@@ -491,11 +581,12 @@ loop_dispatch() {
 			if [[ ! -f "$EVENTS_JSONL" ]]; then echo "Events file not found: $EVENTS_JSONL"; exit 1; fi
 			if ! command -v jq >/dev/null 2>&1; then echo "jq is required for json subcommands"; exit 1; fi
 			case "$sub" in
-				summary) tail -n 2000 "$EVENTS_JSONL" | jq -s 'def finishes: map(select(.type=="finish")); (. // []) as $e | ($e|finishes) as $fin | {runs: ($fin|length), ok: ($fin|map(select(.exit_code==0))|length), timeout: ($fin|map(select(.exit_code==124))|length), fail: ($fin|map(select(.exit_code!=0 and .exit_code!=124))|length)} | . + {success_rate: (if .runs==0 then 0 else (.ok/.runs) end)}' ;;
+				summary) tail -n 2000 "$EVENTS_JSONL" | jq -s 'def finishes: map(select(.type=="finish")); (. // []) as $e | ($e|finishes) as $fin | {runs: ($fin|length), ok: ($fin|map(select(.exit_code==0))|length), timeout: ($fin|map(select(.exit_code==124))|length), quota_exhausted: ($fin|map(select(.exit_code==142))|length), config_error: ($fin|map(select(.exit_code==143))|length), worker_error: ($fin|map(select(.exit_code==144))|length), other_failures: ($fin|map(select(.exit_code!=0 and .exit_code!=124 and .exit_code!=142 and .exit_code!=143 and .exit_code!=144))|length)} | . + {success_rate: (if .runs==0 then 0 else (.ok/.runs) end)}' ;;
 				recent) n="${1:-10}"; tail -n 2000 "$EVENTS_JSONL" | jq -c 'select(.type=="finish") | {ts,task,iteration,exit_code,duration_sec}' | tail -n "$n" ;;
 				inflight) tail -n 2000 "$EVENTS_JSONL" | jq -s '[ group_by(.pid) | map({pid: .[0].pid, started:(map(select(.type=="start"))|length), finished:(map(select(.type=="finish"))|length)}) | map(select(.started > .finished)) ]' ;;
 				durations) tail -n 2000 "$EVENTS_JSONL" | jq -s 'def finishes: map(select(.type=="finish")); (. // []) as $e | ($e|finishes|map(.duration_sec)|map(select(type=="number"))) as $d | {avg:(if ($d|length)==0 then null else ($d|add/($d|length)) end), p50:($d|sort|.[(length*0.5|floor)]), p90:($d|sort|.[(length*0.9|floor)]), p95:($d|sort|.[(length*0.95|floor)]), p99:($d|sort|.[(length*0.99|floor)]), min:($d|min), max:($d|max)}' ;;
 				errors) n="${1:-5}"; tail -n 2000 "$EVENTS_JSONL" | jq -c 'select(.type=="finish" and .exit_code!=0) | {ts,task,iteration,exit_code,duration_sec}' | tail -n "$n" ;;
+				error-breakdown) tail -n 2000 "$EVENTS_JSONL" | jq -s 'def finishes: map(select(.type=="finish")); (. // []) as $e | ($e|finishes) as $fin | {quota_exhausted: ($fin|map(select(.exit_code==142))|length), config_error: ($fin|map(select(.exit_code==143))|length), worker_error: ($fin|map(select(.exit_code==144))|length), timeout: ($fin|map(select(.exit_code==124))|length), other_failures: ($fin|map(select(.exit_code!=0 and .exit_code!=124 and .exit_code!=142 and .exit_code!=143 and .exit_code!=144))|length)}' ;;
 				hourly) tail -n 2000 "$EVENTS_JSONL" | jq -s '[ .[] | select(.type=="finish") | {h: (.ts|split(":"))[0], exit_code, duration_sec} ] | group_by(.h) | map({hour: .[0].h, count: length, ok: (map(select(.exit_code==0))|length), timeout: (map(select(.exit_code==124))|length), avg_duration: (map(.duration_sec)|add/length)})' ;;
 				*) echo "Unknown json subcommand: $sub"; exit 1 ;;
 			esac
@@ -510,9 +601,98 @@ loop_dispatch() {
 			;;
 		health)
 			local ok=0
-			for c in timeout vrooli resource-claude-code; do if ! command -v "$c" >/dev/null 2>&1; then echo "missing: $c"; ok=1; fi; done
-			if [[ ! -w "$DATA_DIR" ]]; then echo "data dir not writable: $DATA_DIR"; ok=1; fi
-			local prompt; prompt=$(select_prompt || true); if [[ -z "${prompt:-}" ]]; then echo "no prompt found"; ok=1; else echo "prompt ok: $prompt"; fi
+			echo "=== Basic Binary Checks ==="
+			for c in timeout vrooli resource-claude-code; do 
+				if ! command -v "$c" >/dev/null 2>&1; then 
+					echo "❌ missing: $c"; ok=1
+				else
+					echo "✅ found: $c"
+				fi
+			done
+			
+			echo "=== File System Checks ==="
+			if [[ ! -w "$DATA_DIR" ]]; then 
+				echo "❌ data dir not writable: $DATA_DIR"; ok=1
+			else
+				echo "✅ data dir writable: $DATA_DIR"
+			fi
+			
+			# Check disk space (require at least 100MB free)
+			local free_space; free_space=$(df "$DATA_DIR" | awk 'NR==2 {print $4}' 2>/dev/null || echo "0")
+			if [[ "$free_space" -lt 102400 ]]; then  # 100MB in KB
+				echo "❌ low disk space: ${free_space}KB free"; ok=1
+			else
+				echo "✅ disk space ok: ${free_space}KB free"
+			fi
+			
+			echo "=== Prompt & Configuration ==="
+			local prompt; prompt=$(select_prompt || true)
+			if [[ -z "${prompt:-}" ]]; then 
+				echo "❌ no prompt found"; ok=1
+			else 
+				echo "✅ prompt ok: $prompt"
+				# Check prompt file size
+				local prompt_size; prompt_size=$(wc -c < "$prompt" 2>/dev/null || echo "0")
+				if [[ "$prompt_size" -lt 100 ]]; then
+					echo "❌ prompt file too small: ${prompt_size} bytes"; ok=1
+				else
+					echo "✅ prompt size ok: ${prompt_size} bytes"
+				fi
+			fi
+			
+			echo "=== Resource Availability ==="
+			# Check if jq is available (needed for JSON processing)
+			if ! command -v jq >/dev/null 2>&1; then
+				echo "❌ missing: jq (required for JSON processing)"; ok=1
+			else
+				echo "✅ found: jq"
+			fi
+			
+			# Check Ollama availability if resource-ollama exists
+			if command -v resource-ollama >/dev/null 2>&1; then
+				if resource-ollama info >/dev/null 2>&1; then
+					echo "✅ ollama available"
+				else
+					echo "⚠️  ollama installed but not responding"
+				fi
+			else
+				echo "ℹ️  ollama not available (optional)"
+			fi
+			
+			echo "=== Network Connectivity ==="
+			# Basic network connectivity check
+			if ping -c 1 -W 3 8.8.8.8 >/dev/null 2>&1; then
+				echo "✅ network connectivity ok"
+			else
+				echo "⚠️  network connectivity issues (may affect external APIs)"
+			fi
+			
+			echo "=== Process & Lock Files ==="
+			# Check for stale PID files
+			if [[ -f "$PID_FILE" ]]; then
+				local pid; pid=$(cat "$PID_FILE" 2>/dev/null || echo "")
+				if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
+					echo "⚠️  loop appears to be running (PID: $pid)"
+				else
+					echo "❌ stale PID file found"; ok=1
+				fi
+			else
+				echo "✅ no PID file (loop not running)"
+			fi
+			
+			# Check for lock file
+			if [[ -f "$LOCK_FILE" ]]; then
+				echo "⚠️  lock file exists (may indicate previous crash)"
+			else
+				echo "✅ no lock file"
+			fi
+			
+			echo "=== Summary ==="
+			if [[ $ok -eq 0 ]]; then
+				echo "✅ All health checks passed"
+			else
+				echo "❌ Health checks failed - see issues above"
+			fi
 			exit $ok
 			;;
 		once) check_worker_available || { echo "Worker unavailable"; exit 1; }; run_iteration_sync 1 ;;
@@ -521,10 +701,15 @@ Generic Loop Core (task=$LOOP_TASK)
 Commands:
   run-loop [--max N] | start | stop | force-stop | status | logs [-f]
   rotate [--events [KEEP] | --temp] | json <name> | dry-run | health | once | cleanup | help
+
+JSON subcommands:
+  summary | recent [N] | inflight | durations | errors [N] | error-breakdown | hourly
 EOF
 			;;
 		cleanup)
 			log_with_timestamp "Manual cleanup requested"
+			# Clean up orphaned events first
+			cleanup_orphaned_events
 			# Clean up temporary files
 			if [[ -d "$TMP_DIR" ]]; then
 				local cleaned=0
@@ -557,6 +742,38 @@ EOF
 				else
 					mv "$TMP_DIR/valid_pids.tmp" "$PIDS_FILE"
 					log_with_timestamp "Updated workers PID file with $valid_pids valid PIDs"
+				fi
+			fi
+			# Enhanced quota exhaustion flag cleanup logic
+			if [[ -f "${DATA_DIR}/quota_exhausted.flag" ]]; then
+				local quota_time; quota_time=$(cat "${DATA_DIR}/quota_exhausted.flag" 2>/dev/null || echo "")
+				if [[ -n "$quota_time" ]]; then
+					local current_time=$(date +%s)
+					local time_since_quota=$((current_time - quota_time))
+					local should_remove=false
+					
+					# Remove if older than 2 hours (stale)
+					if [[ $time_since_quota -gt 7200 ]]; then
+						should_remove=true
+						log_with_timestamp "Removing stale quota exhaustion flag (${time_since_quota}s old)"
+					# Remove if we have recent successful runs (system is healthy)
+					elif [[ -f "$EVENTS_JSONL" ]]; then
+						local recent_successes=0
+						if command -v jq >/dev/null 2>&1; then
+							recent_successes=$(tail -n 100 "$EVENTS_JSONL" | jq -s 'map(select(.type=="finish" and .exit_code==0)) | length' 2>/dev/null || echo "0")
+						fi
+						if [[ "$recent_successes" -gt 0 ]]; then
+							should_remove=true
+							log_with_timestamp "Removing quota flag due to recent successful runs ($recent_successes)"
+						fi
+					fi
+					
+					if [[ "$should_remove" == "true" ]]; then
+						rm -f "${DATA_DIR}/quota_exhausted.flag"
+						log_with_timestamp "Removed quota exhaustion flag"
+					else
+						log_with_timestamp "Keeping quota flag (${time_since_quota}s old, no recent successes)"
+					fi
 				fi
 			fi
 			echo "Cleanup completed"

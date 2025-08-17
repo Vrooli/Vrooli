@@ -132,6 +132,26 @@ claude_code::parse_arguments() {
         --options "yes|no" \
         --default "no"
     
+    # Sudo override arguments
+    args::register \
+        --name "sudo-override" \
+        --desc "Enable sudo override for system commands (USE WITH CAUTION)" \
+        --type "value" \
+        --options "yes|no" \
+        --default "no"
+    
+    args::register \
+        --name "sudo-commands" \
+        --desc "Comma-separated list of commands to allow with sudo" \
+        --type "value" \
+        --default "systemctl,service,apt-get,apt,docker,podman,chown,chmod,mkdir,rm,cp,mv,lsof,netstat,ps,kill,pkill,npm,pip,brew,snap,git"
+    
+    args::register \
+        --name "sudo-password" \
+        --desc "Sudo password (use environment variable SUDO_PASSWORD instead for security)" \
+        --type "value" \
+        --default ""
+    
     # MCP-specific arguments
     args::register \
         --name "scope" \
@@ -317,6 +337,16 @@ claude_code::parse_arguments() {
     OUTPUT_FORMAT=$(args::get "output-format")
     SKIP_PERMISSIONS=$(args::get "dangerously-skip-permissions")
     
+    # Sudo override variables
+    SUDO_OVERRIDE=$(args::get "sudo-override")
+    SUDO_COMMANDS=$(args::get "sudo-commands")
+    SUDO_PASSWORD=$(args::get "sudo-password")
+    
+    # Use environment variable for password if not provided via argument
+    if [[ -z "$SUDO_PASSWORD" && -n "${SUDO_PASSWORD_ENV:-}" ]]; then
+        SUDO_PASSWORD="$SUDO_PASSWORD_ENV"
+    fi
+    
     # MCP-specific variables
     MCP_SCOPE=$(args::get "scope")
     MCP_API_KEY=$(args::get "api-key")
@@ -354,7 +384,7 @@ claude_code::parse_arguments() {
     # Sandbox variables
     SANDBOX_COMMAND=$(args::get "sandbox-command")
     
-    export ACTION SUBCOMMAND FORCE YES PROMPT MAX_TURNS SESSION_ID ALLOWED_TOOLS TIMEOUT OUTPUT_FORMAT SKIP_PERMISSIONS MCP_SCOPE MCP_API_KEY MCP_SERVER_URL MCP_FORMAT INPUT_FILE EXTRACT_TYPE CHECK_TYPE BATCH_SIZE CONFIG_FILE WORKERS EXIT_CODE ERROR_CONTEXT MAX_RETRIES TEMPLATE_NAME TEMPLATE_VARS TEMPLATE_DESCRIPTION OUTPUT_FILE ANALYSIS_PERIOD RECOVERY_STRATEGY CLEANUP_STRATEGY THRESHOLD FILTER SORT_BY LIMIT SANDBOX_COMMAND
+    export ACTION SUBCOMMAND FORCE YES PROMPT MAX_TURNS SESSION_ID ALLOWED_TOOLS TIMEOUT OUTPUT_FORMAT SKIP_PERMISSIONS SUDO_OVERRIDE SUDO_COMMANDS SUDO_PASSWORD MCP_SCOPE MCP_API_KEY MCP_SERVER_URL MCP_FORMAT INPUT_FILE EXTRACT_TYPE CHECK_TYPE BATCH_SIZE CONFIG_FILE WORKERS EXIT_CODE ERROR_CONTEXT MAX_RETRIES TEMPLATE_NAME TEMPLATE_VARS TEMPLATE_DESCRIPTION OUTPUT_FILE ANALYSIS_PERIOD RECOVERY_STRATEGY CLEANUP_STRATEGY THRESHOLD FILTER SORT_BY LIMIT SANDBOX_COMMAND
 }
 
 #######################################
@@ -709,6 +739,9 @@ claude_code::main() {
                 exit 1
             fi
             claude_code::safe_execute "$PROMPT" "$ALLOWED_TOOLS" "$MAX_TURNS" "$MAX_RETRIES"
+            ;;
+        "test-sudo")
+            claude_code::test_sudo_override
             ;;
         "template-list")
             claude_code::templates_list "${MCP_FORMAT:-text}"

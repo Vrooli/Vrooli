@@ -44,6 +44,29 @@ claude_code::run() {
         log::warn "⚠️  WARNING: Permission checks are disabled!"
     fi
     
+    # Configure sudo override if enabled
+    if [[ "${SUDO_OVERRIDE:-}" == "yes" ]]; then
+        local sudo_commands="${SUDO_COMMANDS:-}"
+        local sudo_password="${SUDO_PASSWORD:-}"
+        
+        if claude_code::configure_sudo_override "yes" "$sudo_commands" "$sudo_password"; then
+            log::info "🔧 Sudo override configured for Claude Code execution"
+            
+            # Add sudo-related tools to allowed tools
+            if [[ -n "$ALLOWED_TOOLS" ]]; then
+                ALLOWED_TOOLS="$ALLOWED_TOOLS,Bash(sudo:*)"
+            else
+                ALLOWED_TOOLS="Bash(sudo:*)"
+            fi
+            
+            # Set up cleanup trap
+            trap 'claude_code::cleanup_sudo_override' EXIT
+        else
+            log::error "❌ Failed to configure sudo override"
+            return 1
+        fi
+    fi
+    
     # Set timeout environment variables
     claude_code::set_timeouts "$TIMEOUT"
     
@@ -123,6 +146,169 @@ claude_code::run() {
     
     # Cleanup temp files on success
     rm -f "$temp_output_file" "${temp_output_file}.exit"
+}
+
+#######################################
+# Configure sudo override for Claude Code
+# Arguments:
+#   $1 - Enable sudo override (yes/no)
+#   $2 - Comma-separated list of allowed commands
+#   $3 - Sudo password (optional)
+# Returns: 0 on success, 1 on failure
+#######################################
+claude_code::configure_sudo_override() {
+    local enable_sudo="$1"
+    local allowed_commands="${2:-}"
+    local sudo_password="${3:-}"
+    
+    if [[ "$enable_sudo" != "yes" ]]; then
+        log::debug "Sudo override disabled"
+        return 0
+    fi
+    
+    log::info "🔧 Configuring sudo override for Claude Code"
+    
+    # Check if sudo is available
+    if ! command -v sudo >/dev/null 2>&1; then
+        log::error "Sudo is not available on this system"
+        return 1
+    fi
+    
+    # Check if user has sudo privileges
+    if ! sudo -n true 2>/dev/null; then
+        log::warn "⚠️  User does not have passwordless sudo access"
+        log::info "Sudo override may prompt for password during execution"
+        
+        # If password provided, test sudo access
+        if [[ -n "$sudo_password" ]]; then
+            if ! echo "$sudo_password" | sudo -S true 2>/dev/null; then
+                log::error "❌ Invalid sudo password provided"
+                return 1
+            fi
+            log::success "✅ Sudo password validated"
+        fi
+    else
+        log::success "✅ Passwordless sudo access confirmed"
+    fi
+    
+    # Create temporary sudoers file for Claude Code
+    local temp_sudoers="/tmp/claude-code-sudoers-$$"
+    local sudoers_content="# Claude Code temporary sudo permissions\n"
+    sudoers_content+="# Generated on $(date)\n"
+    sudoers_content+="# User: $(whoami)\n\n"
+    
+    # Add user with specific command permissions
+    if [[ -n "$allowed_commands" ]]; then
+        IFS=',' read -ra commands <<< "$allowed_commands"
+        for cmd in "${commands[@]}"; do
+            cmd=$(echo "$cmd" | xargs)  # Trim whitespace
+            if [[ -n "$cmd" ]]; then
+                # Find the full path of the command
+                local cmd_path
+                cmd_path=$(command -v "$cmd" 2>/dev/null || echo "/usr/bin/$cmd")
+                sudoers_content+="$(whoami) ALL=(ALL) NOPASSWD: $cmd_path\n"
+            fi
+        done
+    else
+        # Default permissions for common resource management commands
+        sudoers_content+="$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/systemctl\n"
+        sudoers_content+="$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/service\n"
+        sudoers_content+="$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/docker\n"
+        sudoers_content+="$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/podman\n"
+        sudoers_content+="$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/apt-get\n"
+        sudoers_content+="$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/apt\n"
+        sudoers_content+="$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/chown\n"
+        sudoers_content+="$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/chmod\n"
+        sudoers_content+="$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/mkdir\n"
+        sudoers_content+="$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/rm\n"
+        sudoers_content+="$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/cp\n"
+        sudoers_content+="$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/mv\n"
+        sudoers_content+="$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/lsof\n"
+        sudoers_content+="$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/netstat\n"
+        sudoers_content+="$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/ps\n"
+        sudoers_content+="$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/kill\n"
+        sudoers_content+="$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/pkill\n"
+        sudoers_content+="$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/npm\n"
+        sudoers_content+="$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/pip\n"
+        sudoers_content+="$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/brew\n"
+        sudoers_content+="$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/snap\n"
+        sudoers_content+="$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/git\n"
+    fi
+    
+    # Write temporary sudoers file
+    echo -e "$sudoers_content" > "$temp_sudoers"
+    
+    # Install temporary sudoers file
+    if sudo cp "$temp_sudoers" "/etc/sudoers.d/claude-code-temp-$$" 2>/dev/null; then
+        sudo chmod 0440 "/etc/sudoers.d/claude-code-temp-$$" 2>/dev/null
+        log::success "✅ Temporary sudoers file installed: /etc/sudoers.d/claude-code-temp-$$"
+        
+        # Store cleanup information
+        export CLAUDE_SUDOERS_FILE="/etc/sudoers.d/claude-code-temp-$$"
+        export CLAUDE_SUDO_PASSWORD="$sudo_password"
+        
+        # Clean up temp file
+        rm -f "$temp_sudoers"
+        return 0
+    else
+        log::error "❌ Failed to install temporary sudoers file"
+        rm -f "$temp_sudoers"
+        return 1
+    fi
+}
+
+#######################################
+# Clean up sudo override configuration
+# Returns: 0 on success, 1 on failure
+#######################################
+claude_code::cleanup_sudo_override() {
+    local sudoers_file="${CLAUDE_SUDOERS_FILE:-}"
+    
+    if [[ -n "$sudoers_file" && -f "$sudoers_file" ]]; then
+        log::info "🧹 Cleaning up sudo override configuration"
+        
+        if sudo rm -f "$sudoers_file" 2>/dev/null; then
+            log::success "✅ Sudo override configuration cleaned up"
+        else
+            log::warn "⚠️  Failed to clean up sudo override configuration"
+            log::info "Manual cleanup required: sudo rm -f $sudoers_file"
+        fi
+        
+        # Clear environment variables
+        unset CLAUDE_SUDOERS_FILE
+        unset CLAUDE_SUDO_PASSWORD
+    fi
+}
+
+#######################################
+# Test sudo override functionality
+# Returns: 0 on success, 1 on failure
+#######################################
+claude_code::test_sudo_override() {
+    log::info "🧪 Testing sudo override functionality"
+    
+    # Test basic sudo access
+    if sudo -n echo "Sudo test" 2>/dev/null; then
+        log::success "✅ Passwordless sudo access confirmed"
+        return 0
+    else
+        log::warn "⚠️  Passwordless sudo not available"
+        
+        # Test with password if available
+        local sudo_password="${CLAUDE_SUDO_PASSWORD:-}"
+        if [[ -n "$sudo_password" ]]; then
+            if echo "$sudo_password" | sudo -S echo "Sudo test with password" 2>/dev/null; then
+                log::success "✅ Sudo access with password confirmed"
+                return 0
+            else
+                log::error "❌ Sudo access with password failed"
+                return 1
+            fi
+        else
+            log::error "❌ No sudo password available for testing"
+            return 1
+        fi
+    fi
 }
 
 #######################################

@@ -234,17 +234,17 @@ minio::install::reset_credentials() {
     log::info "Stopping MinIO to apply new credentials..."
     minio::docker::stop || return 1
     
-    # Update environment variables
-    export MINIO_ROOT_USER="$new_user"
-    export MINIO_ROOT_PASSWORD="$new_password"
+    # Use local variables for generated credentials
+    local generated_user="$new_user"
+    local generated_password="$new_password"
     
     # Save to credentials file
     local creds_file="${MINIO_CONFIG_DIR}/credentials"
     cat > "$creds_file" << EOF
 # MinIO Credentials - Reset on $(date)
 # Keep this file secure!
-export MINIO_ROOT_USER="${MINIO_ROOT_USER}"
-export MINIO_ROOT_PASSWORD="${MINIO_ROOT_PASSWORD}"
+export MINIO_ROOT_USER="${generated_user}"
+export MINIO_ROOT_PASSWORD="${generated_password}"
 EOF
     chmod 600 "$creds_file"
     

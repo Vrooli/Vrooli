@@ -158,6 +158,19 @@ The `--dangerously-skip-permissions` flag disables all safety checks:
 - Never use in production
 - Always combine with `--allowed-tools` restrictions
 
+### 🔧 Sudo Override (Advanced)
+For automated resource management, Claude Code supports optional sudo override:
+```bash
+# Enable sudo override for system commands
+./manage.sh --action run \
+  --prompt "Install and configure PostgreSQL" \
+  --sudo-override yes \
+  --sudo-commands "systemctl,apt-get,chown,chmod" \
+  --dangerously-skip-permissions yes
+```
+
+**⚠️ Security Warning**: Sudo override allows root-level system access. Use only in controlled, trusted environments. See [SUDO_OVERRIDE.md](docs/SUDO_OVERRIDE.md) for detailed security guidelines.
+
 ## Enterprise Options
 
 - **Amazon Bedrock**: Use with existing AWS infrastructure

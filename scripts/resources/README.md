@@ -6,13 +6,19 @@ Local AI and automation tools that extend Vrooli's capabilities through modular 
 
 ```bash
 # Discover what's running
-./index.sh --action discover
+vrooli resource status
 
 # Install specific resources via CLI
-./scripts/resources/index.sh --action install --resources "ollama,n8n,agent-s2"
+vrooli resource install ollama
+vrooli resource install n8n
+vrooli resource install agent-s2
 
 # Check resource status
-./index.sh --action status --resources ollama
+vrooli resource status ollama
+
+# Use resource-specific CLIs (when available)
+resource-ollama status
+resource-ollama list-models
 ```
 
 ## 📦 Available Resources
@@ -20,7 +26,7 @@ Local AI and automation tools that extend Vrooli's capabilities through modular 
 | Category | Resources | Purpose |
 |----------|-----------|---------|
 | **AI** | ollama, whisper, unstructured-io, comfyui | Local AI inference and processing |
-| **Automation** | n8n, node-red, windmill, huginn | Workflow orchestration |
+| **Automation** | n8n, node-red, windmill, huginn, comfyui | Workflow orchestration |
 | **Agents** | agent-s2, browserless, claude-code | Web/desktop automation |
 | **Search** | searxng | Privacy-respecting search |
 | **Storage** | postgres, redis, minio, vault, qdrant, questdb | Data persistence |
@@ -37,15 +43,16 @@ Local AI and automation tools that extend Vrooli's capabilities through modular 
 
 ## 🔧 Management
 
-- **Discovery**: `./index.sh --action discover`
-- **Installation/Start/Stop/Status (CLI)**: `./scripts/resources/index.sh --action <install|start|stop|status> --resources <name1,name2>`
+- **Discovery**: `vrooli resource status`
+- **Installation/Start/Stop/Status (CLI)**: `vrooli resource <install|start|stop|status> <name>`
+- **Resource-specific CLIs**: `resource-<name> <command>` (e.g., `resource-ollama list-models`)
 - **Configuration**: `~/.vrooli/service.json`
 - **Validation**: Three-layer testing system (`./tools/validate-interfaces.sh`)
 - **Compliance**: Auto-fix interface issues (`./tools/fix-interface-compliance.sh`)
 
-> Note on `manage.sh`: Some legacy resources may include a `manage.sh` script. This is deprecated and not recommended; resources should use the CLI entrypoints via `scripts/resources/index.sh` and resource-specific CLI functions.
+> **Note on CLI Installation**: Resource-specific CLIs (like `resource-ollama`) are automatically installed to `~/.local/bin/` when resources are set up. These provide direct access to resource functionality alongside the main `vrooli resource` commands.
 
-> Note on `intall.sh` Some legacy resources may inclue a top-level `install.sh` script. This is deprecated and not recommended; resources should use the CLI to provide all functionalty, with all scripts in a lib/ folder.
+> **Note on Legacy Scripts**: Some legacy resources may include `manage.sh` or top-level `install.sh` scripts. These are deprecated in favor of the unified CLI system. Use `vrooli resource` commands for all resource management operations.
 
 ## 🎯 Scenario Deployment
 
@@ -57,7 +64,7 @@ enabling complete application deployment from JSON specifications.
 Each resource follows a consistent structure:
 ```
 resource-name/
-├── lib/               # Functionality libraries
+├── lib/               # Functionality 
 ├── config/            # Configuration files
 ├── docs/              # Resource-specific documentation
 ├── examples/          # Usage examples

@@ -148,22 +148,23 @@ minio::common::generate_credentials() {
         # Generate secure password (16-32 characters with special chars)
         local new_password=$(openssl rand -base64 24 | tr -d "=+/" | cut -c1-20)
         
-        # Override the defaults
-        MINIO_ROOT_USER="$new_user"
-        MINIO_ROOT_PASSWORD="$new_password"
-        export MINIO_ROOT_USER MINIO_ROOT_PASSWORD
+        # Use different variable names for generated credentials
+        local generated_user="$new_user"
+        local generated_password="$new_password"
         
         # Save to file with restricted permissions
         cat > "$creds_file" << EOF
 # MinIO Credentials - Generated on $(date)
 # Keep this file secure!
-export MINIO_ROOT_USER="${MINIO_ROOT_USER}"
-export MINIO_ROOT_PASSWORD="${MINIO_ROOT_PASSWORD}"
+export MINIO_ROOT_USER="${generated_user}"
+export MINIO_ROOT_PASSWORD="${generated_password}"
 EOF
         chmod 600 "$creds_file"
         
         log::success "${MSG_CREDENTIALS_GENERATED}"
         log::info "Credentials saved to: $creds_file"
+        log::info "Generated username: ${generated_user}"
+        log::info "Generated password: ${generated_password}"
     fi
 }
 
