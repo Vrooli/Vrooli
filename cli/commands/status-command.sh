@@ -474,43 +474,58 @@ show_status() {
         app_data=$(get_app_data "$verbose")
     fi
     
-    # Format output using CLI formatter
+    # Format output using standardized format.sh
     if [[ "$output_format" == "json" ]]; then
-        # Build JSON structure
-        local json_components=()
+        # Build key-value pairs for format.sh
+        local kv_pairs=()
         
         if [[ "$show_system" == "true" ]]; then
-            json_components+=("system" "$(format_system_data json "$system_data")")
+            # Extract system data
+            local memory disk load docker
+            memory=$(echo "$system_data" | grep "^memory:" | cut -d: -f2)
+            disk=$(echo "$system_data" | grep "^disk:" | cut -d: -f2)
+            load=$(echo "$system_data" | grep "^load:" | cut -d: -f2-)
+            docker=$(echo "$system_data" | grep "^docker:" | cut -d: -f2)
+            
+            kv_pairs+=("system_memory_usage" "${memory}%")
+            kv_pairs+=("system_disk_usage" "${disk}%")
+            kv_pairs+=("system_load_average" "$load")
+            kv_pairs+=("system_docker" "$docker")
         fi
         
         if [[ "$show_resources" == "true" ]]; then
-            json_components+=("resources" "$(format_component_data json resources "$resource_data")")
+            # Extract resource data
+            local enabled running
+            enabled=$(echo "$resource_data" | grep "^enabled:" | cut -d: -f2)
+            running=$(echo "$resource_data" | grep "^running:" | cut -d: -f2)
+            
+            kv_pairs+=("resources_enabled" "$enabled")
+            kv_pairs+=("resources_running" "$running")
         fi
         
         if [[ "$show_apps" == "true" ]]; then
-            json_components+=("apps" "$(format_component_data json apps "$app_data")")
+            # Extract app data
+            local total running
+            total=$(echo "$app_data" | grep "^total:" | cut -d: -f2)
+            running=$(echo "$app_data" | grep "^running:" | cut -d: -f2)
+            
+            kv_pairs+=("apps_total" "$total")
+            kv_pairs+=("apps_running" "$running")
         fi
         
         # Add overall health status
         local health_status="healthy"
-        local health_details=()
-        
         if ! docker info >/dev/null 2>&1; then
             health_status="warning"
-            health_details+=("Docker unavailable")
         fi
-        
         if [[ "$show_apps" == "true" ]] && ! check_api; then
             health_status="warning"
-            health_details+=("API offline")
         fi
         
-        json_components+=("health" "$(cli::format_status json "$health_status" "Overall system status" "${health_details[@]}")")
+        kv_pairs+=("health_status" "$health_status")
         
-        # Combine all components
-        local json_output
-        json_output=$(format::json_object "${json_components[@]}")
-        echo "$json_output"
+        # Output using format.sh
+        format::output json "kv" "${kv_pairs[@]}"
     else
         # Text output
         cli::format_header text "🚀 Vrooli System Status"

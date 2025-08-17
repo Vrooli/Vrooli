@@ -10,6 +10,8 @@ LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${LIB_DIR}/../../../../lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_NETWORK_DIR}/ports.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/system_commands.sh" 2>/dev/null || true
 
 #######################################
 # Install Unstructured.io service

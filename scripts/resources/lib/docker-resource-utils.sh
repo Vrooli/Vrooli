@@ -2,22 +2,56 @@
 # Simplified Docker Resource Utilities
 # Ultra-thin API for resource container management
 
-# Source guard to prevent multiple sourcing
-[[ -n "${_DOCKER_RESOURCE_UTILS_SOURCED:-}" ]] && return 0
+# Source guard - check if already sourced AND functions are available
+if [[ -n "${_DOCKER_RESOURCE_UTILS_SOURCED:-}" ]]; then
+    # Verify that required functions are actually available
+    if type docker::check_daemon >/dev/null 2>&1; then
+        return 0  # Already sourced and functions available
+    fi
+    # Guard was set but functions are missing - need to re-source dependencies
+    unset _DOCKER_RESOURCE_UTILS_SOURCED _DOCKER_UTILS_SOURCED _SYSTEM_COMMANDS_SH_SOURCED
+fi
 export _DOCKER_RESOURCE_UTILS_SOURCED=1
 
 # Source required utilities
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Source var.sh to get directory variables
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../lib/utils/var.sh" 2>/dev/null || true
+if [[ -f "${SCRIPT_DIR}/../../lib/utils/var.sh" ]]; then
+    source "${SCRIPT_DIR}/../../lib/utils/var.sh"
+fi
+
+# Source logging utilities
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../lib/utils/log.sh" 2>/dev/null || true
+if [[ -f "${SCRIPT_DIR}/../../lib/utils/log.sh" ]]; then
+    source "${SCRIPT_DIR}/../../lib/utils/log.sh"
+fi
+
+# Source system commands - try multiple paths
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/system_commands.sh" 2>/dev/null || true
+if [[ -n "${var_LIB_SYSTEM_DIR:-}" ]] && [[ -f "${var_LIB_SYSTEM_DIR}/system_commands.sh" ]]; then
+    source "${var_LIB_SYSTEM_DIR}/system_commands.sh"
+elif [[ -f "${SCRIPT_DIR}/../../lib/system/system_commands.sh" ]]; then
+    source "${SCRIPT_DIR}/../../lib/system/system_commands.sh"
+fi
+
+# Source trash utilities - try multiple paths
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+if [[ -n "${var_LIB_SYSTEM_DIR:-}" ]] && [[ -f "${var_LIB_SYSTEM_DIR}/trash.sh" ]]; then
+    source "${var_LIB_SYSTEM_DIR}/trash.sh"
+elif [[ -f "${SCRIPT_DIR}/../../lib/system/trash.sh" ]]; then
+    source "${SCRIPT_DIR}/../../lib/system/trash.sh"
+fi
+
+# Source docker-utils.sh
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/docker-utils.sh" 2>/dev/null || true
+if [[ -f "${SCRIPT_DIR}/docker-utils.sh" ]]; then
+    source "${SCRIPT_DIR}/docker-utils.sh"
+else
+    echo "ERROR: Cannot find docker-utils.sh" >&2
+    return 1 2>/dev/null || exit 1
+fi
 
 ################################################################################
 # GENERIC RESOURCE HELPERS - Common patterns for all resources

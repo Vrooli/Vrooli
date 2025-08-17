@@ -121,12 +121,32 @@ main() {
 		rows+=("service_json:missing")
 	fi
 	
+	# Determine overall health status
+	local has_critical_errors=false
+	local has_warnings=false
+	
+	# Check for critical errors (missing essential tools)
+	for row in "${rows[@]}"; do
+		local check_name="${row%%:*}"
+		local status="${row#*:}"
+		
+		# Critical errors: missing essential tools
+		if [[ "$status" == "missing" ]] && [[ "$check_name" =~ ^(jq|curl|git|docker)$ ]]; then
+			has_critical_errors=true
+		fi
+		
+		# Warnings: missing optional tools or port in use
+		if [[ "$status" == "missing" ]] || [[ "$status" == "in_use" ]]; then
+			has_warnings=true
+		fi
+	done
+	
 	# Output
 	if [[ "$output_format" == "json" ]]; then
-		format::table json "check" "status" -- "${rows[@]}"
+		format::output json "table" "check" "status" -- "${rows[@]}"
 	else
 		log::header "Vrooli Doctor"
-		format::table "$output_format" "Check" "Status" -- "${rows[@]}"
+		format::output "$output_format" "table" "Check" "Status" -- "${rows[@]}"
 		
 		# Hints
 		echo ""
@@ -140,6 +160,15 @@ main() {
 		[[ " ${rows[*]} " =~ tput:missing ]] && echo "- Install ncurses-utils: sudo apt-get install -y ncurses-bin"
 		[[ " ${rows[*]} " =~ api_port_${api_port}:in_use ]] && echo "- API port ${api_port} is in use. Stop the process or set VROOLI_API_PORT to another port."
 		[[ " ${rows[*]} " =~ service_json:missing ]] && echo "- Missing .vrooli/service.json. Run 'vrooli setup' or create a config."
+	fi
+	
+	# Return appropriate exit code
+	if [[ "$has_critical_errors" == "true" ]]; then
+		return 1  # Critical errors
+	elif [[ "$has_warnings" == "true" ]]; then
+		return 0  # Warnings only (success with warnings)
+	else
+		return 0  # All good
 	fi
 }
 

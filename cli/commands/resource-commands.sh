@@ -104,6 +104,44 @@ has_resource_cli() {
     return 1
 }
 
+################################################################################
+# Docker Status Helper Functions
+################################################################################
+
+# Batch check Docker container status for performance optimization
+# Returns: JSON object with container names as keys and status as values
+batch_check_docker_status() {
+    if ! command -v docker >/dev/null 2>&1; then
+        echo "{}"
+        return
+    fi
+    
+    if ! docker info >/dev/null 2>&1; then
+        echo "{}"
+        return
+    fi
+    
+    # Get all running containers in JSON format
+    local running_containers
+    running_containers=$(docker ps --format '{{.Names}}' 2>/dev/null || echo "")
+    
+    # Build JSON object with container status
+    local json_result="{"
+    local first=true
+    
+    if [[ -n "$running_containers" ]]; then
+        while IFS= read -r container_name; do
+            [[ -z "$container_name" ]] && continue
+            
+            [[ "$first" == "true" ]] && first=false || json_result="${json_result},"
+            json_result="${json_result}\"${container_name}\":\"running\""
+        done <<< "$running_containers"
+    fi
+    
+    json_result="${json_result}}"
+    echo "$json_result"
+}
+
 # Route to resource-specific CLI
 route_to_resource_cli() {
     local resource_name="$1"
@@ -511,7 +549,7 @@ format_resource_list_data() {
     if echo "$raw_data" | grep -q "^type:error"; then
         local error_msg
         error_msg=$(echo "$raw_data" | grep "^message:" | cut -d: -f2-)
-        format::key_value "$format" "error" "$error_msg"
+        format::output "$format" "kv" "error" "$error_msg"
         return
     fi
     
@@ -527,8 +565,8 @@ format_resource_list_data() {
         fi
     done <<< "$raw_data"
     
-    # Format as table
-    format::table "$format" "Name" "Category" "Enabled" "Running" -- "${table_rows[@]}"
+    # Format as table using format.sh
+    format::output "$format" "table" "Name" "Category" "Enabled" "Running" -- "${table_rows[@]}"
 }
 
 # Format resource overview data (for resource status with no args)
@@ -548,7 +586,7 @@ format_resource_status_data() {
     if echo "$raw_data" | grep -q "^type:error"; then
         local error_msg
         error_msg=$(echo "$raw_data" | grep "^message:" | cut -d: -f2-)
-        format::key_value "$format" "error" "$error_msg"
+        format::output "$format" "kv" "error" "$error_msg"
         return
     fi
     
@@ -561,7 +599,7 @@ format_resource_status_data() {
     status=$(echo "$raw_data" | grep "^status:" | cut -d: -f2)
     path=$(echo "$raw_data" | grep "^path:" | cut -d: -f2-)
     
-    format::key_value "$format" \
+    format::output "$format" "kv" \
         "name" "$name" \
         "category" "$category" \
         "enabled" "$enabled" \

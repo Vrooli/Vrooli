@@ -185,17 +185,6 @@ inject_resource() {
         return 0
     fi
     
-    # Find manage script
-    local manage_script
-    manage_script=$(find_manage_script "$resource_name")
-    
-    if [[ -z "$manage_script" ]] || [[ ! -x "$manage_script" ]]; then
-        log::debug "No manage script for: $resource_name"
-        return 0
-    fi
-    
-    log::debug "Using manage script: $manage_script"
-    
     # Get initialization data (handle both array and object formats)
     local init_data
     init_data=$(echo "$resource_config" | jq -c '.initialization // []')
@@ -236,6 +225,49 @@ inject_resource() {
         log::info "[DRY RUN] Would inject $resource_name"
         return 0
     fi
+    
+    # Try CLI first if available
+    local cli_command="resource-${resource_name}"
+    if command -v "$cli_command" >/dev/null 2>&1; then
+        log::debug "Using CLI: $cli_command"
+        
+        # Create temporary file for CLI injection
+        local temp_file
+        temp_file=$(mktemp)
+        echo "$init_data" > "$temp_file"
+        
+        # Set context directory for relative paths
+        if [[ -n "$scenario_dir" ]]; then
+            export INJECTION_CONTEXT_DIR="$scenario_dir"
+        fi
+        
+        # Call CLI with proper parameters
+        if "$cli_command" inject --injection-config-file "$temp_file" 2>&1; then
+            log::success "✓ $resource_name (via CLI)"
+            rm -f "$temp_file"
+            unset INJECTION_CONTEXT_DIR
+            return 0
+        else
+            log::warning "CLI injection failed for $resource_name, falling back to local scripts"
+            rm -f "$temp_file"
+            unset INJECTION_CONTEXT_DIR
+            # Fall through to local script logic
+        fi
+    fi
+    
+    # Fallback to local script logic
+    log::debug "Using local scripts for $resource_name"
+    
+    # Find manage script
+    local manage_script
+    manage_script=$(find_manage_script "$resource_name")
+    
+    if [[ -z "$manage_script" ]] || [[ ! -x "$manage_script" ]]; then
+        log::debug "No manage script for: $resource_name"
+        return 0
+    fi
+    
+    log::debug "Using manage script: $manage_script"
     
     # Skip validation for n8n due to command length issues
     if [[ "$resource_name" != "n8n" ]]; then

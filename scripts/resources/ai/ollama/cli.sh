@@ -36,6 +36,8 @@ source "${var_SCRIPTS_RESOURCES_LIB_DIR}/cli-command-framework.sh"
 # Source Ollama configuration and libraries
 # shellcheck disable=SC1091
 source "${OLLAMA_CLI_DIR}/config/defaults.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${OLLAMA_CLI_DIR}/config/messages.sh" 2>/dev/null || true
 ollama::export_config 2>/dev/null || true
 
 for lib in common api models status install; do
@@ -121,13 +123,15 @@ ollama_status() {
 
 # Start Ollama
 ollama_start() {
-    if command -v ollama::install::start_service &>/dev/null; then
-        ollama::install::start_service
+    if command -v ollama::start &>/dev/null; then
+        ollama::start
     else
         # Basic start using systemctl if available
+        # Specific sudo permissions should be granted during installation
         if command -v systemctl &>/dev/null; then
             sudo systemctl start ollama 2>/dev/null || {
                 log::error "Failed to start Ollama service"
+                log::info "If this fails with permission denied, try reinstalling Ollama to setup sudo permissions"
                 return 1
             }
         else
@@ -139,13 +143,15 @@ ollama_start() {
 
 # Stop Ollama
 ollama_stop() {
-    if command -v ollama::install::stop_service &>/dev/null; then
-        ollama::install::stop_service
+    if command -v ollama::stop &>/dev/null; then
+        ollama::stop
     else
         # Basic stop using systemctl if available
+        # Specific sudo permissions should be granted during installation
         if command -v systemctl &>/dev/null; then
             sudo systemctl stop ollama 2>/dev/null || {
                 log::error "Failed to stop Ollama service"
+                log::info "If this fails with permission denied, try reinstalling Ollama to setup sudo permissions"
                 return 1
             }
         else
@@ -157,10 +163,31 @@ ollama_stop() {
 
 # Install Ollama
 ollama_install() {
-    if command -v ollama::install::main &>/dev/null; then
-        ollama::install::main
+    # Parse arguments
+    local force="no"
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --force)
+                force="yes"
+                shift
+                ;;
+            --force=*)
+                force="${1#*=}"
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    # Export FORCE variable for the install function
+    export FORCE="$force"
+    
+    if command -v ollama::install &>/dev/null; then
+        ollama::install
     else
-        log::error "ollama::install::main not available"
+        log::error "ollama::install not available"
         return 1
     fi
 }

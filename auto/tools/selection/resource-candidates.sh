@@ -21,45 +21,70 @@ if ! echo "$INPUT_JSON" | jq empty >/dev/null 2>&1; then
 	INPUT_JSON='[]'
 fi
 
-# Normalize to array of {name, enabled, running, status}
+# Normalize the JSON structure to handle both formats
+# Current format: array with Name, Enabled, Running fields
+# Legacy format: nested resources object
 NORMALIZED=$(echo "$INPUT_JSON" | jq -c '
 	if type=="object" and has("resources") then
+	  # Legacy nested format: .resources.category.resource_name
 	  (.resources | to_entries[] as $cat | $cat.value | to_entries[] | {name: .key, enabled: (.value.enabled // false), running: false, status: ("unknown")} )
+	elif type=="array" then
+	  # Current format: array of objects with Name, Enabled, Running fields
+	  map({
+		name: (.Name // .name // ""),
+		enabled: (.Enabled // .enabled // false),
+		running: (.Running // .running // false),
+		status: (.Status // .status // (if (.Running // .running // false) then "running" else "unknown" end))
+	  } | select(.name != ""))
 	else
-	  .
+	  []
 	end
 ')
 
-# Optionally merge live runtime status if available
-# Expecting JSON array of {name, running, status}
+# Merge live runtime status if available
+# Use robust error handling to prevent jq parsing issues
 if command -v vrooli >/dev/null 2>&1; then
-	if LIVE=$(timeout 10 vrooli resource status --format json 2>/dev/null) && [[ -n "${LIVE:-}" ]] && echo "$LIVE" | jq empty >/dev/null 2>&1; then
-		NORMALIZED=$(jq -cn --argjson base "$NORMALIZED" --argjson live "$LIVE" '
-			# index live by name
-			def toIndex:
-			  reduce .[] as $i ({}; .[$i.name] = {running: ($i.running // false), status: ($i.status // (if ($i.running // false) then "running" else "unknown" end))});
-			($live | (if type=="array" then . else [] end) | toIndex) as $L |
-			($base | (if type=="array" then . else [] end) | map(
-				if .name and ($L[.name]) then .running = ($L[.name].running // .running) | .status = ($L[.name].status // .status) else . end
-			))
+	# Try to get live status with timeout and validation
+	if LIVE_JSON=$(timeout 10 vrooli resource status --format json 2>/dev/null) && \
+	   [[ -n "${LIVE_JSON:-}" ]] && \
+	   echo "$LIVE_JSON" | jq empty >/dev/null 2>&1; then
+		
+		# Normalize live status to match our format
+		LIVE_NORMALIZED=$(echo "$LIVE_JSON" | jq -c '
+			map({
+				name: (.Name // .name // ""),
+				enabled: (.Enabled // .enabled // false),
+				running: (.Running // .running // false),
+				status: (.Status // .status // (if (.Running // .running // false) then "running" else "unknown" end))
+			} | select(.name != ""))
 		')
+		
+		# Merge live status with base data using a simple, robust approach
+		if [[ -n "${LIVE_NORMALIZED:-}" ]] && echo "$LIVE_NORMALIZED" | jq empty >/dev/null 2>&1; then
+			NORMALIZED=$(echo "$NORMALIZED" | jq -c --argjson live "$LIVE_NORMALIZED" '
+				# Create lookup table from live data
+				def live_lookup:
+					reduce .[] as $item ({}; .[$item.name] = $item);
+				
+				($live | live_lookup) as $live_map |
+				map(
+					if .name and $live_map[.name] then
+						# Update with live data, preserving original enabled status
+						. + {
+							running: ($live_map[.name].running // .running),
+							status: ($live_map[.name].status // .status)
+						}
+					else
+						.
+					end
+				)
+			' 2>/dev/null || echo "$NORMALIZED")
+		fi
 	fi
 fi
 
-# Build priority buckets and preserve order with stable de-duplication
-# 1) enabled && not running
-# 2) enabled && running
-# 3) disabled (or missing enabled)
-
-echo "$NORMALIZED" | jq -r '
-	def dedup:
-	  reduce .[] as $x ([]; if index($x) then . else . + [$x] end);
-	
-	(if type=="array" then . else . end) as $all |
-	($all | map(select(.name? != null))) as $r |
-	(
-	  [ $r[] | select((.enabled == true) and ((.running == false) or (.status == "stopped") or (.status == "not_running"))) | .name ] +
-	  [ $r[] | select((.enabled == true) and ((.running == true) or (.status == "running"))) | .name ] +
-	  [ $r[] | select(((.enabled // false) == false)) | .name ]
-	) | dedup[]
-' 2>/dev/null || true 
+# Process the normalized data to build priority buckets
+# Use separate jq commands for each priority level to avoid complex expressions
+echo "$NORMALIZED" | jq -r 'map(select(.enabled == true and (.running == false or .status == "stopped" or .status == "not_running"))) | .[].name' 2>/dev/null || true
+echo "$NORMALIZED" | jq -r 'map(select(.enabled == true and (.running == true or .status == "running"))) | .[].name' 2>/dev/null || true
+echo "$NORMALIZED" | jq -r 'map(select(.enabled == false)) | .[].name' 2>/dev/null || true

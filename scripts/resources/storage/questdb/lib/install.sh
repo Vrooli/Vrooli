@@ -14,7 +14,7 @@ source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 #   0 on success, 1 on failure
 #######################################
 questdb::install::run() {
-    echo_header "Installing QuestDB Time-Series Database"
+    log::header "Installing QuestDB Time-Series Database"
     
     # Check prerequisites
     if ! questdb::install::check_prerequisites; then
@@ -173,7 +173,7 @@ questdb::install::show_success() {
 #   0 on success, 1 on failure
 #######################################
 questdb::install::upgrade() {
-    echo_header "Upgrading QuestDB"
+    log::header "Upgrading QuestDB"
     
     # Get current version
     local current_version

@@ -8,7 +8,7 @@
       "destination": "scripts/lib",
       "type": "directory",
       "from": "vrooli",
-      "required": true
+      "optional": false
     },
     {
       "name": "resource-providers",
@@ -16,7 +16,8 @@
       "destination": "scripts/resources",
       "type": "directory",
       "from": "vrooli",
-      "required": true
+      "optional": true,
+      "description": "Resource scripts - only needed for standalone deployments without CLI"
     },
     {
       "name": "main-entrypoint",
@@ -24,7 +25,7 @@
       "destination": "scripts/manage.sh",
       "type": "file",
       "from": "vrooli",
-      "required": true,
+      "optional": false,
       "executable": true
     },
     {

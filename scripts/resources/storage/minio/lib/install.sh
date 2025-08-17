@@ -35,7 +35,7 @@ minio::install() {
     fi
     
     # Pull Docker image
-    if ! minio::docker::pull_image; then
+    if ! docker::pull_image "${MINIO_IMAGE}"; then
         log::error "${MSG_INSTALL_FAILED}: Failed to pull Docker image"
         return 1
     fi

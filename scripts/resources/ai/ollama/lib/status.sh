@@ -130,8 +130,20 @@ ollama::start() {
     
     log::info "Starting Ollama service..."
     
-    # Check if service exists
-    if ! systemctl list-unit-files | grep -q "^${OLLAMA_SERVICE_NAME}.service"; then
+    # Check if service exists (with retry for newly created services)
+    local service_exists=false
+    for i in {1..3}; do
+        if systemctl list-unit-files | grep -q "^${OLLAMA_SERVICE_NAME}.service" 2>/dev/null || systemctl status "${OLLAMA_SERVICE_NAME}" &>/dev/null; then
+            service_exists=true
+            break
+        fi
+        if [[ $i -lt 3 ]]; then
+            log::debug "Service not found, retrying in 1 second... (attempt $i/3)"
+            sleep 1
+        fi
+    done
+    
+    if [[ "$service_exists" != "true" ]]; then
         resources::handle_error \
             "Ollama systemd service not found" \
             "system" \
@@ -139,15 +151,8 @@ ollama::start() {
         return 1
     fi
     
-    # Only check sudo if we actually need to start the service
-    # (at this point we know it's not running or force is yes)
-    if ! sudo::can_use_sudo; then
-        resources::handle_error \
-            "Sudo privileges required to start Ollama service" \
-            "permission" \
-            "Run 'sudo -v' to authenticate and retry"
-        return 1
-    fi
+    # Sudo permissions for systemctl commands are granted during installation
+    # via /etc/sudoers.d/ollama-service, so no general sudo check needed
     
     # Check if port is already in use by another process
     if resources::is_service_running "$OLLAMA_PORT" && ! resources::is_service_active "$OLLAMA_SERVICE_NAME"; then

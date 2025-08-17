@@ -60,7 +60,12 @@ judge0::install::check_requirements() {
     log::info "$JUDGE0_MSG_INSTALL_CHECKING"
     
     # Check Docker
-    if ! docker::check; then
+    if ! command -v docker >/dev/null 2>&1; then
+        log::error "$JUDGE0_MSG_ERR_DOCKER"
+        return 1
+    fi
+    
+    if ! docker info >/dev/null 2>&1; then
         log::error "$JUDGE0_MSG_ERR_DOCKER"
         return 1
     fi

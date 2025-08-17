@@ -293,7 +293,10 @@ ollama::pull_model() {
 # Install default models with enhanced error handling and rollback
 #######################################
 ollama::install_models() {
-    if [[ "$SKIP_MODELS" == "yes" ]]; then
+    # Set default value for SKIP_MODELS if not set
+    local skip_models="${SKIP_MODELS:-no}"
+    
+    if [[ "$skip_models" == "yes" ]]; then
         log::info "Skipping model installation (--skip-models specified)"
         return 0
     fi

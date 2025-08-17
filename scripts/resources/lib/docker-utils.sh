@@ -2,18 +2,44 @@
 # Generic Docker Utility Functions
 # Provides reusable Docker operations for all resource managers
 
-# Source guard to prevent multiple sourcing
-[[ -n "${_DOCKER_UTILS_SOURCED:-}" ]] && return 0
+# Source guard - check if already sourced AND functions are available
+if [[ -n "${_DOCKER_UTILS_SOURCED:-}" ]]; then
+    # Verify that required functions are actually available
+    if type system::is_command >/dev/null 2>&1; then
+        return 0  # Already sourced and functions available
+    fi
+    # Guard was set but functions are missing - need to re-source dependencies
+    unset _DOCKER_UTILS_SOURCED _SYSTEM_COMMANDS_SH_SOURCED
+fi
 export _DOCKER_UTILS_SOURCED=1
 
 # Source required utilities
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Source var.sh to get directory variables
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../lib/utils/var.sh" 2>/dev/null || true
+if [[ -f "${SCRIPT_DIR}/../../lib/utils/var.sh" ]]; then
+    source "${SCRIPT_DIR}/../../lib/utils/var.sh"
+fi
+
+# Source logging utilities
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../lib/utils/log.sh" 2>/dev/null || true
+if [[ -f "${SCRIPT_DIR}/../../lib/utils/log.sh" ]]; then
+    source "${SCRIPT_DIR}/../../lib/utils/log.sh"
+fi
+
+# Source system commands - try multiple paths to ensure it's loaded
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/system_commands.sh"
+if [[ -n "${var_LIB_SYSTEM_DIR:-}" ]] && [[ -f "${var_LIB_SYSTEM_DIR}/system_commands.sh" ]]; then
+    source "${var_LIB_SYSTEM_DIR}/system_commands.sh"
+elif [[ -f "${SCRIPT_DIR}/../../lib/system/system_commands.sh" ]]; then
+    source "${SCRIPT_DIR}/../../lib/system/system_commands.sh"
+else
+    echo "ERROR: Cannot find system_commands.sh - docker-utils.sh cannot function" >&2
+    echo "Searched: ${var_LIB_SYSTEM_DIR:-'(var_LIB_SYSTEM_DIR not set)'}/system_commands.sh" >&2
+    echo "Searched: ${SCRIPT_DIR}/../../lib/system/system_commands.sh" >&2
+    return 1 2>/dev/null || exit 1
+fi
 
 #######################################
 # Check if Docker is installed and accessible

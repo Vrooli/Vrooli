@@ -93,6 +93,29 @@ resource_registry::list() {
 ################################################################################
 
 #######################################
+# Validate if a resource is actually functional
+# Arguments:
+#   $1 - resource name
+# Returns:
+#   0 if functional, 1 if not
+#######################################
+resource_auto::validate_resource() {
+    local resource_name="$1"
+    
+    # Check if CLI exists
+    if ! command -v "resource-${resource_name}" &>/dev/null; then
+        return 1
+    fi
+    
+    # Try to get status - if it succeeds, the resource is functional
+    if "resource-${resource_name}" status >/dev/null 2>&1; then
+        return 0
+    fi
+    
+    return 1
+}
+
+#######################################
 # Install a single resource
 #######################################
 resource_auto::install_resource() {
@@ -101,11 +124,19 @@ resource_auto::install_resource() {
     
     log::info "Installing resource: $resource_name"
     
-    # Check if resource is already installed
+    # Check if resource is already installed AND functional
     if command -v "resource-${resource_name}" &>/dev/null; then
-        log::debug "Resource CLI already available: resource-${resource_name}"
-        resource_registry::register "$resource_name" "installed"
-        return 0
+        log::debug "Resource CLI available: resource-${resource_name}"
+        
+        # Verify the resource is actually functional by checking its status
+        if "resource-${resource_name}" status >/dev/null 2>&1; then
+            log::debug "Resource is functional: resource-${resource_name}"
+            resource_registry::register "$resource_name" "installed"
+            return 0
+        else
+            log::warning "Resource CLI exists but resource is not functional: resource-${resource_name}"
+            log::info "Will reinstall to fix broken installation"
+        fi
     fi
     
     # Find resource directory (check both flat and categorized structure)
@@ -198,6 +229,13 @@ resource_auto::start_resource() {
             resource_registry::register "$resource_name" "running"
             return 0
         fi
+    fi
+    
+    # Validate resource is functional before attempting to start
+    if ! resource_auto::validate_resource "$resource_name"; then
+        log::error "Resource is not functional: $resource_name"
+        log::info "Install the resource first with: vrooli resource $resource_name install"
+        return 1
     fi
     
     # Try using CLI first
@@ -375,6 +413,7 @@ resource_auto::stop_all() {
 export -f resource_registry::init
 export -f resource_registry::register
 export -f resource_registry::list
+export -f resource_auto::validate_resource
 export -f resource_auto::install_resource
 export -f resource_auto::start_resource
 export -f resource_auto::install_enabled

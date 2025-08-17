@@ -510,6 +510,10 @@ qdrant::validate_injection() {
 # DOCKER MANAGEMENT (from docker.sh)
 #######################################
 
+qdrant::start() {
+    qdrant::docker::start
+}
+
 qdrant::docker::start() {
     if ! docker::check_daemon; then
         log::error "Docker daemon is not running"

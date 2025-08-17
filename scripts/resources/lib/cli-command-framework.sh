@@ -167,8 +167,8 @@ cli::_handle_status() {
     elif command -v "${CLI_RESOURCE_NAME}::status" &>/dev/null; then
         "${CLI_RESOURCE_NAME}::status" "$@"
     else
-        log::error "No status handler found for ${CLI_RESOURCE_NAME}"
-        return 1
+        # Fallback to manage.sh if available
+        cli::_fallback_to_manage "status" "$@"
     fi
 }
 
@@ -178,8 +178,8 @@ cli::_handle_start() {
     elif command -v "${CLI_RESOURCE_NAME}::start" &>/dev/null; then
         "${CLI_RESOURCE_NAME}::start" "$@"
     else
-        log::error "No start handler found for ${CLI_RESOURCE_NAME}"
-        return 1
+        # Fallback to manage.sh if available
+        cli::_fallback_to_manage "start" "$@"
     fi
 }
 
@@ -189,8 +189,8 @@ cli::_handle_stop() {
     elif command -v "${CLI_RESOURCE_NAME}::stop" &>/dev/null; then
         "${CLI_RESOURCE_NAME}::stop" "$@"
     else
-        log::error "No stop handler found for ${CLI_RESOURCE_NAME}"
-        return 1
+        # Fallback to manage.sh if available
+        cli::_fallback_to_manage "stop" "$@"
     fi
 }
 
@@ -205,8 +205,8 @@ cli::_handle_install() {
     elif command -v "${CLI_RESOURCE_NAME}::install" &>/dev/null; then
         "${CLI_RESOURCE_NAME}::install" "$@"
     else
-        log::error "No install handler found for ${CLI_RESOURCE_NAME}"
-        return 1
+        # Fallback to manage.sh if available
+        cli::_fallback_to_manage "install" "$@"
     fi
 }
 
@@ -219,6 +219,53 @@ cli::_handle_validate() {
         log::error "No validate handler found for ${CLI_RESOURCE_NAME}"
         return 1
     fi
+}
+
+#######################################
+# Fallback to manage.sh for standard operations
+# Args: $1 - action (start, stop, status, install), $@ - additional args
+#######################################
+cli::_fallback_to_manage() {
+    local action="$1"
+    shift || true
+    
+    # Find manage.sh for this resource
+    local manage_script=""
+    
+    # Check if we're running from a symlink (installed CLI)
+    if [[ -L "${BASH_SOURCE[0]}" ]]; then
+        local real_path="$(readlink -f "${BASH_SOURCE[0]}")"
+        local resource_dir="$(dirname "$real_path")"
+        if [[ -f "$resource_dir/manage.sh" ]]; then
+            manage_script="$resource_dir/manage.sh"
+        fi
+    fi
+    
+    # Try common locations if not found
+    if [[ -z "$manage_script" ]]; then
+        local possible_locations=(
+            "${var_SCRIPTS_RESOURCES_DIR}/${CLI_RESOURCE_NAME}/manage.sh"
+            "${var_SCRIPTS_RESOURCES_DIR}/*/${CLI_RESOURCE_NAME}/manage.sh"
+        )
+        
+        for pattern in "${possible_locations[@]}"; do
+            for file in $pattern; do
+                if [[ -f "$file" ]]; then
+                    manage_script="$file"
+                    break 2
+                fi
+            done
+        done
+    fi
+    
+    if [[ -z "$manage_script" ]]; then
+        log::error "No manage.sh found for ${CLI_RESOURCE_NAME}"
+        return 1
+    fi
+    
+    # Execute manage.sh with the action
+    log::debug "Delegating to manage.sh: $manage_script --action $action"
+    "$manage_script" --action "$action" --yes yes "$@"
 }
 
 #######################################

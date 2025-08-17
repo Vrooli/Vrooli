@@ -43,7 +43,9 @@ Local AI and automation tools that extend Vrooli's capabilities through modular 
 - **Validation**: Three-layer testing system (`./tools/validate-interfaces.sh`)
 - **Compliance**: Auto-fix interface issues (`./tools/fix-interface-compliance.sh`)
 
-> Note on `manage.sh`: Some legacy resources may include a `manage.sh` script. This is deprecated and not recommended; new resources should use the CLI entrypoints via `scripts/resources/index.sh` and resource-specific CLI functions.
+> Note on `manage.sh`: Some legacy resources may include a `manage.sh` script. This is deprecated and not recommended; resources should use the CLI entrypoints via `scripts/resources/index.sh` and resource-specific CLI functions.
+
+> Note on `intall.sh` Some legacy resources may inclue a top-level `install.sh` script. This is deprecated and not recommended; resources should use the CLI to provide all functionalty, with all scripts in a lib/ folder.
 
 ## 🎯 Scenario Deployment
 
