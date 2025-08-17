@@ -808,14 +808,9 @@ resource_start_all() {
 		log::header "Starting All Enabled Resources"
 	fi
 	
-	# Check which config file exists
-	local config_file=""
-	if [[ -f "$RESOURCES_CONFIG" ]]; then
-		config_file="$RESOURCES_CONFIG"
-	elif [[ -f "$RESOURCES_CONFIG_LEGACY" ]]; then
-		config_file="$RESOURCES_CONFIG_LEGACY"
-	else
-		log::warning "No resource configuration found"
+	# Check if config file exists
+	if [[ ! -f "$RESOURCES_CONFIG" ]]; then
+		log::warning "No resource configuration found at $RESOURCES_CONFIG"
 		return 0
 	fi
     
