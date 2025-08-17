@@ -1,5 +1,14 @@
-// API configuration
-const API_BASE = 'http://localhost:8080/api';
+// API configuration - dynamically determine API base URL
+const API_BASE = (() => {
+    // Check if API URL is provided via environment/config
+    if (window.API_URL) return window.API_URL;
+    
+    // Otherwise, derive from current location
+    // UI typically runs on port 3xxx, API on port 8xxx
+    const currentPort = window.location.port || '3000';
+    const apiPort = currentPort.replace(/^3/, '8');
+    return `http://localhost:${apiPort}/api`;
+})();
 
 // Tab navigation
 document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -29,8 +38,95 @@ const funFacts = [
     "Did you know? Jackfruit has a texture similar to pulled pork!",
     "Fun fact: Dates are nature's caramel when blended!",
     "Did you know? Mushrooms can provide a meaty umami flavor!",
-    "Fun fact: Chia seeds can make a protein-rich pudding!"
+    "Fun fact: Chia seeds can make a protein-rich pudding!",
+    "Did you know? One cup of cooked spinach has more calcium than a glass of milk!",
+    "Fun fact: Tempeh contains more protein per serving than most meats!",
+    "Did you know? Dark chocolate is naturally vegan (check for milk though!)!",
+    "Fun fact: Seaweed can give dishes a seafood-like flavor!",
+    "Did you know? Maple syrup is a great honey alternative!"
 ];
+
+// Achievement system
+const achievements = {
+    firstCheck: { icon: '🌱', title: 'First Steps', desc: 'Checked your first ingredient list' },
+    veganMaster: { icon: '🏆', title: 'Vegan Master', desc: 'Found 10 vegan products' },
+    swapExpert: { icon: '🔄', title: 'Swap Expert', desc: 'Found 5 vegan alternatives' },
+    recipeHero: { icon: '👨‍🍳', title: 'Recipe Hero', desc: 'Veganized your first recipe' },
+    explorer: { icon: '🌍', title: 'Plant Explorer', desc: 'Tried all features' },
+    streak: { icon: '🔥', title: 'On Fire!', desc: '5 checks in a row were vegan' }
+};
+
+// Load achievements from localStorage
+let userAchievements = JSON.parse(localStorage.getItem('veganAchievements') || '{}');
+let stats = JSON.parse(localStorage.getItem('veganStats') || '{"checks":0,"vegan":0,"swaps":0,"recipes":0,"streak":0}');
+
+// Update achievement display
+function updateAchievements() {
+    const achievementCount = Object.keys(userAchievements).length;
+    if (achievementCount > 0) {
+        const badgeContainer = document.getElementById('achievement-badges');
+        if (badgeContainer) {
+            badgeContainer.innerHTML = Object.entries(userAchievements)
+                .map(([key, earned]) => earned ? `<span class="achievement-badge" title="${achievements[key].desc}">${achievements[key].icon}</span>` : '')
+                .join('');
+        }
+    }
+}
+
+// Check and award achievements
+function checkAchievements() {
+    if (stats.checks === 1 && !userAchievements.firstCheck) {
+        awardAchievement('firstCheck');
+    }
+    if (stats.vegan >= 10 && !userAchievements.veganMaster) {
+        awardAchievement('veganMaster');
+    }
+    if (stats.swaps >= 5 && !userAchievements.swapExpert) {
+        awardAchievement('swapExpert');
+    }
+    if (stats.recipes >= 1 && !userAchievements.recipeHero) {
+        awardAchievement('recipeHero');
+    }
+    if (stats.streak >= 5 && !userAchievements.streak) {
+        awardAchievement('streak');
+    }
+    if (stats.checks > 0 && stats.swaps > 0 && stats.recipes > 0 && !userAchievements.explorer) {
+        awardAchievement('explorer');
+    }
+    
+    // Save stats
+    localStorage.setItem('veganStats', JSON.stringify(stats));
+}
+
+// Award achievement with animation
+function awardAchievement(key) {
+    userAchievements[key] = true;
+    localStorage.setItem('veganAchievements', JSON.stringify(userAchievements));
+    
+    const achievement = achievements[key];
+    showAchievementNotification(achievement);
+    updateAchievements();
+}
+
+// Show achievement notification
+function showAchievementNotification(achievement) {
+    const notification = document.createElement('div');
+    notification.className = 'achievement-notification';
+    notification.innerHTML = `
+        <span class="achievement-icon">${achievement.icon}</span>
+        <div>
+            <div class="achievement-title">Achievement Unlocked!</div>
+            <div class="achievement-desc">${achievement.title}: ${achievement.desc}</div>
+        </div>
+    `;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => notification.classList.add('show'), 100);
+    setTimeout(() => {
+        notification.classList.remove('show');
+        setTimeout(() => notification.remove(), 500);
+    }, 3000);
+}
 
 // Rotate fun facts
 let factIndex = 0;
@@ -57,7 +153,7 @@ async function checkIngredients() {
         return;
     }
     
-    showLoading(resultDiv);
+    showAnimatedScanning(resultDiv);
     
     try {
         const response = await fetch(`${API_BASE}/check`, {
@@ -67,6 +163,17 @@ async function checkIngredients() {
         });
         
         const data = await response.json();
+        
+        // Update stats
+        stats.checks++;
+        if (data.isVegan) {
+            stats.vegan++;
+            stats.streak++;
+        } else {
+            stats.streak = 0;
+        }
+        checkAchievements();
+        
         displayCheckResult(resultDiv, data);
     } catch (error) {
         showError(resultDiv, 'Unable to check ingredients. Please try again.');
@@ -94,6 +201,11 @@ async function findAlternatives() {
         });
         
         const data = await response.json();
+        
+        // Update stats
+        stats.swaps++;
+        checkAchievements();
+        
         displayAlternatives(resultDiv, data);
     } catch (error) {
         showError(resultDiv, 'Unable to find alternatives. Please try again.');
@@ -127,6 +239,11 @@ async function veganizeRecipe() {
         });
         
         const data = await response.json();
+        
+        // Update stats
+        stats.recipes++;
+        checkAchievements();
+        
         displayVeganizedRecipe(resultDiv, data);
     } catch (error) {
         showError(resultDiv, 'Unable to veganize recipe. Please try again.');
@@ -276,6 +393,45 @@ function showLoading(container) {
     `;
 }
 
+function showAnimatedScanning(container) {
+    const scanningPhrases = [
+        '🔍 Scanning ingredients...',
+        '🌱 Checking plant-based status...',
+        '📊 Analyzing nutritional data...',
+        '✨ Almost done...'
+    ];
+    
+    let phraseIndex = 0;
+    container.innerHTML = `
+        <div class="result-box show scanning-animation" style="text-align: center;">
+            <div class="scanner-icon">🔍</div>
+            <div class="loading"></div>
+            <p id="scanning-text" style="margin-top: 10px;">${scanningPhrases[0]}</p>
+            <div class="veggie-scanner">
+                <span class="scanning-veggie">🥕</span>
+                <span class="scanning-veggie">🥦</span>
+                <span class="scanning-veggie">🍅</span>
+                <span class="scanning-veggie">🥬</span>
+            </div>
+        </div>
+    `;
+    
+    // Rotate scanning phrases
+    const interval = setInterval(() => {
+        phraseIndex = (phraseIndex + 1) % scanningPhrases.length;
+        const textEl = document.getElementById('scanning-text');
+        if (textEl) {
+            textEl.style.opacity = '0';
+            setTimeout(() => {
+                textEl.textContent = scanningPhrases[phraseIndex];
+                textEl.style.opacity = '1';
+            }, 200);
+        } else {
+            clearInterval(interval);
+        }
+    }, 1500);
+}
+
 function showError(container, message) {
     container.innerHTML = `
         <div class="result-box show" style="border-left: 5px solid #f44336;">
@@ -290,5 +446,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const factElement = document.getElementById('fun-fact-text');
     if (factElement) {
         factElement.style.transition = 'opacity 0.3s ease';
+    }
+    
+    // Load and display achievements
+    updateAchievements();
+    
+    // Add achievement container to header if not exists
+    const header = document.querySelector('header');
+    if (header && !document.getElementById('achievement-badges')) {
+        const achievementDiv = document.createElement('div');
+        achievementDiv.id = 'achievement-badges';
+        achievementDiv.className = 'achievement-container';
+        header.appendChild(achievementDiv);
+        updateAchievements();
     }
 });

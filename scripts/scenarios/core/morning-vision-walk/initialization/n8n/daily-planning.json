@@ -45,32 +45,29 @@
     },
     {
       "parameters": {
+        "jsCode": "// Prepare prompt for shared Ollama workflow\nconst input = $json;\n\nconst prompt = `You are a daily planning assistant. Based on this context:\n\nUser Context: ${JSON.stringify(input.context)}\nPreferences: ${JSON.stringify(input.preferences)}\n\nCreate a focused daily plan that includes:\n1. Top 3 priorities for today\n2. Suggested time blocks (morning, afternoon, evening)\n3. Energy management strategy based on current level (${input.context.energy_level}/100)\n4. Potential challenges and how to handle them\n5. Success metrics for end of day\n\nConsider the user's mood (${input.context.mood}) and available hours (${input.context.available_hours}).\n\nFormat as a clear, actionable daily plan.`;\n\nreturn [{\n  json: {\n    prompt: prompt,\n    model: \"llama3.2:3b\",\n    type: \"reasoning\",\n    quiet: true,\n    original_input: input\n  }\n}];"
+      },
+      "id": "prepare-plan-prompt",
+      "name": "Prepare Plan Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
         "method": "POST",
-        "url": "={{ $env.N8N_URL || 'http://localhost:5678' }}/webhook/ollama",
+        "url": "=http://localhost:{{$env.RESOURCE_N8N_PORT}}/webhook/ollama",
         "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "prompt",
-              "value": "You are a daily planning assistant. Based on this context:\n\nUser Context: {{ JSON.stringify($json.context) }}\nPreferences: {{ JSON.stringify($json.preferences) }}\n\nCreate a focused daily plan that includes:\n1. Top 3 priorities for today\n2. Suggested time blocks (morning, afternoon, evening)\n3. Energy management strategy based on current level ({{ $json.context.energy_level }}/100)\n4. Potential challenges and how to handle them\n5. Success metrics for end of day\n\nConsider the user's mood ({{ $json.context.mood }}) and available hours ({{ $json.context.available_hours }}).\n\nFormat as a clear, actionable daily plan."
-            },
-            {
-              "name": "model",
-              "value": "llama3.2"
-            },
-            {
-              "name": "temperature",
-              "value": "0.7"
-            }
-          ]
-        },
-        "options": {}
+        "bodyParametersJson": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 120000
+        }
       },
       "id": "generate-plan",
-      "name": "Generate Daily Plan",
+      "name": "Call Shared Ollama",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [850, 400]
+      "position": [1050, 400]
     },
     {
       "parameters": {
@@ -98,7 +95,7 @@
       "name": "Prepare Response",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.2,
-      "position": [1050, 400]
+      "position": [1250, 400]
     },
     {
       "parameters": {
@@ -122,6 +119,9 @@
       "main": [[{"node": "merge-inputs", "type": "main", "index": 0}]]
     },
     "merge-inputs": {
+      "main": [[{"node": "prepare-plan-prompt", "type": "main", "index": 0}]]
+    },
+    "prepare-plan-prompt": {
       "main": [[{"node": "generate-plan", "type": "main", "index": 0}]]
     },
     "generate-plan": {

@@ -4,11 +4,11 @@ import (
     "bytes"
     "encoding/json"
     "fmt"
-    "io/ioutil"
+    "io"
     "log"
     "net/http"
     "os"
-    "strings"
+    "time"
 
     "github.com/gorilla/mux"
     "github.com/rs/cors"
@@ -17,7 +17,7 @@ import (
 var n8nURL string
 
 func init() {
-    n8nURL = os.Getenv("N8N_URL")
+    n8nURL = os.Getenv("N8N_BASE_URL")
     if n8nURL == "" {
         n8nURL = "http://localhost:5678"
     }
@@ -43,20 +43,47 @@ func checkIngredients(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    // Call n8n webhook
+    // Call n8n webhook with retry logic and better error handling
     webhookURL := fmt.Sprintf("%s/webhook/make-it-vegan/check", n8nURL)
     payload, _ := json.Marshal(map[string]string{
         "ingredients": req.Ingredients,
     })
 
-    resp, err := http.Post(webhookURL, "application/json", bytes.NewBuffer(payload))
-    if err != nil {
-        http.Error(w, "Failed to check ingredients", http.StatusInternalServerError)
+    var resp *http.Response
+    var err error
+    maxRetries := 3
+    client := &http.Client{Timeout: 30 * time.Second}
+    
+    for i := 0; i < maxRetries; i++ {
+        resp, err = client.Post(webhookURL, "application/json", bytes.NewBuffer(payload))
+        if err == nil && resp.StatusCode == http.StatusOK {
+            break
+        }
+        if resp != nil {
+            resp.Body.Close()
+        }
+        if i < maxRetries-1 {
+            log.Printf("Retry %d: n8n webhook call failed, retrying...", i+1)
+            time.Sleep(time.Duration(i+1) * time.Second)
+        }
+    }
+    
+    if err != nil || (resp != nil && resp.StatusCode != http.StatusOK) {
+        log.Printf("Error calling n8n webhook: %v", err)
+        // Provide a fallback response
+        fallbackResponse := map[string]interface{}{
+            "isVegan": false,
+            "analysis": "Service temporarily unavailable. Please try again later.",
+            "error": "Unable to process request at this time",
+            "timestamp": time.Now().Format(time.RFC3339),
+        }
+        w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(fallbackResponse)
         return
     }
     defer resp.Body.Close()
 
-    body, _ := ioutil.ReadAll(resp.Body)
+    body, _ := io.ReadAll(resp.Body)
     w.Header().Set("Content-Type", "application/json")
     w.Write(body)
 }
@@ -78,14 +105,52 @@ func findSubstitute(w http.ResponseWriter, r *http.Request) {
         "context":    req.Context,
     })
 
-    resp, err := http.Post(webhookURL, "application/json", bytes.NewBuffer(payload))
-    if err != nil {
-        http.Error(w, "Failed to find alternatives", http.StatusInternalServerError)
+    var resp *http.Response
+    var err error
+    maxRetries := 3
+    client := &http.Client{Timeout: 30 * time.Second}
+    
+    for i := 0; i < maxRetries; i++ {
+        resp, err = client.Post(webhookURL, "application/json", bytes.NewBuffer(payload))
+        if err == nil && resp.StatusCode == http.StatusOK {
+            break
+        }
+        if resp != nil {
+            resp.Body.Close()
+        }
+        if i < maxRetries-1 {
+            log.Printf("Retry %d: n8n webhook call failed, retrying...", i+1)
+            time.Sleep(time.Duration(i+1) * time.Second)
+        }
+    }
+    
+    if err != nil || (resp != nil && resp.StatusCode != http.StatusOK) {
+        log.Printf("Error calling n8n webhook: %v", err)
+        // Provide a fallback response with common alternatives
+        fallbackResponse := map[string]interface{}{
+            "request": map[string]string{
+                "ingredient": req.Ingredient,
+                "context": req.Context,
+            },
+            "alternatives": []map[string]interface{}{
+                {
+                    "name": "Service temporarily unavailable",
+                    "reason": "Please try again later",
+                    "adjustments": "N/A",
+                    "availability": "N/A",
+                    "rating": 0,
+                },
+            },
+            "quickTip": "Service is temporarily unavailable. Please try again.",
+            "timestamp": time.Now().Format(time.RFC3339),
+        }
+        w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(fallbackResponse)
         return
     }
     defer resp.Body.Close()
 
-    body, _ := ioutil.ReadAll(resp.Body)
+    body, _ := io.ReadAll(resp.Body)
     w.Header().Set("Content-Type", "application/json")
     w.Write(body)
 }
@@ -102,14 +167,49 @@ func veganizeRecipe(w http.ResponseWriter, r *http.Request) {
         "recipe": req.Recipe,
     })
 
-    resp, err := http.Post(webhookURL, "application/json", bytes.NewBuffer(payload))
-    if err != nil {
-        http.Error(w, "Failed to veganize recipe", http.StatusInternalServerError)
+    var resp *http.Response
+    var err error
+    maxRetries := 3
+    client := &http.Client{Timeout: 30 * time.Second}
+    
+    for i := 0; i < maxRetries; i++ {
+        resp, err = client.Post(webhookURL, "application/json", bytes.NewBuffer(payload))
+        if err == nil && resp.StatusCode == http.StatusOK {
+            break
+        }
+        if resp != nil {
+            resp.Body.Close()
+        }
+        if i < maxRetries-1 {
+            log.Printf("Retry %d: n8n webhook call failed, retrying...", i+1)
+            time.Sleep(time.Duration(i+1) * time.Second)
+        }
+    }
+    
+    if err != nil || (resp != nil && resp.StatusCode != http.StatusOK) {
+        log.Printf("Error calling n8n webhook: %v", err)
+        // Provide a fallback response
+        fallbackResponse := map[string]interface{}{
+            "originalRecipe": req.Recipe,
+            "veganVersion": map[string]interface{}{
+                "name": "Veganized Recipe",
+                "substitutions": []map[string]string{},
+                "instructions": []string{"Service temporarily unavailable"},
+                "cookingTips": []string{"Please try again later"},
+                "nutritionNotes": "Unable to process at this time",
+            },
+            "difficulty": "unknown",
+            "estimatedTime": "N/A",
+            "timestamp": time.Now().Format(time.RFC3339),
+            "error": "Service temporarily unavailable",
+        }
+        w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(fallbackResponse)
         return
     }
     defer resp.Body.Close()
 
-    body, _ := ioutil.ReadAll(resp.Body)
+    body, _ := io.ReadAll(resp.Body)
     w.Header().Set("Content-Type", "application/json")
     w.Write(body)
 }

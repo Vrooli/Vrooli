@@ -55,7 +55,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://localhost:5678/webhook/ollama",
+        "url": "http://localhost:{{ $env.RESOURCE_PORTS['n8n'] }}/webhook/ollama",
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
@@ -82,13 +82,13 @@
           ]
         },
         "options": {
-          "timeout": 65000
+          "timeout": 120000
         }
       },
       "id": "call_ollama",
-      "name": "Call Ollama Workflow",
+      "name": "Call Shared Ollama Workflow",
       "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "typeVersion": 3,
       "position": [1000, 400]
     },
     {

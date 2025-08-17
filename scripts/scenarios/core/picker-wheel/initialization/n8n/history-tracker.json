@@ -55,43 +55,45 @@
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT h.*, w.name as wheel_name FROM spin_history h LEFT JOIN wheels w ON h.wheel_id = w.id WHERE ($1 = 'all' OR h.session_id = $1) ORDER BY h.timestamp DESC LIMIT $2",
-        "options": {
-          "queryParams": "={{ [$json.session_id, $json.limit] }}"
-        }
+        "command": "=bash -c \"PGPASSWORD=postgres psql -h localhost -p ${RESOURCE_PORTS[postgres]} -U postgres -d picker_wheel -t -A -c \\\"SELECT json_agg(row_to_json(t)) FROM (SELECT h.*, w.name as wheel_name FROM spin_history h LEFT JOIN wheels w ON h.wheel_id = w.id WHERE ('{{ $json.session_id }}' = 'all' OR h.session_id = '{{ $json.session_id }}') ORDER BY h.timestamp DESC LIMIT {{ $json.limit }}) t\\\" || echo '[]'\"",
+        "options": {}
       },
       "id": "get_history",
       "name": "Get History",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [650, 300],
-      "credentials": {
-        "postgres": {
-          "id": "postgres_picker_wheel",
-          "name": "Postgres - Picker Wheel"
-        }
-      }
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [650, 300]
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT COUNT(*) as total_spins, COUNT(DISTINCT DATE(timestamp)) as days_active, result as most_common, COUNT(*) as frequency FROM spin_history WHERE ($1 = 'all' OR session_id = $1) GROUP BY result ORDER BY frequency DESC LIMIT 1",
-        "options": {
-          "queryParams": "={{ [$json.session_id] }}"
-        }
+        "command": "=bash -c \"PGPASSWORD=postgres psql -h localhost -p ${RESOURCE_PORTS[postgres]} -U postgres -d picker_wheel -t -A -c \\\"SELECT json_build_object('total_spins', COUNT(*), 'days_active', COUNT(DISTINCT DATE(timestamp)), 'most_common', (SELECT result FROM spin_history WHERE ('{{ $json.session_id }}' = 'all' OR session_id = '{{ $json.session_id }}') GROUP BY result ORDER BY COUNT(*) DESC LIMIT 1), 'frequency', (SELECT COUNT(*) FROM spin_history WHERE ('{{ $json.session_id }}' = 'all' OR session_id = '{{ $json.session_id }}') GROUP BY result ORDER BY COUNT(*) DESC LIMIT 1)) FROM spin_history WHERE ('{{ $json.session_id }}' = 'all' OR session_id = '{{ $json.session_id }}')\\\" || echo '{}'\"",
+        "options": {}
       },
       "id": "get_stats",
       "name": "Get Statistics",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [650, 500],
-      "credentials": {
-        "postgres": {
-          "id": "postgres_picker_wheel",
-          "name": "Postgres - Picker Wheel"
-        }
-      }
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [650, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse JSON output from psql command\nconst output = $input.item.json.stdout || '[]';\ntry {\n  const data = JSON.parse(output);\n  return { json: data };\n} catch (e) {\n  console.error('Failed to parse history data:', e);\n  return { json: [] };\n}"
+      },
+      "id": "parse_history",
+      "name": "Parse History",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [750, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse JSON output from psql command\nconst output = $input.item.json.stdout || '{}';\ntry {\n  const data = JSON.parse(output);\n  return { json: data };\n} catch (e) {\n  console.error('Failed to parse stats data:', e);\n  return { json: {} };\n}"
+      },
+      "id": "parse_stats",
+      "name": "Parse Stats",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [750, 500]
     },
     {
       "parameters": {
@@ -142,9 +144,15 @@
       ]]
     },
     "get_history": {
-      "main": [[{ "node": "merge_data", "type": "main", "index": 0 }]]
+      "main": [[{ "node": "parse_history", "type": "main", "index": 0 }]]
     },
     "get_stats": {
+      "main": [[{ "node": "parse_stats", "type": "main", "index": 0 }]]
+    },
+    "parse_history": {
+      "main": [[{ "node": "merge_data", "type": "main", "index": 0 }]]
+    },
+    "parse_stats": {
       "main": [[{ "node": "merge_data", "type": "main", "index": 1 }]]
     },
     "merge_data": {

@@ -52,40 +52,28 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "http://localhost:5678/webhook/ollama",
-        "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "prompt",
-              "value": "=Analyze this student's learning progress and provide personalized recommendations:\n\nStudy Statistics:\n- Total sessions: {{ $json.total_sessions }}\n- Total time: {{ $json.total_minutes }} minutes\n- Average session: {{ $json.avg_session_length }} minutes\n- Study days: {{ $json.study_days }}\n- Consistency: {{ $json.study_consistency }}\n\nQuiz Performance:\n- Quizzes taken: {{ $json.quizzes_taken }}\n- Average score: {{ $json.avg_score }}%\n- Best score: {{ $json.best_score }}%\n- Worst score: {{ $json.worst_score }}%\n\nFlashcard Progress:\n- Cards reviewed: {{ $json.cards_reviewed }}\n- Average retention: {{ $json.avg_retention }}%\n- Cards mastered: {{ $json.cards_mastered }}\n\nProvide:\n1. A brief analysis of their learning pattern\n2. Their strengths (2-3 points)\n3. Areas for improvement (2-3 points)\n4. Specific recommendations (3-4 actionable tips)\n5. Suggested next topics to study\n6. A motivational message\n\nFormat as JSON with keys: analysis, strengths, improvements, recommendations, next_topics, motivation"
-            },
-            {
-              "name": "model",
-              "value": "llama3.2:3b"
-            },
-            {
-              "name": "format",
-              "value": "json"
-            },
-            {
-              "name": "temperature",
-              "value": 0.8
-            }
-          ]
-        },
-        "options": {}
+        "jsCode": "// Prepare prompt for shared Ollama workflow\nconst stats = $json;\n\nconst prompt = `Analyze this student's learning progress and provide personalized recommendations:\n\nStudy Statistics:\n- Total sessions: ${stats.total_sessions}\n- Total time: ${stats.total_minutes} minutes\n- Average session: ${stats.avg_session_length} minutes\n- Study days: ${stats.study_days}\n- Consistency: ${stats.study_consistency}\n\nQuiz Performance:\n- Quizzes taken: ${stats.quizzes_taken}\n- Average score: ${stats.avg_score}%\n- Best score: ${stats.best_score}%\n- Worst score: ${stats.worst_score}%\n\nFlashcard Progress:\n- Cards reviewed: ${stats.cards_reviewed}\n- Average retention: ${stats.avg_retention}%\n- Cards mastered: ${stats.cards_mastered}\n\nProvide:\n1. A brief analysis of their learning pattern\n2. Their strengths (2-3 points)\n3. Areas for improvement (2-3 points)\n4. Specific recommendations (3-4 actionable tips)\n5. Suggested next topics to study\n6. A motivational message\n\nFormat as JSON with keys: analysis, strengths, improvements, recommendations, next_topics, motivation`;\n\nreturn [{\n  json: {\n    prompt: prompt,\n    model: 'llama3.2',\n    type: 'reasoning',\n    quiet: true,\n    timeout_seconds: 120,\n    stats: stats\n  }\n}];"
       },
-      "id": "generate-insights",
-      "name": "Generate Insights via Ollama",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "id": "prepare-insights-command",
+      "name": "Prepare Insights Command",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [850, 400]
     },
     {
       "parameters": {
-        "jsCode": "const stats = $input.all()[0].json;\nconst aiInsights = $input.all()[1].json.response || {};\n\nlet insights;\ntry {\n  insights = typeof aiInsights === 'string' ? JSON.parse(aiInsights) : aiInsights;\n} catch (e) {\n  // Fallback insights\n  insights = {\n    analysis: \"Your study pattern shows dedication with room for consistency improvements.\",\n    strengths: [\n      \"Regular engagement with study materials\",\n      \"Good quiz completion rate\"\n    ],\n    improvements: [\n      \"Increase average session duration\",\n      \"Review flashcards more frequently\"\n    ],\n    recommendations: [\n      \"Try the Pomodoro technique for longer focus sessions\",\n      \"Review flashcards daily for 10 minutes\",\n      \"Take practice quizzes before each study session\",\n      \"Set specific daily study goals\"\n    ],\n    next_topics: [\n      \"Advanced concepts in your current subject\",\n      \"Practice problems and applications\"\n    ],\n    motivation: \"Keep up the great work! Every study session brings you closer to mastery.\"\n  };\n}\n\n// Calculate progress metrics\nconst progressScore = Math.round(\n  (stats.total_sessions * 2 + \n   (stats.avg_score || 0) + \n   (stats.avg_retention || 0)) / 4\n);\n\nconst streakDays = stats.study_days || 0;\nconst level = Math.floor(progressScore / 20) + 1;\n\nreturn [{\n  json: {\n    success: true,\n    user_id: $input.first().json.user_id,\n    period: $input.first().json.time_period,\n    statistics: {\n      study_sessions: stats.total_sessions || 0,\n      total_minutes: stats.total_minutes || 0,\n      avg_session_minutes: stats.avg_session_length || 0,\n      study_days: stats.study_days || 0,\n      consistency: stats.study_consistency || 'Inactive',\n      quizzes_taken: stats.quizzes_taken || 0,\n      avg_quiz_score: stats.avg_score || 0,\n      cards_reviewed: stats.cards_reviewed || 0,\n      cards_mastered: stats.cards_mastered || 0,\n      retention_rate: stats.avg_retention || 0\n    },\n    insights: insights,\n    gamification: {\n      level: level,\n      progress_score: progressScore,\n      streak_days: streakDays,\n      badges: [\n        streakDays >= 7 ? \"Week Warrior\" : null,\n        stats.cards_mastered >= 50 ? \"Flashcard Master\" : null,\n        stats.avg_score >= 80 ? \"Quiz Champion\" : null\n      ].filter(b => b !== null)\n    },\n    generated_at: new Date().toISOString()\n  }\n}];"
+        "command": "={{ $json.command }}",
+        "cwd": "/vrooli"
+      },
+      "id": "generate-insights",
+      "name": "Generate Insights via CLI",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1050, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const stats = $('prepare-insights-command').item.json.stats;\nconst cliOutput = $json.stdout || $json;\n\nlet insights;\ntry {\n  // Parse CLI output which may contain JSON\n  let outputStr = typeof cliOutput === 'string' ? cliOutput : JSON.stringify(cliOutput);\n  // Try to extract JSON from the output\n  const jsonMatch = outputStr.match(/\\{[^}]*\\}/s);\n  if (jsonMatch) {\n    insights = JSON.parse(jsonMatch[0]);\n  } else {\n    insights = JSON.parse(outputStr);\n  }\n} catch (e) {\n  // Fallback insights\n  insights = {\n    analysis: \"Your study pattern shows dedication with room for consistency improvements.\",\n    strengths: [\n      \"Regular engagement with study materials\",\n      \"Good quiz completion rate\"\n    ],\n    improvements: [\n      \"Increase average session duration\",\n      \"Review flashcards more frequently\"\n    ],\n    recommendations: [\n      \"Try the Pomodoro technique for longer focus sessions\",\n      \"Review flashcards daily for 10 minutes\",\n      \"Take practice quizzes before each study session\",\n      \"Set specific daily study goals\"\n    ],\n    next_topics: [\n      \"Advanced concepts in your current subject\",\n      \"Practice problems and applications\"\n    ],\n    motivation: \"Keep up the great work! Every study session brings you closer to mastery.\"\n  };\n}\n\n// Calculate progress metrics\nconst progressScore = Math.round(\n  (stats.total_sessions * 2 + \n   (stats.avg_score || 0) + \n   (stats.avg_retention || 0)) / 4\n);\n\nconst streakDays = stats.study_days || 0;\nconst level = Math.floor(progressScore / 20) + 1;\n\nreturn [{\n  json: {\n    success: true,\n    user_id: $input.first().json.user_id,\n    period: $input.first().json.time_period,\n    statistics: {\n      study_sessions: stats.total_sessions || 0,\n      total_minutes: stats.total_minutes || 0,\n      avg_session_minutes: stats.avg_session_length || 0,\n      study_days: stats.study_days || 0,\n      consistency: stats.study_consistency || 'Inactive',\n      quizzes_taken: stats.quizzes_taken || 0,\n      avg_quiz_score: stats.avg_score || 0,\n      cards_reviewed: stats.cards_reviewed || 0,\n      cards_mastered: stats.cards_mastered || 0,\n      retention_rate: stats.avg_retention || 0\n    },\n    insights: insights,\n    gamification: {\n      level: level,\n      progress_score: progressScore,\n      streak_days: streakDays,\n      badges: [\n        streakDays >= 7 ? \"Week Warrior\" : null,\n        stats.cards_mastered >= 50 ? \"Flashcard Master\" : null,\n        stats.avg_score >= 80 ? \"Quiz Champion\" : null\n      ].filter(b => b !== null)\n    },\n    generated_at: new Date().toISOString()\n  }\n}];"
       },
       "id": "format-analysis",
       "name": "Format Analysis",
@@ -113,6 +101,9 @@
       "main": [[{"node": "fetch-stats", "type": "main", "index": 0}]]
     },
     "fetch-stats": {
+      "main": [[{"node": "prepare-insights-command", "type": "main", "index": 0}]]
+    },
+    "prepare-insights-command": {
       "main": [[{"node": "generate-insights", "type": "main", "index": 0}]]
     },
     "generate-insights": {

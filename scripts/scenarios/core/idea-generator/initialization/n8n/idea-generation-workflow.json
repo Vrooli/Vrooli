@@ -97,7 +97,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://localhost:5678/webhook/ollama",
+        "url": "={{ $env.N8N_URL }}/webhook/ollama",
         "authentication": "none",
         "sendHeaders": true,
         "headerParameters": {
@@ -110,7 +110,7 @@
         },
         "sendBody": true,
         "bodyContentType": "json",
-        "jsonBody": "{\n  \"model\": \"llama3.2\",\n  \"task\": \"completion\",\n  \"prompt\": \"{{ $json.enriched_prompt }}\",\n  \"temperature\": 0.8,\n  \"maxTokens\": 2500\n}",
+        "jsonBody": "{\n  \"prompt\": \"{{ $json.enriched_prompt }}\",\n  \"model\": \"llama3.2:3b\",\n  \"type\": \"reasoning\",\n  \"quiet\": true,\n  \"timeout_seconds\": 120\n}",
         "options": {}
       },
       "id": "generate_ideas",
@@ -132,7 +132,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://localhost:5678/webhook/ollama",
+        "url": "={{ $env.N8N_URL }}/webhook/embedding-generator",
         "authentication": "none",
         "sendHeaders": true,
         "headerParameters": {
@@ -145,7 +145,7 @@
         },
         "sendBody": true,
         "bodyContentType": "json",
-        "jsonBody": "{\n  \"model\": \"nomic-embed-text\",\n  \"task\": \"embedding\",\n  \"prompt\": \"{{ $json.title }} {{ $json.content }}\"\n}",
+        "jsonBody": "{\n  \"text\": \"{{ $json.title }} {{ $json.content }}\",\n  \"model\": \"nomic-embed-text\",\n  \"collection\": \"ideas\"\n}",
         "options": {}
       },
       "id": "generate_embeddings",

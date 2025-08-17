@@ -80,20 +80,58 @@
     },
     {
       "parameters": {
-        "workflowId": "ollama",
-        "waitForSubWorkflow": true,
-        "workflowData": "={{ {\n  \"prompt\": `You are a chore scheduling assistant. Create an optimal weekly schedule for household chores.\n\nUser preferences:\n- Maximum ${$json.preferences.max_daily_chores} chores per day\n- Preferred time: ${$json.preferences.preferred_time}\n\nAvailable chores:\n${$('fetch_chores').all().map(c => `- ${c.json.name}: ${c.json.frequency} frequency, ${c.json.difficulty} difficulty, ${c.json.typical_duration} minutes`).join('\\n')}\n\nGenerate a balanced weekly schedule (Monday-Sunday) that:\n1. Distributes chores evenly across days\n2. Groups similar tasks when possible\n3. Considers difficulty and time requirements\n4. Respects frequency requirements\n\nReturn a JSON object with this structure:\n{\n  \"schedule\": [\n    {\n      \"day\": \"Monday\",\n      \"chores\": [\"chore_id_1\", \"chore_id_2\"],\n      \"total_time\": 45\n    },\n    ...\n  ],\n  \"reasoning\": \"Brief explanation of scheduling logic\"\n}\n\nImportant: Use the actual chore IDs from the list above.`,\n  \"model\": \"llama3.2\",\n  \"temperature\": 0.7,\n  \"format\": \"json\"\n} }}"
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Prepare the prompt for shared Ollama workflow\nconst userPrefs = $('merge_triggers').item.json.preferences;\nconst chores = $('fetch_chores').all().map(c => c.json);\n\nconst prompt = `You are a chore scheduling assistant. Create an optimal weekly schedule for household chores.\n\nUser preferences:\n- Maximum ${userPrefs.max_daily_chores} chores per day\n- Preferred time: ${userPrefs.preferred_time}\n\nAvailable chores:\n${chores.map(c => `- ${c.name} (ID: ${c.id}): ${c.frequency} frequency, ${c.difficulty} difficulty, ${c.typical_duration} minutes`).join('\\n')}\n\nGenerate a balanced weekly schedule (Monday-Sunday) that:\n1. Distributes chores evenly across days\n2. Groups similar tasks when possible\n3. Considers difficulty and time requirements\n4. Respects frequency requirements\n\nReturn ONLY a valid JSON object with this exact structure:\n{\n  \"schedule\": [\n    {\n      \"day\": \"Monday\",\n      \"chores\": [\"chore_id_1\", \"chore_id_2\"],\n      \"total_time\": 45\n    }\n  ],\n  \"reasoning\": \"Brief explanation of scheduling logic\"\n}\n\nImportant: Use the actual chore IDs from the list above. Return ONLY valid JSON, no other text.`;\n\nreturn {\n  prompt: prompt,\n  model: 'llama3.2:3b',\n  type: 'reasoning',\n  quiet: true,\n  timeout_seconds: 120\n};"
+      },
+      "id": "prepare_ollama_request",
+      "name": "Prepare Ollama Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1100, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://localhost:{{ $env.RESOURCE_PORTS.n8n }}/webhook/ollama",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "prompt",
+              "value": "={{ $json.prompt }}"
+            },
+            {
+              "name": "model",
+              "value": "={{ $json.model }}"
+            },
+            {
+              "name": "type",
+              "value": "={{ $json.type }}"
+            },
+            {
+              "name": "quiet",
+              "value": "={{ $json.quiet }}"
+            },
+            {
+              "name": "timeout_seconds",
+              "value": "={{ $json.timeout_seconds }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 130
+        }
       },
       "id": "generate_schedule",
       "name": "Generate AI Schedule",
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1,
-      "position": [1200, 300]
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1300, 300]
     },
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "const scheduleData = $json;\nconst userId = $('merge_triggers').item.json.user_id;\nconst weekStart = $('merge_triggers').item.json.week_start;\nconst chores = $('fetch_chores').all().map(c => c.json);\n\n// Parse AI response\nlet schedule;\ntry {\n  schedule = JSON.parse(scheduleData.response).schedule;\n} catch (e) {\n  // Fallback to simple distribution if AI fails\n  schedule = generateFallbackSchedule(chores);\n}\n\n// Create assignments for each scheduled chore\nconst assignments = [];\nconst startDate = new Date(weekStart);\n\nschedule.forEach((day, index) => {\n  const assignDate = new Date(startDate);\n  assignDate.setDate(startDate.getDate() + index);\n  \n  day.chores.forEach(choreId => {\n    const chore = chores.find(c => c.id === choreId);\n    if (chore) {\n      assignments.push({\n        chore_id: choreId,\n        user_id: userId,\n        assigned_date: assignDate.toISOString().split('T')[0],\n        due_date: assignDate.toISOString().split('T')[0],\n        status: 'pending',\n        base_points: chore.base_points\n      });\n    }\n  });\n});\n\nfunction generateFallbackSchedule(chores) {\n  // Simple round-robin distribution\n  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];\n  const schedule = days.map(day => ({ day, chores: [], total_time: 0 }));\n  \n  chores.forEach((chore, index) => {\n    const dayIndex = index % 7;\n    schedule[dayIndex].chores.push(chore.id);\n    schedule[dayIndex].total_time += chore.estimated_minutes;\n  });\n  \n  return schedule;\n}\n\nreturn {\n  assignments,\n  week_start: weekStart,\n  total_assignments: assignments.length\n};"
+        "jsCode": "const aiResponse = $json;\nconst userId = $('merge_triggers').item.json.user_id;\nconst weekStart = $('merge_triggers').item.json.week_start;\nconst chores = $('fetch_chores').all().map(c => c.json);\n\n// Parse AI response from shared Ollama workflow\nlet schedule;\ntry {\n  // Check if we got a valid response\n  if (aiResponse && aiResponse.result) {\n    const responseText = aiResponse.result.trim();\n    const parsedResponse = JSON.parse(responseText);\n    schedule = parsedResponse.schedule;\n  } else if (aiResponse && aiResponse.response) {\n    // Alternative response format\n    const responseText = aiResponse.response.trim();\n    const parsedResponse = JSON.parse(responseText);\n    schedule = parsedResponse.schedule;\n  } else {\n    throw new Error('Invalid response from Ollama workflow');\n  }\n} catch (e) {\n  console.log('AI scheduling failed, using fallback:', e.message);\n  // Fallback to simple distribution if AI fails\n  schedule = generateFallbackSchedule(chores);\n}\n\n// Create assignments for each scheduled chore\nconst assignments = [];\nconst startDate = new Date(weekStart);\n\nschedule.forEach((day, index) => {\n  const assignDate = new Date(startDate);\n  assignDate.setDate(startDate.getDate() + index);\n  \n  day.chores.forEach(choreId => {\n    const chore = chores.find(c => c.id === choreId);\n    if (chore) {\n      assignments.push({\n        chore_id: choreId,\n        user_id: userId,\n        assigned_date: assignDate.toISOString().split('T')[0],\n        due_date: assignDate.toISOString().split('T')[0],\n        status: 'pending',\n        base_points: chore.base_points\n      });\n    }\n  });\n});\n\nfunction generateFallbackSchedule(chores) {\n  // Simple round-robin distribution\n  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];\n  const schedule = days.map(day => ({ day, chores: [], total_time: 0 }));\n  \n  chores.forEach((chore, index) => {\n    const dayIndex = index % 7;\n    schedule[dayIndex].chores.push(chore.id);\n    schedule[dayIndex].total_time += chore.estimated_minutes;\n  });\n  \n  return schedule;\n}\n\nreturn {\n  assignments,\n  week_start: weekStart,\n  total_assignments: assignments.length\n};"
       },
       "id": "process_schedule",
       "name": "Process Schedule",
@@ -239,6 +277,17 @@
       ]
     },
     "fetch_chores": {
+      "main": [
+        [
+          {
+            "node": "prepare_ollama_request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "prepare_ollama_request": {
       "main": [
         [
           {

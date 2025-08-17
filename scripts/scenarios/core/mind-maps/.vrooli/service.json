@@ -1,4 +1,5 @@
 {
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "parent": "vrooli",
@@ -213,4 +214,3 @@
     }
   }
 }
-ENDFILE < /dev/null

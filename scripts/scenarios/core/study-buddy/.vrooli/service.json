@@ -5,211 +5,124 @@
     "parent": "vrooli",
     "name": "study-buddy",
     "displayName": "Study Buddy",
-    "description": "Interactive AI-powered study assistant with gamified learning and spaced repetition",
+    "description": "AI-powered study assistant for personalized learning",
     "version": "1.0.0",
-    "type": "education-application",
+    "type": "education",
     "category": "education",
-    "tags": [
-      "study",
-      "education",
-      "flashcards",
-      "quiz",
-      "spaced-repetition",
-      "learning",
-      "ai-tutor",
-      "javascript-ui",
-      "gamified"
-    ]
+    "tags": ["learning", "study", "flashcards", "quiz", "spaced-repetition"]
   },
   "ports": {
     "api": {
-      "env_var": "SERVICE_PORT",
-      "range": "8500-8599",
+      "env_var": "STUDY_BUDDY_API_PORT",
+      "range": "3030-3039",
       "fallback": "auto",
       "description": "Study Buddy API port"
     },
     "ui": {
-      "env_var": "UI_PORT",
-      "range": "3500-3599",
+      "env_var": "STUDY_BUDDY_UI_PORT",
+      "range": "3020-3029",
       "fallback": "auto",
       "description": "Study Buddy UI port"
     }
   },
   "resources": {
-    "automation": {
-      "n8n": {
-        "type": "n8n",
-        "enabled": true,
-        "required": true,
-        "shared_workflows": [
-          "ollama",
-          "embedding-generator",
-          "chain-of-thought-orchestrator",
-          "structured-data-extractor",
-          "universal-rag-pipeline"
-        ],
-        "initialization": [
-          {
-            "file": "initialization/n8n/flashcard-generator.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/quiz-generator.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/study-plan-generator.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/content-generator.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/progress-analyzer.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/study-session-tracker.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/adaptive-learning-engine.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/pomodoro-timer.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/study-material-processor.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/spaced-repetition-engine.json",
-            "type": "workflow"
-          }
-        ]
-      }
+    "n8n": {
+      "required": true,
+      "workflows": [
+        {
+          "path": "initialization/n8n/study-material-processor.json",
+          "active": true
+        },
+        {
+          "path": "initialization/n8n/flashcard-generator.json",
+          "active": true
+        },
+        {
+          "path": "initialization/n8n/quiz-generator.json",
+          "active": true
+        },
+        {
+          "path": "initialization/n8n/study-plan-generator.json",
+          "active": true
+        },
+        {
+          "path": "initialization/n8n/progress-analyzer.json",
+          "active": true
+        },
+        {
+          "path": "initialization/n8n/spaced-repetition-engine.json",
+          "active": true
+        },
+        {
+          "path": "initialization/n8n/adaptive-learning-engine.json",
+          "active": true
+        },
+        {
+          "path": "initialization/n8n/content-generator.json",
+          "active": true
+        },
+        {
+          "path": "initialization/n8n/pomodoro-timer.json",
+          "active": true
+        },
+        {
+          "path": "initialization/n8n/study-session-tracker.json",
+          "active": true
+        }
+      ]
     },
-    "storage": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "purpose": "Store users, subjects, flashcards, quizzes, study sessions, and progress data",
-        "initialization": [
-          {
-            "file": "initialization/postgres/schema.sql",
-            "type": "schema"
-          }
-        ]
-      },
-      "redis": {
-        "type": "redis",
-        "enabled": true,
-        "required": true,
-        "purpose": "Cache study sessions, spaced repetition intervals, and real-time progress"
-      },
-      "qdrant": {
-        "type": "qdrant",
-        "enabled": true,
-        "required": true,
-        "purpose": "Store and search vector embeddings of study materials for semantic retrieval"
-      }
+    "postgres": {
+      "required": true,
+      "databases": [
+        {
+          "name": "study_buddy",
+          "schema": "initialization/postgres/schema.sql"
+        }
+      ]
+    },
+    "ollama": {
+      "required": true,
+      "models": ["llama3.2", "nomic-embed-text"]
+    },
+    "qdrant": {
+      "required": true,
+      "collections": []
+    },
+    "redis": {
+      "required": true,
+      "purpose": "session-cache"
     }
   },
-  "lifecycle": {
-    "version": "1.0.0",
-    "setup": {
-      "description": "Initialize Study Buddy",
-      "steps": [
-        {
-          "name": "base-setup",
-          "run": "bash scripts/lib/setup.sh",
-          "description": "Execute generic setup"
-        },
-        {
-          "name": "add-data",
-          "run": "scripts/resources/injection/engine.sh .",
-          "description": "Add app data to resources"
-        },
-        {
-          "name": "install-cli",
-          "run": "cd cli && ./install-cli.sh",
-          "description": "Install CLI command globally"
-        },
-        {
-          "name": "build-api",
-          "run": "cd api && go mod download && go build -o study-buddy-api main.go",
-          "description": "Build Go API binary"
-        },
-        {
-          "name": "setup-ui",
-          "run": "cd ui && npm install",
-          "description": "Install UI dependencies"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '📚 Study Buddy initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${SERVICE_PORT}'",
-          "description": "Display service URLs"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Start Study Buddy services",
-      "steps": [
-        {
-          "name": "start-api-server",
-          "run": "cd api && PORT=$SERVICE_PORT N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} POSTGRES_URL=postgres://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/study_buddy REDIS_URL=redis://localhost:${RESOURCE_PORTS[redis]} ./study-buddy-api &",
-          "description": "Start API server",
-          "background": true,
-          "condition": {
-            "file_exists": "api/study-buddy-api"
-          }
-        },
-        {
-          "name": "start-ui-server",
-          "run": "cd ui && PORT=$UI_PORT API_URL=http://localhost:$SERVICE_PORT npm start &",
-          "description": "Start UI server",
-          "background": true
-        },
-        {
-          "name": "wait-for-services",
-          "run": "sleep 3",
-          "description": "Wait for services to start"
-        },
-        {
-          "name": "show-running",
-          "run": "echo '🚀 Study Buddy running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${SERVICE_PORT}'",
-          "description": "Display running services"
-        }
-      ]
-    },
-    "test": {
-      "description": "Test Study Buddy services",
-      "steps": [
-        {
-          "name": "test-api",
-          "run": "curl -sf http://localhost:$SERVICE_PORT/health",
-          "description": "Test API health"
-        },
-        {
-          "name": "test-subjects",
-          "run": "curl -sf http://localhost:$SERVICE_PORT/api/subjects",
-          "description": "Test subjects endpoint"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop Study Buddy services",
-      "steps": [
-        {
-          "name": "stop-services",
-          "run": "pkill -f 'study-buddy-api' || true; pkill -f 'npm.*study-buddy' || true",
-          "description": "Stop all services"
-        }
-      ]
+  "ui": {
+    "style": "clean-cute-lofi",
+    "framework": "vanilla-js",
+    "theme": {
+      "primary": "#8B5CF6",
+      "secondary": "#EC4899",
+      "background": "#FFF5F5",
+      "text": "#1F2937"
     }
+  },
+  "api": {
+    "framework": "go",
+    "endpoints": [
+      "/api/study/materials",
+      "/api/study/flashcards",
+      "/api/study/quiz",
+      "/api/study/progress",
+      "/api/study/sessions",
+      "/api/study/plans"
+    ]
+  },
+  "cli": {
+    "command": "study-buddy",
+    "subcommands": [
+      "add-material",
+      "generate-flashcards",
+      "start-quiz",
+      "study-session",
+      "view-progress",
+      "create-plan"
+    ]
   }
 }

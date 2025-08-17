@@ -6,7 +6,8 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-API_URL="${API_URL:-http://localhost:8500}"
+API_PORT="${API_PORT:-8200}"
+API_URL="${API_URL:-http://localhost:${API_PORT}}"
 
 # Color codes
 RED='\033[0;31m'
@@ -23,46 +24,104 @@ show_help() {
     echo "Usage: picker-wheel [command] [options]"
     echo
     echo "Commands:"
-    echo "  spin [wheel-name]     Spin a wheel (default: yes-no)"
+    echo "  spin [wheel-name] [--options 'opt1,opt2,opt3'] [--dry-run]"
+    echo "                        Spin a wheel with custom options"
     echo "  list                  List available wheels"
     echo "  create                Create a new wheel"
     echo "  history               Show spin history"
     echo "  help                  Show this help message"
     echo
+    echo "Options:"
+    echo "  --options             Comma-separated list of options"
+    echo "  --dry-run            Run without saving to API"
+    echo
     echo "Examples:"
     echo "  picker-wheel spin dinner"
+    echo "  picker-wheel spin --options 'Yes,No,Maybe'"
+    echo "  picker-wheel spin --options 'Pizza,Tacos,Sushi' --dry-run"
     echo "  picker-wheel list"
     echo "  picker-wheel create"
 }
 
 spin_wheel() {
-    local wheel_name="${1:-yes-no}"
+    local wheel_name=""
+    local custom_options=""
+    local dry_run=false
+    local options=()
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --options)
+                custom_options="$2"
+                shift 2
+                ;;
+            --dry-run)
+                dry_run=true
+                shift
+                ;;
+            -*)
+                echo -e "${RED}Unknown option: $1${NC}"
+                show_help
+                exit 1
+                ;;
+            *)
+                if [ -z "$wheel_name" ]; then
+                    wheel_name="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
+    
+    # Use custom options if provided
+    if [ ! -z "$custom_options" ]; then
+        IFS=',' read -ra options <<< "$custom_options"
+        wheel_name="${wheel_name:-custom}"
+    else
+        # Default to yes-no if no wheel specified
+        wheel_name="${wheel_name:-yes-no}"
+        
+        # Try to fetch wheel from API first
+        if command -v curl &> /dev/null && [ "$dry_run" != "true" ]; then
+            wheel_data=$(curl -s "$API_URL/api/wheels/$wheel_name" 2>/dev/null)
+            if [ ! -z "$wheel_data" ] && [ "$wheel_data" != "null" ]; then
+                # Extract options from API response
+                mapfile -t options < <(echo "$wheel_data" | grep -o '"label":"[^"]*"' | cut -d'"' -f4)
+            fi
+        fi
+        
+        # Fall back to built-in options if API didn't work
+        if [ ${#options[@]} -eq 0 ]; then
+            case "$wheel_name" in
+                "yes-no")
+                    options=("YES! ✅" "NO ❌" "Maybe? 🤔")
+                    ;;
+                "dinner")
+                    options=("Pizza 🍕" "Sushi 🍱" "Tacos 🌮" "Burger 🍔" "Pasta 🍝")
+                    ;;
+                "d20")
+                    options=($(seq 1 20))
+                    ;;
+                *)
+                    options=("Option 1" "Option 2" "Option 3")
+                    ;;
+            esac
+        fi
+    fi
     
     echo -e "${YELLOW}🎰 Spinning the $wheel_name wheel...${NC}"
-    sleep 1
     
-    # Simple local random selection for demo
-    case "$wheel_name" in
-        "yes-no")
-            options=("YES! ✅" "NO ❌" "Maybe? 🤔")
-            ;;
-        "dinner")
-            options=("Pizza 🍕" "Sushi 🍱" "Tacos 🌮" "Burger 🍔" "Pasta 🍝")
-            ;;
-        "d20")
-            options=($(seq 1 20))
-            ;;
-        *)
-            options=("Option 1" "Option 2" "Option 3")
-            ;;
-    esac
-    
-    # Animated spinning effect
-    for i in {1..20}; do
-        random_index=$((RANDOM % ${#options[@]}))
-        echo -ne "\r${CYAN}    ${options[$random_index]}${NC}    "
-        sleep 0.1
-    done
+    # Only show animation if not in dry-run mode
+    if [ "$dry_run" != "true" ]; then
+        sleep 1
+        # Animated spinning effect
+        for i in {1..20}; do
+            random_index=$((RANDOM % ${#options[@]}))
+            echo -ne "\r${CYAN}    ${options[$random_index]}${NC}    "
+            sleep 0.1
+        done
+    fi
     
     # Final result
     final_index=$((RANDOM % ${#options[@]}))
@@ -71,11 +130,24 @@ spin_wheel() {
     echo -e "\r${GREEN}🎉 Result: $result${NC}        "
     echo
     
-    # Try to save to API (optional)
-    curl -s -X POST "$API_URL/api/spin" \
-        -H "Content-Type: application/json" \
-        -d "{\"wheel_id\":\"$wheel_name\",\"result\":\"$result\"}" \
-        > /dev/null 2>&1 || true
+    # Save to API unless dry-run
+    if [ "$dry_run" != "true" ] && command -v curl &> /dev/null; then
+        # Build options JSON array
+        options_json="["
+        for i in "${!options[@]}"; do
+            [ $i -gt 0 ] && options_json+=","
+            # Escape quotes in option text
+            escaped_opt=$(echo "${options[$i]}" | sed 's/"/\\"/g')
+            options_json+="{\"label\":\"$escaped_opt\",\"weight\":1}"
+        done
+        options_json+="]"
+        
+        # Send spin request with full data
+        curl -s -X POST "$API_URL/api/spin" \
+            -H "Content-Type: application/json" \
+            -d "{\"wheel_id\":\"$wheel_name\",\"result\":\"$result\",\"options\":$options_json}" \
+            > /dev/null 2>&1 || true
+    fi
 }
 
 list_wheels() {
@@ -162,7 +234,8 @@ show_history() {
 # Main command handling
 case "${1:-help}" in
     spin)
-        spin_wheel "$2"
+        shift  # Remove 'spin' from arguments
+        spin_wheel "$@"  # Pass all remaining arguments
         ;;
     list)
         list_wheels

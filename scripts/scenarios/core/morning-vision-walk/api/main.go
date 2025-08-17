@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -398,14 +399,42 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 // Helper functions
 func callN8nWorkflow(workflow string, data map[string]interface{}) map[string]interface{} {
-	// In production, this would make actual HTTP calls to n8n
-	// For now, return mock data
-	return map[string]interface{}{
-		"success": true,
-		"workflow": workflow,
-		"timestamp": time.Now().Unix(),
-		"response": "Processed by " + workflow,
+	// Use the CLI approach to call n8n workflows
+	dataJSON, err := json.Marshal(data)
+	if err != nil {
+		log.Printf("Error marshaling data for workflow %s: %v", workflow, err)
+		return map[string]interface{}{
+			"success": false,
+			"error": err.Error(),
+		}
 	}
+
+	// Use vrooli resource CLI to execute the workflow
+	cmd := exec.Command("bash", "-c", fmt.Sprintf("vrooli resource n8n execute-workflow '%s' '%s'", workflow, string(dataJSON)))
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		log.Printf("Error executing workflow %s: %v, output: %s", workflow, err, string(output))
+		return map[string]interface{}{
+			"success": false,
+			"error": fmt.Sprintf("Workflow execution failed: %v", err),
+			"output": string(output),
+		}
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(output, &result); err != nil {
+		// If output is not JSON, return it as a string
+		return map[string]interface{}{
+			"success": true,
+			"workflow": workflow,
+			"response": string(output),
+			"timestamp": time.Now().Unix(),
+		}
+	}
+
+	result["workflow"] = workflow
+	result["timestamp"] = time.Now().Unix()
+	return result
 }
 
 func generateInsights(session *Session) {

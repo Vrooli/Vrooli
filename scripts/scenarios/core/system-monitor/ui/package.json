@@ -1,0 +1,22 @@
+{
+  "name": "system-monitor-ui",
+  "version": "1.0.0",
+  "description": "System Monitor Dashboard UI with Matrix/Hackery Theme",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "keywords": [
+    "system-monitor",
+    "dashboard",
+    "matrix-theme",
+    "monitoring",
+    "ai"
+  ],
+  "author": "Vrooli",
+  "license": "MIT"
+}

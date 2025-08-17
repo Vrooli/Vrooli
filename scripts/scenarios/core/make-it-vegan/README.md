@@ -12,10 +12,11 @@ Make It Vegan is an intelligent food analysis tool that helps users identify whe
 
 ## Dependencies & Integration
 Leverages Vrooli's ecosystem:
-- **Ollama**: For ingredient analysis and alternative suggestions
+- **Ollama**: For ingredient analysis via shared workflow (`initialization/n8n/ollama.json`)
 - **N8n Workflows**: Orchestrates ingredient checking and recipe generation
 - **PostgreSQL**: Stores ingredient database and user preferences
 - **Redis**: Caches common queries for instant responses
+- **Shared Workflows**: Uses project-level Ollama workflow for reliable AI reasoning
 
 ## UX Design Philosophy
 **Friendly & Vibrant**: A warm, welcoming design that celebrates plant-based living:

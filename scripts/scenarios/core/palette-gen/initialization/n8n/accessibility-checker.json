@@ -75,31 +75,61 @@
     },
     {
       "parameters": {
-        "url": "={{ $env.service.n8n.url }}/webhook/ollama",
+        "jsCode": "// Prepare prompt for AI accessibility recommendations\nconst data = $json;\nconst prompt = `Analyze these accessibility results for the color combination:\n\nForeground: ${data.foreground}\nBackground: ${data.background}\nContrast Ratio: ${data.contrast_ratio}\nWCAG Compliance: ${JSON.stringify(data.wcag_compliance, null, 2)}\n\nProvide specific recommendations for:\n1. Improving contrast if needed\n2. Best use cases for this combination\n3. Alternative color suggestions if it fails WCAG\n4. Specific UI elements this combination works for\n\nReturn as JSON with keys: recommendations (array of strings), use_cases (array of strings), alternatives (array of strings), suitable_elements (array of strings)`;\n\nreturn {\n  prompt: prompt,\n  model: 'llama3.2:3b',\n  type: 'reasoning',\n  quiet: true,\n  original_data: data\n};"
+      },
+      "id": "prepare-ai-prompt",
+      "name": "Prepare AI Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "${service.n8n.url}/webhook/ollama",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
             {
               "name": "prompt",
-              "value": "Analyze these accessibility results for the color combination:\n\nForeground: {{ $json.foreground }}\nBackground: {{ $json.background }}\nContrast Ratio: {{ $json.contrast_ratio }}\nWCAG Compliance: {{ JSON.stringify($json.wcag_compliance) }}\n\nProvide specific recommendations for:\n1. Improving contrast if needed\n2. Best use cases for this combination\n3. Alternative color suggestions if it fails WCAG\n4. Specific UI elements this combination works for\n\nReturn as JSON with keys: recommendations, use_cases, alternatives, suitable_elements"
+              "value": "={{ $json.prompt }}"
             },
             {
               "name": "model",
-              "value": "llama3.2"
+              "value": "={{ $json.model }}"
+            },
+            {
+              "name": "type",
+              "value": "={{ $json.type }}"
+            },
+            {
+              "name": "quiet",
+              "value": "={{ $json.quiet }}"
             }
           ]
         },
-        "options": {}
+        "options": {
+          "timeout": 120000
+        }
       },
-      "id": "ai-recommendations",
-      "name": "AI Recommendations",
+      "id": "call-shared-ollama",
+      "name": "Call Shared Ollama Workflow",
       "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4,
-      "position": [1050, 400]
+      "typeVersion": 3,
+      "position": [1150, 400]
     },
     {
       "parameters": {
-        "jsCode": "// Format the final accessibility report\ntry {\n  const response = $input.item.json.response;\n  const data = $input.item.json;\n  \n  // Extract JSON from AI response\n  const jsonMatch = response.match(/\\{[\\s\\S]*\\}/);\n  let aiRecs = {};\n  \n  if (jsonMatch) {\n    try {\n      aiRecs = JSON.parse(jsonMatch[0]);\n    } catch (e) {\n      aiRecs = {\n        recommendations: [],\n        use_cases: [],\n        alternatives: [],\n        suitable_elements: []\n      };\n    }\n  }\n  \n  // Generate automatic recommendations based on contrast ratio\n  const autoRecs = [];\n  if (data.contrast_ratio < 3) {\n    autoRecs.push('Critical: Contrast ratio is too low for any WCAG compliance');\n    autoRecs.push('Increase contrast by darkening foreground or lightening background');\n  } else if (data.contrast_ratio < 4.5) {\n    autoRecs.push('Passes WCAG AA for large text only (18pt+ or 14pt+ bold)');\n    autoRecs.push('Consider increasing contrast for normal text usage');\n  } else if (data.contrast_ratio < 7) {\n    autoRecs.push('Passes WCAG AA for all text sizes');\n    autoRecs.push('Consider increasing contrast to meet AAA standards');\n  } else {\n    autoRecs.push('Excellent! Passes WCAG AAA for all text sizes');\n  }\n  \n  // Compile best palette combinations\n  const bestCombinations = data.palette_combinations\n    .filter(combo => combo.passes_AA)\n    .sort((a, b) => b.ratio - a.ratio)\n    .slice(0, 5);\n  \n  // Compile colorblind-safe combinations\n  const colorblindSafe = Object.entries(data.colorblind_simulation || {})\n    .every(([type, check]) => check.passes_AA);\n  \n  return {\n    success: true,\n    accessibility_report: {\n      primary_check: {\n        foreground: data.foreground,\n        background: data.background,\n        contrast_ratio: data.contrast_ratio,\n        wcag_levels: data.wcag_compliance\n      },\n      recommendations: [...autoRecs, ...(aiRecs.recommendations || [])],\n      use_cases: aiRecs.use_cases || [\n        data.wcag_compliance.AAA_normal ? 'Body text' : '',\n        data.wcag_compliance.AA_normal ? 'Headers and UI text' : '',\n        data.wcag_compliance.AA_large ? 'Large headlines' : '',\n        'Decorative elements'\n      ].filter(Boolean),\n      alternatives: aiRecs.alternatives || [],\n      suitable_elements: aiRecs.suitable_elements || [\n        data.wcag_compliance.AAA_normal ? 'Body paragraphs' : '',\n        data.wcag_compliance.AA_normal ? 'Navigation links' : '',\n        data.wcag_compliance.AA_large ? 'Hero text' : '',\n        'Icons and graphics'\n      ].filter(Boolean),\n      best_combinations: bestCombinations,\n      colorblind_safe: colorblindSafe,\n      colorblind_details: data.colorblind_simulation\n    },\n    summary: {\n      passes_AA: data.wcag_compliance.AA_normal,\n      passes_AAA: data.wcag_compliance.AAA_normal,\n      colorblind_safe: colorblindSafe,\n      overall_score: Math.min(100, Math.round((data.contrast_ratio / 21) * 100))\n    },\n    timestamp: new Date().toISOString()\n  };\n} catch (error) {\n  return {\n    success: false,\n    error: 'Failed to generate accessibility report: ' + error.message,\n    basic_results: {\n      contrast_ratio: $input.item.json.contrast_ratio,\n      wcag_compliance: $input.item.json.wcag_compliance\n    }\n  };\n}"
+        "jsCode": "// Format the final accessibility report\ntry {\n  const ollamaResponse = $input.item.json;\n  const preparedData = $node['Prepare AI Prompt'].json;\n  const data = preparedData.original_data;\n  \n  // Check if the Ollama workflow was successful\n  let aiRecs = {};\n  \n  if (ollamaResponse.success && ollamaResponse.response) {\n    // Extract JSON from the response\n    const responseText = ollamaResponse.response;\n    const jsonMatch = responseText.match(/\\{[\\s\\S]*\\}/g);\n    \n    if (jsonMatch) {\n      try {\n        aiRecs = JSON.parse(jsonMatch[jsonMatch.length - 1]); // Get the last JSON match\n      } catch (e) {\n        aiRecs = {\n          recommendations: [],\n          use_cases: [],\n          alternatives: [],\n          suitable_elements: []\n        };\n      }\n    }\n  } else {\n    // Fallback if Ollama doesn't respond\n    aiRecs = {\n      recommendations: [],\n      use_cases: [],\n      alternatives: [],\n      suitable_elements: []\n    };\n  }\n  \n  // Generate automatic recommendations based on contrast ratio\n  const autoRecs = [];\n  if (data.contrast_ratio < 3) {\n    autoRecs.push('Critical: Contrast ratio is too low for any WCAG compliance');\n    autoRecs.push('Increase contrast by darkening foreground or lightening background');\n  } else if (data.contrast_ratio < 4.5) {\n    autoRecs.push('Passes WCAG AA for large text only (18pt+ or 14pt+ bold)');\n    autoRecs.push('Consider increasing contrast for normal text usage');\n  } else if (data.contrast_ratio < 7) {\n    autoRecs.push('Passes WCAG AA for all text sizes');\n    autoRecs.push('Consider increasing contrast to meet AAA standards');\n  } else {\n    autoRecs.push('Excellent! Passes WCAG AAA for all text sizes');\n  }\n  \n  // Compile best palette combinations\n  const bestCombinations = (data.palette_combinations || [])\n    .filter(combo => combo.passes_AA)\n    .sort((a, b) => b.ratio - a.ratio)\n    .slice(0, 5);\n  \n  // Compile colorblind-safe combinations\n  const colorblindSafe = Object.entries(data.colorblind_simulation || {})\n    .every(([type, check]) => check.passes_AA);\n  \n  return {\n    success: true,\n    accessibility_report: {\n      primary_check: {\n        foreground: data.foreground,\n        background: data.background,\n        contrast_ratio: data.contrast_ratio,\n        wcag_levels: data.wcag_compliance\n      },\n      recommendations: [...autoRecs, ...(aiRecs.recommendations || [])],\n      use_cases: aiRecs.use_cases || [\n        data.wcag_compliance.AAA_normal ? 'Body text' : '',\n        data.wcag_compliance.AA_normal ? 'Headers and UI text' : '',\n        data.wcag_compliance.AA_large ? 'Large headlines' : '',\n        'Decorative elements'\n      ].filter(Boolean),\n      alternatives: aiRecs.alternatives || [],\n      suitable_elements: aiRecs.suitable_elements || [\n        data.wcag_compliance.AAA_normal ? 'Body paragraphs' : '',\n        data.wcag_compliance.AA_normal ? 'Navigation links' : '',\n        data.wcag_compliance.AA_large ? 'Hero text' : '',\n        'Icons and graphics'\n      ].filter(Boolean),\n      best_combinations: bestCombinations,\n      colorblind_safe: colorblindSafe,\n      colorblind_details: data.colorblind_simulation\n    },\n    summary: {\n      passes_AA: data.wcag_compliance.AA_normal,\n      passes_AAA: data.wcag_compliance.AAA_normal,\n      colorblind_safe: colorblindSafe,\n      overall_score: Math.min(100, Math.round((data.contrast_ratio / 21) * 100))\n    },\n    timestamp: new Date().toISOString()\n  };\n} catch (error) {\n  const fallbackData = $node['Contrast Calculator'].json || {};\n  return {\n    success: false,\n    error: 'Failed to generate accessibility report: ' + error.message,\n    basic_results: {\n      contrast_ratio: fallbackData.contrast_ratio || 0,\n      wcag_compliance: fallbackData.wcag_compliance || {}\n    }\n  };\n}"
       },
       "id": "format-report",
       "name": "Format Report",
@@ -174,14 +204,25 @@
       "main": [
         [
           {
-            "node": "AI Recommendations",
+            "node": "Prepare AI Prompt",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "AI Recommendations": {
+    "Prepare AI Prompt": {
+      "main": [
+        [
+          {
+            "node": "Call Shared Ollama Workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Shared Ollama Workflow": {
       "main": [
         [
           {

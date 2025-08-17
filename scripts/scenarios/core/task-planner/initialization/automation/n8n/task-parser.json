@@ -55,18 +55,27 @@
     },
     {
       "parameters": {
-        "model": "llama3.2",
-        "prompt": "You are a task extraction AI. Parse the following unstructured text into individual, actionable tasks.\n\nText to parse:\n{{ $('webhook_trigger').item.json.raw_text }}\n\nExtract tasks and return ONLY a JSON array with this format:\n[\n  {\n    \"title\": \"Task title (max 100 chars)\",\n    \"description\": \"Detailed description\",\n    \"priority\": \"high|medium|low\",\n    \"tags\": [\"tag1\", \"tag2\"],\n    \"estimated_hours\": 2.5\n  }\n]\n\nRules:\n- Extract all actionable items, TODOs, ideas that could become tasks\n- Keep titles concise but descriptive\n- Assign reasonable priorities based on context\n- Add relevant tags for categorization\n- Estimate completion time in hours\n- Return ONLY the JSON array, no other text",
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Extract and validate input\nconst rawText = $('webhook_trigger').item.json.raw_text;\nif (!rawText || typeof rawText !== 'string' || rawText.trim().length === 0) {\n  throw new Error('Missing or empty raw_text');\n}\n\n// Build the prompt for task extraction\nconst prompt = `You are a task extraction AI. Parse the following unstructured text into individual, actionable tasks.\n\nText to parse:\n${rawText}\n\nExtract tasks and return ONLY a JSON array with this format:\n[\n  {\n    \"title\": \"Task title (max 100 chars)\",\n    \"description\": \"Detailed description\",\n    \"priority\": \"high|medium|low\",\n    \"tags\": [\"tag1\", \"tag2\"],\n    \"estimated_hours\": 2.5\n  }\n]\n\nRules:\n- Extract all actionable items, TODOs, ideas that could become tasks\n- Keep titles concise but descriptive\n- Assign reasonable priorities based on context\n- Add relevant tags for categorization\n- Estimate completion time in hours\n- Return ONLY the JSON array, no other text`;\n\n// Escape single quotes in prompt for shell\nconst escapedPrompt = prompt.replace(/'/g, \"'\\\"'\\\"'\");\n\n// Build temp file for prompt\nconst timestamp = Date.now();\nconst randomId = Math.random().toString(36).substring(2, 8);\nconst tempFile = '/tmp/task_parser_prompt_' + timestamp + '_' + randomId + '.txt';\n\n// Build ollama command using the CLI\nconst command = `prompt_file=\"${tempFile}\"; ` +\n  `echo '${escapedPrompt}' > \"$prompt_file\"; ` +\n  `bash /vrooli/cli/vrooli resource ollama generate \"$(cat \"$prompt_file\")\" --model 'llama3.2:3b' --type 'reasoning' --quiet; ` +\n  `rm -f \"$prompt_file\"`;\n\nreturn {\n  command: command,\n  execution_meta: {\n    prompt_length: prompt.length,\n    model: 'llama3.2:3b',\n    type: 'reasoning',\n    temp_file: tempFile,\n    execution_id: 'task_parser_' + timestamp + '_' + randomId,\n    timestamp: new Date().toISOString()\n  }\n};"
+      },
+      "id": "prepare_ollama_command",
+      "name": "Prepare Ollama Command",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [800, 200]
+    },
+    {
+      "parameters": {
+        "command": "={{ $json.command }}",
         "options": {
-          "temperature": 0.3,
-          "maxTokens": 2048
+          "timeout": 60000
         }
       },
       "id": "parse_with_ollama",
-      "name": "Parse Tasks with Ollama",
-      "type": "n8n-nodes-base.ollama",
+      "name": "Parse Tasks with Ollama CLI",
+      "type": "n8n-nodes-base.executeCommand",
       "typeVersion": 1,
-      "position": [800, 200]
+      "position": [1000, 200]
     },
     {
       "parameters": {
@@ -82,13 +91,13 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parse the Ollama response and prepare task data\ntry {\n  const ollamaResponse = $('parse_with_ollama').item.json.response;\n  const appId = $('validate_app').item.json.id;\n  const sessionId = $('create_session').item.json.id;\n  \n  // Clean and parse the JSON response\n  let tasksData;\n  try {\n    // Remove any markdown formatting or extra text\n    const cleanResponse = ollamaResponse.replace(/```json\\n?|```\\n?/g, '').trim();\n    tasksData = JSON.parse(cleanResponse);\n  } catch (parseError) {\n    // Fallback parsing for malformed responses\n    const jsonMatch = ollamaResponse.match(/\\[.*\\]/s);\n    if (jsonMatch) {\n      tasksData = JSON.parse(jsonMatch[0]);\n    } else {\n      throw new Error('Could not extract valid JSON from Ollama response');\n    }\n  }\n  \n  // Validate and prepare tasks for database insertion\n  const preparedTasks = tasksData.map((task, index) => ({\n    app_id: appId,\n    session_id: sessionId,\n    title: task.title.substring(0, 500), // Ensure max length\n    description: task.description || '',\n    priority: ['critical', 'high', 'medium', 'low'].includes(task.priority) ? task.priority : 'medium',\n    estimated_hours: parseFloat(task.estimated_hours) || null,\n    tags: JSON.stringify(task.tags || []),\n    status: 'backlog',\n    confidence_score: 0.85, // High confidence for AI-parsed tasks\n    metadata: JSON.stringify({\n      source: 'text_parser',\n      parsing_index: index,\n      original_text_snippet: task.title\n    })\n  }));\n  \n  return [{ tasks: preparedTasks, task_count: preparedTasks.length }];\n  \n} catch (error) {\n  // Return error info for debugging\n  return [{ \n    error: error.message, \n    raw_response: $('parse_with_ollama').item.json.response,\n    tasks: [],\n    task_count: 0\n  }];\n}"
+        "jsCode": "// Parse the Ollama CLI response and prepare task data\ntry {\n  const commandResult = $('parse_with_ollama').item.json;\n  const executionMeta = $('prepare_ollama_command').item.json.execution_meta;\n  const appId = $('validate_app').item.json.id;\n  const sessionId = $('create_session').item.json.id;\n  \n  // Check if the command was successful\n  if (commandResult.exitCode !== 0) {\n    throw new Error('Ollama command failed: ' + (commandResult.stderr || 'Unknown error'));\n  }\n  \n  const ollamaResponse = commandResult.stdout;\n  \n  // Clean and parse the JSON response\n  let tasksData;\n  try {\n    // Remove any markdown formatting or extra text\n    const cleanResponse = ollamaResponse.replace(/```json\\n?|```\\n?/g, '').trim();\n    tasksData = JSON.parse(cleanResponse);\n  } catch (parseError) {\n    // Fallback parsing for malformed responses\n    const jsonMatch = ollamaResponse.match(/\\[.*\\]/s);\n    if (jsonMatch) {\n      tasksData = JSON.parse(jsonMatch[0]);\n    } else {\n      throw new Error('Could not extract valid JSON from Ollama response');\n    }\n  }\n  \n  // Validate and prepare tasks for database insertion\n  const preparedTasks = tasksData.map((task, index) => ({\n    app_id: appId,\n    session_id: sessionId,\n    title: task.title.substring(0, 500), // Ensure max length\n    description: task.description || '',\n    priority: ['critical', 'high', 'medium', 'low'].includes(task.priority) ? task.priority : 'medium',\n    estimated_hours: parseFloat(task.estimated_hours) || null,\n    tags: JSON.stringify(task.tags || []),\n    status: 'backlog',\n    confidence_score: 0.85, // High confidence for AI-parsed tasks\n    metadata: JSON.stringify({\n      source: 'text_parser',\n      parsing_index: index,\n      original_text_snippet: task.title,\n      ollama_execution_id: executionMeta.execution_id\n    })\n  }));\n  \n  return [{ tasks: preparedTasks, task_count: preparedTasks.length }];\n  \n} catch (error) {\n  // Return error info for debugging\n  return [{ \n    error: error.message, \n    raw_response: $('parse_with_ollama').item.json,\n    tasks: [],\n    task_count: 0\n  }];\n}"
       },
       "id": "process_parsed_tasks",
       "name": "Process Parsed Tasks",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1000, 200]
+      "position": [1200, 200]
     },
     {
       "parameters": {
@@ -151,19 +160,21 @@
     },
     {
       "parameters": {
-        "model": "nomic-embed-text",
-        "text": "{{ $json.title }} - {{ $json.description }}"
+        "command": "=bash /vrooli/cli/vrooli resource ollama embed '{{ $json.title }} - {{ $json.description }}' --model 'nomic-embed-text' --quiet",
+        "options": {
+          "timeout": 30000
+        }
       },
       "id": "generate_embedding",
       "name": "Generate Task Embedding",
-      "type": "n8n-nodes-base.ollama",
+      "type": "n8n-nodes-base.executeCommand",
       "typeVersion": 1,
       "position": [1800, 100]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE tasks SET title_embedding = '{{ $json.embedding }}' WHERE id = '{{ $('insert_task').item.json.id }}'",
+        "query": "UPDATE tasks SET title_embedding = '{{ $json.stdout }}' WHERE id = '{{ $('insert_task').item.json.id }}'",
         "additionalFields": {}
       },
       "id": "update_embedding",
@@ -264,7 +275,7 @@
       "main": [
         [
           {
-            "node": "parse_with_ollama",
+            "node": "prepare_ollama_command",
             "type": "main",
             "index": 0
           },
@@ -277,6 +288,17 @@
         [
           {
             "node": "auth_error_response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "prepare_ollama_command": {
+      "main": [
+        [
+          {
+            "node": "parse_with_ollama",
             "type": "main",
             "index": 0
           }

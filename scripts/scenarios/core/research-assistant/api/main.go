@@ -1,12 +1,15 @@
 package main
 
 import (
+	"bytes"
 	"database/sql"
 	"encoding/json"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -112,6 +115,40 @@ type APIServer struct {
 	qdrantURL      string
 	minioURL       string
 	ollamaURL      string
+}
+
+// triggerResearchWorkflow sends a request to n8n to start the research workflow
+func (s *APIServer) triggerResearchWorkflow(reportID string, req ReportRequest) error {
+	workflowURL := s.n8nURL + "/webhook/research-request"
+	
+	payload := map[string]interface{}{
+		"report_id":      reportID,
+		"topic":          req.Topic,
+		"depth":          req.Depth,
+		"target_length":  req.TargetLength,
+		"language":       req.Language,
+		"requested_by":   req.RequestedBy,
+		"organization":   req.Organization,
+		"tags":           req.Tags,
+		"category":       req.Category,
+	}
+	
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+	
+	resp, err := http.Post(workflowURL, "application/json", bytes.NewBuffer(payloadBytes))
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	
+	if resp.StatusCode >= 400 {
+		return http.ErrMissingFile // Simple error for now
+	}
+	
+	return nil
 }
 
 func main() {
@@ -423,7 +460,12 @@ func (s *APIServer) createReport(w http.ResponseWriter, r *http.Request) {
 	report.CreatedAt = now
 	report.UpdatedAt = now
 
-	// TODO: Trigger n8n workflow for report generation
+	// Trigger n8n workflow for report generation
+	err = s.triggerResearchWorkflow(reportID, req)
+	if err != nil {
+		log.Printf("Warning: Failed to trigger n8n workflow for report %s: %v", reportID, err)
+		// Continue execution even if workflow trigger fails
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -590,8 +632,100 @@ func (s *APIServer) sendMessage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *APIServer) performSearch(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusNotImplemented)
-	json.NewEncoder(w).Encode(map[string]string{"status": "not implemented"})
+	var req SearchRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Set defaults
+	if req.Limit == 0 {
+		req.Limit = 10
+	}
+	if req.Category == "" {
+		req.Category = "general"
+	}
+
+	// Build SearXNG search URL
+	searchURL := s.searxngURL + "/search"
+	
+	// Create HTTP client
+	client := &http.Client{
+		Timeout: 30 * time.Second,
+	}
+
+	// Prepare query parameters
+	params := map[string]string{
+		"q":        req.Query,
+		"format":   "json",
+		"category": req.Category,
+	}
+
+	// Add engines if specified
+	if len(req.Engines) > 0 {
+		params["engines"] = strings.Join(req.Engines, ",")
+	}
+
+	// Add time range if specified
+	if req.TimeRange != "" {
+		params["time_range"] = req.TimeRange
+	}
+
+	// Build query string
+	values := url.Values{}
+	for key, value := range params {
+		values.Add(key, value)
+	}
+
+	// Make request to SearXNG
+	searchReq, err := http.NewRequest("GET", searchURL+"?"+values.Encode(), nil)
+	if err != nil {
+		http.Error(w, "Failed to create search request", http.StatusInternalServerError)
+		return
+	}
+
+	resp, err := client.Do(searchReq)
+	if err != nil {
+		http.Error(w, "Search service unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		http.Error(w, "Search request failed", http.StatusBadGateway)
+		return
+	}
+
+	// Parse SearXNG response
+	var searxngResponse map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&searxngResponse); err != nil {
+		http.Error(w, "Failed to parse search results", http.StatusInternalServerError)
+		return
+	}
+
+	// Extract results
+	results, ok := searxngResponse["results"].([]interface{})
+	if !ok {
+		results = []interface{}{}
+	}
+
+	// Limit results
+	if len(results) > req.Limit {
+		results = results[:req.Limit]
+	}
+
+	// Format response
+	response := map[string]interface{}{
+		"query":         req.Query,
+		"results_count": len(results),
+		"results":       results,
+		"engines_used":  searxngResponse["engines"],
+		"query_time":    searxngResponse["query_time"],
+		"timestamp":     time.Now().Unix(),
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }
 
 func (s *APIServer) getSearchHistory(w http.ResponseWriter, r *http.Request) {

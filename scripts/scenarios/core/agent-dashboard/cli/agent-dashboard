@@ -1,0 +1,356 @@
+#!/bin/bash
+
+# Agent Dashboard CLI
+# Manages and monitors all active agents in the Vrooli system
+
+set -e
+
+# Configuration
+API_HOST="${AGENT_DASHBOARD_API_HOST:-localhost}"
+API_PORT="${AGENT_DASHBOARD_API_PORT:-8100}"
+API_URL="http://${API_HOST}:${API_PORT}"
+
+# Color codes for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+# CLI version
+VERSION="1.0.0"
+
+# Function to display help
+show_help() {
+    cat << EOF
+Agent Dashboard CLI v${VERSION}
+Manage and monitor all active agents in the Vrooli system
+
+Usage: agent-dashboard [command] [options]
+
+Commands:
+    list                List all registered agents with status
+    status <name>       Get detailed status for a specific agent
+    logs <name>         View recent logs for an agent
+    metrics <name>      Display performance metrics for an agent
+    orchestrate <mode>  Trigger agent orchestration (modes: auto, priority, balanced)
+    start <name>        Start a stopped agent
+    stop <name>         Stop a running agent
+    health              Check dashboard system health
+    --version, -v       Show version information
+    --help, -h          Show this help message
+
+Environment Variables:
+    AGENT_DASHBOARD_API_HOST    API host (default: localhost)
+    AGENT_DASHBOARD_API_PORT    API port (default: 8100)
+
+Examples:
+    agent-dashboard list
+    agent-dashboard status huginn
+    agent-dashboard logs n8n --lines 50
+    agent-dashboard orchestrate auto
+
+EOF
+}
+
+# Function to make API calls
+api_call() {
+    local endpoint="$1"
+    local method="${2:-GET}"
+    local data="${3:-}"
+    
+    if [ -n "$data" ]; then
+        curl -s -X "$method" \
+            -H "Content-Type: application/json" \
+            -d "$data" \
+            "${API_URL}${endpoint}" 2>/dev/null || echo "{\"error\": \"Failed to connect to API\"}"
+    else
+        curl -s -X "$method" \
+            "${API_URL}${endpoint}" 2>/dev/null || echo "{\"error\": \"Failed to connect to API\"}"
+    fi
+}
+
+# List all agents
+list_agents() {
+    echo -e "${CYAN}Fetching agent list...${NC}"
+    response=$(api_call "/agents")
+    
+    if echo "$response" | grep -q "error"; then
+        echo -e "${RED}Error: $(echo "$response" | jq -r .error)${NC}"
+        exit 1
+    fi
+    
+    echo -e "\n${BLUE}Active Agents:${NC}"
+    echo "----------------------------------------"
+    printf "%-20s %-10s %-15s %s\n" "NAME" "STATUS" "TYPE" "LAST ACTIVE"
+    echo "----------------------------------------"
+    
+    echo "$response" | jq -r '.agents[] | "\(.name)|\(.status)|\(.type)|\(.last_active)"' | while IFS='|' read -r name status type last_active; do
+        if [ "$status" = "running" ]; then
+            status_color="${GREEN}"
+        elif [ "$status" = "stopped" ]; then
+            status_color="${RED}"
+        else
+            status_color="${YELLOW}"
+        fi
+        printf "%-20s ${status_color}%-10s${NC} %-15s %s\n" "$name" "$status" "$type" "$last_active"
+    done
+}
+
+# Get agent status
+get_status() {
+    local agent_name="$1"
+    
+    if [ -z "$agent_name" ]; then
+        echo -e "${RED}Error: Agent name required${NC}"
+        show_help
+        exit 1
+    fi
+    
+    echo -e "${CYAN}Fetching status for agent: $agent_name${NC}"
+    response=$(api_call "/agents/$agent_name")
+    
+    if echo "$response" | grep -q "error"; then
+        echo -e "${RED}Error: $(echo "$response" | jq -r .error)${NC}"
+        exit 1
+    fi
+    
+    echo -e "\n${BLUE}Agent Status: $agent_name${NC}"
+    echo "----------------------------------------"
+    echo "$response" | jq -r '
+        "Status: \(.status)",
+        "Type: \(.type)",
+        "Version: \(.version)",
+        "Uptime: \(.uptime)",
+        "CPU Usage: \(.metrics.cpu_usage)%",
+        "Memory: \(.metrics.memory_mb)MB",
+        "Tasks Completed: \(.metrics.tasks_completed)",
+        "Error Rate: \(.metrics.error_rate)%",
+        "Last Active: \(.last_active)"
+    '
+}
+
+# Get agent logs
+get_logs() {
+    local agent_name="$1"
+    local lines="${2:-20}"
+    
+    if [ -z "$agent_name" ]; then
+        echo -e "${RED}Error: Agent name required${NC}"
+        show_help
+        exit 1
+    fi
+    
+    echo -e "${CYAN}Fetching logs for agent: $agent_name (last $lines lines)${NC}"
+    response=$(api_call "/agents/$agent_name/logs?lines=$lines")
+    
+    if echo "$response" | grep -q "error"; then
+        echo -e "${RED}Error: $(echo "$response" | jq -r .error)${NC}"
+        exit 1
+    fi
+    
+    echo -e "\n${BLUE}Logs for $agent_name:${NC}"
+    echo "----------------------------------------"
+    echo "$response" | jq -r '.logs[]'
+}
+
+# Get agent metrics
+get_metrics() {
+    local agent_name="$1"
+    
+    if [ -z "$agent_name" ]; then
+        echo -e "${RED}Error: Agent name required${NC}"
+        show_help
+        exit 1
+    fi
+    
+    echo -e "${CYAN}Fetching metrics for agent: $agent_name${NC}"
+    response=$(api_call "/agents/$agent_name/metrics")
+    
+    if echo "$response" | grep -q "error"; then
+        echo -e "${RED}Error: $(echo "$response" | jq -r .error)${NC}"
+        exit 1
+    fi
+    
+    echo -e "\n${BLUE}Metrics for $agent_name:${NC}"
+    echo "----------------------------------------"
+    echo "$response" | jq -r '
+        "Performance Metrics:",
+        "  CPU Usage: \(.cpu_usage)%",
+        "  Memory: \(.memory_mb)MB",
+        "  Response Time: \(.response_time_ms)ms",
+        "",
+        "Task Metrics:",
+        "  Total Tasks: \(.tasks_total)",
+        "  Completed: \(.tasks_completed)",
+        "  Failed: \(.tasks_failed)",
+        "  Success Rate: \(.success_rate)%",
+        "",
+        "Resource Usage:",
+        "  API Calls: \(.api_calls)",
+        "  Database Queries: \(.db_queries)",
+        "  Cache Hits: \(.cache_hits)"
+    '
+}
+
+# Orchestrate agents
+orchestrate() {
+    local mode="${1:-auto}"
+    
+    if [[ ! "$mode" =~ ^(auto|priority|balanced)$ ]]; then
+        echo -e "${RED}Error: Invalid orchestration mode. Use: auto, priority, or balanced${NC}"
+        exit 1
+    fi
+    
+    echo -e "${CYAN}Triggering agent orchestration in $mode mode...${NC}"
+    
+    data="{\"mode\": \"$mode\"}"
+    response=$(api_call "/orchestrate" "POST" "$data")
+    
+    if echo "$response" | grep -q "error"; then
+        echo -e "${RED}Error: $(echo "$response" | jq -r .error)${NC}"
+        exit 1
+    fi
+    
+    echo -e "${GREEN}Orchestration triggered successfully!${NC}"
+    echo "$response" | jq -r '
+        "Task ID: \(.task_id)",
+        "Mode: \(.mode)",
+        "Agents Involved: \(.agents | length)",
+        "Status: \(.status)"
+    '
+}
+
+# Start agent
+start_agent() {
+    local agent_name="$1"
+    
+    if [ -z "$agent_name" ]; then
+        echo -e "${RED}Error: Agent name required${NC}"
+        show_help
+        exit 1
+    fi
+    
+    echo -e "${CYAN}Starting agent: $agent_name${NC}"
+    response=$(api_call "/agents/$agent_name/start" "POST")
+    
+    if echo "$response" | grep -q "error"; then
+        echo -e "${RED}Error: $(echo "$response" | jq -r .error)${NC}"
+        exit 1
+    fi
+    
+    echo -e "${GREEN}Agent $agent_name started successfully!${NC}"
+}
+
+# Stop agent
+stop_agent() {
+    local agent_name="$1"
+    
+    if [ -z "$agent_name" ]; then
+        echo -e "${RED}Error: Agent name required${NC}"
+        show_help
+        exit 1
+    fi
+    
+    echo -e "${CYAN}Stopping agent: $agent_name${NC}"
+    response=$(api_call "/agents/$agent_name/stop" "POST")
+    
+    if echo "$response" | grep -q "error"; then
+        echo -e "${RED}Error: $(echo "$response" | jq -r .error)${NC}"
+        exit 1
+    fi
+    
+    echo -e "${YELLOW}Agent $agent_name stopped${NC}"
+}
+
+# Check system health
+check_health() {
+    echo -e "${CYAN}Checking dashboard system health...${NC}"
+    response=$(api_call "/health")
+    
+    if echo "$response" | grep -q "\"status\":\"healthy\""; then
+        echo -e "${GREEN}✓ Dashboard API is healthy${NC}"
+        
+        # Check resources
+        echo -e "\n${BLUE}Resource Status:${NC}"
+        echo "$response" | jq -r '
+            .resources | to_entries[] | 
+            "  \(.key): \(.value.status) (v\(.value.version))"
+        ' 2>/dev/null || echo "  No resource data available"
+        
+        # Check database
+        if echo "$response" | jq -e '.database.connected' >/dev/null 2>&1; then
+            echo -e "\n${BLUE}Database:${NC}"
+            echo "$response" | jq -r '
+                "  Connected: \(.database.connected)",
+                "  Agents: \(.database.agent_count)",
+                "  Tasks: \(.database.task_count)"
+            ' 2>/dev/null
+        fi
+    else
+        echo -e "${RED}✗ Dashboard API is not healthy${NC}"
+        echo "$response" | jq . 2>/dev/null || echo "$response"
+        exit 1
+    fi
+}
+
+# Show version
+show_version() {
+    echo "Agent Dashboard CLI v${VERSION}"
+    echo "Part of the Vrooli automation platform"
+}
+
+# Main command handler
+case "${1:-}" in
+    list)
+        list_agents
+        ;;
+    status)
+        get_status "$2"
+        ;;
+    logs)
+        shift
+        agent_name="$1"
+        shift
+        lines="20"
+        while [[ $# -gt 0 ]]; do
+            case "$1" in
+                --lines)
+                    lines="$2"
+                    shift 2
+                    ;;
+                *)
+                    shift
+                    ;;
+            esac
+        done
+        get_logs "$agent_name" "$lines"
+        ;;
+    metrics)
+        get_metrics "$2"
+        ;;
+    orchestrate)
+        orchestrate "$2"
+        ;;
+    start)
+        start_agent "$2"
+        ;;
+    stop)
+        stop_agent "$2"
+        ;;
+    health)
+        check_health
+        ;;
+    --version|-v)
+        show_version
+        ;;
+    --help|-h|"")
+        show_help
+        ;;
+    *)
+        echo -e "${RED}Error: Unknown command '$1'${NC}"
+        show_help
+        exit 1
+        ;;
+esac

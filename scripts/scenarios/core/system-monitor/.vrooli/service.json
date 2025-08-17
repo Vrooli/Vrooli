@@ -4,31 +4,54 @@
   "service": {
     "parent": "vrooli",
     "name": "system-monitor",
-    "displayName": "AI System Monitor",
-    "description": "Server monitoring with AI-driven anomaly investigation and automated reporting",
+    "displayName": "System Monitor",
+    "description": "Server monitoring with AI-driven anomaly investigation",
     "version": "1.0.0",
-    "type": "application",
+    "type": "vrooli-helper",
+    "category": "monitoring",
     "tags": [
-      "system-monitoring",
+      "monitoring",
+      "system",
       "anomaly-detection",
-      "ai-investigation",
-      "infrastructure-monitoring",
-      "alerting",
-      "performance-analytics"
+      "ai-investigation", 
+      "dashboards",
+      "alerts",
+      "metrics",
+      "dark-theme"
     ]
   },
   "ports": {
     "api": {
       "env_var": "SERVICE_PORT",
-      "range": "8090-8999",
-      "fallback": "auto",
-      "description": "System monitor API port"
+      "range": "8080-8099",
+      "fallback": "8083",
+      "description": "System Monitor API port"
     },
     "ui": {
       "env_var": "UI_PORT",
-      "range": "3000-3999",
-      "fallback": "auto",
-      "description": "System monitor dashboard port"
+      "range": "3000-3099",
+      "fallback": "3003",
+      "description": "System Monitor UI port"
+    }
+  },
+  "components": {
+    "api": {
+      "enabled": true,
+      "language": "go",
+      "path": "api",
+      "main": "main.go"
+    },
+    "ui": {
+      "enabled": true,
+      "framework": "javascript",
+      "path": "ui",
+      "main": "server.js"
+    },
+    "cli": {
+      "enabled": true,
+      "language": "bash",
+      "path": "cli",
+      "command": "system-monitor"
     }
   },
   "resources": {
@@ -37,86 +60,128 @@
         "type": "postgres",
         "enabled": true,
         "required": true,
-        "purpose": "Store monitoring data and configuration",
-        "initialization": [
-          {
-            "file": "initialization/storage/postgres/schema.sql",
-            "type": "script"
-          }
-        ]
+        "purpose": "store metrics, thresholds, investigations, and reports"
       },
       "questdb": {
         "type": "questdb",
         "enabled": true,
         "required": true,
-        "purpose": "High-performance time-series database for metrics"
+        "purpose": "time series data for metrics and performance analytics"
       },
       "redis": {
         "type": "redis",
         "enabled": true,
         "required": true,
-        "purpose": "Real-time metrics and alert caching"
+        "purpose": "real-time alerts and caching"
       }
     },
     "automation": {
+      "n8n": {
+        "type": "n8n",
+        "enabled": true,
+        "required": true
+      },
       "node-red": {
         "type": "node-red",
         "enabled": true,
         "required": true,
-        "initialization": [
-          {
-            "file": "initialization/automation/node-red/anomaly-detector.json",
-            "type": "flow"
-          },
-          {
-            "file": "initialization/automation/node-red/metric-collector.json",
-            "type": "flow"
-          }
-        ]
-      },
-      "n8n": {
-        "type": "n8n",
-        "enabled": true,
-        "required": true,
-        "initialization": [
-          {
-            "file": "initialization/automation/n8n/scheduled-reports.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/automation/n8n/threshold-monitor.json",
-            "type": "workflow"
-          }
-        ]
+        "purpose": "anomaly detection flows"
       }
     },
     "ai": {
       "ollama": {
         "type": "ollama",
         "enabled": true,
-        "required": false,
-        "models": [
-          "llama3.2:3b"
-        ]
+        "required": true,
+        "models": ["llama3.2:3b"],
+        "purpose": "anomaly investigation and analysis"
       }
     },
     "agents": {
       "claude-code": {
         "type": "claude-code",
         "enabled": true,
-        "required": false
+        "required": false,
+        "purpose": "deep system investigation"
+      }
+    },
+    "visualization": {
+      "grafana": {
+        "type": "grafana",
+        "enabled": true,
+        "required": false,
+        "purpose": "advanced metrics visualization"
       }
     }
+  },
+  "initialization": {
+    "postgres": [
+      {
+        "file": "initialization/postgres/schema.sql",
+        "type": "schema"
+      }
+    ],
+    "n8n": [
+      {
+        "name": "threshold-monitor",
+        "file": "initialization/n8n/threshold-monitor.json",
+        "active": true
+      },
+      {
+        "name": "scheduled-reports",
+        "file": "initialization/n8n/scheduled-reports.json",
+        "active": true
+      },
+      {
+        "name": "anomaly-investigator",
+        "file": "initialization/n8n/anomaly-investigator.json",
+        "active": true
+      }
+    ],
+    "questdb": [
+      {
+        "file": "initialization/questdb/server.conf",
+        "type": "config"
+      }
+    ],
+    "redis": [
+      {
+        "file": "initialization/redis/redis.conf",
+        "type": "config"
+      }
+    ]
+  },
+  "dependencies": {
+    "shared_workflows": ["rate-limiter", "ollama", "structured-data-extractor"]
+  },
+  "healthcheck": {
+    "enabled": true,
+    "interval": 30,
+    "timeout": 10,
+    "retries": 3,
+    "endpoints": [
+      {
+        "type": "http",
+        "url": "http://localhost:${SERVICE_PORT}/health",
+        "method": "GET",
+        "expected_status": 200
+      }
+    ]
+  },
+  "logging": {
+    "level": "info",
+    "format": "json",
+    "output": "stdout"
   },
   "lifecycle": {
     "version": "1.0.0",
     "setup": {
-      "description": "Initialize AI System Monitor",
+      "description": "Initialize System Monitor",
       "steps": [
         {
           "name": "base-setup",
           "run": "bash scripts/lib/setup.sh",
-          "description": "Execute generic setup (e.g. network, system, git)"
+          "description": "Execute generic setup"
         },
         {
           "name": "add-data",
@@ -124,39 +189,66 @@
           "description": "Add app data to resources"
         },
         {
-          "name": "show-urls",
-          "run": "echo '🚀 System Monitor initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Node-RED flows: http://localhost:${RESOURCE_PORTS[node-red]}\\n  API: http://localhost:${SERVICE_PORT}'",
-          "description": "Display service access URLs"
+          "name": "install-cli",
+          "run": "cd cli && chmod +x system-monitor && ./install-cli.sh",
+          "description": "Install CLI command"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod tidy && go mod download && go build -o system-monitor-api main.go",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies"
         }
       ]
     },
     "develop": {
-      "description": "Start system monitor services",
+      "description": "Start System Monitor app",
       "steps": [
         {
-          "name": "start-services",
-          "run": "cd deployment && ./startup.sh",
-          "description": "Start system monitor services"
+          "name": "start-api",
+          "run": "cd api && PORT=$SERVICE_PORT ./system-monitor-api &",
+          "description": "Start API server",
+          "background": true
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && PORT=$UI_PORT API_PORT=$SERVICE_PORT node server.js &",
+          "description": "Start UI server",
+          "background": true
+        },
+        {
+          "name": "show-urls",
+          "run": "echo 'System Monitor running:\\n  UI: http://localhost:'$UI_PORT'\\n  API: http://localhost:'$SERVICE_PORT'\\n  Grafana: http://localhost:3004'",
+          "description": "Display service URLs"
         }
       ]
     },
     "test": {
-      "description": "Test system monitor functionality",
+      "description": "Test System Monitor",
       "steps": [
         {
-          "name": "run-tests",
-          "run": "bash test.sh",
-          "description": "Run integration tests"
+          "name": "test-api-build",
+          "run": "cd api && go build -o test-build main.go && rm test-build",
+          "description": "Test Go compilation"
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/health",
+          "description": "Test API health endpoint"
         }
       ]
     },
     "stop": {
-      "description": "Stop system monitor services",
+      "description": "Stop System Monitor",
       "steps": [
         {
           "name": "stop-services",
-          "run": "pkill -f 'system-monitor' || true",
-          "description": "Stop all system monitor processes"
+          "run": "pkill -f 'system-monitor-api' || true; pkill -f 'node server.js' || true",
+          "description": "Stop all services"
         }
       ]
     }

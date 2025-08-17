@@ -63,31 +63,36 @@
     },
     {
       "parameters": {
-        "workflowId": "={{ $workflow.id }}",
-        "source": "workflowCall",
-        "workflowJson": "ollama",
-        "waitForSubWorkflow": true,
-        "body": {
-          "prompt": "={{ 'Analyze these mind map nodes and suggest improvements:\\n\\nNodes:\\n' + $json.nodes.map(n => `- ${n.content} (type: ${n.type}, parent: ${n.parent_id || 'none'})`).join('\\n') + '\\n\\nProvide suggestions in JSON format with these fields:\\n1. new_connections: Array of {from_node_id, to_node_id, relationship_type}\\n2. reorganization: Array of {node_id, suggested_parent_id, reason}\\n3. new_nodes: Array of {content, suggested_parent_id, type}\\n4. clusters: Array of {name, node_ids, theme}\\n\\nFocus on logical groupings, missing connections, and knowledge gaps. Return only valid JSON.' }}",
-          "model": "llama3.2",
-          "type": "reasoning",
-          "quiet": true
-        }
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Prepare the prompt for the shared Ollama workflow\nconst nodes = $json || [];\nconst prompt = 'Analyze these mind map nodes and suggest improvements:\\n\\nNodes:\\n' + \n  nodes.map(n => `- ${n.title} (parent: ${n.parent_id || 'none'})`).join('\\n') + \n  '\\n\\nProvide suggestions in JSON format with these fields:\\n' +\n  '1. new_connections: Array of {from_node_id, to_node_id, relationship_type}\\n' +\n  '2. reorganization: Array of {node_id, suggested_parent_id, reason}\\n' +\n  '3. new_nodes: Array of {content, suggested_parent_id, type}\\n' +\n  '4. clusters: Array of {name, node_ids, theme}\\n\\n' +\n  'Focus on logical groupings, missing connections, and knowledge gaps. Return only valid JSON.';\n\nreturn {\n  prompt: prompt,\n  model: 'llama3.2:3b',\n  type: 'reasoning',\n  quiet: true,\n  timeout_seconds: 120,\n  original_nodes: nodes\n};"
       },
-      "name": "Analyze Structure",
-      "type": "n8n-nodes-base.executeWorkflow",
+      "name": "Prepare Ollama Request",
+      "type": "n8n-nodes-base.code",
       "typeVersion": 1,
       "position": [1000, 400],
-      "id": "analyze_structure"
+      "id": "prepare_ollama_request"
     },
     {
       "parameters": {
-        "functionCode": "const suggestions = JSON.parse($json.response || '{}');\nconst nodes = $('Get All Nodes').all().map(item => item.json);\n\n// Create a map for quick node lookup\nconst nodeMap = {};\nnodes.forEach(node => {\n  nodeMap[node.id] = node;\n});\n\n// Validate suggestions\nconst validatedSuggestions = {\n  new_connections: [],\n  reorganization: [],\n  new_nodes: suggestions.new_nodes || [],\n  clusters: suggestions.clusters || []\n};\n\n// Validate new connections\nif (suggestions.new_connections) {\n  suggestions.new_connections.forEach(conn => {\n    if (nodeMap[conn.from_node_id] && nodeMap[conn.to_node_id]) {\n      validatedSuggestions.new_connections.push(conn);\n    }\n  });\n}\n\n// Validate reorganization suggestions\nif (suggestions.reorganization) {\n  suggestions.reorganization.forEach(reorg => {\n    if (nodeMap[reorg.node_id] && (reorg.suggested_parent_id === null || nodeMap[reorg.suggested_parent_id])) {\n      validatedSuggestions.reorganization.push(reorg);\n    }\n  });\n}\n\nreturn validatedSuggestions;"
+        "workflowId": "={{ $env.SHARED_WORKFLOW_OLLAMA_ID }}",
+        "source": "parameter",
+        "workflowData": "={{ { \"prompt\": $json.prompt, \"model\": $json.model, \"type\": $json.type, \"quiet\": $json.quiet, \"timeout_seconds\": $json.timeout_seconds } }}"
+      },
+      "id": "analyze_structure",
+      "name": "Analyze Structure with Ollama",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [1200, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Get the response from the shared Ollama workflow\nconst ollamaResult = $json;\nconst ollamaOutput = ollamaResult.response || '';\n\n// Try to parse the JSON response\nlet suggestions = {};\ntry {\n  suggestions = JSON.parse(ollamaOutput);\n} catch (e) {\n  // If parsing fails, try to extract JSON from the output\n  const jsonMatch = ollamaOutput.match(/\\{[\\s\\S]*\\}/); \n  if (jsonMatch) {\n    try {\n      suggestions = JSON.parse(jsonMatch[0]);\n    } catch (e2) {\n      suggestions = {};\n    }\n  }\n}\n\n// Get nodes from the database fetch\nconst nodes = $('Fetch Existing Nodes').all().map(item => item.json);\n\n// Create a map for quick node lookup\nconst nodeMap = {};\nnodes.forEach(node => {\n  nodeMap[node.id] = node;\n});\n\n// Validate suggestions\nconst validatedSuggestions = {\n  new_connections: [],\n  reorganization: [],\n  new_nodes: suggestions.new_nodes || [],\n  clusters: suggestions.clusters || [],\n  execution_metadata: {\n    ollama_success: ollamaResult.success || false,\n    execution_time_ms: ollamaResult.execution?.execution_time_ms || 0,\n    model_used: ollamaResult.request?.model || 'unknown'\n  }\n};\n\n// Validate new connections\nif (suggestions.new_connections) {\n  suggestions.new_connections.forEach(conn => {\n    if (nodeMap[conn.from_node_id] && nodeMap[conn.to_node_id]) {\n      validatedSuggestions.new_connections.push(conn);\n    }\n  });\n}\n\n// Validate reorganization suggestions\nif (suggestions.reorganization) {\n  suggestions.reorganization.forEach(reorg => {\n    if (nodeMap[reorg.node_id] && (reorg.suggested_parent_id === null || nodeMap[reorg.suggested_parent_id])) {\n      validatedSuggestions.reorganization.push(reorg);\n    }\n  });\n}\n\nreturn validatedSuggestions;"
       },
       "name": "Validate Suggestions",
       "type": "n8n-nodes-base.code",
       "typeVersion": 1,
-      "position": [850, 300],
+      "position": [1400, 400],
       "id": "validate_suggestions"
     },
     {
@@ -96,11 +101,11 @@
         "path": "mind-maps/auto-organize-manual",
         "options": {}
       },
-      "name": "Manual Trigger",
+      "name": "Manual Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
       "position": [250, 500],
-      "id": "manual_trigger"
+      "id": "manual_webhook"
     },
     {
       "parameters": {
@@ -208,11 +213,11 @@
     }
   ],
   "connections": {
-    "Webhook": {
+    "Webhook Trigger": {
       "main": [
         [
           {
-            "node": "Merge",
+            "node": "Merge Triggers",
             "type": "main",
             "index": 0
           }
@@ -223,9 +228,31 @@
       "main": [
         [
           {
+            "node": "Set Test Defaults",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Webhook": {
+      "main": [
+        [
+          {
             "node": "Default Params",
             "type": "main",
             "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Test Defaults": {
+      "main": [
+        [
+          {
+            "node": "Merge Triggers",
+            "type": "main",
+            "index": 1
           }
         ]
       ]
@@ -241,29 +268,51 @@
         ]
       ]
     },
+    "Merge Triggers": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "Merge": {
       "main": [
         [
           {
-            "node": "Get All Nodes",
+            "node": "Fetch Existing Nodes",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Get All Nodes": {
+    "Fetch Existing Nodes": {
       "main": [
         [
           {
-            "node": "Analyze Structure",
+            "node": "Prepare Ollama Request",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Analyze Structure": {
+    "Prepare Ollama Request": {
+      "main": [
+        [
+          {
+            "node": "Analyze Structure with Ollama",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Structure with Ollama": {
       "main": [
         [
           {

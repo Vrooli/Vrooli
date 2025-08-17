@@ -82,9 +82,9 @@
       "parameters": {
         "resource": "database",
         "operation": "insert",
-        "schema": "public",
+        "schema": "vision_walk",
         "table": "insights",
-        "columns": "session_id,user_id,insight_text,category,metadata,created_at",
+        "columns": "session_id,user_id,type,title,content,importance,tags,created_at",
         "additionalFields": {}
       },
       "id": "store-insights",
@@ -102,7 +102,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Prepare insights for storage\nconst insights = $json;\nconst records = [];\n\n// Store each insight type\nif (insights.insights?.length) {\n  insights.insights.forEach(text => {\n    records.push({\n      session_id: insights.session_id,\n      user_id: insights.user_id,\n      insight_text: text,\n      category: 'key_insight',\n      metadata: JSON.stringify({\n        tags: insights.context_tags,\n        conversation_length: insights.conversation_length\n      }),\n      created_at: new Date().toISOString()\n    });\n  });\n}\n\nif (insights.immediate_actions?.length) {\n  insights.immediate_actions.forEach(text => {\n    records.push({\n      session_id: insights.session_id,\n      user_id: insights.user_id,\n      insight_text: text,\n      category: 'immediate_action',\n      metadata: JSON.stringify({\n        tags: insights.context_tags,\n        priority: 'high'\n      }),\n      created_at: new Date().toISOString()\n    });\n  });\n}\n\nif (insights.vrooli_connections?.length) {\n  insights.vrooli_connections.forEach(text => {\n    records.push({\n      session_id: insights.session_id,\n      user_id: insights.user_id,\n      insight_text: text,\n      category: 'vrooli_connection',\n      metadata: JSON.stringify({\n        tags: insights.context_tags,\n        recursive_improvement: true\n      }),\n      created_at: new Date().toISOString()\n    });\n  });\n}\n\nreturn records.length > 0 ? records : [{ json: { message: 'No insights to store' } }];"
+        "jsCode": "// Prepare insights for storage using correct vision_walk.insights schema\nconst insights = $json;\nconst records = [];\n\n// Store each insight type according to vision_walk.insights schema\nif (insights.insights?.length) {\n  insights.insights.forEach(text => {\n    records.push({\n      session_id: insights.session_id,\n      user_id: insights.user_id,\n      type: 'breakthrough',\n      title: 'Key Insight',\n      content: text,\n      importance: 4,\n      tags: insights.context_tags || [],\n      created_at: new Date().toISOString()\n    });\n  });\n}\n\nif (insights.immediate_actions?.length) {\n  insights.immediate_actions.forEach(text => {\n    records.push({\n      session_id: insights.session_id,\n      user_id: insights.user_id,\n      type: 'opportunity',\n      title: 'Immediate Action',\n      content: text,\n      importance: 5,\n      tags: [...(insights.context_tags || []), 'high-priority'],\n      created_at: new Date().toISOString()\n    });\n  });\n}\n\nif (insights.vrooli_connections?.length) {\n  insights.vrooli_connections.forEach(text => {\n    records.push({\n      session_id: insights.session_id,\n      user_id: insights.user_id,\n      type: 'pattern',\n      title: 'Vrooli Connection',\n      content: text,\n      importance: 3,\n      tags: [...(insights.context_tags || []), 'recursive-improvement', 'vrooli'],\n      created_at: new Date().toISOString()\n    });\n  });\n}\n\nreturn records.length > 0 ? records : [{ json: { message: 'No insights to store' } }];"
       },
       "id": "prepare-storage",
       "name": "Prepare Storage",

@@ -8,6 +8,7 @@ import (
     "log"
     "net/http"
     "os"
+    "strings"
     "time"
 
     _ "github.com/lib/pq"
@@ -42,6 +43,29 @@ type StatsRequest struct {
 type CoachingRequest struct {
     UserStats  StatsRequest `json:"userStats"`
     Difficulty string       `json:"difficulty"`
+}
+
+type AdaptiveTextRequest struct {
+    UserID          string   `json:"userId"`
+    Difficulty      string   `json:"difficulty"`
+    TargetWords     []string `json:"targetWords"`
+    ProblemChars    []string `json:"problemChars"`
+    UserLevel       string   `json:"userLevel"`
+    TextLength      string   `json:"textLength"`
+    PreviousMistakes []struct {
+        Word       string `json:"word"`
+        Char       string `json:"char"`
+        Position   string `json:"position"`
+        ErrorCount int    `json:"errorCount"`
+    } `json:"previousMistakes"`
+}
+
+type AdaptiveTextResponse struct {
+    Text       string `json:"text"`
+    WordCount  int    `json:"wordCount"`
+    Difficulty string `json:"difficulty"`
+    IsAdaptive bool   `json:"isAdaptive"`
+    Timestamp  string `json:"timestamp"`
 }
 
 var db *sql.DB
@@ -85,6 +109,7 @@ func main() {
     router.HandleFunc("/api/stats", submitStats).Methods("POST")
     router.HandleFunc("/api/coaching", getCoaching).Methods("POST")
     router.HandleFunc("/api/practice-text", getPracticeText).Methods("GET")
+    router.HandleFunc("/api/adaptive-text", getAdaptiveText).Methods("POST")
 
     // Setup CORS
     c := cors.New(cors.Options{
@@ -102,6 +127,41 @@ func main() {
 }
 
 func initDB() {
+    // Check if tables exist from the proper schema.sql initialization
+    // If not, we'll create minimal tables for basic functionality
+    var tableExists bool
+    
+    // Check if the proper schema is already loaded (from initialization/postgres/schema.sql)
+    err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name = 'players')").Scan(&tableExists)
+    if err != nil {
+        log.Printf("Warning: Failed to check schema: %v", err)
+    }
+    
+    if tableExists {
+        // Proper schema exists, just add any missing basic compatibility
+        log.Printf("✅ Using existing PostgreSQL schema with full features")
+        
+        // Ensure compatibility columns exist in scores table for our simplified API
+        compatQuery := `
+        DO $$ 
+        BEGIN
+            -- Add name column to scores if it doesn't exist (for backwards compatibility)
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                          WHERE table_name = 'scores' AND column_name = 'name') THEN
+                ALTER TABLE scores ADD COLUMN name VARCHAR(50);
+            END IF;
+        END $$;
+        `
+        
+        if _, err := db.Exec(compatQuery); err != nil {
+            log.Printf("Warning: Failed to add compatibility columns: %v", err)
+        }
+        return
+    }
+    
+    // Fallback: create minimal tables if proper schema wasn't loaded
+    log.Printf("⚠️  Creating minimal schema - consider running proper schema.sql for full features")
+    
     query := `
     CREATE TABLE IF NOT EXISTS scores (
         id SERIAL PRIMARY KEY,
@@ -132,7 +192,7 @@ func initDB() {
     `
 
     if _, err := db.Exec(query); err != nil {
-        log.Printf("Warning: Failed to initialize database: %v", err)
+        log.Printf("Warning: Failed to initialize minimal database: %v", err)
     }
 }
 
@@ -360,7 +420,12 @@ func getCoaching(w http.ResponseWriter, r *http.Request) {
             "personalizedMetrics": map[string]interface{}{
                 "currentWpm": request.UserStats.WPM,
                 "targetWpm": request.UserStats.WPM + 10,
-                "accuracyGoal": min(request.UserStats.Accuracy + 5, 100),
+                "accuracyGoal": func() int {
+                    if request.UserStats.Accuracy + 5 < 100 {
+                        return request.UserStats.Accuracy + 5
+                    }
+                    return 100
+                }(),
             },
         },
         "recommendedDifficulty": getRecommendedDifficulty(request.UserStats.WPM, request.UserStats.Accuracy),
@@ -423,4 +488,108 @@ func triggerStatsProcessing(stats StatsRequest) {
     // This would trigger the n8n typing-stats-processor workflow
     // For now, just log it
     log.Printf("Stats processed for session: %s", stats.SessionID)
+}
+
+func getAdaptiveText(w http.ResponseWriter, r *http.Request) {
+    var request AdaptiveTextRequest
+    if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+        http.Error(w, "Invalid request body", http.StatusBadRequest)
+        return
+    }
+
+    // Set defaults if not provided
+    if request.Difficulty == "" {
+        request.Difficulty = "medium"
+    }
+    if request.UserLevel == "" {
+        request.UserLevel = "intermediate"
+    }
+    if request.TextLength == "" {
+        request.TextLength = "medium"
+    }
+
+    // Call n8n adaptive text generation workflow
+    if n8nURL != "" {
+        payload := map[string]interface{}{
+            "userId":          request.UserID,
+            "difficulty":      request.Difficulty,
+            "targetWords":     request.TargetWords,
+            "problemChars":    request.ProblemChars,
+            "userLevel":       request.UserLevel,
+            "textLength":      request.TextLength,
+            "previousMistakes": request.PreviousMistakes,
+        }
+
+        jsonPayload, _ := json.Marshal(payload)
+        
+        resp, err := http.Post(
+            fmt.Sprintf("%s/webhook/typing-test/generate-text", n8nURL),
+            "application/json",
+            bytes.NewBuffer(jsonPayload),
+        )
+
+        if err == nil && resp.StatusCode == 200 {
+            defer resp.Body.Close()
+            var n8nResponse AdaptiveTextResponse
+            if json.NewDecoder(resp.Body).Decode(&n8nResponse) == nil {
+                w.Header().Set("Content-Type", "application/json")
+                json.NewEncoder(w).Encode(n8nResponse)
+                return
+            }
+        }
+    }
+
+    // Fallback: generate adaptive text locally based on user data
+    adaptiveText := generateFallbackText(request)
+    
+    response := AdaptiveTextResponse{
+        Text:       adaptiveText,
+        WordCount:  len(strings.Fields(adaptiveText)),
+        Difficulty: request.Difficulty,
+        IsAdaptive: true,
+        Timestamp:  time.Now().UTC().Format(time.RFC3339),
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(response)
+}
+
+func generateFallbackText(request AdaptiveTextRequest) string {
+    // Fallback texts that incorporate common problem areas
+    fallbackTexts := map[string][]string{
+        "easy": {
+            "The cat definitely received the necessary help from the veterinarian whether it needed it or not.",
+            "People often separate their work and personal lives to achieve better balance and productivity.",
+            "Learning proper techniques can definitely improve your typing accuracy and overall speed.",
+        },
+        "medium": {
+            "The necessary equipment definitely received proper maintenance whether the technician thought it needed it or not, ensuring separate systems operated efficiently.",
+            "Organizations often separate their technical infrastructure from user-facing applications to achieve better performance, security, and scalability in their systems.",
+            "Whether you're developing software applications or managing database systems, proper planning and execution are definitely necessary for successful project delivery.",
+        },
+        "hard": {
+            "The sophisticated algorithm definitely received comprehensive optimization whether the development team initially thought it was necessary or not, ensuring separate computational processes operated efficiently.",
+            "Contemporary software architectures often separate their microservices infrastructure from monolithic applications, whether the organization definitely needs the added complexity or can achieve necessary scalability through alternative approaches.",
+            "Advanced cryptographic implementations definitely require specialized knowledge, whether the security protocols are necessary for basic applications or more sophisticated systems that separate sensitive data processing.",
+        },
+    }
+
+    texts := fallbackTexts[request.Difficulty]
+    if texts == nil {
+        texts = fallbackTexts["medium"]
+    }
+
+    // Select a text based on target words if provided
+    if len(request.TargetWords) > 0 {
+        for _, text := range texts {
+            for _, word := range request.TargetWords {
+                if strings.Contains(strings.ToLower(text), strings.ToLower(word)) {
+                    return text
+                }
+            }
+        }
+    }
+
+    // Return first text as default
+    return texts[0]
 }

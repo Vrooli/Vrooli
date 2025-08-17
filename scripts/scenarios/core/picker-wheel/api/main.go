@@ -1,6 +1,7 @@
 package main
 
 import (
+    "database/sql"
     "encoding/json"
     "fmt"
     "log"
@@ -9,7 +10,9 @@ import (
     "time"
 
     "github.com/gorilla/mux"
+    "github.com/lib/pq"
     "github.com/rs/cors"
+    _ "github.com/lib/pq"
 )
 
 type Wheel struct {
@@ -41,33 +44,49 @@ type HealthResponse struct {
     Version string `json:"version"`
 }
 
-var wheels []Wheel
-var history []SpinResult
+var db *sql.DB
 
-func init() {
-    // Initialize with some default wheels
-    wheels = []Wheel{
-        {
-            ID:          "dinner-decider",
-            Name:        "Dinner Decider",
-            Description: "Can't decide what to eat?",
-            Options: []Option{
-                {Label: "Pizza 🍕", Color: "#FF6B6B", Weight: 1},
-                {Label: "Sushi 🍱", Color: "#4ECDC4", Weight: 1},
-                {Label: "Tacos 🌮", Color: "#FFD93D", Weight: 1},
-                {Label: "Burger 🍔", Color: "#6C5CE7", Weight: 1},
-            },
-            Theme:     "food",
-            CreatedAt: time.Now(),
-            TimesUsed: 0,
-        },
+func initDB() {
+    var err error
+    dbURL := os.Getenv("DATABASE_URL")
+    if dbURL == "" {
+        log.Println("DATABASE_URL not set, using in-memory fallback")
+        return
     }
+    
+    db, err = sql.Open("postgres", dbURL)
+    if err != nil {
+        log.Printf("Failed to connect to database: %v", err)
+        return
+    }
+    
+    if err = db.Ping(); err != nil {
+        log.Printf("Failed to ping database: %v", err)
+        db = nil
+        return
+    }
+    
+    log.Println("Successfully connected to PostgreSQL database")
 }
 
 func main() {
-    port := os.Getenv("SERVICE_PORT")
+    // Initialize database connection
+    initDB()
+    defer func() {
+        if db != nil {
+            db.Close()
+        }
+    }()
+    
+    port := os.Getenv("API_PORT")
     if port == "" {
-        port = "8500"
+        port = os.Getenv("SERVICE_PORT")
+        if port == "" {
+            port = os.Getenv("PORT")
+            if port == "" {
+                port = "8100"
+            }
+        }
     }
 
     router := mux.NewRouter()
@@ -108,6 +127,50 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 
 func getWheelsHandler(w http.ResponseWriter, r *http.Request) {
     w.Header().Set("Content-Type", "application/json")
+    
+    if db == nil {
+        // Fallback to default wheels if no database
+        json.NewEncoder(w).Encode(getDefaultWheels())
+        return
+    }
+    
+    rows, err := db.Query(`
+        SELECT id, name, description, options, theme, times_used, created_at 
+        FROM wheels 
+        WHERE is_public = true 
+        ORDER BY times_used DESC, created_at DESC
+        LIMIT 20
+    `)
+    if err != nil {
+        log.Printf("Error querying wheels: %v", err)
+        json.NewEncoder(w).Encode(getDefaultWheels())
+        return
+    }
+    defer rows.Close()
+    
+    var wheels []Wheel
+    for rows.Next() {
+        var wheel Wheel
+        var optionsJSON []byte
+        err := rows.Scan(&wheel.ID, &wheel.Name, &wheel.Description, 
+                        &optionsJSON, &wheel.Theme, &wheel.TimesUsed, &wheel.CreatedAt)
+        if err != nil {
+            log.Printf("Error scanning wheel: %v", err)
+            continue
+        }
+        
+        if err := json.Unmarshal(optionsJSON, &wheel.Options); err != nil {
+            log.Printf("Error unmarshalling options: %v", err)
+            continue
+        }
+        
+        wheels = append(wheels, wheel)
+    }
+    
+    if len(wheels) == 0 {
+        wheels = getDefaultWheels()
+    }
+    
     json.NewEncoder(w).Encode(wheels)
 }
 
@@ -117,11 +180,37 @@ func createWheelHandler(w http.ResponseWriter, r *http.Request) {
         http.Error(w, err.Error(), http.StatusBadRequest)
         return
     }
-
-    wheel.ID = fmt.Sprintf("wheel_%d", time.Now().Unix())
+    
     wheel.CreatedAt = time.Now()
-    wheels = append(wheels, wheel)
-
+    
+    if db == nil {
+        // Fallback to in-memory if no database
+        wheel.ID = fmt.Sprintf("wheel_%d", time.Now().Unix())
+        w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(wheel)
+        return
+    }
+    
+    optionsJSON, err := json.Marshal(wheel.Options)
+    if err != nil {
+        http.Error(w, "Failed to marshal options", http.StatusInternalServerError)
+        return
+    }
+    
+    var id string
+    err = db.QueryRow(`
+        INSERT INTO wheels (name, description, options, theme, is_public) 
+        VALUES ($1, $2, $3, $4, $5) 
+        RETURNING id
+    `, wheel.Name, wheel.Description, optionsJSON, wheel.Theme, false).Scan(&id)
+    
+    if err != nil {
+        log.Printf("Error creating wheel: %v", err)
+        http.Error(w, "Failed to create wheel", http.StatusInternalServerError)
+        return
+    }
+    
+    wheel.ID = id
     w.Header().Set("Content-Type", "application/json")
     json.NewEncoder(w).Encode(wheel)
 }
@@ -159,6 +248,37 @@ func deleteWheelHandler(w http.ResponseWriter, r *http.Request) {
 func getHistoryHandler(w http.ResponseWriter, r *http.Request) {
     w.Header().Set("Content-Type", "application/json")
     json.NewEncoder(w).Encode(history)
+}
+
+func getDefaultWheels() []Wheel {
+    return []Wheel{
+        {
+            ID:          "dinner-decider",
+            Name:        "Dinner Decider",
+            Description: "Can't decide what to eat?",
+            Options: []Option{
+                {Label: "Pizza 🍕", Color: "#FF6B6B", Weight: 1},
+                {Label: "Sushi 🍱", Color: "#4ECDC4", Weight: 1},
+                {Label: "Tacos 🌮", Color: "#FFD93D", Weight: 1},
+                {Label: "Burger 🍔", Color: "#6C5CE7", Weight: 1},
+            },
+            Theme:     "food",
+            CreatedAt: time.Now(),
+            TimesUsed: 0,
+        },
+        {
+            ID:          "yes-or-no",
+            Name:        "Yes or No",
+            Description: "Simple decision maker",
+            Options: []Option{
+                {Label: "YES! ✅", Color: "#4CAF50", Weight: 1},
+                {Label: "NO ❌", Color: "#F44336", Weight: 1},
+            },
+            Theme:     "minimal",
+            CreatedAt: time.Now(),
+            TimesUsed: 0,
+        },
+    }
 }
 
 func spinHandler(w http.ResponseWriter, r *http.Request) {

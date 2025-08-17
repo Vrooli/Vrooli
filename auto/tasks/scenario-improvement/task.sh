@@ -13,7 +13,6 @@ TASK_PROMPTS_DIR="${TASK_DIR}/prompts"
 task_prompt_candidates() {
 	cat << EOF
 ${PROMPT_PATH:-}
-${TASK_PROMPTS_DIR}/scenario-improvement-loop.v2.md
 ${TASK_PROMPTS_DIR}/scenario-improvement-loop.md
 /tmp/scenario-improvement-loop.md
 EOF

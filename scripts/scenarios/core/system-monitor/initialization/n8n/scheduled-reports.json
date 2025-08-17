@@ -1,0 +1,189 @@
+{
+  "name": "System Monitor - Scheduled Reports",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * *"
+            }
+          ]
+        }
+      },
+      "id": "cron-trigger",
+      "name": "Daily at 9 AM",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  DATE(timestamp) as date,\n  COUNT(*) as total_metrics,\n  AVG(cpu_usage) as avg_cpu,\n  AVG(memory_usage) as avg_memory,\n  AVG(tcp_connections) as avg_tcp_connections,\n  MAX(cpu_usage) as peak_cpu,\n  MAX(memory_usage) as peak_memory\nFROM system_health \nWHERE timestamp >= NOW() - INTERVAL '24 HOURS'\nGROUP BY DATE(timestamp)\nORDER BY date DESC",
+        "additionalFields": {}
+      },
+      "id": "fetch-metrics",
+      "name": "Fetch Daily Metrics",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [
+        460,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-system-monitor",
+          "name": "System Monitor DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  type,\n  severity,\n  COUNT(*) as count,\n  MIN(detected_at) as first_detected,\n  MAX(detected_at) as last_detected,\n  COUNT(CASE WHEN status = 'active' THEN 1 END) as active_count\nFROM anomalies \nWHERE detected_at >= NOW() - INTERVAL '24 HOURS'\nGROUP BY type, severity\nORDER BY count DESC",
+        "additionalFields": {}
+      },
+      "id": "fetch-anomalies",
+      "name": "Fetch Daily Anomalies",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [
+        460,
+        480
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-system-monitor",
+          "name": "System Monitor DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const now = new Date();\nconst yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);\n\nconst metrics = $input.first('fetch-metrics').json || [];\nconst anomalies = $input.first('fetch-anomalies').json || [];\n\n// Generate report summary\nconst totalMetrics = metrics.reduce((sum, m) => sum + m.total_metrics, 0);\nconst avgCpu = metrics.length > 0 ? (metrics.reduce((sum, m) => sum + parseFloat(m.avg_cpu), 0) / metrics.length).toFixed(2) : 0;\nconst avgMemory = metrics.length > 0 ? (metrics.reduce((sum, m) => sum + parseFloat(m.avg_memory), 0) / metrics.length).toFixed(2) : 0;\nconst peakCpu = metrics.length > 0 ? Math.max(...metrics.map(m => parseFloat(m.peak_cpu))).toFixed(2) : 0;\nconst peakMemory = metrics.length > 0 ? Math.max(...metrics.map(m => parseFloat(m.peak_memory))).toFixed(2) : 0;\n\nconst totalAnomalies = anomalies.reduce((sum, a) => sum + a.count, 0);\nconst criticalAnomalies = anomalies.filter(a => a.severity === 'critical').reduce((sum, a) => sum + a.count, 0);\nconst activeAnomalies = anomalies.reduce((sum, a) => sum + a.active_count, 0);\n\n// Create HTML report\nconst htmlReport = `\n<!DOCTYPE html>\n<html>\n<head>\n    <title>System Monitor Daily Report - ${yesterday.toDateString()}</title>\n    <style>\n        body { font-family: Arial, sans-serif; margin: 20px; }\n        .header { background-color: #f4f4f4; padding: 20px; border-radius: 5px; }\n        .section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }\n        .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }\n        .metric { background: #e9f5ff; padding: 15px; border-radius: 5px; text-align: center; }\n        .metric-value { font-size: 24px; font-weight: bold; color: #0066cc; }\n        .anomaly-table { width: 100%; border-collapse: collapse; }\n        .anomaly-table th, .anomaly-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }\n        .anomaly-table th { background-color: #f2f2f2; }\n        .critical { color: #d73527; font-weight: bold; }\n        .warning { color: #ff8c00; }\n        .info { color: #28a745; }\n    </style>\n</head>\n<body>\n    <div class=\"header\">\n        <h1>System Monitor Daily Report</h1>\n        <p><strong>Date:</strong> ${yesterday.toDateString()}</p>\n        <p><strong>Generated:</strong> ${now.toISOString()}</p>\n    </div>\n    \n    <div class=\"section\">\n        <h2>System Metrics Summary</h2>\n        <div class=\"metrics\">\n            <div class=\"metric\">\n                <div class=\"metric-value\">${totalMetrics}</div>\n                <div>Total Data Points</div>\n            </div>\n            <div class=\"metric\">\n                <div class=\"metric-value\">${avgCpu}%</div>\n                <div>Average CPU Usage</div>\n            </div>\n            <div class=\"metric\">\n                <div class=\"metric-value\">${avgMemory}%</div>\n                <div>Average Memory Usage</div>\n            </div>\n            <div class=\"metric\">\n                <div class=\"metric-value\">${peakCpu}%</div>\n                <div>Peak CPU Usage</div>\n            </div>\n            <div class=\"metric\">\n                <div class=\"metric-value\">${peakMemory}%</div>\n                <div>Peak Memory Usage</div>\n            </div>\n        </div>\n    </div>\n    \n    <div class=\"section\">\n        <h2>Anomaly Summary</h2>\n        <div class=\"metrics\">\n            <div class=\"metric\">\n                <div class=\"metric-value ${totalAnomalies > 0 ? 'warning' : 'info'}\">${totalAnomalies}</div>\n                <div>Total Anomalies</div>\n            </div>\n            <div class=\"metric\">\n                <div class=\"metric-value ${criticalAnomalies > 0 ? 'critical' : 'info'}\">${criticalAnomalies}</div>\n                <div>Critical Anomalies</div>\n            </div>\n            <div class=\"metric\">\n                <div class=\"metric-value ${activeAnomalies > 0 ? 'warning' : 'info'}\">${activeAnomalies}</div>\n                <div>Active Anomalies</div>\n            </div>\n        </div>\n        \n        ${anomalies.length > 0 ? `\n        <h3>Anomaly Details</h3>\n        <table class=\"anomaly-table\">\n            <thead>\n                <tr>\n                    <th>Type</th>\n                    <th>Severity</th>\n                    <th>Count</th>\n                    <th>Active</th>\n                    <th>First Detected</th>\n                    <th>Last Detected</th>\n                </tr>\n            </thead>\n            <tbody>\n                ${anomalies.map(a => `\n                <tr>\n                    <td>${a.type}</td>\n                    <td class=\"${a.severity}\">${a.severity.toUpperCase()}</td>\n                    <td>${a.count}</td>\n                    <td>${a.active_count}</td>\n                    <td>${new Date(a.first_detected).toLocaleString()}</td>\n                    <td>${new Date(a.last_detected).toLocaleString()}</td>\n                </tr>\n                `).join('')}\n            </tbody>\n        </table>\n        ` : '<p>No anomalies detected in the last 24 hours.</p>'}\n    </div>\n    \n    <div class=\"section\">\n        <h2>System Health Status</h2>\n        <p><strong>Overall Status:</strong> \n        ${criticalAnomalies > 0 ? '<span class=\"critical\">CRITICAL</span> - Immediate attention required' : \n          totalAnomalies > 5 ? '<span class=\"warning\">WARNING</span> - Monitor closely' : \n          '<span class=\"info\">HEALTHY</span> - System operating normally'}\n        </p>\n    </div>\n    \n    <div class=\"section\">\n        <h2>Recommendations</h2>\n        <ul>\n            ${criticalAnomalies > 0 ? '<li><strong>Critical:</strong> Review critical anomalies immediately and take corrective action.</li>' : ''}\n            ${peakCpu > 90 ? '<li><strong>CPU:</strong> Peak CPU usage exceeded 90%. Consider scaling or optimization.</li>' : ''}\n            ${peakMemory > 90 ? '<li><strong>Memory:</strong> Peak memory usage exceeded 90%. Monitor for memory leaks.</li>' : ''}\n            ${activeAnomalies > 3 ? '<li><strong>Anomalies:</strong> Multiple active anomalies detected. Investigate patterns.</li>' : ''}\n            ${totalAnomalies === 0 ? '<li><strong>Status:</strong> System operating smoothly with no anomalies detected.</li>' : ''}\n        </ul>\n    </div>\n    \n    <div class=\"section\">\n        <p><em>This report was automatically generated by the Vrooli System Monitor.</em></p>\n    </div>\n</body>\n</html>\n`;\n\n// Store report in database\nconst reportData = {\n    type: 'daily',\n    title: `Daily System Report - ${yesterday.toDateString()}`,\n    content: htmlReport,\n    summary: {\n        totalMetrics,\n        avgCpu: parseFloat(avgCpu),\n        avgMemory: parseFloat(avgMemory),\n        peakCpu: parseFloat(peakCpu),\n        peakMemory: parseFloat(peakMemory),\n        totalAnomalies,\n        criticalAnomalies,\n        activeAnomalies\n    },\n    anomaly_count: totalAnomalies,\n    period_start: yesterday.toISOString(),\n    period_end: now.toISOString()\n};\n\nreturn {\n    json: {\n        report: reportData,\n        htmlContent: htmlReport,\n        summary: reportData.summary\n    }\n};"
+      },
+      "id": "generate-report",
+      "name": "Generate Daily Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": "public",
+        "table": "reports",
+        "columns": "type, title, content, summary, anomaly_count, period_start, period_end",
+        "additionalFields": {}
+      },
+      "id": "save-report",
+      "name": "Save Report to DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [
+        900,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-system-monitor",
+          "name": "System Monitor DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "key": "daily_report",
+        "value": "={{ $json.htmlContent }}",
+        "additionalFields": {
+          "ttl": 86400
+        }
+      },
+      "id": "cache-report",
+      "name": "Cache Report (24h)",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        900,
+        480
+      ],
+      "credentials": {
+        "redis": {
+          "id": "redis-system-monitor",
+          "name": "System Monitor Redis"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Daily at 9 AM": {
+      "main": [
+        [
+          {
+            "node": "Fetch Daily Metrics",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch Daily Anomalies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Daily Metrics": {
+      "main": [
+        [
+          {
+            "node": "Generate Daily Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Daily Anomalies": {
+      "main": [
+        [
+          {
+            "node": "Generate Daily Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Daily Report": {
+      "main": [
+        [
+          {
+            "node": "Save Report to DB",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Cache Report (24h)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {},
+  "createdAt": "2025-01-08T00:00:00.000Z",
+  "updatedAt": "2025-01-08T00:00:00.000Z",
+  "id": "scheduled-reports",
+  "tags": []
+}

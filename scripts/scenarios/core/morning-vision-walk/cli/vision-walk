@@ -53,7 +53,9 @@ show_help() {
     echo "  context             Gather current Vrooli context"
     echo "  insights            Generate insights from conversation"
     echo "  prioritize          Prioritize tasks for the day"
-    echo "  export              Export session data"
+    echo "  export              Export session data to file"
+    echo "  export-tasks        Export tasks to task-planner scenario"
+    echo "  export-to-soc       Export to stream-of-consciousness-analyzer"
     echo "  status              Check service status"
     echo "  help                Show this help message"
     echo ""
@@ -297,6 +299,115 @@ export_session() {
     fi
 }
 
+# Integration with stream-of-consciousness-analyzer
+export_to_soc() {
+    local session_id="${SESSION_ID:-${VISION_WALK_SESSION:-$(cat /tmp/vision-walk-session 2>/dev/null)}}"
+    
+    if [ -z "$session_id" ]; then
+        print_error "No active session to export"
+        return 1
+    fi
+    
+    print_info "Exporting conversation to Stream-of-Consciousness Analyzer..."
+    
+    # Get session data
+    local session_data=$(api_call GET "/api/session/$session_id")
+    
+    if [ -z "$session_data" ]; then
+        print_error "Failed to get session data"
+        return 1
+    fi
+    
+    # Extract messages and format for SoC analyzer
+    local messages=$(echo "$session_data" | python3 -c "
+import json
+import sys
+data = json.load(sys.stdin)
+messages = data.get('messages', [])
+text = ' '.join([msg.get('content', '') for msg in messages])
+print(text)
+" 2>/dev/null)
+    
+    if [ -z "$messages" ]; then
+        print_warning "No messages found in session"
+        return 1
+    fi
+    
+    # Call stream-of-consciousness-analyzer CLI if available
+    if command -v soc-analyzer &> /dev/null; then
+        print_info "Sending to Stream-of-Consciousness Analyzer..."
+        
+        # Create a campaign for morning vision walks if needed
+        soc-analyzer create-campaign "Morning Vision Walks" --description "Thoughts and plans from morning vision walks" 2>/dev/null || true
+        
+        # Add the conversation
+        local result=$(echo "$messages" | soc-analyzer analyze --campaign "Morning Vision Walks" --source "vision-walk-$session_id" 2>/dev/null)
+        
+        if [ $? -eq 0 ]; then
+            print_success "Successfully exported to Stream-of-Consciousness Analyzer"
+            echo "$result"
+        else
+            print_warning "Failed to analyze with SoC analyzer"
+        fi
+    else
+        print_warning "Stream-of-Consciousness Analyzer CLI not found"
+        print_info "Install with: cd ../stream-of-consciousness-analyzer/cli && ./install-cli.sh"
+    fi
+}
+
+# Integration with task-planner
+export_tasks() {
+    local session_id="${SESSION_ID:-${VISION_WALK_SESSION:-$(cat /tmp/vision-walk-session 2>/dev/null)}}"
+    
+    if [ -z "$session_id" ]; then
+        print_error "No active session"
+        return 1
+    fi
+    
+    print_info "Exporting tasks to Task Planner..."
+    
+    # Get insights which contain extracted tasks
+    local response=$(api_call POST "/api/insights/generate" "{\"session_id\":\"$session_id\",\"user_id\":\"${USER_ID:-$USER}\",\"conversation_history\":[]}")
+    
+    if [ -z "$response" ]; then
+        print_error "Failed to generate insights"
+        return 1
+    fi
+    
+    # Extract tasks from insights
+    local tasks=$(echo "$response" | python3 -c "
+import json
+import sys
+data = json.load(sys.stdin)
+tasks = data.get('tasks', [])
+for task in tasks:
+    print(task if isinstance(task, str) else task.get('title', ''))
+" 2>/dev/null)
+    
+    if [ -z "$tasks" ]; then
+        print_warning "No tasks found in conversation"
+        return 0
+    fi
+    
+    # Call task-planner CLI if available
+    if command -v task-planner &> /dev/null; then
+        while IFS= read -r task; do
+            if [ -n "$task" ]; then
+                print_info "Adding task: $task"
+                task-planner add-task "$task" --source "vision-walk" --priority medium 2>/dev/null || true
+            fi
+        done <<< "$tasks"
+        
+        print_success "Tasks exported to Task Planner"
+    else
+        print_warning "Task Planner CLI not found"
+        print_info "Install with: cd ../task-planner/cli && ./install-cli.sh"
+        echo ""
+        echo "Tasks extracted:"
+        echo "$tasks"
+    fi
+}
+
 check_status() {
     print_info "Checking Morning Vision Walk service status..."
     
@@ -364,6 +475,12 @@ main() {
             ;;
         export)
             export_session "$SESSION_ID"
+            ;;
+        export-tasks)
+            export_tasks
+            ;;
+        export-to-soc|soc)
+            export_to_soc
             ;;
         status|health)
             check_status

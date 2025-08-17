@@ -48,9 +48,9 @@
       "parameters": {
         "operation": "insert",
         "schema": "public",
-        "table": "typing_sessions",
-        "columns": "session_id,total_chars,correct_chars,total_time,average_wpm,average_accuracy",
-        "values": "={{ $json.sessionId }},={{ $json.metrics.charactersTyped }},={{ Math.round($json.metrics.charactersTyped * $json.metrics.accuracy / 100) }},={{ $json.metrics.timeSpent }},={{ $json.metrics.wpm }},={{ $json.metrics.accuracy }}",
+        "table": "game_sessions",
+        "columns": "session_data,started_at,duration_seconds",
+        "values": "={{ JSON.stringify($json) }},={{ new Date().toISOString() }},={{ $json.metrics.timeSpent }}",
         "options": {
           "returnFields": "id"
         }

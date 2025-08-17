@@ -1,0 +1,174 @@
+{
+  "name": "Task Planner - Smart Suggestions",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "suggest-tasks",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_suggest",
+      "name": "Webhook - Suggest Tasks",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT app_id, project_context, industry, team_size FROM app_settings WHERE app_id = '{{ $json.app_id }}' LIMIT 1",
+        "additionalFields": {}
+      },
+      "id": "get_context",
+      "name": "Get Project Context",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [400, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare context for Ollama AI suggestion\nconst requestData = $input.first().json;\nconst contextData = $input.last().json;\n\n// Build comprehensive context for better suggestions\nconst existingTasks = requestData.context?.existing_tasks || [];\nconst taskCounts = requestData.context?.task_counts || {};\n\n// Create a rich prompt for task suggestions\nconst prompt = `You are an expert project manager AI. Based on the following project context, suggest 3-5 actionable tasks that would be valuable additions.\n\nProject Context:\n- Industry: ${contextData.industry || 'software development'}\n- Team Size: ${contextData.team_size || 'small team'}\n- Project Type: ${contextData.project_context || 'general project management'}\n\nCurrent Task Status:\n- Backlog: ${taskCounts.backlog || 0} tasks\n- Staged: ${taskCounts.staged || 0} tasks\n- In Progress: ${taskCounts.progress || 0} tasks\n- Completed: ${taskCounts.completed || 0} tasks\n\nExisting Tasks (for context):\n${existingTasks.map(t => `- ${t.title}${t.description ? ': ' + t.description : ''}`).join('\\n')}\n\nPlease suggest 3-5 new tasks that:\n1. Complement existing work\n2. Address common project needs\n3. Are specific and actionable\n4. Have clear business value\n\nReturn ONLY a JSON array in this format:\n[{\"title\": \"Task name\", \"description\": \"Brief description\", \"priority\": \"high|medium|low\", \"rationale\": \"Why this task is valuable\"}]\n\nNo additional text outside the JSON array.`;\n\nconst ollamaRequest = {\n  model: 'llama3.2:3b',\n  prompt: prompt,\n  stream: false,\n  options: {\n    temperature: 0.7,\n    top_p: 0.9,\n    num_predict: 1000\n  }\n};\n\nreturn [{ json: { ollama_request: ollamaRequest, original_context: requestData.context } }];"
+      },
+      "id": "prepare_ai_prompt",
+      "name": "Prepare AI Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [600, 300]
+    },
+    {
+      "parameters": {
+        "resource": "ollama",
+        "operation": "generate",
+        "requestBody": "={{ $json.ollama_request }}"
+      },
+      "id": "call_ollama",
+      "name": "Call Ollama AI",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [800, 300],
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "ollama_credentials",
+          "name": "Ollama Local"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse and validate Ollama response\nconst ollamaResponse = $input.first().json;\nconst originalContext = $input.first().json.original_context;\n\ntry {\n  let responseText = ollamaResponse.response || '';\n  \n  // Extract JSON from response (remove any surrounding text)\n  const jsonMatch = responseText.match(/\\[.*\\]/s);\n  if (!jsonMatch) {\n    throw new Error('No JSON array found in response');\n  }\n  \n  const suggestions = JSON.parse(jsonMatch[0]);\n  \n  // Validate and clean suggestions\n  const validSuggestions = suggestions\n    .filter(s => s.title && typeof s.title === 'string')\n    .map(s => ({\n      title: s.title.trim(),\n      description: (s.description || '').trim(),\n      priority: ['high', 'medium', 'low'].includes(s.priority) ? s.priority : 'medium',\n      rationale: (s.rationale || '').trim(),\n      source: 'ai_suggestion',\n      confidence: 0.85,\n      created_at: new Date().toISOString()\n    }))\n    .slice(0, 5); // Limit to 5 suggestions\n  \n  if (validSuggestions.length === 0) {\n    throw new Error('No valid suggestions generated');\n  }\n  \n  return [{\n    json: {\n      success: true,\n      suggestions: validSuggestions,\n      count: validSuggestions.length,\n      ai_model: 'llama3.2:3b',\n      generation_time: new Date().toISOString()\n    }\n  }];\n  \n} catch (error) {\n  // Fallback: provide generic suggestions based on task counts\n  const taskCounts = originalContext?.task_counts || {};\n  const fallbackSuggestions = [];\n  \n  if (taskCounts.backlog === 0) {\n    fallbackSuggestions.push({\n      title: 'Define project scope and requirements',\n      description: 'Create clear project boundaries and success criteria',\n      priority: 'high',\n      rationale: 'Essential foundation for any project',\n      source: 'fallback'\n    });\n  }\n  \n  if (taskCounts.completed === 0) {\n    fallbackSuggestions.push({\n      title: 'Set up project tracking and metrics',\n      description: 'Establish KPIs and monitoring for project progress',\n      priority: 'medium',\n      rationale: 'Helps track progress and identify bottlenecks',\n      source: 'fallback'\n    });\n  }\n  \n  fallbackSuggestions.push({\n    title: 'Review and prioritize existing tasks',\n    description: 'Audit current task list for relevance and priority',\n    priority: 'medium',\n    rationale: 'Ensures focus on high-value activities',\n    source: 'fallback'\n  });\n  \n  return [{\n    json: {\n      success: true,\n      suggestions: fallbackSuggestions,\n      count: fallbackSuggestions.length,\n      ai_model: 'fallback',\n      error_handled: error.message\n    }\n  }];\n}"
+      },
+      "id": "process_ai_response",
+      "name": "Process AI Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1000, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      },
+      "id": "send_response",
+      "name": "Send Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1200, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{ \"error\": \"Failed to get project context\", \"suggestions\": [] }",
+        "options": {
+          "responseCode": 500
+        }
+      },
+      "id": "error_response",
+      "name": "Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [400, 500]
+    }
+  ],
+  "connections": {
+    "webhook_suggest": {
+      "main": [
+        [
+          {
+            "node": "get_context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_context": {
+      "main": [
+        [
+          {
+            "node": "prepare_ai_prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "error_response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "prepare_ai_prompt": {
+      "main": [
+        [
+          {
+            "node": "call_ollama",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "call_ollama": {
+      "main": [
+        [
+          {
+            "node": "process_ai_response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "process_ai_response": {
+      "main": [
+        [
+          {
+            "node": "send_response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "task_suggester_workflow",
+  "tags": [
+    {
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z",
+      "id": "task-planner",
+      "name": "task-planner"
+    }
+  ]
+}

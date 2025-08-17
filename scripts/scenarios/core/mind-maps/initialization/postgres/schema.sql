@@ -89,12 +89,12 @@ CREATE INDEX IF NOT EXISTS idx_nodes_content_fts ON mind_map_nodes USING gin(to_
 
 -- Update timestamp trigger
 CREATE OR REPLACE FUNCTION update_updated_at()
-RETURNS TRIGGER AS 982337
+RETURNS TRIGGER AS $$
 BEGIN
     NEW.updated_at = CURRENT_TIMESTAMP;
     RETURN NEW;
 END;
-982337 LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql;
 
 -- Apply update trigger to tables
 CREATE TRIGGER update_mind_maps_updated_at BEFORE UPDATE ON mind_maps

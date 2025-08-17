@@ -162,28 +162,21 @@
     },
     {
       "parameters": {
-        "workflowId": "={{ $env.WORKFLOW_ID_ollama || 'nZwMYTAQAYUATglq' }}",
+        "command": "={{ \"bash /vrooli/cli/vrooli resource ollama generate 'Suggest 6-8 creative and diverse options for a picker wheel about \\\"\" + $json.topic.replace(/'/g, \"'\\\"'\\\"'\") + \"\\\". Return ONLY a JSON array of objects with label and optional color (hex) fields. Make labels fun with emojis where appropriate. Example format: [{\\\"label\\\": \\\"Pizza 🍕\\\", \\\"color\\\": \\\"#FF6B6B\\\"}, {\\\"label\\\": \\\"Sushi 🍱\\\", \\\"color\\\": \\\"#4ECDC4\\\"}]' --model phi3.5:3.8b --type reasoning --quiet\" }}",
         "options": {
-          "wait": true
-        },
-        "inputData": {
-          "prompt": "Suggest 6-8 creative and diverse options for a picker wheel about '{{ $json.topic }}'. Return ONLY a JSON array of objects with 'label' and optional 'color' (hex) fields. Make labels fun with emojis where appropriate. Example format: [{\"label\": \"Pizza 🍕\", \"color\": \"#FF6B6B\"}, {\"label\": \"Sushi 🍱\", \"color\": \"#4ECDC4\"}]",
-          "model": "llama3.2:3b",
-          "type": "reasoning",
-          "quiet": true,
-          "timeout_seconds": 30
+          "timeout": 30000
         }
       },
       "id": "call_ollama",
       "name": "Get AI Suggestions",
-      "type": "n8n-nodes-base.executeWorkflow",
+      "type": "n8n-nodes-base.executeCommand",
       "typeVersion": 1,
       "position": [850, 200]
     },
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Parse AI response and format suggestions\nconst aiResponse = $input.item.json;\nlet suggestions = [];\n\ntry {\n  // Extract the response text\n  const responseText = aiResponse.response || '';\n  \n  // Try to find JSON array in the response\n  const jsonMatch = responseText.match(/\\[.*\\]/s);\n  if (jsonMatch) {\n    suggestions = JSON.parse(jsonMatch[0]);\n  }\n  \n  // Ensure each suggestion has required fields\n  suggestions = suggestions.map((item, index) => {\n    // Generate colors if not provided\n    const defaultColors = ['#FF6B6B', '#4ECDC4', '#FFD93D', '#95E1D3', '#F38181', '#AA96DA', '#8785A2', '#FFC7C7'];\n    return {\n      label: item.label || `Option ${index + 1}`,\n      color: item.color || defaultColors[index % defaultColors.length],\n      weight: item.weight || 1\n    };\n  });\n} catch (error) {\n  // Fallback to default suggestions if parsing fails\n  suggestions = [\n    { label: 'Option A ⭐', color: '#FF6B6B', weight: 1 },\n    { label: 'Option B 🎯', color: '#4ECDC4', weight: 1 },\n    { label: 'Option C 🎨', color: '#FFD93D', weight: 1 },\n    { label: 'Option D 🚀', color: '#95E1D3', weight: 1 }\n  ];\n}\n\nreturn {\n  success: true,\n  operation: 'suggest',\n  topic: $('Operation Router').item.json.topic,\n  suggestions: suggestions,\n  suggestion_count: suggestions.length\n};"
+        "jsCode": "// Parse AI response from executeCommand node\nconst commandResult = $input.item.json;\nlet suggestions = [];\n\ntry {\n  // Extract the response text from command stdout\n  const responseText = commandResult.stdout || '';\n  \n  // Try to find JSON array in the response\n  const jsonMatch = responseText.match(/\\[.*\\]/s);\n  if (jsonMatch) {\n    suggestions = JSON.parse(jsonMatch[0]);\n  }\n  \n  // Ensure each suggestion has required fields\n  suggestions = suggestions.map((item, index) => {\n    // Generate colors if not provided\n    const defaultColors = ['#FF6B6B', '#4ECDC4', '#FFD93D', '#95E1D3', '#F38181', '#AA96DA', '#8785A2', '#FFC7C7'];\n    return {\n      label: item.label || `Option ${index + 1}`,\n      color: item.color || defaultColors[index % defaultColors.length],\n      weight: item.weight || 1\n    };\n  });\n} catch (error) {\n  // Fallback to default suggestions if parsing fails\n  console.log('Failed to parse AI response:', error);\n  suggestions = [\n    { label: 'Option A ⭐', color: '#FF6B6B', weight: 1 },\n    { label: 'Option B 🎯', color: '#4ECDC4', weight: 1 },\n    { label: 'Option C 🎨', color: '#FFD93D', weight: 1 },\n    { label: 'Option D 🚀', color: '#95E1D3', weight: 1 }\n  ];\n}\n\nreturn {\n  success: true,\n  operation: 'suggest',\n  topic: $('Operation Router').item.json.topic,\n  suggestions: suggestions,\n  suggestion_count: suggestions.length\n};"
       },
       "id": "format_suggestions",
       "name": "Format Suggestions",

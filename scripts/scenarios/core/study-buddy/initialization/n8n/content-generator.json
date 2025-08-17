@@ -73,32 +73,36 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "http://localhost:5678/webhook/ollama",
-        "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "prompt",
-              "value": "=You are an expert educator creating study content. Generate {{ $json.content_type }} content about {{ $json.subject }} at {{ $json.difficulty }} difficulty level.\n\nContent Type: {{ $json.content_type }}\nRequirements:\n- If 'summary': Create a concise overview of key concepts\n- If 'detailed': Provide comprehensive explanations with examples\n- If 'quiz': Generate 5 multiple-choice questions\n- If 'flashcards': Create 10 question-answer pairs\n- If 'mnemonics': Develop memory aids and associations\n\nMake the content engaging, clear, and educational. Use analogies and real-world examples where appropriate.\n\nOutput in JSON format with appropriate structure for the content type."
-            },
-            {
-              "name": "model",
-              "value": "llama3.2"
-            },
-            {
-              "name": "temperature",
-              "value": "0.7"
-            }
-          ]
-        },
-        "options": {}
+        "jsCode": "// Prepare prompt for shared Ollama workflow\nconst inputData = $json;\n\nconst prompt = `You are an expert educator creating study content. Generate ${inputData.content_type} content about ${inputData.subject} at ${inputData.difficulty} difficulty level.\n\nContent Type: ${inputData.content_type}\nRequirements:\n- If 'summary': Create a concise overview of key concepts\n- If 'detailed': Provide comprehensive explanations with examples\n- If 'quiz': Generate 5 multiple-choice questions\n- If 'flashcards': Create 10 question-answer pairs\n- If 'mnemonics': Develop memory aids and associations\n\nMake the content engaging, clear, and educational. Use analogies and real-world examples where appropriate.\n\nOutput in JSON format with appropriate structure for the content type.`;\n\nreturn [{\n  json: {\n    prompt: prompt,\n    model: 'llama3.2',\n    type: 'reasoning',\n    quiet: true,\n    timeout_seconds: 120,\n    original_input: inputData\n  }\n}];"
       },
-      "id": "generate-content",
-      "name": "Generate Content",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
+      "id": "prepare-prompt",
+      "name": "Prepare Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "workflowId": "ollama",
+        "mode": "once",
+        "source": "db",
+        "passThrough": false
+      },
+      "id": "call-shared-ollama",
+      "name": "Call Shared Ollama Workflow",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [1050, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Process response from shared Ollama workflow\nconst response = $json;\nconst originalInput = $node[\"prepare-prompt\"].json.original_input;\n\n// Get the response from shared workflow\nconst responseText = response.response || '';\nconst success = response.success === true;\nconst hasError = response.error != null;\n\nlet content = '';\n\nif (success && responseText) {\n  content = responseText;\n} else if (hasError) {\n  // Handle error case\n  content = JSON.stringify({\n    error: 'Failed to generate content',\n    details: response.error.message || 'Unknown error'\n  });\n} else {\n  content = JSON.stringify({\n    error: 'Unknown error occurred',\n    response: response\n  });\n}\n\nreturn [{\n  json: {\n    response: content,\n    success: success,\n    original_input: originalInput,\n    execution_details: {\n      model_used: response.request?.model || 'llama3.2',\n      shared_workflow_used: true,\n      ollama_success: success\n    }\n  }\n}];"
+      },
+      "id": "process-ollama-output",
+      "name": "Process Ollama Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 400]
     },
     {
       "parameters": {
@@ -107,19 +111,19 @@
             {
               "id": "content",
               "name": "content",
-              "value": "={{ $json.body.response }}",
+              "value": "={{ $json.response || $json.content || $json }}",
               "type": "string"
             },
             {
               "id": "subject",
               "name": "subject",
-              "value": "={{ $('merge-inputs').item.json.subject }}",
+              "value": "={{ $('prepare-prompt').item.json.original_input.subject }}",
               "type": "string"
             },
             {
               "id": "content_type",
               "name": "content_type",
-              "value": "={{ $('merge-inputs').item.json.content_type }}",
+              "value": "={{ $('prepare-prompt').item.json.original_input.content_type }}",
               "type": "string"
             },
             {
@@ -131,7 +135,7 @@
             {
               "id": "user_id",
               "name": "user_id",
-              "value": "={{ $('merge-inputs').item.json.user_id }}",
+              "value": "={{ $('prepare-prompt').item.json.original_input.user_id }}",
               "type": "string"
             }
           ]
@@ -142,7 +146,7 @@
       "name": "Format Response",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.2,
-      "position": [1050, 400]
+      "position": [1650, 400]
     },
     {
       "parameters": {
@@ -156,7 +160,7 @@
       "name": "Save to Database",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [1250, 400],
+      "position": [1850, 400],
       "credentials": {
         "postgres": {
           "id": "study-buddy-postgres",
@@ -173,7 +177,7 @@
       "name": "Respond to Webhook",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [1450, 400]
+      "position": [2050, 400]
     }
   ],
   "connections": {
@@ -214,14 +218,36 @@
       "main": [
         [
           {
-            "node": "generate-content",
+            "node": "prepare-prompt",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "generate-content": {
+    "prepare-prompt": {
+      "main": [
+        [
+          {
+            "node": "call-shared-ollama",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "call-shared-ollama": {
+      "main": [
+        [
+          {
+            "node": "process-ollama-output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "process-ollama-output": {
       "main": [
         [
           {

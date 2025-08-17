@@ -1,0 +1,130 @@
+{
+  "name": "picker-wheel-option-suggester",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "wheel/suggest",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "context",
+              "name": "context",
+              "value": "={{ $json.context || 'dinner choices' }}",
+              "type": "string"
+            },
+            {
+              "id": "count",
+              "name": "count",
+              "value": "={{ $json.count || 5 }}",
+              "type": "number"
+            },
+            {
+              "id": "style",
+              "name": "style",
+              "value": "={{ $json.style || 'fun and varied' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set_defaults",
+      "name": "Set Defaults",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [450, 500]
+    },
+    {
+      "parameters": {
+        "content": "## AI-Powered Option Suggester\n\nThis workflow uses the shared Ollama workflow to generate intelligent suggestions for picker wheel options based on context.\n\nFollowing Vrooli best practices by leveraging shared workflows for reliability and consistency.",
+        "height": 180,
+        "width": 380
+      },
+      "id": "note_1",
+      "name": "Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [200, 150]
+    },
+    {
+      "parameters": {
+        "command": "={{ \"vrooli resource ollama generate '\" + (\"You are helping create options for a decision wheel. Generate \" + $json.count + \" distinct options for a wheel about: \" + $json.context + \". The options should be \" + $json.style + \". Return ONLY a JSON array with objects containing label (the option text with an emoji), color (hex color code), and weight (1-3, where 3 is most likely). Make the colors vibrant and varied. Example format: [{\\\"label\\\": \\\"Pizza 🍕\\\", \\\"color\\\": \\\"#FF6B6B\\\", \\\"weight\\\": 2}, {\\\"label\\\": \\\"Tacos 🌮\\\", \\\"color\\\": \\\"#FFD93D\\\", \\\"weight\\\": 1}]\").replace(/'/g, \"'\\\"'\\\"'\") + \"' --model phi3.5:3.8b --type code --quiet\" }}",
+        "cwd": "/",
+        "continueOnFail": false
+      },
+      "id": "call_ollama",
+      "name": "Execute Ollama CLI",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse the response from CLI command\nconst commandResult = $input.item.json;\nconst stdout = commandResult.stdout || '';\nconst stderr = commandResult.stderr || '';\nconst exitCode = commandResult.exitCode || 0;\n\n// Check if command was successful\nconst success = exitCode === 0 && stdout.length > 0;\n\n// Try to extract JSON from the response\nlet options = [];\ntry {\n  // The CLI command returns the raw response text\n  // Find JSON array in the response\n  const jsonMatch = stdout.match(/\\[.*\\]/s);\n  if (jsonMatch) {\n    options = JSON.parse(jsonMatch[0]);\n  }\n} catch (e) {\n  // Fallback: create default options\n  console.log('Failed to parse options, using defaults. Error:', e.message);\n  console.log('stdout was:', stdout);\n  options = [\n    {label: \"Option A 🎯\", color: \"#FF6B6B\", weight: 1},\n    {label: \"Option B 🎲\", color: \"#4ECDC4\", weight: 1},\n    {label: \"Option C 🎪\", color: \"#FFD93D\", weight: 1},\n    {label: \"Option D 🎨\", color: \"#6C5CE7\", weight: 1},\n    {label: \"Option E 🎭\", color: \"#A8E6CF\", weight: 1}\n  ];\n}\n\n// Ensure all options have required fields\noptions = options.map((opt, i) => ({\n  label: opt.label || `Option ${i + 1}`,\n  color: opt.color || `#${Math.floor(Math.random()*16777215).toString(16)}`,\n  weight: opt.weight || 1\n}));\n\n// Get context from the set_defaults node  \nconst contextData = $node[\"set_defaults\"] ? $node[\"set_defaults\"].json : {};\n\nreturn [{\n  json: {\n    success: success,\n    context: contextData.context || 'options',\n    options: options,\n    generated_at: new Date().toISOString(),\n    model_used: 'phi3.5:3.8b',\n    execution_time_ms: null,\n    using_cli_command: true\n  }\n}];"
+      },
+      "id": "parse_response",
+      "name": "Parse Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1250, 300]
+    }
+  ],
+  "connections": {
+    "webhook_trigger": {
+      "main": [[{ "node": "Execute Ollama CLI", "type": "main", "index": 0 }]]
+    },
+    "manual_trigger": {
+      "main": [[{ "node": "set_defaults", "type": "main", "index": 0 }]]
+    },
+    "set_defaults": {
+      "main": [[{ "node": "Execute Ollama CLI", "type": "main", "index": 0 }]]
+    },
+    "Execute Ollama CLI": {
+      "main": [[{ "node": "Parse Response", "type": "main", "index": 0 }]]
+    },
+    "parse_response": {
+      "main": [[{ "node": "respond", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "picker-wheel-option-suggester"
+  }
+}

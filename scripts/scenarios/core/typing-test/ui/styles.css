@@ -627,3 +627,315 @@ body {
         padding: 20px;
     }
 }
+
+/* Visual Keyboard Overlay */
+.keyboard-overlay {
+    position: relative;
+    width: 100%;
+    margin: 20px 0;
+    padding: 20px;
+    background: rgba(0, 20, 40, 0.8);
+    border: 2px solid #00ffff;
+    border-radius: 10px;
+    box-shadow: 0 0 30px rgba(0, 255, 255, 0.3);
+    backdrop-filter: blur(5px);
+}
+
+.keyboard-container {
+    width: 100%;
+}
+
+.keyboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #00ffff;
+}
+
+.keyboard-title {
+    font-family: 'Orbitron', monospace;
+    color: #00ffff;
+    font-weight: 700;
+    font-size: 1.2rem;
+    text-shadow: 0 0 10px #00ffff;
+}
+
+.keyboard-toggle {
+    background: #0a0a2e;
+    color: #00ffff;
+    border: 1px solid #00ffff;
+    padding: 5px 15px;
+    border-radius: 5px;
+    font-family: 'Share Tech Mono', monospace;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.keyboard-toggle:hover {
+    background: #00ffff;
+    color: #0a0a2e;
+    box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);
+}
+
+.keyboard-visual {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+.keyboard-row {
+    display: flex;
+    gap: 4px;
+    justify-content: center;
+}
+
+.key {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 40px;
+    height: 40px;
+    background: linear-gradient(145deg, #1a1a2e, #0f0f1a);
+    border: 1px solid #333;
+    border-radius: 5px;
+    color: #888;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.8rem;
+    font-weight: bold;
+    text-align: center;
+    line-height: 1.2;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.key:hover {
+    border-color: #555;
+    transform: translateY(-1px);
+}
+
+.key.active {
+    background: linear-gradient(145deg, #ff0066, #cc0052);
+    color: white;
+    border-color: #ff0066;
+    box-shadow: 0 0 20px rgba(255, 0, 102, 0.6);
+    transform: translateY(-2px);
+    animation: keyPulse 0.3s ease;
+}
+
+@keyframes keyPulse {
+    0% { transform: translateY(-2px) scale(1); }
+    50% { transform: translateY(-2px) scale(1.05); }
+    100% { transform: translateY(-2px) scale(1); }
+}
+
+.key.current {
+    background: linear-gradient(145deg, #00ffff, #0099cc);
+    color: #0a0a2e;
+    border-color: #00ffff;
+    box-shadow: 0 0 25px rgba(0, 255, 255, 0.8);
+    animation: currentKeyGlow 1s ease-in-out infinite alternate;
+}
+
+@keyframes currentKeyGlow {
+    0% { box-shadow: 0 0 25px rgba(0, 255, 255, 0.8); }
+    100% { box-shadow: 0 0 35px rgba(0, 255, 255, 1); }
+}
+
+.key.correct {
+    background: linear-gradient(145deg, #00ff00, #00cc00);
+    color: #0a0a2e;
+    border-color: #00ff00;
+    box-shadow: 0 0 15px rgba(0, 255, 0, 0.6);
+}
+
+.key.incorrect {
+    background: linear-gradient(145deg, #ff3333, #cc0000);
+    color: white;
+    border-color: #ff3333;
+    box-shadow: 0 0 15px rgba(255, 51, 51, 0.6);
+    animation: errorShake 0.5s ease;
+}
+
+@keyframes errorShake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-3px); }
+    75% { transform: translateX(3px); }
+}
+
+/* Special key styles */
+.key-wide {
+    min-width: 80px;
+}
+
+.key-space {
+    min-width: 200px;
+}
+
+.key-shift {
+    min-width: 70px;
+}
+
+.key-enter {
+    min-width: 60px;
+}
+
+.key-caps {
+    min-width: 60px;
+}
+
+.key-ctrl {
+    min-width: 50px;
+}
+
+.home-key {
+    border-color: #ffff00;
+    box-shadow: 0 0 5px rgba(255, 255, 0, 0.3);
+}
+
+.home-key::after {
+    content: '';
+    position: absolute;
+    bottom: 2px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 4px;
+    height: 2px;
+    background: #ffff00;
+    border-radius: 1px;
+}
+
+/* Finger guide */
+.finger-guide {
+    margin-top: 20px;
+}
+
+.finger-info {
+    display: flex;
+    justify-content: space-around;
+    gap: 20px;
+}
+
+.finger-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.hand-label {
+    font-family: 'Orbitron', monospace;
+    color: #00ffff;
+    font-weight: 700;
+    font-size: 0.9rem;
+    margin-bottom: 5px;
+    text-shadow: 0 0 8px #00ffff;
+}
+
+.finger {
+    padding: 5px 12px;
+    background: rgba(0, 0, 0, 0.6);
+    border: 1px solid #666;
+    border-radius: 15px;
+    color: #ccc;
+    font-size: 0.8rem;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.finger.active {
+    background: #ff0066;
+    color: white;
+    border-color: #ff0066;
+    box-shadow: 0 0 15px rgba(255, 0, 102, 0.5);
+    transform: scale(1.05);
+}
+
+/* Finger color coding */
+.pinky-left, .pinky-right {
+    background-color: rgba(255, 0, 102, 0.2);
+    border-color: #ff0066;
+}
+
+.ring-left, .ring-right {
+    background-color: rgba(0, 255, 255, 0.2);
+    border-color: #00ffff;
+}
+
+.middle-left, .middle-right {
+    background-color: rgba(255, 255, 0, 0.2);
+    border-color: #ffff00;
+}
+
+.index-left, .index-right {
+    background-color: rgba(0, 255, 0, 0.2);
+    border-color: #00ff00;
+}
+
+.thumb, .thumb-left, .thumb-right {
+    background-color: rgba(255, 165, 0, 0.2);
+    border-color: #ffa500;
+}
+
+/* Key finger color coding */
+.key[data-finger="pinky-left"], .key[data-finger="pinky-right"] {
+    border-left: 3px solid #ff0066;
+}
+
+.key[data-finger="ring-left"], .key[data-finger="ring-right"] {
+    border-left: 3px solid #00ffff;
+}
+
+.key[data-finger="middle-left"], .key[data-finger="middle-right"] {
+    border-left: 3px solid #ffff00;
+}
+
+.key[data-finger="index-left"], .key[data-finger="index-right"] {
+    border-left: 3px solid #00ff00;
+}
+
+.key[data-finger="thumb"], .key[data-finger="thumb-left"], .key[data-finger="thumb-right"] {
+    border-left: 3px solid #ffa500;
+}
+
+/* Hidden state */
+.keyboard-overlay.hidden {
+    display: none;
+}
+
+/* Mobile responsiveness for keyboard */
+@media (max-width: 768px) {
+    .keyboard-overlay {
+        padding: 15px;
+        margin: 15px 0;
+    }
+    
+    .key {
+        min-width: 30px;
+        height: 35px;
+        font-size: 0.7rem;
+    }
+    
+    .key-wide {
+        min-width: 60px;
+    }
+    
+    .key-space {
+        min-width: 150px;
+    }
+    
+    .finger-info {
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .finger-group {
+        flex-direction: row;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+}

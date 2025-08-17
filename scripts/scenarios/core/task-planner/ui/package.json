@@ -1,0 +1,16 @@
+{
+  "name": "task-planner-ui",
+  "version": "1.0.0",
+  "description": "Task Planner UI - AI-powered task management interface",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

@@ -71,31 +71,34 @@
     },
     {
       "parameters": {
-        "url": "={{ $env.service.n8n.url }}/webhook/ollama",
-        "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "prompt",
-              "value": "Analyze this color palette harmony:\n\nColors: {{ $json.formatted_data }}\n\nProvide:\n1. Harmony type (complementary, analogous, triadic, split-complementary, tetradic, or monochromatic)\n2. Strengths of the palette\n3. Potential improvements\n4. Best use cases\n5. Suggested variations\n\nReturn as JSON with keys: harmony_type, strengths, improvements, use_cases, variations"
-            },
-            {
-              "name": "model",
-              "value": "llama3.2"
-            }
-          ]
-        },
-        "options": {}
+        "jsCode": "// Prepare prompt for AI harmony analysis\nconst colorsData = $json.formatted_data;\nconst metrics = $json.harmony_metrics;\nconst analysis = $json.analysis;\n\nconst prompt = `You are a professional color harmony analyst. Analyze this color palette for harmony, usability, and design effectiveness.\n\nColor Data:\n${colorsData}\n\nMetrics:\n- Hue Variance: ${metrics.hue_variance}\n- Saturation Range: ${metrics.saturation_range}\n- Lightness Range: ${metrics.lightness_range}\n- Harmony Type Request: ${metrics.harmony_type}\n\nProvide a JSON response with:\n{\n  \"harmony_type\": \"complementary|analogous|triadic|tetradic|monochromatic|custom\",\n  \"strengths\": [\"list of palette strengths\"],\n  \"improvements\": [\"list of suggested improvements\"],\n  \"use_cases\": [\"list of ideal use cases\"],\n  \"variations\": [\"list of suggested color variations\"],\n  \"confidence\": 0.0-1.0\n}`;\n\nreturn {\n  prompt: prompt,\n  model: 'llama3.2:3b',\n  type: 'reasoning',\n  quiet: true,\n  original_data: $json\n};"
       },
-      "id": "ai-harmony-analysis",
-      "name": "AI Harmony Analysis",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4,
+      "id": "prepare-ai-prompt",
+      "name": "Prepare AI Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [1050, 400]
     },
     {
       "parameters": {
-        "jsCode": "// Format the harmony analysis response\ntry {\n  const response = $input.item.json.response;\n  const metrics = $input.item.json.harmony_metrics;\n  const analysis = $input.item.json.analysis;\n  \n  // Extract JSON from AI response\n  const jsonMatch = response.match(/\\{[\\s\\S]*\\}/);\n  let aiAnalysis = {};\n  \n  if (jsonMatch) {\n    try {\n      aiAnalysis = JSON.parse(jsonMatch[0]);\n    } catch (e) {\n      // Fallback if parsing fails\n      aiAnalysis = {\n        harmony_type: metrics.harmony_type,\n        strengths: ['Well-balanced palette'],\n        improvements: ['Consider adjusting saturation levels'],\n        use_cases: ['Web design', 'Branding'],\n        variations: []\n      };\n    }\n  }\n  \n  // Calculate harmony score (0-100)\n  let harmonyScore = 100;\n  \n  // Deduct points for poor hue distribution\n  if (metrics.hue_variance < 20) harmonyScore -= 15; // Too similar\n  if (metrics.hue_variance > 180) harmonyScore -= 10; // Too disparate\n  \n  // Deduct points for poor saturation range\n  if (metrics.saturation_range < 10) harmonyScore -= 10; // Too uniform\n  if (metrics.saturation_range > 80) harmonyScore -= 15; // Too varied\n  \n  // Deduct points for poor lightness range\n  if (metrics.lightness_range < 20) harmonyScore -= 10; // Poor contrast\n  if (metrics.lightness_range > 90) harmonyScore -= 5; // Excessive contrast\n  \n  return {\n    success: true,\n    colors: $input.item.json.colors,\n    color_data: analysis,\n    harmony: {\n      type: aiAnalysis.harmony_type || 'custom',\n      score: Math.max(0, harmonyScore),\n      metrics: metrics,\n      strengths: aiAnalysis.strengths || [],\n      improvements: aiAnalysis.improvements || [],\n      use_cases: aiAnalysis.use_cases || [],\n      variations: aiAnalysis.variations || []\n    },\n    suggestions: {\n      optimal_hue_variance: '30-120 degrees',\n      optimal_saturation_range: '20-60%',\n      optimal_lightness_range: '30-70%'\n    },\n    timestamp: new Date().toISOString()\n  };\n} catch (error) {\n  return {\n    success: false,\n    error: 'Failed to analyze harmony: ' + error.message,\n    colors: $input.item.json.colors\n  };\n}"
+        "method": "POST",
+        "url": "${service.n8n.url}/webhook/ollama",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  prompt: $json.prompt,\n  model: $json.model,\n  type: $json.type,\n  quiet: $json.quiet,\n  timeout_seconds: 90\n}) }}",
+        "options": {
+          "timeout": 95000
+        }
+      },
+      "id": "call-shared-ollama",
+      "name": "Call Shared Ollama Workflow",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1250, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format the harmony analysis response from Ollama\ntry {\n  // Get both the Ollama response and the original metrics\n  const ollamaResponse = $input.item.json;\n  const preparedData = $node['Prepare AI Prompt'].json;\n  const originalData = preparedData.original_data;\n  const metrics = originalData.harmony_metrics;\n  const analysis = originalData.analysis;\n  \n  // Extract Ollama results\n  let aiAnalysis = {};\n  \n  // Handle Ollama response structure\n  if (ollamaResponse.response || ollamaResponse.stdout || ollamaResponse.output) {\n    // Get the response text\n    const responseText = ollamaResponse.response || ollamaResponse.stdout || ollamaResponse.output || '';\n    const jsonMatch = responseText.match(/\\{[\\s\\S]*\\}/);\n    \n    if (jsonMatch) {\n      try {\n        const parsed = JSON.parse(jsonMatch[0]);\n        aiAnalysis = {\n          harmony_type: parsed.harmony_type || 'custom',\n          strengths: parsed.strengths || ['Well-balanced palette'],\n          improvements: parsed.improvements || ['Consider adjusting saturation levels'],\n          use_cases: parsed.use_cases || ['Web design', 'Branding'],\n          variations: parsed.variations || [],\n          confidence: 0.5\n        };\n      } catch (e) {\n        // Use defaults\n        aiAnalysis = {\n          harmony_type: 'custom',\n          strengths: ['Well-balanced palette'],\n          improvements: ['Consider adjusting saturation levels'],\n          use_cases: ['Web design', 'Branding'],\n          variations: [],\n          confidence: 0.3\n        };\n      }\n    }\n  }\n  \n  // Calculate harmony score (0-100)\n  let harmonyScore = 100;\n  \n  // Deduct points for poor hue distribution\n  if (metrics.hue_variance < 20) harmonyScore -= 15; // Too similar\n  if (metrics.hue_variance > 180) harmonyScore -= 10; // Too disparate\n  \n  // Deduct points for poor saturation range\n  if (metrics.saturation_range < 10) harmonyScore -= 10; // Too uniform\n  if (metrics.saturation_range > 80) harmonyScore -= 15; // Too varied\n  \n  // Deduct points for poor lightness range\n  if (metrics.lightness_range < 20) harmonyScore -= 10; // Poor contrast\n  if (metrics.lightness_range > 90) harmonyScore -= 5; // Excessive contrast\n  \n  // Adjust score based on AI confidence\n  if (aiAnalysis.confidence) {\n    harmonyScore = Math.round(harmonyScore * (0.7 + 0.3 * aiAnalysis.confidence));\n  }\n  \n  return {\n    success: true,\n    colors: originalData.colors,\n    color_data: analysis,\n    harmony: {\n      type: aiAnalysis.harmony_type || 'custom',\n      score: Math.max(0, harmonyScore),\n      metrics: metrics,\n      strengths: aiAnalysis.strengths || [],\n      improvements: aiAnalysis.improvements || [],\n      use_cases: aiAnalysis.use_cases || [],\n      variations: aiAnalysis.variations || [],\n      analysis_confidence: aiAnalysis.confidence || 0.5,\n      reasoning_depth: aiAnalysis.reasoning_depth || 0.5\n    },\n    suggestions: {\n      optimal_hue_variance: '30-120 degrees',\n      optimal_saturation_range: '20-60%',\n      optimal_lightness_range: '30-70%'\n    },\n    shared_ollama_used: true,\n    timestamp: new Date().toISOString()\n  };\n} catch (error) {\n  // Fallback to basic analysis without CoT\n  const originalData = $node['Color Analysis'].json;\n  return {\n    success: true,\n    colors: originalData.colors,\n    color_data: originalData.analysis,\n    harmony: {\n      type: 'custom',\n      score: 70,\n      metrics: originalData.harmony_metrics,\n      strengths: ['Color palette analyzed'],\n      improvements: ['Consider using shared Ollama workflow for deeper analysis'],\n      use_cases: ['General design'],\n      variations: []\n    },\n    suggestions: {\n      optimal_hue_variance: '30-120 degrees',\n      optimal_saturation_range: '20-60%',\n      optimal_lightness_range: '30-70%'\n    },\n    shared_ollama_used: false,\n    error_fallback: error.message,\n    timestamp: new Date().toISOString()\n  };\n}"
       },
       "id": "format-harmony-response",
       "name": "Format Harmony Response",
@@ -170,14 +173,25 @@
       "main": [
         [
           {
-            "node": "AI Harmony Analysis",
+            "node": "Prepare AI Prompt",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "AI Harmony Analysis": {
+    "Prepare AI Prompt": {
+      "main": [
+        [
+          {
+            "node": "Call Shared Ollama Workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Shared Ollama Workflow": {
       "main": [
         [
           {

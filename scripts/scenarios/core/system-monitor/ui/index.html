@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Monitor | Vrooli</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="matrix-bg"></div>
+    
+    <header class="header">
+        <div class="container">
+            <h1 class="logo">
+                <span class="bracket">[</span>
+                <span class="text">SYSTEM MONITOR</span>
+                <span class="bracket">]</span>
+            </h1>
+            <div class="status-indicator">
+                <span class="status-dot" id="status-dot"></span>
+                <span class="status-text" id="status-text">INITIALIZING...</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <div class="container">
+            <!-- Real-time Metrics Grid -->
+            <section class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-label">CPU USAGE</span>
+                        <span class="metric-unit">%</span>
+                    </div>
+                    <div class="metric-value" id="cpu-value">--</div>
+                    <div class="metric-bar">
+                        <div class="metric-fill" id="cpu-fill"></div>
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-label">MEMORY USAGE</span>
+                        <span class="metric-unit">%</span>
+                    </div>
+                    <div class="metric-value" id="memory-value">--</div>
+                    <div class="metric-bar">
+                        <div class="metric-fill" id="memory-fill"></div>
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-label">TCP CONNECTIONS</span>
+                        <span class="metric-unit">#</span>
+                    </div>
+                    <div class="metric-value" id="tcp-value">--</div>
+                    <div class="metric-bar">
+                        <div class="metric-fill" id="tcp-fill"></div>
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-label">SYSTEM STATUS</span>
+                        <span class="metric-unit">STATE</span>
+                    </div>
+                    <div class="metric-value status-value" id="system-status">ONLINE</div>
+                </div>
+            </section>
+
+            <!-- Alert Panel -->
+            <section class="alert-panel">
+                <div class="panel-header">
+                    <h2>ACTIVE ALERTS</h2>
+                    <span class="alert-count" id="alert-count">0</span>
+                </div>
+                <div class="alert-list" id="alert-list">
+                    <div class="no-alerts">NO ACTIVE ALERTS</div>
+                </div>
+            </section>
+
+            <!-- Recent Investigations -->
+            <section class="investigations-panel">
+                <div class="panel-header">
+                    <h2>RECENT INVESTIGATIONS</h2>
+                    <button class="btn-action" onclick="triggerInvestigation()">RUN ANOMALY CHECK</button>
+                </div>
+                <div class="investigation-list" id="investigation-list">
+                    <div class="loading">SCANNING SYSTEM...</div>
+                </div>
+            </section>
+
+            <!-- Control Panel -->
+            <section class="control-panel">
+                <div class="panel-header">
+                    <h2>SYSTEM CONTROLS</h2>
+                </div>
+                <div class="control-grid">
+                    <button class="control-btn" onclick="generateReport('daily')">
+                        <span class="btn-icon">📊</span>
+                        DAILY REPORT
+                    </button>
+                    <button class="control-btn" onclick="generateReport('weekly')">
+                        <span class="btn-icon">📈</span>
+                        WEEKLY REPORT
+                    </button>
+                    <button class="control-btn" onclick="simulateAnomaly()">
+                        <span class="btn-icon">⚠️</span>
+                        SIMULATE ANOMALY
+                    </button>
+                    <button class="control-btn" onclick="refreshDashboard()">
+                        <span class="btn-icon">🔄</span>
+                        REFRESH
+                    </button>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Terminal Output -->
+    <div class="terminal" id="terminal">
+        <div class="terminal-header">
+            <span>SYSTEM OUTPUT</span>
+            <button class="terminal-close" onclick="toggleTerminal()">×</button>
+        </div>
+        <div class="terminal-content" id="terminal-content">
+            <div class="terminal-line">[SYSTEM] System Monitor initialized</div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

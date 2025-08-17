@@ -63,23 +63,20 @@
     },
     {
       "parameters": {
-        "url": "http://localhost:5678/webhook/smart-semantic-search",
-        "authentication": "none",
+        "url": "={{ $env.N8N_BASE_URL || 'http://localhost:5678' }}/webhook/smart-search",
         "method": "POST",
-        "body": {
-          "query": "={{ $json.query }}",
-          "collection": "mind_maps",
-          "model": "nomic-embed-text",
-          "limit": "={{ $json.limit }}",
-          "filter": {
-            "$or": [
-              { "userId": "={{ $json.userId }}" },
-              { "isPublic": true }
-            ]
-          },
-          "includeDistance": true,
-          "includePayload": true
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
         },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={{ JSON.stringify({\n  text: $json.query,\n  collection: 'mind_maps',\n  mode: 'comprehensive',\n  max_results_per_query: $json.limit\n}) }}",
         "options": {}
       },
       "id": "semantic-search",
@@ -120,15 +117,20 @@
     },
     {
       "parameters": {
-        "url": "http://localhost:5678/webhook/ollama",
-        "authentication": "none",
+        "url": "={{ $env.N8N_BASE_URL || 'http://localhost:5678' }}/webhook/ollama",
         "method": "POST",
-        "body": {
-          "model": "llama3.2",
-          "prompt": "Based on these search results for the query '{{ $('merge-inputs').item.json.query }}', provide a brief summary of the most relevant mind maps found:\n\n{{ JSON.stringify($json.results) }}\n\nSummary (2-3 sentences):",
-          "temperature": 0.3,
-          "max_tokens": 150
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
         },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={{ JSON.stringify({\n  prompt: \"Based on these search results for the query '\" + $('merge-inputs').item.json.query + \"', provide a brief summary of the most relevant mind maps found:\\n\\n\" + JSON.stringify($json.results) + \"\\n\\nSummary (2-3 sentences):\",\n  model: \"llama3.2:3b\",\n  type: \"reasoning\",\n  quiet: true\n}) }}",
         "options": {}
       },
       "id": "generate-summary",
@@ -140,7 +142,7 @@
     {
       "parameters": {
         "mode": "raw",
-        "jsonOutput": "={\n  \"success\": {{ $('process-results').item.json.success }},\n  \"query\": \"{{ $('process-results').item.json.query }}\",\n  \"searchMode\": \"{{ $('process-results').item.json.searchMode }}\",\n  \"resultCount\": {{ $('process-results').item.json.resultCount }},\n  \"summary\": \"{{ $json.response }}\",\n  \"results\": {{ JSON.stringify($('process-results').item.json.results) }}\n}",
+        "jsonOutput": "={\n  \"success\": {{ $('process-results').item.json.success }},\n  \"query\": \"{{ $('process-results').item.json.query }}\",\n  \"searchMode\": \"{{ $('process-results').item.json.searchMode }}\",\n  \"resultCount\": {{ $('process-results').item.json.resultCount }},\n  \"summary\": \"{{ $json.response || $json.text || '' }}\",\n  \"results\": {{ JSON.stringify($('process-results').item.json.results) }}\n}",
         "options": {}
       },
       "id": "format-response",

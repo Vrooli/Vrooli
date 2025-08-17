@@ -58,6 +58,119 @@
                 </div>
             </div>
 
+            <!-- Visual Keyboard Overlay -->
+            <div class="keyboard-overlay" id="keyboard-overlay">
+                <div class="keyboard-container">
+                    <div class="keyboard-header">
+                        <span class="keyboard-title">FINGER GUIDE</span>
+                        <button class="keyboard-toggle" id="keyboard-toggle">HIDE</button>
+                    </div>
+                    <div class="keyboard-visual">
+                        <!-- Number row -->
+                        <div class="keyboard-row">
+                            <div class="key" data-key="`" data-finger="pinky-left">~<br>`</div>
+                            <div class="key" data-key="1" data-finger="pinky-left">!<br>1</div>
+                            <div class="key" data-key="2" data-finger="ring-left">@<br>2</div>
+                            <div class="key" data-key="3" data-finger="middle-left">#<br>3</div>
+                            <div class="key" data-key="4" data-finger="index-left">$<br>4</div>
+                            <div class="key" data-key="5" data-finger="index-left">%<br>5</div>
+                            <div class="key" data-key="6" data-finger="index-right">^<br>6</div>
+                            <div class="key" data-key="7" data-finger="index-right">&<br>7</div>
+                            <div class="key" data-key="8" data-finger="middle-right">*<br>8</div>
+                            <div class="key" data-key="9" data-finger="ring-right">(<br>9</div>
+                            <div class="key" data-key="0" data-finger="pinky-right">)<br>0</div>
+                            <div class="key" data-key="-" data-finger="pinky-right">_<br>-</div>
+                            <div class="key" data-key="=" data-finger="pinky-right">+<br>=</div>
+                            <div class="key key-wide" data-key="Backspace" data-finger="pinky-right">BACKSPACE</div>
+                        </div>
+                        
+                        <!-- Top letter row -->
+                        <div class="keyboard-row">
+                            <div class="key key-wide" data-key="Tab" data-finger="pinky-left">TAB</div>
+                            <div class="key" data-key="q" data-finger="pinky-left">Q</div>
+                            <div class="key" data-key="w" data-finger="ring-left">W</div>
+                            <div class="key" data-key="e" data-finger="middle-left">E</div>
+                            <div class="key" data-key="r" data-finger="index-left">R</div>
+                            <div class="key" data-key="t" data-finger="index-left">T</div>
+                            <div class="key" data-key="y" data-finger="index-right">Y</div>
+                            <div class="key" data-key="u" data-finger="index-right">U</div>
+                            <div class="key" data-key="i" data-finger="middle-right">I</div>
+                            <div class="key" data-key="o" data-finger="ring-right">O</div>
+                            <div class="key" data-key="p" data-finger="pinky-right">P</div>
+                            <div class="key" data-key="[" data-finger="pinky-right">{<br>[</div>
+                            <div class="key" data-key="]" data-finger="pinky-right">}<br>]</div>
+                            <div class="key" data-key="\\" data-finger="pinky-right">|<br>\\</div>
+                        </div>
+                        
+                        <!-- Home row -->
+                        <div class="keyboard-row">
+                            <div class="key key-caps" data-key="CapsLock" data-finger="pinky-left">CAPS</div>
+                            <div class="key home-key" data-key="a" data-finger="pinky-left">A</div>
+                            <div class="key home-key" data-key="s" data-finger="ring-left">S</div>
+                            <div class="key home-key" data-key="d" data-finger="middle-left">D</div>
+                            <div class="key home-key" data-key="f" data-finger="index-left">F</div>
+                            <div class="key" data-key="g" data-finger="index-left">G</div>
+                            <div class="key" data-key="h" data-finger="index-right">H</div>
+                            <div class="key home-key" data-key="j" data-finger="index-right">J</div>
+                            <div class="key home-key" data-key="k" data-finger="middle-right">K</div>
+                            <div class="key home-key" data-key="l" data-finger="ring-right">L</div>
+                            <div class="key home-key" data-key=";" data-finger="pinky-right">:<br>;</div>
+                            <div class="key" data-key="'" data-finger="pinky-right">"<br>'</div>
+                            <div class="key key-enter" data-key="Enter" data-finger="pinky-right">ENTER</div>
+                        </div>
+                        
+                        <!-- Bottom letter row -->
+                        <div class="keyboard-row">
+                            <div class="key key-shift" data-key="Shift" data-finger="pinky-left">SHIFT</div>
+                            <div class="key" data-key="z" data-finger="pinky-left">Z</div>
+                            <div class="key" data-key="x" data-finger="ring-left">X</div>
+                            <div class="key" data-key="c" data-finger="middle-left">C</div>
+                            <div class="key" data-key="v" data-finger="index-left">V</div>
+                            <div class="key" data-key="b" data-finger="index-left">B</div>
+                            <div class="key" data-key="n" data-finger="index-right">N</div>
+                            <div class="key" data-key="m" data-finger="index-right">M</div>
+                            <div class="key" data-key="," data-finger="middle-right">&lt;<br>,</div>
+                            <div class="key" data-key="." data-finger="ring-right">&gt;<br>.</div>
+                            <div class="key" data-key="/" data-finger="pinky-right">?<br>/</div>
+                            <div class="key key-shift" data-key="Shift" data-finger="pinky-right">SHIFT</div>
+                        </div>
+                        
+                        <!-- Space bar row -->
+                        <div class="keyboard-row">
+                            <div class="key key-ctrl" data-key="Control" data-finger="pinky-left">CTRL</div>
+                            <div class="key" data-key="Meta" data-finger="thumb-left">WIN</div>
+                            <div class="key" data-key="Alt" data-finger="thumb-left">ALT</div>
+                            <div class="key key-space" data-key=" " data-finger="thumb">SPACE</div>
+                            <div class="key" data-key="Alt" data-finger="thumb-right">ALT</div>
+                            <div class="key" data-key="Meta" data-finger="thumb-right">WIN</div>
+                            <div class="key" data-key="ContextMenu" data-finger="pinky-right">MENU</div>
+                            <div class="key key-ctrl" data-key="Control" data-finger="pinky-right">CTRL</div>
+                        </div>
+                    </div>
+                    
+                    <div class="finger-guide">
+                        <div class="finger-info">
+                            <div class="finger-group left-hand">
+                                <div class="hand-label">LEFT HAND</div>
+                                <div class="finger pinky-left">Pinky</div>
+                                <div class="finger ring-left">Ring</div>
+                                <div class="finger middle-left">Middle</div>
+                                <div class="finger index-left">Index</div>
+                                <div class="finger thumb-left">Thumb</div>
+                            </div>
+                            <div class="finger-group right-hand">
+                                <div class="hand-label">RIGHT HAND</div>
+                                <div class="finger thumb-right">Thumb</div>
+                                <div class="finger index-right">Index</div>
+                                <div class="finger middle-right">Middle</div>
+                                <div class="finger ring-right">Ring</div>
+                                <div class="finger pinky-right">Pinky</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="control-panel">
                 <button class="arcade-button" id="start-btn">
                     <span class="button-label">START GAME</span>

@@ -131,7 +131,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🌅 Morning Vision Walk initialized\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${SERVICE_PORT}'",
+          "run": "echo '🌅 Morning Vision Walk initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${SERVICE_PORT}'",
           "description": "Display service URLs"
         }
       ]
@@ -161,7 +161,7 @@
         },
         {
           "name": "show-running",
-          "run": "echo '🚀 Morning Vision Walk running:\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${SERVICE_PORT}'",
+          "run": "echo '🚀 Morning Vision Walk running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${SERVICE_PORT}'",
           "description": "Display running services"
         }
       ]
