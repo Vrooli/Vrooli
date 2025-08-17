@@ -56,6 +56,8 @@ sudo_override::init() {
         log::success "✅ Passwordless sudo access confirmed"
         sudo_override::save_config "$allowed_commands" ""
         return 0
+    else
+        log::info "🔐 Sudo password required - no passwordless access available"
     fi
     
     # Prompt for sudo password
@@ -161,7 +163,7 @@ sudo_override::load_config() {
     # Enable sudo override
     export SUDO_OVERRIDE="yes"
     
-    log::debug "✅ Sudo override configuration loaded"
+    log::info "✅ Sudo override configuration loaded"
     return 0
 }
 
@@ -188,11 +190,12 @@ sudo_override::test() {
                 log::success "✅ Sudo access with password confirmed"
                 return 0
             else
-                log::error "❌ Sudo access with password failed"
+                log::error "❌ Sudo access with password failed - password may be incorrect"
                 return 1
             fi
         else
             log::error "❌ No sudo password available for testing"
+            log::info "💡 Run 'sudo-init' to set up sudo override with password"
             return 1
         fi
     fi
