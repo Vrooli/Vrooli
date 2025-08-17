@@ -26,6 +26,9 @@ DATA_DIR="${DATA_DIR:-${AUTO_DIR}/data/${LOOP_TASK}}"
 mkdir -p "$DATA_DIR" 2>/dev/null || true
 TMP_DIR="${DATA_DIR}/tmp"
 mkdir -p "$TMP_DIR" 2>/dev/null || true
+# Per-iteration logs directory (for persisted worker outputs)
+ITERATIONS_DIR="${ITERATIONS_DIR:-${DATA_DIR}/iterations}"
+mkdir -p "$ITERATIONS_DIR" 2>/dev/null || true
 
 # Files
 LOG_FILE="${LOG_FILE:-${DATA_DIR}/loop.log}"
@@ -40,9 +43,9 @@ LOCK_FILE="${LOCK_FILE:-${DATA_DIR}/loop.lock}"
 INTERVAL_SECONDS=${INTERVAL_SECONDS:-300}
 MAX_TURNS=${MAX_TURNS:-25}
 TIMEOUT=${TIMEOUT:-1800}
-MAX_CONCURRENT_WORKERS=${MAX_CONCURRENT_WORKERS:-5}
+MAX_CONCURRENT_WORKERS=${MAX_CONCURRENT_WORKERS:-3}  # Reduced from 5 to prevent TCP accumulation
 MAX_TCP_CONNECTIONS=${MAX_TCP_CONNECTIONS:-15}
-LOOP_TCP_FILTER="${LOOP_TCP_FILTER:-}"
+LOOP_TCP_FILTER="${LOOP_TCP_FILTER:-claude|anthropic|resource-claude-code}"  # Narrow default filter; exclude generic 443 to avoid false positives
 OLLAMA_SUMMARY_MODEL="${OLLAMA_SUMMARY_MODEL:-llama3.2:3b}"
 ULTRA_THINK_PREFIX="${ULTRA_THINK_PREFIX:-Ultra think. }"
 ALLOWED_TOOLS="${ALLOWED_TOOLS:-Read,Write,Edit,Bash,LS,Glob,Grep}"
@@ -51,6 +54,9 @@ PROMPT_PATH="${PROMPT_PATH:-${SCENARIO_PROMPT_PATH:-}}"
 ROTATE_KEEP=${ROTATE_KEEP:-5}
 LOG_MAX_BYTES=${LOG_MAX_BYTES:-52428800} # 50MB
 EVENTS_MAX_LINES=${EVENTS_MAX_LINES:-200000}
+# Iteration log limits
+ITERATION_LOG_MAX_LINES=${ITERATION_LOG_MAX_LINES:-10000}
+ITERATION_LOG_TAIL_LINES=${ITERATION_LOG_TAIL_LINES:-200}
 
 log_with_timestamp() {
 	echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"
@@ -173,6 +179,10 @@ can_start_new_worker() {
 	cleanup_finished_workers
 	local running=0; [[ -f "$PIDS_FILE" ]] && running=$(wc -l < "$PIDS_FILE")
 	if [[ $running -ge $MAX_CONCURRENT_WORKERS ]]; then log_with_timestamp "Max concurrent workers reached ($MAX_CONCURRENT_WORKERS)"; return 1; fi
+	# Disable TCP gating for explicit plan-only modes
+	if [[ "${RESOURCE_IMPROVEMENT_MODE:-}" == "plan" || "${SCENARIO_IMPROVEMENT_MODE:-}" == "plan" ]]; then
+		return 0
+	fi
 	local c; c=$(current_tcp_connections || echo 0)
 	if [[ $c -gt $MAX_TCP_CONNECTIONS ]]; then log_with_timestamp "Too many TCP connections ($c > $MAX_TCP_CONNECTIONS)"; return 1; fi
 	return 0
@@ -190,6 +200,7 @@ select_prompt() {
 check_worker_available() {
 	local missing=()
 	command -v timeout >/dev/null 2>&1 || missing+=(timeout)
+	command -v resource-claude-code >/dev/null 2>&1 || missing+=(resource-claude-code)
 	if declare -F task_check_worker_available >/dev/null 2>&1; then
 		if ! task_check_worker_available; then missing+=(worker); fi
 	fi
@@ -243,19 +254,22 @@ append_worker_pid() {
 
 run_iteration() {
 	local iter="$1"; log_with_timestamp "Starting iteration #$iter (task=$LOOP_TASK)"
+	# Prepare env before gating so per-task overrides (e.g., MAX_CONCURRENT_WORKERS) take effect
+	prepare_worker_env
 	can_start_new_worker || return 1
 	local prompt_path; prompt_path=$(select_prompt) || { log_with_timestamp "ERROR: No prompt found"; return 1; }
 	[[ -r "$prompt_path" ]] || { log_with_timestamp "ERROR: Prompt not readable: $prompt_path"; return 1; }
 	local full_prompt; full_prompt=$(compose_prompt "$prompt_path")
-	prepare_worker_env
 	# Launch a wrapper subshell in background; run the pipeline in foreground within the subshell
 	(
 		set +e
-		trap '' EXIT
+		# Cleanup function for TCP connections (avoid pkill patterns; rely on wrapper lifecycle)
+		trap - EXIT
 		local start; start=$(date +%s)
 		local tmp_out; tmp_out=$(mktemp -p "$TMP_DIR" "${LOOP_TASK}-${iter}-XXXX.log")
 		# Run worker pipeline in foreground; capture the exit code of timeout (the first command)
-		timeout --kill-after=30 "$TIMEOUT" resource-claude-code run "$full_prompt" 2>&1 | tee "$tmp_out"
+		# Use more aggressive timeout with proper signal escalation
+		timeout --signal=TERM --kill-after=30 "$TIMEOUT" resource-claude-code run "$full_prompt" 2>&1 | tee "$tmp_out"
 		local exitc=${PIPESTATUS[0]}
 		local end; end=$(date +%s); local dur=$((end-start))
 		if [[ $exitc -eq 0 ]]; then
@@ -264,6 +278,16 @@ run_iteration() {
 			log_with_timestamp "Iteration #$iter timed out in ${dur}s"
 		else
 			log_with_timestamp "Iteration #$iter failed (exit=$exitc) in ${dur}s"
+		fi
+		# Persist worker output (redacted) and append tail to main log
+		if [[ -f "$tmp_out" ]]; then
+			local iter_log="${ITERATIONS_DIR}/iter-${iter}.log"
+			head -n "$ITERATION_LOG_MAX_LINES" "$tmp_out" | redact > "$iter_log" 2>/dev/null || true
+			{
+				echo "===== Iteration #$iter worker output (last ${ITERATION_LOG_TAIL_LINES} lines, redacted) ====="
+				tail -n "$ITERATION_LOG_TAIL_LINES" "$tmp_out" | redact
+				echo "===== End iteration #$iter worker output ====="
+			} >> "$LOG_FILE" 2>/dev/null || true
 		fi
 		emit_finish_event "$iter" "$$" "$exitc" "$dur"
 		update_summary_files || true
@@ -279,19 +303,31 @@ run_iteration() {
 # Synchronous iteration for once
 run_iteration_sync() {
 	local iter="$1"; log_with_timestamp "Starting iteration (sync) #$iter (task=$LOOP_TASK)"
+	# Prepare env before gating so per-task overrides (e.g., MAX_CONCURRENT_WORKERS) take effect
+	prepare_worker_env
 	can_start_new_worker || return 1
 	local prompt_path; prompt_path=$(select_prompt) || { log_with_timestamp "ERROR: No prompt found"; return 1; }
 	[[ -r "$prompt_path" ]] || { log_with_timestamp "ERROR: Prompt not readable: $prompt_path"; return 1; }
 	local full_prompt; full_prompt=$(compose_prompt "$prompt_path")
-	prepare_worker_env
 	local start; start=$(date +%s)
 	local tmp_out; tmp_out=$(mktemp -p "$TMP_DIR" "${LOOP_TASK}-${iter}-XXXX.log")
 	set +e
 	emit_start_event "$prompt_path" "$iter" "$$"
-	timeout --kill-after=30 "$TIMEOUT" resource-claude-code run "$full_prompt" 2>&1 | tee "$tmp_out"
+	# Use more aggressive timeout with proper signal escalation
+	timeout --signal=TERM --kill-after=30 "$TIMEOUT" resource-claude-code run "$full_prompt" 2>&1 | tee "$tmp_out"
 	local exitc=${PIPESTATUS[0]}
 	set -e
 	local end; end=$(date +%s); local dur=$((end-start))
+	# Persist worker output (redacted) and append tail to main log
+	if [[ -f "$tmp_out" ]]; then
+		local iter_log="${ITERATIONS_DIR}/iter-${iter}.log"
+		head -n "$ITERATION_LOG_MAX_LINES" "$tmp_out" | redact > "$iter_log" 2>/dev/null || true
+		{
+			echo "===== Iteration #$iter worker output (last ${ITERATION_LOG_TAIL_LINES} lines, redacted) ====="
+			tail -n "$ITERATION_LOG_TAIL_LINES" "$tmp_out" | redact
+			echo "===== End iteration #$iter worker output ====="
+		} >> "$LOG_FILE" 2>/dev/null || true
+	fi
 	emit_finish_event "$iter" "$$" "$exitc" "$dur"
 	update_summary_files || true
 	rm -f "$tmp_out"
@@ -303,16 +339,22 @@ check_and_rotate() {
 	if [[ -f "$LOG_FILE" ]]; then
 		local sz; sz=$(stat -c%s "$LOG_FILE" 2>/dev/null || echo 0)
 		if [[ "$sz" -gt "$LOG_MAX_BYTES" ]]; then
-			local ts; ts=$(date '+%Y%m%d_%H%M%S'); mv "$LOG_FILE" "${LOG_FILE}.${ts}"; echo "[auto-rotate] log -> ${LOG_FILE}.${ts}" >>"$LOG_FILE" 2>/dev/null || true
-			ls -1t ${LOG_FILE}.* 2>/dev/null | tail -n +$((ROTATE_KEEP+1)) | xargs -r rm -f
+			local ts; ts=$(date '+%Y%m%d_%H%M%S')
+			mv -- "$LOG_FILE" "${LOG_FILE}.${ts}"
+			echo "[auto-rotate] log -> ${LOG_FILE}.${ts}" >>"$LOG_FILE" 2>/dev/null || true
+			# Prune older rotated logs safely
+			find "$(dirname "$LOG_FILE")" -maxdepth 1 -type f -name "$(basename "$LOG_FILE").*" -printf '%T@ %p\n' 2>/dev/null | sort -nr | awk 'NR>ENVIRON["ROTATE_KEEP"]{print $2}' ROTATE_KEEP=$((ROTATE_KEEP)) | xargs -r rm -f --
 		fi
 	fi
 	# Auto-rotate large events by line count
 	if [[ -f "$EVENTS_JSONL" ]]; then
 		local lines; lines=$(wc -l < "$EVENTS_JSONL" 2>/dev/null || echo 0)
 		if [[ "$lines" -gt "$EVENTS_MAX_LINES" ]]; then
-			local ts; ts=$(date '+%Y%m%d_%H%M%S'); mv "$EVENTS_JSONL" "${EVENTS_JSONL}.${ts}"; echo "[auto-rotate] events -> ${EVENTS_JSONL}.${ts}" >>"$LOG_FILE" 2>/dev/null || true
-			ls -1t ${EVENTS_JSONL}.* 2>/dev/null | tail -n +$((ROTATE_KEEP+1)) | xargs -r rm -f
+			local ts; ts=$(date '+%Y%m%d_%H%M%S')
+			mv -- "$EVENTS_JSONL" "${EVENTS_JSONL}.${ts}"
+			echo "[auto-rotate] events -> ${EVENTS_JSONL}.${ts}" >>"$LOG_FILE" 2>/dev/null || true
+			# Prune older rotated events safely
+			find "$(dirname "$EVENTS_JSONL")" -maxdepth 1 -type f -name "$(basename "$EVENTS_JSONL").*" -printf '%T@ %p\n' 2>/dev/null | sort -nr | awk 'NR>ENVIRON["ROTATE_KEEP"]{print $2}' ROTATE_KEEP=$((ROTATE_KEEP)) | xargs -r rm -f --
 		fi
 	fi
 }
@@ -383,7 +425,13 @@ loop_dispatch() {
 			# optional events rotation
 			if [[ "${1:-}" == "--events" ]]; then
 				local keep=${2:-$ROTATE_KEEP}
-				if [[ -f "$EVENTS_JSONL" ]]; then ts=$(date '+%Y%m%d_%H%M%S'); mv "$EVENTS_JSONL" "${EVENTS_JSONL}.${ts}"; echo "Rotated events to ${EVENTS_JSONL}.${ts}"; ls -1t ${EVENTS_JSONL}.* 2>/dev/null | tail -n +$((keep+1)) | xargs -r rm -f; else echo "No events file to rotate"; fi
+				if [[ -f "$EVENTS_JSONL" ]]; then
+					ts=$(date '+%Y%m%d_%H%M%S'); mv -- "$EVENTS_JSONL" "${EVENTS_JSONL}.${ts}"
+					# prune older events safely
+					find "$(dirname "$EVENTS_JSONL")" -maxdepth 1 -type f -name "$(basename "$EVENTS_JSONL").*" -printf '%T@ %p\n' 2>/dev/null | sort -nr | awk -v k="$keep" 'NR>(k+1){print $2}' | xargs -r rm -f --
+				else
+					echo "No events file to rotate"
+				fi
 			fi
 			;;
 		json)

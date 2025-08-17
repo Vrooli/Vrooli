@@ -373,6 +373,7 @@ format::progress_bar() {
     printf "] %3d%%\n" "$percent"
 }
 
+
 # Export functions
 export -f format::output
 export -f format::key_value

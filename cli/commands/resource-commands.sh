@@ -23,6 +23,8 @@ source "${var_LOG_FILE:-${CLI_DIR}/../../scripts/lib/utils/log.sh}"
 source "${var_RESOURCES_COMMON_FILE}" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LIB_DIR}/resources/auto-install.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${CLI_DIR}/../../scripts/lib/utils/format.sh"
 
 # Resource paths
 RESOURCES_DIR="${var_SCRIPTS_RESOURCES_DIR}"
@@ -241,18 +243,350 @@ resource_list_brief() {
     echo ""
 }
 
-# List all available resources (detailed)
-resource_list() {
-    local format="${1:-pretty}"           # pretty or json
-    local include_connection="${2:-false}" # include connection info for credentials
-    local only_running="${3:-false}"      # only show running resources
+################################################################################
+# Format-Agnostic Data Collection Functions
+################################################################################
+
+# Collect raw resource data from configuration and filesystem
+collect_resource_list_data() {
+    local include_connection="${1:-false}"
+    local only_running="${2:-false}"
     
-    # Handle format parameter passed as --format json
+    # Check which config file exists
+    local config_file=""
+    if [[ -f "$RESOURCES_CONFIG" ]]; then
+        config_file="$RESOURCES_CONFIG"
+    elif [[ -f "$RESOURCES_CONFIG_LEGACY" ]]; then
+        config_file="$RESOURCES_CONFIG_LEGACY"
+    else
+        echo "error:No resource configuration found"
+        return
+    fi
+    
+    # Batch check Docker container status for performance
+    local docker_status_cache
+    docker_status_cache=$(batch_check_docker_status)
+    
+    # Get all resources from config
+    local all_resources
+    all_resources=$(jq -r '
+        .resources | to_entries[] as $category | 
+        $category.value | to_entries[] | 
+        "\($category.key)/\(.key)/\(.value.enabled)"
+    ' "$config_file" 2>/dev/null)
+    
+    if [[ -z "$all_resources" ]]; then
+        echo "error:No resources found in configuration"
+        return
+    fi
+    
+    # Process each resource  
+    while IFS= read -r resource_line; do
+        [[ -z "$resource_line" ]] && continue
+        
+        local category="${resource_line%%/*}"
+        local rest="${resource_line#*/}"
+        local name="${rest%%/*}"
+        local enabled="${rest##*/}"
+        
+        # Skip disabled resources if only_running is true
+        if [[ "$only_running" == "true" && "$enabled" != "true" ]]; then
+            continue
+        fi
+        
+        local resource_dir="$RESOURCES_DIR/$category/$name"
+        
+        if [[ -d "$resource_dir" ]]; then
+            # Check running status using Docker cache
+            local container_patterns=("$name" "vrooli-$name" "vrooli-${name}-main" "${name}-container")
+            local is_running="false"
+            
+            for pattern in "${container_patterns[@]}"; do
+                local check_result
+                check_result=$(echo "$docker_status_cache" | jq -r --arg name "$pattern" '.[$name] // "not_running"' 2>/dev/null || echo "not_running")
+                if [[ "$check_result" == "running" ]]; then
+                    is_running="true"
+                    break
+                fi
+            done
+            
+            # Skip if only_running is true and resource is not running
+            if [[ "$only_running" == "true" && "$is_running" != "true" ]]; then
+                continue
+            fi
+            
+            # Check features
+            local has_cli="false"
+            local has_script="false"
+            local has_capabilities="false"
+            
+            if has_resource_cli "$name"; then
+                has_cli="true"
+            fi
+            if [[ -f "$resource_dir/manage.sh" ]]; then
+                has_script="true"
+            fi
+            if [[ -f "$resource_dir/capabilities.yaml" ]]; then
+                has_capabilities="true"
+            fi
+            
+            # Output resource data
+            echo "resource:${name}:${category}:${enabled}:${is_running}:${has_cli}:${has_script}:${has_capabilities}"
+        fi
+    done <<< "$all_resources"
+}
+
+# Collect raw status data for a single resource
+collect_resource_status_data() {
+    local resource_name="$1"
+    
+    if [[ -z "$resource_name" ]]; then
+        echo "error:Resource name required"
+        return
+    fi
+    
+    # Find resource in filesystem
+    local resource_dir
+    resource_dir=$(find "$RESOURCES_DIR" -mindepth 2 -maxdepth 2 -type d -name "$resource_name" 2>/dev/null | head -1)
+    
+    if [[ -z "$resource_dir" ]]; then
+        echo "error:Resource not found: $resource_name"
+        return
+    fi
+    
+    local category
+    category=$(basename "$(dirname "$resource_dir")")
+    
+    # Check if enabled in config
+    local enabled="false"
+    if [[ -f "$RESOURCES_CONFIG" ]]; then
+        enabled=$(jq -r --arg cat "$category" --arg res "$resource_name" '.resources[$cat][$res].enabled // false' "$RESOURCES_CONFIG" 2>/dev/null || echo "false")
+    fi
+    
+    # Check running status
+    local is_running="false"
+    local status_message="stopped"
+    
+    # Quick Docker check
+    if docker ps --format "{{.Names}}" 2>/dev/null | grep -q "^${resource_name}$"; then
+        is_running="true"
+        status_message="running"
+    else
+        # Try resource CLI for detailed status
+        if has_resource_cli "$resource_name"; then
+            local status_output
+            if status_output=$(unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED; "resource-${resource_name}" status 2>/dev/null | head -5); then
+                if echo "$status_output" | grep -Eq "✅.*(Running|Health|Healthy)|Status:.*running|Container.*running" && \
+                   ! echo "$status_output" | grep -q "not running\|is not running\|stopped"; then
+                    is_running="true"
+                    status_message="running"
+                else
+                    status_message="stopped"
+                fi
+            fi
+        fi
+    fi
+    
+    # Check features
+    local has_cli="false"
+    local has_script="false"
+    local has_capabilities="false"
+    
+    if has_resource_cli "$resource_name"; then
+        has_cli="true"
+    fi
+    if [[ -f "$resource_dir/manage.sh" ]]; then
+        has_script="true"
+    fi
+    if [[ -f "$resource_dir/capabilities.yaml" ]]; then
+        has_capabilities="true"
+    fi
+    
+    # Output structured data
+    echo "resource:${resource_name}:${category}:${enabled}:${is_running}:${status_message}:${has_cli}:${has_script}:${has_capabilities}:${resource_dir}"
+}
+
+################################################################################
+# Structured Data Functions (format-agnostic)
+################################################################################
+
+# Get structured resource list data
+get_resource_list_data() {
+    local include_connection="${1:-false}"
+    local only_running="${2:-false}"
+    
+    local raw_data
+    raw_data=$(collect_resource_list_data "$include_connection" "$only_running")
+    
+    # Check for errors
+    if echo "$raw_data" | grep -q "^error:"; then
+        local error_msg
+        error_msg=$(echo "$raw_data" | grep "^error:" | cut -d: -f2-)
+        echo "type:error"
+        echo "message:$error_msg"
+        return
+    fi
+    
+    echo "type:list"
+    
+    local total_count=0
+    local enabled_count=0
+    local running_count=0
+    
+    # Process each resource
+    while IFS= read -r line; do
+        if [[ "$line" =~ ^resource:(.+):(.+):(.+):(.+):(.+):(.+):(.+)$ ]]; then
+            local name="${BASH_REMATCH[1]}"
+            local category="${BASH_REMATCH[2]}"
+            local enabled="${BASH_REMATCH[3]}"
+            local is_running="${BASH_REMATCH[4]}"
+            local has_cli="${BASH_REMATCH[5]}"
+            local has_script="${BASH_REMATCH[6]}"
+            local has_capabilities="${BASH_REMATCH[7]}"
+            
+            echo "item:${name}:${category}:${enabled}:${is_running}:${has_cli}:${has_script}:${has_capabilities}"
+            
+            ((total_count++))
+            [[ "$enabled" == "true" ]] && ((enabled_count++))
+            [[ "$is_running" == "true" ]] && ((running_count++))
+        fi
+    done <<< "$raw_data"
+    
+    echo "summary:${total_count}:${enabled_count}:${running_count}"
+}
+
+# Get structured status data for a single resource
+get_resource_status_data() {
+    local resource_name="$1"
+    
+    local raw_data
+    raw_data=$(collect_resource_status_data "$resource_name")
+    
+    # Check for errors
+    if echo "$raw_data" | grep -q "^error:"; then
+        local error_msg
+        error_msg=$(echo "$raw_data" | grep "^error:" | cut -d: -f2-)
+        echo "type:error"
+        echo "message:$error_msg"
+        return
+    fi
+    
+    if [[ "$raw_data" =~ ^resource:(.+):(.+):(.+):(.+):(.+):(.+):(.+):(.+):(.+)$ ]]; then
+        local name="${BASH_REMATCH[1]}"
+        local category="${BASH_REMATCH[2]}"
+        local enabled="${BASH_REMATCH[3]}"
+        local is_running="${BASH_REMATCH[4]}"
+        local status_message="${BASH_REMATCH[5]}"
+        local has_cli="${BASH_REMATCH[6]}"
+        local has_script="${BASH_REMATCH[7]}"
+        local has_capabilities="${BASH_REMATCH[8]}"
+        local resource_dir="${BASH_REMATCH[9]}"
+        
+        echo "type:status"
+        echo "name:$name"
+        echo "category:$category"
+        echo "enabled:$enabled"
+        echo "running:$is_running"
+        echo "status:$status_message"
+        echo "has_cli:$has_cli"
+        echo "has_script:$has_script"
+        echo "has_capabilities:$has_capabilities"
+        echo "path:$resource_dir"
+    else
+        echo "type:error"
+        echo "message:Invalid resource data format"
+    fi
+}
+
+################################################################################
+# Resource-Specific Formatters (using generic format.sh functions)
+################################################################################
+
+# Format resource list data for display
+format_resource_list_data() {
+    local format="$1"
+    local raw_data="$2"
+    
+    # Check for errors
+    if echo "$raw_data" | grep -q "^type:error"; then
+        local error_msg
+        error_msg=$(echo "$raw_data" | grep "^message:" | cut -d: -f2-)
+        format::key_value "$format" "error" "$error_msg"
+        return
+    fi
+    
+    # Collect table rows
+    local table_rows=()
+    while IFS= read -r line; do
+        if [[ "$line" =~ ^item:(.+):(.+):(.+):(.+):(.+):(.+):(.+)$ ]]; then
+            local name="${BASH_REMATCH[1]}"
+            local category="${BASH_REMATCH[2]}"
+            local enabled="${BASH_REMATCH[3]}"
+            local running="${BASH_REMATCH[4]}"
+            table_rows+=("${name}:${category}:${enabled}:${running}")
+        fi
+    done <<< "$raw_data"
+    
+    # Format as table
+    format::table "$format" "Name" "Category" "Enabled" "Running" -- "${table_rows[@]}"
+}
+
+# Format resource overview data (for resource status with no args)
+format_resource_overview_data() {
+    local format="$1"
+    local raw_data="$2"
+    
+    format_resource_list_data "$format" "$raw_data"
+}
+
+# Format single resource status data for display  
+format_resource_status_data() {
+    local format="$1"
+    local raw_data="$2"
+    
+    # Check for errors
+    if echo "$raw_data" | grep -q "^type:error"; then
+        local error_msg
+        error_msg=$(echo "$raw_data" | grep "^message:" | cut -d: -f2-)
+        format::key_value "$format" "error" "$error_msg"
+        return
+    fi
+    
+    # Extract data
+    local name category enabled running status path
+    name=$(echo "$raw_data" | grep "^name:" | cut -d: -f2)
+    category=$(echo "$raw_data" | grep "^category:" | cut -d: -f2)
+    enabled=$(echo "$raw_data" | grep "^enabled:" | cut -d: -f2)
+    running=$(echo "$raw_data" | grep "^running:" | cut -d: -f2)
+    status=$(echo "$raw_data" | grep "^status:" | cut -d: -f2)
+    path=$(echo "$raw_data" | grep "^path:" | cut -d: -f2-)
+    
+    format::key_value "$format" \
+        "name" "$name" \
+        "category" "$category" \
+        "enabled" "$enabled" \
+        "running" "$running" \
+        "status" "$status" \
+        "path" "$path"
+}
+
+
+# List all available resources (completely format-agnostic)
+resource_list() {
+    local format="text"
+    local include_connection="false"
+    local only_running="false"
+    
+    # Parse arguments
     while [[ $# -gt 0 ]]; do
         case $1 in
             --format)
                 format="$2"
                 shift 2
+                ;;
+            --json)
+                format="json"
+                shift
                 ;;
             --include-connection-info)
                 include_connection="true"
@@ -268,410 +602,56 @@ resource_list() {
         esac
     done
     
-    if [[ "$format" == "json" ]]; then
-        resource_list_json "$include_connection" "$only_running"
-        return $?
-    fi
+    # Get structured data (format-agnostic)
+    local resource_data
+    resource_data=$(get_resource_list_data "$include_connection" "$only_running")
     
-    # Check if terminal supports colors (use ANSI codes directly for better compatibility)
-    local use_colors=false
-    if [[ -t 1 ]]; then
-        # Check if terminal supports colors using multiple methods
-        if [[ -n "${COLORTERM:-}" ]] || [[ "${TERM:-}" == *"color"* ]] || [[ "${TERM:-}" == "xterm"* ]]; then
-            use_colors=true
-        elif command -v tput >/dev/null 2>&1; then
-            local colors=$(tput colors 2>/dev/null || echo 0)
-            [[ $colors -ge 8 ]] && use_colors=true
-        fi
-    fi
+    # Format and display using resource-specific formatter
+    format_resource_list_data "$format" "$resource_data"
+}
+
+
+# Show resource status (completely format-agnostic)
+resource_status() {
+    local resource_name="${1:-}"
+    local format="text"
     
-    # Use ANSI escape codes for better compatibility
-    local CYAN=''
-    local GREEN=''
-    local YELLOW=''
-    local BLUE=''
-    local GRAY=''
-    local BOLD=''
-    local DIM=''
-    local NC=''
-    
-    if [[ "$use_colors" == "true" ]]; then
-        # ANSI color codes
-        CYAN=$'\033[36m'
-        GREEN=$'\033[32m'
-        YELLOW=$'\033[33m'
-        BLUE=$'\033[34m'
-        GRAY=$'\033[90m'
-        BOLD=$'\033[1m'
-        DIM=$'\033[2m'
-        NC=$'\033[0m'
-    fi
-    
-    echo ""
-    echo "${CYAN}╔════════════════════════════════════════════════════════════════════╗${NC}"
-    echo "${CYAN}║${NC}                    ${BOLD}📦 VROOLI RESOURCE MANAGER${NC}                     ${CYAN}║${NC}"
-    echo "${CYAN}╚════════════════════════════════════════════════════════════════════╝${NC}"
-    echo ""
-    
-    # Configuration info in a box
-    echo "${DIM}┌─ Configuration ─────────────────────────────────────────────────────┐${NC}"
-    if [[ -f "$RESOURCES_CONFIG" ]]; then
-        echo "${DIM}│${NC} Config: ${BLUE}${RESOURCES_CONFIG}${NC}"
-    else
-        echo "${DIM}│${NC} Config: ${GRAY}No configuration found${NC}"
-    fi
-    echo "${DIM}│${NC} Registry: ${BLUE}${RESOURCE_REGISTRY}${NC}"
-    echo "${DIM}└──────────────────────────────────────────────────────────────────────┘${NC}"
-    echo ""
-    
-    # Get list of resource directories by category
-    local categories=(
-        "storage:💾 Databases & Storage"
-        "ai:🤖 AI Models & Inference"
-        "automation:⚙️  Workflow Automation"
-        "agents:🌐 AI Agents & Browsers"
-        "search:🔍 Search Engines"
-        "monitoring:📊 Monitoring & Analytics"
-        "communication:💬 Chat & Communication"
-    )
-    
-    # Track if any resources found
-    local resources_found=false
-    
-    for category_info in "${categories[@]}"; do
-        local category="${category_info%%:*}"
-        local description="${category_info#*:}"
-        local category_dir="${RESOURCES_DIR}/${category}"
-        
-        if [[ ! -d "$category_dir" ]]; then
-            continue
-        fi
-        
-        # Check if category has any resources
-        local has_resources=false
-        for resource_dir in "$category_dir"/*; do
-            if [[ -d "$resource_dir" ]]; then
-                has_resources=true
-                break
-            fi
-        done
-        
-        if [[ "$has_resources" == "false" ]]; then
-            continue
-        fi
-        
-        resources_found=true
-        
-        echo "${BOLD}${description}${NC}"
-        echo "${DIM}├────────────────────────────────────────────────────────────────────${NC}"
-        
-        # Header row
-        echo "${DIM}│${NC} Resource             Status     Running         Features"
-        echo "${DIM}├────────────────────────────────────────────────────────────────────${NC}"
-        
-        for resource_dir in "$category_dir"/*; do
-            [[ ! -d "$resource_dir" ]] && continue
-            
-            local resource_name
-            resource_name=$(basename "$resource_dir")
-            local running_status=""
-            local enabled_status=""
-            local features=""
-            
-            # Check if resource is enabled in config
-            if [[ -f "$RESOURCES_CONFIG" ]]; then
-                local is_enabled
-                # Use more robust JQ query with proper error handling
-                is_enabled=$(jq -r --arg cat "$category" --arg res "$resource_name" '.resources[$cat][$res].enabled // false' "$RESOURCES_CONFIG" 2>/dev/null || echo "false")
-                if [[ "$is_enabled" == "true" ]]; then
-                    enabled_status="✓ Enabled"
-                    enabled_color="${GREEN}"
-                else
-                    enabled_status="○ Disabled"
-                    enabled_color="${GRAY}"
-                fi
-            else
-                enabled_status="○ Unknown"
-                enabled_color="${GRAY}"
-            fi
-            
-            # Check features
-            local feature_list=""
-            if has_resource_cli "$resource_name"; then
-                feature_list="${feature_list}[CLI] "
-            fi
-            if [[ -f "$resource_dir/manage.sh" ]]; then
-                feature_list="${feature_list}[Script] "
-            fi
-            if [[ -f "$resource_dir/capabilities.yaml" ]]; then
-                feature_list="${feature_list}[Cap] "
-            fi
-            
-            # Check if running (simplified version to debug early exit)
-            local running_status="○ Available"
-            local running_color="${GRAY}"
-            
-            # Very simple status check - just show if manage.sh exists
-            if [[ -f "$resource_dir/manage.sh" ]]; then
-                running_status="○ Available"
-                running_color="${GRAY}"
-            else
-                running_status="○ Unknown"
-                running_color="${GRAY}"
-            fi
-            
-            # Format resource name with color based on status
-            local name_color=""
-            if [[ "$is_enabled" == "true" ]]; then
-                name_color="${BOLD}"
-            else
-                name_color="${DIM}"
-            fi
-            
-            # Print the row with proper formatting
-            printf "${DIM}│${NC} ${name_color}%-20s${NC} ${enabled_color}%-10s${NC} ${running_color}%-15s${NC} ${GRAY}%-20s${NC}\n" \
-                "$resource_name" "$enabled_status" "$running_status" "$feature_list"
-        done
-        
-        echo "${DIM}└────────────────────────────────────────────────────────────────────${NC}"
-        echo ""
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --format)
+                format="$2"
+                shift 2
+                ;;
+            --json)
+                format="json"
+                shift
+                ;;
+            *)
+                resource_name="$1"
+                shift
+                ;;
+        esac
     done
     
-    if [[ "$resources_found" == "false" ]]; then
-        echo "${YELLOW}No resources found in ${RESOURCES_DIR}${NC}"
-        echo ""
-    fi
-    
-    # Show legend
-    echo "${DIM}┌─ Legend ────────────────────────────────────────────────────────────┐${NC}"
-    echo "${DIM}│${NC} Status:  ${GREEN}✓ Enabled${NC}  ${GRAY}○ Disabled${NC}"
-    echo "${DIM}│${NC} Running: ${GREEN}● Running${NC}  ${YELLOW}○ Stopped${NC}  ${GRAY}○ Not installed${NC}"
-    echo "${DIM}│${NC} Features: ${BLUE}[CLI]${NC} Has CLI  ${GRAY}[Script]${NC} Has manage.sh  ${GRAY}[Cap]${NC} Has capabilities"
-    echo "${DIM}└──────────────────────────────────────────────────────────────────────┘${NC}"
-    echo ""
-    
-    # Show quick commands
-    echo "${DIM}Quick Commands:${NC}"
-    echo "  ${CYAN}vrooli resource start <name>${NC}     Start a resource"
-    echo "  ${CYAN}vrooli resource stop <name>${NC}      Stop a resource"
-    echo "  ${CYAN}vrooli resource status <name>${NC}    Check resource status"
-    echo "  ${CYAN}vrooli resource install <name>${NC}   Install a resource"
-    echo ""
-}
-
-#######################################
-# Get resource status in JSON format
-# Args: $1 - resource name, $2 - resource directory, $3 - category, $4 - include_connection, $5 - docker_status_cache
-# Returns: JSON object with status and connection info
-#######################################
-get_resource_status_json() {
-    local resource_name="$1"
-    local resource_dir="$2"
-    local category="$3"
-    local include_connection="${4:-false}"
-    local docker_status_cache="${5:-{}}"
-    
-    # Initialize status info
-    local is_running="false"
-    local status_message="unknown"
-    local connection_info="{}"
-    
-    # Quick check using Docker cache first (much faster)
-    # Try multiple container name patterns
-    local docker_running="not_running"
-    local container_patterns=("$resource_name" "vrooli-$resource_name" "vrooli-${resource_name}-main" "${resource_name}-container")
-    
-    for pattern in "${container_patterns[@]}"; do
-        local check_result
-        check_result=$(echo "$docker_status_cache" | jq -r --arg name "$pattern" '.[$name] // "not_running"' 2>/dev/null || echo "not_running")
-        if [[ "$check_result" == "running" ]]; then
-            docker_running="running"
-            break
-        fi
-    done
-    
-    if [[ "$docker_running" == "running" ]]; then
-        # Resource is running according to Docker - use that
-        is_running="true"
-        status_message="running"
+    if [[ -z "$resource_name" ]]; then
+        # Show status of all enabled resources
+        local resource_data
+        resource_data=$(get_resource_list_data "false" "false")
+        
+        # Format using resource-specific formatter
+        format_resource_overview_data "$format" "$resource_data"
     else
-        # Resource not in Docker or not running - try detailed status check
-        local status_output=""
-        local status_exit_code=1
+        # Show status of specific resource
+        local status_data
+        status_data=$(get_resource_status_data "$resource_name")
         
-        if has_resource_cli "$resource_name"; then
-            # Try resource CLI - check if it supports --format json
-            if command -v "resource-${resource_name}" >/dev/null 2>&1; then
-                # Try with --format json first (future-proof)
-                if status_output=$(unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED; "resource-${resource_name}" status --format json 2>/dev/null) && \
-                   echo "$status_output" | jq empty 2>/dev/null; then
-                    # Resource supports JSON format and returned valid JSON
-                    echo "$status_output"
-                    return 0
-                else
-                    # Fall back to text parsing (but limit to fast check only)
-                    status_output=$(unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED; "resource-${resource_name}" status 2>/dev/null | head -5) || status_output=""
-                    status_exit_code=$?
-                fi
-            fi
-        else
-            # Try manage.sh (with timeout to prevent hanging)
-            local manage_script="$resource_dir/manage.sh"
-            if [[ -f "$manage_script" ]]; then
-                # Try with --format json first (future-proof)
-                if status_output=$(timeout 3 "$manage_script" --action status --format json 2>/dev/null) && \
-                   echo "$status_output" | jq empty 2>/dev/null; then
-                    # Resource supports JSON format and returned valid JSON
-                    echo "$status_output"
-                    return 0
-                else
-                    # Fall back to quick text parsing (with timeout)
-                    status_output=$(timeout 3 "$manage_script" --action status 2>/dev/null | head -5) || status_output=""
-                    status_exit_code=$?
-                fi
-            fi
-        fi
-        
-        # Parse text output for running status
-        if [[ -n "$status_output" ]] && [[ $status_exit_code -eq 0 ]]; then
-            if echo "$status_output" | grep -Eq "✅.*(Running|Health|Healthy)|Status:.*running|Container.*running" && \
-               ! echo "$status_output" | grep -q "not running\|is not running\|stopped"; then
-                is_running="true"
-                status_message="running"
-            else
-                is_running="false"
-                status_message="stopped"
-            fi
-        else
-            # Default to not running
-            is_running="false"
-            status_message="not_running"
-        fi
-    fi
-    
-    # Get connection info if requested and resource is running
-    if [[ "$include_connection" == "true" ]] && [[ "$is_running" == "true" ]]; then
-        connection_info=$(extract_connection_info "$resource_name" "$resource_dir" "$category" 2>/dev/null || echo "{}")
-    fi
-    
-    # Output JSON
-    jq -n \
-        --arg name "$resource_name" \
-        --arg category "$category" \
-        --argjson running "$is_running" \
-        --arg status "$status_message" \
-        --argjson connection "$connection_info" \
-        '{
-            name: $name,
-            category: $category,
-            running: $running,
-            status: $status,
-            connection: $connection
-        }'
-}
-
-#######################################
-# Extract connection info from resource (simplified version of auto-credentials logic)
-#######################################
-extract_connection_info() {
-    local resource_name="$1"
-    local resource_dir="$2"
-    local category="$3"
-    
-    local defaults_file="$resource_dir/config/defaults.sh"
-    [[ ! -f "$defaults_file" ]] && echo "{}" && return
-    
-    # Extract configuration in subshell to avoid variable pollution
-    local config_data
-    config_data=$(
-        # Redirect all output to avoid pollution
-        exec 3>&1 4>&2 >/dev/null 2>&1
-        
-        # shellcheck disable=SC1090
-        source "$defaults_file" || exit 1
-        
-        # Call export function if it exists (suppress all output)
-        if declare -f "${resource_name}::export_config" >/dev/null 2>&1; then
-            "${resource_name}::export_config" >/dev/null 2>&1 || true
-        fi
-        
-        # Restore output for jq
-        exec 1>&3 2>&4
-        
-        # Extract common configuration patterns
-        local port host user password database
-        local resource_upper=$(echo "$resource_name" | tr '[:lower:]' '[:upper:]' | tr '-' '_')
-        
-        # Use printenv instead of eval for security
-        port=$(printenv "${resource_upper}_PORT" || printenv "${resource_upper}_DEFAULT_PORT" || echo "")
-        host=$(printenv "${resource_upper}_HOST" || echo "localhost")
-        user=$(printenv "${resource_upper}_USER" || printenv "${resource_upper}_DEFAULT_USER" || printenv "${resource_upper}_ROOT_USER" || echo "")
-        password=$(printenv "${resource_upper}_PASSWORD" || printenv "${resource_upper}_ROOT_PASSWORD" || echo "")
-        database=$(printenv "${resource_upper}_DATABASE" || printenv "${resource_upper}_DEFAULT_DB" || echo "")
-        
-        # Skip if no port detected (likely not a network service)
-        [[ -z "$port" ]] && echo "{}" && exit 0
-        
-        # Detect Docker networking adjustments
-        local docker_host="$host"
-        local container_name="${resource_name}"
-        if command -v docker >/dev/null 2>&1 && docker ps --format "{{.Names}}" | grep -q "^n8n$" 2>/dev/null; then
-            case "$host" in
-                localhost|127.0.0.1)
-                    # Check if target resource is also in Docker
-                    if docker ps --format "{{.Names}}" | grep -q "^${container_name}$" 2>/dev/null; then
-                        docker_host="$container_name"  # Container-to-container
-                    else
-                        # For Linux, try host.docker.internal, fall back to gateway
-                        if [[ "$(uname)" == "Linux" ]]; then
-                            # Try to get Docker gateway IP
-                            local gateway_ip
-                            gateway_ip=$(docker network inspect bridge --format='{{range .IPAM.Config}}{{.Gateway}}{{end}}' 2>/dev/null || echo "")
-                            if [[ -n "$gateway_ip" ]]; then
-                                docker_host="$gateway_ip"
-                            else
-                                docker_host="172.17.0.1"  # Common Docker bridge gateway
-                            fi
-                        else
-                            docker_host="host.docker.internal"  # Works on Mac/Windows
-                        fi
-                    fi
-                    ;;
-            esac
-        fi
-        
-        # Output as JSON (simplified to avoid shell escaping issues)
-        jq -n \
-            --arg host "$docker_host" \
-            --arg original_host "$host" \
-            --arg port "${port:-}" \
-            --arg user "${user:-}" \
-            --arg password "${password:-}" \
-            --arg database "${database:-}" \
-            --arg container "$container_name" \
-            '{
-                host: $host,
-                original_host: $original_host,
-                port: ($port | if . == "" then null else (tonumber? // .) end),
-                user: ($user | if . == "" then null else . end),
-                password: ($password | if . == "" then null else . end),
-                database: ($database | if . == "" then null else . end),
-                container_name: $container
-            }'
-    ) 2>/dev/null
-    
-    # Return the config data or empty JSON if extraction failed
-    if [[ -n "$config_data" ]]; then
-        echo "$config_data"
-    else
-        echo "{}"
+        # Format using resource-specific formatter
+        format_resource_status_data "$format" "$status_data"
     fi
 }
 
-#######################################
 # Batch check Docker container status for all resources
-# Returns: associative array of container_name -> status
-#######################################
 batch_check_docker_status() {
     # Get all running containers in one call
     local running_containers=""
@@ -698,119 +678,6 @@ batch_check_docker_status() {
     fi
 }
 
-#######################################
-# List resources in JSON format
-#######################################
-resource_list_json() {
-    local include_connection="${1:-false}"
-    local only_running="${2:-false}"
-    
-    # Check which config file exists
-    local config_file=""
-    if [[ -f "$RESOURCES_CONFIG" ]]; then
-        config_file="$RESOURCES_CONFIG"
-    elif [[ -f "$RESOURCES_CONFIG_LEGACY" ]]; then
-        config_file="$RESOURCES_CONFIG_LEGACY"
-    else
-        echo "[]"
-        return 0
-    fi
-    
-    # Batch check Docker container status for performance
-    local docker_status_cache
-    docker_status_cache=$(batch_check_docker_status)
-    
-    # Get all resources from config
-    local all_resources
-    all_resources=$(jq -r '
-        .resources | to_entries[] as $category | 
-        $category.value | to_entries[] | 
-        "\($category.key)/\(.key)/\(.value.enabled)"
-    ' "$config_file" 2>/dev/null)
-    
-    if [[ -z "$all_resources" ]]; then
-        echo "[]"
-        return 0
-    fi
-    
-    local resource_json_array=()
-    
-    # Process each resource  
-    while IFS= read -r resource_line; do
-        [[ -z "$resource_line" ]] && continue
-        
-        local category="${resource_line%%/*}"
-        local rest="${resource_line#*/}"
-        local name="${rest%%/*}"
-        local enabled="${rest##*/}"
-        
-        # Skip disabled resources unless we want all
-        if [[ "$only_running" == "false" ]] || [[ "$enabled" == "true" ]]; then
-            local resource_dir="$RESOURCES_DIR/$category/$name"
-            
-            if [[ -d "$resource_dir" ]]; then
-                # Pre-filter for --only-running using Docker cache (much faster)
-                if [[ "$only_running" == "true" ]]; then
-                    local container_patterns=("$name" "vrooli-$name" "vrooli-${name}-main" "${name}-container")
-                    local quick_running_check="false"
-                    
-                    for pattern in "${container_patterns[@]}"; do
-                        local check_result
-                        check_result=$(echo "$docker_status_cache" | jq -r --arg name "$pattern" '.[$name] // "not_running"' 2>/dev/null || echo "not_running")
-                        if [[ "$check_result" == "running" ]]; then
-                            quick_running_check="true"
-                            break
-                        fi
-                    done
-                    
-                    # Skip expensive status check if not running in Docker
-                    if [[ "$quick_running_check" == "false" ]]; then
-                        continue
-                    fi
-                fi
-                
-                # Get status for this resource (with Docker cache for performance)
-                local resource_status_json
-                resource_status_json=$(get_resource_status_json "$name" "$resource_dir" "$category" "$include_connection" "$docker_status_cache")
-                
-                # Add enabled field
-                if [[ -n "$resource_status_json" && "$resource_status_json" != "{}" ]]; then
-                    local enabled_value
-                    [[ "$enabled" == "true" ]] && enabled_value="true" || enabled_value="false"
-                    resource_status_json=$(echo "$resource_status_json" | jq --argjson enabled "$enabled_value" '. + {enabled: $enabled}')
-                else
-                    # Create minimal JSON for resources without status
-                    local enabled_value
-                    [[ "$enabled" == "true" ]] && enabled_value="true" || enabled_value="false"
-                    resource_status_json=$(jq -n \
-                        --arg name "$name" \
-                        --arg category "$category" \
-                        --argjson running false \
-                        --arg status "unknown" \
-                        --argjson enabled "$enabled_value" \
-                        '{
-                            name: $name,
-                            category: $category,
-                            running: $running,
-                            status: $status,
-                            enabled: $enabled,
-                            connection: {}
-                        }')
-                fi
-                
-                # Add to results (already filtered by running status if needed)
-                resource_json_array+=("$resource_status_json")
-            fi
-        fi
-    done <<< "$all_resources"
-    
-    # Output JSON array
-    if [[ ${#resource_json_array[@]} -gt 0 ]]; then
-        printf '%s\n' "${resource_json_array[@]}" | jq -s '.'
-    else
-        echo "[]"
-    fi
-}
 
 # Show resource status
 resource_status() {
