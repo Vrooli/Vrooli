@@ -131,6 +131,7 @@ NOTE 2: Prefer calling the shared `ollama.json` workflow over direct Ollama API 
   - `scripts/scenarios/README.md`
   - `scripts/scenarios/tools/app-structure.json`
 - Project context: `docs/context.md`
+- Working n8n workflow with proper cli usage and resource variable substitution (read this if you want to add/update n8n workflows!): `initialization/n8n/ollama.json`.
 
 Before each iteration, skim `auto/data/scenario-improvement/summary.txt` if present to learn from recent results.
 
@@ -202,11 +203,13 @@ This appendix preserves important specifics from the original prompt while keepi
 
 ### Scenario structure and artifacts
 - Maintain scenario structure consistency:
-  - `.vrooli/service.json`
+  - `.vrooli/service.json` (see `scripts/scenarios/core/agent-metareasoning-manager/.vrooli/service.json` for a good example).
   - `initialization/` (resource data injected by Vrooli)
   - `ui/`
   - `scenario-test.yaml` for tests
 - Add a small `README.md` per scenario (≤100 lines): purpose, usefulness, dependencies, UX style, etc.
+- Ensure thare are no hard-coded ports.
+- Ensure scenarios have no legacy/bridge/temporary/placeholder code
 
 ### UI guidance and ethos
 - Prefer JavaScript UIs for full customization over Windmill when appropriate.
