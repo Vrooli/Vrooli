@@ -982,12 +982,11 @@ scenario_to_app::copy_item() {
                         [[ "$VERBOSE" == "true" ]] && log::info "Some files in $name could not be copied (permission denied), continuing..."
                     }
                 else
-                    # Use cp with find to skip problematic files
-                    (cd "$src" && find . -type f -exec cp --parents {} "$dest/" \; 2>/dev/null) || {
-                        [[ "$VERBOSE" == "true" ]] && log::info "Some files in $name could not be copied (permission denied), continuing..."
+                    # Use tar for efficient bulk copying (avoids spawning thousands of processes)
+                    (cd "$src" && tar cf - --exclude='*.log' --exclude='data/' . 2>/dev/null | (cd "$dest" && tar xf - 2>/dev/null)) || {
+                        [[ "$VERBOSE" == "true" ]] && log::info "Some files in $name could not be copied, continuing..."
                     }
-                    (cd "$src" && find . -type d -exec mkdir -p "$dest/{}" \; 2>/dev/null) || true
-                fi
+                                    fi
             fi
             ;;
         *)

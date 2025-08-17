@@ -67,6 +67,7 @@ LIFECYCLE COMMANDS:
     build               Build the project
     deploy              Deploy to production
     clean               Clean build artifacts
+    status              Show system health and status overview
 
 TESTING COMMANDS:
     test                Run comprehensive scenario-first test suite
@@ -136,6 +137,13 @@ main() {
             # Clear source guards to allow manage.sh to load functions properly
             unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED
             exec "${VROOLI_ROOT}/scripts/manage.sh" "$command" "$@"
+            ;;
+        
+        # Status command
+        status)
+            # Clear source guards to allow status-command.sh to load functions properly
+            unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED
+            exec "${VROOLI_ROOT}/cli/commands/status-command.sh" "$@"
             ;;
         
         # Test commands (delegate to test-commands.sh)
