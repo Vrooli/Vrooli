@@ -7,6 +7,8 @@ QUESTDB_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${QUESTDB_LIB_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${QUESTDB_LIB_DIR}/docker.sh" 2>/dev/null || true
 
 #######################################
 # Run QuestDB installation
@@ -38,7 +40,7 @@ questdb::install::run() {
     
     # Initialize default tables
     if ! questdb::install::init_tables; then
-        echo_warning "Failed to initialize default tables, but QuestDB is running"
+        log::warning "Failed to initialize default tables, but QuestDB is running"
     fi
     
     # Show success message
@@ -58,18 +60,18 @@ questdb::install::run() {
 #   0 if all prerequisites met, 1 otherwise
 #######################################
 questdb::install::check_prerequisites() {
-    echo_info "${QUESTDB_INSTALL_MESSAGES["checking_docker"]}"
+    log::info "${QUESTDB_INSTALL_MESSAGES["checking_docker"]}"
     
     # Check Docker
     if ! command -v docker &> /dev/null; then
-        echo_error "${QUESTDB_ERROR_MESSAGES["docker_not_found"]}"
+        log::error "${QUESTDB_ERROR_MESSAGES["docker_not_found"]}"
         return 1
     fi
     
     # Check Docker daemon
     if ! docker info &> /dev/null; then
-        echo_error "${QUESTDB_ERROR_MESSAGES["docker_not_found"]}"
-        echo_info "Make sure Docker daemon is running"
+        log::error "${QUESTDB_ERROR_MESSAGES["docker_not_found"]}"
+        log::info "Make sure Docker daemon is running"
         return 1
     fi
     
@@ -85,7 +87,7 @@ questdb::install::check_prerequisites() {
     
     # Check if already installed
     if questdb::docker::is_running; then
-        echo_warning "QuestDB is already running"
+        log::warning "QuestDB is already running"
         if ! args::prompt_yes_no "Reinstall QuestDB?" "n"; then
             return 1
         fi
@@ -101,10 +103,10 @@ questdb::install::check_prerequisites() {
 #   0 on success, 1 on failure
 #######################################
 questdb::install::pull_image() {
-    echo_info "${QUESTDB_INSTALL_MESSAGES["pulling_image"]}"
+    log::info "${QUESTDB_INSTALL_MESSAGES["pulling_image"]}"
     
     if ! docker pull "${QUESTDB_IMAGE}"; then
-        echo_error "Failed to pull QuestDB image"
+        log::error "Failed to pull QuestDB image"
         return 1
     fi
     
@@ -117,7 +119,7 @@ questdb::install::pull_image() {
 #   0 on success, 1 on failure
 #######################################
 questdb::install::init_tables() {
-    echo_info "${QUESTDB_INSTALL_MESSAGES["initializing"]}"
+    log::info "${QUESTDB_INSTALL_MESSAGES["initializing"]}"
     
     # Wait a bit for QuestDB to fully initialize
     sleep 5
@@ -133,12 +135,12 @@ questdb::install::init_tables() {
     
     for schema_file in "${schema_files[@]}"; do
         if [[ -f "${schemas_dir}/${schema_file}" ]]; then
-            echo_info "Creating table from ${schema_file}..."
+            log::info "Creating table from ${schema_file}..."
             local sql
             sql=$(<"${schemas_dir}/${schema_file}")
             
             if ! questdb::api::query "$sql" 1 &>/dev/null; then
-                echo_warning "Failed to create table from ${schema_file}"
+                log::warning "Failed to create table from ${schema_file}"
             fi
         fi
     done
@@ -151,7 +153,7 @@ questdb::install::init_tables() {
 #######################################
 questdb::install::show_success() {
     echo ""
-    echo_success "${QUESTDB_INSTALL_MESSAGES["success"]}"
+    log::success "${QUESTDB_INSTALL_MESSAGES["success"]}"
     echo ""
     echo "🚀 QuestDB is ready to use!"
     echo ""
@@ -178,23 +180,23 @@ questdb::install::upgrade() {
     # Get current version
     local current_version
     current_version=$(questdb::get_version)
-    echo_info "Current version: ${current_version:-unknown}"
+    log::info "Current version: ${current_version:-unknown}"
     
     # Pull latest image
-    echo_info "Pulling latest QuestDB image..."
+    log::info "Pulling latest QuestDB image..."
     if ! docker pull "${QUESTDB_IMAGE}"; then
-        echo_error "Failed to pull latest image"
+        log::error "Failed to pull latest image"
         return 1
     fi
     
     # Backup data directory
-    echo_info "Backing up data directory..."
+    log::info "Backing up data directory..."
     local backup_dir="${QUESTDB_DATA_DIR}.backup.$(date +%Y%m%d_%H%M%S)"
     if ! cp -r "${QUESTDB_DATA_DIR}" "$backup_dir"; then
-        echo_error "Failed to backup data directory"
+        log::error "Failed to backup data directory"
         return 1
     fi
-    echo_info "Backup created: $backup_dir"
+    log::info "Backup created: $backup_dir"
     
     # Stop current container
     questdb::docker::stop
@@ -204,8 +206,8 @@ questdb::install::upgrade() {
     
     # Start with new image
     if ! questdb::docker::start; then
-        echo_error "Failed to start upgraded QuestDB"
-        echo_info "Restoring from backup..."
+        log::error "Failed to start upgraded QuestDB"
+        log::info "Restoring from backup..."
         trash::safe_remove "${QUESTDB_DATA_DIR}" --production
         mv "$backup_dir" "${QUESTDB_DATA_DIR}"
         return 1
@@ -214,8 +216,8 @@ questdb::install::upgrade() {
     # Verify upgrade
     local new_version
     new_version=$(questdb::get_version)
-    echo_success "QuestDB upgraded successfully"
-    echo_info "New version: ${new_version:-unknown}"
+    log::success "QuestDB upgraded successfully"
+    log::info "New version: ${new_version:-unknown}"
     
     # Cleanup old backup after successful upgrade
     if args::prompt_yes_no "Remove backup directory?" "y"; then

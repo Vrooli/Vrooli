@@ -489,6 +489,25 @@ run_loop() {
 		log_with_timestamp "WARNING: flock not available; running without lock"
 	fi
 	log_with_timestamp "Starting loop (task=$LOOP_TASK)"
+	
+	# Initialize sudo override if available
+	if command -v sudo_override::init >/dev/null 2>&1; then
+		log_with_timestamp "🔧 Initializing sudo override for loop operations"
+		if sudo_override::init; then
+			log_with_timestamp "✅ Sudo override initialized successfully"
+			# Load configuration for this session
+			if sudo_override::load_config; then
+				log_with_timestamp "✅ Sudo override configuration loaded"
+			else
+				log_with_timestamp "WARNING: Failed to load sudo override configuration"
+			fi
+		else
+			log_with_timestamp "WARNING: Failed to initialize sudo override - continuing without sudo access"
+		fi
+	else
+		log_with_timestamp "INFO: Sudo override not available - continuing without sudo access"
+	fi
+	
 	if ! check_worker_available; then log_with_timestamp "FATAL: worker not available"; exit 1; fi
 	echo $$ > "$PID_FILE"
 	local i=1
@@ -574,6 +593,54 @@ loop_dispatch() {
 				else
 					echo "No temp directory to clean"
 				fi
+			fi
+			;;
+		sudo-init)
+			if command -v sudo_override::init >/dev/null 2>&1; then
+				local commands="${1:-}"
+				if sudo_override::init "$commands"; then
+					echo "✅ Sudo override initialized successfully"
+				else
+					echo "❌ Failed to initialize sudo override"
+					exit 1
+				fi
+			else
+				echo "❌ Sudo override not available"
+				exit 1
+			fi
+			;;
+		sudo-test)
+			if command -v sudo_override::test >/dev/null 2>&1; then
+				if sudo_override::test; then
+					echo "✅ Sudo override test passed"
+				else
+					echo "❌ Sudo override test failed"
+					exit 1
+				fi
+			else
+				echo "❌ Sudo override not available"
+				exit 1
+			fi
+			;;
+		sudo-status)
+			if command -v sudo_override::status >/dev/null 2>&1; then
+				sudo_override::status
+			else
+				echo "❌ Sudo override not available"
+				exit 1
+			fi
+			;;
+		sudo-cleanup)
+			if command -v sudo_override::cleanup >/dev/null 2>&1; then
+				if sudo_override::cleanup; then
+					echo "✅ Sudo override cleaned up successfully"
+				else
+					echo "❌ Failed to clean up sudo override"
+					exit 1
+				fi
+			else
+				echo "❌ Sudo override not available"
+				exit 1
 			fi
 			;;
 		json)

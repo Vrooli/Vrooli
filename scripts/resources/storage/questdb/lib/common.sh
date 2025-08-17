@@ -19,7 +19,7 @@ questdb::dirs_exist() {
 #   0 on success, 1 on failure
 #######################################
 questdb::create_dirs() {
-    echo_info "${QUESTDB_INSTALL_MESSAGES["creating_directories"]}"
+    log::info "${QUESTDB_INSTALL_MESSAGES["creating_directories"]}"
     
     local dirs=(
         "${QUESTDB_DATA_DIR}"
@@ -29,13 +29,13 @@ questdb::create_dirs() {
     
     for dir in "${dirs[@]}"; do
         if ! mkdir -p "$dir"; then
-            echo_error "Failed to create directory: $dir"
+            log::error "Failed to create directory: $dir"
             return 1
         fi
         
         # Fix Docker volume permissions if setup was run with sudo
         docker::fix_volume_permissions "$dir" 2>/dev/null || {
-            echo_debug "Could not fix Docker volume permissions for $dir, continuing..."
+            log::debug "Could not fix Docker volume permissions for $dir, continuing..."
         }
     done
     
@@ -59,8 +59,8 @@ questdb::check_disk_space() {
     available_gb=$(df -BG "${data_dir_parent}" | awk 'NR==2 {print $4}' | sed 's/G//')
     
     if (( available_gb < required_gb )); then
-        echo_error "${QUESTDB_ERROR_MESSAGES["insufficient_space"]}"
-        echo_error "Required: ${required_gb}GB, Available: ${available_gb}GB"
+        log::error "${QUESTDB_ERROR_MESSAGES["insufficient_space"]}"
+        log::error "Required: ${required_gb}GB, Available: ${available_gb}GB"
         return 1
     fi
     
@@ -78,8 +78,8 @@ questdb::check_ports() {
     
     for port in "${ports[@]}"; do
         if lsof -i ":${port}" &> /dev/null; then
-            echo_error "${QUESTDB_ERROR_MESSAGES["port_conflict"]}"
-            echo_error "Port ${port} is already in use"
+            log::error "${QUESTDB_ERROR_MESSAGES["port_conflict"]}"
+            log::error "Port ${port} is already in use"
             return 1
         fi
     done
@@ -158,7 +158,7 @@ questdb::validate_query() {
     
     # Check for empty query
     if [[ -z "$query" ]]; then
-        echo_error "Empty query"
+        log::error "Empty query"
         return 1
     fi
     
@@ -166,7 +166,7 @@ questdb::validate_query() {
     local dangerous_ops=("DELETE" "UPDATE" "DROP" "TRUNCATE")
     for op in "${dangerous_ops[@]}"; do
         if [[ "$query" =~ ^[[:space:]]*${op} ]] && ! [[ "$query" =~ WHERE|where ]]; then
-            echo_warning "Query contains ${op} without WHERE clause. Are you sure?"
+            log::warning "Query contains ${op} without WHERE clause. Are you sure?"
             if ! args::prompt_yes_no "Continue?" "n"; then
                 return 1
             fi

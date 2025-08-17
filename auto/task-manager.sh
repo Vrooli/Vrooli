@@ -33,5 +33,9 @@ source "$TASK_FILE"
 # shellcheck disable=SC1090
 source "${LIB_DIR}/loop.sh"
 
+# Source sudo override if available
+# shellcheck disable=SC1090
+source "${LIB_DIR}/sudo-override.sh" 2>/dev/null || true
+
 # Dispatch via loop core
 loop_dispatch "$CMD" "$@" 

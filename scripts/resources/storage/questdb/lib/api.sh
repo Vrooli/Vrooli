@@ -15,7 +15,7 @@ questdb::api::query() {
     local limit="${2:-100}"
     
     if ! questdb::docker::is_running; then
-        echo_error "${QUESTDB_STATUS_MESSAGES["not_running"]}"
+        log::error "${QUESTDB_STATUS_MESSAGES["not_running"]}"
         return 1
     fi
     
@@ -23,7 +23,7 @@ questdb::api::query() {
         return 1
     fi
     
-    echo_info "${QUESTDB_API_MESSAGES["executing_query"]}"
+    log::info "${QUESTDB_API_MESSAGES["executing_query"]}"
     
     # Execute query
     local response
@@ -39,12 +39,12 @@ questdb::api::query() {
     body=$(echo "$response" | head -n-1)
     
     if [[ "$http_code" != "200" ]]; then
-        echo_error "${QUESTDB_API_MESSAGES["query_failed"]}"
+        log::error "${QUESTDB_API_MESSAGES["query_failed"]}"
         echo "$body" | jq -r '.message // .' 2>/dev/null || echo "$body"
         return 1
     fi
     
-    echo_success "${QUESTDB_API_MESSAGES["query_success"]}"
+    log::success "${QUESTDB_API_MESSAGES["query_success"]}"
     echo "$body" | jq -r '.' 2>/dev/null || echo "$body"
 }
 
@@ -55,7 +55,7 @@ questdb::api::query() {
 #######################################
 questdb::api::status() {
     if ! questdb::docker::is_running; then
-        echo_error "${QUESTDB_STATUS_MESSAGES["not_running"]}"
+        log::error "${QUESTDB_STATUS_MESSAGES["not_running"]}"
         return 1
     fi
     
@@ -82,7 +82,7 @@ questdb::api::table_schema() {
     local table="$1"
     
     if [[ -z "$table" ]]; then
-        echo_error "Table name required"
+        log::error "Table name required"
         return 1
     fi
     
@@ -100,24 +100,24 @@ questdb::ilp::send() {
     local data="$1"
     
     if ! questdb::docker::is_running; then
-        echo_error "${QUESTDB_STATUS_MESSAGES["not_running"]}"
+        log::error "${QUESTDB_STATUS_MESSAGES["not_running"]}"
         return 1
     fi
     
     if [[ -z "$data" ]]; then
-        echo_error "No data provided"
+        log::error "No data provided"
         return 1
     fi
     
-    echo_info "${QUESTDB_API_MESSAGES["inserting_data"]}"
+    log::info "${QUESTDB_API_MESSAGES["inserting_data"]}"
     
     # Send data via TCP
     echo "$data" | nc -w 5 localhost "${QUESTDB_ILP_PORT}" || {
-        echo_error "Failed to send data via InfluxDB Line Protocol"
+        log::error "Failed to send data via InfluxDB Line Protocol"
         return 1
     }
     
-    echo_success "Data sent successfully"
+    log::success "Data sent successfully"
 }
 
 #######################################
@@ -131,7 +131,7 @@ questdb::pg::query() {
     local query="$1"
     
     if ! questdb::docker::is_running; then
-        echo_error "${QUESTDB_STATUS_MESSAGES["not_running"]}"
+        log::error "${QUESTDB_STATUS_MESSAGES["not_running"]}"
         return 1
     fi
     
@@ -145,7 +145,7 @@ questdb::pg::query() {
             -c "$query" \
             2>/dev/null
     else
-        echo_warning "psql not installed, using HTTP API instead"
+        log::warning "psql not installed, using HTTP API instead"
         questdb::api::query "$query"
     fi
 }
@@ -163,11 +163,11 @@ questdb::api::bulk_insert_csv() {
     local csv_file="$2"
     
     if [[ ! -f "$csv_file" ]]; then
-        echo_error "CSV file not found: $csv_file"
+        log::error "CSV file not found: $csv_file"
         return 1
     fi
     
-    echo_info "Bulk inserting data into table: $table"
+    log::info "Bulk inserting data into table: $table"
     
     # Upload CSV via HTTP API
     local response
@@ -179,12 +179,12 @@ questdb::api::bulk_insert_csv() {
     http_code=$(echo "$response" | tail -n1)
     
     if [[ "$http_code" != "200" ]]; then
-        echo_error "Bulk insert failed"
+        log::error "Bulk insert failed"
         echo "$response" | head -n-1
         return 1
     fi
     
-    echo_success "Bulk insert completed"
+    log::success "Bulk insert completed"
 }
 
 #######################################
@@ -198,7 +198,7 @@ questdb::api::table_count() {
     local table="$1"
     
     if [[ -z "$table" ]]; then
-        echo_error "Table name required"
+        log::error "Table name required"
         return 1
     fi
     

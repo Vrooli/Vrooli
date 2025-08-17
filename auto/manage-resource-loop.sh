@@ -22,6 +22,10 @@ case "${1:-help}" in
 	rotate) "$TASK_MANAGER" --task resource-improvement rotate ;;
 	restart) "$TASK_MANAGER" --task resource-improvement stop || true; sleep 2; "$TASK_MANAGER" --task resource-improvement start ;;
 	json) shift || true; "$TASK_MANAGER" --task resource-improvement json "${1:-summary}" "${2:-}" ;;
+	sudo-init) shift || true; "$TASK_MANAGER" --task resource-improvement sudo-init "${1:-}" ;;
+	sudo-test) "$TASK_MANAGER" --task resource-improvement sudo-test ;;
+	sudo-status) "$TASK_MANAGER" --task resource-improvement sudo-status ;;
+	sudo-cleanup) "$TASK_MANAGER" --task resource-improvement sudo-cleanup ;;
 	help|--help|-h)
 		cat << EOF
 Resource Improvement Loop Manager (shim)
@@ -35,6 +39,10 @@ Commands:
   rotate      Rotate log file
   restart     Stop and then start the loop
   json <cmd>  JSON summaries: summary | recent [N] | inflight | durations | errors [N] | hourly
+  sudo-init [commands]  Initialize sudo override (one-time password entry)
+  sudo-test   Test sudo override functionality
+  sudo-status Show sudo override status
+  sudo-cleanup Remove sudo override configuration
   help        Show this help message
 
 This manager delegates to: $TASK_MANAGER --task resource-improvement

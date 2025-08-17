@@ -8,7 +8,7 @@
 #######################################
 questdb::tables::list() {
     if ! questdb::docker::is_running; then
-        echo_error "${QUESTDB_STATUS_MESSAGES["not_running"]}"
+        log::error "${QUESTDB_STATUS_MESSAGES["not_running"]}"
         return 1
     fi
     
@@ -40,7 +40,7 @@ questdb::tables::list() {
             fi
         done
     else
-        echo_error "Failed to list tables"
+        log::error "Failed to list tables"
         return 1
     fi
 }
@@ -58,16 +58,16 @@ questdb::tables::create_from_file() {
     local schema_file="$2"
     
     if [[ -z "$table_name" ]] || [[ -z "$schema_file" ]]; then
-        echo_error "Table name and schema file required"
+        log::error "Table name and schema file required"
         return 1
     fi
     
     if [[ ! -f "$schema_file" ]]; then
-        echo_error "Schema file not found: $schema_file"
+        log::error "Schema file not found: $schema_file"
         return 1
     fi
     
-    echo_info "${QUESTDB_API_MESSAGES["creating_table"]} $table_name"
+    log::info "${QUESTDB_API_MESSAGES["creating_table"]} $table_name"
     
     # Read schema
     local sql
@@ -75,7 +75,7 @@ questdb::tables::create_from_file() {
     
     # Execute create table statement
     if questdb::api::query "$sql" 1; then
-        echo_success "${QUESTDB_API_MESSAGES["table_created"]}"
+        log::success "${QUESTDB_API_MESSAGES["table_created"]}"
         return 0
     else
         return 1
@@ -159,20 +159,20 @@ CREATE TABLE IF NOT EXISTS workflow_metrics (
         local table_name="${table_def%%:*}"
         local table_sql="${table_def#*:}"
         
-        echo_info "Creating table: $table_name"
+        log::info "Creating table: $table_name"
         if questdb::api::query "$table_sql" 1 &>/dev/null; then
-            echo_success "✓ $table_name created"
+            log::success "✓ $table_name created"
         else
-            echo_warning "⚠ $table_name may already exist or failed to create"
+                          log::warning "⚠ $table_name may already exist or failed to create"
             ((failed++))
         fi
     done
     
     if [[ $failed -eq 0 ]]; then
-        echo_success "All default tables created successfully"
+        log::success "All default tables created successfully"
         return 0
     else
-        echo_warning "Some tables may have failed to create"
+        log::warning "Some tables may have failed to create"
         return 1
     fi
 }
@@ -188,21 +188,21 @@ questdb::tables::drop() {
     local table="$1"
     
     if [[ -z "$table" ]]; then
-        echo_error "Table name required"
+        log::error "Table name required"
         return 1
     fi
     
-    echo_warning "⚠️  Dropping table: $table"
+    log::warning "⚠️  Dropping table: $table"
     if ! args::prompt_yes_no "Are you sure you want to drop table '$table'?" "n"; then
-        echo_info "Drop cancelled"
+        log::info "Drop cancelled"
         return 0
     fi
     
     if questdb::api::query "DROP TABLE IF EXISTS $table" 1; then
-        echo_success "Table dropped successfully"
+        log::success "Table dropped successfully"
         return 0
     else
-        echo_error "Failed to drop table"
+        log::error "Failed to drop table"
         return 1
     fi
 }
@@ -218,7 +218,7 @@ questdb::tables::info() {
     local table="$1"
     
     if [[ -z "$table" ]]; then
-        echo_error "Table name required"
+        log::error "Table name required"
         return 1
     fi
     
@@ -253,21 +253,21 @@ questdb::tables::truncate() {
     local table="$1"
     
     if [[ -z "$table" ]]; then
-        echo_error "Table name required"
+        log::error "Table name required"
         return 1
     fi
     
-    echo_warning "⚠️  Truncating table: $table"
+    log::warning "⚠️  Truncating table: $table"
     if ! args::prompt_yes_no "Are you sure you want to remove all data from '$table'?" "n"; then
-        echo_info "Truncate cancelled"
+        log::info "Truncate cancelled"
         return 0
     fi
     
     if questdb::api::query "TRUNCATE TABLE $table" 1; then
-        echo_success "Table truncated successfully"
+        log::success "Table truncated successfully"
         return 0
     else
-        echo_error "Failed to truncate table"
+        log::error "Failed to truncate table"
         return 1
     fi
 }

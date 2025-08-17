@@ -12,17 +12,17 @@ questdb::status::check() {
     
     # Check if container is running
     if ! questdb::docker::is_running; then
-        echo_error "${QUESTDB_STATUS_MESSAGES["not_running"]}"
+        log::error "${QUESTDB_STATUS_MESSAGES["not_running"]}"
         return 1
     fi
     
     # Check health
     if ! questdb::docker::health_check; then
-        echo_warning "${QUESTDB_STATUS_MESSAGES["unhealthy"]}"
+        log::warning "${QUESTDB_STATUS_MESSAGES["unhealthy"]}"
         return 1
     fi
     
-    echo_success "${QUESTDB_STATUS_MESSAGES["running"]}"
+    log::success "${QUESTDB_STATUS_MESSAGES["running"]}"
     
     # Get detailed status
     questdb::status::detailed
@@ -133,11 +133,11 @@ EOF
 #######################################
 questdb::status::monitor() {
     if ! questdb::docker::is_running; then
-        echo_error "${QUESTDB_STATUS_MESSAGES["not_running"]}"
+        log::error "${QUESTDB_STATUS_MESSAGES["not_running"]}"
         return 1
     fi
     
-    echo_info "Monitoring QuestDB (Press Ctrl+C to stop)..."
+    log::info "Monitoring QuestDB (Press Ctrl+C to stop)..."
     echo ""
     
     while true; do
@@ -162,70 +162,70 @@ questdb::status::monitor() {
 # Returns: 0 if all tests pass, 1 if any fail, 2 if service not ready
 #######################################
 questdb::test() {
-    echo_info "Testing QuestDB functionality..."
+    log::info "Testing QuestDB functionality..."
     
     # Test 1: Check if QuestDB is installed (container exists)
     if ! questdb::docker::exists; then
-        echo_error "❌ QuestDB container is not installed"
+        log::error "❌ QuestDB container is not installed"
         return 1
     fi
-    echo_success "✅ QuestDB container is installed"
+            log::success "✅ QuestDB container is installed"
     
     # Test 2: Check if service is running
     if ! questdb::docker::is_running; then
-        echo_error "❌ QuestDB service is not running"
+        log::error "❌ QuestDB service is not running"
         return 2
     fi
-    echo_success "✅ QuestDB service is running"
+            log::success "✅ QuestDB service is running"
     
     # Test 3: Check API health
     if ! questdb::api::health_check; then
-        echo_error "❌ QuestDB API is not responding"
+        log::error "❌ QuestDB API is not responding"
         return 1
     fi
-    echo_success "✅ QuestDB API is healthy"
+            log::success "✅ QuestDB API is healthy"
     
     # Test 4: Test SQL queries
-    echo_info "Testing SQL operations..."
+    log::info "Testing SQL operations..."
     local test_result
     test_result=$(questdb::api::query "SELECT 1 as test_value" 1 2>/dev/null || echo "")
     if [[ -n "$test_result" ]] && echo "$test_result" | grep -q "test_value"; then
-        echo_success "✅ SQL queries working"
+        log::success "✅ SQL queries working"
     else
-        echo_error "❌ SQL query test failed"
+        log::error "❌ SQL query test failed"
         return 1
     fi
     
     # Test 5: Test table operations
-    echo_info "Testing table operations..."
+    log::info "Testing table operations..."
     local test_table="vrooli_test_table_$(date +%s)"
     
     if questdb::api::query "CREATE TABLE $test_table (id INT, name STRING)" 1 >/dev/null 2>&1; then
-        echo_success "✅ Table creation successful"
+        log::success "✅ Table creation successful"
         
         # Test insert
         if questdb::api::query "INSERT INTO $test_table VALUES (1, 'test')" 1 >/dev/null 2>&1; then
-            echo_success "✅ Data insertion successful"
+            log::success "✅ Data insertion successful"
         fi
         
         # Clean up test table
         questdb::api::query "DROP TABLE $test_table" 1 >/dev/null 2>&1 || true
-        echo_success "✅ Table cleanup successful"
+        log::success "✅ Table cleanup successful"
     else
         echo_warn "⚠️  Table operations test failed - may be permission issue"
     fi
     
     # Test 6: Check storage metrics
-    echo_info "Testing storage metrics..."
+    log::info "Testing storage metrics..."
     local storage_info
     storage_info=$(docker exec "$QUESTDB_CONTAINER_NAME" df -h /root/.questdb 2>/dev/null | tail -1 | awk '{print $3}' || echo "unknown")
     if [[ "$storage_info" != "unknown" ]]; then
-        echo_success "✅ Storage metrics available (used: $storage_info)"
+        log::success "✅ Storage metrics available (used: $storage_info)"
     else
         echo_warn "⚠️  Storage metrics unavailable"
     fi
     
-    echo_success "🎉 All QuestDB tests passed"
+    log::success "🎉 All QuestDB tests passed"
     return 0
 }
 

@@ -205,8 +205,22 @@ claude_code::configure_sudo_override() {
             if [[ -n "$cmd" ]]; then
                 # Find the full path of the command
                 local cmd_path
-                cmd_path=$(command -v "$cmd" 2>/dev/null || echo "/usr/bin/$cmd")
-                sudoers_content+="$(whoami) ALL=(ALL) NOPASSWD: $cmd_path\n"
+                cmd_path=$(command -v "$cmd" 2>/dev/null)
+                
+                # Handle shell builtins and special cases
+                if [[ -z "$cmd_path" ]]; then
+                    # For shell builtins like echo, we need to allow the shell
+                    if [[ "$cmd" == "echo" ]]; then
+                        sudoers_content+="$(whoami) ALL=(ALL) NOPASSWD: /bin/bash -c echo*\n"
+                        sudoers_content+="$(whoami) ALL=(ALL) NOPASSWD: /bin/sh -c echo*\n"
+                    else
+                        # Try common locations
+                        cmd_path="/usr/bin/$cmd"
+                        sudoers_content+="$(whoami) ALL=(ALL) NOPASSWD: $cmd_path\n"
+                    fi
+                else
+                    sudoers_content+="$(whoami) ALL=(ALL) NOPASSWD: $cmd_path\n"
+                fi
             fi
         done
     else
