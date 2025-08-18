@@ -7,11 +7,11 @@
 export _CLI_COMMAND_FRAMEWORK_SOURCED=1
 
 # Source required utilities
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPTS_RESOURCES_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../lib/utils/var.sh" 2>/dev/null || true
+source "${SCRIPTS_RESOURCES_LIB_DIR}/../../lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../lib/utils/log.sh" 2>/dev/null || true
+source "${SCRIPTS_RESOURCES_LIB_DIR}/../../lib/utils/log.sh" 2>/dev/null || true
 
 # Framework state
 declare -A CLI_COMMANDS=()

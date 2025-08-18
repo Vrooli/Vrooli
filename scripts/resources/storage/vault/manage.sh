@@ -214,7 +214,7 @@ vault::main() {
             vault::docker::restart_container
             ;;
         status)
-            vault::show_status
+            vault::status --format "$OUTPUT_FORMAT"
             ;;
         auth-info)
             vault::show_auth_info

@@ -94,34 +94,52 @@ judge0::status::collect_data() {
     status_data+=("image" "${JUDGE0_SERVER_IMAGE:-unknown}")
     
     if [[ "$running" == "true" ]]; then
-        # Count active workers
+        # Count active workers - handle both naming patterns
         local active_workers=0
         for i in $(seq 1 "$JUDGE0_WORKERS_COUNT"); do
+            # Check both possible naming patterns
             local worker_name="${JUDGE0_WORKERS_NAME}-${i}"
+            local compose_worker_name="config-judge0-workers-${i}"
             if docker::is_running "$worker_name" 2>/dev/null || docker ps --format "{{.Names}}" | grep -q "^${worker_name}$"; then
+                ((active_workers++))
+            elif docker::is_running "$compose_worker_name" 2>/dev/null || docker ps --format "{{.Names}}" | grep -q "^${compose_worker_name}$"; then
                 ((active_workers++))
             fi
         done
         status_data+=("workers_active" "$active_workers")
         
-        # System information from API
-        local system_info
-        system_info=$(judge0::api::system_info 2>/dev/null || echo "{}")
-        if [[ "$system_info" != "{}" ]]; then
+        # Get version from about endpoint
+        local about_info
+        about_info=$(judge0::api::about_info 2>/dev/null || echo "{}")
+        if [[ "$about_info" != "{}" ]]; then
             local version
-            version=$(echo "$system_info" | jq -r '.version // "unknown"' 2>/dev/null)
+            version=$(echo "$about_info" | jq -r '.version // "unknown"' 2>/dev/null)
             status_data+=("version" "$version")
-            
+        fi
+        
+        # Get languages information
+        local languages_info
+        languages_info=$(judge0::api::get_languages 2>/dev/null || echo "[]")
+        if [[ "$languages_info" != "[]" ]]; then
             local languages_count
-            languages_count=$(echo "$system_info" | jq -r '.languages | length // 0' 2>/dev/null)
+            languages_count=$(echo "$languages_info" | jq 'length // 0' 2>/dev/null)
             status_data+=("languages_available" "$languages_count")
-            
+        fi
+        
+        # Get config info if available (this might have limits info)
+        local config_info
+        config_info=$(judge0::api::request "GET" "/config_info" 2>/dev/null || echo "{}")
+        if [[ "$config_info" != "{}" ]]; then
             local cpu_limit
-            cpu_limit=$(echo "$system_info" | jq -r '.cpu_time_limit // "N/A"' 2>/dev/null)
-            status_data+=("cpu_time_limit" "${cpu_limit}s")
+            cpu_limit=$(echo "$config_info" | jq -r '.cpu_time_limit // "N/A"' 2>/dev/null)
+            if [[ "$cpu_limit" != "N/A" ]]; then
+                status_data+=("cpu_time_limit" "${cpu_limit}s")
+            else
+                status_data+=("cpu_time_limit" "N/A")
+            fi
             
             local memory_limit
-            memory_limit=$(echo "$system_info" | jq -r '.memory_limit // "N/A"' 2>/dev/null)
+            memory_limit=$(echo "$config_info" | jq -r '.memory_limit // "N/A"' 2>/dev/null)
             if [[ "$memory_limit" != "N/A" ]]; then
                 status_data+=("memory_limit" "$((memory_limit / 1024))MB")
             else
@@ -514,11 +532,12 @@ judge0::status::is_healthy() {
         return 1
     fi
     
-    # Check workers
+    # Check workers - handle both naming patterns
     local active_workers=0
     for i in $(seq 1 "$JUDGE0_WORKERS_COUNT"); do
         local worker_name="${JUDGE0_WORKERS_NAME}-${i}"
-        if docker::is_running "$worker_name"; then
+        local compose_worker_name="config-judge0-workers-${i}"
+        if docker::is_running "$worker_name" || docker::is_running "$compose_worker_name"; then
             ((active_workers++))
         fi
     done
@@ -547,10 +566,11 @@ judge0::status::get_health_json() {
             api_status="up"
         fi
         
-        # Count active workers
+        # Count active workers - handle both naming patterns
         for i in $(seq 1 "$JUDGE0_WORKERS_COUNT"); do
             local worker_name="${JUDGE0_WORKERS_NAME}-${i}"
-            if docker::is_running "$worker_name"; then
+            local compose_worker_name="config-judge0-workers-${i}"
+            if docker::is_running "$worker_name" || docker::is_running "$compose_worker_name"; then
                 ((workers_active++))
             fi
         done

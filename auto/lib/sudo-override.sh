@@ -6,8 +6,8 @@
 set -euo pipefail
 
 # Source dependencies
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/../scripts/lib/utils/log.sh" 2>/dev/null || {
+AUTO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${AUTO_DIR}/../scripts/lib/utils/log.sh" 2>/dev/null || {
     # Fallback logging if utils not available
     log::info() { echo "[INFO] $*"; }
     log::warn() { echo "[WARN] $*"; }

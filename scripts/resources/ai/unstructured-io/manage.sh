@@ -6,10 +6,10 @@ set -euo pipefail
 
 export DESCRIPTION="Install and manage Unstructured.io document processing service"
 
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+UNSTRUCTURED_SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../lib/utils/var.sh"
+source "${UNSTRUCTURED_SCRIPT_DIR}/../../../lib/utils/var.sh"
 
 # Handle Ctrl+C gracefully
 trap 'echo ""; log::info "Unstructured.io operation interrupted by user. Exiting..."; exit 130' INT TERM
@@ -22,28 +22,28 @@ source "${var_LIB_UTILS_DIR}/args-cli.sh"
 
 # Source configuration modules
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/config/defaults.sh"
+source "${UNSTRUCTURED_SCRIPT_DIR}/config/defaults.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/config/messages.sh"
+source "${UNSTRUCTURED_SCRIPT_DIR}/config/messages.sh"
 
 # Export configuration
 unstructured_io::export_config
 
 # Source all library modules
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/common.sh"
+source "${UNSTRUCTURED_SCRIPT_DIR}/lib/common.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/install.sh"
+source "${UNSTRUCTURED_SCRIPT_DIR}/lib/install.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/status.sh"
+source "${UNSTRUCTURED_SCRIPT_DIR}/lib/status.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/api.sh"
+source "${UNSTRUCTURED_SCRIPT_DIR}/lib/api.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/process.sh"
+source "${UNSTRUCTURED_SCRIPT_DIR}/lib/process.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/cache-simple.sh"
+source "${UNSTRUCTURED_SCRIPT_DIR}/lib/cache-simple.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/validate.sh"
+source "${UNSTRUCTURED_SCRIPT_DIR}/lib/validate.sh"
 
 #######################################
 # Main orchestration function

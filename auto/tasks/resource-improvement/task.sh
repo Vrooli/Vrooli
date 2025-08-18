@@ -26,6 +26,7 @@ EOF
 # Keep this concise; the worker can call helper scripts for details
 # Exposes mode and important paths. The worker must prefer CLI usage.
 task_build_helper_context() {
+	echo "Current iteration: ${ITERATION_NUMBER:-unknown}"
 	echo "Events ledger: ${EVENTS_JSONL}."
 	echo "Cheatsheet: ${TASK_PROMPTS_DIR}/cheatsheet.md."
 	echo "🎯 EXECUTION MODE: ${RESOURCE_IMPROVEMENT_MODE:-plan}"
@@ -154,6 +155,8 @@ task_prepare_worker_env() {
 	export RESOURCE_EVENTS_JSONL="$EVENTS_JSONL"
 	# Export the mode so the worker can access it programmatically
 	export RESOURCE_IMPROVEMENT_MODE="${RESOURCE_IMPROVEMENT_MODE:-plan}"
+	# Export the iteration number so the worker can access it programmatically
+	export ITERATION_NUMBER="${ITERATION_NUMBER:-unknown}"
 	# Compute repo root for config references
 	local repo_root
 	repo_root="$(cd "${TASK_DIR}/../../.." && pwd)"

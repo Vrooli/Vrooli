@@ -15,6 +15,16 @@ source "${var_SCRIPTS_RESOURCES_LIB_DIR}/docker-resource-utils.sh"
 # shellcheck disable=SC1091
 source "${_QUESTDB_DOCKER_DIR}/common.sh"
 
+# Check if QuestDB container exists
+questdb::docker::exists() {
+    docker ps -a --format "{{.Names}}" | grep -q "^${QUESTDB_CONTAINER_NAME}$" 2>/dev/null
+}
+
+# Check if QuestDB container is running
+questdb::docker::is_running() {
+    docker ps --format "{{.Names}}" | grep -q "^${QUESTDB_CONTAINER_NAME}$" 2>/dev/null
+}
+
 # Create and start QuestDB container
 questdb::docker::create_container() {
     # Ensure directories exist

@@ -14,6 +14,8 @@ source "${QUESTDB_STATUS_DIR}/common.sh" 2>/dev/null || true
 source "${QUESTDB_STATUS_DIR}/docker.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${QUESTDB_STATUS_DIR}/api.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${QUESTDB_STATUS_DIR}/../../../../lib/logging.sh" 2>/dev/null || true
 
 # Ensure configuration is exported
 if command -v questdb::export_config &>/dev/null; then
@@ -218,10 +220,10 @@ questdb::status::display_text() {
     local -A data
     
     # Convert array to associative array
-    for ((i=1; i<=$#; i+=2)); do
-        local key="${!i}"
-        local value_idx=$((i+1))
-        local value="${!value_idx}"
+    local args=("$@")
+    for ((i=0; i<${#args[@]}; i+=2)); do
+        local key="${args[i]}"
+        local value="${args[i+1]:-}"
         data["$key"]="$value"
     done
     

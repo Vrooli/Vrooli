@@ -5,8 +5,8 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TASK_MANAGER="${SCRIPT_DIR}/task-manager.sh"
+AUTO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TASK_MANAGER="${AUTO_DIR}/task-manager.sh"
 
 if [[ ! -x "$TASK_MANAGER" ]]; then
 	echo "ERROR: Task manager not found or not executable: $TASK_MANAGER" >&2

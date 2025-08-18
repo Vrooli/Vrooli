@@ -1,14 +1,21 @@
 ## ⚙️ Resource Improvement Loop
 
+### ⏱️ TURN BUDGET
+- **Resource selection**: 4 turns - resource-candidates.sh call, `vrooli status` call, think, and decide up to 3 to investigate further
+- **Status checks**: 5 turns - 3 `vrooli resource <name> status` calls, think, and decide which resource to check
+- **Resource improvement investigation**: Up to 20 turns
+- **Improve/Validate loop**: Up to 20 turns, until improvements are complete and validated
+- **Recording**: 1 turn
+- **TOTAL**: 50 turns maximum
+
+⚠️ **CRITICAL**: DO NOT read/analyze reference material until a resource has been selected and the reference material is relevant
+
 ### TL;DR — One Iteration in 6 Steps
 1) Select ONE resource using the selection tools (see Tools & References).
-2) Investigate current status/health and how it impacts scenarios.
-3) Decide up to TWO minimal, low-risk improvements (diagnose/fix/improve/add). Prioritize fixing the CLI first, then status check, then installation, then start/stop behavior, then resource-specific functionality. This is the best order for gradually fixing resources over multiple iterations.
-4) Execute based on mode: plan (print), apply-safe (non-destructive), apply (allowed installs).
-5) Validate with gates per resource type; if any gate fails twice, stop and capture diagnostics.
-6) Start and leave the resource running (exception: Whisper and agent-s2 may be stopped post-test if explicitly necessary), then append ≤10 lines to `/tmp/vrooli-resource-improvement.md`.
-
-Read `auto/tasks/resource-improvement/prompts/cheatsheet.md` for helpers/commands. Skim `auto/data/resource-improvement/summary.txt` (if present) before deciding.
+2) Pick a fix/improvement (diagnose/fix/improve/add) to pursue. Priority order: CLI, status check, installation, start/stop behavior, injection logic, resource-specific functionality. This is the best order for gradually fixing resources over multiple iterations.
+3) Execute based on mode: plan (print), apply-safe (non-destructive), apply (allowed installs).
+4) Validate with gates per resource type; if any gate fails twice, stop and capture diagnostics.
+5) Start and leave the resource running (exception: Whisper and agent-s2 may be stopped post-test if explicitly necessary), then append ≤10 lines to `/tmp/vrooli-resource-improvement.md`.
 
 ---
 
@@ -41,14 +48,14 @@ Read `auto/tasks/resource-improvement/prompts/cheatsheet.md` for helpers/command
 ---
 
 ### 🧭 Resource Selection — Recommended Flow
-- Tools:
+- Tools (Choose based on best judgement, using all of these tool outputs):
   - `auto/tools/selection/resource-candidates.sh` — candidates with status and cooldown
   - `vrooli resource status` — full list of registered resources with their statuses
 - Priority rubric:
   1) Enabled but not running → attempt start with diagnostics
   2) Running but missing baseline capability (e.g., Ollama baseline models) → improve
   3) Misconfiguration in connection info → diagnose and plan a safe fix
-  4) All healthy → consider adding a high-impact resource (plan-only unless in apply mode)
+  4) All resources have healthy status and iteration > 15 (hinting that we've probably been healthy for several steps already, and have likely already done additional validations and improvements to the existing resources) → HIGHLY consider adding a high-impact resource from the curated list later in this prompt (plan-only unless in apply mode)
 
 Before choosing, also read (if present):
 - `auto/data/resource-improvement/summary.txt`
@@ -129,12 +136,13 @@ Per resource (examples using resource CLIs):
 
 ### ✨ Quality Bar
 - Non-destructive, incremental changes that increase reliability/capability
-- Prefer CLIs and shared workflows; avoid bespoke code/edits
 - All validation gates pass; resource remains running after test (except Whisper as noted)
 - Logs concise; secrets redacted; commands time-bounded
 - Resource health/status checks use `scripts/lib/utils/format.sh` to provide json support automatically, using NO json-specific logic in the resource's health/status checks itself - let `format.sh` do all the work!
+- All "false alarms" are fixed. Meaning, if you investigate a resource that looks unhealthy and find out that it was actually an issue with the status check or something like that, you fix all of those issues so that we don't get tricked next time.
 - Resource CLIs are thin wrappers over the lib/ functions, and call them directly instead of going through a manage.sh or other intermediary.
 - Resources elegantly use shared functions to reduce the amount of code they have to define themselves
+- New resources that don't fit well into one of the existing categories can just go in `scripts/resources/execution/`. We'll eventually get rid of the categories format, so it doesn't matter
 
 ---
 

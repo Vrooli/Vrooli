@@ -29,7 +29,7 @@ questdb::export_config() {
         readonly QUESTDB_PG_URL="postgresql://admin:quest@localhost:${QUESTDB_PG_PORT}/qdb"
     fi
     if [[ -z "${QUESTDB_CONTAINER_NAME:-}" ]]; then
-        readonly QUESTDB_CONTAINER_NAME="questdb"
+        readonly QUESTDB_CONTAINER_NAME="vrooli-questdb"
     fi
     if [[ -z "${QUESTDB_DATA_DIR:-}" ]]; then
         readonly QUESTDB_DATA_DIR="${HOME}/.questdb/data"

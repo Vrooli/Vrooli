@@ -8,21 +8,21 @@ set -euo pipefail
 # All behavior is controlled by .vrooli/service.json
 #######################################
 
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+MAIN_SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # Source utilities
 # shellcheck disable=SC1091
-source "$SCRIPT_DIR/lib/utils/var.sh"
+source "$MAIN_SCRIPT_DIR/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
-source "$SCRIPT_DIR/lib/utils/json.sh"
+source "$MAIN_SCRIPT_DIR/lib/utils/json.sh"
 # shellcheck disable=SC1091
 source "${var_PORT_REGISTRY_FILE}" 2>/dev/null || true
 # shellcheck disable=SC1091
-source "$SCRIPT_DIR/lib/service/secrets.sh" 2>/dev/null || true
+source "$MAIN_SCRIPT_DIR/lib/service/secrets.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
-source "$SCRIPT_DIR/lib/process-manager.sh" 2>/dev/null || true
+source "$MAIN_SCRIPT_DIR/lib/process-manager.sh" 2>/dev/null || true
 
 #######################################
 # Execute lifecycle phase

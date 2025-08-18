@@ -291,8 +291,12 @@ qdrant::display_connection_info() {
     
     # Auto-install CLI if available
     # shellcheck disable=SC1091
-    source "${var_SCRIPTS_RESOURCES_LIB_DIR}/cli-auto-install.sh" 2>/dev/null || true
-    resource_cli::auto_install "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)" || true
+    local cli_auto_install_lib="${var_LIB_RESOURCES_DIR}/cli-auto-install.sh"
+    if source "$cli_auto_install_lib" 2>/dev/null; then
+        resource_cli::auto_install "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)" || true
+    else
+        log::warning "CLI auto-install library not found at $cli_auto_install_lib"
+    fi
 }
 
 #######################################

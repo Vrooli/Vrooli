@@ -15,8 +15,8 @@
 set -euo pipefail
 
 # Source dependencies
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VROOLI_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+CLI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VROOLI_ROOT="$(cd "$CLI_DIR/../.." && pwd)"
 source "${VROOLI_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || true
 source "${var_LOG_FILE}" 2>/dev/null || true
 source "${VROOLI_ROOT}/scripts/lib/utils/format.sh" 2>/dev/null || true

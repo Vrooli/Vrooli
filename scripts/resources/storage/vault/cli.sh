@@ -9,7 +9,19 @@
 #
 ################################################################################
 
-set -euo pipefail
+# Clean environment of problematic exported functions
+# This prevents "unbound variable" errors from inherited functions
+for func in $(env | grep "^BASH_FUNC" | cut -d'=' -f1); do
+    unset -f "${func#BASH_FUNC_}" 2>/dev/null || true
+    unset "$func" 2>/dev/null || true
+done
+
+# Unset any problematic variables that might be inherited
+unset help 2>/dev/null || true
+
+# Unset CLI framework source guard since we cleared all functions
+unset _CLI_COMMAND_FRAMEWORK_SOURCED 2>/dev/null || true
+set -eo pipefail # temporarily removed -u
 
 # Get script directory (resolving symlinks for installed CLI)
 if [[ -L "${BASH_SOURCE[0]}" ]]; then
@@ -32,11 +44,15 @@ source "${var_RESOURCES_COMMON_FILE}"
 # Source the CLI Command Framework
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_LIB_DIR}/cli-command-framework.sh"
+source "${VAULT_CLI_DIR}/lib/status.sh"
 
 # Source Vault configuration
 # shellcheck disable=SC1091
 source "${VAULT_CLI_DIR}/config/defaults.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${VAULT_CLI_DIR}/config/messages.sh" 2>/dev/null || true
 vault::export_config 2>/dev/null || true
+vault::messages::init 2>/dev/null || true
 
 # Source Vault libraries
 for lib in common docker api status install; do
@@ -52,6 +68,13 @@ cli::init "vault" "HashiCorp Vault secrets management"
 
 # Override help to provide Vault-specific examples
 cli::register_command "help" "Show this help message with Vault examples" "vault_show_help"
+
+# Override status command to use vault-specific handler
+cli::register_command "status" "Show Vault status" "vault_status"
+cli::register_command "start" "Start Vault" "vault_start" "modifies-system"
+cli::register_command "stop" "Stop Vault" "vault_stop" "modifies-system"
+cli::register_command "install" "Install Vault" "vault_install" "modifies-system"
+cli::register_command "validate" "Validate Vault configuration" "vault_validate"
 
 # Register additional Vault-specific commands
 cli::register_command "inject" "Store secret in Vault" "vault_inject" "modifies-system"

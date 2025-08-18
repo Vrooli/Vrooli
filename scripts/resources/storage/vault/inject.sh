@@ -114,7 +114,7 @@ vault_inject::check_accessibility() {
     fi
     
     local sealed
-    sealed=$(echo "$health_response" | jq -r '.sealed // true')
+    sealed=$(echo "$health_response" | jq -r 'if has("sealed") then .sealed else true end')
     
     if [[ "$sealed" == "true" ]]; then
         log::error "Vault is sealed. Please unseal it first"

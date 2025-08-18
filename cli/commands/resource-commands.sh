@@ -116,6 +116,8 @@ route_to_resource_cli() {
         if [[ -n "$cli_command" ]] && command -v "$cli_command" >/dev/null 2>&1; then
             # Clear source guards before exec to allow proper sourcing
             unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED
+            # Clear problematic exported functions that cause issues with set -u
+            unset -f sudo_override::main 2>/dev/null || true
             # Ensure VROOLI_ROOT is preserved for registered commands
             export VROOLI_ROOT="${VROOLI_ROOT:-$(cd "$RESOURCES_DIR/.." && pwd)}"
             exec "$cli_command" "$@"
@@ -127,6 +129,10 @@ route_to_resource_cli() {
     if command -v "$resource_command" >/dev/null 2>&1; then
         # Clear source guards before exec to allow proper sourcing
         unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED
+        # Clear exported functions that might cause issues with set -u
+        for func in $(compgen -A function | grep "::"); do 
+            unset -f "$func" 2>/dev/null || true
+        done
         # Ensure VROOLI_ROOT is preserved for resource commands
         export VROOLI_ROOT="${VROOLI_ROOT:-$(cd "$RESOURCES_DIR/.." && pwd)}"
         exec "$resource_command" "$@"

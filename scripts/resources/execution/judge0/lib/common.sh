@@ -8,6 +8,8 @@ JUDGE0_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${JUDGE0_LIB_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${JUDGE0_LIB_DIR}/../../lib/docker-utils.sh" 2>/dev/null || true
 
 # Load dependencies if not already loaded (but preserve test environment)
 if [[ -z "${JUDGE0_API_KEY_LENGTH:-}" ]]; then

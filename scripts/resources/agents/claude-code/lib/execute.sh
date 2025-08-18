@@ -22,6 +22,7 @@ claude_code::run() {
     local cmd_args=()
     # Always use non-interactive mode for autonomous platform integration
     cmd_args+=("--print")  # Use non-interactive mode for script execution
+    # Use MAX_TURNS if set, otherwise default to 5
     cmd_args+=("--max-turns" "${MAX_TURNS:-5}")
     
     # Ensure non-interactive mode for automation environments

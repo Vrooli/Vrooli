@@ -12,17 +12,17 @@ readonly BLUE='\033[0;34m'
 readonly NC='\033[0m'
 
 # Script directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-readonly SCRIPT_DIR
+SCRIPTS_TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCRIPTS_TEST_DIR
 
 # Source trash module for safe cleanup
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../lib/utils/var.sh" 2>/dev/null || true
+source "${SCRIPTS_TEST_DIR}/../lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
 # Load cleanup manager
-source "$SCRIPT_DIR/fixtures/cleanup-manager.sh"
+source "$SCRIPTS_TEST_DIR/fixtures/cleanup-manager.sh"
 
 # Parse command line arguments
 ACTION="status"

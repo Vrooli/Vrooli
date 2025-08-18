@@ -67,14 +67,36 @@ check_api() {
 }
 
 
-# Get Docker container status
-get_docker_status() {
-    local container_name="$1"
+# Get resource status using its CLI
+get_resource_status() {
+    local resource_name="$1"
+    local cli_command="resource-${resource_name}"
     
-    if docker ps --format "{{.Names}}" 2>/dev/null | grep -q "^${container_name}$"; then
-        echo "running"
+    # Check if CLI exists
+    if ! command -v "$cli_command" >/dev/null 2>&1; then
+        echo "no_cli"
+        return 1
+    fi
+    
+    # Get status from resource CLI
+    local status_output
+    if status_output=$("$cli_command" status --format json 2>/dev/null); then
+        # Parse JSON to get running and healthy status
+        local running healthy
+        running=$(echo "$status_output" | jq -r '.running // false' 2>/dev/null)
+        healthy=$(echo "$status_output" | jq -r '.healthy // false' 2>/dev/null)
+        
+        if [[ "$running" == "true" && "$healthy" == "true" ]]; then
+            echo "healthy"
+        elif [[ "$running" == "true" ]]; then
+            echo "running"
+        else
+            echo "stopped"
+        fi
+        return 0
     else
-        echo "stopped"
+        echo "error"
+        return 1
     fi
 }
 
@@ -91,6 +113,7 @@ collect_resource_data() {
     # Get enabled resources
     local enabled_count=0
     local running_count=0
+    local healthy_count=0
     
     # Parse resources from config
     local jq_query='
@@ -104,17 +127,26 @@ collect_resource_data() {
         if [[ -n "$line" ]]; then
             local name="$line"
             
-            # Check if resource is running
-            local container_status
-            container_status=$(get_docker_status "vrooli-${name}")
+            # Check resource status using its CLI
+            local resource_status
+            resource_status=$(get_resource_status "${name}")
             
-            if [[ "$container_status" == "running" ]]; then
-                ((running_count++))
-            fi
+            case "$resource_status" in
+                "healthy")
+                    ((running_count++))
+                    ((healthy_count++))
+                    ;;
+                "running")
+                    ((running_count++))
+                    ;;
+                "stopped"|"error"|"no_cli")
+                    # Not running
+                    ;;
+            esac
             ((enabled_count++))
             
             if [[ "$verbose" == "true" ]]; then
-                echo "resource:${name}:${container_status}"
+                echo "resource:${name}:${resource_status}"
             fi
         fi
     done < <(jq -r "$jq_query" "$RESOURCES_CONFIG" 2>/dev/null || true)
@@ -122,6 +154,7 @@ collect_resource_data() {
     # Always output summary
     echo "enabled:${enabled_count}"
     echo "running:${running_count}"
+    echo "healthy:${healthy_count}"
 }
 
 # Get structured resource data (format-agnostic)
@@ -141,14 +174,16 @@ get_resource_data() {
     fi
     
     # Parse collected data
-    local enabled_count running_count
+    local enabled_count running_count healthy_count
     enabled_count=$(echo "$raw_data" | grep "^enabled:" | cut -d: -f2)
     running_count=$(echo "$raw_data" | grep "^running:" | cut -d: -f2)
+    healthy_count=$(echo "$raw_data" | grep "^healthy:" | cut -d: -f2)
     
     echo "type:status"
     echo "enabled:${enabled_count}"
     echo "running:${running_count}"
-    echo "summary:${running_count}/${enabled_count} running"
+    echo "healthy:${healthy_count}"
+    echo "summary:${healthy_count}/${enabled_count} healthy (${running_count} running)"
     
     if [[ "$verbose" == "true" ]]; then
         echo "details:true"
@@ -342,9 +377,10 @@ format_component_data() {
     if [[ "$format" == "json" ]]; then
         # Build JSON based on component type
         if [[ "$component" == "resources" ]]; then
-            local enabled running
+            local enabled running healthy
             enabled=$(echo "$raw_data" | grep "^enabled:" | cut -d: -f2)
             running=$(echo "$raw_data" | grep "^running:" | cut -d: -f2)
+            healthy=$(echo "$raw_data" | grep "^healthy:" | cut -d: -f2)
             
             if echo "$raw_data" | grep -q "^details:true"; then
                 local details_json="["
@@ -356,9 +392,9 @@ format_component_data() {
                     fi
                 done <<< "$raw_data"
                 details_json="${details_json}]"
-                format::json_object "enabled" "$enabled" "running" "$running" "details" "$details_json"
+                format::json_object "enabled" "$enabled" "running" "$running" "healthy" "$healthy" "details" "$details_json"
             else
-                format::key_value json enabled "$enabled" running "$running"
+                format::key_value json enabled "$enabled" running "$running" healthy "$healthy"
             fi
         else  # apps
             local total running
@@ -392,7 +428,13 @@ format_component_data() {
                     local name="${BASH_REMATCH[1]}"
                     local status="${BASH_REMATCH[2]}"
                     local status_icon="🔴"
-                    [[ "$status" == "running" ]] && status_icon="🟢"
+                    case "$status" in
+                        "healthy") status_icon="🟢" ;;
+                        "running") status_icon="🟡" ;;
+                        "stopped") status_icon="🔴" ;;
+                        "error") status_icon="❌" ;;
+                        "no_cli") status_icon="⚠️" ;;
+                    esac
                     table_rows+=("${name}:${status}:${status_icon}")
                 fi
             done <<< "$raw_data"
@@ -495,12 +537,14 @@ show_status() {
         
         if [[ "$show_resources" == "true" ]]; then
             # Extract resource data
-            local enabled running
+            local enabled running healthy
             enabled=$(echo "$resource_data" | grep "^enabled:" | cut -d: -f2)
             running=$(echo "$resource_data" | grep "^running:" | cut -d: -f2)
+            healthy=$(echo "$resource_data" | grep "^healthy:" | cut -d: -f2)
             
             kv_pairs+=("resources_enabled" "$enabled")
             kv_pairs+=("resources_running" "$running")
+            kv_pairs+=("resources_healthy" "$healthy")
         fi
         
         if [[ "$show_apps" == "true" ]]; then

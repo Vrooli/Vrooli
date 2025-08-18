@@ -12,9 +12,9 @@
 set -euo pipefail
 
 # Get script directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VROOLI_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-CLI_SCRIPT="$SCRIPT_DIR/vrooli"
+CLI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VROOLI_ROOT="$(cd "$CLI_DIR/.." && pwd)"
+CLI_SCRIPT="$CLI_DIR/vrooli"
 
 # Colors for output
 RED='\033[0;31m'

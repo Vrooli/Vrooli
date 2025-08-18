@@ -71,12 +71,21 @@ judge0::api::test() {
 }
 
 #######################################
-# Get system information
+# Get system hardware information
 # Returns:
-#   JSON object with system info
+#   JSON object with system hardware info
 #######################################
 judge0::api::system_info() {
-    judge0::api::request "GET" "$JUDGE0_HEALTH_ENDPOINT"
+    judge0::api::request "GET" "/system_info"
+}
+
+#######################################
+# Get Judge0 about information (version, etc)
+# Returns:
+#   JSON object with about info including version
+#######################################
+judge0::api::about_info() {
+    judge0::api::request "GET" "/about"
 }
 
 #######################################

@@ -23,9 +23,9 @@
 set -e # Exit immediately if a command exits with a non-zero status.
 
 # Source trash module for safe cleanup
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+K8S_CHART_TESTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../scripts/lib/utils/var.sh" 2>/dev/null || true
+source "${K8S_CHART_TESTS_DIR}/../../../scripts/lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 

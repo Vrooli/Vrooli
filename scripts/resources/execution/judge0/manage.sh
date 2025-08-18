@@ -21,6 +21,8 @@ trap 'echo ""; log::info "Judge0 operation interrupted by user. Exiting..."; exi
 source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/args-cli.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/system_commands.sh"
 
 # Source configuration modules
 # shellcheck disable=SC1091
@@ -130,12 +132,29 @@ judge0::parse_arguments() {
 # Main orchestration function
 #######################################
 judge0::main() {
+    # Check if first argument is a valid action (positional support)
+    local first_arg="${1:-}"
+    local action_override=""
+    if [[ -n "$first_arg" ]] && [[ ! "$first_arg" =~ ^-- ]]; then
+        # Check if it's a valid action
+        case "$first_arg" in
+            install|uninstall|start|stop|restart|status|logs|info|test|languages|usage|submit)
+                action_override="$first_arg"
+                shift  # Remove the action from arguments
+                ;;
+        esac
+    fi
+    
     # Parse command line arguments
     judge0::parse_arguments "$@"
     
     # Get parsed values
     local action
-    action=$(args::get "action")
+    if [[ -n "$action_override" ]]; then
+        action="$action_override"
+    else
+        action=$(args::get "action")
+    fi
     local force
     force=$(args::get "force")
     local workers

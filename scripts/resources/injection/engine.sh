@@ -234,6 +234,10 @@ inject_resource() {
         # Create temporary file for CLI injection
         local temp_file
         temp_file=$(mktemp)
+        if [[ -z "$temp_file" || ! -f "$temp_file" ]]; then
+            log::error "Failed to create temporary file for CLI injection"
+            return 1
+        fi
         echo "$init_data" > "$temp_file"
         
         # Set context directory for relative paths
