@@ -55,9 +55,26 @@
                         <path d="M7 3V8H15V3" stroke="currentColor" stroke-width="2"/>
                     </svg>
                 </button>
+                <button class="nav-btn" onclick="window.location.href='/neural'" title="Neural View">
+                    <svg viewBox="0 0 24 24" fill="none">
+                        <circle cx="6" cy="6" r="2" stroke="currentColor" stroke-width="1.5"/>
+                        <circle cx="18" cy="6" r="2" stroke="currentColor" stroke-width="1.5"/>
+                        <circle cx="12" cy="12" r="2" stroke="currentColor" stroke-width="1.5"/>
+                        <circle cx="6" cy="18" r="2" stroke="currentColor" stroke-width="1.5"/>
+                        <circle cx="18" cy="18" r="2" stroke="currentColor" stroke-width="1.5"/>
+                        <path d="M6 6L12 12M18 6L12 12M6 18L12 12M18 18L12 12" stroke="currentColor" stroke-width="1" opacity="0.5"/>
+                    </svg>
+                </button>
                 <button class="nav-btn" id="shareBtn" title="Share">
                     <svg viewBox="0 0 24 24" fill="none">
                         <path d="M8.59 13.51L15.42 17.49M15.41 6.51L8.59 10.49M21 5C21 6.65685 19.6569 8 18 8C16.3431 8 15 6.65685 15 5C15 3.34315 16.3431 2 18 2C19.6569 2 21 3.34315 21 5ZM9 12C9 13.6569 7.65685 15 6 15C4.34315 15 3 13.6569 3 12C3 10.3431 4.34315 9 6 9C7.65685 9 9 10.3431 9 12ZM21 19C21 20.6569 19.6569 22 18 22C16.3431 22 15 20.6569 15 19C15 17.3431 16.3431 16 18 16C19.6569 16 21 17.3431 21 19Z" stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                </button>
+                <button class="nav-btn" id="helpBtn" title="Keyboard Shortcuts (?)">
+                    <svg viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                        <path d="M9.09 9C9.3251 8.33167 9.78915 7.76811 10.4 7.40913C11.0108 7.05016 11.7289 6.91894 12.4272 7.03871C13.1255 7.15849 13.7588 7.52152 14.2151 8.06353C14.6713 8.60553 14.9211 9.29152 14.92 10C14.92 12 11.92 13 11.92 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M12 17H12.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
                 </button>
                 <div class="user-menu">
@@ -280,6 +297,105 @@
                     <button class="close-results" id="closeSearchBtn">×</button>
                 </div>
                 <div class="results-list" id="searchResults"></div>
+            </div>
+        </div>
+
+        <!-- Keyboard Shortcuts Help Panel -->
+        <div class="shortcuts-overlay" id="shortcutsOverlay">
+            <div class="shortcuts-panel">
+                <div class="shortcuts-header">
+                    <h3>Keyboard Shortcuts</h3>
+                    <button class="close-shortcuts" id="closeShortcutsBtn">×</button>
+                </div>
+                <div class="shortcuts-content">
+                    <div class="shortcuts-section">
+                        <h4>Tools</h4>
+                        <div class="shortcut-group">
+                            <div class="shortcut-item">
+                                <kbd>V</kbd>
+                                <span>Select Tool</span>
+                            </div>
+                            <div class="shortcut-item">
+                                <kbd>N</kbd>
+                                <span>Add Node</span>
+                            </div>
+                            <div class="shortcut-item">
+                                <kbd>C</kbd>
+                                <span>Connect Tool</span>
+                            </div>
+                            <div class="shortcut-item">
+                                <kbd>T</kbd>
+                                <span>Add Text</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="shortcuts-section">
+                        <h4>Navigation</h4>
+                        <div class="shortcut-group">
+                            <div class="shortcut-item">
+                                <kbd>Space</kbd>
+                                <span>Pan Mode</span>
+                            </div>
+                            <div class="shortcut-item">
+                                <kbd>+</kbd>
+                                <span>Zoom In</span>
+                            </div>
+                            <div class="shortcut-item">
+                                <kbd>-</kbd>
+                                <span>Zoom Out</span>
+                            </div>
+                            <div class="shortcut-item">
+                                <kbd>0</kbd>
+                                <span>Fit to View</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="shortcuts-section">
+                        <h4>Editing</h4>
+                        <div class="shortcut-group">
+                            <div class="shortcut-item">
+                                <kbd>Ctrl</kbd><kbd>Z</kbd>
+                                <span>Undo</span>
+                            </div>
+                            <div class="shortcut-item">
+                                <kbd>Ctrl</kbd><kbd>Y</kbd>
+                                <span>Redo</span>
+                            </div>
+                            <div class="shortcut-item">
+                                <kbd>Del</kbd>
+                                <span>Delete Selected</span>
+                            </div>
+                            <div class="shortcut-item">
+                                <kbd>Enter</kbd>
+                                <span>Edit Node Text</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="shortcuts-section">
+                        <h4>General</h4>
+                        <div class="shortcut-group">
+                            <div class="shortcut-item">
+                                <kbd>Ctrl</kbd><kbd>S</kbd>
+                                <span>Save Map</span>
+                            </div>
+                            <div class="shortcut-item">
+                                <kbd>Ctrl</kbd><kbd>N</kbd>
+                                <span>New Map</span>
+                            </div>
+                            <div class="shortcut-item">
+                                <kbd>Ctrl</kbd><kbd>F</kbd>
+                                <span>Search</span>
+                            </div>
+                            <div class="shortcut-item">
+                                <kbd>?</kbd>
+                                <span>Show Shortcuts</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

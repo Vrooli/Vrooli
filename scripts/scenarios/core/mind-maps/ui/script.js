@@ -123,10 +123,31 @@ class MindMapApp {
             shareBtn.addEventListener('click', () => this.shareMap());
         }
         
+        const helpBtn = document.getElementById('helpBtn');
+        if (helpBtn) {
+            helpBtn.addEventListener('click', () => this.showShortcuts());
+        }
+        
         // AI suggestions
         const aiSuggestBtn = document.querySelector('.ai-suggest-btn');
         if (aiSuggestBtn) {
             aiSuggestBtn.addEventListener('click', () => this.getAISuggestions());
+        }
+        
+        // Shortcuts panel
+        const closeShortcutsBtn = document.getElementById('closeShortcutsBtn');
+        if (closeShortcutsBtn) {
+            closeShortcutsBtn.addEventListener('click', () => this.hideShortcuts());
+        }
+        
+        // Close shortcuts when clicking outside
+        const shortcutsOverlay = document.getElementById('shortcutsOverlay');
+        if (shortcutsOverlay) {
+            shortcutsOverlay.addEventListener('click', (e) => {
+                if (e.target === shortcutsOverlay) {
+                    this.hideShortcuts();
+                }
+            });
         }
     }
     
@@ -311,6 +332,14 @@ class MindMapApp {
                     e.preventDefault();
                     this.selectAll();
                     break;
+                case 'n':
+                    e.preventDefault();
+                    this.createNewMap();
+                    break;
+                case 'f':
+                    e.preventDefault();
+                    this.focusSearch();
+                    break;
                 case '+':
                 case '=':
                     e.preventDefault();
@@ -319,6 +348,10 @@ class MindMapApp {
                 case '-':
                     e.preventDefault();
                     this.zoomOut();
+                    break;
+                case '/':
+                    e.preventDefault();
+                    this.toggleShortcuts();
                     break;
             }
         } else {
@@ -329,6 +362,7 @@ class MindMapApp {
                     }
                     break;
                 case 'Escape':
+                    this.hideShortcuts();
                     this.deselectAll();
                     this.setTool('select');
                     break;
@@ -343,6 +377,24 @@ class MindMapApp {
                     break;
                 case 'v':
                     this.setTool('select');
+                    break;
+                case '?':
+                    e.preventDefault();
+                    this.toggleShortcuts();
+                    break;
+                case '0':
+                    this.fitToView();
+                    break;
+                case '+':
+                case '=':
+                    this.zoomIn();
+                    break;
+                case '-':
+                    this.zoomOut();
+                    break;
+                case ' ':
+                    e.preventDefault();
+                    // Toggle pan mode or similar functionality
                     break;
             }
         }
@@ -1160,6 +1212,46 @@ class MindMapApp {
             notification.style.animation = 'fadeOut 0.3s ease';
             setTimeout(() => document.body.removeChild(notification), 300);
         }, 3000);
+    }
+    
+    // Keyboard shortcuts panel functions
+    toggleShortcuts() {
+        const overlay = document.getElementById('shortcutsOverlay');
+        if (overlay) {
+            const isVisible = overlay.classList.contains('active');
+            if (isVisible) {
+                this.hideShortcuts();
+            } else {
+                this.showShortcuts();
+            }
+        }
+    }
+    
+    showShortcuts() {
+        const overlay = document.getElementById('shortcutsOverlay');
+        if (overlay) {
+            overlay.classList.add('active');
+            // Focus management for accessibility
+            const closeBtn = document.getElementById('closeShortcutsBtn');
+            if (closeBtn) {
+                closeBtn.focus();
+            }
+        }
+    }
+    
+    hideShortcuts() {
+        const overlay = document.getElementById('shortcutsOverlay');
+        if (overlay) {
+            overlay.classList.remove('active');
+        }
+    }
+    
+    focusSearch() {
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            searchInput.focus();
+            searchInput.select();
+        }
     }
     
     undo() {
