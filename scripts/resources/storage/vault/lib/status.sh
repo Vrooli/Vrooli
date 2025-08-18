@@ -1,6 +1,18 @@
 #!/usr/bin/env bash
-# Vault Status and Health Checking
+# Vault Status and Health Checking - Standardized Format
 # Comprehensive status monitoring and diagnostics
+
+# Source format utilities and required libraries
+VAULT_STATUS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${VAULT_STATUS_DIR}/../../../../lib/utils/format.sh"
+# shellcheck disable=SC1091
+source "${VAULT_STATUS_DIR}/../config/defaults.sh" 2>/dev/null || true
+
+# Ensure configuration is exported
+if command -v vault::export_config &>/dev/null; then
+    vault::export_config 2>/dev/null || true
+fi
 
 #######################################
 # Show detailed Vault status
@@ -765,4 +777,390 @@ vault::monitor() {
         echo
         sleep "$interval"
     done
+}
+
+#######################################
+# Collect Vault status data in format-agnostic structure
+# Returns: Key-value pairs ready for formatting
+#######################################
+vault::status::collect_data() {
+    local status_data=()
+    
+    # Basic status checks
+    local installed="false"
+    local running="false"
+    local healthy="false"
+    local container_status="not_found"
+    local health_message="Unknown"
+    local vault_status="unknown"
+    
+    if vault::is_installed; then
+        installed="true"
+        container_status=$(docker inspect --format='{{.State.Status}}' "$VAULT_CONTAINER_NAME" 2>/dev/null || echo "unknown")
+        
+        if vault::is_running; then
+            running="true"
+            vault_status=$(vault::get_status)
+            
+            case "$vault_status" in
+                "healthy")
+                    healthy="true"
+                    health_message="Healthy - All systems operational"
+                    ;;
+                "sealed")
+                    health_message="Sealed - Requires unsealing"
+                    ;;
+                "unhealthy")
+                    health_message="Unhealthy - Service not responding properly"
+                    ;;
+                *)
+                    health_message="Running but status uncertain"
+                    ;;
+            esac
+        else
+            health_message="Stopped - Container not running"
+        fi
+    else
+        health_message="Not installed - Container not found"
+    fi
+    
+    # Basic resource information
+    status_data+=("name" "vault")
+    status_data+=("category" "storage")
+    status_data+=("description" "HashiCorp Vault secrets management system")
+    status_data+=("installed" "$installed")
+    status_data+=("running" "$running")
+    status_data+=("healthy" "$healthy")
+    status_data+=("health_message" "$health_message")
+    status_data+=("container_name" "$VAULT_CONTAINER_NAME")
+    status_data+=("container_status" "$container_status")
+    status_data+=("port" "$VAULT_PORT")
+    status_data+=("vault_status" "$vault_status")
+    
+    # Service endpoints
+    status_data+=("base_url" "$VAULT_BASE_URL")
+    status_data+=("health_url" "${VAULT_BASE_URL}/v1/sys/health")
+    status_data+=("init_url" "${VAULT_BASE_URL}/v1/sys/init")
+    
+    # Configuration details
+    status_data+=("image" "$VAULT_IMAGE")
+    status_data+=("mode" "$VAULT_MODE")
+    status_data+=("storage_type" "$VAULT_STORAGE_TYPE")
+    status_data+=("tls_disabled" "$VAULT_TLS_DISABLE")
+    status_data+=("secret_engine" "$VAULT_SECRET_ENGINE")
+    status_data+=("secret_version" "$VAULT_SECRET_VERSION")
+    status_data+=("namespace" "$VAULT_NAMESPACE_PREFIX")
+    status_data+=("data_dir" "$VAULT_DATA_DIR")
+    status_data+=("config_dir" "$VAULT_CONFIG_DIR")
+    
+    # Runtime information (only if running and healthy)
+    if [[ "$running" == "true" && "$healthy" == "true" ]]; then
+        # API endpoint status
+        local health_endpoint_ok="false"
+        local init_endpoint_ok="false"
+        local seal_endpoint_ok="false"
+        
+        if curl -sf "${VAULT_BASE_URL}/v1/sys/health" >/dev/null 2>&1; then
+            health_endpoint_ok="true"
+        fi
+        
+        if curl -sf "${VAULT_BASE_URL}/v1/sys/init" >/dev/null 2>&1; then
+            init_endpoint_ok="true"
+        fi
+        
+        if vault::is_initialized && curl -sf "${VAULT_BASE_URL}/v1/sys/seal-status" >/dev/null 2>&1; then
+            seal_endpoint_ok="true"
+        fi
+        
+        status_data+=("health_endpoint" "$health_endpoint_ok")
+        status_data+=("init_endpoint" "$init_endpoint_ok")
+        status_data+=("seal_endpoint" "$seal_endpoint_ok")
+        
+        # Vault specific status
+        local initialized="false"
+        local sealed="true"
+        
+        if vault::is_initialized; then
+            initialized="true"
+            if ! vault::is_sealed; then
+                sealed="false"
+            fi
+        fi
+        
+        status_data+=("initialized" "$initialized")
+        status_data+=("sealed" "$sealed")
+        
+        # Secret engine status (if unsealed)
+        if [[ "$sealed" == "false" ]]; then
+            local kv_engine_enabled="false"
+            local mounts_response
+            mounts_response=$(vault::api_request "GET" "/v1/sys/mounts" 2>/dev/null)
+            
+            if [[ $? -eq 0 ]]; then
+                local kv_engine_path="${VAULT_SECRET_ENGINE}/"
+                if echo "$mounts_response" | jq -e ".\"$kv_engine_path\"" >/dev/null 2>&1; then
+                    kv_engine_enabled="true"
+                fi
+            fi
+            
+            status_data+=("kv_engine_enabled" "$kv_engine_enabled")
+        fi
+        
+        # Resource usage
+        local stats
+        stats=$(docker stats --no-stream --format "{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}\t{{.BlockIO}}" "$VAULT_CONTAINER_NAME" 2>/dev/null)
+        
+        if [[ -n "$stats" ]]; then
+            IFS=$'\t' read -r cpu_perc mem_usage net_io block_io <<< "$stats"
+            status_data+=("cpu_usage" "$cpu_perc")
+            status_data+=("memory_usage" "$mem_usage")
+            status_data+=("network_io" "$net_io")
+            status_data+=("block_io" "$block_io")
+        fi
+        
+        # Container creation time
+        local created_at
+        created_at=$(docker inspect --format='{{.State.StartedAt}}' "$VAULT_CONTAINER_NAME" 2>/dev/null)
+        if [[ -n "$created_at" ]]; then
+            status_data+=("started_at" "$created_at")
+        fi
+    fi
+    
+    # Authentication information
+    if [[ "$VAULT_MODE" == "dev" ]]; then
+        status_data+=("auth_token" "$VAULT_DEV_ROOT_TOKEN_ID")
+        status_data+=("auth_type" "dev_token")
+    elif [[ "$VAULT_MODE" == "prod" ]]; then
+        if [[ -f "$VAULT_TOKEN_FILE" ]]; then
+            local token
+            token=$(cat "$VAULT_TOKEN_FILE" 2>/dev/null)
+            if [[ -n "$token" ]]; then
+                status_data+=("auth_token" "${token:0:8}******")
+                status_data+=("auth_type" "prod_token")
+            fi
+        fi
+    fi
+    
+    # Return the collected data
+    printf '%s\n' "${status_data[@]}"
+}
+
+#######################################
+# Display status using standardized format
+# Args: [--format json|text] [--verbose]
+#######################################
+vault::status() {
+    local format="text"
+    local verbose="false"
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --format)
+                format="$2"
+                shift 2
+                ;;
+            --json)
+                format="json"
+                shift
+                ;;
+            --verbose|-v)
+                verbose="true"
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    # Collect status data
+    local data_string
+    data_string=$(vault::status::collect_data 2>/dev/null)
+    
+    if [[ -z "$data_string" ]]; then
+        # Fallback if data collection fails
+        if [[ "$format" == "json" ]]; then
+            echo '{"error": "Failed to collect status data"}'
+        else
+            log::error "Failed to collect Vault status data"
+        fi
+        return 1
+    fi
+    
+    # Convert string to array
+    local data_array
+    mapfile -t data_array <<< "$data_string"
+    
+    # Output based on format
+    if [[ "$format" == "json" ]]; then
+        format::output "json" "kv" "${data_array[@]}"
+    else
+        # Text format with standardized structure
+        vault::status::display_text "${data_array[@]}"
+    fi
+    
+    # Return appropriate exit code
+    local healthy="false"
+    local running="false"
+    for ((i=0; i<${#data_array[@]}; i+=2)); do
+        case "${data_array[i]}" in
+            "healthy") healthy="${data_array[i+1]}" ;;
+            "running") running="${data_array[i+1]}" ;;
+        esac
+    done
+    
+    if [[ "$healthy" == "true" ]]; then
+        return 0
+    elif [[ "$running" == "true" ]]; then
+        return 1
+    else
+        return 2
+    fi
+}
+
+#######################################
+# Display status in text format
+#######################################
+vault::status::display_text() {
+    local -A data
+    
+    # Convert array to associative array
+    for ((i=1; i<=$#; i+=2)); do
+        local key="${!i}"
+        local value_idx=$((i+1))
+        local value="${!value_idx}"
+        data["$key"]="$value"
+    done
+    
+    # Header
+    log::header "📊 Vault Status"
+    echo
+    
+    # Basic status
+    log::info "📊 Basic Status:"
+    if [[ "${data[installed]:-false}" == "true" ]]; then
+        log::success "   ✅ Installed: Yes"
+    else
+        log::error "   ❌ Installed: No"
+        echo
+        log::info "💡 Installation Required:"
+        log::info "   To install Vault, run: ./manage.sh --action install"
+        return
+    fi
+    
+    if [[ "${data[running]:-false}" == "true" ]]; then
+        log::success "   ✅ Running: Yes"
+    else
+        log::warn "   ⚠️  Running: No"
+    fi
+    
+    if [[ "${data[healthy]:-false}" == "true" ]]; then
+        log::success "   ✅ Health: Healthy"
+    else
+        log::warn "   ⚠️  Health: ${data[health_message]:-Unknown}"
+    fi
+    echo
+    
+    # Container information
+    log::info "🐳 Container Info:"
+    log::info "   📦 Name: ${data[container_name]:-unknown}"
+    log::info "   📊 Status: ${data[container_status]:-unknown}"
+    log::info "   🖼️  Image: ${data[image]:-unknown}"
+    if [[ -n "${data[started_at]:-}" ]]; then
+        local started_date
+        started_date=$(date -d "${data[started_at]}" "+%Y-%m-%d %H:%M:%S" 2>/dev/null || echo "${data[started_at]}")
+        log::info "   📅 Started: $started_date"
+    fi
+    echo
+    
+    # Service endpoints
+    log::info "🌐 Service Endpoints:"
+    log::info "   🔗 Base URL: ${data[base_url]:-unknown}"
+    log::info "   🏥 Health: ${data[health_url]:-unknown}"
+    log::info "   🚀 Init: ${data[init_url]:-unknown}"
+    echo
+    
+    # Configuration
+    log::info "⚙️  Configuration:"
+    log::info "   📶 Port: ${data[port]:-unknown}"
+    log::info "   🎭 Mode: ${data[mode]:-unknown}"
+    log::info "   💾 Storage: ${data[storage_type]:-unknown}"
+    log::info "   🔒 TLS Disabled: ${data[tls_disabled]:-unknown}"
+    log::info "   🗄️  Secret Engine: ${data[secret_engine]:-unknown} (v${data[secret_version]:-unknown})"
+    log::info "   🏷️  Namespace: ${data[namespace]:-unknown}"
+    log::info "   📁 Data Dir: ${data[data_dir]:-unknown}"
+    log::info "   ⚙️  Config Dir: ${data[config_dir]:-unknown}"
+    echo
+    
+    # Runtime information (only if healthy)
+    if [[ "${data[healthy]:-false}" == "true" ]]; then
+        log::info "🔗 API Endpoints:"
+        if [[ "${data[health_endpoint]:-false}" == "true" ]]; then
+            log::success "   ✅ Health Endpoint: Responding"
+        else
+            log::warn "   ❌ Health Endpoint: Not responding"
+        fi
+        
+        if [[ "${data[init_endpoint]:-false}" == "true" ]]; then
+            log::success "   ✅ Init Endpoint: Responding"
+        else
+            log::warn "   ❌ Init Endpoint: Not responding"
+        fi
+        
+        if [[ "${data[seal_endpoint]:-false}" == "true" ]]; then
+            log::success "   ✅ Seal Status Endpoint: Responding"
+        fi
+        echo
+        
+        log::info "🔐 Vault Status:"
+        if [[ "${data[initialized]:-false}" == "true" ]]; then
+            log::success "   ✅ Initialized: Yes"
+        else
+            log::error "   ❌ Initialized: No"
+        fi
+        
+        if [[ "${data[sealed]:-true}" == "false" ]]; then
+            log::success "   ✅ Sealed: No (ready for use)"
+        else
+            log::warn "   ⚠️  Sealed: Yes (requires unsealing)"
+        fi
+        
+        if [[ "${data[kv_engine_enabled]:-false}" == "true" ]]; then
+            log::success "   ✅ KV Engine: Enabled"
+        elif [[ "${data[sealed]:-true}" == "false" ]]; then
+            log::warn "   ⚠️  KV Engine: Not enabled"
+        fi
+        echo
+        
+        # Resource usage
+        if [[ -n "${data[cpu_usage]:-}" ]]; then
+            log::info "📈 Resource Usage:"
+            log::info "   🔧 CPU: ${data[cpu_usage]:-unknown}"
+            log::info "   💾 Memory: ${data[memory_usage]:-unknown}"
+            log::info "   🌐 Network I/O: ${data[network_io]:-unknown}"
+            log::info "   💿 Block I/O: ${data[block_io]:-unknown}"
+            echo
+        fi
+        
+        # Authentication info
+        if [[ -n "${data[auth_type]:-}" ]]; then
+            log::info "🔐 Authentication:"
+            case "${data[auth_type]}" in
+                "dev_token")
+                    log::info "   🔑 Dev Token: ${data[auth_token]:-unknown}"
+                    log::warn "   ⚠️  Development mode - not for production!"
+                    ;;
+                "prod_token")
+                    log::info "   🔑 Root Token: ${data[auth_token]:-unknown}"
+                    log::warn "   ⚠️  Keep production tokens secure!"
+                    ;;
+            esac
+        fi
+    fi
+}
+
+# Legacy function compatibility for existing scripts
+vault::show_status() {
+    vault::status "$@"
 }

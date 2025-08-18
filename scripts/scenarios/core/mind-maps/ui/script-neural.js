@@ -13,7 +13,7 @@ class NeuralMindMap {
         this.dragStart = null;
         this.neuralActivity = [];
         this.apiUrl = window.location.hostname === 'localhost' 
-            ? 'http://localhost:8093/api' 
+            ? `http://localhost:${window.SERVICE_PORT || 8100}/api` 
             : '/api';
         
         this.init();

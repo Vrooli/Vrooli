@@ -3,7 +3,7 @@
 ### TL;DR — One Iteration in 6 Steps
 1) Select ONE resource using the selection tools (see Tools & References).
 2) Investigate current status/health and how it impacts scenarios.
-3) Decide ONE minimal, low-risk improvement (diagnose/fix/improve/add).
+3) Decide ONE minimal, low-risk improvement (diagnose/fix/improve/add). Prioritize fixing the CLI first, then health/status checks, then installation, then start/stop behavior, then resource-specific functionality. This is the best order for gradually fixing resources over multiple iterations.
 4) Execute based on mode: plan (print), apply-safe (non-destructive), apply (allowed installs).
 5) Validate with gates per resource type; if any gate fails twice, stop and capture diagnostics.
 6) Start and leave the resource running (exception: Whisper may be stopped post-test if explicitly necessary), then append ≤10 lines to `/tmp/vrooli-resource-improvement.md`.
@@ -14,31 +14,34 @@ Read `auto/tasks/resource-improvement/prompts/cheatsheet.md` for helpers/command
 
 ### 🎯 Purpose & Context
 - Improve AND validate platform resources so scenarios can run reliably end-to-end.
+- Ensure that resource fixes/improvements are applied to the resource's setup code, so that it's repeatable and sets itself up reliably every time.
 - Scenarios depend on resources being up; improvements must keep services running.
-- Prefer incremental, reversible changes; prefer resource CLIs and shared workflows over bespoke/manual edits.
+- Prefer incremental, reversible changes; prefer interacting with resources using their CLIs over bespoke/manual edits.
 - See `docs/context.md` for why resource orchestration is central to Vrooli.
 
 ---
 
 ### ✅ DO / ❌ DON’T
 - ✅ Keep changes minimal; prefer non-destructive operations.
-- ✅ Use `vrooli resource <name> <cmd>` and `resource-<name>` CLIs; prefer shared workflows when relevant.
+- ✅ Use `vrooli resource <name> <cmd>` and `resource-<name>` CLIs
+- ✅ Prefer leveraging shared functions over duplicating logic
 - ✅ Redact secrets; use environment variables for credentials.
 - ✅ Use timeouts for any potentially hanging operation.
+- ✅ Prefer writing resources such that if sudo permissions are required, they only have to be provided once. We should be able to freely stop and start resources without needing permissions.
+- ✅ Fix/standardize the status/health check for the resource, including supporting json mode by utilizing `scripts/lib/utils/format.sh`. This will make it easier to check which resources are healthy in the future
 
-- ❌ Do NOT uninstall, disable, or shut down resources. The scenario loop relies on them running.
-- ❌ Do NOT stop resources for testing (exception: Whisper may be stopped post-test to reduce resource usage, when explicitly necessary).
+- ❌ Do NOT uninstall, disable, or permanently shut down resources. The scenario loop relies on them running.
 - ❌ Do NOT edit files directly or output secrets/configs to console.
 - ❌ Do NOT modify loop scripts or prompt files.
 
-> Policy: After testing any resource, ensure it is started and remains running by default. Only Whisper is allowed to be stopped post-validation when explicitly necessary due to resource constraints.
+> Policy: After testing any resource, ensure it is started and remains running by default. Only Whisper should be stopped post-validation, due to resource constraints.
 
 ---
 
 ### 🧭 Resource Selection — Recommended Flow
 - Tools:
   - `auto/tools/selection/resource-candidates.sh` — candidates with status and cooldown
-  - `auto/tools/selection/resource-list.sh` — full list with status metadata
+  - `vrooli resource status` — full list of registered resources with their statuses
 - Priority rubric:
   1) Enabled but not running → attempt start with diagnostics
   2) Running but missing baseline capability (e.g., Ollama baseline models) → improve
@@ -108,7 +111,9 @@ Per resource (examples using resource CLIs):
 ### 📚 Tools & References
 - Selection:
   - `auto/tools/selection/resource-candidates.sh`
-  - `auto/tools/selection/resource-list.sh`
+- Status checks:
+  - `vrooli status --verbose`
+  - `vrooli resource status`
 - Cheatsheet and helpers: `auto/tasks/resource-improvement/prompts/cheatsheet.md`
 - Loop artifacts:
   - Events: `auto/data/resource-improvement/events.ndjson`
@@ -134,7 +139,7 @@ Per resource (examples using resource CLIs):
 - Redact secrets; use env vars
 - Avoid printing configs/credentials
 - Do not modify platform resources beyond allowed operations
-- Do not modify shared helper functions, as that can break future iterations
+- Do not modify shared helper functions, unless absolutely necessary
 - Respect timeouts (e.g., `timeout 30`)
 
 ---

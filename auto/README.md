@@ -120,7 +120,6 @@ Task-specific:
 
 Located in `auto/tools/selection/`:
 
-- `resource-list.sh`: Lists resources in JSON from CLI or `.vrooli/service.json`
 - `resource-candidates.sh`: Prioritizes resource candidates; merges live runtime status when available
 
 Example:

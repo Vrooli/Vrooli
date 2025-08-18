@@ -119,9 +119,6 @@ scenario_to_app::parse_args() {
                 scenario_to_app::show_usage
                 exit 0
                 ;;
-            # Ignore shell redirections and operators that might be passed accidentally
-            '2>&1'|'1>&2'|'&>'|'>'|'<'|'|'|'&&'|'||'|';')
-                ;; # Silently ignore
             *)
                 log::error "Unknown option: $1"
                 scenario_to_app::show_usage
@@ -184,6 +181,10 @@ scenario_to_app::validate_scenario() {
     if command -v python3 >/dev/null 2>&1 && [[ -f "$var_SERVICE_JSON_FILE" ]]; then
         log::info "Running JSON schema validation using Python..."
         
+        # Write JSON to temp file to avoid shell escaping issues
+        local temp_json_file="/tmp/service_json_validation_$$.json"
+        echo "$SERVICE_JSON" > "$temp_json_file"
+        
         # Create a simple Python validation script
         local validation_result
         validation_result=$(python3 -c "
@@ -191,8 +192,9 @@ import json
 import sys
 
 try:
-    # For basic validation, just check JSON structure
-    service_json = json.loads('''${SERVICE_JSON}''')
+    # Read JSON from temp file to avoid shell escaping issues
+    with open('$temp_json_file', 'r') as f:
+        service_json = json.load(f)
     
     # Check required fields
     if 'service' not in service_json:
@@ -208,12 +210,23 @@ try:
         print('ERROR: Missing required field: service.type')
         sys.exit(1)
         
-    # Count enabled resources
+    # Count enabled resources (handle both flat and nested structures)
     resource_count = 0
     if 'resources' in service_json:
-        for category, resources in service_json['resources'].items():
-            for name, config in resources.items():
-                if config.get('enabled', False):
+        for key, value in service_json['resources'].items():
+            # Check if it's a flat structure (direct resource config)
+            if isinstance(value, dict) and 'enabled' in value:
+                # Flat structure: resources.n8n.enabled
+                if value.get('enabled', False):
+                    resource_count += 1
+            elif isinstance(value, dict):
+                # Nested structure: resources.automation.n8n.enabled
+                for name, config in value.items():
+                    if isinstance(config, dict) and config.get('enabled', False):
+                        resource_count += 1
+            elif isinstance(value, bool):
+                # Simple boolean: resources.n8n: true
+                if value:
                     resource_count += 1
     
     print(f'VALID:{resource_count}')
@@ -225,6 +238,9 @@ except Exception as e:
     print(f'ERROR: {e}')
     sys.exit(1)
 " 2>&1) || true
+        
+        # Clean up temp file
+        rm -f "$temp_json_file"
         
         if [[ "$validation_result" =~ ^VALID:([0-9]+)$ ]]; then
             local resource_count="${BASH_REMATCH[1]}"
@@ -298,21 +314,46 @@ except Exception as e:
     fi
 }
 
-# Get all enabled resources from service.json (supports all categories)
+# Get all enabled resources from service.json (supports both flat and nested structures)
 scenario_to_app::get_enabled_resources() {
-    # Extract ALL enabled resources from ANY category
+    # Handle both flat (resources.n8n.enabled) and nested (resources.automation.n8n.enabled) structures
     echo "$SERVICE_JSON" | jq -r '
-        .resources | to_entries[] as $category | 
-        $category.value | to_entries[] | 
-        select(.value.enabled == true) | 
-        "\(.key) (\($category.key))"  
+        .resources | to_entries[] as $item |
+        if ($item.value | type) == "object" then
+            if $item.value.enabled then
+                # Flat structure: resources.n8n.enabled = true
+                "\($item.key)"
+            elif ($item.value | to_entries | length) > 0 then
+                # Nested structure: check for sub-resources
+                $item.value | to_entries[] |
+                select(.value.enabled == true) |
+                "\(.key) (\($item.key))"
+            else
+                empty
+            end
+        elif ($item.value | type) == "boolean" and $item.value then
+            # Simple boolean: resources.n8n = true
+            "\($item.key)"
+        else
+            empty
+        end
     ' 2>/dev/null || true
 }
 
 # Get resource categories from service.json
 scenario_to_app::get_resource_categories() {
-    # Extract all resource category names
-    echo "$SERVICE_JSON" | jq -r '.resources | keys[]' 2>/dev/null || true
+    # For flat structure, resource names ARE the categories
+    # For nested structure, extract category names
+    echo "$SERVICE_JSON" | jq -r '
+        .resources | to_entries[] as $item |
+        if ($item.value | type) == "object" and ($item.value.enabled | type) != "boolean" then
+            # This is a category (nested structure)
+            $item.key
+        else
+            # This is a direct resource (flat structure) - skip it
+            empty
+        end
+    ' 2>/dev/null || true
 }
 
 # Validate that initialization file paths in service.json actually exist
@@ -881,7 +922,7 @@ scenario_to_app::copy_from_manifest() {
         executable=$(echo "$rule" | jq -r '.executable // false')
         local merge
         merge=$(echo "$rule" | jq -r '.merge // "replace"')
-        
+                
         # Determine source path
         local src_path
         if [[ "$from" == "scenario" ]]; then
@@ -986,7 +1027,7 @@ scenario_to_app::copy_item() {
                     (cd "$src" && tar cf - --exclude='*.log' --exclude='data/' . 2>/dev/null | (cd "$dest" && tar xf - 2>/dev/null)) || {
                         [[ "$VERBOSE" == "true" ]] && log::info "Some files in $name could not be copied, continuing..."
                     }
-                                    fi
+                fi
             fi
             ;;
         *)

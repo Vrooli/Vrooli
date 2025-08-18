@@ -56,6 +56,9 @@ cli::init "postgres" "PostgreSQL relational database management"
 # Override help to provide PostgreSQL-specific examples
 cli::register_command "help" "Show this help message with PostgreSQL examples" "postgres_show_help"
 
+# Override status to use standardized format support
+cli::register_command "status" "Show PostgreSQL status" "postgres::status::show"
+
 # Register additional PostgreSQL-specific commands
 cli::register_command "inject" "Inject SQL/config into PostgreSQL" "postgres_inject" "modifies-system"
 cli::register_command "list-instances" "List all PostgreSQL instances" "postgres_list_instances"

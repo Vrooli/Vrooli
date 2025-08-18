@@ -122,10 +122,12 @@ vault_validate() {
 
 # Show Vault status
 vault_status() {
-    if command -v vault::show_status &>/dev/null; then
-        vault::show_status
+    if command -v vault::status &>/dev/null; then
+        vault::status "$@"
+    elif command -v vault::show_status &>/dev/null; then
+        vault::show_status "$@"
     else
-        # Basic status
+        # Basic status fallback
         log::header "Vault Status"
         local container_name="${VAULT_CONTAINER_NAME:-vault}"
         if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "$container_name"; then

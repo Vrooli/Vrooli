@@ -1,86 +1,330 @@
 #!/usr/bin/env bash
-# QuestDB Status Functions
-# Check and report QuestDB status
+# QuestDB Status Management - Standardized Format
+# Functions for checking and displaying QuestDB status information
+
+# Source format utilities
+QUESTDB_STATUS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${QUESTDB_STATUS_DIR}/../../../../lib/utils/format.sh"
+# shellcheck disable=SC1091
+source "${QUESTDB_STATUS_DIR}/../config/defaults.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${QUESTDB_STATUS_DIR}/common.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${QUESTDB_STATUS_DIR}/docker.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${QUESTDB_STATUS_DIR}/api.sh" 2>/dev/null || true
+
+# Ensure configuration is exported
+if command -v questdb::export_config &>/dev/null; then
+    questdb::export_config 2>/dev/null || true
+fi
 
 #######################################
-# Check QuestDB status
-# Returns:
-#   0 if running and healthy, 1 otherwise
+# Collect QuestDB status data in format-agnostic structure
+# Returns: Key-value pairs ready for formatting
 #######################################
-questdb::status::check() {
-    echo_header "${QUESTDB_STATUS_MESSAGES["checking"]}"
+questdb::status::collect_data() {
+    local status_data=()
     
-    # Check if container is running
-    if ! questdb::docker::is_running; then
-        log::error "${QUESTDB_STATUS_MESSAGES["not_running"]}"
-        return 1
+    # Basic status checks
+    local installed="false"
+    local running="false" 
+    local healthy="false"
+    local container_status="not_found"
+    local health_message="Unknown"
+    
+    # Check if container exists
+    if docker ps -a --format "{{.Names}}" | grep -q "^${QUESTDB_CONTAINER_NAME}$" 2>/dev/null; then
+        installed="true"
+        container_status=$(docker inspect --format='{{.State.Status}}' "${QUESTDB_CONTAINER_NAME}" 2>/dev/null || echo "unknown")
+        
+        # Check if container is running
+        if docker ps --format "{{.Names}}" | grep -q "^${QUESTDB_CONTAINER_NAME}$" 2>/dev/null; then
+            running="true"
+            
+            # Check if API is healthy
+            if curl -s --max-time 5 "http://localhost:${QUESTDB_HTTP_PORT}/status" >/dev/null 2>&1; then
+                healthy="true"
+                health_message="Healthy - Database operational and responsive"
+            else
+                health_message="Unhealthy - Database not responding to queries"
+            fi
+        else
+            health_message="Stopped - Container not running"
+        fi
+    else
+        health_message="Not installed - Container does not exist"
     fi
     
-    # Check health
-    if ! questdb::docker::health_check; then
-        log::warning "${QUESTDB_STATUS_MESSAGES["unhealthy"]}"
-        return 1
+    # Basic resource information
+    status_data+=("name" "questdb")
+    status_data+=("category" "storage")
+    status_data+=("description" "High-performance time series database")
+    status_data+=("installed" "$installed")
+    status_data+=("running" "$running")
+    status_data+=("healthy" "$healthy")
+    status_data+=("health_message" "$health_message")
+    status_data+=("container_name" "${QUESTDB_CONTAINER_NAME:-questdb}")
+    status_data+=("container_status" "$container_status")
+    status_data+=("http_port" "${QUESTDB_HTTP_PORT:-9000}")
+    status_data+=("pg_port" "${QUESTDB_PG_PORT:-8812}")
+    status_data+=("ilp_port" "${QUESTDB_ILP_PORT:-9011}")
+    
+    # Service endpoints
+    status_data+=("web_console" "http://localhost:${QUESTDB_HTTP_PORT:-9000}")
+    status_data+=("health_url" "http://localhost:${QUESTDB_HTTP_PORT:-9000}/status")
+    status_data+=("query_api" "http://localhost:${QUESTDB_HTTP_PORT:-9000}/exec")
+    status_data+=("postgres_url" "postgresql://localhost:${QUESTDB_PG_PORT:-8812}/qdb")
+    
+    # Configuration details
+    status_data+=("image" "${QUESTDB_IMAGE:-unknown}")
+    status_data+=("version" "${QUESTDB_IMAGE:-unknown}")  # Extract version from image tag
+    status_data+=("data_dir" "${QUESTDB_DATA_DIR:-unknown}")
+    
+    # Runtime information (only if running and healthy)
+    if [[ "$running" == "true" && "$healthy" == "true" ]]; then
+        # Version from API (try to get it, fallback to unknown)
+        local api_version="unknown"
+        if command -v questdb::get_version &>/dev/null; then
+            api_version=$(questdb::get_version 2>/dev/null || echo "unknown")
+        fi
+        status_data+=("runtime_version" "$api_version")
+        
+        # Table count (try to get it, fallback to 0)
+        local table_count="0"
+        if command -v questdb::api::query &>/dev/null; then
+            table_count=$(questdb::api::query "SELECT COUNT(*) FROM tables()" 1 2>/dev/null | \
+                jq -r '.dataset[0][0] // 0' 2>/dev/null || echo "0")
+        fi
+        status_data+=("table_count" "$table_count")
+        
+        # Uptime calculation
+        local uptime_seconds="0"
+        local start_time
+        start_time=$(docker inspect -f '{{.State.StartedAt}}' "${QUESTDB_CONTAINER_NAME}" 2>/dev/null || echo "")
+        if [[ -n "$start_time" ]]; then
+            uptime_seconds=$(( $(date +%s) - $(date -d "$start_time" +%s 2>/dev/null || date +%s) ))
+        fi
+        status_data+=("uptime_seconds" "$uptime_seconds")
+        
+        local uptime_human
+        uptime_human=$(questdb::status::format_uptime "$uptime_seconds")
+        status_data+=("uptime" "$uptime_human")
+        
+        # Data directory size if available
+        if [[ -d "${QUESTDB_DATA_DIR}" ]]; then
+            local data_size
+            data_size=$(du -sh "${QUESTDB_DATA_DIR}" 2>/dev/null | awk '{print $1}' || echo "N/A")
+            status_data+=("data_size" "$data_size")
+        fi
+        
+        # Container resource usage (use Docker stats)
+        if command -v docker &>/dev/null && docker ps --format "{{.Names}}" | grep -q "^${QUESTDB_CONTAINER_NAME}$"; then
+            local stats
+            stats=$(docker stats "${QUESTDB_CONTAINER_NAME}" --no-stream --format "{{.CPUPerc}}|{{.MemUsage}}" 2>/dev/null || echo "")
+            if [[ -n "$stats" ]]; then
+                local cpu mem
+                cpu=$(echo "$stats" | cut -d'|' -f1)
+                mem=$(echo "$stats" | cut -d'|' -f2)
+                status_data+=("cpu_usage" "$cpu")
+                status_data+=("memory_usage" "$mem")
+            fi
+        fi
     fi
     
-    log::success "${QUESTDB_STATUS_MESSAGES["running"]}"
-    
-    # Get detailed status
-    questdb::status::detailed
-    
-    return 0
+    # Return the collected data
+    printf '%s\n' "${status_data[@]}"
 }
 
 #######################################
-# Show detailed status information
+# Show QuestDB status using standardized format
+# Args: [--format json|text] [--verbose]
+#######################################
+questdb::status::check() {
+    local format="text"
+    local verbose="false"
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --format)
+                format="$2"
+                shift 2
+                ;;
+            --json)
+                format="json"
+                shift
+                ;;
+            --verbose|-v)
+                verbose="true"
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    # Collect status data
+    local data_string
+    data_string=$(questdb::status::collect_data 2>/dev/null)
+    
+    if [[ -z "$data_string" ]]; then
+        # Fallback if data collection fails
+        if [[ "$format" == "json" ]]; then
+            echo '{"error": "Failed to collect status data"}'
+        else
+            log::error "Failed to collect QuestDB status data"
+        fi
+        return 1
+    fi
+    
+    # Convert string to array
+    local data_array
+    mapfile -t data_array <<< "$data_string"
+    
+    # Output based on format
+    if [[ "$format" == "json" ]]; then
+        format::output "json" "kv" "${data_array[@]}"
+    else
+        # Text format with standardized structure
+        questdb::status::display_text "${data_array[@]}"
+    fi
+    
+    # Return appropriate exit code
+    local healthy="false"
+    local running="false"
+    for ((i=0; i<${#data_array[@]}; i+=2)); do
+        case "${data_array[i]}" in
+            "healthy") healthy="${data_array[i+1]}" ;;
+            "running") running="${data_array[i+1]}" ;;
+        esac
+    done
+    
+    if [[ "$healthy" == "true" ]]; then
+        return 0
+    elif [[ "$running" == "true" ]]; then
+        return 1
+    else
+        return 2
+    fi
+}
+
+#######################################
+# Display status in text format
+#######################################
+questdb::status::display_text() {
+    local -A data
+    
+    # Convert array to associative array
+    for ((i=1; i<=$#; i+=2)); do
+        local key="${!i}"
+        local value_idx=$((i+1))
+        local value="${!value_idx}"
+        data["$key"]="$value"
+    done
+    
+    # Header
+    log::header "📊 QuestDB Status"
+    echo
+    
+    # Basic status
+    log::info "📊 Basic Status:"
+    if [[ "${data[installed]:-false}" == "true" ]]; then
+        log::success "   ✅ Installed: Yes"
+    else
+        log::error "   ❌ Installed: No"
+        echo
+        log::info "💡 Installation Required:"
+        log::info "   To install QuestDB, run: ./manage.sh --action install"
+        return
+    fi
+    
+    if [[ "${data[running]:-false}" == "true" ]]; then
+        log::success "   ✅ Running: Yes"
+    else
+        log::warn "   ⚠️  Running: No"
+    fi
+    
+    if [[ "${data[healthy]:-false}" == "true" ]]; then
+        log::success "   ✅ Health: Healthy"
+    else
+        log::warn "   ⚠️  Health: ${data[health_message]:-Unknown}"
+    fi
+    echo
+    
+    # Container information
+    log::info "🐳 Container Info:"
+    log::info "   📦 Name: ${data[container_name]:-unknown}"
+    log::info "   📊 Status: ${data[container_status]:-unknown}"
+    log::info "   🖼️  Image: ${data[image]:-unknown}"
+    echo
+    
+    # Service endpoints
+    log::info "🌐 Service Endpoints:"
+    log::info "   🎨 Web Console: ${data[web_console]:-unknown}"
+    log::info "   🔍 Query API: ${data[query_api]:-unknown}"
+    log::info "   🏥 Health Check: ${data[health_url]:-unknown}"
+    log::info "   🐘 PostgreSQL: ${data[postgres_url]:-unknown}"
+    echo
+    
+    # Configuration
+    log::info "⚙️  Configuration:"
+    log::info "   🌐 HTTP Port: ${data[http_port]:-unknown}"
+    log::info "   🐘 PostgreSQL Port: ${data[pg_port]:-unknown}"
+    log::info "   📊 InfluxDB Port: ${data[ilp_port]:-unknown}"
+    log::info "   📁 Data Directory: ${data[data_dir]:-unknown}"
+    log::info "   🏷️  Version: ${data[version]:-unknown}"
+    echo
+    
+    # Runtime information (only if healthy)
+    if [[ "${data[healthy]:-false}" == "true" ]]; then
+        log::info "📈 Runtime Information:"
+        log::info "   🔖 Runtime Version: ${data[runtime_version]:-unknown}"
+        log::info "   ⏱️  Uptime: ${data[uptime]:-unknown}"
+        log::info "   🗄️  Tables: ${data[table_count]:-0}"
+        log::info "   💾 Data Size: ${data[data_size]:-unknown}"
+        
+        if [[ -n "${data[cpu_usage]:-}" ]]; then
+            log::info "   🔥 CPU Usage: ${data[cpu_usage]}"
+        fi
+        if [[ -n "${data[memory_usage]:-}" ]]; then
+            log::info "   🧠 Memory Usage: ${data[memory_usage]}"
+        fi
+    fi
+}
+
+#######################################
+# Format uptime seconds to human readable
+# Arguments:
+#   $1 - uptime in seconds
+# Returns: Human readable uptime
+#######################################
+questdb::status::format_uptime() {
+    local seconds=$1
+    local days=$((seconds / 86400))
+    local hours=$(((seconds % 86400) / 3600))
+    local minutes=$(((seconds % 3600) / 60))
+    local secs=$((seconds % 60))
+    
+    if [[ $days -gt 0 ]]; then
+        echo "${days}d ${hours}h ${minutes}m ${secs}s"
+    elif [[ $hours -gt 0 ]]; then
+        echo "${hours}h ${minutes}m ${secs}s"
+    elif [[ $minutes -gt 0 ]]; then
+        echo "${minutes}m ${secs}s"
+    else
+        echo "${secs}s"
+    fi
+}
+
+#######################################
+# Legacy function for backward compatibility
 #######################################
 questdb::status::detailed() {
-    echo ""
-    echo "📊 QuestDB Status Details:"
-    echo "=========================="
-    
-    # Version
-    local version
-    version=$(questdb::get_version)
-    if [[ -n "$version" ]]; then
-        echo "Version:       $version"
-    fi
-    
-    # URLs
-    echo "Web Console:   ${QUESTDB_BASE_URL}"
-    echo "PostgreSQL:    localhost:${QUESTDB_PG_PORT}"
-    echo "InfluxDB TCP:  localhost:${QUESTDB_ILP_PORT}"
-    
-    # Container stats
-    local stats
-    stats=$(questdb::docker::stats)
-    if [[ -n "$stats" ]] && [[ "$stats" != "{}" ]]; then
-        local cpu mem
-        cpu=$(echo "$stats" | jq -r '.CPUPerc' 2>/dev/null || echo "N/A")
-        mem=$(echo "$stats" | jq -r '.MemUsage' 2>/dev/null || echo "N/A")
-        
-        echo ""
-        echo "Resource Usage:"
-        echo "  CPU:         $cpu"
-        echo "  Memory:      $mem"
-    fi
-    
-    # Table count
-    echo ""
-    echo "Database Info:"
-    local table_count
-    table_count=$(questdb::api::query "SELECT COUNT(*) FROM tables()" 1 2>/dev/null | \
-        jq -r '.dataset[0][0] // 0' 2>/dev/null || echo "0")
-    echo "  Tables:      $table_count"
-    
-    # Data directory size
-    if [[ -d "${QUESTDB_DATA_DIR}" ]]; then
-        local data_size
-        data_size=$(du -sh "${QUESTDB_DATA_DIR}" 2>/dev/null | awk '{print $1}' || echo "N/A")
-        echo "  Data Size:   $data_size"
-    fi
-    
-    echo ""
-    echo "${QUESTDB_INFO_MESSAGES["api_docs"]}"
+    # Redirect to the new standardized status display
+    questdb::status::check "$@"
 }
 
 #######################################

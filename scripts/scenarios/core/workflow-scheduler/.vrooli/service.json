@@ -80,26 +80,6 @@
             "type": "workflow"
           }
         ]
-      },
-      "windmill": {
-        "type": "windmill",
-        "enabled": true,
-        "required": false,
-        "purpose": "Management dashboard, visual schedule builder, analytics",
-        "initialization": [
-          {
-            "file": "initialization/automation/windmill/schedule-dashboard.json",
-            "type": "app"
-          },
-          {
-            "file": "initialization/automation/windmill/schedule-builder.json",
-            "type": "app"
-          },
-          {
-            "file": "initialization/automation/windmill/execution-viewer.json",
-            "type": "app"
-          }
-        ]
       }
     }
   },
@@ -130,7 +110,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Workflow Scheduler initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  Scheduling Engine: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${SERVICE_PORT}\\n  Database: postgresql://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/workflow_scheduler\\n  Redis: redis://localhost:${RESOURCE_PORTS[redis]}\\n  CLI: scheduler-cli --help'",
+          "run": "echo '🚀 Workflow Scheduler initialized\\n  Scheduling Engine: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${SERVICE_PORT}\\n  Database: postgresql://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/workflow_scheduler\\n  Redis: redis://localhost:${RESOURCE_PORTS[redis]}\\n  CLI: scheduler-cli --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -140,7 +120,7 @@
       "steps": [
         {
           "name": "start-api-server",
-          "run": "cd api && PORT=$SERVICE_PORT POSTGRES_URL=postgres://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/workflow_scheduler REDIS_URL=redis://localhost:${RESOURCE_PORTS[redis]} N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} WINDMILL_BASE_URL=http://localhost:${RESOURCE_PORTS[windmill]} ./workflow-scheduler-api &",
+          "run": "cd api && PORT=$SERVICE_PORT POSTGRES_URL=postgres://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/workflow_scheduler REDIS_URL=redis://localhost:${RESOURCE_PORTS[redis]} N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} ./workflow-scheduler-api &",
           "description": "Start Go API server in background",
           "background": true,
           "condition": {
@@ -163,7 +143,7 @@
         },
         {
           "name": "show-running-services",
-          "run": "echo '🚀 Workflow Scheduler running:\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}/apps/f/workflow-scheduler/dashboard\\n  Schedule Builder: http://localhost:${RESOURCE_PORTS[windmill]}/apps/f/workflow-scheduler/builder\\n  Scheduling Engine: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$SERVICE_PORT\\n  API Docs: http://localhost:$SERVICE_PORT/docs\\n  CLI: scheduler-cli --help\\n\\nQuick Start:\\n  scheduler-cli create --name \"Daily Report\" --cron \"0 9 * * *\" --url http://localhost:5678/webhook/report'",
+          "run": "echo '🚀 Workflow Scheduler running:\\n  Scheduling Engine: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$SERVICE_PORT\\n  API Docs: http://localhost:$SERVICE_PORT/docs\\n  CLI: scheduler-cli --help\\n\\nQuick Start:\\n  scheduler-cli create --name \"Daily Report\" --cron \"0 9 * * *\" --url http://localhost:5678/webhook/report'",
           "description": "Display all running service URLs"
         }
       ]

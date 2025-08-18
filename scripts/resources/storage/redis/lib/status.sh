@@ -1,32 +1,291 @@
 #!/usr/bin/env bash
-# Redis Status Management
+# Redis Status Management - Standardized Format
 # Functions for checking and displaying Redis status information
 
+# Source format utilities and config
+REDIS_STATUS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${REDIS_STATUS_DIR}/../../../../lib/utils/format.sh"
+# shellcheck disable=SC1091
+source "${REDIS_STATUS_DIR}/../config/defaults.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${REDIS_STATUS_DIR}/../config/messages.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${REDIS_STATUS_DIR}/common.sh" 2>/dev/null || true
+
+# Ensure configuration is exported
+if command -v redis::export_config &>/dev/null; then
+    redis::export_config 2>/dev/null || true
+fi
+if command -v redis::messages::init &>/dev/null; then
+    redis::messages::init 2>/dev/null || true
+fi
+
 #######################################
-# Show Redis status
-# Returns: 0 if healthy, 1 if unhealthy, 2 if not running
+# Collect Redis status data in format-agnostic structure
+# Returns: Key-value pairs ready for formatting
+#######################################
+redis::status::collect_data() {
+    local status_data=()
+    
+    # Basic status checks
+    local installed="false"
+    local running="false"
+    local healthy="false"
+    local container_status="not_found"
+    local health_message="Unknown"
+    
+    if redis::common::container_exists; then
+        installed="true"
+        container_status=$(docker inspect --format='{{.State.Status}}' "${REDIS_CONTAINER_NAME}" 2>/dev/null || echo "unknown")
+        
+        if redis::common::is_running; then
+            running="true"
+            
+            if redis::common::is_healthy; then
+                healthy="true"
+                health_message="Healthy - All systems operational"
+            else
+                health_message="Unhealthy - Service not responding"
+            fi
+        else
+            health_message="Stopped - Container not running"
+        fi
+    else
+        health_message="Not installed - Container does not exist"
+    fi
+    
+    # Basic resource information
+    status_data+=("name" "redis")
+    status_data+=("category" "storage")
+    status_data+=("description" "Redis cache and data structure server")
+    status_data+=("installed" "$installed")
+    status_data+=("running" "$running")
+    status_data+=("healthy" "$healthy")
+    status_data+=("health_message" "$health_message")
+    status_data+=("container_name" "$REDIS_CONTAINER_NAME")
+    status_data+=("container_status" "$container_status")
+    status_data+=("port" "$REDIS_PORT")
+    
+    # Service endpoints
+    status_data+=("redis_url" "redis://localhost:${REDIS_PORT}")
+    status_data+=("cli_command" "redis-cli -p ${REDIS_PORT}")
+    
+    # Configuration details
+    status_data+=("image" "$REDIS_IMAGE")
+    status_data+=("max_memory" "$REDIS_MAX_MEMORY")
+    status_data+=("persistence" "$REDIS_PERSISTENCE")
+    status_data+=("databases" "$REDIS_DATABASES")
+    
+    # Runtime information (only if running and healthy)
+    if [[ "$running" == "true" && "$healthy" == "true" ]]; then
+        local redis_info
+        redis_info=$(redis::common::get_info 2>/dev/null)
+        
+        if [[ -n "$redis_info" ]]; then
+            # Memory usage
+            local memory_used
+            memory_used=$(echo "$redis_info" | grep "used_memory_human:" | cut -d: -f2 | tr -d '\r' | xargs)
+            status_data+=("memory_used" "${memory_used:-N/A}")
+            
+            # Connected clients
+            local clients
+            clients=$(echo "$redis_info" | grep "connected_clients:" | cut -d: -f2 | tr -d '\r' | xargs)
+            status_data+=("connected_clients" "${clients:-0}")
+            
+            # Commands processed
+            local commands
+            commands=$(echo "$redis_info" | grep "total_commands_processed:" | cut -d: -f2 | tr -d '\r' | xargs)
+            status_data+=("total_commands" "${commands:-0}")
+            
+            # Redis version
+            local version
+            version=$(echo "$redis_info" | grep "redis_version:" | cut -d: -f2 | tr -d '\r' | xargs)
+            status_data+=("version" "${version:-unknown}")
+            
+            # Uptime
+            local uptime_seconds
+            uptime_seconds=$(echo "$redis_info" | grep "uptime_in_seconds:" | cut -d: -f2 | tr -d '\r' | xargs)
+            if [[ -n "$uptime_seconds" ]]; then
+                local uptime_human
+                uptime_human=$(redis::status::format_uptime "$uptime_seconds")
+                status_data+=("uptime" "$uptime_human")
+            else
+                status_data+=("uptime" "unknown")
+            fi
+            
+            # Database key count
+            local total_keys=0
+            local active_dbs=0
+            for i in $(seq 0 $((REDIS_DATABASES - 1))); do
+                local db_info
+                db_info=$(echo "$redis_info" | grep "^db${i}:")
+                if [[ -n "$db_info" ]]; then
+                    local keys
+                    keys=$(echo "$db_info" | sed 's/.*keys=\([0-9]*\).*/\1/')
+                    if [[ -n "$keys" && "$keys" -gt 0 ]]; then
+                        active_dbs=$((active_dbs + 1))
+                        total_keys=$((total_keys + keys))
+                    fi
+                fi
+            done
+            status_data+=("total_keys" "$total_keys")
+            status_data+=("active_databases" "$active_dbs")
+        fi
+    fi
+    
+    # Return the collected data
+    printf '%s\n' "${status_data[@]}"
+}
+
+#######################################
+# Show Redis status using standardized format
+# Args: [--format json|text] [--verbose]
 #######################################
 redis::status::show() {
-    log::info "${MSG_CHECKING_STATUS}"
+    local format="text"
+    local verbose="false"
     
-    if ! redis::common::container_exists; then
-        log::error "${MSG_STATUS_NOT_INSTALLED}"
-        return 2
-    fi
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --format)
+                format="$2"
+                shift 2
+                ;;
+            --json)
+                format="json"
+                shift
+                ;;
+            --verbose|-v)
+                verbose="true"
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
     
-    if ! redis::common::is_running; then
-        log::warn "${MSG_STATUS_STOPPED}"
-        return 2
-    fi
+    # Collect status data
+    local data_string
+    data_string=$(redis::status::collect_data 2>/dev/null)
     
-    if redis::common::is_healthy; then
-        log::success "${MSG_STATUS_RUNNING}"
-        redis::status::show_detailed_info
-        return 0
-    else
-        log::warn "${MSG_STATUS_UNHEALTHY}"
-        redis::status::show_basic_info
+    if [[ -z "$data_string" ]]; then
+        # Fallback if data collection fails
+        if [[ "$format" == "json" ]]; then
+            echo '{"error": "Failed to collect status data"}'
+        else
+            log::error "Failed to collect Redis status data"
+        fi
         return 1
+    fi
+    
+    # Convert string to array
+    local data_array
+    mapfile -t data_array <<< "$data_string"
+    
+    # Output based on format
+    if [[ "$format" == "json" ]]; then
+        format::output "json" "kv" "${data_array[@]}"
+    else
+        # Text format with standardized structure
+        redis::status::display_text "${data_array[@]}"
+    fi
+    
+    # Return appropriate exit code
+    local healthy="false"
+    local running="false"
+    for ((i=0; i<${#data_array[@]}; i+=2)); do
+        case "${data_array[i]}" in
+            "healthy") healthy="${data_array[i+1]}" ;;
+            "running") running="${data_array[i+1]}" ;;
+        esac
+    done
+    
+    if [[ "$healthy" == "true" ]]; then
+        return 0
+    elif [[ "$running" == "true" ]]; then
+        return 1
+    else
+        return 2
+    fi
+}
+
+#######################################
+# Display status in text format
+#######################################
+redis::status::display_text() {
+    local -A data
+    
+    # Convert array to associative array
+    for ((i=1; i<=$#; i+=2)); do
+        local key="${!i}"
+        local value_idx=$((i+1))
+        local value="${!value_idx}"
+        data["$key"]="$value"
+    done
+    
+    # Header
+    log::header "📊 Redis Status"
+    echo
+    
+    # Basic status
+    log::info "📊 Basic Status:"
+    if [[ "${data[installed]:-false}" == "true" ]]; then
+        log::success "   ✅ Installed: Yes"
+    else
+        log::error "   ❌ Installed: No"
+        echo
+        log::info "💡 Installation Required:"
+        log::info "   To install Redis, run: ./manage.sh --action install"
+        return
+    fi
+    
+    if [[ "${data[running]:-false}" == "true" ]]; then
+        log::success "   ✅ Running: Yes"
+    else
+        log::warn "   ⚠️  Running: No"
+    fi
+    
+    if [[ "${data[healthy]:-false}" == "true" ]]; then
+        log::success "   ✅ Health: Healthy"
+    else
+        log::warn "   ⚠️  Health: ${data[health_message]:-Unknown}"
+    fi
+    echo
+    
+    # Container information
+    log::info "🐳 Container Info:"
+    log::info "   📦 Name: ${data[container_name]:-unknown}"
+    log::info "   📊 Status: ${data[container_status]:-unknown}"
+    log::info "   🖼️  Image: ${data[image]:-unknown}"
+    echo
+    
+    # Service endpoints
+    log::info "🌐 Service Endpoints:"
+    log::info "   🔗 Redis URL: ${data[redis_url]:-unknown}"
+    log::info "   💻 CLI Command: ${data[cli_command]:-unknown}"
+    echo
+    
+    # Configuration
+    log::info "⚙️  Configuration:"
+    log::info "   📶 Port: ${data[port]:-unknown}"
+    log::info "   💾 Max Memory: ${data[max_memory]:-unknown}"
+    log::info "   💿 Persistence: ${data[persistence]:-unknown}"
+    log::info "   🗄️  Databases: ${data[databases]:-unknown}"
+    echo
+    
+    # Runtime information (only if healthy)
+    if [[ "${data[healthy]:-false}" == "true" ]]; then
+        log::info "📈 Runtime Information:"
+        log::info "   🔖 Version: ${data[version]:-unknown}"
+        log::info "   ⏱️  Uptime: ${data[uptime]:-unknown}"
+        log::info "   💾 Memory Used: ${data[memory_used]:-unknown}"
+        log::info "   👥 Connected Clients: ${data[connected_clients]:-0}"
+        log::info "   📊 Total Commands: ${data[total_commands]:-0}"
+        log::info "   🗄️  Active Databases: ${data[active_databases]:-0}"
+        log::info "   🔑 Total Keys: ${data[total_keys]:-0}"
     fi
 }
 

@@ -231,32 +231,80 @@ ollama::restart() {
 # Show comprehensive Ollama status
 #######################################
 ollama::status() {
-    log::header "📊 Ollama Status"
+    # Get script directory
+    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    
+    # Source format utilities if available
+    local format_lib="${script_dir}/../../../../scripts/lib/utils/format.sh"
+    [[ -f "$format_lib" ]] && source "$format_lib"
+    
+    # Determine output format from environment or parameter
+    local output_format="${FORMAT:-${1:-text}}"
+    
+    # Collect status data
+    local binary_installed=false
+    local service_running=false
+    local api_healthy=false
+    local model_count=0
+    local port="${OLLAMA_PORT:-11434}"
     
     # Check if binary exists
     if resources::binary_exists "ollama"; then
-        log::success "✅ Ollama binary installed"
-    else
-        log::error "❌ Ollama binary not found"
+        binary_installed=true
     fi
     
-    # Get detailed health status
+    # Get health status
     local health_details
-    health_details=$(ollama::get_health_details)
+    health_details=$(ollama::get_health_details 2>/dev/null || echo "unknown")
     local health_code=$?
     
-    # Display health status
-    log::info "Health Status: $health_details"
-    
-    # Check if service is running on port
-    if resources::is_service_running "$OLLAMA_PORT"; then
-        log::success "✅ Service listening on port $OLLAMA_PORT"
-    else
-        log::warn "⚠️  No service on port $OLLAMA_PORT"
+    # Check if service is running
+    if resources::is_service_running "$port"; then
+        service_running=true
     fi
     
-    # Show systemd service details if healthy or starting
-    if [[ $health_code -eq 0 ]] || [[ $health_code -eq 2 ]]; then
+    # Check API health
+    if [[ $health_code -eq 0 ]]; then
+        api_healthy=true
+    fi
+    
+    # Count models if available
+    if [[ "$binary_installed" == "true" ]] && command -v ollama &>/dev/null; then
+        model_count=$(ollama list 2>/dev/null | tail -n +2 | wc -l || echo 0)
+    fi
+    
+    # Output based on format
+    if [[ "$output_format" == "json" ]] && command -v format::key_value &>/dev/null; then
+        format::key_value json \
+            "resource" "ollama" \
+            "binary_installed" "$binary_installed" \
+            "service_running" "$service_running" \
+            "api_healthy" "$api_healthy" \
+            "port" "$port" \
+            "model_count" "$model_count" \
+            "health_status" "$(echo "$health_details" | tr -d '✅❌⚠️🔄❓ ')"
+    else
+        # Original text output
+        log::header "📊 Ollama Status"
+        
+        if [[ "$binary_installed" == "true" ]]; then
+            log::success "✅ Ollama binary installed"
+        else
+            log::error "❌ Ollama binary not found"
+        fi
+        
+        # Display health status
+        log::info "Health Status: $health_details"
+        
+        # Check if service is running on port
+        if [[ "$service_running" == "true" ]]; then
+            log::success "✅ Service listening on port $port"
+        else
+            log::warn "⚠️  No service on port $port"
+        fi
+        
+        # Show systemd service details if healthy or starting
+        if [[ $health_code -eq 0 ]] || [[ $health_code -eq 2 ]]; then
         # Get systemd resource usage
         local memory_usage
         local cpu_usage
@@ -324,6 +372,7 @@ ollama::status() {
             fi
         fi
     fi
+    fi  # Close the else branch for text output
 }
 
 #######################################

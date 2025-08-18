@@ -50,8 +50,9 @@ done
 # Initialize CLI framework
 cli::init "minio" "MinIO S3-compatible object storage management"
 
-# Override help to provide MinIO-specific examples
+# Override help and status to provide MinIO-specific examples and JSON support
 cli::register_command "help" "Show this help message with MinIO examples" "minio_show_help"
+cli::register_command "status" "Show MinIO status with JSON support" "minio_status"
 
 # Register additional MinIO-specific commands
 cli::register_command "inject" "Inject bucket config/data into MinIO" "minio_inject" "modifies-system"
@@ -119,12 +120,14 @@ minio_validate() {
     fi
 }
 
-# Show MinIO status
+# Show MinIO status with JSON support
 minio_status() {
-    if command -v minio::status &>/dev/null; then
-        minio::status
+    if command -v minio::status::show &>/dev/null; then
+        minio::status::show "$@"
+    elif command -v minio::status &>/dev/null; then
+        minio::status "$@"
     else
-        # Basic status
+        # Basic status fallback
         log::header "MinIO Status"
         local container_name="${MINIO_CONTAINER_NAME:-minio}"
         if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "$container_name"; then

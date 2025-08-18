@@ -124,7 +124,7 @@ These commands can be invoked by using the keywords listed for each:
 4. [ ] Review `/docs/scratch/` for previous session notes
 
 ## 🔧 Local Resources Setup
-**Default Behavior**: Setup now automatically installs resources marked as `"enabled": true` in `.vrooli/resources.local.json`
+**Default Behavior**: Setup now automatically installs resources marked as `"enabled": true` in `.vrooli/service.json`
 - **First Run**: If no config exists, Ollama is installed by default
 - **Subsequent Runs**: Only installs resources explicitly enabled in configuration
 - **Skip Resources**: Use `--resources none` to skip all resource installation

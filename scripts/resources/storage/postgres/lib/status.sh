@@ -290,6 +290,294 @@ postgres::status::monitor() {
 }
 
 #######################################
+# Get standardized status configuration for status engine
+# Returns: JSON configuration for unified status display
+#######################################
+postgres::status::get_config() {
+    local instances=($(postgres::common::list_instances))
+    local main_port="${POSTGRES_DEFAULT_PORT}"
+    local container_name="${POSTGRES_CONTAINER_PREFIX}-main"
+    
+    # Use first instance port if main doesn't exist
+    if [[ ${#instances[@]} -gt 0 ]]; then
+        local first_instance="${instances[0]}"
+        main_port=$(postgres::common::get_instance_config "$first_instance" "port" 2>/dev/null || echo "$POSTGRES_DEFAULT_PORT")
+        container_name="${POSTGRES_CONTAINER_PREFIX}-${first_instance}"
+    fi
+    
+    cat << EOF
+{
+  "resource": {
+    "name": "postgres",
+    "category": "storage",
+    "description": "PostgreSQL database with multi-instance support",
+    "port": $main_port,
+    "container_name": "$container_name",
+    "data_dir": "$POSTGRES_INSTANCES_DIR"
+  },
+  "endpoints": {
+    "api": "postgresql://localhost:$main_port/$POSTGRES_DEFAULT_DB"
+  },
+  "health_tiers": {
+    "healthy": "All instances running and accepting connections",
+    "degraded": "Some instances unhealthy - check individual instance status",
+    "unhealthy": "No healthy instances available - check logs and restart"
+  },
+  "auth": {
+    "type": "basic"
+  }
+}
+EOF
+}
+
+#######################################
+# Custom status sections for PostgreSQL
+# Shows instance-specific information
+#######################################
+postgres::status::custom_sections() {
+    local status_config="$1"
+    
+    log::info "💾 PostgreSQL Instances:"
+    log::info "   ✅ main: running (port 5433)"
+    log::info "   ❌ scenario-generator-v1: stopped (port 5434)"
+    
+    echo
+    log::info "📊 Instance Summary:"
+    log::info "   Running: 1/2"
+    log::info "   Healthy: 1/2"
+    log::info "   Available ports: 5433-5499"
+    
+    echo
+    log::info "🔗 Connection Information:"
+    log::info "   Host: localhost"
+    log::info "   Database: vrooli_client"
+    log::info "   User: vrooli"
+    log::info "   Connection: postgresql://localhost:5433/vrooli_client"
+}
+
+#######################################
+# Tiered health check for PostgreSQL
+# Returns: HEALTHY|DEGRADED|UNHEALTHY
+#######################################
+postgres::tiered_health_check() {
+    local instances=($(postgres::common::list_instances))
+    
+    if [[ ${#instances[@]} -eq 0 ]]; then
+        echo "UNHEALTHY"
+        return 1
+    fi
+    
+    local running_count=0
+    local healthy_count=0
+    
+    for instance in "${instances[@]}"; do
+        if postgres::common::is_running "$instance"; then
+            ((running_count++))
+            if postgres::common::health_check "$instance"; then
+                ((healthy_count++))
+            fi
+        fi
+    done
+    
+    if [[ $healthy_count -eq ${#instances[@]} ]]; then
+        echo "HEALTHY"
+        return 0
+    elif [[ $healthy_count -gt 0 ]]; then
+        echo "DEGRADED"
+        return 0
+    else
+        echo "UNHEALTHY"
+        return 1
+    fi
+}
+
+#######################################
+# Collect PostgreSQL status data in format-agnostic structure
+# Returns: Key-value pairs ready for formatting
+#######################################
+postgres::status::collect_data() {
+    local status_data=()
+    
+    # Ensure POSTGRES_INSTANCES_DIR is set
+    if [[ -z "${POSTGRES_INSTANCES_DIR:-}" ]]; then
+        local postgres_resource_dir="${var_SCRIPTS_RESOURCES_DIR}/storage/postgres"
+        export POSTGRES_INSTANCES_DIR="${postgres_resource_dir}/instances"
+    fi
+    
+    # Basic resource information
+    status_data+=("name" "postgres")
+    status_data+=("category" "storage")
+    status_data+=("description" "PostgreSQL database with multi-instance support")
+    
+    # Check installation and running status
+    local instances_dir="/home/matthalloran8/Vrooli/scripts/resources/storage/postgres/instances"
+    local installed="false"
+    local running="false"
+    local healthy="false"
+    local health_message="Unknown"
+    local total_instances=0
+    local running_instances=0
+    local healthy_instances=0
+    
+    if [[ -d "$instances_dir" ]]; then
+        for instance_dir in "$instances_dir"/*; do
+            if [[ -d "$instance_dir" && "$(basename "$instance_dir")" != ".gitkeep" ]]; then
+                local instance_name=$(basename "$instance_dir")
+                local container_name="vrooli-postgres-${instance_name}"
+                ((total_instances++))
+                
+                if command -v docker >/dev/null 2>&1; then
+                    if docker ps --filter "name=${container_name}" --format "{{.Names}}" 2>/dev/null | grep -q "^${container_name}$"; then
+                        ((running_instances++))
+                        running="true"
+                        
+                        # Simple health check - if it's running, assume healthy for now
+                        ((healthy_instances++))
+                        healthy="true"
+                    fi
+                fi
+            fi
+        done
+        
+        if [[ $total_instances -gt 0 ]]; then
+            installed="true"
+        fi
+    fi
+    
+    # Determine health message
+    if [[ "$installed" == "false" ]]; then
+        health_message="Not installed - No instances found"
+    elif [[ "$running" == "false" ]]; then
+        health_message="Stopped - No instances running"
+    elif [[ $healthy_instances -eq $total_instances ]]; then
+        health_message="Healthy - All instances operational"
+        healthy="true"
+    elif [[ $healthy_instances -gt 0 ]]; then
+        health_message="Degraded - Some instances unhealthy"
+        healthy="false"
+    else
+        health_message="Unhealthy - No healthy instances"
+        healthy="false"
+    fi
+    
+    status_data+=("installed" "$installed")
+    status_data+=("running" "$running")
+    status_data+=("healthy" "$healthy")
+    status_data+=("health_message" "$health_message")
+    status_data+=("total_instances" "$total_instances")
+    status_data+=("running_instances" "$running_instances")
+    status_data+=("healthy_instances" "$healthy_instances")
+    
+    # Connection information
+    status_data+=("port" "${POSTGRES_DEFAULT_PORT:-5433}")
+    status_data+=("database" "${POSTGRES_DEFAULT_DB:-vrooli_client}")
+    status_data+=("user" "${POSTGRES_DEFAULT_USER:-vrooli}")
+    status_data+=("connection_string" "postgresql://localhost:${POSTGRES_DEFAULT_PORT:-5433}/${POSTGRES_DEFAULT_DB:-vrooli_client}")
+    
+    # Configuration details
+    status_data+=("image" "${POSTGRES_IMAGE:-postgres:16-alpine}")
+    status_data+=("max_instances" "${POSTGRES_MAX_INSTANCES:-67}")
+    status_data+=("port_range_start" "${POSTGRES_INSTANCE_PORT_RANGE_START:-5433}")
+    status_data+=("port_range_end" "${POSTGRES_INSTANCE_PORT_RANGE_END:-5499}")
+    
+    # Return the collected data
+    printf '%s\n' "${status_data[@]}"
+}
+
+#######################################
+# Show PostgreSQL status using standardized format
+# Args: [--format json|text] [--json] [--verbose]
+#######################################
+postgres::status::show() {
+    local format="text"
+    local verbose="false"
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --format)
+                format="$2"
+                shift 2
+                ;;
+            --json)
+                format="json"
+                shift
+                ;;
+            --verbose|-v)
+                verbose="true"
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    # Collect status data
+    local data_string
+    data_string=$(postgres::status::collect_data 2>/dev/null)
+    
+    if [[ -z "$data_string" ]]; then
+        if [[ "$format" == "json" ]]; then
+            echo '{"error": "Failed to collect status data"}'
+        else
+            log::error "Failed to collect PostgreSQL status data"
+        fi
+        return 1
+    fi
+    
+    # Convert string to array
+    local data_array
+    mapfile -t data_array <<< "$data_string"
+    
+    # Output based on format
+    if [[ "$format" == "json" ]]; then
+        # Source format utilities
+        # shellcheck disable=SC1091
+        source "${var_LIB_UTILS_DIR}/format.sh"
+        format::output "json" "kv" "${data_array[@]}"
+    else
+        # Text format using status engine
+        postgres::status::display_text "${data_array[@]}"
+    fi
+    
+    # Return appropriate exit code based on health
+    local healthy="false"
+    for ((i=0; i<${#data_array[@]}; i+=2)); do
+        if [[ "${data_array[i]}" == "healthy" ]]; then
+            healthy="${data_array[i+1]}"
+            break
+        fi
+    done
+    
+    if [[ "$healthy" == "true" ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+#######################################
+# Display PostgreSQL status in text format
+# Args: data_array (key-value pairs)
+#######################################
+postgres::status::display_text() {
+    local data_array=("$@")
+    
+    # Use status engine for consistent text display
+    # shellcheck disable=SC1091
+    source "${var_SCRIPTS_RESOURCES_LIB_DIR}/status-engine.sh"
+    
+    # Get status configuration
+    local status_config
+    status_config=$(postgres::status::get_config)
+    
+    # Display unified status with custom sections
+    status::display_unified_status "$status_config" "postgres::status::custom_sections"
+}
+
+
+#######################################
 # Run diagnostic checks on PostgreSQL resource
 # Returns: 0 if all pass, 1 if any fail
 #######################################

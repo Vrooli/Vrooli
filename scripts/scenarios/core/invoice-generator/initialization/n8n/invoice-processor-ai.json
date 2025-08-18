@@ -86,16 +86,12 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://localhost:5678/webhook/structured-data-extractor",
+        "url": "${service.n8n.url}/webhook/ollama",
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
             {
-              "name": "text",
-              "value": "={{ $json.original_input.text }}"
-            },
-            {
-              "name": "extraction_prompt",
+              "name": "prompt",
               "value": "={{ $json.prompt }}"
             },
             {
@@ -103,8 +99,12 @@
               "value": "phi3.5:3.8b"
             },
             {
-              "name": "output_format",
-              "value": "json"
+              "name": "type",
+              "value": "reasoning"
+            },
+            {
+              "name": "quiet",
+              "value": "={{ true }}"
             }
           ]
         },
@@ -118,7 +118,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parse extracted invoice data\nconst extracted = $input.first().json;\nlet invoice = {};\n\ntry {\n  if (extracted.extracted_data) {\n    invoice = typeof extracted.extracted_data === 'string' \n      ? JSON.parse(extracted.extracted_data)\n      : extracted.extracted_data;\n  } else if (extracted.response) {\n    // Fallback to direct response parsing\n    const jsonMatch = extracted.response.match(/\\{[\\s\\S]*\\}/);\n    if (jsonMatch) {\n      invoice = JSON.parse(jsonMatch[0]);\n    }\n  }\n} catch (e) {\n  throw new Error('Failed to parse extracted invoice data: ' + e.message);\n}\n\n// Ensure items is an array\nif (!Array.isArray(invoice.items)) {\n  invoice.items = [];\n}\n\n// Add defaults and validate\ninvoice.invoice_number = invoice.invoice_number || `INV-${Date.now()}`;\ninvoice.issue_date = invoice.issue_date || new Date().toISOString().split('T')[0];\ninvoice.due_date = invoice.due_date || new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0];\ninvoice.currency = invoice.currency || 'USD';\ninvoice.status = 'draft';\n\nreturn {\n  invoice: invoice,\n  action: 'create',\n  source: 'ai_extraction'\n};"
+        "jsCode": "// Parse extracted invoice data from ollama response\nconst extracted = $input.first().json;\nlet invoice = {};\n\ntry {\n  // The ollama workflow returns the response in the 'response' field\n  if (extracted.response) {\n    // Try to parse the response as JSON\n    const responseText = extracted.response.trim();\n    // Remove any markdown code blocks if present\n    const cleanResponse = responseText.replace(/```json\\s*|```\\s*/g, '');\n    // Find JSON object in the response\n    const jsonMatch = cleanResponse.match(/\\{[\\s\\S]*\\}/);\n    if (jsonMatch) {\n      invoice = JSON.parse(jsonMatch[0]);\n    } else {\n      // If no JSON found, try parsing the whole response\n      invoice = JSON.parse(cleanResponse);\n    }\n  } else {\n    throw new Error('No response from Ollama');\n  }\n} catch (e) {\n  throw new Error('Failed to parse extracted invoice data: ' + e.message + '. Response: ' + JSON.stringify(extracted));\n}\n\n// Ensure items is an array\nif (!Array.isArray(invoice.items)) {\n  invoice.items = [];\n}\n\n// Add defaults and validate\ninvoice.invoice_number = invoice.invoice_number || `INV-${Date.now()}`;\ninvoice.issue_date = invoice.issue_date || new Date().toISOString().split('T')[0];\ninvoice.due_date = invoice.due_date || new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0];\ninvoice.currency = invoice.currency || 'USD';\ninvoice.status = 'draft';\n\nreturn {\n  invoice: invoice,\n  action: 'create',\n  source: 'ai_extraction'\n};"
       },
       "name": "Parse Extracted Data",
       "type": "n8n-nodes-base.code",
@@ -151,7 +151,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://localhost:5678/webhook/ollama",
+        "url": "${service.n8n.url}/webhook/ollama",
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
@@ -165,7 +165,7 @@
             },
             {
               "name": "type",
-              "value": "creative"
+              "value": "general"
             },
             {
               "name": "quiet",

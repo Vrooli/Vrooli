@@ -9,7 +9,12 @@
 minio::export_config() {
     # Service configuration (only set if not already defined)
     if [[ -z "${MINIO_PORT:-}" ]]; then
-        readonly MINIO_PORT="${MINIO_CUSTOM_PORT:-$(resources::get_default_port "minio")}"
+        # Try to get port from resources function, fallback to 9000
+        local default_port="9000"
+        if command -v resources::get_default_port &>/dev/null; then
+            default_port=$(resources::get_default_port "minio" 2>/dev/null || echo "9000")
+        fi
+        readonly MINIO_PORT="${MINIO_CUSTOM_PORT:-$default_port}"
     fi
     if [[ -z "${MINIO_CONSOLE_PORT:-}" ]]; then
         readonly MINIO_CONSOLE_PORT="${MINIO_CUSTOM_CONSOLE_PORT:-9001}"
@@ -31,6 +36,9 @@ minio::export_config() {
     fi
     if [[ -z "${MINIO_IMAGE:-}" ]]; then
         readonly MINIO_IMAGE="minio/minio:latest"
+    fi
+    if [[ -z "${MINIO_VERSION:-}" ]]; then
+        readonly MINIO_VERSION="latest"
     fi
 
     # Credentials (only set if not already defined)

@@ -53,6 +53,9 @@ cli::init "questdb" "QuestDB high-performance time-series database management"
 # Override help to provide QuestDB-specific examples
 cli::register_command "help" "Show this help message with QuestDB examples" "questdb_show_help"
 
+# Override status command to use our enhanced version
+cli::register_command "status" "Show enhanced QuestDB status with JSON support" "questdb_status"
+
 # Register additional QuestDB-specific commands
 cli::register_command "inject" "Inject SQL/CSV/JSON data into QuestDB" "questdb_inject" "modifies-system"
 cli::register_command "query" "Execute SQL query" "questdb_query"
@@ -139,7 +142,7 @@ questdb_validate() {
 # Show QuestDB status
 questdb_status() {
     if command -v questdb::status::check &>/dev/null; then
-        questdb::status::check
+        questdb::status::check "$@"
     else
         # Basic status
         log::header "QuestDB Status"

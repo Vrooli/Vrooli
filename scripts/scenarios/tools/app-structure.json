@@ -11,15 +11,6 @@
       "optional": false
     },
     {
-      "name": "resource-providers",
-      "source": "scripts/resources",
-      "destination": "scripts/resources",
-      "type": "directory",
-      "from": "vrooli",
-      "optional": true,
-      "description": "Resource scripts - only needed for standalone deployments without CLI"
-    },
-    {
       "name": "main-entrypoint",
       "source": "scripts/manage.sh",
       "destination": "scripts/manage.sh",
