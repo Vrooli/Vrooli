@@ -3,19 +3,19 @@
 # Functions for checking and displaying QuestDB status information
 
 # Source format utilities
-QUESTDB_STATUS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+QUESTDB_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
-source "${QUESTDB_STATUS_DIR}/../../../../lib/utils/format.sh"
+source "${QUESTDB_LIB_DIR}/../../../../lib/utils/format.sh"
 # shellcheck disable=SC1091
-source "${QUESTDB_STATUS_DIR}/../config/defaults.sh" 2>/dev/null || true
+source "${QUESTDB_LIB_DIR}/../config/defaults.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
-source "${QUESTDB_STATUS_DIR}/common.sh" 2>/dev/null || true
+source "${QUESTDB_LIB_DIR}/common.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
-source "${QUESTDB_STATUS_DIR}/docker.sh" 2>/dev/null || true
+source "${QUESTDB_LIB_DIR}/docker.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
-source "${QUESTDB_STATUS_DIR}/api.sh" 2>/dev/null || true
+source "${QUESTDB_LIB_DIR}/api.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
-source "${QUESTDB_STATUS_DIR}/../../../../lib/logging.sh" 2>/dev/null || true
+source "${QUESTDB_LIB_DIR}/../../../../lib/logging.sh" 2>/dev/null || true
 
 # Ensure configuration is exported
 if command -v questdb::export_config &>/dev/null; then

@@ -12,8 +12,7 @@ readonly BLUE='\033[0;34m'
 readonly NC='\033[0m' # No Color
 
 # Script directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-readonly SCRIPT_DIR
+INTEGRATION_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Default configuration
 readonly DEFAULT_TIMEOUT=300  # 5 minutes for integration tests
@@ -121,8 +120,8 @@ log_error() {
 run_health_checks() {
     log_info "Running health checks..."
     
-    if [[ -x "$SCRIPT_DIR/health-check.sh" ]]; then
-        if timeout "$TIMEOUT" "$SCRIPT_DIR/health-check.sh" ${VERBOSE:+-v}; then
+    if [[ -x "$INTEGRATION_DIR/health-check.sh" ]]; then
+        if timeout "$TIMEOUT" "$INTEGRATION_DIR/health-check.sh" ${VERBOSE:+-v}; then
             log_success "Health checks passed"
             return 0
         else
@@ -138,7 +137,7 @@ run_health_checks() {
 # Run service tests
 run_service_tests() {
     local service="$1"
-    local test_file="$SCRIPT_DIR/services/${service}.sh"
+    local test_file="$INTEGRATION_DIR/services/${service}.sh"
     
     if [[ ! -f "$test_file" ]]; then
         log_warning "No test found for service: $service"
@@ -159,7 +158,7 @@ run_service_tests() {
 # Run scenario tests
 run_scenario_tests() {
     local scenario="$1"
-    local test_file="$SCRIPT_DIR/scenarios/${scenario}.sh"
+    local test_file="$INTEGRATION_DIR/scenarios/${scenario}.sh"
     
     if [[ ! -f "$test_file" ]]; then
         log_warning "No test found for scenario: $scenario"
@@ -180,7 +179,7 @@ run_scenario_tests() {
 # Discover all available tests
 discover_tests() {
     local test_type="$1"
-    local test_dir="$SCRIPT_DIR/$test_type"
+    local test_dir="$INTEGRATION_DIR/$test_type"
     
     if [[ -d "$test_dir" ]]; then
         find "$test_dir" -name "*.sh" -type f -printf "%f\n" | sed 's/\.sh$//' | sort

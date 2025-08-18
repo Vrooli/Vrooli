@@ -2,6 +2,22 @@
 # QuestDB Common Functions
 # Shared utilities for QuestDB management
 
+# Source required utilities
+QUESTDB_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${QUESTDB_LIB_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_UTILS_DIR}/flow.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_UTILS_DIR}/log.sh" 2>/dev/null || true
+
+# Load QuestDB configuration
+if [[ -f "${QUESTDB_LIB_DIR}/../config/defaults.sh" ]]; then
+    # shellcheck disable=SC1091
+    source "${QUESTDB_LIB_DIR}/../config/defaults.sh"
+    questdb::export_config
+fi
+
 #######################################
 # Check if QuestDB directories exist
 # Returns:
@@ -167,7 +183,7 @@ questdb::validate_query() {
     for op in "${dangerous_ops[@]}"; do
         if [[ "$query" =~ ^[[:space:]]*${op} ]] && ! [[ "$query" =~ WHERE|where ]]; then
             log::warning "Query contains ${op} without WHERE clause. Are you sure?"
-            if ! args::prompt_yes_no "Continue?" "n"; then
+            if ! flow::confirm "Continue?"; then
                 return 1
             fi
         fi
@@ -187,3 +203,38 @@ export -f questdb::get_version
 export -f questdb::format_bytes
 export -f questdb::format_duration
 export -f questdb::validate_query
+
+#######################################
+# Wait for QuestDB to be ready
+# Arguments:
+#   $1 - timeout in seconds (optional, defaults to 30)
+# Returns:
+#   0 if QuestDB is ready, 1 on timeout
+#######################################
+questdb::common::wait_for_ready() {
+    local timeout="${1:-30}"
+    local interval=2
+    local max_attempts=$((timeout / interval))
+    local attempt=0
+    
+    log::info "Waiting for QuestDB to be ready..."
+    
+    while [[ $attempt -lt $max_attempts ]]; do
+        # Check if QuestDB container is running and healthy
+        if docker ps --filter "name=${QUESTDB_CONTAINER_NAME:-vrooli-questdb}" --filter "status=running" --format "{{.Names}}" | grep -q "${QUESTDB_CONTAINER_NAME:-vrooli-questdb}"; then
+            # Container is running, try a simple SQL query to test database connectivity
+            if docker exec "${QUESTDB_CONTAINER_NAME:-vrooli-questdb}" curl -s "http://localhost:9000/exec?query=SELECT+1" >/dev/null 2>&1; then
+                log::success "QuestDB is ready!"
+                return 0
+            fi
+        fi
+        
+        sleep "$interval"
+        ((attempt++))
+    done
+    
+    log::error "Timeout waiting for QuestDB to be ready after ${timeout}s"
+    return 1
+}
+
+export -f questdb::common::wait_for_ready

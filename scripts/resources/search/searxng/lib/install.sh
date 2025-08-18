@@ -142,14 +142,14 @@ searxng::uninstall() {
     
     # Confirm uninstallation if not forced or auto-confirmed
     if [[ "$FORCE" != "yes" ]] && [[ "$YES" != "yes" ]]; then
-        if ! flow::prompt_yes_no "Are you sure you want to uninstall SearXNG? This will remove all containers and optionally data."; then
+        if ! flow::confirm "Are you sure you want to uninstall SearXNG? This will remove all containers and optionally data."; then
             log::info "Uninstallation cancelled"
             return 0
         fi
         
         # Ask about data removal
         local remove_data="no"
-        if flow::prompt_yes_no "Do you also want to remove SearXNG data directory ($SEARXNG_DATA_DIR)?"; then
+        if flow::confirm "Do you also want to remove SearXNG data directory ($SEARXNG_DATA_DIR)?"; then
             remove_data="yes"
         fi
     else

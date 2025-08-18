@@ -3,9 +3,9 @@
 # Uses docker-resource-utils.sh for minimal boilerplate
 
 # Source var.sh to get proper directory variables
-_QUESTDB_DOCKER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+QUESTDB_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
-source "${_QUESTDB_DOCKER_DIR}/../../../../lib/utils/var.sh"
+source "${QUESTDB_LIB_DIR}/../../../../lib/utils/var.sh"
 
 # Source shared libraries
 # shellcheck disable=SC1091
@@ -13,7 +13,7 @@ source "${var_LIB_SERVICE_DIR}/secrets.sh"
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_LIB_DIR}/docker-resource-utils.sh"
 # shellcheck disable=SC1091
-source "${_QUESTDB_DOCKER_DIR}/common.sh"
+source "${QUESTDB_LIB_DIR}/common.sh"
 
 # Check if QuestDB container exists
 questdb::docker::exists() {

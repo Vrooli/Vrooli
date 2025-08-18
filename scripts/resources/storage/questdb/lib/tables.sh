@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 # QuestDB Table Management Functions
 
+# Source required utilities
+QUESTDB_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${QUESTDB_LIB_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_UTILS_DIR}/flow.sh" 2>/dev/null || true
+
 #######################################
 # List all tables with details
 # Returns:
@@ -193,7 +200,7 @@ questdb::tables::drop() {
     fi
     
     log::warning "⚠️  Dropping table: $table"
-    if ! args::prompt_yes_no "Are you sure you want to drop table '$table'?" "n"; then
+    if ! flow::confirm "Are you sure you want to drop table '$table'?"; then
         log::info "Drop cancelled"
         return 0
     fi
@@ -258,7 +265,7 @@ questdb::tables::truncate() {
     fi
     
     log::warning "⚠️  Truncating table: $table"
-    if ! args::prompt_yes_no "Are you sure you want to remove all data from '$table'?" "n"; then
+    if ! flow::confirm "Are you sure you want to remove all data from '$table'?"; then
         log::info "Truncate cancelled"
         return 0
     fi

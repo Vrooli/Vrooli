@@ -8,6 +8,8 @@ source "${QUESTDB_LIB_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
+source "${var_LIB_UTILS_DIR}/flow.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
 source "${QUESTDB_LIB_DIR}/docker.sh" 2>/dev/null || true
 
 #######################################
@@ -88,7 +90,7 @@ questdb::install::check_prerequisites() {
     # Check if already installed
     if questdb::docker::is_running; then
         log::warning "QuestDB is already running"
-        if ! args::prompt_yes_no "Reinstall QuestDB?" "n"; then
+        if ! flow::confirm "Reinstall QuestDB?"; then
             return 1
         fi
         questdb::docker::stop
@@ -220,7 +222,7 @@ questdb::install::upgrade() {
     log::info "New version: ${new_version:-unknown}"
     
     # Cleanup old backup after successful upgrade
-    if args::prompt_yes_no "Remove backup directory?" "y"; then
+    if flow::confirm "Remove backup directory?"; then
         trash::safe_remove "$backup_dir" --temp
     fi
     

@@ -21,6 +21,8 @@ source "${RESOURCES_DIR}/lib/docker-utils.sh"
 source "${RESOURCES_DIR}/../lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_UTILS_DIR}/flow.sh" 2>/dev/null || true
 
 # Source configuration
 # shellcheck disable=SC1091
@@ -193,7 +195,7 @@ questdb::parse_arguments() {
 questdb::uninstall() {
     echo_header "Uninstalling QuestDB"
     
-    if ! args::prompt_yes_no "Are you sure you want to uninstall QuestDB? This will remove all data." "n"; then
+    if ! flow::confirm "Are you sure you want to uninstall QuestDB? This will remove all data."; then
         echo_info "Uninstall cancelled"
         return 0
     fi
@@ -214,7 +216,7 @@ questdb::uninstall() {
     fi
     
     # Remove data directories
-    if args::prompt_yes_no "Remove all QuestDB data directories?" "n"; then
+    if flow::confirm "Remove all QuestDB data directories?"; then
         echo_info "Removing data directories..."
         trash::safe_remove "${QUESTDB_DATA_DIR}" --no-confirm 2>/dev/null || true
         trash::safe_remove "${QUESTDB_CONFIG_DIR}" --no-confirm 2>/dev/null || true

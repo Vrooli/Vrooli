@@ -224,7 +224,7 @@ postgres_credentials() {
     
     # Check for PostgreSQL containers
     if command -v docker &>/dev/null; then
-        local container_prefix="${POSTGRES_CONTAINER_PREFIX:-postgres}"
+        local container_prefix="${POSTGRES_CONTAINER_PREFIX:-vrooli-postgres}"
         local containers
         containers=$(docker ps -a --filter "name=^/${container_prefix}-" --format "{{.Names}}:{{.Status}}")
         
@@ -261,9 +261,9 @@ postgres_credentials() {
                 local connection_obj
                 connection_obj=$(jq -n -c \
                     --arg host "localhost" \
-                    --argjson port "$host_port" \
+                    --arg port "$host_port" \
                     --arg database "$db_name" \
-                    '{host: $host, port: $port, database: $database, ssl: false}')
+                    '{host: $host, port: ($port | tonumber), database: $database, ssl: false}')
                 
                 local auth_obj
                 auth_obj=$(jq -n -c \
