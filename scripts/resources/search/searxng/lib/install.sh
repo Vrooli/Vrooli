@@ -2,6 +2,18 @@
 # SearXNG Installation Logic
 # Complete installation, uninstallation, and setup procedures
 
+# Initialize environment variables with defaults
+FORCE="${FORCE:-no}"
+YES="${YES:-no}"
+
+# Source required utilities
+SEARXNG_INSTALL_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+source "${SEARXNG_INSTALL_DIR}/../../../../lib/utils/log.sh" 2>/dev/null || true
+source "${SEARXNG_INSTALL_DIR}/../../../../lib/docker-utils.sh" 2>/dev/null || true
+source "${SEARXNG_INSTALL_DIR}/common.sh" 2>/dev/null || true
+source "${SEARXNG_INSTALL_DIR}/config.sh" 2>/dev/null || true
+source "${SEARXNG_INSTALL_DIR}/docker.sh" 2>/dev/null || true
+
 #######################################
 # Check installation prerequisites
 #######################################
@@ -43,7 +55,7 @@ searxng::check_prerequisites() {
 # Install SearXNG
 #######################################
 searxng::install() {
-    searxng::message "info" "MSG_SEARXNG_SETUP_START"
+    log::info "Starting SearXNG setup..."
     
     # Check if already installed
     if searxng::is_installed && [[ "$FORCE" != "yes" ]]; then
@@ -59,72 +71,71 @@ searxng::install() {
     
     # Validate configuration
     if ! searxng::validate_config; then
-        searxng::message "error" "MSG_SEARXNG_CONFIG_FAILED"
+        log::error "Failed to validate SearXNG configuration"
         return 1
     fi
     
     # Setup data directory
-    searxng::message "info" "MSG_SEARXNG_SETUP_CONFIG"
+    log::info "Setting up SearXNG configuration..."
     if ! searxng::ensure_data_dir; then
         return 1
     fi
     
     # Generate configuration files
     if ! searxng::generate_config; then
-        searxng::message "error" "MSG_SEARXNG_CONFIG_FAILED"
+        log::error "Failed to create configuration files"
         return 1
     fi
     
     # Pull Docker image
-    if ! searxng::pull_image; then
+    if ! docker::pull_image "$SEARXNG_IMAGE"; then
         return 1
     fi
     
     # Create Docker network
-    searxng::message "info" "MSG_SEARXNG_SETUP_NETWORK"
+    log::info "Setting up Docker network..."
     if ! searxng::create_network; then
-        searxng::message "error" "MSG_SEARXNG_NETWORK_FAILED"
+        log::error "Failed to setup Docker network"
         return 1
     fi
     
     # Start SearXNG container
-    searxng::message "info" "MSG_SEARXNG_SETUP_CONTAINER"
+    log::info "Creating and starting SearXNG container..."
     if ! searxng::start_container; then
         return 1
     fi
     
     # Wait for health check
-    searxng::message "info" "MSG_SEARXNG_SETUP_HEALTH"
+    log::info "Waiting for SearXNG to become healthy..."
     if ! searxng::wait_for_health; then
         log::warn "SearXNG may not be fully ready yet, but installation completed"
     fi
     
     # Show success information
-    searxng::message "success" "MSG_SEARXNG_INSTALL_SUCCESS"
+    log::success "SearXNG installation complete!"
     echo
-    searxng::message "info" "MSG_SEARXNG_ACCESS_INFO"
-    searxng::message "info" "MSG_SEARXNG_API_INFO"
-    searxng::message "info" "MSG_SEARXNG_STATS_INFO"
+    log::info "Access URL: ${SEARXNG_BASE_URL}"
+    log::info "API search: ${SEARXNG_BASE_URL}/search?q=<query>&format=json"
+    log::info "Statistics: ${SEARXNG_BASE_URL}/stats"
     echo
-    searxng::message "info" "MSG_SEARXNG_ENGINES_INFO"
-    searxng::message "info" "MSG_SEARXNG_SECURITY_INFO"
-    searxng::message "info" "MSG_SEARXNG_RATE_LIMIT_INFO"
+    log::info "Search engines are configured in: ${SEARXNG_DATA_DIR}/settings.yml"
+    log::info "Security: Instance is configured with secure defaults"
+    log::info "Rate limiting is enabled to prevent abuse"
     
     # Integration information
     echo
-    searxng::message "info" "MSG_SEARXNG_N8N_INTEGRATION"
-    searxng::message "info" "MSG_SEARXNG_DISCOVERY_INFO"
+    log::info "N8N integration: Use HTTP Request node with ${SEARXNG_BASE_URL}/search"
+    log::info "Discovery: Resource registered and available for scenarios"
     
     # Show warning if public access is enabled
     if [[ "$SEARXNG_ENABLE_PUBLIC_ACCESS" == "yes" ]]; then
         echo
-        searxng::message "warning" "MSG_SEARXNG_PUBLIC_ACCESS_WARNING"
+        log::warn "WARNING: Instance is accessible from all network interfaces"
     fi
     
     # Auto-install CLI if available
     # shellcheck disable=SC1091
-    source "${var_SCRIPTS_RESOURCES_LIB_DIR}/cli-auto-install.sh" 2>/dev/null || true
-    resource_cli::auto_install "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)" || true
+    "${var_SCRIPTS_RESOURCES_LIB_DIR}/install-resource-cli.sh" "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)" 2>/dev/null || true
     
     return 0
 }
@@ -165,7 +176,7 @@ searxng::uninstall() {
         searxng::cleanup "all"
     fi
     
-    searxng::message "success" "MSG_SEARXNG_UNINSTALL_SUCCESS"
+    log::success "SearXNG successfully uninstalled"
     return 0
 }
 
@@ -181,7 +192,7 @@ searxng::upgrade() {
     fi
     
     # Pull latest image
-    if ! searxng::pull_image; then
+    if ! docker::pull_image "$SEARXNG_IMAGE"; then
         return 1
     fi
     
@@ -208,9 +219,9 @@ searxng::reset() {
     fi
     
     # Regenerate configuration
-    searxng::message "info" "MSG_SEARXNG_SETUP_CONFIG"
+    log::info "Setting up SearXNG configuration..."
     if ! searxng::generate_config; then
-        searxng::message "error" "MSG_SEARXNG_CONFIG_FAILED"
+        log::error "Failed to create configuration files"
         return 1
     fi
     

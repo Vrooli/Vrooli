@@ -333,11 +333,8 @@ searxng::ensure_data_dir() {
     fi
     
     # Fix Docker volume permissions if setup was run with sudo
-    if docker::fix_volume_permissions "$SEARXNG_DATA_DIR"; then
-        log::info "Docker volume permissions handled correctly"
-    else
-        log::warn "Could not fix Docker volume permissions, trying fallback approach"
-    fi
+    # Note: docker::fix_volume_permissions function not available, using inline logic
+    log::info "Handling Docker volume permissions..."
     
     if [[ -d "$SEARXNG_DATA_DIR" ]]; then
         # Set ownership for SearXNG container
@@ -368,7 +365,8 @@ searxng::ensure_data_dir() {
             # Fallback: make directory world-writable so container can access it
             if ! chmod -R 777 "$SEARXNG_DATA_DIR" 2>/dev/null; then
                 log::warn "Permission setting failed - SearXNG may have issues accessing config files"
-                return 1
+                # Don't fail here - Docker containers often handle permissions internally
+                log::info "Continuing installation despite permission warnings..."
             fi
         fi
         

@@ -6,7 +6,7 @@ set -euo pipefail
 
 # Source guard to prevent multiple sourcing
 [[ -n "${_CREDENTIALS_UTILS_SOURCED:-}" ]] && return 0
-export _CREDENTIALS_UTILS_SOURCED=1
+_CREDENTIALS_UTILS_SOURCED=1
 
 # Get directory and source dependencies
 CREDENTIALS_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -202,14 +202,14 @@ credentials::build_database_connection() {
     local connection_obj
     connection_obj=$(jq -n \
         --arg host "$host" \
-        --argjson port "$port" \
+        --arg port "$port" \
         --arg database "$database" \
-        --argjson ssl "$ssl" \
+        --arg ssl "$ssl" \
         '{
             host: $host,
-            port: $port,
+            port: ($port | tonumber),
             database: $database,
-            ssl: $ssl
+            ssl: ($ssl | test("true") | if . then true else false end)
         }')
     
     local auth_obj
@@ -241,24 +241,24 @@ credentials::build_http_connection() {
     if [[ -n "$path" ]]; then
         connection_obj=$(jq -n \
             --arg host "$host" \
-            --argjson port "$port" \
+            --arg port "$port" \
             --arg path "$path" \
-            --argjson ssl "$ssl" \
+            --arg ssl "$ssl" \
             '{
                 host: $host,
-                port: $port,
+                port: ($port | tonumber),
                 path: $path,
-                ssl: $ssl
+                ssl: ($ssl | test("true") | if . then true else false end)
             }')
     else
         connection_obj=$(jq -n \
             --arg host "$host" \
-            --argjson port "$port" \
-            --argjson ssl "$ssl" \
+            --arg port "$port" \
+            --arg ssl "$ssl" \
             '{
                 host: $host,
-                port: $port,
-                ssl: $ssl
+                port: ($port | tonumber),
+                ssl: ($ssl | test("true") | if . then true else false end)
             }')
     fi
     

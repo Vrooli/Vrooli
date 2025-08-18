@@ -17,7 +17,7 @@ source "${SEARXNG_LIB_DIR}/../../../lib/docker-resource-utils.sh"
 #######################################
 searxng::start_container() {
     if searxng::is_running; then
-        searxng::message "warning" "MSG_SEARXNG_ALREADY_RUNNING"
+        log::warn "SearXNG is already running"
         return 0
     fi
     
@@ -70,34 +70,34 @@ searxng::start_container() {
         ""
     
     if [[ $? -eq 0 ]]; then
-        searxng::message "success" "MSG_SEARXNG_START_SUCCESS"
+        log::success "SearXNG container started successfully"
         
         # Wait for container to become healthy
         if searxng::wait_for_health; then
-            searxng::message "info" "MSG_SEARXNG_ACCESS_INFO"
+            log::info "SearXNG is accessible at http://localhost:${SEARXNG_PORT}"
             return 0
         else
             log::warn "SearXNG started but may not be fully healthy yet"
             return 0
         fi
     else
-        searxng::message "error" "MSG_SEARXNG_START_FAILED"
+        log::error "Failed to start SearXNG container"
         return 1
     fi
 }
 
 searxng::stop_container() {
     if ! searxng::is_running; then
-        searxng::message "warning" "MSG_SEARXNG_NOT_RUNNING"
+        log::warn "SearXNG is not running"
         return 0
     fi
     
     log::info "Stopping SearXNG container..."
     if docker::stop_container "$SEARXNG_CONTAINER_NAME"; then
-        searxng::message "success" "MSG_SEARXNG_STOP_SUCCESS"
+        log::success "SearXNG stopped successfully"
         return 0
     else
-        searxng::message "error" "MSG_SEARXNG_STOP_FAILED"
+        log::error "Failed to stop SearXNG"
         return 1
     fi
 }
@@ -106,7 +106,7 @@ searxng::restart_container() {
     log::info "Restarting SearXNG container..."
     
     if docker::restart_container "$SEARXNG_CONTAINER_NAME"; then
-        searxng::message "success" "MSG_SEARXNG_RESTART_SUCCESS"
+        log::success "SearXNG restarted successfully"
         return 0
     else
         return 1
@@ -141,18 +141,18 @@ searxng::compose_up() {
     export SEARXNG_CONTAINER_NAME SEARXNG_IMAGE SEARXNG_NETWORK_NAME SEARXNG_BIND_ADDRESS
     
     if docker compose -f "$compose_file" up -d $redis_profile; then
-        searxng::message "success" "MSG_SEARXNG_START_SUCCESS"
+        log::success "SearXNG started successfully"
         
         # Wait for health check
         if searxng::wait_for_health; then
-            searxng::message "info" "MSG_SEARXNG_ACCESS_INFO"
+            log::info "SearXNG is accessible at http://localhost:${SEARXNG_PORT}"
             return 0
         else
             log::warn "SearXNG started but may not be fully healthy yet"
             return 0
         fi
     else
-        searxng::message "error" "MSG_SEARXNG_START_FAILED"
+        log::error "Failed to start SearXNG container"
         return 1
     fi
 }
@@ -174,10 +174,10 @@ searxng::compose_down() {
     export SEARXNG_NETWORK_NAME
     
     if docker compose -f "$compose_file" down; then
-        searxng::message "success" "MSG_SEARXNG_STOP_SUCCESS"
+        log::success "SearXNG stopped successfully"
         return 0
     else
-        searxng::message "error" "MSG_SEARXNG_STOP_FAILED"
+        log::error "Failed to stop SearXNG"
         return 1
     fi
 }

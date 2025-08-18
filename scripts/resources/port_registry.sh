@@ -31,8 +31,8 @@ declare -g -A RESOURCE_PORTS=(
     ["agent-s2"]="4113"        # Agent S2 autonomous computer interaction
     # Note: claude-code is a CLI tool and doesn't use a port
     
-    # Search Services (92xx range - moved due to conflict)
-    ["searxng"]="9200"         # SearXNG metasearch engine (NOTE: conflicts with debug range)
+    # Search Services (82xx range - moved to avoid conflict with debug range)
+    ["searxng"]="8280"         # SearXNG metasearch engine
     
     # Execution Services (23xx range)
     ["judge0"]="2358"          # Code execution sandbox (official Judge0 port)

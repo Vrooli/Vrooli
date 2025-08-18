@@ -241,7 +241,7 @@ setup::generic_main() {
     # Step 7: Install Enabled Resources
     log::header "🔨 Installing Enabled Resources"
     # shellcheck disable=SC1091
-    source "${var_LIB_DIR}/resources/auto-install.sh"
+    source "${var_LIB_DIR}/resources/resource-orchestrator.sh"
     if [[ -f "${var_SERVICE_JSON_FILE}" ]]; then
         resource_auto::install_enabled "${var_SERVICE_JSON_FILE}" || {
             log::warning "Some resources failed to install - continuing with setup"

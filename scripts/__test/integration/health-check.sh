@@ -12,11 +12,10 @@ readonly BLUE='\033[0;34m'
 readonly NC='\033[0m' # No Color
 
 # Script directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-readonly SCRIPT_DIR
+INTEGRATION_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Load configuration
-CONFIG_FILE="$SCRIPT_DIR/../config/test-config.yaml"
+CONFIG_FILE="$INTEGRATION_DIR/../config/test-config.yaml"
 
 # Default settings
 VERBOSE=false

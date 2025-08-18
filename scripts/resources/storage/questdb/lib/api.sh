@@ -13,9 +13,10 @@
 questdb::api::query() {
     local query="$1"
     local limit="${2:-100}"
+    local silent="${3:-false}"
     
     if ! questdb::docker::is_running; then
-        log::error "${QUESTDB_STATUS_MESSAGES["not_running"]}"
+        [[ "$silent" != "true" ]] && log::error "${QUESTDB_STATUS_MESSAGES["not_running"]}"
         return 1
     fi
     
@@ -23,7 +24,7 @@ questdb::api::query() {
         return 1
     fi
     
-    log::info "${QUESTDB_API_MESSAGES["executing_query"]}"
+    [[ "$silent" != "true" ]] && log::info "Executing query..."
     
     # Execute query
     local response
@@ -39,12 +40,12 @@ questdb::api::query() {
     body=$(echo "$response" | head -n-1)
     
     if [[ "$http_code" != "200" ]]; then
-        log::error "${QUESTDB_API_MESSAGES["query_failed"]}"
+        [[ "$silent" != "true" ]] && log::error "❌ Query failed"
         echo "$body" | jq -r '.message // .' 2>/dev/null || echo "$body"
         return 1
     fi
     
-    log::success "${QUESTDB_API_MESSAGES["query_success"]}"
+    [[ "$silent" != "true" ]] && log::success "✅ Query executed successfully"
     echo "$body" | jq -r '.' 2>/dev/null || echo "$body"
 }
 
@@ -59,7 +60,30 @@ questdb::api::status() {
         return 1
     fi
     
-    curl -s "${QUESTDB_BASE_URL}/status" | jq -r '.' 2>/dev/null
+    # Since QuestDB doesn't have a /status endpoint, we'll create a status response
+    # by checking if the database is responding and getting basic metrics
+    local health_check
+    if questdb::api::health_check; then
+        health_check="healthy"
+    else
+        health_check="unhealthy"
+    fi
+    
+    # Get table count and version info
+    local table_count version
+    table_count=$(questdb::api::query "SELECT COUNT(*) FROM tables()" 1 2>/dev/null | \
+        jq -r '.dataset[0][0] // 0' 2>/dev/null || echo "0")
+    
+    # Construct status JSON
+    cat <<EOF | jq -r '.'
+{
+    "status": "$health_check",
+    "http_port": ${QUESTDB_HTTP_PORT},
+    "pg_port": ${QUESTDB_PG_PORT},
+    "ilp_port": ${QUESTDB_ILP_PORT},
+    "tables": $table_count
+}
+EOF
 }
 
 #######################################
@@ -109,7 +133,7 @@ questdb::ilp::send() {
         return 1
     fi
     
-    log::info "${QUESTDB_API_MESSAGES["inserting_data"]}"
+    log::info "Inserting data..."
     
     # Send data via TCP
     echo "$data" | nc -w 5 localhost "${QUESTDB_ILP_PORT}" || {
@@ -214,10 +238,13 @@ questdb::api::table_count() {
 #   0 if healthy, 1 otherwise
 #######################################
 questdb::api::health_check() {
+    # Use SELECT 1 query to check if database is responding
     local response
-    response=$(curl -s -o /dev/null -w "%{http_code}" "${QUESTDB_BASE_URL}/status" 2>/dev/null || echo "000")
+    response=$(curl -s -G --max-time 5 "${QUESTDB_BASE_URL}/exec" \
+        --data-urlencode "query=SELECT 1" 2>/dev/null)
     
-    [[ "$response" == "200" ]]
+    # Check if response contains expected result
+    echo "$response" | grep -q '"count":1' 2>/dev/null
 }
 
 #######################################

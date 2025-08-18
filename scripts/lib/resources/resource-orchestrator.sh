@@ -148,7 +148,7 @@ resource_auto::install_resource() {
     
     for pattern in "${possible_locations[@]}"; do
         for dir in $pattern; do
-            if [[ -d "$dir" && -f "$dir/manage.sh" ]]; then
+            if [[ -d "$dir" && -f "$dir/cli.sh" ]]; then
                 resource_dir="$dir"
                 break 2
             fi
@@ -162,38 +162,21 @@ resource_auto::install_resource() {
     
     log::debug "Found resource at: $resource_dir"
     
-    # Check if resource has an install action
-    if [[ -f "$resource_dir/manage.sh" ]]; then
-        # Extract any configuration from service.json
-        local install_config=$(echo "$resource_config" | jq -r '.install // empty' 2>/dev/null || echo "")
-        
+    # Check if resource has a CLI interface
+    if [[ -f "$resource_dir/cli.sh" ]]; then
         # Run installation
         log::info "Running installation for $resource_name..."
         
-        # Build installation command
-        local install_cmd="$resource_dir/manage.sh --action install --yes yes"
-        
-        # Add any install-specific configuration
-        if [[ -n "$install_config" ]]; then
-            # Parse install config and add as arguments
-            local args=$(echo "$install_config" | jq -r 'to_entries | map("--\(.key) \(.value)") | join(" ")' 2>/dev/null || echo "")
-            if [[ -n "$args" ]]; then
-                install_cmd="$install_cmd $args"
-            fi
-        fi
+        # Build installation command - use verbose for better feedback
+        local install_cmd="$resource_dir/cli.sh install --verbose"
         
         # Execute installation
         if eval "$install_cmd"; then
             log::success "✅ Resource installed: $resource_name"
             resource_registry::register "$resource_name" "installed"
             
-            # Install CLI if available
-            if [[ -f "$resource_dir/cli.sh" ]]; then
-                log::debug "Installing CLI for $resource_name..."
-                if "${VROOLI_ROOT}/scripts/lib/resources/cli/install-resource-cli.sh" "$resource_dir"; then
-                    log::success "✅ CLI installed: resource-${resource_name}"
-                fi
-            fi
+            # Note: CLI installation is handled by the resource's install script via resource-cli-helper.sh
+            log::debug "Resource installation completed (CLI handled internally)"
             
             return 0
         else
@@ -201,7 +184,7 @@ resource_auto::install_resource() {
             return 1
         fi
     else
-        log::warning "No installation script found for: $resource_name"
+        log::warning "No CLI interface found for: $resource_name"
         return 1
     fi
 }
@@ -249,25 +232,25 @@ resource_auto::start_resource() {
         fi
     fi
     
-    # Fallback to manage.sh
+    # Fallback to direct CLI
     local resource_dir=""
     for dir in "${VROOLI_ROOT}/scripts/resources"/*/"${resource_name}"; do
-        if [[ -d "$dir" && -f "$dir/manage.sh" ]]; then
+        if [[ -d "$dir" && -f "$dir/cli.sh" ]]; then
             resource_dir="$dir"
             break
         fi
     done
     
-    if [[ -n "$resource_dir" && -f "$resource_dir/manage.sh" ]]; then
-        # Check if already running via manage.sh status
-        if "$resource_dir/manage.sh" --action status --yes yes >/dev/null 2>&1; then
-            log::info "Resource already running (via manage.sh): $resource_name"
+    if [[ -n "$resource_dir" && -f "$resource_dir/cli.sh" ]]; then
+        # Check if already running via CLI status
+        if "$resource_dir/cli.sh" status >/dev/null 2>&1; then
+            log::info "Resource already running (via CLI): $resource_name"
             resource_registry::register "$resource_name" "running"
             return 0
         fi
         
-        log::info "Starting resource via manage.sh: $resource_name"
-        if "$resource_dir/manage.sh" --action start --yes yes; then
+        log::info "Starting resource via CLI: $resource_name"
+        if "$resource_dir/cli.sh" start; then
             resource_registry::register "$resource_name" "running"
             log::success "✅ Resource started: $resource_name"
             return 0
@@ -381,17 +364,17 @@ resource_auto::stop_all() {
             fi
         fi
         
-        # Fallback to manage.sh
+        # Fallback to direct CLI
         local resource_dir=""
         for dir in "${VROOLI_ROOT}/scripts/resources"/*/"${resource_name}"; do
-            if [[ -d "$dir" && -f "$dir/manage.sh" ]]; then
+            if [[ -d "$dir" && -f "$dir/cli.sh" ]]; then
                 resource_dir="$dir"
                 break
             fi
         done
         
-        if [[ -n "$resource_dir" && -f "$resource_dir/manage.sh" ]]; then
-            if "$resource_dir/manage.sh" --action stop --yes yes 2>/dev/null; then
+        if [[ -n "$resource_dir" && -f "$resource_dir/cli.sh" ]]; then
+            if "$resource_dir/cli.sh" stop 2>/dev/null; then
                 resource_registry::register "$resource_name" "stopped"
                 ((stopped_count++))
                 log::success "✅ Stopped: $resource_name"

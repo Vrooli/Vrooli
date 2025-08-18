@@ -112,17 +112,24 @@ minio::status::collect_data() {
     if [[ "$running" == "true" ]]; then
         local api_port_status="unknown"
         local console_port_status="unknown"
-        
-        if ! minio::common::is_port_available "${MINIO_PORT}"; then
+        # If MinIO is healthy, we know ports are working
+        if [[ "$healthy" == "true" ]]; then
+            # When healthy, ports are definitely in use by MinIO
             api_port_status="in_use"
-        else
-            api_port_status="available"
-        fi
-        
-        if ! minio::common::is_port_available "${MINIO_CONSOLE_PORT}"; then
             console_port_status="in_use"
         else
-            console_port_status="available"
+            # Otherwise check if ports are available
+            if ! minio::common::is_port_available "${MINIO_PORT}"; then
+                api_port_status="in_use"
+            else
+                api_port_status="available"
+            fi
+            
+            if ! minio::common::is_port_available "${MINIO_CONSOLE_PORT}"; then
+                console_port_status="in_use"
+            else
+                console_port_status="available"
+            fi
         fi
         
         status_data+=("api_port_status" "$api_port_status")

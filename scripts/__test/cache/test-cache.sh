@@ -5,9 +5,9 @@
 set -euo pipefail
 
 # Source hash utilities
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+SCRIPTS_TEST_CACHE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck disable=SC1091
-source "$SCRIPT_DIR/../../lib/utils/var.sh" 2>/dev/null || true
+source "$SCRIPTS_TEST_CACHE_DIR/../../lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/hash.sh" 2>/dev/null || true
 

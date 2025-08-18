@@ -14,39 +14,39 @@ source "${QUESTDB_DIR}/../../common.sh"
 questdb::export_config() {
     # Service configuration (only set if not already defined)
     if [[ -z "${QUESTDB_HTTP_PORT:-}" ]]; then
-                readonly QUESTDB_HTTP_PORT="${QUESTDB_CUSTOM_HTTP_PORT:-$(resources::get_default_port "questdb")}"
+        export QUESTDB_HTTP_PORT="${QUESTDB_CUSTOM_HTTP_PORT:-$(resources::get_default_port "questdb")}"
     fi
     if [[ -z "${QUESTDB_PG_PORT:-}" ]]; then
-        readonly QUESTDB_PG_PORT="${QUESTDB_CUSTOM_PG_PORT:-8812}"
+        export QUESTDB_PG_PORT="${QUESTDB_CUSTOM_PG_PORT:-8812}"
     fi
     if [[ -z "${QUESTDB_ILP_PORT:-}" ]]; then
-                readonly QUESTDB_ILP_PORT="${QUESTDB_CUSTOM_ILP_PORT:-9011}"
+        export QUESTDB_ILP_PORT="${QUESTDB_CUSTOM_ILP_PORT:-9011}"
     fi
     if [[ -z "${QUESTDB_BASE_URL:-}" ]]; then
-        readonly QUESTDB_BASE_URL="http://localhost:${QUESTDB_HTTP_PORT}"
+        export QUESTDB_BASE_URL="http://localhost:${QUESTDB_HTTP_PORT}"
     fi
     if [[ -z "${QUESTDB_PG_URL:-}" ]]; then
-        readonly QUESTDB_PG_URL="postgresql://admin:quest@localhost:${QUESTDB_PG_PORT}/qdb"
+        export QUESTDB_PG_URL="postgresql://admin:quest@localhost:${QUESTDB_PG_PORT}/qdb"
     fi
     if [[ -z "${QUESTDB_CONTAINER_NAME:-}" ]]; then
-        readonly QUESTDB_CONTAINER_NAME="vrooli-questdb"
+        export QUESTDB_CONTAINER_NAME="vrooli-questdb"
     fi
     if [[ -z "${QUESTDB_DATA_DIR:-}" ]]; then
-        readonly QUESTDB_DATA_DIR="${HOME}/.questdb/data"
+        export QUESTDB_DATA_DIR="${HOME}/.questdb/data"
     fi
     if [[ -z "${QUESTDB_CONFIG_DIR:-}" ]]; then
-        readonly QUESTDB_CONFIG_DIR="${HOME}/.questdb/config"
+        export QUESTDB_CONFIG_DIR="${HOME}/.questdb/config"
     fi
     if [[ -z "${QUESTDB_LOG_DIR:-}" ]]; then
-        readonly QUESTDB_LOG_DIR="${HOME}/.questdb/logs"
+        export QUESTDB_LOG_DIR="${HOME}/.questdb/logs"
     fi
     if [[ -z "${QUESTDB_IMAGE:-}" ]]; then
-        readonly QUESTDB_IMAGE="questdb/questdb:8.1.2"
+        export QUESTDB_IMAGE="questdb/questdb:8.1.2"
     fi
 
     # Performance configuration (only set if not already defined)
     if [[ -z "${QUESTDB_SHARED_WORKER_COUNT:-}" ]]; then
-        readonly QUESTDB_SHARED_WORKER_COUNT="2"
+        export QUESTDB_SHARED_WORKER_COUNT="2"
     fi
     if [[ -z "${QUESTDB_HTTP_WORKER_COUNT:-}" ]]; then
         readonly QUESTDB_HTTP_WORKER_COUNT="2"

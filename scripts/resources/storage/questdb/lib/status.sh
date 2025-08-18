@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Ensure port is set correctly
+: ${QUESTDB_HTTP_PORT:=9009}
 # QuestDB Status Management - Standardized Format
 # Functions for checking and displaying QuestDB status information
 
@@ -45,8 +47,8 @@ questdb::status::collect_data() {
         if docker ps --format "{{.Names}}" | grep -q "^${QUESTDB_CONTAINER_NAME}$" 2>/dev/null; then
             running="true"
             
-            # Check if API is healthy
-            if curl -s --max-time 5 "http://localhost:${QUESTDB_HTTP_PORT}/status" >/dev/null 2>&1; then
+            # Check if API is healthy using a simple query
+            if curl -G -s --max-time 5 "http://localhost:${QUESTDB_HTTP_PORT}/exec" --data-urlencode "query=SELECT 1" 2>/dev/null | grep -q '"count":1'; then
                 healthy="true"
                 health_message="Healthy - Database operational and responsive"
             else
@@ -75,7 +77,7 @@ questdb::status::collect_data() {
     
     # Service endpoints
     status_data+=("web_console" "http://localhost:${QUESTDB_HTTP_PORT:-9000}")
-    status_data+=("health_url" "http://localhost:${QUESTDB_HTTP_PORT:-9000}/status")
+    status_data+=("health_url" "http://localhost:${QUESTDB_HTTP_PORT:-9000}/exec?query=SELECT%201")
     status_data+=("query_api" "http://localhost:${QUESTDB_HTTP_PORT:-9000}/exec")
     status_data+=("postgres_url" "postgresql://localhost:${QUESTDB_PG_PORT:-8812}/qdb")
     
@@ -95,9 +97,9 @@ questdb::status::collect_data() {
         
         # Table count (try to get it, fallback to 0)
         local table_count="0"
-        if command -v questdb::api::query &>/dev/null; then
-            table_count=$(questdb::api::query "SELECT COUNT(*) FROM tables()" 1 2>/dev/null | \
-                jq -r '.dataset[0][0] // 0' 2>/dev/null || echo "0")
+        if declare -f questdb::api::query &>/dev/null; then
+            table_count=$(questdb::api::query "SHOW TABLES;" 100 true 2>/dev/null | \
+                jq -r '.count // 0' 2>/dev/null || echo "0")
         fi
         status_data+=("table_count" "$table_count")
         
@@ -353,8 +355,8 @@ questdb::status::metrics() {
     fi
     
     # Get table count
-    tables=$(questdb::api::query "SELECT COUNT(*) FROM tables()" 1 2>/dev/null | \
-        jq -r '.dataset[0][0] // 0' 2>/dev/null || echo "0")
+    tables=$(questdb::api::query "SHOW TABLES;" 100 true 2>/dev/null | \
+        jq -r '.count // 0' 2>/dev/null || echo "0")
     
     # Get total row count (sum across all tables)
     rows=0
@@ -498,7 +500,7 @@ Service Details:
 
 Endpoints:
 - Web Console: http://localhost:$QUESTDB_HTTP_PORT
-- Health Check: http://localhost:$QUESTDB_HTTP_PORT/status
+- Health Check: http://localhost:$QUESTDB_HTTP_PORT/exec?query=SELECT%201
 - Query API: http://localhost:$QUESTDB_HTTP_PORT/exec
 - Import API: http://localhost:$QUESTDB_HTTP_PORT/imp
 - Export API: http://localhost:$QUESTDB_HTTP_PORT/exp

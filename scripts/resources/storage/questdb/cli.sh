@@ -32,10 +32,15 @@ source "${var_RESOURCES_COMMON_FILE}"
 # Source the CLI Command Framework
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_LIB_DIR}/cli-command-framework.sh"
+# Source QuestDB status functions
+source "${QUESTDB_CLI_DIR}/lib/status.sh" 2>/dev/null || true
 
-# Source questdb configuration
+# Source questdb configuration and messages
 # shellcheck disable=SC1091
 source "${QUESTDB_CLI_DIR}/config/defaults.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${QUESTDB_CLI_DIR}/config/messages.sh" 2>/dev/null || true
+questdb::messages::init 2>/dev/null || true
 questdb::export_config 2>/dev/null || true
 
 # Source questdb libraries
@@ -70,6 +75,28 @@ cli::register_command "uninstall" "Uninstall QuestDB (requires --force)" "questd
 # Resource-specific command implementations
 ################################################################################
 
+# Execute SQL query
+questdb_query() {
+    local query="${1:-}"
+    
+    if [[ -z "$query" ]]; then
+        log::error "SQL query required"
+        echo "Usage: resource-questdb query \"SQL STATEMENT\""
+        echo ""
+        echo "Examples:"
+        echo "  resource-questdb query \"SHOW TABLES\""
+        echo "  resource-questdb query \"SELECT * FROM metrics LIMIT 10\""
+        return 1
+    fi
+    
+    if command -v questdb::api::query &>/dev/null; then
+        questdb::api::query "$query"
+    else
+        log::error "Query function not available"
+        return 1
+    fi
+}
+
 # Inject data into QuestDB
 questdb_inject() {
     local file="${1:-}"
@@ -99,12 +126,11 @@ questdb_inject() {
     local extension="${file##*.}"
     case "$extension" in
         sql)
-            if command -v questdb::api::query_file &>/dev/null; then
-                questdb::api::query_file "$file"
-            else
-                log::error "SQL injection not available"
-                return 1
+            # Source inject module if not loaded
+            if ! command -v questdb::inject::sql &>/dev/null; then
+                source "${var_ROOT_DIR}/scripts/resources/storage/questdb/lib/inject.sh"
             fi
+            questdb::inject::sql "$file"
             ;;
         csv|json)
             if command -v questdb::inject_data &>/dev/null; then
@@ -209,6 +235,9 @@ questdb_uninstall() {
 questdb_credentials() {
     source "${var_SCRIPTS_RESOURCES_LIB_DIR}/credentials-utils.sh"
     
+    # Ensure QuestDB configuration is loaded
+    questdb::export_config
+    
     if ! credentials::parse_args "$@"; then
         [[ $? -eq 2 ]] && { credentials::show_help "questdb"; return 0; }
         return 1
@@ -267,7 +296,7 @@ questdb_credentials() {
         local http_connection_obj
         http_connection_obj=$(jq -n \
             --arg host "localhost" \
-            --argjson port "${QUESTDB_HTTP_PORT:-9000}" \
+            --argjson port "${QUESTDB_HTTP_PORT:-9009}" \
             --arg path "/exec" \
             --argjson ssl false \
             '{
@@ -281,7 +310,7 @@ questdb_credentials() {
         http_metadata_obj=$(jq -n \
             --arg description "QuestDB HTTP REST API for queries and data ingestion" \
             --arg console_url "${QUESTDB_BASE_URL:-http://localhost:9000}" \
-            --argjson ilp_port "${QUESTDB_ILP_PORT:-9009}" \
+            --argjson ilp_port "${QUESTDB_ILP_PORT:-9011}" \
             '{
                 description: $description,
                 console_url: $console_url,
@@ -311,27 +340,6 @@ questdb_credentials() {
 }
 
 # Execute SQL query
-questdb_query() {
-    local query="${1:-}"
-    
-    if [[ -z "$query" ]]; then
-        log::error "SQL query required"
-        echo "Usage: resource-questdb query \"SELECT * FROM table\""
-        echo ""
-        echo "Examples:"
-        echo "  resource-questdb query \"SELECT * FROM trades LIMIT 10\""
-        echo "  resource-questdb query \"SHOW TABLES\""
-        echo "  resource-questdb query \"SELECT count(*) FROM sensors WHERE timestamp > now() - 1h\""
-        return 1
-    fi
-    
-    if command -v questdb::api::query &>/dev/null; then
-        questdb::api::query "$query"
-    else
-        log::error "Query functionality not available"
-        return 1
-    fi
-}
 
 # List or create tables
 questdb_tables() {

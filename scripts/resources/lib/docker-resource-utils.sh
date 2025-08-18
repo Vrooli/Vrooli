@@ -11,7 +11,7 @@ if [[ -n "${_DOCKER_RESOURCE_UTILS_SOURCED:-}" ]]; then
     # Guard was set but functions are missing - need to re-source dependencies
     unset _DOCKER_RESOURCE_UTILS_SOURCED _DOCKER_UTILS_SOURCED _SYSTEM_COMMANDS_SH_SOURCED
 fi
-export _DOCKER_RESOURCE_UTILS_SOURCED=1
+_DOCKER_RESOURCE_UTILS_SOURCED=1
 
 # Source required utilities
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -806,11 +806,15 @@ docker_resource::create_service_advanced() {
     
     # Add health check with configurable timeout
     if [[ -n "$health_cmd" ]]; then
-        # Use standardized health check builder with environment variable defaults
-        local health_args
-        health_args=$(docker_resource::build_health_check "$health_cmd")
-        # shellcheck disable=SC2086
-        cmd+=($health_args)
+        # Add health check parameters directly
+        local interval="${DOCKER_HEALTH_INTERVAL:-30s}"
+        local timeout="${DOCKER_HEALTH_TIMEOUT:-10s}"
+        local retries="${DOCKER_HEALTH_RETRIES:-3}"
+        
+        cmd+=("--health-cmd" "$health_cmd")
+        cmd+=("--health-interval" "$interval")
+        cmd+=("--health-timeout" "$timeout")
+        cmd+=("--health-retries" "$retries")
     fi
     
     # Add image

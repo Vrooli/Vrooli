@@ -34,8 +34,6 @@ source "${var_SYSTEM_COMMANDS_FILE}"
 source "${var_LIB_SYSTEM_DIR}/trash.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/json.sh"
-# shellcheck disable=SC1091
-source "${var_SCRIPTS_RESOURCES_LIB_DIR}/cli-auto-install.sh" 2>/dev/null || true
 
 # Resource configuration paths
 # Use the project's .vrooli directory, not the home directory

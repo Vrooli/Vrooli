@@ -4,7 +4,7 @@
 
 # Source guard to prevent multiple sourcing
 [[ -n "${_HEALTH_FRAMEWORK_SOURCED:-}" ]] && return 0
-export _HEALTH_FRAMEWORK_SOURCED=1
+_HEALTH_FRAMEWORK_SOURCED=1
 
 # Source required utilities
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

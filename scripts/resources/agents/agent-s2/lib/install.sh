@@ -341,8 +341,7 @@ agents2::install_service() {
     
     # Auto-install CLI if available
     # shellcheck disable=SC1091
-    source "${var_SCRIPTS_RESOURCES_LIB_DIR}/cli-auto-install.sh" 2>/dev/null || true
-    resource_cli::auto_install "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)" || true
+    "${var_SCRIPTS_RESOURCES_LIB_DIR}/cli/install-resource-cli.sh" "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)" 2>/dev/null || true
     
     return 0
 }
