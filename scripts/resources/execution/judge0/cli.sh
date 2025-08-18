@@ -394,5 +394,5 @@ judge0_show_help() {
 
 # Only execute if script is run directly (not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    cli::dispatch "$@"
+    cli::dispatch ${@+"$@"}
 fi

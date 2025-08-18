@@ -45,7 +45,7 @@ qdrant::status::collect_data() {
         if docker::is_running "$QDRANT_CONTAINER_NAME"; then
             running="true"
             
-            if qdrant::is_healthy; then
+            if qdrant::health::is_healthy; then
                 healthy="true"
                 health_message="Healthy - All systems operational, vector database ready"
             else

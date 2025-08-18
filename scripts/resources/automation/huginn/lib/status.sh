@@ -184,10 +184,12 @@ huginn::status() {
     # Return appropriate exit code
     local healthy="false"
     local running="false"
+    local installed="false"
     for ((i=0; i<${#data_array[@]}; i+=2)); do
         case "${data_array[i]}" in
             "healthy") healthy="${data_array[i+1]}" ;;
             "running") running="${data_array[i+1]}" ;;
+            "installed") installed="${data_array[i+1]}" ;;
         esac
     done
     
@@ -195,8 +197,10 @@ huginn::status() {
         return 0
     elif [[ "$running" == "true" ]]; then
         return 1
-    else
+    elif [[ "$installed" == "true" ]]; then
         return 2
+    else
+        return 3
     fi
 }
 

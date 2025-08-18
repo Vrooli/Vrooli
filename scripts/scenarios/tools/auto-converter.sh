@@ -3,11 +3,10 @@ set -euo pipefail
 
 # Simple scenario converter with hash-based change detection
 
-# Source var.sh first with relative path
-# shellcheck disable=SC1091
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../lib/utils/var.sh"
+SCENARIO_TOOLS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Source utilities using var_ variables
+# shellcheck disable=SC1091
+source "${SCENARIO_TOOLS_DIR}/../../lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_RESOURCES_COMMON_FILE}"
 

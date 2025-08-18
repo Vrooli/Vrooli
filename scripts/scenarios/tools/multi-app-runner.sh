@@ -20,9 +20,9 @@
 set -euo pipefail
 
 # Script directory and paths
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ORCHESTRATOR_CLIENT="$SCRIPT_DIR/orchestrator-client.sh"
-ORCHESTRATOR_CTL="$SCRIPT_DIR/orchestrator-ctl.sh"
+SCENARIO_TOOLS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ORCHESTRATOR_CLIENT="$SCENARIO_TOOLS_DIR/orchestrator-client.sh"
+ORCHESTRATOR_CTL="$SCENARIO_TOOLS_DIR/orchestrator-ctl.sh"
 
 # Default configuration
 PORT_START="${VROOLI_DEV_PORT_START:-3001}"
@@ -40,9 +40,9 @@ CYAN='\033[0;36m'
 NC='\033[0m'
 
 # Source utilities if available
-if [[ -f "$SCRIPT_DIR/../../lib/utils/var.sh" ]]; then
+if [[ -f "$SCENARIO_TOOLS_DIR/../../lib/utils/var.sh" ]]; then
     # shellcheck disable=SC1090
-    source "$SCRIPT_DIR/../../lib/utils/var.sh"
+    source "$SCENARIO_TOOLS_DIR/../../lib/utils/var.sh"
     # shellcheck disable=SC1090
     source "${var_RESOURCES_COMMON_FILE}" 2>/dev/null || true
 fi
@@ -133,8 +133,8 @@ get_enabled_scenarios() {
         catalog_file="${var_SCRIPTS_SCENARIOS_DIR}/catalog.json"
     elif [[ -f "scripts/scenarios/catalog.json" ]]; then
         catalog_file="scripts/scenarios/catalog.json"
-    elif [[ -f "$(cd "$SCRIPT_DIR/../.." && pwd)/catalog.json" ]]; then
-        catalog_file="$(cd "$SCRIPT_DIR/../.." && pwd)/catalog.json"
+    elif [[ -f "$(cd "$SCENARIO_TOOLS_DIR/../.." && pwd)/catalog.json" ]]; then
+        catalog_file="$(cd "$SCENARIO_TOOLS_DIR/../.." && pwd)/catalog.json"
     else
         log_error "Cannot find scenarios catalog.json"
         return 1

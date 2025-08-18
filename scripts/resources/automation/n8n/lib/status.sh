@@ -22,18 +22,133 @@ source "${N8N_LIB_DIR}/health.sh"
 source "${N8N_LIB_DIR}/auto-credentials.sh"
 
 #######################################
-# Show n8n status using unified engine
+# Show n8n status with format support
 #######################################
 n8n::status() {
+    local format="text"
+    local verbose="false"
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --format)
+                format="$2"
+                shift 2
+                ;;
+            --json)
+                format="json"
+                shift
+                ;;
+            --verbose|-v)
+                verbose="true"
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
     # Check Docker daemon
     if ! docker::check_daemon; then
+        if [[ "$format" == "json" ]]; then
+            echo '{"error": "Docker daemon not available"}'
+        else
+            log::error "Docker daemon not available"
+        fi
         return 1
     fi
     
-    # Use status engine
-    local config
-    config=$(n8n::get_status_config)
-    status::display_unified_status "$config" "n8n::display_workflow_info"
+    # Collect status data
+    local data_string
+    data_string=$(n8n::status::collect_data 2>/dev/null)
+    
+    if [[ -z "$data_string" ]]; then
+        if [[ "$format" == "json" ]]; then
+            echo '{"error": "Failed to collect status data"}'
+        else
+            log::error "Failed to collect n8n status data"
+        fi
+        return 1
+    fi
+    
+    # Format the output appropriately
+    if [[ "$format" == "json" ]]; then
+        echo "$data_string"
+    else
+        # Use the existing status engine for text output
+        local config
+        config=$(n8n::get_status_config)
+        status::display_unified_status "$config" "n8n::display_workflow_info"
+    fi
+}
+
+#######################################
+# Collect n8n status data as JSON
+#######################################
+n8n::status::collect_data() {
+    local installed="false"
+    local running="false"
+    local healthy="false"
+    local health_message="Not installed"
+    
+    # Check if n8n is installed
+    if docker::container_exists "$N8N_CONTAINER_NAME"; then
+        installed="true"
+        
+        # Check if running
+        if docker::is_running "$N8N_CONTAINER_NAME"; then
+            running="true"
+            
+            # Check health
+            if n8n::check_basic_health; then
+                healthy="true"
+                health_message="Healthy - All systems operational"
+            else
+                health_message="Unhealthy - Service not responding"
+            fi
+        else
+            health_message="Stopped - Container not running"
+        fi
+    fi
+    
+    # Get container info if running
+    local cpu_usage="0"
+    local memory_usage="0"
+    local memory_limit="0"
+    
+    if [[ "$running" == "true" ]]; then
+        local stats
+        stats=$(docker stats "$N8N_CONTAINER_NAME" --no-stream --format "{{.CPUPerc}}|{{.MemUsage}}" 2>/dev/null || echo "")
+        if [[ -n "$stats" ]]; then
+            cpu_usage=$(echo "$stats" | cut -d'|' -f1 | tr -d '% ')
+            local mem_info
+            mem_info=$(echo "$stats" | cut -d'|' -f2)
+            memory_usage=$(echo "$mem_info" | cut -d'/' -f1 | tr -d ' ')
+            memory_limit=$(echo "$mem_info" | cut -d'/' -f2 | tr -d ' ')
+        fi
+    fi
+    
+    # Build JSON response
+    cat <<EOF
+{
+  "name": "n8n",
+  "category": "automation",
+  "description": "Business workflow automation platform",
+  "installed": $installed,
+  "running": $running,
+  "healthy": $healthy,
+  "health_message": "$health_message",
+  "container_name": "$N8N_CONTAINER_NAME",
+  "port": $N8N_PORT,
+  "ui_url": "$N8N_BASE_URL",
+  "api_url": "${N8N_BASE_URL}/api/v1",
+  "health_url": "${N8N_BASE_URL}/healthz",
+  "cpu_usage": "$cpu_usage",
+  "memory_usage": "$memory_usage",
+  "memory_limit": "$memory_limit"
+}
+EOF
 }
 
 

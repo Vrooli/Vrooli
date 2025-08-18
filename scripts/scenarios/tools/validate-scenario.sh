@@ -20,10 +20,10 @@ set -euo pipefail
 #
 ################################################################################
 
-TOOLS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+SCENARIO_TOOLS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # shellcheck disable=SC1091
-source "${TOOLS_DIR}/../../lib/utils/var.sh"
+source "${SCENARIO_TOOLS_DIR}/../../lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
 

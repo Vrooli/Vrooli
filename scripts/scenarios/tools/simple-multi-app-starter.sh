@@ -10,8 +10,13 @@
 set -euo pipefail
 
 # Script directory and paths
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VROOLI_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+SCENARIO_TOOLS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VROOLI_ROOT="$(cd "$SCENARIO_TOOLS_DIR/../../.." && pwd)"
+
+# shellcheck disable=SC1091
+source "${SCENARIO_TOOLS_DIR}/../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}"
 
 # Default configuration
 GENERATED_APPS_DIR="${GENERATED_APPS_DIR:-$HOME/generated-apps}"
@@ -26,10 +31,6 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 NC='\033[0m'
-
-# Source utilities
-source "$VROOLI_ROOT/scripts/lib/utils/var.sh"
-source "${var_LOG_FILE}"
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do

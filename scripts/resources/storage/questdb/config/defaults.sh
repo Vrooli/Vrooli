@@ -14,13 +14,13 @@ source "${QUESTDB_DIR}/../../common.sh"
 questdb::export_config() {
     # Service configuration (only set if not already defined)
     if [[ -z "${QUESTDB_HTTP_PORT:-}" ]]; then
-        readonly QUESTDB_HTTP_PORT="${QUESTDB_CUSTOM_HTTP_PORT:-$(resources::get_default_port "questdb")}"
+                readonly QUESTDB_HTTP_PORT="${QUESTDB_CUSTOM_HTTP_PORT:-$(resources::get_default_port "questdb")}"
     fi
     if [[ -z "${QUESTDB_PG_PORT:-}" ]]; then
         readonly QUESTDB_PG_PORT="${QUESTDB_CUSTOM_PG_PORT:-8812}"
     fi
     if [[ -z "${QUESTDB_ILP_PORT:-}" ]]; then
-        readonly QUESTDB_ILP_PORT="${QUESTDB_CUSTOM_ILP_PORT:-9011}"
+                readonly QUESTDB_ILP_PORT="${QUESTDB_CUSTOM_ILP_PORT:-9011}"
     fi
     if [[ -z "${QUESTDB_BASE_URL:-}" ]]; then
         readonly QUESTDB_BASE_URL="http://localhost:${QUESTDB_HTTP_PORT}"

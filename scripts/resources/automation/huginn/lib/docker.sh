@@ -27,7 +27,7 @@ huginn::start() {
         return 0
     fi
     
-    huginn::show_starting
+    log::info "Starting Huginn..."
     
     # Ensure network exists
     docker::create_network "$NETWORK_NAME"
@@ -66,7 +66,7 @@ huginn::stop() {
         return 0
     fi
     
-    huginn::show_stopping
+    log::info "Stopping Huginn..."
     
     # Stop Huginn container first
     if huginn::container_exists; then
@@ -134,10 +134,10 @@ huginn::start_database() {
     )
     
     # Health check
-    local health_cmd="pg_isready -U huginn -d huginn"
+    local health_cmd="pg_isready"
     
     # Use advanced creation
-    docker_resource::create_service_advanced \
+    if docker_resource::create_service_advanced \
         "$DB_CONTAINER_NAME" \
         "$POSTGRES_IMAGE" \
         "" \
@@ -146,12 +146,10 @@ huginn::start_database() {
         "env_vars" \
         "" \
         "$health_cmd" \
-        ""
-    
-    if [[ $? -eq 0 ]]; then
+        ""; then
         return 0
     else
-        huginn::show_database_error
+        log::error "Failed to start Huginn database"
         return 1
     fi
 }
@@ -206,7 +204,7 @@ huginn::start_huginn_container() {
     local health_cmd="curl -f http://localhost:3000/ || exit 1"
     
     # Use advanced creation
-    docker_resource::create_service_advanced \
+    if docker_resource::create_service_advanced \
         "$CONTAINER_NAME" \
         "$HUGINN_IMAGE" \
         "${HUGINN_PORT}:3000" \
@@ -215,9 +213,7 @@ huginn::start_huginn_container() {
         "env_vars" \
         "" \
         "$health_cmd" \
-        ""
-    
-    if [[ $? -eq 0 ]]; then
+        ""; then
         return 0
     else
         huginn::show_rails_error
@@ -249,7 +245,7 @@ huginn::wait_for_database() {
         fi
     done
     
-    huginn::show_database_error
+    log::error "Failed to start Huginn database"
     return 1
 }
 

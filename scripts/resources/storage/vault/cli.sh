@@ -9,19 +9,7 @@
 #
 ################################################################################
 
-# Clean environment of problematic exported functions
-# This prevents "unbound variable" errors from inherited functions
-for func in $(env | grep "^BASH_FUNC" | cut -d'=' -f1); do
-    unset -f "${func#BASH_FUNC_}" 2>/dev/null || true
-    unset "$func" 2>/dev/null || true
-done
-
-# Unset any problematic variables that might be inherited
-unset help 2>/dev/null || true
-
-# Unset CLI framework source guard since we cleared all functions
-unset _CLI_COMMAND_FRAMEWORK_SOURCED 2>/dev/null || true
-set -eo pipefail # temporarily removed -u
+set -euo pipefail
 
 # Get script directory (resolving symlinks for installed CLI)
 if [[ -L "${BASH_SOURCE[0]}" ]]; then

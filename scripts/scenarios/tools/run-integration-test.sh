@@ -20,10 +20,10 @@ set -euo pipefail
 #
 ################################################################################
 
-TOOLS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+SCENARIO_TOOLS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # shellcheck disable=SC1091
-source "${TOOLS_DIR}/../../lib/utils/var.sh"
+source "${SCENARIO_TOOLS_DIR}/../../lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
 
@@ -240,7 +240,7 @@ update_hash() {
 run_static_validation() {
     print_phase "Phase 1: Static Validation"
     
-    local validator="${TOOLS_DIR}/validate-scenario.sh"
+    local validator="${SCENARIO_TOOLS_DIR}/validate-scenario.sh"
     
     if [[ ! -f "$validator" ]]; then
         print_warning "Static validator not found, skipping"
@@ -287,7 +287,7 @@ generate_app() {
     
     print_check "Generating app from scenario..."
     
-    local generator="${TOOLS_DIR}/scenario-to-app.sh"
+    local generator="${SCENARIO_TOOLS_DIR}/scenario-to-app.sh"
     
     if [[ ! -f "$generator" ]]; then
         print_error "App generator not found: $generator"
