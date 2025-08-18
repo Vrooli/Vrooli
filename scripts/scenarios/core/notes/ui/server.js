@@ -25,7 +25,12 @@ app.use('/api', (req, res) => {
     .catch(error => res.status(500).json({ error: error.message }));
 });
 
-// Serve index.html for all routes
+// Serve zen mode
+app.get('/zen', (req, res) => {
+    res.sendFile(path.join(__dirname, 'zen-index.html'));
+});
+
+// Serve index.html for all other routes
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });

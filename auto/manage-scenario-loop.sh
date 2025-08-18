@@ -22,6 +22,7 @@ case "${1:-help}" in
 	rotate) "$TASK_MANAGER" --task scenario-improvement rotate ;;
 	restart) "$TASK_MANAGER" --task scenario-improvement stop || true; sleep 2; "$TASK_MANAGER" --task scenario-improvement start ;;
 	json) shift || true; "$TASK_MANAGER" --task scenario-improvement json "${1:-summary}" "${2:-}" ;;
+	skip-wait) "$TASK_MANAGER" --task scenario-improvement skip-wait ;;
 	help|--help|-h)
 		cat << EOF
 Scenario Improvement Loop Manager (shim)
@@ -35,6 +36,7 @@ Commands:
   rotate      Rotate log file
   restart     Stop and then start the loop
   json <cmd>  JSON summaries: summary | recent [N] | inflight | durations | errors [N] | hourly
+  skip-wait   Skip current iteration wait (for testing)
   help        Show this help message
 
 This manager delegates to: $TASK_MANAGER --task scenario-improvement

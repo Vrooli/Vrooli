@@ -63,27 +63,35 @@
     },
     {
       "parameters": {
-        "url": "={{ $env.N8N_BASE_URL || 'http://localhost:5678' }}/webhook/smart-search",
-        "method": "POST",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        },
-        "sendBody": true,
-        "bodyContentType": "json",
-        "jsonBody": "={{ JSON.stringify({\n  text: $json.query,\n  collection: 'mind_maps',\n  mode: 'comprehensive',\n  max_results_per_query: $json.limit\n}) }}",
+        "jsCode": "// Prepare data for the shared embedding workflow\nconst input = $json;\n\nreturn {\n  text: input.query,\n  model: 'nomic-embed-text',\n  store_in_qdrant: false,\n  collection: 'mind_maps'\n};"
+      },
+      "id": "prepare-embedding",
+      "name": "Prepare Embedding Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 200]
+    },
+    {
+      "parameters": {
+        "source": "workflowByName",
+        "workflowName": "Shared Text Embedding Generator"
+      },
+      "id": "generate-embedding",
+      "name": "Generate Query Embedding",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [1250, 200]
+    },
+    {
+      "parameters": {
+        "command": "vrooli resource qdrant search mind_maps '{{ $json.embedding || $json.response || '[]' }}' {{ $('merge-inputs').item.json.limit || 10 }}",
         "options": {}
       },
-      "id": "semantic-search",
-      "name": "Semantic Search",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
-      "position": [1050, 300]
+      "id": "search-qdrant",
+      "name": "Search Qdrant",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1450, 300]
     },
     {
       "parameters": {
@@ -113,30 +121,18 @@
       "name": "Process Results",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1250, 400]
+      "position": [1450, 400]
     },
     {
       "parameters": {
-        "url": "={{ $env.N8N_BASE_URL || 'http://localhost:5678' }}/webhook/ollama",
-        "method": "POST",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        },
-        "sendBody": true,
-        "bodyContentType": "json",
-        "jsonBody": "={{ JSON.stringify({\n  prompt: \"Based on these search results for the query '\" + $('merge-inputs').item.json.query + \"', provide a brief summary of the most relevant mind maps found:\\n\\n\" + JSON.stringify($json.results) + \"\\n\\nSummary (2-3 sentences):\",\n  model: \"llama3.2:3b\",\n  type: \"reasoning\",\n  quiet: true\n}) }}",
-        "options": {}
+        "source": "workflowByName",
+        "workflowName": "Ollama Universal Executor",
+        "workflowValues": "={{ JSON.stringify($json) }}"
       },
       "id": "generate-summary",
       "name": "Generate Summary",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
       "position": [1450, 400]
     },
     {
@@ -213,7 +209,7 @@
       "main": [
         [
           {
-            "node": "semantic-search",
+            "node": "prepare-embedding",
             "type": "main",
             "index": 0
           }
@@ -227,7 +223,29 @@
         ]
       ]
     },
-    "semantic-search": {
+    "prepare-embedding": {
+      "main": [
+        [
+          {
+            "node": "generate-embedding",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "generate-embedding": {
+      "main": [
+        [
+          {
+            "node": "search-qdrant",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "search-qdrant": {
       "main": [
         [
           {

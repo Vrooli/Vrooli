@@ -47,41 +47,33 @@
     },
     {
       "parameters": {
-        "url": "${service.n8n.url}/webhook/ollama",
-        "method": "POST",
-        "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "prompt",
-              "value": "You are a foliage prediction expert. Based on the following data, predict when fall foliage will peak and provide a confidence score (0-1).\n\nRegion: {{ $json.region.name }}, {{ $json.region.state }}\nTypical peak week: Week {{ $json.region.typical_peak_week }} of the year\n\nRecent weather (last 14 days):\n{{ $json.recent_weather }}\n\nHistorical observations:\n{{ $json.historical_observations }}\n\nProvide your prediction in JSON format:\n{\n  \"predicted_peak_date\": \"YYYY-MM-DD\",\n  \"confidence_score\": 0.0-1.0,\n  \"peak_window_start\": \"YYYY-MM-DD\",\n  \"peak_window_end\": \"YYYY-MM-DD\",\n  \"factors\": [\n    \"list of key factors influencing prediction\"\n  ],\n  \"foliage_progression\": \"not_started|progressing|near_peak|peak|past_peak\"\n}"
-            },
-            {
-              "name": "model",
-              "value": "llama3.2"
-            },
-            {
-              "name": "format",
-              "value": "json"
-            }
-          ]
-        }
+        "functionCode": "// Prepare Ollama prompt with context data\nconst context = $input.first().json;\nconst prompt = `You are a foliage prediction expert. Based on the following data, predict when fall foliage will peak and provide a confidence score (0-1).\n\nRegion: ${context.region.name}, ${context.region.state}\nTypical peak week: Week ${context.region.typical_peak_week} of the year\n\nRecent weather (last 14 days):\n${JSON.stringify(context.recent_weather, null, 2)}\n\nHistorical observations:\n${JSON.stringify(context.historical_observations, null, 2)}\n\nProvide your prediction in JSON format:\n{\n  \"predicted_peak_date\": \"YYYY-MM-DD\",\n  \"confidence_score\": 0.0-1.0,\n  \"peak_window_start\": \"YYYY-MM-DD\",\n  \"peak_window_end\": \"YYYY-MM-DD\",\n  \"factors\": [\n    \"list of key factors influencing prediction\"\n  ],\n  \"foliage_progression\": \"not_started|progressing|near_peak|peak|past_peak\"\n}`;\n\nreturn {\n  prompt: prompt,\n  model: 'llama3.2:3b',\n  type: 'reasoning',\n  quiet: true,\n  context_data: context\n};"
       },
-      "id": "call-ollama",
-      "name": "Call Ollama Workflow",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 2,
+      "id": "prepare-ollama-request",
+      "name": "Prepare Ollama Request",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
       "position": [850, 200]
     },
     {
       "parameters": {
-        "functionCode": "const prediction = JSON.parse($input.first().json.response);\nconst context = $node['Get Region Context'].json;\n\nreturn {\n  region_id: context.region.id,\n  predicted_peak_date: prediction.predicted_peak_date,\n  confidence_score: prediction.confidence_score,\n  peak_window_start: prediction.peak_window_start,\n  peak_window_end: prediction.peak_window_end,\n  factors: prediction.factors,\n  foliage_progression: prediction.foliage_progression\n};"
+        "command": "# Save prompt to temp file to handle complex JSON formatting\ntemp_file=\"/tmp/ollama_prompt_$(date +%s)_$RANDOM.txt\"\necho '{{ $json.prompt }}' > \"$temp_file\"\n\n# Call Ollama CLI with the prompt from file\nresult=$(vrooli resource ollama generate \"$(cat \"$temp_file\")\" --model '{{ $json.model }}' --type '{{ $json.type }}' {{ $json.quiet ? '--quiet' : '' }})\n\n# Clean up temp file\nrm -f \"$temp_file\"\n\n# Output the result\necho \"$result\""
+      },
+      "id": "call-ollama",
+      "name": "Call Ollama CLI",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1050, 200]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Parse response from Ollama CLI\nconst ollamaResult = $input.first().json;\nconst context = $node['prepare-ollama-request'].json.context_data;\n\n// Parse the AI response from stdout\nlet prediction;\ntry {\n  // The CLI output is in stdout field\n  const responseText = ollamaResult.stdout || ollamaResult;\n  // Extract JSON from the response (might have extra text)\n  const jsonMatch = responseText.match(/\\{[\\s\\S]*\\}/m);\n  if (!jsonMatch) {\n    throw new Error('No JSON found in response');\n  }\n  prediction = JSON.parse(jsonMatch[0]);\n} catch (error) {\n  throw new Error('Failed to parse prediction JSON: ' + error.message + ' Response: ' + JSON.stringify(ollamaResult));\n}\n\nreturn {\n  region_id: context.region.id,\n  predicted_peak_date: prediction.predicted_peak_date,\n  confidence_score: prediction.confidence_score,\n  peak_window_start: prediction.peak_window_start,\n  peak_window_end: prediction.peak_window_end,\n  factors: prediction.factors,\n  foliage_progression: prediction.foliage_progression\n};"
       },
       "id": "parse-prediction",
       "name": "Parse Prediction",
       "type": "n8n-nodes-base.function",
       "typeVersion": 1,
-      "position": [1050, 200]
+      "position": [1250, 200]
     },
     {
       "parameters": {
@@ -91,7 +83,7 @@
       "name": "Store Prediction",
       "type": "n8n-nodes-base.executeCommand",
       "typeVersion": 1,
-      "position": [1250, 200]
+      "position": [1450, 200]
     },
     {
       "parameters": {
@@ -101,7 +93,7 @@
       "name": "Update Current Status",
       "type": "n8n-nodes-base.executeCommand",
       "typeVersion": 1,
-      "position": [1450, 200]
+      "position": [1650, 200]
     },
     {
       "parameters": {
@@ -128,88 +120,99 @@
     }
   ],
   "connections": {
-    "Manual Trigger": {
+    "manual-trigger": {
       "main": [
         [
           {
-            "node": "Set Defaults",
+            "node": "set-defaults",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Webhook": {
+    "webhook-trigger": {
       "main": [
         [
           {
-            "node": "Get Region Context",
+            "node": "get-region-context",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Set Defaults": {
+    "set-defaults": {
       "main": [
         [
           {
-            "node": "Get Region Context",
+            "node": "get-region-context",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Get Region Context": {
+    "get-region-context": {
       "main": [
         [
           {
-            "node": "Call Ollama Workflow",
+            "node": "prepare-ollama-request",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Call Ollama Workflow": {
+    "prepare-ollama-request": {
       "main": [
         [
           {
-            "node": "Parse Prediction",
+            "node": "call-ollama",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Parse Prediction": {
+    "call-ollama": {
       "main": [
         [
           {
-            "node": "Store Prediction",
+            "node": "parse-prediction",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Store Prediction": {
+    "parse-prediction": {
       "main": [
         [
           {
-            "node": "Update Current Status",
+            "node": "store-prediction",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Update Current Status": {
+    "store-prediction": {
       "main": [
         [
           {
-            "node": "Format Response",
+            "node": "update-status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "update-status": {
+      "main": [
+        [
+          {
+            "node": "format-response",
             "type": "main",
             "index": 0
           }

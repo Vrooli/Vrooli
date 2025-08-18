@@ -346,12 +346,14 @@ run_iteration() {
 		else
 			# Check for specific error patterns in output
 			if [[ -f "$tmp_out" ]]; then
-				if grep -q "Claude AI usage limit reached" "$tmp_out" 2>/dev/null; then
-					exitc=$API_QUOTA_EXHAUSTED
-					log_with_timestamp "WARNING: Claude API quota exhausted, marking as quota error"
-					# Set flag for quota exhaustion
-					echo "$(date +%s)" > "${DATA_DIR}/quota_exhausted.flag" 2>/dev/null || true
-				elif grep -q "command not found\|No such file or directory" "$tmp_out" 2>/dev/null; then
+				# TEMPORARILY DISABLED: API quota exhaustion detection
+				# if grep -q "Claude AI usage limit reached" "$tmp_out" 2>/dev/null; then
+				# 	exitc=$API_QUOTA_EXHAUSTED
+				# 	log_with_timestamp "WARNING: Claude API quota exhausted, marking as quota error"
+				# 	# Set flag for quota exhaustion
+				# 	echo "$(date +%s)" > "${DATA_DIR}/quota_exhausted.flag" 2>/dev/null || true
+				# elif grep -q "command not found\|No such file or directory" "$tmp_out" 2>/dev/null; then
+				if grep -q "command not found\|No such file or directory" "$tmp_out" 2>/dev/null; then
 					exitc=$WORKER_UNAVAILABLE
 					log_with_timestamp "WARNING: Worker unavailable, marking as worker error"
 				elif grep -q "permission denied\|access denied" "$tmp_out" 2>/dev/null; then
@@ -414,12 +416,14 @@ run_iteration_sync() {
 	else
 		# Check for specific error patterns in output
 		if [[ -f "$tmp_out" ]]; then
-			if grep -q "Claude AI usage limit reached" "$tmp_out" 2>/dev/null; then
-				exitc=$API_QUOTA_EXHAUSTED
-				log_with_timestamp "WARNING: Claude API quota exhausted, marking as quota error"
-				# Set flag for quota exhaustion
-				echo "$(date +%s)" > "${DATA_DIR}/quota_exhausted.flag" 2>/dev/null || true
-			elif grep -q "command not found\|No such file or directory" "$tmp_out" 2>/dev/null; then
+			# TEMPORARILY DISABLED: API quota exhaustion detection
+			# if grep -q "Claude AI usage limit reached" "$tmp_out" 2>/dev/null; then
+			# 	exitc=$API_QUOTA_EXHAUSTED
+			# 	log_with_timestamp "WARNING: Claude API quota exhausted, marking as quota error"
+			# 	# Set flag for quota exhaustion
+			# 	echo "$(date +%s)" > "${DATA_DIR}/quota_exhausted.flag" 2>/dev/null || true
+			# elif grep -q "command not found\|No such file or directory" "$tmp_out" 2>/dev/null; then
+			if grep -q "command not found\|No such file or directory" "$tmp_out" 2>/dev/null; then
 				exitc=$WORKER_UNAVAILABLE
 				log_with_timestamp "WARNING: Worker unavailable, marking as worker error"
 			elif grep -q "permission denied\|access denied" "$tmp_out" 2>/dev/null; then
@@ -490,51 +494,62 @@ run_loop() {
 	fi
 	log_with_timestamp "Starting loop (task=$LOOP_TASK)"
 	
-	# Initialize sudo override if available
-	if command -v sudo_override::init >/dev/null 2>&1; then
-		log_with_timestamp "🔧 Initializing sudo override for loop operations"
-		if sudo_override::init; then
-			log_with_timestamp "✅ Sudo override initialized successfully"
-			# Load configuration for this session
-			if sudo_override::load_config; then
-				log_with_timestamp "✅ Sudo override configuration loaded"
-			else
-				log_with_timestamp "WARNING: Failed to load sudo override configuration"
-			fi
-		else
-			log_with_timestamp "WARNING: Failed to initialize sudo override - continuing without sudo access"
-		fi
-	else
-		log_with_timestamp "INFO: Sudo override not available - continuing without sudo access"
-	fi
+	# TEMPORARILY DISABLED: Initialize sudo override if available
+	# if command -v sudo_override::init >/dev/null 2>&1; then
+	# 	log_with_timestamp "🔧 Initializing sudo override for loop operations"
+	# 	if sudo_override::init; then
+	# 		log_with_timestamp "✅ Sudo override initialized successfully"
+	# 		# Load configuration for this session
+	# 		if sudo_override::load_config; then
+	# 			log_with_timestamp "✅ Sudo override configuration loaded"
+	# 		else
+	# 			log_with_timestamp "WARNING: Failed to load sudo override configuration"
+	# 		fi
+	# 	else
+	# 		log_with_timestamp "WARNING: Failed to initialize sudo override - continuing without sudo access"
+	# 	fi
+	# else
+	# 	log_with_timestamp "INFO: Sudo override not available - continuing without sudo access"
+	# fi
 	
 	if ! check_worker_available; then log_with_timestamp "FATAL: worker not available"; exit 1; fi
 	echo $$ > "$PID_FILE"
 	local i=1
 	local max_iter="${RUN_MAX_ITERATIONS:-}" # optional bound via env
 	while true; do
-		# Check for API quota exhaustion before starting new iteration
-		if [[ -f "${DATA_DIR}/quota_exhausted.flag" ]]; then
-			local quota_reset_time
-			quota_reset_time=$(cat "${DATA_DIR}/quota_exhausted.flag" 2>/dev/null || echo "")
-			if [[ -n "$quota_reset_time" ]]; then
-				local current_time=$(date +%s)
-				local time_until_reset=$((quota_reset_time + 3600 - current_time))  # Assume 1 hour reset
-				if [[ $time_until_reset -gt 0 ]]; then
-					log_with_timestamp "API quota exhausted, waiting ${time_until_reset}s until estimated reset"
-					sleep $time_until_reset
-				fi
-				rm -f "${DATA_DIR}/quota_exhausted.flag"
-				log_with_timestamp "Resuming loop after quota reset"
-			fi
-		fi
+		# TEMPORARILY DISABLED: API quota exhaustion check
+		# # Check for API quota exhaustion before starting new iteration
+		# if [[ -f "${DATA_DIR}/quota_exhausted.flag" ]]; then
+		# 	local quota_reset_time
+		# 	quota_reset_time=$(cat "${DATA_DIR}/quota_exhausted.flag" 2>/dev/null || echo "")
+		# 	if [[ -n "$quota_reset_time" ]]; then
+		# 		local current_time=$(date +%s)
+		# 		local time_until_reset=$((quota_reset_time + 3600 - current_time))  # Assume 1 hour reset
+		# 		if [[ $time_until_reset -gt 0 ]]; then
+		# 			log_with_timestamp "API quota exhausted, waiting ${time_until_reset}s until estimated reset"
+		# 			sleep $time_until_reset
+		# 		fi
+		# 		rm -f "${DATA_DIR}/quota_exhausted.flag"
+		# 		log_with_timestamp "Resuming loop after quota reset"
+		# 	fi
+		# fi
 		
 		log_with_timestamp "--- Iteration $i ---"
 		if run_iteration "$i"; then log_with_timestamp "Iteration $i dispatched"; else log_with_timestamp "Iteration $i skipped"; fi
 		check_and_rotate
 		log_with_timestamp "Waiting ${INTERVAL_SECONDS}s until next iteration..."
 		local remain=$INTERVAL_SECONDS
-		while [[ $remain -gt 0 ]]; do local chunk=$((remain>10?10:remain)); sleep $chunk; remain=$((remain-chunk)); done
+		while [[ $remain -gt 0 ]]; do 
+			# Check for skip-wait flag
+			if [[ -f "${DATA_DIR}/skip_wait.flag" ]]; then
+				log_with_timestamp "⏭️  Skip wait flag detected - continuing immediately"
+				rm -f "${DATA_DIR}/skip_wait.flag"
+				break
+			fi
+			local chunk=$((remain>10?10:remain)); 
+			sleep $chunk; 
+			remain=$((remain-chunk)); 
+		done
 		if [[ -n "$max_iter" ]] && [[ $i -ge $max_iter ]]; then log_with_timestamp "Reached max iterations ($max_iter); exiting."; break; fi
 		((i++))
 	done
@@ -767,11 +782,26 @@ loop_dispatch() {
 Generic Loop Core (task=$LOOP_TASK)
 Commands:
   run-loop [--max N] | start | stop | force-stop | status | logs [-f]
-  rotate [--events [KEEP] | --temp] | json <name> | dry-run | health | once | cleanup | help
+  rotate [--events [KEEP] | --temp] | json <name> | dry-run | health | once | skip-wait | cleanup | help
 
 JSON subcommands:
   summary | recent [N] | inflight | durations | errors [N] | error-breakdown | hourly
 EOF
+			;;
+		skip-wait)
+			if [[ -f "$PID_FILE" ]]; then
+				local pid; pid=$(cat "$PID_FILE" 2>/dev/null || echo "")
+				if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
+					touch "${DATA_DIR}/skip_wait.flag"
+					echo "⏭️  Skip wait flag set - next iteration will start immediately"
+				else
+					echo "❌ Loop is not running (PID: $pid)"
+					exit 1
+				fi
+			else
+				echo "❌ Loop is not running (no PID file)"
+				exit 1
+			fi
 			;;
 		cleanup)
 			log_with_timestamp "Manual cleanup requested"
@@ -811,38 +841,39 @@ EOF
 					log_with_timestamp "Updated workers PID file with $valid_pids valid PIDs"
 				fi
 			fi
-			# Enhanced quota exhaustion flag cleanup logic
-			if [[ -f "${DATA_DIR}/quota_exhausted.flag" ]]; then
-				local quota_time; quota_time=$(cat "${DATA_DIR}/quota_exhausted.flag" 2>/dev/null || echo "")
-				if [[ -n "$quota_time" ]]; then
-					local current_time=$(date +%s)
-					local time_since_quota=$((current_time - quota_time))
-					local should_remove=false
-					
-					# Remove if older than 2 hours (stale)
-					if [[ $time_since_quota -gt 7200 ]]; then
-						should_remove=true
-						log_with_timestamp "Removing stale quota exhaustion flag (${time_since_quota}s old)"
-					# Remove if we have recent successful runs (system is healthy)
-					elif [[ -f "$EVENTS_JSONL" ]]; then
-						local recent_successes=0
-						if command -v jq >/dev/null 2>&1; then
-							recent_successes=$(tail -n 100 "$EVENTS_JSONL" | jq -s 'map(select(.type=="finish" and .exit_code==0)) | length' 2>/dev/null || echo "0")
-						fi
-						if [[ "$recent_successes" -gt 0 ]]; then
-							should_remove=true
-							log_with_timestamp "Removing quota flag due to recent successful runs ($recent_successes)"
-						fi
-					fi
-					
-					if [[ "$should_remove" == "true" ]]; then
-						rm -f "${DATA_DIR}/quota_exhausted.flag"
-						log_with_timestamp "Removed quota exhaustion flag"
-					else
-						log_with_timestamp "Keeping quota flag (${time_since_quota}s old, no recent successes)"
-					fi
-				fi
-			fi
+			# TEMPORARILY DISABLED: Enhanced quota exhaustion flag cleanup logic
+			# # Enhanced quota exhaustion flag cleanup logic
+			# if [[ -f "${DATA_DIR}/quota_exhausted.flag" ]]; then
+			# 	local quota_time; quota_time=$(cat "${DATA_DIR}/quota_exhausted.flag" 2>/dev/null || echo "")
+			# 	if [[ -n "$quota_time" ]]; then
+			# 		local current_time=$(date +%s)
+			# 		local time_since_quota=$((current_time - quota_time))
+			# 		local should_remove=false
+			# 		
+			# 		# Remove if older than 2 hours (stale)
+			# 		if [[ $time_since_quota -gt 7200 ]]; then
+			# 			should_remove=true
+			# 			log_with_timestamp "Removing stale quota exhaustion flag (${time_since_quota}s old)"
+			# 		# Remove if we have recent successful runs (system is healthy)
+			# 		elif [[ -f "$EVENTS_JSONL" ]]; then
+			# 			local recent_successes=0
+			# 			if command -v jq >/dev/null 2>&1; then
+			# 			recent_successes=$(tail -n 100 "$EVENTS_JSONL" | jq -s 'map(select(.type=="finish" and .exit_code==0)) | length' 2>/dev/null || echo "0")
+			# 			fi
+			# 			if [[ "$recent_successes" -gt 0 ]]; then
+			# 				should_remove=true
+			# 				log_with_timestamp "Removing quota flag due to recent successful runs ($recent_successes)"
+			# 			fi
+			# 		fi
+			# 		
+			# 		if [[ "$should_remove" == "true" ]]; then
+			# 			rm -f "${DATA_DIR}/quota_exhausted.flag"
+			# 			log_with_timestamp "Removed quota exhaustion flag"
+			# 		else
+			# 			log_with_timestamp "Keeping quota flag (${time_since_quota}s old, no recent successes)"
+			# 		fi
+			# 	fi
+			# fi
 			echo "Cleanup completed"
 			;;
 		*) run_loop ;;

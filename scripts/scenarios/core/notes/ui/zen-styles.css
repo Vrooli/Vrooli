@@ -108,6 +108,33 @@ body {
   gap: var(--space-md);
   padding-bottom: var(--space-lg);
   border-bottom: 1px solid var(--zen-stone);
+  position: relative;
+}
+
+.zen-exit-btn {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: 1px solid var(--zen-stone);
+  color: var(--text-secondary);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+}
+
+.zen-exit-btn:hover {
+  background: var(--zen-water);
+  color: white;
+  border-color: var(--zen-water);
+  transform: translateY(-50%) rotate(-360deg);
 }
 
 .zen-logo-icon {

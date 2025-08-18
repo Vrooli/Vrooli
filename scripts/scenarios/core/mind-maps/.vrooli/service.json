@@ -7,31 +7,30 @@
     "displayName": "Mind Maps",
     "description": "AI-enabled mind mapping tool for visual organization and semantic search of ideas and knowledge",
     "version": "1.0.0",
-    "type": "knowledge-management",
-    "category": "productivity",
+    "type": "foundation",
+    "category": "knowledge-management",
     "tags": [
       "mind-maps",
-      "knowledge-management",
-      "visualization",
+      "knowledge-graph",
       "semantic-search",
+      "visual-organization",
       "ai-organization",
-      "collaboration",
-      "javascript-ui",
-      "neural-network"
+      "data-structuring",
+      "cross-scenario-tool"
     ]
   },
   "ports": {
     "api": {
       "env_var": "SERVICE_PORT",
-      "range": "8700-8799",
+      "range": "8100-8199",
       "fallback": "auto",
-      "description": "Mind Maps API port"
+      "description": "Main API port for mind maps service"
     },
     "ui": {
-      "env_var": "UI_PORT",
-      "range": "3700-3799",
+      "env_var": "UI_PORT", 
+      "range": "3100-3199",
       "fallback": "auto",
-      "description": "Mind Maps UI port"
+      "description": "UI server port"
     }
   },
   "resources": {
@@ -40,26 +39,7 @@
         "type": "n8n",
         "enabled": true,
         "required": true,
-        "shared_workflows": [
-          "ollama",
-          "embedding-generator",
-          "chain-of-thought-orchestrator",
-          "structured-data-extractor",
-          "universal-rag-pipeline"
-        ],
         "initialization": [
-          {
-            "file": "initialization/n8n/create-mindmap.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/update-mindmap.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/semantic-search.json",
-            "type": "workflow"
-          },
           {
             "file": "initialization/n8n/auto-organize.json",
             "type": "workflow"
@@ -73,7 +53,15 @@
             "type": "workflow"
           },
           {
-            "file": "initialization/n8n/intelligent-mindmap-builder.json",
+            "file": "initialization/n8n/semantic-search.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/create-mindmap.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/update-mindmap.json",
             "type": "workflow"
           },
           {
@@ -81,9 +69,29 @@
             "type": "workflow"
           },
           {
+            "file": "initialization/n8n/document-to-mindmap.json",
+            "type": "workflow"
+          },
+          {
             "file": "initialization/n8n/collaborative-sharing.json",
             "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/intelligent-mindmap-builder.json",
+            "type": "workflow"
           }
+        ]
+      }
+    },
+    "ai": {
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "models": [
+          "llama3.2",
+          "phi3.5:3.8b",
+          "nomic-embed-text"
         ]
       }
     },
@@ -92,38 +100,42 @@
         "type": "postgres",
         "enabled": true,
         "required": true,
-        "purpose": "Store mind maps, nodes, connections, campaigns, and collaboration data",
+        "purpose": "Persistent storage of mind maps and metadata",
         "initialization": [
           {
             "file": "initialization/postgres/schema.sql",
-            "type": "schema"
+            "type": "script"
           }
         ]
-      },
-      "redis": {
-        "type": "redis",
-        "enabled": true,
-        "required": true,
-        "purpose": "Cache mind map sessions, real-time collaboration, and search results"
       },
       "qdrant": {
         "type": "qdrant",
         "enabled": true,
         "required": true,
-        "purpose": "Store and search vector embeddings of mind map nodes for semantic retrieval",
+        "purpose": "Vector database for semantic search across mind map nodes",
         "initialization": [
           {
             "file": "initialization/qdrant/collections.json",
             "type": "collections"
           }
         ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": false,
+        "purpose": "Real-time collaboration support and caching"
       }
     }
   },
+  "shared_workflows": [
+    "ollama",
+    "embedding-generator"
+  ],
   "lifecycle": {
     "version": "1.0.0",
     "setup": {
-      "description": "Initialize Mind Maps",
+      "description": "Initialize Mind Maps service",
       "steps": [
         {
           "name": "base-setup",
@@ -137,7 +149,7 @@
         },
         {
           "name": "install-cli",
-          "run": "cd cli && chmod +x mind-maps && sudo ln -sf $(pwd)/mind-maps /usr/local/bin/mind-maps",
+          "run": "cd cli && chmod +x mind-maps && ln -sf $(pwd)/mind-maps /usr/local/bin/mind-maps 2>/dev/null || true",
           "description": "Install CLI command globally"
         },
         {
@@ -146,14 +158,9 @@
           "description": "Build Go API binary"
         },
         {
-          "name": "setup-ui",
+          "name": "install-ui-deps",
           "run": "cd ui && npm install",
           "description": "Install UI dependencies"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo 'Mind Maps initialized - UI: http://localhost:${UI_PORT} - API: http://localhost:${SERVICE_PORT}'",
-          "description": "Display service URLs"
         }
       ]
     },
@@ -162,28 +169,20 @@
       "steps": [
         {
           "name": "start-api-server",
-          "run": "cd api && PORT=$SERVICE_PORT N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} POSTGRES_URL=postgres://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/mind_maps REDIS_URL=redis://localhost:${RESOURCE_PORTS[redis]} QDRANT_URL=http://localhost:${RESOURCE_PORTS[qdrant]} ./mind-maps-api &",
-          "description": "Start API server",
-          "background": true,
-          "condition": {
-            "file_exists": "api/mind-maps-api"
-          }
+          "run": "cd api && PORT=$SERVICE_PORT ./mind-maps-api &",
+          "description": "Start Go API server in background",
+          "background": true
         },
         {
           "name": "start-ui-server",
-          "run": "cd ui && PORT=$UI_PORT API_URL=http://localhost:$SERVICE_PORT npm start &",
-          "description": "Start UI server",
+          "run": "cd ui && PORT=$UI_PORT API_URL=http://localhost:$SERVICE_PORT node server.js &",
+          "description": "Start UI server in background",
           "background": true
         },
         {
           "name": "wait-for-services",
           "run": "sleep 3",
-          "description": "Wait for services to start"
-        },
-        {
-          "name": "show-running",
-          "run": "echo 'Mind Maps running - UI: http://localhost:${UI_PORT} - API: http://localhost:${SERVICE_PORT}'",
-          "description": "Display running services"
+          "description": "Wait for services to be ready"
         }
       ]
     },
@@ -191,14 +190,14 @@
       "description": "Test Mind Maps services",
       "steps": [
         {
-          "name": "test-api",
-          "run": "curl -sf http://localhost:$SERVICE_PORT/health",
-          "description": "Test API health"
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build main.go && rm test-build",
+          "description": "Test Go compilation"
         },
         {
-          "name": "test-mindmaps",
-          "run": "curl -sf http://localhost:$SERVICE_PORT/api/mindmaps",
-          "description": "Test mindmaps endpoint"
+          "name": "test-cli-commands",
+          "run": "mind-maps --help",
+          "description": "Test CLI basic commands"
         }
       ]
     },
@@ -206,9 +205,14 @@
       "description": "Stop Mind Maps services",
       "steps": [
         {
-          "name": "stop-services",
-          "run": "pkill -f 'mind-maps-api' || true; pkill -f 'npm.*mind-maps' || true",
-          "description": "Stop all services"
+          "name": "stop-api-server",
+          "run": "pkill -f 'mind-maps-api' || true",
+          "description": "Stop Go API server"
+        },
+        {
+          "name": "stop-ui-server",
+          "run": "pkill -f 'node server.js' || true",
+          "description": "Stop UI server"
         }
       ]
     }

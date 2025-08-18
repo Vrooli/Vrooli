@@ -126,7 +126,7 @@
     },
     {
       "parameters": {
-        "url": "http://localhost:5678/webhook/ollama",
+        "url": "={{ $env.SERVICE_N8N_URL }}/webhook/ollama",
         "method": "POST",
         "sendBody": true,
         "specifyBody": "json",

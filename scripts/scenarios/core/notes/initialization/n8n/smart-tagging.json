@@ -80,35 +80,28 @@
     },
     {
       "parameters": {
-        "url": "http://localhost:5678/webhook/ollama",
-        "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "prompt",
-              "value": "=Analyze this content and suggest relevant tags.\n\nContent: {{ $('merge-1').item.json.content }}\n\nExisting tags on this note: {{ $('merge-1').item.json.existing_tags }}\n\nUser's frequently used tags: {{ $('postgres-tags').all().map(t => t.json.name).join(', ') }}\n\nSuggest 3-7 highly relevant tags. Prefer existing user tags when appropriate, but also suggest new ones if needed.\n\nRespond in JSON format:\n{\n  \"suggested_tags\": [\"tag1\", \"tag2\", \"tag3\"],\n  \"new_tags\": [\"newtag1\"],\n  \"reasoning\": \"Brief explanation of tag choices\"\n}"
-            },
-            {
-              "name": "model",
-              "value": "llama3.2:latest"
-            },
-            {
-              "name": "format",
-              "value": "json"
-            }
-          ]
-        },
-        "options": {}
+        "jsCode": "// Build the prompt for tag suggestions\nconst content = $('merge-1').item.json.content;\nconst existingTags = $('merge-1').item.json.existing_tags;\nconst userTags = $('postgres-tags').all().map(t => t.json.name).join(', ');\n\nconst prompt = `Analyze this content and suggest relevant tags.\n\nContent: ${content}\n\nExisting tags on this note: ${existingTags}\n\nUser's frequently used tags: ${userTags}\n\nSuggest 3-7 highly relevant tags. Prefer existing user tags when appropriate, but also suggest new ones if needed.\n\nRespond in JSON format:\n{\n  \"suggested_tags\": [\"tag1\", \"tag2\", \"tag3\"],\n  \"new_tags\": [\"newtag1\"],\n  \"reasoning\": \"Brief explanation of tag choices\"\n}`;\n\nreturn { prompt };"
       },
-      "name": "AI Tag Suggestions",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
+      "name": "Build Tag Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [1060, 400],
-      "id": "http-ai-tags"
+      "id": "build-tag-prompt"
     },
     {
       "parameters": {
-        "jsCode": "// Color palette for new tags\nconst colors = [\n  '#10b981', // emerald\n  '#3b82f6', // blue\n  '#8b5cf6', // violet\n  '#f59e0b', // amber\n  '#ef4444', // red\n  '#14b8a6', // teal\n  '#f97316', // orange\n  '#84cc16', // lime\n];\n\nconst aiResponse = $input.item.json;\nconst userTags = $('postgres-tags').all().map(t => t.json);\nconst userTagNames = userTags.map(t => t.name.toLowerCase());\n\n// Process suggested tags\nconst processedTags = aiResponse.suggested_tags.map(tagName => {\n  const normalizedName = tagName.toLowerCase().trim();\n  const existingTag = userTags.find(t => t.name.toLowerCase() === normalizedName);\n  \n  if (existingTag) {\n    return {\n      name: existingTag.name,\n      color: existingTag.color,\n      isNew: false,\n      usage_count: existingTag.usage_count\n    };\n  } else {\n    // Assign color based on hash of tag name for consistency\n    const hash = normalizedName.split('').reduce((acc, char) => {\n      return char.charCodeAt(0) + ((acc << 5) - acc);\n    }, 0);\n    const colorIndex = Math.abs(hash) % colors.length;\n    \n    return {\n      name: tagName,\n      color: colors[colorIndex],\n      isNew: true,\n      usage_count: 0\n    };\n  }\n});\n\n// Calculate relevance scores\nconst tagScores = processedTags.map(tag => {\n  let score = 1.0;\n  \n  // Boost score for existing tags based on usage\n  if (!tag.isNew) {\n    score += Math.min(tag.usage_count / 100, 0.5);\n  }\n  \n  // Boost score if tag appears in content\n  const content = $('merge-1').item.json.content.toLowerCase();\n  if (content.includes(tag.name.toLowerCase())) {\n    score += 0.3;\n  }\n  \n  return {\n    ...tag,\n    relevance_score: score\n  };\n});\n\n// Sort by relevance and limit\nconst finalTags = tagScores\n  .sort((a, b) => b.relevance_score - a.relevance_score)\n  .slice(0, 7);\n\nreturn {\n  suggested_tags: finalTags,\n  reasoning: aiResponse.reasoning,\n  total_suggestions: finalTags.length,\n  new_tags_count: finalTags.filter(t => t.isNew).length\n};"
+        "command": "=#!/bin/bash\n# Use Ollama CLI for tag suggestions\nset -e\n\n# Get prompt from input\nPROMPT='{{ $json.prompt }}'\n\n# Call Ollama using the CLI with JSON output format\nresource-ollama generate \"$PROMPT\" --model llama3.2:3b --type reasoning --format json --quiet || echo '{\"suggested_tags\": [\"general\", \"note\"], \"new_tags\": [], \"reasoning\": \"Fallback tags due to generation error\"}'",
+        "cwd": "/tmp"
+      },
+      "name": "AI Tag Suggestions",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1160, 400],
+      "id": "ai-tag-suggestions"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Color palette for new tags\nconst colors = [\n  '#10b981', // emerald\n  '#3b82f6', // blue\n  '#8b5cf6', // violet\n  '#f59e0b', // amber\n  '#ef4444', // red\n  '#14b8a6', // teal\n  '#f97316', // orange\n  '#84cc16', // lime\n];\n\n// Parse AI response from executeCommand output\nconst aiResponseText = $input.item.json.stdout || '{}';\nconst aiResponse = typeof aiResponseText === 'string' ? JSON.parse(aiResponseText) : aiResponseText;\nconst userTags = $('postgres-tags').all().map(t => t.json);\nconst userTagNames = userTags.map(t => t.name.toLowerCase());\n\n// Process suggested tags\nconst processedTags = (aiResponse.suggested_tags || []).map(tagName => {\n  const normalizedName = tagName.toLowerCase().trim();\n  const existingTag = userTags.find(t => t.name.toLowerCase() === normalizedName);\n  \n  if (existingTag) {\n    return {\n      name: existingTag.name,\n      color: existingTag.color,\n      isNew: false,\n      usage_count: existingTag.usage_count\n    };\n  } else {\n    // Assign color based on hash of tag name for consistency\n    const hash = normalizedName.split('').reduce((acc, char) => {\n      return char.charCodeAt(0) + ((acc << 5) - acc);\n    }, 0);\n    const colorIndex = Math.abs(hash) % colors.length;\n    \n    return {\n      name: tagName,\n      color: colors[colorIndex],\n      isNew: true,\n      usage_count: 0\n    };\n  }\n});\n\n// Calculate relevance scores\nconst tagScores = processedTags.map(tag => {\n  let score = 1.0;\n  \n  // Boost score for existing tags based on usage\n  if (!tag.isNew) {\n    score += Math.min(tag.usage_count / 100, 0.5);\n  }\n  \n  // Boost score if tag appears in content\n  const content = $('merge-1').item.json.content.toLowerCase();\n  if (content.includes(tag.name.toLowerCase())) {\n    score += 0.3;\n  }\n  \n  return {\n    ...tag,\n    relevance_score: score\n  };\n});\n\n// Sort by relevance and limit\nconst finalTags = tagScores\n  .sort((a, b) => b.relevance_score - a.relevance_score)\n  .slice(0, 7);\n\nreturn {\n  suggested_tags: finalTags,\n  reasoning: aiResponse.reasoning || 'Tags suggested based on content analysis',\n  total_suggestions: finalTags.length,\n  new_tags_count: finalTags.filter(t => t.isNew).length\n};"
       },
       "name": "Process Tags",
       "type": "n8n-nodes-base.code",
@@ -186,6 +179,17 @@
       ]
     },
     "Get User Tags": {
+      "main": [
+        [
+          {
+            "node": "Build Tag Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Tag Prompt": {
       "main": [
         [
           {

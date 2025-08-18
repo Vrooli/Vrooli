@@ -66,62 +66,34 @@
     },
     {
       "parameters": {
-        "url": "http://localhost:5678/webhook/embed",
-        "authentication": "none",
-        "method": "POST",
-        "body": {
-          "text": "={{ $json.title + ' ' + $json.description + ' ' + $json.tags.join(' ') }}",
-          "model": "nomic-embed-text"
-        },
-        "options": {}
+        "jsCode": "// Prepare data for the shared embedding workflow\nconst postgresData = $('save-to-postgres').item.json;\n\nreturn {\n  text: postgresData.title + ' ' + (postgresData.description || '') + ' ' + (postgresData.tags ? postgresData.tags.join(' ') : ''),\n  model: 'nomic-embed-text',\n  store_in_qdrant: true,\n  collection: 'mind_maps',\n  point_id: postgresData.id,\n  payload: {\n    map_id: postgresData.id,\n    title: postgresData.title,\n    description: postgresData.description,\n    tags: postgresData.tags,\n    user_id: postgresData.user_id,\n    created_at: postgresData.created_at\n  }\n};"
       },
-      "id": "generate-embedding",
-      "name": "Generate Embedding",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
-      "position": [1050, 400]
+      "id": "prepare-embedding-request",
+      "name": "Prepare Embedding Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 350]
     },
     {
       "parameters": {
-        "operation": "upsert",
-        "collection": "mind_maps",
-        "points": [
-          {
-            "id": "={{ $('save-to-postgres').item.json.id }}",
-            "payload": {
-              "mapId": "={{ $('save-to-postgres').item.json.id }}",
-              "title": "={{ $('save-to-postgres').item.json.title }}",
-              "userId": "={{ $('save-to-postgres').item.json.user_id }}",
-              "tags": "={{ $('save-to-postgres').item.json.tags }}",
-              "createdAt": "={{ $('save-to-postgres').item.json.created_at }}"
-            },
-            "vector": "={{ $json.embedding }}"
-          }
-        ]
+        "source": "workflowByName",
+        "workflowName": "Shared Text Embedding Generator"
       },
-      "id": "store-in-qdrant",
-      "name": "Store in Qdrant",
-      "type": "n8n-nodes-base.qdrant",
+      "id": "generate-and-store-embedding",
+      "name": "Generate and Store Embedding",
+      "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
-      "position": [1250, 400],
-      "credentials": {
-        "qdrantApi": {
-          "id": "qdrant-default",
-          "name": "Qdrant"
-        }
-      }
+      "position": [1250, 350]
     },
     {
       "parameters": {
-        "mode": "raw",
-        "jsonOutput": "={\n  \"success\": true,\n  \"mapId\": \"{{ $('save-to-postgres').item.json.id }}\",\n  \"title\": \"{{ $('save-to-postgres').item.json.title }}\",\n  \"message\": \"Mind map created successfully\",\n  \"data\": {{ JSON.stringify($('save-to-postgres').item.json) }}\n}",
-        "options": {}
+        "jsCode": "// Format the final response\nconst postgresData = $('save-to-postgres').item.json;\nconst embeddingResult = $json;\n\nreturn {\n  success: true,\n  mapId: postgresData.id,\n  title: postgresData.title,\n  message: 'Mind map created successfully with semantic search enabled',\n  data: postgresData,\n  embedding_stored: embeddingResult.success || false,\n  collection: embeddingResult.collection || 'mind_maps'\n};"
       },
       "id": "format-response",
       "name": "Format Response",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.3,
-      "position": [1450, 400]
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1450, 350]
     },
     {
       "parameters": {
@@ -133,7 +105,7 @@
       "name": "Respond to Webhook",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1650, 300]
+      "position": [1850, 300]
     }
   ],
   "connections": {
@@ -185,25 +157,25 @@
       "main": [
         [
           {
-            "node": "generate-embedding",
+            "node": "prepare-embedding-request",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "generate-embedding": {
+    "prepare-embedding-request": {
       "main": [
         [
           {
-            "node": "store-in-qdrant",
+            "node": "generate-and-store-embedding",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "store-in-qdrant": {
+    "generate-and-store-embedding": {
       "main": [
         [
           {

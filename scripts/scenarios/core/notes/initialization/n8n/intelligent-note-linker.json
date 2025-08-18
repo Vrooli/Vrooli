@@ -65,101 +65,37 @@
     },
     {
       "parameters": {
-        "url": "http://localhost:5678/webhook/chain-of-thought",
-        "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "task",
-              "value": "Extract key concepts and topics from this note for finding related notes"
-            },
-            {
-              "name": "input",
-              "value": "={{ $json.note_content }}"
-            },
-            {
-              "name": "reasoning_steps",
-              "value": "={{ ['1. Identify main topic and theme', '2. Extract key concepts and entities', '3. Identify related fields and subtopics', '4. Generate search keywords for finding similar notes'] }}"
-            },
-            {
-              "name": "output_format",
-              "value": "={{ { main_topic: 'string', key_concepts: ['array of concepts'], related_fields: ['array of fields'], search_keywords: ['array of keywords'] } }}"
-            }
-          ]
-        },
-        "options": {}
+        "workflowId": "={{ $env.SHARED_WORKFLOW_CHAIN_OF_THOUGHT_ORCHESTRATOR_ID }}",
+        "source": "parameter",
+        "workflowData": "={{ { task: 'Extract key concepts and topics from this note for finding related notes', input: $json.note_content, reasoning_steps: ['1. Identify main topic and theme', '2. Extract key concepts and entities', '3. Identify related fields and subtopics', '4. Generate search keywords for finding similar notes'], output_format: { main_topic: 'string', key_concepts: ['array of concepts'], related_fields: ['array of fields'], search_keywords: ['array of keywords'] } } }}"
       },
       "name": "Extract Concepts",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
       "position": [850, 400],
       "id": "extract-concepts"
     },
     {
       "parameters": {
-        "url": "http://localhost:5678/webhook/smart-semantic-search",
-        "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "query",
-              "value": "={{ $json.reasoning_output.search_keywords.join(' ') }}"
-            },
-            {
-              "name": "collection",
-              "value": "notes"
-            },
-            {
-              "name": "limit",
-              "value": "={{ $('process-input').item.json.max_links * 2 }}"
-            },
-            {
-              "name": "threshold",
-              "value": "={{ $('process-input').item.json.threshold }}"
-            },
-            {
-              "name": "filter",
-              "value": "={{ { user_id: $('process-input').item.json.user_id, exclude_id: $('process-input').item.json.note_id } }}"
-            },
-            {
-              "name": "rerank",
-              "value": true
-            }
-          ]
-        },
-        "options": {}
+        "workflowId": "={{ $env.SHARED_WORKFLOW_SMART_SEMANTIC_SEARCH_ID }}",
+        "source": "parameter",
+        "workflowData": "={{ { query: $json.reasoning_output.search_keywords.join(' '), collection: 'notes', limit: $('process-input').item.json.max_links * 2, threshold: $('process-input').item.json.threshold, filter: { user_id: $('process-input').item.json.user_id, exclude_id: $('process-input').item.json.note_id }, rerank: true } }}"
       },
       "name": "Find Similar Notes",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
       "position": [1050, 400],
       "id": "find-similar"
     },
     {
       "parameters": {
-        "url": "http://localhost:5678/webhook/ollama",
-        "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "prompt",
-              "value": "=Analyze these search results and select the most relevant notes to link. For each selected note, provide a brief explanation of why it's related.\n\nOriginal Note Content:\n{{ $('process-input').item.json.note_content }}\n\nKey Concepts: {{ $('extract-concepts').item.json.reasoning_output.key_concepts }}\n\nSearch Results:\n{{ JSON.stringify($json.results, null, 2) }}\n\nSelect up to {{ $('process-input').item.json.max_links }} most relevant notes and return as JSON:\n{\n  \"linked_notes\": [\n    {\n      \"note_id\": \"id\",\n      \"title\": \"title\",\n      \"relevance_score\": 0.95,\n      \"link_reason\": \"Brief explanation\",\n      \"shared_concepts\": [\"concept1\", \"concept2\"]\n    }\n  ]\n}"
-            },
-            {
-              "name": "model",
-              "value": "llama3.2:latest"
-            },
-            {
-              "name": "format",
-              "value": "json"
-            }
-          ]
-        },
-        "options": {}
+        "workflowId": "={{ $env.SHARED_WORKFLOW_OLLAMA_ID }}",
+        "source": "parameter",
+        "workflowData": "={{ { prompt: 'Analyze these search results and select the most relevant notes to link. For each selected note, provide a brief explanation of why it\\'s related.\\n\\nOriginal Note Content:\\n' + $('process-input').item.json.note_content + '\\n\\nKey Concepts: ' + JSON.stringify($('extract-concepts').item.json.reasoning_output.key_concepts) + '\\n\\nSearch Results:\\n' + JSON.stringify($json.results, null, 2) + '\\n\\nSelect up to ' + $('process-input').item.json.max_links + ' most relevant notes and return as JSON:\\n{\\n  \\\"linked_notes\\\": [\\n    {\\n      \\\"note_id\\\": \\\"id\\\",\\n      \\\"title\\\": \\\"title\\\",\\n      \\\"relevance_score\\\": 0.95,\\n      \\\"link_reason\\\": \\\"Brief explanation\\\",\\n      \\\"shared_concepts\\\": [\\\"concept1\\\", \\\"concept2\\\"]\\n    }\\n  ]\\n}', model: 'llama3.2:latest', format: 'json', type: 'reasoning', quiet: true, timeout_seconds: 120 } }}"
       },
       "name": "Rank and Select Links",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
       "position": [1250, 400],
       "id": "rank-links"
     },
@@ -168,7 +104,7 @@
         "operation": "executeQuery",
         "query": "=INSERT INTO note_links (source_note_id, target_note_id, user_id, link_reason, relevance_score, shared_concepts, created_at)\nSELECT \n  $1 as source_note_id,\n  unnest($2::text[]) as target_note_id,\n  $3 as user_id,\n  unnest($4::text[]) as link_reason,\n  unnest($5::float[]) as relevance_score,\n  unnest($6::jsonb[]) as shared_concepts,\n  $7 as created_at\nON CONFLICT (source_note_id, target_note_id) \nDO UPDATE SET \n  link_reason = EXCLUDED.link_reason,\n  relevance_score = EXCLUDED.relevance_score,\n  shared_concepts = EXCLUDED.shared_concepts,\n  updated_at = EXCLUDED.created_at\nRETURNING *;",
         "options": {
-          "queryParams": "={{ $('process-input').item.json.note_id }}, {{ $json.linked_notes.map(n => n.note_id) }}, {{ $('process-input').item.json.user_id }}, {{ $json.linked_notes.map(n => n.link_reason) }}, {{ $json.linked_notes.map(n => n.relevance_score) }}, {{ $json.linked_notes.map(n => JSON.stringify(n.shared_concepts)) }}, {{ $('process-input').item.json.timestamp }}"
+          "queryParams": "={{ $('process-input').item.json.note_id }}, {{ JSON.parse($json.response || '{}').linked_notes.map(n => n.note_id) }}, {{ $('process-input').item.json.user_id }}, {{ JSON.parse($json.response || '{}').linked_notes.map(n => n.link_reason) }}, {{ JSON.parse($json.response || '{}').linked_notes.map(n => n.relevance_score) }}, {{ JSON.parse($json.response || '{}').linked_notes.map(n => JSON.stringify(n.shared_concepts)) }}, {{ $('process-input').item.json.timestamp }}"
         }
       },
       "name": "Save Links",
@@ -203,7 +139,7 @@
             },
             {
               "name": "links_created",
-              "value": "={{ $('rank-links').item.json.linked_notes }}"
+              "value": "={{ JSON.parse($('rank-links').item.json.response || '{}').linked_notes }}"
             },
             {
               "name": "concepts_identified",
@@ -309,7 +245,7 @@
       ]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
     "executionOrder": "v1"
   },

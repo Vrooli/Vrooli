@@ -66,94 +66,14 @@
     },
     {
       "parameters": {
-        "url": "http://localhost:5678/webhook/chain-of-thought",
-        "authentication": "none",
-        "method": "POST",
-        "body": {
-          "problem": "Analyze this mind map structure and suggest improvements for better organization",
-          "context": "={{ JSON.stringify($json) }}",
-          "steps": [
-            "Identify clusters of related nodes that should be grouped together",
-            "Find nodes that are misplaced or could have better parents",
-            "Detect missing connections between related concepts",
-            "Suggest new intermediate nodes to bridge conceptual gaps",
-            "Identify potential hierarchical improvements",
-            "Find duplicate or redundant nodes that could be merged"
-          ],
-          "model": "llama3.2",
-          "outputFormat": "json_structured",
-          "schema": {
-            "type": "object",
-            "properties": {
-              "clusters": {
-                "type": "array",
-                "items": {
-                  "type": "object",
-                  "properties": {
-                    "name": { "type": "string" },
-                    "theme": { "type": "string" },
-                    "nodeIds": { "type": "array", "items": { "type": "string" } },
-                    "suggestedParent": { "type": "string" }
-                  }
-                }
-              },
-              "reorganizations": {
-                "type": "array",
-                "items": {
-                  "type": "object",
-                  "properties": {
-                    "nodeId": { "type": "string" },
-                    "currentParent": { "type": "string" },
-                    "suggestedParent": { "type": "string" },
-                    "reason": { "type": "string" }
-                  }
-                }
-              },
-              "newConnections": {
-                "type": "array",
-                "items": {
-                  "type": "object",
-                  "properties": {
-                    "fromNodeId": { "type": "string" },
-                    "toNodeId": { "type": "string" },
-                    "relationshipType": { "type": "string" },
-                    "strength": { "type": "number" }
-                  }
-                }
-              },
-              "newNodes": {
-                "type": "array",
-                "items": {
-                  "type": "object",
-                  "properties": {
-                    "title": { "type": "string" },
-                    "content": { "type": "string" },
-                    "suggestedParent": { "type": "string" },
-                    "nodeType": { "type": "string" },
-                    "purpose": { "type": "string" }
-                  }
-                }
-              },
-              "mergesuggestions": {
-                "type": "array",
-                "items": {
-                  "type": "object",
-                  "properties": {
-                    "nodeIds": { "type": "array", "items": { "type": "string" } },
-                    "mergedTitle": { "type": "string" },
-                    "reason": { "type": "string" }
-                  }
-                }
-              }
-            }
-          }
-        },
-        "options": {}
+        "source": "workflowByName",
+        "workflowName": "Chain of Thought Orchestrator",
+        "workflowValues": "={{ JSON.stringify({ \"problem\": \"Analyze this mind map structure and suggest improvements for better organization\", \"context\": JSON.stringify($json), \"steps\": [\"Identify clusters of related nodes that should be grouped together\", \"Find nodes that are misplaced or could have better parents\", \"Detect missing connections between related concepts\", \"Suggest new intermediate nodes to bridge conceptual gaps\", \"Identify potential hierarchical improvements\", \"Find duplicate or redundant nodes that could be merged\"], \"model\": \"llama3.2\", \"outputFormat\": \"json_structured\", \"schema\": { \"type\": \"object\", \"properties\": { \"clusters\": { \"type\": \"array\", \"items\": { \"type\": \"object\", \"properties\": { \"name\": { \"type\": \"string\" }, \"theme\": { \"type\": \"string\" }, \"nodeIds\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } }, \"suggestedParent\": { \"type\": \"string\" } } } }, \"reorganizations\": { \"type\": \"array\", \"items\": { \"type\": \"object\", \"properties\": { \"nodeId\": { \"type\": \"string\" }, \"currentParent\": { \"type\": \"string\" }, \"suggestedParent\": { \"type\": \"string\" }, \"reason\": { \"type\": \"string\" } } } }, \"newConnections\": { \"type\": \"array\", \"items\": { \"type\": \"object\", \"properties\": { \"fromNodeId\": { \"type\": \"string\" }, \"toNodeId\": { \"type\": \"string\" }, \"relationshipType\": { \"type\": \"string\" }, \"strength\": { \"type\": \"number\" } } } }, \"newNodes\": { \"type\": \"array\", \"items\": { \"type\": \"object\", \"properties\": { \"title\": { \"type\": \"string\" }, \"content\": { \"type\": \"string\" }, \"suggestedParent\": { \"type\": \"string\" }, \"nodeType\": { \"type\": \"string\" }, \"purpose\": { \"type\": \"string\" } } } }, \"mergesuggestions\": { \"type\": \"array\", \"items\": { \"type\": \"object\", \"properties\": { \"nodeIds\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } }, \"mergedTitle\": { \"type\": \"string\" }, \"reason\": { \"type\": \"string\" } } } } } } }) }}"
       },
       "id": "analyze-with-cot",
       "name": "Analyze with Chain of Thought",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
       "position": [1050, 400]
     },
     {
@@ -175,20 +95,14 @@
     },
     {
       "parameters": {
-        "url": "http://localhost:5678/webhook/embedding-generator",
-        "authentication": "none",
-        "method": "POST",
-        "body": {
-          "texts": "={{ $('fetch-nodes').all().map(item => item.json.title + ' ' + item.json.content) }}",
-          "model": "nomic-embed-text",
-          "returnFormat": "vectors"
-        },
-        "options": {}
+        "source": "workflowByName",
+        "workflowName": "Shared Text Embedding Generator",
+        "workflowValues": "={{ JSON.stringify({ \"texts\": $('fetch-nodes').all().map(item => item.json.title + ' ' + item.json.content), \"model\": \"nomic-embed-text\", \"returnFormat\": \"vectors\" }) }}"
       },
       "id": "generate-embeddings",
       "name": "Generate Node Embeddings",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
       "position": [1450, 300]
     },
     {

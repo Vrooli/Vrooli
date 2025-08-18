@@ -121,31 +121,34 @@
     },
     {
       "parameters": {
-        "url": "http://localhost:5678/webhook/ollama",
-        "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "prompt",
-              "value": "=Generate a thoughtful daily summary of note-taking activity.\n\nDate: {{ $json.date }}\n\nStatistics:\n- Notes created: {{ $json.stats.notes_created }}\n- Notes updated: {{ $json.stats.notes_updated }}\n- Total words written: {{ $json.stats.total_words }}\n- Tags used: {{ $json.stats.tags_used.join(', ') }}\n\nNotes worked on today:\n{{ $json.notes.map(n => `- ${n.title} (${n.word_count} words, tags: ${n.tags.join(', ')})`).join('\\n') }}\n\nProvide:\n1. A narrative summary (2-3 sentences) of the day's note-taking activity\n2. Key themes or topics that emerged\n3. Productivity insights\n4. Suggestions for tomorrow\n\nRespond in JSON format:\n{\n  \"summary\": \"...\",\n  \"key_themes\": [\"theme1\", \"theme2\"],\n  \"productivity_insight\": \"...\",\n  \"tomorrow_suggestion\": \"...\"\n}"
-            },
-            {
-              "name": "model",
-              "value": "llama3.2:latest"
-            },
-            {
-              "name": "format",
-              "value": "json"
-            }
-          ]
-        },
-        "options": {}
+        "jsCode": "// Build prompt for daily summary\nconst date = $json.date;\nconst stats = $json.stats;\nconst notes = $json.notes;\n\nconst prompt = `Generate a thoughtful daily summary of note-taking activity.\n\nDate: ${date}\n\nStatistics:\n- Notes created: ${stats.notes_created}\n- Notes updated: ${stats.notes_updated}\n- Total words written: ${stats.total_words}\n- Tags used: ${stats.tags_used.join(', ')}\n\nNotes worked on today:\n${notes.map(n => `- ${n.title} (${n.word_count} words, tags: ${n.tags.join(', ')})`).join('\\n')}\n\nProvide:\n1. A narrative summary (2-3 sentences) of the day's note-taking activity\n2. Key themes or topics that emerged\n3. Productivity insights\n4. Suggestions for tomorrow\n\nRespond in JSON format:\n{\n  \"summary\": \"...\",\n  \"key_themes\": [\"theme1\", \"theme2\"],\n  \"productivity_insight\": \"...\",\n  \"tomorrow_suggestion\": \"...\"\n}`;\n\nreturn { prompt };"
+      },
+      "name": "Build AI Summary Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1260, 400],
+      "id": "build-ai-prompt"
+    },
+    {
+      "parameters": {
+        "command": "=#!/bin/bash\n# Generate daily summary using Ollama CLI\nset -e\n\n# Get prompt from input and escape it properly\nPROMPT='{{ $json.prompt }}'\n\n# Call Ollama using the CLI with JSON output format\nresource-ollama generate \"$PROMPT\" --model llama3.2:3b --type reasoning --format json --quiet || echo '{\"summary\": \"Daily activity recorded.\", \"key_themes\": [\"notes\"], \"productivity_insight\": \"Keep up the good work!\", \"tomorrow_suggestion\": \"Continue your note-taking practice.\"}'",
+        "cwd": "/tmp"
       },
       "name": "Generate AI Summary",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
-      "position": [1260, 400],
-      "id": "http-ai-summary"
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1460, 400],
+      "id": "generate-ai-summary"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse AI response from shared workflow\nconst aiResponseText = $json.response || '{}';\nlet aiResponse;\n\ntry {\n  aiResponse = typeof aiResponseText === 'string' ? JSON.parse(aiResponseText) : aiResponseText;\n} catch (e) {\n  // If parsing fails, create a fallback response\n  console.error('Failed to parse AI response:', e);\n  aiResponse = {\n    summary: 'Daily summary generated successfully.',\n    key_themes: [],\n    productivity_insight: 'Continue building on today\\'s progress.',\n    tomorrow_suggestion: 'Review and expand on today\\'s notes.'\n  };\n}\n\n// Get the original data\nconst originalData = $('code-prepare').item.json;\n\n// Combine AI response with stats for saving\nreturn {\n  user_id: $('set-params').item.json.user_id,\n  summary_date: originalData.date,\n  content: aiResponse.summary || 'No summary available',\n  key_points: aiResponse.key_themes || [],\n  notes_created: originalData.stats.notes_created,\n  notes_updated: originalData.stats.notes_updated,\n  total_words: originalData.stats.total_words,\n  productivity_insight: aiResponse.productivity_insight || '',\n  tomorrow_suggestion: aiResponse.tomorrow_suggestion || ''\n};"
+      },
+      "name": "Process AI Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1660, 400],
+      "id": "process-ai-response"
     },
     {
       "parameters": {
@@ -176,6 +179,16 @@
     },
     {
       "parameters": {
+        "jsCode": "// Get the no-activity data\nconst originalData = $('code-prepare').item.json;\n\n// Create summary data for no activity\nreturn {\n  user_id: $('set-params').item.json.user_id,\n  summary_date: originalData.date,\n  content: $json.summary,\n  key_points: $json.key_themes || [],\n  notes_created: 0,\n  notes_updated: 0,\n  total_words: 0,\n  productivity_insight: 'No activity today',\n  tomorrow_suggestion: $json.tomorrow_suggestion\n};"
+      },
+      "name": "Process No Activity",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1460, 600],
+      "id": "process-no-activity"
+    },
+    {
+      "parameters": {
         "mode": "combine",
         "combinationMode": "multiplex",
         "options": {}
@@ -183,7 +196,7 @@
       "name": "Merge Summaries",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 2.1,
-      "position": [1460, 500],
+      "position": [1860, 500],
       "id": "merge-summaries"
     },
     {
@@ -198,7 +211,7 @@
       "name": "Save Summary",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
-      "position": [1660, 500],
+      "position": [2060, 500],
       "credentials": {
         "postgres": {
           "id": "vrooli-postgres",
@@ -231,7 +244,7 @@
       "name": "Format Response",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3,
-      "position": [1860, 300],
+      "position": [2260, 300],
       "id": "format-response"
     }
   ],
@@ -311,7 +324,7 @@
       "main": [
         [
           {
-            "node": "Generate AI Summary",
+            "node": "Build AI Summary Command",
             "type": "main",
             "index": 0
           }
@@ -325,7 +338,29 @@
         ]
       ]
     },
+    "Build AI Summary Command": {
+      "main": [
+        [
+          {
+            "node": "Generate AI Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "Generate AI Summary": {
+      "main": [
+        [
+          {
+            "node": "Process AI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process AI Response": {
       "main": [
         [
           {
@@ -337,6 +372,17 @@
       ]
     },
     "No Activity Summary": {
+      "main": [
+        [
+          {
+            "node": "Process No Activity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process No Activity": {
       "main": [
         [
           {

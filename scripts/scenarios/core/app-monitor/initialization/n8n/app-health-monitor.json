@@ -133,7 +133,7 @@
     },
     {
       "parameters": {
-        "url": "http://localhost:5678/webhook/ollama",
+        "url": "={{ $env.SERVICE_N8N_URL }}/webhook/ollama",
         "method": "POST",
         "sendBody": true,
         "specifyBody": "json",
@@ -411,7 +411,7 @@
       "main": [
         [
           {
-            "node": "AI Analysis (Ollama)",
+            "node": "AI Analysis (Shared Ollama)",
             "type": "main",
             "index": 0
           }
@@ -425,7 +425,7 @@
         ]
       ]
     },
-    "AI Analysis (Ollama)": {
+    "AI Analysis (Shared Ollama)": {
       "main": [
         [
           {

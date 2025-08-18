@@ -46,56 +46,14 @@
     },
     {
       "parameters": {
-        "url": "http://localhost:5678/webhook/chain-of-thought-orchestrator",
-        "authentication": "none",
-        "method": "POST",
-        "body": {
-          "task": "Organize the following content into a mind map structure: {{ $json.content }}",
-          "stages": [
-            {
-              "name": "extract_concepts",
-              "prompt": "Extract all key concepts, entities, and relationships from this text: {{ $json.content }}\n\nList each concept with its category and importance level (1-5).",
-              "model": "llama3.2",
-              "temperature": 0.3
-            },
-            {
-              "name": "identify_hierarchy",
-              "prompt": "Based on the extracted concepts, identify the hierarchical relationships. Determine parent-child relationships and group related concepts. Organization mode: {{ $json.organizationMode }}",
-              "model": "llama3.2",
-              "temperature": 0.4
-            },
-            {
-              "name": "create_connections",
-              "prompt": "Create cross-references and connections between concepts that aren't hierarchically related but have semantic relationships. Include connection strength (weak/medium/strong).",
-              "model": "llama3.2",
-              "temperature": 0.5
-            },
-            {
-              "name": "optimize_structure",
-              "prompt": "Optimize the mind map structure for clarity and usability. Ensure max depth is {{ $json.maxDepth }}. Balance the tree and suggest node colors/icons based on categories.",
-              "model": "llama3.2",
-              "temperature": 0.3
-            }
-          ],
-          "validation": {
-            "criteria": [
-              "All important concepts from the original text are included",
-              "Hierarchical structure is logical and clear",
-              "Connections between nodes are meaningful",
-              "Structure respects the max depth constraint"
-            ]
-          },
-          "synthesis": {
-            "prompt": "Create the final mind map structure as JSON with nodes and edges. Each node should have: id, label, category, depth, position hints, color suggestions. Each edge should have: source, target, relationship type, strength.",
-            "format": "json"
-          }
-        },
-        "options": {}
+        "source": "workflowByName",
+        "workflowName": "Chain of Thought Orchestrator",
+        "workflowData": "={{ { problem: 'Organize the following content into a mind map structure with organization mode \\'' + $json.organizationMode + '\\' and max depth ' + $json.maxDepth + ': ' + $json.content, thinking_stages: ['identify_requirements', 'analyze_context', 'generate_solution', 'evaluate_tradeoffs', 'final_recommendation'], model: 'llama3.2:3b', temperature: 0.4, validation_mode: 'self_critique', quality_threshold: 0.7 } }}"
       },
       "id": "chain-of-thought",
       "name": "Chain of Thought Analysis",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
       "position": [850, 400]
     },
     {
@@ -110,21 +68,14 @@
     },
     {
       "parameters": {
-        "url": "http://localhost:5678/webhook/embedding-generator",
-        "authentication": "none",
-        "method": "POST",
-        "body": {
-          "texts": "={{ $json.structure.nodes.map(n => n.label).join('|||') }}",
-          "model": "nomic-embed-text",
-          "separator": "|||",
-          "includeMetadata": true
-        },
-        "options": {}
+        "source": "workflowByName",
+        "workflowName": "Shared Text Embedding Generator",
+        "workflowData": "={{ { \"text\": $json.structure.nodes.map(n => n.label).join(' '), \"model\": \"nomic-embed-text\", \"store_in_qdrant\": false } }}"
       },
       "id": "generate-embeddings",
       "name": "Generate Node Embeddings",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
       "position": [1250, 400]
     },
     {
@@ -149,21 +100,14 @@
     },
     {
       "parameters": {
-        "url": "http://localhost:5678/webhook/workflow-screenshot-capturer",
-        "authentication": "none",
-        "method": "POST",
-        "body": {
-          "url": "http://localhost:{{ $('merge-inputs').item.json.uiPort || 5174 }}/mind-map/{{ $('process-structure').item.json.mapId }}",
-          "waitTime": 2000,
-          "selector": "#mind-map-canvas",
-          "fullPage": false
-        },
-        "options": {}
+        "workflowId": "={{ $env.SHARED_WORKFLOW_WORKFLOW_SCREENSHOT_CAPTURER_ID }}",
+        "source": "parameter",
+        "workflowData": "={{ { \"url\": \"http://localhost:\" + ($('merge-inputs').item.json.uiPort || 3100) + \"/mind-map/\" + $('process-structure').item.json.mapId, \"waitTime\": 2000, \"selector\": \"#mind-map-canvas\", \"fullPage\": false } }}"
       },
       "id": "capture-preview",
       "name": "Capture Mind Map Preview",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
       "position": [1650, 400]
     },
     {

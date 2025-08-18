@@ -34,31 +34,29 @@
     },
     {
       "parameters": {
-        "jsCode": "// Prepare the ReAct Loop context for intelligent mind map building\nconst input = items[0].json;\n\n// Define available tools for the ReAct agent\nconst tools = [\n  {\n    name: 'research_topic',\n    description: 'Research a topic to gather information for mind map nodes',\n    parameters: {\n      query: 'string',\n      depth: 'number'\n    }\n  },\n  {\n    name: 'create_node',\n    description: 'Create a new node in the mind map',\n    parameters: {\n      title: 'string',\n      description: 'string',\n      parent_id: 'string',\n      type: 'string',\n      metadata: 'object'\n    }\n  },\n  {\n    name: 'create_relationship',\n    description: 'Create a relationship between two nodes',\n    parameters: {\n      source_id: 'string',\n      target_id: 'string',\n      relationship_type: 'string',\n      label: 'string'\n    }\n  },\n  {\n    name: 'analyze_structure',\n    description: 'Analyze current mind map structure and suggest improvements',\n    parameters: {\n      nodes: 'array',\n      relationships: 'array'\n    }\n  },\n  {\n    name: 'generate_examples',\n    description: 'Generate relevant examples for a concept',\n    parameters: {\n      concept: 'string',\n      count: 'number'\n    }\n  }\n];\n\n// Create the task for the ReAct agent\nconst task = `Build a comprehensive mind map for the topic: \"${input.topic}\"\n\nRequirements:\n- Create up to ${input.max_nodes || 20} meaningful nodes\n- Organize nodes hierarchically with depth of ${input.depth || 3} levels\n- Style: ${input.style || 'balanced'}\n- Include examples: ${input.include_examples || false}\n- Include cross-relationships: ${input.include_relationships || false}\n- Context: ${input.context || 'General learning'}\n\nApproach:\n1. Research the main topic to understand key concepts\n2. Create the root node for the main topic\n3. Identify and create major subtopics as child nodes\n4. For each subtopic, add detailed concept nodes\n5. If examples are requested, add example nodes\n6. If relationships are requested, identify and create cross-connections\n7. Analyze the structure and make improvements\n8. Return the complete mind map structure`;\n\nreturn [{\n  json: {\n    task: task,\n    tools: tools,\n    context: {\n      user_id: input.user_id,\n      topic: input.topic,\n      requirements: input\n    },\n    max_iterations: 15,\n    model: 'llama3.2',\n    temperature: 0.7,\n    validation_rules: [\n      'Must create hierarchical structure',\n      'Node descriptions must be informative',\n      'Relationships must be meaningful'\n    ]\n  }\n}];"
+        "jsCode": "// Prepare prompt for intelligent mind map building using shared Ollama workflow\nconst input = items[0].json;\n\n// Create a structured prompt for mind map generation\nconst prompt = `You are an expert at creating comprehensive mind maps. Build a detailed mind map for the topic: \"${input.topic}\"\n\nRequirements:\n- Create up to ${input.max_nodes || 20} meaningful nodes\n- Organize nodes hierarchically with depth of ${input.depth || 3} levels\n- Style: ${input.style || 'balanced'}\n- Include examples: ${input.include_examples || false}\n- Include cross-relationships: ${input.include_relationships || false}\n- Context: ${input.context || 'General learning'}\n\nProvide your response as a JSON object with this exact structure:\n{\n  \"nodes\": [\n    {\n      \"id\": \"node_1\",\n      \"title\": \"Main Topic\",\n      \"description\": \"Description of the main topic\",\n      \"parent_id\": null,\n      \"type\": \"root\",\n      \"metadata\": {}\n    },\n    {\n      \"id\": \"node_2\",\n      \"title\": \"Subtopic 1\",\n      \"description\": \"Description of subtopic\",\n      \"parent_id\": \"node_1\",\n      \"type\": \"concept\",\n      \"metadata\": {}\n    }\n  ],\n  \"relationships\": [\n    {\n      \"source_id\": \"node_1\",\n      \"target_id\": \"node_2\",\n      \"type\": \"related\",\n      \"label\": \"is related to\"\n    }\n  ]\n}\n\nImportant: Return ONLY valid JSON with no additional text or explanations.`;\n\nreturn [{\n  json: {\n    prompt: prompt,\n    model: input.model || 'llama3.2',\n    type: 'reasoning',\n    quiet: true,\n    timeout_seconds: 180,\n    original_input: input\n  }\n}];"
       },
-      "id": "prepare-react-context",
-      "name": "Prepare ReAct Context",
+      "id": "prepare-ollama-prompt",
+      "name": "Prepare Ollama Prompt",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [650, 400]
     },
     {
       "parameters": {
-        "workflow": "={{ $fromAI('WORKFLOW_ID_react-loop-engine', 'string') }}",
-        "workflowData": "={{ JSON.stringify($json) }}",
-        "options": {
-          "waitForSubWorkflow": true
-        }
+        "source": "workflowByName",
+        "workflowName": "ollama",
+        "workflowValues": "={{ JSON.stringify($json) }}"
       },
-      "id": "react-loop-execution",
-      "name": "ReAct Loop Execution",
+      "id": "execute-ollama",
+      "name": "Execute Ollama via Shared Workflow",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
       "position": [850, 400]
     },
     {
       "parameters": {
-        "jsCode": "// Process ReAct results and build final mind map structure\nconst reactResult = items[0].json;\nconst input = $input.all()[0].json;\n\n// Initialize mind map structure\nlet mindMap = {\n  id: `mindmap_${Date.now()}`,\n  title: input.topic,\n  user_id: input.user_id,\n  nodes: [],\n  relationships: [],\n  metadata: {\n    created_at: new Date().toISOString(),\n    style: input.style,\n    depth: input.depth,\n    ai_generated: true\n  }\n};\n\n// Parse the ReAct execution results\ntry {\n  const actions = reactResult.actions || [];\n  const nodeMap = new Map();\n  \n  // Process all create_node actions\n  actions.forEach(action => {\n    if (action.tool === 'create_node' && action.result) {\n      const node = {\n        id: `node_${mindMap.nodes.length + 1}`,\n        title: action.parameters.title,\n        description: action.parameters.description,\n        parent_id: action.parameters.parent_id || null,\n        type: action.parameters.type || 'concept',\n        metadata: action.parameters.metadata || {},\n        position: calculateNodePosition(mindMap.nodes.length)\n      };\n      mindMap.nodes.push(node);\n      nodeMap.set(node.title, node.id);\n    }\n  });\n  \n  // Process all create_relationship actions\n  actions.forEach(action => {\n    if (action.tool === 'create_relationship' && action.result) {\n      const relationship = {\n        id: `rel_${mindMap.relationships.length + 1}`,\n        source: action.parameters.source_id,\n        target: action.parameters.target_id,\n        type: action.parameters.relationship_type || 'related',\n        label: action.parameters.label || ''\n      };\n      mindMap.relationships.push(relationship);\n    }\n  });\n  \n  // If no nodes were created, create a basic structure\n  if (mindMap.nodes.length === 0) {\n    mindMap.nodes = [\n      {\n        id: 'node_1',\n        title: input.topic,\n        description: `Central concept for ${input.topic}`,\n        parent_id: null,\n        type: 'root',\n        position: { x: 0, y: 0 }\n      },\n      {\n        id: 'node_2',\n        title: 'Key Concepts',\n        description: 'Important concepts to understand',\n        parent_id: 'node_1',\n        type: 'category',\n        position: { x: -200, y: 100 }\n      },\n      {\n        id: 'node_3',\n        title: 'Applications',\n        description: 'Practical applications and use cases',\n        parent_id: 'node_1',\n        type: 'category',\n        position: { x: 200, y: 100 }\n      }\n    ];\n  }\n  \n} catch (e) {\n  console.error('Error processing ReAct results:', e);\n}\n\n// Helper function to calculate node positions\nfunction calculateNodePosition(index) {\n  const angle = (index * 2 * Math.PI) / 8;\n  const radius = 150 + (Math.floor(index / 8) * 100);\n  return {\n    x: Math.cos(angle) * radius,\n    y: Math.sin(angle) * radius\n  };\n}\n\n// Add summary statistics\nmindMap.statistics = {\n  total_nodes: mindMap.nodes.length,\n  total_relationships: mindMap.relationships.length,\n  max_depth: calculateMaxDepth(mindMap.nodes),\n  node_types: countNodeTypes(mindMap.nodes)\n};\n\nfunction calculateMaxDepth(nodes) {\n  let maxDepth = 0;\n  nodes.forEach(node => {\n    let depth = 0;\n    let current = node;\n    while (current.parent_id) {\n      depth++;\n      current = nodes.find(n => n.id === current.parent_id);\n      if (!current) break;\n    }\n    maxDepth = Math.max(maxDepth, depth);\n  });\n  return maxDepth;\n}\n\nfunction countNodeTypes(nodes) {\n  const types = {};\n  nodes.forEach(node => {\n    types[node.type] = (types[node.type] || 0) + 1;\n  });\n  return types;\n}\n\nreturn [{ json: mindMap }];"
+        "jsCode": "// Process Ollama results and build final mind map structure\nconst ollamaResult = items[0].json;\nconst originalInput = $('prepare-ollama-prompt').item.json.original_input;\n\n// Initialize mind map structure\nlet mindMap = {\n  id: `mindmap_${Date.now()}`,\n  title: originalInput.topic,\n  user_id: originalInput.user_id,\n  nodes: [],\n  relationships: [],\n  metadata: {\n    created_at: new Date().toISOString(),\n    style: originalInput.style,\n    depth: originalInput.depth,\n    ai_generated: true,\n    ollama_success: ollamaResult.success !== false,\n    model_used: originalInput.model || 'llama3.2'\n  }\n};\n\n// Parse the Ollama response from the shared workflow\ntry {\n  // The shared workflow returns the response in the result field\n  const ollamaOutput = ollamaResult.result || ollamaResult.response || ollamaResult.stdout || '';\n  let generatedData = {};\n  \n  // Try to parse JSON from the Ollama response\n  try {\n    generatedData = JSON.parse(ollamaOutput);\n  } catch (e) {\n    // If direct parsing fails, try to extract JSON from the output\n    const jsonMatch = ollamaOutput.match(/\\{[\\s\\S]*\\}/);\n    if (jsonMatch) {\n      try {\n        generatedData = JSON.parse(jsonMatch[0]);\n      } catch (e2) {\n        console.error('Failed to parse JSON from Ollama response');\n      }\n    }\n  }\n  \n  // Use generated nodes if available\n  if (generatedData.nodes && Array.isArray(generatedData.nodes)) {\n    generatedData.nodes.forEach((node, index) => {\n      const processedNode = {\n        id: node.id || `node_${index + 1}`,\n        title: node.title || `Node ${index + 1}`,\n        description: node.description || '',\n        parent_id: node.parent_id || null,\n        type: node.type || 'concept',\n        metadata: node.metadata || {},\n        position: calculateNodePosition(index)\n      };\n      mindMap.nodes.push(processedNode);\n    });\n  }\n  \n  // Use generated relationships if available\n  if (generatedData.relationships && Array.isArray(generatedData.relationships)) {\n    generatedData.relationships.forEach((rel, index) => {\n      const relationship = {\n        id: `rel_${index + 1}`,\n        source: rel.source_id || rel.source,\n        target: rel.target_id || rel.target,\n        type: rel.type || 'related',\n        label: rel.label || ''\n      };\n      mindMap.relationships.push(relationship);\n    });\n  }\n  \n  // If no nodes were created, create a basic structure\n  if (mindMap.nodes.length === 0) {\n    mindMap.nodes = [\n      {\n        id: 'node_1',\n        title: originalInput.topic,\n        description: `Central concept for ${originalInput.topic}`,\n        parent_id: null,\n        type: 'root',\n        position: { x: 0, y: 0 }\n      },\n      {\n        id: 'node_2',\n        title: 'Key Concepts',\n        description: 'Important concepts to understand',\n        parent_id: 'node_1',\n        type: 'category',\n        position: { x: -200, y: 100 }\n      },\n      {\n        id: 'node_3',\n        title: 'Applications',\n        description: 'Practical applications and use cases',\n        parent_id: 'node_1',\n        type: 'category',\n        position: { x: 200, y: 100 }\n      }\n    ];\n  }\n  \n} catch (e) {\n  console.error('Error processing Ollama results:', e);\n}\n\n// Helper function to calculate node positions\nfunction calculateNodePosition(index) {\n  const angle = (index * 2 * Math.PI) / 8;\n  const radius = 150 + (Math.floor(index / 8) * 100);\n  return {\n    x: Math.cos(angle) * radius,\n    y: Math.sin(angle) * radius\n  };\n}\n\n// Add summary statistics\nmindMap.statistics = {\n  total_nodes: mindMap.nodes.length,\n  total_relationships: mindMap.relationships.length,\n  max_depth: calculateMaxDepth(mindMap.nodes),\n  node_types: countNodeTypes(mindMap.nodes)\n};\n\nfunction calculateMaxDepth(nodes) {\n  let maxDepth = 0;\n  nodes.forEach(node => {\n    let depth = 0;\n    let current = node;\n    while (current.parent_id) {\n      depth++;\n      current = nodes.find(n => n.id === current.parent_id);\n      if (!current) break;\n    }\n    maxDepth = Math.max(maxDepth, depth);\n  });\n  return maxDepth;\n}\n\nfunction countNodeTypes(nodes) {\n  const types = {};\n  nodes.forEach(node => {\n    types[node.type] = (types[node.type] || 0) + 1;\n  });\n  return types;\n}\n\nreturn [{ json: mindMap }];"
       },
       "id": "process-results",
       "name": "Process Results",
@@ -88,38 +86,45 @@
     },
     {
       "parameters": {
-        "workflow": "={{ $fromAI('WORKFLOW_ID_embedding-generator', 'string') }}",
-        "workflowData": "={{ JSON.stringify({\n  text: $json.nodes.map(n => n.title + ' ' + n.description).join(' '),\n  model: 'nomic-embed-text',\n  metadata: {\n    mindmap_id: $json.id,\n    user_id: $json.user_id,\n    topic: $json.title\n  }\n}) }}",
-        "options": {
-          "waitForSubWorkflow": true
-        }
+        "jsCode": "// Prepare text for embedding generation using shared workflow\nconst mindMap = items[0].json;\nconst textToEmbed = mindMap.nodes.map(n => n.title + ' ' + n.description).join(' ');\n\nreturn [{\n  json: {\n    text: textToEmbed,\n    model: 'nomic-embed-text',\n    store_in_qdrant: true,\n    collection: 'mind_maps',\n    metadata: {\n      mindmap_id: mindMap.id,\n      user_id: mindMap.user_id,\n      topic: mindMap.title\n    },\n    return_embedding: true\n  }\n}];"
+      },
+      "id": "prepare-embedding",
+      "name": "Prepare Embedding",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1450, 300]
+    },
+    {
+      "parameters": {
+        "source": "workflowByName",
+        "workflowName": "Shared Text Embedding Generator"
       },
       "id": "generate-embeddings",
       "name": "Generate Embeddings",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
-      "position": [1450, 300]
+      "position": [1650, 300]
     },
     {
       "parameters": {
-        "url": "={{ $env.QDRANT_URL }}/collections/mindmaps/points",
-        "method": "PUT",
-        "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "points",
-              "value": "={{ [{\n  id: $('process-results').item.json.id,\n  vector: $json.embedding,\n  payload: {\n    mindmap_id: $('process-results').item.json.id,\n    user_id: $('process-results').item.json.user_id,\n    title: $('process-results').item.json.title,\n    node_count: $('process-results').item.json.statistics.total_nodes,\n    created_at: new Date().toISOString()\n  }\n}] }}"
-            }
-          ]
-        },
+        "jsCode": "// Prepare data for Qdrant CLI command\nconst mindMapData = $('process-results').item.json;\nconst embedding = $json.embedding || $json.vector || [];\n\n// Build the point data for Qdrant\nconst point = {\n  id: mindMapData.id,\n  payload: {\n    mindmap_id: mindMapData.id,\n    user_id: mindMapData.user_id,\n    title: mindMapData.title,\n    node_count: mindMapData.statistics.total_nodes,\n    created_at: new Date().toISOString()\n  },\n  vector: embedding\n};\n\n// Create temp file for the point data\nconst timestamp = Date.now();\nconst randomId = Math.random().toString(36).substring(2, 8);\nconst tempFile = `/tmp/qdrant_mindmap_${timestamp}_${randomId}.json`;\n\nreturn [{\n  json: {\n    point: point,\n    tempFile: tempFile,\n    collection: 'mind_maps'\n  }\n}];"
+      },
+      "id": "prepare-qdrant-data",
+      "name": "Prepare Qdrant Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1850, 300]
+    },
+    {
+      "parameters": {
+        "command": "bash -c \"point_file='{{ $json.tempFile }}'; echo '{{ JSON.stringify($json.point) }}' > \\\"$point_file\\\"; vrooli resource qdrant upsert {{ $json.collection }} \\\"$(cat \\\"$point_file\\\")\\\"; rm -f \\\"$point_file\\\"\"",
         "options": {}
       },
       "id": "store-in-qdrant",
-      "name": "Store in Qdrant",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [1650, 300]
+      "name": "Store in Qdrant via CLI",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [2050, 300]
     },
     {
       "parameters": {
@@ -163,31 +168,37 @@
   ],
   "connections": {
     "webhook-trigger": {
-      "main": [[{"node": "prepare-react-context", "type": "main", "index": 0}]]
+      "main": [[{"node": "prepare-ollama-prompt", "type": "main", "index": 0}]]
     },
     "manual-trigger": {
       "main": [[{"node": "defaults", "type": "main", "index": 0}]]
     },
     "defaults": {
-      "main": [[{"node": "prepare-react-context", "type": "main", "index": 0}]]
+      "main": [[{"node": "prepare-ollama-prompt", "type": "main", "index": 0}]]
     },
-    "prepare-react-context": {
-      "main": [[{"node": "react-loop-execution", "type": "main", "index": 0}]]
+    "prepare-ollama-prompt": {
+      "main": [[{"node": "execute-ollama", "type": "main", "index": 0}]]
     },
-    "react-loop-execution": {
+    "execute-ollama": {
       "main": [[{"node": "process-results", "type": "main", "index": 0}]]
     },
     "process-results": {
       "main": [[
         {"node": "save-mindmap", "type": "main", "index": 0},
-        {"node": "generate-embeddings", "type": "main", "index": 0},
+        {"node": "prepare-embedding", "type": "main", "index": 0},
         {"node": "cache-mindmap", "type": "main", "index": 0}
       ]]
+    },
+    "prepare-embedding": {
+      "main": [[{"node": "generate-embeddings", "type": "main", "index": 0}]]
     },
     "save-mindmap": {
       "main": [[{"node": "prepare-response", "type": "main", "index": 0}]]
     },
     "generate-embeddings": {
+      "main": [[{"node": "prepare-qdrant-data", "type": "main", "index": 0}]]
+    },
+    "prepare-qdrant-data": {
       "main": [[{"node": "store-in-qdrant", "type": "main", "index": 0}]]
     },
     "store-in-qdrant": {

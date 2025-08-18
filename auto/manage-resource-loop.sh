@@ -14,7 +14,21 @@ if [[ ! -x "$TASK_MANAGER" ]]; then
 fi
 
 case "${1:-help}" in
-	start) "$TASK_MANAGER" --task resource-improvement start ;;
+	start) 
+		# Check if mode is set before starting
+		if [[ -z "${RESOURCE_IMPROVEMENT_MODE:-}" ]]; then
+			echo "❌ ERROR: RESOURCE_IMPROVEMENT_MODE is required!"
+			echo ""
+			echo "🔧 Set one of these modes before starting:"
+			echo "  RESOURCE_IMPROVEMENT_MODE=plan       # Generate plans only"
+			echo "  RESOURCE_IMPROVEMENT_MODE=apply-safe # Execute non-destructive improvements"
+			echo "  RESOURCE_IMPROVEMENT_MODE=apply      # Execute all improvements"
+			echo ""
+			echo "💡 Example: RESOURCE_IMPROVEMENT_MODE=apply-safe ./auto/manage-resource-loop.sh start"
+			exit 1
+		fi
+		"$TASK_MANAGER" --task resource-improvement start 
+		;;
 	stop) "$TASK_MANAGER" --task resource-improvement stop ;;
 	force-stop) "$TASK_MANAGER" --task resource-improvement force-stop ;;
 	status) "$TASK_MANAGER" --task resource-improvement status ;;
@@ -22,6 +36,7 @@ case "${1:-help}" in
 	rotate) "$TASK_MANAGER" --task resource-improvement rotate ;;
 	restart) "$TASK_MANAGER" --task resource-improvement stop || true; sleep 2; "$TASK_MANAGER" --task resource-improvement start ;;
 	json) shift || true; "$TASK_MANAGER" --task resource-improvement json "${1:-summary}" "${2:-}" ;;
+	skip-wait) "$TASK_MANAGER" --task resource-improvement skip-wait ;;
 	sudo-init) shift || true; "$TASK_MANAGER" --task resource-improvement sudo-init "${1:-}" ;;
 	sudo-test) "$TASK_MANAGER" --task resource-improvement sudo-test ;;
 	sudo-status) "$TASK_MANAGER" --task resource-improvement sudo-status ;;
@@ -29,6 +44,11 @@ case "${1:-help}" in
 	help|--help|-h)
 		cat << EOF
 Resource Improvement Loop Manager (shim)
+
+🔧 REQUIRED: Set RESOURCE_IMPROVEMENT_MODE before starting:
+  RESOURCE_IMPROVEMENT_MODE=plan       # Generate plans only (no execution)
+  RESOURCE_IMPROVEMENT_MODE=apply-safe # Execute non-destructive improvements
+  RESOURCE_IMPROVEMENT_MODE=apply      # Execute all improvements including installations
 
 Commands:
   start       Start the improvement loop
@@ -39,11 +59,17 @@ Commands:
   rotate      Rotate log file
   restart     Stop and then start the loop
   json <cmd>  JSON summaries: summary | recent [N] | inflight | durations | errors [N] | hourly
+  skip-wait   Skip current iteration wait (for testing)
   sudo-init [commands]  Initialize sudo override (one-time password entry)
   sudo-test   Test sudo override functionality
   sudo-status Show sudo override status
   sudo-cleanup Remove sudo override configuration
   help        Show this help message
+
+💡 Examples:
+  RESOURCE_IMPROVEMENT_MODE=plan ./auto/manage-resource-loop.sh start
+  RESOURCE_IMPROVEMENT_MODE=apply-safe ./auto/manage-resource-loop.sh start
+  RESOURCE_IMPROVEMENT_MODE=apply ./auto/manage-resource-loop.sh start
 
 This manager delegates to: $TASK_MANAGER --task resource-improvement
 EOF

@@ -15,7 +15,8 @@ app.use(express.json());
 app.use(express.static(__dirname));
 
 // API proxy endpoints (forward to Go API)
-const API_URL = process.env.API_URL || 'http://localhost:8093';
+const SERVICE_PORT = process.env.SERVICE_PORT || '8100';
+const API_URL = process.env.API_URL || `http://localhost:${SERVICE_PORT}`;
 
 app.use('/api', (req, res) => {
     const fetch = require('node-fetch');
@@ -34,7 +35,12 @@ app.use('/api', (req, res) => {
     });
 });
 
-// Serve index.html for all routes (SPA)
+// Serve neural view variant
+app.get('/neural', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index-neural.html'));
+});
+
+// Serve index.html for all other routes (SPA)
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });

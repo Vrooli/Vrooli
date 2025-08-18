@@ -78,6 +78,10 @@
           {
             "file": "initialization/n8n/intelligent-note-linker.json",
             "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/note-to-mindmap.json",
+            "type": "workflow"
           }
         ]
       }

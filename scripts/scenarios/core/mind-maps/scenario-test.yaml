@@ -5,14 +5,14 @@ version: 1.0.0
 health_checks:
   - name: API Health Check
     type: http
-    url: http://localhost:8700/health
+    url: http://localhost:8100/health
     expected_status: 200
     timeout: 10
     retries: 3
 
   - name: UI Health Check
     type: http
-    url: http://localhost:3700
+    url: http://localhost:3100
     expected_status: 200
     timeout: 10
     retries: 3

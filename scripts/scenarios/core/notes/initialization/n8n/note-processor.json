@@ -58,59 +58,27 @@
     },
     {
       "parameters": {
-        "url": "http://localhost:5678/webhook/ollama",
-        "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "prompt",
-              "value": "=Analyze this note and provide:\n1. A concise summary (2-3 sentences)\n2. Key points or concepts (bullet list)\n3. Suggested tags (comma-separated)\n4. Related topics for linking\n\nNote Title: {{ $json.title }}\nNote Content: {{ $json.content }}\n\nProvide response in JSON format:\n{\n  \"summary\": \"...\",\n  \"key_points\": [\"point1\", \"point2\"],\n  \"suggested_tags\": [\"tag1\", \"tag2\"],\n  \"related_topics\": [\"topic1\", \"topic2\"]\n}"
-            },
-            {
-              "name": "model",
-              "value": "llama3.2:latest"
-            },
-            {
-              "name": "format",
-              "value": "json"
-            }
-          ]
-        },
-        "options": {}
+        "workflowId": "={{ $env.SHARED_WORKFLOW_OLLAMA_ID }}",
+        "source": "parameter",
+        "workflowData": "={{ { prompt: 'Analyze this note and provide:\\n1. A concise summary (2-3 sentences)\\n2. Key points or concepts (bullet list)\\n3. Suggested tags (comma-separated)\\n4. Related topics for linking\\n\\nNote Title: ' + $json.title + '\\nNote Content: ' + $json.content + '\\n\\nProvide response in JSON format:\\n{\\n  \"summary\": \"...\",\\n  \"key_points\": [\"point1\", \"point2\"],\\n  \"suggested_tags\": [\"tag1\", \"tag2\"],\\n  \"related_topics\": [\"topic1\", \"topic2\"]\\n}', model: 'llama3.2:3b', type: 'reasoning', quiet: true, timeout_seconds: 120 } }}"
       },
       "name": "Analyze Note",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
       "position": [860, 400],
-      "id": "http-analyze"
+      "id": "analyze-note"
     },
     {
       "parameters": {
-        "url": "http://localhost:5678/webhook/embed",
-        "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "text",
-              "value": "={{ $json.title + ' ' + $json.content }}"
-            },
-            {
-              "name": "model",
-              "value": "nomic-embed-text"
-            },
-            {
-              "name": "metadata",
-              "value": "={{ { note_id: $json.note_id, user_id: $json.user_id } }}"
-            }
-          ]
-        },
-        "options": {}
+        "workflowId": "={{ $env.SHARED_WORKFLOW_EMBEDDING_GENERATOR_ID }}",
+        "source": "parameter",
+        "workflowData": "={{ { text: $json.title + ' ' + $json.content, model: 'nomic-embed-text', store_in_qdrant: false, metadata: { note_id: $json.note_id, user_id: $json.user_id } } }}"
       },
       "name": "Generate Embeddings",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
       "position": [1060, 400],
-      "id": "http-embed"
+      "id": "generate-embeddings"
     },
     {
       "parameters": {
@@ -144,8 +112,8 @@
               "note_id": "={{ $('postgres-save').item.json.id }}",
               "user_id": "={{ $('process-input').item.json.user_id }}",
               "title": "={{ $('process-input').item.json.title }}",
-              "summary": "={{ $('http-analyze').item.json.summary }}",
-              "tags": "={{ $('http-analyze').item.json.suggested_tags }}",
+              "summary": "={{ $('analyze-note').item.json.response ? JSON.parse($('analyze-note').item.json.response).summary : '' }}",
+              "tags": "={{ $('analyze-note').item.json.response ? JSON.parse($('analyze-note').item.json.response).suggested_tags : [] }}",
               "created_at": "={{ $('postgres-save').item.json.created_at }}"
             }
           }
@@ -186,11 +154,11 @@
           "object": [
             {
               "name": "analysis",
-              "value": "={{ $('http-analyze').item.json }}"
+              "value": "={{ $('analyze-note').item.json.response ? JSON.parse($('analyze-note').item.json.response) : {} }}"
             },
             {
               "name": "metadata",
-              "value": "={{ { created_at: $('postgres-save').item.json.created_at, embedding_dimensions: $('http-embed').item.json.dimensions } }}"
+              "value": "={{ { created_at: $('postgres-save').item.json.created_at, embedding_dimensions: $('generate-embeddings').item.json.metadata ? $('generate-embeddings').item.json.metadata.expected_dimensions : 1024 } }}"
             }
           ]
         }

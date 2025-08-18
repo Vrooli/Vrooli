@@ -105,8 +105,8 @@
         "options": {}
       },
       "name": "Find Related Notes",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
       "position": [860, 300],
       "id": "http-related"
     },
@@ -142,35 +142,19 @@
     },
     {
       "parameters": {
-        "url": "http://localhost:5678/webhook/ollama",
-        "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "prompt",
-              "value": "=Based on the user's current context and their note-taking history, provide intelligent suggestions.\n\nCurrent context: {{ $json.context }}\n\nRelated notes they've written:\n{{ $json.related_notes.map(n => `- ${n.title}: ${n.summary}`).join('\\n') }}\n\nRecent notes:\n{{ $json.recent_notes.map(n => `- ${n.title} (tags: ${n.tags.join(', ')})`).join('\\n') }}\n\nAvailable templates:\n{{ $json.available_templates.map(t => `- ${t.name}: ${t.description}`).join('\\n') }}\n\nProvide helpful suggestions in these categories:\n1. Next topics to explore (based on their current context)\n2. Related notes to review or link\n3. Questions to consider\n4. Templates that might be useful\n5. Writing prompts to overcome blocks\n\nRespond in JSON format:\n{\n  \"next_topics\": [\"topic1\", \"topic2\"],\n  \"notes_to_link\": [{\"title\": \"...\", \"reason\": \"...\"}],\n  \"questions\": [\"question1\", \"question2\"],\n  \"template_suggestions\": [{\"name\": \"...\", \"why_useful\": \"...\"}],\n  \"writing_prompts\": [\"prompt1\", \"prompt2\"]\n}"
-            },
-            {
-              "name": "model",
-              "value": "llama3.2:latest"
-            },
-            {
-              "name": "format",
-              "value": "json"
-            }
-          ]
-        },
-        "options": {}
+        "workflowId": "={{ $env.SHARED_WORKFLOW_OLLAMA_ID }}",
+        "source": "parameter",
+        "workflowData": "={{ { prompt: 'Based on the user\\'s current context and their note-taking history, provide intelligent suggestions.\\n\\nCurrent context: ' + $json.context + '\\n\\nRelated notes they\\'ve written:\\n' + $json.related_notes.map(n => '- ' + n.title + ': ' + n.summary).join('\\n') + '\\n\\nRecent notes:\\n' + $json.recent_notes.map(n => '- ' + n.title + ' (tags: ' + n.tags.join(', ') + ')').join('\\n') + '\\n\\nAvailable templates:\\n' + $json.available_templates.map(t => '- ' + t.name + ': ' + t.description).join('\\n') + '\\n\\nProvide helpful suggestions in these categories:\\n1. Next topics to explore (based on their current context)\\n2. Related notes to review or link\\n3. Questions to consider\\n4. Templates that might be useful\\n5. Writing prompts to overcome blocks\\n\\nRespond in JSON format:\\n{\\n  \\\"next_topics\\\": [\\\"topic1\\\", \\\"topic2\\\"],\\n  \\\"notes_to_link\\\": [{\\\"title\\\": \\\"...\\\", \\\"reason\\\": \\\"...\\\"}],\\n  \\\"questions\\\": [\\\"question1\\\", \\\"question2\\\"],\\n  \\\"template_suggestions\\\": [{\\\"name\\\": \\\"...\\\", \\\"why_useful\\\": \\\"...\\\"}],\\n  \\\"writing_prompts\\\": [\\\"prompt1\\\", \\\"prompt2\\\"]\\n}', model: 'llama3.2:latest', format: 'json', type: 'reasoning', quiet: true, timeout_seconds: 120 } }}"
       },
       "name": "Generate AI Suggestions",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
       "position": [1260, 500],
       "id": "http-ai-suggest"
     },
     {
       "parameters": {
-        "jsCode": "// Process and enhance AI suggestions\nconst aiSuggestions = $input.item.json;\nconst relatedNotes = $('http-related').item.json.results || [];\nconst recentNotes = $('postgres-recent').all().map(n => n.json);\n\n// Match AI suggested notes with actual note IDs\nconst enrichedNotesToLink = (aiSuggestions.notes_to_link || []).map(suggestion => {\n  // Try to find matching note\n  const matchedNote = relatedNotes.find(n => \n    n.payload.title.toLowerCase().includes(suggestion.title.toLowerCase())\n  ) || recentNotes.find(n => \n    n.title.toLowerCase().includes(suggestion.title.toLowerCase())\n  );\n  \n  return {\n    ...suggestion,\n    note_id: matchedNote?.id || matchedNote?.payload?.note_id,\n    actual_title: matchedNote?.title || matchedNote?.payload?.title,\n    found: !!matchedNote\n  };\n}).filter(n => n.found);\n\n// Create quick actions\nconst quickActions = [];\n\nif (aiSuggestions.next_topics && aiSuggestions.next_topics.length > 0) {\n  quickActions.push({\n    type: 'create_note',\n    label: `Start note about \"${aiSuggestions.next_topics[0]}\"`,\n    data: {\n      title: aiSuggestions.next_topics[0],\n      template: aiSuggestions.template_suggestions?.[0]?.name\n    }\n  });\n}\n\nif (enrichedNotesToLink.length > 0) {\n  quickActions.push({\n    type: 'link_note',\n    label: `Link to \"${enrichedNotesToLink[0].actual_title}\"`,\n    data: {\n      note_id: enrichedNotesToLink[0].note_id,\n      reason: enrichedNotesToLink[0].reason\n    }\n  });\n}\n\nif (aiSuggestions.questions && aiSuggestions.questions.length > 0) {\n  quickActions.push({\n    type: 'add_section',\n    label: 'Add Q&A section',\n    data: {\n      questions: aiSuggestions.questions\n    }\n  });\n}\n\nreturn {\n  suggestions: {\n    next_topics: aiSuggestions.next_topics || [],\n    related_notes: enrichedNotesToLink,\n    questions_to_explore: aiSuggestions.questions || [],\n    templates: aiSuggestions.template_suggestions || [],\n    writing_prompts: aiSuggestions.writing_prompts || []\n  },\n  quick_actions: quickActions,\n  context_analyzed: $('merge-1').item.json.context,\n  timestamp: new Date().toISOString()\n};"
+        "jsCode": "// Process and enhance AI suggestions\n// The shared ollama workflow returns response in a 'response' field\nconst aiSuggestions = JSON.parse($input.item.json.response || '{}');\nconst relatedNotes = $('http-related').item.json.results || [];\nconst recentNotes = $('postgres-recent').all().map(n => n.json);\n\n// Match AI suggested notes with actual note IDs\nconst enrichedNotesToLink = (aiSuggestions.notes_to_link || []).map(suggestion => {\n  // Try to find matching note\n  const matchedNote = relatedNotes.find(n => \n    n.payload.title.toLowerCase().includes(suggestion.title.toLowerCase())\n  ) || recentNotes.find(n => \n    n.title.toLowerCase().includes(suggestion.title.toLowerCase())\n  );\n  \n  return {\n    ...suggestion,\n    note_id: matchedNote?.id || matchedNote?.payload?.note_id,\n    actual_title: matchedNote?.title || matchedNote?.payload?.title,\n    found: !!matchedNote\n  };\n}).filter(n => n.found);\n\n// Create quick actions\nconst quickActions = [];\n\nif (aiSuggestions.next_topics && aiSuggestions.next_topics.length > 0) {\n  quickActions.push({\n    type: 'create_note',\n    label: `Start note about \"${aiSuggestions.next_topics[0]}\"`,\n    data: {\n      title: aiSuggestions.next_topics[0],\n      template: aiSuggestions.template_suggestions?.[0]?.name\n    }\n  });\n}\n\nif (enrichedNotesToLink.length > 0) {\n  quickActions.push({\n    type: 'link_note',\n    label: `Link to \"${enrichedNotesToLink[0].actual_title}\"`,\n    data: {\n      note_id: enrichedNotesToLink[0].note_id,\n      reason: enrichedNotesToLink[0].reason\n    }\n  });\n}\n\nif (aiSuggestions.questions && aiSuggestions.questions.length > 0) {\n  quickActions.push({\n    type: 'add_section',\n    label: 'Add Q&A section',\n    data: {\n      questions: aiSuggestions.questions\n    }\n  });\n}\n\nreturn {\n  suggestions: {\n    next_topics: aiSuggestions.next_topics || [],\n    related_notes: enrichedNotesToLink,\n    questions_to_explore: aiSuggestions.questions || [],\n    templates: aiSuggestions.template_suggestions || [],\n    writing_prompts: aiSuggestions.writing_prompts || []\n  },\n  quick_actions: quickActions,\n  context_analyzed: $('merge-1').item.json.context,\n  timestamp: new Date().toISOString()\n};"
       },
       "name": "Enrich Suggestions",
       "type": "n8n-nodes-base.code",
