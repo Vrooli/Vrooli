@@ -37,6 +37,7 @@ questdb::docker::create_container() {
     log::info "Creating QuestDB time-series database container..."
     
     # Prepare port mappings for triple-port setup
+    # Map external ports to internal QuestDB ports (HTTP:9000, PG:8812, ILP:9009)
     local port_mappings="${QUESTDB_HTTP_PORT}:9000 ${QUESTDB_PG_PORT}:8812 ${QUESTDB_ILP_PORT}:9009"
     
     # Prepare volumes
@@ -62,7 +63,7 @@ questdb::docker::create_container() {
         "$volumes" \
         "env_vars" \
         "docker_opts" \
-        "curl -f http://localhost:9000/status || exit 1" \
+        "curl -f 'http://localhost:9000/exec?query=SELECT%201&fmt=json' || exit 1" \
         ""; then
         
         # Wait for container to be ready
@@ -247,7 +248,7 @@ questdb::docker::create_client_instance() {
         "$volumes" \
         "client_env_vars" \
         "client_docker_opts" \
-        "curl -f http://localhost:9000/status || exit 1" \
+        "curl -f 'http://localhost:9000/exec?query=SELECT%201&fmt=json' || exit 1" \
         ""; then
         
         # Generate metadata JSON

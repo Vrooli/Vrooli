@@ -1,26 +1,17 @@
 ## ⚙️ Resource Improvement Loop
 
-### ⏱️ TURN BUDGET
-- **Resource selection**: 4 turns - resource-candidates.sh call, `vrooli status` call, think, and decide up to 3 to investigate further
-- **Status checks**: 5 turns - 3 `vrooli resource <name> status` calls, think, and decide which resource to check
-- **Resource improvement investigation**: Up to 20 turns
-- **Improve/Validate loop**: Up to 20 turns, until improvements are complete and validated
-- **Recording**: 1 turn
-- **TOTAL**: 50 turns maximum
-
-⚠️ **CRITICAL**: DO NOT read/analyze reference material until a resource has been selected and the reference material is relevant
-
-### TL;DR — One Iteration in 6 Steps
-1) Select ONE resource using the selection tools (see Tools & References).
-2) Pick a fix/improvement (diagnose/fix/improve/add) to pursue. Priority order: CLI, status check, installation, start/stop behavior, injection logic, resource-specific functionality. This is the best order for gradually fixing resources over multiple iterations.
-3) Execute based on mode: plan (print), apply-safe (non-destructive), apply (allowed installs).
-4) Validate with gates per resource type; if any gate fails twice, stop and capture diagnostics.
+### TL;DR — One Iteration = ONE resource fix/improvement or ONE new resource added
+1) Select ONE resource (existing or new) using the selection tools (see Tools & References).
+2.a) If you chose an existing resource, pick a fix/improvement (diagnose/fix/improve/add) to pursue. Priority order: CLI, status check, installation, start/stop behavior, injection logic, resource-specific functionality. This is the best order for gradually fixing resources over multiple iterations.
+2.b) If you chose a new resource, create the full resource using best practices.
+3) Validate with gates per resource type; if any gate fails twice, stop and capture diagnostics.
 5) Start and leave the resource running (exception: Whisper and agent-s2 may be stopped post-test if explicitly necessary), then append ≤10 lines to `/tmp/vrooli-resource-improvement.md`.
 
 ---
 
 ### 🎯 Purpose & Context
 - Improve AND validate platform resources so scenarios can run reliably end-to-end.
+- Add new resources to unlock new scenario opportunities (e.g. home automation, research, engineering)
 - Ensure that resource fixes/improvements are applied to the resource's setup code, so that it's repeatable and sets itself up reliably every time.
 - Ensure that resources can be meaningfully integrated into Vrooli. For automation resources, that means being able to add and manage the resource's workflows/agents/etc. For storage resources, that means being able to add tables, seed, migrate, and query the database. These are pretty straightforward to build, as it's very clear exactly what gets injected into the resources (.json workflow files, .sql files, etc.). Other resources may have less obvious data files, so you'll have to decide what's best (e.g. .py scripts for things only available as python packages, with guidelines in the resource's docs explaining what packages are available in the environment that will run the file, and other best practices)
 - Scenarios depend on resources being up; improvements must keep services running.
@@ -30,20 +21,23 @@
 ---
 
 ### ✅ DO / ❌ DON’T
-- ✅ Keep changes minimal; prefer non-destructive operations.
+- ✅ Keep changes to existing resources minimal; prefer non-destructive operations.
 - ✅ Use `vrooli resource <name> <cmd>` and `resource-<name>` CLIs
 - ✅ Prefer leveraging shared functions over duplicating logic
 - ✅ Redact secrets; use environment variables for credentials.
 - ✅ Use timeouts for any potentially hanging operation.
 - ✅ Prefer writing resources such that if sudo permissions are required, they only have to be provided once. We should be able to freely stop and start resources without needing permissions.
-- ✅ Fix/standardize the status/health check for the resource, including supporting json mode by utilizing `scripts/lib/utils/format.sh`. This will make it easier to check which resources are healthy in the future
+- ✅ Ensure resource status checks match standards, including supporting json mode by utilizing `scripts/lib/utils/format.sh`. This will make it easier to check which resources are healthy in the future. If the status check already works, assume it already follows the standard format.
+- ✅ Use `$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)` to define the script's current directory
+- ✅ Source `scripts/lib/utils/var.sh` FIRST using a relative path, if you need to access its `var_` variables
 
 - ❌ Do NOT uninstall, disable, or permanently shut down resources. The scenario loop relies on them running.
-- ❌ Do NOT edit files directly or output secrets/configs to console.
 - ❌ Do NOT modify loop scripts or prompt files.
 - ❌ Do NOT hard-code ports. `scripts/resources/port_registry.sh` should be the single source-of-truth for ports
+- ❌ Do NOT use path variables that are too generic (e.g. prefer `CLAUDE_CODE_LIB_DIR` over `SCRIPT_DIR`), as they could lead to hard-to-trace variable reassignment issues
+- ❌ Do NOT rely solely on source guards to fix all script sourcing issues. They are typically a symptom, not a solution
 
-> Policy: After testing any resource, ensure it is started and remains running by default. Only Whisper and agent-s2 should be stopped post-validation, due to resource constraints for whisper and known net jacking issues for agent-s2. If you run into a network issue, run `scripts/lib/network/network_diagnostics.sh` to figure out what's wrong and attempt autofixes.
+> Policy: After testing any resource, keep it running. Only Whisper and agent-s2 should be stopped post-validation, due to resource constraints for whisper and known net jacking issues for agent-s2. If you run into a network issue (unlikely but possible), run `scripts/lib/network/network_diagnostics.sh` to figure out what's wrong and attempt autofixes.
 
 ---
 
@@ -59,40 +53,7 @@
 
 Before choosing, also read (if present):
 - `auto/data/resource-improvement/summary.txt`
-- Events ledger in `auto/data/resource-improvement/events.ndjson`
-
----
-
-### 🔧 Iteration Plan (contract)
-Perform exactly these steps:
-
-1) Analyze state
-   - Status: `vrooli resource <name> status` or `resource-<name> status`
-   - Fleet: `vrooli resource list --format json` (use `jq` to filter)
-   - Logs/diagnostics within allowed commands
-
-2) Make ONE minimal change
-   - Types: diagnose | fix | improve | add
-   - Keep within CLI boundaries and non-destructive constraints
-   - If adding capability (e.g., model), prefer baseline, small footprint
-
-3) Execute based on mode
-   - `RESOURCE_IMPROVEMENT_MODE=plan` (default): print exact commands only
-   - `...=apply-safe`: execute non-destructive actions with `timeout`
-   - `...=apply`: allowed to install/enable new resources when safe
-
-4) Validate (all gates must pass; see below)
-   - Health/status checks per resource type
-   - Sanity checks using resource CLIs or shared workflows
-
-5) Fail-twice rule
-   - If any gate fails twice, stop edits for this iteration
-   - Capture diagnostics and pivot to a smaller change
-
-6) Leave running + record notes
-   - Ensure resource is started and left running (exception: Whisper may be stopped post-test when necessary)
-   - Append ≤10 lines to `/tmp/vrooli-resource-improvement.md`:
-     - Schema: `iteration | resource | action | rationale | commands | result | issues | next | running`
+- `tail -n 20 auto/data/resource-improvement/events.ndjson`
 
 ---
 
@@ -105,17 +66,6 @@ General:
 - No critical errors in condensed logs/output
 - Data can be "injected" into (added to) the resource, if relevant (likely yes. Even if the resource only works with python files, for example, being able to store them with the resource makes it easy to share files between scenarios and connect them to CLI commands)
 
-Per resource (examples using resource CLIs):
-- **Postgres**: `vrooli resource postgres status` or `resource-postgres status` reports healthy
-- **Redis**: `vrooli resource redis status` or `resource-redis status` reports healthy
-- **Ollama**: `resource-ollama status` succeeds; `resource-ollama list-models` shows at least one baseline model; pulling a baseline model is allowed if missing
-- **Browserless**: `vrooli resource browserless status` or `resource-browserless status` reports healthy; a trivial navigation/screenshot via the resource CLI or shared workflow succeeds
-- **n8n**: `vrooli resource n8n status` or `resource-n8n status` reports healthy; workflows listable via the resource CLI
-- **Whisper**: can start and respond to a minimal test via resource CLI; may be stopped post-test if resource constraints demand (document decision)
-- **Vault**: `vrooli resource vault status` or `resource-vault status` reports healthy; unsealed and accessible
-- **QuestDB**: `vrooli resource questdb status` or `resource-questdb status` reports healthy
-- **MinIO**: `vrooli resource minio status` or `resource-minio status` reports healthy; bucket operations succeed
-
 ---
 
 ### 📚 Tools & References
@@ -124,7 +74,6 @@ Per resource (examples using resource CLIs):
 - Status checks:
   - `vrooli status --verbose`
   - `vrooli resource status`
-- Cheatsheet and helpers: `auto/tasks/resource-improvement/prompts/cheatsheet.md`
 - Loop artifacts:
   - Events: `auto/data/resource-improvement/events.ndjson`
   - Summaries: `auto/data/resource-improvement/summary.json`, `summary.txt`

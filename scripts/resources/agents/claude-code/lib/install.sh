@@ -3,15 +3,15 @@
 # Handles installation and uninstallation of Claude Code CLI
 
 # Set script directory for sourcing
-CLAUDE_CODE_LIB_DIR="${CLAUDE_CODE_LIB_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+CLAUDE_CODE_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # Source required utilities
 # shellcheck disable=SC1091
 source "${CLAUDE_CODE_LIB_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
-source "${var_LOG_FILE:-${CLAUDE_CODE_LIB_DIR}/../../../../lib/utils/log.sh}" 2>/dev/null || true
+source "${var_LOG_FILE:}" 2>/dev/null || true
 # shellcheck disable=SC1091
-source "${var_SCRIPTS_RESOURCES_LIB_DIR:-${VROOLI_ROOT:-/root/Vrooli}/scripts/lib/resources}/cli-auto-install.sh" 2>/dev/null || true
+source "${var_SCRIPTS_RESOURCES_LIB_DIR}/cli-auto-install.sh" 2>/dev/null || true
 
 #######################################
 # Install Claude Code

@@ -4,8 +4,12 @@ set -euo pipefail
 # MCP (Model Context Protocol) helper functions for Claude Code integration
 # This file provides utilities for registering Vrooli as an MCP server with Claude Code
 
-# Set CLAUDE_CODE_SCRIPT_DIR if not already set (for BATS test compatibility)
-CLAUDE_CODE_SCRIPT_DIR="${CLAUDE_CODE_SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+CLAUDE_CODE_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
+# Source required libraries
+source "${CLAUDE_CODE_LIB_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/system_commands.sh"
 
 # MCP configuration constants are defined in config/defaults.sh
 # Common utilities are sourced by manage.sh
@@ -313,7 +317,7 @@ mcp::create_config() {
     local server_url="$2"
     local api_key="${3:-}"
     
-    local template_file="${CLAUDE_CODE_SCRIPT_DIR}/templates/mcp-${scope}.json"
+    local template_file="${CLAUDE_CODE_LIB_DIR}/templates/mcp-${scope}.json"
     local config_file
     
     # Determine config file location based on scope

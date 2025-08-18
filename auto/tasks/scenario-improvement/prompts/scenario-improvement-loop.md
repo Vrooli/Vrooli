@@ -122,6 +122,8 @@ NOTE 2: Prefer calling the shared `ollama.json` workflow over direct Ollama API 
 - Selection tools (use these first):
   - `auto/tools/selection/scenario-recommend.sh` — recommends top-K with cooldown; honors `MAX_CONCURRENT_WORKERS`, optional `GOALS`, `K`
   - `auto/tools/selection/scenario-select.sh <name>` — records your pick in the events ledger
+- Status checks:
+  - `vrooli status --verbose`
 - Metrics, jq helpers: `auto/tasks/scenario-improvement/prompts/cheatsheet.md`
 - Loop artifacts:
   - Events ledger: `auto/data/scenario-improvement/events.ndjson`

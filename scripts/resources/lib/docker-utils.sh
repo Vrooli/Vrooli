@@ -11,7 +11,7 @@ if [[ -n "${_DOCKER_UTILS_SOURCED:-}" ]]; then
     # Guard was set but functions are missing - need to re-source dependencies
     unset _DOCKER_UTILS_SOURCED _SYSTEM_COMMANDS_SH_SOURCED
 fi
-export _DOCKER_UTILS_SOURCED=1
+_DOCKER_UTILS_SOURCED=1
 
 # Source required utilities
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

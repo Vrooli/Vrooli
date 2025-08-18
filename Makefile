@@ -47,21 +47,21 @@ setup: ## Initialize development environment (first time setup)
 
 dev: ## Start development environment
 	@echo "$(BLUE)🚀 Starting Vrooli development environment...$(RESET)"
-	./scripts/manage.sh develop
+	vrooli develop
 
 develop: dev ## Alias for 'make dev'
 
 build: ## Build the project
 	@echo "$(BLUE)🏗️  Building Vrooli...$(RESET)"
-	./scripts/manage.sh build
+	vrooli build
 
 deploy: ## Deploy to production
 	@echo "$(BLUE)🚢 Deploying Vrooli...$(RESET)"
-	./scripts/manage.sh deploy
+	vrooli deploy
 
 clean: ## Clean build artifacts and caches
 	@echo "$(BLUE)🧹 Cleaning build artifacts...$(RESET)"
-	./scripts/manage.sh clean
+	vrooli clean
 
 # Testing commands
 test: ## Run all tests (static, resources, scenarios, bats)
