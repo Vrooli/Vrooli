@@ -361,8 +361,16 @@ app_status() {
 	local response
 	response=$(curl -s --connect-timeout 2 --max-time 5 "${API_BASE}/apps/${app_name}")
 	
+	# Check if response is valid JSON first
+	if ! echo "$response" | jq . >/dev/null 2>&1; then
+		cli::format_error "$output_format" "App not found: $app_name"
+		return 1
+	fi
+	
 	if ! echo "$response" | jq -e '.success' >/dev/null 2>&1; then
-		log::error "$(echo "$response" | jq -r '.error // "Failed to get app status"')"
+		local error_msg
+		error_msg=$(echo "$response" | jq -r '.error // "Failed to get app status"' 2>/dev/null || echo "Failed to get app status")
+		cli::format_error "$output_format" "$error_msg"
 		return 1
 	fi
 	

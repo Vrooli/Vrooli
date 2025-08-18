@@ -368,5 +368,10 @@ ollama_show_help() {
 
 # Only execute if script is run directly (not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    cli::dispatch "$@"
+    # Ensure we have at least one argument, defaulting to status
+    if [[ $# -eq 0 ]]; then
+        cli::dispatch "status"
+    else
+        cli::dispatch "$@"
+    fi
 fi

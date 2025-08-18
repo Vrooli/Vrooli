@@ -152,6 +152,8 @@ task_prepare_worker_env() {
 	
 	# Provide references the worker may use
 	export RESOURCE_EVENTS_JSONL="$EVENTS_JSONL"
+	# Export the mode so the worker can access it programmatically
+	export RESOURCE_IMPROVEMENT_MODE="${RESOURCE_IMPROVEMENT_MODE:-plan}"
 	# Compute repo root for config references
 	local repo_root
 	repo_root="$(cd "${TASK_DIR}/../../.." && pwd)"

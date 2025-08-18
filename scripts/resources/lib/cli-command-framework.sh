@@ -68,8 +68,13 @@ cli::register_command() {
 # Args: $@ - command line arguments
 #######################################
 cli::dispatch() {
-    local cmd="${1:-help}"
-    shift || true
+    local cmd
+    if [[ $# -gt 0 ]]; then
+        cmd="$1"
+        shift
+    else
+        cmd="help"
+    fi
     
     # Handle global flags
     while [[ $# -gt 0 ]]; do

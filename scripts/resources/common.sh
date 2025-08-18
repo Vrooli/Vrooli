@@ -29,9 +29,9 @@ source "${var_PORT_REGISTRY_FILE}"
 # shellcheck disable=SC1091
 source "${var_REPOSITORY_FILE}"
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/trash.sh"
-# shellcheck disable=SC1091
 source "${var_SYSTEM_COMMANDS_FILE}"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/json.sh"
 # shellcheck disable=SC1091

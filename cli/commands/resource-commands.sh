@@ -104,44 +104,6 @@ has_resource_cli() {
     return 1
 }
 
-################################################################################
-# Docker Status Helper Functions
-################################################################################
-
-# Batch check Docker container status for performance optimization
-# Returns: JSON object with container names as keys and status as values
-batch_check_docker_status() {
-    if ! command -v docker >/dev/null 2>&1; then
-        echo "{}"
-        return
-    fi
-    
-    if ! docker info >/dev/null 2>&1; then
-        echo "{}"
-        return
-    fi
-    
-    # Get all running containers in JSON format
-    local running_containers
-    running_containers=$(docker ps --format '{{.Names}}' 2>/dev/null || echo "")
-    
-    # Build JSON object with container status
-    local json_result="{"
-    local first=true
-    
-    if [[ -n "$running_containers" ]]; then
-        while IFS= read -r container_name; do
-            [[ -z "$container_name" ]] && continue
-            
-            [[ "$first" == "true" ]] && first=false || json_result="${json_result},"
-            json_result="${json_result}\"${container_name}\":\"running\""
-        done <<< "$running_containers"
-    fi
-    
-    json_result="${json_result}}"
-    echo "$json_result"
-}
-
 # Route to resource-specific CLI
 route_to_resource_cli() {
     local resource_name="$1"
@@ -301,9 +263,6 @@ collect_resource_list_data() {
         return
     fi
     
-    # Batch check Docker container status for performance
-    local docker_status_cache
-    docker_status_cache=$(batch_check_docker_status)
     
     # Get all resources from config
     local all_resources
@@ -335,18 +294,26 @@ collect_resource_list_data() {
         local resource_dir="$RESOURCES_DIR/$category/$name"
         
         if [[ -d "$resource_dir" ]]; then
-            # Check running status using Docker cache
-            local container_patterns=("$name" "vrooli-$name" "vrooli-${name}-main" "${name}-container")
+            # Check running status using resource CLI
             local is_running="false"
             
-            for pattern in "${container_patterns[@]}"; do
-                local check_result
-                check_result=$(echo "$docker_status_cache" | jq -r --arg name "$pattern" '.[$name] // "not_running"' 2>/dev/null || echo "not_running")
-                if [[ "$check_result" == "running" ]]; then
-                    is_running="true"
-                    break
+            if has_resource_cli "$name"; then
+                local status_json
+                # Capture output regardless of exit code, as some resources return non-zero even when providing valid JSON
+                status_json=$(unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED; "resource-${name}" status --format json 2>&1 || true)
+                
+                # Check if we got valid JSON output
+                if [[ -n "$status_json" ]] && echo "$status_json" | grep -q '^\s*{'; then
+                    if command -v jq >/dev/null 2>&1; then
+                        is_running=$(echo "$status_json" | jq -r '.running // false' 2>/dev/null || echo "false")
+                    else
+                        # Fallback to text parsing if jq is not available
+                        if echo "$status_json" | grep -q '"running":true'; then
+                            is_running="true"
+                        fi
+                    fi
                 fi
-            done
+            fi
             
             # Skip if only_running is true and resource is not running
             if [[ "$only_running" == "true" && "$is_running" != "true" ]]; then
@@ -401,23 +368,43 @@ collect_resource_status_data() {
         enabled=$(jq -r --arg cat "$category" --arg res "$resource_name" '.resources[$cat][$res].enabled // false' "$RESOURCES_CONFIG" 2>/dev/null || echo "false")
     fi
     
-    # Check running status
+    # Check running status using resource CLI only
     local is_running="false"
     local status_message="stopped"
     
-    # Quick Docker check
-    if docker ps --format "{{.Names}}" 2>/dev/null | grep -q "^${resource_name}$"; then
-        is_running="true"
-        status_message="running"
-    else
-        # Try resource CLI for detailed status
-        if has_resource_cli "$resource_name"; then
-            local status_output
-            if status_output=$(unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED; "resource-${resource_name}" status 2>/dev/null | head -5); then
-                if echo "$status_output" | grep -Eq "✅.*(Running|Health|Healthy)|Status:.*running|Container.*running" && \
-                   ! echo "$status_output" | grep -q "not running\|is not running\|stopped"; then
+    # Use resource CLI for status check with standardized JSON output
+    if has_resource_cli "$resource_name"; then
+        local status_json
+        # Capture output regardless of exit code, as some resources return non-zero even when providing valid JSON
+        status_json=$(unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED; "resource-${resource_name}" status --format json 2>&1 || true)
+        
+        # Check if we got valid JSON output
+        if [[ -n "$status_json" ]] && echo "$status_json" | grep -q '^\s*{'; then
+            # Parse JSON using jq for reliable status detection
+            if command -v jq >/dev/null 2>&1; then
+                local json_running json_healthy
+                json_running=$(echo "$status_json" | jq -r '.running // false' 2>/dev/null || echo "false")
+                json_healthy=$(echo "$status_json" | jq -r '.healthy // false' 2>/dev/null || echo "false")
+                
+                if [[ "$json_running" == "true" ]]; then
                     is_running="true"
-                    status_message="running"
+                    if [[ "$json_healthy" == "true" ]]; then
+                        status_message="running"
+                    else
+                        status_message="degraded"
+                    fi
+                else
+                    status_message="stopped"
+                fi
+            else
+                # Fallback to text parsing if jq is not available
+                if echo "$status_json" | grep -q '"running":true'; then
+                    is_running="true"
+                    if echo "$status_json" | grep -q '"healthy":true'; then
+                        status_message="running"
+                    else
+                        status_message="degraded"
+                    fi
                 else
                     status_message="stopped"
                 fi
