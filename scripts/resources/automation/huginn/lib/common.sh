@@ -57,7 +57,9 @@ huginn::db_container_exists() {
 # Returns: 0 if installed, 1 otherwise
 #######################################
 huginn::is_installed() {
-    huginn::container_exists && huginn::db_container_exists
+    # Huginn can run standalone or with external database
+    # Check if main container exists (database might be external/embedded)
+    huginn::container_exists
 }
 
 #######################################
@@ -66,8 +68,15 @@ huginn::is_installed() {
 #######################################
 huginn::is_running() {
     local huginn_state=$(docker container inspect -f '{{.State.Running}}' "$CONTAINER_NAME" 2>/dev/null || echo "false")
-    local db_state=$(docker container inspect -f '{{.State.Running}}' "$DB_CONTAINER_NAME" 2>/dev/null || echo "false")
-    [[ "$huginn_state" == "true" && "$db_state" == "true" ]]
+    
+    # Check if database container exists and require it to be running if it does
+    if huginn::db_container_exists; then
+        local db_state=$(docker container inspect -f '{{.State.Running}}' "$DB_CONTAINER_NAME" 2>/dev/null || echo "false")
+        [[ "$huginn_state" == "true" && "$db_state" == "true" ]]
+    else
+        # If no separate database container, just check main container
+        [[ "$huginn_state" == "true" ]]
+    fi
 }
 
 #######################################

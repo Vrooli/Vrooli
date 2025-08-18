@@ -1,31 +1,305 @@
 #!/usr/bin/env bash
-# Huginn Status and Health Monitoring Functions
+# Huginn Status and Health Monitoring Functions - Standardized Format
 # System status, health checks, and information display
 
+# Source format utilities and config
+HUGINN_STATUS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${HUGINN_STATUS_DIR}/../../../../lib/utils/format.sh"
+# shellcheck disable=SC1091
+source "${HUGINN_STATUS_DIR}/../config/defaults.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${HUGINN_STATUS_DIR}/common.sh" 2>/dev/null || true
+
+# Ensure configuration is exported
+if command -v huginn::export_config &>/dev/null; then
+    huginn::export_config 2>/dev/null || true
+fi
+
 #######################################
-# Show comprehensive system status
-# Returns: 0 always
+# Collect Huginn status data in format-agnostic structure
+# Returns: Key-value pairs ready for formatting
 #######################################
-huginn::show_status() {
-    huginn::show_status_header
+huginn::status::collect_data() {
+    local status_data=()
+    
+    # Basic status checks
+    local installed="false"
+    local running="false"
+    local healthy="false"
+    local container_status="not_found"
+    local health_message="Unknown"
+    
+    # Check main container (Huginn can run standalone without separate DB container)
+    if huginn::container_exists; then
+        installed="true"
+        container_status=$(docker inspect --format='{{.State.Status}}' "$CONTAINER_NAME" 2>/dev/null || echo "unknown")
+        
+        if huginn::is_running; then
+            running="true"
+            
+            if huginn::is_healthy; then
+                healthy="true"
+                health_message="Healthy - All systems operational - agents ready"
+            else
+                health_message="Unhealthy - Service not responding"
+            fi
+        else
+            health_message="Stopped - Container not running"
+        fi
+    else
+        health_message="Not installed - Container does not exist"
+    fi
+    
+    # Basic resource information
+    status_data+=("name" "huginn")
+    status_data+=("category" "automation")
+    status_data+=("description" "Agent-based workflow automation and monitoring platform")
+    status_data+=("installed" "$installed")
+    status_data+=("running" "$running")
+    status_data+=("healthy" "$healthy")
+    status_data+=("health_message" "$health_message")
+    status_data+=("container_name" "$CONTAINER_NAME")
+    status_data+=("container_status" "$container_status")
+    status_data+=("port" "$HUGINN_PORT")
+    
+    # Service endpoints
+    status_data+=("ui_url" "$HUGINN_BASE_URL")
+    status_data+=("admin_username" "$DEFAULT_ADMIN_USERNAME")
+    status_data+=("admin_password" "$DEFAULT_ADMIN_PASSWORD")
+    status_data+=("admin_email" "$DEFAULT_ADMIN_EMAIL")
+    
+    # Configuration details
+    if [[ "$running" == "true" ]]; then
+        # Container image
+        local image
+        image=$(docker inspect --format='{{.Config.Image}}' "$CONTAINER_NAME" 2>/dev/null || echo "unknown")
+        status_data+=("image" "$image")
+        
+        # Huginn version
+        local version
+        version=$(huginn::get_version 2>/dev/null || echo "unknown")
+        status_data+=("version" "$version")
+        
+        # Database connectivity
+        local db_connected="false"
+        if huginn::check_database 2>/dev/null; then
+            db_connected="true"
+        fi
+        status_data+=("database_connected" "$db_connected")
+        
+        # Get system statistics if healthy
+        if [[ "$healthy" == "true" ]]; then
+            local stats_json
+            stats_json=$(huginn::get_system_stats 2>/dev/null)
+            
+            if [[ -n "$stats_json" ]] && echo "$stats_json" | jq . >/dev/null 2>&1; then
+                local users agents scenarios events active_agents
+                users=$(echo "$stats_json" | jq -r '.users // 0')
+                agents=$(echo "$stats_json" | jq -r '.agents // 0')
+                scenarios=$(echo "$stats_json" | jq -r '.scenarios // 0')
+                events=$(echo "$stats_json" | jq -r '.events // 0')
+                active_agents=$(echo "$stats_json" | jq -r '.active_agents // 0')
+                
+                status_data+=("users" "$users")
+                status_data+=("agents" "$agents")
+                status_data+=("scenarios" "$scenarios")
+                status_data+=("events" "$events")
+                status_data+=("active_agents" "$active_agents")
+                
+                # Calculate health score
+                local health_score=100
+                if [[ $agents -gt 0 ]]; then
+                    local active_percentage=$((active_agents * 100 / agents))
+                    if [[ $active_percentage -lt 50 ]]; then
+                        health_score=75
+                    elif [[ $active_percentage -lt 25 ]]; then
+                        health_score=50
+                    fi
+                fi
+                status_data+=("health_score" "$health_score")
+            fi
+        fi
+    fi
+    
+    # Return the collected data
+    printf '%s\n' "${status_data[@]}"
+}
+
+#######################################
+# Show Huginn status using standardized format
+# Args: [--format json|text] [--verbose]
+#######################################
+huginn::status() {
+    local format="text"
+    local verbose="false"
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --format)
+                format="$2"
+                shift 2
+                ;;
+            --json)
+                format="json"
+                shift
+                ;;
+            --verbose|-v)
+                verbose="true"
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    # Collect status data
+    local data_string
+    data_string=$(huginn::status::collect_data 2>/dev/null)
+    
+    if [[ -z "$data_string" ]]; then
+        # Fallback if data collection fails
+        if [[ "$format" == "json" ]]; then
+            echo '{"error": "Failed to collect status data"}'
+        else
+            log::error "Failed to collect Huginn status data"
+        fi
+        return 1
+    fi
+    
+    # Convert string to array
+    local data_array
+    mapfile -t data_array <<< "$data_string"
+    
+    # Output based on format
+    if [[ "$format" == "json" ]]; then
+        format::output "json" "kv" "${data_array[@]}"
+    else
+        # Text format with standardized structure
+        huginn::status::display_text "${data_array[@]}"
+    fi
+    
+    # Return appropriate exit code
+    local healthy="false"
+    local running="false"
+    for ((i=0; i<${#data_array[@]}; i+=2)); do
+        case "${data_array[i]}" in
+            "healthy") healthy="${data_array[i+1]}" ;;
+            "running") running="${data_array[i+1]}" ;;
+        esac
+    done
+    
+    if [[ "$healthy" == "true" ]]; then
+        return 0
+    elif [[ "$running" == "true" ]]; then
+        return 1
+    else
+        return 2
+    fi
+}
+
+#######################################
+# Display status in text format
+#######################################
+huginn::status::display_text() {
+    local -A data
+    
+    # Convert array to associative array
+    for ((i=1; i<=$#; i+=2)); do
+        local key="${!i}"
+        local value_idx=$((i+1))
+        local value="${!value_idx}"
+        data["$key"]="$value"
+    done
+    
+    # Header
+    log::header "🤖 Huginn Status"
     echo
     
     # Basic status
-    huginn::show_basic_status
+    log::info "📊 Basic Status:"
+    if [[ "${data[installed]:-false}" == "true" ]]; then
+        log::success "   ✅ Installed: Yes"
+    else
+        log::error "   ❌ Installed: No"
+        echo
+        log::info "💡 Installation Required:"
+        log::info "   To install Huginn, run: ./manage.sh --action install"
+        return
+    fi
+    
+    if [[ "${data[running]:-false}" == "true" ]]; then
+        log::success "   ✅ Running: Yes"
+    else
+        log::warn "   ⚠️  Running: No"
+    fi
+    
+    if [[ "${data[healthy]:-false}" == "true" ]]; then
+        log::success "   ✅ Health: Healthy"
+    else
+        log::warn "   ⚠️  Health: ${data[health_message]:-Unknown}"
+    fi
     echo
     
-    # Detailed system information
-    huginn::show_system_info
+    # Container information
+    log::info "🐳 Container Info:"
+    log::info "   📦 Name: ${data[container_name]:-unknown}"
+    log::info "   📊 Status: ${data[container_status]:-unknown}"
+    if [[ -n "${data[image]:-}" ]]; then
+        log::info "   🖼️  Image: ${data[image]}"
+    fi
+    if [[ -n "${data[version]:-}" ]]; then
+        log::info "   🔖 Version: ${data[version]}"
+    fi
     echo
     
-    # Health metrics
-    huginn::show_health_metrics
+    # Service endpoints
+    log::info "🌐 Service Endpoints:"
+    log::info "   🎨 UI: ${data[ui_url]:-unknown}"
+    if [[ "${data[running]:-false}" == "true" ]]; then
+        log::info "   👤 Username: ${data[admin_username]:-unknown}"
+        log::info "   🔑 Password: ${data[admin_password]:-unknown}"
+    fi
     echo
     
-    # Recent activity
-    huginn::show_recent_activity
+    # Database status
+    if [[ "${data[running]:-false}" == "true" ]]; then
+        log::info "🗄️  Database:"
+        if [[ "${data[database_connected]:-false}" == "true" ]]; then
+            log::success "   ✅ Connection: Working"
+        else
+            log::error "   ❌ Connection: Failed"
+        fi
+        echo
+    fi
     
-    return 0
+    # Statistics (only if healthy)
+    if [[ "${data[healthy]:-false}" == "true" ]]; then
+        log::info "📈 Statistics:"
+        log::info "   👥 Users: ${data[users]:-0}"
+        log::info "   🤖 Agents: ${data[agents]:-0} (Active: ${data[active_agents]:-0})"
+        log::info "   📂 Scenarios: ${data[scenarios]:-0}"
+        log::info "   📊 Events: ${data[events]:-0}"
+        
+        local health_score="${data[health_score]:-100}"
+        if [[ $health_score -ge 90 ]]; then
+            log::success "   💚 Health Score: $health_score% (Excellent)"
+        elif [[ $health_score -ge 75 ]]; then
+            log::info "   💛 Health Score: $health_score% (Good)"
+        else
+            log::warn "   🧡 Health Score: $health_score% (Needs Attention)"
+        fi
+    fi
+}
+
+#######################################
+# Legacy function for backward compatibility
+# Returns: 0 always
+#######################################
+huginn::show_status() {
+    huginn::status "$@"
 }
 
 #######################################

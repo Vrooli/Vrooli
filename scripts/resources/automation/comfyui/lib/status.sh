@@ -1,129 +1,341 @@
 #!/usr/bin/env bash
-# ComfyUI Status and Information
-# Handles status checks, health monitoring, and information display
+# ComfyUI Status Management - Standardized Format
+# Functions for checking and displaying ComfyUI status information
+
+# Source format utilities and config
+COMFYUI_STATUS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${COMFYUI_STATUS_DIR}/../../../../lib/utils/format.sh"
+# shellcheck disable=SC1091
+source "${COMFYUI_STATUS_DIR}/../config/defaults.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${COMFYUI_STATUS_DIR}/common.sh" 2>/dev/null || true
 
 #######################################
-# Display ComfyUI status
+# Collect ComfyUI status data in format-agnostic structure
+# Returns: Key-value pairs ready for formatting
 #######################################
-status::status() {
-    log::header "📊 ComfyUI Status"
+comfyui::status::collect_data() {
+    local status_data=()
     
-    # Show access URL prominently if running
-    if common::is_running; then
-        echo
-        log::success "🌐 Access ComfyUI at: http://localhost:$COMFYUI_DIRECT_PORT"
-        echo
-    fi
-    
-    # Container status
-    echo
-    log::info "=== Container Status ==="
+    # Basic status checks
+    local installed="false"
+    local running="false"
+    local healthy="false"
+    local container_status="not_found"
+    local health_message="Unknown"
     
     if common::container_exists; then
-        log::success "✅ Container exists"
+        installed="true"
+        container_status=$(docker inspect --format='{{.State.Status}}' "${COMFYUI_CONTAINER_NAME}" 2>/dev/null || echo "unknown")
         
         if common::is_running; then
-            log::success "✅ Container is running"
+            running="true"
             
-            # Show container details
-            local container_info
-            container_info=$(docker::run ps --filter "name=^${COMFYUI_CONTAINER_NAME}$" --format "table {{.Status}}\t{{.Ports}}" --no-trunc | tail -n +2)
-            if [[ -n "$container_info" ]]; then
-                echo "   Status: $(echo "$container_info" | awk '{print $1, $2, $3}')"
-                echo "   Ports: $(echo "$container_info" | awk '{$1=$2=$3=""; print $0}' | xargs)"
-            fi
-            
-            # Check API health
             if common::is_healthy; then
-                log::success "✅ API is healthy"
+                healthy="true"
+                health_message="Healthy - AI image generation ready"
             else
-                log::error "❌ API is not responding"
+                health_message="Unhealthy - Service not responding"
             fi
         else
-            log::error "❌ Container is not running"
-            log::info "   Start with: $0 --action start"
+            health_message="Stopped - Container not running"
         fi
     else
-        log::error "❌ Container does not exist"
-        log::info "   Install with: $0 --action install"
+        health_message="Not installed - Container does not exist"
     fi
     
-    # GPU status
-    echo
-    log::info "=== GPU Configuration ==="
+    # Basic resource information
+    status_data+=("name" "comfyui")
+    status_data+=("category" "automation")
+    status_data+=("description" "AI-powered image generation and workflow automation")
+    status_data+=("installed" "$installed")
+    status_data+=("running" "$running")
+    status_data+=("healthy" "$healthy")
+    status_data+=("health_message" "$health_message")
+    status_data+=("container_name" "$COMFYUI_CONTAINER_NAME")
+    status_data+=("container_status" "$container_status")
+    status_data+=("port" "$COMFYUI_DIRECT_PORT")
     
+    # Service endpoints
+    status_data+=("ui_url" "http://localhost:${COMFYUI_DIRECT_PORT}")
+    status_data+=("api_url" "http://localhost:${COMFYUI_DIRECT_PORT}/api")
+    status_data+=("health_url" "http://localhost:${COMFYUI_DIRECT_PORT}/system_stats")
+    
+    # Configuration details
+    local image="${COMFYUI_CUSTOM_IMAGE:-$COMFYUI_DEFAULT_IMAGE}"
+    status_data+=("image" "$image")
+    status_data+=("data_dir" "$COMFYUI_DATA_DIR")
+    status_data+=("jupyter_port" "$COMFYUI_JUPYTER_PORT")
+    
+    # GPU configuration
     local gpu_type
-    gpu_type=$(status::detect_gpu_silent)
+    gpu_type=$(status::detect_gpu_silent 2>/dev/null || echo "cpu")
+    status_data+=("gpu_type" "$gpu_type")
     
-    case "$gpu_type" in
-        nvidia)
-            log::info "GPU Type: NVIDIA"
-            
-            # Check if container has GPU access
-            if common::is_running; then
-                if docker::run exec "$COMFYUI_CONTAINER_NAME" nvidia-smi >/dev/null 2>&1; then
-                    log::success "✅ GPU is accessible in container"
-                    
-                    # Show GPU info from container
-                    local gpu_info
-                    gpu_info=$(docker::run exec "$COMFYUI_CONTAINER_NAME" nvidia-smi --query-gpu=name,memory.used,memory.total --format=csv,noheader 2>/dev/null | head -1)
-                    if [[ -n "$gpu_info" ]]; then
-                        echo "   GPU: $gpu_info"
-                    fi
-                else
-                    log::error "❌ GPU not accessible in container"
-                    log::info "   Container may be running in CPU mode"
-                fi
-            fi
-            ;;
-        amd)
-            log::info "GPU Type: AMD"
-            log::warn "AMD GPU support may require additional configuration"
-            ;;
-        cpu)
-            log::info "GPU Type: None (CPU mode)"
-            log::warn "Running in CPU mode - performance will be limited"
-            ;;
-    esac
-    
-    # Resource usage
-    if common::is_running; then
-        echo
-        log::info "=== Resource Usage ==="
-        
-        # Get container stats
+    # Runtime information (only if running)
+    if [[ "$running" == "true" ]]; then
+        # Container stats
         local stats
-        stats=$(docker::run stats --no-stream --format "table {{.CPUPerc}}\t{{.MemUsage}}" "$COMFYUI_CONTAINER_NAME" | tail -n +2)
-        if [[ -n "$stats" ]]; then
-            echo "   CPU: $(echo "$stats" | awk '{print $1}')"
-            echo "   Memory: $(echo "$stats" | awk '{print $2, $3, $4}')"
+        stats=$(docker stats --no-stream --format "{{.CPUPerc}};{{.MemUsage}}" "$COMFYUI_CONTAINER_NAME" 2>/dev/null || echo "N/A;N/A")
+        
+        if [[ "$stats" != "N/A;N/A" ]]; then
+            local cpu_usage memory_usage
+            cpu_usage=$(echo "$stats" | cut -d';' -f1)
+            memory_usage=$(echo "$stats" | cut -d';' -f2)
+            status_data+=("cpu_usage" "$cpu_usage")
+            status_data+=("memory_usage" "$memory_usage")
+        fi
+        
+        # GPU status if available
+        if [[ "$gpu_type" == "nvidia" ]] && common::is_running; then
+            local gpu_accessible="false"
+            if docker exec "$COMFYUI_CONTAINER_NAME" nvidia-smi >/dev/null 2>&1; then
+                gpu_accessible="true"
+                local gpu_info
+                gpu_info=$(docker exec "$COMFYUI_CONTAINER_NAME" nvidia-smi --query-gpu=name,memory.used,memory.total --format=csv,noheader 2>/dev/null | head -1 || echo "unknown")
+                status_data+=("gpu_info" "$gpu_info")
+            fi
+            status_data+=("gpu_accessible" "$gpu_accessible")
+        fi
+        
+        # Storage usage
+        if [[ -d "$COMFYUI_DATA_DIR" ]]; then
+            local total_size
+            total_size=$(du -sh "$COMFYUI_DATA_DIR" 2>/dev/null | awk '{print $1}' || echo "unknown")
+            status_data+=("storage_size" "$total_size")
+            
+            # Model counts
+            local models_count=0
+            if [[ -d "${COMFYUI_DATA_DIR}/models" ]]; then
+                models_count=$(find "${COMFYUI_DATA_DIR}/models" -type f \( -name "*.safetensors" -o -name "*.ckpt" -o -name "*.pth" \) 2>/dev/null | wc -l)
+            fi
+            status_data+=("models_count" "$models_count")
+            
+            # Workflow counts
+            local workflows_count=0
+            if [[ -d "${COMFYUI_DATA_DIR}/workflows" ]]; then
+                workflows_count=$(find "${COMFYUI_DATA_DIR}/workflows" -name "*.json" 2>/dev/null | wc -l)
+            fi
+            status_data+=("workflows_count" "$workflows_count")
         fi
     fi
     
-    # Storage usage
-    echo
-    log::info "=== Storage Usage ==="
+    # Return the collected data
+    printf '%s\n' "${status_data[@]}"
+}
+
+#######################################
+# Show ComfyUI status using standardized format
+# Args: [--format json|text] [--verbose]
+#######################################
+comfyui::status::show() {
+    local format="text"
+    local verbose="false"
     
-    if [[ -d "$COMFYUI_DATA_DIR" ]]; then
-        local total_size
-        total_size=$(du -sh "$COMFYUI_DATA_DIR" 2>/dev/null | awk '{print $1}')
-        echo "   Data directory: $COMFYUI_DATA_DIR"
-        echo "   Total size: ${total_size:-unknown}"
-        
-        # Show breakdown by category
-        for dir in models outputs workflows custom_nodes; do
-            if [[ -d "${COMFYUI_DATA_DIR}/$dir" ]]; then
-                local dir_size
-                dir_size=$(du -sh "${COMFYUI_DATA_DIR}/$dir" 2>/dev/null | awk '{print $1}')
-                echo "   - $dir: ${dir_size:-0}"
-            fi
-        done
-    else
-        log::warn "Data directory does not exist"
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --format)
+                format="$2"
+                shift 2
+                ;;
+            --json)
+                format="json"
+                shift
+                ;;
+            --verbose|-v)
+                verbose="true"
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    # Collect status data
+    local data_string
+    data_string=$(comfyui::status::collect_data 2>/dev/null)
+    
+    if [[ -z "$data_string" ]]; then
+        # Fallback if data collection fails
+        if [[ "$format" == "json" ]]; then
+            echo '{"error": "Failed to collect status data"}'
+        else
+            log::error "Failed to collect ComfyUI status data"
+        fi
+        return 1
     fi
     
-    # Model integrity check
+    # Convert string to array
+    local data_array
+    mapfile -t data_array <<< "$data_string"
+    
+    # Output based on format
+    if [[ "$format" == "json" ]]; then
+        format::output "json" "kv" "${data_array[@]}"
+    else
+        # Text format with standardized structure
+        comfyui::status::display_text "${data_array[@]}"
+    fi
+    
+    # Return appropriate exit code
+    local healthy="false"
+    local running="false"
+    for ((i=0; i<${#data_array[@]}; i+=2)); do
+        case "${data_array[i]}" in
+            "healthy") healthy="${data_array[i+1]}" ;;
+            "running") running="${data_array[i+1]}" ;;
+        esac
+    done
+    
+    if [[ "$healthy" == "true" ]]; then
+        return 0
+    elif [[ "$running" == "true" ]]; then
+        return 1
+    else
+        return 2
+    fi
+}
+
+#######################################
+# Display status in text format
+#######################################
+comfyui::status::display_text() {
+    local -A data
+    
+    # Convert array to associative array
+    for ((i=1; i<=$#; i+=2)); do
+        local key="${!i}"
+        local value_idx=$((i+1))
+        local value="${!value_idx}"
+        data["$key"]="$value"
+    done
+    
+    # Header
+    log::header "📊 ComfyUI Status"
     echo
+    
+    # Basic status
+    log::info "📊 Basic Status:"
+    if [[ "${data[installed]:-false}" == "true" ]]; then
+        log::success "   ✅ Installed: Yes"
+    else
+        log::error "   ❌ Installed: No"
+        echo
+        log::info "💡 Installation Required:"
+        log::info "   To install ComfyUI, run: ./manage.sh --action install"
+        return
+    fi
+    
+    if [[ "${data[running]:-false}" == "true" ]]; then
+        log::success "   ✅ Running: Yes"
+    else
+        log::warn "   ⚠️  Running: No"
+    fi
+    
+    if [[ "${data[healthy]:-false}" == "true" ]]; then
+        log::success "   ✅ Health: Healthy"
+    else
+        log::warn "   ⚠️  Health: ${data[health_message]:-Unknown}"
+    fi
+    echo
+    
+    # Container information
+    log::info "🐳 Container Info:"
+    log::info "   📦 Name: ${data[container_name]:-unknown}"
+    log::info "   📊 Status: ${data[container_status]:-unknown}"
+    log::info "   🖼️  Image: ${data[image]:-unknown}"
+    echo
+    
+    # Service endpoints
+    log::info "🌐 Service Endpoints:"
+    log::info "   🎨 UI: ${data[ui_url]:-unknown}"
+    log::info "   🔌 API: ${data[api_url]:-unknown}"
+    log::info "   📊 Health: ${data[health_url]:-unknown}"
+    if [[ -n "${data[jupyter_port]:-}" ]]; then
+        log::info "   📓 Jupyter: http://localhost:${data[jupyter_port]}"
+    fi
+    echo
+    
+    # GPU Configuration
+    log::info "🎮 GPU Configuration:"
+    log::info "   🖥️  Type: ${data[gpu_type]:-unknown}"
+    if [[ "${data[gpu_type]:-}" == "nvidia" ]]; then
+        if [[ "${data[gpu_accessible]:-false}" == "true" ]]; then
+            log::success "   ✅ GPU Accessible: Yes"
+            if [[ -n "${data[gpu_info]:-}" && "${data[gpu_info]}" != "unknown" ]]; then
+                log::info "   📊 GPU Info: ${data[gpu_info]}"
+            fi
+        else
+            log::warn "   ⚠️  GPU Accessible: No (running in CPU mode)"
+        fi
+    elif [[ "${data[gpu_type]:-}" == "cpu" ]]; then
+        log::warn "   ⚠️  Running in CPU mode - performance will be limited"
+    fi
+    echo
+    
+    # Runtime information (only if healthy)
+    if [[ "${data[healthy]:-false}" == "true" ]]; then
+        log::info "📈 Runtime Information:"
+        if [[ -n "${data[cpu_usage]:-}" ]]; then
+            log::info "   💾 CPU Usage: ${data[cpu_usage]}"
+        fi
+        if [[ -n "${data[memory_usage]:-}" ]]; then
+            log::info "   🧠 Memory Usage: ${data[memory_usage]}"
+        fi
+        if [[ -n "${data[storage_size]:-}" ]]; then
+            log::info "   💾 Storage Size: ${data[storage_size]}"
+        fi
+        if [[ -n "${data[models_count]:-}" ]]; then
+            log::info "   🧠 AI Models: ${data[models_count]}"
+        fi
+        if [[ -n "${data[workflows_count]:-}" ]]; then
+            log::info "   ⚡ Workflows: ${data[workflows_count]}"
+        fi
+        echo
+        
+        # Quick access info
+        log::info "🎯 Quick Actions:"
+        log::info "   🌐 Access ComfyUI: ${data[ui_url]:-http://localhost:8188}"
+        log::info "   📄 View logs: ./manage.sh --action logs"
+        log::info "   🛑 Stop service: ./manage.sh --action stop"
+    fi
+}
+
+#######################################
+# Legacy status function for backward compatibility
+#######################################
+status::status() {
+    comfyui::status::show "$@"
+}
+
+#######################################
+# Main status function for CLI registration
+#######################################
+comfyui::status() {
+    comfyui::status::show "$@"
+}
+
+#######################################
+# Detect GPU type (silent version for data collection)
+#######################################
+status::detect_gpu_silent() {
+    if command -v nvidia-smi >/dev/null 2>&1; then
+        echo "nvidia"
+    elif command -v rocm-smi >/dev/null 2>&1; then
+        echo "amd"
+    else
+        echo "cpu"
+    fi
+}
+
+#######################################
+# Additional legacy functions for backward compatibility
+#######################################
+
+status::show_model_integrity() {
     log::info "=== Model Integrity ==="
     
     local models_valid=0
@@ -133,7 +345,6 @@ status::status() {
     for i in "${!COMFYUI_MODEL_NAMES[@]}"; do
         local model_name="${COMFYUI_MODEL_NAMES[$i]}"
         local expected_size="${COMFYUI_MODEL_SIZES[$i]}"
-        local expected_sha256="${COMFYUI_MODEL_SHA256[$i]}"
         
         # Determine model path
         local model_path
@@ -167,224 +378,24 @@ status::status() {
     elif [[ $models_valid -eq 0 ]]; then
         log::info "   Run '$0 --action download-models' to install default models"
     fi
-    
-    # Configuration status
-    echo
-    log::info "=== Configuration ==="
-    
-    local port="${COMFYUI_CUSTOM_PORT:-$COMFYUI_DEFAULT_PORT}"
-    echo "   Port: $port"
-    echo "   Image: ${COMFYUI_CUSTOM_IMAGE:-$COMFYUI_DEFAULT_IMAGE}"
-    
-    # Check Vrooli configuration
-    if [[ -f "$VROOLI_RESOURCES_CONFIG" ]] && system::is_command "jq"; then
-        local config_exists
-        config_exists=$(jq -r ".services.automation.comfyui // empty" "$VROOLI_RESOURCES_CONFIG" 2>/dev/null)
-        
-        if [[ -n "$config_exists" ]]; then
-            log::success "✅ Registered in Vrooli configuration"
-        else
-            log::warn "⚠️  Not registered in Vrooli configuration"
-        fi
-    fi
-    
-    # Quick actions
-    if common::container_exists; then
-        echo
-        log::header "🎯 Quick Actions"
-        
-        if common::is_running; then
-            echo "  • View logs: $0 --action logs"
-            echo "  • Stop service: $0 --action stop"
-            echo "  • Access ComfyUI: http://localhost:$COMFYUI_DIRECT_PORT"
-            echo "  • Access Jupyter Notebook: http://localhost:$COMFYUI_JUPYTER_PORT"
-        else
-            echo "  • Start service: $0 --action start"
-        fi
-        
-        echo "  • List models: $0 --action list-models"
-        echo "  • GPU info: $0 --action gpu-info"
-    fi
-    
-    # Exit with appropriate code
-    if common::is_running && common::is_healthy; then
-        return 0
-    else
-        return 1
-    fi
 }
 
-#######################################
-# Display ComfyUI resource information
-#######################################
-status::info() {
-    log::header "ℹ️ ComfyUI Resource Information"
-    
-    echo
-    echo "ComfyUI is a powerful and modular AI image generation workflow platform."
-    echo
-    
-    # Basic information
-    log::info "=== Resource Details ==="
-    echo "  Name: comfyui"
-    echo "  Category: automation"
-    echo "  Type: Docker container"
-    echo "  Image: ${COMFYUI_CUSTOM_IMAGE:-$COMFYUI_DEFAULT_IMAGE}"
-    echo
-    
-    # Features
-    log::info "=== Features ==="
-    echo "  • Node-based workflow editor"
-    echo "  • Support for SD, SDXL, and custom models"
-    echo "  • GPU acceleration (NVIDIA/AMD)"
-    echo "  • REST API for automation"
-    echo "  • Custom node support"
-    echo "  • Batch processing"
-    echo
-    
-    # Access information
-    log::info "=== Access Information ==="
-    local port="${COMFYUI_CUSTOM_PORT:-$COMFYUI_DEFAULT_PORT}"
-    echo "  ComfyUI Interface: http://localhost:$COMFYUI_DIRECT_PORT"
-    echo "  Jupyter Notebook: http://localhost:$COMFYUI_JUPYTER_PORT"
-    echo "  API Endpoint: http://localhost:$COMFYUI_DIRECT_PORT"
-    echo
-    
-    # API endpoints
-    log::info "=== API Endpoints ==="
-    echo "  POST /prompt              - Execute workflow"
-    echo "  GET  /history/{id}        - Get execution status"
-    echo "  GET  /view                - View generated images"
-    echo "  POST /upload/image        - Upload input images"
-    echo "  GET  /system_stats        - System information"
-    echo "  WS   ws://localhost:$port/ws - Real-time updates"
-    echo
-    
-    # Directory structure
-    log::info "=== Directory Structure ==="
-    echo "  ${COMFYUI_DATA_DIR}/"
-    echo "  ├── models/              # AI models"
-    echo "  │   ├── checkpoints/     # Main models"
-    echo "  │   ├── vae/            # VAE models"
-    echo "  │   ├── loras/          # LoRA models"
-    echo "  │   └── controlnet/     # ControlNet models"
-    echo "  ├── outputs/            # Generated images"
-    echo "  ├── workflows/          # Saved workflows"
-    echo "  ├── custom_nodes/       # Custom nodes"
-    echo "  └── input/             # Input images"
-    echo
-    
-    # Resource requirements
-    log::info "=== Resource Requirements ==="
-    echo "  RAM: ${COMFYUI_MIN_RAM_GB}GB minimum, ${COMFYUI_RECOMMENDED_RAM_GB}GB recommended"
-    echo "  Disk: ${COMFYUI_MIN_DISK_GB}GB minimum, ${COMFYUI_RECOMMENDED_DISK_GB}GB recommended"
-    echo "  GPU: NVIDIA/AMD recommended, CPU mode available"
-    echo
-    
-    # Integration
-    log::info "=== Vrooli Integration ==="
-    echo "  ComfyUI integrates with Vrooli's automation system,"
-    echo "  allowing AI-powered image generation in workflows."
-    echo "  Use with n8n, Node-RED, or other automation tools."
-    echo
-    
-    # Documentation
-    log::info "=== Documentation ==="
-    echo "  ComfyUI Docs: https://docs.comfy.org/"
-    echo "  GitHub: https://github.com/comfyanonymous/ComfyUI"
-    echo "  Examples: https://comfyanonymous.github.io/ComfyUI_examples/"
-    echo
-    
-    # Current status
-    if common::container_exists; then
-        log::info "=== Current Status ==="
-        if common::is_running; then
-            if common::is_healthy; then
-                log::success "✅ Running and healthy"
-            else
-                log::warn "⚠️  Running but API not responding"
-            fi
-        else
-            log::info "⏸️  Installed but not running"
-        fi
-    else
-        log::info "📦 Not installed"
-    fi
-}
-
-#######################################
-# Check if ready for operations
-#######################################
-status::verify_ready() {
-    # This function is called by check_ready in common.sh
-    # Additional ComfyUI-specific checks can go here
-    
-    # Check if we have at least one model
-    if [[ -d "${COMFYUI_DATA_DIR}/models/checkpoints" ]]; then
-        local model_count
-        model_count=$(find "${COMFYUI_DATA_DIR}/models/checkpoints" -name "*.safetensors" -o -name "*.ckpt" | wc -l)
-        
-        if [[ $model_count -eq 0 ]]; then
-            log::warn "No checkpoint models found"
-            log::info "Download models with: $0 --action download-models"
-        fi
-    fi
-    
-    return 0
-}
-
-#######################################
-# Show system requirements
-#######################################
-status::show_requirements() {
-    log::header "📋 ComfyUI System Requirements"
-    
-    echo
-    log::info "=== Minimum Requirements ==="
-    echo "  • RAM: ${COMFYUI_MIN_RAM_GB}GB"
-    echo "  • Disk Space: ${COMFYUI_MIN_DISK_GB}GB"
-    echo "  • Docker installed and running"
-    echo "  • CPU: 4+ cores recommended"
-    echo
-    
-    log::info "=== Recommended Requirements ==="
-    echo "  • RAM: ${COMFYUI_RECOMMENDED_RAM_GB}GB+"
-    echo "  • Disk Space: ${COMFYUI_RECOMMENDED_DISK_GB}GB+"
-    echo "  • GPU: NVIDIA RTX 3060+ or AMD RX 6600+"
-    echo "  • VRAM: 12GB+ for SDXL models"
-    echo "  • CPU: 8+ cores"
-    echo
-    
-    log::info "=== GPU Requirements ==="
-    echo "  NVIDIA:"
-    echo "  • Driver version ${COMFYUI_NVIDIA_MIN_DRIVER}+"
-    echo "  • CUDA 11.8+"
-    echo "  • NVIDIA Container Runtime"
-    echo
-    echo "  AMD:"
-    echo "  • ROCm ${COMFYUI_AMD_MIN_ROCM}+"
-    echo "  • Compatible GPU (RX 6000 series+)"
-    echo
-    
-    log::info "=== Current System ==="
-    
-    # Check RAM
-    local total_ram_gb
-    total_ram_gb=$(free -g | awk '/^Mem:/{print $2}')
-    echo "  RAM: ${total_ram_gb}GB"
-    
-    # Check disk space
-    local available_gb
-    available_gb=$(df -BG "$(dirname "$COMFYUI_DATA_DIR")" | awk 'NR==2 {print $4}' | sed 's/G//')
-    echo "  Available disk: ${available_gb}GB"
-    
-    # Check CPU
-    local cpu_cores
-    cpu_cores=$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo "unknown")
-    echo "  CPU cores: $cpu_cores"
-    
-    # Check GPU
+# GPU detection function for backward compatibility
+status::detect_gpu() {
     local gpu_type
     gpu_type=$(status::detect_gpu_silent)
-    echo "  GPU type: $gpu_type"
+    
+    case "$gpu_type" in
+        nvidia)
+            log::info "🖥️  GPU Type: NVIDIA"
+            ;;
+        amd)
+            log::info "🖥️  GPU Type: AMD"
+            ;;
+        cpu)
+            log::info "🖥️  GPU Type: None (CPU mode)"
+            ;;
+    esac
+    
+    echo "$gpu_type"
 }

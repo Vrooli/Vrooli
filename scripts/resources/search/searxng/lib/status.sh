@@ -1,107 +1,309 @@
 #!/usr/bin/env bash
-# SearXNG Status and Health Checking
-# Comprehensive status monitoring and diagnostics
+# SearXNG Status Management - Standardized Format
+# Functions for checking and displaying SearXNG status information
+
+# Source format utilities and config
+SEARXNG_STATUS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${SEARXNG_STATUS_DIR}/../../../../lib/utils/format.sh"
+# shellcheck disable=SC1091
+source "${SEARXNG_STATUS_DIR}/../config/defaults.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${SEARXNG_STATUS_DIR}/../config/messages.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${SEARXNG_STATUS_DIR}/common.sh" 2>/dev/null || true
+
+# Ensure configuration is exported
+if command -v searxng::export_config &>/dev/null; then
+    searxng::export_config 2>/dev/null || true
+fi
 
 #######################################
-# Show detailed SearXNG status
+# Collect SearXNG status data in format-agnostic structure
+# Returns: Key-value pairs ready for formatting
 #######################################
-searxng::show_status() {
-    local status
-    status=$(searxng::get_status)
+searxng::status::collect_data() {
+    local status_data=()
     
-    log::header "SearXNG Status Report"
+    # Basic status checks
+    local installed="false"
+    local running="false"
+    local healthy="false"
+    local container_status="not_found"
+    local health_message="Unknown"
     
-    # Basic status
-    echo "Status: $status"
-    echo "Port: $SEARXNG_PORT"
-    echo "Base URL: $SEARXNG_BASE_URL"
-    echo "Container: $SEARXNG_CONTAINER_NAME"
-    echo "Data Directory: $SEARXNG_DATA_DIR"
-    echo
-    
-    case "$status" in
-        "not_installed")
-            log::info "SearXNG is not installed"
-            log::info "Run: ./manage.sh --action install"
-            return 1
-            ;;
-        "stopped")
-            log::warn "SearXNG is installed but not running"
-            log::info "Run: ./manage.sh --action start"
-            return 1
-            ;;
-        "unhealthy")
-            log::warn "SearXNG is running but not healthy"
-            searxng::show_detailed_status
-            return 1
-            ;;
-        "healthy")
-            log::success "SearXNG is running and healthy"
-            searxng::show_detailed_status
-            return 0
-            ;;
-    esac
-}
-
-#######################################
-# Show detailed status when running
-#######################################
-searxng::show_detailed_status() {
-    # Container information
-    echo "Container Details:"
     if searxng::is_installed; then
-        local container_status
-        container_status=$(docker container inspect --format='{{.State.Status}}' "$SEARXNG_CONTAINER_NAME" 2>/dev/null)
-        echo "  Docker Status: $container_status"
+        installed="true"
+        container_status=$(docker inspect --format='{{.State.Status}}' "${SEARXNG_CONTAINER_NAME}" 2>/dev/null || echo "unknown")
         
-        local started_at
-        started_at=$(docker container inspect --format='{{.State.StartedAt}}' "$SEARXNG_CONTAINER_NAME" 2>/dev/null)
-        echo "  Started At: $started_at"
+        if searxng::is_running; then
+            running="true"
+            
+            if searxng::is_healthy; then
+                healthy="true"
+                health_message="Healthy - Search service ready"
+            else
+                health_message="Unhealthy - Service not responding"
+            fi
+        else
+            health_message="Stopped - Container not running"
+        fi
+    else
+        health_message="Not installed - Container does not exist"
+    fi
+    
+    # Basic resource information
+    status_data+=("name" "searxng")
+    status_data+=("category" "search")
+    status_data+=("description" "Privacy-respecting metasearch engine")
+    status_data+=("installed" "$installed")
+    status_data+=("running" "$running")
+    status_data+=("healthy" "$healthy")
+    status_data+=("health_message" "$health_message")
+    status_data+=("container_name" "$SEARXNG_CONTAINER_NAME")
+    status_data+=("container_status" "$container_status")
+    status_data+=("port" "$SEARXNG_PORT")
+    
+    # Service endpoints
+    status_data+=("ui_url" "$SEARXNG_BASE_URL")
+    status_data+=("api_url" "${SEARXNG_BASE_URL}/search")
+    status_data+=("stats_url" "${SEARXNG_BASE_URL}/stats")
+    status_data+=("config_url" "${SEARXNG_BASE_URL}/config")
+    
+    # Configuration details
+    status_data+=("image" "$SEARXNG_IMAGE")
+    status_data+=("data_dir" "$SEARXNG_DATA_DIR")
+    status_data+=("bind_address" "$SEARXNG_BIND_ADDRESS")
+    status_data+=("default_engines" "$SEARXNG_DEFAULT_ENGINES")
+    status_data+=("safe_search" "$SEARXNG_SAFE_SEARCH")
+    status_data+=("rate_limiting" "$SEARXNG_LIMITER_ENABLED")
+    status_data+=("rate_limit" "$SEARXNG_RATE_LIMIT")
+    status_data+=("redis_caching" "$SEARXNG_ENABLE_REDIS")
+    status_data+=("public_access" "$SEARXNG_ENABLE_PUBLIC_ACCESS")
+    
+    # Runtime information (only if running and healthy)
+    if [[ "$running" == "true" && "$healthy" == "true" ]]; then
+        # Get search engine stats if available
+        local stats_data
+        stats_data=$(curl -sf --max-time 3 "${SEARXNG_BASE_URL}/stats" 2>/dev/null || echo "{}")
         
-        # Health check status
-        local health_status
-        health_status=$(docker container inspect --format='{{.State.Health.Status}}' "$SEARXNG_CONTAINER_NAME" 2>/dev/null)
-        if [[ -n "$health_status" ]]; then
-            echo "  Health Status: $health_status"
+        if [[ -n "$stats_data" ]] && [[ "$stats_data" != "{}" ]]; then
+            # Extract engine count from stats page (simple approach)
+            local engine_count
+            engine_count=$(echo "$stats_data" | grep -o "'[^']*'" | wc -l 2>/dev/null || echo "unknown")
+            status_data+=("active_engines" "$engine_count")
         fi
         
-        # Image information
-        local image
-        image=$(docker container inspect --format='{{.Config.Image}}' "$SEARXNG_CONTAINER_NAME" 2>/dev/null)
-        echo "  Image: $image"
-    fi
-    echo
-    
-    # Network connectivity
-    echo "Network Status:"
-    if resources::is_service_running "$SEARXNG_PORT"; then
-        echo "  Port $SEARXNG_PORT: ✅ Open"
-    else
-        echo "  Port $SEARXNG_PORT: ❌ Not responding"
-    fi
-    
-    # API endpoint checks
-    searxng::check_api_endpoints
-    
-    # Resource usage
-    if searxng::is_running; then
-        echo
-        searxng::get_resource_usage
+        # Get version if available
+        local version
+        version=$(searxng::get_version 2>/dev/null)
+        if [[ -n "$version" && "$version" != "unknown" ]]; then
+            status_data+=("version" "$version")
+        fi
+        
+        # Container uptime
+        local started_at
+        started_at=$(docker inspect --format='{{.State.StartedAt}}' "$SEARXNG_CONTAINER_NAME" 2>/dev/null)
+        if [[ -n "$started_at" ]]; then
+            status_data+=("started_at" "$started_at")
+        fi
     fi
     
-    # Configuration summary
-    echo
-    echo "Configuration:"
-    echo "  Bind Address: $SEARXNG_BIND_ADDRESS"
-    echo "  Default Engines: $SEARXNG_DEFAULT_ENGINES"
-    echo "  Safe Search: $SEARXNG_SAFE_SEARCH"
-    echo "  Rate Limiting: $SEARXNG_LIMITER_ENABLED ($SEARXNG_RATE_LIMIT/min)"
-    echo "  Redis Caching: $SEARXNG_ENABLE_REDIS"
-    echo "  Public Access: $SEARXNG_ENABLE_PUBLIC_ACCESS"
+    # Return the collected data
+    printf '%s\n' "${status_data[@]}"
 }
 
 #######################################
-# Check API endpoints health
+# Show SearXNG status using standardized format
+# Args: [--format json|text] [--verbose]
+#######################################
+searxng::status::show() {
+    local format="text"
+    local verbose="false"
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --format)
+                format="$2"
+                shift 2
+                ;;
+            --json)
+                format="json"
+                shift
+                ;;
+            --verbose|-v)
+                verbose="true"
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    # Collect status data
+    local data_string
+    data_string=$(searxng::status::collect_data 2>/dev/null)
+    
+    if [[ -z "$data_string" ]]; then
+        # Fallback if data collection fails
+        if [[ "$format" == "json" ]]; then
+            echo '{"error": "Failed to collect status data"}'
+        else
+            log::error "Failed to collect SearXNG status data"
+        fi
+        return 1
+    fi
+    
+    # Convert string to array
+    local data_array
+    mapfile -t data_array <<< "$data_string"
+    
+    # Output based on format
+    if [[ "$format" == "json" ]]; then
+        format::output "json" "kv" "${data_array[@]}"
+    else
+        # Text format with standardized structure
+        searxng::status::display_text "${data_array[@]}"
+    fi
+    
+    # Return appropriate exit code
+    local healthy="false"
+    local running="false"
+    for ((i=0; i<${#data_array[@]}; i+=2)); do
+        case "${data_array[i]}" in
+            "healthy") healthy="${data_array[i+1]}" ;;
+            "running") running="${data_array[i+1]}" ;;
+        esac
+    done
+    
+    if [[ "$healthy" == "true" ]]; then
+        return 0
+    elif [[ "$running" == "true" ]]; then
+        return 1
+    else
+        return 2
+    fi
+}
+
+#######################################
+# Display status in text format
+#######################################
+searxng::status::display_text() {
+    local -A data
+    
+    # Convert array to associative array
+    for ((i=1; i<=$#; i+=2)); do
+        local key="${!i}"
+        local value_idx=$((i+1))
+        local value="${!value_idx}"
+        data["$key"]="$value"
+    done
+    
+    # Header
+    log::header "🔍 SearXNG Status"
+    echo
+    
+    # Basic status
+    log::info "📊 Basic Status:"
+    if [[ "${data[installed]:-false}" == "true" ]]; then
+        log::success "   ✅ Installed: Yes"
+    else
+        log::error "   ❌ Installed: No"
+        echo
+        log::info "💡 Installation Required:"
+        log::info "   To install SearXNG, run: ./manage.sh --action install"
+        return
+    fi
+    
+    if [[ "${data[running]:-false}" == "true" ]]; then
+        log::success "   ✅ Running: Yes"
+    else
+        log::warn "   ⚠️  Running: No"
+    fi
+    
+    if [[ "${data[healthy]:-false}" == "true" ]]; then
+        log::success "   ✅ Health: Healthy"
+    else
+        log::warn "   ⚠️  Health: ${data[health_message]:-Unknown}"
+    fi
+    echo
+    
+    # Container information
+    log::info "🐳 Container Info:"
+    log::info "   📦 Name: ${data[container_name]:-unknown}"
+    log::info "   📊 Status: ${data[container_status]:-unknown}"
+    log::info "   🖼️  Image: ${data[image]:-unknown}"
+    echo
+    
+    # Service endpoints
+    log::info "🌐 Service Endpoints:"
+    log::info "   🔍 UI: ${data[ui_url]:-unknown}"
+    log::info "   🔌 Search API: ${data[api_url]:-unknown}"
+    log::info "   📊 Stats: ${data[stats_url]:-unknown}"
+    log::info "   ⚙️  Config: ${data[config_url]:-unknown}"
+    echo
+    
+    # Configuration
+    log::info "⚙️  Configuration:"
+    log::info "   📶 Port: ${data[port]:-unknown}"
+    log::info "   🌐 Bind Address: ${data[bind_address]:-unknown}"
+    log::info "   🔍 Default Engines: ${data[default_engines]:-unknown}"
+    log::info "   🛡️  Safe Search: ${data[safe_search]:-unknown}"
+    log::info "   🚦 Rate Limiting: ${data[rate_limiting]:-unknown} (${data[rate_limit]:-unknown}/min)"
+    log::info "   💾 Redis Caching: ${data[redis_caching]:-unknown}"
+    log::info "   🌍 Public Access: ${data[public_access]:-unknown}"
+    echo
+    
+    # Runtime information (only if healthy)
+    if [[ "${data[healthy]:-false}" == "true" ]]; then
+        log::info "📈 Runtime Information:"
+        if [[ -n "${data[version]:-}" ]]; then
+            log::info "   🔖 Version: ${data[version]}"
+        fi
+        if [[ -n "${data[active_engines]:-}" ]]; then
+            log::info "   🔍 Active Engines: ${data[active_engines]}"
+        fi
+        if [[ -n "${data[started_at]:-}" ]]; then
+            log::info "   ⏱️  Started: ${data[started_at]}"
+        fi
+        echo
+        
+        # Quick access info
+        log::info "🎯 Quick Actions:"
+        log::info "   🌐 Access UI: ${data[ui_url]:-http://localhost:9200}"
+        log::info "   🔍 Search: ${data[api_url]:-http://localhost:9200/search}?q=test"
+        log::info "   📊 View Stats: ${data[stats_url]:-http://localhost:9200/stats}"
+        log::info "   📄 View logs: ./manage.sh --action logs"
+        log::info "   🛑 Stop service: ./manage.sh --action stop"
+    fi
+}
+
+#######################################
+# Main status function for CLI registration
+#######################################
+searxng::status() {
+    searxng::status::show "$@"
+}
+
+#######################################
+# Legacy function compatibility - Show detailed SearXNG status
+#######################################
+searxng::show_status() {
+    searxng::status::show "$@"
+}
+
+#######################################
+# Legacy function compatibility - Show detailed status when running
+#######################################
+searxng::show_detailed_status() {
+    # Use new standardized text display
+    searxng::status::display_text
+}
+
+#######################################
+# Legacy function compatibility - Check API endpoints health
 #######################################
 searxng::check_api_endpoints() {
     if ! searxng::is_running; then
@@ -338,7 +540,7 @@ searxng::show_troubleshooting() {
 }
 
 #######################################
-# Monitor SearXNG status continuously
+# Legacy function compatibility - Monitor SearXNG status continuously
 # Arguments:
 #   $1 - interval in seconds (default: 30)
 #######################################
@@ -368,4 +570,30 @@ searxng::monitor() {
         echo
         sleep "$interval"
     done
+}
+
+#######################################
+# Legacy function compatibility - Get resource usage information
+#######################################
+searxng::get_resource_usage() {
+    if ! searxng::is_running; then
+        log::info "Resource usage unavailable - container not running"
+        return 1
+    fi
+    
+    log::info "Resource Usage:"
+    
+    # Get container stats
+    local stats
+    stats=$(docker stats --no-stream --format "{{.CPUPerc}};{{.MemUsage}}" "$SEARXNG_CONTAINER_NAME" 2>/dev/null || echo "N/A;N/A")
+    
+    if [[ "$stats" != "N/A;N/A" ]]; then
+        local cpu_usage memory_usage
+        cpu_usage=$(echo "$stats" | cut -d';' -f1)
+        memory_usage=$(echo "$stats" | cut -d';' -f2)
+        log::info "  CPU Usage: $cpu_usage"
+        log::info "  Memory Usage: $memory_usage"
+    else
+        log::info "  Unable to retrieve resource usage"
+    fi
 }

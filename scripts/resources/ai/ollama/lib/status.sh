@@ -228,109 +228,178 @@ ollama::restart() {
 }
 
 #######################################
-# Show comprehensive Ollama status
+# Collect Ollama status data in format-agnostic structure
+# Returns: Key-value pairs ready for formatting
 #######################################
-ollama::status() {
-    # Get script directory
-    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ollama::status::collect_data() {
+    local status_data=()
     
-    # Source format utilities if available
-    local format_lib="${script_dir}/../../../../scripts/lib/utils/format.sh"
-    [[ -f "$format_lib" ]] && source "$format_lib"
-    
-    # Determine output format from environment or parameter
-    local output_format="${FORMAT:-${1:-text}}"
-    
-    # Collect status data
-    local binary_installed=false
-    local service_running=false
-    local api_healthy=false
-    local model_count=0
-    local port="${OLLAMA_PORT:-11434}"
+    # Basic status checks
+    local installed="false"
+    local running="false"
+    local healthy="false"
+    local health_message="Unknown"
+    local service_status="unknown"
     
     # Check if binary exists
     if resources::binary_exists "ollama"; then
-        binary_installed=true
+        installed="true"
+    else
+        health_message="Not installed - Ollama binary not found"
     fi
     
-    # Get health status
+    # Get detailed health status
     local health_details
-    health_details=$(ollama::get_health_details 2>/dev/null || echo "unknown")
+    health_details=$(ollama::get_health_details 2>/dev/null || echo "❌ Service not installed")
     local health_code=$?
     
-    # Check if service is running
-    if resources::is_service_running "$port"; then
-        service_running=true
-    fi
-    
-    # Check API health
-    if [[ $health_code -eq 0 ]]; then
-        api_healthy=true
-    fi
-    
-    # Count models if available
-    if [[ "$binary_installed" == "true" ]] && command -v ollama &>/dev/null; then
-        model_count=$(ollama list 2>/dev/null | tail -n +2 | wc -l || echo 0)
-    fi
-    
-    # Output based on format
-    if [[ "$output_format" == "json" ]] && command -v format::key_value &>/dev/null; then
-        format::key_value json \
-            "resource" "ollama" \
-            "binary_installed" "$binary_installed" \
-            "service_running" "$service_running" \
-            "api_healthy" "$api_healthy" \
-            "port" "$port" \
-            "model_count" "$model_count" \
-            "health_status" "$(echo "$health_details" | tr -d '✅❌⚠️🔄❓ ')"
+    # Check if service is running on port
+    if resources::is_service_running "$OLLAMA_PORT"; then
+        running="true"
+        service_status="running"
+        
+        if [[ $health_code -eq 0 ]]; then
+            healthy="true"
+            health_message="Healthy - All systems operational"
+        elif [[ $health_code -eq 2 ]]; then
+            health_message="Starting - Service initializing"
+        else
+            health_message="Unhealthy - API not responding"
+        fi
     else
-        # Original text output
-        log::header "📊 Ollama Status"
-        
-        if [[ "$binary_installed" == "true" ]]; then
-            log::success "✅ Ollama binary installed"
-        else
-            log::error "❌ Ollama binary not found"
+        service_status="stopped"
+        if [[ "$installed" == "true" ]]; then
+            health_message="Stopped - Service not running"
         fi
+    fi
+    
+    # Basic resource information
+    status_data+=("name" "ollama")
+    status_data+=("category" "ai")
+    status_data+=("description" "Local AI model inference server")
+    status_data+=("installed" "$installed")
+    status_data+=("running" "$running")
+    status_data+=("healthy" "$healthy")
+    status_data+=("health_message" "$health_message")
+    status_data+=("service_status" "$service_status")
+    status_data+=("port" "$OLLAMA_PORT")
+    
+    # Service endpoints
+    status_data+=("base_url" "$OLLAMA_BASE_URL")
+    status_data+=("api_tags" "$OLLAMA_BASE_URL/api/tags")
+    status_data+=("api_chat" "$OLLAMA_BASE_URL/api/chat") 
+    status_data+=("api_generate" "$OLLAMA_BASE_URL/api/generate")
+    
+    # Configuration
+    status_data+=("service_name" "$OLLAMA_SERVICE_NAME")
+    
+    # Model information (only if healthy)
+    if [[ "$healthy" == "true" ]] && command -v ollama &>/dev/null; then
+        local model_count
+        model_count=$(ollama list 2>/dev/null | tail -n +2 | wc -l || echo "0")
+        status_data+=("model_count" "$model_count")
         
-        # Display health status
-        log::info "Health Status: $health_details"
-        
-        # Check if service is running on port
-        if [[ "$service_running" == "true" ]]; then
-            log::success "✅ Service listening on port $port"
-        else
-            log::warn "⚠️  No service on port $port"
+        # Get detailed model information
+        local model_list
+        model_list=$(ollama list 2>/dev/null | tail -n +2)
+        if [[ -n "$model_list" ]] && [[ $model_count -gt 0 ]]; then
+            # Get top 5 models with details
+            local model_details=""
+            echo "$model_list" | head -5 | while IFS= read -r model_line; do
+                if [[ -n "$model_line" ]]; then
+                    model_details+="$model_line\n"
+                fi
+            done
+            status_data+=("model_list" "$model_details")
         fi
-        
-        # Show systemd service details if healthy or starting
-        if [[ $health_code -eq 0 ]] || [[ $health_code -eq 2 ]]; then
-        # Get systemd resource usage
-        local memory_usage
-        local cpu_usage
-        local uptime
-        
-        if systemctl show "$OLLAMA_SERVICE_NAME" --no-pager >/dev/null 2>&1; then
+    else
+        status_data+=("model_count" "0")
+    fi
+    
+    # System resource information (if running)
+    if [[ "$running" == "true" ]]; then
+        # Check if systemd service exists and get resource info
+        if systemctl list-unit-files | grep -q "^${OLLAMA_SERVICE_NAME}.service" 2>/dev/null; then
+            local memory_usage
             memory_usage=$(systemctl show "$OLLAMA_SERVICE_NAME" --property=MemoryCurrent --value 2>/dev/null)
             if [[ -n "$memory_usage" ]] && [[ "$memory_usage" != "[not set]" ]] && [[ "$memory_usage" =~ ^[0-9]+$ ]]; then
+                local memory_mb
                 memory_mb=$(awk "BEGIN {printf \"%.2f\", $memory_usage / 1048576}")
-                log::info "Memory Usage: ${memory_mb}MB"
+                status_data+=("memory_usage" "${memory_mb}MB")
             fi
             
-            # Get uptime
             local active_since
             active_since=$(systemctl show "$OLLAMA_SERVICE_NAME" --property=ActiveEnterTimestamp --value 2>/dev/null)
             if [[ -n "$active_since" ]] && [[ "$active_since" != "[not set]" ]]; then
-                log::info "Active Since: $active_since"
+                status_data+=("active_since" "$active_since")
             fi
+        fi
+    fi
+    
+    # Return the collected data
+    printf '%s\n' "${status_data[@]}"
+}
+
+#######################################
+# Display status in text format
+#######################################
+ollama::status::display_text() {
+    local -A data
+    
+    # Convert array to associative array
+    for ((i=0; i<$#; i+=2)); do
+        local key_idx=$((i+1))
+        local value_idx=$((i+2))
+        if [[ $key_idx -le $# && $value_idx -le $# ]]; then
+            local key="${!key_idx}"
+            local value="${!value_idx}"
+            data["$key"]="$value"
+        fi
+    done
+    
+    # Header
+    log::header "📊 Ollama Status"
+    
+    # Check if binary exists
+    if [[ "${data[installed]:-false}" == "true" ]]; then
+        log::success "✅ Ollama binary installed"
+    else
+        log::error "❌ Ollama binary not found"
+        echo
+        log::info "💡 Installation Required:"
+        log::info "   Install Ollama with: ./manage.sh --action install"
+        return 1
+    fi
+    
+    # Display health status with details
+    local health_details
+    health_details=$(ollama::get_health_details 2>/dev/null || echo "❌ Service not installed")
+    log::info "Health Status: $health_details"
+    
+    # Check if service is running on port
+    if [[ "${data[running]:-false}" == "true" ]]; then
+        log::success "✅ Service listening on port ${data[port]:-11434}"
+    else
+        log::warn "⚠️  No service on port ${data[port]:-11434}"
+    fi
+    
+    # Show systemd service details if running
+    if [[ "${data[running]:-false}" == "true" ]]; then
+        # Memory usage
+        if [[ -n "${data[memory_usage]:-}" ]]; then
+            log::info "Memory Usage: ${data[memory_usage]}"
+        fi
+        
+        # Uptime
+        if [[ -n "${data[active_since]:-}" ]]; then
+            log::info "Active Since: ${data[active_since]}"
         fi
     fi
     
     # Check configuration
     if [[ -f "$VROOLI_RESOURCES_CONFIG" ]] && system::is_command "jq"; then
         local config_exists
-        config_exists=$(jq -r '.resources.ai.ollama // empty' \
-            "$VROOLI_RESOURCES_CONFIG" 2>/dev/null)
+        config_exists=$(jq -r '.resources.ai.ollama // empty' "$VROOLI_RESOURCES_CONFIG" 2>/dev/null)
         
         if [[ -n "$config_exists" ]] && [[ "$config_exists" != "null" ]]; then
             log::success "✅ Resource configuration found"
@@ -340,39 +409,122 @@ ollama::status() {
     fi
     
     # Additional Ollama-specific status if healthy
-    if [[ $health_code -eq 0 ]]; then
+    if [[ "${data[healthy]:-false}" == "true" ]]; then
         echo
         log::info "API Endpoints:"
-        log::info "  Base URL: $OLLAMA_BASE_URL"
-        log::info "  Models: $OLLAMA_BASE_URL/api/tags"
-        log::info "  Chat: $OLLAMA_BASE_URL/api/chat"
-        log::info "  Generate: $OLLAMA_BASE_URL/api/generate"
+        log::info "  Base URL: ${data[base_url]:-unknown}"
+        log::info "  Models: ${data[api_tags]:-unknown}"
+        log::info "  Chat: ${data[api_chat]:-unknown}"
+        log::info "  Generate: ${data[api_generate]:-unknown}"
         
         # Show installed models with details
         echo
-        if system::is_command "ollama"; then
-            local model_list
-            model_list=$(ollama list 2>/dev/null | tail -n +2)
-            local model_count=$(echo "$model_list" | wc -l)
-            
-            if [[ $model_count -gt 0 ]] && [[ -n "$model_list" ]]; then
-                log::info "Installed Models ($model_count):"
-                echo "$model_list" | while IFS= read -r model_line; do
+        local model_count="${data[model_count]:-0}"
+        if [[ "$model_count" -gt 0 ]]; then
+            log::info "Installed Models ($model_count):"
+            if [[ -n "${data[model_list]:-}" ]]; then
+                echo -e "${data[model_list]}" | while IFS= read -r model_line; do
                     if [[ -n "$model_line" ]]; then
                         log::info "  $model_line"
                     fi
                 done | head -5
                 
-                if [[ $model_count -gt 5 ]]; then
+                if [[ "$model_count" -gt 5 ]]; then
                     log::info "  ... and $((model_count - 5)) more"
                 fi
-            else
-                log::warn "No models installed"
-                log::info "Install models with: ollama pull llama3.1:8b"
             fi
+        else
+            log::warn "No models installed"
+            log::info "Install models with: ollama pull llama3.1:8b"
         fi
     fi
-    fi  # Close the else branch for text output
+}
+
+#######################################
+# Show comprehensive Ollama status with JSON support
+# Args: [--format json|text] [--verbose] 
+#######################################
+ollama::status() {
+    local format="text"
+    local verbose="false"
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --format)
+                format="$2"
+                shift 2
+                ;;
+            --json)
+                format="json"
+                shift
+                ;;
+            --verbose|-v)
+                verbose="true"
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    # Source format utilities if needed for JSON
+    if [[ "$format" == "json" ]]; then
+        local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        local format_lib="${script_dir}/../../../../lib/utils/format.sh"
+        if [[ -f "$format_lib" ]]; then
+            # shellcheck disable=SC1090
+            source "$format_lib"
+        else
+            log::error "Format utilities not available for JSON output"
+            return 1
+        fi
+    fi
+    
+    # Collect status data
+    local data_string
+    data_string=$(ollama::status::collect_data 2>/dev/null)
+    
+    if [[ -z "$data_string" ]]; then
+        # Fallback if data collection fails
+        if [[ "$format" == "json" ]]; then
+            echo '{"error": "Failed to collect status data"}'
+        else
+            log::error "Failed to collect Ollama status data"
+        fi
+        return 1
+    fi
+    
+    # Convert string to array
+    local data_array
+    mapfile -t data_array <<< "$data_string"
+    
+    # Output based on format
+    if [[ "$format" == "json" ]]; then
+        format::output "json" "kv" "${data_array[@]}"
+    else
+        # Text format with comprehensive display
+        ollama::status::display_text "${data_array[@]}"
+    fi
+    
+    # Return appropriate exit code based on health status
+    local healthy="false"
+    local running="false"
+    for ((i=0; i<${#data_array[@]}; i+=2)); do
+        case "${data_array[i]}" in
+            "healthy") healthy="${data_array[i+1]}" ;;
+            "running") running="${data_array[i+1]}" ;;
+        esac
+    done
+    
+    if [[ "$healthy" == "true" ]]; then
+        return 0
+    elif [[ "$running" == "true" ]]; then
+        return 1
+    else
+        return 2
+    fi
 }
 
 #######################################

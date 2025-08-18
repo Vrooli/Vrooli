@@ -5,7 +5,7 @@
 # Source var.sh first to get proper directory variables
 _DEFAULTS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck disable=SC1091
-source "${_DEFAULTS_DIR}/../../../lib/utils/var.sh"
+source "${_DEFAULTS_DIR}/../../../../lib/utils/var.sh"
 
 # Source shared secrets management library using var_ variables
 # shellcheck disable=SC1091
@@ -76,13 +76,13 @@ agents2::export_config() {
         readonly AGENTS2_LLM_MODEL="${LLM_MODEL:-${ARGS_LLM_MODEL:-$default_model}}"
     fi
     if [[ -z "${AGENTS2_OPENAI_API_KEY:-}" ]]; then
-        readonly AGENTS2_OPENAI_API_KEY="${OPENAI_API_KEY:-}"
+        AGENTS2_OPENAI_API_KEY="${OPENAI_API_KEY:-}"
     fi
     if [[ -z "${AGENTS2_ANTHROPIC_API_KEY:-}" ]]; then
-        readonly AGENTS2_ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-}"
+        AGENTS2_ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-}"
     fi
     if [[ -z "${AGENTS2_OLLAMA_BASE_URL:-}" ]]; then
-        readonly AGENTS2_OLLAMA_BASE_URL="${OLLAMA_BASE_URL:-http://host.docker.internal:11434}"
+        AGENTS2_OLLAMA_BASE_URL="${OLLAMA_BASE_URL:-http://host.docker.internal:11434}"
     fi
     if [[ -z "${AGENTS2_ENABLE_AI:-}" ]]; then
         local enable_ai="false"

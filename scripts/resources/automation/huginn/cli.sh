@@ -53,6 +53,9 @@ cli::init "huginn" "Huginn agent-based workflow automation platform"
 # Override help to provide Huginn-specific examples
 cli::register_command "help" "Show this help message with Huginn examples" "huginn_show_help"
 
+# Override status to use standardized format with JSON support
+cli::register_command "status" "Show service status with JSON support" "huginn::status"
+
 # Register additional Huginn-specific commands
 cli::register_command "inject" "Inject agents/scenarios into Huginn" "huginn_inject" "modifies-system"
 cli::register_command "list-agents" "List all agents" "huginn_list_agents"

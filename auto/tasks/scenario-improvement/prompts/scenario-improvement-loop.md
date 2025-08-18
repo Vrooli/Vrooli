@@ -288,6 +288,7 @@ If all existing scenarios are structurally sound and validated (very unlikely at
 - itinerary-tracker with virtual bag/suitcase (this would possibly be our first scenario with 3D, so I'd be interested to see how you do it)
 - coding-challenges for learning how to code (could also double as a method to benchmark how well various AI models can code)
 - saas-billing-hub for adding payments and subscriptions to scenarios. Includes admin dashboard to manage multiple saas revenues
+- recipe-gantt-charts for displaying recipe instructions in an optimal timeline. Should be able to enter a recipe or generate one from prompt. All recipes get a gantt chart, which updates as the recipe is changed.
 
 If all of the above are already added, focus on converting to apps, running, and fixing issues that prevent apps from fully starting or showing a valid UI. For quick debugging you may change generated app code, but any solution must be applied back to the source scenario.
 

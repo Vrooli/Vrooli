@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Claude Code Status Functions
-# Handles status checking, info display, and log viewing
+# Claude Code Status Functions - Standardized Format
+# Handles status checking, info display, and log viewing with JSON support
 
 # Set CLAUDE_CODE_SCRIPT_DIR if not already set (for BATS test compatibility)
 CLAUDE_CODE_SCRIPT_DIR="${CLAUDE_CODE_SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
@@ -12,63 +12,330 @@ source "${CLAUDE_CODE_SCRIPT_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
 source "${var_LOG_FILE:-${CLAUDE_CODE_SCRIPT_DIR}/../../../lib/utils/log.sh}" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_UTILS_DIR}/format.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${CLAUDE_CODE_SCRIPT_DIR}/config/defaults.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${CLAUDE_CODE_SCRIPT_DIR}/common.sh" 2>/dev/null || true
+
+# Ensure configuration is exported
+if command -v claude_code::export_config &>/dev/null; then
+    claude_code::export_config 2>/dev/null || true
+fi
 
 #######################################
-# Check Claude Code status
+# Collect Claude Code status data in format-agnostic structure
+# Returns: Key-value pairs ready for formatting
 #######################################
-claude_code::status() {
-    log::header "📊 Claude Code Status"
+claude_code::status::collect_data() {
+    local status_data=()
     
-    # Installation status
+    # Basic status checks
+    local installed="false"
+    local running="false"
+    local healthy="false"
+    local health_message="Unknown"
+    local version="unknown"
+    local auth_status="unknown"
+    local tty_compatible="unknown"
+    
+    # Check if Claude Code is installed
     if claude_code::is_installed; then
-        local version
-        version=$(claude_code::get_version)
-        log::success "✓ Claude Code is installed"
-        log::info "  Version: $version"
-        log::info "  Command: claude"
+        installed="true"
+        version=$(claude_code::get_version 2>/dev/null || echo "unknown")
         
-        # Check Node.js
-        if claude_code::check_node_version; then
-            local node_version
-            node_version=$(node --version)
-            log::success "✓ Node.js requirements met ($node_version)"
-        else
-            log::warn "⚠️  Node.js version requirement not met (need v$MIN_NODE_VERSION+)"
-        fi
+        # Since Claude Code is a CLI tool, it's "running" if installed and available
+        running="true"
         
-        # Show diagnostic information using health check
-        echo
-        log::info "Running health check..."
-        if claude_code::health_check "full" "text" >/tmp/claude_health_check.log 2>&1; then
-            # Parse and show relevant information from health check
-            local health_output
-            health_output=$(cat /tmp/claude_health_check.log)
+        # Perform health check to determine if healthy
+        local health_output
+        if health_output=$(claude_code::health_check "basic" "json" 2>/dev/null); then
+            local health_status
+            health_status=$(echo "$health_output" | jq -r '.status // "unknown"' 2>/dev/null || echo "unknown")
+            auth_status=$(echo "$health_output" | jq -r '.auth_status // "unknown"' 2>/dev/null || echo "unknown")
+            tty_compatible=$(echo "$health_output" | jq -r '.tty_compatible // "unknown"' 2>/dev/null || echo "unknown")
             
-            # Extract key information
-            if echo "$health_output" | grep -q "Overall Status:"; then
-                echo "$health_output" | grep "Overall Status:" | sed 's/^/  /'
-            fi
-            if echo "$health_output" | grep -q "Authentication:"; then
-                echo "$health_output" | grep "Authentication:" | sed 's/^/  /'
-            fi
-            if echo "$health_output" | grep -q "TTY Compatible:"; then
-                echo "$health_output" | grep "TTY Compatible:" | sed 's/^/  /'
-            fi
-            if echo "$health_output" | grep -q "Errors:"; then
-                echo "$health_output" | grep -A5 "Errors:" | sed 's/^/  /'
-            fi
-            trash::safe_remove /tmp/claude_health_check.log --temp
+            case "$health_status" in
+                "healthy")
+                    healthy="true"
+                    health_message="Healthy - Claude Code CLI is functional and authenticated"
+                    ;;
+                "degraded")
+                    healthy="false"
+                    health_message="Degraded - Claude Code installed but has issues"
+                    ;;
+                *)
+                    healthy="false"
+                    health_message="Unhealthy - Claude Code not functioning properly"
+                    ;;
+            esac
         else
-            log::warn "⚠️  Health check failed - some issues detected"
-            log::info "  Use: $0 --action health-check --check-type full for detailed information"
+            healthy="false"
+            health_message="Health check failed - Unable to determine status"
         fi
-        
-        return 0
     else
-        log::warn "✗ Claude Code is not installed"
-        log::info "  Run: $0 --action install"
+        health_message="Not installed - Claude Code CLI not found"
+    fi
+    
+    # Basic resource information
+    status_data+=("name" "claude-code")
+    status_data+=("category" "agents")
+    status_data+=("description" "Anthropic's official CLI for Claude AI assistant")
+    status_data+=("installed" "$installed")
+    status_data+=("running" "$running")
+    status_data+=("healthy" "$healthy")
+    status_data+=("health_message" "$health_message")
+    status_data+=("version" "$version")
+    
+    # Service endpoints and configuration
+    status_data+=("cli_command" "claude")
+    status_data+=("package_name" "${CLAUDE_PACKAGE:-@anthropic-ai/claude-code}")
+    status_data+=("min_node_version" "${MIN_NODE_VERSION:-18}")
+    
+    # Configuration details
+    status_data+=("config_dir" "${CLAUDE_CONFIG_DIR:-$HOME/.claude}")
+    status_data+=("sessions_dir" "${CLAUDE_SESSIONS_DIR:-$HOME/.claude/sessions}")
+    
+    # Runtime information (only if installed)
+    if [[ "$installed" == "true" ]]; then
+        # Node.js version check
+        local node_available="false"
+        local node_version="unknown"
+        if claude_code::check_node_version; then
+            node_available="true"
+            node_version=$(node --version 2>/dev/null || echo "unknown")
+        fi
+        status_data+=("node_available" "$node_available")
+        status_data+=("node_version" "$node_version")
+        
+        # Authentication and TTY status
+        status_data+=("auth_status" "$auth_status")
+        status_data+=("tty_compatible" "$tty_compatible")
+        
+        # Configuration file existence
+        local config_exists="false"
+        local project_config_exists="false"
+        if [[ -f "${CLAUDE_SETTINGS_FILE:-$HOME/.claude/settings.json}" ]]; then
+            config_exists="true"
+        fi
+        if [[ -f "${CLAUDE_PROJECT_SETTINGS:-$(pwd)/.claude/settings.json}" ]]; then
+            project_config_exists="true"
+        fi
+        status_data+=("config_exists" "$config_exists")
+        status_data+=("project_config_exists" "$project_config_exists")
+        
+        # Log directory status
+        local log_dirs_found=0
+        for log_dir in "${CLAUDE_LOG_LOCATIONS[@]}"; do
+            if [[ -d "$log_dir" ]]; then
+                log_dirs_found=$((log_dirs_found + 1))
+            fi
+        done
+        status_data+=("log_dirs_found" "$log_dirs_found")
+        
+        # Capabilities check
+        local capabilities_count=13  # Based on known tools: Bash, Read, Edit, etc.
+        status_data+=("capabilities_count" "$capabilities_count")
+    fi
+    
+    # Return the collected data
+    printf '%s\n' "${status_data[@]}"
+}
+
+#######################################
+# Show Claude Code status using standardized format
+# Args: [--format json|text] [--verbose]
+#######################################
+claude_code::status::show() {
+    local format="text"
+    local verbose="false"
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --format)
+                format="$2"
+                shift 2
+                ;;
+            --json)
+                format="json"
+                shift
+                ;;
+            --verbose|-v)
+                verbose="true"
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    # Collect status data
+    local data_string
+    data_string=$(claude_code::status::collect_data 2>/dev/null)
+    
+    if [[ -z "$data_string" ]]; then
+        # Fallback if data collection fails
+        if [[ "$format" == "json" ]]; then
+            echo '{"error": "Failed to collect status data"}'
+        else
+            log::error "Failed to collect Claude Code status data"
+        fi
         return 1
     fi
+    
+    # Convert string to array
+    local data_array
+    mapfile -t data_array <<< "$data_string"
+    
+    # Output based on format
+    if [[ "$format" == "json" ]]; then
+        format::output "json" "kv" "${data_array[@]}"
+    else
+        # Text format with standardized structure
+        claude_code::status::display_text "${data_array[@]}"
+    fi
+    
+    # Return appropriate exit code
+    local healthy="false"
+    local running="false"
+    for ((i=0; i<${#data_array[@]}; i+=2)); do
+        case "${data_array[i]}" in
+            "healthy") healthy="${data_array[i+1]}" ;;
+            "running") running="${data_array[i+1]}" ;;
+        esac
+    done
+    
+    if [[ "$healthy" == "true" ]]; then
+        return 0
+    elif [[ "$running" == "true" ]]; then
+        return 1
+    else
+        return 2
+    fi
+}
+
+#######################################
+# Display status in text format
+#######################################
+claude_code::status::display_text() {
+    local -A data
+    
+    # Convert array to associative array
+    for ((i=1; i<=$#; i+=2)); do
+        local key="${!i}"
+        local value_idx=$((i+1))
+        local value="${!value_idx}"
+        data["$key"]="$value"
+    done
+    
+    # Header
+    log::header "📊 Claude Code Status"
+    echo
+    
+    # Basic status
+    log::info "📊 Basic Status:"
+    if [[ "${data[installed]:-false}" == "true" ]]; then
+        log::success "   ✅ Installed: Yes"
+    else
+        log::error "   ❌ Installed: No"
+        echo
+        log::info "💡 Installation Required:"
+        log::info "   To install Claude Code, run: npm install -g @anthropic-ai/claude-code"
+        log::info "   Or run: ./manage.sh --action install"
+        return
+    fi
+    
+    if [[ "${data[running]:-false}" == "true" ]]; then
+        log::success "   ✅ Available: Yes"
+    else
+        log::warn "   ⚠️  Available: No"
+    fi
+    
+    if [[ "${data[healthy]:-false}" == "true" ]]; then
+        log::success "   ✅ Health: Healthy"
+    else
+        log::warn "   ⚠️  Health: ${data[health_message]:-Unknown}"
+    fi
+    echo
+    
+    # CLI Information
+    log::info "💻 CLI Information:"
+    log::info "   📦 Package: ${data[package_name]:-unknown}"
+    log::info "   🔖 Version: ${data[version]:-unknown}"
+    log::info "   💻 Command: ${data[cli_command]:-claude}"
+    echo
+    
+    # Node.js Requirements
+    log::info "📋 Node.js Requirements:"
+    log::info "   📊 Minimum Version: ${data[min_node_version]:-18}"
+    if [[ "${data[node_available]:-false}" == "true" ]]; then
+        log::success "   ✅ Node.js Available: ${data[node_version]:-unknown}"
+    else
+        log::warn "   ⚠️  Node.js Available: No (required for installation)"
+    fi
+    echo
+    
+    # Configuration
+    log::info "⚙️  Configuration:"
+    log::info "   📁 Config Directory: ${data[config_dir]:-unknown}"
+    log::info "   📂 Sessions Directory: ${data[sessions_dir]:-unknown}"
+    if [[ "${data[config_exists]:-false}" == "true" ]]; then
+        log::success "   ✅ Global Config: Found"
+    else
+        log::warn "   ⚠️  Global Config: Not found"
+    fi
+    if [[ "${data[project_config_exists]:-false}" == "true" ]]; then
+        log::success "   ✅ Project Config: Found"
+    else
+        log::info "   ℹ️  Project Config: Not found (optional)"
+    fi
+    echo
+    
+    # Runtime information (only if installed and healthy)
+    if [[ "${data[installed]:-false}" == "true" ]]; then
+        log::info "📈 Runtime Information:"
+        log::info "   🔐 Auth Status: ${data[auth_status]:-unknown}"
+        if [[ "${data[tty_compatible]:-unknown}" == "true" ]]; then
+            log::success "   ✅ TTY Compatible: Yes"
+        elif [[ "${data[tty_compatible]:-unknown}" == "false" ]]; then
+            log::warn "   ⚠️  TTY Compatible: No (limited functionality)"
+        else
+            log::info "   ❓ TTY Compatible: Unknown"
+        fi
+        log::info "   📄 Log Directories: ${data[log_dirs_found]:-0} found"
+        log::info "   🛠️  Available Tools: ${data[capabilities_count]:-0}"
+        echo
+        
+        # Quick access info
+        if [[ "${data[healthy]:-false}" == "true" ]]; then
+            log::info "🎯 Quick Actions:"
+            log::info "   🚀 Run Claude: claude"
+            log::info "   🩺 Health Check: ./manage.sh --action health-check"
+            log::info "   📄 View Logs: ./manage.sh --action logs"
+            log::info "   ⚙️  Settings: claude config"
+        else
+            log::info "🔧 Troubleshooting:"
+            log::info "   🩺 Run Health Check: ./manage.sh --action health-check --check-type full"
+            log::info "   🔐 Authentication: claude login"
+            log::info "   📄 Check Logs: ./manage.sh --action logs"
+        fi
+    fi
+}
+
+#######################################
+# Check Claude Code status (Legacy function - now calls standardized version)
+#######################################
+claude_code::status() {
+    # Main status function for CLI registration - use standardized format
+    claude_code::status::show "$@"
+}
+
+# CLI framework expects hyphenated function name
+claude-code::status() {
+    claude_code::status::show "$@"
 }
 
 #######################################

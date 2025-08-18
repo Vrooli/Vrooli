@@ -718,9 +718,204 @@ node_red::flow_operation() {
 
 # Status Functions (merged from status.sh)
 
-node_red::status() {
+#######################################
+# Collect Node-RED status data in format-agnostic structure
+# Returns: Key-value pairs ready for formatting
+#######################################
+node_red::status::collect_data() {
+    local status_data=()
+    
+    # Basic status checks
+    local installed="false"
+    local running="false"
+    local healthy="false"
+    local container_status="not_found"
+    local health_message="Unknown"
+    
+    if docker::container_exists "$NODE_RED_CONTAINER_NAME"; then
+        installed="true"
+        container_status=$(docker inspect --format='{{.State.Status}}' "$NODE_RED_CONTAINER_NAME" 2>/dev/null || echo "unknown")
+        
+        if docker::is_running "$NODE_RED_CONTAINER_NAME"; then
+            running="true"
+            
+            if node_red::is_responding; then
+                healthy="true"
+                health_message="Healthy - All systems operational"
+            else
+                health_message="Unhealthy - Service not responding"
+            fi
+        else
+            health_message="Stopped - Container not running"
+        fi
+    else
+        health_message="Not installed - Container does not exist"
+    fi
+    
+    # Basic resource information
+    status_data+=("name" "node-red")
+    status_data+=("category" "automation")
+    status_data+=("description" "Flow-based programming for event-driven applications")
+    status_data+=("installed" "$installed")
+    status_data+=("running" "$running")
+    status_data+=("healthy" "$healthy")
+    status_data+=("health_message" "$health_message")
+    status_data+=("container_name" "$NODE_RED_CONTAINER_NAME")
+    status_data+=("container_status" "$container_status")
+    status_data+=("port" "$NODE_RED_PORT")
+    
+    # Service endpoints
+    status_data+=("base_url" "$NODE_RED_BASE_URL")
+    status_data+=("flows_url" "$NODE_RED_BASE_URL/flows")
+    status_data+=("settings_url" "$NODE_RED_BASE_URL/settings")
+    
+    # Configuration details
+    status_data+=("data_dir" "$NODE_RED_DATA_DIR")
+    status_data+=("flows_file" "$NODE_RED_FLOWS_FILE")
+    status_data+=("credentials_file" "$NODE_RED_CREDENTIALS_FILE")
+    status_data+=("basic_auth" "$BASIC_AUTH")
+    status_data+=("auth_username" "$AUTH_USERNAME")
+    
+    # Runtime information (only if running and healthy)
+    if [[ "$running" == "true" ]]; then
+        # Image information
+        local image
+        image=$(docker inspect --format='{{.Config.Image}}' "$NODE_RED_CONTAINER_NAME" 2>/dev/null || echo "unknown")
+        status_data+=("image" "$image")
+        
+        # Version if available
+        if [[ "$healthy" == "true" ]]; then
+            local version
+            version=$(docker exec "$NODE_RED_CONTAINER_NAME" node -e "console.log(require('/usr/src/node-red/package.json').version)" 2>/dev/null || echo "unknown")
+            status_data+=("version" "$version")
+        fi
+        
+        # Flows info
+        local flows_count=0
+        local has_credentials="false"
+        
+        if [[ -f "$NODE_RED_DATA_DIR/$NODE_RED_FLOWS_FILE" ]]; then
+            flows_count=$(jq length "$NODE_RED_DATA_DIR/$NODE_RED_FLOWS_FILE" 2>/dev/null || echo "0")
+        fi
+        
+        if [[ -f "$NODE_RED_DATA_DIR/$NODE_RED_CREDENTIALS_FILE" ]]; then
+            has_credentials="true"
+        fi
+        
+        status_data+=("flows_count" "$flows_count")
+        status_data+=("has_credentials" "$has_credentials")
+        
+        # Resource usage if available
+        local stats
+        stats=$(docker stats --no-stream --format "{{.CPUPerc}}|{{.MemUsage}}" "$NODE_RED_CONTAINER_NAME" 2>/dev/null)
+        if [[ -n "$stats" ]]; then
+            local cpu_usage memory_usage
+            cpu_usage=$(echo "$stats" | cut -d'|' -f1)
+            memory_usage=$(echo "$stats" | cut -d'|' -f2)
+            status_data+=("cpu_usage" "$cpu_usage")
+            status_data+=("memory_usage" "$memory_usage")
+        fi
+    fi
+    
+    # Return the collected data
+    printf '%s\n' "${status_data[@]}"
+}
+
+#######################################
+# Display status in text format using status engine
+#######################################
+node_red::status::display_text() {
     docker::check_daemon || return 1
     status::display_unified_status "$(node_red::get_status_config)" "node_red::display_additional_info"
+}
+
+#######################################
+# Show Node-RED status using standardized format
+# Args: [--format json|text] [--verbose]
+#######################################
+node_red::status() {
+    local format="text"
+    local verbose="false"
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --format)
+                format="$2"
+                shift 2
+                ;;
+            --json)
+                format="json"
+                shift
+                ;;
+            --verbose|-v)
+                verbose="true"
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    # Check docker first
+    if ! docker::check_daemon; then
+        if [[ "$format" == "json" ]]; then
+            echo '{"error": "Docker daemon not available"}'
+        else
+            log::error "Docker daemon not available"
+        fi
+        return 1
+    fi
+    
+    # Output based on format
+    if [[ "$format" == "json" ]]; then
+        # Collect status data and format as JSON
+        local data_string
+        data_string=$(node_red::status::collect_data 2>/dev/null)
+        
+        if [[ -z "$data_string" ]]; then
+            echo '{"error": "Failed to collect status data"}'
+            return 1
+        fi
+        
+        # Convert string to array
+        local data_array
+        mapfile -t data_array <<< "$data_string"
+        
+        # shellcheck disable=SC1091
+        source "${var_LIB_UTILS_DIR}/format.sh"
+        format::output "json" "kv" "${data_array[@]}"
+    else
+        # Use status engine for text output
+        node_red::status::display_text
+    fi
+    
+    # Return appropriate exit code based on health
+    if [[ "$format" == "json" ]]; then
+        # For JSON, extract health from data
+        local data_string
+        data_string=$(node_red::status::collect_data 2>/dev/null)
+        local data_array
+        mapfile -t data_array <<< "$data_string"
+        
+        local healthy="false"
+        local running="false"
+        for ((i=0; i<${#data_array[@]}; i+=2)); do
+            case "${data_array[i]}" in
+                "healthy") healthy="${data_array[i+1]}" ;;
+                "running") running="${data_array[i+1]}" ;;
+            esac
+        done
+        
+        if [[ "$healthy" == "true" ]]; then
+            return 0
+        elif [[ "$running" == "true" ]]; then
+            return 1
+        else
+            return 2
+        fi
+    fi
 }
 
 node_red::display_additional_info() {

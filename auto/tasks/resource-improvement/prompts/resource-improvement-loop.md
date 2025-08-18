@@ -3,10 +3,10 @@
 ### TL;DR — One Iteration in 6 Steps
 1) Select ONE resource using the selection tools (see Tools & References).
 2) Investigate current status/health and how it impacts scenarios.
-3) Decide ONE minimal, low-risk improvement (diagnose/fix/improve/add). Prioritize fixing the CLI first, then health/status checks, then installation, then start/stop behavior, then resource-specific functionality. This is the best order for gradually fixing resources over multiple iterations.
+3) Decide up to TWO minimal, low-risk improvements (diagnose/fix/improve/add). Prioritize fixing the CLI first, then status check, then installation, then start/stop behavior, then resource-specific functionality. This is the best order for gradually fixing resources over multiple iterations.
 4) Execute based on mode: plan (print), apply-safe (non-destructive), apply (allowed installs).
 5) Validate with gates per resource type; if any gate fails twice, stop and capture diagnostics.
-6) Start and leave the resource running (exception: Whisper may be stopped post-test if explicitly necessary), then append ≤10 lines to `/tmp/vrooli-resource-improvement.md`.
+6) Start and leave the resource running (exception: Whisper and agent-s2 may be stopped post-test if explicitly necessary), then append ≤10 lines to `/tmp/vrooli-resource-improvement.md`.
 
 Read `auto/tasks/resource-improvement/prompts/cheatsheet.md` for helpers/commands. Skim `auto/data/resource-improvement/summary.txt` (if present) before deciding.
 
@@ -15,6 +15,7 @@ Read `auto/tasks/resource-improvement/prompts/cheatsheet.md` for helpers/command
 ### 🎯 Purpose & Context
 - Improve AND validate platform resources so scenarios can run reliably end-to-end.
 - Ensure that resource fixes/improvements are applied to the resource's setup code, so that it's repeatable and sets itself up reliably every time.
+- Ensure that resources can be meaningfully integrated into Vrooli. For automation resources, that means being able to add and manage the resource's workflows/agents/etc. For storage resources, that means being able to add tables, seed, migrate, and query the database. These are pretty straightforward to build, as it's very clear exactly what gets injected into the resources (.json workflow files, .sql files, etc.). Other resources may have less obvious data files, so you'll have to decide what's best (e.g. .py scripts for things only available as python packages, with guidelines in the resource's docs explaining what packages are available in the environment that will run the file, and other best practices)
 - Scenarios depend on resources being up; improvements must keep services running.
 - Prefer incremental, reversible changes; prefer interacting with resources using their CLIs over bespoke/manual edits.
 - See `docs/context.md` for why resource orchestration is central to Vrooli.
@@ -33,8 +34,9 @@ Read `auto/tasks/resource-improvement/prompts/cheatsheet.md` for helpers/command
 - ❌ Do NOT uninstall, disable, or permanently shut down resources. The scenario loop relies on them running.
 - ❌ Do NOT edit files directly or output secrets/configs to console.
 - ❌ Do NOT modify loop scripts or prompt files.
+- ❌ Do NOT hard-code ports. `scripts/resources/port_registry.sh` should be the single source-of-truth for ports
 
-> Policy: After testing any resource, ensure it is started and remains running by default. Only Whisper should be stopped post-validation, due to resource constraints.
+> Policy: After testing any resource, ensure it is started and remains running by default. Only Whisper and agent-s2 should be stopped post-validation, due to resource constraints for whisper and known net jacking issues for agent-s2. If you run into a network issue, run `scripts/lib/network/network_diagnostics.sh` to figure out what's wrong and attempt autofixes.
 
 ---
 
@@ -94,6 +96,7 @@ General:
 - Status reports "running" (or equivalent healthy state)
 - Resource responds to a minimal health/sanity check
 - No critical errors in condensed logs/output
+- Data can be "injected" into (added to) the resource, if relevant (likely yes. Even if the resource only works with python files, for example, being able to store them with the resource makes it easy to share files between scenarios and connect them to CLI commands)
 
 Per resource (examples using resource CLIs):
 - **Postgres**: `vrooli resource postgres status` or `resource-postgres status` reports healthy
@@ -295,6 +298,51 @@ Only consider adding a new resource if at least 75% of existing ones are healthy
 - **Neo4j (graph database)**
   - Native property graph DB for knowledge graphs, recommendations, dependency and impact analysis.
   - Notes: Use Community/Enterprise appropriately; secure Bolt/HTTP; plan memory for graph size.
+- **Codex (OpenAI Codex)**
+  - AI-powered code completion and generation via OpenAI's Codex API; provides intelligent code suggestions and completions for multiple programming languages.
+  - Notes: Requires OpenAI API key via Vault; prefer for code generation scenarios and IDE integrations; monitor API usage and costs.
+- **Gemini CLI**
+  - Google's multimodal AI model with local CLI access; supports text, image, and code generation with high-quality outputs.
+  - Notes: Requires Google API key via Vault; excellent for multimodal scenarios; prefer for research and analysis tasks.
+- **SimPy**
+  - Discrete event simulation framework for modeling complex systems, workflows, and processes; useful for scenario planning and optimization.
+  - Notes: Python-based; lightweight; perfect for modeling automation workflows and resource utilization; keep running for simulation scenarios.
+- **MusicGen**
+  - Meta's AI music generation model for creating original music and audio content; supports various styles and instruments.
+  - Notes: GPU-intensive; use for creative scenarios and multimedia content generation; may be stopped post-test due to resource usage like Whisper.
+- **LangChain**
+  - Framework for developing applications with LLMs; provides chains, agents, and memory for complex AI workflows and RAG applications.
+  - Notes: Python-based; integrates with Ollama and OpenRouter; use for building sophisticated AI agents and workflow automation; keep running for agent scenarios.
+- **AutoGPT**
+  - Autonomous AI agent framework for task automation and goal-oriented workflows; enables self-directed AI agents for complex multi-step tasks.
+  - Notes: Resource-intensive; requires careful prompt engineering; use for autonomous task execution scenarios; monitor for infinite loops and resource usage.
+- **LlamaIndex**
+  - Data framework for LLM applications with RAG capabilities and structured data handling; provides document processing, indexing, and querying for AI applications.
+  - Notes: Python-based; excellent for document processing and knowledge base scenarios; integrates with vector databases like Qdrant; keep running for RAG workflows.
+- **VOCR (Vision OCR)**
+  - Advanced screen recognition and accessibility tool with AI-powered image analysis; enables Vrooli to "see" and interact with any screen content, not just web pages.
+  - Notes: Works with VoiceOver, supports real-time OCR, and can ask AI questions about images; requires OS permissions for accessibility and screen capture; keep running for vision-based scenarios.
+- **AutoGen Studio**
+  - Multi-agent conversation framework for complex task orchestration; enables sophisticated multi-agent workflows where agents can collaborate, debate, and solve problems together.
+  - Notes: Python-based; can coordinate with existing agents (claude-code, agent-s2) for complex scenarios; resource-intensive; keep running for multi-agent workflows.
+- **CrewAI**
+  - Framework for orchestrating role-playing autonomous AI agents; enables scenario-based agent teams (researcher, writer, reviewer, etc.) for complex workflows.
+  - Notes: Python-based; complements existing automation tools with specialized agent roles; requires careful prompt engineering; keep running for team-based scenarios.
+- **Pandas AI**
+  - AI-powered data analysis and manipulation; enables natural language data analysis and automated insights generation.
+  - Notes: Python-based; works with existing databases (PostgreSQL, QuestDB) for intelligent analytics; lightweight; keep running for data analysis scenarios.
+- **Haystack**
+  - End-to-end framework for question answering and search; provides sophisticated question-answering capabilities over documents and data.
+  - Notes: Python-based; works with existing document processing and vector search; excellent for RAG and knowledge base scenarios; keep running for Q&A workflows.
+- **Mail-in-a-Box**
+  - All-in-one email server with webmail, contacts, calendar, and file storage; provides complete email infrastructure for scenarios requiring email automation.
+  - Notes: Linux-based; requires domain and SSL certificates; excellent for email automation scenarios; keep running for email workflows.
+- **Twilio CLI & SDK**
+  - Programmatic SMS, voice, and messaging capabilities with comprehensive API; enables sophisticated SMS automation, voice calls, and messaging workflows.
+  - Notes: Requires Twilio account and API credentials via Vault; excellent for communication automation scenarios; keep running for messaging workflows.
+- **Pushover**
+  - Push notification service for mobile and desktop with rich formatting and scheduling; provides reliable push notifications with advanced features beyond basic web push.
+  - Notes: Requires Pushover API key via Vault; excellent for mobile notification scenarios; keep running for notification workflows.
 
 ---
 

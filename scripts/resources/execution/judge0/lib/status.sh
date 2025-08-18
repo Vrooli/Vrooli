@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
-# Judge0 Status Module
-# Handles status checking and health monitoring
+# Judge0 Status Module - Standardized Format
+# Handles status checking and health monitoring with format-agnostic output
+
+# Source format utilities
+JUDGE0_STATUS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${JUDGE0_STATUS_DIR}/../../../../lib/utils/format.sh"
 
 # Load dependencies if not already loaded
 if [[ -z "${JUDGE0_WORKERS_COUNT:-}" ]]; then
@@ -33,52 +38,337 @@ if ! declare -f judge0::api::health_check >/dev/null 2>&1; then
 fi
 
 #######################################
-# Show comprehensive Judge0 status
+# Collect Judge0 status data in format-agnostic structure
+# Returns: Key-value pairs ready for formatting
 #######################################
-judge0::status::show() {
-    log::header "$JUDGE0_MSG_STATUS_CHECKING"
+judge0::status::collect_data() {
+    local status_data=()
     
-    # Basic status
-    if ! judge0::is_installed; then
-        log::error "$JUDGE0_MSG_STATUS_NOT_INSTALLED"
-        echo
-        echo "Run '$0 --action install' to install Judge0"
-        return 1
+    # Basic status checks
+    local installed="false"
+    local running="false"
+    local healthy="false"
+    local container_status="not_found"
+    local health_message="Unknown"
+    
+    if judge0::is_installed; then
+        installed="true"
+        container_status=$(docker inspect --format='{{.State.Status}}' "${JUDGE0_CONTAINER_NAME}" 2>/dev/null || echo "unknown")
+        
+        if judge0::is_running; then
+            running="true"
+            
+            if judge0::status::is_healthy; then
+                healthy="true"
+                health_message="Healthy - Code execution service operational with active workers"
+            else
+                health_message="Unhealthy - Service running but workers or API not responding"
+            fi
+        else
+            health_message="Stopped - Container not running"
+        fi
+    else
+        health_message="Not installed - Judge0 not found"
     fi
     
-    if ! judge0::is_running; then
-        log::warning "$JUDGE0_MSG_STATUS_STOPPED"
-        echo
-        echo "Run '$0 --action start' to start Judge0"
-        return 1
+    # Basic resource information
+    status_data+=("name" "judge0")
+    status_data+=("category" "execution")
+    status_data+=("description" "Judge0 code execution engine")
+    status_data+=("installed" "$installed")
+    status_data+=("running" "$running")
+    status_data+=("healthy" "$healthy")
+    status_data+=("health_message" "$health_message")
+    status_data+=("container_name" "$JUDGE0_CONTAINER_NAME")
+    status_data+=("container_status" "$container_status")
+    status_data+=("port" "$JUDGE0_PORT")
+    
+    # Service endpoints
+    status_data+=("api_url" "http://localhost:$JUDGE0_PORT")
+    status_data+=("version_endpoint" "http://localhost:$JUDGE0_PORT/version")
+    status_data+=("submissions_endpoint" "http://localhost:$JUDGE0_PORT/submissions")
+    
+    # Configuration
+    status_data+=("workers_configured" "$JUDGE0_WORKERS_COUNT")
+    status_data+=("workers_name_prefix" "$JUDGE0_WORKERS_NAME")
+    status_data+=("image" "${JUDGE0_SERVER_IMAGE:-unknown}")
+    
+    if [[ "$running" == "true" ]]; then
+        # Count active workers
+        local active_workers=0
+        for i in $(seq 1 "$JUDGE0_WORKERS_COUNT"); do
+            local worker_name="${JUDGE0_WORKERS_NAME}-${i}"
+            if docker::is_running "$worker_name" 2>/dev/null || docker ps --format "{{.Names}}" | grep -q "^${worker_name}$"; then
+                ((active_workers++))
+            fi
+        done
+        status_data+=("workers_active" "$active_workers")
+        
+        # System information from API
+        local system_info
+        system_info=$(judge0::api::system_info 2>/dev/null || echo "{}")
+        if [[ "$system_info" != "{}" ]]; then
+            local version
+            version=$(echo "$system_info" | jq -r '.version // "unknown"' 2>/dev/null)
+            status_data+=("version" "$version")
+            
+            local languages_count
+            languages_count=$(echo "$system_info" | jq -r '.languages | length // 0' 2>/dev/null)
+            status_data+=("languages_available" "$languages_count")
+            
+            local cpu_limit
+            cpu_limit=$(echo "$system_info" | jq -r '.cpu_time_limit // "N/A"' 2>/dev/null)
+            status_data+=("cpu_time_limit" "${cpu_limit}s")
+            
+            local memory_limit
+            memory_limit=$(echo "$system_info" | jq -r '.memory_limit // "N/A"' 2>/dev/null)
+            if [[ "$memory_limit" != "N/A" ]]; then
+                status_data+=("memory_limit" "$((memory_limit / 1024))MB")
+            else
+                status_data+=("memory_limit" "N/A")
+            fi
+        fi
+        
+        # Queue status
+        local queue_info
+        queue_info=$(judge0::api::get_queue_status 2>/dev/null || echo "{}")
+        if [[ "$queue_info" != "{}" ]]; then
+            local pending
+            pending=$(echo "$queue_info" | jq -r '.pending // 0' 2>/dev/null)
+            status_data+=("queue_pending" "$pending")
+            
+            local processing
+            processing=$(echo "$queue_info" | jq -r '.processing // 0' 2>/dev/null)
+            status_data+=("queue_processing" "$processing")
+        fi
+        
+        # Submissions data
+        if [[ -d "$JUDGE0_SUBMISSIONS_DIR" ]]; then
+            local total_submissions
+            total_submissions=$(find "$JUDGE0_SUBMISSIONS_DIR" -type f -name "*.json" 2>/dev/null | wc -l)
+            status_data+=("total_submissions" "$total_submissions")
+            
+            if [[ $total_submissions -gt 0 ]]; then
+                local successful
+                successful=$(find "$JUDGE0_SUBMISSIONS_DIR" -type f -name "*.json" -exec grep -l '"status":{"id":3}' {} \; 2>/dev/null | wc -l)
+                local success_rate
+                success_rate=$(echo "scale=2; $successful * 100 / $total_submissions" | bc 2>/dev/null || echo "0")
+                status_data+=("success_rate" "${success_rate}%")
+            fi
+        fi
+        
+        # Container resource stats
+        local server_stats
+        server_stats=$(judge0::get_container_stats 2>/dev/null || echo "{}")
+        if [[ "$server_stats" != "{}" ]]; then
+            local cpu_usage
+            cpu_usage=$(echo "$server_stats" | jq -r '.CPUPerc // "0%"' 2>/dev/null | tr -d '%')
+            status_data+=("cpu_usage" "${cpu_usage}%")
+            
+            local mem_usage
+            mem_usage=$(echo "$server_stats" | jq -r '.MemUsage // "0MiB / 0MiB"' 2>/dev/null)
+            status_data+=("memory_usage" "$mem_usage")
+        fi
     fi
     
-    log::success "$JUDGE0_MSG_STATUS_RUNNING"
-    echo
-    
-    # System info
-    judge0::status::show_system_info
-    
-    # Worker status
-    judge0::status::show_workers
-    
-    # Queue status
-    judge0::status::show_queue
-    
-    # Resource usage
-    judge0::status::show_resources
-    
-    # Recent submissions
-    judge0::status::show_recent_submissions
-    
-    # Functional test
-    judge0::status::functional_test
-    
-    return 0
+    # Return the collected data
+    printf '%s\n' "${status_data[@]}"
 }
 
 #######################################
-# Show system information
+# CLI framework compatibility wrapper
+# Args: All arguments passed to judge0::status::show
+#######################################
+judge0::status() {
+    judge0::status::show "$@"
+}
+
+#######################################
+# Show comprehensive Judge0 status using standardized format
+# Args: [--format json|text] [--verbose]
+#######################################
+judge0::status::show() {
+    local format="text"
+    local verbose="false"
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --format)
+                format="$2"
+                shift 2
+                ;;
+            --json)
+                format="json"
+                shift
+                ;;
+            --verbose|-v)
+                verbose="true"
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    # Collect status data
+    local data_string
+    data_string=$(judge0::status::collect_data 2>/dev/null)
+    
+    if [[ -z "$data_string" ]]; then
+        # Fallback if data collection fails
+        if [[ "$format" == "json" ]]; then
+            echo '{"error": "Failed to collect status data"}'
+        else
+            log::error "Failed to collect Judge0 status data"
+        fi
+        return 1
+    fi
+    
+    # Convert string to array
+    local data_array
+    mapfile -t data_array <<< "$data_string"
+    
+    # Output based on format
+    if [[ "$format" == "json" ]]; then
+        format::output "json" "kv" "${data_array[@]}"
+    else
+        # Text format with standardized structure
+        judge0::status::display_text "$verbose" "${data_array[@]}"
+    fi
+    
+    # Return appropriate exit code
+    local healthy="false"
+    local running="false"
+    for ((i=0; i<${#data_array[@]}; i+=2)); do
+        case "${data_array[i]}" in
+            "healthy") healthy="${data_array[i+1]}" ;;
+            "running") running="${data_array[i+1]}" ;;
+        esac
+    done
+    
+    if [[ "$healthy" == "true" ]]; then
+        return 0
+    elif [[ "$running" == "true" ]]; then
+        return 1
+    else
+        return 2
+    fi
+}
+
+#######################################
+# Display status in text format
+#######################################
+judge0::status::display_text() {
+    local verbose="$1"
+    shift
+    local -A data
+    
+    # Convert array to associative array
+    for ((i=1; i<=$#; i+=2)); do
+        local key="${!i}"
+        local value_idx=$((i+1))
+        local value="${!value_idx}"
+        data["$key"]="$value"
+    done
+    
+    # Header
+    log::header "📊 Judge0 Status"
+    echo
+    
+    # Basic status
+    log::info "📊 Basic Status:"
+    if [[ "${data[installed]:-false}" == "true" ]]; then
+        log::success "   ✅ Installed: Yes"
+    else
+        log::error "   ❌ Installed: No"
+        echo
+        log::info "💡 Installation Required:"
+        log::info "   To install Judge0, run: ./manage.sh --action install"
+        return
+    fi
+    
+    if [[ "${data[running]:-false}" == "true" ]]; then
+        log::success "   ✅ Running: Yes"
+    else
+        log::warn "   ⚠️  Running: No"
+    fi
+    
+    if [[ "${data[healthy]:-false}" == "true" ]]; then
+        log::success "   ✅ Health: Healthy"
+    else
+        log::warn "   ⚠️  Health: ${data[health_message]:-Unknown}"
+    fi
+    echo
+    
+    # Container information
+    log::info "🐳 Container Info:"
+    log::info "   📦 Name: ${data[container_name]:-unknown}"
+    log::info "   📊 Status: ${data[container_status]:-unknown}"
+    log::info "   🖼️  Image: ${data[image]:-unknown}"
+    echo
+    
+    # Service endpoints
+    log::info "🌐 Service Endpoints:"
+    log::info "   🔌 API: ${data[api_url]:-unknown}"
+    log::info "   📋 Submissions: ${data[submissions_endpoint]:-unknown}"
+    log::info "   ℹ️  Version: ${data[version_endpoint]:-unknown}"
+    echo
+    
+    # Configuration
+    log::info "⚙️  Configuration:"
+    log::info "   📶 Port: ${data[port]:-unknown}"
+    log::info "   🔢 Version: ${data[version]:-unknown}"
+    log::info "   🗣️  Languages: ${data[languages_available]:-0} available"
+    log::info "   ⏱️  CPU Limit: ${data[cpu_time_limit]:-unknown} per submission"
+    log::info "   💾 Memory Limit: ${data[memory_limit]:-unknown} per submission"
+    echo
+    
+    # Worker information (only if running)
+    if [[ "${data[running]:-false}" == "true" ]]; then
+        log::info "👷 Worker Status:"
+        log::info "   ✅ Active: ${data[workers_active]:-0}/${data[workers_configured]:-0}"
+        log::info "   📛 Name Prefix: ${data[workers_name_prefix]:-unknown}"
+        
+        local active_workers="${data[workers_active]:-0}"
+        local configured_workers="${data[workers_configured]:-0}"
+        if [[ "$active_workers" -lt "$configured_workers" ]]; then
+            log::warn "   ⚠️  Warning: Some workers are not running!"
+        fi
+        echo
+        
+        # Queue status
+        log::info "📊 Queue Status:"
+        log::info "   ⏳ Pending: ${data[queue_pending]:-0}"
+        log::info "   ⚙️  Processing: ${data[queue_processing]:-0}"
+        echo
+        
+        # Runtime information
+        log::info "📈 Runtime Information:"
+        if [[ -n "${data[cpu_usage]:-}" ]]; then
+            log::info "   🖥️  CPU Usage: ${data[cpu_usage]}"
+        fi
+        if [[ -n "${data[memory_usage]:-}" ]]; then
+            log::info "   💾 Memory Usage: ${data[memory_usage]}"
+        fi
+        log::info "   📊 Total Submissions: ${data[total_submissions]:-0}"
+        if [[ -n "${data[success_rate]:-}" ]]; then
+            log::info "   ✅ Success Rate: ${data[success_rate]}"
+        fi
+        echo
+        
+        # Show detailed tests if verbose
+        if [[ "$verbose" == "true" ]]; then
+            judge0::status::functional_test
+        else
+            log::info "💡 Run with --verbose to see functional tests"
+        fi
+    fi
+}
+
+#######################################
+# Show system information (legacy function for compatibility)
 #######################################
 judge0::status::show_system_info() {
     log::info "📊 System Information:"

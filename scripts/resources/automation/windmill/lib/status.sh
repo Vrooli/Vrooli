@@ -1,102 +1,341 @@
 #!/usr/bin/env bash
-# Windmill Status and Health Check Functions
-# Comprehensive status reporting for Windmill services
+# Windmill Status Management - Standardized Format
+# Functions for checking and displaying Windmill status information
+
+# Source format utilities and config
+WINDMILL_STATUS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${WINDMILL_STATUS_DIR}/../../../../lib/utils/format.sh"
+# shellcheck disable=SC1091
+source "${WINDMILL_STATUS_DIR}/../config/defaults.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${WINDMILL_STATUS_DIR}/../config/messages.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${WINDMILL_STATUS_DIR}/common.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${WINDMILL_STATUS_DIR}/docker.sh" 2>/dev/null || true
+
+# Ensure configuration is exported
+if command -v windmill::export_config &>/dev/null; then
+    windmill::export_config 2>/dev/null || true
+fi
+if command -v windmill::messages::init &>/dev/null; then
+    windmill::messages::init 2>/dev/null || true
+fi
 
 #######################################
-# Show comprehensive Windmill status
-# Returns: 0 if healthy, 1 if issues found
+# Collect Windmill status data in format-agnostic structure
+# Returns: Key-value pairs ready for formatting
 #######################################
-windmill::status() {
-    log::header "🌪️  Windmill Status Report"
+windmill::status::collect_data() {
+    local status_data=()
     
-    local overall_status="healthy"
-    local issues=()
+    # Basic status checks
+    local installed="false"
+    local running="false"
+    local healthy="false"
+    local container_status="not_found"
+    local health_message="Unknown"
+    local service_status="unknown"
     
-    # Basic installation check
-    if ! windmill::is_installed; then
-        echo "❌ Status: Not Installed"
-        echo
-        echo "To install Windmill:"
-        echo "  $0 --action install"
-        return 1
-    fi
-    
-    # Service status overview
-    local service_status
-    service_status=$(windmill::get_service_status)
-    
-    case "$service_status" in
-        "healthy")
-            echo "✅ Status: Running and Healthy"
-            ;;
-        "unhealthy")
-            echo "⚠️  Status: Running but Unhealthy"
-            overall_status="unhealthy"
-            issues+=("Services are running but not responding properly")
-            ;;
-        "stopped")
-            echo "⏹️  Status: Stopped"
-            overall_status="stopped"
-            issues+=("Services are not running")
-            ;;
-        *)
-            echo "❓ Status: Unknown"
-            overall_status="unknown"
-            issues+=("Unable to determine service status")
-            ;;
-    esac
-    
-    echo
-    
-    # Connection information
-    if [[ "$service_status" == "healthy" ]]; then
-        windmill::show_connection_info
-    fi
-    
-    # Detailed service status
-    windmill::show_detailed_service_status
-    
-    # Resource usage
-    if windmill::is_running; then
-        echo
-        windmill::show_resource_usage
-    fi
-    
-    # Configuration summary
-    echo
-    windmill::show_configuration_summary
-    
-    # Health checks
-    echo
-    windmill::show_health_checks
-    
-    # Show issues if any
-    if [[ ${#issues[@]} -gt 0 ]]; then
-        echo
-        log::error "Issues found:"
-        for issue in "${issues[@]}"; do
-            log::error "  • $issue"
-        done
+    # Check if Windmill is installed (using docker-compose)
+    if windmill::is_installed; then
+        installed="true"
+        service_status=$(windmill::get_service_status 2>/dev/null || echo "unknown")
         
-        echo
-        windmill::show_troubleshooting_tips
+        case "$service_status" in
+            "healthy")
+                running="true"
+                healthy="true"
+                health_message="Healthy - All services operational"
+                container_status="running"
+                ;;
+            "unhealthy")
+                running="true"
+                healthy="false"
+                health_message="Unhealthy - Services running but not responding properly"
+                container_status="unhealthy"
+                ;;
+            "stopped")
+                running="false"
+                healthy="false"
+                health_message="Stopped - Services not running"
+                container_status="stopped"
+                ;;
+            *)
+                running="false"
+                healthy="false"
+                health_message="Unknown - Unable to determine service status"
+                container_status="unknown"
+                ;;
+        esac
+    else
+        health_message="Not installed - Use ./manage.sh --action install"
     fi
     
-    # Return appropriate exit code
-    case "$overall_status" in
-        "healthy") return 0 ;;
-        *) return 1 ;;
-    esac
+    # Basic resource information
+    status_data+=("name" "windmill")
+    status_data+=("category" "automation")
+    status_data+=("description" "Open-source workflow engine and internal tool builder")
+    status_data+=("installed" "$installed")
+    status_data+=("running" "$running")
+    status_data+=("healthy" "$healthy")
+    status_data+=("health_message" "$health_message")
+    status_data+=("container_status" "$container_status")
+    status_data+=("service_status" "$service_status")
+    status_data+=("port" "$WINDMILL_SERVER_PORT")
+    
+    # Service endpoints
+    status_data+=("base_url" "$WINDMILL_BASE_URL")
+    status_data+=("api_url" "$WINDMILL_BASE_URL/api")
+    status_data+=("admin_email" "$WINDMILL_SUPERADMIN_EMAIL")
+    
+    # Configuration details
+    status_data+=("project_name" "$WINDMILL_PROJECT_NAME")
+    status_data+=("data_dir" "$WINDMILL_DATA_DIR")
+    status_data+=("worker_replicas" "$WINDMILL_WORKER_REPLICAS")
+    status_data+=("db_type" "$WINDMILL_DB_TYPE")
+    status_data+=("db_external" "$WINDMILL_DB_EXTERNAL")
+    
+    # Container names
+    status_data+=("server_container" "$WINDMILL_SERVER_CONTAINER")
+    status_data+=("worker_container" "$WINDMILL_WORKER_CONTAINER")
+    status_data+=("db_container" "$WINDMILL_DB_CONTAINER_NAME")
+    
+    # Runtime information (only if running and healthy)
+    if [[ "$running" == "true" ]]; then
+        # Check individual service containers
+        local server_running="false"
+        local worker_running="false"
+        local db_running="false"
+        
+        if docker ps --format "{{.Names}}" 2>/dev/null | grep -q "^${WINDMILL_SERVER_CONTAINER}$"; then
+            server_running="true"
+        fi
+        
+        if docker ps --format "{{.Names}}" 2>/dev/null | grep -q "${WINDMILL_WORKER_CONTAINER}"; then
+            worker_running="true"
+        fi
+        
+        if docker ps --format "{{.Names}}" 2>/dev/null | grep -q "^${WINDMILL_DB_CONTAINER_NAME}$"; then
+            db_running="true"
+        fi
+        
+        status_data+=("server_running" "$server_running")
+        status_data+=("worker_running" "$worker_running")
+        status_data+=("database_running" "$db_running")
+        
+        # Get container stats if available
+        if [[ "$server_running" == "true" ]]; then
+            local server_stats
+            server_stats=$(docker stats --no-stream --format "{{.CPUPerc}}|{{.MemUsage}}" "$WINDMILL_SERVER_CONTAINER" 2>/dev/null)
+            if [[ -n "$server_stats" ]]; then
+                local cpu_usage memory_usage
+                cpu_usage=$(echo "$server_stats" | cut -d'|' -f1)
+                memory_usage=$(echo "$server_stats" | cut -d'|' -f2)
+                status_data+=("server_cpu" "$cpu_usage")
+                status_data+=("server_memory" "$memory_usage")
+            fi
+        fi
+        
+        # Worker count
+        local worker_count
+        worker_count=$(docker ps --filter "name=${WINDMILL_WORKER_CONTAINER}" --format "{{.Names}}" 2>/dev/null | wc -l)
+        status_data+=("active_workers" "$worker_count")
+    fi
+    
+    # Return the collected data
+    printf '%s\n' "${status_data[@]}"
 }
 
 #######################################
-# Show connection information
+# Show Windmill status using standardized format
+# Args: [--format json|text] [--verbose]
 #######################################
+windmill::status() {
+    local format="text"
+    local verbose="false"
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --format)
+                format="$2"
+                shift 2
+                ;;
+            --json)
+                format="json"
+                shift
+                ;;
+            --verbose|-v)
+                verbose="true"
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    # Collect status data
+    local data_string
+    data_string=$(windmill::status::collect_data 2>/dev/null)
+    
+    if [[ -z "$data_string" ]]; then
+        # Fallback if data collection fails
+        if [[ "$format" == "json" ]]; then
+            echo '{"error": "Failed to collect status data"}'
+        else
+            log::error "Failed to collect Windmill status data"
+        fi
+        return 1
+    fi
+    
+    # Convert string to array
+    local data_array
+    mapfile -t data_array <<< "$data_string"
+    
+    # Output based on format
+    if [[ "$format" == "json" ]]; then
+        format::output "json" "kv" "${data_array[@]}"
+    else
+        # Text format with standardized structure
+        windmill::status::display_text "${data_array[@]}"
+    fi
+    
+    # Return appropriate exit code
+    local healthy="false"
+    local running="false"
+    for ((i=0; i<${#data_array[@]}; i+=2)); do
+        case "${data_array[i]}" in
+            "healthy") healthy="${data_array[i+1]}" ;;
+            "running") running="${data_array[i+1]}" ;;
+        esac
+    done
+    
+    if [[ "$healthy" == "true" ]]; then
+        return 0
+    elif [[ "$running" == "true" ]]; then
+        return 1
+    else
+        return 2
+    fi
+}
+
+#######################################
+# Display status in text format
+#######################################
+windmill::status::display_text() {
+    local -A data
+    
+    # Convert array to associative array
+    for ((i=1; i<=$#; i+=2)); do
+        local key="${!i}"
+        local value_idx=$((i+1))
+        local value="${!value_idx}"
+        data["$key"]="$value"
+    done
+    
+    # Header
+    log::header "🌪️  Windmill Status"
+    echo
+    
+    # Basic status
+    log::info "📊 Basic Status:"
+    if [[ "${data[installed]:-false}" == "true" ]]; then
+        log::success "   ✅ Installed: Yes"
+    else
+        log::error "   ❌ Installed: No"
+        echo
+        log::info "💡 Installation Required:"
+        log::info "   To install Windmill, run: ./manage.sh --action install"
+        return
+    fi
+    
+    if [[ "${data[running]:-false}" == "true" ]]; then
+        log::success "   ✅ Running: Yes"
+    else
+        log::warn "   ⚠️  Running: No"
+    fi
+    
+    if [[ "${data[healthy]:-false}" == "true" ]]; then
+        log::success "   ✅ Health: Healthy"
+    else
+        log::warn "   ⚠️  Health: ${data[health_message]:-Unknown}"
+    fi
+    echo
+    
+    # Service components
+    log::info "🔧 Service Components:"
+    log::info "   📦 Project: ${data[project_name]:-unknown}"
+    if [[ "${data[running]:-false}" == "true" ]]; then
+        local server_status="${data[server_running]:-false}"
+        local worker_status="${data[worker_running]:-false}"
+        local db_status="${data[database_running]:-false}"
+        
+        if [[ "$server_status" == "true" ]]; then
+            log::success "   ✅ Server: Running"
+        else
+            log::error "   ❌ Server: Not running"
+        fi
+        
+        if [[ "$worker_status" == "true" ]]; then
+            log::success "   ✅ Workers: ${data[active_workers]:-0} active"
+        else
+            log::error "   ❌ Workers: Not running"
+        fi
+        
+        if [[ "$db_status" == "true" ]]; then
+            log::success "   ✅ Database: Running (${data[db_type]:-unknown})"
+        else
+            log::error "   ❌ Database: Not running"
+        fi
+    else
+        log::warn "   ⚠️  Server: Stopped"
+        log::warn "   ⚠️  Workers: Stopped"
+        log::warn "   ⚠️  Database: Stopped"
+    fi
+    echo
+    
+    # Service endpoints
+    log::info "🌐 Service Endpoints:"
+    log::info "   🎨 Web UI: ${data[base_url]:-unknown}"
+    log::info "   🔌 API: ${data[api_url]:-unknown}"
+    log::info "   👤 Admin: ${data[admin_email]:-unknown}"
+    echo
+    
+    # Configuration
+    log::info "⚙️  Configuration:"
+    log::info "   📶 Port: ${data[port]:-unknown}"
+    log::info "   📁 Data Directory: ${data[data_dir]:-unknown}"
+    log::info "   👥 Worker Replicas: ${data[worker_replicas]:-unknown}"
+    log::info "   🗄️  Database Type: ${data[db_type]:-unknown}"
+    log::info "   🔗 External DB: ${data[db_external]:-unknown}"
+    echo
+    
+    # Runtime information (only if healthy)
+    if [[ "${data[healthy]:-false}" == "true" ]]; then
+        log::info "📈 Runtime Information:"
+        
+        # Server performance
+        local server_cpu="${data[server_cpu]:-N/A}"
+        local server_memory="${data[server_memory]:-N/A}"
+        if [[ "$server_cpu" != "N/A" ]]; then
+            log::info "   🔥 Server CPU: $server_cpu"
+            log::info "   🧠 Server Memory: $server_memory"
+        fi
+        
+        log::info "   👷 Active Workers: ${data[active_workers]:-0}"
+        log::info "   📊 Service Status: ${data[service_status]:-unknown}"
+    fi
+}
+
+# Legacy function - kept for backwards compatibility
 windmill::show_connection_info() {
     log::info "🌐 Connection Information:"
     echo "  Web Interface: $WINDMILL_BASE_URL"
     echo "  API Base URL: $WINDMILL_BASE_URL/api"
-    echo "  Admin Email: $SUPERADMIN_EMAIL"
+    echo "  Admin Email: $WINDMILL_SUPERADMIN_EMAIL"
     echo
     echo "  Quick Links:"
     echo "    Dashboard: $WINDMILL_BASE_URL"

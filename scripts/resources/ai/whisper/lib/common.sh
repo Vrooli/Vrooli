@@ -193,7 +193,7 @@ whisper::get_docker_image() {
 whisper::cleanup() {
     local success=true
     
-    if whisper::container_exists; then
+    if common::container_exists; then
         log::info "${MSG_REMOVING_CONTAINER}"
         if ! docker rm -f "$WHISPER_CONTAINER_NAME" >/dev/null 2>&1; then
             log::warn "Failed to remove container"
@@ -205,12 +205,12 @@ whisper::cleanup() {
 }
 
 # Export functions for subshell availability
-export -f whisper::check_docker
-export -f whisper::container_exists
-export -f whisper::is_running
-export -f whisper::is_port_available
-export -f whisper::validate_model
-export -f whisper::get_model_size
+export -f common::check_docker
+export -f common::container_exists
+export -f common::is_running
+export -f common::is_port_available
+export -f common::validate_model
+export -f common::get_model_size
 export -f whisper::create_directories
 export -f whisper::wait_for_health
 export -f whisper::is_healthy

@@ -39,7 +39,7 @@ source "${QDRANT_CLI_DIR}/config/defaults.sh" 2>/dev/null || true
 qdrant::export_config 2>/dev/null || true
 
 # Source qdrant libraries
-for lib in core health collections backup inject; do
+for lib in core health collections backup inject status; do
     lib_file="${QDRANT_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
