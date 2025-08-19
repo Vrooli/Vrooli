@@ -29,7 +29,7 @@ twilio::status() {
             credentials_configured="true"
             account_sid=$(twilio::get_account_sid)
             
-            # Twilio is a stateless service - if credentials are configured, it's "running"
+            # Twilio is a stateless service - if credentials are configured and API works, it's "running"
             # For test credentials, we can't validate with the real API
             if [[ "$account_sid" == "AC_test_"* ]]; then
                 # Test mode - consider it healthy if credentials exist
@@ -45,6 +45,9 @@ twilio::status() {
                     else
                         health="auth_error"
                     fi
+                else
+                    # Twilio CLI not found, but if we have credentials it's still "configured"
+                    health="cli_not_found"
                 fi
             fi
         else

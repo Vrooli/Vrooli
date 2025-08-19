@@ -37,12 +37,21 @@
       "required": true
     },
     {
+      "name": "vrooli-schemas",
+      "source": ".vrooli/schemas",
+      "destination": ".vrooli/schemas",
+      "type": "directory",
+      "from": "vrooli",
+      "required": true
+    },
+    {
       "name": "scenario-config",
       "source": ".vrooli",
       "destination": ".vrooli",
       "type": "directory",
       "from": "scenario",
       "optional": true,
+      "merge": "overlay",
       "process": [
         "resolve_inheritance",
         "substitute_variables"

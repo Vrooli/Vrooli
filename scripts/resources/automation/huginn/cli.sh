@@ -38,6 +38,15 @@ source "${var_SCRIPTS_RESOURCES_LIB_DIR}/cli-command-framework.sh"
 source "${HUGINN_CLI_DIR}/config/defaults.sh" 2>/dev/null || true
 huginn::export_config 2>/dev/null || true
 
+# Source huginn messages/config
+for config in messages; do
+    config_file="${HUGINN_CLI_DIR}/config/${config}.sh"
+    if [[ -f "$config_file" ]]; then
+        # shellcheck disable=SC1090
+        source "$config_file" 2>/dev/null || true
+    fi
+done
+
 # Source huginn libraries
 for lib in common docker status api install testing; do
     lib_file="${HUGINN_CLI_DIR}/lib/${lib}.sh"

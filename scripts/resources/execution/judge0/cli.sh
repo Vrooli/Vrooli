@@ -74,30 +74,21 @@ cli::register_command "uninstall" "Uninstall Judge0 (requires --force)" "judge0_
 
 # Inject configuration or test cases into judge0
 judge0_inject() {
-    local file="${1:-}"
+    local action="${1:-file}"
+    shift || true
     
-    if [[ -z "$file" ]]; then
-        log::error "File path required for injection"
-        echo "Usage: resource-judge0 inject <file.json>"
-        return 1
+    # Source inject.sh if not already loaded
+    if ! command -v judge0::inject::main &>/dev/null; then
+        if [[ -f "${JUDGE0_CLI_DIR}/lib/inject.sh" ]]; then
+            source "${JUDGE0_CLI_DIR}/lib/inject.sh"
+        else
+            log::error "Injection module not found"
+            return 1
+        fi
     fi
     
-    # Handle shared: prefix
-    if [[ "$file" == shared:* ]]; then
-        file="${var_ROOT_DIR}/${file#shared:}"
-    fi
-    
-    if [[ ! -f "$file" ]]; then
-        log::error "File not found: $file"
-        return 1
-    fi
-    
-    # Use existing injection function
-    if command -v judge0::inject &>/dev/null; then
-        judge0::inject
-    else
-        "${JUDGE0_CLI_DIR}/inject.sh" --inject "$(cat "$file")"
-    fi
+    # Call the injection handler
+    judge0::inject::main "$action" "$@"
 }
 
 # Validate judge0 configuration

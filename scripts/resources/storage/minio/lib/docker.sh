@@ -14,6 +14,11 @@ source "${var_LIB_SERVICE_DIR}/secrets.sh"
 source "${var_SCRIPTS_RESOURCES_LIB_DIR}/docker-resource-utils.sh"
 
 
+# Execute command in MinIO container
+minio::docker::exec() {
+    docker exec "${MINIO_CONTAINER_NAME}" "$@"
+}
+
 # Create and start MinIO container
 minio::docker::create_container() {
     # Ensure directories exist

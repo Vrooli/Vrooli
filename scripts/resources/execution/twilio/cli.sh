@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Get the directory of this script
-TWILIO_CLI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Get the directory of this script (resolving symlinks)
+if [[ -L "${BASH_SOURCE[0]}" ]]; then
+    TWILIO_CLI_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+else
+    TWILIO_CLI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+fi
 
 # Source utilities
 source "$TWILIO_CLI_DIR/../../../lib/utils/var.sh"
@@ -29,7 +33,8 @@ Commands:
     stop            Stop Twilio monitor
     logs            Show Twilio logs
     config          View/update Twilio configuration
-    inject [file]   Inject phone numbers or workflows
+    inject [file]   Inject templates, TwiML, or workflows
+    list-injected   List all injected data
     send-sms        Send a test SMS message
     list-numbers    List configured phone numbers
     help            Show this help message
@@ -68,6 +73,9 @@ main() {
             ;;
         inject)
             twilio::inject "$@"
+            ;;
+        list-injected)
+            twilio::list_injected "$@"
             ;;
         send-sms)
             twilio::send_sms "$@"

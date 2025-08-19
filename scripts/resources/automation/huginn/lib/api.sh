@@ -27,7 +27,7 @@ huginn::list_agents() {
         schedule = agent.schedule || "Manual"
         
         puts "#{status} [#{agent.id}] #{agent.name}"
-        puts "   Type: #{agent.type.split(\"::\")[-1]} | Events: #{events}"
+        puts "   Type: #{agent.type.split("::")[-1]} | Events: #{events}"
         puts "   Last Run: #{last_run} | Schedule: #{schedule}"
         puts ""
       end
@@ -305,6 +305,131 @@ huginn::show_agent_events() {
         log::error "Failed to retrieve agent events"
         return 1
     }
+}
+
+#######################################
+# Import agent from JSON
+# Arguments:
+#   $1 - JSON content of the agent
+# Returns: 0 if successful, 1 otherwise
+#######################################
+huginn::api_import_agent() {
+    local agent_json="$1"
+    
+    if ! huginn::is_running; then
+        log::error "Huginn is not running"
+        return 1
+    fi
+    
+    # Escape JSON for Ruby
+    local escaped_json
+    escaped_json=$(echo "$agent_json" | sed "s/'/\\\\'/g")
+    
+    local import_code="
+    begin
+      require 'json'
+      
+      # Parse the agent JSON
+      agent_data = JSON.parse('$escaped_json')
+      
+      # Create new agent
+      agent = Agent.build_for_type(
+        agent_data['type'],
+        User.first,
+        agent_data.slice('name', 'schedule', 'disabled', 'options', 'keep_events_for', 'propagate_immediately')
+      )
+      
+      if agent.save
+        puts \"SUCCESS: Agent '#{agent.name}' created with ID #{agent.id}\"
+      else
+        puts \"ERROR: Failed to create agent: #{agent.errors.full_messages.join(', ')}\"
+        exit 1
+      end
+    rescue => e
+      puts \"ERROR: #{e.message}\"
+      exit 1
+    end
+    "
+    
+    if huginn::rails_runner "$import_code" 2>/dev/null; then
+        return 0
+    else
+        log::error "Failed to import agent"
+        return 1
+    fi
+}
+
+#######################################
+# Import scenario from JSON
+# Arguments:
+#   $1 - JSON content of the scenario
+# Returns: 0 if successful, 1 otherwise
+#######################################
+huginn::api_import_scenario() {
+    local scenario_json="$1"
+    
+    if ! huginn::is_running; then
+        log::error "Huginn is not running"
+        return 1
+    fi
+    
+    # Escape JSON for Ruby
+    local escaped_json
+    escaped_json=$(echo "$scenario_json" | sed "s/'/\\\\'/g")
+    
+    local import_code="
+    begin
+      require 'json'
+      
+      # Parse the scenario JSON
+      scenario_data = JSON.parse('$escaped_json')
+      
+      # Create new scenario
+      scenario = Scenario.new(
+        user: User.first,
+        name: scenario_data['name'],
+        description: scenario_data['description'] || '',
+        public: scenario_data['public'] || false,
+        tag_fg_color: scenario_data['tag_fg_color'],
+        tag_bg_color: scenario_data['tag_bg_color']
+      )
+      
+      if scenario.save
+        puts \"SUCCESS: Scenario '#{scenario.name}' created with ID #{scenario.id}\"
+        
+        # Import agents if present
+        if scenario_data['agents'].is_a?(Array)
+          scenario_data['agents'].each do |agent_data|
+            agent = Agent.build_for_type(
+              agent_data['type'],
+              User.first,
+              agent_data.slice('name', 'schedule', 'disabled', 'options', 'keep_events_for', 'propagate_immediately')
+            )
+            agent.scenario_ids = [scenario.id]
+            
+            if agent.save
+              puts \"  - Agent '#{agent.name}' added to scenario\"
+            else
+              puts \"  - WARNING: Failed to add agent '#{agent.name}': #{agent.errors.full_messages.join(', ')}\"
+            end
+          end
+        end
+      else
+        puts \"ERROR: Failed to create scenario: #{scenario.errors.full_messages.join(', ')}\"
+        exit 1
+      end
+    rescue => e
+      puts \"ERROR: #{e.message}\"
+      exit 1
+    end
+    "
+    
+    if huginn::rails_runner "$import_code" 2>/dev/null; then
+        return 0
+    else
+        log::error "Failed to import scenario"
+        return 1
+    fi
 }
 
 #######################################

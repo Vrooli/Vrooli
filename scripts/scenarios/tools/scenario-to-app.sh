@@ -846,17 +846,17 @@ scenario_to_app::process_template_variables() {
     fi
     
     # Only substitute if no inheritance or if not a service.json file
-    if [[ "$should_substitute" == "yes" ]] && command -v secrets::substitute_all_templates >/dev/null 2>&1; then
-        # Read file content and substitute all templates (both secrets and service references)
+    if [[ "$should_substitute" == "yes" ]] && command -v secrets::substitute_safe_templates >/dev/null 2>&1; then
+        # Read file content and substitute safe templates (only Vrooli secrets and service references)
         local content
         content=$(cat "$file")
         
-        # Check if content has any templates before processing
-        if echo "$content" | grep -qE '\{\{[^}]+\}\}|\$\{service\.[^}]+\}'; then
+        # Check if content has any Vrooli templates before processing (skip n8n patterns)
+        if echo "$content" | grep -qE '\{\{[A-Z][A-Z0-9_]*\}\}|\$\{service\.[^}]+\}'; then
             local sub_start
             sub_start=$(date +"%s%N")
             local processed
-            processed=$(echo "$content" | secrets::substitute_all_templates)
+            processed=$(echo "$content" | secrets::substitute_safe_templates)
             local sub_end
             sub_end=$(date +"%s%N")
             local sub_time=$(( (sub_end - sub_start) / 1000000 ))

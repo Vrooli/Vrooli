@@ -67,7 +67,7 @@ whisper::status::collect_data() {
     # Service endpoints
     status_data+=("base_url" "$WHISPER_BASE_URL")
     status_data+=("api_url" "$WHISPER_BASE_URL/asr")
-    status_data+=("health_url" "$WHISPER_BASE_URL/health")
+    status_data+=("health_url" "$WHISPER_BASE_URL/docs")
     
     # Configuration details
     local image
@@ -551,7 +551,7 @@ status::is_ready() {
         local response
         response=$(curl -s -o /dev/null -w "%{http_code}" \
             --max-time "$WHISPER_API_TIMEOUT" \
-            "$WHISPER_BASE_URL/health" 2>/dev/null)
+            "$WHISPER_BASE_URL/docs" 2>/dev/null)
         
         if [[ "$response" == "200" ]]; then
             return 0

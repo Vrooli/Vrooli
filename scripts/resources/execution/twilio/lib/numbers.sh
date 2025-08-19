@@ -17,7 +17,7 @@ list_numbers() {
         
         if [[ "$count" -gt 0 ]]; then
             echo "Configured Numbers:"
-            jq -r '.numbers[] | "  \(.number) - \(.name // "No name") (\(.type // "unknown"))"' \
+            jq -r '.numbers[] | "  \(.phone // .number) - \(.name // "No name") (\(.type // "unknown"))"' \
                 "$TWILIO_PHONE_NUMBERS_FILE" 2>/dev/null
         else
             log::info "No phone numbers configured"

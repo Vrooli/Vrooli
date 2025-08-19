@@ -78,12 +78,12 @@ huginn::status::collect_data() {
         
         # Huginn version
         local version
-        version=$(huginn::get_version 2>/dev/null || echo "unknown")
+        version=$(timeout 3 huginn::get_version 2>/dev/null || echo "unknown")
         status_data+=("version" "$version")
         
         # Database connectivity
         local db_connected="false"
-        if huginn::check_database 2>/dev/null; then
+        if timeout 3 huginn::check_database 2>/dev/null; then
             db_connected="true"
         fi
         status_data+=("database_connected" "$db_connected")
@@ -91,9 +91,10 @@ huginn::status::collect_data() {
         # Get system statistics if healthy
         if [[ "$healthy" == "true" ]]; then
             local stats_json
-            stats_json=$(huginn::get_system_stats 2>/dev/null)
+            # Add explicit timeout to prevent hanging
+            stats_json=$(timeout 5 huginn::get_system_stats 2>/dev/null || echo "{}")
             
-            if [[ -n "$stats_json" ]] && echo "$stats_json" | jq . >/dev/null 2>&1; then
+            if [[ -n "$stats_json" ]] && [[ "$stats_json" != "{}" ]] && echo "$stats_json" | jq . >/dev/null 2>&1; then
                 local users agents scenarios events active_agents
                 users=$(echo "$stats_json" | jq -r '.users // 0')
                 agents=$(echo "$stats_json" | jq -r '.agents // 0')

@@ -2,6 +2,19 @@
 # MinIO API Functions
 # Functions for interacting with MinIO S3 API
 
+# Get script directory
+MINIO_API_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Source required dependencies
+source "${MINIO_API_DIR}/common.sh" 2>/dev/null || true
+source "${MINIO_API_DIR}/docker.sh" 2>/dev/null || true
+
+# Source and initialize messages
+source "${MINIO_API_DIR}/../config/messages.sh" 2>/dev/null || true
+if command -v minio::messages::init &>/dev/null; then
+    minio::messages::init
+fi
+
 #######################################
 # Execute MinIO client command
 # Arguments:

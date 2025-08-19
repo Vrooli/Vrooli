@@ -30,7 +30,7 @@ source "${CLI_DIR}/../lib/output-formatter.sh"
 
 # Configuration paths
 RESOURCES_CONFIG="${var_ROOT_DIR}/.vrooli/service.json"
-API_BASE="http://localhost:${VROOLI_API_PORT:-8090}"
+API_BASE="http://localhost:${VROOLI_API_PORT:-8092}"
 
 # Show help for status command
 show_status_help() {

@@ -51,8 +51,8 @@ searxng::start_container() {
     # Volumes
     local volumes="${SEARXNG_DATA_DIR}:/etc/searxng:rw"
     
-    # Health check
-    local health_cmd="curl -f http://localhost:8080/stats || exit 1"
+    # Health check - using wget with 127.0.0.1 since localhost doesn't resolve in container
+    local health_cmd="wget --spider -q http://127.0.0.1:8080/ || exit 1"
     
     # Use advanced creation with custom health intervals
     DOCKER_HEALTH_INTERVAL="30s" \

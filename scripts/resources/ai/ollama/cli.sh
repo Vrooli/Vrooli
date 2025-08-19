@@ -40,7 +40,7 @@ source "${OLLAMA_CLI_DIR}/config/defaults.sh" 2>/dev/null || true
 source "${OLLAMA_CLI_DIR}/config/messages.sh" 2>/dev/null || true
 ollama::export_config 2>/dev/null || true
 
-for lib in common api models status install; do
+for lib in common api models status install inject; do
     lib_file="${OLLAMA_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -77,6 +77,9 @@ cli::register_command "remove-model" "Remove a model" "ollama_remove_model" "mod
 cli::register_command "chat" "Start interactive chat with a model" "ollama_chat"
 cli::register_command "generate" "Generate text using a model" "ollama_generate"
 cli::register_command "send-prompt" "Send prompt to model" "ollama_generate"
+
+# Register injection command
+cli::register_command "inject" "Inject model requirements from file" "ollama_inject_handler"
 
 ################################################################################
 # Resource-specific command implementations
@@ -271,27 +274,278 @@ ollama_chat() {
 
 # Generate text using a model
 ollama_generate() {
-    local model="${1:-}"
-    local prompt="${2:-}"
+    local model=""
+    local prompt=""
+    local prompt_file=""
+    local use_stdin=false
+    local quiet=false
+    local type="general"
+    local stream=false
+    local format="text"
+    local temperature="0.7"
     
+    # Auto-enable quiet mode in non-TTY environments (automation context)
+    if [[ ! -t 0 ]] || [[ ! -t 1 ]]; then
+        quiet=true
+    fi
+    
+    # Parse arguments properly
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --model)
+                model="$2"
+                shift 2
+                ;;
+            --from-file)
+                prompt_file="$2"
+                shift 2
+                ;;
+            --stdin)
+                use_stdin=true
+                shift
+                ;;
+            --type)
+                type="$2"
+                shift 2
+                ;;
+            --quiet)
+                quiet=true
+                shift
+                ;;
+            --stream)
+                stream=true
+                shift
+                ;;
+            --format)
+                format="$2"
+                shift 2
+                ;;
+            --temperature)
+                temperature="$2"
+                shift 2
+                ;;
+            --*)
+                if [[ "$quiet" == false ]]; then
+                    log::error "Unknown option: $1"
+                fi
+                return 1
+                ;;
+            *)
+                if [[ -z "$model" ]]; then
+                    model="$1"
+                elif [[ -z "$prompt" ]]; then
+                    prompt="$1"
+                else
+                    prompt="$prompt $1"
+                fi
+                shift
+                ;;
+        esac
+    done
+    
+    # Validate inputs
     if [[ -z "$model" ]]; then
-        log::error "Model name required"
-        echo "Usage: resource-ollama generate <model-name> \"<prompt>\""
-        echo "Example: resource-ollama generate llama3.2:3b \"Write a haiku about AI\""
+        if [[ "$quiet" == false ]]; then
+            log::error "Model name required"
+            echo "Usage: resource-ollama generate [OPTIONS] <model-name> [\"<prompt>\"]"
+            echo "       resource-ollama generate --from-file <file> <model-name>"
+            echo "       cat prompt.txt | resource-ollama generate --stdin <model-name>"
+            echo ""
+            echo "Input methods (priority order):"
+            echo "  1. --from-file <file>  Read prompt from file"
+            echo "  2. --stdin             Read prompt from stdin"
+            echo "  3. argument            Use prompt argument"
+            echo ""
+            echo "Example: resource-ollama generate llama3.2:3b \"Write a haiku about AI\""
+        fi
         return 1
     fi
     
-    if [[ -z "$prompt" ]]; then
-        log::error "Prompt required"
-        echo "Usage: resource-ollama generate <model-name> \"<prompt>\""
-        echo "Example: resource-ollama generate llama3.2:3b \"Write a haiku about AI\""
+    # Determine prompt source (priority: file > stdin > argument)
+    if [[ -n "$prompt_file" ]]; then
+        # Priority 1: File-based input
+        if [[ ! -f "$prompt_file" ]]; then
+            if [[ "$quiet" == false ]]; then
+                log::error "Prompt file not found: $prompt_file"
+            fi
+            return 1
+        fi
+        if [[ ! -r "$prompt_file" ]]; then
+            if [[ "$quiet" == false ]]; then
+                log::error "Prompt file not readable: $prompt_file"
+            fi
+            return 1
+        fi
+        prompt=$(cat "$prompt_file")
+        if [[ -z "$prompt" ]]; then
+            if [[ "$quiet" == false ]]; then
+                log::error "Prompt file is empty: $prompt_file"
+            fi
+            return 1
+        fi
+    elif [[ "$use_stdin" == true ]] || [[ -z "$prompt" && ! -t 0 ]]; then
+        # Priority 2: Stdin input (explicit --stdin or auto-detect when no prompt and stdin available)
+        if [[ -t 0 ]]; then
+            if [[ "$quiet" == false ]]; then
+                log::error "No stdin data available"
+            fi
+            return 1
+        fi
+        prompt=$(cat)
+        if [[ -z "$prompt" ]]; then
+            if [[ "$quiet" == false ]]; then
+                log::error "No prompt data received from stdin"
+            fi
+            return 1
+        fi
+    elif [[ -z "$prompt" ]]; then
+        # Priority 3: No prompt argument provided
+        if [[ "$quiet" == false ]]; then
+            log::error "Prompt required (use argument, --from-file, or --stdin)"
+            echo "Usage: resource-ollama generate [OPTIONS] <model-name> [\"<prompt>\"]"
+            echo "       resource-ollama generate --from-file <file> <model-name>"
+            echo "       cat prompt.txt | resource-ollama generate --stdin <model-name>"
+            echo "Example: resource-ollama generate llama3.2:3b \"Write a haiku about AI\""
+        fi
         return 1
     fi
     
-    if command -v ollama &>/dev/null; then
-        ollama run "$model" "$prompt"
+    # Check if Ollama is available
+    if ! command -v ollama &>/dev/null; then
+        if [[ "$quiet" == false ]]; then
+            log::error "Ollama CLI not available"
+        fi
+        return 1
+    fi
+    
+    # Detect if we should use API for clean output
+    local use_api=false
+    if [[ "$quiet" == true ]]; then
+        use_api=true
+    fi
+    
+    # Use API for automation-friendly output
+    if [[ "$use_api" == true ]]; then
+        # Check if Ollama API is accessible
+        local port="${OLLAMA_PORT:-11434}"
+        if ! curl -s --max-time 2 "http://localhost:${port}/api/version" >/dev/null 2>&1; then
+            if [[ "$quiet" == false ]]; then
+                log::error "Ollama API not accessible on port $port"
+            fi
+            return 1
+        fi
+        
+        # Build API payload with proper JSON escaping
+        local api_payload
+        if command -v jq >/dev/null 2>&1; then
+            # Use jq for proper JSON encoding
+            api_payload=$(jq -n \
+                --arg model "$model" \
+                --arg prompt "$prompt" \
+                --argjson stream "$stream" \
+                --arg temperature "$temperature" \
+                '{
+                    model: $model,
+                    prompt: $prompt,
+                    stream: $stream,
+                    options: {
+                        temperature: ($temperature | tonumber),
+                        seed: 101
+                    }
+                }')
+        else
+            # Fallback manual JSON construction (comprehensive escaping)
+            local escaped_prompt="$prompt"
+            # Escape backslashes first (must be done before other escapes)
+            escaped_prompt="${escaped_prompt//\\/\\\\}"
+            # Escape double quotes
+            escaped_prompt="${escaped_prompt//\"/\\\"}"
+            # Escape newlines
+            escaped_prompt="${escaped_prompt//$'\n'/\\n}"
+            # Escape carriage returns
+            escaped_prompt="${escaped_prompt//$'\r'/\\r}"
+            # Escape tabs
+            escaped_prompt="${escaped_prompt//$'\t'/\\t}"
+            # Escape form feeds
+            escaped_prompt="${escaped_prompt//$'\f'/\\f}"
+            # Escape backspaces
+            escaped_prompt="${escaped_prompt//$'\b'/\\b}"
+            api_payload="{\"model\":\"$model\",\"prompt\":\"$escaped_prompt\",\"stream\":$stream,\"options\":{\"temperature\":$temperature,\"seed\":101}}"
+        fi
+        
+        # Make API call
+        local response
+        response=$(curl -s --max-time 120 \
+            -X POST "http://localhost:${port}/api/generate" \
+            -H "Content-Type: application/json" \
+            -d "$api_payload" 2>/dev/null)
+        
+        local curl_exit_code=$?
+        if [[ $curl_exit_code -ne 0 ]]; then
+            if [[ "$quiet" == false ]]; then
+                log::error "Failed to connect to Ollama API (curl exit code: $curl_exit_code)"
+            fi
+            return 1
+        fi
+        
+        # Extract response based on format
+        if [[ "$format" == "json" ]]; then
+            echo "$response"
+        else
+            # Extract just the response text for clean output
+            if command -v jq >/dev/null 2>&1; then
+                local extracted_response
+                extracted_response=$(echo "$response" | jq -r '.response // empty' 2>/dev/null)
+                if [[ -n "$extracted_response" && "$extracted_response" != "null" ]]; then
+                    echo "$extracted_response"
+                else
+                    # Fallback: output raw response if jq extraction fails
+                    echo "$response"
+                fi
+            else
+                # Fallback without jq: try basic extraction
+                echo "$response" | grep -o '"response":"[^"]*"' | sed 's/"response":"//' | sed 's/"$//' || echo "$response"
+            fi
+        fi
+        
+        return 0
     else
-        log::error "Ollama CLI not available"
+        # Interactive mode - use ollama run
+        if [[ "$quiet" == false ]]; then
+            log::info "Starting interactive generation with $model"
+        fi
+        ollama run "$model" "$prompt"
+    fi
+}
+
+# Handle model injection from JSON file
+ollama_inject_handler() {
+    local file="${1:-}"
+    
+    if [[ -z "$file" ]]; then
+        log::error "Injection file required"
+        echo "Usage: resource-ollama inject <file.json>"
+        echo ""
+        echo "Example file format:"
+        echo '{'
+        echo '  "models": ['
+        echo '    {"name": "llama3.2:3b", "alias": "llama-small"},'
+        echo '    {"name": "qwen2.5-coder:7b"}'
+        echo '  ]'
+        echo '}'
+        return 1
+    fi
+    
+    # Handle shared: prefix for scenario files
+    if [[ "$file" == shared:* ]]; then
+        file="${var_VROOLI_ROOT}/${file#shared:}"
+    fi
+    
+    # Call the injection function
+    if command -v ollama::inject &>/dev/null; then
+        ollama::inject "$file"
+    else
+        log::error "Ollama injection function not available"
         return 1
     fi
 }
@@ -346,6 +600,18 @@ ollama_show_help() {
     echo "  resource-ollama chat llama3.2:3b"
     echo "  resource-ollama generate mistral:7b \"Explain quantum computing\""
     echo "  resource-ollama generate codellama:7b \"Write a Python function to sort a list\""
+    echo ""
+    echo "Prompt Input Methods (priority order):"
+    echo "  1. File-based (recommended for complex prompts):"
+    echo "     echo 'Complex prompt with \"quotes\" and newlines' > prompt.txt"
+    echo "     resource-ollama generate --from-file prompt.txt llama3.2:3b"
+    echo ""
+    echo "  2. Stdin (great for automation):"
+    echo "     echo 'Your prompt here' | resource-ollama generate --stdin llama3.2:3b"
+    echo "     cat large_prompt.txt | resource-ollama generate llama3.2:3b"
+    echo ""
+    echo "  3. Command argument (simple prompts):"
+    echo "     resource-ollama generate llama3.2:3b \"Simple prompt text\""
     echo ""
     echo "Popular Models to Try:"
     echo "  • llama3.2:3b      - Fast, general-purpose (3B parameters)"

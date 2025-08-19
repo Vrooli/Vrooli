@@ -3,8 +3,12 @@
 # Eliminates duplicate CLI code and provides consistent command interface
 
 # Source guard to prevent multiple sourcing
+# Clear the source guard if functions are missing (handles function cleanup scenarios)
+if ! declare -F cli::init >/dev/null 2>&1; then
+    unset _CLI_COMMAND_FRAMEWORK_SOURCED 2>/dev/null || true
+fi
 [[ -n "${_CLI_COMMAND_FRAMEWORK_SOURCED:-}" ]] && return 0
-export _CLI_COMMAND_FRAMEWORK_SOURCED=1
+_CLI_COMMAND_FRAMEWORK_SOURCED=1
 
 # Source required utilities
 SCRIPTS_RESOURCES_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -14,10 +18,10 @@ source "${SCRIPTS_RESOURCES_LIB_DIR}/../../lib/utils/var.sh" 2>/dev/null || true
 source "${SCRIPTS_RESOURCES_LIB_DIR}/../../lib/utils/log.sh" 2>/dev/null || true
 
 # Framework state
-declare -A CLI_COMMANDS=()
-declare -A CLI_COMMAND_DESCRIPTIONS=()  
-declare -A CLI_COMMAND_HANDLERS=()
-declare -A CLI_COMMAND_FLAGS=()
+declare -gA CLI_COMMANDS=()
+declare -gA CLI_COMMAND_DESCRIPTIONS=()  
+declare -gA CLI_COMMAND_HANDLERS=()
+declare -gA CLI_COMMAND_FLAGS=()
 declare -g CLI_RESOURCE_NAME=""
 declare -g CLI_RESOURCE_DESCRIPTION=""
 declare -g CLI_DRY_RUN="${DRY_RUN:-false}"
@@ -44,6 +48,7 @@ cli::init() {
     
     log::debug "CLI framework initialized for: $resource_name"
 }
+# Don't export - sourced directly in CLI scripts
 
 #######################################
 # Register a command with the framework
@@ -55,13 +60,15 @@ cli::register_command() {
     local handler="$3"
     local flags="${4:-}"
     
-    CLI_COMMANDS["$cmd"]=1
-    CLI_COMMAND_DESCRIPTIONS["$cmd"]="$desc"
-    CLI_COMMAND_HANDLERS["$cmd"]="$handler"
-    CLI_COMMAND_FLAGS["$cmd"]="$flags"
+    # Use explicit key format to avoid bash associative array issues with set -u
+    CLI_COMMANDS[$cmd]=1
+    CLI_COMMAND_DESCRIPTIONS[$cmd]="$desc"
+    CLI_COMMAND_HANDLERS[$cmd]="$handler"
+    CLI_COMMAND_FLAGS[$cmd]="$flags"
     
     log::debug "Registered command: $cmd -> $handler"
 }
+# Don't export - sourced directly in CLI scripts
 
 #######################################
 # Main command dispatcher - call this from resource CLI
@@ -78,7 +85,7 @@ cli::dispatch() {
     
     # Handle global flags
     while [[ $# -gt 0 ]]; do
-        case "$1" in
+        case "${1:-}" in
             --dry-run)
                 export CLI_DRY_RUN="true"
                 export DRY_RUN="true"
@@ -126,6 +133,7 @@ cli::dispatch() {
         return 1
     fi
 }
+# Don't export - sourced directly in CLI scripts
 
 #######################################
 # Generate and display help output
@@ -298,6 +306,7 @@ cli::is_running() {
         fi
     fi
 }
+# Don't export - sourced directly in CLI scripts
 
 # Get resource configuration value
 cli::get_config() {
@@ -314,6 +323,7 @@ cli::get_config() {
     # Fallback to default
     echo "$default"
 }
+# Don't export - sourced directly in CLI scripts
 
 #######################################
 # Advanced command registration helpers
@@ -356,7 +366,7 @@ cli::register_simple_commands() {
     local -n cmd_map=$1  # Pass associative array by reference
     
     for cmd in "${!cmd_map[@]}"; do
-        local desc="${cmd_map[$cmd]}"
+        local desc="${cmd_map[${cmd}]}"
         cli::register_command "$cmd" "$desc" "cli::_simple_delegator_${cmd}"
     done
 }
@@ -379,10 +389,10 @@ cli::_create_simple_delegator() {
 #######################################
 # Export functions for use by resource CLIs
 #######################################
-export -f cli::init
-export -f cli::register_command
-export -f cli::dispatch
-export -f cli::is_running
-export -f cli::get_config
-export -f cli::register_command_with_validation
-export -f cli::register_simple_commands
+# Note: Exporting functions can cause issues with bash associative arrays
+# when set -u is enabled in sourced scripts. Only export essential functions
+# Don't export - sourced directly in CLI scripts
+# Don't export - sourced directly in CLI scripts
+# Don't export - sourced directly in CLI scripts
+# Don't export - sourced directly in CLI scripts
+# Don't export - sourced directly in CLI scripts

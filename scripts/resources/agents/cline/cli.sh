@@ -8,6 +8,13 @@ CLINE_CLI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$CLINE_CLI_DIR/../../../lib/utils/var.sh"
 source "$CLINE_CLI_DIR/../../../lib/utils/format.sh"
 source "$CLINE_CLI_DIR/lib/common.sh"
+source "$CLINE_CLI_DIR/lib/status.sh"
+source "$CLINE_CLI_DIR/lib/install.sh"
+source "$CLINE_CLI_DIR/lib/start.sh"
+source "$CLINE_CLI_DIR/lib/stop.sh"
+source "$CLINE_CLI_DIR/lib/logs.sh"
+source "$CLINE_CLI_DIR/lib/config.sh"
+source "$CLINE_CLI_DIR/lib/inject.sh"
 
 # Help function
 show_help() {
@@ -41,25 +48,25 @@ main() {
     
     case "$cmd" in
         status)
-            "$CLINE_CLI_DIR/lib/status.sh" "$@"
+            cline::status "$@"
             ;;
         install)
-            "$CLINE_CLI_DIR/lib/install.sh" "$@"
+            cline::install "$@"
             ;;
         start)
-            "$CLINE_CLI_DIR/lib/start.sh" "$@"
+            cline::start "$@"
             ;;
         stop)
-            "$CLINE_CLI_DIR/lib/stop.sh" "$@"
+            cline::stop "$@"
             ;;
         logs)
-            "$CLINE_CLI_DIR/lib/logs.sh" "$@"
+            cline::logs "$@"
             ;;
         config)
-            "$CLINE_CLI_DIR/lib/config.sh" "$@"
+            cline::config "$@"
             ;;
         inject)
-            "$CLINE_CLI_DIR/lib/inject.sh" "$@"
+            cline::inject "$@"
             ;;
         help)
             show_help

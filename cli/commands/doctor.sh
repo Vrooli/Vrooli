@@ -107,7 +107,7 @@ main() {
 	done
 	
 	# API port
-	local api_port="${VROOLI_API_PORT:-8090}"
+	local api_port="${VROOLI_API_PORT:-8092}"
 	local port_status
 	port_status=$(check_port_free "$api_port")
 	local pstat="${port_status#*:}"

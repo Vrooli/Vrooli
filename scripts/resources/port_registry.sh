@@ -41,6 +41,7 @@ declare -g -A RESOURCE_PORTS=(
     ["judge0"]="2358"          # Code execution sandbox (official Judge0 port)
     ["llamaindex"]="8091"      # RAG and document processing
     ["autogen-studio"]="8081"  # Multi-agent conversation framework
+    ["pandas-ai"]="8095"       # AI-powered data analysis and manipulation
     
     # Future services can use:
     # - 11xxx for AI services

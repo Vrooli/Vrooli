@@ -135,7 +135,7 @@ update_summary_files() {
 			{
 				printf "Summarize this task metrics in 5-10 lines. Be concise.\nJSON:\n"; cat "$SUMMARY_JSON"
 			} > "$p"
-			if OUT=$(resource-ollama generate "$OLLAMA_SUMMARY_MODEL" "$(cat "$p")" 2>/dev/null); then
+			if OUT=$(resource-ollama generate --from-file "$p" "$OLLAMA_SUMMARY_MODEL" 2>/dev/null); then
 				printf '%s\n' "$OUT" > "$SUMMARY_TXT"
 			fi
 			rm -f "$p"

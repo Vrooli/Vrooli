@@ -12,7 +12,7 @@
 set -euo pipefail
 
 # API configuration
-API_PORT="${VROOLI_API_PORT:-8090}"
+API_PORT="${VROOLI_API_PORT:-8092}"
 API_BASE="http://localhost:${API_PORT}"
 
 # Get CLI directory

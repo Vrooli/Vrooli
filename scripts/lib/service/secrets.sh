@@ -53,8 +53,17 @@ secrets::resolve() {
     local vault_path="${2:-vrooli}"
     local vault_manager="${var_SCRIPTS_RESOURCES_DIR:-$(secrets::get_project_root)/scripts/resources}/storage/vault/manage.sh"
     
-    # Layer 1: Vault (if available and healthy)
-    if [[ -x "$vault_manager" ]]; then
+    # Layer 1: Vault (if available and healthy) - with lightweight caching
+    # Cache vault manager existence check to avoid repeated filesystem checks
+    if [[ -z "${VAULT_MANAGER_EXISTS_CACHE:-}" ]]; then
+        if [[ -x "$vault_manager" ]]; then
+            VAULT_MANAGER_EXISTS_CACHE="true"
+        else
+            VAULT_MANAGER_EXISTS_CACHE="false"
+        fi
+    fi
+    
+    if [[ "$VAULT_MANAGER_EXISTS_CACHE" == "true" ]]; then
         local vault_secret
         if vault_secret=$("$vault_manager" --action get-secret --path "$vault_path" --key "$key" --format raw 2>/dev/null); then
             if [[ -n "$vault_secret" ]]; then
@@ -944,27 +953,43 @@ secrets::substitute_uppercase_secrets() {
     
     local output="$input"
     
-    # Only match {{UPPERCASE_WITH_UNDERSCORES}} patterns
-    # This regex matches: {{ followed by uppercase letter, then any number of uppercase/digits/underscores, then }}
-    while [[ "$output" =~ \{\{([A-Z][A-Z0-9_]*)\}\} ]]; do
-        local full_pattern="${BASH_REMATCH[0]}"
-        local secret_name="${BASH_REMATCH[1]}"
+    # Batch processing: collect all unique secret names first
+    local secret_patterns=()
+    mapfile -t secret_patterns < <(echo "$input" | grep -o '{{[A-Z][A-Z0-9_]*}}' | sort -u || true)
+    
+    # Early return if no patterns found
+    if [[ ${#secret_patterns[@]} -eq 0 ]]; then
+        echo "$output"
+        return 0
+    fi
+    
+    # Batch resolve all secrets into cache
+    declare -A secret_cache
+    for pattern in "${secret_patterns[@]}"; do
+        local secret_name="${pattern#\{\{}"
+        secret_name="${secret_name%\}\}}"
         
-        # Try to resolve the secret
+        # Resolve secret once and cache result
         local secret_value
-        secret_value=$(secrets::resolve "$secret_name" 2>/dev/null || echo "")
+        secret_value=$(secrets::resolve "$secret_name" 2>/dev/null || echo "__NOT_FOUND__")
+        secret_cache["$pattern"]="$secret_value"
+    done
+    
+    # Perform all substitutions using cached values
+    for pattern in "${secret_patterns[@]}"; do
+        local secret_value="${secret_cache[$pattern]}"
         
-        if [[ -n "$secret_value" ]]; then
+        if [[ -n "$secret_value" && "$secret_value" != "__NOT_FOUND__" ]]; then
             # Escape special characters for safe substitution
             secret_value=$(echo "$secret_value" | sed 's/[[\.*^$()+?{|]/\\&/g')
-            output="${output//$full_pattern/$secret_value}"
+            output="${output//$pattern/$secret_value}"
         else
             # Log warning but keep the placeholder
+            local secret_name="${pattern#\{\{}"
+            secret_name="${secret_name%\}\}}"
             if command -v log::debug >/dev/null 2>&1; then
                 log::debug "Uppercase secret not found: $secret_name"
             fi
-            # Move past this match to avoid infinite loop
-            break
         fi
     done
     

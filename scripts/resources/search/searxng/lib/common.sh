@@ -332,42 +332,34 @@ searxng::ensure_data_dir() {
         fi
     fi
     
-    # Fix Docker volume permissions if setup was run with sudo
-    # Note: docker::fix_volume_permissions function not available, using inline logic
-    log::info "Handling Docker volume permissions..."
+    # Fix Docker volume permissions
+    log::info "Setting up Docker volume permissions..."
     
     if [[ -d "$SEARXNG_DATA_DIR" ]]; then
-        # Set ownership for SearXNG container
-        # SearXNG runs as user 977:977 inside the container and needs to write config files
-        log::info "Setting ownership for SearXNG container access (uid:gid 977:977)..."
+        # SearXNG runs as user 977:977 inside the container
+        # Instead of changing ownership, make directory accessible to both host user and container
         
-        # First try to change ownership to SearXNG user (977:977)
-        # Note: This is for Docker container compatibility, not regular user ownership
-        if sudo::is_running_as_sudo && [[ "$SEARXNG_DATA_DIR" == "${HOME}/"* || "$SEARXNG_DATA_DIR" == "/home/"* ]]; then
-            # If running under sudo and in user directory, set ownership to actual user first
-            sudo::restore_owner "$SEARXNG_DATA_DIR" -R
-            # Then set container permissions
-            if sudo::exec_with_fallback "chown -R 977:977 '$SEARXNG_DATA_DIR'" 2>/dev/null; then
-                log::success "✅ Changed ownership to SearXNG user (977:977)"
+        # Ensure current user owns the directory for host operations
+        if [[ -O "$SEARXNG_DATA_DIR" ]]; then
+            log::success "✅ Directory already owned by current user"
+        else
+            log::info "Attempting to claim ownership of directory..."
+            # Try to change ownership to current user - if this fails, we'll use permission fallback
+            if chown -R "$(id -u):$(id -g)" "$SEARXNG_DATA_DIR" 2>/dev/null; then
+                log::success "✅ Changed ownership to current user"
+            else
+                log::warn "Could not change ownership - will use permission fallback"
             fi
-        elif chown -R 977:977 "$SEARXNG_DATA_DIR" 2>/dev/null; then
-            log::success "✅ Changed ownership to SearXNG user (977:977)"
         fi
         
-        # Set appropriate permissions for SearXNG container
-        if ! chmod -R 755 "$SEARXNG_DATA_DIR" 2>/dev/null; then
-            log::warn "Could not set directory permissions to 755"
-        fi
-        
-        # If ownership change failed, use fallback permissions
-        if [[ ! -O "$SEARXNG_DATA_DIR" ]]; then
-            log::warn "Could not change ownership to SearXNG user, using fallback permissions"
-            # Fallback: make directory world-writable so container can access it
-            if ! chmod -R 777 "$SEARXNG_DATA_DIR" 2>/dev/null; then
-                log::warn "Permission setting failed - SearXNG may have issues accessing config files"
-                # Don't fail here - Docker containers often handle permissions internally
-                log::info "Continuing installation despite permission warnings..."
-            fi
+        # Set permissions to allow both host user and container to read/write
+        # Use 777 permissions to ensure container can write regardless of ownership
+        if chmod -R 777 "$SEARXNG_DATA_DIR" 2>/dev/null; then
+            log::success "✅ Set directory permissions for container access"
+        else
+            log::warn "Could not set full permissions - SearXNG may have issues"
+            # Try at least to make it readable
+            chmod -R 755 "$SEARXNG_DATA_DIR" 2>/dev/null || true
         fi
         
         return 0
