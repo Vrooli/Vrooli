@@ -29,6 +29,14 @@
       "executable": true
     },
     {
+      "name": "port-registry",
+      "source": "scripts/resources/port_registry.sh",
+      "destination": "scripts/resources/port_registry.sh",
+      "type": "file",
+      "from": "vrooli",
+      "required": true
+    },
+    {
       "name": "gitignore",
       "source": ".gitignore",
       "destination": ".gitignore",

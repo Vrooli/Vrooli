@@ -151,30 +151,42 @@ setup::generic_main() {
         log::info "Checking system clock..."
         clock::fix
         
-        # Run network diagnostics with automatic fixes
-        log::info "Running comprehensive network diagnostics..."
-        if ! network_diagnostics::run; then
-            log::warning "Network diagnostic tests failed - attempting automatic fixes..."
-            
-            # Try to fix common network issues
-            network_diagnostics_fixes::fix_ipv6_issues || true
-            network_diagnostics_fixes::fix_ipv4_only_issues || true
-            network_diagnostics_fixes::fix_dns_issues || true
-            network_diagnostics_fixes::fix_ufw_blocking || true
-            
-            # Re-run diagnostics to verify fixes
-            log::info "Re-running diagnostics to verify fixes..."
-            if network_diagnostics::run; then
-                log::success "✅ Network issues resolved by automatic fixes"
+        # Run network diagnostics with fast mode support
+        if [[ "${FAST_MODE:-false}" == "true" ]]; then
+            log::info "Fast mode: Running basic connectivity check..."
+            # Just do basic connectivity check for fast mode
+            if ping -c 1 -W 2 8.8.8.8 >/dev/null 2>&1; then
+                log::success "✅ Basic connectivity verified"
             else
-                log::warning "Some network issues remain - continuing with setup..."
+                log::warning "No internet connectivity detected, proceeding anyway"
             fi
         else
-            log::success "✅ All network diagnostics passed"
+            log::info "Running comprehensive network diagnostics..."
+            if ! network_diagnostics::run; then
+                log::warning "Network diagnostic tests failed - attempting automatic fixes..."
+                
+                # Try to fix common network issues
+                network_diagnostics_fixes::fix_ipv6_issues || true
+                network_diagnostics_fixes::fix_ipv4_only_issues || true
+                network_diagnostics_fixes::fix_dns_issues || true
+                network_diagnostics_fixes::fix_ufw_blocking || true
+                
+                # Re-run diagnostics to verify fixes
+                log::info "Re-running diagnostics to verify fixes..."
+                if network_diagnostics::run; then
+                    log::success "✅ Network issues resolved by automatic fixes"
+                else
+                    log::warning "Some network issues remain - continuing with setup..."
+                fi
+            else
+                log::success "✅ All network diagnostics passed"
+            fi
         fi
         
-        # Setup firewall early for network connectivity
-        if flow::can_run_sudo "firewall setup" 2>/dev/null; then
+        # Setup firewall early for network connectivity  
+        if [[ "${FAST_MODE:-false}" == "true" ]]; then
+            log::info "Fast mode: Skipping firewall setup"
+        elif flow::can_run_sudo "firewall setup" 2>/dev/null; then
             log::info "Setting up firewall..."
             firewall::setup "$environment"
         else

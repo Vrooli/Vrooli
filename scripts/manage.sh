@@ -25,6 +25,208 @@ source "$MAIN_SCRIPT_DIR/lib/service/secrets.sh" 2>/dev/null || true
 source "$MAIN_SCRIPT_DIR/lib/process-manager.sh" 2>/dev/null || true
 
 #######################################
+# Setup State Management Infrastructure
+# Provides git-aware setup tracking and fast mode support
+#######################################
+
+#######################################
+# Get current git commit hash
+#######################################
+manage::get_git_commit() {
+    git rev-parse HEAD 2>/dev/null || echo "no-git"
+}
+
+#######################################
+# Get hash of current git working tree status
+# Includes tracked file modifications and untracked files
+#######################################
+manage::get_git_status_hash() {
+    if ! git status --porcelain 2>/dev/null >/dev/null; then
+        echo "no-git"
+        return 0
+    fi
+    
+    # Create hash from git status and untracked files
+    (git status --porcelain 2>/dev/null | sort; \
+     git ls-files --others --exclude-standard 2>/dev/null | sort) | \
+    sha256sum | cut -d' ' -f1
+}
+
+#######################################
+# Check if setup artifacts exist and are valid
+#######################################
+manage::verify_setup_artifacts() {
+    # Check for common build artifacts based on project structure
+    local artifacts_missing=false
+    
+    # Check Go binary if Go project exists
+    if [[ -f "api/go.mod" ]]; then
+        local binary_name
+        binary_name=$(basename "$PWD")
+        if [[ ! -f "api/${binary_name}-api" ]] && [[ ! -f "api/${binary_name}" ]]; then
+            log::debug "Go binary missing for ${binary_name}"
+            artifacts_missing=true
+        fi
+    fi
+    
+    # Check Node.js dependencies if package.json exists
+    if [[ -f "ui/package.json" ]] && [[ ! -d "ui/node_modules" ]]; then
+        log::debug "Node.js dependencies missing in ui/"
+        artifacts_missing=true
+    fi
+    
+    # Return false if any artifacts missing
+    if [[ "$artifacts_missing" == "true" ]]; then
+        return 1
+    fi
+    
+    return 0
+}
+
+#######################################
+# Check if app needs setup based on git state and artifacts
+#######################################
+manage::needs_setup() {
+    local state_file="data/.setup-state"
+    
+    # Ensure data directory exists
+    mkdir -p "$(dirname "$state_file")"
+    
+    # No state file = needs setup
+    if [[ ! -f "$state_file" ]]; then
+        log::debug "No setup state file found, setup needed"
+        return 0
+    fi
+    
+    # Validate state file is proper JSON
+    if ! jq empty "$state_file" 2>/dev/null; then
+        log::debug "Corrupted setup state file, setup needed"
+        rm -f "$state_file"
+        return 0
+    fi
+    
+    # Get current git state
+    local current_commit current_status
+    current_commit=$(manage::get_git_commit)
+    current_status=$(manage::get_git_status_hash)
+    
+    # Get recorded state
+    local recorded_commit recorded_status
+    recorded_commit=$(jq -r '.git_commit // empty' "$state_file" 2>/dev/null || echo "")
+    recorded_status=$(jq -r '.git_status_hash // empty' "$state_file" 2>/dev/null || echo "")
+    
+    # If git state changed, needs setup
+    if [[ "$current_commit" != "$recorded_commit" ]]; then
+        log::debug "Git commit changed (${recorded_commit} -> ${current_commit}), setup needed"
+        return 0
+    fi
+    
+    if [[ "$current_status" != "$recorded_status" ]]; then
+        log::debug "Working tree status changed, setup needed"
+        return 0
+    fi
+    
+    # Verify critical artifacts still exist
+    if ! manage::verify_setup_artifacts; then
+        log::debug "Setup artifacts missing or invalid, setup needed"
+        return 0
+    fi
+    
+    log::debug "Setup state is current"
+    return 1  # No setup needed
+}
+
+#######################################
+# Get completed setup steps from service.json for state tracking
+#######################################
+manage::get_setup_steps_list() {
+    local steps
+    steps=$(json::get_value ".lifecycle.setup.steps" "[]" 2>/dev/null || echo "[]")
+    
+    if [[ "$steps" == "[]" ]]; then
+        echo "[]"
+        return 0
+    fi
+    
+    echo "$steps" | jq -c '[.[].name // "unnamed"]' 2>/dev/null || echo "[]"
+}
+
+#######################################
+# Mark setup as complete with current git state
+#######################################
+manage::mark_setup_complete() {
+    local state_file="data/.setup-state"
+    mkdir -p "$(dirname "$state_file")"
+    
+    local current_commit current_status setup_steps
+    current_commit=$(manage::get_git_commit)
+    current_status=$(manage::get_git_status_hash)
+    setup_steps=$(manage::get_setup_steps_list)
+    
+    cat > "$state_file" << EOF
+{
+  "setup_version": "1.0.0",
+  "git_commit": "$current_commit",
+  "git_status_hash": "$current_status",
+  "setup_completed_at": "$(date -Iseconds)",
+  "setup_steps_completed": $setup_steps
+}
+EOF
+    
+    log::debug "Setup state marked as complete"
+}
+
+#######################################
+# Enhanced develop lifecycle with conditional setup
+#######################################
+manage::develop_with_auto_setup() {
+    local phase="$1"
+    shift
+    
+    # Parse fast mode flag
+    # When running within Vrooli context (vrooli develop), fast mode is always enabled
+    # for generated apps since the main Vrooli setup handles system-level checks.
+    # Individual app runs (vrooli app start) use normal mode for thorough standalone setup.
+    local fast_mode=false
+    for arg in "$@"; do
+        [[ "$arg" == "--fast" ]] && fast_mode=true
+    done
+    
+    # Export fast mode for child processes
+    export FAST_MODE="$fast_mode"
+    
+    log::info "Starting develop lifecycle for $(basename "$PWD")"
+    
+    # Check if setup is needed
+    if manage::needs_setup; then
+        log::info "App requires setup (code changes detected or first run)"
+        
+        # Determine setup mode
+        if [[ "$fast_mode" == "true" ]]; then
+            log::info "Running setup in fast mode..."
+        else
+            log::info "Running setup..."
+        fi
+        
+        # Run setup phase with original arguments
+        manage::execute_phase "setup" "$@" || {
+            log::error "Setup failed, cannot start develop mode"
+            return 1
+        }
+        
+        # Mark setup as complete
+        manage::mark_setup_complete
+        log::success "Setup completed, proceeding with develop"
+    else
+        log::info "Setup is current, proceeding directly to develop"
+    fi
+    
+    # Now run the actual develop phase
+    log::info "Starting develop phase..."
+    manage::execute_phase "$phase" "$@"
+}
+
+#######################################
 # Execute lifecycle phase
 # Simple function that runs steps from service.json
 #######################################
@@ -45,6 +247,7 @@ manage::execute_phase() {
             --target=*) export TARGET="${arg#*=}" ;;
             --environment=*) export ENVIRONMENT="${arg#*=}" ;;
             --dry-run) export DRY_RUN="true" ;;
+            --fast) export FAST_MODE="true" ;;
             *) ;; # Other args available via $@
         esac
     done
@@ -405,7 +608,12 @@ manage::main() {
         log::info "[DRY RUN] Executing phase '$phase'..." || \
         log::info "Executing phase '$phase'..."
     
-    manage::execute_phase "$phase" "$@"
+    # Route develop phase through auto-setup logic
+    if [[ "$phase" == "develop" ]]; then
+        manage::develop_with_auto_setup "$phase" "$@"
+    else
+        manage::execute_phase "$phase" "$@"
+    fi
 }
 
 # Execute

@@ -70,6 +70,7 @@ check_api() {
 # Get resource status using its CLI
 get_resource_status() {
     local resource_name="$1"
+    local use_fast="${2:-false}"
     local cli_command="resource-${resource_name}"
     
     # Check if CLI exists
@@ -78,15 +79,22 @@ get_resource_status() {
         return 1
     fi
     
-    # Get status from resource CLI
+    # Get status from resource CLI (pass --fast flag if requested)
     local status_output
-    if status_output=$("$cli_command" status --format json 2>/dev/null); then
+    local fast_flag=""
+    if [[ "$use_fast" == "true" ]]; then
+        fast_flag="--fast"
+    fi
+    if status_output=$("$cli_command" status --format json $fast_flag 2>/dev/null); then
         # Parse JSON to get running and healthy status
-        local running healthy
+        # Some resources use 'healthy', others use 'health' 
+        local running healthy health
         running=$(echo "$status_output" | jq -r '.running // false' 2>/dev/null)
         healthy=$(echo "$status_output" | jq -r '.healthy // false' 2>/dev/null)
+        health=$(echo "$status_output" | jq -r '.health // ""' 2>/dev/null)
         
-        if [[ "$running" == "true" && "$healthy" == "true" ]]; then
+        # Check both 'healthy' field and 'health' field
+        if [[ "$running" == "true" ]] && ([[ "$healthy" == "true" ]] || [[ "$health" == "healthy" ]]); then
             echo "healthy"
         elif [[ "$running" == "true" ]]; then
             echo "running"
@@ -100,7 +108,26 @@ get_resource_status() {
     fi
 }
 
-# Collect resource data (format-agnostic)
+# Helper function to check a single resource status with timing
+check_resource_with_timing() {
+    local name="$1"
+    local result_file="$2"
+    
+    local start_time end_time duration_ms
+    start_time=$(date +%s%3N)  # milliseconds
+    
+    # Get resource status with --fast flag for parallel execution
+    local resource_status
+    resource_status=$(get_resource_status "${name}" "true")
+    
+    end_time=$(date +%s%3N)
+    duration_ms=$((end_time - start_time))
+    
+    # Write result to file
+    echo "${name}:${resource_status}:${duration_ms}" >> "$result_file"
+}
+
+# Collect resource data (format-agnostic) - PARALLEL VERSION
 collect_resource_data() {
     local verbose="${1:-false}"
     
@@ -110,12 +137,18 @@ collect_resource_data() {
         return
     fi
     
-    # Get enabled resources
-    local enabled_count=0
-    local running_count=0
-    local healthy_count=0
+    # Create temporary directory for parallel execution results
+    local temp_dir
+    temp_dir=$(mktemp -d)
+    local result_file="${temp_dir}/results"
     
-    # Parse resources from config
+    # Cleanup function
+    cleanup_temp() {
+        [[ -n "${temp_dir:-}" ]] && rm -rf "$temp_dir" 2>/dev/null || true
+    }
+    trap cleanup_temp EXIT
+    
+    # Parse resources from config and launch parallel checks
     local jq_query='
         .resources | to_entries[] | 
         .value | to_entries[] | 
@@ -123,15 +156,34 @@ collect_resource_data() {
         "\(.key)"
     '
     
+    local -a pids=()
+    local enabled_count=0
+    
+    # Launch all status checks in parallel
     while IFS= read -r line; do
         if [[ -n "$line" ]]; then
             local name="$line"
+            ((enabled_count++))
             
-            # Check resource status using its CLI
-            local resource_status
-            resource_status=$(get_resource_status "${name}")
-            
-            case "$resource_status" in
+            # Launch background process
+            check_resource_with_timing "$name" "$result_file" &
+            pids+=($!)
+        fi
+    done < <(jq -r "$jq_query" "$RESOURCES_CONFIG" 2>/dev/null || true)
+    
+    # Wait for all background processes to complete
+    for pid in "${pids[@]}"; do
+        wait "$pid" 2>/dev/null || true
+    done
+    
+    # Process results
+    local running_count=0
+    local healthy_count=0
+    local -a timing_data=()
+    
+    if [[ -f "$result_file" ]]; then
+        while IFS=: read -r name status duration_ms; do
+            case "$status" in
                 "healthy")
                     ((running_count++))
                     ((healthy_count++))
@@ -143,13 +195,33 @@ collect_resource_data() {
                     # Not running
                     ;;
             esac
-            ((enabled_count++))
+            
+            # Store timing data for later analysis
+            timing_data+=("${duration_ms}:${name}:${status}")
             
             if [[ "$verbose" == "true" ]]; then
-                echo "resource:${name}:${resource_status}"
+                echo "resource:${name}:${status}"
             fi
-        fi
-    done < <(jq -r "$jq_query" "$RESOURCES_CONFIG" 2>/dev/null || true)
+        done < "$result_file"
+    fi
+    
+    # Display timing information for verbose mode
+    if [[ "$verbose" == "true" && ${#timing_data[@]} -gt 0 ]]; then
+        # Sort by duration (descending) and show top 5
+        local -a sorted_timings
+        mapfile -t sorted_timings < <(printf '%s\n' "${timing_data[@]}" | sort -nr)
+        
+        echo "timing:header"
+        local count=0
+        for timing in "${sorted_timings[@]}"; do
+            if [[ $count -ge 5 ]]; then
+                break
+            fi
+            IFS=: read -r duration_ms name status <<< "$timing"
+            echo "timing:${name}:${duration_ms}ms:${status}"
+            ((count++))
+        done
+    fi
     
     # Always output summary
     echo "enabled:${enabled_count}"
@@ -190,6 +262,9 @@ get_resource_data() {
         while IFS= read -r line; do
             if [[ "$line" =~ ^resource:(.+):(.+)$ ]]; then
                 echo "item:${BASH_REMATCH[1]}:${BASH_REMATCH[2]}"
+            elif [[ "$line" =~ ^timing:(.*)$ ]]; then
+                # Pass through timing information
+                echo "$line"
             fi
         done <<< "$raw_data"
     else
@@ -455,7 +530,28 @@ format_component_data() {
                     fi
                 done <<< "$raw_data"
                 details_json="${details_json}]"
-                format::json_object "enabled" "$enabled" "running" "$running" "healthy" "$healthy" "details" "$details_json"
+                
+                # Add timing information if present
+                local timing_json=""
+                if echo "$raw_data" | grep -q "^timing:header"; then
+                    timing_json="["
+                    local timing_first=true
+                    while IFS= read -r line; do
+                        if [[ "$line" =~ ^timing:(.+):(.+):(.+)$ ]]; then
+                            [[ "$timing_first" == "true" ]] && timing_first=false || timing_json="${timing_json},"
+                            local name="${BASH_REMATCH[1]}"
+                            local duration="${BASH_REMATCH[2]}"
+                            local status="${BASH_REMATCH[3]}"
+                            # Remove 'ms' suffix from duration for JSON (store as number)
+                            local duration_num="${duration%ms}"
+                            timing_json="${timing_json}{\"name\":\"$name\",\"duration_ms\":$duration_num,\"status\":\"$status\"}"
+                        fi
+                    done <<< "$raw_data"
+                    timing_json="${timing_json}]"
+                    format::json_object "enabled" "$enabled" "running" "$running" "healthy" "$healthy" "details" "$details_json" "timing" "$timing_json"
+                else
+                    format::json_object "enabled" "$enabled" "running" "$running" "healthy" "$healthy" "details" "$details_json"
+                fi
             else
                 format::key_value json enabled "$enabled" running "$running" healthy "$healthy"
             fi
@@ -506,6 +602,25 @@ format_component_data() {
                 local header_name="Resource"
                 [[ "$component" == "apps" ]] && header_name="App"
                 format::table "$format" "$header_name" "Status" "" -- "${table_rows[@]}"
+            fi
+            
+            # Display timing information if present
+            if echo "$raw_data" | grep -q "^timing:header"; then
+                echo ""
+                echo "⏱️  Slowest Response Times:"
+                local timing_rows=()
+                while IFS= read -r line; do
+                    if [[ "$line" =~ ^timing:(.+):(.+):(.+)$ ]]; then
+                        local name="${BASH_REMATCH[1]}"
+                        local duration="${BASH_REMATCH[2]}"
+                        local status="${BASH_REMATCH[3]}"
+                        timing_rows+=("${name}:${duration}:${status}")
+                    fi
+                done <<< "$raw_data"
+                
+                if [[ ${#timing_rows[@]} -gt 0 ]]; then
+                    format::table "$format" "Resource" "Duration" "Status" -- "${timing_rows[@]}"
+                fi
             fi
         fi
     fi

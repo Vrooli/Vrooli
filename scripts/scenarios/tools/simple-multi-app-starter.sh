@@ -23,6 +23,10 @@ GENERATED_APPS_DIR="${GENERATED_APPS_DIR:-$HOME/generated-apps}"
 PORT_START="${VROOLI_DEV_PORT_START:-3001}"
 MAX_APPS="${VROOLI_DEV_MAX_APPS:-10}"
 VERBOSE=false
+# Fast mode is always enabled when running within Vrooli context
+# The main Vrooli setup handles network diagnostics, firewall, etc.
+# Generated apps include these scripts for standalone deployment but skip them when orchestrated
+FAST_MODE="${FAST_MODE:-true}"
 
 # Colors
 RED='\033[0;31m'
@@ -36,6 +40,7 @@ NC='\033[0m'
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --verbose) VERBOSE=true ;;
+        --fast) FAST_MODE=true ;;
         --port-start) PORT_START="$2"; shift ;;
         --max-apps) MAX_APPS="$2"; shift ;;
         *) break ;;
@@ -165,8 +170,12 @@ start_app() {
     log_info "Starting app: $app_name"
     
     # Use the vrooli app start command with increased timeout and capture logs
+    # Build command with fast mode flag if enabled
+    local start_cmd=("$VROOLI_ROOT/cli/vrooli" app start "$app_name")
+    [[ "$FAST_MODE" == "true" ]] && start_cmd+=(--fast)
+    
     # First attempt with 30 second timeout
-    if timeout 30s "$VROOLI_ROOT/cli/vrooli" app start "$app_name" >"$log_file" 2>&1; then
+    if timeout 30s "${start_cmd[@]}" >"$log_file" 2>&1; then
         # Verify it's actually running
         if verify_app_running "$app_name"; then
             log_success "Started $app_name"
@@ -181,7 +190,11 @@ start_app() {
     # Retry once if failed
     log_info "Retrying start for $app_name..."
     sleep 2
-    if timeout 30s "$VROOLI_ROOT/cli/vrooli" app start "$app_name" --skip-setup >>"$log_file" 2>&1; then
+    # Build retry command with fast mode and skip-setup flags
+    local retry_cmd=("$VROOLI_ROOT/cli/vrooli" app start "$app_name" --skip-setup)
+    [[ "$FAST_MODE" == "true" ]] && retry_cmd+=(--fast)
+    
+    if timeout 30s "${retry_cmd[@]}" >>"$log_file" 2>&1; then
         if verify_app_running "$app_name"; then
             log_success "Started $app_name (on retry)"
             PORT_START=$((PORT_START + 1))
