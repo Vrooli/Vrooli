@@ -6,9 +6,12 @@
 # LOCAL RESOURCE SERVICES - CAREFULLY CHOSEN TO AVOID CONFLICTS
 # ============================================================================
 declare -g -A RESOURCE_PORTS=(
+    # Core Services
+    ["vrooli-api"]="8092"      # Vrooli Unified API (was 8090, moved due to Whisper conflict)
+    
     # AI Services (11xxx range)
     ["ollama"]="11434"         # LLM inference engine
-    ["whisper"]="8090"         # Speech-to-text service
+    ["whisper"]="8090"         # Speech-to-text service (keeping original port)
     ["unstructured-io"]="11450" # Document processing and extraction
     
     # Automation Services (56xx range)
@@ -37,6 +40,7 @@ declare -g -A RESOURCE_PORTS=(
     # Execution Services (23xx range)
     ["judge0"]="2358"          # Code execution sandbox (official Judge0 port)
     ["llamaindex"]="8091"      # RAG and document processing
+    ["autogen-studio"]="8081"  # Multi-agent conversation framework
     
     # Future services can use:
     # - 11xxx for AI services

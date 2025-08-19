@@ -3,7 +3,14 @@
 # LlamaIndex CLI Interface
 # Direct wrapper for LlamaIndex resource management
 
-LLAMAINDEX_CLI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Resolve symlinks to get the actual script directory
+LLAMAINDEX_CLI_SCRIPT="${BASH_SOURCE[0]}"
+while [[ -L "$LLAMAINDEX_CLI_SCRIPT" ]]; do
+    LLAMAINDEX_CLI_DIR="$(cd "$(dirname "$LLAMAINDEX_CLI_SCRIPT")" && pwd)"
+    LLAMAINDEX_CLI_SCRIPT="$(readlink "$LLAMAINDEX_CLI_SCRIPT")"
+    [[ "$LLAMAINDEX_CLI_SCRIPT" != /* ]] && LLAMAINDEX_CLI_SCRIPT="$LLAMAINDEX_CLI_DIR/$LLAMAINDEX_CLI_SCRIPT"
+done
+LLAMAINDEX_CLI_DIR="$(cd "$(dirname "$LLAMAINDEX_CLI_SCRIPT")" && pwd)"
 LLAMAINDEX_LIB_DIR="$LLAMAINDEX_CLI_DIR/lib"
 
 # Source core functions

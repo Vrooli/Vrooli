@@ -28,6 +28,17 @@ export CLINE_OLLAMA_BASE_URL="${CLINE_OLLAMA_BASE_URL:-http://localhost:11434}"
 # Extension settings path (for VS Code)
 export VSCODE_SETTINGS="${HOME}/.config/Code/User/settings.json"
 
+# Message constants
+export MSG_CLINE_NO_VSCODE="VS Code is not installed"
+export MSG_CLINE_ALREADY_INSTALLED="Cline extension is already installed"
+export MSG_CLINE_INSTALLING="Installing Cline VS Code extension..."
+export MSG_CLINE_INSTALL_FAILED="Failed to install Cline extension"
+export MSG_CLINE_INSTALLED="Cline extension installed successfully"
+export MSG_CLINE_CONFIGURING="Configuring Cline extension..."
+export MSG_CLINE_NO_API_KEY="No API key found"
+export MSG_CLINE_CONFIGURED="Cline configured successfully"
+export MSG_CLINE_UNINSTALLING="Uninstalling Cline extension..."
+
 # Create directories if needed
 cline::ensure_dirs() {
     mkdir -p "$CLINE_CONFIG_DIR"

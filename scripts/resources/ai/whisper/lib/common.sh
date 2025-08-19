@@ -151,11 +151,13 @@ whisper::wait_for_health() {
 #######################################
 whisper::is_healthy() {
     local response
-    response=$(curl -s -o /dev/null -w "%{http_code}" \
-        --max-time "$WHISPER_API_TIMEOUT" \
-        "$WHISPER_BASE_URL/health" 2>/dev/null)
+    # Try the ASR endpoint with a POST request to check if service is up
+    response=$(curl -s -X POST "$WHISPER_BASE_URL/asr" \
+        -H "Content-Type: application/json" \
+        -d '{"test":"health"}' \
+        --max-time "$WHISPER_API_TIMEOUT" 2>/dev/null | grep -c "field required" 2>/dev/null || echo "0")
     
-    [[ "$response" == "200" ]]
+    [[ "$response" == "1" ]]
 }
 
 #######################################

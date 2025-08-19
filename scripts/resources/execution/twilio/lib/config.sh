@@ -38,8 +38,7 @@ show_config() {
     fi
 }
 
-main() {
+twilio::config() {
     show_config "$@"
 }
 
-main "$@"

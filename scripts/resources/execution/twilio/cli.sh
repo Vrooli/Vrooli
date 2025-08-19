@@ -7,7 +7,13 @@ TWILIO_CLI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Source utilities
 source "$TWILIO_CLI_DIR/../../../lib/utils/var.sh"
 source "$TWILIO_CLI_DIR/../../../lib/utils/format.sh"
+source "$TWILIO_CLI_DIR/../../../lib/utils/log.sh"
 source "$TWILIO_CLI_DIR/lib/common.sh"
+
+# Source all lib functions
+for lib_file in "$TWILIO_CLI_DIR"/lib/*.sh; do
+    [[ -f "$lib_file" ]] && source "$lib_file"
+done
 
 # Help function
 show_help() {
@@ -43,31 +49,31 @@ main() {
     
     case "$cmd" in
         status)
-            "$TWILIO_CLI_DIR/lib/status.sh" "$@"
+            check_status "$@"
             ;;
         install)
-            "$TWILIO_CLI_DIR/lib/install.sh" "$@"
+            twilio::install "$@"
             ;;
         start)
-            "$TWILIO_CLI_DIR/lib/start.sh" "$@"
+            twilio::start "$@"
             ;;
         stop)
-            "$TWILIO_CLI_DIR/lib/stop.sh" "$@"
+            twilio::stop "$@"
             ;;
         logs)
-            "$TWILIO_CLI_DIR/lib/logs.sh" "$@"
+            twilio::logs "$@"
             ;;
         config)
-            "$TWILIO_CLI_DIR/lib/config.sh" "$@"
+            twilio::config "$@"
             ;;
         inject)
-            "$TWILIO_CLI_DIR/lib/inject.sh" "$@"
+            twilio::inject "$@"
             ;;
         send-sms)
-            "$TWILIO_CLI_DIR/lib/sms.sh" "$@"
+            twilio::send_sms "$@"
             ;;
         list-numbers)
-            "$TWILIO_CLI_DIR/lib/numbers.sh" "$@"
+            twilio::list_numbers "$@"
             ;;
         help)
             show_help

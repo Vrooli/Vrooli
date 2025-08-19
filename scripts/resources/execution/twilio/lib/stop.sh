@@ -21,8 +21,7 @@ stop_monitor() {
     return 0
 }
 
-main() {
+twilio::stop() {
     stop_monitor
 }
 
-main "$@"

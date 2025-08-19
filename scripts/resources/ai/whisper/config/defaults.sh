@@ -9,7 +9,7 @@
 defaults::export_config() {
     # Service configuration (only set if not already defined)
     if [[ -z "${WHISPER_PORT:-}" ]]; then
-        readonly WHISPER_PORT="${WHISPER_CUSTOM_PORT:-9000}"
+        readonly WHISPER_PORT="${WHISPER_CUSTOM_PORT:-8090}"
     fi
     if [[ -z "${WHISPER_BASE_URL:-}" ]]; then
         readonly WHISPER_BASE_URL="http://localhost:${WHISPER_PORT}"

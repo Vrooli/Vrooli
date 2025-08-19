@@ -90,7 +90,7 @@ EOF
 }
 
 # Parse command line arguments
-main() {
+twilio::install() {
     local force=false
     
     while [[ $# -gt 0 ]]; do
@@ -108,4 +108,3 @@ main() {
     FORCE=$force install_twilio
 }
 
-main "$@"

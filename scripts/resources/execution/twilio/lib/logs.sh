@@ -20,8 +20,7 @@ show_logs() {
     fi
 }
 
-main() {
+twilio::logs() {
     show_logs "$@"
 }
 
-main "$@"

@@ -58,8 +58,7 @@ inject_data() {
     return 0
 }
 
-main() {
+twilio::inject() {
     inject_data "$@"
 }
 
-main "$@"

@@ -45,8 +45,7 @@ start_monitor() {
     return 0
 }
 
-main() {
+twilio::start() {
     start_monitor
 }
 
-main "$@"

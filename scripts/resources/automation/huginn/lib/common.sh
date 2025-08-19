@@ -9,14 +9,14 @@ HUGINN_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
 source "${HUGINN_LIB_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
-source "${var_SYSTEM_COMMANDS_FILE}"
+source "${HUGINN_LIB_DIR}/../../../../lib/system/system_commands.sh" 2>/dev/null || true
 
 #######################################
 # Check if Docker is available and running
 # Returns: 0 if available, 1 otherwise
 #######################################
 huginn::check_docker() {
-    if ! system::is_command "docker"; then
+    if ! command -v docker >/dev/null 2>&1; then
         huginn::show_docker_error
         return 1
     fi
@@ -88,7 +88,8 @@ huginn::is_healthy() {
         return 1
     fi
     
-    if system::is_command "curl"; then
+    # Check if curl is available using command -v directly
+    if command -v curl >/dev/null 2>&1; then
         # Try health check endpoint first
         if curl -f -s --max-time "$HUGINN_HEALTH_CHECK_TIMEOUT" "$HUGINN_BASE_URL" >/dev/null 2>&1; then
             return 0
@@ -160,7 +161,8 @@ huginn::rails_runner() {
     
     # Execute Ruby code via Rails runner with timeout
     # Use printf to avoid shell interpretation issues
-    printf '%s\n' "$ruby_code" | timeout "$RAILS_RUNNER_TIMEOUT" docker exec -i "$CONTAINER_NAME" bundle exec rails runner - 2>/dev/null
+    # Filter out deprecation warnings from both stdout and stderr
+    printf '%s\n' "$ruby_code" | timeout "$RAILS_RUNNER_TIMEOUT" docker exec -i "$CONTAINER_NAME" bundle exec rails runner - 2>&1 | grep -v "^\[DEPRECATION\]"
 }
 
 #######################################

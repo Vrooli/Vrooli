@@ -72,8 +72,7 @@ send_sms() {
     return 0
 }
 
-main() {
+twilio::send_sms() {
     send_sms "$@"
 }
 
-main "$@"

@@ -37,8 +37,7 @@ list_numbers() {
     fi
 }
 
-main() {
+twilio::list_numbers() {
     list_numbers "$@"
 }
 
-main "$@"
