@@ -211,16 +211,14 @@ app_list() {
 		# Skip empty lines
 		[[ -z "$app" ]] && continue
 		
-		# Process app in subshell to prevent errors from breaking the loop
-		(
-			# Extract app data (with error handling)
-			local name git_status modified runtime_state url_display
-			name=$(echo "$app" | jq -r '.name' 2>/dev/null)
-			[[ -z "$name" || "$name" == "null" ]] && exit 0
-			
-			modified=$(echo "$app" | jq -r '.modified' 2>/dev/null || echo "unknown")
-			[[ "$modified" == "null" ]] && modified="unknown"
-			modified=$(echo "$modified" | cut -d'T' -f1 2>/dev/null || echo "$modified")
+		# Extract app data (with error handling)
+		local name git_status modified runtime_state url_display
+		name=$(echo "$app" | jq -r '.name' 2>/dev/null)
+		[[ -z "$name" || "$name" == "null" ]] && continue
+		
+		modified=$(echo "$app" | jq -r '.modified' 2>/dev/null || echo "unknown")
+		[[ "$modified" == "null" ]] && modified="unknown"
+		modified=$(echo "$modified" | cut -d'T' -f1 2>/dev/null || echo "$modified")
 		
 		# Determine git status
 		git_status="✅ Clean"
@@ -246,23 +244,57 @@ app_list() {
 		# Check if any background processes are running for this app
 		if type -t pm::list >/dev/null 2>&1; then
 			local has_running_processes=false
+			local app_path="${GENERATED_APPS_DIR:-$HOME/generated-apps}/$name"
+			
+			# Check all process manager entries for this app
 			while IFS= read -r process; do
-				if [[ "$process" == vrooli.develop.* ]] && pm::is_running "$process" 2>/dev/null; then
-					has_running_processes=true
-					break
+				# Check various process naming patterns:
+				# 1. Direct app process: vrooli.develop.{app-name}
+				# 2. Service processes: vrooli.develop.start-{service}
+				# 3. Generic service processes that might belong to this app
+				
+				local check_process=false
+				
+				# Direct match for app name
+				if [[ "$process" == "vrooli.develop.$name" ]] || \
+				   [[ "$process" == "vrooli."*".$name" ]] || \
+				   [[ "$process" == "vrooli.$name."* ]]; then
+					check_process=true
+				elif [[ "$process" == "vrooli.develop."* ]]; then
+					# For any develop process, check if it belongs to this app
+					# by examining the process info file
+					local info_file="$HOME/.vrooli/processes/$process/info"
+					if [[ -f "$info_file" ]]; then
+						local working_dir
+						working_dir=$(grep '^working_dir=' "$info_file" 2>/dev/null | cut -d= -f2- || echo "")
+						if [[ "$working_dir" == "$app_path" ]] || [[ "$working_dir" == *"/$name" ]]; then
+							check_process=true
+						fi
+					fi
+				fi
+				
+				# Check if this process is actually running
+				if [[ "$check_process" == "true" ]]; then
+					if pm::is_running "$process" 2>/dev/null; then
+						has_running_processes=true
+						break
+					fi
 				fi
 			done < <(pm::list 2>/dev/null)
 			
 			if [[ "$has_running_processes" == "true" ]]; then
 				runtime_state="● Running"
 				# Try to get port from app's config
-				local app_path="${GENERATED_APPS_DIR:-$HOME/generated-apps}/$name"
 				local port=""
 				if [[ -f "$app_path/package.json" ]]; then
 					port=$(jq -r '.config.port // .port // ""' "$app_path/package.json" 2>/dev/null)
 				fi
 				if [[ -z "$port" ]] && [[ -f "$app_path/.env" ]]; then
 					port=$(grep -E '^PORT=' "$app_path/.env" | cut -d= -f2 | tr -d '"' 2>/dev/null)
+				fi
+				if [[ -z "$port" ]] && [[ -f "$app_path/.vrooli/service.json" ]]; then
+					# Try to get port from service.json
+					port=$(jq -r '.ports.ui.fixed // .ports.api.fixed // ""' "$app_path/.vrooli/service.json" 2>/dev/null)
 				fi
 				if [[ -n "$port" ]]; then
 					url_display="http://localhost:$port"
@@ -271,7 +303,6 @@ app_list() {
 		fi
 		
 		rows+=("${name}:${runtime_state}:${url_display}:${git_status}:${modified}")
-		) || true  # Continue even if subshell fails
 		
 		app_count=$((app_count + 1))
 	done < <(echo "$apps" | jq -c '.[]' 2>/dev/null)
@@ -280,12 +311,39 @@ app_list() {
 	local count
 	count=$(echo "$apps" | jq '. | length')
 	
-	# Count running apps
+	# Count running apps (unique apps, not individual processes)
 	local running_count=0
+	local -A running_apps  # Associative array to track unique apps
+	
 	if type -t pm::list >/dev/null 2>&1; then
 		while IFS= read -r process; do
-			if [[ "$process" == vrooli.*.develop ]] && pm::is_running "$process" 2>/dev/null; then
-				running_count=$((running_count + 1))
+			# Only count develop processes that are actually running
+			if [[ "$process" == "vrooli.develop."* ]]; then
+				if pm::is_running "$process" 2>/dev/null; then
+					# Try to determine which app this process belongs to
+					local app_name=""
+					
+					# Check if it's a direct app process
+					if [[ "$process" =~ ^vrooli\.develop\.([^.]+)$ ]]; then
+						app_name="${BASH_REMATCH[1]}"
+					else
+						# For service processes, check the working directory
+						local info_file="$HOME/.vrooli/processes/$process/info"
+						if [[ -f "$info_file" ]]; then
+							local working_dir
+							working_dir=$(grep '^working_dir=' "$info_file" 2>/dev/null | cut -d= -f2- || echo "")
+							if [[ -n "$working_dir" ]]; then
+								app_name=$(basename "$working_dir")
+							fi
+						fi
+					fi
+					
+					# Track unique apps
+					if [[ -n "$app_name" ]] && [[ -z "${running_apps[$app_name]:-}" ]]; then
+						running_apps["$app_name"]=1
+						running_count=$((running_count + 1))
+					fi
+				fi
 			fi
 		done < <(pm::list 2>/dev/null)
 	fi
@@ -641,6 +699,205 @@ app_clean() {
 		log::success "Cleanup complete"
 	else
 		log::warning "No backups directory found: $backup_dir"
+	fi
+}
+
+# Logs
+# Start an app
+app_start() {
+	local app_name="${1:-}"
+	[[ -z "$app_name" ]] && { log::error "App name required"; return 1; }
+	
+	# Parse options
+	shift || true
+	local skip_setup=false
+	while [[ $# -gt 0 ]]; do
+		case "$1" in
+			--skip-setup) skip_setup=true ;;
+			*) break ;;
+		esac
+		shift
+	done
+	
+	local app_path="${GENERATED_APPS_DIR:-$HOME/generated-apps}/$app_name"
+	
+	# Validate app exists
+	if [[ ! -d "$app_path" ]]; then
+		log::error "App not found: $app_name"
+		return 1
+	fi
+	
+	# Source process manager if not already available
+	if ! type -t pm::is_running >/dev/null 2>&1; then
+		local process_manager="${VROOLI_ROOT}/scripts/lib/process-manager.sh"
+		if [[ -f "$process_manager" ]]; then
+			# shellcheck disable=SC1090
+			source "$process_manager" 2>/dev/null || {
+				log::error "Failed to load process manager"
+				return 1
+			}
+		else
+			log::error "Process manager not found"
+			return 1
+		fi
+	fi
+	
+	# Check if already running (check both exact match and child processes)
+	local is_running=false
+	
+	# Check for exact match
+	if pm::is_running "vrooli.develop.$app_name" 2>/dev/null; then
+		is_running=true
+	fi
+	
+	# Also check for any child processes of this app
+	if ! $is_running && type -t pm::list >/dev/null 2>&1; then
+		while IFS= read -r process; do
+			# Check if process starts with app's namespace or contains app name
+			if [[ "$process" == "vrooli.develop.$app_name" ]] || \
+			   [[ "$process" == "vrooli.develop."*".$app_name" ]] || \
+			   [[ "$process" == "vrooli.$app_name."* ]]; then
+				is_running=true
+				break
+			fi
+		done < <(pm::list 2>/dev/null)
+	fi
+	
+	if $is_running; then
+		log::warning "App already running: $app_name"
+		return 0
+	fi
+	
+	# Run setup if needed (unless skipped)
+	if [[ "$skip_setup" == "false" ]] && [[ -f "$app_path/scripts/manage.sh" ]]; then
+		log::info "Running setup for $app_name..."
+		if ! (cd "$app_path" && ./scripts/manage.sh setup --yes yes 2>&1 | head -50); then
+			log::warning "Setup had issues, continuing anyway..."
+		fi
+	fi
+	
+	# Start via develop phase
+	log::info "Starting $app_name..."
+	if [[ -f "$app_path/scripts/manage.sh" ]]; then
+		# Start the app using process manager
+		if pm::start "vrooli.develop.$app_name" \
+			"cd '$app_path' && ./scripts/manage.sh develop" \
+			"$app_path"; then
+			log::success "Started $app_name"
+			
+			# Wait briefly and verify it's running
+			sleep 2
+			
+			# Check if app or any of its child processes are running
+			local app_running=false
+			if pm::is_running "vrooli.develop.$app_name" 2>/dev/null; then
+				app_running=true
+			elif type -t pm::list >/dev/null 2>&1; then
+				# Check for any processes related to this app
+				while IFS= read -r process; do
+					if [[ "$process" == "vrooli.develop.$app_name" ]] || \
+					   [[ "$process" == "vrooli.develop."*".$app_name" ]] || \
+					   [[ "$process" == "vrooli.$app_name."* ]] || \
+					   [[ "$process" == "vrooli.develop.start-"* && -d "$app_path" ]]; then
+						# Additional check: if it's a generic process name, verify it's from this app's directory
+						if [[ "$process" == "vrooli.develop.start-"* ]]; then
+							local process_info
+							process_info=$(pm::status "$process" 2>/dev/null || echo "")
+							if [[ "$process_info" == *"$app_path"* ]]; then
+								app_running=true
+								break
+							fi
+						else
+							app_running=true
+							break
+						fi
+					fi
+				done < <(pm::list 2>/dev/null)
+			fi
+			
+			if $app_running; then
+				log::info "App $app_name is running"
+				
+				# Try to get port from app's config
+				local port=""
+				if [[ -f "$app_path/package.json" ]]; then
+					port=$(jq -r '.config.port // .port // ""' "$app_path/package.json" 2>/dev/null)
+				fi
+				if [[ -z "$port" ]] && [[ -f "$app_path/.env" ]]; then
+					port=$(grep -E '^PORT=' "$app_path/.env" | cut -d= -f2 | tr -d '"' 2>/dev/null)
+				fi
+				if [[ -z "$port" ]] && [[ -f "$app_path/.vrooli/service.json" ]]; then
+					# Try to get port from service.json
+					port=$(jq -r '.ports.ui.fixed // .ports.api.fixed // ""' "$app_path/.vrooli/service.json" 2>/dev/null)
+				fi
+				if [[ -n "$port" ]]; then
+					echo "  URL: http://localhost:$port"
+				fi
+				return 0
+			else
+				log::warning "App started but may not be running correctly"
+				return 1
+			fi
+		else
+			log::error "Failed to start $app_name"
+			return 1
+		fi
+	else
+		log::error "No manage.sh found for $app_name"
+		return 1
+	fi
+}
+
+# Stop an app
+app_stop() {
+	local app_name="${1:-}"
+	[[ -z "$app_name" ]] && { log::error "App name required"; return 1; }
+	
+	# Source process manager if not already available
+	if ! type -t pm::stop >/dev/null 2>&1; then
+		local process_manager="${VROOLI_ROOT}/scripts/lib/process-manager.sh"
+		if [[ -f "$process_manager" ]]; then
+			# shellcheck disable=SC1090
+			source "$process_manager" 2>/dev/null || {
+				log::error "Failed to load process manager"
+				return 1
+			}
+		else
+			log::error "Process manager not found"
+			return 1
+		fi
+	fi
+	
+	log::info "Stopping $app_name..."
+	if pm::stop "vrooli.develop.$app_name"; then
+		log::success "Stopped $app_name"
+		return 0
+	else
+		log::warning "App may not have been running: $app_name"
+		return 0  # Don't fail if app wasn't running
+	fi
+}
+
+# Restart an app
+app_restart() {
+	local app_name="${1:-}"
+	[[ -z "$app_name" ]] && { log::error "App name required"; return 1; }
+	
+	log::info "Restarting $app_name..."
+	
+	# Stop the app (ignore errors if not running)
+	app_stop "$app_name" 2>/dev/null || true
+	
+	# Wait briefly for clean shutdown
+	sleep 2
+	
+	# Start the app
+	if app_start "$app_name" "$@"; then
+		log::success "Restarted $app_name"
+		return 0
+	else
+		log::error "Failed to restart $app_name"
+		return 1
 	fi
 }
 

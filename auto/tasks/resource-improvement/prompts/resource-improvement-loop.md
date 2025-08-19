@@ -52,8 +52,8 @@
   4) All resources have healthy status and iteration > 15 (hinting that we've probably been healthy for several steps already, and have likely already done additional validations and improvements to the existing resources) → HIGHLY consider adding a high-impact resource from the curated list later in this prompt (plan-only unless in apply mode)
 
 Before choosing, also read (if present):
-- `auto/data/resource-improvement/summary.txt`
-- `tail -n 20 auto/data/resource-improvement/events.ndjson`
+- `auto/data/resource-improvement/summary.txt` — review overall health metrics first
+- `tail -n 20 auto/data/resource-improvement/events.ndjson` — then check recent logs for specific failure patterns
 
 ---
 
@@ -61,7 +61,7 @@ Before choosing, also read (if present):
 All must be satisfied unless a resource-specific note says otherwise.
 
 General:
-- Status reports "running" (or equivalent healthy state)
+- Status report shows a "healthy" state. Or if we don't have an API key for that resource, as healthy as it gets otherwise
 - Resource responds to a minimal health/sanity check
 - No critical errors in condensed logs/output
 - Data can be "injected" into (added to) the resource, if relevant (likely yes. Even if the resource only works with python files, for example, being able to store them with the resource makes it easy to share files between scenarios and connect them to CLI commands)
@@ -222,12 +222,6 @@ Priorities and order of operations
 ### 📎 When to add a new resource (curated list)
 Only consider adding a new resource if at least 75% of existing ones are healthy and validated. Favor small, reversible steps and ensure the new resource starts and remains running by default (exception: Whisper as noted).
 
-- **Cline (VS Code agent)**
-  - Autonomous coding agent typically for human-in-the-loop (though I'm hoping we can set it up to run autonomously like we do with claude-code); supports OpenRouter and local models via OpenAI-compatible endpoints (Ollama/LM Studio). Useful for dev automation and IDE workflows.
-  - Notes: Prefer using with `resource-ollama` and/or `openrouter` credentials; keep long-running tasks bounded.
-- **TARS-desktop (UI automation agent)**
-  - GUI agent based on UI-TARS to control the desktop via natural language with vision; useful for end-to-end UI/system tasks where browser automation is insufficient.
-  - Notes: Requires OS permissions (accessibility/screen capture). Keep it running if scenarios depend on it.
 - **OpenCode (VS Code agent alt)**
   - Alternative IDE agent similar to Cline. Validate availability; if unavailable, use Cline/Codea as a substitute.
   - Notes: Same operational guidance as Cline.
@@ -258,48 +252,60 @@ Only consider adding a new resource if at least 75% of existing ones are healthy
 - **Codex (OpenAI Codex)**
   - AI-powered code completion and generation via OpenAI's Codex API; provides intelligent code suggestions and completions for multiple programming languages.
   - Notes: Requires OpenAI API key via Vault; prefer for code generation scenarios and IDE integrations; monitor API usage and costs.
-- **Gemini CLI**
-  - Google's multimodal AI model with local CLI access; supports text, image, and code generation with high-quality outputs.
-  - Notes: Requires Google API key via Vault; excellent for multimodal scenarios; prefer for research and analysis tasks.
 - **SimPy**
   - Discrete event simulation framework for modeling complex systems, workflows, and processes; useful for scenario planning and optimization.
   - Notes: Python-based; lightweight; perfect for modeling automation workflows and resource utilization; keep running for simulation scenarios.
 - **MusicGen**
   - Meta's AI music generation model for creating original music and audio content; supports various styles and instruments.
   - Notes: GPU-intensive; use for creative scenarios and multimedia content generation; may be stopped post-test due to resource usage like Whisper.
-- **LangChain**
-  - Framework for developing applications with LLMs; provides chains, agents, and memory for complex AI workflows and RAG applications.
-  - Notes: Python-based; integrates with Ollama and OpenRouter; use for building sophisticated AI agents and workflow automation; keep running for agent scenarios.
 - **AutoGPT**
   - Autonomous AI agent framework for task automation and goal-oriented workflows; enables self-directed AI agents for complex multi-step tasks.
   - Notes: Resource-intensive; requires careful prompt engineering; use for autonomous task execution scenarios; monitor for infinite loops and resource usage.
-- **LlamaIndex**
-  - Data framework for LLM applications with RAG capabilities and structured data handling; provides document processing, indexing, and querying for AI applications.
-  - Notes: Python-based; excellent for document processing and knowledge base scenarios; integrates with vector databases like Qdrant; keep running for RAG workflows.
 - **VOCR (Vision OCR)**
   - Advanced screen recognition and accessibility tool with AI-powered image analysis; enables Vrooli to "see" and interact with any screen content, not just web pages.
   - Notes: Works with VoiceOver, supports real-time OCR, and can ask AI questions about images; requires OS permissions for accessibility and screen capture; keep running for vision-based scenarios.
-- **AutoGen Studio**
-  - Multi-agent conversation framework for complex task orchestration; enables sophisticated multi-agent workflows where agents can collaborate, debate, and solve problems together.
-  - Notes: Python-based; can coordinate with existing agents (claude-code, agent-s2) for complex scenarios; resource-intensive; keep running for multi-agent workflows.
-- **CrewAI**
-  - Framework for orchestrating role-playing autonomous AI agents; enables scenario-based agent teams (researcher, writer, reviewer, etc.) for complex workflows.
-  - Notes: Python-based; complements existing automation tools with specialized agent roles; requires careful prompt engineering; keep running for team-based scenarios.
-- **Pandas AI**
-  - AI-powered data analysis and manipulation; enables natural language data analysis and automated insights generation.
-  - Notes: Python-based; works with existing databases (PostgreSQL, QuestDB) for intelligent analytics; lightweight; keep running for data analysis scenarios.
 - **Haystack**
   - End-to-end framework for question answering and search; provides sophisticated question-answering capabilities over documents and data.
   - Notes: Python-based; works with existing document processing and vector search; excellent for RAG and knowledge base scenarios; keep running for Q&A workflows.
-- **Mail-in-a-Box**
-  - All-in-one email server with webmail, contacts, calendar, and file storage; provides complete email infrastructure for scenarios requiring email automation.
-  - Notes: Linux-based; requires domain and SSL certificates; excellent for email automation scenarios; keep running for email workflows.
-- **Twilio CLI & SDK**
-  - Programmatic SMS, voice, and messaging capabilities with comprehensive API; enables sophisticated SMS automation, voice calls, and messaging workflows.
-  - Notes: Requires Twilio account and API credentials via Vault; excellent for communication automation scenarios; keep running for messaging workflows.
-- **Pushover**
-  - Push notification service for mobile and desktop with rich formatting and scheduling; provides reliable push notifications with advanced features beyond basic web push.
-  - Notes: Requires Pushover API key via Vault; excellent for mobile notification scenarios; keep running for notification workflows.
+- **FFmpeg**
+  - Universal media processing framework for video/audio transcoding, streaming, filtering, and format conversion; the Swiss army knife of multimedia.
+  - Notes: Command-line based; handles virtually any media format; excellent for video automation, podcast production, streaming scenarios; keep running for media workflows.
+- **OpenSCAD**
+  - Programmatic 3D CAD modeler using script-based solid modeling; creates precise parametric 3D models through code rather than interactive modeling.
+  - Notes: Script-based using its own language; excellent for mass customization, parametric design, 3D printing scenarios; outputs STL/OFF formats; keep running for CAD automation.
+- **Blender**
+  - Professional 3D creation suite with Python API; supports modeling, animation, rendering, compositing, motion tracking, and game creation.
+  - Notes: Python scriptable; GPU-intensive for rendering; excellent for 3D visualization, product renders, animation scenarios; extensive add-on ecosystem; keep running for 3D workflows.
+- **KiCad**
+  - Electronic design automation suite for schematic capture and PCB layout; enables circuit design and board manufacturing automation.
+  - Notes: Python scriptable; includes schematic editor, PCB layout, 3D viewer, and manufacturing file generation; excellent for hardware design scenarios; keep running for electronics workflows.
+- **PostGIS**
+  - Spatial database extension for PostgreSQL; adds geographic objects and functions for location-based queries and geospatial analysis.
+  - Notes: SQL-accessible; works with existing PostgreSQL instance; enables radius searches, routing, geocoding; essential for location-based scenarios; installed as PostgreSQL extension.
+- **Keycloak**
+  - Enterprise identity and access management with SSO, OIDC, SAML, and social login support; provides centralized authentication and authorization.
+  - Notes: Java-based; comprehensive REST APIs; integrates with existing databases; excellent for multi-tenant scenarios and B2B applications.
+- **ERPNext**
+  - Complete open-source ERP with accounting, inventory, HR, CRM, and project management; full business automation suite.
+  - Notes: Python/Frappe framework; extensive REST APIs; includes invoicing, purchasing, manufacturing modules; excellent for business automation scenarios.
+- **OBS Studio**
+  - Professional streaming and recording software with programmatic control via obs-websocket plugin; enables automated content production.
+  - Notes: Requires obs-websocket plugin for API access; WebSocket control for scenes, sources, recording; excellent for streaming automation.
+- **OWASP ZAP**
+  - Web application security scanner with automated vulnerability detection; provides security testing automation and compliance checking.
+  - Notes: Java-based; REST API for daemon mode; supports authentication, spidering, active/passive scanning; excellent for security automation; keep running for security workflows.
+- **Wiki.js**
+  - Modern wiki platform with Git storage backend; provides structured knowledge management with version control and search.
+  - Notes: Node.js-based; GraphQL/REST APIs; supports markdown, authentication, search; excellent for documentation scenarios.
+- **K6**
+  - Modern load testing tool with JavaScript scripting; enables performance testing and synthetic monitoring at scale.
+  - Notes: Go-based with JavaScript API; outputs metrics to various backends; cloud execution optional; excellent for performance scenarios.
+- **Odoo Community**
+  - Integrated business management suite with e-commerce, inventory, and CRM; provides modular business applications.
+  - Notes: Python-based; XML-RPC/JSON-RPC APIs; extensive app ecosystem; excellent for e-commerce and inventory scenarios.
+- **ROS2**
+  - Robot Operating System for robotics middleware; enables robot control, sensor integration, and autonomous navigation.
+  - Notes: DDS-based communication; supports simulation mode; Python/C++ APIs; excellent for robotics and IoT scenarios.
 
 ---
 

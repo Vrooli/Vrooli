@@ -106,23 +106,102 @@ validate_app() {
     return 0
 }
 
+# Verify app is actually running after start
+verify_app_running() {
+    local app_name="$1"
+    local max_attempts=10
+    
+    # Source process manager if not already available
+    if ! type -t pm::is_running >/dev/null 2>&1; then
+        local process_manager="${VROOLI_ROOT}/scripts/lib/process-manager.sh"
+        if [[ -f "$process_manager" ]]; then
+            # shellcheck disable=SC1090
+            source "$process_manager" 2>/dev/null || return 1
+        else
+            return 1
+        fi
+    fi
+    
+    for ((i=1; i<=max_attempts; i++)); do
+        # Check for exact match first
+        if pm::is_running "vrooli.develop.$app_name" 2>/dev/null; then
+            return 0
+        fi
+        
+        # Also check for any processes related to this app
+        if type -t pm::list >/dev/null 2>&1; then
+            while IFS= read -r process; do
+                # Check various naming patterns that might be used
+                if [[ "$process" == "vrooli.develop.$app_name" ]] || \
+                   [[ "$process" == "vrooli.develop."*".$app_name" ]] || \
+                   [[ "$process" == "vrooli.$app_name."* ]] || \
+                   [[ "$process" == "vrooli.develop.start-"* ]]; then
+                    # For generic process names, do additional verification
+                    if [[ "$process" == "vrooli.develop.start-"* ]]; then
+                        # Check if this process belongs to the app we're verifying
+                        local app_path="${GENERATED_APPS_DIR:-$HOME/generated-apps}/$app_name"
+                        local process_info
+                        process_info=$(pm::status "$process" 2>/dev/null || echo "")
+                        if [[ "$process_info" == *"$app_path"* ]] || [[ "$process_info" == *"$app_name"* ]]; then
+                            return 0
+                        fi
+                    else
+                        return 0
+                    fi
+                fi
+            done < <(pm::list 2>/dev/null)
+        fi
+        
+        sleep 1
+    done
+    return 1
+}
+
 # Start an app using individual vrooli app start command
 start_app() {
     local app_name="$1"
+    local log_file="/tmp/vrooli-start-${app_name}.log"
     
     log_info "Starting app: $app_name"
     
-    # Use the vrooli app start command with timeout
-    # This delegates to the proven app-commands.sh implementation
-    if timeout 10s "$VROOLI_ROOT/cli/vrooli" app start "$app_name" >/dev/null 2>&1; then
-        log_success "Started $app_name"
-        PORT_START=$((PORT_START + 1))
-        return 0
-    else
-        log_warning "Skipped $app_name (use 'vrooli app start $app_name' to start manually)"
-        PORT_START=$((PORT_START + 1))  # Still increment port to avoid conflicts
-        return 1
+    # Use the vrooli app start command with increased timeout and capture logs
+    # First attempt with 30 second timeout
+    if timeout 30s "$VROOLI_ROOT/cli/vrooli" app start "$app_name" >"$log_file" 2>&1; then
+        # Verify it's actually running
+        if verify_app_running "$app_name"; then
+            log_success "Started $app_name"
+            PORT_START=$((PORT_START + 1))
+            rm -f "$log_file"  # Clean up log on success
+            return 0
+        else
+            log_warning "$app_name started but verification failed"
+        fi
     fi
+    
+    # Retry once if failed
+    log_info "Retrying start for $app_name..."
+    sleep 2
+    if timeout 30s "$VROOLI_ROOT/cli/vrooli" app start "$app_name" --skip-setup >>"$log_file" 2>&1; then
+        if verify_app_running "$app_name"; then
+            log_success "Started $app_name (on retry)"
+            PORT_START=$((PORT_START + 1))
+            rm -f "$log_file"  # Clean up log on success
+            return 0
+        fi
+    fi
+    
+    # Failed to start - provide error details
+    log_error "Failed to start $app_name after retry"
+    if [[ -f "$log_file" ]]; then
+        log_warning "Error details saved to: $log_file"
+        # Show last few lines of error
+        tail -5 "$log_file" | while IFS= read -r line; do
+            echo "  > $line" >&2
+        done
+    fi
+    echo "  Use 'vrooli app start $app_name' to debug manually" >&2
+    PORT_START=$((PORT_START + 1))  # Still increment port to avoid conflicts
+    return 1
 }
 
 # Main function

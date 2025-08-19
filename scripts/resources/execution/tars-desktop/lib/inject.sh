@@ -97,7 +97,7 @@ EOF
     case "$target" in
         n8n)
             if command -v resource-n8n >/dev/null 2>&1; then
-                resource-n8n inject-workflow "$workflow_file"
+                resource-n8n inject "$workflow_file"
             else
                 log::error "n8n resource CLI not found"
                 return 1
@@ -173,3 +173,8 @@ tars_desktop::inject_ai_provider() {
 export -f tars_desktop::inject
 export -f tars_desktop::inject_automation
 export -f tars_desktop::inject_ai_provider
+# Wrapper function for compatibility
+tars_desktop_inject() {
+    tars_desktop::inject "$@"
+}
+export -f tars_desktop_inject

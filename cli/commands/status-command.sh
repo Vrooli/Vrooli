@@ -217,9 +217,73 @@ collect_app_data() {
         return
     fi
     
-    local total_apps running_apps
-    total_apps=$(echo "$response" | jq '.data | length' 2>/dev/null || echo "0")
-    running_apps=$(echo "$response" | jq '[.data[] | select(.runtime_status == "running")] | length' 2>/dev/null || echo "0")
+    # Source process manager for runtime detection
+    local process_manager="${VROOLI_ROOT}/scripts/lib/process-manager.sh"
+    if [[ -f "$process_manager" ]]; then
+        # shellcheck disable=SC1090
+        source "$process_manager" 2>/dev/null || true
+    fi
+    
+    local total_apps=0
+    local running_apps=0
+    local -A app_statuses  # For detailed output
+    
+    # Process each app and check runtime status
+    while IFS= read -r app_json; do
+        # Skip empty lines
+        [[ -z "$app_json" ]] && continue
+        
+        # Extract app data
+        local name
+        name=$(echo "$app_json" | jq -r '.name' 2>/dev/null)
+        [[ -z "$name" || "$name" == "null" ]] && continue
+        
+        total_apps=$((total_apps + 1))
+        
+        # Check if app is running using same logic as app list
+        local is_running=false
+        local app_path="${GENERATED_APPS_DIR:-$HOME/generated-apps}/$name"
+        
+        if type -t pm::list >/dev/null 2>&1; then
+            while IFS= read -r process; do
+                local check_process=false
+                
+                # Direct match for app name
+                if [[ "$process" == "vrooli.develop.$name" ]] || \
+                   [[ "$process" == "vrooli."*".$name" ]] || \
+                   [[ "$process" == "vrooli.$name."* ]]; then
+                    check_process=true
+                elif [[ "$process" == "vrooli.develop."* ]]; then
+                    # For any develop process, check if it belongs to this app
+                    local info_file="$HOME/.vrooli/processes/$process/info"
+                    if [[ -f "$info_file" ]]; then
+                        local working_dir
+                        working_dir=$(grep '^working_dir=' "$info_file" 2>/dev/null | cut -d= -f2- || echo "")
+                        if [[ "$working_dir" == "$app_path" ]] || [[ "$working_dir" == *"/$name" ]]; then
+                            check_process=true
+                        fi
+                    fi
+                fi
+                
+                # Check if this process is actually running
+                if [[ "$check_process" == "true" ]]; then
+                    if pm::is_running "$process" 2>/dev/null; then
+                        is_running=true
+                        break
+                    fi
+                fi
+            done < <(pm::list 2>/dev/null)
+        fi
+        
+        # Update counts and store status
+        if [[ "$is_running" == "true" ]]; then
+            running_apps=$((running_apps + 1))
+            app_statuses["$name"]="running"
+        else
+            app_statuses["$name"]="stopped"
+        fi
+        
+    done < <(echo "$response" | jq -c '.data[]' 2>/dev/null)
     
     # Output summary
     echo "total:${total_apps}"
@@ -227,10 +291,9 @@ collect_app_data() {
     
     # Output details if verbose
     if [[ "$verbose" == "true" && "$total_apps" -gt 0 ]]; then
-        while IFS= read -r line; do
-            IFS=':' read -r name status <<< "$line"
-            echo "app:${name}:${status}"
-        done < <(echo "$response" | jq -r '.data[] | "\(.name):\(.runtime_status // "stopped")"')
+        for name in "${!app_statuses[@]}"; do
+            echo "app:${name}:${app_statuses[$name]}"
+        done
     fi
 }
 

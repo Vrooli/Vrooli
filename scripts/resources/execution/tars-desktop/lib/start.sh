@@ -154,3 +154,20 @@ tars_desktop::restart() {
 export -f tars_desktop::start
 export -f tars_desktop::stop
 export -f tars_desktop::restart
+
+# Wrapper functions for compatibility
+tars_desktop_start() {
+    tars_desktop::start "$@"
+}
+
+tars_desktop_stop() {
+    tars_desktop::stop "$@"
+}
+
+tars_desktop_restart() {
+    tars_desktop::restart "$@"
+}
+
+export -f tars_desktop_start
+export -f tars_desktop_stop
+export -f tars_desktop_restart

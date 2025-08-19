@@ -1,8 +1,13 @@
 #!/bin/bash
 # TARS-desktop CLI interface
 
-# Get script directory
-TARS_DESKTOP_CLI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Get script directory (handle symlinks)
+if [[ -L "${BASH_SOURCE[0]}" ]]; then
+    # Script is a symlink, resolve it
+    TARS_DESKTOP_CLI_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+else
+    TARS_DESKTOP_CLI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+fi
 
 # Source all library files
 source "${TARS_DESKTOP_CLI_DIR}/lib/core.sh"

@@ -13,7 +13,7 @@
 7) If a gate fails twice, stop, capture diagnostics, and defer heavier changes.
 8) Append ≤10 lines to `/tmp/vrooli-scenario-improvement.md` (schema below).
 
-Use `auto/tasks/scenario-improvement/prompts/cheatsheet.md` for metrics and jq helpers. Read `auto/data/scenario-improvement/summary.txt` (if present) before deciding.
+Use `auto/tasks/scenario-improvement/prompts/cheatsheet.md` for metrics and jq helpers. First review `auto/data/scenario-improvement/summary.txt` (if present) for overall health, then check recent logs for specific failure patterns.
 
 ---
 
@@ -57,7 +57,7 @@ Then apply the rubric to break ties or justify a different choice:
 4) Clear, incremental UI/UX or init structure improvements that increase reliability
 
 Before choosing, read:
-- `auto/data/scenario-improvement/summary.txt` if present
+- `auto/data/scenario-improvement/summary.txt` if present — review overall health metrics first, then check recent logs for specific failure patterns
 - `scripts/scenarios/catalog.json`
 - `scripts/scenarios/README.md`
 - `scripts/scenarios/tools/app-structure.json`
@@ -135,7 +135,7 @@ NOTE 2: Prefer calling the shared `ollama.json` workflow over direct Ollama API 
 - Project context: `docs/context.md`
 - Working n8n workflow with proper cli usage and resource variable substitution (read this if you want to add/update n8n workflows!): `initialization/n8n/ollama.json`.
 
-Before each iteration, skim `auto/data/scenario-improvement/summary.txt` if present to learn from recent results.
+Before each iteration, first review `auto/data/scenario-improvement/summary.txt` if present for overall health, then check recent logs for specific failure patterns to learn from recent results.
 
 ---
 
@@ -291,6 +291,7 @@ If all existing scenarios are structurally sound and validated (very unlikely at
 - coding-challenges for learning how to code (could also double as a method to benchmark how well various AI models can code)
 - saas-billing-hub for adding payments and subscriptions to scenarios. Includes admin dashboard to manage multiple saas revenues
 - recipe-gantt-charts for displaying recipe instructions in an optimal timeline. Should be able to enter a recipe or generate one from prompt. All recipes get a gantt chart, which updates as the recipe is changed.
+- major-monogram - Talk to Major Monogram from Phineas and Ferb. Has a persona you can talk to like a video call
 
 If all of the above are already added, focus on converting to apps, running, and fixing issues that prevent apps from fully starting or showing a valid UI. For quick debugging you may change generated app code, but any solution must be applied back to the source scenario.
 

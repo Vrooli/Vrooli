@@ -2,19 +2,19 @@
 set -euo pipefail
 
 # Get the directory of this script
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TARS_DESKTOP_MANAGE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Source shared utilities  
-source "$SCRIPT_DIR/../../../lib/utils/var.sh"
-source "$SCRIPT_DIR/../../../lib/utils/format.sh"
+source "$TARS_DESKTOP_MANAGE_DIR/../../../lib/utils/var.sh"
+source "$TARS_DESKTOP_MANAGE_DIR/../../../lib/utils/format.sh"
 
-# Source resource functions
-source "$SCRIPT_DIR/lib/install.sh"
-source "$SCRIPT_DIR/lib/start.sh"
-source "$SCRIPT_DIR/lib/stop.sh"
-source "$SCRIPT_DIR/lib/status.sh"
-source "$SCRIPT_DIR/lib/inject.sh"
-source "$SCRIPT_DIR/lib/config.sh"
+# Source resource functions directly
+[[ -f "$TARS_DESKTOP_MANAGE_DIR/lib/core.sh" ]] && source "$TARS_DESKTOP_MANAGE_DIR/lib/core.sh"
+[[ -f "$TARS_DESKTOP_MANAGE_DIR/lib/config.sh" ]] && source "$TARS_DESKTOP_MANAGE_DIR/lib/config.sh"
+[[ -f "$TARS_DESKTOP_MANAGE_DIR/lib/install.sh" ]] && source "$TARS_DESKTOP_MANAGE_DIR/lib/install.sh"
+[[ -f "$TARS_DESKTOP_MANAGE_DIR/lib/start.sh" ]] && source "$TARS_DESKTOP_MANAGE_DIR/lib/start.sh"
+[[ -f "$TARS_DESKTOP_MANAGE_DIR/lib/status.sh" ]] && source "$TARS_DESKTOP_MANAGE_DIR/lib/status.sh"
+[[ -f "$TARS_DESKTOP_MANAGE_DIR/lib/inject.sh" ]] && source "$TARS_DESKTOP_MANAGE_DIR/lib/inject.sh"
 
 # Parse command line arguments
 ACTION=""

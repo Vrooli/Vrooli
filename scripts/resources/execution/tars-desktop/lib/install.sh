@@ -390,3 +390,8 @@ tars_desktop::uninstall() {
 # Export functions
 export -f tars_desktop::install
 export -f tars_desktop::uninstall
+# Wrapper function for compatibility
+tars_desktop_install() {
+    tars_desktop::install "$@"
+}
+export -f tars_desktop_install

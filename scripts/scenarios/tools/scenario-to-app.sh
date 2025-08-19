@@ -989,6 +989,7 @@ scenario_to_app::copy_from_manifest() {
     local app_path="$1"
     local scenario_path="$2"
     local service_json="$3"
+    local filter="${4:-}"  # Optional filter: "vrooli" or "scenario"
     local manifest="${SCENARIO_TOOLS_DIR}/app-structure.json"
     
     if [[ ! -f "$manifest" ]]; then
@@ -1001,7 +1002,10 @@ scenario_to_app::copy_from_manifest() {
         return 0
     fi
     
-    log::info "Copying files according to manifest..."
+    # Adjust message based on filter
+    local copy_msg="Copying files according to manifest"
+    [[ -n "$filter" ]] && copy_msg="Copying $filter files"
+    log::info "${copy_msg}..."
     
     # Process each copy rule
     local rule_count
@@ -1029,6 +1033,12 @@ scenario_to_app::copy_from_manifest() {
         executable=$(echo "$rule" | jq -r '.executable // false')
         local merge
         merge=$(echo "$rule" | jq -r '.merge // "replace"')
+        
+        # Apply filter if specified
+        if [[ -n "$filter" ]] && [[ "$from" != "$filter" ]]; then
+            [[ "$VERBOSE" == "true" ]] && log::info "Skipping $name (from=$from, filter=$filter)"
+            continue
+        fi
                 
         # Determine source path
         local src_path
@@ -1142,6 +1152,110 @@ scenario_to_app::copy_item() {
             return 1
             ;;
     esac
+    
+    return 0
+}
+
+#######################################
+# Create tar archive of Vrooli base files for batch processing
+# Parameters:
+#   $1 - output tar path
+# Returns:
+#   0 on success, 1 on failure
+#######################################
+scenario_to_app::create_vrooli_base_tar() {
+    local tar_path="$1"
+    local temp_dir="${TMPDIR:-/tmp}"
+    local temp_base_dir="${temp_dir}/vrooli-base-$$"
+    
+    log::info "Creating Vrooli base archive for batch processing..."
+    
+    # Create temp directory for base files
+    mkdir -p "$temp_base_dir" || {
+        log::error "Failed to create temp base directory"
+        return 1
+    }
+    
+    # Copy only Vrooli files to temp directory
+    # Use any scenario path - we'll filter to only "vrooli" files
+    local sample_scenario_path="${var_SCRIPTS_SCENARIOS_DIR}/core/simple-test"
+    
+    if ! scenario_to_app::copy_from_manifest "$temp_base_dir" "$sample_scenario_path" "/dev/null" "vrooli"; then
+        log::error "Failed to copy Vrooli base files"
+        trash::safe_remove "$temp_base_dir" --no-confirm
+        return 1
+    fi
+    
+    # Create tar archive
+    local tar_start
+    tar_start=$(date +"%s%N")
+    
+    if command -v tar >/dev/null 2>&1; then
+        # Use relative paths in tar for easier extraction
+        (cd "$temp_base_dir" && tar -czf "$tar_path" . 2>/dev/null) || {
+            log::error "Failed to create tar archive"
+            trash::safe_remove "$temp_base_dir" --no-confirm
+            return 1
+        }
+    else
+        log::error "tar command not found"
+        trash::safe_remove "$temp_base_dir" --no-confirm
+        return 1
+    fi
+    
+    local tar_end
+    tar_end=$(date +"%s%N")
+    local tar_time=$(( (tar_end - tar_start) / 1000000 ))
+    
+    # Get tar size for reporting
+    local tar_size
+    tar_size=$(du -h "$tar_path" 2>/dev/null | cut -f1)
+    
+    log::success "Created Vrooli base archive (${tar_size}, ${tar_time}ms)"
+    
+    # Clean up temp directory
+    trash::safe_remove "$temp_base_dir" --no-confirm
+    
+    return 0
+}
+
+#######################################
+# Extract Vrooli base tar to app directory
+# Parameters:
+#   $1 - tar path
+#   $2 - app directory
+# Returns:
+#   0 on success, 1 on failure
+#######################################
+scenario_to_app::extract_vrooli_base_tar() {
+    local tar_path="$1"
+    local app_dir="$2"
+    
+    if [[ ! -f "$tar_path" ]]; then
+        log::error "Tar archive not found: $tar_path"
+        return 1
+    fi
+    
+    # Create app directory if it doesn't exist
+    mkdir -p "$app_dir" || {
+        log::error "Failed to create app directory: $app_dir"
+        return 1
+    }
+    
+    # Extract tar
+    local extract_start
+    extract_start=$(date +"%s%N")
+    
+    (cd "$app_dir" && tar -xzf "$tar_path" 2>/dev/null) || {
+        log::error "Failed to extract tar archive to $app_dir"
+        return 1
+    }
+    
+    local extract_end
+    extract_end=$(date +"%s%N")
+    local extract_time=$(( (extract_end - extract_start) / 1000000 ))
+    
+    [[ "$VERBOSE" == "true" ]] && log::info "Extracted base files in ${extract_time}ms"
     
     return 0
 }
@@ -1359,11 +1473,30 @@ scenario_to_app::generate_app() {
         
         log::info "Building app in temporary directory..."
         
-        # Copy all files to temp directory using manifest
-        if ! scenario_to_app::copy_from_manifest "$temp_path" "$scenario_path" "$service_json"; then
-            log::error "Failed to copy files according to manifest"
-            trash::safe_remove "$temp_path" --no-confirm
-            return 1
+        # Use tar optimization if available (batch mode)
+        if [[ -n "${VROOLI_BASE_TAR:-}" ]] && [[ -f "${VROOLI_BASE_TAR}" ]]; then
+            [[ "$VERBOSE" == "true" ]] && log::info "Using optimized batch mode with base archive"
+            
+            # Extract Vrooli base files from tar
+            if ! scenario_to_app::extract_vrooli_base_tar "${VROOLI_BASE_TAR}" "$temp_path"; then
+                log::error "Failed to extract base archive"
+                trash::safe_remove "$temp_path" --no-confirm
+                return 1
+            fi
+            
+            # Copy only scenario-specific files
+            if ! scenario_to_app::copy_from_manifest "$temp_path" "$scenario_path" "$service_json" "scenario"; then
+                log::error "Failed to copy scenario files"
+                trash::safe_remove "$temp_path" --no-confirm
+                return 1
+            fi
+        else
+            # Standard mode: copy all files
+            if ! scenario_to_app::copy_from_manifest "$temp_path" "$scenario_path" "$service_json"; then
+                log::error "Failed to copy files according to manifest"
+                trash::safe_remove "$temp_path" --no-confirm
+                return 1
+            fi
         fi
         
         # Process template variables in initialization files
@@ -1629,6 +1762,23 @@ scenario_to_app::process_batch() {
     # Shared initialization (done once for all scenarios)
     scenario_to_app::shared_initialization
     
+    # Create Vrooli base tar if processing multiple scenarios
+    local vrooli_tar=""
+    if [[ $total -gt 1 ]] && [[ "$DRY_RUN" != "true" ]]; then
+        local temp_dir="${TMPDIR:-/tmp}"
+        vrooli_tar="${temp_dir}/vrooli-base-$$.tar.gz"
+        log::info "Optimizing batch processing with shared base archive..."
+        
+        if scenario_to_app::create_vrooli_base_tar "$vrooli_tar"; then
+            # Export for use in generate_app
+            export VROOLI_BASE_TAR="$vrooli_tar"
+            log::success "Batch optimization enabled"
+        else
+            log::warning "Failed to create base archive, falling back to standard processing"
+            vrooli_tar=""
+        fi
+    fi
+    
     # Process each scenario
     for i in "${!scenarios[@]}"; do
         local scenario_name="${scenarios[i]}"
@@ -1669,6 +1819,12 @@ scenario_to_app::process_batch() {
         log::info "  ✅ Succeeded: $succeeded"
         log::info "  ❌ Failed: $failed"
         log::info "  📊 Success rate: $((succeeded * 100 / total))%"
+    fi
+    
+    # Clean up tar file if created
+    if [[ -n "$vrooli_tar" ]] && [[ -f "$vrooli_tar" ]]; then
+        rm -f "$vrooli_tar"
+        unset VROOLI_BASE_TAR
     fi
     
     return $failed

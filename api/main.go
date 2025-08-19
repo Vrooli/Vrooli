@@ -129,6 +129,158 @@ func protectApp(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(Response{Success: true})
 }
 
+// Start an app via its manage.sh develop phase
+func startApp(w http.ResponseWriter, r *http.Request) {
+	name := mux.Vars(r)["name"]
+	appPath := filepath.Join(appsDir, name)
+	
+	// Validate app exists
+	if _, err := os.Stat(appPath); err != nil {
+		json.NewEncoder(w).Encode(Response{Error: "App not found"})
+		return
+	}
+	
+	// Check for manage.sh
+	manageScript := filepath.Join(appPath, "scripts/manage.sh")
+	if _, err := os.Stat(manageScript); err != nil {
+		json.NewEncoder(w).Encode(Response{Error: "App missing manage.sh script"})
+		return
+	}
+	
+	// Run setup first (in background to avoid timeout)
+	go func() {
+		setupCmd := exec.Command("bash", "-c", 
+			fmt.Sprintf("cd %s && ./scripts/manage.sh setup --yes yes", appPath))
+		setupCmd.Run() // Ignore errors as some setups may have warnings
+	}()
+	
+	// Start the app using process manager
+	startCmd := exec.Command("bash", "-c",
+		fmt.Sprintf("source %s/scripts/lib/process-manager.sh && pm::start 'vrooli.develop.%s' 'cd %s && ./scripts/manage.sh develop' '%s'",
+			vrooliRoot, name, appPath, appPath))
+	
+	output, err := startCmd.CombinedOutput()
+	if err != nil {
+		json.NewEncoder(w).Encode(Response{
+			Error: fmt.Sprintf("Failed to start app: %s", string(output)),
+		})
+		return
+	}
+	
+	json.NewEncoder(w).Encode(Response{
+		Success: true,
+		Data: map[string]string{
+			"message": fmt.Sprintf("App %s started successfully", name),
+			"output": string(output),
+		},
+	})
+}
+
+// Stop an app
+func stopApp(w http.ResponseWriter, r *http.Request) {
+	name := mux.Vars(r)["name"]
+	
+	// Stop using process manager
+	stopCmd := exec.Command("bash", "-c",
+		fmt.Sprintf("source %s/scripts/lib/process-manager.sh && pm::stop 'vrooli.develop.%s'",
+			vrooliRoot, name))
+	
+	output, err := stopCmd.CombinedOutput()
+	if err != nil {
+		// Don't treat as error if app wasn't running
+		if strings.Contains(string(output), "not running") || strings.Contains(string(output), "No such process") {
+			json.NewEncoder(w).Encode(Response{
+				Success: true,
+				Data: map[string]string{
+					"message": fmt.Sprintf("App %s was not running", name),
+				},
+			})
+			return
+		}
+		json.NewEncoder(w).Encode(Response{
+			Error: fmt.Sprintf("Failed to stop app: %s", string(output)),
+		})
+		return
+	}
+	
+	json.NewEncoder(w).Encode(Response{
+		Success: true,
+		Data: map[string]string{
+			"message": fmt.Sprintf("App %s stopped successfully", name),
+		},
+	})
+}
+
+// Restart an app
+func restartApp(w http.ResponseWriter, r *http.Request) {
+	name := mux.Vars(r)["name"]
+	appPath := filepath.Join(appsDir, name)
+	
+	// Validate app exists
+	if _, err := os.Stat(appPath); err != nil {
+		json.NewEncoder(w).Encode(Response{Error: "App not found"})
+		return
+	}
+	
+	// Stop the app first (ignore errors)
+	stopCmd := exec.Command("bash", "-c",
+		fmt.Sprintf("source %s/scripts/lib/process-manager.sh && pm::stop 'vrooli.develop.%s'",
+			vrooliRoot, name))
+	stopCmd.Run()
+	
+	// Wait briefly
+	time.Sleep(2 * time.Second)
+	
+	// Start the app
+	startCmd := exec.Command("bash", "-c",
+		fmt.Sprintf("source %s/scripts/lib/process-manager.sh && pm::start 'vrooli.develop.%s' 'cd %s && ./scripts/manage.sh develop' '%s'",
+			vrooliRoot, name, appPath, appPath))
+	
+	output, err := startCmd.CombinedOutput()
+	if err != nil {
+		json.NewEncoder(w).Encode(Response{
+			Error: fmt.Sprintf("Failed to restart app: %s", string(output)),
+		})
+		return
+	}
+	
+	json.NewEncoder(w).Encode(Response{
+		Success: true,
+		Data: map[string]string{
+			"message": fmt.Sprintf("App %s restarted successfully", name),
+		},
+	})
+}
+
+// Get app logs
+func getAppLogs(w http.ResponseWriter, r *http.Request) {
+	name := mux.Vars(r)["name"]
+	lines := r.URL.Query().Get("lines")
+	if lines == "" {
+		lines = "50"
+	}
+	
+	// Get logs using process manager
+	logsCmd := exec.Command("bash", "-c",
+		fmt.Sprintf("source %s/scripts/lib/process-manager.sh && pm::logs 'vrooli.develop.%s' %s",
+			vrooliRoot, name, lines))
+	
+	output, err := logsCmd.CombinedOutput()
+	if err != nil {
+		json.NewEncoder(w).Encode(Response{
+			Error: fmt.Sprintf("Failed to get logs: %s", string(output)),
+		})
+		return
+	}
+	
+	json.NewEncoder(w).Encode(Response{
+		Success: true,
+		Data: map[string]string{
+			"logs": string(output),
+		},
+	})
+}
+
 // === Scenario Management ===
 type Scenario struct {
 	Name        string `json:"name"`
@@ -381,6 +533,10 @@ func main() {
 	// Apps API
 	r.HandleFunc("/apps", listApps).Methods("GET")
 	r.HandleFunc("/apps/{name}/protect", protectApp).Methods("POST")
+	r.HandleFunc("/apps/{name}/start", startApp).Methods("POST")
+	r.HandleFunc("/apps/{name}/stop", stopApp).Methods("POST")
+	r.HandleFunc("/apps/{name}/restart", restartApp).Methods("POST")
+	r.HandleFunc("/apps/{name}/logs", getAppLogs).Methods("GET")
 	
 	// Scenarios API
 	r.HandleFunc("/scenarios", listScenarios).Methods("GET")

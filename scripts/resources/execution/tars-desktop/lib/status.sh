@@ -37,8 +37,14 @@ tars_desktop::status() {
     fi
     
     # Build output data
+    local running="false"
+    if [[ "$status" == "running" ]]; then
+        running="true"
+    fi
+    
     local -a output_data=(
         "status" "$status"
+        "running" "$running"
         "health" "$health"
         "message" "$message"
         "api_base" "$TARS_DESKTOP_API_BASE"
@@ -82,3 +88,8 @@ tars_desktop::status() {
 
 # Export function
 export -f tars_desktop::status
+# Wrapper function for compatibility
+tars_desktop_status() {
+    tars_desktop::status "$@"
+}
+export -f tars_desktop_status
