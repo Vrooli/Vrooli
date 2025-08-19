@@ -60,6 +60,7 @@ USAGE:
 RUNTIME COMMANDS:
     start <name>            Start a specific app (runs setup if needed, then develop)
     stop <name>             Stop a specific app
+    stop-all                Stop all running apps
     restart <name>          Restart a specific app
     logs <name>             Show logs for a specific app
 
@@ -83,6 +84,7 @@ OPTIONS:
 EXAMPLES:
     vrooli app start research-assistant       # Start an app (setup + develop)
     vrooli app stop research-assistant        # Stop an app
+    vrooli app stop-all                       # Stop all running apps
     vrooli app restart research-assistant     # Restart an app
     vrooli app logs research-assistant        # Show app logs
     vrooli app logs research-assistant --follow # Follow logs real-time
@@ -878,6 +880,151 @@ app_stop() {
 	fi
 }
 
+# Stop all apps
+app_stop_all() {
+	# Source process manager if not already available
+	if ! type -t pm::list >/dev/null 2>&1; then
+		local process_manager="${VROOLI_ROOT}/scripts/lib/process-manager.sh"
+		if [[ -f "$process_manager" ]]; then
+			# shellcheck disable=SC1090
+			source "$process_manager" 2>/dev/null || {
+				log::error "Failed to load process manager"
+				return 1
+			}
+		else
+			log::error "Process manager not found"
+			return 1
+		fi
+	fi
+	
+	log::info "Stopping all running apps..."
+	
+	local stopped_count=0
+	local orphaned_count=0
+	local -A stopped_apps  # Track unique apps to avoid duplicate messages
+	local -A orphaned_apps  # Track orphaned processes
+	
+	# First, stop process manager controlled processes
+	while IFS= read -r process; do
+		# Only stop develop processes
+		if [[ "$process" == "vrooli.develop."* ]]; then
+			if pm::is_running "$process" 2>/dev/null; then
+				# Extract app name for reporting
+				local app_name=""
+				if [[ "$process" =~ ^vrooli\.develop\.([^.]+)$ ]]; then
+					app_name="${BASH_REMATCH[1]}"
+				elif [[ "$process" =~ ^vrooli\.develop\.start-(.+)$ ]]; then
+					# For service processes, try to determine app from working directory
+					local info_file="$HOME/.vrooli/processes/$process/info"
+					if [[ -f "$info_file" ]]; then
+						local working_dir
+						working_dir=$(grep '^working_dir=' "$info_file" 2>/dev/null | cut -d= -f2- || echo "")
+						if [[ -n "$working_dir" ]]; then
+							app_name=$(basename "$working_dir")
+						fi
+					fi
+				fi
+				
+				# Stop the process
+				if pm::stop "$process" 2>/dev/null; then
+					if [[ -n "$app_name" ]] && [[ -z "${stopped_apps[$app_name]:-}" ]]; then
+						log::success "Stopped $app_name (managed)"
+						stopped_apps["$app_name"]=1
+						stopped_count=$((stopped_count + 1))
+					fi
+				fi
+			fi
+		fi
+	done < <(pm::list 2>/dev/null)
+	
+	# Second, find and stop orphaned app processes
+	local generated_dir="${GENERATED_APPS_DIR:-$HOME/generated-apps}"
+	if [[ -d "$generated_dir" ]]; then
+		# Look for Node.js processes running from generated-apps directories
+		while IFS= read -r line; do
+			# Parse ps output: PID CMD
+			local pid=$(echo "$line" | awk '{print $1}')
+			local cmd=$(echo "$line" | awk '{$1=""; print $0}' | sed 's/^ *//')
+			
+			# Skip if we can't read the process working directory
+			local cwd=""
+			cwd=$(readlink "/proc/$pid/cwd" 2>/dev/null || echo "")
+			
+			# Check if process is related to generated-apps (either by working dir or command)
+			local app_name=""
+			local is_app_process=false
+			
+			# Method 1: Check if running from generated-apps directory
+			if [[ "$cwd" == "$generated_dir"* ]] || [[ "$cwd" == *"/generated-apps/"* ]]; then
+				if [[ "$cwd" =~ $generated_dir/([^/]+) ]]; then
+					app_name="${BASH_REMATCH[1]}"
+					is_app_process=true
+				elif [[ "$cwd" =~ /generated-apps/([^/]+) ]]; then
+					app_name="${BASH_REMATCH[1]}"
+					is_app_process=true
+				fi
+			fi
+			
+			# Method 2: Check if command references generated-apps files
+			if [[ -z "$app_name" ]] && [[ "$cmd" == *"/generated-apps/"* ]]; then
+				if [[ "$cmd" =~ /generated-apps/([^/]+)/ ]]; then
+					app_name="${BASH_REMATCH[1]}"
+					is_app_process=true
+				fi
+			fi
+			
+			# Method 3: Check if running from trashed app directories
+			if [[ -z "$app_name" ]] && [[ "$cwd" == *"/Trash/files/"* ]]; then
+				# Look for app-like directory names in trash
+				if [[ "$cwd" =~ /Trash/files/([^/]+_[0-9]{8}_[0-9]{6})/ ]]; then
+					# Extract base name (remove timestamp suffix)
+					local trashed_name="${BASH_REMATCH[1]}"
+					if [[ "$trashed_name" =~ ^(.+)_[0-9]{8}_[0-9]{6}$ ]]; then
+						app_name="${BASH_REMATCH[1]}"
+						is_app_process=true
+					fi
+				fi
+			fi
+			
+			# Only target app-related processes (not system processes)
+			if [[ "$is_app_process" == "true" ]] && [[ -n "$app_name" ]]; then
+				if [[ "$cmd" == *"server.js"* ]] || [[ "$cmd" == *"npm start"* ]] || [[ "$cmd" == *"manage.sh develop"* ]] || [[ "$cmd" == *"node"* && ("$cwd" == *"/ui"* || "$cmd" == *"/ui/"*) ]]; then
+					if [[ -z "${orphaned_apps[$app_name]:-}" ]]; then
+						log::warning "Found orphaned process for $app_name (PID: $pid)"
+						if kill -TERM "$pid" 2>/dev/null; then
+							# Wait briefly for graceful shutdown
+							sleep 1
+							if kill -0 "$pid" 2>/dev/null; then
+								# Force kill if still running
+								kill -KILL "$pid" 2>/dev/null
+							fi
+							log::success "Stopped $app_name (orphaned)"
+							orphaned_apps["$app_name"]=1
+							orphaned_count=$((orphaned_count + 1))
+						fi
+					fi
+				fi
+			fi
+		done < <(ps -eo pid,cmd --no-headers | grep -E "(node|npm|manage\.sh)" | grep -v grep)
+	fi
+	
+	# Report results
+	local total_stopped=$((stopped_count + orphaned_count))
+	if [[ $total_stopped -eq 0 ]]; then
+		log::info "No apps were running"
+	else
+		if [[ $stopped_count -gt 0 ]] && [[ $orphaned_count -gt 0 ]]; then
+			log::success "Stopped $total_stopped app(s): $stopped_count managed, $orphaned_count orphaned"
+		elif [[ $stopped_count -gt 0 ]]; then
+			log::success "Stopped $stopped_count managed app(s)"
+		else
+			log::success "Stopped $orphaned_count orphaned app(s)"
+		fi
+	fi
+	
+	return 0
+}
+
 # Restart an app
 app_restart() {
 	local app_name="${1:-}"
@@ -969,6 +1116,7 @@ main() {
 		# Runtime commands
 		start) app_start "$@" ;;
 		stop) app_stop "$@" ;;
+		stop-all) app_stop_all "$@" ;;
 		restart) app_restart "$@" ;;
 		logs) app_logs "$@" ;;
 		

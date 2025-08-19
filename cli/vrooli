@@ -80,6 +80,7 @@ APP MANAGEMENT:
     app list            List all apps with runtime status
     app start <name>    Start a specific app
     app stop <name>     Stop a specific app
+    app stop-all        Stop all running apps
     app restart <name>  Restart a specific app
     app logs <name>     Show logs for an app
     app status <name>   Show detailed app status
