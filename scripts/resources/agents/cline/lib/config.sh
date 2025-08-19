@@ -113,5 +113,7 @@ cline::config_provider() {
     return 0
 }
 
-# Main
-cline::config "$@"
+# Main - only run if called directly
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    cline::config "$@"
+fi

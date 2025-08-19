@@ -18,9 +18,11 @@ cline::install() {
     
     # Check if VS Code is installed
     if ! cline::check_vscode; then
-        log::error "${MSG_CLINE_NO_VSCODE}"
-        log::info "Please install VS Code from https://code.visualstudio.com/"
-        return 1
+        log::warn "${MSG_CLINE_NO_VSCODE}"
+        log::info "Will prepare configuration for when VS Code is available"
+        # Continue with configuration preparation instead of failing
+        cline::configure
+        return $?
     fi
     
     # Check if already installed
@@ -60,7 +62,10 @@ cline::configure() {
     log::info "${MSG_CLINE_CONFIGURING}"
     
     # Create config directory
-    if ! cline::create_config_dir; then
+    mkdir -p "${CLINE_CONFIG_DIR}"
+    mkdir -p "${CLINE_DATA_DIR}"
+    
+    if [[ ! -d "${CLINE_CONFIG_DIR}" ]]; then
         log::error "Failed to create configuration directory"
         return 1
     fi

@@ -31,8 +31,7 @@ windmill::install() {
     # Initialize FORCE variable if not set
     FORCE="${FORCE:-no}"
     
-    # Initialize WINDMILL_PROJECT_NAME if not set
-    WINDMILL_PROJECT_NAME="${WINDMILL_PROJECT_NAME:-windmill-vrooli}"
+    # WINDMILL_PROJECT_NAME is already defined in common.sh
     
     # Initialize state management system
     windmill::state_init "$WINDMILL_PROJECT_NAME"
@@ -96,7 +95,7 @@ windmill::install() {
     windmill::release_lock
     
     # Show success message
-    windmill::show_success_message "$SUPERADMIN_EMAIL" "$SUPERADMIN_PASSWORD"
+    windmill::show_success_message "${WINDMILL_SUPERADMIN_EMAIL:-admin@windmill.dev}" "${WINDMILL_SUPERADMIN_PASSWORD:-changeme}"
     
     # Auto-install CLI if available
     # shellcheck disable=SC1091
@@ -133,7 +132,7 @@ windmill::validate_installation_requirements() {
     fi
     
     # Check for external database connectivity if specified
-    if [[ "$EXTERNAL_DB" == "yes" ]]; then
+    if [[ "${EXTERNAL_DB:-no}" == "yes" ]]; then
         if ! windmill::validate_external_database; then
             return 1
         fi
@@ -202,7 +201,7 @@ windmill::validate_security_config() {
     local warnings=()
     
     # Check for default password
-    if [[ "$SUPERADMIN_PASSWORD" == "changeme" ]]; then
+    if [[ "${WINDMILL_SUPERADMIN_PASSWORD:-changeme}" == "changeme" ]]; then
         warnings+=("Using default superadmin password - change this immediately after installation!")
     fi
     
@@ -217,7 +216,7 @@ windmill::validate_security_config() {
     fi
     
     # Check superadmin email format
-    if [[ "$SUPERADMIN_EMAIL" == "admin@windmill.dev" ]]; then
+    if [[ "${WINDMILL_SUPERADMIN_EMAIL:-admin@windmill.dev}" == "admin@windmill.dev" ]]; then
         warnings+=("Using default superadmin email - consider using a real email address")
     fi
     

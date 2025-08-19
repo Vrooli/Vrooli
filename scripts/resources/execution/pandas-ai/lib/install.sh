@@ -13,6 +13,7 @@ pandas_ai::install() {
     log::header "Installing Pandas AI"
     
     # Create directories
+    mkdir -p "${PANDAS_AI_DATA_DIR}"
     mkdir -p "${PANDAS_AI_VENV_DIR}"
     mkdir -p "${PANDAS_AI_SCRIPTS_DIR}"
     mkdir -p "$(dirname "${PANDAS_AI_PID_FILE}")"

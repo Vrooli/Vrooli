@@ -383,6 +383,28 @@ export -f autogen_list_skills
 autogen_inject() {
     local file="${1:-}"
     
+    # Handle help request
+    if [[ "${file}" == "--help" ]] || [[ "${file}" == "-h" ]]; then
+        cat << EOF
+Usage: inject FILE
+
+Inject an agent or skill definition from a file into AutoGen Studio.
+
+Arguments:
+  FILE    Path to JSON file containing agent definition or Python skill file
+
+The command automatically detects whether the file is an agent or skill based on:
+  - Filename containing 'agent' or 'skill'
+  - JSON structure (agents have 'system_message' field)
+  - File extension (.py files are treated as skills)
+
+Examples:
+  inject agents/researcher.json
+  inject skills/data_processor.py
+EOF
+        return 0
+    fi
+    
     if [[ -z "${file}" ]]; then
         log::error "File path is required"
         return 1
@@ -426,7 +448,9 @@ autogen_inject() {
         # If container is running, reload it
         if docker ps --format "{{.Names}}" | grep -q "^${AUTOGEN_NAME}$"; then
             log::info "Reloading AutoGen Studio to apply changes..."
-            docker exec "${AUTOGEN_NAME}" kill -HUP 1 2>/dev/null || true
+            # Try to reload using Python signal or just restart the service
+            docker exec "${AUTOGEN_NAME}" python -c "import os, signal; os.kill(1, signal.SIGHUP)" 2>/dev/null || \
+                docker restart "${AUTOGEN_NAME}" 2>/dev/null || true
         fi
         
         return 0

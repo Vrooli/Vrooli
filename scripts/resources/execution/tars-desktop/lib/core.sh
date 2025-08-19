@@ -49,7 +49,7 @@ tars_desktop::init() {
 
 # Check if TARS-desktop is installed
 tars_desktop::is_installed() {
-    [[ -d "$TARS_DESKTOP_INSTALL_DIR" && -f "${TARS_DESKTOP_INSTALL_DIR}/requirements.txt" ]]
+    [[ -d "$TARS_DESKTOP_INSTALL_DIR" && -f "${TARS_DESKTOP_INSTALL_DIR}/server.py" ]]
 }
 
 # Check if TARS-desktop is running

@@ -23,6 +23,10 @@ cline::inject() {
     
     log::info "Injecting configuration from: $file"
     
+    # Ensure directories exist
+    mkdir -p "$CLINE_DATA_DIR"
+    mkdir -p "$CLINE_CONFIG_DIR"
+    
     # Detect file type
     local filename=$(basename "$file")
     local extension="${filename##*.}"
@@ -68,5 +72,7 @@ cline::inject() {
     return 0
 }
 
-# Main
-cline::inject "$@"
+# Main - only run if called directly
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    cline::inject "$@"
+fi

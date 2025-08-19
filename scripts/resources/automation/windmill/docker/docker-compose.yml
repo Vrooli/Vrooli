@@ -189,6 +189,3 @@ networks:
   windmill-network:
     name: "${WINDMILL_PROJECT_NAME:-windmill-vrooli}_network"
     driver: bridge
-    ipam:
-      config:
-        - subnet: 172.23.0.0/16

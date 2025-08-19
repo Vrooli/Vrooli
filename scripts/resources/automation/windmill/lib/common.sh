@@ -107,6 +107,9 @@ WINDMILL_BASE_URL=http://localhost:5681
 # Project configuration
 WINDMILL_PROJECT_NAME=windmill-vrooli
 
+# Database configuration
+EXTERNAL_DB="${EXTERNAL_DB:-no}"
+
 # Worker configuration
 WINDMILL_WORKER_REPLICAS=3
 WINDMILL_WORKER_MEMORY_LIMIT=2048M
@@ -131,15 +134,15 @@ EOF
     # Update values with current configuration
     sed -i "s|^WINDMILL_SERVER_PORT=.*|WINDMILL_SERVER_PORT=$WINDMILL_SERVER_PORT|" "$env_file"
     sed -i "s|^WINDMILL_PROJECT_NAME=.*|WINDMILL_PROJECT_NAME=$WINDMILL_PROJECT_NAME|" "$env_file"
-    sed -i "s|^WINDMILL_WORKER_REPLICAS=.*|WINDMILL_WORKER_REPLICAS=$WORKER_COUNT|" "$env_file"
-    sed -i "s|^WINDMILL_WORKER_MEMORY_LIMIT=.*|WINDMILL_WORKER_MEMORY_LIMIT=$WORKER_MEMORY_LIMIT|" "$env_file"
-    sed -i "s|^WINDMILL_SUPERADMIN_EMAIL=.*|WINDMILL_SUPERADMIN_EMAIL=$SUPERADMIN_EMAIL|" "$env_file"
-    sed -i "s|^WINDMILL_SUPERADMIN_PASSWORD=.*|WINDMILL_SUPERADMIN_PASSWORD=$SUPERADMIN_PASSWORD|" "$env_file"
+    sed -i "s|^WINDMILL_WORKER_REPLICAS=.*|WINDMILL_WORKER_REPLICAS=${WORKER_COUNT:-$WINDMILL_WORKER_REPLICAS}|" "$env_file"
+    sed -i "s|^WINDMILL_WORKER_MEMORY_LIMIT=.*|WINDMILL_WORKER_MEMORY_LIMIT=${WORKER_MEMORY_LIMIT:-$WINDMILL_WORKER_MEMORY_LIMIT}|" "$env_file"
+    sed -i "s|^WINDMILL_SUPERADMIN_EMAIL=.*|WINDMILL_SUPERADMIN_EMAIL=${SUPERADMIN_EMAIL:-$WINDMILL_SUPERADMIN_EMAIL}|" "$env_file"
+    sed -i "s|^WINDMILL_SUPERADMIN_PASSWORD=.*|WINDMILL_SUPERADMIN_PASSWORD=${SUPERADMIN_PASSWORD:-$WINDMILL_SUPERADMIN_PASSWORD}|" "$env_file"
     sed -i "s|^WINDMILL_JWT_SECRET=.*|WINDMILL_JWT_SECRET=$WINDMILL_JWT_SECRET|" "$env_file"
     sed -i "s|^WINDMILL_LOG_LEVEL=.*|WINDMILL_LOG_LEVEL=$WINDMILL_LOG_LEVEL|" "$env_file"
     
     # Configure database
-    if [[ "$EXTERNAL_DB" == "yes" && -n "$DB_URL" ]]; then
+    if [[ "${EXTERNAL_DB:-no}" == "yes" && -n "$DB_URL" ]]; then
         sed -i "s|^WINDMILL_DB_EXTERNAL=.*|WINDMILL_DB_EXTERNAL=yes|" "$env_file"
         sed -i "s|^# WINDMILL_DATABASE_URL=.*|WINDMILL_DATABASE_URL=$DB_URL|" "$env_file"
     else
@@ -149,15 +152,15 @@ EOF
     # Configure profiles based on enabled features
     local profiles="internal-db,workers"
     
-    if [[ "$DISABLE_NATIVE_WORKER" != "true" ]]; then
+    if [[ "${DISABLE_NATIVE_WORKER:-false}" != "true" ]]; then
         profiles+=",native-worker"
     fi
     
-    if [[ "$DISABLE_LSP" != "true" ]]; then
+    if [[ "${DISABLE_LSP:-false}" != "true" ]]; then
         profiles+=",lsp"
     fi
     
-    if [[ "$ENABLE_MULTIPLAYER" == "true" ]]; then
+    if [[ "${ENABLE_MULTIPLAYER:-false}" == "true" ]]; then
         profiles+=",multiplayer"
     fi
     
@@ -233,8 +236,8 @@ windmill::is_running() {
         return 1
     fi
     
-    # Check if server container is running
-    windmill::compose_cmd ps --services --filter "status=running" | grep -q "windmill-app"
+    # Check if server container is running (check docker directly as it may not be managed by compose)
+    docker ps --format "{{.Names}}" 2>/dev/null | grep -q "^${WINDMILL_SERVER_CONTAINER}$"
 }
 
 #######################################

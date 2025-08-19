@@ -13,10 +13,11 @@ PANDAS_AI_NAME="pandas-ai"
 PANDAS_AI_DESC="AI-powered data analysis and manipulation"
 PANDAS_AI_CATEGORY="execution"
 PANDAS_AI_PORT="8095"
-PANDAS_AI_VENV_DIR="${var_VROOLI_CONFIG_DIR}/pandas-ai/venv"
-PANDAS_AI_SCRIPTS_DIR="${var_VROOLI_CONFIG_DIR}/pandas-ai/scripts"
-PANDAS_AI_PID_FILE="${var_VROOLI_CONFIG_DIR}/pandas-ai/pandas-ai.pid"
-PANDAS_AI_LOG_FILE="${var_VROOLI_CONFIG_DIR}/pandas-ai/pandas-ai.log"
+PANDAS_AI_DATA_DIR="${var_DATA_DIR}/pandas-ai"
+PANDAS_AI_VENV_DIR="${PANDAS_AI_DATA_DIR}/venv"
+PANDAS_AI_SCRIPTS_DIR="${PANDAS_AI_DATA_DIR}/scripts"
+PANDAS_AI_PID_FILE="${PANDAS_AI_DATA_DIR}/pandas-ai.pid"
+PANDAS_AI_LOG_FILE="${PANDAS_AI_DATA_DIR}/pandas-ai.log"
 
 # Help function
 pandas_ai::help() {

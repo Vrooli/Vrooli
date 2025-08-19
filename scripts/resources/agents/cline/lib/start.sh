@@ -11,8 +11,14 @@ source "$CLINE_START_DIR/common.sh"
 cline::start() {
     log::info "Starting Cline configuration..."
     
-    # Check if installed
-    if ! cline::is_installed; then
+    # Ensure config directory exists
+    mkdir -p "$CLINE_CONFIG_DIR"
+    
+    # Check if VS Code is available
+    if ! cline::check_vscode; then
+        log::warn "VS Code is not installed. Setting up configuration for when it becomes available."
+        # Continue with configuration setup
+    elif ! cline::is_installed; then
         log::warn "Cline is not installed. Installing..."
         "$CLINE_START_DIR/install.sh"
         return $?
@@ -35,11 +41,20 @@ cline::start() {
         log::info "Cline configured to use: $provider"
     fi
     
-    log::success "Cline is ready to use in VS Code"
-    log::info "Open VS Code and use Cmd/Ctrl+Shift+P -> 'Cline: Open Chat' to start"
+    # Mark as running in status file
+    echo "running" > "$CLINE_CONFIG_DIR/.status"
+    
+    if cline::check_vscode; then
+        log::success "Cline is ready to use in VS Code"
+        log::info "Open VS Code and use Cmd/Ctrl+Shift+P -> 'Cline: Open Chat' to start"
+    else
+        log::success "Cline configuration prepared. Install VS Code to use Cline."
+    fi
     
     return 0
 }
 
-# Main
-cline::start "$@"
+# Main - only run if called directly
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    cline::start "$@"
+fi

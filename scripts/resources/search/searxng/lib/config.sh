@@ -62,19 +62,32 @@ searxng::generate_config() {
         sed -i "s|\${SEARXNG_REDIS_PORT}|$SEARXNG_REDIS_PORT|g" "$temp_config"
     fi
     
-    # Move to final location
-    if mv "$temp_config" "$config_file"; then
+    # Copy to final location (handle permission issues with docker if needed)
+    if cp "$temp_config" "$config_file" 2>/dev/null; then
         log::success "SearXNG configuration generated: $config_file"
-        
-        # Generate additional config files
-        searxng::generate_limiter_config
-        
-        return 0
+    elif cat "$temp_config" > "$config_file" 2>/dev/null; then
+        log::success "SearXNG configuration generated: $config_file"
     else
-        log::error "Failed to generate SearXNG configuration"
-        trash::safe_remove "$temp_config" --temp
-        return 1
+        # Use docker to copy file if permissions are an issue
+        log::info "Using Docker to handle file permissions..."
+        docker run --rm -v "$temp_config:/source" -v "$SEARXNG_DATA_DIR:/target" alpine sh -c "cp /source /target/settings.yml && chmod 666 /target/settings.yml" 2>/dev/null
+        if [[ -f "$config_file" ]]; then
+            log::success "SearXNG configuration generated via Docker: $config_file"
+        else
+            log::error "Failed to generate SearXNG configuration"
+            trash::safe_remove "$temp_config" --temp
+            return 1
+        fi
     fi
+    
+    # Clean up temp file
+    trash::safe_remove "$temp_config" --temp
+    
+    # Generate additional config files
+    searxng::generate_limiter_config
+    searxng::generate_uwsgi_config
+    
+    return 0
 }
 
 #######################################
@@ -111,14 +124,81 @@ searxng::generate_limiter_config() {
         sed -i "s|\${SEARXNG_RATE_LIMIT}|$SEARXNG_RATE_LIMIT|g" "$temp_config"
     fi
     
-    if mv "$temp_config" "$config_file"; then
+    if cp "$temp_config" "$config_file" 2>/dev/null || cat "$temp_config" > "$config_file" 2>/dev/null; then
         log::success "Rate limiter configuration generated: $config_file"
-        return 0
     else
-        log::warn "Failed to generate rate limiter configuration"
-        trash::safe_remove "$temp_config" --temp
-        return 1
+        # Use docker to copy file if permissions are an issue
+        docker run --rm -v "$temp_config:/source" -v "$SEARXNG_DATA_DIR:/target" alpine sh -c "cp /source /target/limiter.toml && chmod 666 /target/limiter.toml" 2>/dev/null
+        if [[ -f "$config_file" ]]; then
+            log::success "Rate limiter configuration generated via Docker: $config_file"
+        else
+            log::warn "Failed to generate rate limiter configuration"
+        fi
     fi
+    trash::safe_remove "$temp_config" --temp
+    return 0
+}
+
+#######################################
+# Generate uWSGI configuration for Searxng
+#######################################
+searxng::generate_uwsgi_config() {
+    local config_file="$SEARXNG_DATA_DIR/uwsgi.ini"
+    
+    log::info "Generating uWSGI configuration..."
+    
+    # Create uwsgi.ini with proper HTTP binding
+    cat > "$config_file" << 'EOF'
+[uwsgi]
+# SearXNG uwsgi configuration
+
+# Who will run the code
+uid = searxng
+gid = searxng
+
+# HTTP socket - bind to port 8080
+http = :8080
+
+# Number of workers (uses number of CPU cores)
+workers = %k
+threads = 4
+
+# The right granted on the created socket
+chmod-socket = 666
+
+# Plugin to use and interpretor config
+single-interpreter = true
+master = true
+plugin = python3
+lazy-apps = true
+enable-threads = true
+
+# Module to import
+module = searx.webapp
+
+# Virtualenv and python path
+pythonpath = /usr/local/searxng/
+chdir = /usr/local/searxng/searx/
+
+# Disable request logging
+disable-logging = false
+log-5xx = true
+
+# Set process name
+auto-procname = true
+
+# Increase buffer size
+buffer-size = 8192
+
+# Max request size
+post-buffering = 8192
+EOF
+    
+    # Fix permissions if needed
+    chmod 644 "$config_file" 2>/dev/null || true
+    
+    log::success "uWSGI configuration generated: $config_file"
+    return 0
 }
 
 #######################################

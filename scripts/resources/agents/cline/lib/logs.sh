@@ -40,5 +40,7 @@ cline::logs() {
     return 0
 }
 
-# Main
-cline::logs "$@"
+# Main - only run if called directly
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    cline::logs "$@"
+fi

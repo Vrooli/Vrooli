@@ -42,6 +42,15 @@ cline::status() {
     local details=""
     local running="false"
     
+    # Check status file first
+    if [[ -f "$CLINE_CONFIG_DIR/.status" ]]; then
+        local file_status=$(cat "$CLINE_CONFIG_DIR/.status" 2>/dev/null || echo "stopped")
+        if [[ "$file_status" == "running" ]]; then
+            status="running"
+            running="true"
+        fi
+    fi
+    
     # Check VS Code availability
     if cline::check_vscode; then
         vscode_available="true"
@@ -49,27 +58,37 @@ cline::status() {
         details="VS Code not found"
     fi
     
-    # Check if installed
-    if cline::is_installed; then
-        status="installed"
-        version=$(cline::get_version)
-        
-        # Check configuration
-        if cline::is_configured; then
-            api_configured="true"
-            health="healthy"
-            status="running"
-            running="true"
-            details="Cline is ready for use in VS Code"
+    # Check configuration regardless of VS Code presence
+    if cline::is_configured; then
+        api_configured="true"
+    fi
+    
+    # Determine health based on configuration and VS Code availability
+    if [[ "$vscode_available" == "true" ]]; then
+        # VS Code is available
+        if cline::is_installed; then
+            version=$(cline::get_version)
+            if [[ "$api_configured" == "true" ]]; then
+                health="healthy"
+                details="Cline is ready for use in VS Code"
+            else
+                health="partial"
+                details="Cline installed but not configured"
+            fi
         else
             health="partial"
-            details="Cline installed but not configured"
+            details="Cline extension not installed"
         fi
     else
-        if [[ "$vscode_available" == "false" ]]; then
-            details="VS Code not found"
+        # VS Code not available but check if config is ready
+        if [[ -f "$CLINE_CONFIG_DIR/.status" && "$api_configured" == "true" ]]; then
+            health="partial"
+            details="Cline configured, awaiting VS Code installation"
+        elif [[ -f "$CLINE_CONFIG_DIR/.status" ]]; then
+            health="partial"
+            details="Cline prepared, VS Code not found"
         else
-            details="Cline extension not installed"
+            details="VS Code not found, Cline not configured"
         fi
     fi
     
