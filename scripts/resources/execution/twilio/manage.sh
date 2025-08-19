@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Get the directory of this script
-CLINE_MANAGE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TWILIO_MANAGE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Main router - delegates to lib scripts
 main() {
@@ -15,15 +15,15 @@ main() {
     shift || true
     
     case "$cmd" in
-        status|start|stop|install|logs|config|inject)
-            "$CLINE_MANAGE_DIR/lib/${cmd}.sh" "$@"
+        status|start|stop|install|logs|config|inject|send-sms|list-numbers)
+            "$TWILIO_MANAGE_DIR/lib/${cmd}.sh" "$@"
             ;;
         help)
-            "$CLINE_MANAGE_DIR/cli.sh" help
+            "$TWILIO_MANAGE_DIR/cli.sh" help
             ;;
         *)
             echo "Error: Unknown command '$cmd'"
-            "$CLINE_MANAGE_DIR/cli.sh" help
+            "$TWILIO_MANAGE_DIR/cli.sh" help
             exit 1
             ;;
     esac

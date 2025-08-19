@@ -24,23 +24,15 @@ source "${var_RESOURCES_COMMON_FILE}"
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/args-cli.sh"
 # shellcheck disable=SC1091
+source "${SCRIPT_DIR}/config/defaults.sh" 2>/dev/null || true
+defaults::export_config 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/config/messages.sh" 2>/dev/null || true
+messages::export_messages 2>/dev/null || true
+# shellcheck disable=SC1091
 source "${SCRIPT_DIR}/lib/common.sh"
 
-# Whisper configuration
-readonly WHISPER_PORT="${WHISPER_CUSTOM_PORT:-9000}"
-readonly WHISPER_BASE_URL="http://localhost:${WHISPER_PORT}"
-readonly WHISPER_CONTAINER_NAME="whisper"
-readonly WHISPER_DATA_DIR="${HOME}/.whisper"
-readonly WHISPER_MODELS_DIR="${WHISPER_DATA_DIR}/models"
-readonly WHISPER_UPLOADS_DIR="${WHISPER_DATA_DIR}/uploads"
-
-# Docker image configuration
-readonly WHISPER_IMAGE="${WHISPER_IMAGE:-onerahmet/openai-whisper-asr-webservice:latest-gpu}"
-readonly WHISPER_CPU_IMAGE="${WHISPER_CPU_IMAGE:-onerahmet/openai-whisper-asr-webservice:latest}"
-
-# Model configuration
-readonly WHISPER_MODEL_SIZES=("tiny" "base" "small" "medium" "large" "large-v2" "large-v3")
-readonly WHISPER_DEFAULT_MODEL="${WHISPER_DEFAULT_MODEL:-medium}"
+# Configuration is loaded from config/defaults.sh - no need to duplicate here
 
 # Model size information (approximate in GB)
 declare -A MODEL_SIZES=(

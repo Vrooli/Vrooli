@@ -8,7 +8,7 @@
 # Returns: 0 if installed, 1 otherwise
 #######################################
 ollama::is_installed() {
-    resources::binary_exists "ollama"
+    command -v ollama >/dev/null 2>&1
 }
 
 #######################################
@@ -37,18 +37,38 @@ ollama::get_health_details() {
     local health_msg=""
     local api_response_time=""
     
+    # Check if Ollama is running (either as service or process)
+    local is_running=false
+    local run_mode=""
+    
     # Check systemd state first
     local systemd_state
     systemd_state=$(systemctl is-active "$OLLAMA_SERVICE_NAME" 2>/dev/null || echo "inactive")
     
-    # Check if service is even installed
-    if ! systemctl list-unit-files | grep -q "^${OLLAMA_SERVICE_NAME}.service" 2>/dev/null; then
-        echo "❌ Service not installed"
+    # Check if running as systemd service
+    if systemctl list-unit-files 2>/dev/null | grep -q "^${OLLAMA_SERVICE_NAME}.service"; then
+        if [[ "$systemd_state" == "active" ]]; then
+            is_running=true
+            run_mode="systemd"
+        fi
+    fi
+    
+    # If not running as service, check for direct process
+    if [[ "$is_running" == "false" ]]; then
+        if pgrep -f "ollama serve" >/dev/null 2>&1; then
+            is_running=true
+            run_mode="process"
+        fi
+    fi
+    
+    # If not running at all, return early
+    if [[ "$is_running" == "false" ]]; then
+        echo "❌ Ollama not running"
         return 1
     fi
     
     # Check API health with timing
-    if system::is_command "curl"; then
+    if command -v curl >/dev/null 2>&1; then
         local temp_output=$(mktemp)
         local http_code
         local curl_exit_code
@@ -70,11 +90,11 @@ ollama::get_health_details() {
         rm -f "$temp_output"
         
         # Determine health based on all factors
-        if [[ "$systemd_state" == "active" ]]; then
+        if [[ "$is_running" == "true" ]]; then
             if [[ $curl_exit_code -eq 0 ]] && [[ "$http_code" == "200" ]]; then
                 # Check model availability
                 local model_count=0
-                if system::is_command "ollama"; then
+                if command -v ollama >/dev/null 2>&1; then
                     model_count=$(ollama list 2>/dev/null | tail -n +2 | wc -l || echo "0")
                 fi
                 
@@ -397,7 +417,7 @@ ollama::status::display_text() {
     fi
     
     # Check configuration
-    if [[ -f "$VROOLI_RESOURCES_CONFIG" ]] && system::is_command "jq"; then
+    if [[ -f "$VROOLI_RESOURCES_CONFIG" ]] && command -v jq >/dev/null 2>&1; then
         local config_exists
         config_exists=$(jq -r '.resources.ai.ollama // empty' "$VROOLI_RESOURCES_CONFIG" 2>/dev/null)
         

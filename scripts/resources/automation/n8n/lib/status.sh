@@ -11,6 +11,8 @@ N8N_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck disable=SC1091
 source "${N8N_LIB_DIR}/../../../../lib/utils/var.sh"
 # shellcheck disable=SC1091
+source "${N8N_LIB_DIR}/../../../../lib/utils/format.sh"
+# shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_LIB_DIR}/status-engine.sh"
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_LIB_DIR}/docker-utils.sh"
@@ -72,9 +74,13 @@ n8n::status() {
         return 1
     fi
     
+    # Convert string to array
+    local data_array
+    mapfile -t data_array <<< "$data_string"
+    
     # Format the output appropriately
     if [[ "$format" == "json" ]]; then
-        echo "$data_string"
+        format::output "json" "kv" "${data_array[@]}"
     else
         # Use the existing status engine for text output
         local config
@@ -84,17 +90,21 @@ n8n::status() {
 }
 
 #######################################
-# Collect n8n status data as JSON
+# Collect n8n status data as key-value pairs
 #######################################
 n8n::status::collect_data() {
+    local status_data=()
+    
     local installed="false"
     local running="false"
     local healthy="false"
     local health_message="Not installed"
+    local container_status="not_found"
     
     # Check if n8n is installed
     if docker::container_exists "$N8N_CONTAINER_NAME"; then
         installed="true"
+        container_status=$(docker inspect --format='{{.State.Status}}' "$N8N_CONTAINER_NAME" 2>/dev/null || echo "unknown")
         
         # Check if running
         if docker::is_running "$N8N_CONTAINER_NAME"; then
@@ -112,43 +122,51 @@ n8n::status::collect_data() {
         fi
     fi
     
-    # Get container info if running
-    local cpu_usage="0"
-    local memory_usage="0"
-    local memory_limit="0"
+    # Basic resource information
+    status_data+=("name" "n8n")
+    status_data+=("category" "automation")
+    status_data+=("description" "Business workflow automation platform")
+    status_data+=("installed" "$installed")
+    status_data+=("running" "$running")
+    status_data+=("healthy" "$healthy")
+    status_data+=("health_message" "$health_message")
+    status_data+=("container_name" "$N8N_CONTAINER_NAME")
+    status_data+=("container_status" "$container_status")
+    status_data+=("port" "$N8N_PORT")
     
+    # Service endpoints
+    status_data+=("ui_url" "$N8N_BASE_URL")
+    status_data+=("api_url" "${N8N_BASE_URL}/api/v1")
+    status_data+=("health_url" "${N8N_BASE_URL}/healthz")
+    
+    # Configuration details
+    status_data+=("image" "${N8N_IMAGE:-n8nio/n8n:latest}")
+    status_data+=("data_dir" "${N8N_DATA_DIR:-/home/.n8n}")
+    
+    # Get container info if running
     if [[ "$running" == "true" ]]; then
         local stats
         stats=$(docker stats "$N8N_CONTAINER_NAME" --no-stream --format "{{.CPUPerc}}|{{.MemUsage}}" 2>/dev/null || echo "")
         if [[ -n "$stats" ]]; then
+            local cpu_usage
             cpu_usage=$(echo "$stats" | cut -d'|' -f1 | tr -d '% ')
+            status_data+=("cpu_usage" "${cpu_usage:-0}%")
+            
             local mem_info
             mem_info=$(echo "$stats" | cut -d'|' -f2)
-            memory_usage=$(echo "$mem_info" | cut -d'/' -f1 | tr -d ' ')
-            memory_limit=$(echo "$mem_info" | cut -d'/' -f2 | tr -d ' ')
+            status_data+=("memory_usage" "${mem_info:-N/A}")
+        fi
+        
+        # Get workflow and execution count if healthy
+        if [[ "$healthy" == "true" ]]; then
+            # Try to get workflow info (this would need proper API implementation)
+            status_data+=("workflows" "unknown")
+            status_data+=("executions" "unknown")
         fi
     fi
     
-    # Build JSON response
-    cat <<EOF
-{
-  "name": "n8n",
-  "category": "automation",
-  "description": "Business workflow automation platform",
-  "installed": $installed,
-  "running": $running,
-  "healthy": $healthy,
-  "health_message": "$health_message",
-  "container_name": "$N8N_CONTAINER_NAME",
-  "port": $N8N_PORT,
-  "ui_url": "$N8N_BASE_URL",
-  "api_url": "${N8N_BASE_URL}/api/v1",
-  "health_url": "${N8N_BASE_URL}/healthz",
-  "cpu_usage": "$cpu_usage",
-  "memory_usage": "$memory_usage",
-  "memory_limit": "$memory_limit"
-}
-EOF
+    # Return the collected data
+    printf '%s\n' "${status_data[@]}"
 }
 
 

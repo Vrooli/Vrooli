@@ -41,7 +41,11 @@ windmill::export_config 2>/dev/null || true
 
 # Source windmill libraries - these contain the actual functionality
 # shellcheck disable=SC1091
+source "${WINDMILL_CLI_DIR}/lib/state.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
 source "${WINDMILL_CLI_DIR}/lib/common.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${WINDMILL_CLI_DIR}/lib/database.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${WINDMILL_CLI_DIR}/lib/docker.sh" 2>/dev/null || true
 # shellcheck disable=SC1091

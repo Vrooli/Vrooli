@@ -39,7 +39,7 @@ source "${MINIO_CLI_DIR}/config/defaults.sh" 2>/dev/null || true
 minio::export_config 2>/dev/null || true
 
 # Source MinIO libraries
-for lib in common docker status api buckets; do
+for lib in common docker status api buckets inject; do
     lib_file="${MINIO_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -92,7 +92,9 @@ minio_inject() {
     fi
     
     # Use existing injection function
-    if command -v minio::inject_file &>/dev/null; then
+    if command -v minio::inject &>/dev/null; then
+        minio::inject "$file"
+    elif command -v minio::inject_file &>/dev/null; then
         minio::inject_file "$file"
     elif command -v minio::inject_bucket_config &>/dev/null; then
         minio::inject_bucket_config "$file"
@@ -210,7 +212,7 @@ minio_credentials() {
         local connection_obj
         connection_obj=$(jq -n \
             --arg host "localhost" \
-            --argjson port "${MINIO_PORT:-9000}" \
+            --arg port "${MINIO_PORT:-9000}" \
             --argjson ssl false \
             --arg region "${MINIO_REGION:-us-east-1}" \
             '{

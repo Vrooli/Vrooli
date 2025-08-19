@@ -36,6 +36,7 @@ declare -g -A RESOURCE_PORTS=(
     
     # Execution Services (23xx range)
     ["judge0"]="2358"          # Code execution sandbox (official Judge0 port)
+    ["llamaindex"]="8091"      # RAG and document processing
     
     # Future services can use:
     # - 11xxx for AI services

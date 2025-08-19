@@ -50,7 +50,7 @@ browserless::get_init_config() {
         "resource_name": "browserless",
         "container_name": "'$BROWSERLESS_CONTAINER_NAME'",
         "data_dir": "'$BROWSERLESS_DATA_DIR'",
-        "port": '$BROWSERLESS_PORT',
+        "port": 3000,
         "image": "'$BROWSERLESS_IMAGE'",
         "env_vars": {
             "CONCURRENT": "'$max_browsers'",
@@ -304,7 +304,8 @@ browserless::first_time_setup() {
 browserless::wait_for_ready() {
     log::info "Waiting for Browserless to be ready..."
     
-    if wait::for_http "http://localhost:$BROWSERLESS_PORT/pressure" 60; then
+    # Use port 3000 for host network mode
+    if wait::for_http "http://localhost:3000/pressure" 60; then
         log::success "Browserless is ready!"
         return 0
     else
@@ -323,7 +324,7 @@ browserless::post_install_setup() {
     echo
     log::success "Browserless installed successfully!"
     echo "=================================="
-    echo "Access URL: http://localhost:$BROWSERLESS_PORT"
+    echo "Access URL: http://localhost:3000"
     echo "Max Browsers: $MAX_BROWSERS"
     echo "Timeout: ${TIMEOUT}ms"
     echo "Data Directory: $BROWSERLESS_DATA_DIR"
@@ -336,11 +337,8 @@ browserless::post_install_setup() {
     echo
     
     # Auto-install CLI if available
-    if [[ -f "${var_SCRIPTS_RESOURCES_LIB_DIR}/cli-auto-install.sh" ]]; then
-        # shellcheck disable=SC1091
-        source "${var_SCRIPTS_RESOURCES_LIB_DIR}/cli-auto-install.sh" 2>/dev/null || true
-        resource_cli::auto_install "$BROWSERLESS_SCRIPT_DIR" || true
-    fi
+    # shellcheck disable=SC1091
+    "${var_SCRIPTS_RESOURCES_LIB_DIR}/install-resource-cli.sh" "$BROWSERLESS_SCRIPT_DIR" 2>/dev/null || true
 }
 
 #######################################

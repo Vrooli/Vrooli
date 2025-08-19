@@ -1,0 +1,21 @@
+{
+  "numbers": [
+    {
+      "number": "+1234567890",
+      "sid": "PNxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "friendly_name": "Main Business Line",
+      "capabilities": ["sms", "voice", "mms"],
+      "sms_url": "https://your-domain.com/twilio/sms",
+      "voice_url": "https://your-domain.com/twilio/voice"
+    }
+  ],
+  "verified_callers": [
+    "+19876543210"
+  ],
+  "messaging_services": [
+    {
+      "sid": "MGxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "name": "Marketing Campaigns"
+    }
+  ]
+}

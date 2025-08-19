@@ -2,12 +2,24 @@
 # Windmill Installation Functions
 # Complete installation workflow for Windmill platform
 
-# Source trash module for safe cleanup
-WINDMILL_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck disable=SC1091
-source "${WINDMILL_LIB_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
-# shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+# Only source if not already loaded via CLI
+if [[ -z "${WINDMILL_LIB_DIR:-}" ]]; then
+    WINDMILL_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    # shellcheck disable=SC1091
+    source "${WINDMILL_LIB_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+    # shellcheck disable=SC1091
+    source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+    
+    # Source necessary windmill lib files
+    # shellcheck disable=SC1091
+    source "${WINDMILL_LIB_DIR}/state.sh" 2>/dev/null || true
+    # shellcheck disable=SC1091
+    source "${WINDMILL_LIB_DIR}/common.sh" 2>/dev/null || true
+    # shellcheck disable=SC1091
+    source "${WINDMILL_LIB_DIR}/docker.sh" 2>/dev/null || true
+    # shellcheck disable=SC1091
+    source "${WINDMILL_LIB_DIR}/database.sh" 2>/dev/null || true
+fi
 
 #######################################
 # Main installation function
@@ -15,6 +27,12 @@ source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 #######################################
 windmill::install() {
     log::header "🌪️  Installing Windmill Workflow Automation Platform"
+    
+    # Initialize FORCE variable if not set
+    FORCE="${FORCE:-no}"
+    
+    # Initialize WINDMILL_PROJECT_NAME if not set
+    WINDMILL_PROJECT_NAME="${WINDMILL_PROJECT_NAME:-windmill-vrooli}"
     
     # Initialize state management system
     windmill::state_init "$WINDMILL_PROJECT_NAME"
@@ -82,8 +100,7 @@ windmill::install() {
     
     # Auto-install CLI if available
     # shellcheck disable=SC1091
-    source "${var_SCRIPTS_RESOURCES_LIB_DIR}/cli-auto-install.sh" 2>/dev/null || true
-    resource_cli::auto_install "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)" || true
+    "${var_SCRIPTS_RESOURCES_LIB_DIR}/install-resource-cli.sh" "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)" 2>/dev/null || true
     
     return 0
 }

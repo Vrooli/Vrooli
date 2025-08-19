@@ -1,4 +1,4 @@
-#\!/usr/bin/env bash
+#!/usr/bin/env bash
 set -euo pipefail
 
 # Get the directory of this script
@@ -41,25 +41,25 @@ main() {
     
     case "$cmd" in
         status)
-            "$CLINE_LIB_DIR/status.sh" "$@"
+            "$CLINE_CLI_DIR/lib/status.sh" "$@"
             ;;
         install)
-            "$CLINE_LIB_DIR/install.sh" "$@"
+            "$CLINE_CLI_DIR/lib/install.sh" "$@"
             ;;
         start)
-            "$CLINE_LIB_DIR/start.sh" "$@"
+            "$CLINE_CLI_DIR/lib/start.sh" "$@"
             ;;
         stop)
-            "$CLINE_LIB_DIR/stop.sh" "$@"
+            "$CLINE_CLI_DIR/lib/stop.sh" "$@"
             ;;
         logs)
-            "$CLINE_LIB_DIR/logs.sh" "$@"
+            "$CLINE_CLI_DIR/lib/logs.sh" "$@"
             ;;
         config)
-            "$CLINE_LIB_DIR/config.sh" "$@"
+            "$CLINE_CLI_DIR/lib/config.sh" "$@"
             ;;
         inject)
-            "$CLINE_LIB_DIR/inject.sh" "$@"
+            "$CLINE_CLI_DIR/lib/inject.sh" "$@"
             ;;
         help)
             show_help

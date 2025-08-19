@@ -420,13 +420,7 @@ n8n::install() {
     init::setup_resource "$init_config"
     
     # Auto-install CLI if available
-    if [[ -f "${var_SCRIPTS_RESOURCES_LIB_DIR}/cli-auto-install.sh" ]]; then
-        # shellcheck disable=SC1091
-        source "${var_SCRIPTS_RESOURCES_LIB_DIR}/cli-auto-install.sh"
-        if command -v resource_cli::auto_install &>/dev/null; then
-            resource_cli::auto_install "$N8N_SCRIPT_DIR" || true
-        fi
-    fi
+    "${var_SCRIPTS_RESOURCES_LIB_DIR}/install-resource-cli.sh" "$N8N_SCRIPT_DIR" 2>/dev/null || true
 }
 
 

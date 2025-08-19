@@ -38,6 +38,9 @@ source "${var_SCRIPTS_RESOURCES_LIB_DIR}/cli-command-framework.sh"
 # shellcheck disable=SC1091
 source "${WHISPER_CLI_DIR}/config/defaults.sh" 2>/dev/null || true
 defaults::export_config 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${WHISPER_CLI_DIR}/config/messages.sh" 2>/dev/null || true
+messages::export_messages 2>/dev/null || true
 
 # Source Whisper libraries - these contain the actual functionality
 # shellcheck disable=SC1091
