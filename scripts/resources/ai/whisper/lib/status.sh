@@ -7,6 +7,8 @@ WHISPER_STATUS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
 source "${WHISPER_STATUS_DIR}/../../../../lib/utils/format.sh"
 # shellcheck disable=SC1091
+source "${WHISPER_STATUS_DIR}/../../../lib/status-args.sh"
+# shellcheck disable=SC1091
 source "${WHISPER_STATUS_DIR}/../config/defaults.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${WHISPER_STATUS_DIR}/../config/messages.sh" 2>/dev/null || true
@@ -20,9 +22,25 @@ fi
 
 #######################################
 # Collect Whisper status data in format-agnostic structure
+# Args: [--fast] - Skip expensive operations for faster response
 # Returns: Key-value pairs ready for formatting
 #######################################
 whisper::status::collect_data() {
+    local fast_mode="false"
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --fast)
+                fast_mode="true"
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
     local status_data=()
     
     # Basic status checks
@@ -105,38 +123,53 @@ whisper::status::collect_data() {
         model_size=$(common::get_model_size "$current_model")
         status_data+=("model_size_gb" "$model_size")
         
-        # Storage information
+        # Storage information (skip expensive operations in fast mode)
         if [[ -d "$WHISPER_DATA_DIR" ]]; then
             local data_size models_count uploads_count
-            data_size=$(du -sh "$WHISPER_DATA_DIR" 2>/dev/null | cut -f1 || echo "unknown")
+            
+            if [[ "$fast_mode" == "true" ]]; then
+                data_size="N/A"
+                models_count="N/A"
+                uploads_count="N/A"
+            else
+                data_size=$(du -sh "$WHISPER_DATA_DIR" 2>/dev/null | cut -f1 || echo "unknown")
+                
+                # Count model files
+                models_count=0
+                if [[ -d "$WHISPER_MODELS_DIR" ]]; then
+                    models_count=$(find "$WHISPER_MODELS_DIR" -type f 2>/dev/null | wc -l)
+                fi
+                
+                # Count upload files
+                uploads_count=0
+                if [[ -d "$WHISPER_UPLOADS_DIR" ]]; then
+                    uploads_count=$(find "$WHISPER_UPLOADS_DIR" -type f 2>/dev/null | wc -l)
+                fi
+            fi
+            
             status_data+=("data_size" "$data_size")
-            
-            # Count model files
-            models_count=0
-            if [[ -d "$WHISPER_MODELS_DIR" ]]; then
-                models_count=$(find "$WHISPER_MODELS_DIR" -type f 2>/dev/null | wc -l)
-            fi
             status_data+=("models_count" "$models_count")
-            
-            # Count upload files
-            uploads_count=0
-            if [[ -d "$WHISPER_UPLOADS_DIR" ]]; then
-                uploads_count=$(find "$WHISPER_UPLOADS_DIR" -type f 2>/dev/null | wc -l)
-            fi
             status_data+=("uploads_count" "$uploads_count")
         fi
         
-        # Container resource usage
+        # Container resource usage (skip in fast mode)
         local stats
-        stats=$(docker stats --no-stream --format "{{.CPUPerc}};{{.MemUsage}}" "$WHISPER_CONTAINER_NAME" 2>/dev/null || echo "N/A;N/A")
+        if [[ "$fast_mode" == "true" ]]; then
+            stats="N/A;N/A"
+        else
+            stats=$(timeout 2s docker stats --no-stream --format "{{.CPUPerc}};{{.MemUsage}}" "$WHISPER_CONTAINER_NAME" 2>/dev/null || echo "N/A;N/A")
+        fi
         
         if [[ "$stats" != "N/A;N/A" ]]; then
             local cpu_usage memory_usage
             cpu_usage=$(echo "$stats" | cut -d';' -f1)
             memory_usage=$(echo "$stats" | cut -d';' -f2)
-            status_data+=("cpu_usage" "$cpu_usage")
-            status_data+=("memory_usage" "$memory_usage")
+        else
+            cpu_usage="N/A"
+            memory_usage="N/A"
         fi
+        status_data+=("cpu_usage" "$cpu_usage")
+        status_data+=("memory_usage" "$memory_usage")
     fi
     
     # Return the collected data
@@ -150,6 +183,7 @@ whisper::status::collect_data() {
 whisper::status::show() {
     local format="text"
     local verbose="false"
+    local fast="false"
     
     # Parse arguments
     while [[ $# -gt 0 ]]; do
@@ -166,15 +200,23 @@ whisper::status::show() {
                 verbose="true"
                 shift
                 ;;
+            --fast)
+                fast="true"
+                shift
+                ;;
             *)
                 shift
                 ;;
         esac
     done
     
-    # Collect status data
+    # Collect status data (pass fast flag if set)
     local data_string
-    data_string=$(whisper::status::collect_data 2>/dev/null)
+    local collect_args=""
+    if [[ "$fast" == "true" ]]; then
+        collect_args="--fast"
+    fi
+    data_string=$(whisper::status::collect_data $collect_args 2>/dev/null)
     
     if [[ -z "$data_string" ]]; then
         # Fallback if data collection fails
@@ -331,7 +373,7 @@ whisper::status::display_text() {
 # Main status function for CLI registration
 #######################################
 whisper::status() {
-    whisper::status::show "$@"
+    status::run_standard "whisper" "whisper::status::collect_data" "whisper::status::display_text" "$@"
 }
 
 # Legacy compatibility - keep existing functions unchanged

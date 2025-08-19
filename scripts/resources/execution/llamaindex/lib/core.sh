@@ -33,8 +33,8 @@ llamaindex::init() {
     mkdir -p "$LLAMAINDEX_CONFIG_DIR"
     
     # Check for OpenAI/OpenRouter API keys for embeddings
-    if [[ -f "${HOME}/.vrooli/openrouter-credentials.json" ]]; then
-        local api_key=$(jq -r '.api_key // empty' "${HOME}/.vrooli/openrouter-credentials.json" 2>/dev/null)
+    if [[ -f "${var_ROOT_DIR}/data/credentials/openrouter-credentials.json" ]]; then
+        local api_key=$(jq -r '.data.apiKey // empty' "${var_ROOT_DIR}/data/credentials/openrouter-credentials.json" 2>/dev/null)
         if [[ -n "$api_key" && "$api_key" != "placeholder" ]]; then
             export OPENROUTER_API_KEY="$api_key"
             log::debug "Loaded OpenRouter API key for LlamaIndex"

@@ -139,8 +139,8 @@ autogen_start() {
     
     # Get API keys if available
     local env_flags=""
-    if [[ -f "${HOME}/.vrooli/openrouter-credentials.json" ]]; then
-        local api_key=$(jq -r '.apiKey // empty' "${HOME}/.vrooli/openrouter-credentials.json" 2>/dev/null)
+    if [[ -f "${var_ROOT_DIR}/data/credentials/openrouter-credentials.json" ]]; then
+        local api_key=$(jq -r '.data.apiKey // empty' "${var_ROOT_DIR}/data/credentials/openrouter-credentials.json" 2>/dev/null)
         if [[ -n "${api_key}" ]]; then
             env_flags="-e OPENROUTER_API_KEY=${api_key}"
         fi
@@ -236,7 +236,7 @@ autogen_status() {
     fi
     
     # Check LLM configuration
-    if [[ -f "${AUTOGEN_CONFIG_FILE}" ]] && [[ -f "${HOME}/.vrooli/openrouter-credentials.json" ]]; then
+    if [[ -f "${AUTOGEN_CONFIG_FILE}" ]] && [[ -f "${var_ROOT_DIR}/data/credentials/openrouter-credentials.json" ]]; then
         llm_configured="true"
     elif docker ps --format "{{.Names}}" | grep -q "^ollama$"; then
         llm_configured="true"

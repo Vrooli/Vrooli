@@ -30,6 +30,7 @@
 - ✅ Ensure resource status checks match standards, including supporting json mode by utilizing `scripts/lib/utils/format.sh`. This will make it easier to check which resources are healthy in the future. If the status check already works, assume it already follows the standard format.
 - ✅ Use `$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)` to define the script's current directory
 - ✅ Source `scripts/lib/utils/var.sh` FIRST using a relative path, if you need to access its `var_` variables
+- ✅ Use the project-level `data/` folder for storing things that don't belong in git, such as credentials, compiled code, logs, etc.
 
 - ❌ Do NOT uninstall, disable, or permanently shut down resources. The scenario loop relies on them running.
 - ❌ Do NOT modify loop scripts or prompt files.
@@ -95,6 +96,7 @@ General:
 - Resource CLIs are thin wrappers over the lib/ functions, and call them directly instead of going through a manage.sh or other intermediary.
 - Resources elegantly use shared functions to reduce the amount of code they have to define themselves
 - New resources that don't fit well into one of the existing categories can just go in `scripts/resources/execution/`. We'll eventually get rid of the categories format, so it doesn't matter
+- Resource documentation is accurate, organized, and follows best practices. It should be clear exactly what the resource does, what benefits it has for Vrooli, what sorts of scenarios it allows us to build, how to use it, etc.
 
 ---
 

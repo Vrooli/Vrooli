@@ -17,7 +17,7 @@ source "${REGISTRY_DIR}/../../../../lib/utils/var.sh"
 source "${var_LOG_FILE:-${REGISTRY_DIR}/../../../../lib/utils/log.sh}"
 
 # Registry file path
-CREDENTIAL_REGISTRY_FILE="${var_VROOLI_CONFIG_DIR}/n8n-credentials-registry.json"
+CREDENTIAL_REGISTRY_FILE="${var_ROOT_DIR}/data/resources/n8n/n8n-credentials-registry.json"
 
 #######################################
 # Initialize credential registry

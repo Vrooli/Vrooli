@@ -76,8 +76,8 @@ cli::register_command "logs" "Show ComfyUI logs" "comfyui::cli_logs"
 cli::register_command "inject" "Inject workflow into ComfyUI" "comfyui::cli_inject" "modifies-system"
 cli::register_command "execute-workflow" "Execute a workflow" "comfyui::cli_execute_workflow" "modifies-system"
 cli::register_command "list-workflows" "List available workflows" "workflows::list_workflows"
-cli::register_command "download-models" "Download default models" "models::download_default" "modifies-system"
-cli::register_command "list-models" "List available models" "models::list"
+cli::register_command "download-models" "Download default models" "models::download_default_models" "modifies-system"
+cli::register_command "list-models" "List available models" "models::list_models"
 
 # Register GPU and hardware commands
 cli::register_command "gpu-info" "Show GPU information" "gpu::info"

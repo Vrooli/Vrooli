@@ -7,6 +7,8 @@ HUGINN_STATUS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
 source "${HUGINN_STATUS_DIR}/../../../../lib/utils/format.sh"
 # shellcheck disable=SC1091
+source "${HUGINN_STATUS_DIR}/../../../lib/status-args.sh"
+# shellcheck disable=SC1091
 source "${HUGINN_STATUS_DIR}/../config/defaults.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${HUGINN_STATUS_DIR}/common.sh" 2>/dev/null || true
@@ -21,6 +23,21 @@ fi
 # Returns: Key-value pairs ready for formatting
 #######################################
 huginn::status::collect_data() {
+    local fast_mode="false"
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --fast)
+                fast_mode="true"
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
     local status_data=()
     
     # Basic status checks
@@ -78,18 +95,24 @@ huginn::status::collect_data() {
         
         # Huginn version
         local version
-        version=$(timeout 3 huginn::get_version 2>/dev/null || echo "unknown")
+        if [[ "$fast_mode" == "false" ]]; then
+            version=$(timeout 3 huginn::get_version 2>/dev/null || echo "unknown")
+        else
+            version="N/A"
+        fi
         status_data+=("version" "$version")
         
         # Database connectivity
         local db_connected="false"
-        if timeout 3 huginn::check_database 2>/dev/null; then
+        if [[ "$fast_mode" == "false" ]] && timeout 3 huginn::check_database 2>/dev/null; then
             db_connected="true"
+        elif [[ "$fast_mode" == "true" ]]; then
+            db_connected="N/A"
         fi
         status_data+=("database_connected" "$db_connected")
         
-        # Get system statistics if healthy
-        if [[ "$healthy" == "true" ]]; then
+        # Get system statistics if healthy (skip in fast mode)
+        if [[ "$healthy" == "true" ]] && [[ "$fast_mode" == "false" ]]; then
             local stats_json
             # Add explicit timeout to prevent hanging
             stats_json=$(timeout 5 huginn::get_system_stats 2>/dev/null || echo "{}")
@@ -129,80 +152,10 @@ huginn::status::collect_data() {
 
 #######################################
 # Show Huginn status using standardized format
-# Args: [--format json|text] [--verbose]
+# Args: [--format json|text] [--verbose] [--fast]
 #######################################
 huginn::status() {
-    local format="text"
-    local verbose="false"
-    
-    # Parse arguments
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            --format)
-                format="$2"
-                shift 2
-                ;;
-            --json)
-                format="json"
-                shift
-                ;;
-            --verbose|-v)
-                verbose="true"
-                shift
-                ;;
-            *)
-                shift
-                ;;
-        esac
-    done
-    
-    # Collect status data
-    local data_string
-    data_string=$(huginn::status::collect_data 2>/dev/null)
-    
-    if [[ -z "$data_string" ]]; then
-        # Fallback if data collection fails
-        if [[ "$format" == "json" ]]; then
-            echo '{"error": "Failed to collect status data"}'
-        else
-            log::error "Failed to collect Huginn status data"
-        fi
-        return 1
-    fi
-    
-    # Convert string to array
-    local data_array
-    mapfile -t data_array <<< "$data_string"
-    
-    # Output based on format
-    if [[ "$format" == "json" ]]; then
-        format::output "json" "kv" "${data_array[@]}"
-    else
-        # Text format with standardized structure
-        huginn::status::display_text "${data_array[@]}"
-    fi
-    
-    # Return appropriate exit code
-    local healthy="false"
-    local running="false"
-    local installed="false"
-    for ((i=0; i<${#data_array[@]}; i+=2)); do
-        case "${data_array[i]}" in
-            "healthy") healthy="${data_array[i+1]}" ;;
-            "running") running="${data_array[i+1]}" ;;
-            "installed") installed="${data_array[i+1]}" ;;
-        esac
-    done
-    
-    if [[ "$healthy" == "true" ]]; then
-        return 0
-    elif [[ "$running" == "true" ]]; then
-        return 1
-    elif [[ "$installed" == "true" ]]; then
-        return 2
-    else
-        return 3
-    fi
+    status::run_standard "huginn" "huginn::status::collect_data" "huginn::status::display_text" "$@"
 }
 
 #######################################
@@ -423,8 +376,8 @@ huginn::show_resource_summary() {
     local huginn_stats
     local db_stats
     
-    huginn_stats=$(docker stats --no-stream --format "{{.CPUPerc}}\t{{.MemUsage}}" "$CONTAINER_NAME" 2>/dev/null || echo "N/A\tN/A")
-    db_stats=$(docker stats --no-stream --format "{{.CPUPerc}}\t{{.MemUsage}}" "$DB_CONTAINER_NAME" 2>/dev/null || echo "N/A\tN/A")
+    huginn_stats=$(timeout 2s docker stats --no-stream --format "{{.CPUPerc}}\t{{.MemUsage}}" "$CONTAINER_NAME" 2>/dev/null || echo "N/A\tN/A")
+    db_stats=$(timeout 2s docker stats --no-stream --format "{{.CPUPerc}}\t{{.MemUsage}}" "$DB_CONTAINER_NAME" 2>/dev/null || echo "N/A\tN/A")
     
     local huginn_cpu huginn_mem db_cpu db_mem
     read -r huginn_cpu huginn_mem <<< "$huginn_stats"

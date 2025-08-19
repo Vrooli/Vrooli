@@ -18,7 +18,7 @@ gemini::install() {
     gemini::init "$verbose"
     
     # Create credentials file if needed
-    local credentials_dir="${var_ROOT_DIR}/.vrooli"
+    local credentials_dir="${var_ROOT_DIR}/data/credentials"
     local credentials_file="${credentials_dir}/gemini-credentials.json"
     
     if [[ ! -d "$credentials_dir" ]]; then

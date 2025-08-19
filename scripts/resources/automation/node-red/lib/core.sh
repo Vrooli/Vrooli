@@ -722,6 +722,21 @@ node_red::flow_operation() {
 # Returns: Key-value pairs ready for formatting
 #######################################
 node_red::status::collect_data() {
+    local fast_mode="false"
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --fast)
+                fast_mode="true"
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
     local status_data=()
     
     # Basic status checks
@@ -804,16 +819,29 @@ node_red::status::collect_data() {
         status_data+=("flows_count" "$flows_count")
         status_data+=("has_credentials" "$has_credentials")
         
-        # Resource usage if available
-        local stats
-        stats=$(docker stats --no-stream --format "{{.CPUPerc}}|{{.MemUsage}}" "$NODE_RED_CONTAINER_NAME" 2>/dev/null)
-        if [[ -n "$stats" ]]; then
-            local cpu_usage memory_usage
-            cpu_usage=$(echo "$stats" | cut -d'|' -f1)
-            memory_usage=$(echo "$stats" | cut -d'|' -f2)
-            status_data+=("cpu_usage" "$cpu_usage")
-            status_data+=("memory_usage" "$memory_usage")
+        # Resource usage if available (optimized for performance)
+        local stats cpu_usage memory_usage
+        
+        # Skip expensive operations in fast mode
+        local skip_stats="$fast_mode"
+        
+        if [[ "$skip_stats" == "true" ]]; then
+            cpu_usage="N/A"
+            memory_usage="N/A"
+        else
+            stats=$(timeout 2s docker stats --no-stream --format "{{.CPUPerc}}|{{.MemUsage}}" "$NODE_RED_CONTAINER_NAME" 2>/dev/null || echo "N/A|N/A")
+            
+            if [[ "$stats" != "N/A|N/A" && -n "$stats" ]]; then
+                cpu_usage=$(echo "$stats" | cut -d'|' -f1)
+                memory_usage=$(echo "$stats" | cut -d'|' -f2)
+            else
+                cpu_usage="N/A"
+                memory_usage="N/A"
+            fi
         fi
+        
+        status_data+=("cpu_usage" "$cpu_usage")
+        status_data+=("memory_usage" "$memory_usage")
     fi
     
     # Return the collected data
@@ -835,6 +863,7 @@ node_red::status::display_text() {
 node_red::status() {
     local format="text"
     local verbose="false"
+    local fast="false"
     
     # Parse arguments
     while [[ $# -gt 0 ]]; do
@@ -849,6 +878,10 @@ node_red::status() {
                 ;;
             --verbose|-v)
                 verbose="true"
+                shift
+                ;;
+            --fast)
+                fast="true"
                 shift
                 ;;
             *)
@@ -869,9 +902,13 @@ node_red::status() {
     
     # Output based on format
     if [[ "$format" == "json" ]]; then
-        # Collect status data and format as JSON
+        # Collect status data and format as JSON (pass fast flag if set)
         local data_string
-        data_string=$(node_red::status::collect_data 2>/dev/null)
+        local collect_args=""
+        if [[ "$fast" == "true" ]]; then
+            collect_args="--fast"
+        fi
+        data_string=$(node_red::status::collect_data $collect_args 2>/dev/null)
         
         if [[ -z "$data_string" ]]; then
             echo '{"error": "Failed to collect status data"}'
@@ -892,9 +929,13 @@ node_red::status() {
     
     # Return appropriate exit code based on health
     if [[ "$format" == "json" ]]; then
-        # For JSON, extract health from data
+        # For JSON, extract health from data (pass fast flag if set)
         local data_string
-        data_string=$(node_red::status::collect_data 2>/dev/null)
+        local collect_args=""
+        if [[ "$fast" == "true" ]]; then
+            collect_args="--fast"
+        fi
+        data_string=$(node_red::status::collect_data $collect_args 2>/dev/null)
         local data_array
         mapfile -t data_array <<< "$data_string"
         

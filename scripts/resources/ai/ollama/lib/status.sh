@@ -3,6 +3,13 @@
 # Ollama Status and Service Management Functions
 # This file contains status checking, service control, and health monitoring functions
 
+# Set script directory for sourcing
+OLLAMA_STATUS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
+# Source status argument library
+# shellcheck disable=SC1091
+source "${OLLAMA_STATUS_DIR}/../../../lib/status-args.sh"
+
 #######################################
 # Check if Ollama is installed
 # Returns: 0 if installed, 1 otherwise
@@ -485,164 +492,7 @@ ollama::status::display_text() {
 # Args: [--format json|text] [--verbose] 
 #######################################
 ollama::status() {
-    local format="text"
-    local verbose="false"
-    local fast="false"
-    
-    # Parse arguments
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            --format)
-                format="$2"
-                shift 2
-                ;;
-            --json)
-                format="json"
-                shift
-                ;;
-            --verbose|-v)
-                verbose="true"
-                shift
-                ;;
-            --fast)
-                fast="true"
-                shift
-                ;;
-            *)
-                shift
-                ;;
-        esac
-    done
-    
-    # Simple status check to avoid hangs
-    local installed="false"
-    local running="false"
-    local healthy="false"
-    local health_message="Unknown"
-    local port="${OLLAMA_PORT:-11435}"
-    
-    # Check if Ollama binary is installed
-    if command -v ollama >/dev/null 2>&1; then
-        installed="true"
-    fi
-    
-    # Check if service is running on port
-    if lsof -i ":$port" >/dev/null 2>&1 || ss -tln 2>/dev/null | grep -q ":$port "; then
-        running="true"
-    fi
-    
-    # Check API health with timeout (skip in fast mode)
-    if [[ "$running" == "true" ]]; then
-        if [[ "$fast" == "true" ]]; then
-            healthy="true"
-            health_message="Running - API check skipped in fast mode"
-        elif curl -s --max-time 2 "http://localhost:$port/api/tags" >/dev/null 2>&1; then
-            healthy="true"
-            health_message="Healthy - API responding"
-        else
-            health_message="Unhealthy - API not responding"
-        fi
-    elif [[ "$installed" == "true" ]]; then
-        health_message="Stopped - Service not running"
-    else
-        health_message="Not installed"
-    fi
-    
-    # Output based on format
-    if [[ "$format" == "json" ]]; then
-        # Source format utilities if available
-        local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-        local format_lib="${script_dir}/../../../../lib/utils/format.sh"
-        if [[ -f "$format_lib" ]]; then
-            # shellcheck disable=SC1090
-            source "$format_lib" 2>/dev/null || true
-            
-            # Use format utilities if available
-            if command -v format::output >/dev/null 2>&1; then
-                local data_array=(
-                    "name" "ollama"
-                    "category" "ai"
-                    "description" "Local AI model inference server"
-                    "installed" "$installed"
-                    "running" "$running"
-                    "healthy" "$healthy"
-                    "health_message" "$health_message"
-                    "port" "$port"
-                    "api_url" "http://localhost:$port"
-                )
-                format::output "json" "kv" "${data_array[@]}"
-            else
-                # Fallback to simple JSON
-                cat <<EOF
-{
-  "name": "ollama",
-  "installed": $installed,
-  "running": $running,
-  "healthy": $healthy,
-  "health_message": "$health_message"
-}
-EOF
-            fi
-        else
-            # Simple JSON output
-            cat <<EOF
-{
-  "name": "ollama",
-  "installed": $installed,
-  "running": $running,
-  "healthy": $healthy,
-  "health_message": "$health_message"
-}
-EOF
-        fi
-    else
-        # Text format
-        log::header "📊 Ollama Status"
-        log::info "📝 Description: Local AI model inference server"
-        log::info "📂 Category: ai"
-        echo
-        log::info "📊 Basic Status:"
-        if [[ "$installed" == "true" ]]; then
-            log::success "   ✅ Installed: Yes"
-        else
-            log::error "   ❌ Installed: No"
-        fi
-        if [[ "$running" == "true" ]]; then
-            log::success "   ✅ Running: Yes"
-        else
-            log::error "   ❌ Running: No"
-        fi
-        if [[ "$healthy" == "true" ]]; then
-            log::success "   ✅ Health: Healthy"
-        else
-            log::error "   ❌ Health: $health_message"
-        fi
-        echo
-        log::info "🌐 Service Endpoints:"
-        log::info "   🔌 API: http://localhost:$port"
-        
-        # List models if running and verbose
-        if [[ "$running" == "true" ]] && [[ "$verbose" == "true" ]] && command -v ollama >/dev/null 2>&1; then
-            echo
-            log::info "📦 Installed Models:"
-            local models
-            models=$(timeout 2 ollama list 2>/dev/null | tail -n +2 | head -10 | awk '{print "   • " $1 " (" $3 $4 ")"}')
-            if [[ -n "$models" ]]; then
-                echo "$models"
-            else
-                log::info "   No models installed"
-            fi
-        fi
-    fi
-    
-    # Return appropriate exit code
-    if [[ "$healthy" == "true" ]]; then
-        return 0
-    elif [[ "$running" == "true" ]]; then
-        return 1
-    else
-        return 2
-    fi
+    status::run_standard "ollama" "ollama::status::collect_data" "ollama::status::display_text" "$@"
 }
 
 #######################################

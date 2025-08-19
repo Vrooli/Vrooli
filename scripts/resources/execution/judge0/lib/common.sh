@@ -205,7 +205,7 @@ judge0::get_container_stats() {
         return
     fi
     
-    docker stats "$JUDGE0_CONTAINER_NAME" --no-stream --format "{{json .}}" 2>/dev/null || echo "{}"
+    timeout 2s docker stats "$JUDGE0_CONTAINER_NAME" --no-stream --format "{{json .}}" 2>/dev/null || echo "{}"
 }
 
 #######################################
@@ -219,7 +219,7 @@ judge0::get_worker_stats() {
     for i in $(seq 1 "$JUDGE0_WORKERS_COUNT"); do
         local worker_name="${JUDGE0_WORKERS_NAME}-${i}"
         if docker::is_running "$worker_name"; then
-            local stats=$(docker stats "$worker_name" --no-stream --format "{{json .}}" 2>/dev/null || echo "{}")
+            local stats=$(timeout 2s docker stats "$worker_name" --no-stream --format "{{json .}}" 2>/dev/null || echo "{}")
             workers+=("$stats")
         fi
     done

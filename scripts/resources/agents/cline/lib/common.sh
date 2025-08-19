@@ -78,8 +78,8 @@ cline::get_api_key() {
     local provider="${1:-$(cline::get_provider)}"
     case "$provider" in
         openrouter)
-            if [[ -f "${var_vrooli_dir:-${HOME}/.vrooli}/openrouter-credentials.json" ]]; then
-                jq -r '.apiKey // empty' "${var_vrooli_dir:-${HOME}/.vrooli}/openrouter-credentials.json" 2>/dev/null || true
+            if [[ -f "${var_ROOT_DIR}/data/credentials/openrouter-credentials.json" ]]; then
+                jq -r '.data.apiKey // empty' "${var_ROOT_DIR}/data/credentials/openrouter-credentials.json" 2>/dev/null || true
             fi
             ;;
         ollama)

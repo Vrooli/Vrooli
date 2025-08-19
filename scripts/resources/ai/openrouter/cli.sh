@@ -17,25 +17,8 @@ openrouter::cli() {
     
     case "$command" in
         status)
-            # Parse status arguments
-            local verbose="false"
-            local format="text"
-            while [[ $# -gt 0 ]]; do
-                case "$1" in
-                    --verbose)
-                        verbose="true"
-                        shift
-                        ;;
-                    --format)
-                        format="${2:-text}"
-                        shift 2
-                        ;;
-                    *)
-                        shift
-                        ;;
-                esac
-            done
-            openrouter::status "$verbose" "$format"
+            # Pass all arguments directly to status function
+            openrouter::status "$@"
             ;;
         install)
             openrouter::install "$@"

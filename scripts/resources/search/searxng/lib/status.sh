@@ -5,6 +5,8 @@
 # Source format utilities and config
 SEARXNG_STATUS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
+source "${SEARXNG_STATUS_DIR}/../../../lib/status-args.sh"
+# shellcheck disable=SC1091
 source "${SEARXNG_STATUS_DIR}/../../../../lib/utils/format.sh"
 # shellcheck disable=SC1091
 source "${SEARXNG_STATUS_DIR}/../config/defaults.sh" 2>/dev/null || true
@@ -313,7 +315,7 @@ searxng::status::display_text() {
 # Main status function for CLI registration
 #######################################
 searxng::status() {
-    searxng::status::show "$@"
+    status::run_standard "searxng" "searxng::status::collect_data" "searxng::status::display_text" "$@"
 }
 
 #######################################

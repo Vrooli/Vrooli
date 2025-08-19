@@ -21,7 +21,7 @@ openrouter::inject() {
     case "$target" in
         "n8n"|"windmill"|"huginn")
             # Create credentials JSON for workflow engines
-            local creds_file="${var_ROOT_DIR}/.vrooli/openrouter-credentials.json"
+            local creds_file="${var_ROOT_DIR}/data/credentials/openrouter-credentials.json"
             cat > "$creds_file" <<EOF
 {
     "type": "openrouter",

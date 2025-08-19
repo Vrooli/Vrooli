@@ -7,6 +7,8 @@ UNSTRUCTURED_IO_STATUS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
 source "${UNSTRUCTURED_IO_STATUS_DIR}/../../../../lib/utils/format.sh"
 # shellcheck disable=SC1091
+source "${UNSTRUCTURED_IO_STATUS_DIR}/../../../lib/status-args.sh"
+# shellcheck disable=SC1091
 source "${UNSTRUCTURED_IO_STATUS_DIR}/../config/defaults.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${UNSTRUCTURED_IO_STATUS_DIR}/../config/messages.sh" 2>/dev/null || true
@@ -26,6 +28,21 @@ fi
 # Returns: Key-value pairs ready for formatting
 #######################################
 unstructured_io::status::collect_data() {
+    local fast_mode="false"
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --fast)
+                fast_mode="true"
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
     local status_data=()
     
     # Basic status checks
@@ -91,14 +108,8 @@ unstructured_io::status::collect_data() {
         # Get container resource usage with fast timeout (ultra-optimized)
         local container_stats cpu_usage memory_usage
         
-        # Auto-detect if we should skip expensive docker stats
-        # Skip stats if: explicitly requested, in parallel mode, or format is JSON (likely automated)
-        local skip_stats="false"
-        if [[ "${UNSTRUCTURED_IO_SKIP_STATS:-false}" == "true" ]] || \
-           [[ "${PARALLEL_STATUS_CHECK:-false}" == "true" ]] || \
-           [[ "${format:-}" == "json" && "${verbose:-}" != "true" ]]; then
-            skip_stats="true"
-        fi
+        # Skip expensive operations in fast mode
+        local skip_stats="$fast_mode"
         
         if [[ "$skip_stats" == "true" ]]; then
             cpu_usage="N/A"
@@ -144,6 +155,7 @@ unstructured_io::status::collect_data() {
 unstructured_io::status::show() {
     local format="text"
     local verbose="false"
+    local fast="false"
     
     # Parse arguments
     while [[ $# -gt 0 ]]; do
@@ -160,15 +172,23 @@ unstructured_io::status::show() {
                 verbose="true"
                 shift
                 ;;
+            --fast)
+                fast="true"
+                shift
+                ;;
             *)
                 shift
                 ;;
         esac
     done
     
-    # Collect status data
+    # Collect status data (pass fast flag if set)
     local data_string
-    data_string=$(unstructured_io::status::collect_data 2>/dev/null)
+    local collect_args=""
+    if [[ "$fast" == "true" ]]; then
+        collect_args="--fast"
+    fi
+    data_string=$(unstructured_io::status::collect_data $collect_args 2>/dev/null)
     
     if [[ -z "$data_string" ]]; then
         # Fallback if data collection fails
@@ -464,6 +484,13 @@ unstructured_io::resource_usage() {
     
     docker stats --no-stream --format "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.MemPerc}}" \
         "$UNSTRUCTURED_IO_CONTAINER_NAME"
+}
+
+#######################################
+# Standard status function using new wrapper
+#######################################
+unstructured_io::status() {
+    status::run_standard "unstructured-io" "unstructured_io::status::collect_data" "unstructured_io::status::display_text" "$@"
 }
 
 #######################################

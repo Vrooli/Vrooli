@@ -13,6 +13,8 @@ source "${N8N_LIB_DIR}/../../../../lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${N8N_LIB_DIR}/../../../../lib/utils/format.sh"
 # shellcheck disable=SC1091
+source "${N8N_LIB_DIR}/../../../lib/status-args.sh"
+# shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_LIB_DIR}/status-engine.sh"
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_LIB_DIR}/docker-utils.sh"
@@ -27,22 +29,28 @@ source "${N8N_LIB_DIR}/auto-credentials.sh"
 # Show n8n status with format support
 #######################################
 n8n::status() {
-    local format="text"
-    local verbose="false"
+    # Check Docker daemon first
+    if ! docker::check_daemon; then
+        echo '{"error": "Docker daemon not available"}'
+        return 1
+    fi
+    
+    status::run_standard "n8n" "n8n::status::collect_data" "n8n::status::display_text" "$@"
+}
+
+#######################################
+# Collect n8n status data as key-value pairs
+# Args: [--fast] - Skip expensive operations for faster response
+# Returns: Key-value pairs ready for formatting
+#######################################
+n8n::status::collect_data() {
+    local fast_mode="false"
     
     # Parse arguments
     while [[ $# -gt 0 ]]; do
         case "$1" in
-            --format)
-                format="$2"
-                shift 2
-                ;;
-            --json)
-                format="json"
-                shift
-                ;;
-            --verbose|-v)
-                verbose="true"
+            --fast)
+                fast_mode="true"
                 shift
                 ;;
             *)
@@ -51,48 +59,6 @@ n8n::status() {
         esac
     done
     
-    # Check Docker daemon
-    if ! docker::check_daemon; then
-        if [[ "$format" == "json" ]]; then
-            echo '{"error": "Docker daemon not available"}'
-        else
-            log::error "Docker daemon not available"
-        fi
-        return 1
-    fi
-    
-    # Collect status data
-    local data_string
-    data_string=$(n8n::status::collect_data 2>/dev/null)
-    
-    if [[ -z "$data_string" ]]; then
-        if [[ "$format" == "json" ]]; then
-            echo '{"error": "Failed to collect status data"}'
-        else
-            log::error "Failed to collect n8n status data"
-        fi
-        return 1
-    fi
-    
-    # Convert string to array
-    local data_array
-    mapfile -t data_array <<< "$data_string"
-    
-    # Format the output appropriately
-    if [[ "$format" == "json" ]]; then
-        format::output "json" "kv" "${data_array[@]}"
-    else
-        # Use the existing status engine for text output
-        local config
-        config=$(n8n::get_status_config)
-        status::display_unified_status "$config" "n8n::display_workflow_info"
-    fi
-}
-
-#######################################
-# Collect n8n status data as key-value pairs
-#######################################
-n8n::status::collect_data() {
     local status_data=()
     
     local installed="false"
@@ -145,17 +111,29 @@ n8n::status::collect_data() {
     
     # Get container info if running
     if [[ "$running" == "true" ]]; then
-        local stats
-        stats=$(docker stats "$N8N_CONTAINER_NAME" --no-stream --format "{{.CPUPerc}}|{{.MemUsage}}" 2>/dev/null || echo "")
-        if [[ -n "$stats" ]]; then
-            local cpu_usage
-            cpu_usage=$(echo "$stats" | cut -d'|' -f1 | tr -d '% ')
-            status_data+=("cpu_usage" "${cpu_usage:-0}%")
+        local stats cpu_usage mem_info
+        
+        # Skip expensive operations in fast mode
+        local skip_stats="$fast_mode"
+        
+        if [[ "$skip_stats" == "true" ]]; then
+            cpu_usage="N/A"
+            mem_info="N/A"
+        else
+            stats=$(timeout 2s docker stats "$N8N_CONTAINER_NAME" --no-stream --format "{{.CPUPerc}}|{{.MemUsage}}" 2>/dev/null || echo "N/A|N/A")
             
-            local mem_info
-            mem_info=$(echo "$stats" | cut -d'|' -f2)
-            status_data+=("memory_usage" "${mem_info:-N/A}")
+            if [[ -n "$stats" && "$stats" != "N/A|N/A" ]]; then
+                cpu_usage=$(echo "$stats" | cut -d'|' -f1 | tr -d '% ')
+                cpu_usage="${cpu_usage:-0}%"
+                mem_info=$(echo "$stats" | cut -d'|' -f2)
+            else
+                cpu_usage="N/A"
+                mem_info="N/A"
+            fi
         fi
+        
+        status_data+=("cpu_usage" "$cpu_usage")
+        status_data+=("memory_usage" "${mem_info:-N/A}")
         
         # Get workflow and execution count if healthy
         if [[ "$healthy" == "true" ]]; then
@@ -167,6 +145,90 @@ n8n::status::collect_data() {
     
     # Return the collected data
     printf '%s\n' "${status_data[@]}"
+}
+
+#######################################
+# Display status in text format
+#######################################
+n8n::status::display_text() {
+    local -A data
+    
+    # Convert array to associative array
+    for ((i=1; i<=$#; i+=2)); do
+        local key="${!i}"
+        local value_idx=$((i+1))
+        local value="${!value_idx}"
+        data["$key"]="$value"
+    done
+    
+    # Header
+    log::header "🚀 n8n Status"
+    echo
+    
+    # Basic status
+    log::info "📊 Basic Status:"
+    if [[ "${data[installed]:-false}" == "true" ]]; then
+        log::success "   ✅ Installed: Yes"
+    else
+        log::error "   ❌ Installed: No"
+        echo
+        log::info "💡 Installation Required:"
+        log::info "   To install n8n, run: ./manage.sh --action install"
+        return
+    fi
+    
+    if [[ "${data[running]:-false}" == "true" ]]; then
+        log::success "   ✅ Running: Yes"
+    else
+        log::warn "   ⚠️  Running: No"
+    fi
+    
+    if [[ "${data[healthy]:-false}" == "true" ]]; then
+        log::success "   ✅ Health: Healthy"
+    else
+        log::warn "   ⚠️  Health: ${data[health_message]:-Unknown}"
+    fi
+    echo
+    
+    # Container information
+    log::info "🐳 Container Info:"
+    log::info "   📦 Name: ${data[container_name]:-unknown}"
+    log::info "   📊 Status: ${data[container_status]:-unknown}"
+    log::info "   🖼️  Image: ${data[image]:-unknown}"
+    echo
+    
+    # Service endpoints
+    log::info "🌐 Service Endpoints:"
+    log::info "   🎨 UI: ${data[ui_url]:-unknown}"
+    log::info "   🔌 API: ${data[api_url]:-unknown}"
+    log::info "   📊 Health: ${data[health_url]:-unknown}"
+    echo
+    
+    # Runtime information (only if healthy)
+    if [[ "${data[healthy]:-false}" == "true" ]]; then
+        log::info "📈 Runtime Information:"
+        if [[ -n "${data[cpu_usage]:-}" && "${data[cpu_usage]}" != "N/A" ]]; then
+            log::info "   💾 CPU Usage: ${data[cpu_usage]}"
+        fi
+        if [[ -n "${data[memory_usage]:-}" && "${data[memory_usage]}" != "N/A" ]]; then
+            log::info "   🧠 Memory Usage: ${data[memory_usage]}"
+        fi
+        
+        # Workflow information if available
+        if [[ -n "${data[workflows]:-}" ]]; then
+            log::info "   ⚙️  Workflows: ${data[workflows]}"
+        fi
+        if [[ -n "${data[executions]:-}" ]]; then
+            log::info "   ▶️  Executions: ${data[executions]}"
+        fi
+        echo
+        
+        # Quick access info
+        log::info "🎯 Quick Actions:"
+        log::info "   🌐 Access n8n: ${data[ui_url]:-http://localhost:5678}"
+        log::info "   📄 View logs: ./manage.sh --action logs"
+        log::info "   🛑 Stop service: ./manage.sh --action stop"
+    fi
 }
 
 

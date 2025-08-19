@@ -7,6 +7,8 @@ COMFYUI_STATUS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
 source "${COMFYUI_STATUS_DIR}/../../../../lib/utils/format.sh"
 # shellcheck disable=SC1091
+source "${COMFYUI_STATUS_DIR}/../../../lib/status-args.sh"
+# shellcheck disable=SC1091
 source "${COMFYUI_STATUS_DIR}/../config/defaults.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${COMFYUI_STATUS_DIR}/common.sh" 2>/dev/null || true
@@ -169,85 +171,10 @@ comfyui::status::collect_data() {
 
 #######################################
 # Show ComfyUI status using standardized format
-# Args: [--format json|text] [--verbose]
+# Args: [--format json|text] [--verbose] [--fast]
 #######################################
 comfyui::status::show() {
-    local format="text"
-    local verbose="false"
-    local fast="false"
-    
-    # Parse arguments
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            --format)
-                format="$2"
-                shift 2
-                ;;
-            --json)
-                format="json"
-                shift
-                ;;
-            --verbose|-v)
-                verbose="true"
-                shift
-                ;;
-            --fast)
-                fast="true"
-                shift
-                ;;
-            *)
-                shift
-                ;;
-        esac
-    done
-    
-    # Collect status data (pass fast flag if set)
-    local data_string
-    local collect_args=""
-    if [[ "$fast" == "true" ]]; then
-        collect_args="--fast"
-    fi
-    data_string=$(comfyui::status::collect_data $collect_args 2>/dev/null)
-    
-    if [[ -z "$data_string" ]]; then
-        # Fallback if data collection fails
-        if [[ "$format" == "json" ]]; then
-            echo '{"error": "Failed to collect status data"}'
-        else
-            log::error "Failed to collect ComfyUI status data"
-        fi
-        return 1
-    fi
-    
-    # Convert string to array
-    local data_array
-    mapfile -t data_array <<< "$data_string"
-    
-    # Output based on format
-    if [[ "$format" == "json" ]]; then
-        format::output "json" "kv" "${data_array[@]}"
-    else
-        # Text format with standardized structure
-        comfyui::status::display_text "${data_array[@]}"
-    fi
-    
-    # Return appropriate exit code
-    local healthy="false"
-    local running="false"
-    for ((i=0; i<${#data_array[@]}; i+=2)); do
-        case "${data_array[i]}" in
-            "healthy") healthy="${data_array[i+1]}" ;;
-            "running") running="${data_array[i+1]}" ;;
-        esac
-    done
-    
-    if [[ "$healthy" == "true" ]]; then
-        return 0
-    elif [[ "$running" == "true" ]]; then
-        return 1
-    else
-        return 2
-    fi
+    status::run_standard "comfyui" "comfyui::status::collect_data" "comfyui::status::display_text" "$@"
 }
 
 #######################################
@@ -366,7 +293,7 @@ status::status() {
 # Main status function for CLI registration
 #######################################
 comfyui::status() {
-    comfyui::status::show "$@"
+    status::run_standard "comfyui" "comfyui::status::collect_data" "comfyui::status::display_text" "$@"
 }
 
 #######################################

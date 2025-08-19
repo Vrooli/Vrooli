@@ -36,9 +36,9 @@ pandas_ai::start() {
     export PANDAS_AI_PORT="${port}"
     
     # Check for OpenAI API key in vault or environment
-    if [[ -f "${var_VROOLI_CONFIG_DIR}/openrouter-credentials.json" ]]; then
+    if [[ -f "${var_ROOT_DIR}/data/credentials/openrouter-credentials.json" ]]; then
         local api_key
-        api_key=$(jq -r '.api_key // empty' "${var_VROOLI_CONFIG_DIR}/openrouter-credentials.json" 2>/dev/null || true)
+        api_key=$(jq -r '.data.apiKey // empty' "${var_ROOT_DIR}/data/credentials/openrouter-credentials.json" 2>/dev/null || true)
         if [[ -n "${api_key}" ]]; then
             export OPENAI_API_KEY="${api_key}"
         fi

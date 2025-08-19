@@ -36,9 +36,9 @@ haystack::start() {
     export HAYSTACK_PORT="${port}"
     
     # Check for OpenRouter API key if available
-    if [[ -f "${HOME}/.vrooli/openrouter-credentials.json" ]]; then
+    if [[ -f "${var_ROOT_DIR}/data/credentials/openrouter-credentials.json" ]]; then
         local api_key
-        api_key=$(jq -r '.api_key // empty' "${HOME}/.vrooli/openrouter-credentials.json" 2>/dev/null || true)
+        api_key=$(jq -r '.data.apiKey // empty' "${var_ROOT_DIR}/data/credentials/openrouter-credentials.json" 2>/dev/null || true)
         if [[ -n "${api_key}" ]]; then
             export OPENAI_API_KEY="${api_key}"
         fi

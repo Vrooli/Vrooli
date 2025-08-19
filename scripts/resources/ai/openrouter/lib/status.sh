@@ -6,24 +6,22 @@ OPENROUTER_STATUS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Source dependencies
 source "${OPENROUTER_STATUS_DIR}/core.sh"
+# shellcheck disable=SC1091
+source "${OPENROUTER_STATUS_DIR}/../../../lib/status-args.sh"
 
-# Main status function
-openrouter::status() {
-    local verbose="false"
-    local format="text"
+#######################################
+# Collect OpenRouter status data
+# Arguments:
+#   --fast: Skip expensive operations
+# Returns:
+#   Key-value pairs (one per line)
+#######################################
+openrouter::status::collect_data() {
     local fast="false"
     
     # Parse arguments
     while [[ $# -gt 0 ]]; do
         case "$1" in
-            --verbose|-v)
-                verbose="true"
-                shift
-                ;;
-            --format)
-                format="${2:-text}"
-                shift 2
-                ;;
             --fast)
                 fast="true"
                 shift
@@ -33,9 +31,6 @@ openrouter::status() {
                 ;;
         esac
     done
-    
-    # Source format utilities
-    source "${OPENROUTER_STATUS_DIR}/../../../../lib/utils/format.sh"
     
     # Initialize
     openrouter::init >/dev/null 2>&1
@@ -87,33 +82,71 @@ openrouter::status() {
         healthy="false"
     fi
     
-    # Build output data for format utility
-    local -a output_data=(
-        "status" "$status"
-        "running" "$running"
-        "healthy" "$healthy"
-        "message" "$message"
-        "api_base" "$api_base"
-        "default_model" "$model"
-    )
-    
-    # Add verbose details if requested and available (skip in fast mode)
-    if [[ "$verbose" == "true" && "$status" == "running" && "$fast" == "false" ]]; then
-        # Get usage info
+    # Get usage info (skip in fast mode)
+    local limit="N/A"
+    local usage_amount="N/A"
+    if [[ "$fast" == "false" && "$status" == "running" ]]; then
         local usage
         usage=$(openrouter::get_usage 2>/dev/null)
         if [[ -n "$usage" ]]; then
-            local limit usage_amount
             limit=$(echo "$usage" | jq -r '.data.limit' 2>/dev/null || echo "unknown")
             usage_amount=$(echo "$usage" | jq -r '.data.usage' 2>/dev/null || echo "unknown")
-            output_data+=("limit" "$limit" "usage" "$usage_amount")
         fi
-    elif [[ "$verbose" == "true" && "$fast" == "true" ]]; then
-        output_data+=("limit" "N/A" "usage" "N/A")
     fi
     
-    # Format output using standard formatter
-    format::key_value "$format" "${output_data[@]}"
+    # Output data as key-value pairs
+    echo "status"
+    echo "$status"
+    echo "running"
+    echo "$running"
+    echo "healthy"
+    echo "$healthy"
+    echo "message"
+    echo "$message"
+    echo "api_base"
+    echo "$api_base"
+    echo "default_model"
+    echo "$model"
+    echo "limit"
+    echo "$limit"
+    echo "usage"
+    echo "$usage_amount"
+}
+
+#######################################
+# Display OpenRouter status in text format
+# Arguments:
+#   data_array: Array of key-value pairs
+#######################################
+openrouter::status::display_text() {
+    local -a data_array=("$@")
+    
+    # Convert array to associative array for easier access
+    local -A data
+    for ((i=0; i<${#data_array[@]}; i+=2)); do
+        data["${data_array[i]}"]="${data_array[i+1]}"
+    done
+    
+    echo "Status: ${data[status]}"
+    echo "Running: ${data[running]}"
+    echo "Healthy: ${data[healthy]}"
+    echo "Message: ${data[message]}"
+    echo "API Base: ${data[api_base]}"
+    echo "Default Model: ${data[default_model]}"
+    echo "Limit: ${data[limit]}"
+    echo "Usage: ${data[usage]}"
+}
+
+#######################################
+# Check OpenRouter status
+# Arguments:
+#   --format: Output format (text/json)
+#   --fast: Skip expensive operations
+# Returns:
+#   0 if healthy, 1 otherwise
+#######################################
+openrouter::status() {
+    status::run_standard "openrouter" "openrouter::status::collect_data" "openrouter::status::display_text" "$@"
 }
 
 # Export function
