@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Get the directory of this script
+CLINE_MANAGE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Main router - delegates to lib scripts
+main() {
+    local cmd="${1:-help}"
+    shift || true
+    
+    case "$cmd" in
+        status|start|stop|install|logs|config|inject)
+            "$CLINE_MANAGE_DIR/lib/${cmd}.sh" "$@"
+            ;;
+        help)
+            "$CLINE_MANAGE_DIR/cli.sh" help
+            ;;
+        *)
+            echo "Error: Unknown command '$cmd'"
+            "$CLINE_MANAGE_DIR/cli.sh" help
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"

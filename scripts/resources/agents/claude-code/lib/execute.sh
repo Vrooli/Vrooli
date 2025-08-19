@@ -150,6 +150,97 @@ claude_code::run() {
 }
 
 #######################################
+# Add a validated sudo command to sudoers content
+# Arguments:
+#   $1 - Command name
+#   $2 - Variable name to append to (passed by reference)
+# Returns: 0 on success, 1 on failure
+#######################################
+claude_code::add_validated_sudo_command() {
+    local cmd="$1"
+    local -n content_var="$2"
+    local cmd_path=""
+    local username
+    username=$(whoami)
+    
+    # First try to find the command using 'command -v'
+    cmd_path=$(command -v "$cmd" 2>/dev/null)
+    
+    if [[ -n "$cmd_path" ]]; then
+        # Verify the path exists and is executable
+        if [[ -x "$cmd_path" ]]; then
+            content_var+="${username} ALL=(ALL) NOPASSWD: ${cmd_path}\n"
+            log::debug "✓ Added validated command: $cmd -> $cmd_path"
+            return 0
+        else
+            log::warn "Command path not executable: $cmd_path"
+        fi
+    fi
+    
+    # Handle special cases for shell builtins and common commands
+    case "$cmd" in
+        "echo")
+            content_var+="${username} ALL=(ALL) NOPASSWD: /bin/bash -c echo*\n"
+            content_var+="${username} ALL=(ALL) NOPASSWD: /bin/sh -c echo*\n"
+            log::debug "✓ Added shell builtin: $cmd"
+            return 0
+            ;;
+        "kill"|"killall")
+            # Try common locations for kill commands
+            local kill_paths=("/usr/bin/$cmd" "/bin/$cmd" "/usr/local/bin/$cmd")
+            for path in "${kill_paths[@]}"; do
+                if [[ -x "$path" ]]; then
+                    content_var+="${username} ALL=(ALL) NOPASSWD: ${path}\n"
+                    log::debug "✓ Added kill command: $cmd -> $path"
+                    return 0
+                fi
+            done
+            log::warn "Kill command not found in standard locations: $cmd"
+            return 1
+            ;;
+        *)
+            # Try standard locations for other commands
+            local std_paths=("/usr/bin/$cmd" "/bin/$cmd" "/usr/local/bin/$cmd" "/sbin/$cmd" "/usr/sbin/$cmd")
+            for path in "${std_paths[@]}"; do
+                if [[ -x "$path" ]]; then
+                    content_var+="${username} ALL=(ALL) NOPASSWD: ${path}\n"
+                    log::debug "✓ Added command: $cmd -> $path"
+                    return 0
+                fi
+            done
+            log::warn "Command not found in standard locations: $cmd"
+            return 1
+            ;;
+    esac
+}
+
+#######################################
+# Validate sudoers content syntax
+# Arguments:
+#   $1 - Path to sudoers file to validate
+# Returns: 0 if valid, 1 if invalid
+#######################################
+claude_code::validate_sudoers_syntax() {
+    local sudoers_file="$1"
+    
+    if [[ ! -f "$sudoers_file" ]]; then
+        log::error "Sudoers file not found: $sudoers_file"
+        return 1
+    fi
+    
+    # Use visudo to check syntax
+    if sudo visudo -c -f "$sudoers_file" >/dev/null 2>&1; then
+        log::debug "✓ Sudoers syntax validation passed"
+        return 0
+    else
+        log::error "❌ Sudoers syntax validation failed"
+        log::error "File content:"
+        cat "$sudoers_file" >&2
+        return 1
+    fi
+}
+
+#######################################
 # Configure sudo override for Claude Code
 # Arguments:
 #   $1 - Enable sudo override (yes/no)
@@ -204,59 +295,54 @@ claude_code::configure_sudo_override() {
         for cmd in "${commands[@]}"; do
             cmd=$(echo "$cmd" | xargs)  # Trim whitespace
             if [[ -n "$cmd" ]]; then
-                # Find the full path of the command
+                # Find and validate the full path of the command
                 local cmd_path
-                cmd_path=$(command -v "$cmd" 2>/dev/null)
-                
-                # Handle shell builtins and special cases
-                if [[ -z "$cmd_path" ]]; then
-                    # For shell builtins like echo, we need to allow the shell
-                    if [[ "$cmd" == "echo" ]]; then
-                        sudoers_content+="$(whoami) ALL=(ALL) NOPASSWD: /bin/bash -c echo*\n"
-                        sudoers_content+="$(whoami) ALL=(ALL) NOPASSWD: /bin/sh -c echo*\n"
-                    else
-                        # Try common locations
-                        cmd_path="/usr/bin/$cmd"
-                        sudoers_content+="$(whoami) ALL=(ALL) NOPASSWD: $cmd_path\n"
-                    fi
-                else
-                    sudoers_content+="$(whoami) ALL=(ALL) NOPASSWD: $cmd_path\n"
+                if ! claude_code::add_validated_sudo_command "$cmd" sudoers_content; then
+                    log::warn "⚠️  Skipping invalid command: $cmd"
                 fi
             fi
         done
     else
         # Default permissions for common resource management commands
-        sudoers_content+="$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/systemctl\n"
-        sudoers_content+="$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/service\n"
-        sudoers_content+="$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/docker\n"
-        sudoers_content+="$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/podman\n"
-        sudoers_content+="$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/apt-get\n"
-        sudoers_content+="$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/apt\n"
-        sudoers_content+="$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/chown\n"
-        sudoers_content+="$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/chmod\n"
-        sudoers_content+="$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/mkdir\n"
-        sudoers_content+="$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/rm\n"
-        sudoers_content+="$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/cp\n"
-        sudoers_content+="$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/mv\n"
-        sudoers_content+="$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/lsof\n"
-        sudoers_content+="$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/netstat\n"
-        sudoers_content+="$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/ps\n"
-        sudoers_content+="$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/kill\n"
-        sudoers_content+="$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/pkill\n"
-        sudoers_content+="$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/npm\n"
-        sudoers_content+="$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/pip\n"
-        sudoers_content+="$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/brew\n"
-        sudoers_content+="$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/snap\n"
-        sudoers_content+="$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/git\n"
+        local default_commands=(
+            "systemctl" "service" "docker" "podman" "apt-get" "apt"
+            "chown" "chmod" "mkdir" "rm" "cp" "mv" "lsof" "netstat"
+            "ps" "kill" "pkill" "npm" "pip" "brew" "snap" "git"
+        )
+        
+        log::debug "Adding default sudo commands..."
+        for cmd in "${default_commands[@]}"; do
+            if ! claude_code::add_validated_sudo_command "$cmd" sudoers_content; then
+                log::debug "Skipping unavailable default command: $cmd"
+            fi
+        done
     fi
     
-    # Write temporary sudoers file
-    echo -e "$sudoers_content" > "$temp_sudoers"
+    # Write temporary sudoers file using printf for safety
+    printf "%b" "$sudoers_content" > "$temp_sudoers"
+    
+    # Validate sudoers syntax before installing
+    if ! claude_code::validate_sudoers_syntax "$temp_sudoers"; then
+        log::error "❌ Generated sudoers file has invalid syntax"
+        log::error "Content that would be written:"
+        cat "$temp_sudoers" >&2
+        rm -f "$temp_sudoers"
+        return 1
+    fi
     
     # Install temporary sudoers file
     if sudo cp "$temp_sudoers" "/etc/sudoers.d/claude-code-temp-$$" 2>/dev/null; then
         sudo chmod 0440 "/etc/sudoers.d/claude-code-temp-$$" 2>/dev/null
-        log::success "✅ Temporary sudoers file installed: /etc/sudoers.d/claude-code-temp-$$"
+        
+        # Final validation of installed file
+        if ! claude_code::validate_sudoers_syntax "/etc/sudoers.d/claude-code-temp-$$"; then
+            log::error "❌ Installed sudoers file failed validation - removing"
+            sudo rm -f "/etc/sudoers.d/claude-code-temp-$$"
+            rm -f "$temp_sudoers"
+            return 1
+        fi
+        
+        log::success "✅ Temporary sudoers file installed and validated: /etc/sudoers.d/claude-code-temp-$$"
         
         # Store cleanup information
         export CLAUDE_SUDOERS_FILE="/etc/sudoers.d/claude-code-temp-$$"

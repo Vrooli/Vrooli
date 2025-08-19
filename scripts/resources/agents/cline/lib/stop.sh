@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Get the directory of this script
+CLINE_STOP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Source common functions
+source "$CLINE_STOP_DIR/common.sh"
+
+# Stop Cline (Note: Cline is a VS Code extension, so this is mostly informational)
+cline::stop() {
+    log::info "Cline is a VS Code extension and doesn't run as a standalone service"
+    log::info "To disable Cline, disable the extension in VS Code"
+    
+    # Mark as stopped in status
+    echo "stopped" > "$CLINE_CONFIG_DIR/.status"
+    
+    return 0
+}
+
+# Main
+cline::stop "$@"

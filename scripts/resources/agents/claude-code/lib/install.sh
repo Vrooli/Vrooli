@@ -11,7 +11,7 @@ source "${CLAUDE_CODE_LIB_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LOG_FILE:}" 2>/dev/null || true
 # shellcheck disable=SC1091
-source "${var_SCRIPTS_RESOURCES_LIB_DIR}/cli-auto-install.sh" 2>/dev/null || true
+source "${var_SCRIPTS_RESOURCES_LIB_DIR}/resource-cli-helper.sh" 2>/dev/null || true
 
 #######################################
 # Install Claude Code
@@ -78,7 +78,7 @@ claude_code::install() {
         fi
         
         # Install CLI command
-        if resource_cli::auto_install "${CLAUDE_CODE_SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../" && pwd)}"; then
+        if "${var_SCRIPTS_RESOURCES_LIB_DIR}/install-resource-cli.sh" "${CLAUDE_CODE_SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../" && pwd)}" 2>/dev/null; then
             log::success "✓ CLI command 'resource-claude-code' installed"
         else
             log::warn "⚠️  CLI installation failed (non-critical)"

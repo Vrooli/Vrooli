@@ -1,0 +1,53 @@
+name: cline
+category: agents
+description: VS Code AI coding assistant powered by Claude
+version: 1.0.0
+
+capabilities:
+  - code_generation
+  - code_review
+  - refactoring
+  - documentation
+  - testing
+  - debugging
+  - ide_integration
+
+requirements:
+  - vscode
+  - node_version: ">=18.0.0"
+  
+integrations:
+  - openrouter
+  - anthropic
+  - ollama
+  - vault
+
+configuration:
+  api_providers:
+    - openrouter
+    - anthropic
+    - openai
+    - ollama
+  default_provider: openrouter
+  models:
+    - anthropic/claude-3.5-sonnet
+    - anthropic/claude-3-opus
+    - openai/gpt-4
+    - openai/gpt-4-turbo
+  default_model: anthropic/claude-3.5-sonnet
+
+health_checks:
+  - name: vscode_installed
+    required: true
+  - name: extension_installed
+    required: true
+  - name: api_configured
+    required: false
+  - name: workspace_configured
+    required: false
+
+injection_types:
+  - prompts
+  - api_credentials
+  - model_config
+  - workspace_config
