@@ -44,42 +44,49 @@ source "${var_RESOURCES_COMMON_FILE}"
 source "${var_LIB_SYSTEM_DIR}/trash.sh"
 
 # Global variables
-SCENARIO_NAME=""
-SCENARIO_PATH=""
-SERVICE_JSON=""
+SCENARIO_NAMES=()
 VERBOSE=false
 DRY_RUN=false
 FORCE=false
 START=false
 
+# Shared state for batch processing
+SHARED_BASE_SERVICE_JSON=""
+SHARED_UTILS_LOADED=false
+
 # Usage information
 scenario_to_app::show_usage() {
     cat << EOF
-Usage: $0 <scenario-name> [options]
+Usage: $0 <scenario-name> [scenario-name2 ...] [options]
 
-Generate a standalone application from a validated Vrooli scenario.
+Generate standalone applications from validated Vrooli scenarios.
+Supports both single scenario and batch processing.
 
 Arguments:
-  scenario-name     Name of the scenario (e.g., campaign-content-studio)
+  scenario-name     One or more scenario names (e.g., campaign-content-studio)
 
 Options:
   --verbose         Enable verbose output
   --dry-run         Show what would be generated without creating files
-  --force           Overwrite existing generated app
-  --start           Start the generated app after creation
+  --force           Overwrite existing generated apps
+  --start           Start the generated apps after creation
   --help            Show this help message
 
-The generated app will be created at: ~/generated-apps/<scenario-name>/
+The generated apps will be created at: ~/generated-apps/<scenario-name>/
 
-To run the generated app:
+To run a generated app:
   cd ~/generated-apps/<scenario-name>
   ./scripts/manage.sh develop
 
 Examples:
   $0 campaign-content-studio
   $0 research-assistant --verbose --force
-  $0 research-assistant --dry-run
+  $0 research-assistant simple-test make-it-vegan --dry-run
   $0 campaign-content-studio --start
+
+Batch Processing:
+  When multiple scenarios are provided, they are processed efficiently
+  with shared initialization to reduce overhead.
 
 EOF
 }
@@ -87,7 +94,7 @@ EOF
 # Parse command line arguments
 scenario_to_app::parse_args() {
     if [[ $# -eq 0 ]]; then
-        log::error "No scenario name provided"
+        log::error "No scenario names provided"
         scenario_to_app::show_usage
         exit 1
     fi
@@ -98,9 +105,9 @@ scenario_to_app::parse_args() {
         exit 0
     fi
 
-    SCENARIO_NAME="$1"
-    shift
-
+    local scenarios=()
+    
+    # Parse arguments - collect scenarios and options
     while [[ $# -gt 0 ]]; do
         case $1 in
             --verbose)
@@ -119,61 +126,146 @@ scenario_to_app::parse_args() {
                 scenario_to_app::show_usage
                 exit 0
                 ;;
-            *)
+            -*)
                 log::error "Unknown option: $1"
                 scenario_to_app::show_usage
                 exit 1
                 ;;
+            *)
+                # This is a scenario name
+                scenarios+=("$1")
+                ;;
         esac
         shift
     done
+    
+    # Validate we have at least one scenario
+    if [[ ${#scenarios[@]} -eq 0 ]]; then
+        log::error "No scenario names provided"
+        scenario_to_app::show_usage
+        exit 1
+    fi
+    
+    # Store scenarios globally
+    SCENARIO_NAMES=("${scenarios[@]}")
+    
+    # Log what we're processing
+    if [[ ${#SCENARIO_NAMES[@]} -eq 1 ]]; then
+        [[ "$VERBOSE" == "true" ]] && log::info "Processing single scenario: ${SCENARIO_NAMES[0]}"
+    else
+        [[ "$VERBOSE" == "true" ]] && log::info "Processing ${#SCENARIO_NAMES[@]} scenarios in batch mode: ${SCENARIO_NAMES[*]}"
+    fi
+}
+
+#######################################
+# Shared initialization for batch processing
+# Performs expensive one-time operations to avoid repeating them per scenario
+#######################################
+scenario_to_app::shared_initialization() {
+    if [[ "$SHARED_UTILS_LOADED" == "true" ]]; then
+        [[ "$VERBOSE" == "true" ]] && log::info "Shared utilities already loaded, skipping initialization"
+        return 0
+    fi
+    
+    local init_start
+    init_start=$(date +"%s%N")
+    
+    [[ "$VERBOSE" == "true" ]] && log::info "Initializing shared resources for batch processing..."
+    
+    # Pre-load utilities (avoids sourcing per scenario)
+    local secrets_util="${var_ROOT_DIR}/scripts/lib/service/secrets.sh"
+    local service_config_util="${var_ROOT_DIR}/scripts/lib/service/service_config.sh"
+    
+    if [[ -f "$secrets_util" ]]; then
+        # shellcheck disable=SC1091
+        source "$secrets_util"
+        [[ "$VERBOSE" == "true" ]] && log::info "  ✅ Loaded secrets utilities"
+    fi
+    
+    if [[ -f "$service_config_util" ]]; then
+        # shellcheck disable=SC1090
+        source "$service_config_util"
+        [[ "$VERBOSE" == "true" ]] && log::info "  ✅ Loaded service config utilities"
+    fi
+    
+    # Pre-load port registry (avoids repeated loading)
+    if command -v secrets::source_port_registry >/dev/null 2>&1; then
+        secrets::source_port_registry
+        [[ "$VERBOSE" == "true" ]] && log::info "  ✅ Loaded port registry"
+    fi
+    
+    # Pre-load base service.json for inheritance processing
+    local base_service_json="${var_ROOT_DIR}/.vrooli/service.json"
+    if [[ -f "$base_service_json" ]]; then
+        SHARED_BASE_SERVICE_JSON=$(cat "$base_service_json")
+        [[ "$VERBOSE" == "true" ]] && log::info "  ✅ Loaded base service.json"
+    fi
+    
+    # Warm up Python for faster JSON validation
+    if command -v python3 >/dev/null 2>&1; then
+        python3 -c "import json; import sys" 2>/dev/null || true
+        [[ "$VERBOSE" == "true" ]] && log::info "  ✅ Warmed up Python interpreter"
+    fi
+    
+    SHARED_UTILS_LOADED=true
+    
+    local init_end
+    init_end=$(date +"%s%N")
+    local init_time=$(( (init_end - init_start) / 1000000 ))
+    
+    [[ "$VERBOSE" == "true" ]] && log::info "Shared initialization completed in ${init_time}ms"
 }
 
 # Validate scenario structure with comprehensive schema validation
 scenario_to_app::validate_scenario() {
-    SCENARIO_PATH="${var_SCRIPTS_SCENARIOS_DIR}/core/${SCENARIO_NAME}"
+    local scenario_name="$1"
+    local -n scenario_data_ref="$2"  # nameref for returning data
     
-    if [[ ! -d "$SCENARIO_PATH" ]]; then
-        log::error "Scenario directory not found: $SCENARIO_PATH"
-        exit 1
+    local scenario_path="${var_SCRIPTS_SCENARIOS_DIR}/core/${scenario_name}"
+    
+    if [[ ! -d "$scenario_path" ]]; then
+        log::error "Scenario directory not found: $scenario_path"
+        return 1
     fi
     
-    log::success "Scenario directory found: $SCENARIO_PATH"
+    [[ "$VERBOSE" == "true" ]] && log::success "Scenario directory found: $scenario_path"
     
     # Check for service.json (first in .vrooli/, then root for backwards compatibility)
-    local service_json_path="${SCENARIO_PATH}/.vrooli/service.json"
+    local service_json_path="${scenario_path}/.vrooli/service.json"
     if [[ ! -f "$service_json_path" ]]; then
         # Try root directory for backwards compatibility
-        service_json_path="${SCENARIO_PATH}/service.json"
+        service_json_path="${scenario_path}/service.json"
         if [[ ! -f "$service_json_path" ]]; then
-            log::error "service.json not found at: ${SCENARIO_PATH}/.vrooli/service.json or ${SCENARIO_PATH}/service.json"
-            exit 1
+            log::error "service.json not found at: ${scenario_path}/.vrooli/service.json or ${scenario_path}/service.json"
+            return 1
         fi
     fi
     
-    # Load JSON content (maintains global variable contract)
-    if ! SERVICE_JSON=$(cat "$service_json_path" 2>/dev/null); then
+    # Load JSON content
+    local service_json
+    if ! service_json=$(cat "$service_json_path" 2>/dev/null); then
         log::error "Failed to read service.json"
-        exit 1
+        return 1
     fi
     
     # Clean up common JSON issues (trailing commas) before validation
     # This uses a more lenient approach to handle real-world JSON files
     # Handles commas before closing braces/brackets, even across lines
-    SERVICE_JSON_CLEANED=$(echo "$SERVICE_JSON" | perl -0pe 's/,(\s*[}\]])/$1/g' 2>/dev/null || echo "$SERVICE_JSON")
+    local service_json_cleaned
+    service_json_cleaned=$(echo "$service_json" | perl -0pe 's/,(\s*[}\]])/$1/g' 2>/dev/null || echo "$service_json")
     
     # Basic JSON syntax validation
-    if ! echo "$SERVICE_JSON_CLEANED" | jq empty 2>/dev/null; then
-        log::error "Invalid JSON in service.json"
+    if ! echo "$service_json_cleaned" | jq empty 2>/dev/null; then
+        log::error "Invalid JSON in service.json for scenario: $scenario_name"
         log::error "Common issues to check:"
         log::error "  - Missing quotes around strings"
         log::error "  - Unmatched brackets or braces"
         log::error "  - Invalid escape sequences"
-        exit 1
+        return 1
     fi
     
-    # Use the cleaned JSON for the rest of the script
-    SERVICE_JSON="$SERVICE_JSON_CLEANED"
+    # Use the cleaned JSON for validation
+    service_json="$service_json_cleaned"
     
     log::info "Loading comprehensive schema validator..."
     
@@ -182,8 +274,8 @@ scenario_to_app::validate_scenario() {
         log::info "Running JSON schema validation using Python..."
         
         # Write JSON to temp file to avoid shell escaping issues
-        local temp_json_file="/tmp/service_json_validation_$$.json"
-        echo "$SERVICE_JSON" > "$temp_json_file"
+        local temp_json_file="/tmp/service_json_validation_${scenario_name}_$$.json"
+        echo "$service_json" > "$temp_json_file"
         
         # Create a simple Python validation script
         local validation_result
@@ -276,12 +368,12 @@ except Exception as e:
         
         # Fallback to basic validation (preserve original logic)
         local service_name
-        service_name=$(echo "$SERVICE_JSON" | jq -r '.service.name // empty' 2>/dev/null)
+        service_name=$(echo "$service_json" | jq -r '.service.name // empty' 2>/dev/null)
         
         if [[ -z "$service_name" ]]; then
-            log::error "service.json missing required field: service.name"
+            log::error "service.json missing required field: service.name for scenario: $scenario_name"
             log::error "💡 Add a 'service.name' field to your .vrooli/service.json file"
-            exit 1
+            return 1
         fi
         
         log::success "✅ Basic service.json validation passed"
@@ -296,28 +388,37 @@ except Exception as e:
     fi
     
     # Validate initialization file paths
-    log::info "Validating initialization file paths..."
-    if ! scenario_to_app::validate_initialization_paths; then
-        exit 1
+    [[ "$VERBOSE" == "true" ]] && log::info "Validating initialization file paths for $scenario_name..."
+    if ! scenario_to_app::validate_initialization_paths "$scenario_path" "$service_json"; then
+        return 1
     fi
     
-    # Display service information (preserve original behavior)
+    # Display service information
     if [[ "$VERBOSE" == "true" ]]; then
         local service_name service_display_name
-        service_name=$(echo "$SERVICE_JSON" | jq -r '.service.name // empty' 2>/dev/null)
-        service_display_name=$(echo "$SERVICE_JSON" | jq -r '.service.displayName // empty' 2>/dev/null)
+        service_name=$(echo "$service_json" | jq -r '.service.name // empty' 2>/dev/null)
+        service_display_name=$(echo "$service_json" | jq -r '.service.displayName // empty' 2>/dev/null)
         
         log::info "Service name: $service_name"
         if [[ -n "$service_display_name" ]]; then
             log::info "Display name: $service_display_name"
         fi
     fi
+    
+    # Return scenario data via nameref
+    scenario_data_ref[name]="$scenario_name"
+    scenario_data_ref[path]="$scenario_path"
+    scenario_data_ref[service_json]="$service_json"
+    scenario_data_ref[service_json_path]="$service_json_path"
+    
+    return 0
 }
 
 # Get all enabled resources from service.json (supports both flat and nested structures)
 scenario_to_app::get_enabled_resources() {
+    local service_json="$1"
     # Handle both flat (resources.n8n.enabled) and nested (resources.automation.n8n.enabled) structures
-    echo "$SERVICE_JSON" | jq -r '
+    echo "$service_json" | jq -r '
         .resources | to_entries[] as $item |
         if ($item.value | type) == "object" then
             if $item.value.enabled then
@@ -342,9 +443,10 @@ scenario_to_app::get_enabled_resources() {
 
 # Get resource categories from service.json
 scenario_to_app::get_resource_categories() {
+    local service_json="$1"
     # For flat structure, resource names ARE the categories
     # For nested structure, extract category names
-    echo "$SERVICE_JSON" | jq -r '
+    echo "$service_json" | jq -r '
         .resources | to_entries[] as $item |
         if ($item.value | type) == "object" and ($item.value.enabled | type) != "boolean" then
             # This is a category (nested structure)
@@ -358,6 +460,9 @@ scenario_to_app::get_resource_categories() {
 
 # Validate that initialization file paths in service.json actually exist
 scenario_to_app::validate_initialization_paths() {
+    local scenario_path="$1"
+    local service_json="$2"
+    
     if [[ "$VERBOSE" == "true" ]]; then
         log::info "Validating initialization file paths..."
     fi
@@ -370,8 +475,8 @@ scenario_to_app::validate_initialization_paths() {
     #   - Relative to service.json location: ../initialization/file.sql
     #   - Relative to scenario root: initialization/file.sql
     #   - Absolute: /path/to/file.sql
-    local service_json_dir="${SCENARIO_PATH}/.vrooli"
-    echo "$SERVICE_JSON" | jq -r '
+    local service_json_dir="${scenario_path}/.vrooli"
+    echo "$service_json" | jq -r '
         .resources | to_entries[] as $category |
         $category.value | to_entries[] as $resource |
         $resource.value | select(.enabled == true) |
@@ -396,7 +501,7 @@ scenario_to_app::validate_initialization_paths() {
             full_path=$(cd "$(dirname "$full_path")" 2>/dev/null && pwd)/$(basename "$full_path")
         else
             # Simple path - relative to scenario root directory
-            full_path="${SCENARIO_PATH}/${file_path}"
+            full_path="${scenario_path}/${file_path}"
         fi
         
         if [[ ! -f "$full_path" ]]; then
@@ -409,7 +514,7 @@ scenario_to_app::validate_initialization_paths() {
     done
     
     # Check deployment initialization files
-    echo "$SERVICE_JSON" | jq -r '
+    echo "$service_json" | jq -r '
         .deployment.initialization.phases[]?.tasks[]? |
         select(.type == "sql" or .type == "config") |
         .file // empty | select(. != "")
@@ -427,7 +532,7 @@ scenario_to_app::validate_initialization_paths() {
             full_path=$(cd "$(dirname "$full_path")" 2>/dev/null && pwd)/$(basename "$full_path")
         else
             # Simple path - relative to scenario root directory
-            full_path="${SCENARIO_PATH}/${file_path}"
+            full_path="${scenario_path}/${file_path}"
         fi
         
         if [[ ! -f "$full_path" ]]; then
@@ -876,12 +981,14 @@ scenario_to_app::process_template_variables() {
 # Arguments:
 #   $1 - app_path (destination)
 #   $2 - scenario_path  
+#   $3 - service_json (for processing)
 # Returns:
 #   0 on success, 1 on failure
 #######################################
 scenario_to_app::copy_from_manifest() {
     local app_path="$1"
     local scenario_path="$2"
+    local service_json="$3"
     local manifest="${SCENARIO_TOOLS_DIR}/app-structure.json"
     
     if [[ ! -f "$manifest" ]]; then
@@ -964,7 +1071,7 @@ scenario_to_app::copy_from_manifest() {
         if [[ -n "$process_list" ]]; then
             while IFS= read -r processor; do
                 if [[ -n "$processor" ]]; then
-                    scenario_to_app::process_file "$dest_path" "$processor"
+                    scenario_to_app::process_file "$dest_path" "$processor" "$service_json"
                 fi
             done <<< "$process_list"
         fi
@@ -1133,11 +1240,12 @@ scenario_to_app::filter_shared_initialization() {
 # Arguments:
 #   $1 - file path
 #   $2 - processor name
+#   $3 - service_json (for processing)
 # Returns:
 #   0 on success, 1 on failure
 #######################################
 scenario_to_app::process_file() {
-    local file_path="$1" processor="$2"
+    local file_path="$1" processor="$2" service_json="$3"
     
     case "$processor" in
         resolve_inheritance)
@@ -1153,12 +1261,18 @@ scenario_to_app::process_file() {
             ;;
         substitute_variables)
             if [[ -f "$file_path/service.json" ]]; then
-                scenario_to_app::process_template_variables "$file_path/service.json" "$SERVICE_JSON"
+                # Note: The service.json here is the app's service.json, not the original scenario one
+                # So we pass the loaded service.json from that file, not the original scenario service.json
+                local app_service_json
+                app_service_json=$(cat "$file_path/service.json" 2>/dev/null || echo '{}')
+                scenario_to_app::process_template_variables "$file_path/service.json" "$app_service_json"
             fi
             ;;
         filter_by_service_references)
             if [[ -d "$file_path" ]]; then
-                scenario_to_app::filter_shared_initialization "$file_path" "$SERVICE_JSON"
+                # For this processor, we use the original scenario service.json
+                # to understand which shared files should be kept
+                scenario_to_app::filter_shared_initialization "$file_path" "$service_json"
             fi
             ;;
         *)
@@ -1212,8 +1326,10 @@ EOF
 # Generate standalone app with atomic operations
 scenario_to_app::generate_app() {
     local scenario_name="$1"
+    local scenario_path="$2"
+    local service_json="$3"
     
-    log::info "Generating standalone app for: $scenario_name"
+    [[ "$VERBOSE" == "true" ]] && log::info "Generating standalone app for: $scenario_name"
     
     local app_path="$HOME/generated-apps/$scenario_name"
     local temp_path="$HOME/generated-apps/.tmp-$scenario_name-$$"
@@ -1221,7 +1337,7 @@ scenario_to_app::generate_app() {
     # Use atomic operations with temp directory
     if [[ "$DRY_RUN" == "true" ]]; then
         log::info "[DRY RUN] Would create directory: $app_path"
-        scenario_to_app::copy_from_manifest "/dev/null" "$SCENARIO_PATH"
+        scenario_to_app::copy_from_manifest "/dev/null" "$scenario_path" "$service_json"
     else
         # Check for existing app
         if [[ -d "$app_path" ]]; then
@@ -1244,7 +1360,7 @@ scenario_to_app::generate_app() {
         log::info "Building app in temporary directory..."
         
         # Copy all files to temp directory using manifest
-        if ! scenario_to_app::copy_from_manifest "$temp_path" "$SCENARIO_PATH"; then
+        if ! scenario_to_app::copy_from_manifest "$temp_path" "$scenario_path" "$service_json"; then
             log::error "Failed to copy files according to manifest"
             trash::safe_remove "$temp_path" --no-confirm
             return 1
@@ -1292,7 +1408,7 @@ scenario_to_app::generate_app() {
                 for file in "${init_files[@]}"; do
                     local file_start
                     file_start=$(date +"%s%N")
-                    scenario_to_app::process_template_variables "$file" "$SERVICE_JSON"
+                    scenario_to_app::process_template_variables "$file" "$service_json"
                     local file_end
                     file_end=$(date +"%s%N")
                     local file_time=$(( (file_end - file_start) / 1000000 ))
@@ -1368,7 +1484,7 @@ scenario_to_app::generate_app() {
                 
                 # Create initial commit with metadata
                 local scenario_hash
-                scenario_hash=$(calculate_hash "$SCENARIO_PATH" 2>/dev/null || echo "unknown")
+                scenario_hash=$(calculate_hash "$scenario_path" 2>/dev/null || echo "unknown")
                 local generator_version
                 generator_version=$(git -C "$var_ROOT_DIR" rev-parse --short HEAD 2>/dev/null || echo "unknown")
                 
@@ -1439,6 +1555,126 @@ scenario_to_app::start_generated_app() {
 }
 
 ################################################################################
+# Single Scenario Processing
+################################################################################
+
+# Process a single scenario with isolated state
+scenario_to_app::process_single_scenario() {
+    local scenario_name="$1"
+    
+    # Declare associative array for scenario data
+    declare -A scenario_data
+    
+    # Phase 1: Validation
+    [[ "$VERBOSE" == "true" ]] && log::info "[${scenario_name}] Phase 1: Scenario Validation"
+    if ! scenario_to_app::validate_scenario "$scenario_name" scenario_data; then
+        log::error "[${scenario_name}] Scenario validation failed"
+        return 1
+    fi
+    
+    # Phase 2: Resource Analysis
+    [[ "$VERBOSE" == "true" ]] && log::info "[${scenario_name}] Phase 2: Resource Analysis"
+    
+    # Get resource categories
+    local resource_categories
+    mapfile -t resource_categories < <(scenario_to_app::get_resource_categories "${scenario_data[service_json]}")
+    
+    if [[ ${#resource_categories[@]} -gt 0 ]]; then
+        [[ "$VERBOSE" == "true" ]] && log::info "[${scenario_name}] Resource categories: ${resource_categories[*]}"
+    fi
+    
+    # Get enabled resources
+    local enabled_resources
+    mapfile -t enabled_resources < <(scenario_to_app::get_enabled_resources "${scenario_data[service_json]}")
+    
+    if [[ ${#enabled_resources[@]} -eq 0 ]]; then
+        [[ "$VERBOSE" == "true" ]] && log::warning "[${scenario_name}] No enabled resources found in service.json"
+    else
+        [[ "$VERBOSE" == "true" ]] && log::info "[${scenario_name}] Enabled resources: ${#enabled_resources[@]} resources"
+        if [[ "$VERBOSE" == "true" ]]; then
+            for resource in "${enabled_resources[@]}"; do
+                log::info "[${scenario_name}]   • $resource"
+            done
+        fi
+    fi
+    
+    # Phase 3: App Generation
+    [[ "$VERBOSE" == "true" ]] && log::info "[${scenario_name}] Phase 3: App Generation"
+    if ! scenario_to_app::generate_app "$scenario_name" "${scenario_data[path]}" "${scenario_data[service_json]}"; then
+        log::error "[${scenario_name}] App generation failed"
+        return 1
+    fi
+    
+    # Phase 4: App Startup (optional)
+    if [[ "$START" == "true" ]]; then
+        [[ "$VERBOSE" == "true" ]] && log::info "[${scenario_name}] Phase 4: App Startup"
+        if ! scenario_to_app::start_generated_app "$scenario_name"; then
+            log::error "[${scenario_name}] App startup failed"
+            return 1
+        fi
+    fi
+    
+    return 0
+}
+
+# Batch processing for multiple scenarios
+scenario_to_app::process_batch() {
+    local scenarios=("$@")
+    local total=${#scenarios[@]}
+    local failed=0
+    local succeeded=0
+    
+    log::info "Processing ${total} scenario(s) in batch mode..."
+    
+    # Shared initialization (done once for all scenarios)
+    scenario_to_app::shared_initialization
+    
+    # Process each scenario
+    for i in "${!scenarios[@]}"; do
+        local scenario_name="${scenarios[i]}"
+        local progress="$((i+1))/$total"
+        
+        if [[ $total -gt 1 ]]; then
+            log::info "[$progress] Processing: $scenario_name"
+        else
+            log::info "Processing: $scenario_name"
+        fi
+        
+        # Process single scenario with isolated state
+        if scenario_to_app::process_single_scenario "$scenario_name"; then
+            ((succeeded++))
+            if [[ $total -gt 1 ]]; then
+                log::success "[$progress] ✅ $scenario_name completed"
+            else
+                log::success "✅ $scenario_name completed"
+            fi
+        else
+            ((failed++))
+            if [[ $total -gt 1 ]]; then
+                log::error "[$progress] ❌ $scenario_name failed"
+                # Continue with other scenarios unless critical failure
+                if [[ "$DRY_RUN" != "true" ]]; then
+                    log::info "Continuing with remaining scenarios..."
+                fi
+            else
+                log::error "❌ $scenario_name failed"
+            fi
+        fi
+    done
+    
+    # Batch summary
+    if [[ $total -gt 1 ]]; then
+        echo ""
+        log::info "Batch processing complete:"
+        log::info "  ✅ Succeeded: $succeeded"
+        log::info "  ❌ Failed: $failed"
+        log::info "  📊 Success rate: $((succeeded * 100 / total))%"
+    fi
+    
+    return $failed
+}
+
+################################################################################
 # Main Execution
 ################################################################################
 
@@ -1448,7 +1684,11 @@ main() {
     
     # Show header
     log::info "🚀 Vrooli Scenario-to-App Generator"
-    log::info "Scenario: $SCENARIO_NAME"
+    if [[ ${#SCENARIO_NAMES[@]} -eq 1 ]]; then
+        log::info "Scenario: ${SCENARIO_NAMES[0]}"
+    else
+        log::info "Scenarios: ${SCENARIO_NAMES[*]} (${#SCENARIO_NAMES[@]} total)"
+    fi
     if [[ "$DRY_RUN" == "true" ]]; then
         log::warning "DRY RUN MODE - No actual changes will be made"
     fi
@@ -1456,74 +1696,52 @@ main() {
         log::info "FORCE MODE - Will overwrite existing apps"
     fi
     if [[ "$START" == "true" ]]; then
-        log::info "START MODE - Will start app after generation"
+        log::info "START MODE - Will start apps after generation"
     fi
     echo ""
     
-    # Phase 1: Validation
-    log::info "Phase 1: Scenario Validation"
-    scenario_to_app::validate_scenario
-    echo ""
-    
-    # Phase 2: Resource Analysis
-    log::info "Phase 2: Resource Analysis"
-    
-    # Get resource categories
-    local resource_categories
-    mapfile -t resource_categories < <(scenario_to_app::get_resource_categories)
-    
-    if [[ ${#resource_categories[@]} -gt 0 ]]; then
-        log::info "Resource categories: ${resource_categories[*]}"
+    # Process scenarios using batch processing
+    local exit_code=0
+    if ! scenario_to_app::process_batch "${SCENARIO_NAMES[@]}"; then
+        exit_code=$?
     fi
     
-    # Get enabled resources
-    local enabled_resources
-    mapfile -t enabled_resources < <(scenario_to_app::get_enabled_resources)
-    
-    if [[ ${#enabled_resources[@]} -eq 0 ]]; then
-        log::warning "No enabled resources found in service.json"
+    # Final summary
+    if [[ ${#SCENARIO_NAMES[@]} -eq 1 ]]; then
+        local scenario_name="${SCENARIO_NAMES[0]}"
+        if [[ $exit_code -eq 0 ]]; then
+            log::success "✅ $scenario_name app generated successfully!"
+            echo ""
+            log::info "Generated app location: $HOME/generated-apps/$scenario_name"
+            
+            if [[ "$START" != "true" ]]; then
+                log::info "To run the app:"
+                log::info "  cd $HOME/generated-apps/$scenario_name"
+                log::info "  ./scripts/manage.sh develop"
+            else
+                log::info "App has been started and should be available at the configured URLs"
+            fi
+        fi
     else
-        log::info "Enabled resources: ${#enabled_resources[@]} resources"
-        if [[ "$VERBOSE" == "true" ]]; then
-            for resource in "${enabled_resources[@]}"; do
-                log::info "  • $resource"
-            done
+        if [[ $exit_code -eq 0 ]]; then
+            log::success "✅ All ${#SCENARIO_NAMES[@]} scenarios processed successfully!"
+        else
+            log::error "❌ $exit_code scenario(s) failed during batch processing"
+        fi
+        echo ""
+        log::info "Generated apps location: $HOME/generated-apps/"
+        
+        if [[ "$START" != "true" ]]; then
+            log::info "To run any app:"
+            log::info "  cd $HOME/generated-apps/<scenario-name>"
+            log::info "  ./scripts/manage.sh develop"
+        else
+            log::info "Started apps should be available at their configured URLs"
         fi
     fi
     echo ""
     
-    # Phase 3: App Generation
-    log::info "Phase 3: App Generation"
-    scenario_to_app::generate_app "$SCENARIO_NAME" || exit 1
-    echo ""
-    
-    # Phase 4: App Startup (optional)
-    if [[ "$START" == "true" ]]; then
-        log::info "Phase 4: App Startup"
-        scenario_to_app::start_generated_app "$SCENARIO_NAME" || exit 1
-        echo ""
-        
-        # Phase 5: Generation Complete
-        log::info "Phase 5: Generation Complete"
-    else
-        # Phase 4: Generation Complete
-        log::info "Phase 4: Generation Complete"
-    fi
-    local scenario_display_name
-    scenario_display_name=$(echo "$SERVICE_JSON" | jq -r '.service.displayName // .service.name' 2>/dev/null)
-    
-    log::success "✅ $scenario_display_name app generated successfully!"
-    echo ""
-    log::info "Generated app location: $HOME/generated-apps/$SCENARIO_NAME"
-    
-    if [[ "$START" != "true" ]]; then
-        log::info "To run the app:"
-        log::info "  cd $HOME/generated-apps/$SCENARIO_NAME"
-        log::info "  ./scripts/manage.sh develop"
-    else
-        log::info "App has been started and should be available at the configured URLs"
-    fi
-    echo ""
+    return $exit_code
 }
 
 # Execute main function

@@ -108,12 +108,19 @@ skipped=0
 failed=0
 start_time=$(date +%s)
 
+# Arrays to collect scenarios for batch processing
+declare -a scenarios_to_convert=()
+declare -A scenario_paths=()
+declare -A scenario_reasons=()
+declare -A scenario_hashes=()
+
+# First pass: Determine which scenarios need conversion
 while IFS= read -r scenario_info; do
     [[ -z "$scenario_info" ]] && continue
     
     name="${scenario_info%%:*}"
     location="${scenario_info#*:}"
-    [[ "$VERBOSE" == "true" ]] && log::info "Processing: $name"
+    [[ "$VERBOSE" == "true" ]] && log::info "Analyzing: $name"
     path="${var_SCRIPTS_SCENARIOS_DIR}/${location}"
     app_path="${GENERATED_APPS_DIR}/$name"
     
@@ -192,55 +199,107 @@ while IFS= read -r scenario_info; do
     fi
     
     if [[ "$needs_conversion" == "true" ]]; then
-        log::info "Converting $name ($reason)..."
-        
-        if [[ "$DRY_RUN" == "true" ]]; then
-            log::info "[DRY RUN] Would convert: $name"
-        else
-            # Create backup if force regenerating a customized app
-            if [[ "$reason" == "forced" ]] && [[ "$app_customized" == "true" ]] && [[ -d "$app_path" ]]; then
-                log::warning "🔄 Force regenerating customized app: $name"
-                
-                # Create backup directory structure
-                backup_dir="${GENERATED_APPS_DIR}/.backups"
-                backup_name="${name}-$(date +%Y%m%d-%H%M%S)"
-                backup_path="$backup_dir/$backup_name"
-                
-                mkdir -p "$backup_dir" || {
-                    log::error "Failed to create backup directory: $backup_dir"
-                    failed=$((failed + 1))
-                    continue
-                }
-                
-                # Copy app to backup location
-                if cp -r "$app_path" "$backup_path" 2>/dev/null; then
-                    log::info "💾 Backup created: $backup_path"
-                    [[ "$VERBOSE" == "true" ]] && log::info "   📂 Backup contains all customizations and version history"
-                else
-                    log::error "Failed to create backup for $name"
-                    failed=$((failed + 1))
-                    continue
-                fi
-            fi
+        # Create backup if force regenerating a customized app (only if not dry run)
+        if [[ "$DRY_RUN" != "true" ]] && [[ "$reason" == "forced" ]] && [[ "$app_customized" == "true" ]] && [[ -d "$app_path" ]]; then
+            log::warning "🔄 Force regenerating customized app: $name"
             
-            # Run scenario-to-app and capture output for debugging
-            if output=$(bash "$SCENARIO_TO_APP" "$name" ${VERBOSE:+--verbose} --force 2>&1); then
-                log::success "✓ $name"
-                converted=$((converted + 1))
+            # Create backup directory structure
+            backup_dir="${GENERATED_APPS_DIR}/.backups"
+            backup_name="${name}-$(date +%Y%m%d-%H%M%S)"
+            backup_path="$backup_dir/$backup_name"
+            
+            mkdir -p "$backup_dir" || {
+                log::error "Failed to create backup directory: $backup_dir"
+                failed=$((failed + 1))
+                continue
+            }
+            
+            # Copy app to backup location
+            if cp -r "$app_path" "$backup_path" 2>/dev/null; then
+                log::info "💾 Backup created: $backup_path"
+                [[ "$VERBOSE" == "true" ]] && log::info "   📂 Backup contains all customizations and version history"
             else
-                log::error "✗ $name"
-                [[ "$VERBOSE" == "true" ]] && echo "$output" | tail -10
+                log::error "Failed to create backup for $name"
                 failed=$((failed + 1))
                 continue
             fi
         fi
-        new_hashes["$name"]="$current_hash"
+        
+        # Add to batch conversion list (both dry run and real)
+        scenarios_to_convert+=("$name")
+        scenario_paths["$name"]="$path"
+        scenario_reasons["$name"]="$reason"
+        scenario_hashes["$name"]="$current_hash"
+        
+        if [[ "$DRY_RUN" == "true" ]]; then
+            log::info "[DRY RUN] Queued for batch conversion: $name ($reason)"
+        else
+            log::info "Queued for conversion: $name ($reason)"
+        fi
     else
         [[ "$VERBOSE" == "true" ]] && log::info "Skipping $name (unchanged)"
         new_hashes["$name"]="${stored_hashes[$name]:-$current_hash}"
         skipped=$((skipped + 1))
     fi
 done <<< "$enabled_scenarios"
+
+# Second pass: Batch convert scenarios if any need conversion
+if [[ ${#scenarios_to_convert[@]} -gt 0 ]]; then
+    if [[ "$DRY_RUN" == "true" ]]; then
+        log::info "[DRY RUN] Would batch convert ${#scenarios_to_convert[@]} scenarios: ${scenarios_to_convert[*]}"
+        # In dry run mode, simulate success for hash tracking
+        for scenario in "${scenarios_to_convert[@]}"; do
+            new_hashes["$scenario"]="${scenario_hashes[$scenario]}"
+            converted=$((converted + 1))
+        done
+    else
+        log::info "Batch converting ${#scenarios_to_convert[@]} scenario(s)..."
+        
+        # Build the command arguments
+        batch_args=()
+        for scenario in "${scenarios_to_convert[@]}"; do
+            batch_args+=("$scenario")
+        done
+        
+        # Add common flags
+        # Always add --verbose for batch processing to ensure proper output handling
+        batch_args+=("--verbose")
+        batch_args+=("--force")
+        
+        # Run batch conversion
+        batch_start=$(date +%s)
+        if output=$(bash "$SCENARIO_TO_APP" "${batch_args[@]}" 2>&1); then
+            batch_end=$(date +%s)
+            batch_duration=$((batch_end - batch_start))
+            
+            # Mark all scenarios as successfully converted
+            for scenario in "${scenarios_to_convert[@]}"; do
+                log::success "✓ $scenario"
+                new_hashes["$scenario"]="${scenario_hashes[$scenario]}"
+                converted=$((converted + 1))
+            done
+            
+            log::success "Batch conversion completed in ${batch_duration}s"
+        else
+            # If batch conversion fails, fall back to individual conversions for better error reporting
+            log::warning "Batch conversion failed, falling back to individual conversions..."
+            [[ "$VERBOSE" == "true" ]] && echo "$output" | tail -5
+            
+            for scenario in "${scenarios_to_convert[@]}"; do
+                log::info "Converting $scenario individually..."
+                if individual_output=$(bash "$SCENARIO_TO_APP" "$scenario" ${VERBOSE:+--verbose} --force 2>&1); then
+                    log::success "✓ $scenario"
+                    new_hashes["$scenario"]="${scenario_hashes[$scenario]}"
+                    converted=$((converted + 1))
+                else
+                    log::error "✗ $scenario"
+                    [[ "$VERBOSE" == "true" ]] && echo "$individual_output" | tail -10
+                    failed=$((failed + 1))
+                fi
+            done
+        fi
+    fi
+fi
 
 [[ "$VERBOSE" == "true" ]] && log::info "Processing completed. Converted: $converted, Skipped: $skipped, Failed: $failed"
 

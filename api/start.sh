@@ -6,7 +6,7 @@
 set -euo pipefail
 
 API_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PORT="${VROOLI_API_PORT:-8090}"
+PORT="${VROOLI_API_PORT:-8092}"
 
 # Check if already running
 if lsof -i ":${PORT}" >/dev/null 2>&1; then

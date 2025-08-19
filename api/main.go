@@ -370,7 +370,7 @@ func healthCheck(w http.ResponseWriter, r *http.Request) {
 func main() {
 	port := os.Getenv("VROOLI_API_PORT")
 	if port == "" {
-		port = "8090"
+		port = "8092"
 	}
 
 	r := mux.NewRouter()
