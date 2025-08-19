@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# Thin wrapper that calls the CLI directly
+exec "$(dirname "${BASH_SOURCE[0]}")/cli.sh" "$@"

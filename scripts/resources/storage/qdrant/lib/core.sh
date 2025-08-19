@@ -757,6 +757,44 @@ qdrant::api::list_snapshots() {
 }
 
 #######################################
+# MISSING FUNCTIONS FOR STATUS OPTIMIZATION
+#######################################
+
+# Get cluster/version information from root endpoint
+qdrant::get_cluster_info() {
+    local response
+    response=$(qdrant::api::request "GET" "/" 2>/dev/null || true)
+    
+    if [[ -n "$response" ]]; then
+        # Transform simple response to expected cluster format
+        local cluster_response
+        cluster_response=$(echo "$response" | jq \
+            '{
+                "result": {
+                    "version": .version,
+                    "peers": [],
+                    "peer_id": "single-node"
+                }
+            }' 2>/dev/null || echo '{"result":{"version":"unknown","peers":[],"peer_id":"unknown"}}')
+        echo "$cluster_response"
+        return 0
+    fi
+    
+    # Fallback response
+    echo '{"result":{"version":"unknown","peers":[],"peer_id":"unknown"}}'
+    return 1
+}
+
+# Alias functions for status.sh compatibility  
+qdrant::list_collections() {
+    qdrant::api::list_collections "$@"
+}
+
+qdrant::get_collection_info() {
+    qdrant::api::get_collection "$@"
+}
+
+#######################################
 # ESSENTIAL COMMON FUNCTIONS (from common.sh)
 #######################################
 

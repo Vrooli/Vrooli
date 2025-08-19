@@ -42,6 +42,7 @@ declare -g -A RESOURCE_PORTS=(
     ["llamaindex"]="8091"      # RAG and document processing
     ["autogen-studio"]="8081"  # Multi-agent conversation framework
     ["pandas-ai"]="8095"       # AI-powered data analysis and manipulation
+    ["haystack"]="8075"        # End-to-end framework for question answering and search
     
     # Future services can use:
     # - 11xxx for AI services

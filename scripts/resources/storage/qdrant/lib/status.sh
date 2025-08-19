@@ -143,14 +143,19 @@ qdrant::status::collect_data() {
             status_data+=("total_points" "0")
         fi
         
-        # Get memory usage from docker stats
-        local memory_usage
-        memory_usage=$(docker stats "$QDRANT_CONTAINER_NAME" --no-stream --format "{{.MemUsage}}" 2>/dev/null | cut -d' ' -f1)
-        status_data+=("memory_usage" "${memory_usage:-N/A}")
+        # Get memory and CPU usage in single docker stats call (optimized)
+        local stats_output memory_usage cpu_usage
+        stats_output=$(timeout 3s docker stats "$QDRANT_CONTAINER_NAME" --no-stream --format "{{.MemUsage}}\t{{.CPUPerc}}" 2>/dev/null || echo "N/A\tN/A")
         
-        # Get CPU usage
-        local cpu_usage
-        cpu_usage=$(docker stats "$QDRANT_CONTAINER_NAME" --no-stream --format "{{.CPUPerc}}" 2>/dev/null)
+        if [[ "$stats_output" != "N/A"*"N/A" ]]; then
+            memory_usage=$(echo "$stats_output" | cut -f1 | cut -d' ' -f1)
+            cpu_usage=$(echo "$stats_output" | cut -f2)
+        else
+            memory_usage="N/A"
+            cpu_usage="N/A"
+        fi
+        
+        status_data+=("memory_usage" "${memory_usage:-N/A}")
         status_data+=("cpu_usage" "${cpu_usage:-N/A}")
         
         # Calculate uptime

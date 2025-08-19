@@ -39,15 +39,16 @@
   "resources": {
     "storage": {
       "postgres": {
-        "type": "postgresql",
         "enabled": true,
-        "version": "16",
-        "required": true,
-        "description": "Main application database"
+        "baseUrl": "http://localhost:5433",
+        "healthCheck": {
+          "intervalMs": 60000,
+          "timeoutMs": 5000
+        }
       },
       "redis": {
         "type": "redis",
-        "enabled": false,
+        "enabled": true,
         "version": "7",
         "required": true,
         "description": "Event bus and caching layer"
@@ -87,10 +88,12 @@
     },
     "ai": {
       "ollama": {
-        "type": "ollama",
         "enabled": true,
-        "required": false,
-        "description": "Local AI inference server"
+        "baseUrl": "http://localhost:11434",
+        "healthCheck": {
+          "intervalMs": 60000,
+          "timeoutMs": 5000
+        }
       },
       "unstructured-io": {
         "type": "unstructured-io",
@@ -98,11 +101,25 @@
         "required": false,
         "description": "Document processing and parsing service"
       },
+      "openrouter": {
+        "type": "openrouter",
+        "enabled": true,
+        "required": false,
+        "description": "Unified API to many model providers for AI access"
+      },
       "whisper": {
         "type": "whisper",
-        "enabled": false,
+        "enabled": true,
         "required": false,
         "description": "Speech-to-text processing service"
+      },
+      "gemini": {
+        "enabled": true,
+        "type": "gemini",
+        "path": "scripts/resources/ai/gemini",
+        "cli": "resource-gemini",
+        "required": false,
+        "description": "Google Gemini AI API integration"
       }
     },
     "automation": {
@@ -256,7 +273,7 @@
       },
       "windmill": {
         "type": "windmill",
-        "enabled": false,
+        "enabled": true,
         "required": false,
         "description": "Developer platform for building automation apps"
       },
@@ -267,10 +284,12 @@
         "description": "Visual programming for IoT and automation"
       },
       "comfyui": {
-        "type": "comfyui",
-        "enabled": false,
-        "required": false,
-        "description": "Node-based interface for AI image generation"
+        "enabled": true,
+        "baseUrl": "http://localhost:8188",
+        "healthCheck": {
+          "intervalMs": 60000,
+          "timeoutMs": 5000
+        }
       },
       "huginn": {
         "type": "huginn",
@@ -296,15 +315,21 @@
       },
       "claude-code": {
         "type": "claude-code",
-        "enabled": false,
+        "enabled": true,
         "required": false,
         "description": "Claude Code development assistant"
+      },
+      "cline": {
+        "type": "cline",
+        "enabled": false,
+        "required": false,
+        "description": "VS Code AI coding assistant powered by Claude"
       }
     },
     "search": {
       "searxng": {
         "type": "searxng",
-        "enabled": false,
+        "enabled": true,
         "required": false,
         "description": "Privacy-respecting search engine"
       }
@@ -315,7 +340,126 @@
         "enabled": true,
         "required": false,
         "description": "Code execution and testing platform"
+      },
+      "tars-desktop": {
+        "type": "tars-desktop",
+        "enabled": true,
+        "required": false,
+        "description": "GUI automation agent for desktop UI control via natural language"
+      },
+      "llamaindex": {
+        "name": "llamaindex",
+        "category": "execution",
+        "description": "Data framework for LLM applications with RAG capabilities",
+        "enabled": true,
+        "cli": "resource-llamaindex",
+        "config": {
+          "port": 8091,
+          "data_dir": "~/.vrooli/llamaindex"
+        }
+      },
+      "twilio": {
+        "name": "twilio",
+        "category": "execution",
+        "type": "twilio",
+        "description": "SMS, voice, and messaging automation via Twilio API",
+        "enabled": true,
+        "required": false,
+        "cli": "resource-twilio",
+        "config": {
+          "credentials_file": "~/.vrooli/twilio-credentials.json",
+          "data_dir": "~/.vrooli/twilio"
+        }
+      },
+      "pandas-ai": {
+        "name": "pandas-ai",
+        "category": "execution",
+        "type": "pandas-ai",
+        "description": "AI-powered data analysis and manipulation framework",
+        "enabled": true,
+        "required": false,
+        "cli": "resource-pandas-ai",
+        "config": {
+          "port": 8095,
+          "data_dir": "~/.vrooli/pandas-ai"
+        }
+      },
+      "crewai": {
+        "name": "crewai",
+        "category": "execution",
+        "type": "crewai",
+        "description": "Framework for orchestrating role-playing autonomous AI agents",
+        "enabled": true,
+        "required": false,
+        "cli": "resource-crewai",
+        "config": {
+          "port": 8084,
+          "data_dir": "~/.crewai",
+          "venv_dir": "~/.crewai/venv"
+        }
+      },
+      "haystack": {
+        "name": "haystack",
+        "category": "execution",
+        "type": "haystack",
+        "description": "End-to-end framework for question answering and search",
+        "enabled": true,
+        "required": false,
+        "cli": "resource-haystack",
+        "config": {
+          "port": 8075,
+          "data_dir": "~/.vrooli/haystack"
+        }
       }
+    },
+    "redis": {
+      "enabled": true
+    },
+    "ollama": {
+      "status": {
+        "running": true
+      },
+      "enabled": true
+    },
+    "postgres": {
+      "enabled": true
+    },
+    "vault": {
+      "enabled": true
+    },
+    "claude_code": {
+      "enabled": true
+    },
+    "langchain": {
+      "name": "langchain",
+      "category": "execution",
+      "description": "Framework for developing applications with LLMs",
+      "enabled": true,
+      "cli": "resource-langchain",
+      "config": {
+        "port": 8100,
+        "api_port": 8101,
+        "data_dir": "~/.langchain"
+      }
+    },
+    "cline": {
+      "enabled": true
+    },
+    "windmill": {
+      "enabled": true
+    },
+    "crewai": {
+      "enabled": true
+    },
+    "comfyui": {
+      "enabled": true
+    },
+    "ffmpeg": {
+      "enabled": true,
+      "description": "Universal media processing framework",
+      "category": "execution",
+      "cli": "resource-ffmpeg",
+      "manage": "scripts/resources/execution/ffmpeg/manage.sh"
     }
   },
   "deployment": {
@@ -386,7 +530,7 @@
         },
         {
           "name": "start-api",
-          "run": "if [[ -f api/start.sh ]]; then (api/start.sh >/dev/null 2>&1 &) && echo '🚀 Vrooli API started on port 8090' || echo '⚠️  Failed to start API'; else echo '⚠️  API not found'; fi",
+          "run": "if [[ -f api/start.sh ]]; then (VROOLI_API_PORT=8092 api/start.sh >/dev/null 2>&1 &) && echo '🚀 Vrooli API started on port 8092' || echo '⚠️  Failed to start API'; else echo '⚠️  API not found'; fi",
           "description": "Start the Vrooli unified API server"
         },
         {
@@ -448,5 +592,17 @@
       ]
     }
   },
-  "services": {}
+  "services": {
+    "langchain": {
+      "enabled": true,
+      "type": "execution",
+      "description": "Framework for developing applications with LLMs"
+    },
+    "windmill": {
+      "enabled": true
+    },
+    "pushover": {
+      "enabled": true
+    }
+  }
 }

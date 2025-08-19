@@ -88,17 +88,35 @@ unstructured_io::status::collect_data() {
     
     # Runtime information (only if running and healthy)
     if [[ "$running" == "true" && "$healthy" == "true" ]]; then
-        # Get container resource usage
-        local container_stats
-        container_stats=$(docker stats --no-stream --format "{{.CPUPerc}}|{{.MemUsage}}" "$UNSTRUCTURED_IO_CONTAINER_NAME" 2>/dev/null || echo "N/A|N/A")
+        # Get container resource usage with fast timeout (ultra-optimized)
+        local container_stats cpu_usage memory_usage
         
-        if [[ "$container_stats" != "N/A|N/A" ]]; then
-            local cpu_usage memory_usage
-            cpu_usage=$(echo "$container_stats" | cut -d'|' -f1)
-            memory_usage=$(echo "$container_stats" | cut -d'|' -f2)
-            status_data+=("cpu_usage" "$cpu_usage")
-            status_data+=("memory_usage" "$memory_usage")
+        # Auto-detect if we should skip expensive docker stats
+        # Skip stats if: explicitly requested, in parallel mode, or format is JSON (likely automated)
+        local skip_stats="false"
+        if [[ "${UNSTRUCTURED_IO_SKIP_STATS:-false}" == "true" ]] || \
+           [[ "${PARALLEL_STATUS_CHECK:-false}" == "true" ]] || \
+           [[ "${format:-}" == "json" && "${verbose:-}" != "true" ]]; then
+            skip_stats="true"
         fi
+        
+        if [[ "$skip_stats" == "true" ]]; then
+            cpu_usage="N/A"
+            memory_usage="N/A"
+        else
+            container_stats=$(timeout 2s docker stats --no-stream --format "{{.CPUPerc}}|{{.MemUsage}}" "$UNSTRUCTURED_IO_CONTAINER_NAME" 2>/dev/null || echo "N/A|N/A")
+            
+            if [[ "$container_stats" != "N/A|N/A" ]]; then
+                cpu_usage=$(echo "$container_stats" | cut -d'|' -f1)
+                memory_usage=$(echo "$container_stats" | cut -d'|' -f2)
+            else
+                cpu_usage="N/A"
+                memory_usage="N/A"
+            fi
+        fi
+        
+        status_data+=("cpu_usage" "$cpu_usage")
+        status_data+=("memory_usage" "$memory_usage")
         
         # Get container uptime
         local started_at
@@ -303,8 +321,16 @@ unstructured_io::status() {
                 verbose="no"
                 shift
                 ;;
-            --json|--format)
+            --json)
                 format="json"
+                shift
+                ;;
+            --format)
+                format="$2"
+                shift 2
+                ;;
+            --verbose|-v)
+                verbose="yes"
                 shift
                 ;;
             *)
@@ -319,7 +345,7 @@ unstructured_io::status() {
         unstructured_io::status::show --format text >/dev/null 2>&1
         return $?
     else
-        unstructured_io::status::show --format "$format"
+        unstructured_io::status::show --format "$format" ${verbose:+--verbose}
     fi
 }
 
