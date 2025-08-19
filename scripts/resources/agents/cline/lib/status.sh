@@ -144,7 +144,8 @@ EOF
     fi
     
     # Return appropriate exit code
-    if [[ "$health" == "healthy" ]]; then
+    # Return 0 if healthy or partial (configured but waiting for VS Code)
+    if [[ "$health" == "healthy" || ( "$health" == "partial" && "$api_configured" == "true" ) ]]; then
         return 0
     else
         return 1

@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# ERPNext Resource CLI - Thin wrapper over lib functions
+
+# Get the real path of this script, resolving symlinks
+SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")" )" && pwd)"
+
+# Source the main library
+source "$SCRIPT_DIR/lib/main.sh" || {
+    echo "[ERROR] Failed to source lib/main.sh" >&2
+    exit 1
+}
+
+# Main function
+main() {
+    local command="${1:-}"
+    shift || true
+    
+    case "$command" in
+        start)      erpnext::start "$@" ;;
+        stop)       erpnext::stop "$@" ;;
+        restart)    erpnext::restart "$@" ;;
+        status)     erpnext::status "$@" ;;
+        install)    erpnext::install "$@" ;;
+        uninstall)  erpnext::uninstall "$@" ;;
+        inject)     erpnext::inject "$@" ;;
+        list)       erpnext::list "$@" ;;
+        help)       erpnext::help "$@" ;;
+        *)
+            echo "[ERROR] Unknown command: $command" >&2
+            erpnext::help
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"

@@ -49,10 +49,22 @@ ffmpeg_status() {
         running="false"
     fi
     
+    # Determine health status
+    local health="false"
+    local health_message="FFmpeg not installed"
+    if [[ "$installed" == "true" ]]; then
+        health="true"
+        health_message="FFmpeg installed and ready"
+    fi
+    
     # Use format::output for automatic JSON support with kv data type
     format::output "$format" "kv" \
+        "name" "ffmpeg" \
         "installed" "$installed" \
         "running" "$running" \
+        "health" "$health" \
+        "healthy" "$health" \
+        "health_message" "$health_message" \
         "version" "$version" \
         "capabilities" "$capabilities" \
         "description" "Universal media processing framework" \

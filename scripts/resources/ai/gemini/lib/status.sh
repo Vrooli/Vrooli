@@ -52,10 +52,20 @@ gemini::status() {
         running="true"
     fi
     
+    # Determine health status
+    local healthy="false"
+    if [[ "$status" == "running" ]]; then
+        healthy="true"
+    elif [[ "$status" == "configured" ]]; then
+        # For API services with placeholder keys, consider them healthy but note they need real keys
+        healthy="false"
+    fi
+    
     # Build output data
     local -a output_data=(
         "status" "$status"
         "running" "$running"
+        "healthy" "$healthy"
         "message" "$message"
         "api_base" "$api_base"
         "default_model" "$model"

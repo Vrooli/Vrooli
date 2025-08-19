@@ -40,10 +40,27 @@ haystack::inject() {
         json)
             # Inject JSON documents
             log::info "Injecting JSON documents from ${inject_file}"
+            
+            # Check if the JSON has a "documents" field at the top level
+            local json_content
+            json_content=$(cat "${inject_file}")
+            
+            # If it doesn't have a documents field, wrap it
+            if ! echo "${json_content}" | jq -e '.documents' &>/dev/null; then
+                # Check if it's an array
+                if echo "${json_content}" | jq -e 'type == "array"' &>/dev/null; then
+                    # It's an array, wrap it with documents
+                    json_content=$(echo "${json_content}" | jq '{documents: .}')
+                else
+                    # It's a single document, wrap it in an array and documents
+                    json_content=$(echo "${json_content}" | jq '{documents: [.]}')
+                fi
+            fi
+            
             local response
-            response=$(curl -sf -X POST "http://localhost:${port}/index" \
+            response=$(echo "${json_content}" | curl -sf -X POST "http://localhost:${port}/index" \
                 -H "Content-Type: application/json" \
-                -d @"${inject_file}" 2>&1)
+                -d @-)
             
             if [[ $? -eq 0 ]]; then
                 log::success "Successfully injected documents"

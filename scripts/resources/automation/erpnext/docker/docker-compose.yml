@@ -1,0 +1,54 @@
+services:
+  erpnext-db:
+    image: mariadb:10.6
+    container_name: erpnext-db
+    environment:
+      MYSQL_ROOT_PASSWORD: admin
+      MYSQL_DATABASE: erpnext
+      MYSQL_USER: erpnext
+      MYSQL_PASSWORD: admin
+    volumes:
+      - erpnext-db-data:/var/lib/mysql
+    networks:
+      - erpnext-network
+    restart: unless-stopped
+
+  erpnext-redis:
+    image: redis:7-alpine
+    container_name: erpnext-redis
+    networks:
+      - erpnext-network
+    restart: unless-stopped
+
+  erpnext-app:
+    image: frappe/erpnext:v15
+    container_name: erpnext-app
+    ports:
+      - "8020:8000"
+    environment:
+      - SITE_NAME=vrooli.local
+      - DB_HOST=erpnext-db
+      - DB_PORT=3306
+      - REDIS_CACHE=redis://erpnext-redis:6379/0
+      - REDIS_QUEUE=redis://erpnext-redis:6379/1
+      - REDIS_SOCKETIO=redis://erpnext-redis:6379/2
+      - ADMIN_PASSWORD=admin
+      - INSTALL_APPS=erpnext
+      - DB_ROOT_PASSWORD=admin
+    volumes:
+      - erpnext-app-data:/home/frappe/frappe-bench/sites
+      - /home/matthalloran8/.erpnext/apps:/home/frappe/frappe-bench/apps/custom
+    depends_on:
+      - erpnext-db
+      - erpnext-redis
+    networks:
+      - erpnext-network
+    restart: unless-stopped
+
+volumes:
+  erpnext-db-data:
+  erpnext-app-data:
+
+networks:
+  erpnext-network:
+    driver: bridge

@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Get the directory of this script
-CLINE_CLI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Get the actual directory of this script (resolving symlinks)
+SCRIPT_PATH="${BASH_SOURCE[0]}"
+if [[ -L "$SCRIPT_PATH" ]]; then
+    SCRIPT_PATH="$(readlink -f "$SCRIPT_PATH")"
+fi
+CLINE_CLI_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
 
 # Source utilities
 source "$CLINE_CLI_DIR/../../../lib/utils/var.sh"
