@@ -11,6 +11,8 @@ source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/format.sh"
 # shellcheck disable=SC1091
+source "${QDRANT_STATUS_DIR}/../../../lib/status-args.sh"
+# shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_LIB_DIR}/docker-utils.sh"
 # shellcheck disable=SC1091
 source "${QDRANT_STATUS_DIR}/../config/defaults.sh" 2>/dev/null || true
@@ -29,6 +31,21 @@ fi
 # Returns: Key-value pairs ready for formatting
 #######################################
 qdrant::status::collect_data() {
+    local fast_mode="false"
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --fast)
+                fast_mode="true"
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
     local status_data=()
     
     # Basic status checks
@@ -119,9 +136,14 @@ qdrant::status::collect_data() {
             collection_count=$(echo "$collections_info" | jq -r '.result.collections | length // 0' 2>/dev/null)
             status_data+=("collection_count" "${collection_count:-0}")
             
-            # Get total point count across all collections
+            # Get total point count across all collections (optimized for performance)
             local total_points=0
-            if [[ "${collection_count:-0}" -gt 0 ]]; then
+            
+            # Skip expensive operations in fast mode
+            local skip_expensive_ops="$fast_mode"
+            
+            if [[ "$skip_expensive_ops" == "false" && "${collection_count:-0}" -gt 0 && "${collection_count:-0}" -le 10 ]]; then
+                # Only iterate through collections if there are 10 or fewer (to avoid timeout)
                 local collections_array
                 collections_array=$(echo "$collections_info" | jq -r '.result.collections[].name' 2>/dev/null)
                 
@@ -136,6 +158,9 @@ qdrant::status::collect_data() {
                         total_points=$((total_points + ${points_count:-0}))
                     fi
                 done <<< "$collections_array"
+            elif [[ "${collection_count:-0}" -gt 10 ]]; then
+                # Too many collections, skip detailed count for performance
+                total_points="10000+"
             fi
             status_data+=("total_points" "$total_points")
         else
@@ -143,16 +168,27 @@ qdrant::status::collect_data() {
             status_data+=("total_points" "0")
         fi
         
-        # Get memory and CPU usage in single docker stats call (optimized)
+        # Get memory and CPU usage (optimized with smart skipping)
         local stats_output memory_usage cpu_usage
-        stats_output=$(timeout 3s docker stats "$QDRANT_CONTAINER_NAME" --no-stream --format "{{.MemUsage}}\t{{.CPUPerc}}" 2>/dev/null || echo "N/A\tN/A")
         
-        if [[ "$stats_output" != "N/A"*"N/A" ]]; then
-            memory_usage=$(echo "$stats_output" | cut -f1 | cut -d' ' -f1)
-            cpu_usage=$(echo "$stats_output" | cut -f2)
-        else
+        # Reuse skip_expensive_ops from above or use fast mode
+        if [[ -z "${skip_expensive_ops:-}" ]]; then
+            skip_expensive_ops="$fast_mode"
+        fi
+        
+        if [[ "$skip_expensive_ops" == "true" ]]; then
             memory_usage="N/A"
             cpu_usage="N/A"
+        else
+            stats_output=$(timeout 2s docker stats "$QDRANT_CONTAINER_NAME" --no-stream --format "{{.MemUsage}}\t{{.CPUPerc}}" 2>/dev/null || echo "N/A\tN/A")
+            
+            if [[ "$stats_output" != "N/A"*"N/A" ]]; then
+                memory_usage=$(echo "$stats_output" | cut -f1 | cut -d' ' -f1)
+                cpu_usage=$(echo "$stats_output" | cut -f2)
+            else
+                memory_usage="N/A"
+                cpu_usage="N/A"
+            fi
         fi
         
         status_data+=("memory_usage" "${memory_usage:-N/A}")
@@ -184,73 +220,7 @@ qdrant::status::collect_data() {
 # Args: [--format json|text] [--verbose]
 #######################################
 qdrant::status() {
-    local format="text"
-    local verbose="false"
-    
-    # Parse arguments
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            --format)
-                format="$2"
-                shift 2
-                ;;
-            --json)
-                format="json"
-                shift
-                ;;
-            --verbose|-v)
-                verbose="true"
-                shift
-                ;;
-            *)
-                shift
-                ;;
-        esac
-    done
-    
-    # Collect status data
-    local data_string
-    data_string=$(qdrant::status::collect_data 2>/dev/null)
-    
-    if [[ -z "$data_string" ]]; then
-        # Fallback if data collection fails
-        if [[ "$format" == "json" ]]; then
-            echo '{"error": "Failed to collect status data"}'
-        else
-            log::error "Failed to collect Qdrant status data"
-        fi
-        return 1
-    fi
-    
-    # Convert string to array
-    local data_array
-    mapfile -t data_array <<< "$data_string"
-    
-    # Output based on format
-    if [[ "$format" == "json" ]]; then
-        format::output "json" "kv" "${data_array[@]}"
-    else
-        # Text format with standardized structure
-        qdrant::status::display_text "${data_array[@]}"
-    fi
-    
-    # Return appropriate exit code
-    local healthy="false"
-    local running="false"
-    for ((i=0; i<${#data_array[@]}; i+=2)); do
-        case "${data_array[i]}" in
-            "healthy") healthy="${data_array[i+1]}" ;;
-            "running") running="${data_array[i+1]}" ;;
-        esac
-    done
-    
-    if [[ "$healthy" == "true" ]]; then
-        return 0
-    elif [[ "$running" == "true" ]]; then
-        return 1
-    else
-        return 2
-    fi
+    status::run_standard "qdrant" "qdrant::status::collect_data" "qdrant::status::display_text" "$@"
 }
 
 #######################################

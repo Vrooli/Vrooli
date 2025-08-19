@@ -7,6 +7,8 @@ AGENTS2_STATUS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
 source "${AGENTS2_STATUS_DIR}/../../../../lib/utils/format.sh"
 # shellcheck disable=SC1091
+source "${AGENTS2_STATUS_DIR}/../../../lib/status-args.sh"
+# shellcheck disable=SC1091
 source "${AGENTS2_STATUS_DIR}/../config/defaults.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${AGENTS2_STATUS_DIR}/common.sh" 2>/dev/null || true
@@ -18,9 +20,25 @@ fi
 
 #######################################
 # Collect Agent S2 status data in format-agnostic structure
+# Args: [--fast] - Skip expensive operations for faster response
 # Returns: Key-value pairs ready for formatting
 #######################################
 agent_s2::status::collect_data() {
+    local fast_mode="false"
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --fast)
+                fast_mode="true"
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
     local status_data=()
     
     # Basic status checks
@@ -75,7 +93,7 @@ agent_s2::status::collect_data() {
     status_data+=("vnc_password" "$AGENTS2_VNC_PASSWORD")
     status_data+=("llm_provider" "$AGENTS2_LLM_PROVIDER")
     status_data+=("llm_model" "$AGENTS2_LLM_MODEL")
-    status_data+=("display" "$AGENTS2_DISPLAY")
+    status_data+=("display" "${AGENTS2_DISPLAY:-:98}")
     status_data+=("screen_resolution" "$AGENTS2_SCREEN_RESOLUTION")
     status_data+=("enable_host_display" "$AGENTS2_ENABLE_HOST_DISPLAY")
     status_data+=("memory_limit" "$AGENTS2_MEMORY_LIMIT")
@@ -84,34 +102,52 @@ agent_s2::status::collect_data() {
     
     # Runtime information (only if running)
     if [[ "$running" == "true" ]]; then
-        # Container stats
-        local stats
-        stats=$(docker stats --no-stream --format "{{.CPUPerc}};{{.MemUsage}}" "$AGENTS2_CONTAINER_NAME" 2>/dev/null || echo "N/A;N/A")
+        # Container stats (optimized with smart skipping)
+        local stats cpu_usage memory_usage
         
-        if [[ "$stats" != "N/A;N/A" ]]; then
-            local cpu_usage memory_usage
-            cpu_usage=$(echo "$stats" | cut -d';' -f1)
-            memory_usage=$(echo "$stats" | cut -d';' -f2)
-            status_data+=("cpu_usage" "$cpu_usage")
-            status_data+=("memory_usage" "$memory_usage")
+        # Skip expensive operations in fast mode
+        local skip_stats="$fast_mode"
+        
+        if [[ "$skip_stats" == "true" ]]; then
+            cpu_usage="N/A"
+            memory_usage="N/A"
+        else
+            stats=$(timeout 2s docker stats --no-stream --format "{{.CPUPerc}};{{.MemUsage}}" "$AGENTS2_CONTAINER_NAME" 2>/dev/null || echo "N/A;N/A")
+            
+            if [[ "$stats" != "N/A;N/A" ]]; then
+                cpu_usage=$(echo "$stats" | cut -d';' -f1)
+                memory_usage=$(echo "$stats" | cut -d';' -f2)
+            else
+                cpu_usage="N/A"
+                memory_usage="N/A"
+            fi
         fi
         
-        # Get detailed health info if available
-        if [[ "$healthy" == "true" ]]; then
+        status_data+=("cpu_usage" "$cpu_usage")
+        status_data+=("memory_usage" "$memory_usage")
+        
+        # Get detailed health info if available (optimized)
+        if [[ "$healthy" == "true" ]] && [[ "$skip_stats" == "false" ]]; then
             local health_info
-            health_info=$(curl -s --max-time 5 "${AGENTS2_BASE_URL}/health" 2>/dev/null)
+            health_info=$(timeout 2s curl -s --max-time 2 "${AGENTS2_BASE_URL}/health" 2>/dev/null)
             if [[ -n "$health_info" ]] && echo "$health_info" | jq . >/dev/null 2>&1; then
                 local api_status
                 api_status=$(echo "$health_info" | jq -r '.status // "unknown"' 2>/dev/null)
                 status_data+=("api_health_status" "$api_status")
             fi
+        elif [[ "$healthy" == "true" ]]; then
+            status_data+=("api_health_status" "N/A")
         fi
         
-        # Storage usage
+        # Storage usage (optimized)
         if [[ -d "$AGENTS2_DATA_DIR" ]]; then
-            local storage_size
-            storage_size=$(du -sh "$AGENTS2_DATA_DIR" 2>/dev/null | awk '{print $1}' || echo "unknown")
-            status_data+=("storage_size" "$storage_size")
+            if [[ "$skip_stats" == "false" ]]; then
+                local storage_size
+                storage_size=$(timeout 2s du -sh "$AGENTS2_DATA_DIR" 2>/dev/null | awk '{print $1}' || echo "N/A")
+                status_data+=("storage_size" "$storage_size")
+            else
+                status_data+=("storage_size" "N/A")
+            fi
         fi
     fi
     
@@ -126,6 +162,7 @@ agent_s2::status::collect_data() {
 agent_s2::status::show() {
     local format="text"
     local verbose="false"
+    local fast="false"
     
     # Parse arguments
     while [[ $# -gt 0 ]]; do
@@ -142,15 +179,23 @@ agent_s2::status::show() {
                 verbose="true"
                 shift
                 ;;
+            --fast)
+                fast="true"
+                shift
+                ;;
             *)
                 shift
                 ;;
         esac
     done
     
-    # Collect status data
+    # Collect status data (pass fast flag if set)
     local data_string
-    data_string=$(agent_s2::status::collect_data 2>/dev/null)
+    local collect_args=""
+    if [[ "$fast" == "true" ]]; then
+        collect_args="--fast"
+    fi
+    data_string=$(agent_s2::status::collect_data $collect_args 2>/dev/null)
     
     if [[ -z "$data_string" ]]; then
         # Fallback if data collection fails
@@ -303,12 +348,12 @@ agent_s2::status::display_text() {
 # Main status function for CLI registration
 #######################################
 agent_s2::status() {
-    agent_s2::status::show "$@"
+    status::run_standard "agent-s2" "agent_s2::status::collect_data" "agent_s2::status::display_text" "$@"
 }
 
 # CLI framework expects hyphenated function name
 agent-s2::status() {
-    agent_s2::status::show "$@"
+    status::run_standard "agent-s2" "agent_s2::status::collect_data" "agent_s2::status::display_text" "$@"
 }
 
 #######################################

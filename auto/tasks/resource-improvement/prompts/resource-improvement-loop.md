@@ -36,6 +36,7 @@
 - ❌ Do NOT hard-code ports. `scripts/resources/port_registry.sh` should be the single source-of-truth for ports
 - ❌ Do NOT use path variables that are too generic (e.g. prefer `CLAUDE_CODE_LIB_DIR` over `SCRIPT_DIR`), as they could lead to hard-to-trace variable reassignment issues
 - ❌ Do NOT rely solely on source guards to fix all script sourcing issues. They are typically a symptom, not a solution
+- ❌ Do NOT create a `resource-<resource_name>` script to call the resource's `cli.sh` file. You tend to do this sometimes when the cli isn't available. However, the resource should use `install-resource-cli.sh` in its installation process, which automatically sets up the cli.
 
 > Policy: After testing any resource, keep it running. Only Whisper and agent-s2 should be stopped post-validation, due to resource constraints for whisper and known net jacking issues for agent-s2. If you run into a network issue (unlikely but possible), run `scripts/lib/network/network_diagnostics.sh` to figure out what's wrong and attempt autofixes.
 
@@ -63,8 +64,10 @@ All must be satisfied unless a resource-specific note says otherwise.
 General:
 - Status report shows a "healthy" state. Or if we don't have an API key for that resource, as healthy as it gets otherwise
 - Resource responds to a minimal health/sanity check
+- Resource shows as "healthy" not just in its own cli, but also in `vrooli status --verbose`. A discrepancy between the resource status and vrooli's detection of it typically means it hasn't yet auto-registered its cli to vrooli. This should be set up to happen automatically in the resource's code (pretty sure it's a one-liner, as used by many other resources)), but you can also call it yourself if needed.
 - No critical errors in condensed logs/output
 - Data can be "injected" into (added to) the resource, if relevant (likely yes. Even if the resource only works with python files, for example, being able to store them with the resource makes it easy to share files between scenarios and connect them to CLI commands)
+- Resource's documentation is detailed, accurate, and organized. It should follow our documentation best practices, including using a "hub-and-spokes" model of organization to limit the size of the resource's main README.md.
 
 ---
 

@@ -9,20 +9,22 @@ source "$NEO4J_LIB_DIR/start.sh"
 # Source format utility for consistent output
 FORMAT_UTIL="${NEO4J_LIB_DIR}/../../../lib/utils/format.sh"
 [[ -f "$FORMAT_UTIL" ]] && source "$FORMAT_UTIL"
+# shellcheck disable=SC1091
+source "${NEO4J_LIB_DIR}/../../../lib/status-args.sh"
 
-neo4j_status() {
-    local format="text"
+#######################################
+# Collect Neo4j status data in format-agnostic structure
+# Args: [--fast] - Skip expensive operations for faster response
+# Returns: Key-value pairs ready for formatting
+#######################################
+neo4j::status::collect_data() {
+    local fast_mode="false"
     
     # Parse arguments
     while [[ $# -gt 0 ]]; do
         case "$1" in
-            --format)
-                format="${2:-text}"
-                shift 2
-                ;;
-            json|text)
-                # Support positional format argument for backward compatibility
-                format="$1"
+            --fast)
+                fast_mode="true"
                 shift
                 ;;
             *)
@@ -31,7 +33,7 @@ neo4j_status() {
         esac
     done
     
-    local status_data=""
+    local status_data=()
     
     # Check if installed
     local installed="false"
@@ -47,103 +49,147 @@ neo4j_status() {
     
     # Check health
     local healthy="false"
-    local message="Not running"
+    local health_message="Not running"
     local version=""
     local nodes="0"
     local relationships="0"
     
     if [[ "$running" == "true" ]]; then
-        # Try to get basic status
-        if curl -s "http://localhost:$NEO4J_HTTP_PORT/" 2>/dev/null | grep -q '"neo4j_version"'; then
+        # Try to get basic status (skip if fast mode)
+        if [[ "$fast_mode" == "false" ]] && timeout 2s curl -s "http://localhost:$NEO4J_HTTP_PORT/" 2>/dev/null | grep -q '"neo4j_version"'; then
             healthy="true"
-            message="Neo4j is healthy and accepting connections"
+            health_message="Neo4j is healthy and accepting connections"
             
             # Try to get version
-            version=$(docker exec "$NEO4J_CONTAINER_NAME" neo4j --version 2>/dev/null | grep -oP 'neo4j \K[0-9.]+' || echo "unknown")
+            version=$(timeout 3s docker exec "$NEO4J_CONTAINER_NAME" neo4j --version 2>/dev/null | grep -oP 'neo4j \K[0-9.]+' || echo "unknown")
             
             # Try to get node/relationship count (requires auth)
             local cypher_result=$(echo 'MATCH (n) RETURN count(n) as nodes' | \
-                docker exec -i "$NEO4J_CONTAINER_NAME" cypher-shell \
+                timeout 3s docker exec -i "$NEO4J_CONTAINER_NAME" cypher-shell \
                 -u neo4j -p "VrooliNeo4j2024!" \
                 --format plain 2>/dev/null | tail -1)
             if [[ -n "$cypher_result" ]]; then
                 nodes="$cypher_result"
             fi
+        elif [[ "$fast_mode" == "true" ]]; then
+            # Fast mode - assume healthy if running
+            healthy="true"
+            health_message="Fast mode - skipped health check"
+            version="N/A"
+            nodes="N/A"
         else
-            message="Neo4j is running but not responding"
+            health_message="Neo4j is running but not responding"
         fi
     elif [[ "$installed" == "true" ]]; then
-        message="Neo4j is installed but not running"
+        health_message="Neo4j is installed but not running"
     else
-        message="Neo4j is not installed"
+        health_message="Neo4j is not installed"
     fi
     
-    # Determine status string
-    local status="stopped"
-    if [[ "$running" == "true" ]]; then
-        status="running"
-    elif [[ "$installed" == "true" ]]; then
-        status="stopped"
-    else
-        status="not_installed"
+    # Container status
+    local container_status="not_found"
+    if [[ "$installed" == "true" ]]; then
+        container_status=$(docker inspect --format='{{.State.Status}}' "$NEO4J_CONTAINER_NAME" 2>/dev/null || echo "unknown")
     fi
     
-    # Build the key-value pairs
-    local kv_pairs=(
-        "name" "neo4j"
-        "status" "$status"
-        "installed" "$installed"
-        "running" "$running"
-        "health" "$healthy"
-        "healthy" "$healthy"
-        "version" "$version"
-        "http_port" "$NEO4J_HTTP_PORT"
-        "bolt_port" "$NEO4J_BOLT_PORT"
-        "nodes" "$nodes"
-        "relationships" "$relationships"
-        "message" "$message"
-        "description" "Native property graph database"
-        "category" "storage"
-    )
+    # Basic resource information
+    status_data+=("name" "neo4j")
+    status_data+=("category" "storage")
+    status_data+=("description" "Native property graph database")
+    status_data+=("installed" "$installed")
+    status_data+=("running" "$running")
+    status_data+=("healthy" "$healthy")
+    status_data+=("health_message" "$health_message")
+    status_data+=("container_name" "$NEO4J_CONTAINER_NAME")
+    status_data+=("container_status" "$container_status")
+    status_data+=("version" "$version")
+    status_data+=("http_port" "$NEO4J_HTTP_PORT")
+    status_data+=("bolt_port" "$NEO4J_BOLT_PORT")
+    status_data+=("nodes" "$nodes")
+    status_data+=("relationships" "$relationships")
+    status_data+=("http_url" "http://localhost:$NEO4J_HTTP_PORT")
+    status_data+=("bolt_url" "bolt://localhost:$NEO4J_BOLT_PORT")
     
-    # Use format utility if available, fall back to simple output
-    if declare -f format::output >/dev/null 2>&1; then
-        format::output "$format" "kv" "${kv_pairs[@]}"
-    else
-        # Fallback to simple format
-        if [[ "$format" == "json" ]]; then
-            cat <<EOF
-{
-  "name": "neo4j",
-  "status": "$status",
-  "installed": $installed,
-  "running": $running,
-  "health": $healthy,
-  "healthy": $healthy,
-  "version": "$version",
-  "http_port": $NEO4J_HTTP_PORT,
-  "bolt_port": $NEO4J_BOLT_PORT,
-  "nodes": $nodes,
-  "relationships": $relationships,
-  "message": "$message",
-  "description": "Native property graph database",
-  "category": "storage"
+    # Docker image if available
+    if [[ "$installed" == "true" ]]; then
+        local image
+        image=$(docker inspect --format='{{.Config.Image}}' "$NEO4J_CONTAINER_NAME" 2>/dev/null || echo "unknown")
+        status_data+=("image" "$image")
+    fi
+    
+    # Return the collected data
+    printf '%s\n' "${status_data[@]}"
 }
-EOF
-        else
-            cat <<EOF
-Installed: $installed
-Running: $running
-Healthy: $healthy
-Version: $version
-Http Port: $NEO4J_HTTP_PORT
-Bolt Port: $NEO4J_BOLT_PORT
-Nodes: $nodes
-Relationships: $relationships
-Message: $message
-Description: Native property graph database
-Category: storage
-EOF
-        fi
+
+#######################################
+# Display Neo4j status in text format
+# Args: data_array (key-value pairs)
+#######################################
+neo4j::status::display_text() {
+    local -A data
+    
+    # Convert array to associative array
+    for ((i=1; i<=$#; i+=2)); do
+        local key="${!i}"
+        local value_idx=$((i+1))
+        local value="${!value_idx}"
+        data["$key"]="$value"
+    done
+    
+    # Header
+    echo "Neo4j Status Report"
+    echo "==================="
+    echo
+    
+    # Basic status
+    echo "Basic Status:"
+    if [[ "${data[installed]:-false}" == "true" ]]; then
+        echo "  ✅ Installed: Yes"
+    else
+        echo "  ❌ Installed: No"
+        echo
+        echo "Installation Required:"
+        echo "  To install Neo4j, run the installation command"
+        return
     fi
+    
+    if [[ "${data[running]:-false}" == "true" ]]; then
+        echo "  ✅ Running: Yes"
+    else
+        echo "  ⚠️  Running: No"
+    fi
+    
+    if [[ "${data[healthy]:-false}" == "true" ]]; then
+        echo "  ✅ Health: Healthy"
+    else
+        echo "  ⚠️  Health: ${data[health_message]:-Unknown}"
+    fi
+    echo
+    
+    # Container information
+    echo "Container Info:"
+    echo "  📦 Name: ${data[container_name]:-unknown}"
+    echo "  📊 Status: ${data[container_status]:-unknown}"
+    echo "  🖼️  Image: ${data[image]:-unknown}"
+    echo
+    
+    # Service endpoints
+    echo "Service Endpoints:"
+    echo "  🌐 HTTP: ${data[http_url]:-unknown}"
+    echo "  ⚡ Bolt: ${data[bolt_url]:-unknown}"
+    echo "  📶 HTTP Port: ${data[http_port]:-unknown}"
+    echo "  📶 Bolt Port: ${data[bolt_port]:-unknown}"
+    echo
+    
+    # Database information (only if healthy)
+    if [[ "${data[healthy]:-false}" == "true" ]]; then
+        echo "Database Info:"
+        echo "  📊 Version: ${data[version]:-unknown}"
+        echo "  🔸 Nodes: ${data[nodes]:-0}"
+        echo "  🔗 Relationships: ${data[relationships]:-0}"
+    fi
+}
+
+neo4j_status() {
+    status::run_standard "neo4j" "neo4j::status::collect_data" "neo4j::status::display_text" "$@"
 }

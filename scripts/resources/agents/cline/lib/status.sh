@@ -9,23 +9,23 @@ CLINE_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${CLINE_LIB_DIR}/common.sh"
 # shellcheck disable=SC1091
 source "${CLINE_LIB_DIR}/../../../../lib/utils/format.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${CLINE_LIB_DIR}/../../../lib/status-args.sh"
 
 #######################################
-# Check Cline status
-# Arguments:
-#   --format: Output format (text/json)
-# Returns:
-#   0 if healthy, 1 otherwise
+# Collect Cline status data in format-agnostic structure
+# Args: [--fast] - Skip expensive operations for faster response
+# Returns: Key-value pairs ready for formatting
 #######################################
-cline::status() {
-    local format="text"
+cline::status::collect_data() {
+    local fast_mode="false"
     
     # Parse arguments
     while [[ $# -gt 0 ]]; do
         case "$1" in
-            --format)
-                format="${2:-text}"
-                shift 2
+            --fast)
+                fast_mode="true"
+                shift
                 ;;
             *)
                 shift
@@ -33,6 +33,9 @@ cline::status() {
         esac
     done
     
+    local status_data=()
+    
+    # Basic status checks
     local status="stopped"
     local health="unhealthy"
     local version="not installed"
@@ -41,6 +44,7 @@ cline::status() {
     local vscode_available="false"
     local details=""
     local running="false"
+    local healthy="false"
     
     # Check status file first
     if [[ -f "$CLINE_CONFIG_DIR/.status" ]]; then
@@ -51,25 +55,43 @@ cline::status() {
         fi
     fi
     
-    # Check VS Code availability
-    if cline::check_vscode; then
-        vscode_available="true"
+    # Check VS Code availability (skip if fast mode)
+    if [[ "$fast_mode" == "false" ]]; then
+        if cline::check_vscode; then
+            vscode_available="true"
+        else
+            details="VS Code not found"
+        fi
+        
+        # Check configuration regardless of VS Code presence
+        if cline::is_configured; then
+            api_configured="true"
+        fi
     else
-        details="VS Code not found"
-    fi
-    
-    # Check configuration regardless of VS Code presence
-    if cline::is_configured; then
-        api_configured="true"
+        # Fast mode - skip expensive checks
+        vscode_available="N/A"
+        api_configured="N/A"
+        details="Fast mode - skipped checks"
     fi
     
     # Determine health based on configuration and VS Code availability
-    if [[ "$vscode_available" == "true" ]]; then
+    if [[ "$fast_mode" == "true" ]]; then
+        # Fast mode - assume healthy if status file exists
+        if [[ -f "$CLINE_CONFIG_DIR/.status" ]]; then
+            health="healthy"
+            healthy="true"
+            version="N/A"
+        else
+            health="partial"
+            version="N/A"
+        fi
+    elif [[ "$vscode_available" == "true" ]]; then
         # VS Code is available
         if cline::is_installed; then
             version=$(cline::get_version)
             if [[ "$api_configured" == "true" ]]; then
                 health="healthy"
+                healthy="true"
                 details="Cline is ready for use in VS Code"
             else
                 health="partial"
@@ -92,64 +114,65 @@ cline::status() {
         fi
     fi
     
-    # Build output data array for format utility
-    local -a output_data=(
-        "name" "cline"
-        "status" "$status"
-        "running" "$running"
-        "health" "$health"
-        "version" "$version"
-        "provider" "$provider"
-        "api_configured" "$api_configured"
-        "vscode_available" "$vscode_available"
-    )
+    # Basic resource information
+    status_data+=("name" "cline")
+    status_data+=("category" "agents")
+    status_data+=("description" "AI coding assistant for VS Code")
+    status_data+=("installed" "$([[ "$version" != "not installed" ]] && echo "true" || echo "false")")
+    status_data+=("running" "$running")
+    status_data+=("healthy" "$healthy")
+    status_data+=("health_message" "$details")
+    status_data+=("status" "$status")
+    status_data+=("health" "$health")
+    status_data+=("version" "$version")
+    status_data+=("provider" "$provider")
+    status_data+=("api_configured" "$api_configured")
+    status_data+=("vscode_available" "$vscode_available")
     
     # Add details if present
     if [[ -n "$details" ]]; then
-        output_data+=("details" "$details")
+        status_data+=("details" "$details")
     fi
     
-    # Use standard formatter if available, fallback to legacy output
-    if type -t format::key_value &>/dev/null; then
-        format::key_value "$format" "${output_data[@]}"
-    else
-        # Fallback to legacy output if format utility not available
-        if [[ "$format" == "json" ]]; then
-            # Output JSON format
-            cat <<EOF
-{
-  "name": "cline",
-  "status": "$status",
-  "running": $running,
-  "health": "$health",
-  "version": "$version",
-  "provider": "$provider",
-  "api_configured": $api_configured,
-  "vscode_available": $vscode_available,
-  "details": "$details"
+    # Return the collected data
+    printf '%s\n' "${status_data[@]}"
 }
-EOF
-        else
-            # Output text format
-            echo "Cline Status:"
-            echo "  Status: $status"
-            echo "  Running: $running"
-            echo "  Health: $health"
-            echo "  Version: $version"
-            echo "  Provider: $provider"
-            echo "  API Configured: $api_configured"
-            echo "  VS Code Available: $vscode_available"
-            [[ -n "$details" ]] && echo "  Details: $details"
-        fi
-    fi
+
+#######################################
+# Display status in text format
+#######################################
+cline::status::display_text() {
+    local -A data
     
-    # Return appropriate exit code
-    # Return 0 if healthy or partial (configured but waiting for VS Code)
-    if [[ "$health" == "healthy" || ( "$health" == "partial" && "$api_configured" == "true" ) ]]; then
-        return 0
-    else
-        return 1
-    fi
+    # Convert array to associative array
+    for ((i=1; i<=$#; i+=2)); do
+        local key="${!i}"
+        local value_idx=$((i+1))
+        local value="${!value_idx}"
+        data["$key"]="$value"
+    done
+    
+    echo "Cline Status:"
+    echo "  Status: ${data[status]:-unknown}"
+    echo "  Running: ${data[running]:-false}"
+    echo "  Health: ${data[health]:-unknown}"
+    echo "  Version: ${data[version]:-unknown}"
+    echo "  Provider: ${data[provider]:-unknown}"
+    echo "  API Configured: ${data[api_configured]:-false}"
+    echo "  VS Code Available: ${data[vscode_available]:-false}"
+    [[ -n "${data[details]:-}" ]] && echo "  Details: ${data[details]}"
+}
+
+#######################################
+# Check Cline status - Main status function
+# Arguments:
+#   --format: Output format (text/json)
+#   --fast: Skip expensive operations
+# Returns:
+#   0 if healthy, 1 otherwise
+#######################################
+cline::status() {
+    status::run_standard "cline" "cline::status::collect_data" "cline::status::display_text" "$@"
 }
 
 #######################################

@@ -10,7 +10,7 @@ services:
     network_mode: host
     environment:
       # Display settings
-      - DISPLAY=:99
+      - DISPLAY=:98
       - AGENT_S2_SCREEN_WIDTH=1920
       - AGENT_S2_SCREEN_HEIGHT=1080
       

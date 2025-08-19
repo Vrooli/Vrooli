@@ -9,23 +9,25 @@ CODEX_STATUS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${CODEX_STATUS_DIR}/common.sh"
 # shellcheck disable=SC1091
 source "${CODEX_STATUS_DIR}/../../../../lib/utils/format.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${CODEX_STATUS_DIR}/../../../lib/status-args.sh"
 
 #######################################
-# Check Codex status
+# Collect Codex status data
 # Arguments:
-#   --format: Output format (text/json)
+#   --fast: Skip expensive operations
 # Returns:
-#   0 if healthy, 1 otherwise
+#   Key-value pairs (one per line)
 #######################################
-codex::status() {
-    local format="text"
+codex::status::collect_data() {
+    local fast="false"
     
     # Parse arguments
     while [[ $# -gt 0 ]]; do
         case "$1" in
-            --format)
-                format="${2:-text}"
-                shift 2
+            --fast)
+                fast="true"
+                shift
                 ;;
             *)
                 shift
@@ -58,8 +60,16 @@ codex::status() {
         api_configured="true"
         installed="true"
         
-        # Check API availability
-        if codex::is_available; then
+        # Check API availability (skip in fast mode)
+        if [[ "$fast" == "true" ]]; then
+            # Assume available if configured in fast mode
+            api_available="N/A"
+            health="healthy"
+            healthy="true"
+            details="Codex API configured (fast mode)"
+            status="running"
+            running="true"
+        elif codex::is_available; then
             api_available="true"
             health="healthy"
             healthy="true"
@@ -79,63 +89,93 @@ codex::status() {
         details="OpenAI API key not configured"
     fi
     
-    # Count injected scripts
+    # Count injected scripts (skip in fast mode)
     local script_count=0
-    if [[ -d "${CODEX_SCRIPTS_DIR}" ]]; then
+    if [[ "$fast" == "false" ]] && [[ -d "${CODEX_SCRIPTS_DIR}" ]]; then
         script_count=$(find "${CODEX_SCRIPTS_DIR}" -name "*.py" 2>/dev/null | wc -l)
+    elif [[ "$fast" == "true" ]]; then
+        script_count="N/A"
     fi
     
-    # Count outputs
+    # Count outputs (skip in fast mode)
     local output_count=0
-    if [[ -d "${CODEX_OUTPUT_DIR}" ]]; then
+    if [[ "$fast" == "false" ]] && [[ -d "${CODEX_OUTPUT_DIR}" ]]; then
         output_count=$(find "${CODEX_OUTPUT_DIR}" -type f 2>/dev/null | wc -l)
+    elif [[ "$fast" == "true" ]]; then
+        output_count="N/A"
     fi
     
-    # Build output data array for format utility
-    local -a output_data=(
-        "name" "${CODEX_NAME}"
-        "status" "${status}"
-        "installed" "${installed}"
-        "running" "${running}"
-        "health" "${health}"
-        "healthy" "${healthy}"
-        "version" "${version}"
-        "api_configured" "${api_configured}"
-        "api_available" "${api_available}"
-        "scripts" "${script_count}"
-        "outputs" "${output_count}"
-        "message" "${details}"
-        "description" "${CODEX_DESCRIPTION}"
-        "category" "${CODEX_CATEGORY}"
-    )
+    # Output data as key-value pairs
+    echo "name"
+    echo "${CODEX_NAME}"
+    echo "status"
+    echo "${status}"
+    echo "installed"
+    echo "${installed}"
+    echo "running"
+    echo "${running}"
+    echo "health"
+    echo "${health}"
+    echo "healthy"
+    echo "${healthy}"
+    echo "version"
+    echo "${version}"
+    echo "api_configured"
+    echo "${api_configured}"
+    echo "api_available"
+    echo "${api_available}"
+    echo "scripts"
+    echo "${script_count}"
+    echo "outputs"
+    echo "${output_count}"
+    echo "message"
+    echo "${details}"
+    echo "description"
+    echo "${CODEX_DESCRIPTION}"
+    echo "category"
+    echo "${CODEX_CATEGORY}"
+}
+
+#######################################
+# Display Codex status in text format
+# Arguments:
+#   data_array: Array of key-value pairs
+#######################################
+codex::status::display_text() {
+    local -a data_array=("$@")
     
-    # Use standard formatter if available, fallback to text
-    if type -t format::key_value &>/dev/null; then
-        format::key_value "${format}" "${output_data[@]}"
-    else
-        # Fallback to text output
-        echo "Name: ${CODEX_NAME}"
-        echo "Status: ${status}"
-        echo "Installed: ${installed}"
-        echo "Running: ${running}"
-        echo "Health: ${health}"
-        echo "Healthy: ${healthy}"
-        echo "Version: ${version}"
-        echo "API Configured: ${api_configured}"
-        echo "API Available: ${api_available}"
-        echo "Scripts: ${script_count}"
-        echo "Outputs: ${output_count}"
-        echo "Message: ${details}"
-        echo "Description: ${CODEX_DESCRIPTION}"
-        echo "Category: ${CODEX_CATEGORY}"
-    fi
+    # Convert array to associative array for easier access
+    local -A data
+    for ((i=0; i<${#data_array[@]}; i+=2)); do
+        data["${data_array[i]}"]="${data_array[i+1]}"
+    done
     
-    # Return appropriate exit code
-    if [[ "${healthy}" == "true" ]]; then
-        return 0
-    else
-        return 1
-    fi
+    echo "Name: ${data[name]}"
+    echo "Status: ${data[status]}"
+    echo "Installed: ${data[installed]}"
+    echo "Running: ${data[running]}"
+    echo "Health: ${data[health]}"
+    echo "Healthy: ${data[healthy]}"
+    echo "Version: ${data[version]}"
+    echo "API Configured: ${data[api_configured]}"
+    echo "API Available: ${data[api_available]}"
+    echo "Scripts: ${data[scripts]}"
+    echo "Outputs: ${data[outputs]}"
+    echo "Message: ${data[message]}"
+    echo "Description: ${data[description]}"
+    echo "Category: ${data[category]}"
+}
+
+#######################################
+# Check Codex status
+# Arguments:
+#   --format: Output format (text/json)
+#   --fast: Skip expensive operations
+# Returns:
+#   0 if healthy, 1 otherwise
+#######################################
+codex::status() {
+    status::run_standard "codex" "codex::status::collect_data" "codex::status::display_text" "$@"
 }
 
 # Main entry point

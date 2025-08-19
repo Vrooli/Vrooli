@@ -7,6 +7,8 @@ WINDMILL_STATUS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
 source "${WINDMILL_STATUS_DIR}/../../../../lib/utils/format.sh"
 # shellcheck disable=SC1091
+source "${WINDMILL_STATUS_DIR}/../../../lib/status-args.sh"
+# shellcheck disable=SC1091
 source "${WINDMILL_STATUS_DIR}/../config/defaults.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${WINDMILL_STATUS_DIR}/../config/messages.sh" 2>/dev/null || true
@@ -25,9 +27,25 @@ fi
 
 #######################################
 # Collect Windmill status data in format-agnostic structure
+# Args: [--fast] - Skip expensive operations for faster response
 # Returns: Key-value pairs ready for formatting
 #######################################
 windmill::status::collect_data() {
+    local fast_mode="false"
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --fast)
+                fast_mode="true"
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
     local status_data=()
     
     # Basic status checks
@@ -125,16 +143,27 @@ windmill::status::collect_data() {
         status_data+=("worker_running" "$worker_running")
         status_data+=("database_running" "$db_running")
         
-        # Get container stats if available
+        # Get container stats if available (optimized with smart skipping)
         if [[ "$server_running" == "true" ]]; then
-            local server_stats
-            server_stats=$(docker stats --no-stream --format "{{.CPUPerc}}|{{.MemUsage}}" "$WINDMILL_SERVER_CONTAINER" 2>/dev/null)
-            if [[ -n "$server_stats" ]]; then
-                local cpu_usage memory_usage
-                cpu_usage=$(echo "$server_stats" | cut -d'|' -f1)
-                memory_usage=$(echo "$server_stats" | cut -d'|' -f2)
-                status_data+=("server_cpu" "$cpu_usage")
-                status_data+=("server_memory" "$memory_usage")
+            # Skip expensive operations in fast mode
+            local skip_stats="$fast_mode"
+            
+            if [[ "$skip_stats" == "true" ]]; then
+                status_data+=("server_cpu" "N/A")
+                status_data+=("server_memory" "N/A")
+            else
+                local server_stats
+                server_stats=$(timeout 2s docker stats --no-stream --format "{{.CPUPerc}}|{{.MemUsage}}" "$WINDMILL_SERVER_CONTAINER" 2>/dev/null || echo "")
+                if [[ -n "$server_stats" ]]; then
+                    local cpu_usage memory_usage
+                    cpu_usage=$(echo "$server_stats" | cut -d'|' -f1)
+                    memory_usage=$(echo "$server_stats" | cut -d'|' -f2)
+                    status_data+=("server_cpu" "$cpu_usage")
+                    status_data+=("server_memory" "$memory_usage")
+                else
+                    status_data+=("server_cpu" "N/A")
+                    status_data+=("server_memory" "N/A")
+                fi
             fi
         fi
         
@@ -150,76 +179,11 @@ windmill::status::collect_data() {
 
 #######################################
 # Show Windmill status using standardized format
-# Args: [--format json|text] [--verbose]
+# Args: [--format json|text] [--verbose] [--fast]
 #######################################
 windmill::status() {
-    local format="text"
-    local verbose="false"
-    
-    # Parse arguments
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            --format)
-                format="$2"
-                shift 2
-                ;;
-            --json)
-                format="json"
-                shift
-                ;;
-            --verbose|-v)
-                verbose="true"
-                shift
-                ;;
-            *)
-                shift
-                ;;
-        esac
-    done
-    
-    # Collect status data
-    local data_string
-    data_string=$(windmill::status::collect_data 2>/dev/null)
-    
-    if [[ -z "$data_string" ]]; then
-        # Fallback if data collection fails
-        if [[ "$format" == "json" ]]; then
-            echo '{"error": "Failed to collect status data"}'
-        else
-            log::error "Failed to collect Windmill status data"
-        fi
-        return 1
-    fi
-    
-    # Convert string to array
-    local data_array
-    mapfile -t data_array <<< "$data_string"
-    
-    # Output based on format
-    if [[ "$format" == "json" ]]; then
-        format::output "json" "kv" "${data_array[@]}"
-    else
-        # Text format with standardized structure
-        windmill::status::display_text "${data_array[@]}"
-    fi
-    
-    # Return appropriate exit code
-    local healthy="false"
-    local running="false"
-    for ((i=0; i<${#data_array[@]}; i+=2)); do
-        case "${data_array[i]}" in
-            "healthy") healthy="${data_array[i+1]}" ;;
-            "running") running="${data_array[i+1]}" ;;
-        esac
-    done
-    
-    if [[ "$healthy" == "true" ]]; then
-        return 0
-    elif [[ "$running" == "true" ]]; then
-        return 1
-    else
-        return 2
-    fi
+    # Use the comprehensive standard wrapper
+    status::run_standard "windmill" "windmill::status::collect_data" "windmill::status::display_text" "$@"
 }
 
 #######################################

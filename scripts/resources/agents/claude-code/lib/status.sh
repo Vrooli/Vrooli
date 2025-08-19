@@ -15,6 +15,8 @@ source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/format.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
+source "${CLAUDE_CODE_SCRIPT_DIR}/../../lib/status-args.sh"
+# shellcheck disable=SC1091
 source "${CLAUDE_CODE_SCRIPT_DIR}/config/defaults.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${CLAUDE_CODE_SCRIPT_DIR}/common.sh" 2>/dev/null || true
@@ -26,9 +28,25 @@ fi
 
 #######################################
 # Collect Claude Code status data in format-agnostic structure
+# Args: [--fast] - Skip expensive operations for faster response
 # Returns: Key-value pairs ready for formatting
 #######################################
 claude_code::status::collect_data() {
+    local fast_mode="false"
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --fast)
+                fast_mode="true"
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
     local status_data=()
     
     # Basic status checks
@@ -48,31 +66,39 @@ claude_code::status::collect_data() {
         # Since Claude Code is a CLI tool, it's "running" if installed and available
         running="true"
         
-        # Perform health check to determine if healthy
-        local health_output
-        if health_output=$(claude_code::health_check "basic" "json" 2>/dev/null); then
-            local health_status
-            health_status=$(echo "$health_output" | jq -r '.status // "unknown"' 2>/dev/null || echo "unknown")
-            auth_status=$(echo "$health_output" | jq -r '.auth_status // "unknown"' 2>/dev/null || echo "unknown")
-            tty_compatible=$(echo "$health_output" | jq -r '.tty_compatible // "unknown"' 2>/dev/null || echo "unknown")
-            
-            case "$health_status" in
-                "healthy")
-                    healthy="true"
-                    health_message="Healthy - Claude Code CLI is functional and authenticated"
-                    ;;
-                "degraded")
-                    healthy="false"
-                    health_message="Degraded - Claude Code installed but has issues"
-                    ;;
-                *)
-                    healthy="false"
-                    health_message="Unhealthy - Claude Code not functioning properly"
-                    ;;
-            esac
+        # Perform health check to determine if healthy (skip if fast mode)
+        if [[ "$fast_mode" == "false" ]]; then
+            local health_output
+            if health_output=$(timeout 3s claude_code::health_check "basic" "json" 2>/dev/null); then
+                local health_status
+                health_status=$(echo "$health_output" | jq -r '.status // "unknown"' 2>/dev/null || echo "unknown")
+                auth_status=$(echo "$health_output" | jq -r '.auth_status // "unknown"' 2>/dev/null || echo "unknown")
+                tty_compatible=$(echo "$health_output" | jq -r '.tty_compatible // "unknown"' 2>/dev/null || echo "unknown")
+                
+                case "$health_status" in
+                    "healthy")
+                        healthy="true"
+                        health_message="Healthy - Claude Code CLI is functional and authenticated"
+                        ;;
+                    "degraded")
+                        healthy="false"
+                        health_message="Degraded - Claude Code installed but has issues"
+                        ;;
+                    *)
+                        healthy="false"
+                        health_message="Unhealthy - Claude Code not functioning properly"
+                        ;;
+                esac
+            else
+                healthy="false"
+                health_message="Health check failed - Unable to determine status"
+            fi
         else
-            healthy="false"
-            health_message="Health check failed - Unable to determine status"
+            # Fast mode - assume healthy if installed
+            healthy="true"
+            health_message="Fast mode - skipped health check"
+            auth_status="N/A"
+            tty_compatible="N/A"
         fi
     else
         health_message="Not installed - Claude Code CLI not found"
@@ -99,12 +125,17 @@ claude_code::status::collect_data() {
     
     # Runtime information (only if installed)
     if [[ "$installed" == "true" ]]; then
-        # Node.js version check
+        # Node.js version check (skip if fast mode)
         local node_available="false"
         local node_version="unknown"
-        if claude_code::check_node_version; then
-            node_available="true"
-            node_version=$(node --version 2>/dev/null || echo "unknown")
+        if [[ "$fast_mode" == "false" ]]; then
+            if claude_code::check_node_version; then
+                node_available="true"
+                node_version=$(node --version 2>/dev/null || echo "unknown")
+            fi
+        else
+            node_available="N/A"
+            node_version="N/A"
         fi
         status_data+=("node_available" "$node_available")
         status_data+=("node_version" "$node_version")
@@ -125,13 +156,17 @@ claude_code::status::collect_data() {
         status_data+=("config_exists" "$config_exists")
         status_data+=("project_config_exists" "$project_config_exists")
         
-        # Log directory status
+        # Log directory status (skip if fast mode)
         local log_dirs_found=0
-        for log_dir in "${CLAUDE_LOG_LOCATIONS[@]}"; do
-            if [[ -d "$log_dir" ]]; then
-                log_dirs_found=$((log_dirs_found + 1))
-            fi
-        done
+        if [[ "$fast_mode" == "false" ]]; then
+            for log_dir in "${CLAUDE_LOG_LOCATIONS[@]}"; do
+                if [[ -d "$log_dir" ]]; then
+                    log_dirs_found=$((log_dirs_found + 1))
+                fi
+            done
+        else
+            log_dirs_found="N/A"
+        fi
         status_data+=("log_dirs_found" "$log_dirs_found")
         
         # Capabilities check
@@ -150,6 +185,7 @@ claude_code::status::collect_data() {
 claude_code::status::show() {
     local format="text"
     local verbose="false"
+    local fast="false"
     
     # Parse arguments
     while [[ $# -gt 0 ]]; do
@@ -166,15 +202,23 @@ claude_code::status::show() {
                 verbose="true"
                 shift
                 ;;
+            --fast)
+                fast="true"
+                shift
+                ;;
             *)
                 shift
                 ;;
         esac
     done
     
-    # Collect status data
+    # Collect status data (pass fast flag if set)
     local data_string
-    data_string=$(claude_code::status::collect_data 2>/dev/null)
+    local collect_args=""
+    if [[ "$fast" == "true" ]]; then
+        collect_args="--fast"
+    fi
+    data_string=$(claude_code::status::collect_data $collect_args 2>/dev/null)
     
     if [[ -z "$data_string" ]]; then
         # Fallback if data collection fails
@@ -330,12 +374,12 @@ claude_code::status::display_text() {
 #######################################
 claude_code::status() {
     # Main status function for CLI registration - use standardized format
-    claude_code::status::show "$@"
+    status::run_standard "claude-code" "claude_code::status::collect_data" "claude_code::status::display_text" "$@"
 }
 
 # CLI framework expects hyphenated function name
 claude-code::status() {
-    claude_code::status::show "$@"
+    status::run_standard "claude-code" "claude_code::status::collect_data" "claude_code::status::display_text" "$@"
 }
 
 #######################################

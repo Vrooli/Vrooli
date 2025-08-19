@@ -6,6 +6,8 @@
 JUDGE0_STATUS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
 source "${JUDGE0_STATUS_DIR}/../../../../lib/utils/format.sh"
+# shellcheck disable=SC1091
+source "${JUDGE0_STATUS_DIR}/../../../lib/status-args.sh"
 
 # Load dependencies if not already loaded
 if [[ -z "${JUDGE0_WORKERS_COUNT:-}" ]]; then
@@ -39,9 +41,25 @@ fi
 
 #######################################
 # Collect Judge0 status data in format-agnostic structure
+# Args: [--fast] - Skip expensive operations for faster response
 # Returns: Key-value pairs ready for formatting
 #######################################
 judge0::status::collect_data() {
+    local fast_mode="false"
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --fast)
+                fast_mode="true"
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
     local status_data=()
     
     # Basic status checks
@@ -108,84 +126,130 @@ judge0::status::collect_data() {
         done
         status_data+=("workers_active" "$active_workers")
         
-        # Get version from about endpoint
-        local about_info
-        about_info=$(judge0::api::about_info 2>/dev/null || echo "{}")
-        if [[ "$about_info" != "{}" ]]; then
-            local version
-            version=$(echo "$about_info" | jq -r '.version // "unknown"' 2>/dev/null)
-            status_data+=("version" "$version")
+        # Skip expensive operations in fast mode
+        local skip_expensive_ops="$fast_mode"
+        
+        # Get version from about endpoint (optimized)
+        if [[ "$skip_expensive_ops" == "false" ]]; then
+            local about_info
+            about_info=$(timeout 1s judge0::api::about_info 2>/dev/null || echo "{}")
+            if [[ "$about_info" != "{}" ]]; then
+                local version
+                version=$(echo "$about_info" | jq -r '.version // "unknown"' 2>/dev/null)
+                status_data+=("version" "$version")
+            else
+                status_data+=("version" "N/A")
+            fi
+        else
+            status_data+=("version" "N/A")
         fi
         
-        # Get languages information
-        local languages_info
-        languages_info=$(judge0::api::get_languages 2>/dev/null || echo "[]")
-        if [[ "$languages_info" != "[]" ]]; then
-            local languages_count
-            languages_count=$(echo "$languages_info" | jq 'length // 0' 2>/dev/null)
-            status_data+=("languages_available" "$languages_count")
+        # Get languages information (optimized)
+        if [[ "$skip_expensive_ops" == "false" ]]; then
+            local languages_info
+            languages_info=$(timeout 1s judge0::api::get_languages 2>/dev/null || echo "[]")
+            if [[ "$languages_info" != "[]" ]]; then
+                local languages_count
+                languages_count=$(echo "$languages_info" | jq 'length // 0' 2>/dev/null)
+                status_data+=("languages_available" "$languages_count")
+            else
+                status_data+=("languages_available" "N/A")
+            fi
+        else
+            status_data+=("languages_available" "N/A")
         fi
         
-        # Get config info if available (this might have limits info)
-        local config_info
-        config_info=$(judge0::api::request "GET" "/config_info" 2>/dev/null || echo "{}")
-        if [[ "$config_info" != "{}" ]]; then
-            local cpu_limit
-            cpu_limit=$(echo "$config_info" | jq -r '.cpu_time_limit // "N/A"' 2>/dev/null)
-            if [[ "$cpu_limit" != "N/A" ]]; then
-                status_data+=("cpu_time_limit" "${cpu_limit}s")
+        # Get config info if available (optimized)
+        if [[ "$skip_expensive_ops" == "false" ]]; then
+            local config_info
+            config_info=$(timeout 1s judge0::api::request "GET" "/config_info" 2>/dev/null || echo "{}")
+            if [[ "$config_info" != "{}" ]]; then
+                local cpu_limit
+                cpu_limit=$(echo "$config_info" | jq -r '.cpu_time_limit // "N/A"' 2>/dev/null)
+                if [[ "$cpu_limit" != "N/A" ]]; then
+                    status_data+=("cpu_time_limit" "${cpu_limit}s")
+                else
+                    status_data+=("cpu_time_limit" "N/A")
+                fi
+                
+                local memory_limit
+                memory_limit=$(echo "$config_info" | jq -r '.memory_limit // "N/A"' 2>/dev/null)
+                if [[ "$memory_limit" != "N/A" ]]; then
+                    status_data+=("memory_limit" "$((memory_limit / 1024))MB")
+                else
+                    status_data+=("memory_limit" "N/A")
+                fi
             else
                 status_data+=("cpu_time_limit" "N/A")
-            fi
-            
-            local memory_limit
-            memory_limit=$(echo "$config_info" | jq -r '.memory_limit // "N/A"' 2>/dev/null)
-            if [[ "$memory_limit" != "N/A" ]]; then
-                status_data+=("memory_limit" "$((memory_limit / 1024))MB")
-            else
                 status_data+=("memory_limit" "N/A")
             fi
+        else
+            status_data+=("cpu_time_limit" "N/A")
+            status_data+=("memory_limit" "N/A")
         fi
         
-        # Queue status
-        local queue_info
-        queue_info=$(judge0::api::get_queue_status 2>/dev/null || echo "{}")
-        if [[ "$queue_info" != "{}" ]]; then
-            local pending
-            pending=$(echo "$queue_info" | jq -r '.pending // 0' 2>/dev/null)
-            status_data+=("queue_pending" "$pending")
-            
-            local processing
-            processing=$(echo "$queue_info" | jq -r '.processing // 0' 2>/dev/null)
-            status_data+=("queue_processing" "$processing")
+        # Queue status (optimized)
+        if [[ "$skip_expensive_ops" == "false" ]]; then
+            local queue_info
+            queue_info=$(timeout 1s judge0::api::get_queue_status 2>/dev/null || echo "{}")
+            if [[ "$queue_info" != "{}" ]]; then
+                local pending
+                pending=$(echo "$queue_info" | jq -r '.pending // 0' 2>/dev/null)
+                status_data+=("queue_pending" "$pending")
+                
+                local processing
+                processing=$(echo "$queue_info" | jq -r '.processing // 0' 2>/dev/null)
+                status_data+=("queue_processing" "$processing")
+            else
+                status_data+=("queue_pending" "N/A")
+                status_data+=("queue_processing" "N/A")
+            fi
+        else
+            status_data+=("queue_pending" "N/A")
+            status_data+=("queue_processing" "N/A")
         fi
         
-        # Submissions data
-        if [[ -d "$JUDGE0_SUBMISSIONS_DIR" ]]; then
+        # Submissions data (optimized)
+        if [[ -d "$JUDGE0_SUBMISSIONS_DIR" ]] && [[ "$skip_expensive_ops" == "false" ]]; then
             local total_submissions
-            total_submissions=$(find "$JUDGE0_SUBMISSIONS_DIR" -type f -name "*.json" 2>/dev/null | wc -l)
+            total_submissions=$(timeout 2s find "$JUDGE0_SUBMISSIONS_DIR" -type f -name "*.json" 2>/dev/null | wc -l)
             status_data+=("total_submissions" "$total_submissions")
             
-            if [[ $total_submissions -gt 0 ]]; then
+            # Skip success rate calculation in parallel mode (it's expensive)
+            if [[ $total_submissions -gt 0 ]] && [[ $total_submissions -lt 1000 ]]; then
                 local successful
-                successful=$(find "$JUDGE0_SUBMISSIONS_DIR" -type f -name "*.json" -exec grep -l '"status":{"id":3}' {} \; 2>/dev/null | wc -l)
+                successful=$(timeout 2s find "$JUDGE0_SUBMISSIONS_DIR" -type f -name "*.json" -exec grep -l '"status":{"id":3}' {} \; 2>/dev/null | wc -l)
                 local success_rate
                 success_rate=$(echo "scale=2; $successful * 100 / $total_submissions" | bc 2>/dev/null || echo "0")
                 status_data+=("success_rate" "${success_rate}%")
+            else
+                status_data+=("success_rate" "N/A")
             fi
+        elif [[ -d "$JUDGE0_SUBMISSIONS_DIR" ]]; then
+            status_data+=("total_submissions" "N/A")
+            status_data+=("success_rate" "N/A")
         fi
         
-        # Container resource stats
-        local server_stats
-        server_stats=$(judge0::get_container_stats 2>/dev/null || echo "{}")
-        if [[ "$server_stats" != "{}" ]]; then
-            local cpu_usage
-            cpu_usage=$(echo "$server_stats" | jq -r '.CPUPerc // "0%"' 2>/dev/null | tr -d '%')
-            status_data+=("cpu_usage" "${cpu_usage}%")
-            
-            local mem_usage
-            mem_usage=$(echo "$server_stats" | jq -r '.MemUsage // "0MiB / 0MiB"' 2>/dev/null)
-            status_data+=("memory_usage" "$mem_usage")
+        # Container resource stats (optimized with smart skipping)
+        
+        if [[ "$skip_expensive_ops" == "true" ]]; then
+            status_data+=("cpu_usage" "N/A")
+            status_data+=("memory_usage" "N/A")
+        else
+            local server_stats
+            server_stats=$(timeout 2s judge0::get_container_stats 2>/dev/null || echo "{}")
+            if [[ "$server_stats" != "{}" ]]; then
+                local cpu_usage
+                cpu_usage=$(echo "$server_stats" | jq -r '.CPUPerc // "0%"' 2>/dev/null | tr -d '%')
+                status_data+=("cpu_usage" "${cpu_usage}%")
+                
+                local mem_usage
+                mem_usage=$(echo "$server_stats" | jq -r '.MemUsage // "0MiB / 0MiB"' 2>/dev/null)
+                status_data+=("memory_usage" "$mem_usage")
+            else
+                status_data+=("cpu_usage" "N/A")
+                status_data+=("memory_usage" "N/A")
+            fi
         fi
     fi
     
@@ -194,93 +258,17 @@ judge0::status::collect_data() {
 }
 
 #######################################
-# CLI framework compatibility wrapper
-# Args: All arguments passed to judge0::status::show
+# CLI framework compatibility wrapper using standard status wrapper
+# Args: All arguments passed to status::run_standard
 #######################################
 judge0::status() {
-    judge0::status::show "$@"
-}
-
-#######################################
-# Show comprehensive Judge0 status using standardized format
-# Args: [--format json|text] [--verbose]
-#######################################
-judge0::status::show() {
-    local format="text"
-    local verbose="false"
-    
-    # Parse arguments
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            --format)
-                format="$2"
-                shift 2
-                ;;
-            --json)
-                format="json"
-                shift
-                ;;
-            --verbose|-v)
-                verbose="true"
-                shift
-                ;;
-            *)
-                shift
-                ;;
-        esac
-    done
-    
-    # Collect status data
-    local data_string
-    data_string=$(judge0::status::collect_data 2>/dev/null)
-    
-    if [[ -z "$data_string" ]]; then
-        # Fallback if data collection fails
-        if [[ "$format" == "json" ]]; then
-            echo '{"error": "Failed to collect status data"}'
-        else
-            log::error "Failed to collect Judge0 status data"
-        fi
-        return 1
-    fi
-    
-    # Convert string to array
-    local data_array
-    mapfile -t data_array <<< "$data_string"
-    
-    # Output based on format
-    if [[ "$format" == "json" ]]; then
-        format::output "json" "kv" "${data_array[@]}"
-    else
-        # Text format with standardized structure
-        judge0::status::display_text "$verbose" "${data_array[@]}"
-    fi
-    
-    # Return appropriate exit code
-    local healthy="false"
-    local running="false"
-    for ((i=0; i<${#data_array[@]}; i+=2)); do
-        case "${data_array[i]}" in
-            "healthy") healthy="${data_array[i+1]}" ;;
-            "running") running="${data_array[i+1]}" ;;
-        esac
-    done
-    
-    if [[ "$healthy" == "true" ]]; then
-        return 0
-    elif [[ "$running" == "true" ]]; then
-        return 1
-    else
-        return 2
-    fi
+    status::run_standard "judge0" "judge0::status::collect_data" "judge0::status::display_text" "$@"
 }
 
 #######################################
 # Display status in text format
 #######################################
 judge0::status::display_text() {
-    local verbose="$1"
-    shift
     local -A data
     
     # Convert array to associative array
@@ -290,6 +278,9 @@ judge0::status::display_text() {
         local value="${!value_idx}"
         data["$key"]="$value"
     done
+    
+    # Get verbose mode from environment or default to false
+    local verbose="${STATUS_VERBOSE:-false}"
     
     # Header
     log::header "📊 Judge0 Status"
@@ -502,12 +493,12 @@ judge0::status::show_recent_submissions() {
     
     # Check submissions directory
     if [[ -d "$JUDGE0_SUBMISSIONS_DIR" ]]; then
-        local total_submissions=$(find "$JUDGE0_SUBMISSIONS_DIR" -type f -name "*.json" 2>/dev/null | wc -l)
+        local total_submissions=$(timeout 2s find "$JUDGE0_SUBMISSIONS_DIR" -type f -name "*.json" 2>/dev/null | wc -l)
         printf "  $JUDGE0_MSG_USAGE_SUBMISSIONS\n" "$total_submissions"
         
         # Calculate success rate (simplified - in real implementation would query API)
         if [[ $total_submissions -gt 0 ]]; then
-            local successful=$(find "$JUDGE0_SUBMISSIONS_DIR" -type f -name "*.json" -exec grep -l '"status":{"id":3}' {} \; 2>/dev/null | wc -l)
+            local successful=$(timeout 2s find "$JUDGE0_SUBMISSIONS_DIR" -type f -name "*.json" -exec grep -l '"status":{"id":3}' {} \; 2>/dev/null | wc -l)
             local success_rate=$(echo "scale=2; $successful * 100 / $total_submissions" | bc)
             printf "  $JUDGE0_MSG_USAGE_SUCCESS_RATE\n" "$success_rate"
         fi

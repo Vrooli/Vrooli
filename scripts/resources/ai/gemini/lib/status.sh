@@ -6,14 +6,31 @@ GEMINI_STATUS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Source dependencies
 source "${GEMINI_STATUS_DIR}/core.sh"
+# shellcheck disable=SC1091
+source "${GEMINI_STATUS_DIR}/../../../lib/status-args.sh"
 
-# Main status function
-gemini::status() {
-    local verbose="${1:-false}"
-    local format="${2:-text}"
+#######################################
+# Collect Gemini status data
+# Arguments:
+#   --fast: Skip expensive operations
+# Returns:
+#   Key-value pairs (one per line)
+#######################################
+gemini::status::collect_data() {
+    local fast="false"
     
-    # Source format utilities
-    source "${GEMINI_STATUS_DIR}/../../../../lib/utils/format.sh"
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --fast)
+                fast="true"
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
     
     # Initialize
     gemini::init >/dev/null 2>&1
@@ -34,8 +51,11 @@ gemini::status() {
             status="configured"
             message="Gemini configured with placeholder key (requires real API key)"
         else
-            # Test connection with real API key
-            if gemini::test_connection; then
+            # Test connection with real API key (skip in fast mode)
+            if [[ "$fast" == "true" ]]; then
+                status="running"
+                message="Gemini API configured (fast mode)"
+            elif gemini::test_connection; then
                 status="running"
                 message="Gemini API is accessible"
             else
@@ -61,28 +81,65 @@ gemini::status() {
         healthy="false"
     fi
     
-    # Build output data
-    local -a output_data=(
-        "status" "$status"
-        "running" "$running"
-        "healthy" "$healthy"
-        "message" "$message"
-        "api_base" "$api_base"
-        "default_model" "$model"
-    )
-    
-    # Add verbose details if requested and available
-    if [[ "$verbose" == "true" && "$status" == "running" ]]; then
-        # Get available models
-        local models
+    # Get available models (skip in fast mode)
+    local models="N/A"
+    if [[ "$fast" == "false" && "$status" == "running" ]]; then
         models=$(gemini::list_models 2>/dev/null | tr '\n' ',' | sed 's/,$//')
-        if [[ -n "$models" ]]; then
-            output_data+=("available_models" "$models")
+        if [[ -z "$models" ]]; then
+            models="N/A"
         fi
     fi
     
-    # Format output using standard formatter
-    format::key_value "$format" "${output_data[@]}"
+    # Output data as key-value pairs
+    echo "status"
+    echo "$status"
+    echo "running"
+    echo "$running"
+    echo "healthy"
+    echo "$healthy"
+    echo "message"
+    echo "$message"
+    echo "api_base"
+    echo "$api_base"
+    echo "default_model"
+    echo "$model"
+    echo "available_models"
+    echo "$models"
+}
+
+#######################################
+# Display Gemini status in text format
+# Arguments:
+#   data_array: Array of key-value pairs
+#######################################
+gemini::status::display_text() {
+    local -a data_array=("$@")
+    
+    # Convert array to associative array for easier access
+    local -A data
+    for ((i=0; i<${#data_array[@]}; i+=2)); do
+        data["${data_array[i]}"]="${data_array[i+1]}"
+    done
+    
+    echo "Status: ${data[status]}"
+    echo "Running: ${data[running]}"
+    echo "Healthy: ${data[healthy]}"
+    echo "Message: ${data[message]}"
+    echo "API Base: ${data[api_base]}"
+    echo "Default Model: ${data[default_model]}"
+    echo "Available Models: ${data[available_models]}"
+}
+
+#######################################
+# Check Gemini status
+# Arguments:
+#   --format: Output format (text/json)
+#   --fast: Skip expensive operations
+# Returns:
+#   0 if healthy, 1 otherwise
+#######################################
+gemini::status() {
+    status::run_standard "gemini" "gemini::status::collect_data" "gemini::status::display_text" "$@"
 }
 
 # Export function

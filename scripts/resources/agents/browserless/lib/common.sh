@@ -127,7 +127,7 @@ browserless::wait_for_ready() {
 #######################################
 browserless::show_resource_usage() {
     local stats
-    stats=$(docker stats "$BROWSERLESS_CONTAINER_NAME" --no-stream --format "CPU: {{.CPUPerc}} | Memory: {{.MemUsage}}" 2>/dev/null || echo "")
+    stats=$(timeout 2s docker stats "$BROWSERLESS_CONTAINER_NAME" --no-stream --format "CPU: {{.CPUPerc}} | Memory: {{.MemUsage}}" 2>/dev/null || echo "")
     if [[ -n "$stats" ]]; then
         log::info "Resource usage: $stats"
     fi

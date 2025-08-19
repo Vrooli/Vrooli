@@ -97,7 +97,7 @@ agents2::export_config() {
 
     # Display configuration (only set if not already defined)
     if [[ -z "${AGENTS2_DISPLAY:-}" ]]; then
-        readonly AGENTS2_DISPLAY=":99"
+        readonly AGENTS2_DISPLAY=":98"
     fi
     if [[ -z "${AGENTS2_SCREEN_RESOLUTION:-}" ]]; then
         readonly AGENTS2_SCREEN_RESOLUTION="1920x1080x24"

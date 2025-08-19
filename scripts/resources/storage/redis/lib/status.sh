@@ -7,6 +7,8 @@ REDIS_STATUS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
 source "${REDIS_STATUS_DIR}/../../../../lib/utils/format.sh"
 # shellcheck disable=SC1091
+source "${REDIS_STATUS_DIR}/../../../lib/status-args.sh"
+# shellcheck disable=SC1091
 source "${REDIS_STATUS_DIR}/../config/defaults.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${REDIS_STATUS_DIR}/../config/messages.sh" 2>/dev/null || true
@@ -26,6 +28,21 @@ fi
 # Returns: Key-value pairs ready for formatting
 #######################################
 redis::status::collect_data() {
+    local fast_mode="false"
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --fast)
+                fast_mode="true"
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
     local status_data=()
     
     # Basic status checks
@@ -79,8 +96,18 @@ redis::status::collect_data() {
     
     # Runtime information (only if running and healthy)
     if [[ "$running" == "true" && "$healthy" == "true" ]]; then
-        local redis_info
-        redis_info=$(redis::common::get_info 2>/dev/null)
+        # Skip expensive redis info gathering in fast mode
+        if [[ "$fast_mode" == "true" ]]; then
+            status_data+=("memory_used" "N/A")
+            status_data+=("connected_clients" "N/A")
+            status_data+=("total_commands" "N/A")
+            status_data+=("version" "N/A")
+            status_data+=("uptime" "N/A")
+            status_data+=("total_keys" "N/A")
+            status_data+=("active_databases" "N/A")
+        else
+            local redis_info
+            redis_info=$(timeout 3s redis::common::get_info 2>/dev/null)
         
         if [[ -n "$redis_info" ]]; then
             # Memory usage
@@ -132,6 +159,7 @@ redis::status::collect_data() {
             status_data+=("total_keys" "$total_keys")
             status_data+=("active_databases" "$active_dbs")
         fi
+        fi
     fi
     
     # Return the collected data
@@ -143,73 +171,7 @@ redis::status::collect_data() {
 # Args: [--format json|text] [--verbose]
 #######################################
 redis::status::show() {
-    local format="text"
-    local verbose="false"
-    
-    # Parse arguments
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            --format)
-                format="$2"
-                shift 2
-                ;;
-            --json)
-                format="json"
-                shift
-                ;;
-            --verbose|-v)
-                verbose="true"
-                shift
-                ;;
-            *)
-                shift
-                ;;
-        esac
-    done
-    
-    # Collect status data
-    local data_string
-    data_string=$(redis::status::collect_data 2>/dev/null)
-    
-    if [[ -z "$data_string" ]]; then
-        # Fallback if data collection fails
-        if [[ "$format" == "json" ]]; then
-            echo '{"error": "Failed to collect status data"}'
-        else
-            log::error "Failed to collect Redis status data"
-        fi
-        return 1
-    fi
-    
-    # Convert string to array
-    local data_array
-    mapfile -t data_array <<< "$data_string"
-    
-    # Output based on format
-    if [[ "$format" == "json" ]]; then
-        format::output "json" "kv" "${data_array[@]}"
-    else
-        # Text format with standardized structure
-        redis::status::display_text "${data_array[@]}"
-    fi
-    
-    # Return appropriate exit code
-    local healthy="false"
-    local running="false"
-    for ((i=0; i<${#data_array[@]}; i+=2)); do
-        case "${data_array[i]}" in
-            "healthy") healthy="${data_array[i+1]}" ;;
-            "running") running="${data_array[i+1]}" ;;
-        esac
-    done
-    
-    if [[ "$healthy" == "true" ]]; then
-        return 0
-    elif [[ "$running" == "true" ]]; then
-        return 1
-    else
-        return 2
-    fi
+    status::run_standard "redis" "redis::status::collect_data" "redis::status::display_text" "$@"
 }
 
 #######################################

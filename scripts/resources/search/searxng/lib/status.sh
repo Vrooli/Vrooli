@@ -23,6 +23,21 @@ fi
 # Returns: Key-value pairs ready for formatting
 #######################################
 searxng::status::collect_data() {
+    local fast_mode="false"
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --fast)
+                fast_mode="true"
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
     local status_data=()
     
     # Basic status checks
@@ -83,25 +98,30 @@ searxng::status::collect_data() {
     
     # Runtime information (only if running and healthy)
     if [[ "$running" == "true" && "$healthy" == "true" ]]; then
-        # Get search engine stats if available
-        local stats_data
-        stats_data=$(curl -sf --max-time 3 "${SEARXNG_BASE_URL}/stats" 2>/dev/null || echo "{}")
+        # Skip expensive operations in fast mode
+        local skip_expensive_ops="$fast_mode"
         
-        if [[ -n "$stats_data" ]] && [[ "$stats_data" != "{}" ]]; then
-            # Extract engine count from stats page (simple approach)
-            local engine_count
-            engine_count=$(echo "$stats_data" | grep -o "'[^']*'" | wc -l 2>/dev/null || echo "unknown")
-            status_data+=("active_engines" "$engine_count")
+        if [[ "$skip_expensive_ops" == "false" ]]; then
+            # Get search engine stats if available (with optimized timeout)
+            local stats_data
+            stats_data=$(timeout 2s curl -sf --max-time 2 "${SEARXNG_BASE_URL}/stats" 2>/dev/null || echo "{}")
+            
+            if [[ -n "$stats_data" ]] && [[ "$stats_data" != "{}" ]]; then
+                # Extract engine count from stats page (simple approach)
+                local engine_count
+                engine_count=$(echo "$stats_data" | grep -o "'[^']*'" | wc -l 2>/dev/null || echo "unknown")
+                status_data+=("active_engines" "$engine_count")
+            fi
+            
+            # Get version if available (with optimized execution)
+            local version
+            version=$(timeout 2s docker exec "$SEARXNG_CONTAINER_NAME" python -c "import searx; print(searx.__version__)" 2>/dev/null || echo "unknown")
+            if [[ -n "$version" && "$version" != "unknown" ]]; then
+                status_data+=("version" "$version")
+            fi
         fi
         
-        # Get version if available
-        local version
-        version=$(searxng::get_version 2>/dev/null)
-        if [[ -n "$version" && "$version" != "unknown" ]]; then
-            status_data+=("version" "$version")
-        fi
-        
-        # Container uptime
+        # Container uptime (fast operation, always include)
         local started_at
         started_at=$(docker inspect --format='{{.State.StartedAt}}' "$SEARXNG_CONTAINER_NAME" 2>/dev/null)
         if [[ -n "$started_at" ]]; then
@@ -120,6 +140,7 @@ searxng::status::collect_data() {
 searxng::status::show() {
     local format="text"
     local verbose="false"
+    local fast="false"
     
     # Parse arguments
     while [[ $# -gt 0 ]]; do
@@ -136,15 +157,23 @@ searxng::status::show() {
                 verbose="true"
                 shift
                 ;;
+            --fast)
+                fast="true"
+                shift
+                ;;
             *)
                 shift
                 ;;
         esac
     done
     
-    # Collect status data
+    # Collect status data (pass fast flag if set)
     local data_string
-    data_string=$(searxng::status::collect_data 2>/dev/null)
+    local collect_args=""
+    if [[ "$fast" == "true" ]]; then
+        collect_args="--fast"
+    fi
+    data_string=$(searxng::status::collect_data $collect_args 2>/dev/null)
     
     if [[ -z "$data_string" ]]; then
         # Fallback if data collection fails
@@ -585,7 +614,7 @@ searxng::get_resource_usage() {
     
     # Get container stats
     local stats
-    stats=$(docker stats --no-stream --format "{{.CPUPerc}};{{.MemUsage}}" "$SEARXNG_CONTAINER_NAME" 2>/dev/null || echo "N/A;N/A")
+    stats=$(timeout 2s docker stats --no-stream --format "{{.CPUPerc}};{{.MemUsage}}" "$SEARXNG_CONTAINER_NAME" 2>/dev/null || echo "N/A;N/A")
     
     if [[ "$stats" != "N/A;N/A" ]]; then
         local cpu_usage memory_usage

@@ -9,8 +9,30 @@ source "${OPENROUTER_STATUS_DIR}/core.sh"
 
 # Main status function
 openrouter::status() {
-    local verbose="${1:-false}"
-    local format="${2:-text}"
+    local verbose="false"
+    local format="text"
+    local fast="false"
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --verbose|-v)
+                verbose="true"
+                shift
+                ;;
+            --format)
+                format="${2:-text}"
+                shift 2
+                ;;
+            --fast)
+                fast="true"
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
     
     # Source format utilities
     source "${OPENROUTER_STATUS_DIR}/../../../../lib/utils/format.sh"
@@ -35,8 +57,11 @@ openrouter::status() {
             status="configured"
             message="OpenRouter configured with placeholder key (requires real API key)"
         else
-            # Test connection with real API key
-            if openrouter::test_connection; then
+            # Test connection with real API key (skip in fast mode)
+            if [[ "$fast" == "true" ]]; then
+                status="running"
+                message="OpenRouter API configured (fast mode)"
+            elif openrouter::test_connection; then
                 status="running"
                 message="OpenRouter API is accessible"
             else
@@ -53,17 +78,27 @@ openrouter::status() {
         running="true"
     fi
     
+    # Determine health status
+    local healthy="false"
+    if [[ "$status" == "running" ]]; then
+        healthy="true"
+    elif [[ "$status" == "configured" ]]; then
+        # For API services with placeholder keys, consider them unhealthy but operational
+        healthy="false"
+    fi
+    
     # Build output data for format utility
     local -a output_data=(
         "status" "$status"
         "running" "$running"
+        "healthy" "$healthy"
         "message" "$message"
         "api_base" "$api_base"
         "default_model" "$model"
     )
     
-    # Add verbose details if requested and available
-    if [[ "$verbose" == "true" && "$status" == "running" ]]; then
+    # Add verbose details if requested and available (skip in fast mode)
+    if [[ "$verbose" == "true" && "$status" == "running" && "$fast" == "false" ]]; then
         # Get usage info
         local usage
         usage=$(openrouter::get_usage 2>/dev/null)
@@ -73,58 +108,12 @@ openrouter::status() {
             usage_amount=$(echo "$usage" | jq -r '.data.usage' 2>/dev/null || echo "unknown")
             output_data+=("limit" "$limit" "usage" "$usage_amount")
         fi
+    elif [[ "$verbose" == "true" && "$fast" == "true" ]]; then
+        output_data+=("limit" "N/A" "usage" "N/A")
     fi
     
-    # If JSON format requested, use format utility
-    if [[ "$format" == "json" ]]; then
-        format::key_value "$format" "${output_data[@]}"
-        return
-    fi
-    
-    # Otherwise provide nice visual output
-    # Source logging utilities for colored output
-    source "${OPENROUTER_STATUS_DIR}/../../../../lib/utils/log.sh"
-    
-    log::header "🌐 OpenRouter Status"
-    echo
-    
-    log::info "📊 Basic Status:"
-    if [[ "$status" == "running" ]]; then
-        log::success "   ✅ Status: Running (API accessible)"
-    elif [[ "$status" == "configured" ]]; then
-        log::warn "   ⚠️  Status: Configured (needs real API key)"
-    elif [[ "$status" == "not_configured" ]]; then
-        log::error "   ❌ Status: Not configured"
-    else
-        log::error "   ❌ Status: Error"
-    fi
-    
-    log::info "   📝 Message: $message"
-    echo
-    
-    log::info "🌐 Service Configuration:"
-    log::info "   🔗 API Base: $api_base"
-    log::info "   🤖 Default Model: $model"
-    
-    if [[ "$verbose" == "true" && "$status" == "running" ]]; then
-        echo
-        log::info "💰 Usage Information:"
-        if [[ -n "${output_data[limit]:-}" ]]; then
-            log::info "   💳 Limit: ${output_data[limit]}"
-            log::info "   📊 Usage: ${output_data[usage]}"
-        else
-            log::info "   ℹ️  Usage data not available"
-        fi
-    fi
-    
-    echo
-    log::info "🎯 Quick Actions:"
-    if [[ "$status" == "configured" ]]; then
-        log::info "   🔑 Set real API key: export OPENROUTER_API_KEY='your-key'"
-        log::info "   💾 Save to vault: vrooli resource openrouter set-key 'your-key'"
-    fi
-    log::info "   🧪 Test connection: resource-openrouter test"
-    log::info "   📊 Check models: resource-openrouter list-models"
+    # Format output using standard formatter
+    format::key_value "$format" "${output_data[@]}"
 }
 
 # Export function

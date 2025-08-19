@@ -16,6 +16,21 @@ source "${COMFYUI_STATUS_DIR}/common.sh" 2>/dev/null || true
 # Returns: Key-value pairs ready for formatting
 #######################################
 comfyui::status::collect_data() {
+    local fast_mode="false"
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --fast)
+                fast_mode="true"
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
     local status_data=()
     
     # Basic status checks
@@ -75,49 +90,76 @@ comfyui::status::collect_data() {
     
     # Runtime information (only if running)
     if [[ "$running" == "true" ]]; then
-        # Container stats
-        local stats
-        stats=$(docker stats --no-stream --format "{{.CPUPerc}};{{.MemUsage}}" "$COMFYUI_CONTAINER_NAME" 2>/dev/null || echo "N/A;N/A")
+        # Container stats (optimized with smart skipping)
+        local stats cpu_usage memory_usage
         
-        if [[ "$stats" != "N/A;N/A" ]]; then
-            local cpu_usage memory_usage
-            cpu_usage=$(echo "$stats" | cut -d';' -f1)
-            memory_usage=$(echo "$stats" | cut -d';' -f2)
-            status_data+=("cpu_usage" "$cpu_usage")
-            status_data+=("memory_usage" "$memory_usage")
+        # Skip expensive operations in fast mode
+        local skip_expensive_ops="$fast_mode"
+        
+        if [[ "$skip_expensive_ops" == "true" ]]; then
+            cpu_usage="N/A"
+            memory_usage="N/A"
+        else
+            stats=$(timeout 2s docker stats --no-stream --format "{{.CPUPerc}};{{.MemUsage}}" "$COMFYUI_CONTAINER_NAME" 2>/dev/null || echo "N/A;N/A")
+            
+            if [[ "$stats" != "N/A;N/A" ]]; then
+                cpu_usage=$(echo "$stats" | cut -d';' -f1)
+                memory_usage=$(echo "$stats" | cut -d';' -f2)
+            else
+                cpu_usage="N/A"
+                memory_usage="N/A"
+            fi
         fi
         
-        # GPU status if available
-        if [[ "$gpu_type" == "nvidia" ]] && common::is_running; then
+        status_data+=("cpu_usage" "$cpu_usage")
+        status_data+=("memory_usage" "$memory_usage")
+        
+        # GPU status if available (optimized)
+        if [[ "$gpu_type" == "nvidia" ]] && common::is_running && [[ "$skip_expensive_ops" == "false" ]]; then
             local gpu_accessible="false"
-            if docker exec "$COMFYUI_CONTAINER_NAME" nvidia-smi >/dev/null 2>&1; then
+            if timeout 2s docker exec "$COMFYUI_CONTAINER_NAME" nvidia-smi >/dev/null 2>&1; then
                 gpu_accessible="true"
                 local gpu_info
-                gpu_info=$(docker exec "$COMFYUI_CONTAINER_NAME" nvidia-smi --query-gpu=name,memory.used,memory.total --format=csv,noheader 2>/dev/null | head -1 || echo "unknown")
+                gpu_info=$(timeout 2s docker exec "$COMFYUI_CONTAINER_NAME" nvidia-smi --query-gpu=name,memory.used,memory.total --format=csv,noheader 2>/dev/null | head -1 || echo "unknown")
                 status_data+=("gpu_info" "$gpu_info")
             fi
             status_data+=("gpu_accessible" "$gpu_accessible")
+        elif [[ "$gpu_type" == "nvidia" ]]; then
+            # Skip GPU checks in parallel mode for performance
+            status_data+=("gpu_accessible" "N/A")
         fi
         
-        # Storage usage
+        # Storage usage (optimized)
         if [[ -d "$COMFYUI_DATA_DIR" ]]; then
             local total_size
-            total_size=$(du -sh "$COMFYUI_DATA_DIR" 2>/dev/null | awk '{print $1}' || echo "unknown")
+            if [[ "$skip_expensive_ops" == "true" ]]; then
+                total_size="N/A"
+            else
+                total_size=$(du -sh "$COMFYUI_DATA_DIR" 2>/dev/null | awk '{print $1}' || echo "unknown")
+            fi
             status_data+=("storage_size" "$total_size")
             
-            # Model counts
-            local models_count=0
-            if [[ -d "${COMFYUI_DATA_DIR}/models" ]]; then
-                models_count=$(find "${COMFYUI_DATA_DIR}/models" -type f \( -name "*.safetensors" -o -name "*.ckpt" -o -name "*.pth" \) 2>/dev/null | wc -l)
+            # Model and workflow counts (skip in parallel mode for performance)
+            if [[ "$skip_expensive_ops" == "false" ]]; then
+                # Model counts
+                local models_count=0
+                if [[ -d "${COMFYUI_DATA_DIR}/models" ]]; then
+                    # Use timeout to prevent hanging on large directories
+                    models_count=$(timeout 2s find "${COMFYUI_DATA_DIR}/models" -type f \( -name "*.safetensors" -o -name "*.ckpt" -o -name "*.pth" \) 2>/dev/null | wc -l || echo "0")
+                fi
+                status_data+=("models_count" "$models_count")
+                
+                # Workflow counts
+                local workflows_count=0
+                if [[ -d "${COMFYUI_DATA_DIR}/workflows" ]]; then
+                    workflows_count=$(timeout 1s find "${COMFYUI_DATA_DIR}/workflows" -name "*.json" 2>/dev/null | wc -l || echo "0")
+                fi
+                status_data+=("workflows_count" "$workflows_count")
+            else
+                # Skip file counting in parallel mode
+                status_data+=("models_count" "N/A")
+                status_data+=("workflows_count" "N/A")
             fi
-            status_data+=("models_count" "$models_count")
-            
-            # Workflow counts
-            local workflows_count=0
-            if [[ -d "${COMFYUI_DATA_DIR}/workflows" ]]; then
-                workflows_count=$(find "${COMFYUI_DATA_DIR}/workflows" -name "*.json" 2>/dev/null | wc -l)
-            fi
-            status_data+=("workflows_count" "$workflows_count")
         fi
     fi
     
@@ -132,6 +174,7 @@ comfyui::status::collect_data() {
 comfyui::status::show() {
     local format="text"
     local verbose="false"
+    local fast="false"
     
     # Parse arguments
     while [[ $# -gt 0 ]]; do
@@ -148,15 +191,23 @@ comfyui::status::show() {
                 verbose="true"
                 shift
                 ;;
+            --fast)
+                fast="true"
+                shift
+                ;;
             *)
                 shift
                 ;;
         esac
     done
     
-    # Collect status data
+    # Collect status data (pass fast flag if set)
     local data_string
-    data_string=$(comfyui::status::collect_data 2>/dev/null)
+    local collect_args=""
+    if [[ "$fast" == "true" ]]; then
+        collect_args="--fast"
+    fi
+    data_string=$(comfyui::status::collect_data $collect_args 2>/dev/null)
     
     if [[ -z "$data_string" ]]; then
         # Fallback if data collection fails

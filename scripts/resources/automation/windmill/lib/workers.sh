@@ -192,7 +192,7 @@ windmill::show_worker_status() {
             if docker ps --format "{{.Names}}" | grep -q "^${worker}$"; then
                 status="✅ running"
                 uptime=$(docker ps --format "{{.Status}}" --filter "name=^${worker}$" | sed 's/Up //')
-                memory=$(docker stats --no-stream --format "{{.MemUsage}}" "$worker" 2>/dev/null || echo "--")
+                memory=$(timeout 2s docker stats --no-stream --format "{{.MemUsage}}" "$worker" 2>/dev/null || echo "--")
             else
                 status="❌ stopped"
             fi

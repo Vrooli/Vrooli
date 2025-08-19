@@ -108,7 +108,8 @@ resource_auto::validate_resource() {
     fi
     
     # Try to get status - if it succeeds, the resource is functional
-    if "resource-${resource_name}" status >/dev/null 2>&1; then
+    # Use --fast mode for quick health check
+    if "resource-${resource_name}" status --fast >/dev/null 2>&1; then
         return 0
     fi
     
@@ -129,7 +130,8 @@ resource_auto::install_resource() {
         log::debug "Resource CLI available: resource-${resource_name}"
         
         # Verify the resource is actually functional by checking its status
-        if "resource-${resource_name}" status >/dev/null 2>&1; then
+        # Use --fast mode for quick health check
+        if "resource-${resource_name}" status --fast >/dev/null 2>&1; then
             log::debug "Resource is functional: resource-${resource_name}"
             resource_registry::register "$resource_name" "installed"
             return 0
@@ -207,7 +209,8 @@ resource_auto::start_resource() {
     # Check if resource is already running first
     # Try using CLI status check
     if command -v "resource-${resource_name}" &>/dev/null; then
-        if "resource-${resource_name}" status >/dev/null 2>&1; then
+        # Use --fast mode for quick health check
+        if "resource-${resource_name}" status --fast >/dev/null 2>&1; then
             log::info "Resource already running: $resource_name"
             resource_registry::register "$resource_name" "running"
             return 0
@@ -277,6 +280,18 @@ resource_auto::install_enabled() {
     # Initialize registry
     resource_registry::init
     
+    # Get list of resources already managed by Vrooli (when running as generated app)
+    local managed_resources="${VROOLI_MANAGED_RESOURCES:-}"
+    local -A skip_resources
+    if [[ -n "$managed_resources" ]]; then
+        log::info "Skipping resources managed by Vrooli: ${managed_resources//,/, }"
+        # Convert comma-separated list to associative array for fast lookup
+        IFS=',' read -ra managed_array <<< "$managed_resources"
+        for res in "${managed_array[@]}"; do
+            skip_resources["$res"]=1
+        done
+    fi
+    
     # Get list of enabled resources (handle nested structure with categories)
     local resources=$(jq -r '
         .resources | 
@@ -294,10 +309,18 @@ resource_auto::install_enabled() {
     
     local failed_resources=()
     local installed_count=0
+    local skipped_count=0
     
     # Install each enabled resource
     while IFS= read -r resource_name; do
         if [[ -z "$resource_name" ]]; then
+            continue
+        fi
+        
+        # Skip if this resource is managed by Vrooli
+        if [[ -n "${skip_resources[$resource_name]:-}" ]]; then
+            log::debug "Skipping Vrooli-managed resource: $resource_name"
+            ((skipped_count++))
             continue
         fi
         
@@ -320,6 +343,10 @@ resource_auto::install_enabled() {
     done <<< "$resources"
     
     # Report results
+    if [[ $skipped_count -gt 0 ]]; then
+        log::info "⏭️  Skipped $skipped_count Vrooli-managed resource(s)"
+    fi
+    
     if [[ $installed_count -gt 0 ]]; then
         log::success "✅ Installed $installed_count resource(s)"
     fi

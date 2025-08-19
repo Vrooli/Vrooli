@@ -759,10 +759,14 @@ docker_resource::create_service_advanced() {
         return 1
     fi
     
-    # Pull image first with error checking
-    if ! docker::pull_image "$image"; then
-        log::error "Failed to pull image: $image"
-        return 1
+    # Pull image first with error checking (skip for locally-built images)
+    if ! docker::image_exists "$image"; then
+        if ! docker::pull_image "$image"; then
+            log::error "Failed to pull image: $image"
+            return 1
+        fi
+    else
+        log::debug "Image already exists locally: $image"
     fi
     
     # Create network

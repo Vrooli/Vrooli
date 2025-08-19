@@ -111,9 +111,9 @@ judge0_validate() {
 # Show judge0 status
 judge0_status() {
     if command -v judge0::status::show &>/dev/null; then
-        judge0::status::show
+        judge0::status::show "$@"
     elif command -v judge0::status &>/dev/null; then
-        judge0::status
+        judge0::status "$@"
     else
         # Basic status
         log::header "Judge0 Status"

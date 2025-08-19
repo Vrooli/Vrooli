@@ -27,6 +27,8 @@ declare -g -A RESOURCE_PORTS=(
     ["questdb"]="9009"         # Time-series database for analytics
     ["postgres"]="5433"        # PostgreSQL instances (5433-5499 range for client instances)
     ["redis"]="6380"           # Redis in-memory data store (6380 to avoid conflict with internal Redis on 6379)
+    ["neo4j"]="7474"           # Neo4j graph database (HTTP)
+    ["neo4j-bolt"]="7687"      # Neo4j Bolt protocol
     
     # Agent Services (41xx range - safely above Vrooli range)
     ["browserless"]="4110"     # Browserless.io Chrome service
@@ -43,6 +45,8 @@ declare -g -A RESOURCE_PORTS=(
     ["autogen-studio"]="8081"  # Multi-agent conversation framework
     ["pandas-ai"]="8095"       # AI-powered data analysis and manipulation
     ["haystack"]="8075"        # End-to-end framework for question answering and search
+    ["keycloak"]="8070"        # Enterprise identity and access management
+    ["erpnext"]="8020"         # Complete open-source ERP suite
     
     # Future services can use:
     # - 11xxx for AI services

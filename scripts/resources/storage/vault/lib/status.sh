@@ -7,6 +7,8 @@ VAULT_STATUS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
 source "${VAULT_STATUS_DIR}/../../../../lib/utils/format.sh"
 # shellcheck disable=SC1091
+source "${VAULT_STATUS_DIR}/../../../lib/status-args.sh"
+# shellcheck disable=SC1091
 source "${VAULT_STATUS_DIR}/../config/defaults.sh" 2>/dev/null || true
 
 # Ensure configuration is exported
@@ -227,12 +229,13 @@ vault::check_secret_engines() {
 vault::test_secret_operations() {
     echo "    Functional Tests:"
     
+    # Run functional tests (main status path uses collect_data which handles --fast)
     local test_path="health-check/test-$(date +%s)"
     local test_data='{"data":{"test_key":"test_value","timestamp":"'$(date -Iseconds)'"}}'
     
     # Test 1: Write operation
     local write_response
-    write_response=$(vault::api_request "PUT" "/v1/${VAULT_SECRET_ENGINE}/data/${test_path}" "$test_data" 2>/dev/null)
+    write_response=$(timeout 2s vault::api_request "PUT" "/v1/${VAULT_SECRET_ENGINE}/data/${test_path}" "$test_data" 2>/dev/null)
     
     if [[ $? -eq 0 ]] && echo "$write_response" | jq -e '.data' >/dev/null 2>&1; then
         echo "      Write Operations: ✅ Working"
@@ -289,8 +292,10 @@ vault::get_resource_usage() {
     fi
     
     echo "Resource Usage:"
+    
+    # Show resource stats (main status path uses collect_data which handles --fast)
     local stats
-    stats=$(docker stats --no-stream --format "{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}\t{{.BlockIO}}" "$VAULT_CONTAINER_NAME" 2>/dev/null)
+    stats=$(timeout 2s docker stats --no-stream --format "{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}\t{{.BlockIO}}" "$VAULT_CONTAINER_NAME" 2>/dev/null)
     
     if [[ -n "$stats" ]]; then
         IFS=$'\t' read -r cpu_perc mem_usage net_io block_io <<< "$stats"
@@ -781,9 +786,25 @@ vault::monitor() {
 
 #######################################
 # Collect Vault status data in format-agnostic structure
+# Args: [--fast] - Skip expensive operations for faster response
 # Returns: Key-value pairs ready for formatting
 #######################################
 vault::status::collect_data() {
+    local fast_mode="false"
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --fast)
+                fast_mode="true"
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
     local status_data=()
     
     # Basic status checks
@@ -855,21 +876,30 @@ vault::status::collect_data() {
     
     # Runtime information (only if running and healthy)
     if [[ "$running" == "true" && "$healthy" == "true" ]]; then
-        # API endpoint status
+        # Skip expensive operations in fast mode
+        local skip_expensive_ops="$fast_mode"
+        
+        # API endpoint status (optimized)
         local health_endpoint_ok="false"
         local init_endpoint_ok="false"
         local seal_endpoint_ok="false"
         
-        if curl -sf "${VAULT_BASE_URL}/v1/sys/health" >/dev/null 2>&1; then
-            health_endpoint_ok="true"
-        fi
-        
-        if curl -sf "${VAULT_BASE_URL}/v1/sys/init" >/dev/null 2>&1; then
-            init_endpoint_ok="true"
-        fi
-        
-        if vault::is_initialized && curl -sf "${VAULT_BASE_URL}/v1/sys/seal-status" >/dev/null 2>&1; then
-            seal_endpoint_ok="true"
+        if [[ "$skip_expensive_ops" == "false" ]]; then
+            if timeout 1s curl -sf --max-time 1 "${VAULT_BASE_URL}/v1/sys/health" >/dev/null 2>&1; then
+                health_endpoint_ok="true"
+            fi
+            
+            if timeout 1s curl -sf --max-time 1 "${VAULT_BASE_URL}/v1/sys/init" >/dev/null 2>&1; then
+                init_endpoint_ok="true"
+            fi
+            
+            if vault::is_initialized && timeout 1s curl -sf --max-time 1 "${VAULT_BASE_URL}/v1/sys/seal-status" >/dev/null 2>&1; then
+                seal_endpoint_ok="true"
+            fi
+        else
+            health_endpoint_ok="N/A"
+            init_endpoint_ok="N/A"
+            seal_endpoint_ok="N/A"
         fi
         
         status_data+=("health_endpoint" "$health_endpoint_ok")
@@ -890,11 +920,11 @@ vault::status::collect_data() {
         status_data+=("initialized" "$initialized")
         status_data+=("sealed" "$sealed")
         
-        # Secret engine status (if unsealed)
-        if [[ "$sealed" == "false" ]]; then
+        # Secret engine status (if unsealed - optimized)
+        if [[ "$sealed" == "false" ]] && [[ "$skip_expensive_ops" == "false" ]]; then
             local kv_engine_enabled="false"
             local mounts_response
-            mounts_response=$(vault::api_request "GET" "/v1/sys/mounts" 2>/dev/null)
+            mounts_response=$(timeout 2s vault::api_request "GET" "/v1/sys/mounts" 2>/dev/null)
             
             if [[ $? -eq 0 ]]; then
                 local kv_engine_path="${VAULT_SECRET_ENGINE}/"
@@ -904,18 +934,32 @@ vault::status::collect_data() {
             fi
             
             status_data+=("kv_engine_enabled" "$kv_engine_enabled")
+        elif [[ "$sealed" == "false" ]]; then
+            status_data+=("kv_engine_enabled" "N/A")
         fi
         
-        # Resource usage
-        local stats
-        stats=$(docker stats --no-stream --format "{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}\t{{.BlockIO}}" "$VAULT_CONTAINER_NAME" 2>/dev/null)
-        
-        if [[ -n "$stats" ]]; then
-            IFS=$'\t' read -r cpu_perc mem_usage net_io block_io <<< "$stats"
-            status_data+=("cpu_usage" "$cpu_perc")
-            status_data+=("memory_usage" "$mem_usage")
-            status_data+=("network_io" "$net_io")
-            status_data+=("block_io" "$block_io")
+        # Resource usage (optimized)
+        if [[ "$skip_expensive_ops" == "false" ]]; then
+            local stats
+            stats=$(timeout 2s docker stats --no-stream --format "{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}\t{{.BlockIO}}" "$VAULT_CONTAINER_NAME" 2>/dev/null)
+            
+            if [[ -n "$stats" ]]; then
+                IFS=$'\t' read -r cpu_perc mem_usage net_io block_io <<< "$stats"
+                status_data+=("cpu_usage" "$cpu_perc")
+                status_data+=("memory_usage" "$mem_usage")
+                status_data+=("network_io" "$net_io")
+                status_data+=("block_io" "$block_io")
+            else
+                status_data+=("cpu_usage" "N/A")
+                status_data+=("memory_usage" "N/A")
+                status_data+=("network_io" "N/A")
+                status_data+=("block_io" "N/A")
+            fi
+        else
+            status_data+=("cpu_usage" "N/A")
+            status_data+=("memory_usage" "N/A")
+            status_data+=("network_io" "N/A")
+            status_data+=("block_io" "N/A")
         fi
         
         # Container creation time
@@ -947,76 +991,10 @@ vault::status::collect_data() {
 
 #######################################
 # Display status using standardized format
-# Args: [--format json|text] [--verbose]
+# Args: [--format json|text] [--verbose] [--fast]
 #######################################
 vault::status() {
-    local format="text"
-    local verbose="false"
-    
-    # Parse arguments
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            --format)
-                format="$2"
-                shift 2
-                ;;
-            --json)
-                format="json"
-                shift
-                ;;
-            --verbose|-v)
-                verbose="true"
-                shift
-                ;;
-            *)
-                shift
-                ;;
-        esac
-    done
-    
-    # Collect status data
-    local data_string
-    data_string=$(vault::status::collect_data 2>/dev/null)
-    
-    if [[ -z "$data_string" ]]; then
-        # Fallback if data collection fails
-        if [[ "$format" == "json" ]]; then
-            echo '{"error": "Failed to collect status data"}'
-        else
-            log::error "Failed to collect Vault status data"
-        fi
-        return 1
-    fi
-    
-    # Convert string to array
-    local data_array
-    mapfile -t data_array <<< "$data_string"
-    
-    # Output based on format
-    if [[ "$format" == "json" ]]; then
-        format::output "json" "kv" "${data_array[@]}"
-    else
-        # Text format with standardized structure
-        vault::status::display_text "${data_array[@]}"
-    fi
-    
-    # Return appropriate exit code
-    local healthy="false"
-    local running="false"
-    for ((i=0; i<${#data_array[@]}; i+=2)); do
-        case "${data_array[i]}" in
-            "healthy") healthy="${data_array[i+1]}" ;;
-            "running") running="${data_array[i+1]}" ;;
-        esac
-    done
-    
-    if [[ "$healthy" == "true" ]]; then
-        return 0
-    elif [[ "$running" == "true" ]]; then
-        return 1
-    else
-        return 2
-    fi
+    status::run_standard "vault" "vault::status::collect_data" "vault::status::display_text" "$@"
 }
 
 #######################################

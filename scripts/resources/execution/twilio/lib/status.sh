@@ -6,11 +6,121 @@ TWILIO_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Source common functions
 source "$TWILIO_LIB_DIR/common.sh"
+source "$TWILIO_LIB_DIR/../../../lib/status-args.sh"
+source "$TWILIO_LIB_DIR/../../../../lib/utils/format.sh"
+
+# Collect Twilio status data in format-agnostic structure
+twilio::status::collect_data() {
+    local fast_mode="false"
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --fast)
+                fast_mode="true"
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    local installed="false"
+    local running="false" 
+    local healthy="false"
+    local health_message="Twilio not configured"
+    
+    if twilio::is_configured; then
+        installed="true"
+        running="true"
+        healthy="true"
+        health_message="Twilio is configured and ready"
+    fi
+    
+    # Build status data array
+    local status_data=(
+        "name" "twilio"
+        "category" "execution"
+        "description" "Cloud communications platform for SMS, voice, and video"
+        "installed" "$installed"
+        "running" "$running"
+        "healthy" "$healthy"
+        "health_message" "$health_message"
+        "api_url" "https://api.twilio.com"
+    )
+    
+    # Return the collected data
+    printf '%s\n' "${status_data[@]}"
+}
+
+# Display status in text format
+twilio::status::display_text() {
+    local -A data
+    
+    # Convert array to associative array
+    for ((i=1; i<=$#; i+=2)); do
+        local key="${!i}"
+        local value_idx=$((i+1))
+        local value="${!value_idx}"
+        data["$key"]="$value"
+    done
+    
+    # Header
+    log::header "📞 Twilio Status"
+    echo
+    
+    # Basic status
+    log::info "📊 Basic Status:"
+    if [[ "${data[installed]:-false}" == "true" ]]; then
+        log::success "   ✅ Configured: Yes"
+        log::success "   ✅ Running: Yes"
+        log::success "   ✅ Health: ${data[health_message]:-Healthy}"
+    else
+        log::error "   ❌ Configured: No"
+        echo
+        log::info "💡 Configuration Required:"
+        log::info "   To configure Twilio, run: resource-twilio install"
+        return
+    fi
+    echo
+    
+    log::info "🌐 Service Info:"
+    log::info "   🔌 API: ${data[api_url]:-unknown}"
+    echo
+}
+
+# New main status function using standard wrapper
+twilio::status::new() {
+    status::run_standard "twilio" "twilio::status::collect_data" "twilio::status::display_text" "$@"
+}
 
 # Check Twilio status
 twilio::status() {
-    local format="${1:-text}"
-    local verbose="${VERBOSE:-false}"
+    local format="text"
+    local verbose="false"
+    local fast="false"
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --format)
+                format="${2:-text}"
+                shift 2
+                ;;
+            --verbose)
+                verbose="true"
+                shift
+                ;;
+            --fast)
+                fast="true"
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
     
     # Prepare status data
     local installed="false"
@@ -36,9 +146,9 @@ twilio::status() {
                 running="true"
                 health="healthy"
             else
-                # Production mode - try to connect to Twilio API
+                # Production mode - try to connect to Twilio API (skip in fast mode)
                 local cmd
-                if cmd=$(twilio::get_command 2>/dev/null); then
+                if [[ "$fast" == "false" ]] && cmd=$(twilio::get_command 2>/dev/null); then
                     if twilio::setup_auth && timeout 5 "$cmd" api:core:accounts:list --limit 1 >/dev/null 2>&1; then
                         health="healthy"
                         running="true"

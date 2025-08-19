@@ -2,6 +2,11 @@
 # PostgreSQL Status Functions
 # Functions for checking PostgreSQL health and status
 
+# Get script directory and source status args library
+POSTGRES_STATUS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${POSTGRES_STATUS_DIR}/../../../lib/status-args.sh"
+
 #######################################
 # Get comprehensive PostgreSQL resource status
 # Arguments:
@@ -216,7 +221,7 @@ postgres::status::show_resources() {
     local container_name="${POSTGRES_CONTAINER_PREFIX}-${instance_name}"
     local stats
     if postgres::common::is_running "$instance_name"; then
-        stats=$(docker stats "${container_name}" --no-stream --format "json" 2>/dev/null || echo "{}")
+        stats=$(timeout 2s docker stats "${container_name}" --no-stream --format "json" 2>/dev/null || echo "{}")
     else
         stats='{"error": "Container not running"}'
     fi
@@ -396,6 +401,21 @@ postgres::tiered_health_check() {
 # Returns: Key-value pairs ready for formatting
 #######################################
 postgres::status::collect_data() {
+    local fast_mode="false"
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --fast)
+                fast_mode="true"
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
     local status_data=()
     
     # Ensure POSTGRES_INSTANCES_DIR is set
@@ -486,75 +506,10 @@ postgres::status::collect_data() {
 
 #######################################
 # Show PostgreSQL status using standardized format
-# Args: [--format json|text] [--json] [--verbose]
+# Args: [--format json|text] [--json] [--verbose] [--fast]
 #######################################
 postgres::status::show() {
-    local format="text"
-    local verbose="false"
-    
-    # Parse arguments
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            --format)
-                format="$2"
-                shift 2
-                ;;
-            --json)
-                format="json"
-                shift
-                ;;
-            --verbose|-v)
-                verbose="true"
-                shift
-                ;;
-            *)
-                shift
-                ;;
-        esac
-    done
-    
-    # Collect status data
-    local data_string
-    data_string=$(postgres::status::collect_data 2>/dev/null)
-    
-    if [[ -z "$data_string" ]]; then
-        if [[ "$format" == "json" ]]; then
-            echo '{"error": "Failed to collect status data"}'
-        else
-            log::error "Failed to collect PostgreSQL status data"
-        fi
-        return 1
-    fi
-    
-    # Convert string to array
-    local data_array
-    mapfile -t data_array <<< "$data_string"
-    
-    # Output based on format
-    if [[ "$format" == "json" ]]; then
-        # Source format utilities
-        # shellcheck disable=SC1091
-        source "${var_LIB_UTILS_DIR}/format.sh"
-        format::output "json" "kv" "${data_array[@]}"
-    else
-        # Text format using status engine
-        postgres::status::display_text "${data_array[@]}"
-    fi
-    
-    # Return appropriate exit code based on health
-    local healthy="false"
-    for ((i=0; i<${#data_array[@]}; i+=2)); do
-        if [[ "${data_array[i]}" == "healthy" ]]; then
-            healthy="${data_array[i+1]}"
-            break
-        fi
-    done
-    
-    if [[ "$healthy" == "true" ]]; then
-        return 0
-    else
-        return 1
-    fi
+    status::run_standard "postgres" "postgres::status::collect_data" "postgres::status::display_text" "$@"
 }
 
 #######################################

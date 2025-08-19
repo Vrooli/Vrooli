@@ -1,5 +1,0 @@
-#!/usr/bin/env bash
-# Thin wrapper that calls the CLI directly
-# Get the real path of this script, resolving symlinks
-SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")" )" && pwd)"
-exec "${SCRIPT_DIR}/cli.sh" "$@"

@@ -15,6 +15,8 @@ source "${var_SCRIPTS_RESOURCES_LIB_DIR}/http-utils.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/format.sh"
 # shellcheck disable=SC1091
+source "${BROWSERLESS_LIB_DIR}/../../../lib/status-args.sh"
+# shellcheck disable=SC1091
 source "${BROWSERLESS_LIB_DIR}/health.sh"
 
 #######################################
@@ -51,9 +53,25 @@ browserless::get_status_config() {
 
 #######################################
 # Collect Browserless status data in format-agnostic structure
+# Args: [--fast] - Skip expensive operations for faster response
 # Returns: Key-value pairs ready for formatting
 #######################################
 browserless::status::collect_data() {
+    local fast_mode="false"
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --fast)
+                fast_mode="true"
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
     local status_data=()
     
     # Basic status checks
@@ -112,41 +130,52 @@ browserless::status::collect_data() {
         status_data+=("headless_mode" "${HEADLESS:-yes}")
         status_data+=("shm_size" "${BROWSERLESS_DOCKER_SHM_SIZE:-2gb}")
         
-        # Browser pressure data if available
-        local pressure_data
-        pressure_data=$(http::get "http://localhost:$BROWSERLESS_PORT/pressure" 2>/dev/null || echo "{}")
-        
-        if [[ -n "$pressure_data" ]] && [[ "$pressure_data" != "{}" ]]; then
-            local running_browsers queued max_concurrent cpu memory
-            running_browsers=$(echo "$pressure_data" | jq -r '.pressure.running // 0' 2>/dev/null || echo "0")
-            queued=$(echo "$pressure_data" | jq -r '.pressure.queued // 0' 2>/dev/null || echo "0")
-            max_concurrent=$(echo "$pressure_data" | jq -r '.pressure.maxConcurrent // 5' 2>/dev/null || echo "5")
-            cpu=$(echo "$pressure_data" | jq -r '.pressure.cpu // "N/A"' 2>/dev/null || echo "N/A")
-            memory=$(echo "$pressure_data" | jq -r '.pressure.memory // "N/A"' 2>/dev/null || echo "N/A")
+        # Browser pressure data (skip if fast mode)
+        if [[ "$fast_mode" == "false" ]]; then
+            local pressure_data
+            pressure_data=$(timeout 2s http::get "http://localhost:$BROWSERLESS_PORT/pressure" 2>/dev/null || echo "{}")
             
-            status_data+=("running_browsers" "$running_browsers")
-            status_data+=("queued_requests" "$queued")
-            status_data+=("max_concurrent" "$max_concurrent")
-            if [[ "$cpu" != "N/A" ]]; then
-                status_data+=("cpu_usage" "${cpu}%")
+            if [[ -n "$pressure_data" ]] && [[ "$pressure_data" != "{}" ]]; then
+                local running_browsers queued max_concurrent cpu memory
+                running_browsers=$(echo "$pressure_data" | jq -r '.pressure.running // 0' 2>/dev/null || echo "0")
+                queued=$(echo "$pressure_data" | jq -r '.pressure.queued // 0' 2>/dev/null || echo "0")
+                max_concurrent=$(echo "$pressure_data" | jq -r '.pressure.maxConcurrent // 5' 2>/dev/null || echo "5")
+                cpu=$(echo "$pressure_data" | jq -r '.pressure.cpu // "N/A"' 2>/dev/null || echo "N/A")
+                memory=$(echo "$pressure_data" | jq -r '.pressure.memory // "N/A"' 2>/dev/null || echo "N/A")
+                
+                status_data+=("running_browsers" "$running_browsers")
+                status_data+=("queued_requests" "$queued")
+                status_data+=("max_concurrent" "$max_concurrent")
+                if [[ "$cpu" != "N/A" ]]; then
+                    status_data+=("cpu_usage" "${cpu}%")
+                fi
+                if [[ "$memory" != "N/A" ]]; then
+                    status_data+=("memory_usage" "${memory}%")
+                fi
             fi
-            if [[ "$memory" != "N/A" ]]; then
-                status_data+=("memory_usage" "${memory}%")
-            fi
+        else
+            status_data+=("running_browsers" "N/A")
+            status_data+=("queued_requests" "N/A")
+            status_data+=("max_concurrent" "N/A")
         fi
         
-        # Workspace statistics if available
-        if [[ -d "$BROWSERLESS_DATA_DIR" ]]; then
+        # Workspace statistics (skip if fast mode)
+        if [[ "$fast_mode" == "false" && -d "$BROWSERLESS_DATA_DIR" ]]; then
             local screenshot_count download_count upload_count workspace_size
-            screenshot_count=$(find "$BROWSERLESS_DATA_DIR/screenshots" -type f 2>/dev/null | wc -l)
-            download_count=$(find "$BROWSERLESS_DATA_DIR/downloads" -type f 2>/dev/null | wc -l)
-            upload_count=$(find "$BROWSERLESS_DATA_DIR/uploads" -type f 2>/dev/null | wc -l)
-            workspace_size=$(du -sh "$BROWSERLESS_DATA_DIR" 2>/dev/null | cut -f1)
+            screenshot_count=$(timeout 3s find "$BROWSERLESS_DATA_DIR/screenshots" -type f 2>/dev/null | wc -l)
+            download_count=$(timeout 3s find "$BROWSERLESS_DATA_DIR/downloads" -type f 2>/dev/null | wc -l)
+            upload_count=$(timeout 3s find "$BROWSERLESS_DATA_DIR/uploads" -type f 2>/dev/null | wc -l)
+            workspace_size=$(timeout 2s du -sh "$BROWSERLESS_DATA_DIR" 2>/dev/null | cut -f1)
             
             status_data+=("screenshot_files" "$screenshot_count")
             status_data+=("download_files" "$download_count")
             status_data+=("upload_files" "$upload_count")
             status_data+=("workspace_size" "$workspace_size")
+        elif [[ "$fast_mode" == "true" ]]; then
+            status_data+=("screenshot_files" "N/A")
+            status_data+=("download_files" "N/A")
+            status_data+=("upload_files" "N/A")
+            status_data+=("workspace_size" "N/A")
         fi
     fi
     
@@ -174,55 +203,7 @@ browserless::status::display_text() {
 # Args: [--format json|text] [--verbose]
 #######################################
 browserless::status() {
-    local format="text"
-    local verbose="false"
-    
-    # Parse arguments
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            --format)
-                format="$2"
-                shift 2
-                ;;
-            --json)
-                format="json"
-                shift
-                ;;
-            --verbose|-v)
-                verbose="true"
-                shift
-                ;;
-            *)
-                shift
-                ;;
-        esac
-    done
-    
-    # Collect status data
-    local data_string
-    data_string=$(browserless::status::collect_data 2>/dev/null)
-    
-    if [[ -z "$data_string" ]]; then
-        # Fallback if data collection fails
-        if [[ "$format" == "json" ]]; then
-            echo '{"error": "Failed to collect status data"}'
-        else
-            log::error "Failed to collect Browserless status data"
-        fi
-        return 1
-    fi
-    
-    # Convert string to array
-    local data_array
-    mapfile -t data_array <<< "$data_string"
-    
-    # Output based on format
-    if [[ "$format" == "json" ]]; then
-        format::output "json" "kv" "${data_array[@]}"
-    else
-        # Text format with standardized structure
-        browserless::status::display_text "${data_array[@]}"
-    fi
+    status::run_standard "browserless" "browserless::status::collect_data" "browserless::status::display_text" "$@"
 }
 
 #######################################
@@ -280,10 +261,10 @@ browserless::display_additional_info() {
         
         if [[ -d "$BROWSERLESS_DATA_DIR" ]]; then
             local screenshot_count download_count upload_count workspace_size
-            screenshot_count=$(find "$BROWSERLESS_DATA_DIR/screenshots" -type f 2>/dev/null | wc -l)
-            download_count=$(find "$BROWSERLESS_DATA_DIR/downloads" -type f 2>/dev/null | wc -l)
-            upload_count=$(find "$BROWSERLESS_DATA_DIR/uploads" -type f 2>/dev/null | wc -l)
-            workspace_size=$(du -sh "$BROWSERLESS_DATA_DIR" 2>/dev/null | cut -f1)
+            screenshot_count=$(timeout 3s find "$BROWSERLESS_DATA_DIR/screenshots" -type f 2>/dev/null | wc -l)
+            download_count=$(timeout 3s find "$BROWSERLESS_DATA_DIR/downloads" -type f 2>/dev/null | wc -l)
+            upload_count=$(timeout 3s find "$BROWSERLESS_DATA_DIR/uploads" -type f 2>/dev/null | wc -l)
+            workspace_size=$(timeout 2s du -sh "$BROWSERLESS_DATA_DIR" 2>/dev/null | cut -f1)
             
             echo "  Screenshots: $screenshot_count files"
             echo "  Downloads: $download_count files"

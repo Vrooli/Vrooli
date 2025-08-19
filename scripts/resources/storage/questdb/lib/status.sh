@@ -9,6 +9,8 @@ QUESTDB_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
 source "${QUESTDB_LIB_DIR}/../../../../lib/utils/format.sh"
 # shellcheck disable=SC1091
+source "${QUESTDB_LIB_DIR}/../../../lib/status-args.sh"
+# shellcheck disable=SC1091
 source "${QUESTDB_LIB_DIR}/../config/defaults.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${QUESTDB_LIB_DIR}/common.sh" 2>/dev/null || true
@@ -29,6 +31,21 @@ fi
 # Returns: Key-value pairs ready for formatting
 #######################################
 questdb::status::collect_data() {
+    local fast_mode="false"
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --fast)
+                fast_mode="true"
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
     local status_data=()
     
     # Basic status checks
@@ -119,21 +136,37 @@ questdb::status::collect_data() {
         # Data directory size if available
         if [[ -d "${QUESTDB_DATA_DIR}" ]]; then
             local data_size
-            data_size=$(du -sh "${QUESTDB_DATA_DIR}" 2>/dev/null | awk '{print $1}' || echo "N/A")
+            if [[ "$fast_mode" == "false" ]]; then
+                data_size=$(timeout 2s du -sh "${QUESTDB_DATA_DIR}" 2>/dev/null | awk '{print $1}' || echo "N/A")
+            else
+                data_size="N/A"
+            fi
             status_data+=("data_size" "$data_size")
         fi
         
-        # Container resource usage (use Docker stats)
+        # Container resource usage (optimized with smart skipping)
         if command -v docker &>/dev/null && docker ps --format "{{.Names}}" | grep -q "^${QUESTDB_CONTAINER_NAME}$"; then
-            local stats
-            stats=$(docker stats "${QUESTDB_CONTAINER_NAME}" --no-stream --format "{{.CPUPerc}}|{{.MemUsage}}" 2>/dev/null || echo "")
-            if [[ -n "$stats" ]]; then
-                local cpu mem
-                cpu=$(echo "$stats" | cut -d'|' -f1)
-                mem=$(echo "$stats" | cut -d'|' -f2)
-                status_data+=("cpu_usage" "$cpu")
-                status_data+=("memory_usage" "$mem")
+            local stats cpu mem
+            
+            # Skip expensive operations in fast mode
+            local skip_stats="$fast_mode"
+            
+            if [[ "$skip_stats" == "true" ]]; then
+                cpu="N/A"
+                mem="N/A"
+            else
+                stats=$(timeout 2s docker stats "${QUESTDB_CONTAINER_NAME}" --no-stream --format "{{.CPUPerc}}|{{.MemUsage}}" 2>/dev/null || echo "N/A|N/A")
+                if [[ -n "$stats" && "$stats" != "N/A|N/A" ]]; then
+                    cpu=$(echo "$stats" | cut -d'|' -f1)
+                    mem=$(echo "$stats" | cut -d'|' -f2)
+                else
+                    cpu="N/A"
+                    mem="N/A"
+                fi
             fi
+            
+            status_data+=("cpu_usage" "$cpu")
+            status_data+=("memory_usage" "$mem")
         fi
     fi
     
@@ -146,73 +179,7 @@ questdb::status::collect_data() {
 # Args: [--format json|text] [--verbose]
 #######################################
 questdb::status::check() {
-    local format="text"
-    local verbose="false"
-    
-    # Parse arguments
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            --format)
-                format="$2"
-                shift 2
-                ;;
-            --json)
-                format="json"
-                shift
-                ;;
-            --verbose|-v)
-                verbose="true"
-                shift
-                ;;
-            *)
-                shift
-                ;;
-        esac
-    done
-    
-    # Collect status data
-    local data_string
-    data_string=$(questdb::status::collect_data 2>/dev/null)
-    
-    if [[ -z "$data_string" ]]; then
-        # Fallback if data collection fails
-        if [[ "$format" == "json" ]]; then
-            echo '{"error": "Failed to collect status data"}'
-        else
-            log::error "Failed to collect QuestDB status data"
-        fi
-        return 1
-    fi
-    
-    # Convert string to array
-    local data_array
-    mapfile -t data_array <<< "$data_string"
-    
-    # Output based on format
-    if [[ "$format" == "json" ]]; then
-        format::output "json" "kv" "${data_array[@]}"
-    else
-        # Text format with standardized structure
-        questdb::status::display_text "${data_array[@]}"
-    fi
-    
-    # Return appropriate exit code
-    local healthy="false"
-    local running="false"
-    for ((i=0; i<${#data_array[@]}; i+=2)); do
-        case "${data_array[i]}" in
-            "healthy") healthy="${data_array[i+1]}" ;;
-            "running") running="${data_array[i+1]}" ;;
-        esac
-    done
-    
-    if [[ "$healthy" == "true" ]]; then
-        return 0
-    elif [[ "$running" == "true" ]]; then
-        return 1
-    else
-        return 2
-    fi
+    status::run_standard "questdb" "questdb::status::collect_data" "questdb::status::display_text" "$@"
 }
 
 #######################################
@@ -547,9 +514,15 @@ EOF
 #######################################
 # Export status functions
 #######################################
+# CLI framework compatibility
+questdb::status() {
+    questdb::status::check "$@"
+}
+
 export -f questdb::status::check
 export -f questdb::status::detailed
 export -f questdb::status::metrics
 export -f questdb::status::monitor
+export -f questdb::status
 export -f questdb::test
 export -f questdb::info

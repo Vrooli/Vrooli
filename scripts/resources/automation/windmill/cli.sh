@@ -291,7 +291,7 @@ windmill::cli_restore() {
 # Show windmill status
 windmill_status() {
     if command -v windmill::status &>/dev/null; then
-        windmill::status
+        windmill::status "$@"
     else
         # Basic status
         log::header "Windmill Status"

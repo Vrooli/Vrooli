@@ -14,6 +14,8 @@ source "${LANGCHAIN_STATUS_DIR}/../../../../lib/utils/format.sh"
 source "${LANGCHAIN_STATUS_DIR}/../config/defaults.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${LANGCHAIN_STATUS_DIR}/core.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${LANGCHAIN_STATUS_DIR}/../../../lib/status-args.sh"
 
 # Ensure configuration is exported
 if command -v langchain::export_config &>/dev/null; then
@@ -22,8 +24,24 @@ fi
 
 #######################################
 # Collect LangChain status data
+# Args: [--fast] - Skip expensive operations for faster response
 #######################################
 langchain::status::collect_data() {
+    local fast_mode="false"
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --fast)
+                fast_mode="true"
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
     local status_data=()
     
     # Basic information
@@ -82,16 +100,23 @@ langchain::status::collect_data() {
         version=$(langchain::get_version 2>/dev/null || echo "unknown")
         status_data+=("version:$version")
         
-        # Package counts
-        local chain_count=0
-        local agent_count=0
+        # Package counts (skip expensive operations in fast mode)
+        local chain_count agent_count
         
-        if [[ -d "$LANGCHAIN_CHAINS_DIR" ]]; then
-            chain_count=$(find "$LANGCHAIN_CHAINS_DIR" -name "*.py" 2>/dev/null | wc -l)
-        fi
-        
-        if [[ -d "$LANGCHAIN_AGENTS_DIR" ]]; then
-            agent_count=$(find "$LANGCHAIN_AGENTS_DIR" -name "*.py" 2>/dev/null | wc -l)
+        if [[ "$fast_mode" == "true" ]]; then
+            chain_count="N/A"
+            agent_count="N/A"
+        else
+            chain_count=0
+            agent_count=0
+            
+            if [[ -d "$LANGCHAIN_CHAINS_DIR" ]]; then
+                chain_count=$(find "$LANGCHAIN_CHAINS_DIR" -name "*.py" 2>/dev/null | wc -l)
+            fi
+            
+            if [[ -d "$LANGCHAIN_AGENTS_DIR" ]]; then
+                agent_count=$(find "$LANGCHAIN_AGENTS_DIR" -name "*.py" 2>/dev/null | wc -l)
+            fi
         fi
         
         status_data+=("chain_count:$chain_count")
@@ -107,118 +132,83 @@ langchain::status::collect_data() {
     status_data+=("api_url:$LANGCHAIN_API_URL")
     status_data+=("base_url:$LANGCHAIN_BASE_URL")
     
-    # Output the data
-    printf "%s\n" "${status_data[@]}"
+    # Convert to standard format (key-value pairs)
+    local output_data=()
+    for item in "${status_data[@]}"; do
+        if [[ "$item" =~ ^([^:]+):(.*)$ ]]; then
+            output_data+=("${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}")
+        fi
+    done
+    
+    # Return the collected data
+    printf '%s\n' "${output_data[@]}"
 }
 
 #######################################
 # Display status in text format
 #######################################
 langchain::status::display_text() {
-    local data=("$@")
+    local -A data
     
-    # Parse data into associative array
-    declare -A status_map
-    for item in "${data[@]}"; do
-        if [[ "$item" =~ ^([^:]+):(.*)$ ]]; then
-            status_map["${BASH_REMATCH[1]}"]="${BASH_REMATCH[2]}"
-        fi
+    # Convert array to associative array
+    for ((i=1; i<=$#; i+=2)); do
+        local key="${!i}"
+        local value_idx=$((i+1))
+        local value="${!value_idx}"
+        data["$key"]="$value"
     done
     
-    log::header "LangChain Status"
+    log::header "🤖 LangChain Status"
+    echo
     
     log::info "📊 Basic Status:"
-    
-    if [[ "${status_map[installed]}" == "true" ]]; then
+    if [[ "${data[installed]:-false}" == "true" ]]; then
         log::success "   ✅ Installed: Yes"
     else
         log::error "   ❌ Installed: No"
+        echo
+        log::info "💡 Installation Required:"
+        log::info "   To install LangChain, run: resource-langchain install"
+        return
     fi
     
-    if [[ "${status_map[running]}" == "true" ]]; then
+    if [[ "${data[running]:-false}" == "true" ]]; then
         log::success "   ✅ Running: Yes"
     else
         log::warn "   ⚠️  Running: No"
     fi
     
-    if [[ "${status_map[healthy]}" == "true" ]]; then
+    if [[ "${data[healthy]:-false}" == "true" ]]; then
         log::success "   ✅ Health: Healthy"
     else
-        log::warn "   ⚠️  Health: ${status_map[health_message]}"
+        log::warn "   ⚠️  Health: ${data[health_message]:-Unknown}"
     fi
+    echo
     
-    if [[ "${status_map[installed]}" == "true" ]]; then
-        echo ""
-        log::info "📦 Framework Info:"
-        log::info "   📚 Version: ${status_map[version]:-unknown}"
-        log::info "   🔗 Chains: ${status_map[chain_count]:-0}"
-        log::info "   🤖 Agents: ${status_map[agent_count]:-0}"
-        
-        echo ""
-        log::info "🔌 Integration Status:"
-        [[ "${status_map[ollama_enabled]}" == "true" ]] && log::info "   ✅ Ollama: Enabled" || log::info "   ❌ Ollama: Disabled"
-        [[ "${status_map[openrouter_enabled]}" == "true" ]] && log::info "   ✅ OpenRouter: Enabled" || log::info "   ❌ OpenRouter: Disabled"
-        [[ "${status_map[vectordb_enabled]}" == "true" ]] && log::info "   ✅ VectorDB: Enabled" || log::info "   ❌ VectorDB: Disabled"
-    fi
+    log::info "📦 Framework Info:"
+    log::info "   📚 Version: ${data[version]:-unknown}"
+    log::info "   🔗 Chains: ${data[chain_count]:-0}"
+    log::info "   🤖 Agents: ${data[agent_count]:-0}"
+    echo
     
-    echo ""
+    log::info "🔌 Integration Status:"
+    [[ "${data[ollama_enabled]:-false}" == "true" ]] && log::info "   ✅ Ollama: Enabled" || log::info "   ❌ Ollama: Disabled"
+    [[ "${data[openrouter_enabled]:-false}" == "true" ]] && log::info "   ✅ OpenRouter: Enabled" || log::info "   ❌ OpenRouter: Disabled"
+    [[ "${data[vectordb_enabled]:-false}" == "true" ]] && log::info "   ✅ VectorDB: Enabled" || log::info "   ❌ VectorDB: Disabled"
+    echo
+    
     log::info "📁 Directories:"
-    log::info "   📂 Workspace: ${status_map[workspace_dir]}"
-    log::info "   🔗 Chains: ${status_map[chains_dir]}"
-    log::info "   🤖 Agents: ${status_map[agents_dir]}"
+    log::info "   📂 Workspace: ${data[workspace_dir]:-unknown}"
+    log::info "   🔗 Chains: ${data[chains_dir]:-unknown}"
+    log::info "   🤖 Agents: ${data[agents_dir]:-unknown}"
+    echo
 }
 
 #######################################
-# Main status function with format support
+# Main status function using standard wrapper
 #######################################
 langchain::status() {
-    local format="text"
-    local verbose="false"
-    
-    # Parse arguments
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            --format)
-                format="$2"
-                shift 2
-                ;;
-            --json)
-                format="json"
-                shift
-                ;;
-            --verbose|-v)
-                verbose="true"
-                shift
-                ;;
-            *)
-                shift
-                ;;
-        esac
-    done
-    
-    # Collect status data
-    local data_string
-    data_string=$(langchain::status::collect_data 2>/dev/null)
-    
-    if [[ -z "$data_string" ]]; then
-        if [[ "$format" == "json" ]]; then
-            echo '{"error": "Failed to collect status data"}'
-        else
-            log::error "Failed to collect LangChain status data"
-        fi
-        return 1
-    fi
-    
-    # Convert string to array
-    local data_array
-    mapfile -t data_array <<< "$data_string"
-    
-    # Output based on format
-    if [[ "$format" == "json" ]]; then
-        format::output "json" "kv" "${data_array[@]}"
-    else
-        langchain::status::display_text "${data_array[@]}"
-    fi
+    status::run_standard "langchain" "langchain::status::collect_data" "langchain::status::display_text" "$@"
 }
 
 # Make status available as default

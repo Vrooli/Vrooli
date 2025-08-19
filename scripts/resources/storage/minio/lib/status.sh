@@ -11,6 +11,8 @@ source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
 source "${MINIO_STATUS_DIR}/../../../../lib/utils/format.sh"
 # shellcheck disable=SC1091
+source "${MINIO_STATUS_DIR}/../../../lib/status-args.sh"
+# shellcheck disable=SC1091
 source "${var_LIB_SERVICE_DIR}/secrets.sh"
 # shellcheck disable=SC1091
 source "${MINIO_STATUS_DIR}/../config/defaults.sh" 2>/dev/null || true
@@ -31,6 +33,21 @@ source "${MINIO_STATUS_DIR}/common.sh" 2>/dev/null || true
 # Returns: Key-value pairs ready for formatting
 #######################################
 minio::status::collect_data() {
+    local fast_mode="false"
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --fast)
+                fast_mode="true"
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
     local status_data=()
     
     # Basic status checks
@@ -108,12 +125,15 @@ minio::status::collect_data() {
     fi
     status_data+=("vrooli_registered" "$vrooli_registered")
     
-    # Port status (only if running)
+    # Port status (only if running, skip if fast mode)
     if [[ "$running" == "true" ]]; then
         local api_port_status="unknown"
         local console_port_status="unknown"
-        # If MinIO is healthy, we know ports are working
-        if [[ "$healthy" == "true" ]]; then
+        
+        if [[ "$fast_mode" == "true" ]]; then
+            api_port_status="N/A"
+            console_port_status="N/A"
+        elif [[ "$healthy" == "true" ]]; then
             # When healthy, ports are definitely in use by MinIO
             api_port_status="in_use"
             console_port_status="in_use"
@@ -135,12 +155,14 @@ minio::status::collect_data() {
         status_data+=("api_port_status" "$api_port_status")
         status_data+=("console_port_status" "$console_port_status")
         
-        # Runtime information (only if healthy)
+        # Runtime information (only if healthy, skip if fast mode)
         if [[ "$healthy" == "true" ]]; then
             # Get storage usage
             local storage_used="unknown"
-            if [[ -d "$MINIO_DATA_DIR" ]]; then
-                storage_used=$(du -sh "$MINIO_DATA_DIR" 2>/dev/null | cut -f1 || echo "unknown")
+            if [[ "$fast_mode" == "false" && -d "$MINIO_DATA_DIR" ]]; then
+                storage_used=$(timeout 3s du -sh "$MINIO_DATA_DIR" 2>/dev/null | cut -f1 || echo "unknown")
+            elif [[ "$fast_mode" == "true" ]]; then
+                storage_used="N/A"
             fi
             status_data+=("storage_used" "$storage_used")
             
@@ -158,79 +180,6 @@ minio::status::collect_data() {
     printf '%s\n' "${status_data[@]}"
 }
 
-#######################################
-# Show MinIO status using standardized format
-# Args: [--format json|text] [--verbose]
-#######################################
-minio::status::show() {
-    local format="text"
-    local verbose="false"
-    
-    # Parse arguments
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            --format)
-                format="$2"
-                shift 2
-                ;;
-            --json)
-                format="json"
-                shift
-                ;;
-            --verbose|-v)
-                verbose="true"
-                shift
-                ;;
-            *)
-                shift
-                ;;
-        esac
-    done
-    
-    # Collect status data
-    local data_string
-    data_string=$(minio::status::collect_data 2>/dev/null)
-    
-    if [[ -z "$data_string" ]]; then
-        # Fallback if data collection fails
-        if [[ "$format" == "json" ]]; then
-            echo '{"error": "Failed to collect status data"}'
-        else
-            log::error "Failed to collect MinIO status data"
-        fi
-        return 1
-    fi
-    
-    # Convert string to array
-    local data_array
-    mapfile -t data_array <<< "$data_string"
-    
-    # Output based on format
-    if [[ "$format" == "json" ]]; then
-        format::output "json" "kv" "${data_array[@]}"
-    else
-        # Text format with standardized structure
-        minio::status::display_text "${data_array[@]}"
-    fi
-    
-    # Return appropriate exit code
-    local healthy="false"
-    local running="false"
-    for ((i=0; i<${#data_array[@]}; i+=2)); do
-        case "${data_array[i]}" in
-            "healthy") healthy="${data_array[i+1]}" ;;
-            "running") running="${data_array[i+1]}" ;;
-        esac
-    done
-    
-    if [[ "$healthy" == "true" ]]; then
-        return 0
-    elif [[ "$running" == "true" ]]; then
-        return 1
-    else
-        return 2
-    fi
-}
 
 #######################################
 # Display status in text format
@@ -707,3 +656,84 @@ EOF
 # Export functions for subshell availability
 export -f minio::test
 export -f minio::info
+
+#######################################
+# Show MinIO status using standardized format
+# Args: [--format json|text] [--verbose] [--fast]
+#######################################
+minio::status::show() {
+    status::run_standard "minio" "minio::status::collect_data" "minio::status::display_text" "$@"
+}
+
+#######################################
+# Main status function for CLI registration
+#######################################
+minio::status() {
+    minio::status::show "$@"
+}
+
+#######################################
+# Display status in text format
+#######################################
+minio::status::display_text() {
+    local -A data
+    
+    # Convert array to associative array
+    for ((i=1; i<=$#; i+=2)); do
+        local key="${\!i}"
+        local value_idx=$((i+1))
+        local value="${\!value_idx}"
+        data["$key"]="$value"
+    done
+    
+    # Header
+    log::header "📦 MinIO Status"
+    echo
+    
+    # Basic status
+    log::info "📊 Basic Status:"
+    if [[ "${data[installed]:-false}" == "true" ]]; then
+        log::success "   ✅ Installed: Yes"
+    else
+        log::error "   ❌ Installed: No"
+        echo
+        log::info "💡 Installation Required:"
+        log::info "   To install MinIO, run: ./manage.sh --action install"
+        return
+    fi
+    
+    if [[ "${data[running]:-false}" == "true" ]]; then
+        log::success "   ✅ Running: Yes"
+    else
+        log::warn "   ⚠️  Running: No"
+    fi
+    
+    if [[ "${data[healthy]:-false}" == "true" ]]; then
+        log::success "   ✅ Health: Healthy"
+    else
+        log::warn "   ⚠️  Health: ${data[health_message]:-Unknown}"
+    fi
+    echo
+    
+    # Service endpoints
+    log::info "🌐 Service Endpoints:"
+    log::info "   🔌 API: ${data[base_url]:-unknown}"
+    log::info "   🖥️  Console: ${data[console_url]:-unknown}"
+    echo
+    
+    # Configuration
+    log::info "⚙️  Configuration:"
+    log::info "   📶 API Port: ${data[port]:-unknown}"
+    log::info "   🖥️  Console Port: ${data[console_port]:-unknown}"
+    log::info "   📁 Data Directory: ${data[data_dir]:-unknown}"
+    log::info "   🖼️  Image: ${data[image]:-unknown}"
+    if [[ -n "${data[storage_used]:-}" ]]; then
+        log::info "   💾 Storage Used: ${data[storage_used]}"
+    fi
+}
+
+# Export additional status functions
+export -f minio::status::collect_data
+export -f minio::status::show
+export -f minio::status::display_text
+export -f minio::status

@@ -104,8 +104,11 @@ agents2::docker_start() {
     
     log::info "$MSG_STARTING_CONTAINER"
     
-    # Pull image
-    docker::pull_image "$AGENTS2_IMAGE_NAME"
+    # Skip pull for locally-built images - agent-s2 is always built locally
+    if ! docker image inspect "$AGENTS2_IMAGE_NAME" >/dev/null 2>&1; then
+        log::error "Docker image $AGENTS2_IMAGE_NAME not found. Please run install first to build the image."
+        return 1
+    fi
     
     # Prepare volumes
     local volumes="${AGENTS2_DATA_DIR}/logs:/var/log/supervisor:rw ${AGENTS2_DATA_DIR}/cache:/home/agents2/.cache:rw ${AGENTS2_DATA_DIR}/models:/home/agents2/.agent-s2/models:rw ${AGENTS2_DATA_DIR}/sessions:/home/agents2/.agent-s2/sessions:rw"
@@ -125,7 +128,7 @@ agents2::docker_start() {
         "AGENTS2_ENABLE_AI=$AGENTS2_ENABLE_AI"
         "AGENTS2_ENABLE_SEARCH=$AGENTS2_ENABLE_SEARCH"
         "DISPLAY=$AGENTS2_DISPLAY"
-        "AGENT_S2_VIRUSTOTAL_API_KEY=$AGENTS2_VIRUSTOTAL_API_KEY"
+        "AGENT_S2_VIRUSTOTAL_API_KEY=${AGENTS2_VIRUSTOTAL_API_KEY:-}"
     )
     
     # Add display environment if enabled

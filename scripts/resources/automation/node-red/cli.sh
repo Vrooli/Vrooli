@@ -159,17 +159,18 @@ node_red::cli_credentials() {
     local connections_array="[]"
     if [[ "$status" == "running" ]]; then
         # Build connection JSON for Node-RED API
+        local port_num="${NODE_RED_PORT:-1880}"
         local connection_obj
         connection_obj=$(jq -n \
             --arg host "localhost" \
-            --argjson port "${NODE_RED_PORT:-1880}" \
+            --arg port "${port_num}" \
             --arg path "/" \
-            --argjson ssl false \
+            --arg ssl "false" \
             '{
                 host: $host,
-                port: $port,
+                port: ($port | tonumber),
                 path: $path,
-                ssl: $ssl
+                ssl: ($ssl == "true")
             }')
         
         local metadata_obj

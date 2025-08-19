@@ -4,6 +4,7 @@
 # Status function
 erpnext::status() {
     local format="text"
+    local fast_mode="false"
     
     # Parse arguments
     while [[ $# -gt 0 ]]; do
@@ -14,6 +15,10 @@ erpnext::status() {
                 ;;
             --json)
                 format="json"
+                shift
+                ;;
+            --fast)
+                fast_mode="true"
                 shift
                 ;;
             *)
@@ -32,11 +37,17 @@ erpnext::status() {
         installed="true"
         if erpnext::is_running; then
             running="true"
-            if erpnext::is_healthy; then
-                healthy="true"
-                message="ERPNext is running and healthy on port ${ERPNEXT_PORT}"
+            # Skip health check in fast mode
+            if [[ "$fast_mode" == "false" ]]; then
+                if erpnext::is_healthy; then
+                    healthy="true"
+                    message="ERPNext is running and healthy on port ${ERPNEXT_PORT}"
+                else
+                    message="ERPNext is running but not responding to health checks"
+                fi
             else
-                message="ERPNext is running but not responding to health checks"
+                healthy="N/A"
+                message="ERPNext is running on port ${ERPNEXT_PORT}"
             fi
         else
             message="ERPNext is installed but not running"

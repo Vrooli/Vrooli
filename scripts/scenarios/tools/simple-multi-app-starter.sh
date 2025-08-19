@@ -28,6 +28,24 @@ VERBOSE=false
 # Generated apps include these scripts for standalone deployment but skip them when orchestrated
 FAST_MODE="${FAST_MODE:-true}"
 
+# Get list of resources already managed by main Vrooli
+# These will be skipped by generated apps to avoid redundant checks
+MANAGED_RESOURCES=""
+if command -v vrooli &>/dev/null; then
+    MANAGED_RESOURCES=$(vrooli status --verbose --json 2>/dev/null | \
+        jq -r '.resources_list // ""' | \
+        tr ',' '\n' | \
+        grep -E ':healthy|:running' | \
+        cut -d: -f1 | \
+        tr '\n' ',' | \
+        sed 's/,$//')
+    
+    if [[ -n "$MANAGED_RESOURCES" ]]; then
+        [[ "$VERBOSE" == "true" ]] && echo -e "${BLUE}[INFO]${NC} Main Vrooli managing resources: ${MANAGED_RESOURCES//,/, }"
+        export VROOLI_MANAGED_RESOURCES="$MANAGED_RESOURCES"
+    fi
+fi
+
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'

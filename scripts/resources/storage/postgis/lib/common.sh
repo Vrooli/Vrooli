@@ -20,6 +20,13 @@ if [ -f "${SCRIPTS_DIR}/lib/utils/log.sh" ]; then
     source "${SCRIPTS_DIR}/lib/utils/log.sh"
 fi
 
+# Helper function to execute PostgreSQL commands via Docker
+postgis_exec_sql() {
+    local database="${1:-postgres}"
+    local sql="$2"
+    docker exec vrooli-postgres-main psql -U "$POSTGIS_PG_USER" -d "$database" -c "$sql" -t -A 2>/dev/null
+}
+
 # Initialize data directories
 postgis_init_dirs() {
     mkdir -p "$POSTGIS_DATA_DIR"
@@ -57,7 +64,7 @@ postgis_is_enabled() {
 postgis_get_version() {
     local database="${1:-$POSTGIS_PG_DATABASE}"
     if postgis_is_enabled "$database"; then
-        PGPASSWORD="$POSTGIS_PG_PASSWORD" psql -h "$POSTGIS_PG_HOST" -p "$POSTGIS_PG_PORT" -U "$POSTGIS_PG_USER" -d "$database" -c "SELECT PostGIS_Version()" -t -A 2>/dev/null | head -1
+        postgis_exec_sql "$database" "SELECT PostGIS_Version()" | head -1
     else
         echo "not_enabled"
     fi
@@ -67,23 +74,23 @@ postgis_get_version() {
 postgis_enable_database() {
     local database="${1:-$POSTGIS_PG_DATABASE}"
     
-    format_header "Enabling PostGIS in database: $database"
+    log::header "Enabling PostGIS in database: $database"
     
     # Create database if it doesn't exist
-    PGPASSWORD="$POSTGIS_PG_PASSWORD" psql -h "$POSTGIS_PG_HOST" -p "$POSTGIS_PG_PORT" -U "$POSTGIS_PG_USER" -d postgres -c "CREATE DATABASE IF NOT EXISTS $database" 2>/dev/null
+    postgis_exec_sql "postgres" "CREATE DATABASE $database" 2>/dev/null
     
     # Enable extensions
     for ext in $POSTGIS_EXTENSIONS; do
-        format_info "Installing extension: $ext"
-        if PGPASSWORD="$POSTGIS_PG_PASSWORD" psql -h "$POSTGIS_PG_HOST" -p "$POSTGIS_PG_PORT" -U "$POSTGIS_PG_USER" -d "$database" -c "CREATE EXTENSION IF NOT EXISTS $ext CASCADE" 2>/dev/null; then
-            format_success "Extension $ext installed successfully"
+        log::info "Installing extension: $ext"
+        if postgis_exec_sql "$database" "CREATE EXTENSION IF NOT EXISTS $ext CASCADE"; then
+            log::success "Extension $ext installed successfully"
         else
-            format_error "Failed to install extension $ext"
+            log::error "Failed to install extension $ext"
             return 1
         fi
     done
     
-    format_success "PostGIS enabled in database $database"
+    log::success "PostGIS enabled in database $database"
     return 0
 }
 
@@ -91,14 +98,14 @@ postgis_enable_database() {
 postgis_disable_database() {
     local database="${1:-$POSTGIS_PG_DATABASE}"
     
-    format_header "Disabling PostGIS in database: $database"
+    log::header "Disabling PostGIS in database: $database"
     
     for ext in $(echo "$POSTGIS_EXTENSIONS" | tr ' ' '\n' | tac); do
-        format_info "Removing extension: $ext"
-        PGPASSWORD="$POSTGIS_PG_PASSWORD" psql -h "$POSTGIS_PG_HOST" -p "$POSTGIS_PG_PORT" -U "$POSTGIS_PG_USER" -d "$database" -c "DROP EXTENSION IF EXISTS $ext CASCADE" 2>/dev/null
+        log::info "Removing extension: $ext"
+        postgis_exec_sql "$database" "DROP EXTENSION IF EXISTS $ext CASCADE"
     done
     
-    format_success "PostGIS disabled in database $database"
+    log::success "PostGIS disabled in database $database"
     return 0
 }
 

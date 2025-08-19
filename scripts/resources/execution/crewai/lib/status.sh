@@ -11,6 +11,9 @@ source "${STATUS_LIB_DIR}/core.sh"
 source "/home/matthalloran8/Vrooli/scripts/lib/utils/format.sh"
 source "/home/matthalloran8/Vrooli/scripts/lib/utils/log.sh"
 
+# Source status-args library
+source "${STATUS_LIB_DIR}/../../../lib/status-args.sh"
+
 # Check installation
 check_installation() {
     # In mock mode, just check if server file exists
@@ -31,8 +34,11 @@ get_version() {
 
 # Count crews
 count_crews() {
-    if [[ -d "${CREWAI_CREWS_DIR}" ]]; then
-        find "${CREWAI_CREWS_DIR}" -name "*.py" -type f 2>/dev/null | wc -l
+    local fast_mode="${1:-false}"
+    if [[ -d "${CREWAI_CREWS_DIR}" ]] && [[ "$fast_mode" == "false" ]]; then
+        timeout 3s find "${CREWAI_CREWS_DIR}" -name "*.py" -type f 2>/dev/null | wc -l
+    elif [[ -d "${CREWAI_CREWS_DIR}" ]]; then
+        echo "N/A"
     else
         echo "0"
     fi
@@ -40,8 +46,11 @@ count_crews() {
 
 # Count agents
 count_agents() {
-    if [[ -d "${CREWAI_AGENTS_DIR}" ]]; then
-        find "${CREWAI_AGENTS_DIR}" -name "*.py" -type f 2>/dev/null | wc -l
+    local fast_mode="${1:-false}"
+    if [[ -d "${CREWAI_AGENTS_DIR}" ]] && [[ "$fast_mode" == "false" ]]; then
+        timeout 3s find "${CREWAI_AGENTS_DIR}" -name "*.py" -type f 2>/dev/null | wc -l
+    elif [[ -d "${CREWAI_AGENTS_DIR}" ]]; then
+        echo "N/A"
     else
         echo "0"
     fi
@@ -49,8 +58,15 @@ count_agents() {
 
 # Check LLM configuration
 check_llm_config() {
-    # Check if Ollama is available
-    if vrooli resource ollama status --format json 2>/dev/null | grep -q '"healthy":true'; then
+    local fast_mode="${1:-false}"
+    if [[ "$fast_mode" == "true" ]]; then
+        # Skip expensive external resource check in fast mode
+        if [[ -n "${OPENROUTER_API_KEY:-}" ]]; then
+            echo "true"
+        else
+            echo "N/A"
+        fi
+    elif vrooli resource ollama status --format json 2>/dev/null | grep -q '"healthy":true'; then
         echo "true"
     elif [[ -n "${OPENROUTER_API_KEY:-}" ]]; then
         echo "true"
@@ -59,20 +75,16 @@ check_llm_config() {
     fi
 }
 
-# Main status check
-main() {
-    local format_type="text"
+# Collect CrewAI status data in format-agnostic structure
+crewai::status::collect_data() {
+    local fast_mode="false"
     
     # Parse arguments
     while [[ $# -gt 0 ]]; do
         case "$1" in
-            --format)
-                if [[ $# -gt 1 ]]; then
-                    format_type="$2"
-                    shift 2
-                else
-                    shift
-                fi
+            --fast)
+                fast_mode="true"
+                shift
                 ;;
             *)
                 shift
@@ -101,9 +113,9 @@ main() {
         fi
     fi
     
-    local crews=$(count_crews)
-    local agents=$(count_agents)
-    local llm_configured=$(check_llm_config)
+    local crews=$(count_crews "$fast_mode")
+    local agents=$(count_agents "$fast_mode")
+    local llm_configured=$(check_llm_config "$fast_mode")
     
     # Build status data
     local status_data=(
@@ -119,6 +131,9 @@ main() {
         "crews" "${crews}"
         "agents" "${agents}"
         "llm_configured" "${llm_configured}"
+        "crews_dir" "${CREWAI_CREWS_DIR}"
+        "agents_dir" "${CREWAI_AGENTS_DIR}"
+        "workspace_dir" "${CREWAI_WORKSPACE_DIR}"
     )
     
     if [[ "${running}" == "true" ]]; then
@@ -128,58 +143,80 @@ main() {
         )
     fi
     
-    status_data+=(
-        "crews_dir" "${CREWAI_CREWS_DIR}"
-        "agents_dir" "${CREWAI_AGENTS_DIR}"
-        "workspace_dir" "${CREWAI_WORKSPACE_DIR}"
-    )
+    # Return the collected data
+    printf '%s\n' "${status_data[@]}"
+}
+
+# Display status in text format
+crewai::status::display_text() {
+    local -A data
     
-    # Output using format library
-    if [[ "${format_type}" == "json" ]]; then
-        format::output json kv "${status_data[@]}"
+    # Convert array to associative array
+    for ((i=1; i<=$#; i+=2)); do
+        local key="${!i}"
+        local value_idx=$((i+1))
+        local value="${!value_idx}"
+        data["$key"]="$value"
+    done
+    
+    # Header
+    log::header "🤖 CrewAI Status"
+    echo
+    
+    # Basic status
+    log::info "📊 Basic Status:"
+    if [[ "${data[installed]:-false}" == "true" ]]; then
+        log::success "   ✅ Installed: Yes"
     else
-        # Human-readable output
-        echo "[HEADER]  🤖 CrewAI Status"
-        echo "[INFO]    📝 Description: Framework for orchestrating role-playing autonomous AI agents"
-        echo "[INFO]    📂 Category: execution"
-        echo ""
-        echo "[INFO]    📊 Basic Status:"
-        if [[ "${installed}" == "true" ]]; then
-            echo "[SUCCESS]    ✅ Installed: Yes"
-        else
-            echo "[ERROR]      ❌ Installed: No"
-        fi
-        
-        if [[ "${running}" == "true" ]]; then
-            echo "[SUCCESS]    ✅ Running: Yes"
-        else
-            echo "[ERROR]      ❌ Running: No"
-        fi
-        
-        if [[ "${health}" == "healthy" ]]; then
-            echo "[SUCCESS]    ✅ Health: ${health_msg}"
-        else
-            echo "[WARNING]    ⚠️  Health: ${health_msg}"
-        fi
-        
-        echo ""
-        echo "[INFO]    📦 Version: ${version}"
-        echo "[INFO]    🔌 Port: ${CREWAI_PORT}"
-        echo "[INFO]    🤖 Crews: ${crews}"
-        echo "[INFO]    👥 Agents: ${agents}"
-        echo "[INFO]    🧠 LLM Configured: $([ "${llm_configured}" == "true" ] && echo "Yes" || echo "No")"
-        
-        if [[ "${running}" == "true" ]]; then
-            echo ""
-            echo "[INFO]    🌐 Service Endpoints:"
-            echo "[INFO]       🔌 API: http://localhost:${CREWAI_PORT}"
-            echo "[INFO]       🏥 Health: http://localhost:${CREWAI_PORT}/health"
-        fi
-        
-        echo ""
-        echo "[INFO]    📁 Directories:"
-        echo "[INFO]       🤖 Crews: ${CREWAI_CREWS_DIR}"
-        echo "[INFO]       👥 Agents: ${CREWAI_AGENTS_DIR}"
-        echo "[INFO]       📂 Workspace: ${CREWAI_WORKSPACE_DIR}"
+        log::error "   ❌ Installed: No"
+        echo
+        log::info "💡 Installation Required:"
+        log::info "   To install CrewAI, run: resource-crewai install"
+        return
     fi
+    
+    if [[ "${data[running]:-false}" == "true" ]]; then
+        log::success "   ✅ Running: Yes"
+    else
+        log::warn "   ⚠️  Running: No"
+    fi
+    
+    if [[ "${data[healthy]:-false}" == "true" ]]; then
+        log::success "   ✅ Health: ${data[health_message]:-Healthy}"
+    else
+        log::warn "   ⚠️  Health: ${data[health_message]:-Unknown}"
+    fi
+    echo
+    
+    # Configuration
+    log::info "⚙️  Configuration:"
+    log::info "   📦 Version: ${data[version]:-unknown}"
+    log::info "   🔌 Port: ${data[port]:-unknown}"
+    log::info "   🤖 Crews: ${data[crews]:-0}"
+    log::info "   👥 Agents: ${data[agents]:-0}"
+    log::info "   🧠 LLM Configured: $([ "${data[llm_configured]:-false}" == "true" ] && echo "Yes" || echo "No")"
+    echo
+    
+    if [[ "${data[running]:-false}" == "true" ]]; then
+        log::info "🌐 Service Endpoints:"
+        log::info "   🔌 API: ${data[api_url]:-unknown}"
+        log::info "   🏥 Health: ${data[health_url]:-unknown}"
+        echo
+    fi
+    
+    log::info "📁 Directories:"
+    log::info "   🤖 Crews: ${data[crews_dir]:-unknown}"
+    log::info "   👥 Agents: ${data[agents_dir]:-unknown}"
+    log::info "   📂 Workspace: ${data[workspace_dir]:-unknown}"
+    echo
+}
+
+# Main status function using standard wrapper
+crewai::status() {
+    status::run_standard "crewai" "crewai::status::collect_data" "crewai::status::display_text" "$@"
+}
+
+# Legacy main function for backward compatibility
+main() {
+    crewai::status "$@"
 }

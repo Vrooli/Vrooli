@@ -1,5 +1,0 @@
-#!/usr/bin/env bash
-# Get the actual directory of this script (resolve symlinks)
-REAL_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
-SCRIPT_DIR="$(dirname "${REAL_PATH}")"
-exec "${SCRIPT_DIR}/cli.sh" "$@"

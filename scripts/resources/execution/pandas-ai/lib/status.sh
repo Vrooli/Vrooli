@@ -8,6 +8,7 @@ PANDAS_AI_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${PANDAS_AI_LIB_DIR}/common.sh"
 source "${PANDAS_AI_LIB_DIR}/../../../../lib/utils/log.sh"
 source "${PANDAS_AI_LIB_DIR}/../../../../lib/utils/format.sh"
+source "${PANDAS_AI_LIB_DIR}/../../../lib/status-args.sh"
 
 # Check if Pandas AI is installed
 pandas_ai::is_installed() {
@@ -55,6 +56,7 @@ pandas_ai::is_running() {
 # Get Pandas AI status
 pandas_ai::status() {
     local format_type="text"
+    local fast_mode="false"
     
     # Parse arguments
     while [[ $# -gt 0 ]]; do
@@ -65,6 +67,10 @@ pandas_ai::status() {
                 ;;
             --json|json)
                 format_type="json"
+                shift
+                ;;
+            --fast)
+                fast_mode="true"
                 shift
                 ;;
             *)
@@ -85,19 +91,29 @@ pandas_ai::status() {
     
     if pandas_ai::is_installed; then
         installed="true"
-        # Try venv pip first, fallback to system pip
-        if [[ -f "${PANDAS_AI_VENV_DIR}/bin/pip" ]]; then
-            version=$("${PANDAS_AI_VENV_DIR}/bin/pip" show pandasai 2>/dev/null | grep Version | cut -d' ' -f2 || echo "unknown")
+        # Skip version check in fast mode
+        if [[ "$fast_mode" == "false" ]]; then
+            # Try venv pip first, fallback to system pip
+            if [[ -f "${PANDAS_AI_VENV_DIR}/bin/pip" ]]; then
+                version=$("${PANDAS_AI_VENV_DIR}/bin/pip" show pandasai 2>/dev/null | grep Version | cut -d' ' -f2 || echo "unknown")
+            else
+                version=$(python3 -m pip show pandasai 2>/dev/null | grep Version | cut -d' ' -f2 || echo "1.0.0")
+            fi
         else
-            version=$(python3 -m pip show pandasai 2>/dev/null | grep Version | cut -d' ' -f2 || echo "1.0.0")
+            version="N/A"
         fi
     fi
     
     if pandas_ai::is_running; then
         running="true"
-        # Check health endpoint
-        if curl -sf "http://localhost:${port}/health" >/dev/null 2>&1; then
-            health="healthy"
+        # Skip health check in fast mode
+        if [[ "$fast_mode" == "false" ]]; then
+            # Check health endpoint with timeout for performance
+            if timeout 1s curl -sf "http://localhost:${port}/health" >/dev/null 2>&1; then
+                health="healthy"
+            fi
+        else
+            health="N/A"
         fi
     fi
     
@@ -157,7 +173,133 @@ pandas_ai::status() {
     return 0
 }
 
+# Collect Pandas AI status data in format-agnostic structure
+pandas_ai::status::collect_data() {
+    local fast_mode="false"
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --fast)
+                fast_mode="true"
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    local port=$(pandas_ai::get_port)
+    local installed="false"
+    local running="false" 
+    local healthy="false"
+    local version="unknown"
+    local health_message="Pandas AI not installed"
+    
+    if pandas_ai::is_installed; then
+        installed="true"
+        
+        if pandas_ai::is_running; then
+            running="true"
+            healthy="true"
+            health_message="Pandas AI is running and operational"
+        else
+            health_message="Pandas AI is installed but not running"
+        fi
+        
+        # Skip version check in fast mode
+        if [[ "$fast_mode" == "false" ]]; then
+            if [[ -f "${PANDAS_AI_VENV_DIR}/bin/pip" ]]; then
+                version=$("${PANDAS_AI_VENV_DIR}/bin/pip" show pandasai 2>/dev/null | grep Version | cut -d' ' -f2 || echo "unknown")
+            else
+                version=$(python3 -m pip show pandasai 2>/dev/null | grep Version | cut -d' ' -f2 || echo "1.0.0")
+            fi
+        else
+            version="N/A"
+        fi
+    fi
+    
+    # Build status data array
+    local status_data=(
+        "name" "pandas-ai"
+        "category" "execution"
+        "description" "Conversational AI for data analysis"
+        "installed" "$installed"
+        "running" "$running"
+        "healthy" "$healthy"
+        "health_message" "$health_message"
+        "version" "$version"
+        "port" "$port"
+        "venv_dir" "${PANDAS_AI_VENV_DIR:-unknown}"
+        "scripts_dir" "${PANDAS_AI_SCRIPTS_DIR:-unknown}"
+    )
+    
+    # Return the collected data
+    printf '%s\n' "${status_data[@]}"
+}
+
+# Display status in text format
+pandas_ai::status::display_text() {
+    local -A data
+    
+    # Convert array to associative array
+    for ((i=1; i<=$#; i+=2)); do
+        local key="${!i}"
+        local value_idx=$((i+1))
+        local value="${!value_idx}"
+        data["$key"]="$value"
+    done
+    
+    # Header
+    log::header "🐼 Pandas AI Status"
+    echo
+    
+    # Basic status
+    log::info "📊 Basic Status:"
+    if [[ "${data[installed]:-false}" == "true" ]]; then
+        log::success "   ✅ Installed: Yes"
+    else
+        log::error "   ❌ Installed: No"
+        echo
+        log::info "💡 Installation Required:"
+        log::info "   To install Pandas AI, run: resource-pandas-ai install"
+        return
+    fi
+    
+    if [[ "${data[running]:-false}" == "true" ]]; then
+        log::success "   ✅ Running: Yes"
+    else
+        log::warn "   ⚠️  Running: No"
+    fi
+    
+    if [[ "${data[healthy]:-false}" == "true" ]]; then
+        log::success "   ✅ Health: Healthy"
+    else
+        log::warn "   ⚠️  Health: ${data[health_message]:-Unknown}"
+    fi
+    echo
+    
+    # Configuration
+    log::info "⚙️  Configuration:"
+    log::info "   📦 Version: ${data[version]:-unknown}"
+    log::info "   📶 Port: ${data[port]:-unknown}"
+    log::info "   🐍 Venv: ${data[venv_dir]:-unknown}"
+    log::info "   📁 Scripts: ${data[scripts_dir]:-unknown}"
+    echo
+    
+    log::info "📋 Status Message:"
+    log::info "   ${data[health_message]:-No status message}"
+    echo
+}
+
+# New main status function using standard wrapper
+pandas_ai::status::new() {
+    status::run_standard "pandas-ai" "pandas_ai::status::collect_data" "pandas_ai::status::display_text" "$@"
+}
+
 # Export functions for use by CLI
 export -f pandas_ai::is_installed
 export -f pandas_ai::is_running
 export -f pandas_ai::status
+export -f pandas_ai::status::new

@@ -169,6 +169,17 @@ credentials::build_connection() {
     local auth_obj="${5:-{}}"
     local metadata_obj="${6:-{}}"
     
+    # Ensure JSON objects are valid for --argjson
+    # If they're already JSON strings, use them directly
+    if ! echo "$connection_obj" | jq empty 2>/dev/null; then
+        connection_obj="{}"
+    fi
+    if ! echo "$auth_obj" | jq empty 2>/dev/null; then
+        auth_obj="{}"
+    fi
+    if ! echo "$metadata_obj" | jq empty 2>/dev/null; then
+        metadata_obj="{}"
+    fi
     
     jq -n \
         --arg id "$conn_id" \

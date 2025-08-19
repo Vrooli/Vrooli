@@ -723,6 +723,22 @@ show_status() {
             kv_pairs+=("resources_enabled" "$enabled")
             kv_pairs+=("resources_running" "$running")
             kv_pairs+=("resources_healthy" "$healthy")
+            
+            # Include detailed resource list when verbose
+            if [[ "$verbose" == "true" ]]; then
+                local resource_list=()
+                while IFS= read -r line; do
+                    if [[ "$line" =~ ^item:([^:]+):(.+)$ ]]; then
+                        local res_name="${BASH_REMATCH[1]}"
+                        local res_status="${BASH_REMATCH[2]}"
+                        resource_list+=("$res_name:$res_status")
+                    fi
+                done <<< "$resource_data"
+                
+                if [[ ${#resource_list[@]} -gt 0 ]]; then
+                    kv_pairs+=("resources_list" "$(IFS=,; echo "${resource_list[*]}")")
+                fi
+            fi
         fi
         
         if [[ "$show_apps" == "true" ]]; then
