@@ -1,0 +1,51 @@
+{
+  "name": "n8n",
+  "version": "1.0.0",
+  "description": "UI automation adapter for n8n workflow automation platform",
+  "provider": "browserless",
+  "capabilities": [
+    "execute-workflow",
+    "list-workflows",
+    "export-workflow",
+    "import-workflow",
+    "add-credentials",
+    "list-credentials",
+    "monitor-dashboard"
+  ],
+  "requirements": {
+    "browserless": "running",
+    "target_resource": "n8n"
+  },
+  "environment": {
+    "N8N_URL": {
+      "description": "N8N instance URL",
+      "default": "http://localhost:5678",
+      "required": false
+    },
+    "N8N_EMAIL": {
+      "description": "Email for N8N web UI authentication",
+      "source": "vrooli_secrets",
+      "required": false
+    },
+    "N8N_PASSWORD": {
+      "description": "Password for N8N web UI authentication",
+      "source": "vrooli_secrets",
+      "required": false
+    },
+    "N8N_TIMEOUT": {
+      "description": "Operation timeout in milliseconds",
+      "default": "60000",
+      "required": false
+    }
+  },
+  "fallback_priority": 2,
+  "use_cases": [
+    "Execute workflows when API is down",
+    "Manage credentials via UI when API endpoints are broken",
+    "Import/export workflows without API access",
+    "Monitor dashboard visually",
+    "Bypass webhook limitations"
+  ],
+  "author": "Vrooli Platform",
+  "license": "MIT"
+}

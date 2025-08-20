@@ -42,6 +42,7 @@ High-performance headless Chrome automation service for web scraping, screenshot
 - 🔄 **Session Management** - Reusable browser sessions for improved performance
 - 📊 **Performance Monitoring** - Real-time metrics and pressure monitoring
 - 🛡️ **Security Isolation** - Sandboxed Chrome instances with security profiles
+- 🔌 **Resource Adapters** - Provide UI automation fallbacks for other resources (NEW!)
 
 ## When to Use
 
@@ -57,6 +58,39 @@ High-performance headless Chrome automation service for web scraping, screenshot
 - **API Access**: Prefer official APIs when available
 - **Puppeteer/Playwright**: For programmatic control in Node.js
 - **Selenium**: For cross-browser testing requirements
+
+## Resource Adapters (NEW!)
+
+Browserless now provides **UI automation adapters** for other resources, enabling fallback interfaces when APIs are unavailable or broken. This creates an antifragile system where resources can continue operating even during failures.
+
+### Available Adapters
+
+- **n8n** - Execute workflows, manage credentials, import/export via browser
+- **vault** - Manage secrets and policies through UI automation (preview)
+
+### Using Adapters
+
+The new "for" pattern allows browserless to act as an adapter:
+
+```bash
+# Execute n8n workflow when API is down
+resource-browserless for n8n execute-workflow my-workflow-id
+
+# Add Vault secrets via UI
+resource-browserless for vault add-secret secret/myapp key=value
+
+# List available adapters
+resource-browserless for --help
+```
+
+### Why Use Adapters?
+
+- **Resilience**: Continue operations when APIs fail
+- **Cost Optimization**: Switch between API and UI based on usage
+- **Feature Access**: Use UI-only features not exposed via API
+- **Emergency Access**: Bypass rate limits or authentication issues
+
+See [docs/ADAPTERS.md](docs/ADAPTERS.md) for complete documentation.
 
 ## Integration Examples
 

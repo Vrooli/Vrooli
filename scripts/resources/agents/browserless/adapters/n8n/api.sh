@@ -1,0 +1,396 @@
+#!/usr/bin/env bash
+
+#######################################
+# N8N Adapter for Browserless
+# Description: UI automation adapter for n8n workflows
+#
+# Provides browser-based fallback interfaces for n8n operations
+# when the API or webhooks are unavailable or broken.
+#
+# This adapter enables:
+#   - Workflow execution via UI automation
+#   - Credential management through the UI
+#   - Workflow import/export via browser
+#   - Dashboard monitoring and screenshot capture
+#######################################
+
+# Get script directory
+N8N_ADAPTER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ADAPTERS_DIR="$(dirname "$N8N_ADAPTER_DIR")"
+
+# Source adapter framework
+source "${ADAPTERS_DIR}/common.sh"
+
+# Source n8n-specific implementations
+source "${N8N_ADAPTER_DIR}/workflows.sh"
+source "${N8N_ADAPTER_DIR}/credentials.sh" 2>/dev/null || true  # Optional, will create later
+source "${N8N_ADAPTER_DIR}/selectors.sh" 2>/dev/null || true   # Optional, will create later
+
+# Export adapter name for context
+export BROWSERLESS_ADAPTER_NAME="n8n"
+
+#######################################
+# Initialize n8n adapter
+# Sets up n8n-specific configuration
+# Returns:
+#   0 on success, 1 on failure
+#######################################
+n8n::init() {
+    # Initialize base adapter framework
+    adapter::init "n8n"
+    
+    # Load n8n configuration if available
+    adapter::load_target_config "n8n"
+    
+    # Set default n8n URL if not configured
+    export N8N_URL="${N8N_URL:-http://localhost:5678}"
+    export N8N_TIMEOUT="${N8N_TIMEOUT:-60000}"
+    
+    log::debug "N8N adapter initialized with URL: $N8N_URL"
+    return 0
+}
+
+#######################################
+# List available n8n adapter commands
+# Used by the adapter framework for discovery
+# Returns:
+#   List of available commands
+#######################################
+adapter::list_commands() {
+    echo "execute-workflow    - Execute n8n workflow via browser automation"
+    echo "list-workflows      - List all workflows via UI scraping"
+    echo "export-workflow     - Export workflow JSON via browser"
+    echo "import-workflow     - Import workflow JSON via browser"
+    echo "add-credentials     - Add credentials via UI automation"
+    echo "test-workflow       - Test workflow execution with sample data"
+    echo "monitor-dashboard   - Capture dashboard screenshots"
+}
+
+#######################################
+# Main command dispatcher for n8n adapter
+# Routes commands to appropriate implementations
+# Arguments:
+#   $1 - Command name
+#   $@ - Command arguments
+# Returns:
+#   Command exit status
+#######################################
+n8n::dispatch() {
+    local command="${1:-}"
+    shift || true
+    
+    # Initialize adapter
+    n8n::init
+    
+    # Check browserless health
+    if ! adapter::check_browserless_health; then
+        return 1
+    fi
+    
+    case "$command" in
+        execute-workflow|execute)
+            n8n::execute_workflow "$@"
+            ;;
+        list-workflows|list)
+            n8n::list_workflows "$@"
+            ;;
+        export-workflow|export)
+            n8n::export_workflow "$@"
+            ;;
+        import-workflow|import)
+            n8n::import_workflow "$@"
+            ;;
+        add-credentials|credentials)
+            n8n::add_credentials "$@"
+            ;;
+        test-workflow|test)
+            n8n::test_workflow "$@"
+            ;;
+        monitor-dashboard|monitor)
+            n8n::monitor_dashboard "$@"
+            ;;
+        help|--help|-h|"")
+            n8n::show_help
+            ;;
+        *)
+            log::error "Unknown n8n adapter command: $command"
+            n8n::show_help
+            return 1
+            ;;
+    esac
+}
+
+#######################################
+# Show help for n8n adapter
+# Displays usage information and examples
+#######################################
+n8n::show_help() {
+    cat <<EOF
+N8N Adapter for Browserless
+
+Usage:
+  resource-browserless for n8n <command> [options]
+
+Commands:
+  execute-workflow <id>     Execute workflow by ID
+  list-workflows           List all available workflows
+  export-workflow <id>     Export workflow as JSON
+  import-workflow <file>   Import workflow from JSON file
+  add-credentials <type>   Add credentials via UI
+  test-workflow <id>       Test workflow with sample data
+  monitor-dashboard        Capture dashboard screenshots
+
+Examples:
+  # Execute a workflow
+  resource-browserless for n8n execute-workflow my-workflow-id
+
+  # Execute with input data
+  resource-browserless for n8n execute-workflow data-processor \\
+    --input '{"text": "Process this"}'
+
+  # List all workflows
+  resource-browserless for n8n list-workflows
+
+  # Export workflow to file
+  resource-browserless for n8n export-workflow my-workflow > workflow.json
+
+  # Add HTTP credentials
+  resource-browserless for n8n add-credentials httpHeaderAuth
+
+Environment Variables:
+  N8N_URL           - N8N instance URL (default: http://localhost:5678)
+  N8N_EMAIL         - Email for authentication
+  N8N_PASSWORD      - Password for authentication
+  N8N_TIMEOUT       - Operation timeout in ms (default: 60000)
+
+Notes:
+  - This adapter provides UI-based fallback when n8n API is unavailable
+  - Requires browserless to be running and healthy
+  - Authentication credentials should be set via environment variables
+  - Screenshots and logs are saved to \$BROWSERLESS_TEST_OUTPUT_DIR
+
+EOF
+    return 0
+}
+
+#######################################
+# Execute workflow (adapter wrapper)
+# Provides cleaner interface for the adapter pattern
+# Arguments:
+#   $1 - Workflow ID
+#   --input - Input data (JSON)
+#   --timeout - Timeout in ms
+#   --session - Session ID for persistence
+# Returns:
+#   0 on success, 1 on failure
+#######################################
+n8n::execute_workflow() {
+    local workflow_id=""
+    local input_data=""
+    local timeout="${N8N_TIMEOUT:-60000}"
+    local session_id=""
+    local n8n_url="${N8N_URL:-http://localhost:5678}"
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --input)
+                input_data="$2"
+                shift 2
+                ;;
+            --timeout)
+                timeout="$2"
+                shift 2
+                ;;
+            --session)
+                session_id="$2"
+                shift 2
+                ;;
+            --url)
+                n8n_url="$2"
+                shift 2
+                ;;
+            --help|-h)
+                n8n::show_execute_help
+                return 0
+                ;;
+            *)
+                if [[ -z "$workflow_id" ]]; then
+                    workflow_id="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ -z "$workflow_id" ]]; then
+        log::error "Workflow ID required"
+        echo "Usage: resource-browserless for n8n execute-workflow <workflow-id> [options]"
+        return 1
+    fi
+    
+    # Use persistent session by default for adapters
+    local use_persistent="true"
+    if [[ -z "$session_id" ]]; then
+        session_id="n8n_adapter_$(date +%s)"
+    fi
+    
+    log::header "🔄 Executing N8N Workflow via Browserless Adapter"
+    log::info "Workflow: $workflow_id"
+    log::info "N8N URL: $n8n_url"
+    log::info "Session: $session_id"
+    
+    # Call the underlying implementation
+    browserless::execute_n8n_workflow \
+        "$workflow_id" \
+        "$n8n_url" \
+        "$timeout" \
+        "$input_data" \
+        "$use_persistent" \
+        "$session_id"
+}
+
+#######################################
+# List workflows via UI scraping
+# Gets list of workflows when API is unavailable
+# Returns:
+#   JSON array of workflows
+#######################################
+n8n::list_workflows() {
+    log::header "📋 Listing N8N Workflows via UI"
+    
+    local function_code='
+    export default async ({ page }) => {
+        const workflows = [];
+        
+        try {
+            // Navigate to workflows page
+            await page.goto("'${N8N_URL}'/workflows", {
+                waitUntil: "networkidle2",
+                timeout: 30000
+            });
+            
+            // Wait for workflow list to load
+            await page.waitForSelector(".workflow-card, [data-test-id*=\"workflow\"]", {
+                timeout: 10000
+            });
+            
+            // Extract workflow information
+            const workflowData = await page.evaluate(() => {
+                const items = [];
+                const cards = document.querySelectorAll(".workflow-card, [data-test-id*=\"workflow\"]");
+                
+                cards.forEach(card => {
+                    const name = card.querySelector(".workflow-name, h3, .title")?.textContent?.trim();
+                    const id = card.getAttribute("data-workflow-id") || 
+                               card.querySelector("a")?.href?.match(/workflow\/([^\/]+)/)?.[1];
+                    const active = card.querySelector(".active-badge, .status-active") !== null;
+                    
+                    if (name || id) {
+                        items.push({
+                            id: id || "unknown",
+                            name: name || "Unnamed Workflow",
+                            active: active,
+                            element: card.className
+                        });
+                    }
+                });
+                
+                return items;
+            });
+            
+            return {
+                success: true,
+                workflows: workflowData,
+                count: workflowData.length,
+                timestamp: new Date().toISOString()
+            };
+            
+        } catch (error) {
+            return {
+                success: false,
+                error: error.message,
+                workflows: [],
+                timestamp: new Date().toISOString()
+            };
+        }
+    }'
+    
+    # Execute via adapter framework
+    local result=$(adapter::execute_browser_function "$function_code" "30000" "true" "n8n_list_workflows")
+    
+    if [[ $? -eq 0 ]]; then
+        echo "$result" | jq '.workflows'
+    else
+        log::error "Failed to list workflows"
+        return 1
+    fi
+}
+
+#######################################
+# Show execute workflow help
+#######################################
+n8n::show_execute_help() {
+    cat <<EOF
+Execute N8N Workflow via Browserless Adapter
+
+Usage:
+  resource-browserless for n8n execute-workflow <workflow-id> [options]
+
+Options:
+  --input <json>    Input data as JSON string or @file
+  --timeout <ms>    Execution timeout in milliseconds
+  --session <id>    Session ID for browser persistence
+  --url <url>       N8N instance URL
+  --help            Show this help message
+
+Examples:
+  # Simple execution
+  resource-browserless for n8n execute-workflow my-workflow
+
+  # With input data
+  resource-browserless for n8n execute-workflow processor \\
+    --input '{"text": "Hello"}'
+
+  # From file
+  resource-browserless for n8n execute-workflow analyzer \\
+    --input @data.json
+
+  # Custom timeout and session
+  resource-browserless for n8n execute-workflow long-running \\
+    --timeout 120000 \\
+    --session my-session-1
+
+EOF
+    return 0
+}
+
+# Placeholder functions for future implementation
+n8n::export_workflow() {
+    log::warn "Export workflow functionality coming soon"
+    return 1
+}
+
+n8n::import_workflow() {
+    log::warn "Import workflow functionality coming soon"
+    return 1
+}
+
+n8n::add_credentials() {
+    log::warn "Add credentials functionality coming soon"
+    return 1
+}
+
+n8n::test_workflow() {
+    log::warn "Test workflow functionality coming soon"
+    return 1
+}
+
+n8n::monitor_dashboard() {
+    log::warn "Monitor dashboard functionality coming soon"
+    return 1
+}
+
+# Export main dispatcher for CLI integration
+export -f n8n::dispatch
+export -f n8n::init

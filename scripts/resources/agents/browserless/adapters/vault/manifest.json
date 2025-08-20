@@ -1,0 +1,43 @@
+{
+  "name": "vault",
+  "version": "1.0.0",
+  "description": "UI automation adapter for HashiCorp Vault secret management",
+  "provider": "browserless",
+  "capabilities": [
+    "add-secret",
+    "list-secrets",
+    "configure-auth",
+    "view-policies"
+  ],
+  "requirements": {
+    "browserless": "running",
+    "target_resource": "vault"
+  },
+  "environment": {
+    "VAULT_URL": {
+      "description": "Vault instance URL",
+      "default": "http://localhost:8200",
+      "required": false
+    },
+    "VAULT_TOKEN": {
+      "description": "Root token for Vault authentication",
+      "required": true
+    },
+    "VAULT_TIMEOUT": {
+      "description": "Operation timeout in milliseconds",
+      "default": "30000",
+      "required": false
+    }
+  },
+  "fallback_priority": 3,
+  "use_cases": [
+    "Manage secrets when API is down",
+    "Configure auth methods via UI",
+    "Bypass API rate limits",
+    "Visual policy management",
+    "UI-only feature access"
+  ],
+  "status": "preview",
+  "author": "Vrooli Platform",
+  "license": "MIT"
+}

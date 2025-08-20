@@ -47,6 +47,14 @@ for lib in core docker health status api inject usage recovery; do
     fi
 done
 
+# Source adapter framework if available
+if [[ -f "${BROWSERLESS_CLI_DIR}/adapters/common.sh" ]]; then
+    # shellcheck disable=SC1090
+    source "${BROWSERLESS_CLI_DIR}/adapters/common.sh"
+    # shellcheck disable=SC1090
+    source "${BROWSERLESS_CLI_DIR}/adapters/registry.sh"
+fi
+
 # Initialize CLI framework
 cli::init "browserless" "Browserless Chrome automation management"
 
@@ -57,9 +65,14 @@ cli::register_command "pdf" "Generate PDF from URL" "browserless_pdf"
 cli::register_command "test-apis" "Test all Browserless APIs" "browserless_test_apis"
 cli::register_command "metrics" "Show browser pressure/metrics" "browserless_metrics"
 cli::register_command "credentials" "Get connection credentials for n8n integration" "browserless_credentials"
-cli::register_command "execute-workflow" "Execute n8n workflow and monitor via browser" "browserless_execute_workflow"
 cli::register_command "console-capture" "Capture console logs from any URL" "browserless_console_capture"
 cli::register_command "uninstall" "Uninstall Browserless (requires --force)" "browserless_uninstall" "modifies-system"
+
+# Register adapter command for the new "for" pattern
+cli::register_command "for" "Use browserless as adapter for other resources" "browserless_adapter"
+
+# Legacy commands for backward compatibility (will delegate to adapter)
+cli::register_command "execute-workflow" "[LEGACY] Execute n8n workflow - use 'for n8n execute-workflow' instead" "browserless_execute_workflow_legacy"
 
 ################################################################################
 # Resource-specific command implementations  
@@ -195,6 +208,59 @@ browserless_credentials() {
         log::error "Invalid credentials JSON generated"
         return 1
     fi
+}
+
+# Adapter command handler - implements the "for" pattern
+browserless_adapter() {
+    local target_resource="${1:-}"
+    shift || true
+    
+    if [[ -z "$target_resource" ]]; then
+        log::error "Target resource required"
+        echo "Usage: resource-browserless for <resource> <command> [options]"
+        echo ""
+        echo "Available adapters:"
+        if declare -f adapter::list >/dev/null; then
+            adapter::list
+        else
+            echo "  n8n     - UI automation for n8n workflows"
+            echo "  vault   - UI automation for HashiCorp Vault (coming soon)"
+            echo "  grafana - Dashboard automation (coming soon)"
+        fi
+        return 1
+    fi
+    
+    # Load the appropriate adapter
+    local adapter_dir="${BROWSERLESS_CLI_DIR}/adapters/${target_resource}"
+    local adapter_api="${adapter_dir}/api.sh"
+    
+    if [[ ! -f "$adapter_api" ]]; then
+        log::error "Adapter not found for resource: $target_resource"
+        echo "Available adapters:"
+        ls -d "${BROWSERLESS_CLI_DIR}/adapters/"*/ 2>/dev/null | xargs -n1 basename | grep -v common | grep -v registry
+        return 1
+    fi
+    
+    # Source the adapter
+    # shellcheck disable=SC1090
+    source "$adapter_api"
+    
+    # Dispatch to adapter
+    if declare -f "${target_resource}::dispatch" >/dev/null; then
+        "${target_resource}::dispatch" "$@"
+    else
+        log::error "Adapter dispatch function not found: ${target_resource}::dispatch"
+        return 1
+    fi
+}
+
+# Legacy execute-workflow command for backward compatibility
+browserless_execute_workflow_legacy() {
+    log::warn "⚠️  This command syntax is deprecated. Please use: resource-browserless for n8n execute-workflow"
+    echo ""
+    
+    # Delegate to adapter
+    browserless_adapter "n8n" "execute-workflow" "$@"
 }
 
 # Execute n8n workflow via browser automation with enhanced session management
