@@ -38,7 +38,7 @@ manage::get_git_commit() {
 
 #######################################
 # Get hash of current git working tree status
-# Includes tracked file modifications and untracked files
+# Includes tracked file modifications and untracked files, filtered by setup relevance
 #######################################
 manage::get_git_status_hash() {
     if ! git status --porcelain 2>/dev/null >/dev/null; then
@@ -46,10 +46,94 @@ manage::get_git_status_hash() {
         return 0
     fi
     
-    # Create hash from git status and untracked files
-    (git status --porcelain 2>/dev/null | sort; \
-     git ls-files --others --exclude-standard 2>/dev/null | sort) | \
-    sha256sum | cut -d' ' -f1
+    # Define patterns for files to ignore (don't affect setup)
+    local ignore_patterns=(
+        "scripts/scenarios/"
+        "docs/"
+        "*.md"
+        "test/"
+        "tests/"
+        "__tests__/"
+        "scripts/__test"
+        "node_modules/"
+        "dist/"
+        "build/"
+        ".next/"
+        "data/"
+        ".git/"
+        ".vscode/"
+        ".idea/"
+        "*.log"
+        "*.swp"
+        "*.swo"
+        ".env.local"
+        ".env.example"
+    )
+    
+    # Function to check if a file should be ignored
+    should_ignore_file() {
+        local file="$1"
+        local pattern
+        for pattern in "${ignore_patterns[@]}"; do
+            # Handle glob patterns and directory patterns
+            case "$pattern" in
+                */)
+                    # Directory pattern - check if file is in this directory
+                    if [[ "$file" == "$pattern"* ]]; then
+                        return 0  # Should ignore
+                    fi
+                    ;;
+                *.*)
+                    # File extension pattern
+                    if [[ "$file" == $pattern ]]; then
+                        return 0  # Should ignore
+                    fi
+                    ;;
+                *)
+                    # Substring pattern
+                    if [[ "$file" == *"$pattern"* ]]; then
+                        return 0  # Should ignore
+                    fi
+                    ;;
+            esac
+        done
+        return 1  # Should not ignore
+    }
+    
+    # Filter git status output to exclude blacklisted files
+    local filtered_status
+    filtered_status=$(git status --porcelain 2>/dev/null | while IFS= read -r line; do
+        # Extract filename from git status line (handle spaces in filenames)
+        local file
+        file=$(echo "$line" | sed 's/^...//')  # Remove first 3 characters (status codes)
+        
+        # Check if this file should be ignored
+        if ! should_ignore_file "$file"; then
+            echo "$line"
+        fi
+    done | sort)
+    
+    # Filter untracked files to exclude blacklisted files  
+    local filtered_untracked
+    filtered_untracked=$(git ls-files --others --exclude-standard 2>/dev/null | while IFS= read -r file; do
+        if ! should_ignore_file "$file"; then
+            echo "$file"
+        fi
+    done | sort)
+    
+    # Create hash from filtered results
+    local hash_result
+    hash_result=$((echo "$filtered_status"; echo "$filtered_untracked") | sha256sum | cut -d' ' -f1)
+    
+    # Debug: show filtering results (only if DEBUG_SETUP is set)
+    if [[ "${DEBUG_SETUP:-}" == "true" ]]; then
+        echo "DEBUG: Filtered git status hash generation:" >&2
+        echo "  Original files: $(git status --porcelain 2>/dev/null | wc -l)" >&2
+        echo "  Filtered files: $(echo "$filtered_status" | grep -c '^' || echo 0)" >&2
+        echo "  Hash: $hash_result" >&2
+    fi
+    
+    echo "$hash_result"
 }
 
 #######################################
@@ -63,8 +147,9 @@ manage::verify_setup_artifacts() {
     if [[ -f "api/go.mod" ]]; then
         local binary_name
         binary_name=$(basename "$PWD")
-        if [[ ! -f "api/${binary_name}-api" ]] && [[ ! -f "api/${binary_name}" ]]; then
-            log::debug "Go binary missing for ${binary_name}"
+        # Check for common binary naming patterns
+        if [[ ! -f "api/${binary_name}-api" ]] && [[ ! -f "api/${binary_name}" ]] && [[ ! -f "api/api-server" ]]; then
+            log::debug "Go binary missing for ${binary_name} (checked: ${binary_name}-api, ${binary_name}, api-server)"
             artifacts_missing=true
         fi
     fi
