@@ -73,7 +73,7 @@ tests:
 
   - name: CLI Installation Test
     type: cli
-    command: "cd cli && ./install-cli.sh && which app-monitor"
+    command: "cd cli && ./install.sh && which app-monitor"
     expected: success
 
   - name: App List Endpoint

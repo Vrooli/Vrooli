@@ -31,7 +31,7 @@ Successfully migrated the secure-document-processing scenario from legacy to mod
 
 ### 4. CLI Wrapper
 - ✅ Created lightweight CLI wrapper (`cli/secure-document-processing`)
-- ✅ Added installation script (`cli/install-cli.sh`)
+- ✅ Added installation script (`cli/install.sh`)
 - ✅ Created basic test suite (`cli/secure-document-processing.bats`)
 
 ### 5. Legacy Cleanup
@@ -92,7 +92,7 @@ secure-document-processing/
 │   └── go.mod                         # Go module definition
 ├── cli/
 │   ├── secure-document-processing     # CLI wrapper script
-│   ├── install-cli.sh                 # CLI installation script
+│   ├── install.sh                 # CLI installation script
 │   └── secure-document-processing.bats # CLI tests
 ├── initialization/
 │   ├── automation/n8n/               # n8n workflows (updated ports)

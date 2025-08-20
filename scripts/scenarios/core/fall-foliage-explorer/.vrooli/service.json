@@ -157,7 +157,7 @@
         },
         {
           "name": "install-cli",
-          "run": "cd cli && chmod +x foliage-explorer && ./install-cli.sh",
+          "run": "cd cli && chmod +x foliage-explorer && ./install.sh",
           "description": "Install CLI command"
         },
         {

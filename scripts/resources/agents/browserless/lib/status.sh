@@ -223,7 +223,7 @@ browserless::display_additional_info() {
         echo "----------------"
         
         local pressure_data
-        pressure_data=$(http::get "http://localhost:$BROWSERLESS_PORT/pressure" 2>/dev/null || echo "{}")
+        pressure_data=$(http::request "GET" "http://localhost:$BROWSERLESS_PORT/pressure" 2>/dev/null || echo "{}")
         
         if [[ -n "$pressure_data" ]] && [[ "$pressure_data" != "{}" ]]; then
             local running queued max_concurrent cpu memory
@@ -330,7 +330,7 @@ browserless::get_compact_status() {
         
         # Get pressure info
         local pressure_data
-        pressure_data=$(http::get "http://localhost:$BROWSERLESS_PORT/pressure" 2>/dev/null || echo "{}")
+        pressure_data=$(http::request "GET" "http://localhost:$BROWSERLESS_PORT/pressure" 2>/dev/null || echo "{}")
         
         if [[ -n "$pressure_data" ]] && [[ "$pressure_data" != "{}" ]]; then
             local running max_concurrent

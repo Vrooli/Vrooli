@@ -18,7 +18,7 @@ The Resume Screening Assistant scenario has been successfully migrated from the 
 
 ### 3. Created CLI Wrapper
 - ✅ Added `cli/resume-screening-assistant` - lightweight CLI wrapper
-- ✅ Added `cli/install-cli.sh` - global CLI installation script
+- ✅ Added `cli/install.sh` - global CLI installation script
 - ✅ Added `cli/resume-screening-assistant.bats` - CLI test suite
 
 ### 4. Resource Injection Setup
@@ -46,7 +46,7 @@ resume-screening-assistant/
 │   └── go.mod                    # Go dependencies
 ├── cli/                          # CLI wrapper
 │   ├── resume-screening-assistant # CLI script
-│   ├── install-cli.sh            # Global installation
+│   ├── install.sh            # Global installation
 │   └── resume-screening-assistant.bats # CLI tests
 ├── initialization/               # Resource injection data
 │   ├── automation/n8n/          # n8n workflows

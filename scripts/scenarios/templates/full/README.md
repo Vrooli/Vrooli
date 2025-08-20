@@ -155,7 +155,7 @@ curl -X POST \
 │   └── go.sum                 # Dependency checksums
 ├── cli/                       # Command-line interface
 │   ├── cli.sh                 # CLI implementation
-│   ├── install-cli.sh         # CLI installer
+│   ├── install.sh             # CLI installer
 │   └── cli-tests.bats         # CLI tests
 ├── README.md                  # This documentation
 ├── scenario-test.yaml         # Scenario validation tests

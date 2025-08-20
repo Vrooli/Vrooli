@@ -171,7 +171,7 @@ retro-game-launcher/
 │   └── go.sum                # Go dependency locks
 ├── cli/                       # Command line interface
 │   ├── retro-game-launcher   # Main CLI script
-│   ├── install-cli.sh        # CLI installation script
+│   ├── install.sh        # CLI installation script
 │   └── retro-game-launcher.bats # BATS test suite
 ├── ui/                        # React frontend
 │   ├── public/

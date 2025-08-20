@@ -188,8 +188,8 @@ done
 
 # Install CLI tool
 log::info "Installing CLI tool..."
-if [[ -f "${SCENARIO_DIR}/cli/install-cli.sh" ]]; then
-    bash "${SCENARIO_DIR}/cli/install-cli.sh" || log::warning "CLI installation failed"
+if [[ -f "${SCENARIO_DIR}/cli/install.sh" ]]; then
+    bash "${SCENARIO_DIR}/cli/install.sh" || log::warning "CLI installation failed"
 fi
 
 # Final status check

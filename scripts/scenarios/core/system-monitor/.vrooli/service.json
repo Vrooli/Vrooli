@@ -190,7 +190,7 @@
         },
         {
           "name": "install-cli",
-          "run": "cd cli && chmod +x system-monitor && ./install-cli.sh",
+          "run": "cd cli && chmod +x system-monitor && ./install.sh",
           "description": "Install CLI command"
         },
         {

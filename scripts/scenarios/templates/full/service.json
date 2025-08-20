@@ -135,10 +135,10 @@
         },
         {
           "name": "install-cli",
-          "run": "cd cli && ./install-cli.sh",
+          "run": "cd cli && ./install.sh",
           "description": "Install CLI command globally",
           "condition": {
-            "file_exists": "cli/install-cli.sh"
+            "file_exists": "cli/install.sh"
           }
         },
         {

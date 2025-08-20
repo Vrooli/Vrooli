@@ -116,7 +116,7 @@
       "description": "Command-line interface for quick prompt operations",
       "language": "bash",
       "path": "cli/prompt-manager",
-      "install_script": "cli/install-cli.sh",
+      "install_script": "cli/install.sh",
       "commands": [
         "status",
         "campaigns",

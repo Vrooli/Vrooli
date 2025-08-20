@@ -82,7 +82,7 @@ validation:
     - api/main.go
     - api/task-planner-api
     - cli/task-planner-cli.sh
-    - cli/install-cli.sh
+    - cli/install.sh
   
   resource_checks:
     postgres:

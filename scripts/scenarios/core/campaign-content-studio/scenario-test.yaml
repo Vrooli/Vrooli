@@ -8,7 +8,7 @@ structure:
     - api/main.go
     - api/go.mod
     - cli/campaign-content-studio-cli.sh
-    - cli/install-cli.sh
+    - cli/install.sh
     - cli/campaign-content-studio.bats
     - initialization/storage/schema.sql
     - initialization/storage/seed.sql

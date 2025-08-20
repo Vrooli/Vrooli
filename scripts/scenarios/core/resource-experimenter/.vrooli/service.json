@@ -69,7 +69,7 @@
         },
         {
           "name": "install-cli",
-          "run": "cd cli && ./install-cli.sh",
+          "run": "cd cli && ./install.sh",
           "description": "Install resource experimenter CLI globally"
         },
         {

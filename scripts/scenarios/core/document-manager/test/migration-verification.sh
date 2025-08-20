@@ -124,7 +124,7 @@ main() {
     # Check CLI wrapper
     log_info "Checking CLI wrapper..."
     check_file_exists "cli/document-manager" "CLI script"
-    check_file_exists "cli/install-cli.sh" "CLI installation script"
+    check_file_exists "cli/install.sh" "CLI installation script"
     
     if [[ -f "$SCENARIO_DIR/cli/document-manager" ]]; then
         if [[ -x "$SCENARIO_DIR/cli/document-manager" ]]; then
@@ -208,7 +208,7 @@ main() {
         echo
         log_info "Next steps:"
         echo "  1. Build the Go API: cd api && go mod download && go build -o document-manager-api main.go"
-        echo "  2. Install CLI: cd cli && sudo ./install-cli.sh"
+        echo "  2. Install CLI: cd cli && sudo ./install.sh"
         echo "  3. Test with orchestrator: vrooli scenario run document-manager"
         return 0
     else

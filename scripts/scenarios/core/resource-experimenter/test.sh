@@ -185,7 +185,7 @@ test_cli_installation() {
     if command -v resource-experimenter &> /dev/null; then
         return 0
     else
-        log_warning "CLI not installed (this is expected if install-cli.sh hasn't been run)"
+        log_warning "CLI not installed (this is expected if install.sh hasn't been run)"
         return 0  # Don't fail the test suite for this
     fi
 }

@@ -208,9 +208,18 @@ vault::check_secret_engines() {
     
     if [[ $? -eq 0 ]]; then
         local kv_engine_path="${VAULT_SECRET_ENGINE}/"
+        # Check both old format (direct) and new format (under .data)
         if echo "$mounts_response" | jq -e ".\"$kv_engine_path\"" >/dev/null 2>&1; then
             local kv_version
             kv_version=$(echo "$mounts_response" | jq -r ".\"$kv_engine_path\".options.version // \"1\"")
+            echo "    KV Engine ($VAULT_SECRET_ENGINE): ✅ Enabled (v$kv_version)"
+            
+            # Test functional operations
+            vault::test_secret_operations
+        elif echo "$mounts_response" | jq -e ".data.\"$kv_engine_path\"" >/dev/null 2>&1; then
+            # New format with data field
+            local kv_version
+            kv_version=$(echo "$mounts_response" | jq -r ".data.\"$kv_engine_path\".options.version // \"1\"")
             echo "    KV Engine ($VAULT_SECRET_ENGINE): ✅ Enabled (v$kv_version)"
             
             # Test functional operations
@@ -928,7 +937,9 @@ vault::status::collect_data() {
             
             if [[ $? -eq 0 ]]; then
                 local kv_engine_path="${VAULT_SECRET_ENGINE}/"
-                if echo "$mounts_response" | jq -e ".\"$kv_engine_path\"" >/dev/null 2>&1; then
+                # Check both old format (direct) and new format (under .data)
+                if echo "$mounts_response" | jq -e ".\"$kv_engine_path\"" >/dev/null 2>&1 || \
+                   echo "$mounts_response" | jq -e ".data.\"$kv_engine_path\"" >/dev/null 2>&1; then
                     kv_engine_enabled="true"
                 fi
             fi

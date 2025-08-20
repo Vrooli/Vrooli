@@ -9,7 +9,7 @@ structure:
     - api/main.go
     - api/go.mod
     - cli/research-assistant
-    - cli/install-cli.sh
+    - cli/install.sh
     - initialization/storage/postgres/schema.sql
     - initialization/storage/postgres/seed.sql
     - initialization/automation/n8n/research-orchestrator.json

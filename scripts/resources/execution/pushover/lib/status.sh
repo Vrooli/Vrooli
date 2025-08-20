@@ -43,7 +43,11 @@ pushover::status::collect_data() {
     if pushover::is_configured; then
         running="true"
         healthy="true"
-        health_message="Pushover is configured and ready"
+        if [[ "$PUSHOVER_DEMO_MODE" == "true" ]]; then
+            health_message="Pushover is running in demo mode (no real notifications)"
+        else
+            health_message="Pushover is configured and ready"
+        fi
     else
         # Not configured but installed - this is a valid pending state
         running="false"

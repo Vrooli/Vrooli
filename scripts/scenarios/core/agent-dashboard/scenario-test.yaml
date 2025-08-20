@@ -78,7 +78,7 @@ tests:
   - name: CLI Installation Test
     type: cli_test
     config:
-      install_script: cli/install-cli.sh
+      install_script: cli/install.sh
       commands:
         - agent-dashboard --version
         - agent-dashboard list

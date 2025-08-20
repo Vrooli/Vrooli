@@ -21,7 +21,7 @@ structure:
     - api/main.go
     - api/go.mod
     - cli/audio-intelligence-platform-cli.sh
-    - cli/install-cli.sh
+    - cli/install.sh
     - cli/audio-intelligence-platform.bats
     - test/test-analysis-endpoint.sh
     - test.sh

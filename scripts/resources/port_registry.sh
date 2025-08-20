@@ -34,6 +34,7 @@ declare -g -A RESOURCE_PORTS=(
     ["browserless"]="4110"     # Browserless.io Chrome service
     ["huginn"]="4111"          # Workflow automation platform
     ["agent-s2"]="4113"        # Agent S2 autonomous computer interaction
+    ["obs-studio"]="4455"      # OBS Studio WebSocket API
     # Note: claude-code is a CLI tool and doesn't use a port
     
     # Search Services (82xx range - moved to avoid conflict with debug range)

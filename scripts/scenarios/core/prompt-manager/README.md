@@ -134,7 +134,7 @@ npm install
 npm start
 
 # CLI Installation
-bash cli/install-cli.sh
+bash cli/install.sh
 ```
 
 ### Testing

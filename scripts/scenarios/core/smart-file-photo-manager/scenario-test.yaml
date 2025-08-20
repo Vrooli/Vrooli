@@ -147,7 +147,7 @@ validation:
     - api/main.go
     - api/go.mod
     - cli/smart-file-photo-manager
-    - cli/install-cli.sh
+    - cli/install.sh
     - initialization/storage/postgres/schema.sql
     - initialization/storage/postgres/seed.sql
     - initialization/storage/qdrant/collections.json

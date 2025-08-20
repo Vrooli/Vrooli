@@ -33,6 +33,12 @@ pushover::cli() {
         clear-credentials)
             pushover::clear_credentials "$@"
             ;;
+        enable-demo)
+            pushover::enable_demo_mode "$@"
+            ;;
+        disable-demo)
+            pushover::disable_demo_mode "$@"
+            ;;
         start)
             pushover::start "$@"
             ;;
@@ -72,6 +78,8 @@ Commands:
     uninstall       Remove Pushover support
     configure       Configure API credentials
     clear-credentials  Clear stored credentials
+    enable-demo     Enable demo mode (for testing without API keys)
+    disable-demo    Disable demo mode
     start           Activate Pushover service
     stop            Deactivate Pushover service
     inject          Inject notification templates
