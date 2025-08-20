@@ -86,6 +86,7 @@ log_error() {
 # Get enabled scenarios from catalog
 get_enabled_scenarios() {
     local catalog_file="$VROOLI_ROOT/scripts/scenarios/catalog.json"
+    local output_file="$1"
     
     if [[ ! -f "$catalog_file" ]]; then
         log_error "Catalog file not found: $catalog_file"
@@ -94,8 +95,8 @@ get_enabled_scenarios() {
     
     log_info "Reading catalog: $catalog_file"
     
-    # Extract enabled scenarios
-    jq -r '.scenarios[] | select(.enabled == true) | .name' "$catalog_file" 2>/dev/null || {
+    # Extract enabled scenarios to file to avoid command substitution issues
+    jq -r '.scenarios[] | select(.enabled == true) | .name' "$catalog_file" > "$output_file" 2>/dev/null || {
         log_error "Failed to parse catalog file"
         return 1
     }
@@ -183,7 +184,8 @@ verify_app_running() {
 # Start an app using individual vrooli app start command
 start_app() {
     local app_name="$1"
-    local log_file="/tmp/vrooli-start-${app_name}.log"
+    # Don't use local for log_file so it's available in subshells
+    log_file="/tmp/vrooli-start-${app_name}.log"
     
     log_info "Starting app: $app_name"
     
@@ -192,8 +194,85 @@ start_app() {
     local start_cmd=("$VROOLI_ROOT/cli/vrooli" app start "$app_name")
     [[ "$FAST_MODE" == "true" ]] && start_cmd+=(--fast)
     
-    # First attempt with 30 second timeout
-    if timeout 30s "${start_cmd[@]}" >"$log_file" 2>&1; then
+    # First attempt with 30 second timeout  
+    # Set up file descriptors first, then run command
+    # This ensures output is captured even if command exits immediately
+    # Create initial log entry with context information
+    {
+        echo "=== Vrooli App Start Debug Log ==="
+        echo "App: $app_name"
+        echo "Timestamp: $(date)"
+        echo "Attempt: 1 (initial)"
+        echo "Command: $VROOLI_ROOT/cli/vrooli app start $app_name ${FAST_MODE:+--fast}"
+        echo "Working Directory: $PWD"
+        echo "Log File: $log_file"
+        echo "Fast Mode: $FAST_MODE"
+        echo ""
+        echo "=== Command Output ==="
+    } > "$log_file"
+    
+    # Run command and capture output, appending to log
+    "$VROOLI_ROOT/cli/vrooli" app start "$app_name" ${FAST_MODE:+--fast} >> "$log_file" 2>&1 &
+    local pid=$!
+    local start_time=$(date +%s)
+    
+    # Wait for up to 30 seconds
+    local count=0
+    while [[ $count -lt 30 ]] && kill -0 $pid 2>/dev/null; do
+        sleep 1
+        ((count++))
+    done
+    
+    # If still running, kill it
+    if kill -0 $pid 2>/dev/null; then
+        kill -TERM $pid 2>/dev/null
+        sleep 2
+        kill -KILL $pid 2>/dev/null
+        wait $pid 2>/dev/null
+        local exit_code=124  # timeout
+    else
+        wait $pid
+        local exit_code=$?
+    fi
+    
+    local end_time=$(date +%s)
+    local duration=$((end_time - start_time))
+    
+    # Add post-execution information to log
+    {
+        echo ""
+        echo "=== Execution Summary ==="
+        echo "Exit Code: $exit_code"
+        echo "Duration: ${duration}s"
+        echo "Process ID: $pid"
+        
+        # Check if command produced any meaningful output (count non-empty lines between markers)
+        local output_lines=$(sed -n '/^=== Command Output ===$/,/^=== Execution Summary ===$/p' "$log_file" | sed '1d;$d' | grep -c '[^[:space:]]' || echo 0)
+        if [[ $output_lines -eq 0 ]]; then
+            echo ""
+            echo "=== No Output Analysis ==="
+            echo "NOTICE: App generated no output during startup."
+            echo "This could indicate:"
+            echo "  - App started successfully but runs silently"
+            echo "  - App failed but doesn't log errors"
+            echo "  - App requires different startup parameters"
+            echo ""
+            echo "Debugging suggestions:"
+            echo "  1. Add logging to the app's startup script"
+            echo "  2. Check app dependencies and configuration"
+            echo "  3. Run manually: vrooli app start $app_name --verbose"
+            echo "  4. Check app directory: $(find "$GENERATED_APPS_DIR/$app_name" -name "*.log" 2>/dev/null | head -3 | tr '\n' ' ')"
+        fi
+        
+        echo ""
+        echo "=== App Context ==="
+        echo "App Directory: $GENERATED_APPS_DIR/$app_name"
+        echo "Manage Script: $(ls -la "$GENERATED_APPS_DIR/$app_name/scripts/manage.sh" 2>/dev/null || echo "Not found")"
+        echo "Service Config: $(ls -la "$GENERATED_APPS_DIR/$app_name/.vrooli/service.json" 2>/dev/null || echo "Not found")"
+    } >> "$log_file"
+    
+    # Check if command succeeded
+    if [[ $exit_code -eq 0 ]]; then
         # Verify it's actually running
         if verify_app_running "$app_name"; then
             log_success "Started $app_name"
@@ -203,34 +282,138 @@ start_app() {
         else
             log_warning "$app_name started but verification failed"
         fi
+    # Check if timeout killed the process (exit code 124 or 143)
+    elif [[ $exit_code -eq 124 ]] || [[ $exit_code -eq 143 ]]; then
+        log_warning "$app_name startup timed out after 30s"
+        # Check if it actually started despite the timeout
+        if verify_app_running "$app_name"; then
+            log_success "Started $app_name (despite timeout)"
+            PORT_START=$((PORT_START + 1))
+            return 0
+        fi
     fi
     
-    # Retry once if failed
-    log_info "Retrying start for $app_name..."
+    # Retry once if failed, but skip setup this time
+    log_info "Retrying start for $app_name (skipping setup)..."
     sleep 2
-    # Build retry command with fast mode and skip-setup flags
-    local retry_cmd=("$VROOLI_ROOT/cli/vrooli" app start "$app_name" --skip-setup)
-    [[ "$FAST_MODE" == "true" ]] && retry_cmd+=(--fast)
     
-    if timeout 30s "${retry_cmd[@]}" >>"$log_file" 2>&1; then
+    # Add retry section to log
+    {
+        echo ""
+        echo "=========================================="
+        echo "=== RETRY ATTEMPT ==="
+        echo "Timestamp: $(date)"
+        echo "Attempt: 2 (retry with --skip-setup)"
+        echo "Command: $VROOLI_ROOT/cli/vrooli app start $app_name --skip-setup ${FAST_MODE:+--fast}"
+        echo ""
+        echo "=== Retry Command Output ==="
+    } >> "$log_file"
+    
+    # Run retry command
+    start_time=$(date +%s)
+    "$VROOLI_ROOT/cli/vrooli" app start "$app_name" --skip-setup ${FAST_MODE:+--fast} >> "$log_file" 2>&1 &
+    pid=$!
+    
+    # Wait for up to 30 seconds
+    count=0
+    while [[ $count -lt 30 ]] && kill -0 $pid 2>/dev/null; do
+        sleep 1
+        ((count++))
+    done
+    
+    # If still running, kill it
+    if kill -0 $pid 2>/dev/null; then
+        kill -TERM $pid 2>/dev/null
+        sleep 2
+        kill -KILL $pid 2>/dev/null
+        wait $pid 2>/dev/null
+        exit_code=124  # timeout
+    else
+        wait $pid
+        exit_code=$?
+    fi
+    
+    end_time=$(date +%s)
+    duration=$((end_time - start_time))
+    
+    # Add retry summary to log
+    {
+        echo ""
+        echo "=== Retry Execution Summary ==="
+        echo "Exit Code: $exit_code"
+        echo "Duration: ${duration}s"
+        echo "Process ID: $pid"
+        
+        # Check if retry produced any meaningful output (count non-empty lines between markers)
+        local retry_output_lines=$(sed -n '/^=== Retry Command Output ===$/,/^=== Retry Execution Summary ===$/p' "$log_file" | sed '1d;$d' | grep -c '[^[:space:]]' || echo 0)
+        if [[ $retry_output_lines -eq 0 ]]; then
+            echo ""
+            echo "=== Retry No Output Analysis ==="
+            echo "NOTICE: Retry also generated no output."
+            echo "This suggests the app consistently produces no startup output."
+            echo "Consider checking if the app runs in daemon mode or requires"
+            echo "different initialization steps."
+        fi
+        
+        echo ""
+        echo "=== Final Status ==="
+        if [[ $exit_code -eq 0 ]]; then
+            echo "Command completed successfully but app verification may have failed."
+        elif [[ $exit_code -eq 124 ]]; then
+            echo "Command timed out after 30 seconds."
+        else
+            echo "Command failed with exit code $exit_code."
+        fi
+    } >> "$log_file"
+    
+    # Check if retry succeeded
+    if [[ $exit_code -eq 0 ]]; then
         if verify_app_running "$app_name"; then
             log_success "Started $app_name (on retry)"
             PORT_START=$((PORT_START + 1))
             rm -f "$log_file"  # Clean up log on success
             return 0
         fi
+    # Check if timeout killed the retry
+    elif [[ $exit_code -eq 124 ]] || [[ $exit_code -eq 143 ]]; then
+        log_warning "$app_name retry timed out after 30s"
+        # Check if it actually started despite the timeout
+        if verify_app_running "$app_name"; then
+            log_success "Started $app_name (despite retry timeout)"
+            PORT_START=$((PORT_START + 1))
+            return 0
+        fi
     fi
     
     # Failed to start - provide error details
     log_error "Failed to start $app_name after retry"
+    
+    # Always show log file since we now always create detailed logs
+    log_warning "Debug information saved to: $log_file"
+    
+    # Show a helpful summary from the log
     if [[ -f "$log_file" ]]; then
-        log_warning "Error details saved to: $log_file"
-        # Show last few lines of error
-        tail -5 "$log_file" | while IFS= read -r line; do
-            echo "  > $line" >&2
-        done
+        # Extract key information from our structured log
+        local exit_code_info=$(grep "Exit Code:" "$log_file" | tail -1)
+        local no_output_notice=$(grep -q "NOTICE: App generated no output" "$log_file" && echo "App produced no output during startup")
+        
+        echo "  Summary from log:" >&2
+        [[ -n "$exit_code_info" ]] && echo "    $exit_code_info" >&2
+        [[ -n "$no_output_notice" ]] && echo "    $no_output_notice" >&2
+        
+        # Show last few lines of actual command output (if any)
+        local command_output=$(sed -n '/^=== Command Output ===$/,/^===/p' "$log_file" | sed '1d;$d' | tail -3)
+        if [[ -n "$command_output" && "$command_output" != *"NOTICE: App generated no output"* ]]; then
+            echo "    Last command output:" >&2
+            echo "$command_output" | while IFS= read -r line; do
+                [[ -n "$line" ]] && echo "      > $line" >&2
+            done
+        fi
+        
+        echo "    Full details: cat $log_file" >&2
     fi
-    echo "  Use 'vrooli app start $app_name' to debug manually" >&2
+    
+    echo "  Quick debug: vrooli app start $app_name --verbose" >&2
     PORT_START=$((PORT_START + 1))  # Still increment port to avoid conflicts
     return 1
 }
@@ -242,11 +425,19 @@ main() {
     
     # Get enabled scenarios
     log_info "Discovering enabled scenarios..."
-    local enabled_scenarios
-    if ! enabled_scenarios=$(get_enabled_scenarios); then
-        log_error "Failed to get enabled scenarios"
+    local catalog_file="$VROOLI_ROOT/scripts/scenarios/catalog.json"
+    
+    if [[ ! -f "$catalog_file" ]]; then
+        log_error "Catalog file not found: $catalog_file"
         return 1
     fi
+    
+    # Read scenarios directly without command substitution
+    local enabled_scenarios=""
+    while IFS= read -r scenario; do
+        [[ -n "$scenario" ]] && enabled_scenarios="${enabled_scenarios}${scenario}
+"
+    done < <(jq -r '.scenarios[] | select(.enabled == true) | .name' "$catalog_file" 2>/dev/null)
     
     if [[ -z "$enabled_scenarios" ]]; then
         log_warning "No enabled scenarios found"
