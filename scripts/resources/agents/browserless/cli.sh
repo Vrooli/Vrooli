@@ -75,6 +75,9 @@ cli::register_command "execute" "Execute stored function" "browserless_execute_f
 cli::register_command "remove-function" "Remove stored function" "browserless_remove_function" "modifies-system"
 cli::register_command "validate" "Validate function JSON without storing" "browserless_validate_function"
 
+# Workflow management commands
+cli::register_command "workflow" "Manage workflows (create, run, list, etc.)" "browserless_workflow"
+
 # Register adapter command for the new "for" pattern
 cli::register_command "for" "Use browserless as adapter for other resources" "browserless_adapter"
 
@@ -656,6 +659,476 @@ browserless_validate_function() {
     
     log::success "✅ Function validation passed"
     log::info "💾 Inject with: resource-browserless inject $file_path"
+}
+
+################################################################################
+# Workflow Management Commands
+################################################################################
+
+# Main workflow command dispatcher
+browserless_workflow() {
+    local subcommand="${1:-help}"
+    shift || true
+    
+    # Source workflow libraries
+    source "${BROWSERLESS_CLI_DIR}/lib/workflow/parser.sh"
+    source "${BROWSERLESS_CLI_DIR}/lib/workflow/compiler.sh"
+    source "${BROWSERLESS_CLI_DIR}/lib/workflow/debug.sh"
+    
+    case "$subcommand" in
+        create)
+            browserless_workflow_create "$@"
+            ;;
+        run|execute)
+            browserless_workflow_run "$@"
+            ;;
+        list)
+            browserless_workflow_list "$@"
+            ;;
+        describe|show)
+            browserless_workflow_describe "$@"
+            ;;
+        validate)
+            browserless_workflow_validate "$@"
+            ;;
+        results)
+            browserless_workflow_results "$@"
+            ;;
+        delete|remove)
+            browserless_workflow_delete "$@"
+            ;;
+        compile)
+            browserless_workflow_compile "$@"
+            ;;
+        help|--help|-h)
+            browserless_workflow_help
+            ;;
+        *)
+            log::error "Unknown workflow subcommand: $subcommand"
+            browserless_workflow_help
+            return 1
+            ;;
+    esac
+}
+
+# Show workflow help
+browserless_workflow_help() {
+    cat <<EOF
+Browserless Workflow Management
+
+Usage:
+  resource-browserless workflow <subcommand> [options]
+
+Subcommands:
+  create <workflow.yaml>    Create workflow from YAML/JSON file
+  run <name> [params]       Run workflow with parameters
+  list                      List all workflows
+  describe <name>           Show workflow details
+  validate <workflow.yaml>  Validate workflow file
+  results <name> [exec-id]  View workflow execution results
+  delete <name>             Delete workflow
+  compile <workflow.yaml>   Compile workflow to JavaScript
+  help                      Show this help message
+
+Examples:
+  # Create workflow from YAML file
+  resource-browserless workflow create login-flow.yaml
+  
+  # Run workflow with parameters
+  resource-browserless workflow run login-flow username=admin dashboard_url=http://localhost:3000
+  
+  # View latest execution results
+  resource-browserless workflow results login-flow
+  
+  # List all workflows
+  resource-browserless workflow list
+
+Workflow File Format:
+  Workflows are defined in YAML or JSON with the following structure:
+  
+  workflow:
+    name: "my-workflow"
+    description: "Description of what this workflow does"
+    parameters:
+      param1:
+        type: string
+        required: true
+    steps:
+      - name: "step-name"
+        action: "navigate"
+        url: "\${params.param1}"
+        debug:
+          screenshot: true
+
+For more information on workflow syntax and available actions, see:
+  /docs/plans/browserless-workflow-system.md
+EOF
+}
+
+# Create workflow from file
+browserless_workflow_create() {
+    local workflow_file="${1:-}"
+    
+    if [[ -z "$workflow_file" ]]; then
+        log::error "Workflow file required"
+        echo "Usage: resource-browserless workflow create <workflow.yaml>"
+        return 1
+    fi
+    
+    if [[ ! -f "$workflow_file" ]]; then
+        log::error "Workflow file not found: $workflow_file"
+        return 1
+    fi
+    
+    # Compile and store workflow
+    workflow::compile_and_store "$workflow_file"
+}
+
+# Run workflow
+browserless_workflow_run() {
+    local workflow_name="${1:-}"
+    shift || true
+    
+    if [[ -z "$workflow_name" ]]; then
+        log::error "Workflow name required"
+        echo "Usage: resource-browserless workflow run <name> [param=value...]"
+        return 1
+    fi
+    
+    local workflow_dir="${BROWSERLESS_DATA_DIR}/workflows/${workflow_name}"
+    
+    if [[ ! -d "$workflow_dir" ]]; then
+        log::error "Workflow not found: $workflow_name"
+        log::info "List available workflows with: resource-browserless workflow list"
+        return 1
+    fi
+    
+    log::header "🚀 Running Workflow: $workflow_name"
+    
+    # Parse parameters
+    local params="{}"
+    for arg in "$@"; do
+        if [[ "$arg" == *"="* ]]; then
+            local key="${arg%%=*}"
+            local value="${arg#*=}"
+            params=$(echo "$params" | jq --arg k "$key" --arg v "$value" '. + {($k): $v}')
+        fi
+    done
+    
+    log::info "Parameters: $(echo "$params" | jq -c .)"
+    
+    # Initialize debug execution
+    local execution_id=$(date +%s)
+    local debug_dir
+    debug_dir=$(debug::init_execution "$workflow_name" "$execution_id")
+    
+    # Create context
+    local context
+    context=$(jq -n \
+        --arg workflow "$workflow_name" \
+        --arg execution "$execution_id" \
+        --arg output "$debug_dir/outputs" \
+        '{
+            workflow: $workflow,
+            executionId: $execution,
+            outputDir: $output,
+            timestamp: (now | strftime("%Y-%m-%dT%H:%M:%SZ"))
+        }')
+    
+    # Get compiled function
+    local compiled_js="${workflow_dir}/compiled.js"
+    
+    if [[ ! -f "$compiled_js" ]]; then
+        log::error "Compiled workflow not found. Re-create the workflow."
+        return 1
+    fi
+    
+    # Read function code
+    local function_code
+    function_code=$(<"$compiled_js")
+    
+    # Execute via browserless
+    log::info "Executing workflow..."
+    local result
+    result=$(browserless::run_function "$function_code" "60000" "true" "workflow_${workflow_name}_${execution_id}")
+    local exit_code=$?
+    
+    # Store result
+    echo "$result" > "${debug_dir}/result.json"
+    
+    # Update metadata
+    local status="completed"
+    if [[ $exit_code -ne 0 ]]; then
+        status="failed"
+    fi
+    
+    jq --arg status "$status" \
+       --arg ended "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" \
+       '.status = $status | .ended_at = $ended' \
+       "${debug_dir}/metadata.json" > "${debug_dir}/metadata.json.tmp" && \
+       mv "${debug_dir}/metadata.json.tmp" "${debug_dir}/metadata.json"
+    
+    if [[ $exit_code -eq 0 ]]; then
+        log::success "✅ Workflow completed successfully"
+    else
+        log::error "❌ Workflow failed"
+    fi
+    
+    # Show summary
+    debug::view_results "$workflow_name" "$execution_id"
+}
+
+# List workflows
+browserless_workflow_list() {
+    local workflows_dir="${BROWSERLESS_DATA_DIR}/workflows"
+    
+    if [[ ! -d "$workflows_dir" ]]; then
+        log::info "No workflows found"
+        log::info "Create workflows with: resource-browserless workflow create <workflow.yaml>"
+        return 0
+    fi
+    
+    log::header "📋 Browserless Workflows"
+    echo
+    
+    local count=0
+    for workflow_dir in "$workflows_dir"/*; do
+        if [[ -d "$workflow_dir" ]] && [[ -f "$workflow_dir/metadata.json" ]]; then
+            local workflow_name=$(basename "$workflow_dir")
+            local metadata
+            metadata=$(<"$workflow_dir/metadata.json")
+            
+            local description=$(echo "$metadata" | jq -r '.description // ""')
+            local step_count=$(echo "$metadata" | jq -r '.step_count // 0')
+            
+            echo "📝 $workflow_name"
+            if [[ -n "$description" ]]; then
+                echo "   $description"
+            fi
+            echo "   Steps: $step_count"
+            
+            # Check for recent executions
+            if [[ -d "$workflow_dir/executions" ]]; then
+                local exec_count
+                exec_count=$(find "$workflow_dir/executions" -maxdepth 1 -type d | wc -l)
+                exec_count=$((exec_count - 1))  # Subtract parent directory
+                if [[ $exec_count -gt 0 ]]; then
+                    echo "   Executions: $exec_count"
+                fi
+            fi
+            echo
+            
+            count=$((count + 1))
+        fi
+    done
+    
+    if [[ $count -eq 0 ]]; then
+        log::info "No workflows found"
+        log::info "Create workflows with: resource-browserless workflow create <workflow.yaml>"
+    else
+        echo "Total workflows: $count"
+        echo
+        echo "Commands:"
+        echo "  resource-browserless workflow run <name>      # Run workflow"
+        echo "  resource-browserless workflow describe <name>  # Show details"
+        echo "  resource-browserless workflow results <name>   # View results"
+    fi
+}
+
+# Describe workflow
+browserless_workflow_describe() {
+    local workflow_name="${1:-}"
+    
+    if [[ -z "$workflow_name" ]]; then
+        log::error "Workflow name required"
+        echo "Usage: resource-browserless workflow describe <name>"
+        return 1
+    fi
+    
+    local workflow_dir="${BROWSERLESS_DATA_DIR}/workflows/${workflow_name}"
+    
+    if [[ ! -d "$workflow_dir" ]]; then
+        log::error "Workflow not found: $workflow_name"
+        return 1
+    fi
+    
+    log::header "📄 Workflow Details: $workflow_name"
+    echo
+    
+    # Show metadata
+    if [[ -f "$workflow_dir/metadata.json" ]]; then
+        local metadata
+        metadata=$(<"$workflow_dir/metadata.json")
+        
+        echo "📝 Metadata:"
+        echo "  Name: $(echo "$metadata" | jq -r '.name')"
+        echo "  Description: $(echo "$metadata" | jq -r '.description // "No description"')"
+        echo "  Version: $(echo "$metadata" | jq -r '.version // "1.0.0"')"
+        echo "  Steps: $(echo "$metadata" | jq -r '.step_count // 0')"
+        echo "  Debug Level: $(echo "$metadata" | jq -r '.debug_level // "none"')"
+        echo
+        
+        echo "🎯 Actions Used:"
+        echo "$metadata" | jq -r '.actions[]' | sed 's/^/  - /'
+        echo
+    fi
+    
+    # Show parameters
+    if [[ -f "$workflow_dir/workflow.json" ]]; then
+        local workflow
+        workflow=$(<"$workflow_dir/workflow.json")
+        
+        echo "⚙️  Parameters:"
+        local param_count
+        param_count=$(echo "$workflow" | jq '.workflow.parameters | length')
+        
+        if [[ "$param_count" == "0" ]]; then
+            echo "  No parameters defined"
+        else
+            echo "$workflow" | jq -r '.workflow.parameters | to_entries[] | "  \(.key) (\(.value.type // "string")): \(.value.description // "No description")"'
+        fi
+        echo
+    fi
+    
+    # Show files
+    echo "📁 Files:"
+    echo "  Workflow: $workflow_dir/workflow.json"
+    echo "  Compiled: $workflow_dir/compiled.js"
+    echo "  Metadata: $workflow_dir/metadata.json"
+    
+    # Show recent executions
+    if [[ -d "$workflow_dir/executions" ]]; then
+        local exec_count
+        exec_count=$(find "$workflow_dir/executions" -maxdepth 1 -type d | wc -l)
+        exec_count=$((exec_count - 1))  # Subtract parent directory
+        
+        if [[ $exec_count -gt 0 ]]; then
+            echo
+            echo "📊 Recent Executions: $exec_count total"
+            find "$workflow_dir/executions" -maxdepth 1 -type d | sort -r | head -4 | tail -3 | while read -r exec_dir; do
+                if [[ "$exec_dir" != "$workflow_dir/executions" ]]; then
+                    local exec_id=$(basename "$exec_dir")
+                    echo "  - $exec_id"
+                fi
+            done
+        fi
+    fi
+}
+
+# Validate workflow file
+browserless_workflow_validate() {
+    local workflow_file="${1:-}"
+    
+    if [[ -z "$workflow_file" ]]; then
+        log::error "Workflow file required"
+        echo "Usage: resource-browserless workflow validate <workflow.yaml>"
+        return 1
+    fi
+    
+    if [[ ! -f "$workflow_file" ]]; then
+        log::error "Workflow file not found: $workflow_file"
+        return 1
+    fi
+    
+    log::header "✅ Validating Workflow: $workflow_file"
+    
+    # Parse and validate
+    local workflow_json
+    workflow_json=$(workflow::parse "$workflow_file")
+    
+    if [[ $? -eq 0 ]]; then
+        log::success "✅ Workflow is valid"
+        
+        # Show summary
+        local metadata
+        metadata=$(workflow::extract_metadata "$workflow_json")
+        
+        echo
+        echo "📋 Workflow Summary:"
+        echo "  Name: $(echo "$metadata" | jq -r '.name')"
+        echo "  Description: $(echo "$metadata" | jq -r '.description // "No description"')"
+        echo "  Steps: $(echo "$metadata" | jq -r '.step_count')"
+        echo "  Actions: $(echo "$metadata" | jq -r '.actions | join(", ")')"
+    else
+        log::error "❌ Workflow validation failed"
+        return 1
+    fi
+}
+
+# View workflow results
+browserless_workflow_results() {
+    local workflow_name="${1:-}"
+    local execution_id="${2:-latest}"
+    
+    if [[ -z "$workflow_name" ]]; then
+        log::error "Workflow name required"
+        echo "Usage: resource-browserless workflow results <name> [execution-id]"
+        return 1
+    fi
+    
+    debug::view_results "$workflow_name" "$execution_id"
+}
+
+# Delete workflow
+browserless_workflow_delete() {
+    local workflow_name="${1:-}"
+    
+    if [[ -z "$workflow_name" ]]; then
+        log::error "Workflow name required"
+        echo "Usage: resource-browserless workflow delete <name>"
+        return 1
+    fi
+    
+    local workflow_dir="${BROWSERLESS_DATA_DIR}/workflows/${workflow_name}"
+    
+    if [[ ! -d "$workflow_dir" ]]; then
+        log::error "Workflow not found: $workflow_name"
+        return 1
+    fi
+    
+    log::header "🗑️  Deleting Workflow: $workflow_name"
+    
+    # Remove workflow directory
+    rm -rf "$workflow_dir"
+    
+    log::success "✅ Workflow '$workflow_name' deleted successfully"
+}
+
+# Compile workflow (for testing/debugging)
+browserless_workflow_compile() {
+    local workflow_file="${1:-}"
+    
+    if [[ -z "$workflow_file" ]]; then
+        log::error "Workflow file required"
+        echo "Usage: resource-browserless workflow compile <workflow.yaml>"
+        return 1
+    fi
+    
+    if [[ ! -f "$workflow_file" ]]; then
+        log::error "Workflow file not found: $workflow_file"
+        return 1
+    fi
+    
+    log::header "🔧 Compiling Workflow: $workflow_file"
+    
+    # Parse workflow
+    local workflow_json
+    workflow_json=$(workflow::parse "$workflow_file")
+    
+    if [[ $? -ne 0 ]]; then
+        log::error "Failed to parse workflow"
+        return 1
+    fi
+    
+    # Compile to JavaScript
+    local compiled_js
+    compiled_js=$(workflow::compile "$workflow_json")
+    
+    echo
+    echo "📝 Compiled JavaScript:"
+    echo "----------------------------------------"
+    echo "$compiled_js"
+    echo "----------------------------------------"
 }
 
 # Uninstall browserless

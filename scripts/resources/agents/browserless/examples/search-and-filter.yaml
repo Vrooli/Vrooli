@@ -1,0 +1,253 @@
+workflow:
+  name: "search-and-filter"
+  description: "Perform search operations with filters and extract results"
+  version: "1.0.0"
+  debug_level: "steps"
+  
+  parameters:
+    search_url:
+      type: string
+      required: true
+      description: "Base search URL"
+    search_query:
+      type: string
+      required: true
+      description: "Search query terms"
+    filters:
+      type: object
+      required: false
+      description: "Filters to apply"
+      properties:
+        category:
+          type: string
+        price_min:
+          type: number
+        price_max:
+          type: number
+        date_range:
+          type: string
+        location:
+          type: string
+        sort_by:
+          type: string
+    max_results:
+      type: number
+      required: false
+      description: "Maximum number of results to extract"
+      default: 50
+    results_per_page:
+      type: number
+      required: false
+      description: "Expected results per page"
+      default: 10
+  
+  steps:
+    - name: "navigate-to-search"
+      action: "navigate"
+      url: "${params.search_url}"
+      wait_for: "networkidle2"
+      timeout: 30000
+      debug:
+        screenshot: true
+        network: true
+    
+    - name: "wait-for-search-box"
+      action: "wait_for_element"
+      selector: "input[type='search'], input[name='q'], #search, .search-input"
+      timeout: 10000
+      visible: true
+      debug:
+        screenshot: false
+    
+    - name: "enter-search-query"
+      action: "fill_form"
+      selectors:
+        search: "input[type='search'], input[name='q'], #search, .search-input"
+      values:
+        search: "${params.search_query}"
+      debug:
+        screenshot: true
+    
+    - name: "submit-search"
+      action: "keyboard"
+      key: "Enter"
+      debug:
+        screenshot: false
+    
+    - name: "wait-for-results"
+      action: "wait_for_element"
+      selector: ".search-results, .results-container, #results, .product-list"
+      timeout: 15000
+      debug:
+        screenshot: true
+    
+    - name: "apply-category-filter"
+      action: "click"
+      selector: "input[value='${params.filters.category}'], label:contains('${params.filters.category}')"
+      condition: "${params.filters.category}"
+      on_error: "continue"
+      debug:
+        screenshot: true
+    
+    - name: "set-price-range"
+      action: "fill_form"
+      selectors:
+        min_price: "input[name='price_min'], #price-min, .price-min"
+        max_price: "input[name='price_max'], #price-max, .price-max"
+      values:
+        min_price: "${params.filters.price_min}"
+        max_price: "${params.filters.price_max}"
+      condition: "${params.filters.price_min || params.filters.price_max}"
+      on_error: "continue"
+      debug:
+        screenshot: true
+    
+    - name: "set-location-filter"
+      action: "fill_form"
+      selectors:
+        location: "input[name='location'], #location, .location-input"
+      values:
+        location: "${params.filters.location}"
+      condition: "${params.filters.location}"
+      on_error: "continue"
+      debug:
+        screenshot: true
+    
+    - name: "apply-date-filter"
+      action: "select"
+      selector: "select[name='date_range'], #date-range, .date-filter"
+      value: "${params.filters.date_range}"
+      condition: "${params.filters.date_range}"
+      on_error: "continue"
+      debug:
+        screenshot: true
+    
+    - name: "apply-sort"
+      action: "select"
+      selector: "select[name='sort'], #sort-by, .sort-dropdown"
+      value: "${params.filters.sort_by}"
+      condition: "${params.filters.sort_by}"
+      on_error: "continue"
+      debug:
+        screenshot: true
+    
+    - name: "apply-filters-button"
+      action: "click"
+      selector: "button:contains('Apply'), button:contains('Filter'), .apply-filters"
+      condition: "${params.filters}"
+      on_error: "continue"
+      debug:
+        screenshot: true
+        network: true
+    
+    - name: "wait-for-filtered-results"
+      action: "wait_for_network_idle"
+      idle_time: 2000
+      condition: "${params.filters}"
+      debug:
+        screenshot: false
+    
+    - name: "count-results"
+      action: "evaluate"
+      script: |
+        const resultElements = document.querySelectorAll('.search-result, .product-item, .result-card, article');
+        const totalCount = document.querySelector('.result-count, .total-results');
+        return {
+          visible_count: resultElements.length,
+          total_count: totalCount ? totalCount.textContent : null,
+          timestamp: new Date().toISOString()
+        };
+      output: "${context.outputDir}/result-count.json"
+      debug:
+        screenshot: false
+    
+    - name: "extract-page-1-results"
+      action: "extract_data"
+      selectors:
+        title: ".result-title, .product-name, h2, h3"
+        price: ".price, .result-price, .product-price"
+        description: ".description, .result-description, .product-description"
+        link: "a[href]"
+        image: "img[src], .product-image"
+        rating: ".rating, .stars, .review-score"
+      parent_selector: ".search-result, .product-item, .result-card"
+      limit: "${params.results_per_page}"
+      output: "${context.outputDir}/results-page-1.json"
+      debug:
+        screenshot: true
+    
+    - name: "scroll-to-bottom"
+      action: "scroll"
+      direction: "bottom"
+      debug:
+        screenshot: false
+    
+    - name: "check-for-more-results"
+      action: "assert_element"
+      selector: ".next-page, .pagination, button:contains('Next'), a:contains('Next')"
+      on_error: "continue"
+      debug:
+        screenshot: false
+    
+    - name: "load-more-results"
+      action: "click"
+      selector: "button:contains('Load More'), .load-more, #load-more"
+      on_error: "continue"
+      wait_for_navigation: false
+      debug:
+        screenshot: true
+    
+    - name: "go-to-page-2"
+      action: "click"
+      selector: ".next-page, a:contains('Next'), button:contains('Next'), .pagination a:contains('2')"
+      on_error: "continue"
+      wait_for_navigation: true
+      condition: "${params.max_results > params.results_per_page}"
+      debug:
+        screenshot: true
+        network: true
+    
+    - name: "wait-for-page-2"
+      action: "wait_for_network_idle"
+      idle_time: 2000
+      condition: "${params.max_results > params.results_per_page}"
+      on_error: "continue"
+      debug:
+        screenshot: false
+    
+    - name: "extract-page-2-results"
+      action: "extract_data"
+      selectors:
+        title: ".result-title, .product-name, h2, h3"
+        price: ".price, .result-price, .product-price"
+        description: ".description, .result-description, .product-description"
+        link: "a[href]"
+      parent_selector: ".search-result, .product-item, .result-card"
+      limit: "${params.results_per_page}"
+      output: "${context.outputDir}/results-page-2.json"
+      condition: "${params.max_results > params.results_per_page}"
+      on_error: "continue"
+      debug:
+        screenshot: true
+    
+    - name: "aggregate-results"
+      action: "evaluate"
+      script: |
+        // This would aggregate all extracted results
+        const summary = {
+          query: '${params.search_query}',
+          filters_applied: ${JSON.stringify(params.filters || {})},
+          pages_processed: 2,
+          timestamp: new Date().toISOString()
+        };
+        return summary;
+      output: "${context.outputDir}/search-summary.json"
+      debug:
+        screenshot: false
+    
+    - name: "capture-final-results"
+      action: "screenshot"
+      output: "${context.outputDir}/final-search-results.png"
+      full_page: true
+      debug:
+        screenshot: true

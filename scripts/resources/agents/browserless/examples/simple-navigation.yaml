@@ -1,0 +1,44 @@
+workflow:
+  name: "simple-navigation"
+  description: "Simple navigation workflow to test the workflow system"
+  version: "1.0.0"
+  debug_level: "steps"
+  
+  parameters:
+    url:
+      type: string
+      required: true
+      description: "URL to navigate to"
+      default: "https://httpbin.org/html"
+    wait_time:
+      type: number
+      required: false
+      description: "Time to wait in milliseconds"
+      default: 2000
+  
+  steps:
+    - name: "navigate-to-page"
+      action: "navigate"
+      url: "${params.url}"
+      wait_for: "networkidle2"
+      timeout: 30000
+      debug:
+        screenshot: true
+        console: true
+    
+    - name: "wait-for-content"
+      action: "wait"
+      duration: "${params.wait_time}"
+      debug:
+        screenshot: false
+    
+    - name: "extract-title"
+      action: "extract_text"
+      selector: "h1"
+      debug:
+        screenshot: true
+    
+    - name: "capture-final-screenshot"
+      action: "screenshot"
+      output: "${context.outputDir}/final-page.png"
+      full_page: true
