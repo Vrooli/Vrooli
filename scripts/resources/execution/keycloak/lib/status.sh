@@ -55,11 +55,11 @@ keycloak::status::collect_data() {
             # Keycloak has a ready marker file in newer versions
             health="true"
             message="Keycloak is running and healthy on port ${port}"
-        elif docker run --rm --network vrooli-network alpine/curl -sf "http://vrooli-keycloak:8080/realms/master" >/dev/null 2>&1; then
+        elif timeout 5 docker run --rm --network vrooli-network alpine/curl -sf "http://vrooli-keycloak:8080/realms/master" >/dev/null 2>&1; then
             # Try accessing through Docker network
             health="true"
             message="Keycloak is running and healthy on port ${port}"
-        elif curl -sf "http://localhost:${port}/realms/master" >/dev/null 2>&1; then
+        elif timeout 5 curl -sf "http://localhost:${port}/realms/master" >/dev/null 2>&1; then
             # Try the realms endpoint instead of health endpoint
             health="true"
             message="Keycloak is running and healthy on port ${port}"
@@ -78,7 +78,7 @@ keycloak::status::collect_data() {
                 token=$(keycloak::get_admin_token)
                 if [[ -n "${token}" ]]; then
                     local realm_count
-                    realm_count=$(curl -sf -H "Authorization: Bearer ${token}" \
+                    realm_count=$(timeout 10 curl -sf -H "Authorization: Bearer ${token}" \
                         "http://localhost:${port}/admin/realms" 2>/dev/null | \
                         jq '. | length' 2>/dev/null || echo "unknown")
                     details="${details}, Realms: ${realm_count}"

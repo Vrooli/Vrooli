@@ -12,7 +12,18 @@ vrooli resource simpy install
 vrooli resource simpy status
 
 # Run example simulation
-vrooli resource simpy run examples/basic_queue.py
+vrooli resource simpy run examples/bank_queue.py
+
+# List available examples
+vrooli resource simpy list-examples
+
+# Run resource pool simulation to analyze bottlenecks
+resource-simpy run examples/resource_pool.py
+
+# Use the API to run custom simulations
+curl -X POST http://localhost:9510/simulate \
+  -H "Content-Type: application/json" \
+  -d '{"name": "bank_queue", "parameters": {"customers": 20}}'
 ```
 
 ## Architecture
@@ -31,11 +42,33 @@ SimPy runs as a lightweight Python service that:
 - **Queue Management**: Model and optimize queuing systems
 - **Performance Prediction**: Predict system behavior under various loads
 
+## Available Examples
+
+- **bank_queue.py**: Simulates customer service at a bank with multiple tellers
+- **machine_shop.py**: Models a production system with machines and maintenance
+- **resource_pool.py**: Models shared resource allocation (agents, servers, GPUs) with bottleneck analysis
+- **basic_queue.py**: Simple queuing system demonstration
+
+## API Endpoints
+
+- `GET /health` - Service health check
+- `POST /simulate` - Run a simulation with custom code
+- `GET /examples` - List available example simulations
+
 ## Documentation
 
 - [Installation Guide](docs/installation.md)
 - [API Reference](docs/api.md)
 - [Examples](examples/)
+
+## Testing
+
+Integration tests are available in the `test/` directory:
+
+```bash
+# Run integration tests
+bats scripts/resources/execution/simpy/test/integration.bats
+```
 
 ## Integration with Vrooli
 

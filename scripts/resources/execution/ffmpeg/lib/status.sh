@@ -60,6 +60,27 @@ ffmpeg::status::collect_data() {
         health_message="FFmpeg installed and ready"
     fi
     
+    # Check test results
+    local test_status="not_run"
+    local test_timestamp=""
+    local test_results=""
+    local test_result_file="${FFMPEG_STATUS_DIR}/../test/.test_results"
+    
+    if [[ -f "$test_result_file" ]] && [[ "$fast_mode" != "true" ]]; then
+        test_timestamp=$(stat -c %Y "$test_result_file" 2>/dev/null || stat -f %m "$test_result_file" 2>/dev/null || echo "")
+        if [[ -n "$test_timestamp" ]]; then
+            test_timestamp=$(date -d "@$test_timestamp" '+%Y-%m-%d %H:%M:%S' 2>/dev/null || date -r "$test_timestamp" '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo "unknown")
+        fi
+        test_results=$(cat "$test_result_file" 2>/dev/null || echo "")
+        if [[ -n "$test_results" ]]; then
+            test_status="passed"
+            # Check if any test failed
+            if echo "$test_results" | grep -q "not ok"; then
+                test_status="failed"
+            fi
+        fi
+    fi
+    
     # Build status data array
     local status_data=(
         "name" "ffmpeg"
@@ -71,6 +92,8 @@ ffmpeg::status::collect_data() {
         "health_message" "$health_message"
         "version" "$version"
         "capabilities" "$capabilities"
+        "test_status" "$test_status"
+        "test_timestamp" "$test_timestamp"
     )
     
     # Return the collected data
@@ -120,6 +143,26 @@ ffmpeg::status::display_text() {
     log::info "   📦 Version: ${data[version]:-unknown}"
     log::info "   🔧 Capabilities: ${data[capabilities]:-unknown}"
     echo
+    
+    # Test Results
+    if [[ -n "${data[test_timestamp]}" ]]; then
+        log::info "🧪 Test Results:"
+        case "${data[test_status]:-not_run}" in
+            "passed")
+                log::success "   ✅ Status: All tests passed"
+                ;;
+            "failed")
+                log::error "   ❌ Status: Some tests failed"
+                ;;
+            *)
+                log::warn "   ⚠️  Status: Tests not run"
+                ;;
+        esac
+        if [[ -n "${data[test_timestamp]}" ]] && [[ "${data[test_timestamp]}" != "" ]]; then
+            log::info "   📅 Last Run: ${data[test_timestamp]}"
+        fi
+        echo
+    fi
 }
 
 # Main status function using standard wrapper

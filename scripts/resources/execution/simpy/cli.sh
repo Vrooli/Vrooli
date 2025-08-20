@@ -1,75 +1,93 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# SimPy CLI - Thin wrapper around library functions
 
-# SimPy Resource - CLI Interface
-set -euo pipefail
+# Get the real script directory (follows symlinks)
+SIMPY_CLI_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 
-# Get the script directory
-SIMPY_CLI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SIMPY_LIB_DIR="$SIMPY_CLI_DIR/lib"
+# Source library functions
+# shellcheck disable=SC1091
+source "${SIMPY_CLI_DIR}/lib/core.sh"
+# shellcheck disable=SC1091
+source "${SIMPY_CLI_DIR}/lib/install.sh"
+# shellcheck disable=SC1091
+source "${SIMPY_CLI_DIR}/lib/start.sh"
+# shellcheck disable=SC1091
+source "${SIMPY_CLI_DIR}/lib/stop.sh"
+# shellcheck disable=SC1091
+source "${SIMPY_CLI_DIR}/lib/status.sh"
+# shellcheck disable=SC1091
+source "${SIMPY_CLI_DIR}/../../../lib/utils/log.sh"
 
-# Source utilities
-source "$SIMPY_CLI_DIR/../../../lib/utils/log.sh"
-
-# Command handling
-case "${1:-help}" in
-    install)
-        "$SIMPY_LIB_DIR/install.sh" install
-        ;;
-    uninstall)
-        "$SIMPY_LIB_DIR/uninstall.sh" uninstall
-        ;;
-    status)
-        shift
-        "$SIMPY_LIB_DIR/status.sh" "$@"
-        ;;
-    start)
-        "$SIMPY_LIB_DIR/start.sh"
-        ;;
-    stop)
-        log::info "SimPy is a library resource - no service to stop"
-        ;;
-    run)
-        shift
-        "$SIMPY_LIB_DIR/run.sh" "$@"
-        ;;
-    inject)
-        shift
-        "$SIMPY_LIB_DIR/inject.sh" "$@"
-        ;;
-    list-simulations)
-        "$SIMPY_LIB_DIR/list.sh" simulations
-        ;;
-    list-outputs)
-        "$SIMPY_LIB_DIR/list.sh" outputs
-        ;;
-    help|--help|-h)
-        cat <<EOF
+#######################################
+# Show help message
+#######################################
+simpy::help() {
+    cat << EOF
 SimPy Resource CLI
 
-Usage: $(basename "$0") [command] [options]
+Usage: $(basename "$0") <command> [options]
 
 Commands:
-  install           Install SimPy and dependencies
-  uninstall         Uninstall SimPy
-  status [--json]   Show SimPy status
-  start             Start SimPy (no-op for library)
-  stop              Stop SimPy (no-op for library)
-  run <file>        Run a simulation file
-  inject <file>     Add a simulation to the library
-  list-simulations  List available simulations
-  list-outputs      List simulation outputs
-  help              Show this help message
+    install                 Install SimPy and dependencies
+    start                   Start SimPy service
+    stop                    Stop SimPy service
+    status [--json]         Show SimPy status
+    run <script>            Run a simulation script
+    list-examples           List available example simulations
+    help                    Show this help message
 
 Examples:
-  $(basename "$0") install
-  $(basename "$0") status --json
-  $(basename "$0") run examples/basic_queue.py
-  $(basename "$0") inject my_simulation.py
+    $(basename "$0") install
+    $(basename "$0") start
+    $(basename "$0") status
+    $(basename "$0") run examples/machine_shop.py
+    $(basename "$0") stop
+
 EOF
-        ;;
-    *)
-        log::error "Unknown command: $1"
-        "$0" help
-        exit 1
-        ;;
-esac
+}
+
+#######################################
+# Main CLI entry point
+#######################################
+main() {
+    local command="${1:-help}"
+    shift
+    
+    case "$command" in
+        install)
+            simpy::install "$@"
+            ;;
+        start)
+            simpy::start "$@"
+            ;;
+        stop)
+            simpy::stop "$@"
+            ;;
+        status)
+            simpy::status "$@"
+            ;;
+        run)
+            if [[ -z "$1" ]]; then
+                log::error "Usage: $(basename "$0") run <script>"
+                exit 1
+            fi
+            simpy::run_simulation "$@"
+            ;;
+        list-examples)
+            simpy::list_examples
+            ;;
+        help|--help|-h)
+            simpy::help
+            ;;
+        *)
+            log::error "Unknown command: $command"
+            simpy::help
+            exit 1
+            ;;
+    esac
+}
+
+# Run main function if script is executed directly
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+fi

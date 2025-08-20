@@ -34,7 +34,7 @@ keycloak::is_installed() {
 
 # Check if Keycloak container exists
 keycloak::container_exists() {
-    docker ps -a --format "table {{.Names}}" | grep -q "^${KEYCLOAK_CONTAINER_NAME}$" 2>/dev/null
+    docker ps -a --format "{{.Names}}" | grep -q "^${KEYCLOAK_CONTAINER_NAME}$" 2>/dev/null
 }
 
 # Check if Keycloak is running
@@ -65,8 +65,8 @@ keycloak::wait_for_ready() {
     
     local attempt=0
     while [[ ${attempt} -lt ${max_attempts} ]]; do
-        # Try the realms endpoint as health check
-        if curl -sf "http://localhost:${port}/realms/master" >/dev/null 2>&1; then
+        # Try the realms endpoint as health check with timeout
+        if timeout 5 curl -sf "http://localhost:${port}/realms/master" >/dev/null 2>&1; then
             return 0
         fi
         sleep 2
@@ -81,7 +81,7 @@ keycloak::get_admin_token() {
     local port
     port=$(keycloak::get_port)
     
-    curl -sf -X POST "http://localhost:${port}/realms/master/protocol/openid-connect/token" \
+    timeout 10 curl -sf -X POST "http://localhost:${port}/realms/master/protocol/openid-connect/token" \
         -H "Content-Type: application/x-www-form-urlencoded" \
         -d "username=${KEYCLOAK_ADMIN_USER}" \
         -d "password=${KEYCLOAK_ADMIN_PASSWORD}" \

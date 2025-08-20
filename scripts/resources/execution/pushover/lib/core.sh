@@ -27,6 +27,18 @@ pushover::init() {
     # Initialize credential variables
     export PUSHOVER_APP_TOKEN="${PUSHOVER_APP_TOKEN:-}"
     export PUSHOVER_USER_KEY="${PUSHOVER_USER_KEY:-}"
+    export PUSHOVER_DEMO_MODE="${PUSHOVER_DEMO_MODE:-false}"
+    
+    # Check for demo mode flag file
+    if [[ -f "${PUSHOVER_DATA_DIR}/demo-mode.flag" ]]; then
+        export PUSHOVER_DEMO_MODE="true"
+        export PUSHOVER_APP_TOKEN="DEMO_TOKEN"
+        export PUSHOVER_USER_KEY="DEMO_USER"
+        if [[ "$verbose" == "true" ]]; then
+            log::info "Running in demo mode"
+        fi
+        return 0
+    fi
     
     # Load credentials if available
     if [[ -f "$PUSHOVER_CREDENTIALS_FILE" ]]; then
@@ -94,6 +106,14 @@ pushover::health_check() {
         return 1
     fi
     
+    # In demo mode, simulate successful health check
+    if [[ "$PUSHOVER_DEMO_MODE" == "true" ]]; then
+        if [[ "$verbose" == "true" ]]; then
+            log::success "Pushover is running in demo mode (simulated health check)"
+        fi
+        return 0
+    fi
+    
     # Verify credentials with API
     local response
     response=$(curl -s -X POST \
@@ -125,6 +145,16 @@ pushover::send_notification() {
     if ! pushover::is_configured; then
         log::error "Pushover is not configured"
         return 1
+    fi
+    
+    # In demo mode, simulate successful send
+    if [[ "$PUSHOVER_DEMO_MODE" == "true" ]]; then
+        log::info "[DEMO MODE] Would send notification:"
+        log::info "  Title: $title"
+        log::info "  Message: $message"
+        log::info "  Priority: $priority"
+        log::info "  Sound: $sound"
+        return 0
     fi
     
     local response

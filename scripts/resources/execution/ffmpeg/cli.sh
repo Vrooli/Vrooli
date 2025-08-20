@@ -30,6 +30,7 @@ Commands:
   start        Verify FFmpeg is available
   stop         No-op for CLI tool
   status       Show installation status with JSON support
+  test         Run integration tests
   inject       Process media files [modifies system]
   info         Get media file information
   transcode    Convert media to different format [modifies system]
@@ -81,6 +82,15 @@ main() {
             ;;
         status)
             ffmpeg_status "$@"
+            ;;
+        test)
+            # Run integration tests
+            if command -v bats &> /dev/null; then
+                cd "${FFMPEG_CLI_DIR}" && bats test/integration.bats | tee test/.test_results
+            else
+                echo "Error: bats is not installed. Install with: sudo apt install bats"
+                return 1
+            fi
             ;;
         inject)
             ffmpeg_inject "$@"

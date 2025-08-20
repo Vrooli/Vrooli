@@ -84,14 +84,14 @@ keycloak::inject_realm() {
     
     # Check if realm already exists
     local realm_exists
-    realm_exists=$(curl -sf -H "Authorization: Bearer ${token}" \
+    realm_exists=$(timeout 10 curl -sf -H "Authorization: Bearer ${token}" \
         "http://localhost:${port}/admin/realms/${realm_name}" >/dev/null 2>&1 && echo "true" || echo "false")
     
     if [[ "${realm_exists}" == "true" ]]; then
         log::warning "Realm '${realm_name}' already exists, updating..."
         # Update existing realm
         local response
-        response=$(curl -sf -X PUT "http://localhost:${port}/admin/realms/${realm_name}" \
+        response=$(timeout 10 curl -sf -X PUT "http://localhost:${port}/admin/realms/${realm_name}" \
             -H "Authorization: Bearer ${token}" \
             -H "Content-Type: application/json" \
             -d @"${realm_file}" 2>&1)
@@ -106,7 +106,7 @@ keycloak::inject_realm() {
         log::info "Creating new realm '${realm_name}'"
         # Create new realm
         local response
-        response=$(curl -sf -X POST "http://localhost:${port}/admin/realms" \
+        response=$(timeout 10 curl -sf -X POST "http://localhost:${port}/admin/realms" \
             -H "Authorization: Bearer ${token}" \
             -H "Content-Type: application/json" \
             -d @"${realm_file}" 2>&1)
@@ -209,7 +209,7 @@ keycloak::list_injected() {
     # Get realms
     log::info "Realms:"
     local realms
-    realms=$(curl -sf -H "Authorization: Bearer ${token}" \
+    realms=$(timeout 10 curl -sf -H "Authorization: Bearer ${token}" \
         "http://localhost:${port}/admin/realms" 2>/dev/null | jq -r '.[].realm' 2>/dev/null || echo "Error getting realms")
     
     if [[ "${realms}" == "Error getting realms" ]]; then
@@ -221,13 +221,13 @@ keycloak::list_injected() {
                 
                 # Get user count for each realm
                 local user_count
-                user_count=$(curl -sf -H "Authorization: Bearer ${token}" \
+                user_count=$(timeout 10 curl -sf -H "Authorization: Bearer ${token}" \
                     "http://localhost:${port}/admin/realms/${realm}/users/count" 2>/dev/null || echo "unknown")
                 echo "    Users: ${user_count}"
                 
                 # Get client count for each realm
                 local client_count
-                client_count=$(curl -sf -H "Authorization: Bearer ${token}" \
+                client_count=$(timeout 10 curl -sf -H "Authorization: Bearer ${token}" \
                     "http://localhost:${port}/admin/realms/${realm}/clients" 2>/dev/null | \
                     jq '. | length' 2>/dev/null || echo "unknown")
                 echo "    Clients: ${client_count}"
@@ -264,7 +264,7 @@ keycloak::clear_data() {
     
     # Get all realms except master
     local realms
-    realms=$(curl -sf -H "Authorization: Bearer ${token}" \
+    realms=$(timeout 10 curl -sf -H "Authorization: Bearer ${token}" \
         "http://localhost:${port}/admin/realms" 2>/dev/null | \
         jq -r '.[] | select(.realm != "master") | .realm' 2>/dev/null || true)
     
@@ -272,7 +272,7 @@ keycloak::clear_data() {
         echo "${realms}" | while IFS= read -r realm; do
             if [[ -n "${realm}" ]]; then
                 log::info "Deleting realm: ${realm}"
-                curl -sf -X DELETE -H "Authorization: Bearer ${token}" \
+                timeout 10 curl -sf -X DELETE -H "Authorization: Bearer ${token}" \
                     "http://localhost:${port}/admin/realms/${realm}" >/dev/null 2>&1 || {
                     log::warning "Failed to delete realm: ${realm}"
                 }

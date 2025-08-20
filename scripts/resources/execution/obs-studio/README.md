@@ -18,6 +18,7 @@ OBS Studio enables automated content production through:
 - **Streaming**: Control streaming to multiple platforms
 - **Effects**: Apply filters and transitions via API
 - **Audio Mixing**: Control audio sources and levels
+- **Configuration Injection**: Programmatically inject scenes and sources from JSON
 
 ## Use Cases
 
@@ -90,10 +91,16 @@ Default configuration at `~/.vrooli/obs-studio/config.json`:
 - Default scene: "Main"
 - Recording path: `~/Videos/obs-recordings`
 
-## API Reference
+## Documentation
 
-See [docs/api.md](docs/api.md) for complete WebSocket API documentation.
+- [Scene Injection Guide](docs/INJECTION.md) - Programmatic scene and source injection
+- [API Reference](docs/api.md) - Complete WebSocket API documentation
+- [Troubleshooting](docs/troubleshooting.md) - Common issues and solutions
 
-## Troubleshooting
+## Examples
 
-See [docs/troubleshooting.md](docs/troubleshooting.md) for common issues and solutions.
+See the [examples/](examples/) directory for:
+- Basic scene configurations
+- Multi-scene streaming setups  
+- Recording configurations
+- Source management patterns

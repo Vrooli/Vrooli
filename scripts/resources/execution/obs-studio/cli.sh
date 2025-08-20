@@ -54,6 +54,9 @@ Audio Commands:
     unmute <source>         Unmute audio source
     set-volume <src> <vol>  Set audio volume (0-100)
     
+Injection Commands:
+    inject <config>         Inject scenes/sources from JSON config
+    
 Configuration Commands:
     config                  Show configuration
     set-port <port>         Set WebSocket port
@@ -174,14 +177,15 @@ set_volume() {
 # Configuration commands
 show_config() {
     echo "[INFO] OBS Studio Configuration:"
-    echo "  Config Directory: ${OBS_CONFIG_DIR}"
-    echo "  WebSocket Port: ${OBS_PORT}"
-    echo "  Recording Path: ${OBS_RECORDINGS_DIR}"
+    echo "  Config Directory: ${OBS_CONFIG_DIR:-/home/${USER}/.vrooli/obs-studio/config}"
+    echo "  WebSocket Port: ${OBS_WEBSOCKET_PORT:-4455}"
+    echo "  Recording Path: ${OBS_RECORDINGS_DIR:-/home/${USER}/.vrooli/obs-studio/recordings}"
     
-    if [[ -f "${OBS_CONFIG_FILE}" ]]; then
+    local config_file="${OBS_CONFIG_DIR:-/home/${USER}/.vrooli/obs-studio/config}/websocket.json"
+    if [[ -f "${config_file}" ]]; then
         echo ""
         echo "Configuration File:"
-        cat "${OBS_CONFIG_FILE}"
+        cat "${config_file}"
     fi
 }
 
@@ -189,14 +193,15 @@ set_port() {
     local new_port="$1"
     echo "[INFO] Setting WebSocket port to: ${new_port}"
     
+    local config_file="${OBS_CONFIG_DIR:-/home/${USER}/.vrooli/obs-studio/config}/websocket.json"
     # Update configuration
-    if [[ -f "${OBS_CONFIG_FILE}" ]]; then
+    if [[ -f "${config_file}" ]]; then
         # Update JSON config (using jq if available)
         if command -v jq >/dev/null 2>&1; then
-            jq ".websocket.port = ${new_port}" "${OBS_CONFIG_FILE}" > "${OBS_CONFIG_FILE}.tmp"
-            mv "${OBS_CONFIG_FILE}.tmp" "${OBS_CONFIG_FILE}"
+            jq ".server_port = ${new_port}" "${config_file}" > "${config_file}.tmp"
+            mv "${config_file}.tmp" "${config_file}"
         else
-            sed -i "s/\"port\": [0-9]*/\"port\": ${new_port}/" "${OBS_CONFIG_FILE}"
+            sed -i "s/\"server_port\": [0-9]*/\"server_port\": ${new_port}/" "${config_file}"
         fi
     fi
     
@@ -205,10 +210,15 @@ set_port() {
 
 reset_password() {
     echo "[INFO] Generating new WebSocket password..."
-    rm -f "${OBS_PASSWORD_FILE}"
-    local new_password=$(obs_generate_password)
+    local password_file="${OBS_CONFIG_DIR:-/home/${USER}/.vrooli/obs-studio/config}/websocket-password"
+    rm -f "${password_file}"
+    
+    # Generate new password
+    openssl rand -base64 32 > "${password_file}"
+    chmod 600 "${password_file}"
+    
     echo "[SUCCESS] New password generated and saved"
-    echo "[INFO] Password file: ${OBS_PASSWORD_FILE}"
+    echo "[INFO] Password file: ${password_file}"
 }
 
 # Main command router
@@ -227,20 +237,8 @@ main() {
             obs::stop "$@"
             ;;
         status)
-            # Handle --format flag
-            local format="plain"
-            while [[ $# -gt 0 ]]; do
-                case "$1" in
-                    --format)
-                        format="${2:-plain}"
-                        shift 2
-                        ;;
-                    *)
-                        shift
-                        ;;
-                esac
-            done
-            obs::get_status "$format"
+            # Pass all arguments directly to the status function
+            obs::get_status "$@"
             ;;
         restart)
             obs::stop
@@ -298,6 +296,13 @@ main() {
             ;;
         set-volume)
             set_volume "$@"
+            ;;
+            
+        # Injection commands
+        inject)
+            # Source the inject library
+            source "$OBS_LIB_DIR/inject.sh" || exit 1
+            obs::inject "$@"
             ;;
             
         # Configuration commands

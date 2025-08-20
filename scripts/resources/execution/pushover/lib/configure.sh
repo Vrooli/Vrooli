@@ -132,6 +132,41 @@ EOF
     fi
 }
 
+# Enable demo mode
+pushover::enable_demo_mode() {
+    log::header "Enable Pushover Demo Mode"
+    
+    # Initialize
+    pushover::init false
+    
+    # Create demo mode flag
+    touch "${PUSHOVER_DATA_DIR}/demo-mode.flag"
+    
+    log::success "Demo mode enabled"
+    log::info "Pushover will simulate notifications without requiring API credentials"
+    log::info "To disable demo mode, run: resource-pushover disable-demo"
+    
+    return 0
+}
+
+# Disable demo mode
+pushover::disable_demo_mode() {
+    log::header "Disable Pushover Demo Mode"
+    
+    # Initialize
+    pushover::init false
+    
+    # Remove demo mode flag
+    if [[ -f "${PUSHOVER_DATA_DIR}/demo-mode.flag" ]]; then
+        rm -f "${PUSHOVER_DATA_DIR}/demo-mode.flag"
+        log::success "Demo mode disabled"
+    else
+        log::info "Demo mode was not enabled"
+    fi
+    
+    return 0
+}
+
 # Clear Pushover credentials
 pushover::clear_credentials() {
     log::header "Clear Pushover Credentials"
@@ -153,9 +188,17 @@ pushover::clear_credentials() {
         cleared=true
     fi
     
+    # Clear demo mode flag
+    if [[ -f "${PUSHOVER_DATA_DIR}/demo-mode.flag" ]]; then
+        rm -f "${PUSHOVER_DATA_DIR}/demo-mode.flag"
+        log::info "Cleared demo mode"
+        cleared=true
+    fi
+    
     # Clear environment
     unset PUSHOVER_APP_TOKEN
     unset PUSHOVER_USER_KEY
+    unset PUSHOVER_DEMO_MODE
     
     if [[ "$cleared" == "true" ]]; then
         log::success "Credentials cleared successfully"

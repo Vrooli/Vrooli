@@ -198,7 +198,103 @@ blender::remove_injected() {
     return 0
 }
 
+# Export output files from Blender container
+blender::export() {
+    local source_file="$1"
+    local dest_path="$2"
+    
+    if [[ -z "$source_file" || -z "$dest_path" ]]; then
+        echo "[ERROR] Usage: export <source_file> <destination_path>"
+        return 1
+    fi
+    
+    # Check if container is running
+    if ! blender::is_running; then
+        echo "[ERROR] Blender container is not running"
+        return 1
+    fi
+    
+    # Check if source exists in container
+    if ! docker exec "$BLENDER_CONTAINER_NAME" test -f "/output/$source_file"; then
+        echo "[ERROR] File not found in container: $source_file"
+        echo "[INFO] Available files:"
+        docker exec "$BLENDER_CONTAINER_NAME" ls -la /output/ 2>/dev/null || true
+        return 1
+    fi
+    
+    # Create destination directory if needed
+    local dest_dir
+    dest_dir=$(dirname "$dest_path")
+    if [[ ! -d "$dest_dir" ]]; then
+        mkdir -p "$dest_dir"
+    fi
+    
+    # Copy file from container
+    echo "[INFO] Exporting: $source_file -> $dest_path"
+    if docker cp "${BLENDER_CONTAINER_NAME}:/output/$source_file" "$dest_path"; then
+        echo "[SUCCESS] File exported successfully"
+        
+        # Show file info
+        if [[ -f "$dest_path" ]]; then
+            local size
+            size=$(du -h "$dest_path" | cut -f1)
+            echo "[INFO] File size: $size"
+        fi
+        return 0
+    else
+        echo "[ERROR] Failed to export file"
+        return 1
+    fi
+}
+
+# Export all output files from Blender container
+blender::export_all() {
+    local dest_dir="$1"
+    
+    if [[ -z "$dest_dir" ]]; then
+        echo "[ERROR] Usage: export-all <destination_directory>"
+        return 1
+    fi
+    
+    # Check if container is running
+    if ! blender::is_running; then
+        echo "[ERROR] Blender container is not running"
+        return 1
+    fi
+    
+    # Create destination directory
+    mkdir -p "$dest_dir"
+    
+    # Get list of files in output directory
+    local files
+    files=$(docker exec "$BLENDER_CONTAINER_NAME" ls -1 /output/ 2>/dev/null)
+    
+    if [[ -z "$files" ]]; then
+        echo "[INFO] No files to export"
+        return 0
+    fi
+    
+    echo "[INFO] Exporting all output files to: $dest_dir"
+    local count=0
+    
+    while IFS= read -r file; do
+        if [[ -n "$file" ]]; then
+            if docker cp "${BLENDER_CONTAINER_NAME}:/output/$file" "$dest_dir/$file" 2>/dev/null; then
+                echo "  ✓ Exported: $file"
+                ((count++))
+            else
+                echo "  ✗ Failed to export: $file"
+            fi
+        fi
+    done <<< "$files"
+    
+    echo "[SUCCESS] Exported $count files"
+    return 0
+}
+
 # Export functions
 export -f blender::inject
 export -f blender::list_injected
 export -f blender::remove_injected
+export -f blender::export
+export -f blender::export_all

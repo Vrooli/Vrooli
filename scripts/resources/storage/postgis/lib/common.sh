@@ -27,7 +27,7 @@ fi
 postgis_exec_sql() {
     local database="${1:-postgres}"
     local sql="$2"
-    docker exec vrooli-postgres-main psql -U "$POSTGIS_PG_USER" -d "$database" -c "$sql" -t -A 2>/dev/null
+    docker exec postgis-main psql -U "$POSTGIS_PG_USER" -d "$database" -c "$sql" -t -A 2>/dev/null
 }
 
 # Initialize data directories
@@ -41,8 +41,8 @@ postgis_init_dirs() {
 # Check if PostgreSQL is available
 postgis_check_postgres() {
     local result
-    # Use docker exec to connect to postgres container
-    result=$(docker exec vrooli-postgres-main psql -U "$POSTGIS_PG_USER" -d postgres -c "SELECT 1" -t -A 2>/dev/null)
+    # Use docker exec to connect to postgis container
+    result=$(docker exec postgis-main psql -U "$POSTGIS_PG_USER" -d postgres -c "SELECT 1" -t -A 2>/dev/null)
     [ "$result" = "1" ]
 }
 

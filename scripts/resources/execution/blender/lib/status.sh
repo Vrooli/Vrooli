@@ -101,10 +101,13 @@ blender::status::collect_data() {
     # Count scripts and outputs (skip in fast mode)
     local script_count=0
     local output_count=0
+    local test_status="not_run"
+    local last_test_time="never"
     
     if [[ "$fast_mode" == "true" ]]; then
         script_count="N/A"
         output_count="N/A"
+        test_status="N/A"
     else
         if [[ -d "$BLENDER_SCRIPTS_DIR" ]]; then
             script_count=$(timeout 3s find "$BLENDER_SCRIPTS_DIR" -name "*.py" -type f 2>/dev/null | wc -l)
@@ -112,6 +115,19 @@ blender::status::collect_data() {
         
         if [[ -d "$BLENDER_OUTPUT_DIR" ]]; then
             output_count=$(timeout 3s find "$BLENDER_OUTPUT_DIR" -type f 2>/dev/null | wc -l)
+        fi
+        
+        # Check for test results
+        local test_timestamp_file="${BLENDER_DATA_DIR}/.last_test"
+        if [[ -f "$test_timestamp_file" ]]; then
+            last_test_time=$(cat "$test_timestamp_file")
+            # Consider tests recent if run within last 24 hours
+            local test_age_seconds=$(( $(date +%s) - $(date -d "$last_test_time" +%s 2>/dev/null || echo 0) ))
+            if [[ $test_age_seconds -lt 86400 ]]; then
+                test_status="recent"
+            else
+                test_status="stale"
+            fi
         fi
     fi
     
@@ -123,6 +139,7 @@ blender::status::collect_data() {
         "installed" "$installed"
         "running" "$running"
         "healthy" "$healthy"
+        "health" "$status"
         "health_message" "$message"
         "status" "$status"
         "version" "$version"
@@ -131,6 +148,8 @@ blender::status::collect_data() {
         "outputs" "$output_count"
         "scripts_dir" "$BLENDER_SCRIPTS_DIR"
         "output_dir" "$BLENDER_OUTPUT_DIR"
+        "test_status" "$test_status"
+        "last_test" "$last_test_time"
     )
     
     # Return the collected data
@@ -152,8 +171,9 @@ blender::status::display_text() {
     # Get verbose mode from environment or default to false
     local verbose="${STATUS_VERBOSE:-false}"
     
-    # Source format utilities for proper logging functions
+    # Source format and log utilities for proper logging functions
     source "${BLENDER_STATUS_DIR}/../../../../lib/utils/format.sh"
+    source "${BLENDER_STATUS_DIR}/../../../../lib/utils/log.sh"
     
     # Header
     log::header "🎨 Blender Status"
@@ -190,6 +210,11 @@ blender::status::display_text() {
     log::info "   📶 Port: ${data[port]:-unknown}"
     log::info "   📁 Scripts: ${data[scripts]:-0} files in ${data[scripts_dir]:-unknown}"
     log::info "   📊 Outputs: ${data[outputs]:-0} files in ${data[output_dir]:-unknown}"
+    
+    # Test status
+    if [[ -n "${data[test_status]:-}" && "${data[test_status]}" != "N/A" ]]; then
+        log::info "   🧪 Tests: ${data[test_status]:-not_run} (last run: ${data[last_test]:-never})"
+    fi
     echo
     
     if [[ "$verbose" == "true" && "${data[running]:-false}" == "true" ]]; then

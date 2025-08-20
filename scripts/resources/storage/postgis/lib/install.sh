@@ -1,86 +1,195 @@
 #!/bin/bash
-# PostGIS Installation Functions
+# PostGIS Standalone Installation Functions
+
+# PostGIS Docker configuration
+POSTGIS_IMAGE="postgis/postgis:16-3.4-alpine"
+POSTGIS_CONTAINER="postgis-main"
+POSTGIS_STANDALONE_PORT="${POSTGIS_STANDALONE_PORT:-5434}"
 
 # Get script directory
 POSTGIS_INSTALL_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Source var.sh for access to project variables
+source "${POSTGIS_INSTALL_LIB_DIR}/../../../../lib/utils/var.sh"
+
 # Source dependencies
 source "${POSTGIS_INSTALL_LIB_DIR}/common.sh"
 
-# Install PostGIS extension in PostgreSQL
+# Install PostGIS as standalone container
 postgis_install() {
-    log::header "Installing PostGIS"
+    log::header "Installing PostGIS (Standalone)"
     
     # Initialize directories
     postgis_init_dirs
     
-    # Check PostgreSQL availability
-    log::info "Checking PostgreSQL connection..."
-    if ! postgis_check_postgres; then
-        log::error "PostgreSQL is not available. Please ensure postgres resource is running."
-        return 1
-    fi
-    log::success "PostgreSQL is available"
-    
-    # Check if PostGIS extension is available
-    log::info "Checking PostGIS availability in PostgreSQL..."
-    if ! postgis_is_installed; then
-        log::warning "PostGIS extension not found in PostgreSQL"
-        log::info "PostGIS must be installed at the PostgreSQL server level"
-        log::info "For Docker-based PostgreSQL, use postgis/postgis image"
-        log::info "For system PostgreSQL, install postgresql-XX-postgis-3 package"
+    # Check if container already exists
+    if docker ps -a --format "{{.Names}}" | grep -q "^${POSTGIS_CONTAINER}$"; then
+        log::info "PostGIS container already exists"
         
-        # Try to use postgres resource to enable PostGIS
-        log::info "Attempting to use postgres resource to enable PostGIS..."
-        if command -v resource-postgres >/dev/null 2>&1; then
-            if resource-postgres enable-extension postgis; then
-                log::success "PostGIS extension enabled via postgres resource"
-            else
-                log::warning "Could not enable PostGIS via postgres resource"
-                log::info "You may need to manually install PostGIS in your PostgreSQL instance"
-            fi
+        # Start if not running
+        if ! docker ps --format "{{.Names}}" | grep -q "^${POSTGIS_CONTAINER}$"; then
+            log::info "Starting PostGIS container..."
+            docker start "${POSTGIS_CONTAINER}"
+            sleep 5
         fi
-    else
-        log::success "PostGIS extension is available in PostgreSQL"
+        
+        log::success "PostGIS is running on port ${POSTGIS_STANDALONE_PORT}"
+        return 0
     fi
     
-    # Enable PostGIS in default database
-    log::info "Enabling PostGIS in database: $POSTGIS_PG_DATABASE"
-    if postgis_enable_database "$POSTGIS_PG_DATABASE"; then
-        log::success "PostGIS enabled successfully"
-    else
-        log::error "Failed to enable PostGIS"
+    # Create Docker network if not exists
+    if ! docker network ls --format "{{.Name}}" | grep -q "^vrooli-network$"; then
+        log::info "Creating Docker network: vrooli-network"
+        docker network create vrooli-network 2>/dev/null || true
+    fi
+    
+    # Pull PostGIS image
+    log::info "Pulling PostGIS image: ${POSTGIS_IMAGE}"
+    docker pull "${POSTGIS_IMAGE}" || {
+        log::error "Failed to pull PostGIS image"
+        return 1
+    }
+    
+    # Create PostGIS container
+    log::info "Creating PostGIS container with spatial extensions..."
+    docker run -d \
+        --name "${POSTGIS_CONTAINER}" \
+        --network vrooli-network \
+        -p "${POSTGIS_STANDALONE_PORT}:5432" \
+        -e POSTGRES_USER=vrooli \
+        -e POSTGRES_PASSWORD=vrooli \
+        -e POSTGRES_DB=spatial \
+        -e POSTGRES_INITDB_ARGS="--encoding=UTF8" \
+        -v "${POSTGIS_DATA_DIR}/data:/var/lib/postgresql/data" \
+        --health-cmd="pg_isready -U vrooli -d spatial" \
+        --health-interval=10s \
+        --health-timeout=5s \
+        --health-retries=5 \
+        --restart unless-stopped \
+        "${POSTGIS_IMAGE}" \
+        -c shared_buffers=256MB \
+        -c max_connections=100 || {
+        log::error "Failed to create PostGIS container"
+        return 1
+    }
+    
+    # Wait for container to be ready
+    log::info "Waiting for PostGIS to be ready..."
+    local max_attempts=30
+    local attempt=0
+    
+    while [ $attempt -lt $max_attempts ]; do
+        if docker exec "${POSTGIS_CONTAINER}" pg_isready -U vrooli -d spatial &>/dev/null; then
+            log::success "PostGIS is ready"
+            break
+        fi
+        
+        attempt=$((attempt + 1))
+        sleep 2
+    done
+    
+    if [ $attempt -eq $max_attempts ]; then
+        log::error "PostGIS failed to start within timeout"
         return 1
     fi
+    
+    # Enable PostGIS extensions
+    log::info "Enabling PostGIS extensions..."
+    docker exec "${POSTGIS_CONTAINER}" psql -U vrooli -d spatial -c "CREATE EXTENSION IF NOT EXISTS postgis;" 2>/dev/null || true
+    docker exec "${POSTGIS_CONTAINER}" psql -U vrooli -d spatial -c "CREATE EXTENSION IF NOT EXISTS postgis_raster;" 2>/dev/null || true
+    docker exec "${POSTGIS_CONTAINER}" psql -U vrooli -d spatial -c "CREATE EXTENSION IF NOT EXISTS postgis_topology;" 2>/dev/null || true
     
     # Create sample spatial data
     log::info "Creating sample spatial tables..."
-    create_sample_data
+    create_sample_data_standalone
     
-    log::success "PostGIS installation complete"
+    # Register CLI with Vrooli
+    if [ -f "${POSTGIS_INSTALL_LIB_DIR}/../../lib/install-resource-cli.sh" ]; then
+        "${POSTGIS_INSTALL_LIB_DIR}/../../lib/install-resource-cli.sh" "$(cd "${POSTGIS_INSTALL_LIB_DIR}/.." && pwd)" 2>/dev/null || true
+    elif [ -f "${POSTGIS_INSTALL_LIB_DIR}/../../../lib/resources/install-resource-cli.sh" ]; then
+        "${POSTGIS_INSTALL_LIB_DIR}/../../../lib/resources/install-resource-cli.sh" "$(cd "${POSTGIS_INSTALL_LIB_DIR}/.." && pwd)" 2>/dev/null || true
+    fi
+    
+    # Verify installation
+    local version=$(docker exec "${POSTGIS_CONTAINER}" psql -U vrooli -d spatial -t -c "SELECT PostGIS_Version();" 2>/dev/null | xargs)
+    
+    if [ -n "$version" ]; then
+        # Register PostGIS CLI with vrooli
+        if [ -n "${var_SCRIPTS_RESOURCES_LIB_DIR:-}" ] && [ -f "${var_SCRIPTS_RESOURCES_LIB_DIR}/install-resource-cli.sh" ]; then
+            "${var_SCRIPTS_RESOURCES_LIB_DIR}/install-resource-cli.sh" "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)" 2>/dev/null || true
+        fi
+        
+        log::success "PostGIS $version installed and running on port ${POSTGIS_STANDALONE_PORT}"
+        log::info "Connection: psql -h localhost -p ${POSTGIS_STANDALONE_PORT} -U vrooli -d spatial"
+        return 0
+    else
+        log::error "Failed to verify PostGIS installation"
+        return 1
+    fi
+}
+
+# Start PostGIS container
+postgis_start() {
+    if ! docker ps -a --format "{{.Names}}" | grep -q "^${POSTGIS_CONTAINER}$"; then
+        log::info "PostGIS not installed. Installing..."
+        postgis_install
+        return $?
+    fi
+    
+    if docker ps --format "{{.Names}}" | grep -q "^${POSTGIS_CONTAINER}$"; then
+        log::info "PostGIS is already running"
+        return 0
+    fi
+    
+    log::info "Starting PostGIS container..."
+    docker start "${POSTGIS_CONTAINER}"
+    sleep 3
+    
+    if docker ps --format "{{.Names}}" | grep -q "^${POSTGIS_CONTAINER}$"; then
+        log::success "PostGIS started successfully"
+        return 0
+    else
+        log::error "Failed to start PostGIS"
+        return 1
+    fi
+}
+
+# Stop PostGIS container
+postgis_stop() {
+    if ! docker ps --format "{{.Names}}" | grep -q "^${POSTGIS_CONTAINER}$"; then
+        log::info "PostGIS is not running"
+        return 0
+    fi
+    
+    log::info "Stopping PostGIS container..."
+    docker stop "${POSTGIS_CONTAINER}"
+    log::success "PostGIS stopped"
     return 0
 }
 
-# Uninstall PostGIS (disable in databases, keep PostgreSQL extension)
+# Uninstall PostGIS (stop and remove container)
 postgis_uninstall() {
     log::header "Uninstalling PostGIS"
     
-    log::info "Disabling PostGIS in database: $POSTGIS_PG_DATABASE"
-    if postgis_disable_database "$POSTGIS_PG_DATABASE"; then
-        log::success "PostGIS disabled successfully"
-    else
-        log::warning "Failed to disable PostGIS or already disabled"
+    # Stop container if running
+    if docker ps --format "{{.Names}}" | grep -q "^${POSTGIS_CONTAINER}$"; then
+        log::info "Stopping PostGIS container..."
+        docker stop "${POSTGIS_CONTAINER}"
     fi
     
-    log::info "Note: PostGIS extension remains available in PostgreSQL"
-    log::info "To fully remove, uninstall at PostgreSQL server level"
+    # Remove container if exists
+    if docker ps -a --format "{{.Names}}" | grep -q "^${POSTGIS_CONTAINER}$"; then
+        log::info "Removing PostGIS container..."
+        docker rm "${POSTGIS_CONTAINER}"
+    fi
     
-    log::success "PostGIS uninstall complete"
+    log::success "PostGIS uninstalled"
+    log::info "Note: Data is preserved in ${POSTGIS_DATA_DIR}"
     return 0
 }
 
 # Create sample spatial data for testing
-create_sample_data() {
+create_sample_data_standalone() {
     local sql_file="$POSTGIS_SQL_DIR/sample_data.sql"
     
     cat > "$sql_file" <<'EOF'
@@ -119,19 +228,22 @@ WHERE name != 'New York'
 ORDER BY distance_km;
 EOF
     
-    if postgis_execute_sql "$sql_file" "$POSTGIS_PG_DATABASE"; then
-        format_success "Sample spatial data created"
+    # Execute SQL in PostGIS container
+    if docker cp "$sql_file" "${POSTGIS_CONTAINER}:/tmp/sample_data.sql" 2>/dev/null && \
+       docker exec "${POSTGIS_CONTAINER}" psql -U vrooli -d spatial -f /tmp/sample_data.sql 2>/dev/null; then
+        log::success "Sample spatial data created"
         
         # Show sample query
-        format_info "Sample query - Cities within 5000km of NYC:"
-        PGPASSWORD="$POSTGIS_PG_PASSWORD" psql -h "$POSTGIS_PG_HOST" -p "$POSTGIS_PG_PORT" \
-            -U "$POSTGIS_PG_USER" -d "$POSTGIS_PG_DATABASE" \
+        log::info "Sample query - Cities within 5000km of NYC:"
+        docker exec "${POSTGIS_CONTAINER}" psql -U vrooli -d spatial \
             -c "SELECT name, ROUND(distance_km::numeric, 2) as distance_km FROM distances_from_nyc WHERE distance_km < 5000" 2>/dev/null
     else
-        format_warning "Failed to create sample data"
+        log::warning "Failed to create sample data"
     fi
 }
 
 # Export functions
 export -f postgis_install
+export -f postgis_start
+export -f postgis_stop
 export -f postgis_uninstall

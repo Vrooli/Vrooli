@@ -18,7 +18,7 @@ export BLENDER_DATA_DIR="${BLENDER_DATA_DIR:-${HOME}/.vrooli/blender}"
 export BLENDER_SCRIPTS_DIR="${BLENDER_SCRIPTS_DIR:-${BLENDER_DATA_DIR}/scripts}"
 export BLENDER_OUTPUT_DIR="${BLENDER_OUTPUT_DIR:-${BLENDER_DATA_DIR}/output}"
 export BLENDER_CONTAINER_NAME="vrooli-blender"
-export BLENDER_PORT="${BLENDER_PORT:-8091}"
+export BLENDER_PORT="${BLENDER_PORT:-8093}"
 
 # Initialize Blender directories and configuration
 blender::init() {
@@ -92,6 +92,13 @@ blender::install() {
         # No sudo since we're in apply mode
         apt-get update && apt-get install -y blender && {
             echo "[SUCCESS] Blender installed natively"
+            
+            # Register the CLI with vrooli
+            local resource_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+            if [[ -f "${resource_dir}/../../lib/resources/install-resource-cli.sh" ]]; then
+                "${resource_dir}/../../lib/resources/install-resource-cli.sh" "${resource_dir}" 2>/dev/null || true
+            fi
+            
             return 0
         } || echo "[WARN] Native installation failed, trying Docker..."
     fi
@@ -149,6 +156,13 @@ DOCKERFILE
     }
     
     echo "[SUCCESS] Blender installed successfully"
+    
+    # Register the CLI with vrooli
+    local resource_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+    if [[ -f "${resource_dir}/../../lib/resources/install-resource-cli.sh" ]]; then
+        "${resource_dir}/../../lib/resources/install-resource-cli.sh" "${resource_dir}" 2>/dev/null || true
+    fi
+    
     return 0
 }
 

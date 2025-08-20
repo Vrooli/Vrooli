@@ -12,6 +12,7 @@ fi
 source "${BLENDER_CLI_DIR}/lib/core.sh"
 source "${BLENDER_CLI_DIR}/lib/status.sh"
 source "${BLENDER_CLI_DIR}/lib/inject.sh"
+source "${BLENDER_CLI_DIR}/lib/test.sh"
 
 # Show help
 show_help() {
@@ -25,10 +26,13 @@ Commands:
   start                     Start Blender service
   stop                      Stop Blender service
   install                   Install Blender
+  test [--format json]      Run Blender tests
   inject <file>            Inject a Python script for Blender
   list                     List injected scripts
   run <script>             Run a specific script with Blender
   remove <script>          Remove an injected script
+  export <file> <dest>     Export output file from Blender
+  export-all <dir>         Export all output files
   help                     Show this help message
 
 Options:
@@ -52,26 +56,7 @@ main() {
     
     case "$command" in
         status)
-            local verbose="false"
-            local format="text"
-            
-            while [[ $# -gt 0 ]]; do
-                case "$1" in
-                    --format)
-                        format="$2"
-                        shift 2
-                        ;;
-                    --verbose)
-                        verbose="true"
-                        shift
-                        ;;
-                    *)
-                        shift
-                        ;;
-                esac
-            done
-            
-            blender::status "$verbose" "$format"
+            blender::status "$@"
             ;;
             
         start)
@@ -84,6 +69,10 @@ main() {
             
         install)
             blender::install
+            ;;
+            
+        test)
+            blender::test "$@"
             ;;
             
         inject)
@@ -119,6 +108,24 @@ main() {
                 exit 1
             fi
             blender::remove_injected "$1"
+            ;;
+            
+        export)
+            if [[ -z "$1" || -z "$2" ]]; then
+                echo "[ERROR] Missing arguments"
+                echo "Usage: $(basename "$0") export <source_file> <destination_path>"
+                exit 1
+            fi
+            blender::export "$1" "$2"
+            ;;
+            
+        export-all)
+            if [[ -z "$1" ]]; then
+                echo "[ERROR] No destination directory specified"
+                echo "Usage: $(basename "$0") export-all <destination_directory>"
+                exit 1
+            fi
+            blender::export_all "$1"
             ;;
             
         help|--help|-h)

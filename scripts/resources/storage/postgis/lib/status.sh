@@ -1,5 +1,9 @@
 #!/bin/bash
-# PostGIS Status Functions
+# PostGIS Standalone Status Functions
+
+# PostGIS Docker configuration
+POSTGIS_CONTAINER="postgis-main"
+POSTGIS_STANDALONE_PORT="${POSTGIS_STANDALONE_PORT:-5434}"
 
 # Get script directory
 POSTGIS_STATUS_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -35,75 +39,110 @@ postgis::status::collect_data() {
     # Initialize
     postgis_init_dirs
     
-    # Check PostgreSQL connection
-    local postgres_available=false
-    if postgis_check_postgres; then
-        postgres_available=true
-    fi
-    
-    # Check PostGIS installation
-    local postgis_installed=false
-    if [ "$postgres_available" = "true" ] && postgis_is_installed; then
-        postgis_installed=true
-    fi
-    
-    # Check if enabled in default database
-    local postgis_enabled=false
+    # Check if container exists
+    local container_exists=false
+    local container_running=false
+    local healthy="false"
+    local health_message="PostGIS not installed"
     local postgis_version="not_installed"
-    if [ "$postgis_installed" = "true" ]; then
-        if postgis_is_enabled "$POSTGIS_PG_DATABASE"; then
-            postgis_enabled=true
-            postgis_version=$(postgis_get_version "$POSTGIS_PG_DATABASE")
+    
+    if docker ps -a --format "{{.Names}}" | grep -q "^${POSTGIS_CONTAINER}$"; then
+        container_exists=true
+        
+        if docker ps --format "{{.Names}}" | grep -q "^${POSTGIS_CONTAINER}$"; then
+            container_running=true
+            
+            # Check if PostGIS is accessible
+            if docker exec "${POSTGIS_CONTAINER}" pg_isready -U vrooli -d spatial &>/dev/null; then
+                healthy="true"
+                health_message="PostGIS is running and accessible"
+                
+                # Get PostGIS version (skip in fast mode for expensive operations)
+                if [[ "$fast_mode" == "false" ]]; then
+                    postgis_version=$(docker exec "${POSTGIS_CONTAINER}" psql -U vrooli -d spatial -t -c "SELECT PostGIS_Version();" 2>/dev/null | xargs)
+                else
+                    postgis_version="N/A"
+                fi
+                
+                if [[ -z "$postgis_version" || "$postgis_version" == "N/A" ]]; then
+                    postgis_version="unknown"
+                fi
+            else
+                health_message="PostGIS container running but not accessible"
+            fi
+        else
+            health_message="PostGIS container exists but not running"
         fi
     fi
     
-    # Determine health status
-    local healthy="false"
-    local health_message="PostGIS not configured"
-    
-    if [ "$postgres_available" = "false" ]; then
-        health_message="PostgreSQL not available"
-    elif [ "$postgis_installed" = "false" ]; then
-        health_message="PostGIS extension not installed in PostgreSQL"
-    elif [ "$postgis_enabled" = "false" ]; then
-        health_message="PostGIS not enabled in database $POSTGIS_PG_DATABASE"
-    else
-        healthy="true"
-        health_message="PostGIS is installed and enabled"
-    fi
-    
-    # Count spatial tables if enabled (skip in fast mode)
+    # Get spatial tables count (skip in fast mode)
     local spatial_tables=0
-    if [ "$postgis_enabled" = "true" ] && [ "$fast_mode" = "false" ]; then
-        spatial_tables=$(postgis_exec_sql "$POSTGIS_PG_DATABASE" "SELECT COUNT(*) FROM geometry_columns" || echo "0")
-    elif [ "$postgis_enabled" = "true" ]; then
-        spatial_tables="N/A"
+    if [[ "$container_running" == "true" && "$healthy" == "true" ]]; then
+        if [[ "$fast_mode" == "false" ]]; then
+            spatial_tables=$(docker exec "${POSTGIS_CONTAINER}" psql -U vrooli -d spatial -t -c \
+                "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public' AND table_name NOT LIKE 'spatial_%';" 2>/dev/null | xargs)
+            [[ -z "$spatial_tables" ]] && spatial_tables=0
+        else
+            spatial_tables="N/A"
+        fi
     fi
     
-    # Get SRID count for verbose info (skip in fast mode)
-    local srid_count="N/A"
-    if [ "$postgis_enabled" = "true" ] && [ "$fast_mode" = "false" ]; then
-        srid_count=$(postgis_exec_sql "$POSTGIS_PG_DATABASE" "SELECT COUNT(*) FROM spatial_ref_sys" || echo "0")
+    # Container status
+    local container_status="not_found"
+    if [[ "$container_exists" == "true" ]]; then
+        container_status=$(docker inspect --format='{{.State.Status}}' "$POSTGIS_CONTAINER" 2>/dev/null || echo "unknown")
+    fi
+    
+    # Check for test results (skip in fast mode)
+    local test_status="not_run"
+    local test_timestamp=""
+    local test_results_file="${POSTGIS_DATA_DIR}/test_results.json"
+    
+    if [[ "$fast_mode" == "false" && -f "$test_results_file" ]]; then
+        # Read last test results
+        if [[ -r "$test_results_file" ]]; then
+            test_timestamp=$(jq -r '.timestamp // ""' "$test_results_file" 2>/dev/null)
+            local test_passed=$(jq -r '.passed // "unknown"' "$test_results_file" 2>/dev/null)
+            local test_total=$(jq -r '.total // "unknown"' "$test_results_file" 2>/dev/null)
+            
+            if [[ -n "$test_timestamp" && "$test_passed" != "unknown" ]]; then
+                if [[ "$test_passed" == "$test_total" ]]; then
+                    test_status="passed"
+                else
+                    test_status="failed"
+                fi
+            fi
+        fi
     fi
     
     # Basic resource information
-    status_data+=("name" "$POSTGIS_RESOURCE_NAME")
-    status_data+=("category" "$POSTGIS_RESOURCE_CATEGORY")
-    status_data+=("description" "$POSTGIS_RESOURCE_DESCRIPTION")
-    status_data+=("installed" "$postgis_installed")
-    status_data+=("running" "$postgis_enabled")
+    status_data+=("name" "postgis")
+    status_data+=("category" "storage")
+    status_data+=("description" "Spatial database extension for PostgreSQL")
+    status_data+=("installed" "$container_exists")
+    status_data+=("running" "$container_running")
     status_data+=("healthy" "$healthy")
     status_data+=("health_message" "$health_message")
+    status_data+=("container_name" "$POSTGIS_CONTAINER")
+    status_data+=("container_status" "$container_status")
     status_data+=("version" "$postgis_version")
-    status_data+=("postgres_host" "$POSTGIS_PG_HOST")
-    status_data+=("postgres_port" "$POSTGIS_PG_PORT")
-    status_data+=("database" "$POSTGIS_PG_DATABASE")
+    status_data+=("port" "$POSTGIS_STANDALONE_PORT")
+    status_data+=("database" "spatial")
+    status_data+=("user" "vrooli")
     status_data+=("spatial_tables" "$spatial_tables")
-    status_data+=("extensions" "$POSTGIS_EXTENSIONS")
+    status_data+=("default_srid" "4326")
     status_data+=("data_dir" "$POSTGIS_DATA_DIR")
-    status_data+=("default_srid" "$POSTGIS_DEFAULT_SRID")
-    status_data+=("srid_count" "$srid_count")
-    status_data+=("postgres_url" "postgresql://$POSTGIS_PG_HOST:$POSTGIS_PG_PORT/$POSTGIS_PG_DATABASE")
+    status_data+=("host" "localhost")
+    status_data+=("postgres_url" "postgresql://localhost:$POSTGIS_STANDALONE_PORT/spatial")
+    status_data+=("test_status" "$test_status")
+    status_data+=("test_timestamp" "$test_timestamp")
+    
+    # Docker image if available
+    if [[ "$container_exists" == "true" ]]; then
+        local image
+        image=$(docker inspect --format='{{.Config.Image}}' "$POSTGIS_CONTAINER" 2>/dev/null || echo "unknown")
+        status_data+=("image" "$image")
+    fi
     
     # Return the collected data
     printf '%s\n' "${status_data[@]}"
@@ -135,15 +174,15 @@ postgis::status::display_text() {
     # Basic status
     echo "Basic Status:"
     if [[ "${data[installed]:-false}" == "true" ]]; then
-        echo "  ✅ Installed: Yes"
+        echo "  ✅ Installed: Yes (Docker container)"
     else
-        echo "  ⚠️  Installed: No (extension not in PostgreSQL)"
+        echo "  ❌ Installed: No"
     fi
     
     if [[ "${data[running]:-false}" == "true" ]]; then
-        echo "  ✅ Enabled: Yes (in ${data[database]:-unknown})"
+        echo "  ✅ Running: Yes"
     else
-        echo "  ⚠️  Enabled: No"
+        echo "  ⚠️  Running: No"
     fi
     
     if [[ "${data[healthy]:-false}" == "true" ]]; then
@@ -153,22 +192,36 @@ postgis::status::display_text() {
     fi
     echo
     
+    # Container information
+    echo "Container Info:"
+    echo "  📦 Name: ${data[container_name]:-unknown}"
+    echo "  📊 Status: ${data[container_status]:-unknown}"
+    echo "  🖼️  Image: ${data[image]:-unknown}"
+    echo
+    
     # Configuration
     echo "Configuration:"
-    echo "  🌐 PostgreSQL Host: ${data[postgres_host]:-unknown}:${data[postgres_port]:-unknown}"
+    echo "  🌐 Host: ${data[host]:-unknown}:${data[port]:-unknown}"
     echo "  🗄️  Database: ${data[database]:-unknown}"
+    echo "  👤 User: ${data[user]:-unknown}"
     echo "  📊 Version: ${data[version]:-unknown}"
-    echo "  🔧 Extensions: ${data[extensions]:-unknown}"
     echo "  📊 Spatial Tables: ${data[spatial_tables]:-0}"
     echo "  🌍 Default SRID: ${data[default_srid]:-unknown}"
     echo "  📁 Data Directory: ${data[data_dir]:-unknown}"
     echo "  🔗 Connection URL: ${data[postgres_url]:-unknown}"
     echo
     
-    # Spatial Reference Systems (if available)
-    if [[ "${data[srid_count]:-}" != "N/A" && -n "${data[srid_count]:-}" ]]; then
-        echo "Spatial Reference Systems:"
-        echo "  🌍 Total SRIDs: ${data[srid_count]:-0}"
+    # Test results
+    if [[ -n "${data[test_timestamp]}" ]]; then
+        echo "Test Results:"
+        if [[ "${data[test_status]}" == "passed" ]]; then
+            echo "  ✅ Status: All tests passed"
+        elif [[ "${data[test_status]}" == "failed" ]]; then
+            echo "  ❌ Status: Some tests failed"
+        else
+            echo "  ⚠️  Status: ${data[test_status]:-unknown}"
+        fi
+        echo "  🕐 Last Run: ${data[test_timestamp]}"
         echo
     fi
     
@@ -186,5 +239,5 @@ postgis_status() {
     status::run_standard "postgis" "postgis::status::collect_data" "postgis::status::display_text" "$@"
 }
 
-# Export function for use by other scripts
+# Export function
 export -f postgis_status

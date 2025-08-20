@@ -101,65 +101,15 @@ obs::get_version() {
     fi
 }
 
-# Get status
+# Get status - delegate to status.sh
 obs::get_status() {
-    local format="${1:-plain}"
-    local installed=$(obs::is_installed && echo "true" || echo "false")
-    local running=$(obs::is_running && echo "true" || echo "false")
-    local version=$(obs::get_version)
-    local health="unhealthy"
-    local websocket_status="disconnected"
-    
-    if [[ "$running" == "true" ]]; then
-        # Check websocket connectivity
-        if timeout 2 nc -z localhost "$OBS_WEBSOCKET_PORT" 2>/dev/null; then
-            websocket_status="connected"
-            health="healthy"
-        fi
+    # Source status module if not already done
+    if ! command -v obs_studio_status &>/dev/null; then
+        source "${OBS_LIB_DIR}/status.sh"
     fi
     
-    # Count scenes
-    local scene_count=0
-    if [[ -d "$OBS_SCENES_DIR" ]]; then
-        scene_count=$(find "$OBS_SCENES_DIR" -type f -name "*.json" 2>/dev/null | wc -l)
-    fi
-    
-    # Count recordings
-    local recording_count=0
-    if [[ -d "$OBS_RECORDINGS_DIR" ]]; then
-        recording_count=$(find "$OBS_RECORDINGS_DIR" -type f \( -name "*.mp4" -o -name "*.mkv" -o -name "*.flv" \) 2>/dev/null | wc -l)
-    fi
-    
-    # Format output based on requested format
-    if [[ "$format" == "json" ]]; then
-        cat <<EOF
-{
-    "status": "$([[ "$health" == "healthy" ]] && echo "running" || echo "stopped")",
-    "installed": $installed,
-    "running": $running,
-    "version": "$version",
-    "health": "$health",
-    "websocket_port": "$OBS_WEBSOCKET_PORT",
-    "websocket_status": "$websocket_status",
-    "scenes": $scene_count,
-    "recordings": $recording_count,
-    "message": "OBS Studio $(if [[ "$health" == "healthy" ]]; then echo "running and accessible"; else echo "not accessible"; fi)"
-}
-EOF
-    else
-        # Plain text output
-        echo "OBS Studio Status"
-        echo "================="
-        echo "Installed: $installed"
-        echo "Running: $running"
-        echo "Version: $version"
-        echo "Health: $health"
-        echo "WebSocket Port: $OBS_WEBSOCKET_PORT"
-        echo "WebSocket Status: $websocket_status"
-        echo "Scenes: $scene_count"
-        echo "Recordings: $recording_count"
-        echo "Message: OBS Studio $(if [[ "$health" == "healthy" ]]; then echo "running and accessible"; else echo "not accessible"; fi)"
-    fi
+    # Call the standard status function
+    obs_studio_status "$@"
 }
 
 # Install OBS Studio Controller

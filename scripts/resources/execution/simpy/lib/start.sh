@@ -1,31 +1,58 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# SimPy start module
 
-# SimPy Resource - Start Functions
-set -euo pipefail
+# Get script directory
+SIMPY_START_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Get the script directory
-SIMPY_START_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Source dependencies
+# shellcheck disable=SC1091
+source "${SIMPY_START_DIR}/core.sh"
+# shellcheck disable=SC1091
+source "${SIMPY_START_DIR}/install.sh"
 
-# Source common functions
-source "$SIMPY_START_LIB_DIR/common.sh"
-
-# Start SimPy (no-op for library)
-start::main() {
-    log::info "SimPy is a library resource - no service to start"
-    log::info "SimPy is ready to run simulations"
+#######################################
+# Start SimPy service
+#######################################
+simpy::start() {
+    log::header "Starting SimPy"
     
-    # Check if installed
-    if simpy::is_installed; then
-        log::success "✅ SimPy is installed and ready"
-        return 0
-    else
-        log::warning "⚠️ SimPy is not installed"
-        log::info "Run: vrooli resource simpy install"
-        return 1
+    # Install if not already installed
+    if ! simpy::is_installed; then
+        log::info "SimPy not installed, installing now..."
+        simpy::install || return 1
     fi
+    
+    # Check if already running
+    if simpy::is_running; then
+        log::info "SimPy is already running (PID: $(simpy::get_pid))"
+        return 0
+    fi
+    
+    # Export environment variables
+    simpy::export_config
+    
+    # Start service
+    log::info "Starting SimPy service on port ${SIMPY_PORT}..."
+    cd "$SIMPY_DATA_DIR" || return 1
+    
+    nohup python3 "$SIMPY_DATA_DIR/simpy-service.py" \
+        > "$SIMPY_LOG_FILE" 2>&1 &
+    
+    local pid=$!
+    
+    # Wait for service to start
+    local max_attempts=30
+    local attempt=0
+    
+    while [[ $attempt -lt $max_attempts ]]; do
+        if simpy::test_connection; then
+            log::success "SimPy started successfully (PID: $pid)"
+            return 0
+        fi
+        sleep 1
+        ((attempt++))
+    done
+    
+    log::error "Failed to start SimPy service"
+    return 1
 }
-
-# Execute if run directly
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    start::main
-fi

@@ -2,6 +2,10 @@
 # Standardized Status Argument Parser
 # Provides consistent argument parsing for all resource status commands
 
+# Source format utilities for JSON output
+STATUS_ARGS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${STATUS_ARGS_DIR}/../../lib/utils/format.sh" 2>/dev/null || true
+
 #######################################
 # Parse standard status command arguments
 # Sets the following variables in the calling scope:

@@ -1,0 +1,34 @@
+{
+  "name": "Basic Stream",
+  "sources": [
+    {
+      "name": "Desktop Capture",
+      "type": "monitor_capture",
+      "settings": {
+        "capture_cursor": true
+      }
+    },
+    {
+      "name": "Webcam",
+      "type": "v4l2_input",
+      "settings": {
+        "device": "/dev/video0",
+        "resolution": "1280x720",
+        "fps": 30
+      }
+    },
+    {
+      "name": "Background Music",
+      "type": "ffmpeg_source",
+      "settings": {
+        "local_file": "/path/to/music.mp3",
+        "looping": true,
+        "volume": 0.3
+      }
+    }
+  ],
+  "transitions": {
+    "type": "fade",
+    "duration": 300
+  }
+}

@@ -9,9 +9,10 @@ POSTGIS_CLI_DIR="$(cd "$(dirname "${SCRIPT_PATH}")" && pwd)"
 
 # Source libraries
 source "${POSTGIS_CLI_DIR}/lib/common.sh"
-source "${POSTGIS_CLI_DIR}/lib/status_standalone.sh"
-source "${POSTGIS_CLI_DIR}/lib/install_standalone.sh"
+source "${POSTGIS_CLI_DIR}/lib/status.sh"
+source "${POSTGIS_CLI_DIR}/lib/install.sh"
 source "${POSTGIS_CLI_DIR}/lib/inject.sh"
+source "${POSTGIS_CLI_DIR}/lib/test.sh"
 
 # CLI usage
 usage() {
@@ -26,6 +27,7 @@ Commands:
     uninstall                Disable PostGIS in databases
     start                     Enable PostGIS (alias for install)
     stop                      Disable PostGIS (alias for uninstall)
+    test                      Run integration tests
     enable-database DB        Enable PostGIS in specific database
     disable-database DB       Disable PostGIS in specific database
     inject FILE [DB]          Execute SQL file with PostGIS functions
@@ -116,6 +118,9 @@ main() {
             ;;
         export-shapefile)
             postgis_export_shapefile "$@"
+            ;;
+        test)
+            postgis_run_tests
             ;;
         examples)
             show_examples
