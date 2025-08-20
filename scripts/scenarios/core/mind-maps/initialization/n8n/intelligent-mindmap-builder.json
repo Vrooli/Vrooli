@@ -45,7 +45,7 @@
     {
       "parameters": {
         "source": "workflowByName",
-        "workflowName": "ollama",
+        "workflowName": "Ollama Universal Executor",
         "workflowValues": "={{ JSON.stringify($json) }}"
       },
       "id": "execute-ollama",
@@ -147,7 +147,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Prepare final response\nconst mindMap = $('process-results').item.json;\nconst embedding = $('generate-embeddings').item.json;\n\nreturn [{\n  json: {\n    success: true,\n    mindmap: {\n      id: mindMap.id,\n      title: mindMap.title,\n      url: `http://localhost:${process.env.UI_PORT}/mindmap/${mindMap.id}`,\n      statistics: mindMap.statistics,\n      nodes_preview: mindMap.nodes.slice(0, 5).map(n => ({\n        title: n.title,\n        type: n.type\n      }))\n    },\n    message: `Successfully created mind map with ${mindMap.statistics.total_nodes} nodes and ${mindMap.statistics.total_relationships} relationships`,\n    ai_insights: {\n      complexity: mindMap.statistics.max_depth > 3 ? 'high' : mindMap.statistics.max_depth > 1 ? 'medium' : 'low',\n      coverage: mindMap.statistics.total_nodes > 20 ? 'comprehensive' : mindMap.statistics.total_nodes > 10 ? 'good' : 'basic',\n      searchable: true\n    }\n  }\n}];"
+        "jsCode": "// Prepare final response\nconst mindMap = $('process-results').item.json;\nconst embedding = $('generate-embeddings').item.json;\n\nreturn [{\n  json: {\n    success: true,\n    mindmap: {\n      id: mindMap.id,\n      title: mindMap.title,\n      url: `${service.ui.url}/mindmap/${mindMap.id}`,\n      statistics: mindMap.statistics,\n      nodes_preview: mindMap.nodes.slice(0, 5).map(n => ({\n        title: n.title,\n        type: n.type\n      }))\n    },\n    message: `Successfully created mind map with ${mindMap.statistics.total_nodes} nodes and ${mindMap.statistics.total_relationships} relationships`,\n    ai_insights: {\n      complexity: mindMap.statistics.max_depth > 3 ? 'high' : mindMap.statistics.max_depth > 1 ? 'medium' : 'low',\n      coverage: mindMap.statistics.total_nodes > 20 ? 'comprehensive' : mindMap.statistics.total_nodes > 10 ? 'good' : 'basic',\n      searchable: true\n    }\n  }\n}];"
       },
       "id": "prepare-response",
       "name": "Prepare Response",

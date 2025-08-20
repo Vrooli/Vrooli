@@ -75,17 +75,21 @@
     },
     {
       "parameters": {
-        "url": "http://localhost:11434/api/embeddings",
+        "url": "http://localhost:5678/webhook/embed",
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
+            {
+              "name": "text",
+              "value": "={{ $('Process Chat Message').item.json.message }}"
+            },
             {
               "name": "model",
               "value": "nomic-embed-text"
             },
             {
-              "name": "prompt",
-              "value": "={{ $('Process Chat Message').item.json.message }}"
+              "name": "store_in_qdrant",
+              "value": "false"
             }
           ]
         },
@@ -94,7 +98,7 @@
         }
       },
       "id": "generate-query-embedding",
-      "name": "Generate Query Embedding",
+      "name": "Generate Query Embedding (Shared)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4,
       "position": [1120, 400]
@@ -146,25 +150,29 @@
     },
     {
       "parameters": {
-        "url": "http://localhost:11434/api/generate",
+        "url": "http://localhost:5678/webhook/ollama",
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
-            {
-              "name": "model",
-              "value": "qwen2.5:32b"
-            },
             {
               "name": "prompt",
               "value": "={{ $json.full_prompt }}"
             },
             {
-              "name": "stream",
-              "value": "false"
+              "name": "model",
+              "value": "qwen2.5:32b"
             },
             {
-              "name": "options",
-              "value": "{\n  \"temperature\": 0.7,\n  \"top_p\": 0.9,\n  \"max_tokens\": 1000\n}"
+              "name": "type",
+              "value": "reasoning"
+            },
+            {
+              "name": "quiet",
+              "value": "true"
+            },
+            {
+              "name": "timeout_seconds",
+              "value": "60"
             }
           ]
         },
@@ -173,7 +181,7 @@
         }
       },
       "id": "generate-response",
-      "name": "Generate AI Response",
+      "name": "Generate AI Response (Shared Ollama)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4,
       "position": [1780, 400]

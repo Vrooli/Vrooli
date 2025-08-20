@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workflow Scheduler Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #2d3748;
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #718096;
+            font-size: 1rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+            transition: transform 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-label {
+            color: #718096;
+            font-size: 0.875rem;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-value {
+            color: #2d3748;
+            font-size: 2rem;
+            font-weight: bold;
+        }
+
+        .stat-change {
+            color: #48bb78;
+            font-size: 0.875rem;
+            margin-top: 8px;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 30px;
+        }
+
+        .schedules-panel {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .panel-title {
+            color: #2d3748;
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: background 0.3s ease;
+        }
+
+        .btn:hover {
+            background: #5a67d8;
+        }
+
+        .filter-bar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .filter-input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 0.875rem;
+        }
+
+        .schedule-list {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .schedule-item {
+            background: #f7fafc;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            transition: background 0.3s ease;
+            cursor: pointer;
+        }
+
+        .schedule-item:hover {
+            background: #edf2f7;
+        }
+
+        .schedule-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .schedule-name {
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .schedule-status {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .status-active {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .status-disabled {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+
+        .status-running {
+            background: #bee3f8;
+            color: #2c5282;
+        }
+
+        .schedule-details {
+            color: #718096;
+            font-size: 0.875rem;
+            display: flex;
+            gap: 20px;
+        }
+
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .quick-actions {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+        }
+
+        .action-button {
+            width: 100%;
+            margin-bottom: 10px;
+            padding: 12px;
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.875rem;
+            text-align: left;
+        }
+
+        .action-button:hover {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .health-monitor {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+        }
+
+        .health-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .health-label {
+            color: #4a5568;
+            font-size: 0.875rem;
+        }
+
+        .health-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .indicator-healthy {
+            background: #48bb78;
+        }
+
+        .indicator-warning {
+            background: #ed8936;
+        }
+
+        .indicator-critical {
+            background: #f56565;
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(72, 187, 120, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 10px rgba(72, 187, 120, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(72, 187, 120, 0);
+            }
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #718096;
+        }
+
+        .error {
+            background: #fed7d7;
+            color: #742a2a;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Workflow Scheduler Dashboard</h1>
+            <p class="subtitle">Enterprise-grade cron scheduling platform</p>
+        </header>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">Total Schedules</div>
+                <div class="stat-value" id="totalSchedules">-</div>
+                <div class="stat-change">Active schedules</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Running Now</div>
+                <div class="stat-value" id="runningNow">-</div>
+                <div class="stat-change">Current executions</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Success Rate</div>
+                <div class="stat-value" id="successRate">-%</div>
+                <div class="stat-change">Last 24 hours</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Next Run</div>
+                <div class="stat-value" id="nextRun">-</div>
+                <div class="stat-change">Minutes until next</div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="schedules-panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">Active Schedules</h2>
+                    <button class="btn" onclick="showCreateSchedule()">+ New Schedule</button>
+                </div>
+                <div class="filter-bar">
+                    <input type="text" class="filter-input" id="searchInput" placeholder="Search schedules...">
+                    <select class="filter-input" id="statusFilter" style="width: 150px;">
+                        <option value="">All Status</option>
+                        <option value="active">Active</option>
+                        <option value="disabled">Disabled</option>
+                        <option value="running">Running</option>
+                    </select>
+                </div>
+                <div class="schedule-list" id="scheduleList">
+                    <div class="loading">Loading schedules...</div>
+                </div>
+            </div>
+
+            <div class="sidebar">
+                <div class="quick-actions">
+                    <h3 class="panel-title" style="margin-bottom: 15px;">Quick Actions</h3>
+                    <button class="action-button" onclick="triggerSchedule()">Trigger Schedule</button>
+                    <button class="action-button" onclick="viewHistory()">View History</button>
+                    <button class="action-button" onclick="viewMetrics()">Performance Metrics</button>
+                    <button class="action-button" onclick="manageCronPresets()">Cron Presets</button>
+                    <button class="action-button" onclick="configureNotifications()">Notifications</button>
+                </div>
+
+                <div class="health-monitor">
+                    <h3 class="panel-title" style="margin-bottom: 15px;">System Health</h3>
+                    <div class="health-item">
+                        <span class="health-label">API Server</span>
+                        <div class="health-indicator indicator-healthy" id="apiHealth"></div>
+                    </div>
+                    <div class="health-item">
+                        <span class="health-label">Database</span>
+                        <div class="health-indicator indicator-healthy" id="dbHealth"></div>
+                    </div>
+                    <div class="health-item">
+                        <span class="health-label">Redis Cache</span>
+                        <div class="health-indicator indicator-healthy" id="redisHealth"></div>
+                    </div>
+                    <div class="health-item">
+                        <span class="health-label">n8n Engine</span>
+                        <div class="health-indicator indicator-healthy" id="n8nHealth"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const API_BASE_URL = window.location.protocol + '//' + window.location.hostname + ':' + (window.API_PORT || '8090');
+        
+        // State
+        let schedules = [];
+        let metrics = {};
+
+        // Initialize dashboard
+        async function initDashboard() {
+            try {
+                await loadSchedules();
+                await loadMetrics();
+                await checkHealth();
+                setInterval(loadSchedules, 30000); // Refresh every 30 seconds
+                setInterval(loadMetrics, 60000); // Refresh metrics every minute
+                setInterval(checkHealth, 15000); // Check health every 15 seconds
+            } catch (error) {
+                console.error('Failed to initialize dashboard:', error);
+                showError('Failed to connect to API server. Please check if the service is running.');
+            }
+        }
+
+        // Load schedules from API
+        async function loadSchedules() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/schedules`);
+                if (!response.ok) throw new Error('Failed to load schedules');
+                
+                schedules = await response.json();
+                renderSchedules();
+                updateStats();
+            } catch (error) {
+                console.error('Failed to load schedules:', error);
+                document.getElementById('scheduleList').innerHTML = '<div class="error">Failed to load schedules</div>';
+            }
+        }
+
+        // Load metrics
+        async function loadMetrics() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/dashboard/stats`);
+                if (!response.ok) throw new Error('Failed to load metrics');
+                
+                metrics = await response.json();
+                updateMetrics();
+            } catch (error) {
+                console.error('Failed to load metrics:', error);
+            }
+        }
+
+        // Check system health
+        async function checkHealth() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/health`);
+                const health = await response.json();
+                
+                updateHealthIndicator('apiHealth', health.api || 'healthy');
+                updateHealthIndicator('dbHealth', health.database || 'healthy');
+                updateHealthIndicator('redisHealth', health.redis || 'healthy');
+                updateHealthIndicator('n8nHealth', health.n8n || 'healthy');
+            } catch (error) {
+                updateHealthIndicator('apiHealth', 'critical');
+            }
+        }
+
+        // Update health indicator
+        function updateHealthIndicator(elementId, status) {
+            const element = document.getElementById(elementId);
+            if (!element) return;
+            
+            element.className = 'health-indicator';
+            if (status === 'healthy' || status === true) {
+                element.classList.add('indicator-healthy');
+            } else if (status === 'warning') {
+                element.classList.add('indicator-warning');
+            } else {
+                element.classList.add('indicator-critical');
+            }
+        }
+
+        // Render schedules list
+        function renderSchedules() {
+            const listElement = document.getElementById('scheduleList');
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const statusFilter = document.getElementById('statusFilter').value;
+            
+            const filtered = schedules.filter(schedule => {
+                const matchesSearch = schedule.name.toLowerCase().includes(searchTerm) ||
+                                     schedule.description?.toLowerCase().includes(searchTerm);
+                const matchesStatus = !statusFilter || schedule.status === statusFilter;
+                return matchesSearch && matchesStatus;
+            });
+
+            if (filtered.length === 0) {
+                listElement.innerHTML = '<div class="loading">No schedules found</div>';
+                return;
+            }
+
+            listElement.innerHTML = filtered.map(schedule => `
+                <div class="schedule-item" onclick="viewScheduleDetails('${schedule.id}')">
+                    <div class="schedule-header">
+                        <span class="schedule-name">${schedule.name}</span>
+                        <span class="schedule-status status-${schedule.enabled ? 'active' : 'disabled'}">
+                            ${schedule.enabled ? 'Active' : 'Disabled'}
+                        </span>
+                    </div>
+                    <div class="schedule-details">
+                        <span>Cron: ${schedule.cron_expression}</span>
+                        <span>Next: ${formatNextRun(schedule.next_run)}</span>
+                        <span>Success: ${schedule.success_rate || 100}%</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Update statistics
+        function updateStats() {
+            const activeSchedules = schedules.filter(s => s.enabled).length;
+            document.getElementById('totalSchedules').textContent = activeSchedules;
+            
+            const running = schedules.filter(s => s.status === 'running').length;
+            document.getElementById('runningNow').textContent = running;
+        }
+
+        // Update metrics
+        function updateMetrics() {
+            if (metrics.success_rate !== undefined) {
+                document.getElementById('successRate').textContent = Math.round(metrics.success_rate) + '%';
+            }
+            
+            if (metrics.next_run_minutes !== undefined) {
+                document.getElementById('nextRun').textContent = metrics.next_run_minutes + 'm';
+            }
+        }
+
+        // Format next run time
+        function formatNextRun(timestamp) {
+            if (!timestamp) return 'Never';
+            const next = new Date(timestamp);
+            const now = new Date();
+            const diff = Math.round((next - now) / 60000); // minutes
+            
+            if (diff < 0) return 'Overdue';
+            if (diff === 0) return 'Now';
+            if (diff < 60) return `${diff}m`;
+            if (diff < 1440) return `${Math.round(diff/60)}h`;
+            return `${Math.round(diff/1440)}d`;
+        }
+
+        // Show error message
+        function showError(message) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error';
+            errorDiv.textContent = message;
+            document.querySelector('.container').insertBefore(errorDiv, document.querySelector('.stats-grid'));
+            setTimeout(() => errorDiv.remove(), 5000);
+        }
+
+        // Action handlers
+        function showCreateSchedule() {
+            alert('Create Schedule UI - Would open a form to create a new schedule');
+        }
+
+        function viewScheduleDetails(scheduleId) {
+            alert(`View details for schedule: ${scheduleId}`);
+        }
+
+        function triggerSchedule() {
+            alert('Manual trigger - Would show a list of schedules to trigger');
+        }
+
+        function viewHistory() {
+            alert('Execution history - Would show historical execution data');
+        }
+
+        function viewMetrics() {
+            alert('Performance metrics - Would show detailed performance charts');
+        }
+
+        function manageCronPresets() {
+            alert('Cron presets - Would show available cron expression templates');
+        }
+
+        function configureNotifications() {
+            alert('Notifications - Would show notification configuration options');
+        }
+
+        // Event listeners
+        document.getElementById('searchInput').addEventListener('input', renderSchedules);
+        document.getElementById('statusFilter').addEventListener('change', renderSchedules);
+
+        // Initialize on load
+        window.addEventListener('load', initDashboard);
+    </script>
+</body>
+</html>

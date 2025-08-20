@@ -62,21 +62,46 @@
     },
     {
       "parameters": {
-        "workflow": "={{ $fromAI('WORKFLOW_ID_chain-of-thought-orchestrator', 'string') }}",
-        "workflowData": "={{ JSON.stringify($json) }}",
+        "method": "POST",
+        "url": "={{ $env.N8N_URL }}/webhook/ollama",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "prompt",
+              "value": "={{ $json.problem }}"
+            },
+            {
+              "name": "model",
+              "value": "={{ $json.model || 'llama3.2:3b' }}"
+            },
+            {
+              "name": "type",
+              "value": "reasoning"
+            },
+            {
+              "name": "quiet",
+              "value": "={{ true }}"
+            },
+            {
+              "name": "timeout_seconds",
+              "value": "={{ 180 }}"
+            }
+          ]
+        },
         "options": {
-          "waitForSubWorkflow": true
+          "timeout": 180000
         }
       },
-      "id": "call_chain_of_thought",
-      "name": "Call Chain of Thought Orchestrator",
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1,
+      "id": "call_ollama",
+      "name": "Call Ollama for Orchestration",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
       "position": [1050, 400]
     },
     {
       "parameters": {
-        "jsCode": "const orchestrationPlan = items[0].json;\n\n// Extract the final solution from chain-of-thought output\nlet solution;\ntry {\n  if (orchestrationPlan.final_solution) {\n    solution = typeof orchestrationPlan.final_solution === 'string' \n      ? JSON.parse(orchestrationPlan.final_solution)\n      : orchestrationPlan.final_solution;\n  } else if (orchestrationPlan.solution) {\n    solution = typeof orchestrationPlan.solution === 'string'\n      ? JSON.parse(orchestrationPlan.solution)\n      : orchestrationPlan.solution;\n  } else {\n    // Fallback to the raw output\n    solution = orchestrationPlan;\n  }\n} catch (e) {\n  console.error('Parse error:', e);\n  solution = {\n    agents_to_activate: [],\n    agents_to_deactivate: [],\n    execution_plan: {\n      phases: [{\n        phase: \"error_recovery\",\n        agents_involved: [],\n        actions: [\"Manual intervention required\"],\n        success_criteria: \"System stabilized\"\n      }]\n    },\n    fallback_strategy: \"Alert human operator\",\n    error: e.message\n  };\n}\n\n// Prepare activation commands\nconst activationCommands = (solution.agents_to_activate || []).map(agent => ({\n  command: 'activate',\n  agent_name: agent.name,\n  priority: agent.priority || 3,\n  role: agent.role,\n  config: {\n    dependencies: agent.dependencies || [],\n    resource_limit: solution.execution_plan?.resource_allocation || {}\n  }\n}));\n\nconst deactivationCommands = (solution.agents_to_deactivate || []).map(agent => ({\n  command: 'deactivate',\n  agent_name: agent.name,\n  reason: agent.reason\n}));\n\nreturn [{\n  json: {\n    orchestration_id: crypto.randomUUID(),\n    timestamp: new Date().toISOString(),\n    plan: solution,\n    commands: [...activationCommands, ...deactivationCommands],\n    validation_passed: orchestrationPlan.validation_passed || false,\n    reasoning_chain: orchestrationPlan.reasoning_chain || [],\n    confidence_score: solution.confidence_score || 0.7\n  }\n}];"
+        "jsCode": "const ollamaResponse = items[0].json;\n\n// Extract the response from ollama workflow\nlet solution;\ntry {\n  // The ollama workflow returns a structure with 'response' field\n  const responseText = ollamaResponse.response || '';\n  \n  // Try to parse JSON from the response\n  // Look for JSON in the response text\n  const jsonMatch = responseText.match(/\\{[\\s\\S]*\\}/m);\n  if (jsonMatch) {\n    solution = JSON.parse(jsonMatch[0]);\n  } else {\n    // If no JSON found, create a basic solution from the text\n    solution = {\n      agents_to_activate: [],\n      agents_to_deactivate: [],\n      execution_plan: {\n        phases: [{\n          phase: \"ai_analysis\",\n          agents_involved: ['ollama'],\n          actions: [responseText.substring(0, 200)],\n          success_criteria: \"Analysis complete\"\n        }]\n      },\n      fallback_strategy: \"Manual review required\",\n      raw_response: responseText\n    };\n  }\n} catch (e) {\n  console.error('Parse error:', e);\n  solution = {\n    agents_to_activate: [],\n    agents_to_deactivate: [],\n    execution_plan: {\n      phases: [{\n        phase: \"error_recovery\",\n        agents_involved: [],\n        actions: [\"Manual intervention required\"],\n        success_criteria: \"System stabilized\"\n      }]\n    },\n    fallback_strategy: \"Alert human operator\",\n    error: e.message\n  };\n}\n\n// Prepare activation commands\nconst activationCommands = (solution.agents_to_activate || []).map(agent => ({\n  command: 'activate',\n  agent_name: agent.name,\n  priority: agent.priority || 3,\n  role: agent.role,\n  config: {\n    dependencies: agent.dependencies || [],\n    resource_limit: solution.execution_plan?.resource_allocation || {}\n  }\n}));\n\nconst deactivationCommands = (solution.agents_to_deactivate || []).map(agent => ({\n  command: 'deactivate',\n  agent_name: agent.name,\n  reason: agent.reason\n}));\n\nreturn [{\n  json: {\n    orchestration_id: crypto.randomUUID(),\n    timestamp: new Date().toISOString(),\n    plan: solution,\n    commands: [...activationCommands, ...deactivationCommands],\n    validation_passed: ollamaResponse.success || false,\n    reasoning_chain: solution.raw_response ? [solution.raw_response] : [],\n    confidence_score: solution.confidence_score || 0.7\n  }\n}];"
       },
       "id": "parse_orchestration_plan",
       "name": "Parse Orchestration Plan",
@@ -196,14 +221,14 @@
       "main": [
         [
           {
-            "node": "Call Chain of Thought Orchestrator",
+            "node": "Call Ollama for Orchestration",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Call Chain of Thought Orchestrator": {
+    "Call Ollama for Orchestration": {
       "main": [
         [
           {

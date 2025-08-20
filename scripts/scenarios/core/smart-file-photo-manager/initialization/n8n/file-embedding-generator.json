@@ -44,7 +44,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://localhost:5678/webhook/embedding-generator",
+        "url": "={{ $env.N8N_BASE_URL || 'http://localhost:5678' }}/webhook/embed",
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
@@ -57,12 +57,26 @@
               "value": "nomic-embed-text"
             },
             {
-              "name": "metadata",
-              "value": "={{ JSON.stringify($json.metadata) }}"
+              "name": "store_in_qdrant",
+              "value": "={{ false }}"
+            },
+            {
+              "name": "collection",
+              "value": "smart-file-manager"
+            },
+            {
+              "name": "point_id",
+              "value": "={{ $json.file_id }}"
+            },
+            {
+              "name": "payload",
+              "value": "={{ $json.metadata }}"
             }
           ]
         },
-        "options": {}
+        "options": {
+          "timeout": 30000
+        }
       },
       "id": "call_embedding_generator",
       "name": "Call Shared Embedding Generator",
@@ -75,7 +89,7 @@
         "operation": "executeQuery",
         "query": "INSERT INTO file_embeddings (file_id, embeddings, model_used, metadata, created_at) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (file_id) DO UPDATE SET embeddings = $2, model_used = $3, metadata = $4, updated_at = CURRENT_TIMESTAMP",
         "options": {
-          "queryParams": "={{ $json.file_id }},{{ JSON.stringify($json.embeddings) }},{{ $json.model || 'nomic-embed-text' }},{{ JSON.stringify($json.metadata) }},{{ new Date().toISOString() }}"
+          "queryParams": "={{ $('Merge Triggers').item.json.file_id }},{{ JSON.stringify($json.embedding) }},{{ $json.model || 'nomic-embed-text' }},{{ JSON.stringify($('Merge Triggers').item.json.metadata) }},{{ new Date().toISOString() }}"
         }
       },
       "id": "store_embeddings",
@@ -87,13 +101,13 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://localhost:6333/collections/smart-file-manager/points",
+        "url": "={{ $env.QDRANT_URL || 'http://localhost:6333' }}/collections/smart-file-manager/points",
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
             {
               "name": "points",
-              "value": "={{ [{ id: $json.file_id, vector: $json.embeddings, payload: { file_id: $json.file_id, file_path: $json.file_path, content_preview: $json.content.substring(0, 200), metadata: $json.metadata } }] }}"
+              "value": "={{ [{ id: $('Merge Triggers').item.json.file_id, vector: $('Call Shared Embedding Generator').item.json.embedding, payload: { file_id: $('Merge Triggers').item.json.file_id, file_path: $('Merge Triggers').item.json.file_path, content_preview: $('Merge Triggers').item.json.content.substring(0, 200), metadata: $('Merge Triggers').item.json.metadata } }] }}"
             }
           ]
         },
@@ -108,7 +122,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { \"success\": true, \"file_id\": $json.file_id, \"embeddings_generated\": true, \"vector_dimension\": $json.embeddings.length, \"stored_in_qdrant\": true, \"timestamp\": new Date().toISOString() } }}"
+        "responseBody": "={{ { \"success\": true, \"file_id\": $('Merge Triggers').item.json.file_id, \"embeddings_generated\": true, \"vector_dimension\": $('Call Shared Embedding Generator').item.json.dimensions, \"stored_in_qdrant\": true, \"timestamp\": new Date().toISOString() } }}"
       },
       "id": "success_response",
       "name": "Success Response",

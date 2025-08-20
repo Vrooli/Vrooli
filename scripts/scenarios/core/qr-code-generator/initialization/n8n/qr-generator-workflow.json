@@ -116,12 +116,30 @@
     },
     {
       "parameters": {
-        "mode": "runOnceForEachItem",
-        "jsCode": "// Store QR code metadata in Redis for analytics\nconst response = $input.item.json;\n\n// Create Redis key\nconst redisKey = `qr:${response.qr_id}`;\nconst redisTTL = 86400; // 24 hours\n\n// Prepare data for Redis (we'll simulate this for now)\nconst redisData = {\n  id: response.qr_id,\n  text: response.parameters.text.substring(0, 100), // Store first 100 chars only\n  type: response.metadata.type,\n  format: response.parameters.format,\n  size: response.parameters.size,\n  generated_at: response.generated_at,\n  access_count: 0\n};\n\n// Log analytics event\nconsole.log('QR Generated:', {\n  id: response.qr_id,\n  type: response.metadata.type,\n  format: response.parameters.format,\n  size: response.parameters.size\n});\n\nreturn response;"
+        "workflowId": "cache-manager",
+        "workflowParameters": {
+          "operation": "set",
+          "key": "={{ 'qr:' + $json.qr_id }}",
+          "value": {
+            "id": "={{ $json.qr_id }}",
+            "text": "={{ $json.parameters.text.substring(0, 100) }}",
+            "type": "={{ $json.metadata.type }}",
+            "format": "={{ $json.parameters.format }}",
+            "size": "={{ $json.parameters.size }}",
+            "generated_at": "={{ $json.generated_at }}",
+            "access_count": 0
+          },
+          "ttl": 86400,
+          "tags": ["qr-code", "={{ $json.metadata.type }}"],
+          "namespace": "qr-generator"
+        },
+        "options": {
+          "waitForSubWorkflow": false
+        }
       },
       "id": "store_analytics",
       "name": "Store Analytics",
-      "type": "n8n-nodes-base.code",
+      "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
       "position": [1600, 400]
     },

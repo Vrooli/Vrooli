@@ -32,28 +32,19 @@
     
     {
       "parameters": {
-        "url": "http://localhost:11434/api/embeddings",
-        "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "model",
-              "value": "={{ $json.embeddingModel }}"
-            },
-            {
-              "name": "prompt",
-              "value": "={{ $json.query }}"
-            }
-          ]
-        },
-        "options": {
-          "timeout": 30000
+        "workflowId": "embedding-generator",
+        "waitTillFinish": true,
+        "source": "parameter",
+        "parameters": {
+          "text": "={{ $json.query }}",
+          "model": "={{ $json.embeddingModel }}",
+          "store_in_qdrant": false
         }
       },
       "id": "generate-query-embedding",
-      "name": "Generate Query Embedding (Ollama)",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4,
+      "name": "Generate Query Embedding (Shared)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
       "position": [680, 300]
     },
     

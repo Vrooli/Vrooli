@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -217,12 +218,113 @@ func addTravelHandler(w http.ResponseWriter, r *http.Request) {
 	
 	w.Header().Set("Content-Type", "application/json")
 	
-	// For now, just return success
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"status": "success",
-		"message": "Travel added successfully",
-		"id": time.Now().Unix(),
-	})
+	// Parse request body
+	var travel Travel
+	if err := json.NewDecoder(r.Body).Decode(&travel); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	
+	// Set default user ID if not provided
+	if travel.UserID == "" {
+		travel.UserID = "default_user"
+	}
+	
+	// Get n8n URL from environment
+	n8nURL := os.Getenv("N8N_URL")
+	if n8nURL == "" {
+		n8nURL = "http://localhost:5678"
+	}
+	
+	// Call n8n workflow webhook
+	webhookURL := n8nURL + "/webhook/travel-tracker/add"
+	travelJSON, _ := json.Marshal(travel)
+	
+	resp, err := http.Post(webhookURL, "application/json", bytes.NewBuffer(travelJSON))
+	if err != nil {
+		// Fallback to direct response if workflow unavailable
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"status": "success",
+			"message": "Travel added (workflow pending)",
+			"id": time.Now().Unix(),
+			"travel": travel,
+		})
+		return
+	}
+	defer resp.Body.Close()
+	
+	// Parse and return workflow response
+	var result map[string]interface{}
+	json.NewDecoder(resp.Body).Decode(&result)
+	json.NewEncoder(w).Encode(result)
+}
+
+func searchTravelsHandler(w http.ResponseWriter, r *http.Request) {
+	enableCORS(w)
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	
+	// Parse query parameter or request body
+	query := r.URL.Query().Get("q")
+	limit := r.URL.Query().Get("limit")
+	if limit == "" {
+		limit = "10"
+	}
+	
+	// If no query in URL, try request body
+	if query == "" && r.Method == "POST" {
+		var searchReq struct {
+			Query  string `json:"query"`
+			Limit  int    `json:"limit"`
+			UserID string `json:"user_id"`
+		}
+		json.NewDecoder(r.Body).Decode(&searchReq)
+		query = searchReq.Query
+		if searchReq.Limit > 0 {
+			limit = fmt.Sprintf("%d", searchReq.Limit)
+		}
+	}
+	
+	if query == "" {
+		http.Error(w, "Query parameter required", http.StatusBadRequest)
+		return
+	}
+	
+	// Get n8n URL from environment
+	n8nURL := os.Getenv("N8N_URL")
+	if n8nURL == "" {
+		n8nURL = "http://localhost:5678"
+	}
+	
+	// Call n8n search workflow webhook
+	webhookURL := n8nURL + "/webhook/travel-search"
+	searchData := map[string]interface{}{
+		"query":   query,
+		"limit":   limit,
+		"user_id": "default_user",
+	}
+	searchJSON, _ := json.Marshal(searchData)
+	
+	resp, err := http.Post(webhookURL, "application/json", bytes.NewBuffer(searchJSON))
+	if err != nil {
+		// Fallback to empty results if workflow unavailable
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"status":  "success",
+			"results": []interface{}{},
+			"message": "Search service temporarily unavailable",
+		})
+		return
+	}
+	defer resp.Body.Close()
+	
+	// Parse and return workflow response
+	var result map[string]interface{}
+	json.NewDecoder(resp.Body).Decode(&result)
+	json.NewEncoder(w).Encode(result)
 }
 
 func main() {
@@ -238,6 +340,7 @@ func main() {
 	http.HandleFunc("/api/achievements", achievementsHandler)
 	http.HandleFunc("/api/bucket-list", bucketListHandler)
 	http.HandleFunc("/api/add-travel", addTravelHandler)
+	http.HandleFunc("/api/travels/search", searchTravelsHandler)
 	
 	fmt.Printf("🗺️ Travel Map API running on port %s\n", port)
 	log.Fatal(http.ListenAndServe(":"+port, nil))

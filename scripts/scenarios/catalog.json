@@ -174,6 +174,15 @@
       "ui": true
     },
     {
+      "name": "agent-dashboard",
+      "description": "Dashboard for managing and monitoring all active agents",
+      "location": "core/agent-dashboard",
+      "category": "vrooli-helpers",
+      "validated": false,
+      "enabled": true,
+      "ui": true
+    },
+    {
       "name": "app-issue-tracker",
       "description": "Issue tracking system for Vrooli and scenarios with AI-powered investigation and automated fixes",
       "location": "core/app-issue-tracker",
@@ -282,6 +291,15 @@
       "ui": true
     },
     {
+      "name": "notes",
+      "description": "Local AI-enabled note-taking with intelligent organization, semantic search, and real-time suggestions",
+      "location": "core/notes",
+      "category": "saas-applications",
+      "validated": false,
+      "enabled": true,
+      "ui": true
+    },
+    {
       "name": "nutrition-tracker",
       "description": "Smart nutrition tracking with calorie counting, macro tracking, and AI-powered meal suggestions",
       "location": "core/nutrition-tracker",
@@ -312,6 +330,24 @@
       "name": "fall-foliage-explorer",
       "description": "Interactive map for tracking and forecasting fall foliage peaks across North America with real-time data",
       "location": "core/fall-foliage-explorer",
+      "category": "saas-applications",
+      "validated": false,
+      "enabled": true,
+      "ui": true
+    },
+    {
+      "name": "workflow-scheduler",
+      "description": "Enterprise-grade cron scheduling platform for orchestrating Vrooli workflows",
+      "location": "core/workflow-scheduler",
+      "category": "automation-tools",
+      "validated": false,
+      "enabled": true,
+      "ui": true
+    },
+    {
+      "name": "personal-relationship-manager",
+      "description": "Thoughtful relationship management with birthday reminders, gift suggestions, and interaction tracking",
+      "location": "core/personal-relationship-manager",
       "category": "saas-applications",
       "validated": false,
       "enabled": true,

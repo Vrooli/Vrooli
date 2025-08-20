@@ -57,29 +57,31 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://localhost:5678/webhook/ollama",
+        "url": "={{ $env.N8N_BASE_URL || 'http://localhost:5678' }}/webhook/ollama",
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
-            {
-              "name": "model",
-              "value": "llava"
-            },
             {
               "name": "prompt",
               "value": "Analyze this image and provide: 1) A detailed description, 2) List of objects detected, 3) Scene type (indoor/outdoor/document/screenshot/etc), 4) Any visible text, 5) Suggested tags for organization, 6) Quality assessment. Format as JSON."
             },
             {
-              "name": "images",
-              "value": "={{ [$json.image_path] }}"
+              "name": "model",
+              "value": "llava:13b"
             },
             {
-              "name": "format",
-              "value": "json"
+              "name": "type",
+              "value": "vision"
+            },
+            {
+              "name": "quiet",
+              "value": "={{ true }}"
             }
           ]
         },
-        "options": {}
+        "options": {
+          "timeout": 120000
+        }
       },
       "id": "analyze_with_vision",
       "name": "Analyze with Vision Model",

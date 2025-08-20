@@ -30,6 +30,15 @@
       "description": "Task dashboard UI port"
     }
   },
+  "sharedWorkflows": {
+    "n8n": [
+      {
+        "file": "initialization/n8n/ollama.json",
+        "id": "ollama-universal",
+        "purpose": "Shared Ollama API interface for all AI interactions"
+      }
+    ]
+  },
   "resources": {
     "storage": {
       "postgres": {

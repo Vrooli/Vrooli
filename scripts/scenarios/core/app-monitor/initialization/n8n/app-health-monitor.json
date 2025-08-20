@@ -133,25 +133,28 @@
     },
     {
       "parameters": {
-        "url": "={{ $env.SERVICE_N8N_URL }}/webhook/ollama",
-        "method": "POST",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({\n  prompt: `Analyze this unhealthy application status and suggest fixes:\n\nApp: ${$json.app_name}\nStatus Code: ${$json.status_code}\nError: ${$json.error_message || 'No specific error'}\nConsecutive Failures: ${$json.consecutive_failures}\n\nProvide:\n1. Likely root cause\n2. Immediate actions to take\n3. Long-term prevention measures\n\nBe concise and actionable.`,\n  model: 'phi3.5:3.8b',\n  type: 'reasoning',\n  quiet: true,\n  timeout_seconds: 30\n}) }}",
+        "workflowId": "={{ $env.SHARED_WORKFLOW_OLLAMA_ID }}",
+        "source": "parameter",
+        "parameters": {
+          "prompt": "={{ 'Analyze this unhealthy application status and suggest fixes:\\n\\nApp: ' + $json.app_name + '\\nStatus Code: ' + $json.status_code + '\\nError: ' + ($json.error_message || 'No specific error') + '\\nConsecutive Failures: ' + $json.consecutive_failures + '\\n\\nProvide:\\n1. Likely root cause\\n2. Immediate actions to take\\n3. Long-term prevention measures\\n\\nBe concise and actionable.' }}",
+          "model": "phi3.5:3.8b",
+          "type": "reasoning",
+          "quiet": true
+        },
         "options": {
-          "timeout": 35000
+          "loadPreviousNode": false
         }
       },
       "id": "ai_analysis",
-      "name": "AI Analysis (Shared Ollama)",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
+      "name": "AI Analysis",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
       "position": [1800, 320]
     },
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "const healthData = $('Calculate Health Score').item.json;\nconst aiAnalysis = $input.item?.json?.response || null;\n\n// Merge health data with AI analysis\nreturn {\n  ...healthData,\n  ai_analysis: aiAnalysis,\n  ai_analyzed_at: aiAnalysis ? new Date().toISOString() : null\n};"
+        "jsCode": "const healthData = $('Calculate Health Score').item.json;\nconst workflowResult = $input.item?.json;\nconst aiAnalysis = workflowResult?.response || null;\n\n// Merge health data with AI analysis\nreturn {\n  ...healthData,\n  ai_analysis: aiAnalysis,\n  ai_analyzed_at: aiAnalysis ? new Date().toISOString() : null\n};"
       },
       "id": "merge_with_ai",
       "name": "Merge with AI Analysis",
@@ -411,7 +414,7 @@
       "main": [
         [
           {
-            "node": "AI Analysis (Shared Ollama)",
+            "node": "AI Analysis (CLI Ollama)",
             "type": "main",
             "index": 0
           }
@@ -425,7 +428,7 @@
         ]
       ]
     },
-    "AI Analysis (Shared Ollama)": {
+    "AI Analysis (CLI Ollama)": {
       "main": [
         [
           {

@@ -40,7 +40,8 @@
         "shared_workflows": [
           "file-list-writer",
           "ollama",
-          "intelligent-text-classifier"
+          "intelligent-text-classifier",
+          "cache-manager"
         ],
         "initialization": [
           {
@@ -112,17 +113,24 @@
       "description": "Start QR code generator services",
       "steps": [
         {
+          "name": "ensure-api-built",
+          "run": "if [ ! -f api/qr-generator-api ]; then echo 'Building API...'; cd api && go mod download && go build -o qr-generator-api main.go && echo 'API built successfully'; else echo 'API binary already exists'; fi",
+          "description": "Ensure API binary exists"
+        },
+        {
+          "name": "ensure-ui-deps",
+          "run": "if [ ! -d ui/node_modules ]; then echo 'Installing UI dependencies...'; cd ui && npm install && echo 'UI dependencies installed'; else echo 'UI dependencies already installed'; fi",
+          "description": "Ensure UI dependencies installed"
+        },
+        {
           "name": "start-api-server",
-          "run": "cd api && PORT=$SERVICE_PORT N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} REDIS_URL=redis://localhost:${RESOURCE_PORTS[redis]} ./qr-generator-api &",
+          "run": "cd api && echo 'Starting API on port ${SERVICE_PORT}...' && PORT=${SERVICE_PORT} N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} REDIS_URL=redis://localhost:${RESOURCE_PORTS[redis]} nohup ./qr-generator-api > api.log 2>&1 &",
           "description": "Start API server",
-          "background": true,
-          "condition": {
-            "file_exists": "api/qr-generator-api"
-          }
+          "background": true
         },
         {
           "name": "start-ui-server",
-          "run": "cd ui && PORT=$UI_PORT API_URL=http://localhost:$SERVICE_PORT npm start &",
+          "run": "cd ui && echo 'Starting UI on port ${UI_PORT}...' && PORT=${UI_PORT} API_URL=http://localhost:${SERVICE_PORT} nohup npm start > ui.log 2>&1 &",
           "description": "Start UI server",
           "background": true
         },

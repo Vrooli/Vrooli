@@ -13,6 +13,45 @@
       }
     },
     {
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 200],
+      "parameters": {}
+    },
+    {
+      "name": "Set Defaults",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [450, 200],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "app_path",
+              "value": "/app/generated/sample-app"
+            },
+            {
+              "name": "persona_id",
+              "value": "default-persona"
+            },
+            {
+              "name": "brand_id",
+              "value": "default-brand"
+            },
+            {
+              "name": "deployment_mode",
+              "value": "copy"
+            },
+            {
+              "name": "personalization_type",
+              "value": "basic"
+            }
+          ]
+        }
+      }
+    },
+    {
       "name": "Backup Original App",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
@@ -32,11 +71,40 @@
       "typeVersion": 3,
       "position": [450, 350],
       "parameters": {
-        "url": "http://localhost:{{$env.RESOURCE_PORTS_ollama}}/api/generate",
+        "url": "http://localhost:{{$env.RESOURCE_PORTS_n8n}}/webhook/ollama",
         "method": "POST",
-        "body": {
-          "model": "codellama",
-          "prompt": "Analyze app structure at {{$json.app_path}} and identify personalization points"
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "prompt",
+              "value": "Analyze app structure at {{$json.app_path}} and identify personalization points:\n- UI components that can be themed\n- Content areas for personalization\n- Configuration files for behavior changes\n- Feature flags and toggles\nProvide structured JSON output."
+            },
+            {
+              "name": "model",
+              "value": "codellama"
+            },
+            {
+              "name": "type",
+              "value": "code"
+            },
+            {
+              "name": "quiet",
+              "value": true
+            },
+            {
+              "name": "timeout_seconds",
+              "value": 120
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false
+            }
+          },
+          "timeout": 150000
         }
       }
     },
@@ -191,6 +259,17 @@
     }
   ],
   "connections": {
+    "Manual Trigger": {
+      "main": [[
+        {"node": "Set Defaults"}
+      ]]
+    },
+    "Set Defaults": {
+      "main": [[
+        {"node": "Backup Original App"},
+        {"node": "Analyze App Structure"}
+      ]]
+    },
     "Personalization Request": {
       "main": [[
         {"node": "Backup Original App"},

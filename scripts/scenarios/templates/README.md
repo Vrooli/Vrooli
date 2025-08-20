@@ -71,9 +71,27 @@ cd core/my-integration-test/
 - 🔧 **Deployment ready**: Full template works with scenario-to-app.sh
 - 📚 **Easy discovery**: Simple structure for developers to navigate
 
+## 📋 **PRD Integration (Product Requirements Document)**
+
+The PRD serves as the **central source of truth** for each scenario, preventing drift and ensuring consistency:
+
+### **Hub-and-Spokes Documentation Model:**
+- **Hub (PRD.md)**: Defines requirements, success metrics, and capability evolution
+- **Spokes**: Technical docs branch from PRD requirements
+  - `README.md` - User-facing overview derived from PRD
+  - `IMPLEMENTATION_PLAN.md` - Technical details implementing PRD specs
+  - `api/`, `cli/`, `docs/` - All align with PRD contracts
+
+### **Why PRDs Prevent Drift:**
+- 🎯 **Single Source of Truth**: All decisions trace back to PRD
+- 🔄 **Recursive Improvement**: PRDs document how capabilities compound
+- 📊 **Measurable Success**: Clear metrics prevent scope creep
+- 🤖 **AI Consistency**: Ensures agents maintain alignment across iterations
+
 ## 🏗️ **Template Details**
 
 ### **`templates/full/` Contents:**
+- `PRD.md` - Product Requirements Document for preventing drift and maintaining consistency
 - `service.json` - Complete configuration with AI patterns, business models, and deployment orchestration
 - `deployment/` - startup.sh, monitor.sh
 - `initialization/` - database/, workflows/, ui/, configuration/

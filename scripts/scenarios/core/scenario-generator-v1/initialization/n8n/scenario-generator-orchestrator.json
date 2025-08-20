@@ -55,7 +55,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://localhost:5678/webhook/ollama",
+        "url": "={{ $env.N8N_BASE_URL || 'http://localhost:5678' }}/webhook/ollama",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -81,7 +81,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://localhost:5678/webhook/ollama",
+        "url": "={{ $env.N8N_BASE_URL || 'http://localhost:5678' }}/webhook/ollama",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -107,7 +107,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://localhost:5678/webhook/workflow-creator-fixer",
+        "url": "={{ $env.N8N_BASE_URL || 'http://localhost:5678' }}/webhook/workflow-creator-fixer",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -133,7 +133,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://localhost:5678/webhook/claude-code-executor",
+        "url": "={{ $env.N8N_BASE_URL || 'http://localhost:5678' }}/webhook/claude-code-executor",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -171,7 +171,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://localhost:5678/webhook/file-list-writer",
+        "url": "={{ $env.N8N_BASE_URL || 'http://localhost:5678' }}/webhook/file-list-writer",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [

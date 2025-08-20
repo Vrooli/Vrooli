@@ -35,12 +35,18 @@
     },
     {
       "parameters": {
-        "mode": "runOnceForEachItem",
-        "jsCode": "// Simple text classification without external workflow\nconst text = $input.item.json.text || '';\n\nlet type = 'text';\nif (text.startsWith('http://') || text.startsWith('https://')) {\n  type = 'url';\n} else if (text.includes('@') && text.includes('.')) {\n  type = 'email';\n} else if (/^[+\\d\\s()-]+$/.test(text) && text.length >= 10) {\n  type = 'phone';\n} else if (text.startsWith('WIFI:')) {\n  type = 'wifi';\n} else if (text.startsWith('geo:')) {\n  type = 'location';\n}\n\nreturn {\n  ...($input.item.json),\n  type: type\n};"
+        "workflowId": "intelligent-text-classifier",
+        "workflowParameters": {
+          "text": "={{ $json.text }}",
+          "classification_type": "content_type"
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
       },
       "id": "classify_text",
       "name": "Classify Text Type",
-      "type": "n8n-nodes-base.code",
+      "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
       "position": [600, 400]
     },

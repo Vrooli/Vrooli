@@ -2,12 +2,12 @@
   "name": "qr-generator-ui",
   "version": "1.0.0",
   "description": "Retro-style QR Code Generator UI",
-  "main": "index.html",
+  "main": "server.js",
   "scripts": {
-    "start": "npx http-server . -p $PORT -c-1",
-    "dev": "npx http-server . -p 3100 -c-1"
+    "start": "node server.js",
+    "dev": "PORT=3100 node server.js"
   },
-  "devDependencies": {
-    "http-server": "^14.1.1"
+  "dependencies": {
+    "express": "^4.18.2"
   }
 }

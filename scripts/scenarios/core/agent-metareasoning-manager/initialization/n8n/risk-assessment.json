@@ -16,27 +16,37 @@
     },
     {
       "parameters": {
-        "resource": "completion",
-        "model": "{{ $json.model || 'llama3.2' }}",
-        "prompt": "Perform a comprehensive risk assessment for:\n\n{{ $json.action }}\n\nConstraints and context: {{ $json.constraints || 'Standard business environment' }}\n\nFor each identified risk, provide:\n1. Risk description\n2. Probability (Very Low/Low/Medium/High/Very High)\n3. Impact severity (Minimal/Minor/Moderate/Major/Critical)\n4. Risk category (Technical/Financial/Operational/Strategic/Compliance)\n5. Potential mitigation strategies\n6. Early warning indicators\n\nProvide at least 8 risks across different categories.\n\nFormat as JSON with structure: {risks: [{description, probability, impact, category, mitigation_strategies, warning_indicators, risk_score}], overall_assessment: string, recommended_actions: []}",
-        "temperature": 0.4,
-        "maxTokens": 2500
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Prepare ollama CLI command\nconst input = $input.item.json;\n\nconst prompt = `Perform a comprehensive risk assessment for:\n\n${input.action}\n\nConstraints and context: ${input.constraints || 'Standard business environment'}\n\nFor each identified risk, provide:\n1. Risk description\n2. Probability (Very Low/Low/Medium/High/Very High)\n3. Impact severity (Minimal/Minor/Moderate/Major/Critical)\n4. Risk category (Technical/Financial/Operational/Strategic/Compliance)\n5. Potential mitigation strategies\n6. Early warning indicators\n\nProvide at least 8 risks across different categories.\n\nFormat as JSON with structure: {risks: [{description, probability, impact, category, mitigation_strategies, warning_indicators, risk_score}], overall_assessment: string, recommended_actions: []}`;\n\n// Build command using CLI\nconst model = input.model || 'llama3.2';\nconst timestamp = Date.now();\nconst randomId = Math.random().toString(36).substring(2, 8);\nconst tempFile = '/tmp/risk_assessment_' + timestamp + '_' + randomId + '.txt';\n\n// Escape single quotes in prompt for shell\nconst escapedPrompt = prompt.replace(/'/g, \"'\\\"'\\\"'\");\n\n// Build command string using vrooli CLI\nconst command = 'prompt_file=\"' + tempFile + '\"; ' +\n  'echo \\'' + escapedPrompt + '\\' > \"$prompt_file\"; ' +\n  'vrooli resource ollama generate \"$(cat \"$prompt_file\")\" --model \\'' + model + '\\' --type reasoning --quiet; ' +\n  'rm -f \"$prompt_file\"';\n\nreturn {\n  command: command,\n  model: model,\n  temp_file: tempFile\n};"
       },
-      "id": "generate_risks",
-      "name": "Generate Risk Assessment",
-      "type": "n8n-nodes-base.ollama",
-      "typeVersion": 1,
+      "id": "prepare_risk_input",
+      "name": "Prepare Risk Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [450, 300]
     },
     {
       "parameters": {
-        "functionCode": "const assessment = JSON.parse($node['Generate Risk Assessment'].json.response);\n\n// Risk scoring matrix (probability x impact)\nconst probabilityScores = {\n  'Very Low': 1,\n  'Low': 2,\n  'Medium': 3,\n  'High': 4,\n  'Very High': 5\n};\n\nconst impactScores = {\n  'Minimal': 1,\n  'Minor': 2,\n  'Moderate': 3,\n  'Major': 4,\n  'Critical': 5\n};\n\n// Calculate risk scores and categorize risks\nconst scoredRisks = assessment.risks.map(risk => {\n  const probScore = probabilityScores[risk.probability] || 3;\n  const impactScore = impactScores[risk.impact] || 3;\n  const riskScore = probScore * impactScore;\n  \n  let riskLevel = 'Low';\n  if (riskScore >= 15) riskLevel = 'Critical';\n  else if (riskScore >= 12) riskLevel = 'High';\n  else if (riskScore >= 6) riskLevel = 'Medium';\n  \n  return {\n    ...risk,\n    risk_score: riskScore,\n    risk_level: riskLevel,\n    probability_score: probScore,\n    impact_score: impactScore\n  };\n});\n\n// Calculate overall metrics\nconst avgRiskScore = scoredRisks.reduce((sum, r) => sum + r.risk_score, 0) / scoredRisks.length;\nconst criticalRisks = scoredRisks.filter(r => r.risk_level === 'Critical').length;\nconst highRisks = scoredRisks.filter(r => r.risk_level === 'High').length;\n\n// Determine overall risk posture\nlet overallRiskPosture = 'Low';\nif (criticalRisks > 2 || avgRiskScore > 12) {\n  overallRiskPosture = 'Critical';\n} else if (criticalRisks > 0 || highRisks > 3 || avgRiskScore > 8) {\n  overallRiskPosture = 'High';\n} else if (highRisks > 0 || avgRiskScore > 4) {\n  overallRiskPosture = 'Medium';\n}\n\nreturn {\n  json: {\n    risk_assessment: {\n      ...assessment,\n      risks: scoredRisks\n    },\n    risk_metrics: {\n      total_risks: scoredRisks.length,\n      critical_risks: criticalRisks,\n      high_risks: highRisks,\n      medium_risks: scoredRisks.filter(r => r.risk_level === 'Medium').length,\n      low_risks: scoredRisks.filter(r => r.risk_level === 'Low').length,\n      average_risk_score: Math.round(avgRiskScore * 100) / 100,\n      overall_risk_posture: overallRiskPosture\n    },\n    timestamp: new Date().toISOString(),\n    model_used: $json.model || 'llama3.2'\n  }\n};"
+        "command": "={{ $json.command }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "generate_risks",
+      "name": "Generate Risk Assessment",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "const commandResult = $node['Generate Risk Assessment'].json || {};\nconst responseText = commandResult.stdout || '{}';\nconst assessment = JSON.parse(responseText);\n\n// Risk scoring matrix (probability x impact)\nconst probabilityScores = {\n  'Very Low': 1,\n  'Low': 2,\n  'Medium': 3,\n  'High': 4,\n  'Very High': 5\n};\n\nconst impactScores = {\n  'Minimal': 1,\n  'Minor': 2,\n  'Moderate': 3,\n  'Major': 4,\n  'Critical': 5\n};\n\n// Calculate risk scores and categorize risks\nconst scoredRisks = assessment.risks.map(risk => {\n  const probScore = probabilityScores[risk.probability] || 3;\n  const impactScore = impactScores[risk.impact] || 3;\n  const riskScore = probScore * impactScore;\n  \n  let riskLevel = 'Low';\n  if (riskScore >= 15) riskLevel = 'Critical';\n  else if (riskScore >= 12) riskLevel = 'High';\n  else if (riskScore >= 6) riskLevel = 'Medium';\n  \n  return {\n    ...risk,\n    risk_score: riskScore,\n    risk_level: riskLevel,\n    probability_score: probScore,\n    impact_score: impactScore\n  };\n});\n\n// Calculate overall metrics\nconst avgRiskScore = scoredRisks.reduce((sum, r) => sum + r.risk_score, 0) / scoredRisks.length;\nconst criticalRisks = scoredRisks.filter(r => r.risk_level === 'Critical').length;\nconst highRisks = scoredRisks.filter(r => r.risk_level === 'High').length;\n\n// Determine overall risk posture\nlet overallRiskPosture = 'Low';\nif (criticalRisks > 2 || avgRiskScore > 12) {\n  overallRiskPosture = 'Critical';\n} else if (criticalRisks > 0 || highRisks > 3 || avgRiskScore > 8) {\n  overallRiskPosture = 'High';\n} else if (highRisks > 0 || avgRiskScore > 4) {\n  overallRiskPosture = 'Medium';\n}\n\nreturn {\n  json: {\n    risk_assessment: {\n      ...assessment,\n      risks: scoredRisks\n    },\n    risk_metrics: {\n      total_risks: scoredRisks.length,\n      critical_risks: criticalRisks,\n      high_risks: highRisks,\n      medium_risks: scoredRisks.filter(r => r.risk_level === 'Medium').length,\n      low_risks: scoredRisks.filter(r => r.risk_level === 'Low').length,\n      average_risk_score: Math.round(avgRiskScore * 100) / 100,\n      overall_risk_posture: overallRiskPosture\n    },\n    timestamp: new Date().toISOString(),\n    model_used: $json.model || 'llama3.2'\n  }\n};"
       },
       "id": "calculate_scores",
       "name": "Calculate Risk Scores",
       "type": "n8n-nodes-base.function",
       "typeVersion": 1,
-      "position": [650, 300]
+      "position": [850, 300]
     },
     {
       "parameters": {

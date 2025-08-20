@@ -46,36 +46,20 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "={{ $env.N8N_URL || 'http://localhost:5678' }}/webhook/embedding-generator",
-        "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "text",
-              "value": "={{ $json.query }}"
-            },
-            {
-              "name": "model",
-              "value": "nomic-embed-text"
-            }
-          ]
-        },
-        "options": {
-          "timeout": 10000
-        }
+        "workflow": "embedding-generator",
+        "workflowData": "={{ JSON.stringify({\n  text: $json.query,\n  model: 'nomic-embed-text',\n  store_in_qdrant: false\n}) }}"
       },
       "id": "generate-query-embedding",
       "name": "Generate Query Embedding",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
       "position": [650, 400]
     },
     {
       "parameters": {
         "operation": "search",
         "collection": "travel_locations",
-        "vector": "={{ $json.embedding }}",
+        "vector": "={{ $('generate-query-embedding').item.json.embedding }}",
         "limit": "={{ $('webhook-trigger').item.json.limit || 10 }}",
         "withPayload": true,
         "withVector": false

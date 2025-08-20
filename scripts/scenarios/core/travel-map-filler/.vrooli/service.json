@@ -1,92 +1,92 @@
 {
-  "id": "travel-map-filler",
-  "name": "Travel Map Filler",
-  "description": "Interactive world map for tracking and visualizing travel history with achievements",
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
-  "category": "lifestyle",
-  "tags": ["travel", "mapping", "visualization", "achievements"],
-  "enabled": true,
-  "config": {
-    "ports": {
-      "api": 8760,
-      "ui": 8761
+  "service": {
+    "parent": "vrooli",
+    "name": "travel-map-filler",
+    "displayName": "Travel Map Filler",
+    "description": "Interactive world map for tracking and visualizing travel history with achievements",
+    "version": "1.0.0",
+    "type": "lifestyle",
+    "category": "lifestyle",
+    "tags": [
+      "travel",
+      "mapping",
+      "visualization",
+      "achievements",
+      "semantic-search"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "SERVICE_PORT_API",
+      "range": "8760-8770",
+      "fallback": "auto",
+      "description": "Main API port"
     },
-    "resources": {
+    "ui": {
+      "env_var": "SERVICE_PORT_UI",
+      "range": "8761-8771",
+      "fallback": "auto",
+      "description": "UI server port"
+    }
+  },
+  "resources": {
+    "automation": {
       "n8n": {
+        "type": "n8n",
         "enabled": true,
-        "workflows": [
-          "travel-tracker",
-          "travel-search",
-          "travel-list"
+        "required": true,
+        "initialization": [
+          {
+            "file": "initialization/n8n/travel-tracker.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/travel-search.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/travel-list.json",
+            "type": "workflow"
+          }
         ]
-      },
-      "postgres": {
-        "enabled": true,
-        "database": "travel_map"
-      },
-      "qdrant": {
-        "enabled": true,
-        "collections": ["travel_locations"]
-      },
-      "ollama": {
-        "enabled": false,
-        "models": []
-      },
-      "redis": {
-        "enabled": false
       }
     },
-    "health_check": {
-      "endpoint": "/api/health",
-      "interval": 30,
-      "timeout": 5
+    "storage": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "schema"
+          }
+        ]
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "initialization": [
+          {
+            "file": "initialization/qdrant/collections.json",
+            "type": "collection"
+          }
+        ]
+      }
     }
   },
   "ui": {
     "type": "javascript",
     "path": "ui/",
-    "port": 8761
+    "port": "ui"
   },
   "api": {
     "type": "go",
     "path": "api/",
-    "port": 8760
-  },
-  "initialization": {
-    "n8n": {
-      "workflows": [
-        {
-          "path": "initialization/n8n/travel-tracker.json",
-          "active": true
-        },
-        {
-          "path": "initialization/n8n/travel-search.json",
-          "active": true
-        },
-        {
-          "path": "initialization/n8n/travel-list.json",
-          "active": true
-        }
-      ]
-    },
-    "postgres": {
-      "schemas": [
-        {
-          "path": "initialization/postgres/schema.sql"
-        }
-      ]
-    },
-    "qdrant": {
-      "collections": [
-        {
-          "path": "initialization/qdrant/collections.json"
-        }
-      ]
-    }
-  },
-  "dependencies": {
-    "scenarios": [],
-    "resources": ["n8n", "postgres", "qdrant"]
+    "port": "api"
   },
   "cli": {
     "executable": "cli/travel-map",
@@ -112,6 +112,11 @@
         "usage": "travel-map list [options]"
       }
     ]
+  },
+  "health_check": {
+    "endpoint": "/api/health",
+    "interval": 30,
+    "timeout": 5
   },
   "test": {
     "scenarios": [

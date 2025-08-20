@@ -76,6 +76,69 @@
     },
     {
       "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const analysis = $input.item.json;\n\n// Only use AI if we have concerning metrics\nif (analysis.performance_status === 'critical' || analysis.performance_status === 'warning') {\n  const prompt = `Analyze these performance metrics and provide actionable recommendations:\n\nApp: ${analysis.app_name}\nMemory Usage: ${analysis.memory_usage_percent}%\nCPU Usage: ${analysis.cpu_usage_percent}%\nMemory Limit: ${analysis.memory_limit}\nStatus: ${analysis.performance_status}\n\nProvide:\n1. Root cause analysis\n2. Specific optimization strategies\n3. Code patterns to check\n4. Resource tuning recommendations\n\nFormat as JSON with fields: root_causes, optimizations, code_patterns, resource_tuning`;\n\n  return {\n    ...analysis,\n    needs_ai_analysis: true,\n    ai_prompt: prompt,\n    model: 'phi3.5:3.8b',\n    type: 'analysis',\n    quiet: true\n  };\n}\n\nreturn {\n  ...analysis,\n  needs_ai_analysis: false\n};"
+      },
+      "id": "prepare_ai_analysis",
+      "name": "Prepare AI Analysis",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1400, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [{
+            "value1": "={{ $json.needs_ai_analysis }}",
+            "value2": true
+          }]
+        }
+      },
+      "id": "check_ai_needed",
+      "name": "Check AI Needed",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1600, 400]
+    },
+    {
+      "parameters": {
+        "workflowId": "={{ $env.SHARED_WORKFLOW_OLLAMA_ID || 'ollama' }}",
+        "waitForSubWorkflow": true,
+        "data": {
+          "prompt": "={{ $json.ai_prompt }}",
+          "model": "={{ $json.model }}",
+          "type": "={{ $json.type }}",
+          "quiet": "={{ $json.quiet }}"
+        }
+      },
+      "id": "get_ai_analysis",
+      "name": "Get AI Analysis",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [1800, 350]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const baseAnalysis = $('Prepare AI Analysis').item.json;\nconst aiResponse = $input.item.json;\n\n// Parse AI recommendations\nlet aiRecommendations = {};\ntry {\n  if (aiResponse.response) {\n    const jsonMatch = aiResponse.response.match(/\\{[\\s\\S]*\\}/);
+    if (jsonMatch) {\n      aiRecommendations = JSON.parse(jsonMatch[0]);\n    }\n  }\n} catch (e) {\n  aiRecommendations = { error: 'Failed to parse AI response' };\n}\n\nreturn {\n  ...baseAnalysis,\n  ai_analysis: aiRecommendations,\n  enhanced_recommendations: [\n    ...baseAnalysis.recommendations,\n    ...(aiRecommendations.optimizations || [])\n  ]\n};"
+      },
+      "id": "merge_ai_analysis",
+      "name": "Merge AI Analysis",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [2000, 350]
+    },
+    {
+      "parameters": {},
+      "id": "merge_results",
+      "name": "Merge Results",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [2200, 400]
+    },
+    {
+      "parameters": {
         "respondWith": "json",
         "responseBody": "={{ JSON.stringify($json, null, 2) }}",
         "options": {}
@@ -84,7 +147,7 @@
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1400, 300]
+      "position": [2400, 300]
     }
   ],
   "connections": {
@@ -107,6 +170,24 @@
       "main": [[{"node": "analyze_performance", "type": "main", "index": 0}]]
     },
     "analyze_performance": {
+      "main": [[{"node": "prepare_ai_analysis", "type": "main", "index": 0}]]
+    },
+    "prepare_ai_analysis": {
+      "main": [[{"node": "check_ai_needed", "type": "main", "index": 0}]]
+    },
+    "check_ai_needed": {
+      "main": [
+        [{"node": "get_ai_analysis", "type": "main", "index": 0}],
+        [{"node": "merge_results", "type": "main", "index": 1}]
+      ]
+    },
+    "get_ai_analysis": {
+      "main": [[{"node": "merge_ai_analysis", "type": "main", "index": 0}]]
+    },
+    "merge_ai_analysis": {
+      "main": [[{"node": "merge_results", "type": "main", "index": 0}]]
+    },
+    "merge_results": {
       "main": [[{"node": "respond", "type": "main", "index": 0}]]
     }
   },

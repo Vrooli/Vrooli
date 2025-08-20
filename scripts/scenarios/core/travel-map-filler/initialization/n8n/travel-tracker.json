@@ -66,29 +66,13 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "={{ $env.N8N_URL || 'http://localhost:5678' }}/webhook/embedding-generator",
-        "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "text",
-              "value": "={{ $json.location + ' ' + $json.country + ' ' + $json.city + ' ' + ($json.notes || '') + ' ' + $json.type }}"
-            },
-            {
-              "name": "model",
-              "value": "nomic-embed-text"
-            }
-          ]
-        },
-        "options": {
-          "timeout": 10000
-        }
+        "workflow": "embedding-generator",
+        "workflowData": "={{ JSON.stringify({\n  text: $json.location + ' ' + $json.country + ' ' + $json.city + ' ' + ($json.notes || '') + ' ' + $json.type,\n  model: 'nomic-embed-text',\n  store_in_qdrant: false,\n  collection: 'travel_locations'\n}) }}"
       },
       "id": "generate-embedding",
       "name": "Generate Embedding",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
       "position": [850, 400]
     },
     {
@@ -98,7 +82,7 @@
         "points": [
           {
             "id": "={{ $('postgres-insert').item.json.id }}",
-            "vector": "={{ $json.embedding }}",
+            "vector": "={{ $('generate-embedding').item.json.embedding }}",
             "payload": {
               "travel_id": "={{ $('postgres-insert').item.json.id }}",
               "location": "={{ $('postgres-insert').item.json.location }}",

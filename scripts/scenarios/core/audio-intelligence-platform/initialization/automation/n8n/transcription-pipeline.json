@@ -133,28 +133,19 @@
     
     {
       "parameters": {
-        "url": "http://localhost:11434/api/embeddings",
-        "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "model",
-              "value": "nomic-embed-text"
-            },
-            {
-              "name": "prompt",
-              "value": "={{ $json.embeddingData.text }}"
-            }
-          ]
-        },
-        "options": {
-          "timeout": 30000
+        "workflowId": "embedding-generator",
+        "waitTillFinish": true,
+        "source": "parameter",
+        "parameters": {
+          "text": "={{ $json.embeddingData.text }}",
+          "model": "nomic-embed-text",
+          "store_in_qdrant": false
         }
       },
       "id": "generate-embeddings",
-      "name": "Generate Embeddings (Ollama)",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4,
+      "name": "Generate Embeddings (Shared)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
       "position": [1120, 500]
     },
     

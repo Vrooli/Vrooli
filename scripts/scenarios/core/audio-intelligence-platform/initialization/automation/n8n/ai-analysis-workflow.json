@@ -65,47 +65,28 @@
     
     {
       "parameters": {
-        "url": "http://localhost:11434/api/generate",
-        "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "model",
-              "value": "={{ $json.model }}"
-            },
-            {
-              "name": "prompt",
-              "value": "={{ $json.prompt }}"
-            },
-            {
-              "name": "temperature",
-              "value": "={{ $json.temperature }}"
-            },
-            {
-              "name": "max_tokens",
-              "value": "={{ $json.max_tokens }}"
-            },
-            {
-              "name": "stream",
-              "value": "={{ $json.stream }}"
-            }
-          ]
-        },
-        "options": {
-          "timeout": 120000
+        "workflowId": "ollama",
+        "waitTillFinish": true,
+        "source": "parameter",
+        "parameters": {
+          "prompt": "={{ $json.prompt }}",
+          "model": "={{ $json.model }}",
+          "type": "reasoning",
+          "quiet": true,
+          "timeout_seconds": 120
         }
       },
       "id": "generate-ai-analysis",
       "name": "Generate AI Analysis (Ollama)",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4,
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
       "position": [1120, 300]
     },
     
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Process AI response and prepare for database storage\nconst aiResponse = $input.first().json;\nconst requestData = $input.all()[0].json;\n\n// Extract AI response text\nconst aiResult = aiResponse.response || aiResponse.text || '';\nif (!aiResult.trim()) {\n  throw new Error('AI analysis returned empty response');\n}\n\n// Calculate processing metrics\nconst processingEndTime = Date.now();\nconst processingTime = processingEndTime - requestData.processingStartTime;\n\n// Estimate tokens used (rough approximation)\nconst tokensUsed = Math.ceil((requestData.prompt.length + aiResult.length) / 4);\n\n// Prepare database record\nconst analysisRecord = {\n  id: crypto.randomUUID(),\n  transcription_id: requestData.transcriptionId,\n  analysis_type: requestData.analysisType,\n  prompt_used: requestData.customPrompt || `Default ${requestData.analysisType} prompt`,\n  result_text: aiResult.trim(),\n  ai_model_used: requestData.model,\n  processing_time_ms: processingTime,\n  tokens_used: tokensUsed,\n  confidence_score: 0.9, // Default confidence for successful generations\n  session_id: requestData.sessionId,\n  user_identifier: requestData.userIdentifier,\n  created_at: new Date().toISOString()\n};\n\nreturn {\n  analysisRecord: analysisRecord,\n  aiResult: aiResult,\n  filename: requestData.filename,\n  analysisType: requestData.analysisType,\n  processingTime: processingTime\n};"
+        "jsCode": "// Process AI response and prepare for database storage\nconst aiResponse = $input.first().json;\nconst requestData = $('Prepare AI Prompt').first().json;\n\n// Extract AI response text from shared workflow format\nconst aiResult = aiResponse.response || '';\nif (!aiResult.trim()) {\n  throw new Error('AI analysis returned empty response');\n}\n\n// Calculate processing metrics\nconst processingEndTime = Date.now();\nconst processingTime = processingEndTime - requestData.processingStartTime;\n\n// Use execution metrics from shared workflow if available\nconst executionTime = aiResponse.execution?.execution_time_ms || processingTime;\nconst tokensUsed = aiResponse.response_length ? Math.ceil(aiResponse.response_length / 4) : Math.ceil((requestData.prompt.length + aiResult.length) / 4);\n\n// Prepare database record\nconst analysisRecord = {\n  id: crypto.randomUUID(),\n  transcription_id: requestData.transcriptionId,\n  analysis_type: requestData.analysisType,\n  prompt_used: requestData.customPrompt || `Default ${requestData.analysisType} prompt`,\n  result_text: aiResult.trim(),\n  ai_model_used: requestData.model,\n  processing_time_ms: executionTime,\n  tokens_used: tokensUsed,\n  confidence_score: aiResponse.success ? 0.9 : 0.5,\n  session_id: requestData.sessionId,\n  user_identifier: requestData.userIdentifier,\n  created_at: new Date().toISOString()\n};\n\nreturn {\n  analysisRecord: analysisRecord,\n  aiResult: aiResult,\n  filename: requestData.filename,\n  analysisType: requestData.analysisType,\n  processingTime: executionTime\n};"
       },
       "id": "process-ai-response",
       "name": "Process AI Response",

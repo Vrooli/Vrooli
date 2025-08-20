@@ -54,7 +54,10 @@ var db *sql.DB
 func callN8NWebhook(webhookPath string, payload interface{}) (map[string]interface{}, error) {
     n8nBaseURL := os.Getenv("N8N_BASE_URL")
     if n8nBaseURL == "" {
-        n8nBaseURL = "http://localhost:5678"
+        n8nBaseURL = os.Getenv("SERVICE_N8N_URL")
+        if n8nBaseURL == "" {
+            n8nBaseURL = "http://n8n:5678"
+        }
     }
     
     webhookURL := fmt.Sprintf("%s/webhook/%s", n8nBaseURL, webhookPath)

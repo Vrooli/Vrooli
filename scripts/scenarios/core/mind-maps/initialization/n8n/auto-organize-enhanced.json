@@ -102,7 +102,7 @@
       "parameters": {
         "workflowId": "={{ $env.SHARED_WORKFLOW_WORKFLOW_SCREENSHOT_CAPTURER_ID }}",
         "source": "parameter",
-        "workflowData": "={{ { \"url\": \"http://localhost:\" + ($('merge-inputs').item.json.uiPort || 3100) + \"/mind-map/\" + $('process-structure').item.json.mapId, \"waitTime\": 2000, \"selector\": \"#mind-map-canvas\", \"fullPage\": false } }}"
+        "workflowData": "={{ { \"url\": \"${service.ui.url}/mind-map/\" + $('process-structure').item.json.mapId, \"waitTime\": 2000, \"selector\": \"#mind-map-canvas\", \"fullPage\": false } }}"
       },
       "id": "capture-preview",
       "name": "Capture Mind Map Preview",

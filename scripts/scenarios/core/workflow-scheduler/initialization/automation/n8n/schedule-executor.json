@@ -16,7 +16,34 @@
       "name": "Every Minute",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [250, 300]
+      "position": [250, 250]
+    },
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Provide test data for manual trigger\nconst input = $input.item.json;\nif (!input || Object.keys(input).length === 0) {\n  return {\n    test_mode: true,\n    test_timestamp: new Date().toISOString()\n  };\n}\nreturn input;"
+      },
+      "id": "manual-defaults",
+      "name": "Manual Defaults",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 400]
+    },
+    {
+      "parameters": {},
+      "id": "merge-triggers",
+      "name": "Merge Triggers",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [650, 300]
     },
     {
       "parameters": {
@@ -28,7 +55,7 @@
       "name": "Get Due Schedules",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [450, 300],
+      "position": [850, 300],
       "credentials": {
         "postgres": {
           "id": "postgres_workflow_scheduler",
@@ -44,7 +71,7 @@
       "name": "Process Schedules",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [650, 300]
+      "position": [1050, 300]
     },
     {
       "parameters": {
@@ -73,7 +100,7 @@
       "name": "Has Schedules?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [850, 300]
+      "position": [1250, 300]
     },
     {
       "parameters": {
@@ -85,7 +112,7 @@
       "name": "Create Execution Record",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [1050, 250],
+      "position": [1450, 250],
       "credentials": {
         "postgres": {
           "id": "postgres_workflow_scheduler",
@@ -131,7 +158,7 @@
       "name": "Execute Target",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1250, 250],
+      "position": [1650, 250],
       "continueOnFail": true
     },
     {
@@ -142,7 +169,7 @@
       "name": "Process Result",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1450, 250]
+      "position": [1850, 250]
     },
     {
       "parameters": {
@@ -154,7 +181,7 @@
       "name": "Update Execution",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [1650, 250],
+      "position": [2050, 250],
       "credentials": {
         "postgres": {
           "id": "postgres_workflow_scheduler",
@@ -198,48 +225,58 @@
       "name": "Should Retry?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [1850, 250]
+      "position": [2250, 250]
     },
     {
       "parameters": {
-        "url": "=http://localhost:${service.n8n.port}/webhook/retry-handler",
-        "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "execution_id",
-              "value": "={{ $json.execution_id }}"
-            },
-            {
-              "name": "schedule_id",
-              "value": "={{ $json.schedule_id }}"
-            },
-            {
-              "name": "retry_count",
-              "value": "1"
-            },
-            {
-              "name": "max_retries",
-              "value": "={{ $json.max_retries }}"
-            },
-            {
-              "name": "retry_strategy",
-              "value": "={{ $json.retry_strategy }}"
-            }
-          ]
-        },
-        "options": {}
+        "command": "=bash -c \"vrooli resource n8n execute-workflow 'retry-handler' '{\\\"execution_id\\\":\\\"{{ $json.execution_id }}\\\",\\\"schedule_id\\\":\\\"{{ $json.schedule_id }}\\\",\\\"retry_count\\\":1,\\\"max_retries\\\":{{ $json.max_retries }},\\\"retry_strategy\\\":\\\"{{ $json.retry_strategy }}\\\"}' --quiet 2>&1\"",
+        "options": {
+          "timeout": 30000
+        }
       },
       "id": "trigger-retry",
       "name": "Trigger Retry Handler",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [2050, 200],
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [2450, 200],
       "continueOnFail": true
     }
   ],
   "connections": {
     "cron-trigger": {
+      "main": [
+        [
+          {
+            "node": "merge-triggers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "manual-trigger": {
+      "main": [
+        [
+          {
+            "node": "manual-defaults",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "manual-defaults": {
+      "main": [
+        [
+          {
+            "node": "merge-triggers",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "merge-triggers": {
       "main": [
         [
           {

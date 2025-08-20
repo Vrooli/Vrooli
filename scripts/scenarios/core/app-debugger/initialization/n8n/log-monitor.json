@@ -94,35 +94,14 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "http://localhost:5678/webhook/error-analyzer",
-        "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "app_name",
-              "value": "={{ $json.app_name }}"
-            },
-            {
-              "name": "error_message",
-              "value": "={{ $json.errors[0].line }}"
-            },
-            {
-              "name": "stack_trace",
-              "value": "={{ $json.errors[0].context }}"
-            },
-            {
-              "name": "context",
-              "value": "={{ JSON.stringify({log_type: $json.log_type, timestamp: $json.timestamp}) }}"
-            }
-          ]
-        },
+        "source": "database",
+        "workflowId": "={{ $env.APP_DEBUGGER_ERROR_ANALYZER_ID || 'error-analyzer' }}",
         "options": {}
       },
       "id": "trigger_analysis",
       "name": "Trigger Error Analysis",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 3,
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
       "position": [1600, 300]
     },
     {

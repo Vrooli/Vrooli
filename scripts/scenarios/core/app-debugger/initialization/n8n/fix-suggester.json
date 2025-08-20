@@ -74,35 +74,19 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "http://localhost:5678/webhook/ollama",
-        "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "prompt",
-              "value": "={{ $json.prompt }}"
-            },
-            {
-              "name": "model",
-              "value": "={{ $json.model }}"
-            },
-            {
-              "name": "type",
-              "value": "={{ $json.type }}"
-            },
-            {
-              "name": "quiet",
-              "value": "={{ $json.quiet }}"
-            }
-          ]
-        },
-        "options": {}
+        "workflowId": "={{ $env.SHARED_WORKFLOW_OLLAMA_ID || 'ollama' }}",
+        "waitForSubWorkflow": true,
+        "data": {
+          "prompt": "={{ $json.prompt }}",
+          "model": "={{ $json.model }}",
+          "type": "={{ $json.type }}",
+          "quiet": "={{ $json.quiet }}"
+        }
       },
       "id": "generate_fix",
       "name": "Generate Fix",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 3,
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
       "position": [1200, 400]
     },
     {

@@ -993,8 +993,38 @@ app_stop_all() {
 			fi
 			
 			# Only target app-related processes (not system processes)
+			# IMPORTANT: We only kill if is_app_process is true, meaning the process is definitely
+			# running from generated-apps or Trash directories
 			if [[ "$is_app_process" == "true" ]] && [[ -n "$app_name" ]]; then
-				if [[ "$cmd" == *"server.js"* ]] || [[ "$cmd" == *"npm start"* ]] || [[ "$cmd" == *"manage.sh develop"* ]] || [[ "$cmd" == *"node"* && ("$cwd" == *"/ui"* || "$cmd" == *"/ui/"*) ]]; then
+				# Check if this looks like an app-related process
+				local is_likely_app_process=false
+				
+				# Node.js and JavaScript build tools
+				if [[ "$cmd" == *"node"* ]] || [[ "$cmd" == *"npm"* ]] || [[ "$cmd" == *"npx"* ]] || \
+				   [[ "$cmd" == *"pnpm"* ]] || [[ "$cmd" == *"yarn"* ]] || [[ "$cmd" == *"bun"* ]]; then
+					is_likely_app_process=true
+				# JavaScript build/dev servers
+				elif [[ "$cmd" == *"vite"* ]] || [[ "$cmd" == *"next"* ]] || [[ "$cmd" == *"webpack"* ]] || \
+				     [[ "$cmd" == *"parcel"* ]] || [[ "$cmd" == *"rollup"* ]] || [[ "$cmd" == *"esbuild"* ]]; then
+					is_likely_app_process=true
+				# Python web servers
+				elif [[ "$cmd" == *"python"*"manage.py"* ]] || [[ "$cmd" == *"flask"* ]] || \
+				     [[ "$cmd" == *"django"* ]] || [[ "$cmd" == *"uvicorn"* ]] || [[ "$cmd" == *"gunicorn"* ]]; then
+					is_likely_app_process=true
+				# Ruby/Rails
+				elif [[ "$cmd" == *"ruby"* ]] || [[ "$cmd" == *"rails"* ]] || [[ "$cmd" == *"rake"* ]] || \
+				     [[ "$cmd" == *"bundle"* ]] || [[ "$cmd" == *"puma"* ]]; then
+					is_likely_app_process=true
+				# Shell scripts for app management
+				elif [[ "$cmd" == *"manage.sh"* ]] || [[ "$cmd" == *"start.sh"* ]] || \
+				     [[ "$cmd" == *"develop.sh"* ]] || [[ "$cmd" == *"server.sh"* ]]; then
+					is_likely_app_process=true
+				# Bash processes running develop scripts
+				elif [[ "$cmd" == *"bash"* ]] && [[ "$cmd" == *"develop"* ]]; then
+					is_likely_app_process=true
+				fi
+				
+				if [[ "$is_likely_app_process" == "true" ]]; then
 					if [[ -z "${orphaned_apps[$app_name]:-}" ]]; then
 						log::warning "Found orphaned process for $app_name (PID: $pid)"
 						if kill -TERM "$pid" 2>/dev/null; then
@@ -1011,7 +1041,7 @@ app_stop_all() {
 					fi
 				fi
 			fi
-		done < <(ps -eo pid,cmd --no-headers | grep -E "(node|npm|manage\.sh)" | grep -v grep)
+		done < <(ps -eo pid,cmd --no-headers | grep -v grep)
 	fi
 	
 	# Report results

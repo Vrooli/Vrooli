@@ -58,6 +58,10 @@
     {
       "parameters": {
         "workflowId": "ollama",
+        "workflowParameters": {
+          "prompt": "={{ $json.prompt }}",
+          "model": "llama3.2"
+        },
         "options": {
           "waitForSubWorkflow": true
         }

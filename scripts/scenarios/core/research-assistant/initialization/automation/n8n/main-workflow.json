@@ -30,30 +30,38 @@
     {% if "ollama" in resources.required %}
     {
       "parameters": {
-        "url": "http://localhost:11434/api/generate",
+        "url": "={{ $env.N8N_BASE_URL || 'http://localhost:5678' }}/webhook/ollama",
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
-            {
-              "name": "model",
-              "value": "llama3.1:8b"
-            },
             {
               "name": "prompt", 
               "value": "={{ $json.text_content || 'Process this request for AI Research Assistant' }}"
             },
             {
-              "name": "stream",
-              "value": "false"
+              "name": "model",
+              "value": "llama3.1:8b"
+            },
+            {
+              "name": "type",
+              "value": "reasoning"
+            },
+            {
+              "name": "quiet",
+              "value": "true"
+            },
+            {
+              "name": "timeout_seconds",
+              "value": "120"
             }
           ]
         },
         "options": {
-          "timeout": 30000
+          "timeout": 120000
         }
       },
       "id": "ai-processing",
-      "name": "AI Processing (Ollama)",
+      "name": "AI Processing (Shared Ollama)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4,
       "position": [680, 240],

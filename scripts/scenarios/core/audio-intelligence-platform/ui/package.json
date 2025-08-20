@@ -1,0 +1,19 @@
+{
+  "name": "audio-intelligence-platform-ui",
+  "version": "1.0.0",
+  "description": "Professional audio studio interface for transcription and analysis",
+  "main": "index.html",
+  "scripts": {
+    "start": "python3 -m http.server 5681",
+    "dev": "python3 -m http.server 5681"
+  },
+  "keywords": [
+    "audio",
+    "transcription",
+    "ai",
+    "analysis",
+    "whisper"
+  ],
+  "author": "Vrooli",
+  "license": "MIT"
+}

@@ -131,18 +131,19 @@
     },
     {
       "parameters": {
-        "command": "=#!/bin/bash\n# Generate daily summary using Ollama CLI\nset -e\n\n# Get prompt from input and escape it properly\nPROMPT='{{ $json.prompt }}'\n\n# Call Ollama using the CLI with JSON output format\nresource-ollama generate \"$PROMPT\" --model llama3.2:3b --type reasoning --format json --quiet || echo '{\"summary\": \"Daily activity recorded.\", \"key_themes\": [\"notes\"], \"productivity_insight\": \"Keep up the good work!\", \"tomorrow_suggestion\": \"Continue your note-taking practice.\"}'",
-        "cwd": "/tmp"
+        "workflowId": "={{ $env.SHARED_WORKFLOW_OLLAMA_ID }}",
+        "source": "parameter",
+        "workflowData": "={{ { prompt: $json.prompt, model: 'llama3.2:3b', type: 'reasoning', quiet: true, timeout_seconds: 120 } }}"
       },
       "name": "Generate AI Summary",
-      "type": "n8n-nodes-base.executeCommand",
+      "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
       "position": [1460, 400],
       "id": "generate-ai-summary"
     },
     {
       "parameters": {
-        "jsCode": "// Parse AI response from executeCommand output\nconst aiResponseText = $json.stdout || '{}';\nlet aiResponse;\n\ntry {\n  aiResponse = typeof aiResponseText === 'string' ? JSON.parse(aiResponseText) : aiResponseText;\n} catch (e) {\n  // If parsing fails, create a fallback response\n  console.error('Failed to parse AI response:', e);\n  aiResponse = {\n    summary: 'Daily summary generated successfully.',\n    key_themes: [],\n    productivity_insight: 'Continue building on today\\'s progress.',\n    tomorrow_suggestion: 'Review and expand on today\\'s notes.'\n  };\n}\n\n// Get the original data\nconst originalData = $('code-prepare').item.json;\n\n// Combine AI response with stats for saving\nreturn {\n  user_id: $('set-params').item.json.user_id,\n  summary_date: originalData.date,\n  content: aiResponse.summary || 'No summary available',\n  key_points: aiResponse.key_themes || [],\n  notes_created: originalData.stats.notes_created,\n  notes_updated: originalData.stats.notes_updated,\n  total_words: originalData.stats.total_words,\n  productivity_insight: aiResponse.productivity_insight || '',\n  tomorrow_suggestion: aiResponse.tomorrow_suggestion || ''\n};"
+        "jsCode": "// Parse AI response from shared ollama workflow\nconst ollamaResult = $json;\nlet aiResponse;\n\n// The shared ollama workflow returns a response field\nconst aiResponseText = ollamaResult.response || '{}';\n\ntry {\n  // Try to parse JSON if the response looks like JSON\n  if (typeof aiResponseText === 'string' && aiResponseText.trim().startsWith('{')) {\n    aiResponse = JSON.parse(aiResponseText);\n  } else {\n    // If not JSON, create a basic response using the text\n    aiResponse = {\n      summary: aiResponseText || 'Daily summary generated successfully.',\n      key_themes: [],\n      productivity_insight: 'Continue building on today\\'s progress.',\n      tomorrow_suggestion: 'Review and expand on today\\'s notes.'\n    };\n  }\n} catch (e) {\n  // If parsing fails, create a fallback response\n  console.error('Failed to parse AI response:', e);\n  aiResponse = {\n    summary: 'Daily summary generated successfully.',\n    key_themes: [],\n    productivity_insight: 'Continue building on today\\'s progress.',\n    tomorrow_suggestion: 'Review and expand on today\\'s notes.'\n  };\n}\n\n// Get the original data\nconst originalData = $('code-prepare').item.json;\n\n// Combine AI response with stats for saving\nreturn {\n  user_id: $('set-params').item.json.user_id,\n  summary_date: originalData.date,\n  content: aiResponse.summary || 'No summary available',\n  key_points: aiResponse.key_themes || [],\n  notes_created: originalData.stats.notes_created,\n  notes_updated: originalData.stats.notes_updated,\n  total_words: originalData.stats.total_words,\n  productivity_insight: aiResponse.productivity_insight || '',\n  tomorrow_suggestion: aiResponse.tomorrow_suggestion || ''\n};"
       },
       "name": "Process AI Response",
       "type": "n8n-nodes-base.code",

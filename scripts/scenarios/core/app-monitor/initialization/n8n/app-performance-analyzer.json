@@ -126,19 +126,22 @@
     },
     {
       "parameters": {
-        "url": "={{ $env.SERVICE_N8N_URL }}/webhook/ollama",
-        "method": "POST",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({\n  prompt: $json.ai_prompt,\n  model: 'llama3.2',\n  type: 'reasoning',\n  quiet: true,\n  timeout_seconds: 30\n}) }}",
+        "workflowId": "={{ $env.SHARED_WORKFLOW_OLLAMA_ID }}",
+        "source": "parameter",
+        "parameters": {
+          "prompt": "={{ $json.ai_prompt }}",
+          "model": "llama3.2",
+          "type": "reasoning",
+          "quiet": true
+        },
         "options": {
-          "timeout": 35000
+          "loadPreviousNode": false
         }
       },
       "id": "call_ollama_workflow",
       "name": "Call Shared Ollama Workflow",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
       "position": [2000, 300]
     },
     {

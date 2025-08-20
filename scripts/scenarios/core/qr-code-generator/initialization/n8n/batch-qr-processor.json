@@ -57,25 +57,25 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "http://localhost:5678/webhook/generate-qr",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({\n  text: $json.text,\n  size: $node['Validate Batch'].json.options.size,\n  color: $json.customOptions.color || $node['Validate Batch'].json.options.color,\n  background: $json.customOptions.background || $node['Validate Batch'].json.options.background,\n  errorCorrection: $json.customOptions.errorCorrection || $node['Validate Batch'].json.options.errorCorrection,\n  format: $node['Validate Batch'].json.options.format,\n  margin: $node['Validate Batch'].json.options.margin,\n  style: $json.customOptions.style || $node['Validate Batch'].json.options.style\n}) }}",
+        "workflowId": "qr-generator-workflow",
+        "workflowParameters": {
+          "text": "={{ $json.text }}",
+          "size": "={{ $node['Validate Batch'].json.options.size }}",
+          "color": "={{ $json.customOptions.color || $node['Validate Batch'].json.options.color }}",
+          "background": "={{ $json.customOptions.background || $node['Validate Batch'].json.options.background }}",
+          "errorCorrection": "={{ $json.customOptions.errorCorrection || $node['Validate Batch'].json.options.errorCorrection }}",
+          "format": "={{ $node['Validate Batch'].json.options.format }}",
+          "margin": "={{ $node['Validate Batch'].json.options.margin }}",
+          "style": "={{ $json.customOptions.style || $node['Validate Batch'].json.options.style }}"
+        },
         "options": {
-          "timeout": 30000,
-          "batching": {
-            "batch": {
-              "batchSize": 10,
-              "batchInterval": 100
-            }
-          }
+          "waitForSubWorkflow": true
         }
       },
       "id": "generate_each_qr",
       "name": "Generate Each QR",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
       "position": [1000, 400]
     },
     {

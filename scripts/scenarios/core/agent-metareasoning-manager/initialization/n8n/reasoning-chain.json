@@ -80,17 +80,27 @@
     },
     {
       "parameters": {
-        "resource": "completion",
-        "model": "{{ $json.model || 'llama3.2' }}",
-        "prompt": "You have completed a comprehensive reasoning chain analysis for: {{ $json.input }}\n\nChain type: {{ $json.chain_type }}\nSteps completed: {{ $json.results.length }}\n\nStep-by-step results:\n{{ $json.results.map((r, i) => `${i+1}. ${r.description}:\\n   ${JSON.stringify(r.summary, null, 2)}`).join('\\n\\n') }}\n\nProvide a SYNTHESIS of all reasoning steps:\n1. Overall conclusion and recommendation\n2. Key insights that emerged from the multi-step analysis\n3. Areas of convergence vs. divergence between different reasoning approaches\n4. Confidence level in the final conclusion (0-100)\n5. Most critical factors that influenced the final recommendation\n6. Suggested next steps or follow-up analysis\n\nFormat as structured final reasoning synthesis.",
-        "temperature": 0.4,
-        "maxTokens": 2000
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Prepare ollama CLI command for synthesis\nconst data = $input.item.json;\n\nconst prompt = `You have completed a comprehensive reasoning chain analysis for: ${data.input}\n\nChain type: ${data.chain_type}\nSteps completed: ${data.results.length}\n\nStep-by-step results:\n${data.results.map((r, i) => `${i+1}. ${r.description}:\\n   ${JSON.stringify(r.summary, null, 2)}`).join('\\n\\n')}\n\nProvide a SYNTHESIS of all reasoning steps:\n1. Overall conclusion and recommendation\n2. Key insights that emerged from the multi-step analysis\n3. Areas of convergence vs. divergence between different reasoning approaches\n4. Confidence level in the final conclusion (0-100)\n5. Most critical factors that influenced the final recommendation\n6. Suggested next steps or follow-up analysis\n\nFormat as structured final reasoning synthesis.`;\n\n// Build command using CLI\nconst model = data.model || 'llama3.2';\nconst timestamp = Date.now();\nconst randomId = Math.random().toString(36).substring(2, 8);\nconst tempFile = '/tmp/synthesis_' + timestamp + '_' + randomId + '.txt';\n\n// Escape single quotes in prompt for shell\nconst escapedPrompt = prompt.replace(/'/g, \"'\\\"'\\\"'\");\n\n// Build command string using vrooli CLI\nconst command = 'prompt_file=\"' + tempFile + '\"; ' +\n  'echo \\'' + escapedPrompt + '\\' > \"$prompt_file\"; ' +\n  'vrooli resource ollama generate \"$(cat \"$prompt_file\")\" --model \\'' + model + '\\' --type reasoning --quiet; ' +\n  'rm -f \"$prompt_file\"';\n\nreturn {\n  command: command,\n  chainData: data\n};"
+      },
+      "id": "prepare_synthesis_input",
+      "name": "Prepare Synthesis Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 500]
+    },
+    {
+      "parameters": {
+        "command": "={{ $json.command }}",
+        "options": {
+          "timeout": 120000
+        }
       },
       "id": "synthesize_chain",
       "name": "Synthesize Reasoning Chain",
-      "type": "n8n-nodes-base.ollama",
+      "type": "n8n-nodes-base.executeCommand",
       "typeVersion": 1,
-      "position": [1250, 500]
+      "position": [1450, 500]
     },
     {
       "parameters": {

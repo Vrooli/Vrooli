@@ -154,31 +154,19 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "http://localhost:5678/webhook/ollama",
-        "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "prompt",
-              "value": "=Analyze this debug report and provide actionable insights:\n\n{{ JSON.stringify($json.results) }}\n\nProvide:\n1. Root cause analysis\n2. Specific fix recommendations\n3. Prevention strategies"
-            },
-            {
-              "name": "model",
-              "value": "codellama:7b"
-            },
-            {
-              "name": "type",
-              "value": "reasoning"
-            }
-          ]
-        },
-        "options": {}
+        "workflowId": "={{ $env.SHARED_WORKFLOW_OLLAMA_ID || 'ollama' }}",
+        "waitForSubWorkflow": true,
+        "data": {
+          "prompt": "=Analyze this debug report and provide actionable insights:\n\n{{ JSON.stringify($json.results) }}\n\nProvide:\n1. Root cause analysis\n2. Specific fix recommendations\n3. Prevention strategies",
+          "model": "codellama:7b",
+          "type": "reasoning",
+          "quiet": true
+        }
       },
       "id": "ai_analysis",
       "name": "AI Analysis",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 3,
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
       "position": [1600, 450],
       "continueOnFail": true
     },
