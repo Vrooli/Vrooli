@@ -31,11 +31,14 @@ twilio::status::collect_data() {
     local healthy="false"
     local health_message="Twilio not configured"
     
-    if twilio::is_configured; then
+    if twilio::is_installed && twilio::has_credentials; then
         installed="true"
         running="true"
         healthy="true"
         health_message="Twilio is configured and ready"
+    elif twilio::is_installed; then
+        installed="true"
+        health_message="Twilio CLI installed but not configured"
     fi
     
     # Build status data array

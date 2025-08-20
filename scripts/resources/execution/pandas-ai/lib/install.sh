@@ -157,6 +157,12 @@ if __name__ == "__main__":
 EOF
     
     chmod +x "${PANDAS_AI_SCRIPTS_DIR}/server.py"
+    
+    # Register the CLI
+    local resource_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+    "${PANDAS_AI_LIB_DIR}/../../../../lib/resources/install-resource-cli.sh" "${resource_dir}" 2>/dev/null || true
+    
+    log::success "Pandas AI installed successfully"
 }
 
 # Export functions for use by CLI

@@ -49,17 +49,8 @@ EOF
         fi
     fi
     
-    # Install CLI symlink
-    local cli_link="/usr/local/bin/resource-gemini"
-    local cli_script="${GEMINI_INSTALL_DIR}/../resource-gemini"
-    
-    if [[ -f "$cli_script" ]]; then
-        if [[ -L "$cli_link" ]] || [[ -f "$cli_link" ]]; then
-            sudo rm -f "$cli_link"
-        fi
-        sudo ln -sf "$cli_script" "$cli_link"
-        [[ "$verbose" == "true" ]] && log::info "Installed resource-gemini CLI"
-    fi
+    # Register CLI using standard helper
+    "${var_SCRIPTS_RESOURCES_LIB_DIR}/resources/install-resource-cli.sh" "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)" 2>/dev/null || true
     
     # Verify installation
     if gemini::test_connection 2>/dev/null; then

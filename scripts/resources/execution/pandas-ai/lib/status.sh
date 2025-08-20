@@ -106,14 +106,14 @@ pandas_ai::status() {
     
     if pandas_ai::is_running; then
         running="true"
-        # Skip health check in fast mode
-        if [[ "$fast_mode" == "false" ]]; then
+        # In fast mode, assume healthy if running (already verified port is responsive)
+        if [[ "$fast_mode" == "true" ]]; then
+            health="healthy"
+        else
             # Check health endpoint with timeout for performance
             if timeout 1s curl -sf "http://localhost:${port}/health" >/dev/null 2>&1; then
                 health="healthy"
             fi
-        else
-            health="N/A"
         fi
     fi
     

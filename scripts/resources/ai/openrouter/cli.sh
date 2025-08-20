@@ -1,8 +1,12 @@
 #!/bin/bash
 # OpenRouter CLI interface
 
-# Get script directory
-OPENROUTER_CLI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Get the real script directory (resolving symlinks)
+if [[ -L "${BASH_SOURCE[0]}" ]]; then
+    OPENROUTER_CLI_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+else
+    OPENROUTER_CLI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+fi
 
 # Source dependencies
 source "${OPENROUTER_CLI_DIR}/lib/core.sh"

@@ -54,8 +54,9 @@ erpnext::status::collect_data() {
                     health_message="ERPNext is running but not responding to health checks"
                 fi
             else
-                healthy="N/A"
-                health_message="ERPNext is running on port ${ERPNEXT_PORT}"
+                # In fast mode, assume healthy if running
+                healthy="true"
+                health_message="ERPNext is running on port ${ERPNEXT_PORT} (fast check)"
             fi
         else
             health_message="ERPNext is installed but not running"

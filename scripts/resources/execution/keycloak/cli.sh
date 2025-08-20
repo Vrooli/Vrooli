@@ -1,8 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Get the directory of this script
-KEYCLOAK_CLI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Resolve symlinks to find the actual script location
+if [[ -L "${BASH_SOURCE[0]}" ]]; then
+    KEYCLOAK_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
+else
+    KEYCLOAK_CLI_SCRIPT="${BASH_SOURCE[0]}"
+fi
+KEYCLOAK_CLI_DIR="$(cd "$(dirname "$KEYCLOAK_CLI_SCRIPT")" && pwd)"
 
 # Main CLI handler
 main() {

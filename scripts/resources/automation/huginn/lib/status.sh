@@ -23,13 +23,18 @@ fi
 # Returns: Key-value pairs ready for formatting
 #######################################
 huginn::status::collect_data() {
-    local fast_mode="false"
+    # Default to fast mode to avoid Rails runner hangs
+    local fast_mode="true"
     
     # Parse arguments
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --fast)
                 fast_mode="true"
+                shift
+                ;;
+            --full|--slow)
+                fast_mode="false"
                 shift
                 ;;
             *)
@@ -96,7 +101,8 @@ huginn::status::collect_data() {
         # Huginn version
         local version
         if [[ "$fast_mode" == "false" ]]; then
-            version=$(timeout 3 huginn::get_version 2>/dev/null || echo "unknown")
+            # Call function directly - rails_runner already has timeout built in
+            version=$(huginn::get_version 2>/dev/null || echo "unknown")
         else
             version="N/A"
         fi
@@ -104,8 +110,11 @@ huginn::status::collect_data() {
         
         # Database connectivity
         local db_connected="false"
-        if [[ "$fast_mode" == "false" ]] && timeout 3 huginn::check_database 2>/dev/null; then
-            db_connected="true"
+        if [[ "$fast_mode" == "false" ]]; then
+            # Call function directly - rails_runner already has timeout built in
+            if huginn::check_database 2>/dev/null; then
+                db_connected="true"
+            fi
         elif [[ "$fast_mode" == "true" ]]; then
             db_connected="N/A"
         fi
@@ -114,8 +123,8 @@ huginn::status::collect_data() {
         # Get system statistics if healthy (skip in fast mode)
         if [[ "$healthy" == "true" ]] && [[ "$fast_mode" == "false" ]]; then
             local stats_json
-            # Add explicit timeout to prevent hanging
-            stats_json=$(timeout 5 huginn::get_system_stats 2>/dev/null || echo "{}")
+            # Call function directly - rails_runner already has timeout built in
+            stats_json=$(huginn::get_system_stats 2>/dev/null || echo "{}")
             
             if [[ -n "$stats_json" ]] && [[ "$stats_json" != "{}" ]] && echo "$stats_json" | jq . >/dev/null 2>&1; then
                 local users agents scenarios events active_agents

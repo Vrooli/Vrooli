@@ -54,7 +54,7 @@ main() {
     
     case "$cmd" in
         status)
-            check_status "$@"
+            twilio::status::new "$@"
             ;;
         install)
             twilio::install "$@"

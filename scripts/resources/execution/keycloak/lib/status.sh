@@ -137,8 +137,10 @@ keycloak::status::display_text() {
     for ((i=1; i<=$#; i+=2)); do
         local key="${!i}"
         local value_idx=$((i+1))
-        local value="${!value_idx}"
-        data["$key"]="$value"
+        if [ $value_idx -le $# ]; then
+            local value="${!value_idx}"
+            data["$key"]="$value"
+        fi
     done
     
     # Get verbose mode from environment or default to false

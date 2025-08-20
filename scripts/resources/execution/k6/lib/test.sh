@@ -35,12 +35,18 @@ k6::test::run() {
     local container_script="/scripts/$(basename "$script_path")"
     
     # Build k6 command with proper escaping
-    local k6_cmd="k6 run ${container_script} --out json=/results/${results_filename}"
+    local k6_cmd="k6 run --out json=/results/${results_filename}"
     
-    # Add any additional k6 arguments
+    # Add any additional k6 arguments BEFORE the script path
     if [[ $# -gt 0 ]]; then
         k6_cmd="$k6_cmd $*"
     fi
+    
+    # Add the script path at the end
+    k6_cmd="$k6_cmd ${container_script}"
+    
+    # Debug output
+    log::info "Running command: $k6_cmd"
     
     # Run test with JSON output (using docker exec with sh -c)
     if docker exec vrooli-k6 sh -c "$k6_cmd"; then

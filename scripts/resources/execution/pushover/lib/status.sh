@@ -33,11 +33,22 @@ pushover::status::collect_data() {
     local healthy="false"
     local health_message="Pushover not configured"
     
-    if pushover::is_configured; then
+    # Check if installed (Python dependencies)
+    if pushover::is_installed; then
         installed="true"
+        health_message="Dependencies installed, awaiting API credentials"
+    fi
+    
+    # Check if configured and running
+    if pushover::is_configured; then
         running="true"
         healthy="true"
         health_message="Pushover is configured and ready"
+    else
+        # Not configured but installed - this is a valid pending state
+        running="false"
+        healthy="pending"  # Use pending instead of false to indicate awaiting configuration
+        health_message="Awaiting API credentials (check Vault or set PUSHOVER_APP_TOKEN and PUSHOVER_USER_KEY)"
     fi
     
     # Build status data array
@@ -75,14 +86,20 @@ pushover::status::display_text() {
     # Basic status
     log::info "📊 Basic Status:"
     if [[ "${data[installed]:-false}" == "true" ]]; then
-        log::success "   ✅ Configured: Yes"
-        log::success "   ✅ Running: Yes"
-        log::success "   ✅ Health: ${data[health_message]:-Healthy}"
+        log::success "   ✅ Installed: Yes"
+        if [[ "${data[running]:-false}" == "true" ]]; then
+            log::success "   ✅ Configured: Yes"
+            log::success "   ✅ Running: Yes"
+        else
+            log::warning "   ⚠️ Configured: No"
+            log::info "   ⚠️ Running: No (awaiting credentials)"
+        fi
+        log::info "   📋 Status: ${data[health_message]:-Unknown}"
     else
-        log::error "   ❌ Configured: No"
+        log::error "   ❌ Installed: No"
         echo
-        log::info "💡 Configuration Required:"
-        log::info "   To configure Pushover, run: resource-pushover install"
+        log::info "💡 Installation Required:"
+        log::info "   To install Pushover, run: resource-pushover install"
         return
     fi
     echo
@@ -97,98 +114,7 @@ pushover::status::new() {
     status::run_standard "pushover" "pushover::status::collect_data" "pushover::status::display_text" "$@"
 }
 
-# Status check
+# Main status function - delegate to new implementation
 pushover::status() {
-    local verbose="false"
-    local format="text"
-    local fast="false"
-    
-    # Parse arguments
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            --format)
-                format="${2:-text}"
-                shift 2
-                ;;
-            --verbose)
-                verbose="true"
-                shift
-                ;;
-            --fast)
-                fast="true"
-                shift
-                ;;
-            *)
-                shift
-                ;;
-        esac
-    done
-    
-    # Initialize
-    pushover::init "$verbose"
-    
-    # Gather status information
-    local installed=$(pushover::is_installed && echo "true" || echo "false")
-    local configured=$(pushover::is_configured && echo "true" || echo "false")
-    local running=$(pushover::is_running && echo "true" || echo "false")
-    local health="unhealthy"
-    
-    if [[ "$running" == "true" ]]; then
-        health="healthy"
-    elif [[ "$configured" == "true" ]]; then
-        health="partial"
-    elif [[ "$installed" == "true" ]]; then
-        health="installed"
-    fi
-    
-    # Prepare details
-    local details=""
-    if [[ "$configured" == "true" ]]; then
-        details="API configured, ready to send notifications"
-    elif [[ "$installed" == "true" ]]; then
-        details="Dependencies installed, awaiting API credentials"
-    else
-        details="Not installed"
-    fi
-    
-    # Format output using format.sh
-    local status_data=$(cat <<EOF
-{
-    "name": "pushover",
-    "installed": $installed,
-    "running": $running,
-    "health": "$health",
-    "configured": $configured,
-    "api_url": "$PUSHOVER_API_URL",
-    "details": "$details"
-}
-EOF
-    )
-    
-    # Use format.sh for consistent output
-    if [[ "$format" == "json" ]]; then
-        echo "$status_data"
-    else
-        format::status "📱 Pushover Status" "$status_data"
-        
-        if [[ "$verbose" == "true" ]]; then
-            echo ""
-            log::info "Configuration:"
-            log::info "   📁 Data Directory: $PUSHOVER_DATA_DIR"
-            log::info "   🔑 Credentials: ${PUSHOVER_CREDENTIALS_FILE}"
-            
-            if [[ "$configured" == "true" ]]; then
-                log::info "   🔐 App Token: ${PUSHOVER_APP_TOKEN:0:10}..."
-                log::info "   👤 User Key: ${PUSHOVER_USER_KEY:0:10}..."
-            fi
-            
-            echo ""
-            log::info "Notification Features:"
-            log::info "   📨 Message Types: text, HTML, monospace"
-            log::info "   🔔 Priority Levels: -2 to 2 (silent to emergency)"
-            log::info "   🎵 Sounds: 21 notification sounds available"
-            log::info "   📎 Attachments: Images up to 2.5MB"
-            log::info "   🔗 URL Support: Clickable links in messages"
-        fi
-    fi
+    pushover::status::new "$@"
 }

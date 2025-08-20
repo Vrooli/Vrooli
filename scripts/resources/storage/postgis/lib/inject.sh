@@ -13,20 +13,20 @@ postgis_inject() {
     local database="${2:-$POSTGIS_PG_DATABASE}"
     
     if [ -z "$source_path" ]; then
-        format_error "No source path provided"
+        log::error "No source path provided"
         return 1
     fi
     
     if [ ! -e "$source_path" ]; then
-        format_error "Source path does not exist: $source_path"
+        log::error "Source path does not exist: $source_path"
         return 1
     fi
     
     # Ensure PostGIS is enabled in target database
     if ! postgis_is_enabled "$database"; then
-        format_warning "PostGIS not enabled in database $database, enabling now..."
+        log::warning "PostGIS not enabled in database $database, enabling now..."
         if ! postgis_enable_database "$database"; then
-            format_error "Failed to enable PostGIS in database"
+            log::error "Failed to enable PostGIS in database"
             return 1
         fi
     fi
@@ -34,15 +34,15 @@ postgis_inject() {
     # Handle single file
     if [ -f "$source_path" ]; then
         if [[ "$source_path" == *.sql ]]; then
-            format_info "Injecting SQL file: $source_path"
+            log::info "Injecting SQL file: $source_path"
             postgis_execute_sql "$source_path" "$database"
             return $?
         elif [[ "$source_path" == *.shp ]]; then
-            format_info "Importing shapefile: $source_path"
+            log::info "Importing shapefile: $source_path"
             postgis_import_shapefile "$source_path" "$database"
             return $?
         else
-            format_error "Unsupported file type. Use .sql or .shp files"
+            log::error "Unsupported file type. Use .sql or .shp files"
             return 1
         fi
     fi

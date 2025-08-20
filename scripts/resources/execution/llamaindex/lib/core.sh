@@ -53,8 +53,8 @@ llamaindex::init() {
 
 # Check if installed
 llamaindex::is_installed() {
-    # Check if Docker image exists
-    docker images | grep -q "^llamaindex[[:space:]]*latest"
+    # Check if Docker image exists with proper formatting
+    docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "^llamaindex:latest$"
 }
 
 # Check if running
@@ -350,6 +350,11 @@ llamaindex::install() {
     if docker build -t llamaindex:latest "$LLAMAINDEX_DIR"; then
         if llamaindex::is_installed; then
             log::success "LlamaIndex installed successfully"
+            
+            # Register CLI with Vrooli
+            # shellcheck disable=SC1091
+            "${var_SCRIPTS_RESOURCES_LIB_DIR}/install-resource-cli.sh" "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)" 2>/dev/null || true
+            
             return 0
         else
             log::error "Docker image built but not found in images list"

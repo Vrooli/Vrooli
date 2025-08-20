@@ -49,30 +49,10 @@ done
 # Initialize CLI framework
 cli::init "k6" "Modern load testing tool with JavaScript scripting"
 
-# Status wrapper to handle format parameter
+# Status wrapper - directly call the status function with all arguments
 k6_status() {
-    local format="plain"
-    
-    # Parse arguments
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            --format)
-                format="${2:-plain}"
-                shift 2
-                ;;
-            json|text|plain)
-                # Support positional format argument
-                format="$1"
-                shift
-                ;;
-            *)
-                shift
-                ;;
-        esac
-    done
-    
-    # Call the actual status function with format
-    k6::status::check "$format"
+    # Pass all arguments directly to the status function
+    k6::status "$@"
 }
 
 # Register commands

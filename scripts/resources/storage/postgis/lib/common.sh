@@ -5,6 +5,9 @@
 POSTGIS_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 POSTGIS_ROOT_DIR="$(dirname "$POSTGIS_LIB_DIR")"
 
+# Default container name
+POSTGIS_CONTAINER="${POSTGIS_CONTAINER:-postgis-main}"
+
 # Source dependencies
 source "${POSTGIS_ROOT_DIR}/config/defaults.sh"
 
@@ -115,16 +118,29 @@ postgis_execute_sql() {
     local database="${2:-$POSTGIS_PG_DATABASE}"
     
     if [ ! -f "$sql_file" ]; then
-        format_error "SQL file not found: $sql_file"
+        log::error "SQL file not found: $sql_file"
         return 1
     fi
     
-    format_info "Executing SQL file: $sql_file"
-    if PGPASSWORD="$POSTGIS_PG_PASSWORD" psql -h "$POSTGIS_PG_HOST" -p "$POSTGIS_PG_PORT" -U "$POSTGIS_PG_USER" -d "$database" -f "$sql_file" 2>&1; then
-        format_success "SQL file executed successfully"
-        return 0
+    log::info "Executing SQL file: $sql_file"
+    # For standalone PostGIS, use the spatial database as default
+    if docker ps --format "{{.Names}}" | grep -q "^${POSTGIS_CONTAINER}$"; then
+        # Use spatial database for standalone PostGIS container
+        local exec_database="${database}"
+        if [ "$exec_database" = "vrooli" ]; then
+            exec_database="spatial"
+        fi
+        # Copy SQL file to container and execute
+        if docker cp "$sql_file" "${POSTGIS_CONTAINER}:/tmp/inject.sql" 2>/dev/null && \
+           docker exec "${POSTGIS_CONTAINER}" psql -U vrooli -d "$exec_database" -f /tmp/inject.sql 2>&1; then
+            log::success "SQL file executed successfully"
+            return 0
+        else
+            log::error "Failed to execute SQL file"
+            return 1
+        fi
     else
-        format_error "Failed to execute SQL file"
+        log::error "PostGIS container not running"
         return 1
     fi
 }

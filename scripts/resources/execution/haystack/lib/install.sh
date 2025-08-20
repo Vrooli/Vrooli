@@ -258,6 +258,10 @@ EOF
     
     chmod +x "${HAYSTACK_SCRIPTS_DIR}/server.py"
     
+    # Register the CLI
+    local resource_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+    "${HAYSTACK_LIB_DIR}/../../../../lib/resources/install-resource-cli.sh" "${resource_dir}" 2>/dev/null || true
+    
     log::success "Haystack installed successfully"
     return 0
 }

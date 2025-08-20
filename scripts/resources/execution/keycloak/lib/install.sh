@@ -42,6 +42,11 @@ keycloak::install() {
     # Create realm export directory with proper permissions
     chmod 755 "${KEYCLOAK_REALMS_DIR}"
     
+    # Register CLI with Vrooli
+    if [[ -f "${var_SCRIPTS_RESOURCES_LIB_DIR}/install-resource-cli.sh" ]]; then
+        "${var_SCRIPTS_RESOURCES_LIB_DIR}/install-resource-cli.sh" "${KEYCLOAK_LIB_DIR}/.." 2>/dev/null || true
+    fi
+    
     log::success "Keycloak installed successfully"
     return 0
 }

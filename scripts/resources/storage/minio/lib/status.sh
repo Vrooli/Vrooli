@@ -680,9 +680,9 @@ minio::status::display_text() {
     
     # Convert array to associative array
     for ((i=1; i<=$#; i+=2)); do
-        local key="${\!i}"
+        local key="${!i}"
         local value_idx=$((i+1))
-        local value="${\!value_idx}"
+        local value="${!value_idx}"
         data["$key"]="$value"
     done
     
@@ -717,13 +717,13 @@ minio::status::display_text() {
     
     # Service endpoints
     log::info "🌐 Service Endpoints:"
-    log::info "   🔌 API: ${data[base_url]:-unknown}"
+    log::info "   🔌 API: ${data[api_url]:-unknown}"
     log::info "   🖥️  Console: ${data[console_url]:-unknown}"
     echo
     
     # Configuration
     log::info "⚙️  Configuration:"
-    log::info "   📶 API Port: ${data[port]:-unknown}"
+    log::info "   📶 API Port: ${data[api_port]:-unknown}"
     log::info "   🖥️  Console Port: ${data[console_port]:-unknown}"
     log::info "   📁 Data Directory: ${data[data_dir]:-unknown}"
     log::info "   🖼️  Image: ${data[image]:-unknown}"

@@ -23,8 +23,9 @@ main() {
     
     case "$command" in
         status)
-            # Handle --format flag
+            # Handle --format and --fast flags
             local format="plain"
+            local fast_mode="false"
             while [[ $# -gt 0 ]]; do
                 case "$1" in
                     --format)
@@ -35,8 +36,15 @@ main() {
                         format="${1#*=}"
                         shift
                         ;;
+                    --fast)
+                        fast_mode="true"
+                        shift
+                        ;;
                     *)
-                        format="$1"
+                        # Only treat as format if it's not a flag
+                        if [[ "$1" != --* ]]; then
+                            format="$1"
+                        fi
                         shift
                         ;;
                 esac

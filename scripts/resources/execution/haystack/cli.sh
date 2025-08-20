@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Get the directory of this script
-HAYSTACK_CLI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Get the real directory of this script (follows symlinks)
+HAYSTACK_CLI_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 
 # Source the lib functions
 source "${HAYSTACK_CLI_DIR}/lib/lifecycle.sh"

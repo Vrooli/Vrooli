@@ -7,6 +7,10 @@ else
     FFMPEG_CLI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 fi
 
+# Source required utilities first
+source "${FFMPEG_CLI_DIR}/../../../lib/utils/log.sh"
+source "${FFMPEG_CLI_DIR}/../../../lib/utils/format.sh"
+
 # Source all lib functions directly
 for lib in install status start stop uninstall inject; do
     source "${FFMPEG_CLI_DIR}/lib/${lib}.sh"

@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Get the directory of this script
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Get the real directory of this script (follows symlinks)
+SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 PANDAS_AI_LIB_DIR="${SCRIPT_DIR}/lib"
 
-# Source dependencies
+# Source dependencies using absolute paths
 source "${SCRIPT_DIR}/../../../lib/utils/var.sh"
 source "${SCRIPT_DIR}/../../../lib/utils/log.sh"
 source "${PANDAS_AI_LIB_DIR}/common.sh"

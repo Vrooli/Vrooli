@@ -96,6 +96,13 @@ EOF
     
     log::success "Templates created"
     
+    # Register CLI with vrooli
+    if command -v install-resource-cli >/dev/null 2>&1; then
+        log::info "Registering Pushover CLI..."
+        install-resource-cli pushover "${PUSHOVER_INSTALL_DIR}/../cli.sh" execution
+        log::success "CLI registered"
+    fi
+    
     # Check for credentials
     if ! pushover::is_configured; then
         log::warning "Pushover installed but not configured"
@@ -105,12 +112,10 @@ EOF
         log::info "2. Create an application to get an App Token"
         log::info "3. Note your User Key from the dashboard"
         log::info "4. Save credentials in one of these ways:"
-        log::info "   a) Create ${PUSHOVER_CREDENTIALS_FILE}:"
-        log::info "      {"
-        log::info "        \"app_token\": \"YOUR_APP_TOKEN\","
-        log::info "        \"user_key\": \"YOUR_USER_KEY\""
-        log::info "      }"
-        log::info "   b) Store in Vault:"
+        log::info "   a) Copy and edit the example credentials file:"
+        log::info "      cp ${PUSHOVER_INSTALL_DIR}/../config/credentials.example.json ${PUSHOVER_CREDENTIALS_FILE}"
+        log::info "      Then edit ${PUSHOVER_CREDENTIALS_FILE} with your actual credentials"
+        log::info "   b) Store in Vault (recommended for production):"
         log::info "      resource-vault set pushover '{\"app_token\":\"...\",\"user_key\":\"...\"}'"
         log::info "   c) Set environment variables:"
         log::info "      export PUSHOVER_APP_TOKEN=..."

@@ -161,8 +161,8 @@ huginn::rails_runner() {
     
     # Execute Ruby code via Rails runner with timeout
     # Use printf to avoid shell interpretation issues
-    # Filter out deprecation warnings from both stdout and stderr
-    printf '%s\n' "$ruby_code" | timeout "$RAILS_RUNNER_TIMEOUT" docker exec -i "$CONTAINER_NAME" bundle exec rails runner - 2>&1 | grep -v "^\[DEPRECATION\]"
+    # Filter out deprecation warnings and empty lines from both stdout and stderr
+    printf '%s\n' "$ruby_code" | timeout "$RAILS_RUNNER_TIMEOUT" docker exec -i "$CONTAINER_NAME" bundle exec rails runner - 2>&1 | grep -v "^\[DEPRECATION\]" | grep -v "^$"
 }
 
 #######################################
@@ -229,7 +229,8 @@ huginn::get_system_stats() {
 #######################################
 huginn::check_database() {
     local result
-    result=$(huginn::rails_runner 'puts "DB_OK" if ActiveRecord::Base.connection.active?' 2>/dev/null)
+    # Filter out deprecation warnings and only capture DB_OK output
+    result=$(huginn::rails_runner 'puts ActiveRecord::Base.connection.active? ? "DB_OK" : "DB_FAIL"' 2>&1 | grep "^DB_OK$" | head -1)
     [[ "$result" == "DB_OK" ]]
 }
 
