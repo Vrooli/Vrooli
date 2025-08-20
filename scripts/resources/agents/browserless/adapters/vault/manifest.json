@@ -15,12 +15,13 @@
   },
   "environment": {
     "VAULT_URL": {
-      "description": "Vault instance URL",
-      "default": "http://localhost:8200",
+      "description": "Vault instance URL (optional, uses port registry for local instances)",
+      "source": "vrooli_secrets",
       "required": false
     },
     "VAULT_TOKEN": {
       "description": "Root token for Vault authentication",
+      "source": "vrooli_secrets",
       "required": true
     },
     "VAULT_TIMEOUT": {

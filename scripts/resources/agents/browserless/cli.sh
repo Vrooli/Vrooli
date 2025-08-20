@@ -68,6 +68,13 @@ cli::register_command "credentials" "Get connection credentials for n8n integrat
 cli::register_command "console-capture" "Capture console logs from any URL" "browserless_console_capture"
 cli::register_command "uninstall" "Uninstall Browserless (requires --force)" "browserless_uninstall" "modifies-system"
 
+# Function management commands
+cli::register_command "list-functions" "List all injected functions" "browserless_list_functions"
+cli::register_command "describe" "Show function details" "browserless_describe_function"
+cli::register_command "execute" "Execute stored function" "browserless_execute_function"
+cli::register_command "remove-function" "Remove stored function" "browserless_remove_function" "modifies-system"
+cli::register_command "validate" "Validate function JSON without storing" "browserless_validate_function"
+
 # Register adapter command for the new "for" pattern
 cli::register_command "for" "Use browserless as adapter for other resources" "browserless_adapter"
 
@@ -78,14 +85,14 @@ cli::register_command "execute-workflow" "[LEGACY] Execute n8n workflow - use 'f
 # Resource-specific command implementations  
 ################################################################################
 
-# Inject configuration into browserless
+# Inject configuration or test data into browserless
 browserless_inject() {
     local file="${1:-}"
     
+    # If no file provided, inject test data
     if [[ -z "$file" ]]; then
-        log::error "File path required for injection"
-        echo "Usage: resource-browserless inject <file.json>"
-        return 1
+        browserless::inject
+        return $?
     fi
     
     # Handle shared: prefix
@@ -95,6 +102,9 @@ browserless_inject() {
     
     if [[ ! -f "$file" ]]; then
         log::error "File not found: $file"
+        echo "Usage: resource-browserless inject [file.json]"
+        echo "  Without file: Inject test data for validation"
+        echo "  With file: Inject custom function from JSON"
         return 1
     fi
     
@@ -329,6 +339,323 @@ browserless_console_capture() {
     fi
     
     browserless::capture_console_logs "$url" "$output" "$wait_time"
+}
+
+################################################################################
+# Function Management Commands
+################################################################################
+
+# List all injected functions
+browserless_list_functions() {
+    local functions_dir="${BROWSERLESS_DATA_DIR}/functions"
+    local registry_file="${functions_dir}/registry.json"
+    
+    if [[ ! -f "$registry_file" ]]; then
+        log::info "No functions found. Inject functions with: resource-browserless inject <file.json>"
+        return 0
+    fi
+    
+    log::header "📁 Browserless Functions"
+    echo
+    
+    local total_functions
+    total_functions=$(jq -r '.metadata.total_functions' "$registry_file")
+    
+    if [[ "$total_functions" == "0" ]]; then
+        log::info "No functions stored."
+        echo "📝 Inject functions with: resource-browserless inject <file.json>"
+        return 0
+    fi
+    
+    echo "Total functions: $total_functions"
+    echo
+    
+    # List functions with details
+    jq -r '.functions | to_entries[] | "🔧 \(.key) - Status: \(.value.status) - Created: \(.value.created // "unknown")"' "$registry_file"
+    
+    echo
+    echo "💡 Commands:"
+    echo "  resource-browserless describe <function-name>  # Show details"
+    echo "  resource-browserless execute <function-name>   # Run function"
+    echo "  resource-browserless remove-function <name>    # Delete function"
+}
+
+# Show function details
+browserless_describe_function() {
+    local function_name="${1:-}"
+    
+    if [[ -z "$function_name" ]]; then
+        log::error "Function name required"
+        echo "Usage: resource-browserless describe <function-name>"
+        return 1
+    fi
+    
+    local function_dir="${BROWSERLESS_DATA_DIR}/functions/${function_name}"
+    local manifest_file="${function_dir}/manifest.json"
+    
+    if [[ ! -f "$manifest_file" ]]; then
+        log::error "Function not found: $function_name"
+        log::info "List available functions with: resource-browserless list-functions"
+        return 1
+    fi
+    
+    log::header "📄 Function Details: $function_name"
+    echo
+    
+    # Show metadata
+    echo "📝 Metadata:"
+    jq -r '.metadata | to_entries[] | "  \(.key): \(.value)"' "$manifest_file"
+    echo
+    
+    # Show function parameters
+    echo "⚙️  Parameters:"
+    local param_count
+    param_count=$(jq -r '.function.parameters | length' "$manifest_file")
+    if [[ "$param_count" == "0" ]]; then
+        echo "  No parameters defined"
+    else
+        jq -r '.function.parameters | to_entries[] | "  \(.key) (\(.value.type)): \(.value.description // "No description")"' "$manifest_file"
+    fi
+    echo
+    
+    # Show execution info
+    echo "🚀 Execution:"
+    echo "  Timeout: $(jq -r '.function.timeout // "60000"' "$manifest_file")ms"
+    echo "  Persistent Session: $(jq -r '.execution.persistent_session // true' "$manifest_file")"
+    echo
+    
+    # Show file locations
+    echo "📁 Files:"
+    echo "  Manifest: $manifest_file"
+    echo "  Function: ${function_dir}/function.js"
+    echo "  Executions: ${function_dir}/executions/"
+    
+    # Show recent executions if any
+    local executions_dir="${function_dir}/executions"
+    if [[ -d "$executions_dir" ]]; then
+        local exec_count
+        exec_count=$(find "$executions_dir" -name "*.json" -type f | wc -l)
+        if [[ "$exec_count" -gt "0" ]]; then
+            echo
+            echo "📊 Recent Executions: $exec_count total"
+            find "$executions_dir" -name "*.json" -type f | sort -r | head -3 | while read -r exec_file; do
+                local exec_time
+                exec_time=$(basename "$exec_file" .json)
+                echo "  $(date -d "@$exec_time" 2>/dev/null || echo "$exec_time")"
+            done
+        fi
+    fi
+}
+
+# Execute stored function
+browserless_execute_function() {
+    local function_name="${1:-}"
+    shift || true
+    
+    if [[ -z "$function_name" ]]; then
+        log::error "Function name required"
+        echo "Usage: resource-browserless execute <function-name> [params...]"
+        echo "Example: resource-browserless execute screenshot-dashboard url=http://localhost:3000 width=1920"
+        return 1
+    fi
+    
+    local function_dir="${BROWSERLESS_DATA_DIR}/functions/${function_name}"
+    local manifest_file="${function_dir}/manifest.json"
+    local function_file="${function_dir}/function.js"
+    
+    if [[ ! -f "$manifest_file" || ! -f "$function_file" ]]; then
+        log::error "Function not found: $function_name"
+        log::info "List available functions with: resource-browserless list-functions"
+        return 1
+    fi
+    
+    log::header "🚀 Executing Function: $function_name"
+    
+    # Parse parameters from command line
+    local params="{}"
+    for arg in "$@"; do
+        if [[ "$arg" == *"="* ]]; then
+            local key="${arg%%=*}"
+            local value="${arg#*=}"
+            params=$(echo "$params" | jq --arg k "$key" --arg v "$value" '. + {($k): $v}')
+        fi
+    done
+    
+    log::info "📥 Parameters: $(echo "$params" | jq -c .)"
+    
+    # Get function code and settings
+    local function_code
+    function_code=$(<"$function_file")
+    
+    local timeout
+    timeout=$(jq -r '.function.timeout // 60000' "$manifest_file")
+    
+    local persistent_session
+    persistent_session=$(jq -r '.execution.persistent_session // true' "$manifest_file")
+    
+    # Create execution context
+    local execution_id
+    execution_id=$(date +%s)
+    local execution_dir="${function_dir}/executions"
+    mkdir -p "$execution_dir"
+    
+    # Wrap function with parameter injection and context
+    local wrapped_function
+    wrapped_function="
+    const params = $params;
+    const context = {
+        mode: 'function_execution',
+        functionName: '$function_name',
+        executionId: '$execution_id',
+        outputDir: '$execution_dir',
+        timestamp: new Date().toISOString()
+    };
+    
+    $function_code
+    "
+    
+    log::info "⚡ Executing function via browserless..."
+    
+    # Execute the function
+    local result
+    result=$(browserless::run_function "$wrapped_function" "$timeout" "$persistent_session" "function_${function_name}_${execution_id}")
+    local exit_code=$?
+    
+    # Store execution result
+    local result_file="${execution_dir}/${execution_id}.json"
+    echo "$result" > "$result_file"
+    cp "$result_file" "${execution_dir}/latest.json"
+    
+    # Update registry with execution info
+    browserless::update_function_registry "$function_name" "executed"
+    
+    if [[ $exit_code -eq 0 ]]; then
+        log::success "✅ Function executed successfully"
+        log::info "📄 Result saved to: $result_file"
+        
+        # Try to show result summary
+        if command -v jq >/dev/null && jq . "$result_file" >/dev/null 2>&1; then
+            echo
+            echo "📊 Execution Result:"
+            jq . "$result_file"
+        fi
+    else
+        log::error "❌ Function execution failed"
+        log::info "📄 Error details saved to: $result_file"
+    fi
+    
+    return $exit_code
+}
+
+# Remove stored function
+browserless_remove_function() {
+    local function_name="${1:-}"
+    
+    if [[ -z "$function_name" ]]; then
+        log::error "Function name required"
+        echo "Usage: resource-browserless remove-function <function-name>"
+        return 1
+    fi
+    
+    local function_dir="${BROWSERLESS_DATA_DIR}/functions/${function_name}"
+    
+    if [[ ! -d "$function_dir" ]]; then
+        log::error "Function not found: $function_name"
+        return 1
+    fi
+    
+    log::header "🗑️  Removing Function: $function_name"
+    
+    # Remove function directory
+    rm -rf "$function_dir"
+    
+    # Update registry
+    browserless::update_function_registry "$function_name" "remove"
+    
+    log::success "✅ Function '$function_name' removed successfully"
+}
+
+# Validate function JSON without storing
+browserless_validate_function() {
+    local file_path="${1:-}"
+    
+    if [[ -z "$file_path" ]]; then
+        log::error "JSON file path required"
+        echo "Usage: resource-browserless validate <file.json>"
+        return 1
+    fi
+    
+    # Handle shared: prefix
+    if [[ "$file_path" == shared:* ]]; then
+        file_path="${var_ROOT_DIR}/${file_path#shared:}"
+    fi
+    
+    log::header "✅ Validating Function: $file_path"
+    
+    # Basic file checks
+    if [[ ! -f "$file_path" ]]; then
+        log::error "File not found: $file_path"
+        return 1
+    fi
+    
+    if [[ ! -r "$file_path" ]]; then
+        log::error "File not readable: $file_path"
+        return 1
+    fi
+    
+    # Validate JSON format
+    if ! jq . "$file_path" >/dev/null 2>&1; then
+        log::error "❌ Invalid JSON format"
+        return 1
+    fi
+    log::success "✅ Valid JSON format"
+    
+    # Check required fields
+    local function_name
+    function_name=$(jq -r '.metadata.name // empty' "$file_path")
+    if [[ -z "$function_name" ]]; then
+        log::error "❌ Missing required field: metadata.name"
+        return 1
+    fi
+    log::success "✅ Function name: $function_name"
+    
+    # Validate function name format
+    if ! [[ "$function_name" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+        log::error "❌ Invalid function name format (only alphanumeric, dash, underscore allowed)"
+        return 1
+    fi
+    log::success "✅ Valid function name format"
+    
+    # Check function code
+    local function_code
+    function_code=$(jq -r '.function.code // empty' "$file_path")
+    if [[ -z "$function_code" ]]; then
+        log::error "❌ Missing required field: function.code"
+        return 1
+    fi
+    log::success "✅ Function code present"
+    
+    # Basic JavaScript syntax validation
+    if command -v node >/dev/null; then
+        if echo "$function_code" | node -c 2>/dev/null; then
+            log::success "✅ JavaScript syntax valid"
+        else
+            log::warn "⚠️  JavaScript syntax validation failed (may still work in browser context)"
+        fi
+    else
+        log::info "ℹ️  Node.js not available - skipping syntax validation"
+    fi
+    
+    # Show function summary
+    echo
+    echo "📋 Function Summary:"
+    echo "  Name: $function_name"
+    echo "  Description: $(jq -r '.metadata.description // "No description"' "$file_path")"
+    echo "  Timeout: $(jq -r '.function.timeout // "60000"' "$file_path")ms"
+    echo "  Parameters: $(jq -r '.function.parameters | length' "$file_path")"
+    
+    log::success "✅ Function validation passed"
+    log::info "💾 Inject with: resource-browserless inject $file_path"
 }
 
 # Uninstall browserless

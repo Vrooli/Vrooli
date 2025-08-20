@@ -537,6 +537,33 @@ vault::construct_secret_path() {
 }
 
 #######################################
+# Get Vault root token using unified secrets system
+# Returns: token string or empty if not found
+#######################################
+vault::get_root_token() {
+    local vault_token="${VAULT_TOKEN:-}"
+    
+    # Try to get token from Vrooli secrets system
+    if command -v secrets::resolve >/dev/null 2>&1; then
+        if [[ -z "$vault_token" ]]; then
+            vault_token=$(secrets::resolve "VAULT_TOKEN" 2>/dev/null || echo "")
+        fi
+    fi
+    
+    # Fallback to development default if still empty
+    if [[ -z "$vault_token" ]]; then
+        vault_token="${VAULT_DEV_ROOT_TOKEN_ID:-}"
+    fi
+    
+    if [[ -z "$vault_token" ]]; then
+        log::error "No Vault token available. Configure VAULT_TOKEN in Vrooli secrets."
+        return 1
+    fi
+    
+    echo "$vault_token"
+}
+
+#######################################
 # Make authenticated API request to Vault
 # Arguments:
 #   $1 - HTTP method (GET, POST, PUT, DELETE)

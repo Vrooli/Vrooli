@@ -37,9 +37,44 @@ vault::init() {
     # Load vault configuration if available
     adapter::load_target_config "vault"
     
-    # Set default vault URL if not configured
-    export VAULT_URL="${VAULT_URL:-http://localhost:8200}"
+    # Get Vault credentials from Vrooli's unified secrets system
+    local vault_token="${VAULT_TOKEN:-}"
+    local vault_url="${VAULT_URL:-}"
+    
+    # Try to get credentials from Vrooli secrets system
+    if command -v secrets::resolve >/dev/null 2>&1; then
+        if [[ -z "$vault_token" ]]; then
+            vault_token=$(secrets::resolve "VAULT_TOKEN" 2>/dev/null || echo "")
+        fi
+        if [[ -z "$vault_url" ]]; then
+            vault_url=$(secrets::resolve "VAULT_URL" 2>/dev/null || echo "")
+        fi
+    fi
+    
+    # Build vault URL using port registry for local, or use provided URL for remote
+    if [[ -z "$vault_url" ]]; then
+        # Get vault port from registry
+        local vault_port
+        if command -v resources::get_default_port >/dev/null 2>&1; then
+            vault_port=$(resources::get_default_port "vault" 2>/dev/null || echo "8200")
+        else
+            vault_port="8200"
+        fi
+        vault_url="http://localhost:${vault_port}"
+    fi
+    
+    export VAULT_URL="$vault_url"
+    export VAULT_TOKEN="${vault_token:-}"
     export VAULT_TIMEOUT="${VAULT_TIMEOUT:-30000}"
+    
+    # Log credential status
+    if [[ -n "$vault_token" ]]; then
+        log::info "🔐 Found Vault credentials from Vrooli secrets system"
+        log::info "🔐 Token: [${#vault_token} characters] | URL: $VAULT_URL"
+    else
+        log::info "ℹ️  No Vault credentials found - will attempt without authentication"
+        log::info "    (This may work for development Vault instances)"
+    fi
     
     log::debug "Vault adapter initialized with URL: $VAULT_URL"
     return 0
@@ -174,11 +209,13 @@ vault::add_secret() {
         fi
     done
     
+    # Inject credentials into browserless function (using placeholder pattern)
     local function_code='
     export default async ({ page }) => {
         const secretPath = "'$secret_path'";
         const kvPairs = '$kv_pairs';
-        const vaultUrl = "'${VAULT_URL}'";
+        const vaultUrl = "%VAULT_URL%";
+        const vaultToken = "%VAULT_TOKEN%";
         
         try {
             // Navigate to Vault UI
@@ -187,12 +224,14 @@ vault::add_secret() {
                 timeout: 30000
             });
             
-            // Login if needed (simplified example)
-            const tokenInput = await page.$("input[data-test-token]");
-            if (tokenInput && "'${VAULT_TOKEN}'") {
-                await tokenInput.type("'${VAULT_TOKEN}'");
-                await page.click("[data-test-auth-submit]");
-                await page.waitForNavigation();
+            // Login if needed (check for token authentication)
+            if (vaultToken && vaultToken !== "%VAULT_TOKEN_PLACEHOLDER%") {
+                const tokenInput = await page.$("input[data-test-token]");
+                if (tokenInput) {
+                    await tokenInput.type(vaultToken);
+                    await page.click("[data-test-auth-submit]");
+                    await page.waitForNavigation();
+                }
             }
             
             // Navigate to secrets engine
@@ -237,6 +276,10 @@ vault::add_secret() {
             };
         }
     }'
+    
+    # Inject credentials into browserless function
+    function_code=$(echo "$function_code" | sed "s|%VAULT_URL%|$VAULT_URL|g")
+    function_code=$(echo "$function_code" | sed "s|%VAULT_TOKEN%|$VAULT_TOKEN|g")
     
     # Execute via adapter framework
     adapter::execute_browser_function "$function_code" "$VAULT_TIMEOUT" "true" "vault_add_secret"

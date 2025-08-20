@@ -1,0 +1,53 @@
+{
+  "metadata": {
+    "name": "simple-screenshot",
+    "version": "1.0.0", 
+    "description": "Take a simple screenshot of any URL",
+    "author": "Vrooli System",
+    "tags": ["screenshot", "testing", "example"],
+    "created": "2025-08-20T10:00:00Z"
+  },
+  "function": {
+    "code": "export default async ({ page, params, context }) => {\n    const url = params.url || 'https://httpbin.org/html';\n    const width = parseInt(params.width) || 1920;\n    const height = parseInt(params.height) || 1080;\n    \n    // Set viewport\n    await page.setViewport({ width, height });\n    \n    // Navigate to URL\n    await page.goto(url, {\n        waitUntil: 'networkidle2',\n        timeout: 30000\n    });\n    \n    // Take screenshot\n    const screenshot = await page.screenshot({\n        fullPage: params.fullPage === 'true' || params.fullPage === true,\n        type: 'png'\n    });\n    \n    // Get page info\n    const title = await page.title();\n    const finalUrl = page.url();\n    \n    return {\n        success: true,\n        url: finalUrl,\n        title: title,\n        screenshot: {\n            width: width,\n            height: height,\n            fullPage: params.fullPage === 'true' || params.fullPage === true,\n            size: screenshot.length\n        },\n        timestamp: new Date().toISOString(),\n        context: context\n    };\n};",
+    "timeout": 30000,
+    "parameters": {
+      "url": {
+        "type": "string",
+        "required": true,
+        "description": "URL to take screenshot of",
+        "default": "https://httpbin.org/html"
+      },
+      "width": {
+        "type": "number",
+        "default": 1920,
+        "min": 800,
+        "max": 3840,
+        "description": "Screenshot width in pixels"
+      },
+      "height": {
+        "type": "number", 
+        "default": 1080,
+        "min": 600,
+        "max": 2160,
+        "description": "Screenshot height in pixels"
+      },
+      "fullPage": {
+        "type": "boolean",
+        "default": false,
+        "description": "Capture full page instead of viewport"
+      }
+    }
+  },
+  "execution": {
+    "persistent_session": true,
+    "launch_options": {
+      "args": ["--no-sandbox", "--disable-setuid-sandbox"]
+    },
+    "retry_count": 2,
+    "cache_results": false
+  },
+  "validation": {
+    "syntax_check": true,
+    "dry_run": true
+  }
+}

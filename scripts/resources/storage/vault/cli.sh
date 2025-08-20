@@ -28,6 +28,8 @@ source "${VAULT_CLI_DIR}/../../../lib/utils/var.sh"
 source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
 source "${var_RESOURCES_COMMON_FILE}"
+# shellcheck disable=SC1091
+source "${var_SCRIPTS_LIB_DIR}/service/secrets.sh"
 
 # Source the CLI Command Framework
 # shellcheck disable=SC1091

@@ -713,9 +713,11 @@ app_start() {
 	# Parse options
 	shift || true
 	local skip_setup=false
+	local fast_mode=false
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
 			--skip-setup) skip_setup=true ;;
+			--fast) fast_mode=true ;;
 			*) break ;;
 		esac
 		shift
@@ -773,7 +775,9 @@ app_start() {
 	# Run setup if needed (unless skipped)
 	if [[ "$skip_setup" == "false" ]] && [[ -f "$app_path/scripts/manage.sh" ]]; then
 		log::info "Running setup for $app_name..."
-		if ! (cd "$app_path" && ./scripts/manage.sh setup --yes yes 2>&1 | head -50); then
+		local setup_cmd="./scripts/manage.sh setup --yes yes"
+		[[ "$fast_mode" == "true" ]] && setup_cmd="$setup_cmd --fast"
+		if ! (cd "$app_path" && eval "$setup_cmd" 2>&1 | head -50); then
 			log::warning "Setup had issues, continuing anyway..."
 		fi
 	fi
@@ -782,8 +786,10 @@ app_start() {
 	log::info "Starting $app_name..."
 	if [[ -f "$app_path/scripts/manage.sh" ]]; then
 		# Start the app using process manager
+		local develop_cmd="./scripts/manage.sh develop"
+		[[ "$fast_mode" == "true" ]] && develop_cmd="$develop_cmd --fast"
 		if pm::start "vrooli.develop.$app_name" \
-			"cd '$app_path' && ./scripts/manage.sh develop" \
+			"cd '$app_path' && $develop_cmd" \
 			"$app_path"; then
 			log::success "Started $app_name"
 			
