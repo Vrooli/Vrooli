@@ -298,7 +298,7 @@ show_verbose_info() {
 # TEST REGISTRATION AND EXECUTION
 #######################################
 
-# Register standard interface tests first (manage.sh validation, config checks, etc.)
+# Register standard interface tests first (CLI validation, config checks, etc.)
 register_standard_interface_tests
 
 # Register Qdrant-specific tests

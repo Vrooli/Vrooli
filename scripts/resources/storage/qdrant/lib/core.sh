@@ -477,7 +477,7 @@ qdrant::inject() {
     
     if [[ -z "$injection_config" ]]; then
         log::error "Missing required --injection-config parameter"
-        log::info "Usage: manage.sh --action inject --injection-config '{...}'"
+        log::info "Usage: resource-qdrant inject <file.json>"
         return 1
     fi
     
@@ -497,7 +497,7 @@ qdrant::validate_injection() {
     
     if [[ -z "$injection_config" ]]; then
         log::error "Missing required --injection-config parameter"
-        log::info "Usage: manage.sh --action validate-injection --injection-config '{...}'"
+        log::info "Usage: resource-qdrant inject <file.json> --validate"
         return 1
     fi
     

@@ -28,11 +28,11 @@ declare -A COMMAND_MAP=(
     ["logs"]="logging/show.sh"
     ["rotate"]="logging/rotate.sh"
     
-    # Data processing (to be implemented)
+    # Data processing
     ["json"]="data/json.sh"
     ["dry-run"]="data/dry-run.sh"
     
-    # Health and diagnostics (to be implemented)
+    # Health and diagnostics
     ["health"]="health/health.sh"
     ["once"]="health/once.sh"
     ["skip-wait"]="health/skip-wait.sh"

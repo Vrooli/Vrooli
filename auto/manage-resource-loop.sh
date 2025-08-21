@@ -14,39 +14,39 @@ if [[ ! -x "$TASK_MANAGER" ]]; then
 fi
 
 case "${1:-help}" in
-	start) 
-		"$TASK_MANAGER" --task resource-improvement start 
-		;;
-	stop) "$TASK_MANAGER" --task resource-improvement stop ;;
-	force-stop) "$TASK_MANAGER" --task resource-improvement force-stop ;;
-	status) "$TASK_MANAGER" --task resource-improvement status ;;
-	logs) shift || true; "$TASK_MANAGER" --task resource-improvement logs "${1:-}" ;;
-	rotate) "$TASK_MANAGER" --task resource-improvement rotate ;;
-	restart) "$TASK_MANAGER" --task resource-improvement stop || true; sleep 2; "$TASK_MANAGER" --task resource-improvement start ;;
-	json) shift || true; "$TASK_MANAGER" --task resource-improvement json "${1:-summary}" "${2:-}" ;;
-	skip-wait) "$TASK_MANAGER" --task resource-improvement skip-wait ;;
-	sudo-init) shift || true; "$TASK_MANAGER" --task resource-improvement sudo-init "${1:-}" ;;
-	sudo-test) "$TASK_MANAGER" --task resource-improvement sudo-test ;;
-	sudo-status) "$TASK_MANAGER" --task resource-improvement sudo-status ;;
-	sudo-cleanup) "$TASK_MANAGER" --task resource-improvement sudo-cleanup ;;
 	help|--help|-h)
 		cat << EOF
 Resource Improvement Loop Manager (shim)
 
-Commands:
+This manager delegates all commands to: $TASK_MANAGER --task resource-improvement
+
+Common Commands:
   start       Start the improvement loop
   stop        Stop the improvement loop gracefully
   force-stop  Force stop the loop (emergency stop)
   status      Show current status
   logs [-f]   Show or follow logs
   rotate      Rotate log file
-  restart     Stop and then start the loop
   json <cmd>  JSON summaries: summary | recent [N] | inflight | durations | errors [N] | hourly
+  health      Run comprehensive health checks
+  dry-run     Show configuration preview
+  once        Run single iteration synchronously
   skip-wait   Skip current iteration wait (for testing)
   help        Show this help message
 
-This manager delegates to: $TASK_MANAGER --task resource-improvement
+For complete command list and help: $0 help-full
 EOF
 		;;
-	*) echo "ERROR: Unknown command: ${1:-}" >&2; "$TASK_MANAGER" --task resource-improvement help; exit 1 ;;
- esac 
+	help-full)
+		"$TASK_MANAGER" --task resource-improvement help
+		;;
+	restart) 
+		"$TASK_MANAGER" --task resource-improvement stop || true
+		sleep 2
+		"$TASK_MANAGER" --task resource-improvement start
+		;;
+	*) 
+		# Delegate all other commands to task manager
+		"$TASK_MANAGER" --task resource-improvement "$@"
+		;;
+esac 

@@ -103,10 +103,23 @@ cli::dispatch() {
         esac
     done
     
-    # Check if command exists
+    # Check if command exists with suggestions
     if [[ -z "${CLI_COMMANDS[$cmd]:-}" ]]; then
         log::error "Unknown command: $cmd"
-        echo
+        
+        # Try to provide suggestions
+        if [[ -f "${VROOLI_ROOT:-.}/scripts/lib/utils/fuzzy-match.sh" ]]; then
+            source "${VROOLI_ROOT:-.}/scripts/lib/utils/fuzzy-match.sh"
+            
+            local available_commands=("${!CLI_COMMANDS[@]}")
+            local suggestions
+            mapfile -t suggestions < <(fuzzy::find_suggestions "$cmd" 3 0.3 "${available_commands[@]}")
+            
+            if fuzzy::format_suggestions "$cmd" "${suggestions[@]}"; then
+                echo
+            fi
+        fi
+        
         cli::_handle_help
         return 1
     fi

@@ -197,6 +197,17 @@ qdrant::models::detect_dimensions() {
     response=$(http::request "POST" "${ollama_url}/api/embeddings" "$request_body" "Content-Type: application/json" 2>/dev/null || echo "")
     
     if [[ -n "$response" ]]; then
+        # Check if response contains an error
+        local error_msg
+        error_msg=$(echo "$response" | jq -r '.error // empty' 2>/dev/null)
+        
+        if [[ -n "$error_msg" ]]; then
+            log::debug "Model $model_name error: $error_msg"
+            echo "unknown"
+            return 1
+        fi
+        
+        # Extract dimensions from successful response
         local dimensions
         dimensions=$(echo "$response" | jq '.embedding | length' 2>/dev/null || echo "unknown")
         
@@ -326,11 +337,11 @@ qdrant::models::list_compatible() {
     compatible_models=$(echo "$all_models" | jq -r ".[] | select(.dimensions == $required_dims) | .name" 2>/dev/null)
     
     if [[ -z "$compatible_models" ]]; then
-        log::warn "No models found with $required_dims dimensions"
+        log::warn "No models found with $required_dims dimensions" >&2
         
         # Suggest alternatives
-        log::info "Available embedding models:"
-        echo "$all_models" | jq -r '.[] | "\(.name): \(.dimensions) dimensions"' 2>/dev/null
+        log::info "Available embedding models:" >&2
+        echo "$all_models" | jq -r '.[] | "\(.name): \(.dimensions) dimensions"' >&2 2>/dev/null
     else
         echo "$compatible_models"
     fi
@@ -374,11 +385,12 @@ qdrant::models::auto_select() {
     
     # Get compatible models
     local compatible_models
-    compatible_models=$(qdrant::models::list_compatible "$required_dims")
+    compatible_models=$(qdrant::models::list_compatible "$required_dims" 2>/dev/null)
     
     if [[ -z "$compatible_models" ]]; then
-        log::error "No compatible models found for $required_dims dimensions"
-        return 1
+        log::debug "No compatible models found for $required_dims dimensions, using fallback" >&2
+        echo "nomic-embed-text:latest"
+        return 0
     fi
     
     # Select the first compatible model (preferring nomic-embed-text if available)
@@ -409,6 +421,14 @@ qdrant::models::info() {
         # Show specific model info
         local model_info
         model_info=$(echo "$all_models" | jq ".[] | select(.name == \"$model_name\")" 2>/dev/null)
+        
+        # If not found, try with :latest tag
+        if [[ -z "$model_info" ]] && [[ "$model_name" != *":"* ]]; then
+            model_info=$(echo "$all_models" | jq ".[] | select(.name == \"${model_name}:latest\")" 2>/dev/null)
+            if [[ -n "$model_info" ]]; then
+                model_name="${model_name}:latest"
+            fi
+        fi
         
         if [[ -z "$model_info" ]]; then
             log::error "Model not found: $model_name"

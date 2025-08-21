@@ -38,7 +38,7 @@ source "${K6_CLI_DIR}/../../lib/cli-command-framework.sh"
 source "${K6_CLI_DIR}/config/defaults.sh" 2>/dev/null || true
 
 # Source K6 libraries
-for lib in core docker install status inject test; do
+for lib in core docker install status inject content test; do
     lib_file="${K6_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -62,7 +62,8 @@ cli::register_command "start" "Start K6 service" "k6::docker::start" "modifies-s
 cli::register_command "stop" "Stop K6 service" "k6::docker::stop" "modifies-system"
 cli::register_command "restart" "Restart K6 service" "k6::docker::restart" "modifies-system"
 cli::register_command "logs" "Show K6 logs" "k6::docker::logs"
-cli::register_command "inject" "Inject test scripts into K6" "k6::inject::execute" "modifies-system"
+cli::register_command "inject" "Inject test scripts into K6 (deprecated - use content add)" "k6::inject::execute" "modifies-system"
+cli::register_command "content" "Manage K6 content (scripts, data, results)" "k6::content" "modifies-system"
 cli::register_command "run-test" "Run a K6 test script" "k6::test::run" "modifies-system"
 cli::register_command "list-tests" "List available test scripts" "k6::test::list"
 cli::register_command "validate" "Validate installation" "k6::install::validate"
@@ -75,7 +76,15 @@ k6::help::show() {
     cat << 'EOF'
 ⚡ Examples:
 
-  # Test management
+  # Content management (NEW - preferred way)
+  resource-k6 content add --file test-script.js
+  resource-k6 content add --file data.csv --type data
+  resource-k6 content list
+  resource-k6 content get --name test-script.js
+  resource-k6 content execute --name test-script.js --options '--vus 10 --duration 30s'
+  resource-k6 content remove --name old-test.js
+
+  # Legacy test management (still supported)
   resource-k6 inject test-script.js
   resource-k6 inject shared:init/k6/performance-test.js
   resource-k6 run-test my-test.js --vus 10 --duration 30s

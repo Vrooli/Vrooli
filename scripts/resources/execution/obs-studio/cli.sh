@@ -54,8 +54,20 @@ Audio Commands:
     unmute <source>         Unmute audio source
     set-volume <src> <vol>  Set audio volume (0-100)
     
-Injection Commands:
-    inject <config>         Inject scenes/sources from JSON config
+Content Management:
+    content add --file <file> [--type scene|recording|streaming] [--name <name>]
+                            Add content (scene/profile)
+    content list [--type all|scene|recording|streaming] [--format text|json]
+                            List available content
+    content get --name <name> [--type scene|recording|streaming]
+                            Get content configuration
+    content remove --name <name> [--type scene|recording|streaming]
+                            Remove content
+    content execute --name <name> [--type scene|recording|streaming]
+                            Execute/activate content
+    
+Injection Commands (Deprecated):
+    inject <config>         [DEPRECATED] Use 'content add' instead
     
 Configuration Commands:
     config                  Show configuration
@@ -298,11 +310,42 @@ main() {
             set_volume "$@"
             ;;
             
-        # Injection commands
+        # Content management commands
+        content)
+            # Source the content library
+            source "$OBS_LIB_DIR/content.sh" || exit 1
+            local subcommand="${1:-list}"
+            shift || true
+            
+            case "${subcommand}" in
+                add)
+                    obs_content_add "$@"
+                    ;;
+                list)
+                    obs_content_list "$@"
+                    ;;
+                get)
+                    obs_content_get "$@"
+                    ;;
+                remove)
+                    obs_content_remove "$@"
+                    ;;
+                execute)
+                    obs_content_execute "$@"
+                    ;;
+                *)
+                    echo "[ERROR] Unknown content subcommand: ${subcommand}"
+                    echo "Available: add, list, get, remove, execute"
+                    exit 1
+                    ;;
+            esac
+            ;;
+            
+        # Injection commands (deprecated, redirect to content)
         inject)
-            # Source the inject library
-            source "$OBS_LIB_DIR/inject.sh" || exit 1
-            obs::inject "$@"
+            echo "[WARNING] 'inject' is deprecated. Redirecting to 'content add'..."
+            source "$OBS_LIB_DIR/content.sh" || exit 1
+            obs_content_add --file "$@" --type scene
             ;;
             
         # Configuration commands

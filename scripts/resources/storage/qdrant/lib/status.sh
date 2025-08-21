@@ -251,7 +251,7 @@ qdrant::status::display_text() {
         log::error "   ❌ Installed: No"
         echo
         log::info "💡 Installation Required:"
-        log::info "   To install Qdrant, run: ./manage.sh --action install"
+        log::info "   To install Qdrant, run: resource-qdrant install"
         return
     fi
     

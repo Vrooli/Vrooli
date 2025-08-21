@@ -149,15 +149,23 @@ qdrant::embeddings::generate() {
     fi
     
     # Check cache first
+    log::debug "Checking cache: use_cache=$use_cache"
     if [[ "$use_cache" == "true" ]]; then
+        log::debug "Cache enabled, checking for cached embedding"
+        log::debug "About to call get_from_cache with text='$text', model='$model'"
         local cached_embedding
-        cached_embedding=$(qdrant::embeddings::get_from_cache "$text" "$model")
+        log::debug "Calling get_from_cache function"
         
-        if [[ -n "$cached_embedding" ]]; then
+        # Wrap cache call in error handling to prevent script abortion
+        if cached_embedding=$(qdrant::embeddings::get_from_cache "$text" "$model" 2>/dev/null) && [[ -n "$cached_embedding" ]]; then
             log::debug "Using cached embedding for text"
             echo "$cached_embedding"
             return 0
+        else
+            log::debug "No cached embedding found or cache access failed, generating new embedding"
         fi
+    else
+        log::debug "Cache disabled"
     fi
     
     # Validate model is available
@@ -177,12 +185,18 @@ qdrant::embeddings::generate() {
         '{model: $model, prompt: $prompt}')
     
     log::debug "Generating embedding with model: $model"
+    log::debug "Request body: $request_body"
+    log::debug "Ollama URL: ${ollama_url}/api/embeddings"
     
     local response
-    response=$(http::request "POST" "${ollama_url}/api/embeddings" "$request_body" "Content-Type: application/json" 2>/dev/null)
+    response=$(http::request "POST" "${ollama_url}/api/embeddings" "$request_body" "Content-Type: application/json")
+    local http_exit_code=$?
+    
+    log::debug "HTTP response: $response"
+    log::debug "HTTP exit code: $http_exit_code"
     
     if [[ -z "$response" ]]; then
-        log::error "Failed to generate embedding"
+        log::error "Failed to generate embedding: empty response"
         return 1
     fi
     
@@ -320,17 +334,29 @@ qdrant::embeddings::get_from_cache() {
     local text="$1"
     local model="$2"
     
+    log::debug "get_from_cache called with text='$text', model='$model'"
+    log::debug "QDRANT_EMBEDDING_CACHE_ENABLED='$QDRANT_EMBEDDING_CACHE_ENABLED'"
+    
     if [[ "$QDRANT_EMBEDDING_CACHE_ENABLED" != "true" ]]; then
+        log::debug "Cache not enabled, returning 1"
         return 1
     fi
     
+    log::debug "Generating cache key"
     local cache_key
-    cache_key=$(qdrant::embeddings::generate_cache_key "$text" "$model")
+    cache_key=$(qdrant::embeddings::generate_cache_key "$text" "$model" 2>/dev/null) || {
+        log::debug "Failed to generate cache key, disabling cache for this request"
+        return 1
+    }
+    log::debug "Cache key: $cache_key"
     
     if [[ "$REDIS_AVAILABLE" == "true" ]]; then
         # Try Redis cache
         local cached
-        cached=$(redis-cli GET "qdrant:embed:$cache_key" 2>/dev/null || echo "")
+        cached=$(redis-cli GET "qdrant:embed:$cache_key" 2>/dev/null || echo "") || {
+            log::debug "Redis cache access failed, falling back"
+            cached=""
+        }
         
         if [[ -n "$cached" ]]; then
             log::debug "Cache hit (Redis)"

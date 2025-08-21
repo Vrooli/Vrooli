@@ -21,31 +21,31 @@ Qdrant is a vector similarity search engine with extended filtering support, des
 ### Installation
 ```bash
 # Install with default settings
-./manage.sh --action install
+resource-qdrant install
 
 # Install with custom ports
-QDRANT_CUSTOM_PORT=7333 QDRANT_CUSTOM_GRPC_PORT=7334 ./manage.sh --action install
+QDRANT_CUSTOM_PORT=7333 QDRANT_CUSTOM_GRPC_PORT=7334 resource-qdrant install
 
 # Install with API key authentication (recommended for production)
-QDRANT_CUSTOM_API_KEY=your-secure-key ./manage.sh --action install
+QDRANT_CUSTOM_API_KEY=your-secure-key resource-qdrant install
 
 # Custom data directory
-QDRANT_DATA_DIR=/mnt/fast-ssd/qdrant ./manage.sh --action install
+QDRANT_DATA_DIR=/mnt/fast-ssd/qdrant resource-qdrant install
 ```
 
 ### Basic Usage
 ```bash
 # Check service status
-./manage.sh --action status
+resource-qdrant status
 
 # Test functionality
-./manage.sh --action test
+resource-qdrant validate
 
 # List collections
-./manage.sh --action list-collections
+resource-qdrant collections list
 
 # Create collection for AI embeddings
-./manage.sh --action create-collection --collection ai_embeddings --vector-size 1536 --distance Cosine
+resource-qdrant collections create ai_embeddings --dimensions 1536 --distance Cosine
 ```
 
 ## 📖 Management Commands
@@ -53,58 +53,56 @@ QDRANT_DATA_DIR=/mnt/fast-ssd/qdrant ./manage.sh --action install
 ### Service Management
 ```bash
 # Start/Stop/Restart
-./manage.sh --action start
-./manage.sh --action stop
-./manage.sh --action restart
+resource-qdrant start
+resource-qdrant stop
+resource-qdrant restart
 
 # Monitoring
-./manage.sh --action status
-./manage.sh --action test
-./manage.sh --action diagnose
-./manage.sh --action monitor --interval 10
-./manage.sh --action logs --lines 100
+resource-qdrant status
+resource-qdrant validate
+# Use docker logs for detailed logs: docker logs qdrant
 ```
 
 ### Collection Management
 ```bash
 # List all collections
-./manage.sh --action list-collections
+resource-qdrant collections list
 
 # Create collection
-./manage.sh --action create-collection --collection my_vectors --vector-size 1536 --distance Cosine
+resource-qdrant collections create my_vectors --dimensions 1536 --distance Cosine
 
 # Get collection info
-./manage.sh --action collection-info --collection my_vectors
+resource-qdrant collections info my_vectors
 
 # Delete collection
-./manage.sh --action delete-collection --collection my_vectors [--force yes]
+resource-qdrant collections delete my_vectors
 
-# Collection statistics
-./manage.sh --action index-stats [--collection my_vectors]
+# List collections with model compatibility
+resource-qdrant collections list --show-models
 ```
 
 ### Backup and Recovery
 ```bash
 # Create backup
-./manage.sh --action backup [--snapshot-name my-backup]
+resource-qdrant backup create [my-backup]
 
 # List backups
-./manage.sh --action list-backups
+resource-qdrant backup list
 
-# Get backup info
-./manage.sh --action backup-info --snapshot-name my-backup
-
-# Restore from backup
-./manage.sh --action restore --snapshot-name my-backup
+# Backups are stored in ~/.vrooli/backups/qdrant/
+# Restore is handled by the backup framework
 ```
 
 ### Data Injection
 ```bash
-# Validate injection configuration
-./manage.sh --action validate-injection --injection-config '{"collections": [{"name": "docs", "size": 384}]}'
+# Generate embeddings from text
+resource-qdrant embed "machine learning algorithms"
 
-# Inject data
-./manage.sh --action inject --injection-config '{"collections": [{"name": "docs", "size": 384}], "vectors": [{"collection": "docs", "vectors": "data.json"}]}'
+# Search collections semantically
+resource-qdrant collections search "AI research" --collection my-docs
+
+# Inject data (deprecated - use content commands)
+resource-qdrant inject data.json
 ```
 
 ## ⚙️ Configuration
@@ -146,7 +144,7 @@ QDRANT_DATA_DIR=/mnt/fast-ssd/qdrant ./manage.sh --action install
 QDRANT_API_KEY=$(openssl rand -hex 32)
 
 # Install with authentication
-QDRANT_CUSTOM_API_KEY="$QDRANT_API_KEY" ./manage.sh --action install
+QDRANT_CUSTOM_API_KEY="$QDRANT_API_KEY" resource-qdrant install
 
 # Use in requests
 curl -H "api-key: $QDRANT_API_KEY" http://localhost:6333/collections
@@ -216,8 +214,8 @@ curl -X POST http://localhost:6333/collections/my_vectors/points/search \
 
 ### Quick Diagnostics
 ```bash
-# Run comprehensive diagnostics
-./manage.sh --action diagnose
+# Check resource status
+resource-qdrant status
 
 # Check container status
 docker ps | grep qdrant
@@ -235,13 +233,13 @@ sudo systemctl status docker
 sudo lsof -i :6333
 
 # Check logs for errors
-./manage.sh --action logs --lines 50
+docker logs qdrant --tail 50
 ```
 
 **Port Already in Use:**
 ```bash
 # Use custom ports
-QDRANT_CUSTOM_PORT=6433 QDRANT_CUSTOM_GRPC_PORT=6434 ./manage.sh --action install
+QDRANT_CUSTOM_PORT=6433 QDRANT_CUSTOM_GRPC_PORT=6434 resource-qdrant install
 ```
 
 **Performance Issues:**

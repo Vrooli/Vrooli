@@ -88,109 +88,14 @@
     },
     {
       "parameters": {
-        "workflowId": "={{ $env.SHARED_WORKFLOW_OLLAMA_ID || 'ollama' }}",
-        "workflowParameters": {
-          "parameters": [
-            {
-              "name": "prompt",
-              "value": "=Enhance this image generation prompt for better quality and detail. Original prompt: {{ $json.prompt }}\n\nProvide an enhanced version that includes:\n- More specific visual details\n- Lighting and atmosphere\n- Composition suggestions\n- Technical quality markers\n\nEnhanced prompt:"
-            },
-            {
-              "name": "model",
-              "value": "llama3.1:8b"
-            },
-            {
-              "name": "temperature",
-              "value": "0.7"
-            }
-          ]
-        }
+        "command": "vrooli resource ollama generate \"Enhance this image generation prompt for better quality and detail. Original prompt: {{ $json.prompt }}\n\nProvide an enhanced version that includes:\n- More specific visual details\n- Lighting and atmosphere\n- Composition suggestions\n- Technical quality markers\n\nEnhanced prompt:\" --model llama3.1:8b --type reasoning --quiet",
+        "cwd": "/vrooli"
       },
       "id": "enhance-prompt",
-      "name": "Enhance Prompt (Shared Ollama)",
-      "type": "n8n-nodes-base.executeWorkflow",
+      "name": "Enhance Prompt via CLI",
+      "type": "n8n-nodes-base.executeCommand",
       "typeVersion": 1,
       "position": [1120, 300]
-    },
-    {
-      "parameters": {
-        "mode": "runOnceForEachItem",
-        "jsCode": "// Prepare ComfyUI workflow for image generation\nconst inputData = $input.item.json;\n\n// Use enhanced prompt if available, otherwise original\nconst finalPrompt = inputData.enhanced_prompt || inputData.prompt;\n\n// Build ComfyUI workflow configuration\nconst comfyWorkflow = {\n  workflow_type: inputData.brand === 'default' ? 'brand-workflow' : 'qc-workflow',\n  parameters: {\n    positive_prompt: finalPrompt,\n    negative_prompt: 'blurry, low quality, distorted, watermark, text',\n    style: inputData.style,\n    steps: 30,\n    cfg: 7.5,\n    width: 1024,\n    height: 1024,\n    batch_size: inputData.num_variations || 1,\n    seed: inputData.seed || Math.floor(Math.random() * 1000000)\n  },\n  metadata: {\n    campaign_id: inputData.campaign_id,\n    brand: inputData.brand,\n    request_id: inputData.request_id,\n    timestamp: inputData.timestamp\n  }\n};\n\nreturn {\n  ...inputData,\n  comfy_workflow: comfyWorkflow,\n  final_prompt: finalPrompt\n};"
-      },
-      "id": "prepare-comfyui",
-      "name": "Prepare ComfyUI Workflow",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [1340, 400]
-    },
-    {
-      "parameters": {
-        "command": "# Execute ComfyUI workflow using CLI\n# This approach is more reliable than direct API calls\n\nWORKFLOW_TYPE=\"{{ $json.comfy_workflow.workflow_type }}\"\nPROMPT=\"{{ $json.comfy_workflow.parameters.positive_prompt }}\"\nSTYLE=\"{{ $json.comfy_workflow.parameters.style }}\"\nCAMPAIGN=\"{{ $json.campaign_id }}\"\n\n# Check if ComfyUI resource is available\nif command -v resource-comfyui &> /dev/null; then\n    # Use the ComfyUI CLI to generate image\n    resource-comfyui generate \\\n        --prompt \"$PROMPT\" \\\n        --style \"$STYLE\" \\\n        --workflow \"$WORKFLOW_TYPE\" \\\n        --output-format json\nelse\n    # Fallback to checking service availability\n    echo '{\"status\": \"comfyui_not_available\", \"message\": \"ComfyUI resource not found\"}'\nfi"
-      },
-      "id": "generate-image",
-      "name": "Generate Image (ComfyUI CLI)",
-      "type": "n8n-nodes-base.executeBash",
-      "typeVersion": 1,
-      "position": [1560, 400]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "INSERT INTO activity_log (event_type, event_data, campaign_id, brand, processing_time_ms, status) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT DO NOTHING RETURNING id",
-        "queryParameters": "=event_type:image_generation\nevent_data:{{ JSON.stringify($json) }}\ncampaign_id:{{ $json.campaign_id }}\nbrand:{{ $json.brand }}\nprocessing_time_ms:{{ Date.now() - $json.processing_start }}\nstatus:success",
-        "options": {}
-      },
-      "id": "log-activity",
-      "name": "Log Activity",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2,
-      "position": [1780, 400],
-      "credentials": {
-        "postgres": {
-          "id": "postgres-image-generation",
-          "name": "PostgreSQL - Image Generation"
-        }
-      },
-      "continueOnFail": true
-    },
-    {
-      "parameters": {
-        "mode": "runOnceForEachItem",
-        "jsCode": "// Build final response\nconst inputData = $input.item.json;\nconst processingEndTime = Date.now();\nconst processingStartTime = inputData.processing_start || processingEndTime;\n\n// Parse generation result\nlet generationResult = {};\ntry {\n  if (typeof inputData.generation_result === 'string') {\n    generationResult = JSON.parse(inputData.generation_result);\n  } else {\n    generationResult = inputData.generation_result || {};\n  }\n} catch (e) {\n  generationResult = { status: 'parse_error', message: e.message };\n}\n\nconst response = {\n  success: generationResult.status !== 'error',\n  scenario: 'Enterprise Image Generation Pipeline',\n  scenario_id: 'image-generation-pipeline',\n  version: '1.0.0',\n  timestamp: new Date().toISOString(),\n  request_id: inputData.request_id,\n  \n  // Generation results\n  results: {\n    prompt_used: inputData.final_prompt,\n    prompt_enhanced: !!inputData.enhanced_prompt,\n    images_generated: generationResult.images || [],\n    workflow_used: inputData.comfy_workflow?.workflow_type,\n    generation_status: generationResult.status || 'unknown'\n  },\n  \n  // Metadata\n  metadata: {\n    campaign_id: inputData.campaign_id,\n    brand: inputData.brand,\n    style: inputData.style,\n    num_variations: inputData.num_variations,\n    processing_time_ms: processingEndTime - processingStartTime\n  },\n  \n  // Performance metrics\n  performance: {\n    processing_time_ms: processingEndTime - processingStartTime,\n    status: (processingEndTime - processingStartTime) < 30000 ? 'fast' : 'normal',\n    efficiency_score: Math.max(0, 100 - ((processingEndTime - processingStartTime) / 300))\n  }\n};\n\n// Add error details if generation failed\nif (!response.success) {\n  response.error = {\n    message: generationResult.message || 'Generation failed',\n    details: generationResult.error || null\n  };\n}\n\nreturn response;"
-      },
-      "id": "build-response",
-      "name": "Build Response",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [2000, 400]
-    },
-    {
-      "parameters": {
-        "values": {
-          "string": [
-            {
-              "name": "status",
-              "value": "={{ $json.success ? 'success' : 'error' }}"
-            },
-            {
-              "name": "message",
-              "value": "={{ $json.success ? 'Image generation completed successfully' : $json.error.message }}"
-            }
-          ],
-          "number": [
-            {
-              "name": "http_code",
-              "value": "={{ $json.success ? 200 : 500 }}"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "id": "final-response",
-      "name": "Final Response",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 2,
-      "position": [2220, 400]
     },
     {
       "parameters": {
@@ -209,6 +114,107 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 2,
       "position": [1120, 500]
+    },
+    {
+      "parameters": {},
+      "id": "merge-enhancement",
+      "name": "Merge Enhancement Results",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [1340, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Prepare the final generation request\nconst input = $input.item.json;\n\n// Extract the enhanced or original prompt\nlet finalPrompt = input.enhanced_prompt || input.stdout || input.prompt;\n\n// Clean up the prompt if it came from CLI output\nif (typeof finalPrompt === 'string' && finalPrompt.includes('Enhanced prompt:')) {\n  const parts = finalPrompt.split('Enhanced prompt:');\n  finalPrompt = parts[parts.length - 1].trim();\n}\n\n// Build ComfyUI workflow parameters\nconst workflowParams = {\n  prompt: finalPrompt,\n  negative_prompt: 'blurry, low quality, distorted, amateur',\n  width: 1024,\n  height: 1024,\n  batch_size: input.num_variations || 1,\n  steps: 25,\n  cfg_scale: 7.5,\n  sampler_name: 'dpmpp_2m',\n  scheduler: 'karras',\n  seed: Math.floor(Math.random() * 1000000)\n};\n\n// Create workflow JSON for ComfyUI\nconst workflowJson = {\n  '3': {\n    'class_type': 'KSampler',\n    'inputs': {\n      'seed': workflowParams.seed,\n      'steps': workflowParams.steps,\n      'cfg': workflowParams.cfg_scale,\n      'sampler_name': workflowParams.sampler_name,\n      'scheduler': workflowParams.scheduler,\n      'denoise': 1,\n      'model': ['4', 0],\n      'positive': ['6', 0],\n      'negative': ['7', 0],\n      'latent_image': ['5', 0]\n    }\n  },\n  '4': {\n    'class_type': 'CheckpointLoaderSimple',\n    'inputs': {\n      'ckpt_name': 'sd_xl_base_1.0.safetensors'\n    }\n  },\n  '5': {\n    'class_type': 'EmptyLatentImage',\n    'inputs': {\n      'width': workflowParams.width,\n      'height': workflowParams.height,\n      'batch_size': workflowParams.batch_size\n    }\n  },\n  '6': {\n    'class_type': 'CLIPTextEncode',\n    'inputs': {\n      'text': workflowParams.prompt,\n      'clip': ['4', 1]\n    }\n  },\n  '7': {\n    'class_type': 'CLIPTextEncode',\n    'inputs': {\n      'text': workflowParams.negative_prompt,\n      'clip': ['4', 1]\n    }\n  },\n  '8': {\n    'class_type': 'VAEDecode',\n    'inputs': {\n      'samples': ['3', 0],\n      'vae': ['4', 2]\n    }\n  },\n  '9': {\n    'class_type': 'SaveImage',\n    'inputs': {\n      'images': ['8', 0],\n      'filename_prefix': `img-gen-${input.request_id}`\n    }\n  }\n};\n\nreturn {\n  request_id: input.request_id,\n  campaign_id: input.campaign_id,\n  brand: input.brand,\n  prompt: finalPrompt,\n  workflow: JSON.stringify(workflowJson),\n  workflow_params: workflowParams\n};"
+      },
+      "id": "prepare-comfyui",
+      "name": "Prepare ComfyUI Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 400]
+    },
+    {
+      "parameters": {
+        "command": "echo '{{ $json.workflow }}' | vrooli resource comfyui execute-workflow --format json",
+        "cwd": "/vrooli"
+      },
+      "id": "generate-image",
+      "name": "Generate Image via ComfyUI",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1780, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process the generation results\nconst input = $input.item.json;\nconst generationOutput = input.stdout || '';\n\n// Parse generation results\nlet result = {\n  success: false,\n  request_id: input.request_id,\n  campaign_id: input.campaign_id,\n  brand: input.brand,\n  prompt: input.prompt,\n  error: null,\n  images: [],\n  processing_time: Date.now() - (input.processing_start || Date.now())\n};\n\ntry {\n  // Check if generation was successful\n  if (generationOutput.includes('generated') || generationOutput.includes('success')) {\n    result.success = true;\n    \n    // Extract image paths if available\n    const imagePattern = /img-gen-[\\w-]+\\.(png|jpg|jpeg)/gi;\n    const matches = generationOutput.match(imagePattern);\n    if (matches) {\n      result.images = matches.map(filename => ({\n        filename: filename,\n        path: `/tmp/comfyui/output/${filename}`,\n        url: `http://localhost:${process.env.RESOURCE_PORTS?.comfyui || 8188}/view?filename=${filename}`\n      }));\n    }\n  } else {\n    result.error = 'Generation failed - no success indicator in output';\n  }\n} catch (e) {\n  result.error = `Failed to process generation output: ${e.message}`;\n}\n\n// Add metadata\nresult.metadata = {\n  timestamp: new Date().toISOString(),\n  workflow_type: 'comfyui',\n  enhanced: input.needs_text_enhancement || false,\n  num_variations: input.num_variations || 1\n};\n\nreturn result;"
+      },
+      "id": "process-results",
+      "name": "Process Generation Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2000, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO generation_history (request_id, campaign_id, brand, prompt, status, images, metadata, created_at) VALUES ('{{ $json.request_id }}', '{{ $json.campaign_id }}', '{{ $json.brand }}', '{{ $json.prompt }}', '{{ $json.success ? \"completed\" : \"failed\" }}', '{{ JSON.stringify($json.images) }}', '{{ JSON.stringify($json.metadata) }}', NOW()) RETURNING id;",
+        "additionalFields": {}
+      },
+      "id": "save-to-db",
+      "name": "Save to Database",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [2220, 400],
+      "credentials": {
+        "postgres": {
+          "id": "1",
+          "name": "Image Generation DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "={{ $json.success ? 'success' : 'error' }}"
+            },
+            {
+              "name": "message",
+              "value": "={{ $json.success ? 'Image generation completed successfully' : $json.error }}"
+            }
+          ],
+          "number": [
+            {
+              "name": "generation_id",
+              "value": "={{ $json.id }}"
+            },
+            {
+              "name": "processing_time_ms",
+              "value": "={{ $json.processing_time }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "format-response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [2440, 400]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "respond-to-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2660, 400]
     }
   ],
   "connections": {
@@ -260,7 +266,7 @@
       "main": [
         [
           {
-            "node": "Enhance Prompt (Shared Ollama)",
+            "node": "Enhance Prompt via CLI",
             "type": "main",
             "index": 0
           }
@@ -274,11 +280,11 @@
         ]
       ]
     },
-    "Enhance Prompt (Shared Ollama)": {
+    "Enhance Prompt via CLI": {
       "main": [
         [
           {
-            "node": "Prepare ComfyUI Workflow",
+            "node": "Merge Enhancement Results",
             "type": "main",
             "index": 0
           }
@@ -289,51 +295,73 @@
       "main": [
         [
           {
-            "node": "Prepare ComfyUI Workflow",
+            "node": "Merge Enhancement Results",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Enhancement Results": {
+      "main": [
+        [
+          {
+            "node": "Prepare ComfyUI Request",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Prepare ComfyUI Workflow": {
+    "Prepare ComfyUI Request": {
       "main": [
         [
           {
-            "node": "Generate Image (ComfyUI CLI)",
+            "node": "Generate Image via ComfyUI",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Generate Image (ComfyUI CLI)": {
+    "Generate Image via ComfyUI": {
       "main": [
         [
           {
-            "node": "Log Activity",
+            "node": "Process Generation Results",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Log Activity": {
+    "Process Generation Results": {
       "main": [
         [
           {
-            "node": "Build Response",
+            "node": "Save to Database",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Build Response": {
+    "Save to Database": {
       "main": [
         [
           {
-            "node": "Final Response",
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
             "type": "main",
             "index": 0
           }
@@ -343,24 +371,12 @@
   },
   "active": false,
   "settings": {
-    "executionOrder": "v1",
-    "saveManualExecutions": true,
-    "callerPolicy": "workflowsFromSameOwner"
+    "executionOrder": "v1"
   },
-  "versionId": "image-generation-pipeline-main-v2",
+  "versionId": "7b4e1d3f-8c9a-4b2e-a1f3-5d6e7f8a9b1c",
   "id": "image-generation-pipeline-main",
   "meta": {
-    "templateCreatedBy": "vrooli-scenario-generator",
-    "instanceId": "image-generation-pipeline-instance"
+    "instanceId": "vrooli-image-generation-pipeline"
   },
-  "tags": [
-    {
-      "id": "image-generation-pipeline",
-      "name": "Enterprise Image Generation Pipeline"
-    },
-    {
-      "id": "vrooli-scenario",
-      "name": "Vrooli Scenario"
-    }
-  ]
+  "tags": []
 }

@@ -1044,7 +1044,29 @@ main() {
                 route_to_resource_cli "$resource_name" "$@"
             else
                 log::error "Unknown command or resource: $command"
-                echo ""
+                
+                # Try to provide fuzzy suggestions for resource names
+                if [[ -f "${VROOLI_ROOT}/scripts/lib/utils/fuzzy-match.sh" ]]; then
+                    source "${VROOLI_ROOT}/scripts/lib/utils/fuzzy-match.sh"
+                    
+                    # Get available resource names
+                    local available_resources=()
+                    while IFS= read -r -d '' resource_path; do
+                        local resource_name_from_path
+                        resource_name_from_path=$(basename "$resource_path")
+                        available_resources+=("$resource_name_from_path")
+                    done < <(find "$RESOURCES_DIR" -mindepth 2 -maxdepth 2 -type d -print0 2>/dev/null)
+                    
+                    if [[ ${#available_resources[@]} -gt 0 ]]; then
+                        local suggestions
+                        mapfile -t suggestions < <(fuzzy::find_suggestions "$command" 3 0.3 "${available_resources[@]}")
+                        
+                        if fuzzy::format_suggestions "$command" "${suggestions[@]}"; then
+                            echo
+                        fi
+                    fi
+                fi
+                
                 echo "Run 'vrooli resource --help' for usage information"
                 exit 1
             fi

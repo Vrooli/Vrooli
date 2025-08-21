@@ -13,18 +13,16 @@
     },
     {
       "parameters": {
-        "workflowId": "={{ $env.SHARED_WORKFLOW_OLLAMA_ID }}",
-        "source": "parameter",
-        "parameters": {
-          "prompt": "Create a retro JavaScript game based on this prompt: {{$json.prompt}}\n\nGenerate complete, playable game code using HTML5 Canvas. Include:\n1. Game loop\n2. Player controls\n3. Score system\n4. Game over condition\n5. Retro pixel art style\n\nReturn only valid JavaScript code.",
-          "model": "codellama",
-          "type": "code",
-          "quiet": true,
-          "timeout_seconds": 180
-        }
+        "url": "http://localhost:{{ $env.RESOURCE_PORTS.n8n }}/webhook/ollama",
+        "method": "POST",
+        "sendBody": true,
+        "bodyContentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"prompt\": \"Create a retro JavaScript game based on this prompt: {{$json.prompt}}\\n\\nGenerate complete, playable game code using HTML5 Canvas. Include:\\n1. Game loop\\n2. Player controls\\n3. Score system\\n4. Game over condition\\n5. Retro pixel art style\\n\\nReturn only valid JavaScript code wrapped in ```javascript``` tags.\",\n  \"model\": \"codellama\",\n  \"type\": \"code\",\n  \"quiet\": true,\n  \"timeout_seconds\": 180\n}",
+        "options": {}
       },
-      "name": "Generate Game Code",
-      "type": "n8n-nodes-base.executeWorkflow",
+      "name": "Generate Game Code via Shared Ollama",
+      "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 1,
       "position": [450, 300]
     },
@@ -46,7 +44,7 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Extract response from shared Ollama workflow\nconst ollamaResult = $json;\nconst generatedCode = ollamaResult.response || ollamaResult.output || '';\n\n// Pass the generated code to the next node for validation\nreturn {\n  generated_code: generatedCode,\n  model_used: ollamaResult.request?.model || 'codellama',\n  execution_time_ms: ollamaResult.execution?.execution_time_ms || 0\n};"
+        "jsCode": "// Extract response from shared Ollama workflow\nconst ollamaResult = $json;\n\n// The shared workflow returns a comprehensive response object\nlet generatedCode = '';\nif (ollamaResult.response) {\n  generatedCode = ollamaResult.response;\n  // Extract code from markdown code blocks if present\n  const codeMatch = generatedCode.match(/```javascript\\s*([\\s\\S]*?)```/);\n  if (codeMatch) {\n    generatedCode = codeMatch[1].trim();\n  }\n}\n\n// Pass the generated code to the next node for validation\nreturn {\n  generated_code: generatedCode,\n  model_used: ollamaResult.request?.model || 'codellama',\n  execution_time_ms: ollamaResult.execution?.execution_time_ms || 0,\n  success: ollamaResult.success || false\n};"
       },
       "name": "Extract Generated Code",
       "type": "n8n-nodes-base.code",
@@ -81,18 +79,16 @@
     },
     {
       "parameters": {
-        "workflowId": "={{ $env.SHARED_WORKFLOW_OLLAMA_ID }}",
-        "source": "parameter",
-        "parameters": {
-          "prompt": "Generate retro pixel art assets for game: {{$json.title}}\nReturn as base64 encoded 32x32 sprite data.",
-          "model": "llama3.2",
-          "type": "general",
-          "quiet": true,
-          "timeout_seconds": 120
-        }
+        "url": "http://localhost:{{ $env.RESOURCE_PORTS.n8n }}/webhook/ollama",
+        "method": "POST",
+        "sendBody": true,
+        "bodyContentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"prompt\": \"Generate retro pixel art assets for game: {{$json.title}}\\nReturn as base64 encoded 32x32 sprite data.\",\n  \"model\": \"llama3.2\",\n  \"type\": \"general\",\n  \"quiet\": true,\n  \"timeout_seconds\": 120\n}",
+        "options": {}
       },
-      "name": "Generate Assets",
-      "type": "n8n-nodes-base.executeWorkflow",
+      "name": "Generate Assets via Shared Ollama",
+      "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 1,
       "position": [1250, 250]
     },
@@ -123,8 +119,8 @@
     }
   ],
   "connections": {
-    "Game Generation Webhook": {"main": [[{"node": "Generate Game Code"}]]},
-    "Generate Game Code": {"main": [[{"node": "Extract Generated Code"}]]},
+    "Game Generation Webhook": {"main": [[{"node": "Generate Game Code via Shared Ollama"}]]},
+    "Generate Game Code via Shared Ollama": {"main": [[{"node": "Extract Generated Code"}]]},
     "Extract Generated Code": {"main": [[{"node": "Validate Code"}]]},
     "Validate Code": {"main": [[{"node": "Check Validation"}]]},
     "Check Validation": {
@@ -133,7 +129,7 @@
         [{"node": "Error Response"}]
       ]
     },
-    "Save Game": {"main": [[{"node": "Generate Assets"}]]},
-    "Generate Assets": {"main": [[{"node": "Process Assets"}]]}
+    "Save Game": {"main": [[{"node": "Generate Assets via Shared Ollama"}]]},
+    "Generate Assets via Shared Ollama": {"main": [[{"node": "Process Assets"}]]}
   }
 }

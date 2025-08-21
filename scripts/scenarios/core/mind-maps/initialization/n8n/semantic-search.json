@@ -74,7 +74,7 @@
     {
       "parameters": {
         "source": "workflowByName",
-        "workflowName": "Shared Text Embedding Generator"
+        "workflowName": "embedding-generator"
       },
       "id": "generate-embedding",
       "name": "Generate Query Embedding",

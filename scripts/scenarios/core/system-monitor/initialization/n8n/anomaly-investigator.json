@@ -56,7 +56,7 @@
     },
     {
       "parameters": {
-        "url": "http://localhost:5678/webhook/ollama",
+        "url": "http://${service.n8n.host}:${service.n8n.port}/webhook/ollama",
         "method": "POST",
         "sendBody": true,
         "bodyParametersJson": "={{ JSON.stringify({ prompt: `You are an expert system administrator analyzing anomalies. Based on the following data, provide a detailed investigation report:\n\nCurrent Anomalies: ${$json.anomalySummary}\nSeverity: ${$json.severity}\nContext: ${$json.context}\nTimestamp: ${$json.timestamp}\n\nSystem Context: ${JSON.stringify($node['Gather System Context'].json)}\n\nProvide analysis in JSON format:\n{\n  \"root_cause_analysis\": \"detailed analysis of what caused the anomaly\",\n  \"impact_assessment\": \"assessment of current and potential impact\",\n  \"recommended_actions\": [\"list of specific actions to take\"],\n  \"prevention_measures\": [\"list of measures to prevent recurrence\"],\n  \"urgency_level\": \"low|medium|high|critical\",\n  \"investigation_summary\": \"concise summary of findings\"\n}`, model: 'llama3.2:3b', type: 'reasoning', quiet: true }) }}",

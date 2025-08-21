@@ -39,7 +39,7 @@ source "${QDRANT_CLI_DIR}/config/defaults.sh" 2>/dev/null || true
 qdrant::export_config 2>/dev/null || true
 
 # Source qdrant libraries
-for lib in core health collections backup inject status models embeddings search credentials; do
+for lib in core health collections backup inject content status models embeddings search credentials; do
     lib_file="${QDRANT_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -54,7 +54,10 @@ cli::init "qdrant" "Qdrant vector database management"
 cli::register_command "help" "Show this help message with Qdrant examples" "qdrant_show_help"
 
 # Register additional Qdrant-specific commands
-cli::register_command "inject" "Inject data into Qdrant" "qdrant_inject" "modifies-system"
+cli::register_command "inject" "[DEPRECATED] Inject data into Qdrant (use 'content add' instead)" "qdrant_inject" "modifies-system"
+
+# Content management commands (replacing inject)
+cli::register_command "content" "Manage Qdrant content (add/list/get/remove/execute)" "qdrant_content_dispatch" "modifies-system"
 
 # Collection commands
 cli::register_command "collections" "Manage collections (list/create/info/delete/search)" "qdrant_collections_dispatch"
@@ -199,6 +202,79 @@ qdrant_credentials() {
     fi
 }
 
+# Content management dispatcher
+qdrant_content_dispatch() {
+    local subcommand="${1:-help}"
+    shift || true
+    
+    case "$subcommand" in
+        add)
+            if command -v qdrant::content::add &>/dev/null; then
+                qdrant::content::add "$@"
+            else
+                log::error "Content add function not available"
+                return 1
+            fi
+            ;;
+        list)
+            if command -v qdrant::content::list &>/dev/null; then
+                qdrant::content::list "$@"
+            else
+                log::error "Content list function not available"
+                return 1
+            fi
+            ;;
+        get)
+            if command -v qdrant::content::get &>/dev/null; then
+                qdrant::content::get "$@"
+            else
+                log::error "Content get function not available"
+                return 1
+            fi
+            ;;
+        remove)
+            if command -v qdrant::content::remove &>/dev/null; then
+                qdrant::content::remove "$@"
+            else
+                log::error "Content remove function not available"
+                return 1
+            fi
+            ;;
+        execute)
+            if command -v qdrant::content::execute &>/dev/null; then
+                qdrant::content::execute "$@"
+            else
+                log::error "Content execute function not available"
+                return 1
+            fi
+            ;;
+        help|--help|-h)
+            echo "Usage: resource-qdrant content <subcommand> [options]"
+            echo ""
+            echo "Subcommands:"
+            echo "  add       Add content to Qdrant"
+            echo "  list      List stored content"
+            echo "  get       Get specific content metadata"
+            echo "  remove    Remove content"
+            echo "  execute   Execute operations from file"
+            echo ""
+            echo "Examples:"
+            echo "  resource-qdrant content add --file collections.json"
+            echo "  resource-qdrant content add --file vectors.ndjson --name my-vectors"
+            echo "  resource-qdrant content list"
+            echo "  resource-qdrant content list --type collections"
+            echo "  resource-qdrant content get --name my-vectors"
+            echo "  resource-qdrant content remove --name old-data"
+            echo "  resource-qdrant content execute --file operations.json"
+            ;;
+        *)
+            log::error "Unknown content subcommand: $subcommand"
+            echo "Use 'resource-qdrant content help' for available commands"
+            return 1
+            ;;
+    esac
+}
+
 # Collections dispatcher for subcommands
 qdrant_collections_dispatch() {
     local subcommand="${1:-list}"
@@ -230,12 +306,24 @@ qdrant_collections_dispatch() {
             echo "  delete    Delete a collection"
             echo "  search    Search in collections"
             echo ""
-            echo "Examples:"
-            echo "  resource-qdrant collections list"
-            echo "  resource-qdrant collections create my-docs --model nomic-embed-text"
-            echo "  resource-qdrant collections info my-collection"
-            echo "  resource-qdrant collections delete old-vectors"
-            echo "  resource-qdrant collections search \"machine learning\""
+            echo "📦 Collection Management Examples:"
+            echo "  resource-qdrant collections list                          # List all collections"
+            echo "  resource-qdrant collections list --show-models            # List with compatible models"
+            echo "  resource-qdrant collections create my-docs --model nomic-embed-text  # Auto-detect dimensions"
+            echo "  resource-qdrant collections create vectors --dimensions 768          # Manual dimensions"
+            echo "  resource-qdrant collections info my-docs                  # Show collection details"
+            echo "  resource-qdrant collections delete old-vectors            # Delete collection"
+            echo ""
+            echo "🔍 Search Examples:"
+            echo "  resource-qdrant collections search \"quantum computing\"    # Search with text query"
+            echo "  resource-qdrant collections search --text \"AI\" --collection docs --limit 5"
+            echo "  resource-qdrant collections search --text \"machine learning\" --model nomic-embed-text"
+            echo "  resource-qdrant collections search --embedding '[0.1, 0.2, ...]' --collection my-docs"
+            echo ""
+            echo "💡 Tips:"
+            echo "  • Use --model to auto-detect dimensions when creating collections"
+            echo "  • Search without --collection will auto-select if only one exists"
+            echo "  • Use --show-models with list to see compatible embedding models"
             ;;
         *)
             log::error "Unknown collections subcommand: $subcommand"
@@ -276,18 +364,38 @@ qdrant_create_collection() {
     fi
     
     if ! qdrant::collections::parse_create_args "$@"; then
-        echo "Usage: resource-qdrant collections create <name> [options]"
-        echo ""
-        echo "Options:"
-        echo "  --model, -m <model>      Auto-detect dimensions from model"
-        echo "  --dimensions, -d <n>     Manual dimension specification"
-        echo "  --distance <metric>      Distance metric (Cosine/Dot/Euclid)"
-        echo ""
-        echo "Examples:"
-        echo "  resource-qdrant collections create my-docs --model nomic-embed-text"
-        echo "  resource-qdrant collections create embeddings --dimensions 384"
-        echo "  resource-qdrant collections create vectors 768 --distance Dot"
-        return 1
+        local parse_result=$?
+        if [[ $parse_result -eq 2 ]]; then
+            # Help was requested
+            echo "Usage: resource-qdrant collections create <name> [options]"
+            echo ""
+            echo "Options:"
+            echo "  --model, -m <model>      Auto-detect dimensions from model"
+            echo "  --dimensions, -d <n>     Manual dimension specification"
+            echo "  --distance <metric>      Distance metric (Cosine/Dot/Euclid)"
+            echo "  --help, -h               Show this help message"
+            echo ""
+            echo "Examples:"
+            echo "  resource-qdrant collections create my-docs --model nomic-embed-text"
+            echo "  resource-qdrant collections create embeddings --dimensions 384"
+            echo "  resource-qdrant collections create vectors 768 --distance Dot"
+            return 0
+        else
+            # Parsing error
+            echo "Usage: resource-qdrant collections create <name> [options]"
+            echo ""
+            echo "Options:"
+            echo "  --model, -m <model>      Auto-detect dimensions from model"
+            echo "  --dimensions, -d <n>     Manual dimension specification"
+            echo "  --distance <metric>      Distance metric (Cosine/Dot/Euclid)"
+            echo "  --help, -h               Show this help message"
+            echo ""
+            echo "Examples:"
+            echo "  resource-qdrant collections create my-docs --model nomic-embed-text"
+            echo "  resource-qdrant collections create embeddings --dimensions 384"
+            echo "  resource-qdrant collections create vectors 768 --distance Dot"
+            return 1
+        fi
     fi
     
     if command -v qdrant::collections::create_parsed &>/dev/null; then
@@ -365,10 +473,17 @@ qdrant_backup_dispatch() {
             echo "  create    Create a backup snapshot"
             echo "  list      List all backups"
             echo ""
-            echo "Examples:"
-            echo "  resource-qdrant backup list"
-            echo "  resource-qdrant backup create"
-            echo "  resource-qdrant backup create my-backup-name"
+            echo "💾 Backup Examples:"
+            echo "  resource-qdrant backup list                               # List all existing backups"
+            echo "  resource-qdrant backup create                             # Create backup with auto-generated name"
+            echo "  resource-qdrant backup create my-backup-name              # Create backup with custom name"
+            echo "  resource-qdrant backup create pre-upgrade-\$(date +%Y%m%d)  # Timestamped backup"
+            echo ""
+            echo "💡 Tips:"
+            echo "  • Backups include all collections and their data"
+            echo "  • Auto-generated names use format: backup-YYYYMMDD-HHMMSS"
+            echo "  • Custom names help identify backup purposes"
+            echo "  • Both native snapshots and framework backups are supported"
             ;;
         *)
             log::error "Unknown backup subcommand: $subcommand"
@@ -502,10 +617,15 @@ qdrant_models_dispatch() {
             echo "  list      List available embedding models"
             echo "  info      Show model information"
             echo ""
-            echo "Examples:"
-            echo "  resource-qdrant models list"
-            echo "  resource-qdrant models info nomic-embed-text"
-            echo "  resource-qdrant models info mxbai-embed-large"
+            echo "🤖 Model Examples:"
+            echo "  resource-qdrant models list                               # List all embedding models"
+            echo "  resource-qdrant models info nomic-embed-text              # Show model details"
+            echo "  resource-qdrant models info mxbai-embed-large             # Show large model info"
+            echo ""
+            echo "💡 Tips:"
+            echo "  • Models must be installed in Ollama first"
+            echo "  • Use model names with collections create --model for auto-sizing"
+            echo "  • Common dimensions: 384 (MiniLM), 768 (nomic-embed-text), 1024 (mxbai-embed-large)"
             ;;
         *)
             log::error "Unknown models subcommand: $subcommand"
@@ -549,53 +669,23 @@ qdrant_show_help() {
     # Show standard framework help first
     cli::_handle_help
     
-    # Add Qdrant-specific examples
+    # Add concise Qdrant-specific information
     echo ""
-    echo "🔍 Qdrant Vector Database Examples:"
+    echo "🔍 Common Qdrant Operations:"
     echo ""
-    echo "📦 Collection Management:"
-    echo "  resource-qdrant collections list                          # List all collections"
-    echo "  resource-qdrant collections list --show-models            # List with compatible models"
-    echo "  resource-qdrant collections create my-docs --model nomic-embed-text  # Auto-detect dimensions"
-    echo "  resource-qdrant collections create vectors --dimensions 768          # Manual dimensions"
-    echo "  resource-qdrant collections info my-docs                  # Show collection details"
-    echo "  resource-qdrant collections delete old-vectors            # Delete collection"
+    echo "  collections <subcommand>    Manage vector collections"
+    echo "  backup <subcommand>         Create and restore backups"
+    echo "  models <subcommand>         List and inspect embedding models"
+    echo "  embed <text>                Generate embeddings from text"
     echo ""
-    echo "🔍 Semantic Search:"
-    echo "  resource-qdrant collections search \"quantum computing\"    # Search with text query"
-    echo "  resource-qdrant collections search --text \"AI\" --collection docs --limit 5"
-    echo "  resource-qdrant collections search --text \"machine learning\" --model nomic-embed-text"
+    echo "Quick Start:"
+    echo "  resource-qdrant collections create my-docs --model nomic-embed-text"
+    echo "  resource-qdrant embed \"machine learning\""
+    echo "  resource-qdrant collections search \"AI research\""
     echo ""
-    echo "🧮 Embedding Generation:"
-    echo "  resource-qdrant embed \"hello world\"                       # Generate embedding"
-    echo "  resource-qdrant embed \"test\" --model nomic-embed-text     # Use specific model"
-    echo "  resource-qdrant embed --info                              # Show embedding info"
-    echo "  cat texts.txt | resource-qdrant embed --batch             # Batch processing"
-    echo "  resource-qdrant embed --from-file document.txt            # Embed file content"
+    echo "Use '<command> help' for detailed examples (e.g., 'collections help')"
     echo ""
-    echo "🤖 Model Management:"
-    echo "  resource-qdrant models list                               # List embedding models"
-    echo "  resource-qdrant models info nomic-embed-text              # Show model details"
-    echo ""
-    echo "💾 Data Management:"
-    echo "  resource-qdrant inject vectors.json                       # Import vector data"
-    echo "  resource-qdrant backup create                              # Create backup"
-    echo "  resource-qdrant backup list                               # List all backups"
-    echo ""
-    echo "📊 Monitoring:"
-    echo "  resource-qdrant status                                    # Check service status"
-    echo "  resource-qdrant credentials --format pretty               # Show connection details"
-    echo ""
-    echo "✨ New Features:"
-    echo "  • Native embedding generation via Ollama"
-    echo "  • Automatic model-collection dimension matching"
-    echo "  • Semantic search with text queries"
-    echo "  • Smart collection creation from models"
-    echo "  • Embedding caching for performance"
-    echo ""
-    echo "Default Port: 6333"
-    echo "Web UI: http://localhost:6333/dashboard"
-    echo "Common Dimensions: 384 (MiniLM), 768 (nomic-embed-text), 1024 (mxbai-embed-large), 1536 (OpenAI)"
+    echo "Default Port: 6333 | Web UI: http://localhost:6333/dashboard"
 }
 
 ################################################################################

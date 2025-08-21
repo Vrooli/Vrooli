@@ -57,7 +57,7 @@ qdrant::check_health() {
         return 0
     else
         log::error "Qdrant is not accessible for data injection"
-        log::info "Ensure Qdrant is running: ./manage.sh --action start"
+        log::info "Ensure Qdrant is running: resource-qdrant start"
         return 1
     fi
 }

@@ -195,7 +195,45 @@ main() {
 			
 		*)
 			log::error "Unknown command: $command"
-			echo ""
+			
+					# Try to provide fuzzy suggestions
+		local available_commands=("setup" "develop" "build" "deploy" "clean" "backup" "restore" "status" "test" "app" "scenario" "resource" "doctor" "version" "help")
+		local suggestions=()
+		
+		# Simple fuzzy matching
+		for cmd in "${available_commands[@]}"; do
+			if [[ "$cmd" != "$command" ]]; then
+				# Simple character-by-character comparison
+				local distance=0
+				local len1=${#command}
+				local len2=${#cmd}
+				local max_len=$((len1 > len2 ? len1 : len2))
+				local min_len=$((len1 < len2 ? len1 : len2))
+				
+				# Count character differences
+				for ((i=0; i<min_len; i++)); do
+					if [[ "${command:i:1}" != "${cmd:i:1}" ]]; then
+						distance=$((distance + 1))
+					fi
+				done
+				
+				# Add length difference
+				distance=$((distance + max_len - min_len))
+				
+				if [[ $distance -le 2 ]]; then
+					suggestions+=("$cmd")
+				fi
+			fi
+		done
+		
+		if [[ ${#suggestions[@]} -gt 0 ]]; then
+			echo "Did you mean one of these?"
+			for suggestion in "${suggestions[@]}"; do
+				echo "  $suggestion"
+			done
+			echo
+		fi
+			
 			echo "Run 'vrooli --help' for usage information"
 			exit 1
 			;;

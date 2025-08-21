@@ -233,6 +233,14 @@ func main() {
 	api.HandleFunc("/enhance", server.enhancePrompt).Methods("POST")
 	api.HandleFunc("/campaigns/manage", server.manageCampaignViaWorkflow).Methods("POST")
 
+	// Export/Import endpoints
+	api.HandleFunc("/export", server.exportData).Methods("GET")
+	api.HandleFunc("/import", server.importData).Methods("POST")
+
+	// Prompt Version History
+	api.HandleFunc("/prompts/{id}/versions", server.getPromptVersions).Methods("GET")
+	api.HandleFunc("/prompts/{id}/revert/{version}", server.revertPromptVersion).Methods("POST")
+
 	log.Printf("🚀 Prompt Manager API starting on port %s", port)
 	log.Printf("🗄️  Database: %s", postgresURL)
 	log.Printf("🔍 Qdrant: %s", qdrantURL)

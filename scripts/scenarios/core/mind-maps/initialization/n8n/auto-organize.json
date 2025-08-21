@@ -235,17 +235,6 @@
         ]
       ]
     },
-    "Manual Webhook": {
-      "main": [
-        [
-          {
-            "node": "Default Params",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Set Test Defaults": {
       "main": [
         [
@@ -257,29 +246,7 @@
         ]
       ]
     },
-    "Default Params": {
-      "main": [
-        [
-          {
-            "node": "Merge",
-            "type": "main",
-            "index": 1
-          }
-        ]
-      ]
-    },
     "Merge Triggers": {
-      "main": [
-        [
-          {
-            "node": "Merge",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Merge": {
       "main": [
         [
           {

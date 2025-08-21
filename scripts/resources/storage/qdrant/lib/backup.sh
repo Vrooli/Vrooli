@@ -21,9 +21,9 @@ source "${var_LIB_SYSTEM_DIR}/trash.sh"
 # Source configuration and dependencies
 # shellcheck disable=SC1091
 source "${QDRANT_BACKUP_DIR}/../config/defaults.sh"
-# Note: core.sh and collections.sh are sourced by manage.sh before this file
+# Note: core.sh and collections.sh are sourced by CLI before this file
 
-# Configuration exported by manage.sh
+# Configuration exported by CLI
 # qdrant::export_config called by main script
 
 #######################################

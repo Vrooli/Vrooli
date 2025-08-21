@@ -179,6 +179,20 @@ args::parse() {
         
         # If not matched as an option, treat as positional argument
         if ! $matched; then
+            # Try to provide suggestions for unknown arguments
+            if [[ -f "${VROOLI_ROOT:-.}/scripts/lib/utils/fuzzy-match.sh" ]]; then
+                source "${VROOLI_ROOT:-.}/scripts/lib/utils/fuzzy-match.sh"
+                
+                # Get all registered argument names
+                local available_args=("${!ARG_NAMES[@]}")
+                local suggestions
+                mapfile -t suggestions < <(fuzzy::find_suggestions "$arg" 2 0.4 "${available_args[@]}")
+                
+                if fuzzy::format_suggestions "$arg" "${suggestions[@]}"; then
+                    echo >&2
+                fi
+            fi
+            
             pos_args+=("$arg")
             shift
         fi

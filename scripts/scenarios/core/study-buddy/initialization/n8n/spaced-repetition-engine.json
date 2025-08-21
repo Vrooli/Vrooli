@@ -54,7 +54,7 @@
     },
     {
       "parameters": {
-        "workflow": "ollama",
+        "workflow": "Ollama Universal Executor",
         "workflowData": "={{ JSON.stringify($json) }}",
         "options": {
           "waitForSubWorkflow": true

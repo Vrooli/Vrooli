@@ -61,10 +61,10 @@ qdrant::messages::init() {
     [[ -z "${MSG_HELP_ACCESS:-}" ]] && readonly MSG_HELP_ACCESS="Access Qdrant Web UI at ${QDRANT_BASE_URL:-http://localhost:6333}/dashboard"
     [[ -z "${MSG_HELP_API:-}" ]] && readonly MSG_HELP_API="REST API available at ${QDRANT_BASE_URL:-http://localhost:6333}"
     [[ -z "${MSG_HELP_GRPC:-}" ]] && readonly MSG_HELP_GRPC="gRPC API available at ${QDRANT_GRPC_URL:-grpc://localhost:6334}"
-    [[ -z "${MSG_HELP_COLLECTIONS:-}" ]] && readonly MSG_HELP_COLLECTIONS="Use \"manage.sh --action list-collections\" to view collections"
+    [[ -z "${MSG_HELP_COLLECTIONS:-}" ]] && readonly MSG_HELP_COLLECTIONS="Use \"resource-qdrant collections list\" to view collections"
     [[ -z "${MSG_HELP_PORT_CONFLICT:-}" ]] && readonly MSG_HELP_PORT_CONFLICT="To use different ports, set QDRANT_CUSTOM_PORT and QDRANT_CUSTOM_GRPC_PORT environment variables"
     [[ -z "${MSG_HELP_AUTHENTICATION:-}" ]] && readonly MSG_HELP_AUTHENTICATION="To enable authentication, set QDRANT_CUSTOM_API_KEY environment variable"
-    [[ -z "${MSG_HELP_BACKUP:-}" ]] && readonly MSG_HELP_BACKUP="Use \"manage.sh --action backup\" to create snapshots"
+    [[ -z "${MSG_HELP_BACKUP:-}" ]] && readonly MSG_HELP_BACKUP="Use \"resource-qdrant backup create\" to create snapshots"
 }
 
 #######################################

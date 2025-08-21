@@ -27,7 +27,7 @@ if [[ -z "${MSG_COLLECTION_CREATED:-}" ]]; then
     qdrant::messages::init 2>/dev/null || true
 fi
 
-# Configuration and messages initialized by manage.sh
+# Configuration and messages initialized by CLI
 # qdrant::export_config and qdrant::messages::init called by main script
 
 #######################################
@@ -256,14 +256,14 @@ qdrant::collections::list() {
     while IFS= read -r collection_name; do
         if [[ -n "$collection_name" ]]; then
             echo "📁 $collection_name"
-            ((count++))
+            count=$((count + 1))
         fi
     done <<< "$collection_names"
     
     echo ""
     echo "Total: $count collections"
     echo ""
-    echo "💡 Use './manage.sh --action collection-info --collection <name>' for detailed information"
+    echo "💡 Use 'resource-qdrant collections info <name>' for detailed information"
 }
 
 #######################################
@@ -302,7 +302,8 @@ qdrant::collections::info() {
     response=$(qdrant::api::request "GET" "/collections/${collection_name}" 2>/dev/null)
     
     if [[ $? -ne 0 ]]; then
-        log::error "Failed to retrieve collection information"
+        log::error "Failed to retrieve collection information for: $collection_name"
+        log::info "Check that Qdrant is running and the collection name is correct"
         return 1
     fi
     
@@ -310,7 +311,8 @@ qdrant::collections::info() {
     status=$(echo "$response" | jq -r '.status // "unknown"' 2>/dev/null)
     
     if [[ "$status" != "ok" ]]; then
-        log::error "Collection not found or API error"
+        log::error "Collection not found: $collection_name"
+        log::info "Use 'resource-qdrant collections list' to see available collections"
         return 1
     fi
     
@@ -533,6 +535,10 @@ qdrant::collections::parse_create_args() {
             --distance)
                 distance="$2"
                 shift 2
+                ;;
+            --help|-h)
+                # Help is requested, return special code
+                return 2
                 ;;
             -*)
                 log::error "Unknown option: $1"
