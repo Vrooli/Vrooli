@@ -2,9 +2,9 @@
 
 ### TL;DR — One Iteration = ONE resource fix/improvement or ONE new resource added
 1) Select ONE resource (existing or new) using the selection tools (see Tools & References).
-2.a) If you chose an existing resource, pick a fix/improvement (diagnose/fix/improve/add) to pursue. Priority order: CLI, status check, installation, start/stop behavior, injection logic, resource-specific functionality. This is the best order for gradually fixing resources over multiple iterations.
-2.b) If you chose a new resource, create the full resource using best practices.
-3) Validate with gates per resource type; if any gate fails twice, stop and capture diagnostics.
+2.a) If you chose an existing resource, pick a fix/improvement (diagnose/fix/improve/add) to pursue. Priority order: PRD.md compliance, CLI, status check, installation, start/stop behavior, content management (replacing inject), resource-specific functionality. This is the best order for gradually fixing resources over multiple iterations.
+2.b) If you chose a new resource, create the full resource with PRD.md and implementation using best practices.
+3) Validate with gates per resource type and PRD requirements; if any gate fails twice, stop and capture diagnostics.
 5) Start and leave the resource running (exception: Whisper and agent-s2 may be stopped post-test if explicitly necessary), then append ≤10 lines to `/tmp/vrooli-resource-improvement.md`.
 
 ---
@@ -13,30 +13,47 @@
 - Improve AND validate platform resources so scenarios can run reliably end-to-end.
 - Add new resources to unlock new scenario opportunities (e.g. home automation, research, engineering)
 - Ensure that resource fixes/improvements are applied to the resource's setup code, so that it's repeatable and sets itself up reliably every time.
-- Ensure that resources can be meaningfully integrated into Vrooli. For automation resources, that means being able to add and manage the resource's workflows/agents/etc. For storage resources, that means being able to add tables, seed, migrate, and query the database. These are pretty straightforward to build, as it's very clear exactly what gets injected into the resources (.json workflow files, .sql files, etc.). Other resources may have less obvious data files, so you'll have to decide what's best (e.g. .py scripts for things only available as python packages, with guidelines in the resource's docs explaining what packages are available in the environment that will run the file, and other best practices)
+- Ensure that resources can be meaningfully integrated into Vrooli. For automation resources, that means being able to add and manage the resource's workflows/agents/etc. For storage resources, that means being able to add tables, seed, migrate, and query the database. These are pretty straightforward to build, as it's very clear exactly what gets stored/managed in the resources (.json workflow files, .sql files, etc.). Other resources may have less obvious data files, so you'll have to decide what's best (e.g. .py scripts for things only available as python packages, with guidelines in the resource's docs explaining what packages are available in the environment that will run the file, and other best practices)
 - Scenarios depend on resources being up; improvements must keep services running.
 - Prefer incremental, reversible changes; prefer interacting with resources using their CLIs over bespoke/manual edits.
 - See `docs/context.md` for why resource orchestration is central to Vrooli.
 
+### 📄 PRD Compliance & Progress Tracking
+- **Every resource MUST have a PRD.md** based on `scripts/resources/templates/PRD.md`
+- Use the PRD as the single source of truth for resource requirements and progress
+- Track implementation status directly in the PRD (check off completed items)
+- PRD sections that must be validated:
+  - Standard interfaces (CLI commands, content management)
+  - Port registry integration (no hardcoded ports)
+  - Docker image versioning (no 'latest' tags)
+  - Test specifications (BATS co-location, shared fixtures)
+  - Content management implementation
+- When improving a resource, first check its PRD.md for gaps
+
+### 🔄 Content Management Migration (inject → content)
+- **IMPORTANT**: The `inject` command is being phased out in favor of `content` management
+- `inject` was confusing - it implied command execution but actually stored data
+- New `content` command has clear subcommands: add, list, get, remove, execute
+- Migration approach:
+  1. Keep `inject` working temporarily for backwards compatibility
+  2. Implement `content` management alongside
+  3. Update documentation to use `content` examples
+  4. Eventually deprecate `inject` with clear migration path
+- Content management enables sharing data between scenarios (workflows, SQL, scripts, etc.)
+
 ---
 
-### ✅ DO / ❌ DON’T
+### ✅ DO / ❌ DON'T
 - ✅ Keep changes to existing resources minimal; prefer non-destructive operations.
 - ✅ Use `vrooli resource <name> <cmd>` and `resource-<name>` CLIs
-- ✅ Prefer leveraging shared functions over duplicating logic
 - ✅ Redact secrets; use environment variables for credentials.
 - ✅ Use timeouts for any potentially hanging operation.
 - ✅ Prefer writing resources such that if sudo permissions are required, they only have to be provided once. We should be able to freely stop and start resources without needing permissions.
-- ✅ Ensure resource status checks match standards, including supporting json mode by utilizing `scripts/lib/utils/format.sh`. This will make it easier to check which resources are healthy in the future. If the status check already works, assume it already follows the standard format.
-- ✅ Use `$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)` to define the script's current directory
-- ✅ Source `scripts/lib/utils/var.sh` FIRST using a relative path, if you need to access its `var_` variables
 - ✅ Use the project-level `data/` folder for storing things that don't belong in git, such as credentials, compiled code, logs, etc.
+- ✅ Refer to the `PRD.md` file for more specific implementation requirements
 
 - ❌ Do NOT uninstall, disable, or permanently shut down resources. The scenario loop relies on them running.
 - ❌ Do NOT modify loop scripts or prompt files.
-- ❌ Do NOT hard-code ports. `scripts/resources/port_registry.sh` should be the single source-of-truth for ports
-- ❌ Do NOT use path variables that are too generic (e.g. prefer `CLAUDE_CODE_LIB_DIR` over `SCRIPT_DIR`), as they could lead to hard-to-trace variable reassignment issues
-- ❌ Do NOT rely solely on source guards to fix all script sourcing issues. They are typically a symptom, not a solution
 - ❌ Do NOT create a `resource-<resource_name>` script to call the resource's `cli.sh` file. You tend to do this sometimes when the cli isn't available. However, the resource should use `install-resource-cli.sh` in its installation process, which automatically sets up the cli.
 
 > Policy: After testing any resource, keep it running. Only Whisper and agent-s2 should be stopped post-validation, due to resource constraints for whisper and known net jacking issues for agent-s2. If you run into a network issue (unlikely but possible), run `scripts/lib/network/network_diagnostics.sh` to figure out what's wrong and attempt autofixes.
@@ -64,18 +81,19 @@ Before choosing, also read (if present):
 All must be satisfied unless a resource-specific note says otherwise.
 
 General:
+- **PRD.md exists and follows template** from `scripts/resources/templates/PRD.md`
 - Status report shows a "healthy" state. Or if we don't have an API key for that resource, as healthy as it gets otherwise
 - Resource responds to a minimal health/sanity check
 - Resource shows as "healthy" not just in its own cli, but also in `vrooli status --verbose`. A discrepancy between the resource status and vrooli's detection of it typically means it hasn't yet auto-registered its cli to vrooli. This should be set up to happen automatically in the resource's code (pretty sure it's a one-liner, as used by many other resources)), but you can also call it yourself if needed.
 - No critical errors in condensed logs/output
-- Data can be "injected" into (added to) the resource, if relevant (likely yes. Even if the resource only works with python files, for example, being able to store them with the resource makes it easy to share files between scenarios and connect them to CLI commands)
+- **Content management implemented** (`resource-[name] content add/list/get/remove/execute`) for storing and managing resource data (workflows, SQL, scripts, etc.). This replaces the old "inject" pattern.
 - Resource's documentation is detailed, accurate, and organized. It should follow our documentation best practices, including using a "hub-and-spokes" model of organization to limit the size of the resource's main README.md.
 - Resource does not use a manage.sh script. Instead, the resource is managed through its `cli.sh` script, which acts as an ultra thin wrapper around the library functions.
 - The resource has integration tests, which are put in a `test/` folder. These use files from `scripts/__test/fixtures/data/` instead of putting the tests directly in the resources's folder, so that we can reuse them across other resources. 
 - Test results are included in the resource's `status` result, with a timestamp for the last time they were run.
 - The resource includes at least one example in an `examples/` folder.
-- All `.bats` files (if present) are co-located with the file they test, using the same name (e.g. `manage.sh` and `manage.bats`)
-- Any code that's labelled as being "legacy" or for "backwards compatability" is removed.
+- All `.bats` files (if present) are co-located with the file they test, using the same name (e.g. `docker.sh` and `docker.bats`)
+- Any code that's labelled as being "legacy" or for "backwards compatability" is removed (except temporary inject→content migration).
 
 ---
 
@@ -331,7 +349,10 @@ Only consider adding a new resource if at least 75% of existing ones are healthy
   - `vrooli resource stop <name>` (avoid stopping; Whisper post-test only, if needed)
 - **Install/Improve**:
   - `vrooli resource install <name>`
-  - `resource-ollama list-models`
-  - `resource-ollama pull-model llama3.2:3b`
+- **Content Management** (replaces inject):
+  - `resource-n8n content add --file workflow.json`
+  - `resource-postgres content add --file schema.sql`
+  - `resource-<name> content list`
+  - `resource-<name> content execute --name my-workflow`
 - **Sanity checks**:
   - Prefer resource CLIs or shared workflows (avoid direct client binaries unless explicitly allowed) 

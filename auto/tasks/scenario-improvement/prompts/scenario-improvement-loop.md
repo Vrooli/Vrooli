@@ -5,13 +5,13 @@
 1) Select ONE scenario in `scripts/scenarios/core/` using the selection tools:
    - Recommend: `auto/tools/selection/scenario-recommend.sh` (respects cooldown; optional GOALS, K)
    - Record pick: `auto/tools/selection/scenario-select.sh <name>`
-2) Investigate the current status of the scenario, in terms of file structure, code completeness, and accuracy to the scenario's purpose.
-3) Think deeply on how this scenario fits into Vrooli, and what ways it might help other scenarios.
-4) Think deeply on what it takes to properly implement this scenario, especially in relation to leveraging shared resources and the CLI of other scenarios.
-5) After careful consideration, make a few changes/improvements inside that scenario only (e.g. fixing a single workflow, adding missing documentation, replacing built-in logic with a call to another scenario's CLI that's purpose-built to for the task).
-6) Validate: convert → start → verify via API/CLI and/or Browserless screenshot.
-7) If a gate fails twice, stop, capture diagnostics, and defer heavier changes.
-8) Append ≤10 lines to `/tmp/vrooli-scenario-improvement.md` (schema below).
+2) **Check PRD.md compliance** - verify scenario has PRD.md; create from template if missing
+3) Investigate the current status of the scenario against PRD requirements
+4) Think deeply on how this scenario fits into Vrooli, and what ways it might help other scenarios
+5) Make targeted improvements aligned with PRD priorities (P0→P1→P2)
+6) Validate: convert → start → verify via API/CLI and/or Browserless screenshot
+7) If a gate fails twice, stop, capture diagnostics, and defer heavier changes
+8) Append ≤10 lines to `/tmp/vrooli-scenario-improvement.md` (schema below)
 
 Use `auto/tasks/scenario-improvement/prompts/cheatsheet.md` for metrics and jq helpers. First review `auto/data/scenario-improvement/summary.txt` (if present) for overall health, then check recent logs for specific failure patterns.
 
@@ -19,10 +19,17 @@ Use `auto/tasks/scenario-improvement/prompts/cheatsheet.md` for metrics and jq h
 
 ### 🎯 Purpose & Context
 
-- Improve AND validate scenarios in `scripts/scenarios/core/` to increase Vrooli’s capabilities and reliability.
+- Improve AND validate scenarios in `scripts/scenarios/core/` to increase Vrooli's capabilities and reliability.
 - Scenarios must be able to convert into generated apps and pass validation via API/CLI outputs or Browserless screenshots.
 - Prefer shared workflows in `initialization/n8n/` (e.g., `ollama.json`) to reduce per-scenario complexity and increase reuse.
 - See `docs/context.md` for the broader vision and why scenarios are central to Vrooli.
+
+### 📄 PRD-Driven Development
+- **Every scenario MUST have a PRD.md** based on `scripts/scenarios/templates/full/PRD.md`
+- Use the PRD as the single source of truth for scenario requirements and progress
+- Track implementation status by checking off completed items in PRD
+- Follow priority order: P0 (must have) → P1 (should have) → P2 (nice to have)
+- PRD defines the permanent capability the scenario adds to Vrooli's intelligence
 
 ---
 
@@ -69,13 +76,15 @@ Before choosing, read:
 Perform exactly these steps:
 
 1) Analyze scenario state
+   - **Check PRD.md exists**; create from template if missing
    - Confirm structure: `.vrooli/service.json`, `initialization/`, `ui/`, tests, etc.
-   - Identify the smallest high-value change aligned with the rubric.
+   - Identify highest-priority uncompleted PRD requirement (P0→P1→P2)
 
 2) Make changes to fix/improve the scenario
    - Keep edits within `scripts/scenarios/core/<scenario>/...`
    - Prefer adopting a shared workflow over adding bespoke logic
-   - If you must add a new shared workflow, place it in `initialization/n8n/` and document why it’s reusable
+   - If you must add a new shared workflow, place it in `initialization/n8n/` and document why it's reusable
+   - **Update PRD.md checkboxes** as requirements are completed
 
 3) Validate (all gates must pass)
    - Convert: `vrooli scenario convert <name> --force`
@@ -83,6 +92,7 @@ Perform exactly these steps:
    - Verify:
      - API/CLI outputs match expectations, and/or
      - Browserless screenshot shows the expected UI state
+     - PRD success metrics are met
 
 4) If a gate fails twice
    - Stop edits for this iteration
@@ -90,14 +100,17 @@ Perform exactly these steps:
    - Pivot to a smaller change (e.g., switch to shared workflow usage)
 
 5) Record ≤10 lines to `/tmp/vrooli-scenario-improvement.md`
-   - Schema: `iteration | scenario | change | rationale | commands | result | issues | next`
+   - Schema: `iteration | scenario | change | rationale | commands | result | issues | next | prd_progress`
 
 ---
 
 ### ✅ Validation Gates — Acceptance Criteria
-All three must be satisfied for success:
+All must be satisfied for success:
+- **PRD.md exists and follows template** from `scripts/scenarios/templates/full/PRD.md`
 - Convert completes successfully with `--force` and no blocking errors
 - Start runs without critical errors and responds to the validation path
+- All P0 (must have) requirements from PRD are implemented
+- PRD checkboxes are updated to reflect implementation status
 - Verification:
   - For API/CLI validation: outputs match expected values (document the command and output)
   - For UI validation: Browserless screenshot contains a specific UI element/text indicating success

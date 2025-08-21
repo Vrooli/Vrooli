@@ -103,6 +103,19 @@ questdb::status::collect_data() {
     status_data+=("version" "${QUESTDB_IMAGE:-unknown}")  # Extract version from image tag
     status_data+=("data_dir" "${QUESTDB_DATA_DIR:-unknown}")
     
+    # Test results - check for recent test runs
+    local test_status="not_run"
+    local test_timestamp=""
+    local test_result_file="/home/matthalloran8/Vrooli/data/questdb/test_results.json"
+    
+    if [[ -f "$test_result_file" ]]; then
+        test_status=$(jq -r '.status // "unknown"' "$test_result_file" 2>/dev/null || echo "unknown")
+        test_timestamp=$(jq -r '.timestamp // ""' "$test_result_file" 2>/dev/null || echo "")
+    fi
+    
+    status_data+=("test_status" "$test_status")
+    status_data+=("test_timestamp" "$test_timestamp")
+    
     # Runtime information (only if running and healthy)
     if [[ "$running" == "true" && "$healthy" == "true" ]]; then
         # Version from API (try to get it, fallback to unknown)
@@ -249,6 +262,22 @@ questdb::status::display_text() {
     log::info "   🏷️  Version: ${data[version]:-unknown}"
     echo
     
+    # Test Results
+    if [[ -n "${data[test_status]:-}" && "${data[test_status]}" != "not_run" ]]; then
+        log::info "🧪 Test Results:"
+        if [[ "${data[test_status]}" == "passed" ]]; then
+            log::success "   ✅ Status: All tests passed"
+        elif [[ "${data[test_status]}" == "failed" ]]; then
+            log::error "   ❌ Status: Tests failed"
+        else
+            log::warn "   ⚠️  Status: ${data[test_status]:-unknown}"
+        fi
+        if [[ -n "${data[test_timestamp]:-}" ]]; then
+            log::info "   📅 Last Run: ${data[test_timestamp]}"
+        fi
+        echo
+    fi
+    
     # Runtime information (only if healthy)
     if [[ "${data[healthy]:-false}" == "true" ]]; then
         log::info "📈 Runtime Information:"
@@ -379,9 +408,16 @@ questdb::status::monitor() {
 questdb::test() {
     log::info "Testing QuestDB functionality..."
     
+    local test_result_file="/home/matthalloran8/Vrooli/data/questdb/test_results.json"
+    mkdir -p "$(dirname "$test_result_file")"
+    local test_passed=true
+    local start_time=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    
     # Test 1: Check if QuestDB is installed (container exists)
     if ! questdb::docker::exists; then
         log::error "❌ QuestDB container is not installed"
+        test_passed=false
+        echo "{\"status\": \"failed\", \"timestamp\": \"$start_time\", \"error\": \"Container not installed\"}" > "$test_result_file"
         return 1
     fi
             log::success "✅ QuestDB container is installed"
@@ -389,6 +425,8 @@ questdb::test() {
     # Test 2: Check if service is running
     if ! questdb::docker::is_running; then
         log::error "❌ QuestDB service is not running"
+        test_passed=false
+        echo "{\"status\": \"failed\", \"timestamp\": \"$start_time\", \"error\": \"Service not running\"}" > "$test_result_file"
         return 2
     fi
             log::success "✅ QuestDB service is running"
@@ -396,6 +434,8 @@ questdb::test() {
     # Test 3: Check API health
     if ! questdb::api::health_check; then
         log::error "❌ QuestDB API is not responding"
+        test_passed=false
+        echo "{\"status\": \"failed\", \"timestamp\": \"$start_time\", \"error\": \"API not responding\"}" > "$test_result_file"
         return 1
     fi
             log::success "✅ QuestDB API is healthy"
@@ -408,7 +448,7 @@ questdb::test() {
         log::success "✅ SQL queries working"
     else
         log::error "❌ SQL query test failed"
-        return 1
+        test_passed=false
     fi
     
     # Test 5: Test table operations
@@ -427,7 +467,7 @@ questdb::test() {
         questdb::api::query "DROP TABLE $test_table" 1 >/dev/null 2>&1 || true
         log::success "✅ Table cleanup successful"
     else
-        echo_warn "⚠️  Table operations test failed - may be permission issue"
+        log::warn "⚠️  Table operations test failed - may be permission issue"
     fi
     
     # Test 6: Check storage metrics
@@ -437,10 +477,18 @@ questdb::test() {
     if [[ "$storage_info" != "unknown" ]]; then
         log::success "✅ Storage metrics available (used: $storage_info)"
     else
-        echo_warn "⚠️  Storage metrics unavailable"
+        log::warn "⚠️  Storage metrics unavailable"
     fi
     
     log::success "🎉 All QuestDB tests passed"
+    
+    # Save test results
+    if [[ "$test_passed" == "true" ]]; then
+        echo "{\"status\": \"passed\", \"timestamp\": \"$start_time\"}" > "$test_result_file"
+    else
+        echo "{\"status\": \"failed\", \"timestamp\": \"$start_time\"}" > "$test_result_file"
+    fi
+    
     return 0
 }
 

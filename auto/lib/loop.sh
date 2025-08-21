@@ -563,7 +563,23 @@ loop_dispatch() {
 			local maxflag="${1:-}"; local maxval=""; if [[ "$maxflag" == "--max" ]]; then maxval="${2:-}"; shift 2 || true; export RUN_MAX_ITERATIONS="$maxval"; fi
 			run_loop
 			;;
-		start) nohup "$0" --task "$LOOP_TASK" run-loop >/dev/null 2>&1 & echo "Started loop (task=$LOOP_TASK) PID: $!" ;;
+		start) 
+			# Need to use the actual task-manager path, not $0 which could be wrong in sourced context
+			local task_manager="${AUTO_DIR}/task-manager.sh"
+			nohup "$task_manager" --task "$LOOP_TASK" run-loop >/dev/null 2>&1 & 
+			local start_pid=$!
+			echo "Started loop (task=$LOOP_TASK) PID: $start_pid"
+			# Wait briefly for the actual loop to start and write its PID
+			local wait_count=0
+			while [[ ! -f "$PID_FILE" && $wait_count -lt 30 ]]; do
+				sleep 0.1
+				((wait_count++))
+			done
+			if [[ -f "$PID_FILE" ]]; then
+				local actual_pid=$(cat "$PID_FILE")
+				echo "Loop running with PID: $actual_pid"
+			fi
+			;;
 		stop)
 			if [[ -f "$PID_FILE" ]]; then
 				local main_pid; main_pid=$(cat "$PID_FILE")

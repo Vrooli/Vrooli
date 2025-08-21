@@ -69,6 +69,7 @@ cli::register_command "api" "Make API request" "questdb_api"
 cli::register_command "console" "Open web console in browser" "questdb_console"
 cli::register_command "logs" "Show container logs" "questdb_logs"
 cli::register_command "credentials" "Show n8n credentials for QuestDB" "questdb_credentials"
+cli::register_command "test" "Run QuestDB integration tests" "questdb_test"
 cli::register_command "uninstall" "Uninstall QuestDB (requires --force)" "questdb_uninstall" "modifies-system"
 
 ################################################################################
@@ -167,7 +168,9 @@ questdb_validate() {
 
 # Show QuestDB status
 questdb_status() {
-    if command -v questdb::status::check &>/dev/null; then
+    if command -v questdb::status::show &>/dev/null; then
+        questdb::status::show "$@"
+    elif command -v questdb::status::check &>/dev/null; then
         questdb::status::check "$@"
     else
         # Basic status
@@ -228,6 +231,16 @@ questdb_uninstall() {
         docker stop "$container_name" 2>/dev/null || true
         docker rm "$container_name" 2>/dev/null || true
         log::success "QuestDB uninstalled"
+    fi
+}
+
+# Run QuestDB tests
+questdb_test() {
+    if command -v questdb::test &>/dev/null; then
+        questdb::test
+    else
+        log::error "Test function not available"
+        return 1
     fi
 }
 

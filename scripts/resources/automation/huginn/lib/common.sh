@@ -161,8 +161,8 @@ huginn::rails_runner() {
     
     # Execute Ruby code via Rails runner with timeout
     # Use printf to avoid shell interpretation issues
-    # Filter out deprecation warnings and empty lines from both stdout and stderr
-    printf '%s\n' "$ruby_code" | timeout "$RAILS_RUNNER_TIMEOUT" docker exec -i "$CONTAINER_NAME" bundle exec rails runner - 2>&1 | grep -v "^\[DEPRECATION\]" | grep -v "^$"
+    # Redirect stderr to /dev/null inside container to suppress deprecation warnings
+    printf '%s\n' "$ruby_code" | timeout "$RAILS_RUNNER_TIMEOUT" docker exec -i "$CONTAINER_NAME" bash -c 'bundle exec rails runner - 2>/dev/null'
 }
 
 #######################################
@@ -229,8 +229,8 @@ huginn::get_system_stats() {
 #######################################
 huginn::check_database() {
     local result
-    # Filter out deprecation warnings and only capture DB_OK output
-    result=$(huginn::rails_runner 'puts ActiveRecord::Base.connection.active? ? "DB_OK" : "DB_FAIL"' 2>&1 | grep "^DB_OK$" | head -1)
+    # Rails runner now suppresses deprecation warnings internally
+    result=$(huginn::rails_runner 'puts ActiveRecord::Base.connection.active? ? "DB_OK" : "DB_FAIL"')
     [[ "$result" == "DB_OK" ]]
 }
 
@@ -239,7 +239,7 @@ huginn::check_database() {
 # Returns: version string
 #######################################
 huginn::get_version() {
-    huginn::rails_runner 'puts "Huginn #{Rails.application.class.module_parent_name} on Rails #{Rails.version}"' 2>/dev/null || echo "Unknown"
+    huginn::rails_runner 'puts "Huginn #{Rails.application.class.module_parent_name} on Rails #{Rails.version}"' || echo "Unknown"
 }
 
 #######################################

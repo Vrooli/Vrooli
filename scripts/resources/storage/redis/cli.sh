@@ -84,6 +84,7 @@ cli::register_command "list-backups" "List available backups" "redis::backup::li
 # Register utility commands
 cli::register_command "info" "Show Redis info" "redis::common::get_info"
 cli::register_command "credentials" "Get n8n credentials" "redis::show_credentials"
+cli::register_command "test" "Run integration tests" "redis::cli_test"
 
 ################################################################################
 # CLI wrapper functions - minimal wrappers for commands that need argument handling
@@ -169,6 +170,33 @@ redis::cli_flush() {
     
     log::warning "Flushing all Redis data..."
     redis::cli_inject "FLUSHALL"
+}
+
+# Run integration tests
+redis::cli_test() {
+    local test_script="${REDIS_CLI_DIR}/test/integration-test.sh"
+    
+    if [[ ! -f "$test_script" ]]; then
+        log::error "Test script not found: $test_script"
+        return 1
+    fi
+    
+    # Export required variables for the test
+    export REDIS_PORT="${REDIS_PORT:-6380}"
+    export REDIS_CONTAINER_NAME="${REDIS_CONTAINER_NAME:-vrooli-redis-resource}"
+    export REDIS_DATA_DIR="${REDIS_DATA_DIR:-${var_DATA_DIR}/redis}"
+    export REDIS_MAX_MEMORY="${REDIS_MAX_MEMORY:-2gb}"
+    export REDIS_DATABASES="${REDIS_DATABASES:-16}"
+    
+    # Run the test
+    echo "Running Redis integration tests..."
+    if bash "$test_script"; then
+        echo "✅ All tests passed"
+        return 0
+    else
+        echo "❌ Some tests failed"
+        return 1
+    fi
 }
 
 # Create backup with name

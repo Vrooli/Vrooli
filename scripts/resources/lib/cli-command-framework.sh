@@ -45,6 +45,7 @@ cli::init() {
     cli::register_command "restart" "Restart the resource" "cli::_handle_restart" "modifies-system"
     cli::register_command "install" "Install the resource" "cli::_handle_install" "modifies-system"
     cli::register_command "validate" "Validate resource configuration" "cli::_handle_validate"
+    cli::register_command "content" "Manage resource content (add/list/get/remove/execute)" "cli::_handle_content" "modifies-system"
     
     log::debug "CLI framework initialized for: $resource_name"
 }
@@ -168,6 +169,10 @@ cli::_handle_help() {
     echo "  resource-${CLI_RESOURCE_NAME} status"
     echo "  resource-${CLI_RESOURCE_NAME} start --dry-run"
     echo "  resource-${CLI_RESOURCE_NAME} install"
+    if command -v "${CLI_RESOURCE_NAME}::content" &>/dev/null || command -v "${CLI_RESOURCE_NAME}::content::add" &>/dev/null; then
+        echo "  resource-${CLI_RESOURCE_NAME} content add --file data.json"
+        echo "  resource-${CLI_RESOURCE_NAME} content list"
+    fi
 }
 
 #######################################
@@ -231,6 +236,66 @@ cli::_handle_validate() {
     else
         log::error "No validate handler found for ${CLI_RESOURCE_NAME}"
         return 1
+    fi
+}
+
+#######################################
+# Handle content management subcommands
+# Args: $1 - subcommand (add/list/get/remove/execute), $@ - remaining args
+#######################################
+cli::_handle_content() {
+    local subcommand="${1:-list}"
+    shift || true
+    
+    # Map common aliases to standard subcommands
+    case "$subcommand" in
+        create|new)
+            subcommand="add"
+            ;;
+        ls|show)
+            subcommand="list"
+            ;;
+        rm|delete|del)
+            subcommand="remove"
+            ;;
+        run|exec)
+            subcommand="execute"
+            ;;
+        help|--help|-h)
+            echo "Usage: resource-${CLI_RESOURCE_NAME} content <subcommand> [options]"
+            echo ""
+            echo "Subcommands:"
+            echo "  add       Add content to the resource"
+            echo "  list      List stored content"
+            echo "  get       Get specific content"
+            echo "  remove    Remove content"
+            echo "  execute   Execute/run content (if applicable)"
+            echo ""
+            echo "Examples:"
+            echo "  resource-${CLI_RESOURCE_NAME} content add --file data.json"
+            echo "  resource-${CLI_RESOURCE_NAME} content list --type all"
+            echo "  resource-${CLI_RESOURCE_NAME} content get --name my-config"
+            echo "  resource-${CLI_RESOURCE_NAME} content remove --id config-123"
+            return 0
+            ;;
+    esac
+    
+    # Check if resource has content management implementation
+    local handler="${CLI_RESOURCE_NAME}::content::${subcommand}"
+    
+    # Try resource-specific handler first
+    if command -v "$handler" &>/dev/null; then
+        log::debug "Executing content handler: $handler"
+        "$handler" "$@"
+    elif command -v "${CLI_RESOURCE_NAME}::content" &>/dev/null; then
+        # Fallback to single content handler with subcommand as first arg
+        log::debug "Executing unified content handler: ${CLI_RESOURCE_NAME}::content"
+        "${CLI_RESOURCE_NAME}::content" "$subcommand" "$@"
+    else
+        log::info "Content management not implemented for ${CLI_RESOURCE_NAME}"
+        echo "This resource does not support content management."
+        echo "Content management is typically used for resources that store data/configurations."
+        return 0
     fi
 }
 
