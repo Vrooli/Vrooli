@@ -13,6 +13,14 @@ source "${WORKFLOW_COMPILER_DIR}/parser.sh"
 source "${WORKFLOW_COMPILER_DIR}/actions.sh"
 source "${WORKFLOW_COMPILER_DIR}/debug.sh"
 
+# Source enhanced flow control components if available
+if [[ -f "${WORKFLOW_COMPILER_DIR}/flow-compiler.sh" ]]; then
+    source "${WORKFLOW_COMPILER_DIR}/flow-compiler.sh"
+    FLOW_CONTROL_AVAILABLE=true
+else
+    FLOW_CONTROL_AVAILABLE=false
+fi
+
 #######################################
 # Compile workflow to JavaScript function
 # Arguments:
@@ -22,6 +30,20 @@ source "${WORKFLOW_COMPILER_DIR}/debug.sh"
 #######################################
 workflow::compile() {
     local workflow_json="${1:?Workflow JSON required}"
+    
+    # Check if workflow uses flow control
+    local flow_enabled
+    flow_enabled=$(echo "$workflow_json" | jq -r '.workflow.flow_control.enabled // false')
+    
+    # Use enhanced compiler if flow control is enabled and available
+    if [[ "$flow_enabled" == "true" ]] && [[ "$FLOW_CONTROL_AVAILABLE" == "true" ]]; then
+        log::info "🔄 Using enhanced flow control compiler"
+        workflow::compile_with_flow_control "$workflow_json"
+        return $?
+    fi
+    
+    # Fall back to original linear compilation
+    log::info "📝 Using linear workflow compiler"
     
     # Simplify workflow for compilation
     local simplified
@@ -296,9 +318,21 @@ workflow::compile_and_store() {
     
     log::header "📦 Compiling Workflow: $workflow_file"
     
-    # Parse workflow
+    # Parse workflow - check for flow control first
     local workflow_json
-    workflow_json=$(workflow::parse "$workflow_file")
+    
+    # Try enhanced parsing if flow control is available
+    if [[ "$FLOW_CONTROL_AVAILABLE" == "true" ]]; then
+        # Check if this workflow might use flow control
+        if grep -q "flow_control:\|jump_to:\|label:\|switch:\|call_workflow:" "$workflow_file" 2>/dev/null; then
+            log::info "🔍 Detected flow control features, using enhanced parser"
+            workflow_json=$(workflow::parse_with_flow_control "$workflow_file")
+        else
+            workflow_json=$(workflow::parse "$workflow_file")
+        fi
+    else
+        workflow_json=$(workflow::parse "$workflow_file")
+    fi
     
     if [[ $? -ne 0 ]]; then
         log::error "Failed to parse workflow"

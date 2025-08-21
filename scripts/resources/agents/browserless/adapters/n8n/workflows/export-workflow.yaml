@@ -1,0 +1,106 @@
+workflow:
+  name: "n8n-export-workflow"
+  description: "Export N8n workflow as JSON via UI"
+  version: "2.0.0"
+  debug_level: "steps"
+  
+  flow_control:
+    enabled: true
+    
+  parameters:
+    workflow_id:
+      type: string
+      required: true
+    n8n_url:
+      type: string
+      default: "http://localhost:5678"
+    output_file:
+      type: string
+      default: "${context.outputDir}/workflow-export.json"
+
+  steps:
+    - name: "navigate-to-workflow"
+      action: "navigate"
+      url: "${params.n8n_url}/workflow/${params.workflow_id}"
+      wait_for: "networkidle2"
+      
+    - name: "wait-canvas"
+      action: "wait_for_element"
+      selector: ".workflow-canvas, .node-view-wrapper"
+      timeout: 10000
+      
+    - name: "open-menu"
+      action: "click"
+      selector: "[data-test-id='workflow-menu'], .workflow-menu-button, button:has-text('Workflow')"
+      wait: 500
+      
+    - name: "click-download"
+      action: "click"
+      selector: "[data-test-id='workflow-menu-item-download'], .menu-item:has-text('Download'), button:has-text('Download')"
+      wait: 1000
+      
+    - name: "extract-json"
+      action: "evaluate"
+      script: |
+        // Try to extract workflow JSON from the page
+        let workflowData = null;
+        
+        // Method 1: Check if download triggered a blob
+        if (window.__downloadedWorkflow) {
+          workflowData = window.__downloadedWorkflow;
+        }
+        
+        // Method 2: Extract from Redux/Vuex store
+        const app = document.querySelector('#app').__vue__;
+        if (app && app.$store) {
+          workflowData = app.$store.getters.workflow;
+        }
+        
+        // Method 3: Extract from window object
+        if (!workflowData && window.workflowData) {
+          workflowData = window.workflowData;
+        }
+        
+        return {
+          success: !!workflowData,
+          workflow: workflowData,
+          workflow_id: '${params.workflow_id}',
+          exported_at: new Date().toISOString()
+        };
+      output: "${params.output_file}"
+      
+    - name: "verify-export"
+      action: "jump_if"
+      condition: "window.__lastEvalResult.success"
+      success_target: "export_success"
+      failure_target: "export_fallback"
+      
+    - name: "success"
+      label: "export_success"
+      action: "log"
+      message: "Workflow exported successfully to ${params.output_file}"
+      level: "info"
+      jump_to: "completion"
+      
+    - name: "fallback-method"
+      label: "export_fallback"
+      action: "evaluate"
+      script: |
+        // Fallback: Try keyboard shortcut
+        document.dispatchEvent(new KeyboardEvent('keydown', {
+          key: 's',
+          ctrlKey: true,
+          shiftKey: true
+        }));
+        
+        // Wait and check for download
+        setTimeout(() => {
+          console.log('Attempted export via keyboard shortcut');
+        }, 1000);
+        
+        return { attempted_fallback: true };
+      
+    - name: "completion"
+      label: "completion"
+      action: "screenshot"
+      output: "${context.outputDir}/export-complete.png"

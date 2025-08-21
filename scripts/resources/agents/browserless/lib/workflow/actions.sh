@@ -488,5 +488,21 @@ action::impl_set_viewport() {
 EOF
 }
 
+action::impl_log() {
+    local params="$1"
+    local message=$(echo "$params" | jq -r '.message // "Log message"')
+    local level=$(echo "$params" | jq -r '.level // "info"')
+    
+    cat <<EOF
+    console.log('[${level^^}]', \`$message\`);
+    results.push({
+        action: 'log',
+        level: '$level',
+        message: \`$message\`,
+        timestamp: new Date().toISOString()
+    });
+EOF
+}
+
 # Export functions
 export -f action::get_implementation

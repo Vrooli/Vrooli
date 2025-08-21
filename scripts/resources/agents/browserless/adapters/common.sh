@@ -55,11 +55,20 @@ adapter::init() {
 #   0 if healthy, 1 if not
 #######################################
 adapter::check_browserless_health() {
-    if ! browserless::is_healthy; then
-        log::error "Browserless is not healthy. Cannot run adapter for ${BROWSERLESS_TARGET_RESOURCE:-unknown}"
+    # Check if browserless container is running
+    if ! docker ps --format "{{.Names}}" | grep -q "^${BROWSERLESS_CONTAINER_NAME}$"; then
+        log::error "Browserless container is not running. Cannot run adapter for ${BROWSERLESS_TARGET_RESOURCE:-unknown}"
         log::info "Start browserless with: vrooli resource start browserless"
         return 1
     fi
+    
+    # Check if browserless API is responding
+    if ! curl -s -f "http://localhost:${BROWSERLESS_PORT}/pressure" > /dev/null 2>&1; then
+        log::error "Browserless API is not responding on port ${BROWSERLESS_PORT}"
+        log::info "Check browserless logs: docker logs ${BROWSERLESS_CONTAINER_NAME}"
+        return 1
+    fi
+    
     return 0
 }
 

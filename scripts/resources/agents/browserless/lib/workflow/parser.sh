@@ -165,9 +165,12 @@ workflow::is_valid_action() {
         "assert_visible" "assert_value"
         
         # Advanced
-        "execute_script" "scroll" "dialog_respond"
+        "execute_script" "evaluate" "scroll" "dialog_respond"
         "new_tab" "switch_tab" "close_tab"
         "set_viewport" "emulate_device"
+        
+        # Utility
+        "log" "debug" "comment"
     )
     
     for valid_action in "${valid_actions[@]}"; do

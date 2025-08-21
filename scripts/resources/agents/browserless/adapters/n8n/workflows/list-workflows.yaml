@@ -1,0 +1,145 @@
+workflow:
+  name: "n8n-list-workflows"
+  description: "List all N8n workflows via UI scraping"
+  version: "2.0.0"
+  debug_level: "steps"
+  
+  flow_control:
+    enabled: true
+    
+  parameters:
+    n8n_url:
+      type: string
+      default: "http://localhost:5678"
+    include_inactive:
+      type: boolean
+      default: true
+
+  steps:
+    - name: "navigate-workflows"
+      action: "navigate"
+      url: "http://localhost:5678/workflows"
+      wait_for: "networkidle2"
+      
+    - name: "check-auth"
+      action: "evaluate"
+      script: |
+        return {
+          needsLogin: !!document.querySelector('.login-form, input[type="email"]'),
+          hasWorkflows: !!document.querySelector('.workflow-card, .workflows-list')
+        };
+        
+    - name: "handle-auth"
+      action: "jump_if"
+      condition: "window.__lastEvalResult.needsLogin"
+      success_target: "login_flow"
+      failure_target: "extract_workflows"
+      
+    - name: "login"
+      label: "login_flow"
+      action: "call_sub_workflow"
+      sub_workflow: "n8n_login"
+      jump_to: "navigate-workflows"
+      
+    - name: "wait-for-workflows"
+      label: "extract_workflows"  
+      action: "wait_for_element"
+      selector: ".card, .empty-state"
+      timeout: 15000
+      
+    - name: "extract-all-workflows"
+      action: "evaluate"
+      script: |
+        const workflows = [];
+        const cards = document.querySelectorAll('.card');
+        
+        cards.forEach(card => {
+          // Get workflow name from h1, h2, h3, or first line of text
+          const nameElement = card.querySelector('h1, h2, h3');
+          const name = nameElement?.textContent?.trim() || 
+                       card.textContent?.split('\n')[0]?.split(' ')[0]?.trim();
+          
+          // Try to extract ID from href or use name as fallback
+          const linkElement = card.querySelector('a');
+          const href = linkElement?.href || '';
+          const id = href.match(/workflow\/([^\/\?]+)/)?.[1] || 
+                     href.match(/\/([a-f0-9-]+)$/)?.[1] || 
+                     name;
+          
+          // Check if workflow is active (look for "Active" text)
+          const active = card.textContent?.includes('Active') || false;
+          
+          // Extract any visible metadata
+          const textContent = card.textContent || '';
+          const lastUpdated = textContent.match(/Last updated (.+?) \|/)?.[1] || '';
+          const created = textContent.match(/Created (.+?)\s/)?.[1] || '';
+          
+          if (name && name.length > 0) {
+            workflows.push({
+              id: id || name.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+              name,
+              active,
+              lastUpdated,
+              created,
+              url: href || `${window.location.origin}/workflow/${id || name}`,
+              textContent: textContent.substring(0, 200)
+            });
+          }
+        });
+        
+        return {
+          workflows,
+          total: workflows.length,
+          active: workflows.filter(w => w.active).length,
+          inactive: workflows.filter(w => !w.active).length
+        };
+      
+    - name: "filter-inactive"
+      action: "evaluate"
+      script: |
+        const includeInactive = (context.params && context.params.include_inactive !== false);
+        const allWorkflows = window.__lastEvalResult.workflows;
+        
+        return {
+          workflows: includeInactive ? allWorkflows : allWorkflows.filter(w => w.active),
+          filtered: !includeInactive
+        };
+      condition: "context.params && context.params.include_inactive === false"
+      
+    - name: "save-results"
+      action: "evaluate"
+      script: |
+        const results = window.__lastEvalResult;
+        console.log(`Found ${results.workflows.length} workflows`);
+        return results;
+
+  sub_workflows:
+    n8n_login:
+      description: "Handle N8n authentication"
+      steps:
+        - name: "wait-login-form"
+          action: "wait_for_element"
+          selector: "input[name='email'], #email, input[type='email']"
+          timeout: 5000
+          
+        - name: "fill-email"
+          action: "type"
+          selector: "input[name='email'], #email, input[type='email']"
+          text: "matthalloran8@gmail.com"
+          clear_first: true
+          
+        - name: "fill-password"
+          action: "type"
+          selector: "input[name='password'], #password, input[type='password']"
+          text: "fallback_password"
+          clear_first: true
+          
+        - name: "submit-login"
+          action: "click"
+          selector: "button[type='submit']"
+          wait_for_navigation: true
+          
+        - name: "verify-login"
+          action: "wait_for_element"
+          selector: ".workflow-canvas, .node-view-wrapper, [data-test-id='canvas']"
+          timeout: 10000

@@ -245,87 +245,10 @@ n8n::execute_workflow() {
         "$workflow_id" \
         "$n8n_url" \
         "$timeout" \
-        "$input_data" \
-        "$use_persistent" \
-        "$session_id"
+        "$input_data"
 }
 
-#######################################
-# List workflows via UI scraping
-# Gets list of workflows when API is unavailable
-# Returns:
-#   JSON array of workflows
-#######################################
-n8n::list_workflows() {
-    log::header "📋 Listing N8N Workflows via UI"
-    
-    local function_code='
-    export default async ({ page }) => {
-        const workflows = [];
-        
-        try {
-            // Navigate to workflows page
-            await page.goto("'${N8N_URL}'/workflows", {
-                waitUntil: "networkidle2",
-                timeout: 30000
-            });
-            
-            // Wait for workflow list to load
-            await page.waitForSelector(".workflow-card, [data-test-id*=\"workflow\"]", {
-                timeout: 10000
-            });
-            
-            // Extract workflow information
-            const workflowData = await page.evaluate(() => {
-                const items = [];
-                const cards = document.querySelectorAll(".workflow-card, [data-test-id*=\"workflow\"]");
-                
-                cards.forEach(card => {
-                    const name = card.querySelector(".workflow-name, h3, .title")?.textContent?.trim();
-                    const id = card.getAttribute("data-workflow-id") || 
-                               card.querySelector("a")?.href?.match(/workflow\/([^\/]+)/)?.[1];
-                    const active = card.querySelector(".active-badge, .status-active") !== null;
-                    
-                    if (name || id) {
-                        items.push({
-                            id: id || "unknown",
-                            name: name || "Unnamed Workflow",
-                            active: active,
-                            element: card.className
-                        });
-                    }
-                });
-                
-                return items;
-            });
-            
-            return {
-                success: true,
-                workflows: workflowData,
-                count: workflowData.length,
-                timestamp: new Date().toISOString()
-            };
-            
-        } catch (error) {
-            return {
-                success: false,
-                error: error.message,
-                workflows: [],
-                timestamp: new Date().toISOString()
-            };
-        }
-    }'
-    
-    # Execute via adapter framework
-    local result=$(adapter::execute_browser_function "$function_code" "30000" "true" "n8n_list_workflows")
-    
-    if [[ $? -eq 0 ]]; then
-        echo "$result" | jq '.workflows'
-    else
-        log::error "Failed to list workflows"
-        return 1
-    fi
-}
+# NOTE: n8n::list_workflows() is implemented in workflows.sh using YAML flow control
 
 #######################################
 # Show execute workflow help
@@ -365,11 +288,7 @@ EOF
     return 0
 }
 
-# Placeholder functions for future implementation
-n8n::export_workflow() {
-    log::warn "Export workflow functionality coming soon"
-    return 1
-}
+# NOTE: n8n::export_workflow() is implemented in workflows.sh using YAML flow control
 
 n8n::import_workflow() {
     log::warn "Import workflow functionality coming soon"
@@ -394,3 +313,10 @@ n8n::monitor_dashboard() {
 # Export main dispatcher for CLI integration
 export -f n8n::dispatch
 export -f n8n::init
+#######################################
+# Main execution entry point
+#######################################
+# If script is executed directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    n8n::dispatch "$@"
+fi

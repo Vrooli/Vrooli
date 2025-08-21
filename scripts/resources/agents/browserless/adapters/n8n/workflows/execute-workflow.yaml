@@ -1,0 +1,260 @@
+workflow:
+  name: "n8n-execute-workflow"
+  description: "Execute N8n workflow with automatic login handling"
+  version: "2.0.0"
+  debug_level: "steps"
+  
+  flow_control:
+    enabled: true
+    max_iterations: 10
+    
+  parameters:
+    workflow_id:
+      type: string
+      required: true
+      description: "N8n workflow ID or full URL"
+    n8n_url:
+      type: string
+      default: "http://localhost:5678"
+      description: "N8n instance URL"
+    timeout:
+      type: number
+      default: 60000
+      description: "Execution timeout in milliseconds"
+    input_data:
+      type: object
+      required: false
+      description: "Input data for workflow execution"
+
+  # Reusable sub-workflow for N8n authentication
+  sub_workflows:
+    n8n_login:
+      description: "Handle N8n authentication"
+      steps:
+        - name: "wait-login-form"
+          action: "wait_for_element"
+          selector: "input[name='email'], #email, input[type='email']"
+          timeout: 5000
+          
+        - name: "fill-email"
+          action: "type"
+          selector: "input[name='email'], #email, input[type='email']"
+          text: "${env.N8N_EMAIL}"
+          clear_first: true
+          
+        - name: "fill-password"
+          action: "type"
+          selector: "input[name='password'], #password, input[type='password']"
+          text: "${env.N8N_PASSWORD}"
+          clear_first: true
+          
+        - name: "submit-login"
+          action: "click"
+          selector: "button[type='submit'], button:has-text('Sign in'), button:has-text('Log in')"
+          wait_for_navigation: true
+          
+        - name: "verify-login"
+          action: "wait_for_element"
+          selector: ".workflow-canvas, .node-view-wrapper, [data-test-id='canvas']"
+          timeout: 10000
+
+  steps:
+    # Navigate to workflow
+    - name: "navigate-to-workflow"
+      label: "start"
+      action: "navigate"
+      url: "${params.workflow_id.startsWith('http') ? params.workflow_id : params.n8n_url + '/workflow/' + params.workflow_id}"
+      wait_for: "networkidle2"
+      debug:
+        screenshot: true
+        
+    # Check page state
+    - name: "detect-page-state"
+      action: "evaluate"
+      script: |
+        const hasLoginForm = !!document.querySelector('input[type="email"], input[type="password"], .login-form');
+        const hasCanvas = !!document.querySelector('.workflow-canvas, .node-view-wrapper, [data-test-id="canvas"]');
+        const hasExecuteButton = !!document.querySelector('[title*="Execute"], .execute-workflow-button');
+        const isExecuting = !!document.querySelector('.execution-running, .running-box');
+        const hasError = !!document.querySelector('.error-message, .execution-error');
+        
+        return {
+          needsLogin: hasLoginForm && !hasCanvas,
+          canExecute: hasCanvas && hasExecuteButton,
+          isExecuting: isExecuting,
+          hasError: hasError,
+          currentUrl: window.location.href
+        };
+      output: "${context.outputDir}/page-state.json"
+      
+    # Route based on page state
+    - name: "route-by-state"
+      action: "switch"
+      expression: |
+        window.__lastEvalResult.needsLogin ? 'login' :
+        window.__lastEvalResult.canExecute ? 'execute' :
+        window.__lastEvalResult.isExecuting ? 'wait' :
+        window.__lastEvalResult.hasError ? 'error' : 'unknown'
+      cases:
+        "login": "handle_login"
+        "execute": "execute_workflow"
+        "wait": "wait_execution"
+        "error": "handle_error"
+      default: "unknown_state"
+      
+    # LOGIN FLOW
+    - name: "perform-login"
+      label: "handle_login"
+      action: "call_sub_workflow"
+      sub_workflow: "n8n_login"
+      on_success:
+        jump_to: "start"  # Retry navigation after login
+      on_error:
+        jump_to: "login_failed"
+        
+    # EXECUTION FLOW
+    - name: "prepare-execution"
+      label: "execute_workflow"
+      action: "wait_for_element"
+      selector: "[title*='Execute'], .execute-workflow-button, [data-test-id='execute-workflow-button']"
+      timeout: 5000
+      
+    - name: "inject-input-data"
+      action: "evaluate"
+      script: |
+        const inputData = ${JSON.stringify(params.input_data || {})};
+        if (Object.keys(inputData).length > 0) {
+          // Try to find input nodes and inject data
+          window.__n8nInputData = inputData;
+          console.log('Input data prepared:', inputData);
+        }
+        return { dataInjected: Object.keys(inputData).length > 0 };
+      condition: "${params.input_data}"
+      
+    - name: "click-execute"
+      action: "click"
+      selector: "[title*='Execute'], .execute-workflow-button, [data-test-id='execute-workflow-button']"
+      wait: 1000
+      debug:
+        screenshot: true
+        
+    # WAIT FOR COMPLETION
+    - name: "wait-for-completion"
+      label: "wait_execution"
+      action: "wait_for_one_of"
+      selectors:
+        success: ".execution-success, [data-test-id='execution-success'], .success-box, .execution-item.success"
+        error: ".execution-error, [data-test-id='execution-error'], .error-box, .execution-item.error"
+        timeout: ".execution-timeout"
+        running: ".execution-running, .running-box"
+      max_wait: "${params.timeout}"
+      on_match:
+        success: "execution_success"
+        error: "execution_failed"
+        timeout: "execution_timeout"
+        running: "still_running"
+      default: "execution_timeout"
+      
+    # SUCCESS PATH
+    - name: "extract-results"
+      label: "execution_success"
+      action: "evaluate"
+      script: |
+        // Extract execution results
+        const executionItems = document.querySelectorAll('.execution-item');
+        const latestExecution = executionItems[0];
+        
+        const results = {
+          success: true,
+          executionId: latestExecution?.dataset?.executionId || 'unknown',
+          status: 'success',
+          timestamp: new Date().toISOString(),
+          outputs: {}
+        };
+        
+        // Try to extract output data from UI
+        const outputNodes = document.querySelectorAll('.output-data');
+        outputNodes.forEach((node, index) => {
+          try {
+            const data = JSON.parse(node.textContent);
+            results.outputs[`node_${index}`] = data;
+          } catch (e) {
+            // Ignore parse errors
+          }
+        });
+        
+        return results;
+      output: "${context.outputDir}/execution-results.json"
+      jump_to: "completion"
+      
+    # ERROR PATHS
+    - name: "handle-execution-error"
+      label: "execution_failed"
+      action: "extract_data"
+      selectors:
+        error_message: ".error-message, .execution-error"
+        error_details: ".error-details, .error-description"
+        failed_node: ".failed-node-name"
+      output: "${context.outputDir}/execution-error.json"
+      jump_to: "completion"
+      
+    - name: "handle-timeout"
+      label: "execution_timeout"
+      action: "log"
+      message: "Workflow execution timed out after ${params.timeout}ms"
+      level: "error"
+      jump_to: "completion"
+      
+    - name: "handle-still-running"
+      label: "still_running"
+      action: "log"
+      message: "Workflow still executing, waiting..."
+      level: "info"
+      jump_to: "wait_execution"  # Loop back to wait
+      
+    - name: "handle-login-failure"
+      label: "login_failed"
+      action: "log"
+      message: "N8n authentication failed - check N8N_EMAIL and N8N_PASSWORD environment variables"
+      level: "error"
+      jump_to: "completion"
+      
+    - name: "handle-unknown-state"
+      label: "unknown_state"
+      action: "log"
+      message: "Unknown page state - unable to proceed"
+      level: "error"
+      debug:
+        screenshot: true
+        html: true
+      jump_to: "completion"
+      
+    # COMPLETION
+    - name: "final-screenshot"
+      label: "completion"
+      action: "screenshot"
+      output: "${context.outputDir}/final-state.png"
+      full_page: false
+      
+    - name: "generate-report"
+      action: "evaluate"
+      script: |
+        return {
+          workflow_id: '${params.workflow_id}',
+          execution_complete: true,
+          final_url: window.location.href,
+          timestamp: new Date().toISOString()
+        };
+      output: "${context.outputDir}/execution-report.json"
+
+# Error recovery configuration
+error_recovery:
+  global_timeout: "${params.timeout * 2}"
+  retry_on_network_error: true
+  max_retries: 2
+  
+# State management
+state_management:
+  preserve_cookies: true
+  preserve_session: true
+  checkpoint_frequency: "per_label"

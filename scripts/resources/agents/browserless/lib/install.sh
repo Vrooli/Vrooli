@@ -1,222 +1,57 @@
-#!/usr/bin/env bash
-# Browserless Installation Logic
-# Complete installation workflow and configuration
+#\!/usr/bin/env bash
+#
+# Browserless installation functions
 
-# Source var.sh first to get proper directory variables
-BROWSERLESS_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-# shellcheck disable=SC1091
-source "${BROWSERLESS_LIB_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+set -euo pipefail
 
-# Source trash system for safe removal using var_ variables
-# shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/../../../lib/utils/format.sh"
+source "$SCRIPT_DIR/common.sh"
 
-#######################################
-# Create Browserless data directories
-# Returns: 0 if successful, 1 if failed
-#######################################
-browserless::create_directories() {
-    log::info "${MSG_CREATING_DIRS}"
-    
-    if mkdir -p "$BROWSERLESS_DATA_DIR"; then
-        log::success "${MSG_DIRECTORIES_CREATED}"
-        
-        # Add rollback action
-        resources::add_rollback_action \
-            "Remove Browserless data directory" \
-            "trash::safe_remove '$BROWSERLESS_DATA_DIR' --production 2>/dev/null || true" \
-            10
-        
-        return 0
-    else
-        log::error "${MSG_CREATE_DIRS_FAILED}"
-        return 1
-    fi
-}
-
-#######################################
-# Update Vrooli configuration with Browserless settings
-# Returns: 0 if successful, 1 if failed
-#######################################
-browserless::update_config() {
-    # Create JSON with proper escaping
-    local additional_config
-    additional_config=$(cat <<EOF
-{
-    "features": {
-        "screenshots": true,
-        "pdf": true,
-        "scraping": true,
-        "automation": true
-    },
-    "browser": {
-        "maxConcurrency": "$BROWSERLESS_MAX_BROWSERS",
-        "headless": $([[ "$BROWSERLESS_HEADLESS" == "yes" ]] && echo "true" || echo "false"),
-        "timeout": "$BROWSERLESS_TIMEOUT"
-    },
-    "api": {
-        "version": "v2",
-        "statusEndpoint": "/pressure",
-        "screenshotEndpoint": "/chrome/screenshot",
-        "pdfEndpoint": "/chrome/pdf",
-        "contentEndpoint": "/chrome/content",
-        "functionEndpoint": "/chrome/function",
-        "scrapeEndpoint": "/chrome/scrape"
-    },
-    "container": {
-        "name": "$BROWSERLESS_CONTAINER_NAME",
-        "image": "$BROWSERLESS_IMAGE"
-    }
-}
-EOF
-)
-    
-    if resources::update_config "agents" "browserless" "$BROWSERLESS_BASE_URL" "$additional_config"; then
-        return 0
-    else
-        log::warn "${MSG_CONFIG_UPDATE_FAILED}"
-        log::info "Browserless is installed but may need manual configuration in Vrooli"
-        return 1
-    fi
-}
-
-#######################################
-# Display installation success information
-#######################################
-browserless::show_installation_success() {
-    log::success "✅ Browserless is running and healthy on port $BROWSERLESS_PORT"
-    
-    # Display access information
-    echo
-    log::header "🌐 Browserless Access Information"
-    log::info "URL: $BROWSERLESS_BASE_URL"
-    log::info "Status Check: $BROWSERLESS_BASE_URL/pressure"
-    log::info "Max Browsers: $BROWSERLESS_MAX_BROWSERS"
-    log::info "Headless Mode: $BROWSERLESS_HEADLESS"
-    log::info "Timeout: ${BROWSERLESS_TIMEOUT}ms"
-    
-    echo
-    log::header "🎯 Next Steps"
-    log::info "1. Access Browserless at: $BROWSERLESS_BASE_URL"
-    log::info "2. Use the API endpoints for browser automation"
-    log::info "3. Test with: $0 --action usage"
-    log::info "4. Check the docs: https://www.browserless.io/docs/"
-}
-
-#######################################
-# Complete Browserless installation
-# Returns: 0 if successful, 1 if failed
-#######################################
-browserless::install_service() {
-    log::header "🎭 Installing Browserless Browser Automation (Docker)"
-    
-    # Start rollback context
-    resources::start_rollback_context "install_browserless_docker"
-    
-    # Check if already installed
-    if ! browserless::check_existing_installation; then
-        return 0
-    fi
-    
-    # Validate prerequisites
-    if ! browserless::validate_prerequisites; then
-        return 1
-    fi
+function install_browserless() {
+    format_section "📦 Installing Browserless"
     
     # Create directories
-    if ! browserless::create_directories; then
-        resources::handle_error \
-            "${MSG_CREATE_DIRS_FAILED}" \
-            "system" \
-            "Check directory permissions"
-        return 1
-    fi
+    ensure_directories
+    format_info "Created data directories"
     
-    # Skip network creation for host network mode
-    # Network is already set to "host" in get_init_config
-    
-    # Start Browserless container
-    if ! browserless::docker_run "$BROWSERLESS_MAX_BROWSERS" "$BROWSERLESS_TIMEOUT" "$BROWSERLESS_HEADLESS"; then
-        resources::handle_error \
-            "${MSG_START_CONTAINER_FAILED}" \
-            "system" \
-            "Check Docker logs: docker logs $BROWSERLESS_CONTAINER_NAME"
-        return 1
-    fi
-    
-    # Wait for service to be ready
-    if ! browserless::wait_for_ready "Browserless to start" "$BROWSERLESS_STARTUP_MAX_WAIT"; then
-        resources::handle_error \
-            "${MSG_STARTUP_TIMEOUT}" \
-            "system" \
-            "Check container logs for errors"
-        return 1
-    fi
-    
-    # Give Browserless time to initialize
-    sleep $BROWSERLESS_INITIALIZATION_WAIT
-    
-    # Verify health
-    if browserless::wait_for_healthy 30; then
-        # Update Vrooli configuration
-        browserless::update_config
-        
-        # Show success information
-        browserless::show_installation_success
-        
-        # Clear rollback context on success
-        ROLLBACK_ACTIONS=()
-        OPERATION_ID=""
-        
-        return 0
+    # Pull Docker image
+    format_info "Pulling Browserless image..."
+    if docker pull "$BROWSERLESS_IMAGE"; then
+        format_success "Successfully pulled $BROWSERLESS_IMAGE"
     else
-        log::warn "${MSG_STARTED_NOT_HEALTHY}"
-        log::info "Check logs: docker logs $BROWSERLESS_CONTAINER_NAME"
-        return 0
+        format_error "Failed to pull Docker image"
+        return 1
     fi
+    
+    # Register CLI with install-resource-cli.sh
+    format_info "Registering Browserless CLI..."
+    if "$SCRIPT_DIR/../../../lib/resources/install-resource-cli.sh" \
+        --name browserless \
+        --cli-path "$SCRIPT_DIR/../cli.sh"; then
+        format_success "CLI registered successfully"
+    else
+        format_warning "Failed to register CLI"
+    fi
+    
+    # Start the service
+    format_info "Starting Browserless..."
+    source "$SCRIPT_DIR/start.sh"
+    if start_browserless; then
+        format_success "Browserless installed and started successfully"
+    else
+        format_error "Failed to start Browserless"
+        return 1
+    fi
+    
+    # Run initial health check
+    sleep 5
+    if [[ "$(check_health)" == "healthy" ]]; then
+        format_success "Health check passed"
+    else
+        format_warning "Service started but health check failed"
+    fi
+    
+    format_info "Access Browserless at: http://localhost:${BROWSERLESS_PORT}"
+    format_info "API Documentation: http://localhost:${BROWSERLESS_PORT}/docs"
 }
-
-#######################################
-# Uninstall Browserless completely
-# Returns: 0 if successful, 1 if failed
-#######################################
-browserless::uninstall_service() {
-    log::header "🗑️  Uninstalling Browserless"
-    
-    if ! flow::is_yes "$YES"; then
-        log::warn "${MSG_UNINSTALL_WARNING}"
-        read -p "Are you sure you want to continue? (y/N): " -r
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            log::info "Uninstall cancelled"
-            return 0
-        fi
-    fi
-    
-    # Backup data before removal
-    browserless::backup_data "uninstall"
-    
-    # Ask about data directory removal
-    local remove_data="no"
-    if [[ -d "$BROWSERLESS_DATA_DIR" ]]; then
-        read -p "Remove Browserless data directory? (y/N): " -r
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            remove_data="yes"
-        fi
-    fi
-    
-    # Remove Docker container and network
-    browserless::docker_remove "$remove_data"
-    
-    # Remove from Vrooli config
-    resources::remove_config "agents" "browserless"
-    
-    log::success "${MSG_UNINSTALL_SUCCESS}"
-    return 0
-}
-
-# Export functions for subshell availability
-export -f browserless::create_directories
-export -f browserless::update_config
-export -f browserless::show_installation_success
-export -f browserless::install_service
-export -f browserless::uninstall_service
