@@ -97,11 +97,26 @@ network_diagnostics_core::run() {
        nc -zv -w 2 google.com 443 >/dev/null 2>&1 && \
        ! timeout 8 curl -s --http1.1 --connect-timeout 5 https://www.google.com >/dev/null 2>&1; then
         log::warning "PARTIAL TLS ISSUE: TCP connectivity works but HTTPS fails"
-        log::info "This may indicate TCP segmentation offload or certificate issues"
+        log::info "This may indicate TCP segmentation offload, certificate issues, or proxy interception"
+        
+        # Check for MITM proxy interception
+        log::info ""
+        if ! network_diagnostics_analysis::detect_mitm_proxy; then
+            log::error "🚨 MITM proxy is the root cause of HTTPS failures"
+            return 1
+        fi
     fi
     
     if [[ "$has_failures" == "true" ]]; then
         log::warning "Network issues detected - some tests failed"
+        
+        # Check for MITM proxy if HTTPS failed
+        if ! timeout 8 curl -s --http1.1 --connect-timeout 5 https://www.google.com >/dev/null 2>&1; then
+            log::info ""
+            if ! network_diagnostics_analysis::detect_mitm_proxy; then
+                log::error "🚨 MITM proxy is causing network issues"
+            fi
+        fi
         
         # Enhanced: Check for protocol split issues (if enabled)
         if [[ "${VROOLI_PROTOCOL_SPLIT_CHECK}" == "true" ]]; then
@@ -525,6 +540,204 @@ network_diagnostics_analysis::check_protocol_split() {
     fi
 }
 
+network_diagnostics_analysis::detect_mitm_proxy() {
+    log::info "🔍 Detecting MITM proxy/interception..."
+    
+    local mitm_detected=false
+    local issues_found=()
+    
+    # 1. Check for proxy processes
+    log::info "  📋 Checking for proxy processes..."
+    local proxy_processes
+    proxy_processes=$(ps aux | grep -E "mitm|proxy|burp|charles|fiddler|zaproxy|owasp" | grep -v grep | grep -v "network_diagnostics" || true)
+    
+    if [[ -n "$proxy_processes" ]]; then
+        log::warning "  ⚠️  Found proxy processes running:"
+        while read -r proc; do
+            local pid=$(echo "$proc" | awk '{print $2}')
+            local cmd=$(echo "$proc" | awk '{for(i=11;i<=NF;i++) printf "%s ", $i; print ""}')
+            log::warning "    PID $pid: ${cmd:0:100}"
+            
+            # Check specifically for mitmproxy
+            if [[ "$cmd" =~ mitmdump|mitmproxy|mitmweb ]]; then
+                mitm_detected=true
+                issues_found+=("mitmproxy")
+                
+                # Extract port from command
+                if [[ "$cmd" =~ --listen-port[[:space:]]+([0-9]+) ]]; then
+                    local mitm_port="${BASH_REMATCH[1]}"
+                    log::error "    🚨 MITMPROXY detected on port $mitm_port"
+                fi
+            fi
+        done <<< "$proxy_processes"
+    else
+        log::success "  ✓ No proxy processes detected"
+    fi
+    
+    # 2. Check iptables redirect rules
+    log::info "  📋 Checking iptables NAT redirect rules..."
+    if command -v iptables >/dev/null 2>&1 && flow::can_run_sudo; then
+        local nat_redirects
+        nat_redirects=$(sudo iptables -t nat -L OUTPUT -n 2>/dev/null | grep REDIRECT || true)
+        
+        if [[ -n "$nat_redirects" ]]; then
+            log::warning "  ⚠️  Found NAT redirect rules:"
+            
+            # Check for common proxy ports
+            local proxy_ports=(8080 8085 8090 8888 9090 3128 3129)
+            for port in "${proxy_ports[@]}"; do
+                if echo "$nat_redirects" | grep -q "redir ports $port"; then
+                    mitm_detected=true
+                    issues_found+=("iptables-redirect-$port")
+                    log::error "    🚨 Traffic redirected to port $port (proxy port)"
+                    
+                    # Check what ports are being redirected
+                    if echo "$nat_redirects" | grep "dpt:443.*redir ports $port" >/dev/null; then
+                        log::error "    🚨 HTTPS (443) → port $port"
+                    fi
+                    if echo "$nat_redirects" | grep "dpt:80.*redir ports $port" >/dev/null; then
+                        log::error "    🚨 HTTP (80) → port $port"
+                    fi
+                fi
+            done
+        else
+            log::success "  ✓ No NAT redirect rules found"
+        fi
+    else
+        log::info "  ⏭️  Skipping iptables check (requires sudo)"
+    fi
+    
+    # 3. Test for certificate interception
+    log::info "  📋 Testing for SSL/TLS certificate interception..."
+    if command -v curl >/dev/null 2>&1; then
+        local cert_test
+        cert_test=$(curl -v --connect-timeout 3 https://www.google.com 2>&1 | head -30 || true)
+        
+        # Check for mitmproxy certificate
+        if echo "$cert_test" | grep -i "mitmproxy" >/dev/null; then
+            mitm_detected=true
+            issues_found+=("mitmproxy-cert")
+            log::error "  🚨 MITMPROXY CERTIFICATE DETECTED in HTTPS connection"
+            
+            # Extract certificate details
+            local issuer=$(echo "$cert_test" | grep "issuer:" | head -1 || echo "")
+            if [[ -n "$issuer" ]]; then
+                log::error "    Certificate issuer: $issuer"
+            fi
+        elif echo "$cert_test" | grep -E "certificate problem|unable to get local issuer" >/dev/null; then
+            log::warning "  ⚠️  SSL certificate validation failed"
+            log::info "    This might indicate MITM interception"
+            
+            # Check if it's connecting to an unusual IP
+            if echo "$cert_test" | grep -E "0\.0\.0\.[0-9]+" >/dev/null; then
+                mitm_detected=true
+                issues_found+=("suspicious-redirect")
+                log::error "  🚨 Connection redirected to suspicious IP (0.0.0.x)"
+            fi
+        else
+            log::success "  ✓ No certificate interception detected"
+        fi
+    fi
+    
+    # 4. Check for proxy environment variables
+    log::info "  📋 Checking proxy environment variables..."
+    local proxy_vars=(http_proxy https_proxy HTTP_PROXY HTTPS_PROXY)
+    local has_proxy_env=false
+    
+    for var in "${proxy_vars[@]}"; do
+        if [[ -n "${!var:-}" ]]; then
+            has_proxy_env=true
+            log::warning "  ⚠️  $var=${!var}"
+        fi
+    done
+    
+    if [[ "$has_proxy_env" == "false" ]]; then
+        log::success "  ✓ No proxy environment variables set"
+    fi
+    
+    # 5. Check for mitmproxy certificate files
+    log::info "  📋 Checking for MITM proxy certificates..."
+    local mitm_cert_locations=(
+        "/tmp/mitmproxy-ca-cert.pem"
+        "$HOME/.mitmproxy/mitmproxy-ca-cert.pem"
+        "/usr/local/share/ca-certificates/mitmproxy.crt"
+        "/etc/ssl/certs/mitmproxy-ca-cert.pem"
+    )
+    
+    local found_certs=false
+    for cert_path in "${mitm_cert_locations[@]}"; do
+        if [[ -f "$cert_path" ]]; then
+            found_certs=true
+            log::info "  📁 Found certificate: $cert_path"
+            
+            # Check if it's currently being used
+            if [[ "${SSL_CERT_FILE:-}" == "$cert_path" ]] || [[ "${REQUESTS_CA_BUNDLE:-}" == "$cert_path" ]]; then
+                log::success "    ✓ Certificate is configured in environment"
+            fi
+        fi
+    done
+    
+    # Provide diagnosis and solutions
+    if [[ "$mitm_detected" == "true" ]]; then
+        log::header "🚨 MITM PROXY INTERCEPTION DETECTED"
+        log::error "Your HTTPS traffic is being intercepted by a proxy"
+        log::info ""
+        log::info "Issues detected:"
+        for issue in "${issues_found[@]}"; do
+            log::error "  • $issue"
+        done
+        log::info ""
+        log::header "📋 RECOMMENDED SOLUTIONS:"
+        
+        # Solution 1: Remove iptables rules
+        if [[ " ${issues_found[@]} " =~ "iptables-redirect" ]]; then
+            log::info "1️⃣  Remove iptables redirect rules:"
+            log::info "   sudo iptables -t nat -L OUTPUT -n --line-numbers"
+            log::info "   # Remove redirect rules (replace X with line numbers):"
+            log::info "   sudo iptables -t nat -D OUTPUT X"
+            log::info ""
+        fi
+        
+        # Solution 2: Stop mitmproxy
+        if [[ " ${issues_found[@]} " =~ "mitmproxy" ]]; then
+            log::info "2️⃣  Stop mitmproxy process:"
+            local mitm_pid=$(ps aux | grep -E "mitmdump|mitmproxy" | grep -v grep | awk '{print $2}' | head -1)
+            if [[ -n "$mitm_pid" ]]; then
+                log::info "   kill -9 $mitm_pid"
+                log::info "   # Note: It may auto-restart if managed by a service"
+            fi
+            log::info ""
+        fi
+        
+        # Solution 3: Install certificate
+        if [[ " ${issues_found[@]} " =~ "mitmproxy-cert" ]] && [[ "$found_certs" == "true" ]]; then
+            log::info "3️⃣  Install mitmproxy certificate (if you need the proxy):"
+            log::info "   # Temporary (current session):"
+            log::info "   export SSL_CERT_FILE=/tmp/mitmproxy-ca-cert.pem"
+            log::info "   export REQUESTS_CA_BUNDLE=/tmp/mitmproxy-ca-cert.pem"
+            log::info ""
+            log::info "   # Permanent (system-wide):"
+            log::info "   sudo cp /tmp/mitmproxy-ca-cert.pem /usr/local/share/ca-certificates/mitmproxy.crt"
+            log::info "   sudo update-ca-certificates"
+            log::info ""
+        fi
+        
+        # Solution 4: Download certificate if missing
+        if [[ " ${issues_found[@]} " =~ "mitmproxy" ]] && [[ "$found_certs" == "false" ]]; then
+            log::info "4️⃣  Download mitmproxy certificate:"
+            log::info "   # If mitmproxy is running on port 8085:"
+            log::info "   curl -x localhost:8085 http://mitm.it/cert/pem -o /tmp/mitmproxy-ca-cert.pem"
+            log::info "   # Then follow step 3 to install it"
+            log::info ""
+        fi
+        
+        return 1
+    else
+        log::success "  ✅ No MITM proxy interception detected"
+        return 0
+    fi
+}
+
 # =============================================================================
 # FIXES - Automated network issue remediation
 # =============================================================================
@@ -816,6 +1029,7 @@ export -f network_diagnostics_tcp::check_pmtu_status
 export -f network_diagnostics_analysis::diagnose_connection_failure
 export -f network_diagnostics_analysis::check_nat_redirects
 export -f network_diagnostics_analysis::check_protocol_split
+export -f network_diagnostics_analysis::detect_mitm_proxy
 export -f network_diagnostics_fixes::fix_ipv6_issues
 export -f network_diagnostics_fixes::fix_ipv4_only_issues
 export -f network_diagnostics_fixes::add_ipv4_host_override
