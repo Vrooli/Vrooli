@@ -91,9 +91,10 @@ General:
 - Resource does not use a manage.sh script. Instead, the resource is managed through its `cli.sh` script, which acts as an ultra thin wrapper around the library functions.
 - The resource has integration tests, which are put in a `test/` folder. These use files from `scripts/__test/fixtures/data/` instead of putting the tests directly in the resources's folder, so that we can reuse them across other resources. 
 - Test results are included in the resource's `status` result, with a timestamp for the last time they were run.
+- The resource status correctly supports text and json output
 - The resource includes at least one example in an `examples/` folder.
 - All `.bats` files (if present) are co-located with the file they test, using the same name (e.g. `docker.sh` and `docker.bats`)
-- Any code that's labelled as being "legacy" or for "backwards compatability" is removed (except temporary inject→content migration).
+- Any code that's labelled as being "legacy", "backwards compatability", or "deprecated" is removed (except temporary inject→content migration).
 
 ---
 

@@ -8,7 +8,7 @@ LITELLM_STATUS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${LITELLM_STATUS_DIR}/core.sh"
 source "${LITELLM_STATUS_DIR}/docker.sh"
 # shellcheck disable=SC1091
-source "${LITELLM_STATUS_DIR}/../../../lib/status-args.sh"
+source "${LITELLM_STATUS_DIR}/../../lib/status-args.sh"
 
 #######################################
 # Collect LiteLLM status data

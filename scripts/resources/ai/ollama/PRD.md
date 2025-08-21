@@ -32,7 +32,7 @@ Local Large Language Model (LLM) inference and management infrastructure that pr
   - [x] Streaming response support for real-time interaction
   - [x] Integration with Vrooli resource framework
   - [x] Standard CLI interface (resource-ollama)
-  - [x] Docker containerization with GPU support
+  - [x] System service installation with GPU support
   
 - **Should Have (P1)**
   - [x] Custom model creation via Modelfiles
@@ -49,7 +49,7 @@ Local Large Language Model (LLM) inference and management infrastructure that pr
 ### Performance Criteria
 | Metric | Target | Measurement Method |
 |--------|--------|-------------------|
-| Service Startup Time | < 30s | Container initialization |
+| Service Startup Time | < 30s | Systemd service initialization |
 | Health Check Response | < 100ms | API endpoint response |
 | Model Loading Time | < 60s for 8B models | Ollama model loading |
 | Inference Response | < 2s for short prompts | API response time |
@@ -67,15 +67,15 @@ Local Large Language Model (LLM) inference and management infrastructure that pr
 ### Resource Dependencies
 ```yaml
 required:
-  - resource_name: docker
-    purpose: Container runtime for Ollama service
-    integration_pattern: Docker container management
-    access_method: Docker API
+  - resource_name: systemd
+    purpose: Service management for Ollama daemon
+    integration_pattern: Systemd service management
+    access_method: systemctl commands
     
-  - resource_name: nvidia-container-toolkit
+  - resource_name: nvidia-drivers
     purpose: GPU acceleration support (when GPU available)
-    integration_pattern: NVIDIA Docker runtime
-    access_method: Docker runtime configuration
+    integration_pattern: NVIDIA driver integration
+    access_method: CUDA runtime environment
     
 optional:
   - resource_name: cuda
@@ -96,17 +96,17 @@ standard_interfaces:
     - documentation: README.md + docs/
     
   networking:
-    - docker_networks: [vrooli-network]
     - port_registry: Port defined in scripts/resources/port_registry.sh (ollama)
-    - hostname: ollama
+    - hostname: localhost
+    - protocol: http
     
   monitoring:
     - health_check: http://localhost:$(port from registry)/api/tags
     - status_reporting: resource-ollama status (uses status-args.sh framework)
-    - logging: Docker container logs
+    - logging: systemd journal logs
     
   data_persistence:
-    - volumes: [ollama-models (model storage)]
+    - storage: ~/.ollama (user home directory)
     - backup_strategy: Model files and configuration
     - migration_support: Model version management
 
@@ -136,8 +136,9 @@ resource_configuration:
   defaults:
     enabled: true
     port: [retrieved from port_registry.sh]
-    networks: [vrooli-network]
-    volumes: [ollama-models:/root/.ollama]
+    service_name: ollama
+    user: ollama
+    install_dir: /usr/local/bin
     environment:
       OLLAMA_HOST: "0.0.0.0:$(port from registry)"
       OLLAMA_ORIGINS: "*"
@@ -361,15 +362,13 @@ content_storage:
 
 ### Deployment Standards
 ```yaml
-containerization:
-  base_image: ollama/ollama:0.11.6
-  dockerfile_location: Uses official image
-  build_requirements: GPU runtime support
+installation:
+  method: Official installer script from ollama.com
+  binary_location: /usr/local/bin/ollama
+  service_management: systemd service (ollama.service)
+  user_creation: Dedicated ollama user for service execution
   
 networking:
-  required_networks:
-    - vrooli-network: Connectivity with scenarios and resources
-    
   port_allocation:
     - internal: [port from registry]
     - external: [port from registry]
@@ -378,12 +377,11 @@ networking:
     
 data_management:
   persistence:
-    - volume: ollama-models
-      mount: /root/.ollama
+    - storage: ~/.ollama (user home directory)
       purpose: Model files and configuration storage
       
   backup_strategy:
-    - method: Volume snapshots and model file backup
+    - method: Model files and configuration backup
     - frequency: Before model updates
     - retention: 3 model versions
     
@@ -429,7 +427,7 @@ monitoring_requirements:
       alerting: > 120s load time
       
     - metric: memory_usage
-      collection: Container memory monitoring
+      collection: Process memory monitoring
       alerting: > 90% memory utilization
 ```
 
@@ -438,27 +436,27 @@ monitoring_requirements:
 security_requirements:
   authentication:
     - method: Network-based access control
-    - credential_storage: Not applicable (open access within network)
+    - credential_storage: Not applicable (open access on localhost)
     - session_management: Stateless API
     
   authorization:
-    - access_control: Docker network isolation
+    - access_control: Localhost-only access by default
     - role_based: Not applicable
-    - resource_isolation: Container-based isolation
+    - resource_isolation: Process-based isolation
     
   data_protection:
     - encryption_at_rest: Model files stored unencrypted (performance)
-    - encryption_in_transit: HTTP (internal network only)
+    - encryption_in_transit: HTTP (localhost only)
     - key_management: Not applicable
     
   network_security:
-    - port_exposure: Internal to vrooli-network only (port from registry)
+    - port_exposure: Localhost only by default
     - firewall_requirements: Block external access to Ollama port
-    - ssl_tls: Not required for internal communication
+    - ssl_tls: Not required for localhost communication
     
 compliance:
   standards: Data sovereignty (local processing)
-  auditing: Container logs and API access logs
+  auditing: Systemd journal logs and API access logs
   data_retention: Models and prompts not logged by default
 ```
 
@@ -467,7 +465,7 @@ compliance:
 ### Test Categories
 ```yaml
 unit_tests:
-  location: Co-located with source files (e.g., lib/docker.sh and lib/docker.bats)
+  location: Co-located with source files (e.g., lib/install.sh and lib/install.bats)
   coverage: Individual function testing
   framework: BATS (Bash Automated Testing System)
   
@@ -606,14 +604,13 @@ resource_framework_compliance:
   - Standard directory structure (/config, /lib, /docs, /test, etc.)
   - CLI framework integration (cli.sh as thin wrapper over lib/ functions)
   - Port registry integration (never hardcode ports)
-  - Docker network integration (vrooli-network)
   - Health monitoring integration
   - Configuration management standards
   
 deployment_integration:
   supported_targets:
-    - local: Docker Compose with GPU support
-    - kubernetes: Helm chart with GPU node affinity
+    - local: System service with GPU support
+    - kubernetes: System service with GPU node affinity
     - cloud: GPU-enabled cloud instances
     
   configuration_management:
@@ -636,7 +633,7 @@ versioning:
 release_management:
   release_cycle: Follows Ollama upstream releases
   testing_requirements: Model compatibility and API functionality
-  rollback_strategy: Container rollback with model version management
+  rollback_strategy: Service rollback with model version management
 ```
 
 ## 🧬 Evolution Path
@@ -704,14 +701,19 @@ release_management:
 ## 📝 Implementation Notes
 
 ### Design Decisions
-**Official Ollama Docker Image**: Use upstream Docker image for reliability
-- Alternative considered: Custom built image with additional tools
+**Official Ollama Installer**: Use upstream installer script for reliability
+- Alternative considered: Custom installation with additional tools
 - Decision driver: Maintain compatibility with upstream updates
 - Trade-offs: Less customization, better stability and security
 
-**Network-only Security Model**: No authentication within Docker network
+**Systemd Service Management**: Use systemd for service lifecycle management
+- Alternative considered: Custom service management
+- Decision driver: Standard Linux service management
+- Trade-offs: Linux-only, better integration with system tools
+
+**Network-only Security Model**: No authentication on localhost
 - Alternative considered: API key authentication
-- Decision driver: Simplicity and performance within secure network
+- Decision driver: Simplicity and performance for local access
 - Trade-offs: Less granular access control, simpler integration
 
 ### Known Limitations
