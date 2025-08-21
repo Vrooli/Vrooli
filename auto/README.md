@@ -108,12 +108,7 @@ Utilities:
 - `PROMPT_PATH`: Absolute path to a custom prompt
 - `OLLAMA_SUMMARY_MODEL` (default `llama3.2:3b`): Used to generate `summary.txt` when available
 
-Task-specific:
-
-- Resource loop respects `RESOURCE_IMPROVEMENT_MODE`:
-  - `plan` (default): plan-only; TCP gating disabled automatically; no file edits
-  - `apply-safe`: allow non-destructive changes (e.g., start/stop, health checks)
-  - `apply`: allow broader changes when safe
+Task-specific: None currently configured
 
 
 ## Selection Helpers (resource-improvement)

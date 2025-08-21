@@ -123,8 +123,7 @@ current_tcp_connections() {
 # Environment Variables:
 #   - MAX_CONCURRENT_WORKERS: Maximum concurrent worker processes
 #   - MAX_TCP_CONNECTIONS: Maximum TCP connections (network gating)
-#   - RESOURCE_IMPROVEMENT_MODE: Skip network check if "plan"
-#   - SCENARIO_IMPROVEMENT_MODE: Skip network check if "plan"
+#   - SCENARIO: Skip network check if "plan"
 # -----------------------------------------------------------------------------
 can_start_new_worker() {
 	cleanup_finished_workers
@@ -135,11 +134,6 @@ can_start_new_worker() {
 	if [[ $running -ge $MAX_CONCURRENT_WORKERS ]]; then 
 		log_with_timestamp "Max concurrent workers reached ($MAX_CONCURRENT_WORKERS)"
 		return 1
-	fi
-	
-	# Skip network gating for plan-only modes
-	if [[ "${RESOURCE_IMPROVEMENT_MODE:-}" == "plan" || "${SCENARIO_IMPROVEMENT_MODE:-}" == "plan" ]]; then
-		return 0
 	fi
 	
 	# Check TCP connection limit using network utils

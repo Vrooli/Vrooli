@@ -185,31 +185,6 @@ Worker Output
       └─> Clean output
 ```
 
-## 🎯 Execution Modes
-
-### 1. Plan Mode (Default)
-```bash
-RESOURCE_IMPROVEMENT_MODE=plan
-# Generates commands without execution
-# TCP gating disabled
-# Safe for exploration
-```
-
-### 2. Apply-Safe Mode
-```bash
-RESOURCE_IMPROVEMENT_MODE=apply-safe
-# Executes non-destructive operations
-# Health checks, status, configuration
-# No installations or deletions
-```
-
-### 3. Apply Mode
-```bash
-RESOURCE_IMPROVEMENT_MODE=apply
-# Full execution capability
-# Installations, modifications
-# System-level changes allowed
-```
 
 ## 📊 Metrics Architecture
 
@@ -323,7 +298,6 @@ LOOP_TCP_FILTER       # Process filter
 OLLAMA_SUMMARY_MODEL  # NL summary generation
 
 # Task-specific
-RESOURCE_IMPROVEMENT_MODE  # Execution mode
 PROMPT_PATH               # Custom prompt override
 ```
 

@@ -39,7 +39,7 @@ source "${QDRANT_CLI_DIR}/config/defaults.sh" 2>/dev/null || true
 qdrant::export_config 2>/dev/null || true
 
 # Source qdrant libraries
-for lib in core health collections backup inject status; do
+for lib in core health collections backup inject status models embeddings search credentials; do
     lib_file="${QDRANT_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -55,12 +55,28 @@ cli::register_command "help" "Show this help message with Qdrant examples" "qdra
 
 # Register additional Qdrant-specific commands
 cli::register_command "inject" "Inject data into Qdrant" "qdrant_inject" "modifies-system"
-cli::register_command "list-collections" "List all collections" "qdrant_list_collections"
-cli::register_command "create-collection" "Create a new collection" "qdrant_create_collection" "modifies-system"
-cli::register_command "delete-collection" "Delete a collection" "qdrant_delete_collection" "modifies-system"
-cli::register_command "collection-info" "Show collection information" "qdrant_collection_info"
+
+# Collection commands
+cli::register_command "collections" "Manage collections (list/create/info/delete)" "qdrant_collections_dispatch"
+cli::register_command "collections-list" "List all collections" "qdrant_list_collections"
+cli::register_command "collections-create" "Create a new collection" "qdrant_create_collection" "modifies-system"
+cli::register_command "collections-info" "Show collection information" "qdrant_collection_info"
+cli::register_command "collections-delete" "Delete a collection" "qdrant_delete_collection" "modifies-system"
+cli::register_command "collections-search" "Search in collections" "qdrant_collections_search"
+
+# Embedding commands
+cli::register_command "embed" "Generate embeddings from text" "qdrant_embed"
+cli::register_command "embed-info" "Show embedding model information" "qdrant_embed_info"
+
+# Model commands
+cli::register_command "models" "List available embedding models" "qdrant_models_list"
+cli::register_command "models-info" "Show model information" "qdrant_models_info"
+
+# Backup commands
 cli::register_command "create-backup" "Create a backup snapshot" "qdrant_create_backup" "modifies-system"
 cli::register_command "list-backups" "List all backups" "qdrant_list_backups"
+
+# Other commands
 cli::register_command "credentials" "Show n8n credentials for Qdrant" "qdrant_credentials"
 cli::register_command "uninstall" "Uninstall Qdrant (requires --force)" "qdrant_uninstall" "modifies-system"
 
@@ -108,14 +124,8 @@ qdrant_validate() {
     elif command -v qdrant::check_basic_health &>/dev/null; then
         qdrant::check_basic_health
     else
-        # Basic validation
-        log::header "Validating Qdrant"
-        local container_name="${QDRANT_CONTAINER_NAME:-qdrant}"
-        docker ps --format '{{.Names}}' 2>/dev/null | grep -q "$container_name" || {
-            log::error "Qdrant container not running"
-            return 1
-        }
-        log::success "Qdrant is running"
+        log::error "Qdrant health functions not available"
+        return 1
     fi
 }
 
@@ -124,15 +134,8 @@ qdrant_status() {
     if command -v qdrant::status::check &>/dev/null; then
         qdrant::status::check
     else
-        # Basic status
-        log::header "Qdrant Status"
-        local container_name="${QDRANT_CONTAINER_NAME:-qdrant}"
-        if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "$container_name"; then
-            echo "Container: ✅ Running"
-            docker ps --filter "name=$container_name" --format "table {{.Status}}\t{{.Ports}}" | tail -n 1
-        else
-            echo "Container: ❌ Not running"
-        fi
+        log::error "Qdrant status functions not available"
+        return 1
     fi
 }
 
@@ -141,8 +144,8 @@ qdrant_start() {
     if command -v qdrant::docker::start &>/dev/null; then
         qdrant::docker::start
     else
-        local container_name="${QDRANT_CONTAINER_NAME:-qdrant}"
-        docker start "$container_name" || log::error "Failed to start Qdrant"
+        log::error "Qdrant docker functions not available"
+        return 1
     fi
 }
 
@@ -151,8 +154,8 @@ qdrant_stop() {
     if command -v qdrant::docker::stop &>/dev/null; then
         qdrant::docker::stop
     else
-        local container_name="${QDRANT_CONTAINER_NAME:-qdrant}"
-        docker stop "$container_name" || log::error "Failed to stop Qdrant"
+        log::error "Qdrant docker functions not available"
+        return 1
     fi
 }
 
@@ -178,10 +181,8 @@ qdrant_uninstall() {
     if command -v qdrant::uninstall &>/dev/null; then
         qdrant::uninstall false  # remove data
     else
-        local container_name="${QDRANT_CONTAINER_NAME:-qdrant}"
-        docker stop "$container_name" 2>/dev/null || true
-        docker rm "$container_name" 2>/dev/null || true
-        log::success "Qdrant uninstalled"
+        log::error "Qdrant uninstall function not available"
+        return 1
     fi
 }
 
@@ -197,83 +198,55 @@ qdrant_credentials() {
     local status
     status=$(credentials::get_resource_status "${QDRANT_CONTAINER_NAME:-qdrant}")
     
-    local connections_array="[]"
-    if [[ "$status" == "running" ]]; then
-        # Build connection JSON manually
-        local connection_json
-        if [[ -n "${QDRANT_API_KEY:-}" ]]; then
-            # With API key authentication
-            connection_json=$(jq -n \
-                --arg id "api" \
-                --arg name "Qdrant REST API" \
-                --arg n8n_credential_type "httpHeaderAuth" \
-                --arg host "localhost" \
-                --arg port "${QDRANT_PORT:-6333}" \
-                --arg path "/collections" \
-                --arg description "Qdrant vector database REST API" \
-                --arg version "${QDRANT_VERSION:-latest}" \
-                --arg header_name "api-key" \
-                --arg header_value "${QDRANT_API_KEY}" \
-                '{
-                    id: $id,
-                    name: $name,
-                    n8n_credential_type: $n8n_credential_type,
-                    connection: {
-                        host: $host,
-                        port: ($port | tonumber),
-                        path: $path,
-                        ssl: false
-                    },
-                    auth: {
-                        header_name: $header_name,
-                        header_value: $header_value
-                    },
-                    metadata: {
-                        description: $description,
-                        capabilities: ["vectors", "search", "clustering", "embeddings"],
-                        version: $version
-                    }
-                }')
-        else
-            # Without authentication
-            connection_json=$(jq -n \
-                --arg id "api" \
-                --arg name "Qdrant REST API" \
-                --arg n8n_credential_type "httpRequest" \
-                --arg host "localhost" \
-                --arg port "${QDRANT_PORT:-6333}" \
-                --arg path "/collections" \
-                --arg description "Qdrant vector database REST API" \
-                --arg version "${QDRANT_VERSION:-latest}" \
-                '{
-                    id: $id,
-                    name: $name,
-                    n8n_credential_type: $n8n_credential_type,
-                    connection: {
-                        host: $host,
-                        port: ($port | tonumber),
-                        path: $path,
-                        ssl: false
-                    },
-                    metadata: {
-                        description: $description,
-                        capabilities: ["vectors", "search", "clustering", "embeddings"],
-                        version: $version
-                    }
-                }')
-        fi
-        
-        connections_array=$(echo "$connection_json" | jq -s '.')
+    if command -v qdrant::credentials::show &>/dev/null; then
+        qdrant::credentials::show "$status"
+    else
+        log::error "Qdrant credentials functions not available"
+        return 1
     fi
+}
+
+# Collections dispatcher for subcommands
+qdrant_collections_dispatch() {
+    local subcommand="${1:-list}"
+    shift || true
     
-    local response
-    response=$(credentials::build_response "qdrant" "$status" "$connections_array")
-    credentials::format_output "$response"
+    case "$subcommand" in
+        list)
+            qdrant_list_collections "$@"
+            ;;
+        create)
+            qdrant_create_collection "$@"
+            ;;
+        info)
+            qdrant_collection_info "$@"
+            ;;
+        delete)
+            qdrant_delete_collection "$@"
+            ;;
+        search)
+            qdrant_collections_search "$@"
+            ;;
+        *)
+            log::error "Unknown collections subcommand: $subcommand"
+            echo "Available subcommands: list, create, info, delete, search"
+            return 1
+            ;;
+    esac
 }
 
 # List collections
 qdrant_list_collections() {
-    if command -v qdrant::collections::list &>/dev/null; then
+    local show_models="${1:-}"
+    
+    if [[ "$show_models" == "--show-models" ]] || [[ "$show_models" == "-m" ]]; then
+        if command -v qdrant::collections::list_with_models &>/dev/null; then
+            qdrant::collections::list_with_models
+        else
+            log::warn "Model compatibility listing not available"
+            qdrant::collections::list
+        fi
+    elif command -v qdrant::collections::list &>/dev/null; then
         qdrant::collections::list
     elif command -v qdrant::api::list_collections &>/dev/null; then
         qdrant::api::list_collections
@@ -285,29 +258,30 @@ qdrant_list_collections() {
 
 # Create collection
 qdrant_create_collection() {
-    local name="${1:-}"
-    local vector_size="${2:-1536}"
-    local distance="${3:-Cosine}"
-    
-    if [[ -z "$name" ]]; then
-        log::error "Collection name required"
-        echo "Usage: resource-qdrant create-collection <name> [vector_size] [distance]"
-        echo ""
-        echo "Examples:"
-        echo "  resource-qdrant create-collection my-vectors              # 1536-dim, Cosine"
-        echo "  resource-qdrant create-collection embeddings 384          # 384-dim, Cosine"
-        echo "  resource-qdrant create-collection text-vectors 768 Dot    # 768-dim, Dot product"
-        echo ""
-        echo "Distance options: Cosine, Dot, Euclid"
+    if ! command -v qdrant::collections::parse_create_args &>/dev/null; then
+        log::error "Collection argument parsing not available"
         return 1
     fi
     
-    if command -v qdrant::collections::create &>/dev/null; then
-        qdrant::collections::create "$name" "$vector_size" "$distance"
-    elif command -v qdrant::api::create_collection &>/dev/null; then
-        qdrant::api::create_collection "$name" "$vector_size" "$distance"
+    if ! qdrant::collections::parse_create_args "$@"; then
+        echo "Usage: resource-qdrant collections create <name> [options]"
+        echo ""
+        echo "Options:"
+        echo "  --model, -m <model>      Auto-detect dimensions from model"
+        echo "  --dimensions, -d <n>     Manual dimension specification"
+        echo "  --distance <metric>      Distance metric (Cosine/Dot/Euclid)"
+        echo ""
+        echo "Examples:"
+        echo "  resource-qdrant collections create my-docs --model nomic-embed-text"
+        echo "  resource-qdrant collections create embeddings --dimensions 384"
+        echo "  resource-qdrant collections create vectors 768 --distance Dot"
+        return 1
+    fi
+    
+    if command -v qdrant::collections::create_parsed &>/dev/null; then
+        qdrant::collections::create_parsed
     else
-        log::error "Collection creation not available"
+        log::error "Collection creation functions not available"
         return 1
     fi
 }
@@ -382,6 +356,114 @@ qdrant_list_backups() {
     fi
 }
 
+# Search in collections
+qdrant_collections_search() {
+    if ! command -v qdrant::search::parse_args &>/dev/null; then
+        log::error "Search argument parsing not available"
+        return 1
+    fi
+    
+    if ! qdrant::search::parse_args "$@"; then
+        echo "Usage: resource-qdrant collections search [options]"
+        echo ""
+        echo "Options:"
+        echo "  --text, -t <text>        Text to embed and search"
+        echo "  --embedding, -e <json>   Direct embedding vector"
+        echo "  --collection, -c <name>  Target collection (auto-detect if one)"
+        echo "  --limit, -l <n>          Number of results (default: 10)"
+        echo "  --model, -m <model>      Embedding model (auto-detect from collection)"
+        echo ""
+        echo "Examples:"
+        echo "  resource-qdrant collections search --text \"quantum computing\""
+        echo "  resource-qdrant collections search \"machine learning\" --limit 5"
+        echo "  resource-qdrant collections search --text \"AI\" --collection docs"
+        return 1
+    fi
+    
+    if command -v qdrant::search::execute_parsed &>/dev/null; then
+        qdrant::search::execute_parsed
+    else
+        log::error "Search execution functions not available"
+        return 1
+    fi
+}
+
+# Generate embeddings
+qdrant_embed() {
+    if ! command -v qdrant::embeddings::parse_args &>/dev/null; then
+        log::error "Embedding argument parsing not available"
+        return 1
+    fi
+    
+    if ! qdrant::embeddings::parse_args "$@"; then
+        log::error "Failed to parse embedding arguments"
+        return 1
+    fi
+    
+    # Show help if no arguments provided and not info-only mode
+    if [[ -z "${PARSED_TEXT:-}" && -z "${PARSED_FROM_FILE:-}" && "${PARSED_BATCH:-}" != "true" && "${PARSED_INFO_ONLY:-}" != "true" ]]; then
+        echo "Usage: resource-qdrant embed <text> [options]"
+        echo ""
+        echo "Options:"
+        echo "  --model, -m <model>  Specific model to use"
+        echo "  --info               Show embedding info only"
+        echo "  --batch, -b          Process multiple texts"
+        echo "  --from-file, -f      Read text from file"
+        echo ""
+        echo "Examples:"
+        echo "  resource-qdrant embed \"machine learning\""
+        echo "  resource-qdrant embed --model nomic-embed-text --info"
+        echo "  cat texts.txt | resource-qdrant embed --batch"
+        return 1
+    fi
+    
+    if command -v qdrant::embeddings::execute_parsed &>/dev/null; then
+        qdrant::embeddings::execute_parsed
+    else
+        log::error "Embedding execution functions not available"
+        return 1
+    fi
+}
+
+# Show embedding info
+qdrant_embed_info() {
+    local model="${1:-}"
+    
+    if command -v qdrant::embeddings::info &>/dev/null; then
+        qdrant::embeddings::info "$model"
+    else
+        log::error "Embedding info not available"
+        return 1
+    fi
+}
+
+# List available models
+qdrant_models_list() {
+    if command -v qdrant::models::info &>/dev/null; then
+        qdrant::models::info
+    elif command -v qdrant::models::get_embedding_models &>/dev/null; then
+        local models
+        models=$(qdrant::models::get_embedding_models)
+        echo "=== Available Embedding Models ==="
+        echo "$models" | jq -r '.[] | "• \(.name) (\(.dimensions) dimensions)"'
+    else
+        log::error "Model listing not available"
+        return 1
+    fi
+}
+
+# Show model info
+qdrant_models_info() {
+    local model="${1:-}"
+    
+    if command -v qdrant::models::info &>/dev/null; then
+        qdrant::models::info "$model"
+    else
+        log::error "Model info not available"
+        return 1
+    fi
+}
+
 # Custom help function with Qdrant-specific examples
 qdrant_show_help() {
     # Show standard framework help first
@@ -391,36 +473,49 @@ qdrant_show_help() {
     echo ""
     echo "🔍 Qdrant Vector Database Examples:"
     echo ""
-    echo "Collection Management:"
-    echo "  resource-qdrant list-collections                          # List all collections"
-    echo "  resource-qdrant create-collection my-vectors              # Create collection (1536-dim)"
-    echo "  resource-qdrant create-collection embeddings 384          # Create 384-dim collection"
-    echo "  resource-qdrant create-collection text-vectors 768 Dot    # Create with Dot distance"
-    echo "  resource-qdrant collection-info my-vectors                # Show collection details"
-    echo "  resource-qdrant delete-collection old-vectors             # Delete collection"
+    echo "📦 Collection Management:"
+    echo "  resource-qdrant collections list                          # List all collections"
+    echo "  resource-qdrant collections list --show-models            # List with compatible models"
+    echo "  resource-qdrant collections create my-docs --model nomic-embed-text  # Auto-detect dimensions"
+    echo "  resource-qdrant collections create vectors --dimensions 768          # Manual dimensions"
+    echo "  resource-qdrant collections info my-docs                  # Show collection details"
+    echo "  resource-qdrant collections delete old-vectors            # Delete collection"
     echo ""
-    echo "Data Management:"
+    echo "🔍 Semantic Search:"
+    echo "  resource-qdrant collections search \"quantum computing\"    # Search with text query"
+    echo "  resource-qdrant collections search --text \"AI\" --collection docs --limit 5"
+    echo "  resource-qdrant collections search --text \"machine learning\" --model nomic-embed-text"
+    echo ""
+    echo "🧮 Embedding Generation:"
+    echo "  resource-qdrant embed \"hello world\"                       # Generate embedding"
+    echo "  resource-qdrant embed \"test\" --model nomic-embed-text     # Use specific model"
+    echo "  resource-qdrant embed --info                              # Show embedding info"
+    echo "  cat texts.txt | resource-qdrant embed --batch             # Batch processing"
+    echo "  resource-qdrant embed --from-file document.txt            # Embed file content"
+    echo ""
+    echo "🤖 Model Management:"
+    echo "  resource-qdrant models                                    # List embedding models"
+    echo "  resource-qdrant models-info nomic-embed-text              # Show model details"
+    echo ""
+    echo "💾 Data Management:"
     echo "  resource-qdrant inject vectors.json                       # Import vector data"
-    echo "  resource-qdrant inject shared:init/qdrant/collections.json # Import shared config"
-    echo ""
-    echo "Backup & Monitoring:"
-    echo "  resource-qdrant create-backup my-backup                   # Create named backup"
-    echo "  resource-qdrant create-backup                             # Create timestamped backup"
+    echo "  resource-qdrant create-backup                             # Create backup"
     echo "  resource-qdrant list-backups                              # List all backups"
-    echo "  resource-qdrant status                                    # Check service status"
     echo ""
-    echo "Integration:"
+    echo "📊 Monitoring:"
+    echo "  resource-qdrant status                                    # Check service status"
     echo "  resource-qdrant credentials --format pretty               # Show connection details"
     echo ""
-    echo "Vector Features:"
-    echo "  • High-performance similarity search"
-    echo "  • Multiple distance metrics (Cosine, Dot, Euclidean)"
-    echo "  • Payload filtering and hybrid search"
-    echo "  • Clustering and recommendation systems"
+    echo "✨ New Features:"
+    echo "  • Native embedding generation via Ollama"
+    echo "  • Automatic model-collection dimension matching"
+    echo "  • Semantic search with text queries"
+    echo "  • Smart collection creation from models"
+    echo "  • Embedding caching for performance"
     echo ""
     echo "Default Port: 6333"
     echo "Web UI: http://localhost:6333/dashboard"
-    echo "Common Vector Sizes: 384 (sentence-transformers), 768 (BERT), 1536 (OpenAI)"
+    echo "Common Dimensions: 384 (MiniLM), 768 (nomic-embed-text), 1024 (mxbai-embed-large), 1536 (OpenAI)"
 }
 
 ################################################################################
