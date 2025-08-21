@@ -1,4 +1,4 @@
-#\!/usr/bin/env bash
+#!/usr/bin/env bash
 #
 # Browserless CLI - Headless Chrome automation service
 #
@@ -83,57 +83,6 @@ case "${1:-}" in
         else
             exit 1
         fi
-        ;;
-    n8n)
-        # Deprecated: Use 'for n8n' instead
-        echo "⚠️  DEPRECATED: Use 'resource-browserless for n8n <command>' instead"
-        echo "   Falling back to legacy n8n commands..."
-        echo ""
-        
-        source "$BROWSERLESS_CLI_DIR/lib/n8n-inject.sh"
-        case "${2:-}" in
-            inject)
-                browserless::inject_n8n_workflow "${@:3}"
-                ;;
-            list)
-                browserless::list_n8n_workflows
-                ;;
-            execute|run)
-                browserless::execute_n8n_workflow "${3:-}"
-                ;;
-            *)
-                echo "📚 N8n Workflow Commands (DEPRECATED)"
-                echo "Usage: $0 n8n {inject|list|execute} [args]"
-                echo ""
-                echo "Commands:"
-                echo "  inject <workflow.yaml> [n8n-url]  - Inject N8n workflow"
-                echo "  list                               - List injected workflows"
-                echo "  execute <workflow-name>            - Execute workflow"
-                echo ""
-                echo "⚠️  Please use: $0 for n8n <command> [args]"
-                exit 1
-                ;;
-        esac
-        ;;
-    workflow)
-        source "$BROWSERLESS_CLI_DIR/lib/workflow/interpreter.sh"
-        case "${2:-}" in
-            run|execute)
-                workflow::run "${3:-}" "${4:-}"
-                ;;
-            list)
-                browserless::list_n8n_workflows
-                ;;
-            *)
-                echo "📚 Workflow Commands"
-                echo "Usage: $0 workflow {run|list} [args]"
-                echo ""
-                echo "Commands:"
-                echo "  run <workflow.yaml> [session-name] - Execute workflow using interpreter"
-                echo "  list                              - List available workflows"
-                exit 1
-                ;;
-        esac
         ;;
     *)
         echo "📚 Browserless CLI"

@@ -44,54 +44,11 @@ browserless::inject_n8n_workflow() {
         return 1
     fi
     
-    # TODO: Update injection to use atomic operations approach
-    log::error "N8n workflow injection is being migrated to atomic operations"
-    log::info "This feature will be available soon with the new interpreter system"
-    log::info "For now, use direct workflow execution: resource-browserless for n8n execute-workflow <id>"
+    # N8n workflow injection has been replaced by atomic operations
+    log::error "N8n workflow injection is deprecated and replaced by atomic operations"
+    log::info "Use direct workflow execution instead: resource-browserless for n8n execute-workflow <id>"
+    log::info "Atomic operations provide better debugging and maintainability"
     return 1
-    
-    # Check if flow control is enabled
-    local flow_enabled
-    flow_enabled=$(echo "$workflow_json" | jq -r '.flow_control.enabled // false')
-    
-    local execution_model="linear"
-    if [[ "$flow_enabled" == "true" ]]; then
-        execution_model="state_machine"
-        log::info "✨ Flow control enabled - using state machine execution"
-    fi
-    
-    # Create injection directory
-    local injection_dir="${BROWSERLESS_DATA_DIR}/n8n-workflows/${workflow_name}"
-    mkdir -p "${injection_dir}/executions"
-    
-    # Store workflow files
-    echo "$workflow_json" > "${injection_dir}/workflow.json"
-    echo "$compiled_js" > "${injection_dir}/compiled.js"
-    
-    # Create execution wrapper that includes N8n connection
-    cat > "${injection_dir}/wrapper.js" << EOF
-// N8n Workflow Execution Wrapper
-// Workflow: $workflow_name
-// N8n URL: $n8n_url
-
-module.exports = async ({ page, context }) => {
-    // Set N8n connection parameters
-    context.n8nUrl = '$n8n_url';
-    context.workflowName = '$workflow_name';
-    context.executionModel = '$execution_model';
-    context.outputDir = '/workspace/n8n-workflows/$workflow_name/executions';
-    
-    // Initialize execution context
-    const params = {
-        workflow_url: context.n8nUrl + '/workflow',
-        credentials: {
-            email: process.env.N8N_EMAIL || '',
-            password: process.env.N8N_PASSWORD || ''
-        },
-        execution_timeout: 60000
-    };
-    
-    // Import and execute compiled workflow
     const workflow = $compiled_js
     
     try {

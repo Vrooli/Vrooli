@@ -17,8 +17,6 @@ curl -X POST ... --data "$function_code"
 ```yaml
 workflow:
   name: "n8n-execute-workflow"
-  flow_control:
-    enabled: true
   steps:
     - name: "navigate"
       action: "navigate"
@@ -33,10 +31,10 @@ workflow:
 ## Features
 
 - **Automatic Login Handling**: Detects authentication redirects and handles login
-- **State Machine Execution**: Non-linear workflow execution with branching
-- **Reusable Components**: Sub-workflows for common patterns (authentication)
+- **Atomic Operations**: Simple, debuggable step-by-step execution
+- **Visual Debugging**: Screenshots saved at each step for troubleshooting
 - **Error Recovery**: Automatic retry and error handling
-- **Flow Control**: Conditional branching, loops, and jumps
+- **Session Management**: Persistent browser contexts for complex workflows
 
 ## Workflow Definitions
 
@@ -190,7 +188,6 @@ Example:
 ```yaml
 workflow:
   name: "n8n-new-operation"
-  flow_control:
     enabled: true
   steps:
     - name: "step1"

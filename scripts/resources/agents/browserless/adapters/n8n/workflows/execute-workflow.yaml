@@ -4,7 +4,6 @@ workflow:
   version: "2.0.0"
   debug_level: "steps"
   
-  flow_control:
     enabled: true
     max_iterations: 10
     

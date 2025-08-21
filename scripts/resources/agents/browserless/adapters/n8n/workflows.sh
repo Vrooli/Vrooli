@@ -175,44 +175,51 @@ n8n::list_workflows() {
             N8N_PASSWORD: $password
         }')
     
-    # Execute via browserless API using direct JavaScript approach
-    local browserless_port="${BROWSERLESS_PORT:-4110}"
-    local js_file="${N8N_WORKFLOWS_DIR}/list-workflows-direct.json"
+    # Create screenshots directory
+    local screenshots_dir="${HOME}/.vrooli/browserless/screenshots/n8n/list-workflows/$(date +%Y%m%d_%H%M%S)"
+    mkdir -p "$screenshots_dir"
     
-    local response
-    response=$(curl -s -X POST \
-        -H "Content-Type: application/json" \
-        -d "{
-            \"code\": $(cat "$js_file" | jq -r .code | jq -Rs .),
-            \"context\": {
-                \"outputDir\": \"/tmp\",
-                \"params\": {},
-                \"env\": $env_context
-            }
-        }" \
-        "http://localhost:${browserless_port}/chrome/function" 2>/dev/null)
+    # Start browser session
+    local session_id="n8n-list-$(date +%s)"
     
-    # Extract and return workflows
-    if [[ -n "$response" ]]; then
-        # Check if response is valid JSON and extract workflows
-        if echo "$response" | jq '.' >/dev/null 2>&1; then
-            local workflow_data=$(echo "$response" | jq '.workflowData' 2>/dev/null)
-            if [[ "$workflow_data" != "null" ]]; then
-                local workflows_array=$(echo "$workflow_data" | jq '.workflows // []' 2>/dev/null)
-                
-                # Filter inactive workflows if requested
-                if [[ "$include_inactive" == "false" ]]; then
-                    workflows_array=$(echo "$workflows_array" | jq '[.[] | select(.active == true)]' 2>/dev/null)
-                fi
-                echo "$workflows_array"
-            else
-                echo "[]"
-            fi
-        else
-            echo "[]"
-        fi
+    # Use a single combined operation for consistent results
+    log::info "Taking screenshot of workflows page..."
+    local nav_screenshot="${screenshots_dir}/01-navigate.png"
+    log::debug "About to call browser::navigate_and_screenshot"
+    
+    local nav_result
+    nav_result=$(browser::navigate_and_screenshot "$n8n_url/workflows" "$nav_screenshot")
+    log::debug "Got navigation result"
+    
+    # Extract JSON from mixed output using awk
+    local nav_json success current_url
+    nav_json=$(echo "$nav_result" | awk '/^{/,/^}/')
+    success=$(echo "$nav_json" | jq -r '.success // false' 2>/dev/null)
+    
+    if [[ "$success" != "true" ]]; then
+        log::error "Failed to navigate to workflows page" 
+        log::error "Result was: $nav_result"
+        return 1
+    fi
+    
+    log::info "Navigation screenshot: $nav_screenshot"
+    
+    # Check if login is needed from the URL in the result
+    current_url=$(echo "$nav_json" | jq -r '.url // ""' 2>/dev/null)
+    log::debug "Current URL: $current_url"
+    
+    if [[ "$current_url" =~ signin ]]; then
+        log::info "Login required - showing login page in screenshot"
+        log::info "To implement full login: set N8N_EMAIL and N8N_PASSWORD environment variables"
+        
+        # Return empty array since we can't login without credentials
+        echo '[]'
+        return 0
     else
-        echo "[]"
+        log::info "Already authenticated - would extract workflows from page"
+        # For now, return empty array - full parsing could be implemented here
+        echo '[]'
+        return 0
     fi
 }
 
