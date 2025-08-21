@@ -40,7 +40,12 @@ network_utils::count_worker_processes() {
         IFS='|' read -ra patterns <<< "$pattern"
         for p in "${patterns[@]}"; do
             local partial_count
-            partial_count=$(pgrep -fc "$p" 2>/dev/null || echo 0)
+            # Ensure we only get a numeric value, handling potential multi-line output
+            partial_count=$(pgrep -fc "$p" 2>/dev/null | head -1 || echo 0)
+            # Validate it's a number
+            if [[ ! "$partial_count" =~ ^[0-9]+$ ]]; then
+                partial_count=0
+            fi
             count=$((count + partial_count))
         done
         echo "$count"

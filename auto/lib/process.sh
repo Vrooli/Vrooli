@@ -41,24 +41,64 @@ kill_tree() {
 # -----------------------------------------------------------------------------
 # Function: cleanup
 # Description: Clean up all workers and temporary files on exit
-# Parameters: None
+# Parameters: 
+#   $1 - Signal name (optional)
 # Returns: Exits with 0
 # Side Effects: Kills all tracked workers, removes PID files
 # Usage: Registered as trap handler for SIGTERM and SIGINT
 # -----------------------------------------------------------------------------
 cleanup() {
-	log_with_timestamp "Cleanup requested (task=${LOOP_TASK})"
-	# Terminate tracked workers
-	if [[ -f "$PIDS_FILE" ]]; then
-		while IFS= read -r pid; do
-			[[ -n "${pid:-}" ]] && kill_tree "$pid" TERM
-		done < "$PIDS_FILE"
-		rm -f "$PIDS_FILE"
+	local signal="${1:-}"
+	
+	# Check if this is a user-initiated interrupt or a genuine termination request
+	# If we're in the middle of a worker execution and the main loop PID matches,
+	# this is likely a user interrupt, not a worker completion
+	local is_user_interrupt=false
+	
+	# Check if the signal is coming from the terminal (user interrupt)
+	# or if it's a genuine termination request
+	if [[ "$signal" == "INT" ]]; then
+		# SIGINT is typically from Ctrl+C - user interrupt
+		is_user_interrupt=true
+	elif [[ "$signal" == "TERM" ]]; then
+		# Check if we have active workers - if not, this might be from a completed worker
+		if [[ -f "$PIDS_FILE" ]]; then
+			local active_workers=0
+			while IFS= read -r pid; do
+				if [[ -n "${pid:-}" ]] && kill -0 "$pid" 2>/dev/null; then
+					((active_workers++))
+				fi
+			done < "$PIDS_FILE"
+			
+			# If we have active workers and get SIGTERM, it's likely a real termination
+			if [[ $active_workers -gt 0 ]]; then
+				is_user_interrupt=true
+			fi
+		fi
 	fi
-	rm -f "$PID_FILE"
-	exit 0
+	
+	# Only proceed with cleanup if this is a user interrupt or genuine termination
+	if [[ "$is_user_interrupt" == "true" ]]; then
+		log_with_timestamp "Cleanup requested (task=${LOOP_TASK}, signal=${signal:-unknown})"
+		# Terminate tracked workers
+		if [[ -f "$PIDS_FILE" ]]; then
+			while IFS= read -r pid; do
+				[[ -n "${pid:-}" ]] && kill_tree "$pid" TERM
+			done < "$PIDS_FILE"
+			rm -f "$PIDS_FILE"
+		fi
+		rm -f "$PID_FILE"
+		exit 0
+	else
+		# This is likely from a worker completion - don't exit the main loop
+		log_with_timestamp "Signal received (${signal:-unknown}) but continuing loop operation"
+		return 0
+	fi
 }
-trap cleanup SIGTERM SIGINT
+
+# Modified trap handlers to pass signal name
+trap 'cleanup INT' SIGINT
+trap 'cleanup TERM' SIGTERM
 
 # -----------------------------------------------------------------------------
 # Function: cleanup_finished_workers

@@ -30,9 +30,11 @@ cmd_execute() {
         return 1
     fi
     
-    nohup "$task_manager" --task "$LOOP_TASK" run-loop >/dev/null 2>&1 & 
+    # Create a log file for nohup output to capture startup errors
+    local nohup_log="${DATA_DIR}/nohup.out"
+    nohup "$task_manager" --task "$LOOP_TASK" run-loop >"$nohup_log" 2>&1 & 
     local start_pid=$!
-    echo "Started loop (task=$LOOP_TASK) PID: $start_pid"
+    echo "Started loop (task=$LOOP_TASK) launcher PID: $start_pid"
     
     # Wait for the actual loop to start and write its PID
     local wait_count=0
@@ -46,8 +48,19 @@ cmd_execute() {
         echo "Loop running with PID: $actual_pid"
         return 0
     else
-        echo "WARNING: Loop started but PID file not created within expected time"
-        echo "Background process PID: $start_pid"
+        echo "WARNING: Loop process failed to create PID file"
+        echo "Check ${nohup_log} for startup errors"
+        # Check if the launcher process is still running
+        if ! kill -0 "$start_pid" 2>/dev/null; then
+            echo "Launcher process $start_pid already died - loop failed to start"
+            # Show last few lines of nohup log if it exists
+            if [[ -f "$nohup_log" ]] && [[ -s "$nohup_log" ]]; then
+                echo ""
+                echo "Last lines from nohup.out:"
+                tail -5 "$nohup_log"
+            fi
+            return 1
+        fi
         return 0
     fi
 }

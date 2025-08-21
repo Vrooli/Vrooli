@@ -134,15 +134,36 @@ run_iteration() {
 		error_handler::clear_context
 	fi
 	
-	# Launch a wrapper subshell in background
+	# Launch a wrapper subshell in background with proper process group management
 	(
+# Clear any inherited cleanup functions from parent
+		# This prevents the worker from accidentally cleaning up parent resources
+		unset ERROR_CLEANUP_FUNCTIONS
+		ERROR_CLEANUP_FUNCTIONS=()
+		
+		# Create a new process group for this worker
+		# This ensures all child processes can be killed together
+		set -m  # Enable job control
+		
 		local tmp_out; tmp_out=$(mktemp -p "$TMP_DIR" "${LOOP_TASK}-${iter}-XXXX.log")
 		local exitc=1
 		
-		# Ensure cleanup on exit
-		trap 'rm -f "$tmp_out"; exit $exitc' EXIT
+		# Cleanup function that kills the entire process group
+		cleanup_worker() {
+			local sig="${1:-TERM}"
+			# Kill all processes in this process group
+			# Use negative PID to kill the entire group
+			kill -"$sig" -$$ 2>/dev/null || true
+			rm -f "$tmp_out"
+			exit 143  # 128 + 15 (SIGTERM)
+		}
 		
-		# Execute core worker logic
+		# Handle signals by cleaning up the entire process group
+		trap 'cleanup_worker TERM' SIGTERM
+		trap 'cleanup_worker INT' SIGINT  
+		trap 'rm -f "$tmp_out"' EXIT
+		
+		# Execute core worker logic synchronously
 		execute_worker_core "$iter" "$$" "$tmp_out"
 		exitc=$?
 		

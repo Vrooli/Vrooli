@@ -60,10 +60,15 @@ cleanup_lock_fd() {
 # Side Effects: Removes PID_FILE if it contains current process ID
 # -----------------------------------------------------------------------------
 cleanup_pid_file() {
+	# Only cleanup if we're the main loop process (not a subshell)
+	# Check that we're in the main shell by comparing BASHPID with stored PID
 	if [[ -f "$PID_FILE" ]]; then
 		local stored_pid
 		stored_pid=$(cat "$PID_FILE" 2>/dev/null || echo "")
-		if [[ "$stored_pid" == "$$" ]]; then
+		# Use BASHPID instead of $$ to detect subshells
+		# $$ is inherited by subshells, but BASHPID is not
+		if [[ "$stored_pid" == "$BASHPID" ]]; then
+			log_with_timestamp "Removing PID file (main loop exiting)"
 			rm -f "$PID_FILE"
 		fi
 	fi
@@ -71,6 +76,7 @@ cleanup_pid_file() {
 }
 
 run_loop() {
+	log_with_timestamp "DEBUG: run_loop starting, PID=$$, BASHPID=$BASHPID"
 	# Lock to prevent duplicate instances with PID validation
 	if command -v flock >/dev/null 2>&1; then
 		# Check for stale lock before attempting to acquire
@@ -116,7 +122,25 @@ run_loop() {
 	log_with_timestamp "Starting loop (task=$LOOP_TASK)"
 	
 	if ! check_worker_available; then log_with_timestamp "FATAL: worker not available"; exit 1; fi
-	echo $$ > "$PID_FILE"
+	log_with_timestamp "Writing PID $BASHPID to $PID_FILE"
+	# Ensure the directory exists
+	local pid_dir; pid_dir=$(dirname "$PID_FILE")
+	if [[ ! -d "$pid_dir" ]]; then
+		log_with_timestamp "ERROR: PID directory does not exist: $pid_dir"
+		mkdir -p "$pid_dir" || log_with_timestamp "ERROR: Failed to create PID directory"
+	fi
+	# Write the PID file with explicit error checking
+	# Use BASHPID to get the actual PID of this shell (not inherited from parent)
+	if echo "$BASHPID" > "$PID_FILE"; then
+		log_with_timestamp "Successfully wrote PID file"
+		if [[ -f "$PID_FILE" ]]; then
+			log_with_timestamp "PID file exists with contents: $(cat "$PID_FILE")"
+		else
+			log_with_timestamp "ERROR: PID file was written but doesn't exist!"
+		fi
+	else
+		log_with_timestamp "ERROR: Failed to write PID file to $PID_FILE (exit code: $?)"
+	fi
 	# Register cleanup for PID file
 	if declare -F error_handler::register_cleanup >/dev/null 2>&1; then
 		error_handler::register_cleanup cleanup_pid_file
@@ -126,8 +150,17 @@ run_loop() {
 	while true; do
 		
 		log_with_timestamp "--- Iteration $i ---"
-		if run_iteration "$i"; then log_with_timestamp "Iteration $i dispatched"; else log_with_timestamp "Iteration $i skipped"; fi
-		check_and_rotate
+		local iter_status=0
+		if run_iteration "$i"; then 
+			log_with_timestamp "Iteration $i dispatched"
+		else 
+			iter_status=$?
+			log_with_timestamp "Iteration $i skipped (status=$iter_status)"
+		fi
+		
+		# Check and rotate logs (ignore non-zero return since it just means no rotation needed)
+		check_and_rotate || true
+		
 		log_with_timestamp "Waiting ${INTERVAL_SECONDS}s until next iteration..."
 		local remain=$INTERVAL_SECONDS
 		while [[ $remain -gt 0 ]]; do 
@@ -143,7 +176,9 @@ run_loop() {
 		done
 		if [[ -n "$max_iter" ]] && [[ $i -ge $max_iter ]]; then log_with_timestamp "Reached max iterations ($max_iter); exiting."; break; fi
 		((i++))
+		log_with_timestamp "DEBUG: End of iteration $((i-1)), continuing to iteration $i"
 	done
+	log_with_timestamp "DEBUG: Exited while loop normally"
 }
 
 # Load modular dispatcher if available
@@ -200,9 +235,11 @@ loop_dispatch() {
 		start) 
 			# Need to use the actual task-manager path, not $0 which could be wrong in sourced context
 			local task_manager="${AUTO_DIR}/task-manager.sh"
-			nohup "$task_manager" --task "$LOOP_TASK" run-loop >/dev/null 2>&1 & 
+			# Create a temporary log file for nohup output to capture any startup errors
+			local nohup_log="${DATA_DIR}/nohup.out"
+			nohup "$task_manager" --task "$LOOP_TASK" run-loop >"$nohup_log" 2>&1 & 
 			local start_pid=$!
-			echo "Started loop (task=$LOOP_TASK) PID: $start_pid"
+			echo "Started loop (task=$LOOP_TASK) launcher PID: $start_pid"
 			# Wait briefly for the actual loop to start and write its PID
 			local wait_count=0
 			while [[ ! -f "$PID_FILE" && $wait_count -lt $PID_FILE_WAIT_ITERATIONS ]]; do
@@ -213,6 +250,9 @@ loop_dispatch() {
 				local actual_pid
 				actual_pid=$(cat "$PID_FILE")
 				echo "Loop running with PID: $actual_pid"
+			else
+				echo "Warning: PID file not created after $wait_count attempts"
+				echo "Check $nohup_log for startup errors"
 			fi
 			;;
 		stop)
@@ -222,6 +262,19 @@ loop_dispatch() {
 					kill_tree "$main_pid" TERM
 					local w=0; while kill -0 "$main_pid" 2>/dev/null && [[ $w -lt $PROCESS_TERMINATION_WAIT ]]; do sleep 1; ((w++)); done
 					if kill -0 "$main_pid" 2>/dev/null; then kill_tree "$main_pid" KILL; fi
+				fi
+			else
+				echo "No PID file found - loop not running"
+				# Check for orphaned workers and clean them up
+				if [[ -f "$PIDS_FILE" ]]; then 
+					echo "Found orphaned workers, cleaning up..."
+					while IFS= read -r wp; do 
+						if [[ -n "$wp" ]] && kill -0 "$wp" 2>/dev/null; then
+							echo "Stopping orphaned worker PID: $wp"
+							kill_tree "$wp" TERM
+						fi
+					done < "$PIDS_FILE"
+					rm -f "$PIDS_FILE"
 				fi
 			fi
 			# Kill any tracked workers
