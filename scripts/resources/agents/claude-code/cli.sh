@@ -63,6 +63,8 @@ cli::register_command "settings" "Settings management" "claude_code_settings" "m
 cli::register_command "usage" "Show usage statistics and limits" "claude_code_usage"
 cli::register_command "set-tier" "Set subscription tier for accurate limits" "claude_code_set_tier" "modifies-system"
 cli::register_command "reset-usage" "Reset usage counters (for testing)" "claude_code_reset_usage" "modifies-system"
+cli::register_command "test-rate-limit" "Test rate limit detection (diagnostic)" "claude_code_test_rate_limit"
+cli::register_command "for" "Adapter management (e.g., litellm)" "claude_code_for" "modifies-system"
 cli::register_command "uninstall" "Uninstall Claude Code (requires --force)" "claude_code_uninstall" "modifies-system"
 
 ################################################################################
@@ -563,12 +565,28 @@ claude_code_usage() {
         local limit_weekly=$(echo "$usage_json" | jq -r ".estimated_limits.${tier_key}.weekly")
         
         echo ""
-        log::info "Subscription Tier: $tier"
+        if [[ "$tier" == "unknown" ]]; then
+            log::warn "Subscription Tier: Unknown (using Free tier limits)"
+            echo "  💡 Set your tier for accurate limits: resource-claude-code set-tier <tier>"
+            echo "     Options: free, pro, teams, enterprise"
+        else
+            log::info "Subscription Tier: $tier"
+        fi
+        
+        # Check for recent rate limit hits
+        local last_rate_limit=$(echo "$usage_json" | jq -r '.last_rate_limit // null')
+        if [[ "$last_rate_limit" != "null" ]]; then
+            local limit_timestamp=$(echo "$last_rate_limit" | jq -r '.timestamp // ""')
+            local limit_type=$(echo "$last_rate_limit" | jq -r '.limit_type // "unknown"')
+            if [[ -n "$limit_timestamp" ]]; then
+                log::warn "⚠️  Last rate limit hit: $limit_timestamp (type: $limit_type)"
+            fi
+        fi
         echo ""
         
         echo "Current Usage:"
         echo "  This hour:    $hourly requests"
-        echo "  Last 5 hours: $last_5h / $limit_5h"
+        echo "  Last 5 hours: $last_5h / $limit_5h (rolling window)"
         echo "  Today:        $daily / $limit_daily"
         echo "  This week:    $weekly / $limit_weekly"
         echo ""
@@ -618,6 +636,52 @@ claude_code_usage() {
                 log::info "Consider waiting or switching to LiteLLM fallback"
                 ;;
         esac
+        
+        # Show limit source information
+        echo ""
+        local limits_source=$(echo "$usage_json" | jq -r '.limits_source // null')
+        if [[ "$limits_source" != "null" ]]; then
+            local last_verified=$(echo "$limits_source" | jq -r '.last_verified // "unknown"')
+            local accuracy_note=$(echo "$limits_source" | jq -r '.accuracy_note // ""')
+            
+            echo "ℹ️  Limit Information:"
+            echo "  Based on: Claude Code weekly hour allocations"
+            echo "    • Free: Limited trial → ~30 requests/5hr"
+            echo "    • Pro (\$20/mo): 40-80 hours/week → ~45 requests/5hr"
+            echo "    • Teams (\$100/mo): 140-280 hours/week → ~225 requests/5hr"
+            echo "    • Enterprise (\$200/mo): 240-480 hours/week → ~900 requests/5hr"
+            echo ""
+            echo "  Sources:"
+            echo "    • Anthropic Help Center (support.anthropic.com)"
+            echo "    • TechCrunch rate limits article (2024-08-28)"
+            echo "  Last verified: $last_verified"
+            echo ""
+            if [[ -n "$accuracy_note" && "$accuracy_note" != "null" ]]; then
+                echo "  ⚠️  $accuracy_note"
+            fi
+            echo "  📝 5-hour limit uses rolling window, not fixed reset times"
+            
+            # Check if limits might be outdated (>30 days)
+            if [[ "$last_verified" != "unknown" && "$last_verified" != "null" ]]; then
+                # Try to parse the date safely
+                local days_since_verified
+                if date -d "$last_verified" &>/dev/null; then
+                    days_since_verified=$(( ($(date +%s) - $(date -d "$last_verified" +%s)) / 86400 ))
+                    
+                    # Only show warning if calculation seems valid (not negative, not huge)
+                    if [[ $days_since_verified -gt 30 && $days_since_verified -lt 365 ]]; then
+                        log::warn "  ⚠️  Limits last verified ${days_since_verified} days ago - may be outdated"
+                        echo "  Check latest at: https://support.anthropic.com/en/articles/11145838"
+                    elif [[ $days_since_verified -lt 0 || $days_since_verified -gt 365 ]]; then
+                        # Date parsing issue, just show the date
+                        echo "  Last verified: $last_verified"
+                    fi
+                else
+                    # Couldn't parse date, just show it
+                    echo "  Verification date: $last_verified"
+                fi
+            fi
+        fi
     fi
 }
 
@@ -631,10 +695,12 @@ claude_code_set_tier() {
         echo "Usage: resource-claude-code set-tier <tier>"
         echo ""
         echo "Available tiers:"
-        echo "  free      - Free tier (50 daily requests)"
-        echo "  pro       - Pro tier ($20/month, 1000 daily)"
-        echo "  max_100   - Max tier ($100/month, 5000 daily)"
-        echo "  max_200   - Max tier ($200/month, 20000 daily)"
+        echo "  free       - Free tier (limited trial)"
+        echo "  pro        - Pro tier (\$20/month)"
+        echo "  teams      - Teams tier (\$100/month)"
+        echo "  enterprise - Enterprise tier (\$200/month)"
+        echo ""
+        echo "Note: You can also use the old names: max_100, max_200"
         return 1
     fi
     
@@ -667,6 +733,168 @@ claude_code_reset_usage() {
     fi
     
     claude_code::reset_usage_counters "$type"
+}
+
+# Test rate limit detection (diagnostic tool)
+claude_code_test_rate_limit() {
+    local test_input="${1:-}"
+    
+    log::header "🧪 Testing Rate Limit Detection"
+    echo ""
+    
+    # If no input provided, use the example JSON from the user
+    if [[ -z "$test_input" ]]; then
+        test_input='{"type":"result","subtype":"success","is_error":true,"duration_ms":393,"duration_api_ms":0,"num_turns":1,"result":"Claude AI usage limit reached|1755806400","session_id":"71b47827-9527-47f3-8614-34249f877747","total_cost_usd":0,"usage":{"input_tokens":0,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"output_tokens":0,"server_tool_use":{"web_search_requests":0}},"service_tier":"standard"}'
+        log::info "Using sample rate limit JSON response for testing"
+    fi
+    
+    # Test the detection function
+    local rate_info=$(claude_code::detect_rate_limit "$test_input" "1")
+    local detected=$(echo "$rate_info" | jq -r '.detected')
+    
+    if [[ "$detected" == "true" ]]; then
+        log::success "✅ Rate limit detected successfully!"
+        echo ""
+        echo "Detection results:"
+        echo "$rate_info" | jq '.'
+        
+        # Test recording the rate limit
+        log::info "Testing rate limit recording..."
+        claude_code::record_rate_limit "$rate_info"
+        
+        # Show updated usage
+        echo ""
+        log::info "Updated usage statistics:"
+        local usage_json=$(claude_code::get_usage)
+        echo "  Last 5 hours: $(echo "$usage_json" | jq -r '.last_5_hours') requests"
+        echo "  Daily: $(echo "$usage_json" | jq -r '.current_day_requests') requests"
+        echo "  Weekly: $(echo "$usage_json" | jq -r '.current_week_requests') requests"
+        
+        # Check if last rate limit was recorded
+        local last_rate_limit=$(echo "$usage_json" | jq -r '.last_rate_limit // null')
+        if [[ "$last_rate_limit" != "null" ]]; then
+            log::success "✅ Rate limit was properly recorded"
+        else
+            log::warn "⚠️  Rate limit was not recorded in usage tracking"
+        fi
+    else
+        log::error "❌ Rate limit was not detected"
+        echo "Detection results:"
+        echo "$rate_info" | jq '.'
+    fi
+    
+    echo ""
+    log::info "You can test with custom input:"
+    echo "  resource-claude-code test-rate-limit '<json_or_text_output>'"
+}
+
+# Adapter management (for command routing)
+claude_code_for() {
+    local target="${1:-}"
+    local action="${2:-}"
+    shift 2 || true
+    
+    if [[ -z "$target" || -z "$action" ]]; then
+        log::error "Usage: resource-claude-code for <target> <action> [options]"
+        echo ""
+        echo "Available targets:"
+        echo "  litellm - LiteLLM backend adapter"
+        echo ""
+        echo "LiteLLM actions:"
+        echo "  connect    - Connect to LiteLLM backend"
+        echo "  disconnect - Disconnect from LiteLLM"
+        echo "  status     - Check connection status"
+        echo "  config     - Manage configuration"
+        echo "  test       - Test LiteLLM connection"
+        return 1
+    fi
+    
+    case "$target" in
+        litellm)
+            local adapter_dir="${CLAUDE_CODE_CLI_DIR}/adapters/litellm"
+            
+            if [[ ! -d "$adapter_dir" ]]; then
+                log::error "LiteLLM adapter not found"
+                return 1
+            fi
+            
+            case "$action" in
+                connect)
+                    # shellcheck disable=SC1090
+                    source "${adapter_dir}/connect.sh"
+                    litellm::connect "$@"
+                    ;;
+                    
+                disconnect)
+                    # shellcheck disable=SC1090
+                    source "${adapter_dir}/disconnect.sh"
+                    litellm::disconnect "$@"
+                    ;;
+                    
+                status)
+                    # shellcheck disable=SC1090
+                    source "${adapter_dir}/status.sh"
+                    litellm::display_status
+                    ;;
+                    
+                config)
+                    # shellcheck disable=SC1090
+                    source "${adapter_dir}/config.sh"
+                    local config_action="${1:-show}"
+                    shift || true
+                    case "$config_action" in
+                        show)
+                            litellm::config_show
+                            ;;
+                        set|set-*)
+                            if [[ $# -lt 2 ]]; then
+                                log::error "Usage: resource-claude-code for litellm config set <setting> <value>"
+                                return 1
+                            fi
+                            # Remove 'set-' prefix if present
+                            local setting="${1#set-}"
+                            litellm::config_set "$setting" "$2"
+                            ;;
+                        get)
+                            if [[ $# -lt 1 ]]; then
+                                log::error "Usage: resource-claude-code for litellm config get <setting>"
+                                return 1
+                            fi
+                            litellm::config_get "$1"
+                            ;;
+                        *)
+                            log::error "Unknown config action: $config_action"
+                            echo "Available actions: show, set, get"
+                            return 1
+                            ;;
+                    esac
+                    ;;
+                    
+                test)
+                    # shellcheck disable=SC1090
+                    source "${adapter_dir}/status.sh"
+                    if litellm::test_connection "${1:-test}"; then
+                        log::success "✅ LiteLLM connection test successful"
+                    else
+                        log::error "❌ LiteLLM connection test failed"
+                        return 1
+                    fi
+                    ;;
+                    
+                *)
+                    log::error "Unknown action for litellm: $action"
+                    echo "Available actions: connect, disconnect, status, config, test"
+                    return 1
+                    ;;
+            esac
+            ;;
+            
+        *)
+            log::error "Unknown target: $target"
+            echo "Available targets: litellm"
+            return 1
+            ;;
+    esac
 }
 
 # Custom help function with Claude Code-specific examples
@@ -708,6 +936,13 @@ claude_code_show_help() {
     echo "  resource-claude-code usage json                             # JSON output"
     echo "  resource-claude-code set-tier pro                           # Set subscription tier"
     echo "  resource-claude-code reset-usage daily                      # Reset counters"
+    echo ""
+    echo "LiteLLM Adapter (Fallback on Rate Limits):"
+    echo "  resource-claude-code for litellm connect                    # Use LiteLLM backend"
+    echo "  resource-claude-code for litellm disconnect                 # Back to native Claude"
+    echo "  resource-claude-code for litellm status                     # Check connection"
+    echo "  resource-claude-code for litellm config show                # View configuration"
+    echo "  resource-claude-code for litellm config set auto-fallback on # Enable auto-fallback"
     echo ""
     echo "AI Capabilities:"
     echo "  • Advanced code generation and debugging"

@@ -18,6 +18,24 @@ claude_code::run() {
         return 1
     fi
     
+    # Check if connected to LiteLLM and route through adapter if so
+    local adapter_dir="${CLAUDE_CODE_CLI_DIR:-$(dirname "${BASH_SOURCE[0]}")/..}/adapters/litellm"
+    if [[ -f "$adapter_dir/state.sh" ]]; then
+        # shellcheck disable=SC1090
+        source "$adapter_dir/state.sh"
+        if litellm::is_connected; then
+            log::info "📡 Connected to LiteLLM backend - routing through adapter"
+            # shellcheck disable=SC1090
+            source "$adapter_dir/execute.sh"
+            if litellm::execute_with_fallback; then
+                return 0
+            else
+                log::warn "LiteLLM execution failed, falling back to native Claude"
+                # Continue with native execution
+            fi
+        fi
+    fi
+    
     # Build command arguments with TTY compatibility
     local cmd_args=()
     # Always use non-interactive mode for autonomous platform integration
@@ -32,6 +50,8 @@ claude_code::run() {
     
     if [[ "$OUTPUT_FORMAT" == "stream-json" ]]; then
         cmd_args+=("--output-format" "stream-json")
+        # Claude Code requires --verbose when using stream-json with --print
+        cmd_args+=("--verbose")
     fi
     
     # Add allowed tools if specified
@@ -118,37 +138,111 @@ claude_code::run() {
     fi
     
     # Handle other error patterns with enhanced TTY support
-    if [[ $exit_code -ne 0 ]]; then
+    if [[ $exit_code -ne 0 ]] || [[ -s "$temp_output_file" ]]; then
         local output
         output=$(cat "$temp_output_file" 2>/dev/null || echo "")
         
-        if [[ "$output" =~ "unknown option" ]]; then
-            log::error "CLI interface error: Unknown option detected"
-            log::info "This may indicate the claude CLI has changed"
-            log::info "Please check: claude --help"
-        elif [[ "$output" =~ "Raw mode is not supported" ]]; then
-            log::error "TTY error: Interactive mode not supported in current environment"
-            log::info "Claude Code requires a TTY for some operations"
-            log::info "Fallback: Use the health-check action for non-interactive diagnostics"
-            log::info "  $0 --action health-check --check-type full"
-            # Attempt to provide basic status without TTY
-            if claude_code::is_installed; then
-                local version
-                version=$(claude_code::get_version)
-                log::info "Basic status: Claude Code $version is installed"
+        # First check if the output is a JSON error response (even if exit_code is 0)
+        # This handles the case where Claude returns JSON with is_error:true
+        if echo "$output" | jq -e '.' >/dev/null 2>&1; then
+            local is_error=$(echo "$output" | jq -r '.is_error // false' 2>/dev/null)
+            local result=$(echo "$output" | jq -r '.result // ""' 2>/dev/null)
+            
+            if [[ "$is_error" == "true" ]] && [[ "$result" =~ "Claude AI usage limit reached" ]]; then
+                # This is a JSON usage limit error - handle it specially
+                # Use advanced rate limit detection
+                local rate_info=$(claude_code::detect_rate_limit "$output" "$exit_code")
+                
+                # Record the rate limit encounter
+                claude_code::record_rate_limit "$rate_info"
+                
+                local limit_type=$(echo "$rate_info" | jq -r '.limit_type')
+                local reset_time=$(echo "$rate_info" | jq -r '.reset_time')
+                local retry_after=$(echo "$rate_info" | jq -r '.retry_after')
+                
+                log::error "Rate/Usage limit reached (type: $limit_type)"
+                
+                # Attempt automatic fallback to LiteLLM
+                local adapter_dir="${CLAUDE_CODE_CLI_DIR:-$(dirname "${BASH_SOURCE[0]}")/..}/adapters/litellm"
+                if [[ -f "$adapter_dir/execute.sh" ]]; then
+                    # shellcheck disable=SC1090
+                    source "$adapter_dir/execute.sh"
+                    if litellm::auto_fallback_on_rate_limit "$rate_info"; then
+                        log::info "🔄 Retrying with LiteLLM backend..."
+                        # Retry the original prompt through LiteLLM
+                        if litellm::execute_with_fallback; then
+                            rm -f "$temp_output_file" "${temp_output_file}.exit"
+                            return 0
+                        else
+                            log::warn "LiteLLM retry failed"
+                        fi
+                    fi
+                fi
+                
+                # Show current usage statistics
+                local usage_json=$(claude_code::get_usage)
+                local last_5h=$(echo "$usage_json" | jq -r '.last_5_hours')
+                local daily=$(echo "$usage_json" | jq -r '.current_day_requests')
+                local weekly=$(echo "$usage_json" | jq -r '.current_week_requests')
+                
+                log::info "Current usage statistics:"
+                log::info "  - Last 5 hours: $last_5h requests"
+                log::info "  - Today: $daily requests"
+                log::info "  - This week: $weekly requests"
+                
+                # Show time until reset
+                if [[ -n "$reset_time" && "$reset_time" != "null" && "$reset_time" != "" ]]; then
+                    log::info "Reset time: $reset_time"
+                    if [[ -n "$retry_after" && "$retry_after" != "null" && "$retry_after" -gt 0 ]]; then
+                        local hours=$((retry_after / 3600))
+                        local minutes=$(((retry_after % 3600) / 60))
+                        log::info "Retry after: ${hours}h ${minutes}m"
+                    fi
+                else
+                    local time_to_reset=$(claude_code::time_until_reset "$limit_type")
+                    log::info "Estimated reset in: $time_to_reset"
+                fi
+                
+                log::info "Options:"
+                log::info "  - Wait for the limit to reset"
+                log::info "  - Consider upgrading to Claude Pro or Max for higher limits"
+                log::info "  - Check your usage at claude.ai"
+                
+                # Cleanup and exit with error
+                rm -f "$temp_output_file" "${temp_output_file}.exit"
+                return 1
             fi
-        elif [[ "$output" =~ [Aa]uthentication ]] || [[ "$output" =~ [Ll]ogin ]] || [[ "$output" =~ "sign.*in" ]]; then
-            log::error "Authentication required"
-            log::info "To authenticate Claude Code:"
-            if claude_code::is_tty; then
-                log::info "  1. Run: claude"
-                log::info "  2. Follow the authentication prompts"
-            else
-                log::info "  1. Run claude interactively in a TTY environment"
-                log::info "  2. Complete authentication setup"
-                log::info "  3. Then retry this command"
-            fi
-        elif [[ "$output" =~ "usage limit" ]] || [[ "$output" =~ "rate limit" ]]; then
+        fi
+        
+        # If not a JSON error or exit_code indicates failure, check other patterns
+        if [[ $exit_code -ne 0 ]]; then
+            if [[ "$output" =~ "unknown option" ]]; then
+                log::error "CLI interface error: Unknown option detected"
+                log::info "This may indicate the claude CLI has changed"
+                log::info "Please check: claude --help"
+            elif [[ "$output" =~ "Raw mode is not supported" ]]; then
+                log::error "TTY error: Interactive mode not supported in current environment"
+                log::info "Claude Code requires a TTY for some operations"
+                log::info "Fallback: Use the health-check action for non-interactive diagnostics"
+                log::info "  $0 --action health-check --check-type full"
+                # Attempt to provide basic status without TTY
+                if claude_code::is_installed; then
+                    local version
+                    version=$(claude_code::get_version)
+                    log::info "Basic status: Claude Code $version is installed"
+                fi
+            elif [[ "$output" =~ [Aa]uthentication ]] || [[ "$output" =~ [Ll]ogin ]] || [[ "$output" =~ "sign.*in" ]]; then
+                log::error "Authentication required"
+                log::info "To authenticate Claude Code:"
+                if claude_code::is_tty; then
+                    log::info "  1. Run: claude"
+                    log::info "  2. Follow the authentication prompts"
+                else
+                    log::info "  1. Run claude interactively in a TTY environment"
+                    log::info "  2. Complete authentication setup"
+                    log::info "  3. Then retry this command"
+                fi
+            elif [[ "$output" =~ "usage limit" ]] || [[ "$output" =~ "rate limit" ]]; then
             # Use advanced rate limit detection
             local rate_info=$(claude_code::detect_rate_limit "$output" "$exit_code")
             local is_rate_limited=$(echo "$rate_info" | jq -r '.detected')
@@ -163,6 +257,23 @@ claude_code::run() {
                 
                 log::error "Rate/Usage limit reached (type: $limit_type)"
                 
+                # Attempt automatic fallback to LiteLLM
+                local adapter_dir="${CLAUDE_CODE_CLI_DIR:-$(dirname "${BASH_SOURCE[0]}")/..}/adapters/litellm"
+                if [[ -f "$adapter_dir/execute.sh" ]]; then
+                    # shellcheck disable=SC1090
+                    source "$adapter_dir/execute.sh"
+                    if litellm::auto_fallback_on_rate_limit "$rate_info"; then
+                        log::info "🔄 Retrying with LiteLLM backend..."
+                        # Retry the original prompt through LiteLLM
+                        if litellm::execute_with_fallback; then
+                            rm -f "$temp_output_file" "${temp_output_file}.exit"
+                            return 0
+                        else
+                            log::warn "LiteLLM retry failed"
+                        fi
+                    fi
+                fi
+                
                 # Show current usage statistics
                 local usage_json=$(claude_code::get_usage)
                 local last_5h=$(echo "$usage_json" | jq -r '.last_5_hours')
@@ -173,6 +284,13 @@ claude_code::run() {
                 log::info "  - Last 5 hours: $last_5h requests"
                 log::info "  - Today: $daily requests"
                 log::info "  - This week: $weekly requests"
+                
+                # Try to extract actual limit from error message for calibration
+                if [[ "$output" =~ ([0-9]+)[[:space:]]?(requests?|messages?)[[:space:]]?(per|every|in)[[:space:]]?5[[:space:]]?hour ]]; then
+                    local observed_5h_limit="${BASH_REMATCH[1]}"
+                    log::debug "Detected 5-hour limit in error: $observed_5h_limit"
+                    claude_code::update_observed_limit "5_hour" "$observed_5h_limit"
+                fi
                 
                 # Show time until reset
                 local time_to_reset=$(claude_code::time_until_reset "$limit_type")

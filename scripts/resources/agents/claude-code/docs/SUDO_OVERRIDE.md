@@ -164,7 +164,6 @@ sudo -n apt-get update --dry-run
 
 ```bash
 # Set environment for automated resource management
-export RESOURCE_IMPROVEMENT_MODE="apply"
 export SUDO_OVERRIDE="yes"
 export SUDO_COMMANDS="systemctl,service,docker,apt-get,chown,chmod"
 export CLAUDE_DANGEROUSLY_SKIP_PERMISSIONS="yes"
