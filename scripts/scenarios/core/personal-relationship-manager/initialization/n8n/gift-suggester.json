@@ -54,19 +54,41 @@
     },
     {
       "parameters": {
-        "command": "=/bin/bash -c \"echo '{{ $json.prompt.replace(/'/g, \"'\\\"'\\\"'\") }}' | vrooli resource ollama generate - --model {{ $json.model }} --type {{ $json.type }} --quiet\"",
+        "method": "POST",
+        "url": "={{$env.service.n8n.url}}/webhook/ollama",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "prompt",
+              "value": "={{$json.prompt}}"
+            },
+            {
+              "name": "model",
+              "value": "={{$json.model}}"
+            },
+            {
+              "name": "type",
+              "value": "={{$json.type}}"
+            },
+            {
+              "name": "quiet",
+              "value": "={{true}}"
+            }
+          ]
+        },
         "options": {}
       },
       "id": "call_ollama",
-      "name": "Call Ollama for Suggestions",
-      "type": "n8n-nodes-base.executeCommand",
-      "typeVersion": 1,
+      "name": "Call Shared Ollama Workflow",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
       "position": [1000, 400]
     },
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Process the Ollama response from CLI\nconst cliOutput = $input.item.json;\nconst originalInput = $('Prepare Gift Prompt').item.json.original_input;\n\nlet suggestions = [];\n\n// The CLI output is in stdout field when using executeCommand\nconst responseText = cliOutput.stdout || '';\n\nif (responseText) {\n  try {\n    // Try to parse the AI response as JSON\n    // Extract JSON from the response (might be wrapped in markdown)\n    const jsonMatch = responseText.match(/\\[\\s*\\{[\\s\\S]*\\}\\s*\\]/);\n    if (jsonMatch) {\n      suggestions = JSON.parse(jsonMatch[0]);\n    } else {\n      // Try direct parse\n      suggestions = JSON.parse(responseText);\n    }\n    \n    // Validate and ensure proper structure\n    suggestions = suggestions.map(s => ({\n      name: s.name || 'Unknown Gift',\n      description: s.description || 'A thoughtful gift',\n      price: Number(s.price) || 50,\n      store: s.store || 'Online retailer',\n      relevance_score: s.relevance_score || 0.8\n    }));\n    \n  } catch (e) {\n    console.log('Failed to parse AI response, using fallback suggestions');\n    // Fallback suggestions based on interests\n    const interests = originalInput.interests.toLowerCase();\n    suggestions = [];\n    \n    if (interests.includes('book')) {\n      suggestions.push({\n        name: 'First Edition Book Collection',\n        description: 'A carefully curated set of first edition books from their favorite genre',\n        price: 75,\n        store: 'Rare book dealer or antiquarian bookshop',\n        relevance_score: 0.9\n      });\n    }\n    \n    if (interests.includes('travel')) {\n      suggestions.push({\n        name: 'Scratch-off World Map with Frame',\n        description: 'Beautiful wall art that lets them track and display all their adventures',\n        price: 45,\n        store: 'Travel specialty store',\n        relevance_score: 0.85\n      });\n    }\n    \n    if (interests.includes('coffee')) {\n      suggestions.push({\n        name: 'Coffee Tasting Experience',\n        description: 'Local roastery tour with cupping session and take-home beans',\n        price: 60,\n        store: 'Local coffee roastery',\n        relevance_score: 0.88\n      });\n    }\n    \n    if (interests.includes('photography')) {\n      suggestions.push({\n        name: 'Vintage Camera Display Piece',\n        description: 'Restored vintage camera as functional art for their space',\n        price: 85,\n        store: 'Antique shop or camera specialty store',\n        relevance_score: 0.82\n      });\n    }\n    \n    // Add a universal suggestion\n    suggestions.push({\n      name: 'Experience Day Package',\n      description: 'Voucher for a unique local experience aligned with their interests',\n      price: 70,\n      store: 'Experience gift websites',\n      relevance_score: 0.75\n    });\n  }\n}\n\n// Sort by relevance score\nsuggestions.sort((a, b) => b.relevance_score - a.relevance_score);\n\n// Limit to top 5\nsuggestions = suggestions.slice(0, 5);\n\nreturn {\n  success: true,\n  contact_id: originalInput.contact_id,\n  contact_name: originalInput.name,\n  occasion: originalInput.occasion,\n  budget: originalInput.budget,\n  suggestions: suggestions,\n  suggestion_count: suggestions.length,\n  generated_at: new Date().toISOString(),\n  metadata: {\n    model_used: 'llama3.2',\n    interests_analyzed: originalInput.interests,\n    past_gifts_considered: originalInput.past_gifts || 'none'\n  }\n};"
+        "jsCode": "// Process the Ollama response from shared workflow\nconst response = $input.item.json;\nconst originalInput = $('Prepare Gift Prompt').item.json.original_input;\n\nlet suggestions = [];\n\n// The response from shared workflow will have the result in response field\nconst responseText = response.response || response.result || response.output || '';\n\nif (responseText) {\n  try {\n    // Try to parse the AI response as JSON\n    // Extract JSON from the response (might be wrapped in markdown)\n    const jsonMatch = responseText.match(/\\[\\s*\\{[\\s\\S]*\\}\\s*\\]/);\n    if (jsonMatch) {\n      suggestions = JSON.parse(jsonMatch[0]);\n    } else {\n      // Try direct parse\n      suggestions = JSON.parse(responseText);\n    }\n    \n    // Validate and ensure proper structure\n    suggestions = suggestions.map(s => ({\n      name: s.name || 'Unknown Gift',\n      description: s.description || 'A thoughtful gift',\n      price: Number(s.price) || 50,\n      store: s.store || 'Online retailer',\n      relevance_score: s.relevance_score || 0.8\n    }));\n    \n  } catch (e) {\n    console.log('Failed to parse AI response, using fallback suggestions');\n    // Fallback suggestions based on interests\n    const interests = originalInput.interests.toLowerCase();\n    suggestions = [];\n    \n    if (interests.includes('book')) {\n      suggestions.push({\n        name: 'First Edition Book Collection',\n        description: 'A carefully curated set of first edition books from their favorite genre',\n        price: 75,\n        store: 'Rare book dealer or antiquarian bookshop',\n        relevance_score: 0.9\n      });\n    }\n    \n    if (interests.includes('travel')) {\n      suggestions.push({\n        name: 'Scratch-off World Map with Frame',\n        description: 'Beautiful wall art that lets them track and display all their adventures',\n        price: 45,\n        store: 'Travel specialty store',\n        relevance_score: 0.85\n      });\n    }\n    \n    if (interests.includes('coffee')) {\n      suggestions.push({\n        name: 'Coffee Tasting Experience',\n        description: 'Local roastery tour with cupping session and take-home beans',\n        price: 60,\n        store: 'Local coffee roastery',\n        relevance_score: 0.88\n      });\n    }\n    \n    if (interests.includes('photography')) {\n      suggestions.push({\n        name: 'Vintage Camera Display Piece',\n        description: 'Restored vintage camera as functional art for their space',\n        price: 85,\n        store: 'Antique shop or camera specialty store',\n        relevance_score: 0.82\n      });\n    }\n    \n    // Add a universal suggestion\n    suggestions.push({\n      name: 'Experience Day Package',\n      description: 'Voucher for a unique local experience aligned with their interests',\n      price: 70,\n      store: 'Experience gift websites',\n      relevance_score: 0.75\n    });\n  }\n}\n\n// Sort by relevance score\nsuggestions.sort((a, b) => b.relevance_score - a.relevance_score);\n\n// Limit to top 5\nsuggestions = suggestions.slice(0, 5);\n\nreturn {\n  success: true,\n  contact_id: originalInput.contact_id,\n  contact_name: originalInput.name,\n  occasion: originalInput.occasion,\n  budget: originalInput.budget,\n  suggestions: suggestions,\n  suggestion_count: suggestions.length,\n  generated_at: new Date().toISOString(),\n  metadata: {\n    model_used: 'llama3.2',\n    interests_analyzed: originalInput.interests,\n    past_gifts_considered: originalInput.past_gifts || 'none'\n  }\n};"
       },
       "id": "process_suggestions",
       "name": "Process Gift Suggestions",

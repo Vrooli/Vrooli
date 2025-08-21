@@ -13,20 +13,19 @@
     },
     {
       "parameters": {
-        "url": "http://ollama:11434/api/generate",
-        "method": "POST",
-        "body": {
-          "model": "codellama",
+        "workflowId": "={{ $env.SHARED_WORKFLOW_OLLAMA_ID }}",
+        "source": "parameter",
+        "parameters": {
           "prompt": "Create a retro JavaScript game based on this prompt: {{$json.prompt}}\n\nGenerate complete, playable game code using HTML5 Canvas. Include:\n1. Game loop\n2. Player controls\n3. Score system\n4. Game over condition\n5. Retro pixel art style\n\nReturn only valid JavaScript code.",
-          "stream": false,
-          "options": {
-            "temperature": 0.8,
-            "max_tokens": 4000
-          }
+          "model": "codellama",
+          "type": "code",
+          "quiet": true,
+          "timeout_seconds": 180
         }
       },
       "name": "Generate Game Code",
-      "type": "n8n-nodes-base.httpRequest",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
       "position": [450, 300]
     },
     {
@@ -34,7 +33,7 @@
         "url": "http://judge0:2358/submissions",
         "method": "POST",
         "body": {
-          "source_code": "{{$json.response}}",
+          "source_code": "{{$json.generated_code}}",
           "language_id": 63,
           "stdin": "",
           "expected_output": ""
@@ -43,6 +42,16 @@
       "name": "Validate Code",
       "type": "n8n-nodes-base.httpRequest",
       "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Extract response from shared Ollama workflow\nconst ollamaResult = $json;\nconst generatedCode = ollamaResult.response || ollamaResult.output || '';\n\n// Pass the generated code to the next node for validation\nreturn {\n  generated_code: generatedCode,\n  model_used: ollamaResult.request?.model || 'codellama',\n  execution_time_ms: ollamaResult.execution?.execution_time_ms || 0\n};"
+      },
+      "name": "Extract Generated Code",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [550, 300]
     },
     {
       "parameters": {
@@ -72,16 +81,19 @@
     },
     {
       "parameters": {
-        "url": "http://ollama:11434/api/generate",
-        "method": "POST",
-        "body": {
-          "model": "llama3.2",
+        "workflowId": "={{ $env.SHARED_WORKFLOW_OLLAMA_ID }}",
+        "source": "parameter",
+        "parameters": {
           "prompt": "Generate retro pixel art assets for game: {{$json.title}}\nReturn as base64 encoded 32x32 sprite data.",
-          "stream": false
+          "model": "llama3.2",
+          "type": "general",
+          "quiet": true,
+          "timeout_seconds": 120
         }
       },
       "name": "Generate Assets",
-      "type": "n8n-nodes-base.httpRequest",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
       "position": [1250, 250]
     },
     {
@@ -98,11 +110,22 @@
       "name": "Error Response",
       "type": "n8n-nodes-base.set",
       "position": [1050, 350]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Extract asset data from shared Ollama workflow\nconst ollamaResult = $json;\nconst assetData = ollamaResult.response || ollamaResult.output || '';\n\n// Return the complete game data with assets\nconst gameData = $('Save Game').item.json;\nreturn {\n  ...gameData,\n  assets: assetData,\n  asset_generation_time_ms: ollamaResult.execution?.execution_time_ms || 0\n};"
+      },
+      "name": "Process Assets",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1450, 250]
     }
   ],
   "connections": {
     "Game Generation Webhook": {"main": [[{"node": "Generate Game Code"}]]},
-    "Generate Game Code": {"main": [[{"node": "Validate Code"}]]},
+    "Generate Game Code": {"main": [[{"node": "Extract Generated Code"}]]},
+    "Extract Generated Code": {"main": [[{"node": "Validate Code"}]]},
     "Validate Code": {"main": [[{"node": "Check Validation"}]]},
     "Check Validation": {
       "main": [
@@ -110,6 +133,7 @@
         [{"node": "Error Response"}]
       ]
     },
-    "Save Game": {"main": [[{"node": "Generate Assets"}]]}
+    "Save Game": {"main": [[{"node": "Generate Assets"}]]},
+    "Generate Assets": {"main": [[{"node": "Process Assets"}]]}
   }
 }

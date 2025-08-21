@@ -40,7 +40,8 @@
             "file": "initialization/automation/n8n/main-workflow.json",
             "type": "workflow"
           }
-        ]
+        ],
+        "sharedWorkflows": ["ollama", "embedding-generator"]
       },
       "windmill": {
         "type": "windmill",

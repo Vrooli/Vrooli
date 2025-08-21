@@ -1,0 +1,46 @@
+{
+  "collections": [
+    {
+      "name": "seo_content",
+      "config": {
+        "vectors": {
+          "size": 768,
+          "distance": "Cosine"
+        },
+        "optimizers_config": {
+          "default_segment_number": 2
+        },
+        "replication_factor": 1
+      },
+      "description": "Content embeddings for semantic SEO analysis"
+    },
+    {
+      "name": "competitor_content",
+      "config": {
+        "vectors": {
+          "size": 768,
+          "distance": "Cosine"
+        },
+        "optimizers_config": {
+          "default_segment_number": 2
+        },
+        "replication_factor": 1
+      },
+      "description": "Competitor content embeddings for gap analysis"
+    },
+    {
+      "name": "keyword_clusters",
+      "config": {
+        "vectors": {
+          "size": 768,
+          "distance": "Cosine"
+        },
+        "optimizers_config": {
+          "default_segment_number": 2
+        },
+        "replication_factor": 1
+      },
+      "description": "Keyword embeddings for semantic clustering and topic modeling"
+    }
+  ]
+}

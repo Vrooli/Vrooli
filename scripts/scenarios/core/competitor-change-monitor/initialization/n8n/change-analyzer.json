@@ -46,17 +46,13 @@
     },
     {
       "parameters": {
-        "httpMethod": "POST",
-        "path": "ollama",
-        "options": {},
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={\n  \"text\": \"Analyze this change from competitor {{ $json.competitorName }}:\\n\\nURL: {{ $json.targetUrl }}\\n\\nOLD CONTENT:\\n{{ $json.oldContent }}\\n\\nNEW CONTENT:\\n{{ $json.newContent }}\\n\\nProvide analysis in JSON format with these fields:\\n- relevance_score (0-100): How relevant is this change to our business?\\n- change_category: pricing|feature|marketing|legal|other\\n- impact_level: low|medium|high|critical\\n- key_insights: Array of 2-3 key insights\\n- recommended_actions: Array of 1-3 recommended actions\\n- summary: Brief summary of the change (max 100 words)\",\n  \"model\": \"llama3.2:3b\",\n  \"system\": \"You are a competitive intelligence analyst. Analyze changes in competitor websites and provide actionable insights. Focus on business impact and strategic implications. Always respond with valid JSON.\"\n}"
+        "workflowId": "={{ $env.SHARED_WORKFLOW_OLLAMA_ID }}",
+        "inputData": "={\n  \"prompt\": \"You are a competitive intelligence analyst. Analyze changes in competitor websites and provide actionable insights. Focus on business impact and strategic implications. Always respond with valid JSON.\\n\\nAnalyze this change from competitor {{ $json.competitorName }}:\\n\\nURL: {{ $json.targetUrl }}\\n\\nOLD CONTENT:\\n{{ $json.oldContent }}\\n\\nNEW CONTENT:\\n{{ $json.newContent }}\\n\\nProvide analysis in JSON format with these fields:\\n- relevance_score (0-100): How relevant is this change to our business?\\n- change_category: pricing|feature|marketing|legal|other\\n- impact_level: low|medium|high|critical\\n- key_insights: Array of 2-3 key insights\\n- recommended_actions: Array of 1-3 recommended actions\\n- summary: Brief summary of the change (max 100 words)\",\n  \"model\": \"llama3.2:3b\",\n  \"type\": \"reasoning\",\n  \"quiet\": true,\n  \"timeout_seconds\": 120\n}"
       },
       "id": "call-ollama",
       "name": "Call Ollama Workflow",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
       "position": [850, 400]
     },
     {

@@ -73,6 +73,11 @@
       }
     }
   },
+  "sharedWorkflows": {
+    "n8n": [
+      "ollama"
+    ]
+  },
   "lifecycle": {
     "version": "1.0.0",
     "setup": {

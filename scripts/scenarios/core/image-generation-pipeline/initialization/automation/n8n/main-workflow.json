@@ -14,146 +14,203 @@
       "position": [240, 300],
       "webhookId": "image-generation-pipeline-webhook"
     },
-    
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 500]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "prompt",
+              "value": "Generate a professional product photo with modern aesthetic"
+            },
+            {
+              "name": "campaign_id",
+              "value": "test-campaign"
+            },
+            {
+              "name": "brand",
+              "value": "default"
+            },
+            {
+              "name": "style",
+              "value": "photorealistic"
+            }
+          ],
+          "number": [
+            {
+              "name": "num_variations",
+              "value": 1
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "default-values",
+      "name": "Default Values",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [460, 500]
+    },
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Main processing logic for Enterprise Image Generation Pipeline\nconst inputData = $input.item.json;\n\n// Validate input\nif (!inputData || typeof inputData !== 'object') {\n  throw new Error('Invalid input data received');\n}\n\n// Extract and process data\nconst processedData = {\n  scenario_id: 'image-generation-pipeline',\n  timestamp: new Date().toISOString(),\n  input: inputData,\n  processing_start: Date.now()\n};\n\n// Add scenario-specific processing based on category\n{% if 'ai-assistance' in categories %}\nprocessedData.ai_processing_required = true;\nprocessedData.text_content = inputData.text || inputData.content || '';\n{% endif %}\n\n{% if 'content-creation' in categories %}\nprocessedData.content_generation_required = true;\nprocessedData.content_type = inputData.type || 'text';\n{% endif %}\n\n{% if 'business-automation' in categories %}\nprocessedData.automation_workflow = inputData.workflow || 'default';\nprocessedData.automation_steps = inputData.steps || [];\n{% endif %}\n\nreturn processedData;"
+        "jsCode": "// Process input and prepare for image generation\nconst inputData = $input.item.json;\nconst timestamp = new Date().toISOString();\n\n// Extract generation parameters\nconst processedData = {\n  scenario_id: 'image-generation-pipeline',\n  timestamp: timestamp,\n  request_id: `img-gen-${Date.now()}`,\n  \n  // Generation parameters\n  prompt: inputData.prompt || inputData.text || inputData.description || '',\n  campaign_id: inputData.campaign_id || 'default',\n  brand: inputData.brand || 'default',\n  style: inputData.style || 'photorealistic',\n  num_variations: inputData.num_variations || 1,\n  \n  // Processing flags\n  needs_voice_processing: !!(inputData.audio_file || inputData.voice_brief),\n  needs_text_enhancement: !!(inputData.enhance_prompt || inputData.auto_enhance),\n  needs_brand_compliance: inputData.brand !== 'default',\n  \n  // Original input for reference\n  original_input: inputData,\n  processing_start: Date.now()\n};\n\n// Validate required fields\nif (!processedData.prompt && !processedData.needs_voice_processing) {\n  throw new Error('Either prompt or voice input is required');\n}\n\nreturn processedData;"
       },
       "id": "process-input",
       "name": "Process Input",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [460, 300]
+      "position": [680, 400]
     },
-    
-    {% if "ollama" in resources.required %}
     {
       "parameters": {
-        "url": "http://localhost:11434/api/generate",
-        "sendBody": true,
-        "bodyParameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.needs_text_enhancement }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "check-enhancement",
+      "name": "Check Enhancement Needed",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [900, 400]
+    },
+    {
+      "parameters": {
+        "workflowId": "={{ $env.SHARED_WORKFLOW_OLLAMA_ID || 'ollama' }}",
+        "workflowParameters": {
           "parameters": [
+            {
+              "name": "prompt",
+              "value": "=Enhance this image generation prompt for better quality and detail. Original prompt: {{ $json.prompt }}\n\nProvide an enhanced version that includes:\n- More specific visual details\n- Lighting and atmosphere\n- Composition suggestions\n- Technical quality markers\n\nEnhanced prompt:"
+            },
             {
               "name": "model",
               "value": "llama3.1:8b"
             },
             {
-              "name": "prompt", 
-              "value": "={{ $json.text_content || 'Process this request for Enterprise Image Generation Pipeline' }}"
-            },
-            {
-              "name": "stream",
-              "value": "false"
+              "name": "temperature",
+              "value": "0.7"
             }
           ]
-        },
-        "options": {
-          "timeout": 30000
         }
       },
-      "id": "ai-processing",
-      "name": "AI Processing (Ollama)",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4,
-      "position": [680, 240],
-      "executeOnce": false
+      "id": "enhance-prompt",
+      "name": "Enhance Prompt (Shared Ollama)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [1120, 300]
     },
-    {% endif %}
-    
-    {% if "whisper" in resources.required %}
     {
       "parameters": {
-        "url": "http://localhost:8090/transcribe",
-        "sendBody": true,
-        "bodyContentType": "multipart-form-data",
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "audio",
-              "value": "={{ $json.audio_file }}"
-            }
-          ]
-        },
-        "options": {
-          "timeout": 60000
-        }
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Prepare ComfyUI workflow for image generation\nconst inputData = $input.item.json;\n\n// Use enhanced prompt if available, otherwise original\nconst finalPrompt = inputData.enhanced_prompt || inputData.prompt;\n\n// Build ComfyUI workflow configuration\nconst comfyWorkflow = {\n  workflow_type: inputData.brand === 'default' ? 'brand-workflow' : 'qc-workflow',\n  parameters: {\n    positive_prompt: finalPrompt,\n    negative_prompt: 'blurry, low quality, distorted, watermark, text',\n    style: inputData.style,\n    steps: 30,\n    cfg: 7.5,\n    width: 1024,\n    height: 1024,\n    batch_size: inputData.num_variations || 1,\n    seed: inputData.seed || Math.floor(Math.random() * 1000000)\n  },\n  metadata: {\n    campaign_id: inputData.campaign_id,\n    brand: inputData.brand,\n    request_id: inputData.request_id,\n    timestamp: inputData.timestamp\n  }\n};\n\nreturn {\n  ...inputData,\n  comfy_workflow: comfyWorkflow,\n  final_prompt: finalPrompt\n};"
       },
-      "id": "speech-to-text",
-      "name": "Speech to Text (Whisper)",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4,
-      "position": [680, 360],
-      "executeOnce": false
+      "id": "prepare-comfyui",
+      "name": "Prepare ComfyUI Workflow",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 400]
     },
-    {% endif %}
-    
-    {% if "postgres" in resources.required %}
+    {
+      "parameters": {
+        "command": "# Execute ComfyUI workflow using CLI\n# This approach is more reliable than direct API calls\n\nWORKFLOW_TYPE=\"{{ $json.comfy_workflow.workflow_type }}\"\nPROMPT=\"{{ $json.comfy_workflow.parameters.positive_prompt }}\"\nSTYLE=\"{{ $json.comfy_workflow.parameters.style }}\"\nCAMPAIGN=\"{{ $json.campaign_id }}\"\n\n# Check if ComfyUI resource is available\nif command -v resource-comfyui &> /dev/null; then\n    # Use the ComfyUI CLI to generate image\n    resource-comfyui generate \\\n        --prompt \"$PROMPT\" \\\n        --style \"$STYLE\" \\\n        --workflow \"$WORKFLOW_TYPE\" \\\n        --output-format json\nelse\n    # Fallback to checking service availability\n    echo '{\"status\": \"comfyui_not_available\", \"message\": \"ComfyUI resource not found\"}'\nfi"
+      },
+      "id": "generate-image",
+      "name": "Generate Image (ComfyUI CLI)",
+      "type": "n8n-nodes-base.executeBash",
+      "typeVersion": 1,
+      "position": [1560, 400]
+    },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO {{ scenario.id | replace('-', '_') }}.activity_log (event_type, event_data, user_identifier, processing_time_ms, status) VALUES ($1, $2, $3, $4, $5) RETURNING id",
-        "additionalFields": {
-          "mode": "independently"
-        },
+        "query": "INSERT INTO activity_log (event_type, event_data, campaign_id, brand, processing_time_ms, status) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT DO NOTHING RETURNING id",
+        "queryParameters": "=event_type:image_generation\nevent_data:{{ JSON.stringify($json) }}\ncampaign_id:{{ $json.campaign_id }}\nbrand:{{ $json.brand }}\nprocessing_time_ms:{{ Date.now() - $json.processing_start }}\nstatus:success",
         "options": {}
       },
       "id": "log-activity",
       "name": "Log Activity",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
-      "position": [900, 300],
+      "position": [1780, 400],
       "credentials": {
         "postgres": {
-          "id": "postgres-image-generation-pipeline",
-          "name": "PostgreSQL - Enterprise Image Generation Pipeline"
+          "id": "postgres-image-generation",
+          "name": "PostgreSQL - Image Generation"
         }
-      }
+      },
+      "continueOnFail": true
     },
-    {% endif %}
-    
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Finalize processing and prepare response\nconst inputData = $input.item.json;\nconst processingEndTime = Date.now();\nconst processingStartTime = inputData.processing_start || processingEndTime;\n\n// Build comprehensive response\nconst response = {\n  success: true,\n  scenario: 'Enterprise Image Generation Pipeline',\n  scenario_id: 'image-generation-pipeline',\n  version: '1.0.0',\n  timestamp: new Date().toISOString(),\n  processing_time_ms: processingEndTime - processingStartTime,\n  \n  // Include original input for reference\n  request: inputData.input || {},\n  \n  // Processing results\n  results: {},\n  \n  // Metadata\n  metadata: {\n    categories: {{ categories | tojson }},\n    complexity: '{{ complexity }}',\n    resources_used: {{ resources.required | tojson }}\n  }\n};\n\n// Add scenario-specific results\n{% if 'ai-assistance' in categories %}\nif (inputData.ai_processing_required) {\n  response.results.ai_response = inputData.ai_result || 'AI processing completed';\n  response.results.ai_model = 'llama3.1:8b';\n}\n{% endif %}\n\n{% if 'content-creation' in categories %}\nif (inputData.content_generation_required) {\n  response.results.content_generated = true;\n  response.results.content_type = inputData.content_type || 'text';\n  response.results.content_url = '/api/image-generation-pipeline/content/' + Date.now();\n}\n{% endif %}\n\n{% if 'business-automation' in categories %}\nif (inputData.automation_workflow) {\n  response.results.workflow_executed = inputData.automation_workflow;\n  response.results.steps_completed = (inputData.automation_steps || []).length;\n  response.results.automation_status = 'completed';\n}\n{% endif %}\n\n// Add performance metrics\nresponse.performance = {\n  processing_time_ms: response.processing_time_ms,\n  status: response.processing_time_ms < 5000 ? 'fast' : 'normal',\n  efficiency_score: Math.max(0, 100 - (response.processing_time_ms / 100))\n};\n\n// Add business value metrics\nresponse.business_impact = {\n  category: '{{ categories[0] if categories else \"general\" }}',\n  value_delivered: true,\n  estimated_time_saved_minutes: Math.round(response.processing_time_ms / 1000 / 6), // Assume 10x efficiency\n  target_market: '{{ business.target_markets[0] if business.target_markets else \"general\" }}'\n};\n\nreturn response;"
+        "jsCode": "// Build final response\nconst inputData = $input.item.json;\nconst processingEndTime = Date.now();\nconst processingStartTime = inputData.processing_start || processingEndTime;\n\n// Parse generation result\nlet generationResult = {};\ntry {\n  if (typeof inputData.generation_result === 'string') {\n    generationResult = JSON.parse(inputData.generation_result);\n  } else {\n    generationResult = inputData.generation_result || {};\n  }\n} catch (e) {\n  generationResult = { status: 'parse_error', message: e.message };\n}\n\nconst response = {\n  success: generationResult.status !== 'error',\n  scenario: 'Enterprise Image Generation Pipeline',\n  scenario_id: 'image-generation-pipeline',\n  version: '1.0.0',\n  timestamp: new Date().toISOString(),\n  request_id: inputData.request_id,\n  \n  // Generation results\n  results: {\n    prompt_used: inputData.final_prompt,\n    prompt_enhanced: !!inputData.enhanced_prompt,\n    images_generated: generationResult.images || [],\n    workflow_used: inputData.comfy_workflow?.workflow_type,\n    generation_status: generationResult.status || 'unknown'\n  },\n  \n  // Metadata\n  metadata: {\n    campaign_id: inputData.campaign_id,\n    brand: inputData.brand,\n    style: inputData.style,\n    num_variations: inputData.num_variations,\n    processing_time_ms: processingEndTime - processingStartTime\n  },\n  \n  // Performance metrics\n  performance: {\n    processing_time_ms: processingEndTime - processingStartTime,\n    status: (processingEndTime - processingStartTime) < 30000 ? 'fast' : 'normal',\n    efficiency_score: Math.max(0, 100 - ((processingEndTime - processingStartTime) / 300))\n  }\n};\n\n// Add error details if generation failed\nif (!response.success) {\n  response.error = {\n    message: generationResult.message || 'Generation failed',\n    details: generationResult.error || null\n  };\n}\n\nreturn response;"
       },
       "id": "build-response",
       "name": "Build Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1120, 300]
+      "position": [2000, 400]
     },
-    
     {
       "parameters": {
         "values": {
           "string": [
             {
               "name": "status",
-              "value": "success"
+              "value": "={{ $json.success ? 'success' : 'error' }}"
             },
             {
-              "name": "message", 
-              "value": "Enterprise Image Generation Pipeline workflow completed successfully"
+              "name": "message",
+              "value": "={{ $json.success ? 'Image generation completed successfully' : $json.error.message }}"
             }
           ],
           "number": [
             {
               "name": "http_code",
-              "value": 200
+              "value": "={{ $json.success ? 200 : 500 }}"
             }
           ]
         },
         "options": {}
       },
-      "id": "success-response",
-      "name": "Success Response",
+      "id": "final-response",
+      "name": "Final Response",
       "type": "n8n-nodes-base.set",
       "typeVersion": 2,
-      "position": [1340, 300]
+      "position": [2220, 400]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "enhanced_prompt",
+              "value": "={{ $json.prompt }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "pass-through",
+      "name": "Pass Through Original",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [1120, 500]
     }
   ],
-  
   "connections": {
     "Webhook Trigger": {
       "main": [
@@ -166,72 +223,101 @@
         ]
       ]
     },
-    
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Default Values",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Default Values": {
+      "main": [
+        [
+          {
+            "node": "Process Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "Process Input": {
       "main": [
         [
-          {% if "ollama" in resources.required %}
           {
-            "node": "AI Processing (Ollama)",
+            "node": "Check Enhancement Needed",
             "type": "main",
             "index": 0
-          },
-          {% endif %}
-          
-          {% if "whisper" in resources.required %}
+          }
+        ]
+      ]
+    },
+    "Check Enhancement Needed": {
+      "main": [
+        [
           {
-            "node": "Speech to Text (Whisper)",
-            "type": "main", 
+            "node": "Enhance Prompt (Shared Ollama)",
+            "type": "main",
             "index": 0
-          },
-          {% endif %}
-          
-          {% if "postgres" in resources.required %}
+          }
+        ],
+        [
+          {
+            "node": "Pass Through Original",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enhance Prompt (Shared Ollama)": {
+      "main": [
+        [
+          {
+            "node": "Prepare ComfyUI Workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pass Through Original": {
+      "main": [
+        [
+          {
+            "node": "Prepare ComfyUI Workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare ComfyUI Workflow": {
+      "main": [
+        [
+          {
+            "node": "Generate Image (ComfyUI CLI)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Image (ComfyUI CLI)": {
+      "main": [
+        [
           {
             "node": "Log Activity",
             "type": "main",
             "index": 0
-          },
-          {% endif %}
-          
-          {
-            "node": "Build Response",
-            "type": "main",
-            "index": 0
           }
         ]
       ]
     },
-    
-    {% if "ollama" in resources.required %}
-    "AI Processing (Ollama)": {
-      "main": [
-        [
-          {
-            "node": "Build Response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    {% endif %}
-    
-    {% if "whisper" in resources.required %}
-    "Speech to Text (Whisper)": {
-      "main": [
-        [
-          {
-            "node": "Build Response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    {% endif %}
-    
-    {% if "postgres" in resources.required %}
     "Log Activity": {
       "main": [
         [
@@ -243,13 +329,11 @@
         ]
       ]
     },
-    {% endif %}
-    
     "Build Response": {
       "main": [
         [
           {
-            "node": "Success Response",
+            "node": "Final Response",
             "type": "main",
             "index": 0
           }
@@ -257,22 +341,18 @@
       ]
     }
   },
-  
   "active": false,
   "settings": {
     "executionOrder": "v1",
     "saveManualExecutions": true,
     "callerPolicy": "workflowsFromSameOwner"
   },
-  
-  "versionId": "image-generation-pipeline-main-workflow",
+  "versionId": "image-generation-pipeline-main-v2",
   "id": "image-generation-pipeline-main",
-  
   "meta": {
     "templateCreatedBy": "vrooli-scenario-generator",
     "instanceId": "image-generation-pipeline-instance"
   },
-  
   "tags": [
     {
       "id": "image-generation-pipeline",
