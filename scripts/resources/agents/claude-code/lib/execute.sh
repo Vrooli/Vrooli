@@ -71,8 +71,28 @@ claude_code::run() {
     # Set timeout environment variables
     claude_code::set_timeouts "$TIMEOUT"
     
+    # Check usage limits before execution
+    claude_code::check_usage_limits
+    local usage_status=$?
+    if [[ $usage_status -eq 2 ]]; then
+        log::error "Rate limits are critical. Consider waiting before executing."
+        # TODO: Implement automatic fallback to LiteLLM API
+        # - Check if LiteLLM resource is installed and configured
+        # - Switch execution backend to LiteLLM
+        # - Convert Claude prompt format to LiteLLM format
+        # - Execute via LiteLLM API instead of Claude CLI
+    fi
+    
     log::info "Executing: timeout ${TIMEOUT:-600} claude ${cmd_args[*]} \"$PROMPT\""
     echo
+    
+    # Track the request
+    claude_code::track_request
+    
+    # Occasionally clean up old usage data (1% chance)
+    if [[ $((RANDOM % 100)) -eq 0 ]]; then
+        claude_code::cleanup_usage_data &>/dev/null &
+    fi
     
     # Execute Claude with timeout and streaming output (no capture to prevent hanging)
     local exit_code
@@ -129,11 +149,57 @@ claude_code::run() {
                 log::info "  3. Then retry this command"
             fi
         elif [[ "$output" =~ "usage limit" ]] || [[ "$output" =~ "rate limit" ]]; then
-            log::error "Usage limit reached"
-            log::info "You've reached your Claude usage limit"
-            log::info "  - Wait for the limit to reset (typically every 5 hours)"
-            log::info "  - Consider upgrading to Claude Pro or Max for higher limits"
-            log::info "  - Check your usage at claude.ai"
+            # Use advanced rate limit detection
+            local rate_info=$(claude_code::detect_rate_limit "$output" "$exit_code")
+            local is_rate_limited=$(echo "$rate_info" | jq -r '.detected')
+            
+            if [[ "$is_rate_limited" == "true" ]]; then
+                # Record the rate limit encounter
+                claude_code::record_rate_limit "$rate_info"
+                
+                local limit_type=$(echo "$rate_info" | jq -r '.limit_type')
+                local reset_time=$(echo "$rate_info" | jq -r '.reset_time')
+                local retry_after=$(echo "$rate_info" | jq -r '.retry_after')
+                
+                log::error "Rate/Usage limit reached (type: $limit_type)"
+                
+                # Show current usage statistics
+                local usage_json=$(claude_code::get_usage)
+                local last_5h=$(echo "$usage_json" | jq -r '.last_5_hours')
+                local daily=$(echo "$usage_json" | jq -r '.current_day_requests')
+                local weekly=$(echo "$usage_json" | jq -r '.current_week_requests')
+                
+                log::info "Current usage statistics:"
+                log::info "  - Last 5 hours: $last_5h requests"
+                log::info "  - Today: $daily requests"
+                log::info "  - This week: $weekly requests"
+                
+                # Show time until reset
+                local time_to_reset=$(claude_code::time_until_reset "$limit_type")
+                log::info "Estimated reset in: $time_to_reset"
+                
+                if [[ -n "$reset_time" && "$reset_time" != "null" ]]; then
+                    log::info "Reset time: $reset_time"
+                fi
+                
+                log::info "Options:"
+                log::info "  - Wait for the limit to reset"
+                log::info "  - Consider upgrading to Claude Pro or Max for higher limits"
+                log::info "  - Check your usage at claude.ai"
+                
+                # TODO: Automatic fallback to LiteLLM on rate limit
+                # - Detect if LiteLLM is available: resource-litellm status
+                # - If available, retry the same prompt via LiteLLM
+                # - Store the fallback state to prefer LiteLLM until reset
+                log::info "  - Use LiteLLM as fallback (TODO: auto-switch implementation)"
+            else
+                # Fallback to original simple handling
+                log::error "Usage limit reached"
+                log::info "You've reached your Claude usage limit"
+                log::info "  - Wait for the limit to reset (typically every 5 hours)"
+                log::info "  - Consider upgrading to Claude Pro or Max for higher limits"
+                log::info "  - Check your usage at claude.ai"
+            fi
         else
             log::error "Claude execution failed with exit code: $exit_code"
             log::info "For detailed diagnostics, run:"

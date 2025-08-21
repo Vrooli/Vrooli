@@ -4,9 +4,10 @@
 
 set -euo pipefail
 
-BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TASKS_DIR="${BASE_DIR}/tasks"
-LIB_DIR="${BASE_DIR}/lib"
+# Use standardized path handling pattern
+AUTO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TASKS_DIR="$AUTO_DIR/tasks"
+LIB_DIR="$AUTO_DIR/lib"
 
 TASK_NAME="scenario-improvement"
 CMD="run-loop"
@@ -32,10 +33,6 @@ fi
 source "$TASK_FILE"
 # shellcheck disable=SC1090
 source "${LIB_DIR}/loop.sh"
-
-# Source sudo override if available
-# shellcheck disable=SC1090
-source "${LIB_DIR}/sudo-override.sh" 2>/dev/null || true
 
 # Dispatch via loop core
 loop_dispatch "$CMD" "$@" 

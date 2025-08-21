@@ -37,11 +37,23 @@ if claude_code::is_test_environment; then
     DEFAULT_TIMEOUT="600"
     DEFAULT_OUTPUT_FORMAT="text"
     DEFAULT_MCP_SCOPE="auto"
+    # Rate limit constants (estimates based on subscription tiers)
+    CLAUDE_FREE_DAILY_LIMIT="50"
+    CLAUDE_PRO_DAILY_LIMIT="1000"
+    CLAUDE_MAX_DAILY_LIMIT="5000"
+    CLAUDE_RATE_LIMIT_RESET_HOURS="5"  # Claude resets every 5 hours
+    CLAUDE_WEEKLY_RESET_DAYS="7"       # Weekly limits for Claude Code
 else
     readonly DEFAULT_MAX_TURNS="5"
     readonly DEFAULT_TIMEOUT="600"
     readonly DEFAULT_OUTPUT_FORMAT="text"
     readonly DEFAULT_MCP_SCOPE="auto"
+    # Rate limit constants (estimates based on subscription tiers)
+    readonly CLAUDE_FREE_DAILY_LIMIT="50"
+    readonly CLAUDE_PRO_DAILY_LIMIT="1000"
+    readonly CLAUDE_MAX_DAILY_LIMIT="5000"
+    readonly CLAUDE_RATE_LIMIT_RESET_HOURS="5"  # Claude resets every 5 hours
+    readonly CLAUDE_WEEKLY_RESET_DAYS="7"       # Weekly limits for Claude Code
 fi
 
 # Common directories and paths
@@ -50,11 +62,13 @@ if claude_code::is_test_environment; then
     CLAUDE_SESSIONS_DIR="$CLAUDE_CONFIG_DIR/sessions"
     CLAUDE_SETTINGS_FILE="$CLAUDE_CONFIG_DIR/settings.json"
     CLAUDE_PROJECT_SETTINGS="$(pwd)/.claude/settings.json"
+    CLAUDE_USAGE_FILE="$CLAUDE_CONFIG_DIR/usage_tracking.json"
 else
     readonly CLAUDE_CONFIG_DIR="$HOME/.claude"
     readonly CLAUDE_SESSIONS_DIR="$CLAUDE_CONFIG_DIR/sessions"
     readonly CLAUDE_SETTINGS_FILE="$CLAUDE_CONFIG_DIR/settings.json"
     readonly CLAUDE_PROJECT_SETTINGS="$(pwd)/.claude/settings.json"
+    readonly CLAUDE_USAGE_FILE="$CLAUDE_CONFIG_DIR/usage_tracking.json"
 fi
 
 # Log file locations

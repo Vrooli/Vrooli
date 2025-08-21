@@ -60,6 +60,9 @@ cli::register_command "mcp" "MCP server management" "claude_code_mcp" "modifies-
 cli::register_command "template" "Template management" "claude_code_template" "modifies-system"
 cli::register_command "batch" "Batch processing" "claude_code_batch" "modifies-system"
 cli::register_command "settings" "Settings management" "claude_code_settings" "modifies-system"
+cli::register_command "usage" "Show usage statistics and limits" "claude_code_usage"
+cli::register_command "set-tier" "Set subscription tier for accurate limits" "claude_code_set_tier" "modifies-system"
+cli::register_command "reset-usage" "Reset usage counters (for testing)" "claude_code_reset_usage" "modifies-system"
 cli::register_command "uninstall" "Uninstall Claude Code (requires --force)" "claude_code_uninstall" "modifies-system"
 
 ################################################################################
@@ -528,6 +531,144 @@ claude_code_settings() {
     esac
 }
 
+# Show usage statistics and limits
+claude_code_usage() {
+    local format="${1:-text}"
+    
+    # Check usage limits
+    claude_code::check_usage_limits
+    local usage_status=$?
+    
+    # Get usage data
+    local usage_json=$(claude_code::get_usage)
+    
+    if [[ "$format" == "json" ]]; then
+        echo "$usage_json"
+    else
+        log::header "📊 Claude Code Usage Statistics"
+        
+        # Current usage
+        local hourly=$(echo "$usage_json" | jq -r '.current_hour_requests')
+        local daily=$(echo "$usage_json" | jq -r '.current_day_requests')
+        local weekly=$(echo "$usage_json" | jq -r '.current_week_requests')
+        local last_5h=$(echo "$usage_json" | jq -r '.last_5_hours')
+        
+        # Subscription tier and limits
+        local tier=$(echo "$usage_json" | jq -r '.subscription_tier')
+        local tier_key="${tier:-free}"
+        [[ "$tier_key" == "unknown" ]] && tier_key="free"
+        
+        local limit_5h=$(echo "$usage_json" | jq -r ".estimated_limits.${tier_key}.\"5_hour\"")
+        local limit_daily=$(echo "$usage_json" | jq -r ".estimated_limits.${tier_key}.daily")
+        local limit_weekly=$(echo "$usage_json" | jq -r ".estimated_limits.${tier_key}.weekly")
+        
+        echo ""
+        log::info "Subscription Tier: $tier"
+        echo ""
+        
+        echo "Current Usage:"
+        echo "  This hour:    $hourly requests"
+        echo "  Last 5 hours: $last_5h / $limit_5h"
+        echo "  Today:        $daily / $limit_daily"
+        echo "  This week:    $weekly / $limit_weekly"
+        echo ""
+        
+        # Calculate percentages
+        local pct_5h=0
+        local pct_daily=0
+        local pct_weekly=0
+        [[ $limit_5h -gt 0 ]] && pct_5h=$((last_5h * 100 / limit_5h))
+        [[ $limit_daily -gt 0 ]] && pct_daily=$((daily * 100 / limit_daily))
+        [[ $limit_weekly -gt 0 ]] && pct_weekly=$((weekly * 100 / limit_weekly))
+        
+        echo "Usage Percentages:"
+        echo "  5-hour:  ${pct_5h}%"
+        echo "  Daily:   ${pct_daily}%"
+        echo "  Weekly:  ${pct_weekly}%"
+        echo ""
+        
+        # Time until reset
+        echo "Time Until Reset:"
+        echo "  5-hour:  $(claude_code::time_until_reset 5_hour)"
+        echo "  Daily:   $(claude_code::time_until_reset daily)"
+        echo "  Weekly:  $(claude_code::time_until_reset weekly)"
+        echo ""
+        
+        # Last rate limit encounter
+        local last_limit=$(echo "$usage_json" | jq -r '.last_rate_limit')
+        if [[ "$last_limit" != "null" ]]; then
+            local limit_time=$(echo "$last_limit" | jq -r '.timestamp')
+            local limit_type=$(echo "$last_limit" | jq -r '.limit_type')
+            echo "Last Rate Limit:"
+            echo "  Time: $limit_time"
+            echo "  Type: $limit_type"
+            echo ""
+        fi
+        
+        # Status indicator
+        case $usage_status in
+            0)
+                log::success "✅ Usage is within safe limits"
+                ;;
+            1)
+                log::warn "⚠️  High usage detected - approaching limits"
+                ;;
+            2)
+                log::error "❌ Critical usage - rate limits imminent"
+                log::info "Consider waiting or switching to LiteLLM fallback"
+                ;;
+        esac
+    fi
+}
+
+# Set subscription tier for accurate limit tracking
+claude_code_set_tier() {
+    local tier="${1:-}"
+    
+    if [[ -z "$tier" ]]; then
+        log::error "Subscription tier required"
+        echo ""
+        echo "Usage: resource-claude-code set-tier <tier>"
+        echo ""
+        echo "Available tiers:"
+        echo "  free      - Free tier (50 daily requests)"
+        echo "  pro       - Pro tier ($20/month, 1000 daily)"
+        echo "  max_100   - Max tier ($100/month, 5000 daily)"
+        echo "  max_200   - Max tier ($200/month, 20000 daily)"
+        return 1
+    fi
+    
+    claude_code::set_subscription_tier "$tier"
+}
+
+# Reset usage counters (mainly for testing)
+claude_code_reset_usage() {
+    local type="${1:-}"
+    
+    if [[ -z "$type" ]]; then
+        log::error "Reset type required"
+        echo ""
+        echo "Usage: resource-claude-code reset-usage <type>"
+        echo ""
+        echo "Available types:"
+        echo "  hourly   - Reset hourly counters"
+        echo "  daily    - Reset daily counters"
+        echo "  weekly   - Reset weekly counters"
+        echo "  all      - Reset all counters"
+        return 1
+    fi
+    
+    log::warn "⚠️  This will reset usage tracking counters"
+    read -p "Are you sure? (y/N): " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        log::info "Reset cancelled"
+        return 0
+    fi
+    
+    claude_code::reset_usage_counters "$type"
+}
+
 # Custom help function with Claude Code-specific examples
 claude_code_show_help() {
     # Show standard framework help first
@@ -561,6 +702,12 @@ claude_code_show_help() {
     echo "  resource-claude-code mcp status                             # Check MCP servers"
     echo "  resource-claude-code settings set model claude-3-opus       # Set model"
     echo "  resource-claude-code inject shared:templates/claude.json    # Import templates"
+    echo ""
+    echo "Usage Tracking & Rate Limits:"
+    echo "  resource-claude-code usage                                  # Show usage stats"
+    echo "  resource-claude-code usage json                             # JSON output"
+    echo "  resource-claude-code set-tier pro                           # Set subscription tier"
+    echo "  resource-claude-code reset-usage daily                      # Reset counters"
     echo ""
     echo "AI Capabilities:"
     echo "  • Advanced code generation and debugging"

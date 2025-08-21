@@ -6,8 +6,9 @@
 set -euo pipefail
 
 LOOP_TASK="scenario-improvement"
+# Use standardized path handling pattern
 TASK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TASK_PROMPTS_DIR="${TASK_DIR}/prompts"
+TASK_PROMPTS_DIR="$TASK_DIR/prompts"
 
 # Candidates in priority order
 task_prompt_candidates() {

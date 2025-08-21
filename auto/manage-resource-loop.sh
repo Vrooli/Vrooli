@@ -60,10 +60,6 @@ Commands:
   restart     Stop and then start the loop
   json <cmd>  JSON summaries: summary | recent [N] | inflight | durations | errors [N] | hourly
   skip-wait   Skip current iteration wait (for testing)
-  sudo-init [commands]  Initialize sudo override (one-time password entry)
-  sudo-test   Test sudo override functionality
-  sudo-status Show sudo override status
-  sudo-cleanup Remove sudo override configuration
   help        Show this help message
 
 💡 Examples:

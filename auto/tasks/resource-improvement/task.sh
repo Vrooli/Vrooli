@@ -139,18 +139,6 @@ task_prepare_worker_env() {
 	export ALLOWED_TOOLS="${ALLOWED_TOOLS:-Bash,LS,Glob,Grep,Read}"
 	export SKIP_PERMISSIONS="${SKIP_PERMISSIONS:-yes}"
 	
-	# TEMPORARILY DISABLED: Sudo override for resource management
-	# if command -v sudo_override::load_config >/dev/null 2>&1; then
-	# 	if sudo_override::load_config; then
-	# 		# Add sudo-related tools to allowed tools
-	# 		if [[ -n "${SUDO_OVERRIDE:-}" ]] && [[ "$SUDO_OVERRIDE" == "yes" ]]; then
-	# 			export ALLOWED_TOOLS="${ALLOWED_TOOLS},Bash(sudo:*)"
-	# 			# Enable dangerously skip permissions for sudo operations
-	# 			export SKIP_PERMISSIONS="yes"
-	# 		fi
-	# 	fi
-	# fi
-	
 	# Provide references the worker may use
 	export RESOURCE_EVENTS_JSONL="$EVENTS_JSONL"
 	# Export the mode so the worker can access it programmatically
