@@ -47,27 +47,80 @@ manage::get_git_status_hash() {
     fi
     
     # Define patterns for files to ignore (don't affect setup)
+    # These are files that when changed, don't require re-running setup
     local ignore_patterns=(
-        "scripts/scenarios/"
+        # Documentation and markdown files
         "docs/"
         "*.md"
+        "README"
+        "LICENSE"
+        "CHANGELOG"
+        
+        # Test directories and files
         "test/"
         "tests/"
         "__tests__/"
         "scripts/__test"
+        "*.test.*"
+        "*.spec.*"
+        
+        # Scenario and automation content (handled separately)
+        "scripts/scenarios/"
+        "auto/"
+        "initialization/"
+        
+        # Resource definitions (don't affect main setup)
+        "scripts/resources/"
+        
+        # CLI command files (runtime only)
+        "cli/commands/"
+        
+        # Config files that are runtime-only
+        ".vrooli/service.json"
+        ".vrooli/resource-registry/"
+        ".vrooli/running-resources.json"
+        "*.json.bak"
+        "*.json.backup*"
+        "*.bak"
+        
+        # Build artifacts
         "node_modules/"
         "dist/"
         "build/"
         ".next/"
+        "api/api-server"
+        "api/*-api"
+        
+        # Data and state files
         "data/"
+        
+        # Editor and IDE files
         ".git/"
         ".vscode/"
         ".idea/"
-        "*.log"
         "*.swp"
         "*.swo"
+        
+        # Environment files
         ".env.local"
         ".env.example"
+        
+        # Logs and temporary files
+        "*.log"
+        "*.tmp"
+        "*.temp"
+        
+        # Media files
+        "*.mp4"
+        "*.mp3"
+        "*.jpg"
+        "*.png"
+        "*.gif"
+        
+        # Misc files that don't affect setup
+        "test-*.sh"
+        "*~"
+        "2"  # Weird file in your git status
     )
     
     # Function to check if a file should be ignored
@@ -138,8 +191,12 @@ manage::get_git_status_hash() {
 
 #######################################
 # Check if setup artifacts exist and are valid
+# Sets SETUP_MISSING_ARTIFACTS global variable with list of missing items
 #######################################
 manage::verify_setup_artifacts() {
+    # Reset global variable
+    SETUP_MISSING_ARTIFACTS=()
+    
     # Check for common build artifacts based on project structure
     local artifacts_missing=false
     
@@ -150,6 +207,7 @@ manage::verify_setup_artifacts() {
         # Check for common binary naming patterns
         if [[ ! -f "api/${binary_name}-api" ]] && [[ ! -f "api/${binary_name}" ]] && [[ ! -f "api/api-server" ]]; then
             log::debug "Go binary missing for ${binary_name} (checked: ${binary_name}-api, ${binary_name}, api-server)"
+            SETUP_MISSING_ARTIFACTS+=("Go binary (api/${binary_name}-api, api/${binary_name}, or api/api-server)")
             artifacts_missing=true
         fi
     fi
@@ -157,6 +215,7 @@ manage::verify_setup_artifacts() {
     # Check Node.js dependencies if package.json exists
     if [[ -f "ui/package.json" ]] && [[ ! -d "ui/node_modules" ]]; then
         log::debug "Node.js dependencies missing in ui/"
+        SETUP_MISSING_ARTIFACTS+=("Node.js dependencies (ui/node_modules)")
         artifacts_missing=true
     fi
     
@@ -170,9 +229,26 @@ manage::verify_setup_artifacts() {
 
 #######################################
 # Check if app needs setup based on git state and artifacts
+# Sets SETUP_REASONS global array with specific reasons
+#
+# Setup IS required when:
+# - Core scripts change (scripts/lib/, scripts/main/, manage.sh)
+# - Package files change (package.json, go.mod, requirements.txt)
+# - Source code changes (ui/src/, api/src/)
+# - Build configs change (webpack, vite, tsconfig, etc.)
+#
+# Setup is NOT required when:
+# - Documentation changes
+# - Test files change
+# - Resource definitions change
+# - Scenario content changes
+# - Runtime configs change
 #######################################
 manage::needs_setup() {
     local state_file="data/.setup-state"
+    
+    # Reset global array for setup reasons
+    SETUP_REASONS=()
     
     # Ensure data directory exists
     mkdir -p "$(dirname "$state_file")"
@@ -180,12 +256,14 @@ manage::needs_setup() {
     # No state file = needs setup
     if [[ ! -f "$state_file" ]]; then
         log::debug "No setup state file found, setup needed"
+        SETUP_REASONS+=("First run - no previous setup state found")
         return 0
     fi
     
     # Validate state file is proper JSON
     if ! jq empty "$state_file" 2>/dev/null; then
         log::debug "Corrupted setup state file, setup needed"
+        SETUP_REASONS+=("Corrupted setup state file - needs regeneration")
         rm -f "$state_file"
         return 0
     fi
@@ -203,17 +281,29 @@ manage::needs_setup() {
     # If git state changed, needs setup
     if [[ "$current_commit" != "$recorded_commit" ]]; then
         log::debug "Git commit changed (${recorded_commit} -> ${current_commit}), setup needed"
+        local short_old="${recorded_commit:0:8}"
+        local short_new="${current_commit:0:8}"
+        SETUP_REASONS+=("Git commit changed: ${short_old} → ${short_new}")
         return 0
     fi
     
     if [[ "$current_status" != "$recorded_status" ]]; then
         log::debug "Working tree status changed, setup needed"
+        SETUP_REASONS+=("Code changes detected in tracked files")
         return 0
     fi
     
     # Verify critical artifacts still exist
     if ! manage::verify_setup_artifacts; then
         log::debug "Setup artifacts missing or invalid, setup needed"
+        # Add specific missing artifacts to reasons
+        if [[ ${#SETUP_MISSING_ARTIFACTS[@]} -gt 0 ]]; then
+            for artifact in "${SETUP_MISSING_ARTIFACTS[@]}"; do
+                SETUP_REASONS+=("Missing: $artifact")
+            done
+        else
+            SETUP_REASONS+=("Build artifacts missing or invalid")
+        fi
         return 0
     fi
     
@@ -284,7 +374,16 @@ manage::develop_with_auto_setup() {
     
     # Check if setup is needed
     if manage::needs_setup; then
-        log::info "App requires setup (code changes detected or first run)"
+        # Display specific reasons for setup
+        log::info "Setup required for the following reason(s):"
+        if [[ ${#SETUP_REASONS[@]} -gt 0 ]]; then
+            for reason in "${SETUP_REASONS[@]}"; do
+                echo "  • $reason" >&2
+            done
+        else
+            echo "  • General setup required" >&2
+        fi
+        echo "" >&2
         
         # Determine setup mode
         if [[ "$fast_mode" == "true" ]]; then
@@ -303,7 +402,7 @@ manage::develop_with_auto_setup() {
         manage::mark_setup_complete
         log::success "Setup completed, proceeding with develop"
     else
-        log::info "Setup is current, proceeding directly to develop"
+        log::info "✓ Setup is current, proceeding directly to develop"
     fi
     
     # Now run the actual develop phase
