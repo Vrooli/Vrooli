@@ -834,7 +834,16 @@ claude_code_for() {
                 status)
                     # shellcheck disable=SC1090
                     source "${adapter_dir}/status.sh"
-                    litellm::display_status
+                    # Handle format argument for JSON/text output
+                    local format="${1:-text}"
+                    case "$format" in
+                        json|--json)
+                            litellm::get_full_status
+                            ;;
+                        text|--text|*)
+                            litellm::display_status
+                            ;;
+                    esac
                     ;;
                     
                 config)

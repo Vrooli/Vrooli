@@ -134,12 +134,26 @@ qdrant::backup::list() {
     fi
     
     # List framework backups
-    local framework_backups
-    framework_backups=$(backup::list "qdrant" 2>/dev/null || true)
+    local backup_dir="${BACKUP_ROOT:-$HOME/.vrooli/backups}/qdrant"
     
-    if [[ -n "$framework_backups" ]]; then
+    if [[ -d "$backup_dir" ]]; then
         echo "Framework-managed backups:"
-        echo "$framework_backups"
+        # List directories safely, filtering out malformed names
+        find "$backup_dir" -maxdepth 1 -type d -name "20*" 2>/dev/null | while IFS= read -r backup_path; do
+            [[ "$backup_path" == "$backup_dir" ]] && continue
+            
+            # Get just the directory name
+            local backup_name
+            backup_name=$(basename "$backup_path")
+            
+            # Skip if name looks malformed (contains special chars or is too long)
+            if [[ ${#backup_name} -gt 50 ]] || [[ "$backup_name" =~ [{}] ]]; then
+                continue
+            fi
+            
+            # Display the backup path
+            echo "$backup_path"
+        done | sort -r
     else
         echo "  No framework backups found"
     fi

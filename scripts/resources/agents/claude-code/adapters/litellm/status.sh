@@ -16,23 +16,125 @@ source "${var_LOG_FILE}"
 source "${ADAPTER_DIR}/state.sh"
 
 #######################################
+# Get LiteLLM API connection details
+# Returns: JSON with URL and key if available
+#######################################
+litellm::get_api_details() {
+    if ! command -v resource-litellm &>/dev/null; then
+        echo '{"error": "LiteLLM CLI not available"}'
+        return 1
+    fi
+    
+    local status_output
+    if status_output=$(resource-litellm status 2>&1); then
+        local url=""
+        local key=""
+        
+        # Extract URL and key from status output
+        if echo "$status_output" | grep -q "URL:"; then
+            url=$(echo "$status_output" | grep "URL:" | sed 's/.*URL: *//' | xargs)
+        fi
+        
+        if echo "$status_output" | grep -q "Master Key:"; then
+            key=$(echo "$status_output" | grep "Master Key:" | sed 's/.*Master Key: *//' | xargs)
+        fi
+        
+        if [[ -n "$url" && -n "$key" ]]; then
+            jq -n \
+                --arg url "$url" \
+                --arg key "$key" \
+                '{
+                    "url": $url,
+                    "key": $key,
+                    "available": true
+                }'
+        else
+            echo '{"error": "Could not extract API details", "available": false}'
+            return 1
+        fi
+    else
+        echo '{"error": "LiteLLM status failed", "available": false}'
+        return 1
+    fi
+}
+
+#######################################
+# Query LiteLLM API for available models
+# Returns: JSON array of models or error
+#######################################
+litellm::get_available_models() {
+    local api_details
+    api_details=$(litellm::get_api_details)
+    
+    if ! echo "$api_details" | jq -e '.available' >/dev/null 2>&1; then
+        echo '{"error": "LiteLLM API not available"}'
+        return 1
+    fi
+    
+    local url key
+    url=$(echo "$api_details" | jq -r '.url')
+    key=$(echo "$api_details" | jq -r '.key')
+    
+    # Query models endpoint
+    local models_response
+    if models_response=$(curl -s "${url}/v1/models" -H "Authorization: Bearer ${key}" 2>/dev/null); then
+        if echo "$models_response" | jq -e '.data' >/dev/null 2>&1; then
+            echo "$models_response" | jq '.data'
+        else
+            echo '{"error": "Invalid models response format"}'
+            return 1
+        fi
+    else
+        echo '{"error": "Failed to query models endpoint"}'
+        return 1
+    fi
+}
+
+#######################################
+# Query LiteLLM API for endpoint health
+# Returns: JSON with health status or error
+#######################################
+litellm::get_endpoint_health() {
+    local api_details
+    api_details=$(litellm::get_api_details)
+    
+    if ! echo "$api_details" | jq -e '.available' >/dev/null 2>&1; then
+        echo '{"error": "LiteLLM API not available"}'
+        return 1
+    fi
+    
+    local url key
+    url=$(echo "$api_details" | jq -r '.url')
+    key=$(echo "$api_details" | jq -r '.key')
+    
+    # Query health endpoint
+    local health_response
+    if health_response=$(curl -s "${url}/health" -H "Authorization: Bearer ${key}" 2>/dev/null); then
+        if echo "$health_response" | jq -e '.healthy_endpoints' >/dev/null 2>&1; then
+            echo "$health_response"
+        else
+            echo '{"error": "Invalid health response format"}'
+            return 1
+        fi
+    else
+        echo '{"error": "Failed to query health endpoint"}'
+        return 1
+    fi
+}
+
+#######################################
 # Check if LiteLLM resource is available
 # Returns: 0 if available, 1 otherwise
 #######################################
 litellm::check_resource_available() {
-    # Check if litellm resource CLI exists
-    if command -v resource-litellm &>/dev/null; then
-        # Check if it's actually running by looking for the health check
-        local status_output
-        if status_output=$(resource-litellm status 2>&1); then
-            # Look for indicators that it's running
-            if echo "$status_output" | grep -q "is running\|API is healthy"; then
-                return 0
-            fi
-        fi
-    fi
+    local api_details
+    api_details=$(litellm::get_api_details)
     
-    return 1
+    if echo "$api_details" | jq -e '.available' >/dev/null 2>&1; then
+        return 0
+    else
+        return 1
+    fi
 }
 
 #######################################
@@ -136,6 +238,37 @@ litellm::get_full_status() {
     local preferred_model
     preferred_model=$(litellm::get_config "preferred_model")
     
+    # Get model and endpoint information if available
+    local available_models="null"
+    local endpoint_health="null"
+    local api_details="null"
+    
+    if [[ "$resource_available" == "true" ]]; then
+        # Get API connection details
+        local api_response
+        if api_response=$(litellm::get_api_details 2>/dev/null); then
+            if echo "$api_response" | jq -e '.available' >/dev/null 2>&1; then
+                api_details="$api_response"
+                
+                # Get available models
+                local models_response
+                if models_response=$(litellm::get_available_models 2>/dev/null); then
+                    if ! echo "$models_response" | jq -e '.error' >/dev/null 2>&1; then
+                        available_models="$models_response"
+                    fi
+                fi
+                
+                # Get endpoint health
+                local health_response
+                if health_response=$(litellm::get_endpoint_health 2>/dev/null); then
+                    if ! echo "$health_response" | jq -e '.error' >/dev/null 2>&1; then
+                        endpoint_health="$health_response"
+                    fi
+                fi
+            fi
+        fi
+    fi
+    
     # Build status JSON
     cat <<-EOF
 	{
@@ -153,7 +286,10 @@ litellm::get_full_status() {
 	    "auto_fallback_enabled": $auto_fallback,
 	    "preferred_model": "$preferred_model",
 	    "last_error": $(echo "$state_json" | jq '.last_error'),
-	    "last_error_time": $(echo "$state_json" | jq '.last_error_time')
+	    "last_error_time": $(echo "$state_json" | jq '.last_error_time'),
+	    "api_details": $api_details,
+	    "available_models": $available_models,
+	    "endpoint_health": $endpoint_health
 	}
 	EOF
 }
@@ -231,6 +367,78 @@ litellm::display_status() {
     log::info "   Auto-fallback: $(echo "$status_json" | jq -r '.auto_fallback_enabled')"
     log::info "   Preferred Model: $(echo "$status_json" | jq -r '.preferred_model')"
     
+    # API Details
+    local api_details
+    api_details=$(echo "$status_json" | jq -r '.api_details')
+    if [[ "$api_details" != "null" ]]; then
+        echo
+        log::info "🔗 API Connection:"
+        log::info "   URL: $(echo "$api_details" | jq -r '.url')"
+        log::info "   Key: $(echo "$api_details" | jq -r '.key' | sed 's/.*-/***-/')"
+    fi
+    
+    # Available Models
+    local available_models
+    available_models=$(echo "$status_json" | jq -r '.available_models')
+    if [[ "$available_models" != "null" ]]; then
+        echo
+        log::info "🤖 Available Models:"
+        local model_count
+        model_count=$(echo "$available_models" | jq '. | length')
+        log::info "   Total: $model_count models"
+        
+        echo "$available_models" | jq -r '.[] | "   • " + .id + " (owned by: " + .owned_by + ")"' | head -10
+        
+        if [[ $model_count -gt 10 ]]; then
+            log::info "   ... and $((model_count - 10)) more models"
+        fi
+        
+        # Show model mappings
+        echo
+        log::info "🔄 Claude → LiteLLM Model Mappings:"
+        local model_mappings
+        model_mappings=$(litellm::get_config "model_mappings" 2>/dev/null || echo "{}")
+        
+        if [[ "$model_mappings" != "{}" && "$model_mappings" != "null" ]]; then
+            echo "$model_mappings" | jq -r 'to_entries[] | "   " + .key + " → " + .value'
+        else
+            # Show default mappings
+            log::info "   claude-3-5-sonnet → claude-3-5-sonnet-20241022"
+            log::info "   claude-3-5-haiku → claude-3-haiku-20241022"
+            log::info "   claude-3-opus → claude-3-opus-20240229"
+            log::info "   claude-3-5-sonnet-latest → claude-3-5-sonnet-20241022"
+            log::info "   (default mappings - configure custom ones with 'config set')"
+        fi
+    fi
+    
+    # Endpoint Health
+    local endpoint_health
+    endpoint_health=$(echo "$status_json" | jq -r '.endpoint_health')
+    if [[ "$endpoint_health" != "null" ]]; then
+        echo
+        log::info "💚 Endpoint Health:"
+        
+        local healthy_count unhealthy_count
+        healthy_count=$(echo "$endpoint_health" | jq -r '.healthy_count // 0')
+        unhealthy_count=$(echo "$endpoint_health" | jq -r '.unhealthy_count // 0')
+        
+        log::info "   Healthy: $healthy_count, Unhealthy: $unhealthy_count"
+        
+        # Show healthy endpoints
+        if [[ $healthy_count -gt 0 ]]; then
+            echo
+            log::info "   Healthy Endpoints:"
+            echo "$endpoint_health" | jq -r '.healthy_endpoints[]? | "   ✅ " + .model + (if .api_base then " (" + .api_base + ")" else "" end)'
+        fi
+        
+        # Show unhealthy endpoints
+        if [[ $unhealthy_count -gt 0 ]]; then
+            echo
+            log::warn "   Unhealthy Endpoints:"
+            echo "$endpoint_health" | jq -r '.unhealthy_endpoints[]? | "   ❌ " + .model + (if .api_base then " (" + .api_base + ")" else "" end)'
+        fi
+    fi
+    
     # Last error
     local last_error
     last_error=$(echo "$status_json" | jq -r '.last_error // null')
@@ -257,6 +465,9 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
 fi
 
 # Export functions
+export -f litellm::get_api_details
+export -f litellm::get_available_models
+export -f litellm::get_endpoint_health
 export -f litellm::check_resource_available
 export -f litellm::test_connection
 export -f litellm::get_full_status

@@ -279,6 +279,9 @@ qdrant::search::by_vector() {
     
     # Format and display results
     qdrant::search::format_results "$response"
+    
+    # Also return the raw JSON for programmatic use
+    echo "$response" | jq '.result' 2>/dev/null
 }
 
 #######################################
@@ -291,11 +294,21 @@ qdrant::search::by_vector() {
 qdrant::search::format_results() {
     local response="$1"
     
-    # Extract results
-    local results
-    results=$(echo "$response" | jq '.result[]' 2>/dev/null)
+    # Check if response has a result field
+    local has_results
+    has_results=$(echo "$response" | jq -r 'has("result")' 2>/dev/null)
     
-    if [[ -z "$results" ]]; then
+    if [[ "$has_results" != "true" ]]; then
+        log::info "Invalid response format"
+        echo "[]"
+        return 0
+    fi
+    
+    # Check if result array is empty
+    local result_count
+    result_count=$(echo "$response" | jq '.result | length' 2>/dev/null || echo "0")
+    
+    if [[ "$result_count" -eq 0 ]]; then
         log::info "No results found"
         echo "[]"
         return 0
@@ -304,9 +317,35 @@ qdrant::search::format_results() {
     echo "=== Search Results ==="
     echo
     
+    local result_array
+    result_array=$(echo "$response" | jq '.result' 2>/dev/null)
+    
+    if [[ -z "$result_array" ]] || [[ "$result_array" == "null" ]] || [[ "$result_array" == "[]" ]]; then
+        log::info "No results found"
+        echo "[]"
+        return 0
+    fi
+    
     local count=0
-    while IFS= read -r result; do
-        ((count++))
+    
+    # Get number of results
+    local num_results
+    num_results=$(echo "$result_array" | jq '. | length' 2>/dev/null || echo "0")
+    num_results="${num_results// /}"  # Remove any whitespace
+    
+    # Process each result by index
+    if [[ "$num_results" -gt 0 ]]; then
+        local seq_end=$((num_results - 1))
+        local i
+        for i in $(seq 0 "$seq_end"); do
+        count=$((count + 1))
+        
+        local result
+        result=$(echo "$result_array" | jq ".[$i]" 2>/dev/null)
+        
+        if [[ -z "$result" ]] || [[ "$result" == "null" ]]; then
+            continue
+        fi
         
         local score
         local id
@@ -321,18 +360,31 @@ qdrant::search::format_results() {
         echo "   Score: $score"
         
         # Display payload if available
-        if [[ "$payload" != "{}" ]]; then
+        if [[ "$payload" != "{}" ]] && [[ "$payload" != "null" ]]; then
             echo "   Data:"
-            echo "$payload" | jq -r 'to_entries[] | "     • \(.key): \(.value)"' 2>/dev/null || echo "     $payload"
+            # Handle different payload structures
+            if echo "$payload" | jq -e 'type == "object"' >/dev/null 2>&1; then
+                # For nested objects, show key-value pairs
+                echo "$payload" | jq -r 'to_entries[] | "     • \(.key): \(.value | if type == "object" or type == "array" then tojson else tostring end)"' 2>/dev/null || echo "     $payload"
+            else
+                # For simple values, just display
+                echo "     $payload"
+            fi
         fi
         
         echo
-    done <<< "$(echo "$response" | jq -c '.result[]' 2>/dev/null)"
+        done
+    fi
     
-    echo "Total results: $count"
+    # Note: count won't persist outside the pipe, so count results separately
+    local total_count
+    total_count=$(echo "$result_array" | jq '. | length' 2>/dev/null || echo "0")
+    echo "Total results: $total_count"
+    echo
     
-    # Return results as JSON for programmatic use
-    echo "$response" | jq '.result'
+    # Return results as JSON for programmatic use (but don't display on screen)
+    # This is captured by the calling function if needed
+    return 0
 }
 
 #######################################
@@ -357,17 +409,53 @@ qdrant::search::auto_detect_collection() {
         echo "$collections"
         return 0
     else
-        # Multiple collections - try to find a default
-        # Prefer collections with standard names
+        # Multiple collections - try to find one compatible with available models
+        
+        # First, get available embedding model dimensions
+        local available_dims=""
+        if command -v qdrant::models::get_embedding_models >/dev/null 2>&1; then
+            available_dims=$(qdrant::models::get_embedding_models | jq -r '.[].dimensions' 2>/dev/null | sort -u)
+        fi
+        
+        # If we have available models, try to find compatible collections
+        if [[ -n "$available_dims" ]]; then
+            while IFS= read -r collection; do
+                local coll_dims
+                coll_dims=$(qdrant::collections::get_dimensions "$collection" 2>/dev/null)
+                
+                # Check if collection dimensions match any available model
+                if echo "$available_dims" | grep -q "^${coll_dims}$"; then
+                    log::debug "Auto-selected collection '$collection' with compatible dimensions ($coll_dims)"
+                    echo "$collection"
+                    return 0
+                fi
+            done <<< "$collections"
+        fi
+        
+        # Fallback: Try standard names but check compatibility
         for default_name in "general_embeddings" "embeddings" "vectors" "default"; do
             if echo "$collections" | grep -q "^${default_name}$"; then
-                echo "$default_name"
-                return 0
+                # Check if this collection is compatible with available models
+                local coll_dims
+                coll_dims=$(qdrant::collections::get_dimensions "$default_name" 2>/dev/null)
+                
+                if [[ -n "$available_dims" ]]; then
+                    if echo "$available_dims" | grep -q "^${coll_dims}$"; then
+                        echo "$default_name"
+                        return 0
+                    else
+                        log::debug "Collection '$default_name' exists but is not compatible (needs $coll_dims dims)"
+                    fi
+                else
+                    # No models available to check, just use the default
+                    echo "$default_name"
+                    return 0
+                fi
             fi
         done
         
-        # No default found
-        log::debug "Multiple collections found, cannot auto-select"
+        # No compatible collection found
+        log::debug "Multiple collections found, none are compatible with available models"
         return 1
     fi
 }

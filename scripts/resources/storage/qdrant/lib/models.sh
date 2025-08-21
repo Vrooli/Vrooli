@@ -185,7 +185,7 @@ qdrant::models::detect_dimensions() {
     
     log::debug "Detecting dimensions for model: $model_name"
     
-    # Try to generate a test embedding
+    # Try to generate a test embedding with timeout
     local test_text="test"
     local request_body
     request_body=$(jq -n \
@@ -194,7 +194,10 @@ qdrant::models::detect_dimensions() {
         '{model: $model, prompt: $prompt}')
     
     local response
-    response=$(http::request "POST" "${ollama_url}/api/embeddings" "$request_body" "Content-Type: application/json" 2>/dev/null || echo "")
+    # Use timeout command to prevent hanging (5 seconds should be enough for a simple test)
+    response=$(timeout 5 curl -s -X POST "${ollama_url}/api/embeddings" \
+        -H "Content-Type: application/json" \
+        -d "$request_body" 2>/dev/null || echo "")
     
     if [[ -n "$response" ]]; then
         # Check if response contains an error
