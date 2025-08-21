@@ -57,27 +57,20 @@ cli::register_command "help" "Show this help message with Qdrant examples" "qdra
 cli::register_command "inject" "Inject data into Qdrant" "qdrant_inject" "modifies-system"
 
 # Collection commands
-cli::register_command "collections" "Manage collections (list/create/info/delete)" "qdrant_collections_dispatch"
-cli::register_command "collections-list" "List all collections" "qdrant_list_collections"
-cli::register_command "collections-create" "Create a new collection" "qdrant_create_collection" "modifies-system"
-cli::register_command "collections-info" "Show collection information" "qdrant_collection_info"
-cli::register_command "collections-delete" "Delete a collection" "qdrant_delete_collection" "modifies-system"
-cli::register_command "collections-search" "Search in collections" "qdrant_collections_search"
+cli::register_command "collections" "Manage collections (list/create/info/delete/search)" "qdrant_collections_dispatch"
 
 # Embedding commands
 cli::register_command "embed" "Generate embeddings from text" "qdrant_embed"
 cli::register_command "embed-info" "Show embedding model information" "qdrant_embed_info"
 
 # Model commands
-cli::register_command "models" "List available embedding models" "qdrant_models_list"
-cli::register_command "models-info" "Show model information" "qdrant_models_info"
+cli::register_command "models" "Manage embedding models (list/info)" "qdrant_models_dispatch"
 
 # Backup commands
-cli::register_command "create-backup" "Create a backup snapshot" "qdrant_create_backup" "modifies-system"
-cli::register_command "list-backups" "List all backups" "qdrant_list_backups"
+cli::register_command "backup" "Manage backups (create/list)" "qdrant_backup_dispatch"
 
 # Other commands
-cli::register_command "credentials" "Show n8n credentials for Qdrant" "qdrant_credentials"
+cli::register_command "credentials" "Show connection details for Qdrant" "qdrant_credentials"
 cli::register_command "uninstall" "Uninstall Qdrant (requires --force)" "qdrant_uninstall" "modifies-system"
 
 ################################################################################
@@ -227,9 +220,28 @@ qdrant_collections_dispatch() {
         search)
             qdrant_collections_search "$@"
             ;;
+        help|--help|-h)
+            echo "Usage: resource-qdrant collections <subcommand> [options]"
+            echo ""
+            echo "Subcommands:"
+            echo "  list      List all collections"
+            echo "  create    Create a new collection"
+            echo "  info      Show collection information"
+            echo "  delete    Delete a collection"
+            echo "  search    Search in collections"
+            echo ""
+            echo "Examples:"
+            echo "  resource-qdrant collections list"
+            echo "  resource-qdrant collections create my-docs --model nomic-embed-text"
+            echo "  resource-qdrant collections info my-collection"
+            echo "  resource-qdrant collections delete old-vectors"
+            echo "  resource-qdrant collections search \"machine learning\""
+            ;;
         *)
             log::error "Unknown collections subcommand: $subcommand"
+            echo ""
             echo "Available subcommands: list, create, info, delete, search"
+            echo "Use 'resource-qdrant collections help' for more information"
             return 1
             ;;
     esac
@@ -332,6 +344,40 @@ qdrant_collection_info() {
         log::error "Collection info not available"
         return 1
     fi
+}
+
+# Backup dispatcher for subcommands
+qdrant_backup_dispatch() {
+    local subcommand="${1:-list}"
+    shift || true
+    
+    case "$subcommand" in
+        create)
+            qdrant_create_backup "$@"
+            ;;
+        list)
+            qdrant_list_backups "$@"
+            ;;
+        help|--help|-h)
+            echo "Usage: resource-qdrant backup <subcommand> [options]"
+            echo ""
+            echo "Subcommands:"
+            echo "  create    Create a backup snapshot"
+            echo "  list      List all backups"
+            echo ""
+            echo "Examples:"
+            echo "  resource-qdrant backup list"
+            echo "  resource-qdrant backup create"
+            echo "  resource-qdrant backup create my-backup-name"
+            ;;
+        *)
+            log::error "Unknown backup subcommand: $subcommand"
+            echo ""
+            echo "Available subcommands: create, list"
+            echo "Use 'resource-qdrant backup help' for more information"
+            return 1
+            ;;
+    esac
 }
 
 # Create backup
@@ -437,6 +483,40 @@ qdrant_embed_info() {
     fi
 }
 
+# Models dispatcher for subcommands
+qdrant_models_dispatch() {
+    local subcommand="${1:-list}"
+    shift || true
+    
+    case "$subcommand" in
+        list)
+            qdrant_models_list "$@"
+            ;;
+        info)
+            qdrant_models_info "$@"
+            ;;
+        help|--help|-h)
+            echo "Usage: resource-qdrant models <subcommand> [options]"
+            echo ""
+            echo "Subcommands:"
+            echo "  list      List available embedding models"
+            echo "  info      Show model information"
+            echo ""
+            echo "Examples:"
+            echo "  resource-qdrant models list"
+            echo "  resource-qdrant models info nomic-embed-text"
+            echo "  resource-qdrant models info mxbai-embed-large"
+            ;;
+        *)
+            log::error "Unknown models subcommand: $subcommand"
+            echo ""
+            echo "Available subcommands: list, info"
+            echo "Use 'resource-qdrant models help' for more information"
+            return 1
+            ;;
+    esac
+}
+
 # List available models
 qdrant_models_list() {
     if command -v qdrant::models::info &>/dev/null; then
@@ -494,13 +574,13 @@ qdrant_show_help() {
     echo "  resource-qdrant embed --from-file document.txt            # Embed file content"
     echo ""
     echo "🤖 Model Management:"
-    echo "  resource-qdrant models                                    # List embedding models"
-    echo "  resource-qdrant models-info nomic-embed-text              # Show model details"
+    echo "  resource-qdrant models list                               # List embedding models"
+    echo "  resource-qdrant models info nomic-embed-text              # Show model details"
     echo ""
     echo "💾 Data Management:"
     echo "  resource-qdrant inject vectors.json                       # Import vector data"
-    echo "  resource-qdrant create-backup                             # Create backup"
-    echo "  resource-qdrant list-backups                              # List all backups"
+    echo "  resource-qdrant backup create                              # Create backup"
+    echo "  resource-qdrant backup list                               # List all backups"
     echo ""
     echo "📊 Monitoring:"
     echo "  resource-qdrant status                                    # Check service status"

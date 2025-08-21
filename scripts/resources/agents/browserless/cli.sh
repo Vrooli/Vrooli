@@ -116,21 +116,21 @@ case "${1:-}" in
         esac
         ;;
     workflow)
-        source "$BROWSERLESS_CLI_DIR/lib/workflow/flow-compiler.sh"
+        source "$BROWSERLESS_CLI_DIR/lib/workflow/interpreter.sh"
         case "${2:-}" in
-            compile)
-                workflow::compile_and_store_with_flow_control "${3:-}" "${4:-}"
+            run|execute)
+                workflow::run "${3:-}" "${4:-}"
                 ;;
             list)
                 browserless::list_n8n_workflows
                 ;;
             *)
                 echo "📚 Workflow Commands"
-                echo "Usage: $0 workflow {compile|list} [args]"
+                echo "Usage: $0 workflow {run|list} [args]"
                 echo ""
                 echo "Commands:"
-                echo "  compile <workflow.yaml> [output-dir] - Compile workflow with flow control"
-                echo "  list                                  - List compiled workflows"
+                echo "  run <workflow.yaml> [session-name] - Execute workflow using interpreter"
+                echo "  list                              - List available workflows"
                 exit 1
                 ;;
         esac

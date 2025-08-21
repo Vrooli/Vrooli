@@ -16,17 +16,17 @@ BROWSERLESS_DIR="$(dirname "$(dirname "$N8N_ADAPTER_DIR")")"
 # Source required libraries
 source "${BROWSERLESS_DIR}/lib/common.sh"
 
-# Source flow control libraries with proper error checking
-if [[ -f "${BROWSERLESS_DIR}/lib/workflow/flow-compiler.sh" ]]; then
-    source "${BROWSERLESS_DIR}/lib/workflow/flow-compiler.sh"
+# Source atomic operations libraries
+if [[ -f "${BROWSERLESS_DIR}/lib/browser-ops.sh" ]]; then
+    source "${BROWSERLESS_DIR}/lib/browser-ops.sh"
 else
-    log::warn "Flow compiler not found - YAML workflows will use fallback mode"
+    log::warn "Browser operations library not found - using fallback mode"
 fi
 
-if [[ -f "${BROWSERLESS_DIR}/lib/workflow/flow-parser.sh" ]]; then
-    source "${BROWSERLESS_DIR}/lib/workflow/flow-parser.sh"
+if [[ -f "${BROWSERLESS_DIR}/lib/session-manager.sh" ]]; then
+    source "${BROWSERLESS_DIR}/lib/session-manager.sh"
 else
-    log::warn "Flow parser not found - YAML workflows will use fallback mode"
+    log::warn "Session manager library not found - using fallback mode"
 fi
 
 # Source secrets system for N8n authentication
@@ -76,7 +76,7 @@ browserless::execute_n8n_workflow() {
     local timeout="${3:-60000}"
     local input_data="${4:-}"
     
-    log::header "🚀 Executing N8n Workflow via Flow Control"
+    log::header "🚀 Executing N8n Workflow via Atomic Operations"
     
     # Initialize workflows if needed
     n8n::init_workflows
@@ -93,115 +93,52 @@ browserless::execute_n8n_workflow() {
         return 1
     fi
     
-    # Prepare parameters for YAML workflow
-    local params_json
-    
-    # Handle input_data - it might be a string or empty
-    local input_json="{}"
-    if [[ -n "$input_data" ]]; then
-        # Validate it's valid JSON
-        if echo "$input_data" | jq '.' >/dev/null 2>&1; then
-            input_json="$input_data"
-        else
-            log::warn "Invalid JSON in input_data, using empty object"
-        fi
-    fi
-    
-    params_json=$(jq -n \
-        --arg id "$workflow_id" \
-        --arg url "$n8n_url" \
-        --arg timeout "$timeout" \
-        --argjson input "$input_json" \
-        '{
-            workflow_id: $id,
-            n8n_url: $url,
-            timeout: ($timeout | tonumber),
-            input_data: $input
-        }')
-    
     log::info "Workflow ID: $workflow_id"
     log::info "N8n URL: $n8n_url"
     log::info "Timeout: ${timeout}ms"
     
-    # Execute using YAML workflow with runtime compilation
-    local workflow_yaml="${N8N_WORKFLOWS_DIR}/execute-workflow.yaml"
+    # Get N8n credentials from environment or secrets
+    local n8n_email n8n_password
+    if command -v secrets::get_key >/dev/null 2>&1; then
+        n8n_email=$(secrets::get_key "N8N_EMAIL" 2>/dev/null || echo "")
+        n8n_password=$(secrets::get_key "N8N_PASSWORD" 2>/dev/null || echo "")
+    fi
+    n8n_email="${n8n_email:-${N8N_EMAIL:-}}"
+    n8n_password="${n8n_password:-${N8N_PASSWORD:-}}"
+    
+    # Execute using atomic operations
+    local execute_script="${N8N_ADAPTER_DIR}/execute-atomic.sh"
     local result
     
-    if [[ -f "$workflow_yaml" ]]; then
-        log::info "Using flow control workflow: execute-workflow.yaml"
+    if [[ -f "$execute_script" ]]; then
+        log::info "Using atomic operations for workflow execution"
         
-        # Execute via browserless with runtime-compiled workflow
-        result=$(browserless::execute_flow_workflow "$workflow_yaml" "$params_json")
-        local exit_code=$?
+        # Build command arguments  
+        local cmd_args=("--id" "$workflow_id" "--url" "$n8n_url" "--timeout" "$((timeout/1000))")
         
-        # Check if curl/execution failed completely
-        if [[ $exit_code -ne 0 ]]; then
-            log::error "❌ Failed to connect to browserless service"
-            echo "$result" | jq '.' 2>/dev/null || echo "$result"
-            return 1
+        if [[ -n "$n8n_email" ]]; then
+            cmd_args+=("--email" "$n8n_email")
         fi
         
-        # Parse the result to determine actual success
-        local is_json=false
-        local error_msg=""
-        
-        # Check if result is valid JSON
-        if echo "$result" | jq '.' >/dev/null 2>&1; then
-            is_json=true
-            # Check for error indicators in JSON response
-            error_msg=$(echo "$result" | jq -r '.error // .message // ""' 2>/dev/null)
-            local success_flag=$(echo "$result" | jq -r '.success // ""' 2>/dev/null)
-            
-            if [[ "$success_flag" == "false" ]] || [[ -n "$error_msg" ]]; then
-                log::error "❌ Workflow execution failed"
-                if [[ -n "$error_msg" ]]; then
-                    log::error "Error: $error_msg"
-                fi
-                echo "$result" | jq '.'
-                return 1
-            elif [[ "$success_flag" == "true" ]]; then
-                log::success "✅ Workflow executed successfully"
-                echo "$result" | jq '.'
-                return 0
-            fi
+        if [[ -n "$n8n_password" ]]; then
+            cmd_args+=("--password" "$n8n_password")
         fi
         
-        # Handle non-JSON responses (likely error pages or "Not Found")
-        if [[ "$result" == "Not Found" ]] || [[ "$result" == *"404"* ]] || [[ "$result" == *"not found"* ]]; then
-            log::error "❌ Workflow not found: $workflow_id"
-            log::info "Possible causes:"
-            log::info "  • Workflow ID '$workflow_id' doesn't exist in N8n"
-            log::info "  • N8n is not running at $n8n_url"
-            log::info "  • Browserless couldn't connect to N8n"
-            log::info ""
-            log::info "To debug:"
-            log::info "  1. Check if N8n is running: curl $n8n_url"
-            log::info "  2. List available workflows: $0 list"
-            log::info "  3. Verify workflow ID in N8n UI"
-            return 1
-        elif [[ "$result" == *"<html"* ]] || [[ "$result" == *"<!DOCTYPE"* ]]; then
-            log::error "❌ Received HTML response instead of workflow result"
-            log::info "This usually means:"
-            log::info "  • N8n returned an error page"
-            log::info "  • Authentication is required"
-            log::info "  • The workflow URL is incorrect"
-            log::debug "HTML response (first 200 chars): ${result:0:200}..."
-            return 1
-        elif [[ -z "$result" ]]; then
-            log::error "❌ Empty response from browserless"
-            log::info "Possible causes:"
-            log::info "  • Browserless container crashed"
-            log::info "  • Workflow compilation failed"
-            log::info "  • Network timeout"
-            return 1
+        # Execute the workflow
+        if "$execute_script" "${cmd_args[@]}"; then
+            result='{"success": true, "message": "Workflow executed successfully"}'
+            log::success "✅ Workflow executed successfully"
+            echo "$result" | jq '.'
+            return 0
         else
-            # Unknown response format
-            log::warn "⚠️ Workflow execution completed with unknown result format"
-            log::info "Response: $result"
+            result='{"success": false, "message": "Workflow execution failed"}'
+            log::error "❌ Workflow execution failed"
+            echo "$result" | jq '.'
             return 1
         fi
     else
-        log::error "Workflow definition not found: $workflow_yaml"
+        log::error "Atomic execution script not found: $execute_script"
+        log::info "Please ensure the browserless resource is properly installed"
         return 1
     fi
 }
@@ -316,227 +253,10 @@ n8n::export_workflow() {
     log::info "Exporting workflow: $workflow_id"
     log::info "Output: $output_file"
     
-    # Execute export workflow
-    local workflow_yaml="${N8N_WORKFLOWS_DIR}/export-workflow.yaml"
-    
-    if [[ -f "$workflow_yaml" ]]; then
-        local result
-        result=$(browserless::execute_flow_workflow "$workflow_yaml" "$params_json")
-        
-        if [[ $? -eq 0 ]]; then
-            log::success "✅ Workflow exported to $output_file"
-            return 0
-        else
-            log::error "❌ Failed to export workflow"
-            return 1
-        fi
-    else
-        log::error "Export workflow definition not found"
-        return 1
-    fi
-}
-
-#######################################
-# Execute flow control workflow via browserless
-# Internal helper function
-# Arguments:
-#   $1 - Workflow YAML file
-#   $2 - Parameters JSON
-# Returns:
-#   Execution result JSON
-#######################################
-browserless::execute_flow_workflow() {
-    local workflow_yaml="${1:?Workflow YAML required}"
-    local params_json="${2:-{}}"
-    
-    # Ensure output directory exists
-    local output_dir="${BROWSERLESS_DATA_DIR}/n8n-executions/$(date +%Y%m%d-%H%M%S)"
-    mkdir -p "$output_dir"
-    
-    # Runtime compile YAML workflow to JavaScript
-    local compiled_js
-    log::debug "Checking if flow control functions are available..."
-    
-    if declare -f workflow::compile_with_flow_control >/dev/null 2>&1; then
-        log::debug "✓ workflow::compile_with_flow_control function found"
-        if declare -f workflow::parse_with_flow_control >/dev/null 2>&1; then
-            log::debug "✓ workflow::parse_with_flow_control function found"
-            
-            # Parse and compile workflow at runtime
-            local workflow_json
-            log::debug "Parsing YAML workflow: $workflow_yaml"
-            workflow_json=$(workflow::parse_with_flow_control "$workflow_yaml" 2>/dev/null)
-            
-            if [[ $? -eq 0 ]]; then
-                log::debug "✓ YAML parsing successful ($(echo "$workflow_json" | wc -c) chars)"
-                echo "[WORKFLOWS-DEBUG] First 200 chars of parsed JSON:" >&2
-                echo "$workflow_json" | head -c 200 >&2
-                echo "" >&2
-                echo "[WORKFLOWS-DEBUG] Testing JSON validity with jq..." >&2
-                if echo "$workflow_json" | jq '.' >/dev/null 2>&1; then
-                    echo "[WORKFLOWS-DEBUG] ✓ JSON is valid" >&2
-                else
-                    echo "[WORKFLOWS-DEBUG] ✗ JSON is invalid!" >&2
-                    echo "$workflow_json" | head -c 500 >&2
-                    echo "" >&2
-                fi
-                
-                log::debug "Compiling workflow to JavaScript..."
-                compiled_js=$(workflow::compile_with_flow_control "$workflow_json" 2>&1)
-                if [[ $? -eq 0 ]] && [[ -n "$compiled_js" ]] && [[ ! "$compiled_js" =~ "ERROR" ]]; then
-                    log::debug "✓ Workflow compilation successful"
-                else
-                    log::error "✗ Workflow compilation failed: $compiled_js"
-                    compiled_js=""  # Clear it to trigger fallback
-                fi
-            else
-                log::error "✗ YAML parsing failed: $workflow_json"
-            fi
-        else
-            log::error "✗ workflow::parse_with_flow_control function missing"
-        fi
-    else
-        log::error "✗ workflow::compile_with_flow_control function missing"
-    fi
-    
-    # Fallback to direct execution if compilation fails
-    if [[ -z "$compiled_js" ]]; then
-        log::debug "Flow control compiler not available, using direct JavaScript fallback"
-        
-        # Use the direct JavaScript implementation
-        local direct_js_file="${N8N_ADAPTER_DIR}/workflows/execute-workflow-direct.json"
-        if [[ -f "$direct_js_file" ]]; then
-            log::info "Using direct JavaScript implementation for workflow execution"
-            
-            # Get N8n credentials from secrets system
-            local n8n_email n8n_password
-            if command -v secrets::get_key >/dev/null 2>&1; then
-                n8n_email=$(secrets::get_key "N8N_EMAIL" 2>/dev/null || echo "")
-                n8n_password=$(secrets::get_key "N8N_PASSWORD" 2>/dev/null || echo "")
-            fi
-            
-            # Fallback to environment variables if secrets not available
-            n8n_email="${n8n_email:-${N8N_EMAIL:-}}"
-            n8n_password="${n8n_password:-${N8N_PASSWORD:-}}"
-            
-            # Create environment context
-            local env_context
-            env_context=$(jq -n \
-                --arg email "$n8n_email" \
-                --arg password "$n8n_password" \
-                '{N8N_EMAIL: $email, N8N_PASSWORD: $password}')
-            
-            # Parse parameters
-            local workflow_params
-            workflow_params=$(jq -n \
-                --arg id "$workflow_id" \
-                --arg url "$n8n_url" \
-                --arg timeout "$timeout" \
-                '{workflow_id: $id, n8n_url: $url, timeout: ($timeout | tonumber)}')
-            
-            # Execute using direct JavaScript
-            local browserless_port="${BROWSERLESS_PORT:-4110}"
-            local response
-            response=$(curl -s -X POST \
-                -H "Content-Type: application/json" \
-                -d "{
-                    \"code\": $(cat "$direct_js_file" | jq -r .code | jq -Rs .),
-                    \"context\": {
-                        \"outputDir\": \"$output_dir\",
-                        \"params\": $workflow_params,
-                        \"env\": $env_context
-                    }
-                }" \
-                "http://localhost:${browserless_port}/chrome/function" 2>/dev/null)
-            
-            if [[ -n "$response" ]]; then
-                echo "$response" | jq '.'
-                
-                # Check for success
-                local success_flag=$(echo "$response" | jq -r '.success // false')
-                if [[ "$success_flag" == "true" ]]; then
-                    log::success "✅ Workflow executed successfully"
-                    return 0
-                else
-                    local error_msg=$(echo "$response" | jq -r '.error // "Unknown error"')
-                    log::error "❌ Workflow execution failed: $error_msg"
-                    return 1
-                fi
-            else
-                log::error "❌ No response from browserless"
-                return 1
-            fi
-            
-            # Exit early since we handled the execution
-            return $?
-        else
-            compiled_js=$(cat <<'EOF'
-export default async ({ page, context }) => {
-    // Fallback execution - flow control compiler not available
-    return {
-        success: false,
-        error: "Flow control compiler not available - YAML workflows require flow control system",
-        timestamp: new Date().toISOString()
-    };
-};
-EOF
-            )
-        fi
-    fi
-    
-    # Create a wrapper that injects parameters from context
-    # This avoids sed issues with special characters in JSON
-    local wrapped_js="
-export default async ({ page, context }) => {
-    // Inject parameters and context into the workflow
-    const params = context.params || {};
-    const outputDir = context.outputDir || '/tmp';
-    const env = context.env || {};
-    
-    // Runtime-compiled workflow function
-    const workflowFn = $compiled_js;
-    
-    // Execute with injected context including environment
-    return await workflowFn({ page, context: { ...context, params, outputDir, env } });
-};
-"
-    
-    # Get N8n credentials from secrets system
-    local n8n_email n8n_password
-    if command -v secrets::get_key >/dev/null 2>&1; then
-        n8n_email=$(secrets::get_key "N8N_EMAIL" 2>/dev/null || echo "")
-        n8n_password=$(secrets::get_key "N8N_PASSWORD" 2>/dev/null || echo "")
-    fi
-    
-    # Fallback to environment variables if secrets not available
-    n8n_email="${n8n_email:-${N8N_EMAIL:-}}"
-    n8n_password="${n8n_password:-${N8N_PASSWORD:-}}"
-    
-    # Create environment context for YAML workflow
-    local env_context
-    env_context=$(jq -n \
-        --arg email "$n8n_email" \
-        --arg password "$n8n_password" \
-        '{
-            N8N_EMAIL: $email,
-            N8N_PASSWORD: $password
-        }')
-    
-    # Execute via browserless API
-    local response
-    response=$(curl -s -X POST \
-        -H "Content-Type: application/json" \
-        -d "{
-            \"code\": $(echo "$wrapped_js" | jq -Rs .),
-            \"context\": {
-                \"outputDir\": \"$output_dir\",
-                \"params\": $params_json,
-                \"env\": $env_context
-            }
-        }" \
-        "http://localhost:${BROWSERLESS_PORT}/function" 2>/dev/null)
-    
-    echo "$response"
+    # TODO: Implement export using atomic operations
+    log::error "Export functionality is being migrated to atomic operations"
+    log::info "This feature will be available soon"
+    return 1
 }
 
 # Export functions for use by adapter
@@ -544,4 +264,3 @@ export -f browserless::execute_n8n_workflow
 export -f n8n::list_workflows
 export -f n8n::export_workflow
 export -f n8n::init_workflows
-export -f browserless::execute_flow_workflow

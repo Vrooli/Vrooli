@@ -200,6 +200,10 @@ n8n::execute_workflow() {
                 ;;
             --timeout)
                 timeout="$2"
+                # If timeout is less than 1000, assume it's in seconds and convert to milliseconds
+                if [[ "$timeout" -lt 1000 ]]; then
+                    timeout=$((timeout * 1000))
+                fi
                 shift 2
                 ;;
             --session)

@@ -1,0 +1,45 @@
+name: Test Interpreter Workflow
+description: Simple test of the new interpreter with atomic operations
+
+steps:
+  - name: Navigate to Google
+    action: navigate
+    url: https://www.google.com
+    
+  - name: Wait for page load
+    action: wait
+    duration: 2
+    
+  - name: Check if search box exists
+    action: if
+    condition: "selector:input[name='q']"
+    then: search_found
+    else: search_not_found
+    
+  - name: search_not_found
+    label: search_not_found
+    action: log
+    message: "Search box not found!"
+    
+  - name: Skip to end if not found
+    action: goto
+    label: end
+    
+  - name: search_found
+    label: search_found
+    action: log
+    message: "Search box found, performing search"
+    
+  - name: Type search query
+    action: fill
+    selector: "input[name='q']"
+    text: "browserless automation"
+    
+  - name: Take screenshot
+    action: screenshot
+    path: /tmp/google_search_test.png
+    
+  - name: End
+    label: end
+    action: log
+    message: "Test workflow completed"

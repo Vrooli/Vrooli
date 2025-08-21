@@ -13,13 +13,9 @@ BROWSERLESS_DIR="$(dirname "$N8N_INJECT_DIR")"
 
 # Source required components
 source "${BROWSERLESS_DIR}/lib/common.sh"
-source "${N8N_INJECT_DIR}/workflow/parser.sh"
-source "${N8N_INJECT_DIR}/workflow/actions.sh"
-source "${N8N_INJECT_DIR}/workflow/compiler.sh"
-source "${N8N_INJECT_DIR}/workflow/debug.sh"
-source "${N8N_INJECT_DIR}/workflow/flow-parser.sh"
-source "${N8N_INJECT_DIR}/workflow/flow-actions.sh"
-source "${N8N_INJECT_DIR}/workflow/flow-compiler.sh"
+source "${BROWSERLESS_DIR}/lib/workflow/interpreter.sh"
+source "${BROWSERLESS_DIR}/lib/browser-ops.sh"
+source "${BROWSERLESS_DIR}/lib/session-manager.sh"
 
 #######################################
 # Inject N8n workflow into Browserless
@@ -48,35 +44,11 @@ browserless::inject_n8n_workflow() {
         return 1
     fi
     
-    # Parse and compile with flow control
-    log::info "📄 Parsing workflow: $workflow_file"
-    local workflow_json
-    workflow_json=$(workflow::parse_with_flow_control "$workflow_file")
-    
-    if [[ $? -ne 0 ]]; then
-        log::error "Failed to parse workflow"
-        return 1
-    fi
-    
-    # Extract workflow metadata
-    local workflow_name
-    workflow_name=$(echo "$workflow_json" | jq -r '.workflow.name // "n8n-workflow"')
-    
-    local workflow_desc
-    workflow_desc=$(echo "$workflow_json" | jq -r '.workflow.description // "N8n workflow execution"')
-    
-    log::info "📦 Workflow: $workflow_name"
-    log::info "📝 Description: $workflow_desc"
-    
-    # Compile to JavaScript with flow control
-    log::info "🔧 Compiling to JavaScript state machine..."
-    local compiled_js
-    compiled_js=$(workflow::compile_with_flow_control "$workflow_json")
-    
-    if [[ $? -ne 0 ]]; then
-        log::error "Failed to compile workflow"
-        return 1
-    fi
+    # TODO: Update injection to use atomic operations approach
+    log::error "N8n workflow injection is being migrated to atomic operations"
+    log::info "This feature will be available soon with the new interpreter system"
+    log::info "For now, use direct workflow execution: resource-browserless for n8n execute-workflow <id>"
+    return 1
     
     # Check if flow control is enabled
     local flow_enabled
