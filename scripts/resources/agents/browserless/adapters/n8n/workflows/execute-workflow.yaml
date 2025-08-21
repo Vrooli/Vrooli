@@ -188,6 +188,13 @@ workflow:
       jump_to: "completion"
       
     # ERROR PATHS
+    - name: "handle-error"
+      label: "handle_error"
+      action: "log"
+      message: "Workflow not found or navigation error"
+      level: "error"
+      jump_to: "completion"
+      
     - name: "handle-execution-error"
       label: "execution_failed"
       action: "extract_data"

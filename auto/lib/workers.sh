@@ -27,8 +27,13 @@ set -euo pipefail
 # -----------------------------------------------------------------------------
 run_iteration() {
 	local iter="$1"; log_with_timestamp "Starting iteration #$iter (task=$LOOP_TASK)"
+	
 	# Prepare env before gating so per-task overrides (e.g., MAX_CONCURRENT_WORKERS) take effect
-	prepare_worker_env
+	if ! prepare_worker_env; then
+		log_with_timestamp "ERROR: Failed to prepare worker environment for iteration #$iter"
+		return 1
+	fi
+	
 	# Use error context for better debugging
 	if declare -F error_handler::set_context >/dev/null 2>&1; then
 		error_handler::set_context "iteration #$iter setup"
@@ -41,9 +46,16 @@ run_iteration() {
 	if declare -F error_handler::clear_context >/dev/null 2>&1; then
 		error_handler::clear_context
 	fi
-	local full_prompt; full_prompt=$(compose_prompt "$prompt_path")
+	
+	# Compose prompt with comprehensive error handling
+	local full_prompt
+	if ! full_prompt=$(compose_prompt "$prompt_path"); then
+		log_with_timestamp "ERROR: Failed to compose prompt for iteration #$iter"
+		return 1
+	fi
+	
 	if [[ -z "$full_prompt" ]]; then
-		log_with_timestamp "ERROR: Failed to compose prompt"
+		log_with_timestamp "ERROR: Composed prompt is empty for iteration #$iter"
 		return 1
 	fi
 	# Launch a wrapper subshell in background; run the pipeline in foreground within the subshell
@@ -60,10 +72,20 @@ run_iteration() {
 		# Run worker pipeline in foreground; capture the exit code of timeout (the first command)
 		# Use more aggressive timeout with proper signal escalation
 		if ! timeout --signal=TERM --kill-after="$WORKER_KILL_AFTER_SECONDS" "$TIMEOUT" resource-claude-code run "$full_prompt" 2>&1 | tee "$tmp_out"; then
-			exitc=${PIPESTATUS[0]}
+			# Safely extract timeout command exit code
+			if [[ ${#PIPESTATUS[@]} -gt 0 ]]; then
+				exitc=${PIPESTATUS[0]}
+			else
+				exitc=1  # Default to general error if PIPESTATUS unavailable
+			fi
 			log_with_timestamp "ERROR: Worker execution failed with exit code $exitc"
 		else
-			exitc=${PIPESTATUS[0]}
+			# Safely extract timeout command exit code
+			if [[ ${#PIPESTATUS[@]} -gt 0 ]]; then
+				exitc=${PIPESTATUS[0]}
+			else
+				exitc=0  # Default to success if PIPESTATUS unavailable
+			fi
 		fi
 		
 		local end; end=$(date +%s); dur=$((end-start))

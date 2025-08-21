@@ -129,6 +129,35 @@ task_prepare_worker_env() {
 	if ! task_validate_mode; then
 		return 1
 	fi
+	
+	# Compute repo root for config references
+	local repo_root
+	repo_root="$(cd "${TASK_DIR}/../../.." && pwd)"
+	local resources_config_path="${RESOURCES_CONFIG_PATH:-${repo_root}/.vrooli/service.json}"
+	
+	# Validate required config files exist
+	if [[ ! -f "$resources_config_path" ]]; then
+		if declare -F log_with_timestamp >/dev/null 2>&1; then
+			log_with_timestamp "ERROR: Resources config file not found: $resources_config_path"
+		fi
+		return 1
+	fi
+	
+	if [[ ! -r "$resources_config_path" ]]; then
+		if declare -F log_with_timestamp >/dev/null 2>&1; then
+			log_with_timestamp "ERROR: Resources config file not readable: $resources_config_path"
+		fi
+		return 1
+	fi
+	
+	# Validate config file is valid JSON
+	if ! command -v jq >/dev/null 2>&1 || ! jq empty < "$resources_config_path" >/dev/null 2>&1; then
+		if declare -F log_with_timestamp >/dev/null 2>&1; then
+			log_with_timestamp "ERROR: Resources config file is not valid JSON: $resources_config_path"
+		fi
+		return 1
+	fi
+	
 	# Ensure conservative defaults unless explicitly overridden
 	export MAX_CONCURRENT_WORKERS="${MAX_CONCURRENT_WORKERS:-1}"
 	# In plan mode, disable TCP gating by clearing filter
@@ -145,10 +174,7 @@ task_prepare_worker_env() {
 	export RESOURCE_IMPROVEMENT_MODE="${RESOURCE_IMPROVEMENT_MODE:-plan}"
 	# Export the iteration number so the worker can access it programmatically
 	export ITERATION_NUMBER="${ITERATION_NUMBER:-unknown}"
-	# Compute repo root for config references
-	local repo_root
-	repo_root="$(cd "${TASK_DIR}/../../.." && pwd)"
-	export RESOURCES_CONFIG_PATH="${RESOURCES_CONFIG_PATH:-${repo_root}/.vrooli/service.json}"
+	export RESOURCES_CONFIG_PATH="$resources_config_path"
 	export RESOURCES_JSON_CMD="${RESOURCES_JSON_CMD:-vrooli resource list --format json}"
 	# Baseline models for Ollama checks (comma-separated)
 	export OLLAMA_BASELINE_MODELS="${OLLAMA_BASELINE_MODELS:-llama3.2:3b}"

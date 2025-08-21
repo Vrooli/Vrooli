@@ -30,15 +30,24 @@ set -euo pipefail
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
 # Function: cleanup_lock_fd
-# Description: Close the lock file descriptor
+# Description: Close the lock file descriptor and remove lock file if owned by current process
 # Parameters: None
 # Returns: 0
-# Side Effects: Closes file descriptor 9 if open
+# Side Effects: Closes file descriptor 9 if open, removes lock file if we own it
 # -----------------------------------------------------------------------------
 cleanup_lock_fd() {
+	# Remove lock file if it contains our PID
+	if [[ -f "$LOCK_FILE" ]]; then
+		local lock_pid
+		lock_pid=$(cat "$LOCK_FILE" 2>/dev/null || echo "")
+		if [[ "$lock_pid" == "$$" ]]; then
+			rm -f "$LOCK_FILE" 2>/dev/null || true
+		fi
+	fi
+	
 	# Close FD 9 if it's open
 	if [[ -e /proc/$$/fd/9 ]]; then
-		exec 9>&-
+		exec 9>&- 2>/dev/null || true
 	fi
 	return 0
 }
@@ -62,11 +71,42 @@ cleanup_pid_file() {
 }
 
 run_loop() {
-	# Lock to prevent duplicate instances
+	# Lock to prevent duplicate instances with PID validation
 	if command -v flock >/dev/null 2>&1; then
+		# Check for stale lock before attempting to acquire
+		if [[ -f "$LOCK_FILE" ]]; then
+			local lock_pid
+			lock_pid=$(cat "$LOCK_FILE" 2>/dev/null || echo "")
+			if [[ -n "$lock_pid" ]] && [[ "$lock_pid" =~ ^[0-9]+$ ]]; then
+				if ! kill -0 "$lock_pid" 2>/dev/null; then
+					log_with_timestamp "Removing stale lock file (PID $lock_pid no longer running)"
+					rm -f "$LOCK_FILE"
+				fi
+			fi
+		fi
+		
+		# Attempt to acquire lock
 		exec 9>"$LOCK_FILE"
-		if ! flock -n 9; then echo "Another instance appears to be running (lock held)."; exit 1; fi
-		# Register cleanup to close FD on exit
+		if ! flock -n 9; then 
+			# Check if the process holding the lock is still running
+			local current_lock_pid
+			current_lock_pid=$(cat "$LOCK_FILE" 2>/dev/null || echo "")
+			if [[ -n "$current_lock_pid" ]] && [[ "$current_lock_pid" =~ ^[0-9]+$ ]]; then
+				if kill -0 "$current_lock_pid" 2>/dev/null; then
+					echo "Another instance is running (PID $current_lock_pid, lock held)."
+				else
+					echo "Stale lock detected (PID $current_lock_pid not running). Retry should succeed."
+				fi
+			else
+				echo "Another instance appears to be running (lock held)."
+			fi
+			exit 1
+		fi
+		
+		# Write our PID to the lock file
+		echo $$ >&9
+		
+		# Register cleanup to close FD and remove lock on exit
 		if declare -F error_handler::register_cleanup >/dev/null 2>&1; then
 			error_handler::register_cleanup cleanup_lock_fd
 		fi
@@ -219,54 +259,6 @@ loop_dispatch() {
 				else
 					echo "No temp directory to clean"
 				fi
-			fi
-			;;
-		sudo-init)
-			if command -v sudo_override::init >/dev/null 2>&1; then
-				local commands="${1:-}"
-				if sudo_override::init "$commands"; then
-					echo "✅ Sudo override initialized successfully"
-				else
-					echo "❌ Failed to initialize sudo override"
-					exit 1
-				fi
-			else
-				echo "❌ Sudo override not available"
-				exit 1
-			fi
-			;;
-		sudo-test)
-			if command -v sudo_override::test >/dev/null 2>&1; then
-				if sudo_override::test; then
-					echo "✅ Sudo override test passed"
-				else
-					echo "❌ Sudo override test failed"
-					exit 1
-				fi
-			else
-				echo "❌ Sudo override not available"
-				exit 1
-			fi
-			;;
-		sudo-status)
-			if command -v sudo_override::status >/dev/null 2>&1; then
-				sudo_override::status
-			else
-				echo "❌ Sudo override not available"
-				exit 1
-			fi
-			;;
-		sudo-cleanup)
-			if command -v sudo_override::cleanup >/dev/null 2>&1; then
-				if sudo_override::cleanup; then
-					echo "✅ Sudo override cleaned up successfully"
-				else
-					echo "❌ Failed to clean up sudo override"
-					exit 1
-				fi
-			else
-				echo "❌ Sudo override not available"
-				exit 1
 			fi
 			;;
 		json)

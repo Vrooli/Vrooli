@@ -70,11 +70,36 @@ trap cleanup SIGTERM SIGINT
 cleanup_finished_workers() {
 	if [[ -f "$PIDS_FILE" ]]; then
 		local tmp; tmp=$(mktemp -p "$TMP_DIR")
+		local success=true
+		
+		# Process PIDs with error handling
 		while IFS= read -r pid; do
-			if kill -0 "$pid" 2>/dev/null; then echo "$pid" >> "$tmp"; else log_with_timestamp "Worker $pid finished"; fi
+			if [[ -n "$pid" ]]; then
+				if kill -0 "$pid" 2>/dev/null; then 
+					if ! echo "$pid" >> "$tmp" 2>/dev/null; then
+						success=false
+						break
+					fi
+				else 
+					log_with_timestamp "Worker $pid finished"
+				fi
+			fi
 		done < "$PIDS_FILE"
-		mv "$tmp" "$PIDS_FILE"
+		
+		# Atomic replacement with validation
+		if [[ "$success" == "true" ]]; then
+			if ! mv "$tmp" "$PIDS_FILE" 2>/dev/null; then
+				log_with_timestamp "ERROR: Failed to update workers PID file"
+				rm -f "$tmp"
+				return 1
+			fi
+		else
+			log_with_timestamp "ERROR: Failed to process workers PID file"
+			rm -f "$tmp"
+			return 1
+		fi
 	fi
+	return 0
 }
 
 # -----------------------------------------------------------------------------
@@ -137,10 +162,16 @@ can_start_new_worker() {
 append_worker_pid() {
 	local pid="$1"
 	if command -v flock >/dev/null 2>&1; then
-		{
-			flock -x $FD_PIDS_LOCK
-			printf '%s\n' "$pid" >&$FD_PIDS_LOCK
-		} $FD_PIDS_LOCK>>"$PIDS_FILE"
+		# Open file descriptor and use flock properly
+		(
+			exec 201>>"$PIDS_FILE"
+			if flock -x 201; then
+				printf '%s\n' "$pid" >&201
+			else
+				# Fallback to simple append if lock fails
+				printf '%s\n' "$pid" >> "$PIDS_FILE"
+			fi
+		)
 	else
 		printf '%s\n' "$pid" >> "$PIDS_FILE"
 	fi

@@ -37,8 +37,8 @@ readonly WORKER_KILL_AFTER_SECONDS=30        # Seconds before SIGKILL after SIGT
 readonly SLEEP_CHUNK_SIZE=10                 # Maximum seconds to sleep in one chunk (for interruptibility)
 
 # Exit codes specific to auto/ system (extending scripts/lib/utils/exit_codes.sh)
-readonly EXIT_CONFIGURATION_ERROR=143        # Auto-specific configuration error
-readonly EXIT_WORKER_UNAVAILABLE=144         # Worker/dependencies unavailable
+readonly EXIT_CONFIGURATION_ERROR=150        # Auto-specific configuration error
+readonly EXIT_WORKER_UNAVAILABLE=151         # Worker/dependencies unavailable
 
 # File descriptor numbers for file locking
 readonly FD_EVENTS_LOCK=200                  # File descriptor for events file lock

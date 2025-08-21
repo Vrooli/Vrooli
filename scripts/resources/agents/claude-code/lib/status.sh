@@ -172,6 +172,87 @@ claude_code::status::collect_data() {
         # Capabilities check
         local capabilities_count=13  # Based on known tools: Bash, Read, Edit, etc.
         status_data+=("capabilities_count" "$capabilities_count")
+        
+        # Usage tracking data (skip if fast mode)
+        if [[ "$fast_mode" == "false" ]]; then
+            local usage_info
+            usage_info=$(claude_code::get_usage 2>/dev/null)
+            
+            if [[ -n "$usage_info" ]]; then
+                local hourly_requests=$(echo "$usage_info" | jq -r '.current_hour_requests // "0"')
+                local daily_requests=$(echo "$usage_info" | jq -r '.current_day_requests // "0"')
+                local weekly_requests=$(echo "$usage_info" | jq -r '.current_week_requests // "0"')
+                local last_5h_requests=$(echo "$usage_info" | jq -r '.last_5_hours // "0"')
+                local subscription_tier=$(echo "$usage_info" | jq -r '.subscription_tier // "unknown"')
+                
+                # Get last rate limit info
+                local last_rate_limit=$(echo "$usage_info" | jq -r '.last_rate_limit // null')
+                local last_rate_limit_time="N/A"
+                local last_rate_limit_type="N/A"
+                if [[ "$last_rate_limit" != "null" ]]; then
+                    last_rate_limit_time=$(echo "$last_rate_limit" | jq -r '.timestamp // "N/A"')
+                    last_rate_limit_type=$(echo "$last_rate_limit" | jq -r '.limit_type // "N/A"')
+                fi
+                
+                # Calculate usage percentages based on tier
+                local tier_key="${subscription_tier:-free}"
+                [[ "$tier_key" == "unknown" ]] && tier_key="free"
+                
+                local limit_5h=$(echo "$usage_info" | jq -r ".estimated_limits.${tier_key}.\"5_hour\" // 45")
+                local limit_daily=$(echo "$usage_info" | jq -r ".estimated_limits.${tier_key}.daily // 50")
+                local limit_weekly=$(echo "$usage_info" | jq -r ".estimated_limits.${tier_key}.weekly // 350")
+                
+                local pct_5h=0
+                local pct_daily=0
+                local pct_weekly=0
+                
+                # Calculate percentages safely
+                if [[ $limit_5h -gt 0 ]]; then
+                    pct_5h=$((last_5h_requests * 100 / limit_5h))
+                fi
+                if [[ $limit_daily -gt 0 ]]; then
+                    pct_daily=$((daily_requests * 100 / limit_daily))
+                fi
+                if [[ $limit_weekly -gt 0 ]]; then
+                    pct_weekly=$((weekly_requests * 100 / limit_weekly))
+                fi
+                
+                # Add usage data to status
+                status_data+=("usage_hourly" "$hourly_requests")
+                status_data+=("usage_daily" "$daily_requests")
+                status_data+=("usage_weekly" "$weekly_requests")
+                status_data+=("usage_5hour" "$last_5h_requests")
+                status_data+=("usage_5hour_limit" "$limit_5h")
+                status_data+=("usage_5hour_percent" "$pct_5h")
+                status_data+=("usage_daily_limit" "$limit_daily")
+                status_data+=("usage_daily_percent" "$pct_daily")
+                status_data+=("usage_weekly_limit" "$limit_weekly")
+                status_data+=("usage_weekly_percent" "$pct_weekly")
+                status_data+=("subscription_tier" "$subscription_tier")
+                status_data+=("last_rate_limit_time" "$last_rate_limit_time")
+                status_data+=("last_rate_limit_type" "$last_rate_limit_type")
+                
+                # Time until reset for different limit types
+                local time_to_5h_reset=$(claude_code::time_until_reset "5_hour" 2>/dev/null || echo "N/A")
+                local time_to_daily_reset=$(claude_code::time_until_reset "daily" 2>/dev/null || echo "N/A")
+                local time_to_weekly_reset=$(claude_code::time_until_reset "weekly" 2>/dev/null || echo "N/A")
+                
+                status_data+=("time_to_5h_reset" "$time_to_5h_reset")
+                status_data+=("time_to_daily_reset" "$time_to_daily_reset")
+                status_data+=("time_to_weekly_reset" "$time_to_weekly_reset")
+            else
+                # Add N/A values if usage tracking is not available
+                status_data+=("usage_hourly" "N/A")
+                status_data+=("usage_daily" "N/A")
+                status_data+=("usage_weekly" "N/A")
+                status_data+=("usage_5hour" "N/A")
+                status_data+=("subscription_tier" "N/A")
+                status_data+=("last_rate_limit_time" "N/A")
+            fi
+        else
+            # Fast mode - skip usage tracking
+            status_data+=("usage_note" "Usage tracking skipped in fast mode")
+        fi
     fi
     
     # Return the collected data

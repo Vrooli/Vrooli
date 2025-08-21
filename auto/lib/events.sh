@@ -16,10 +16,16 @@ set -euo pipefail
 # -----------------------------------------------------------------------------
 emit_event_jsonl() {
 	if command -v flock >/dev/null 2>&1; then
-		{
-			flock -x $FD_EVENTS_LOCK
-			printf '%s\n' "$1" >&$FD_EVENTS_LOCK
-		} $FD_EVENTS_LOCK>>"$EVENTS_JSONL"
+		# Open file descriptor and use flock properly
+		(
+			exec 200>>"$EVENTS_JSONL"
+			if flock -x 200; then
+				printf '%s\n' "$1" >&200
+			else
+				# Fallback to simple append if lock fails
+				printf '%s\n' "$1" >> "$EVENTS_JSONL"
+			fi
+		)
 	else
 		printf '%s\n' "$1" >> "$EVENTS_JSONL"
 	fi
@@ -81,9 +87,9 @@ update_summary_files() {
 		  ($fin | map(.duration_sec) | map(select(type=="number"))) as $durs |
 		  ($fin | map(select(.exit_code==0)) | length) as $ok |
 		  ($fin | map(select(.exit_code==124)) | length) as $to |
-		  ($fin | map(select(.exit_code==143)) | length) as $config |
-		  ($fin | map(select(.exit_code==144)) | length) as $worker |
-		  ($fin | map(select(.exit_code!=0 and .exit_code!=124 and .exit_code!=143 and .exit_code!=144)) | length) as $other |
+		  ($fin | map(select(.exit_code==150)) | length) as $config |
+		  ($fin | map(select(.exit_code==151)) | length) as $worker |
+		  ($fin | map(select(.exit_code!=0 and .exit_code!=124 and .exit_code!=150 and .exit_code!=151)) | length) as $other |
 		  ($fin | length) as $runs |
 		  {
 		    task: ("'"${LOOP_TASK}"'"),
@@ -126,25 +132,66 @@ update_summary_files() {
 # Function: cleanup_orphaned_events
 # Description: Remove orphaned start events that lack matching finish events
 # Parameters: None
-# Returns: 0 on success
-# Side Effects: Modifies EVENTS_JSONL file in place
+# Returns: 0 on success, 1 on failure
+# Side Effects: Modifies EVENTS_JSONL file atomically with backup
 # Dependencies: jq (optional, falls back to grep)
 # Usage: Called before shutdown to clean up incomplete iterations
 # -----------------------------------------------------------------------------
 cleanup_orphaned_events() {
 	if [[ -f "$EVENTS_JSONL" ]]; then
+		local backup_file; backup_file="${EVENTS_JSONL}.backup.$(date +%s)"
 		local tmp_file; tmp_file=$(mktemp -p "$TMP_DIR")
-		# Simple approach: remove all start events since they're all orphaned
+		local success=false
+		
+		# Create backup first
+		if ! cp "$EVENTS_JSONL" "$backup_file" 2>/dev/null; then
+			if declare -F log_with_timestamp >/dev/null 2>&1; then
+				log_with_timestamp "ERROR: Failed to create backup for events cleanup"
+			fi
+			rm -f "$tmp_file"
+			return 1
+		fi
+		
+		# Process events with error handling
 		if command -v jq >/dev/null 2>&1; then
 			# Keep only non-start events (finish events and other events)
-			jq -c 'map(select(.type != "start"))' "$EVENTS_JSONL" > "$tmp_file" 2>/dev/null || cp "$EVENTS_JSONL" "$tmp_file"
+			if jq -c 'map(select(.type != "start"))' "$EVENTS_JSONL" > "$tmp_file" 2>/dev/null; then
+				success=true
+			fi
 		else
 			# Fallback: simple cleanup without jq - just remove start events
-			grep -v '"type":"start"' "$EVENTS_JSONL" > "$tmp_file" 2>/dev/null || cp "$EVENTS_JSONL" "$tmp_file"
+			if grep -v '"type":"start"' "$EVENTS_JSONL" > "$tmp_file" 2>/dev/null; then
+				success=true
+			fi
 		fi
-		mv "$tmp_file" "$EVENTS_JSONL"
-		log_with_timestamp "Cleaned up orphaned events"
+		
+		# Atomic replacement with validation
+		if [[ "$success" == "true" ]] && [[ -s "$tmp_file" ]]; then
+			if mv "$tmp_file" "$EVENTS_JSONL" 2>/dev/null; then
+				rm -f "$backup_file"
+				if declare -F log_with_timestamp >/dev/null 2>&1; then
+					log_with_timestamp "Cleaned up orphaned events"
+				fi
+				return 0
+			else
+				# Restore from backup if move failed
+				mv "$backup_file" "$EVENTS_JSONL" 2>/dev/null || true
+				if declare -F log_with_timestamp >/dev/null 2>&1; then
+					log_with_timestamp "ERROR: Failed to replace events file, restored from backup"
+				fi
+			fi
+		else
+			# Restore from backup if processing failed
+			mv "$backup_file" "$EVENTS_JSONL" 2>/dev/null || true
+			if declare -F log_with_timestamp >/dev/null 2>&1; then
+				log_with_timestamp "ERROR: Events cleanup failed, restored from backup"
+			fi
+		fi
+		
+		rm -f "$tmp_file" "$backup_file"
+		return 1
 	fi
+	return 0
 }
 
 # -----------------------------------------------------------------------------
@@ -163,12 +210,12 @@ process_json_command() {
 	if [[ ! -f "$EVENTS_JSONL" ]]; then echo "Events file not found: $EVENTS_JSONL"; exit 1; fi
 	if ! command -v jq >/dev/null 2>&1; then echo "jq is required for json subcommands"; exit 1; fi
 	case "$sub" in
-		summary) tail -n "$EVENTS_TAIL_SIZE" "$EVENTS_JSONL" | jq -s 'def finishes: map(select(.type=="finish")); (. // []) as $e | ($e|finishes) as $fin | {runs: ($fin|length), ok: ($fin|map(select(.exit_code==0))|length), timeout: ($fin|map(select(.exit_code==124))|length), quota_exhausted: ($fin|map(select(.exit_code==142))|length), config_error: ($fin|map(select(.exit_code==143))|length), worker_error: ($fin|map(select(.exit_code==144))|length), other_failures: ($fin|map(select(.exit_code!=0 and .exit_code!=124 and .exit_code!=142 and .exit_code!=143 and .exit_code!=144))|length)} | . + {success_rate: (if .runs==0 then 0 else (.ok/.runs) end)}' ;;
+		summary) tail -n "$EVENTS_TAIL_SIZE" "$EVENTS_JSONL" | jq -s 'def finishes: map(select(.type=="finish")); (. // []) as $e | ($e|finishes) as $fin | {runs: ($fin|length), ok: ($fin|map(select(.exit_code==0))|length), timeout: ($fin|map(select(.exit_code==124))|length), quota_exhausted: ($fin|map(select(.exit_code==142))|length), config_error: ($fin|map(select(.exit_code==150))|length), worker_error: ($fin|map(select(.exit_code==151))|length), other_failures: ($fin|map(select(.exit_code!=0 and .exit_code!=124 and .exit_code!=142 and .exit_code!=150 and .exit_code!=151))|length)} | . + {success_rate: (if .runs==0 then 0 else (.ok/.runs) end)}' ;;
 		recent) n="${1:-$DEFAULT_RECENT_EVENTS}"; tail -n "$EVENTS_TAIL_SIZE" "$EVENTS_JSONL" | jq -c 'select(.type=="finish") | {ts,task,iteration,exit_code,duration_sec}' | tail -n "$n" ;;
 		inflight) tail -n "$EVENTS_TAIL_SIZE" "$EVENTS_JSONL" | jq -s '[ group_by(.pid) | map({pid: .[0].pid, started:(map(select(.type=="start"))|length), finished:(map(select(.type=="finish"))|length)}) | map(select(.started > .finished)) ]' ;;
 		durations) tail -n "$EVENTS_TAIL_SIZE" "$EVENTS_JSONL" | jq -s 'def finishes: map(select(.type=="finish")); (. // []) as $e | ($e|finishes|map(.duration_sec)|map(select(type=="number"))) as $d | {avg:(if ($d|length)==0 then null else ($d|add/($d|length)) end), p50:($d|sort|.[(length*0.5|floor)]), p90:($d|sort|.[(length*0.9|floor)]), p95:($d|sort|.[(length*0.95|floor)]), p99:($d|sort|.[(length*0.99|floor)]), min:($d|min), max:($d|max)}' ;;
 		errors) n="${1:-5}"; tail -n "$EVENTS_TAIL_SIZE" "$EVENTS_JSONL" | jq -c 'select(.type=="finish" and .exit_code!=0) | {ts,task,iteration,exit_code,duration_sec}' | tail -n "$n" ;;
-		error-breakdown) tail -n "$EVENTS_TAIL_SIZE" "$EVENTS_JSONL" | jq -s 'def finishes: map(select(.type=="finish")); (. // []) as $e | ($e|finishes) as $fin | {quota_exhausted: ($fin|map(select(.exit_code==142))|length), config_error: ($fin|map(select(.exit_code==143))|length), worker_error: ($fin|map(select(.exit_code==144))|length), timeout: ($fin|map(select(.exit_code==124))|length), other_failures: ($fin|map(select(.exit_code!=0 and .exit_code!=124 and .exit_code!=142 and .exit_code!=143 and .exit_code!=144))|length)}' ;;
+		error-breakdown) tail -n "$EVENTS_TAIL_SIZE" "$EVENTS_JSONL" | jq -s 'def finishes: map(select(.type=="finish")); (. // []) as $e | ($e|finishes) as $fin | {quota_exhausted: ($fin|map(select(.exit_code==142))|length), config_error: ($fin|map(select(.exit_code==150))|length), worker_error: ($fin|map(select(.exit_code==151))|length), timeout: ($fin|map(select(.exit_code==124))|length), other_failures: ($fin|map(select(.exit_code!=0 and .exit_code!=124 and .exit_code!=142 and .exit_code!=150 and .exit_code!=151))|length)}' ;;
 		hourly) tail -n "$EVENTS_TAIL_SIZE" "$EVENTS_JSONL" | jq -s '[ .[] | select(.type=="finish") | {h: (.ts|split(":"))[0], exit_code, duration_sec} ] | group_by(.h) | map({hour: .[0].h, count: length, ok: (map(select(.exit_code==0))|length), timeout: (map(select(.exit_code==124))|length), avg_duration: (map(.duration_sec)|add/length)})' ;;
 		*) echo "Unknown json subcommand: $sub"; exit 1 ;;
 	esac

@@ -42,5 +42,17 @@ task_check_worker_available() {
 
 # Export task-specific env vars for the worker
 task_prepare_worker_env() {
+	# Validate cheatsheet file exists
+	local cheatsheet_path="${TASK_PROMPTS_DIR}/cheatsheet.md"
+	if [[ ! -f "$cheatsheet_path" ]]; then
+		if declare -F log_with_timestamp >/dev/null 2>&1; then
+			log_with_timestamp "WARNING: Cheatsheet file not found: $cheatsheet_path"
+		fi
+	elif [[ ! -r "$cheatsheet_path" ]]; then
+		if declare -F log_with_timestamp >/dev/null 2>&1; then
+			log_with_timestamp "WARNING: Cheatsheet file not readable: $cheatsheet_path"
+		fi
+	fi
+	
 	export SCENARIO_EVENTS_JSONL="$EVENTS_JSONL"
 } 

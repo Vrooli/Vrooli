@@ -24,14 +24,14 @@
 #   139 - Segmentation fault (128 + 11 SIGSEGV)
 #   141 - Broken pipe (128 + 13 SIGPIPE)
 #   142 - Quota/rate limit exhausted (custom)
-#   143 - Configuration error (custom, shadows SIGTERM)
-#   144 - Worker/dependencies unavailable (custom)
-#   145 - Lock acquisition failed (custom)
-#   146 - Resource limit exceeded (custom)
-#   147 - Network connectivity error (custom)
-#   148 - Authentication/permission error (custom)
-#   149 - Data corruption/validation error (custom)
-#   150 - Partial success with warnings (custom)
+#   150 - Configuration error (custom)
+#   151 - Worker/dependencies unavailable (custom)
+#   152 - Lock acquisition failed (custom)
+#   153 - Resource limit exceeded (custom)
+#   154 - Network connectivity error (custom)
+#   155 - Authentication/permission error (custom)
+#   156 - Data corruption/validation error (custom)
+#   157 - Partial success with warnings (custom)
 
 set -euo pipefail
 
@@ -79,14 +79,14 @@ readonly EXIT_SIGTERM=$((128 + 15))  # Termination
 # -----------------------------------------------------------------------------
 readonly EXIT_TIMEOUT=124                    # Command timeout (GNU timeout standard)
 readonly EXIT_QUOTA_EXHAUSTED=142            # API quota or rate limit hit
-# EXIT_CONFIGURATION_ERROR=143 (from constants.sh)
-# EXIT_WORKER_UNAVAILABLE=144 (from constants.sh)
-readonly EXIT_LOCK_FAILED=145                # Could not acquire lock
-readonly EXIT_RESOURCE_LIMIT=146             # System resource limit hit (memory, disk)
-readonly EXIT_NETWORK_ERROR=147              # Network connectivity issues
-readonly EXIT_AUTH_ERROR=148                 # Authentication or permission denied
-readonly EXIT_DATA_ERROR=149                 # Data validation or corruption
-readonly EXIT_PARTIAL_SUCCESS=150            # Completed with warnings
+# EXIT_CONFIGURATION_ERROR=150 (from constants.sh)
+# EXIT_WORKER_UNAVAILABLE=151 (from constants.sh)
+readonly EXIT_LOCK_FAILED=152                # Could not acquire lock
+readonly EXIT_RESOURCE_LIMIT=153             # System resource limit hit (memory, disk)
+readonly EXIT_NETWORK_ERROR=154              # Network connectivity issues
+readonly EXIT_AUTH_ERROR=155                 # Authentication or permission denied
+readonly EXIT_DATA_ERROR=156                 # Data validation or corruption
+readonly EXIT_PARTIAL_SUCCESS=157            # Completed with warnings
 
 # -----------------------------------------------------------------------------
 # ERROR PATTERNS FOR CLASSIFICATION

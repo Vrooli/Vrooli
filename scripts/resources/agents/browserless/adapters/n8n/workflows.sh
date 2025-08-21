@@ -383,10 +383,11 @@ browserless::execute_flow_workflow() {
                 
                 log::debug "Compiling workflow to JavaScript..."
                 compiled_js=$(workflow::compile_with_flow_control "$workflow_json" 2>&1)
-                if [[ $? -eq 0 ]]; then
+                if [[ $? -eq 0 ]] && [[ -n "$compiled_js" ]] && [[ ! "$compiled_js" =~ "ERROR" ]]; then
                     log::debug "✓ Workflow compilation successful"
                 else
                     log::error "✗ Workflow compilation failed: $compiled_js"
+                    compiled_js=""  # Clear it to trigger fallback
                 fi
             else
                 log::error "✗ YAML parsing failed: $workflow_json"
@@ -400,8 +401,76 @@ browserless::execute_flow_workflow() {
     
     # Fallback to direct execution if compilation fails
     if [[ -z "$compiled_js" ]]; then
-        log::debug "Flow control compiler not available, using fallback"
-        compiled_js=$(cat <<'EOF'
+        log::debug "Flow control compiler not available, using direct JavaScript fallback"
+        
+        # Use the direct JavaScript implementation
+        local direct_js_file="${N8N_ADAPTER_DIR}/workflows/execute-workflow-direct.json"
+        if [[ -f "$direct_js_file" ]]; then
+            log::info "Using direct JavaScript implementation for workflow execution"
+            
+            # Get N8n credentials from secrets system
+            local n8n_email n8n_password
+            if command -v secrets::get_key >/dev/null 2>&1; then
+                n8n_email=$(secrets::get_key "N8N_EMAIL" 2>/dev/null || echo "")
+                n8n_password=$(secrets::get_key "N8N_PASSWORD" 2>/dev/null || echo "")
+            fi
+            
+            # Fallback to environment variables if secrets not available
+            n8n_email="${n8n_email:-${N8N_EMAIL:-}}"
+            n8n_password="${n8n_password:-${N8N_PASSWORD:-}}"
+            
+            # Create environment context
+            local env_context
+            env_context=$(jq -n \
+                --arg email "$n8n_email" \
+                --arg password "$n8n_password" \
+                '{N8N_EMAIL: $email, N8N_PASSWORD: $password}')
+            
+            # Parse parameters
+            local workflow_params
+            workflow_params=$(jq -n \
+                --arg id "$workflow_id" \
+                --arg url "$n8n_url" \
+                --arg timeout "$timeout" \
+                '{workflow_id: $id, n8n_url: $url, timeout: ($timeout | tonumber)}')
+            
+            # Execute using direct JavaScript
+            local browserless_port="${BROWSERLESS_PORT:-4110}"
+            local response
+            response=$(curl -s -X POST \
+                -H "Content-Type: application/json" \
+                -d "{
+                    \"code\": $(cat "$direct_js_file" | jq -r .code | jq -Rs .),
+                    \"context\": {
+                        \"outputDir\": \"$output_dir\",
+                        \"params\": $workflow_params,
+                        \"env\": $env_context
+                    }
+                }" \
+                "http://localhost:${browserless_port}/chrome/function" 2>/dev/null)
+            
+            if [[ -n "$response" ]]; then
+                echo "$response" | jq '.'
+                
+                # Check for success
+                local success_flag=$(echo "$response" | jq -r '.success // false')
+                if [[ "$success_flag" == "true" ]]; then
+                    log::success "✅ Workflow executed successfully"
+                    return 0
+                else
+                    local error_msg=$(echo "$response" | jq -r '.error // "Unknown error"')
+                    log::error "❌ Workflow execution failed: $error_msg"
+                    return 1
+                fi
+            else
+                log::error "❌ No response from browserless"
+                return 1
+            fi
+            
+            # Exit early since we handled the execution
+            return $?
+        else
+            compiled_js=$(cat <<'EOF'
 export default async ({ page, context }) => {
     // Fallback execution - flow control compiler not available
     return {
@@ -411,7 +480,8 @@ export default async ({ page, context }) => {
     };
 };
 EOF
-        )
+            )
+        fi
     fi
     
     # Create a wrapper that injects parameters from context
