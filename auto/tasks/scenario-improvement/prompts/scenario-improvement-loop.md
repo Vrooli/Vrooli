@@ -8,8 +8,8 @@
 2) Investigate the current status of the scenario, in terms of file structure, code completeness, and accuracy to the scenario's purpose.
 3) Think deeply on how this scenario fits into Vrooli, and what ways it might help other scenarios.
 4) Think deeply on what it takes to properly implement this scenario, especially in relation to leveraging shared resources and the CLI of other scenarios.
-5) After careful consideration, make ONE small improvement inside that scenario only (e.g. fixing a single workflow, adding a missing README.md, replacing built-in logic with a call to another scenario's CLI that's purpose-built to for the task).
-6) Validate: convert → start → verify via API/CLI or Browserless screenshot.
+5) After careful consideration, make a few changes/improvements inside that scenario only (e.g. fixing a single workflow, adding missing documentation, replacing built-in logic with a call to another scenario's CLI that's purpose-built to for the task).
+6) Validate: convert → start → verify via API/CLI and/or Browserless screenshot.
 7) If a gate fails twice, stop, capture diagnostics, and defer heavier changes.
 8) Append ≤10 lines to `/tmp/vrooli-scenario-improvement.md` (schema below).
 
@@ -28,7 +28,8 @@ Use `auto/tasks/scenario-improvement/prompts/cheatsheet.md` for metrics and jq h
 
 ### ✅ DO / ❌ DON’T
 
-- ✅ Keep changes minimal and inside `scripts/scenarios/core/<scenario>/...`.
+- ✅ Adhere to the scenario's PRD.md. If missing, create one using `scripts/scenarios/templates/full/PRD.md` and the current state of the scenario.
+- ✅ Keep changes inside `scripts/scenarios/core/<scenario>/...`.
 - ✅ Prefer shared n8n workflows (e.g., `initialization/n8n/ollama.json`) over direct resource calls.
 - ✅ Validate every change: never assume success.
 - ✅ If adding a shared workflow (must be truly generic and not scenario-specific), place it in `initialization/n8n/` (assuming it's an n8n workflow. Obviously if it was a huginn workflow it'd be in `initialization/huginn`, etc.).
@@ -71,7 +72,7 @@ Perform exactly these steps:
    - Confirm structure: `.vrooli/service.json`, `initialization/`, `ui/`, tests, etc.
    - Identify the smallest high-value change aligned with the rubric.
 
-2) Make ONE minimal change (can be across multiple files, but the changes must all be related)
+2) Make changes to fix/improve the scenario
    - Keep edits within `scripts/scenarios/core/<scenario>/...`
    - Prefer adopting a shared workflow over adding bespoke logic
    - If you must add a new shared workflow, place it in `initialization/n8n/` and document why it’s reusable
@@ -108,9 +109,8 @@ If n8n webhooks/api are unreliable, run via Browserless instead of using n8n API
 ```bash
 export N8N_EMAIL="$N8N_EMAIL"
 export N8N_PASSWORD="$N8N_PASSWORD"
-vrooli resource browserless execute-workflow "<workflowId>" http://localhost:5678 60000 '{"text":"test"}'
+vrooli resource browserless for n8n execute-workflow "<workflowId>" '{"text":"test"}'
 ```
-Use environment variables for credentials/configuration. Do not commit secrets.
 
 **NOTE:** You cannot run a workflow unless it is injected and activated by n8n, which happens automatically (at least it should) by running `vrooli scenario convert <scenario-name> --force`, followed by `vrooli scenario start <scenario-name>`. You must then use the n8n resource (see `vrooli resource n8n help`) to list workflows and find the workflow ID, which is needed for the browserless execute-workflow command.
 
@@ -186,13 +186,7 @@ This appendix preserves important specifics from the original prompt while keepi
   - Do not turn off resources unless excessive memory usage demands it (applies notably to Whisper).
 
 ### n8n workflows — reliability, activation, and quality
-- If n8n webhooks/API are unreliable, use the Browserless workaround instead of calling n8n API directly. Never commit secrets; use environment variables.
-  - Example (conceptual):
-    ```bash
-    export N8N_EMAIL="$N8N_EMAIL"
-    export N8N_PASSWORD="$N8N_PASSWORD"
-    vrooli resource browserless execute-workflow "<workflowId>" http://localhost:5678 60000 '{"text":"test"}'
-    ```
+- If n8n webhooks/API are unreliable, use the Browserless workaround instead of calling n8n API directly like `vrooli resource browserless for n8n execute-workflow "<workflowId>" '{"text":"test"}'`
 - Shared workflows must be defined in the project-level `.vrooli/service.json`, then run `vrooli setup` to upsert and set active.
 - Scenario-level workflows should be injected when running `vrooli app start <scenario_name>` (after conversion). If that fails:
   - Fallback: run the generated app’s `./scripts/manage.sh setup`, or call the injection engine directly.

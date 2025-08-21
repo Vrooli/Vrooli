@@ -2,6 +2,8 @@
 
 Agent S2 enables you to control your computer using natural language commands. Simply describe what you want to do - "go to Reddit", "search for tutorials", "open calculator" - and Agent S2 will execute the task using AI-powered visual understanding and automation. It combines the intelligence of LLMs with precise mouse/keyboard control to interact with any application or website.
 
+> **⚠️ Important Security Update**: The transparent proxy feature is now **DISABLED by default** to prevent unintended system-wide traffic interception. See [Transparent Proxy Documentation](docs/TRANSPARENT_PROXY.md) for details.
+
 ## 🎯 Quick Reference
 
 - **Category**: Agents

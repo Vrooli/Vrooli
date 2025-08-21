@@ -94,6 +94,16 @@ openrouter::status::collect_data() {
         fi
     fi
     
+    # Check test results
+    local test_status="not_run"
+    local test_timestamp="N/A"
+    local test_file="${var_ROOT_DIR}/data/test-results/openrouter-test.json"
+    
+    if [[ -f "$test_file" ]]; then
+        test_status=$(jq -r '.status // "unknown"' "$test_file" 2>/dev/null || echo "unknown")
+        test_timestamp=$(jq -r '.timestamp // "N/A"' "$test_file" 2>/dev/null || echo "N/A")
+    fi
+    
     # Output data as key-value pairs
     echo "status"
     echo "$status"
@@ -111,6 +121,10 @@ openrouter::status::collect_data() {
     echo "$limit"
     echo "usage"
     echo "$usage_amount"
+    echo "test_status"
+    echo "$test_status"
+    echo "test_timestamp"
+    echo "$test_timestamp"
 }
 
 #######################################
@@ -135,6 +149,8 @@ openrouter::status::display_text() {
     echo "Default Model: ${data[default_model]}"
     echo "Limit: ${data[limit]}"
     echo "Usage: ${data[usage]}"
+    echo "Test Status: ${data[test_status]}"
+    echo "Test Timestamp: ${data[test_timestamp]}"
 }
 
 #######################################

@@ -113,8 +113,8 @@ install_resource_cli() {
         return 1
     fi
     
-    # Check if CLI exists
-    local cli_script="${resource_dir}/cli.sh"
+    # Check if CLI exists  
+    local cli_script="$(cd "$resource_dir" && pwd)/cli.sh"
     if [[ ! -f "$cli_script" ]]; then
         log::info "No CLI found for $(basename "$resource_dir")"
         return 0

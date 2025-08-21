@@ -37,6 +37,10 @@ services:
       - AGENT_S2_ENABLE_BROWSER_MONITORING=${AGENT_S2_ENABLE_BROWSER_MONITORING:-true}
       - AGENT_S2_BLOCK_UNSAFE_NAVIGATION=${AGENT_S2_BLOCK_UNSAFE_NAVIGATION:-true}
       
+      # Transparent proxy settings (disabled by default for safety)
+      # WARNING: When enabled, intercepts ALL system HTTP/HTTPS traffic
+      - AGENT_S2_ENABLE_PROXY=${AGENT_S2_ENABLE_PROXY:-false}
+      
     volumes:
       # Mount test outputs
       - ../../data/test-outputs:/tmp/agent-s2-outputs

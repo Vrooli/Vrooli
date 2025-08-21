@@ -13,6 +13,7 @@ source "${OPENROUTER_CLI_DIR}/lib/core.sh"
 source "${OPENROUTER_CLI_DIR}/lib/status.sh"
 source "${OPENROUTER_CLI_DIR}/lib/install.sh"
 source "${OPENROUTER_CLI_DIR}/lib/inject.sh"
+source "${OPENROUTER_CLI_DIR}/lib/configure.sh"
 
 # Main CLI handler
 openrouter::cli() {
@@ -58,6 +59,49 @@ openrouter::cli() {
         inject)
             openrouter::inject "$@"
             ;;
+        configure)
+            openrouter::configure "$@"
+            ;;
+        show-config)
+            openrouter::show_config
+            ;;
+        run-tests)
+            # Run integration tests and save results
+            local test_dir="${OPENROUTER_CLI_DIR}/test"
+            local result_dir="${var_ROOT_DIR}/data/test-results"
+            mkdir -p "$result_dir"
+            
+            if [[ -f "${test_dir}/integration.bats" ]]; then
+                echo "Running OpenRouter integration tests..."
+                local timestamp=$(date -Iseconds)
+                local test_output
+                test_output=$(timeout 30 bats "${test_dir}/integration.bats" 2>&1)
+                local exit_code=$?
+                
+                # Parse test results
+                local test_status="failed"
+                if [[ $exit_code -eq 0 ]]; then
+                    test_status="passed"
+                fi
+                
+                # Save results
+                cat > "${result_dir}/openrouter-test.json" <<EOF
+{
+    "resource": "openrouter",
+    "status": "$test_status",
+    "timestamp": "$timestamp",
+    "exit_code": $exit_code,
+    "tests_run": $(echo "$test_output" | grep -E '^1\.\.[0-9]+$' | cut -d. -f3 || echo "0"),
+    "output": $(echo "$test_output" | jq -Rs . 2>/dev/null || echo '""')
+}
+EOF
+                echo "$test_output"
+                return $exit_code
+            else
+                echo "No tests found for OpenRouter"
+                return 1
+            fi
+            ;;
         help|--help|-h)
             cat <<EOF
 OpenRouter Resource CLI
@@ -68,12 +112,15 @@ Commands:
   status [--verbose] [--format json|text]  Check OpenRouter status
   install [--verbose]                      Install/configure OpenRouter
   uninstall [--verbose]                    Remove OpenRouter configuration
+  configure [--api-key KEY] [--vault|--file] Set up API key
+  show-config                               Show current configuration
   start                                     No-op (API service)
   stop                                      No-op (API service)
   test|test-connection                     Test API connectivity
   list-models                               List available models
   usage|credits                             Show usage and credits
   inject <target> [data]                   Inject config to other resources
+  run-tests                                 Run integration tests
   help                                      Show this help message
 
 Examples:

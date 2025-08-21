@@ -129,6 +129,7 @@ agents2::docker_start() {
         "AGENTS2_ENABLE_SEARCH=$AGENTS2_ENABLE_SEARCH"
         "DISPLAY=$AGENTS2_DISPLAY"
         "AGENT_S2_VIRUSTOTAL_API_KEY=${AGENTS2_VIRUSTOTAL_API_KEY:-}"
+        "AGENT_S2_ENABLE_PROXY=$AGENTS2_ENABLE_PROXY"
     )
     
     # Add display environment if enabled

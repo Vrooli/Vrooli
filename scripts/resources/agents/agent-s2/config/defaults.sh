@@ -118,6 +118,11 @@ agents2::export_config() {
     if [[ -z "${AGENTS2_SECURITY_OPT:-}" ]]; then
         readonly AGENTS2_SECURITY_OPT="seccomp=unconfined"
     fi
+    # Transparent proxy configuration - DISABLED by default for safety
+    # This intercepts ALL system HTTP/HTTPS traffic when enabled
+    if [[ -z "${AGENTS2_ENABLE_PROXY:-}" ]]; then
+        readonly AGENTS2_ENABLE_PROXY="${ENABLE_PROXY:-${ARGS_ENABLE_PROXY:-false}}"
+    fi
     if [[ -z "${AGENTS2_USER:-}" ]]; then
         readonly AGENTS2_USER="agents2"
     fi
@@ -177,7 +182,7 @@ agents2::export_config() {
     export AGENTS2_STARTUP_MAX_WAIT AGENTS2_STARTUP_WAIT_INTERVAL
     export AGENTS2_INITIALIZATION_WAIT
     export AGENTS2_MEMORY_LIMIT AGENTS2_CPU_LIMIT AGENTS2_SHM_SIZE
-    export AGENTS2_ENABLE_AI AGENTS2_ENABLE_SEARCH
+    export AGENTS2_ENABLE_AI AGENTS2_ENABLE_SEARCH AGENTS2_ENABLE_PROXY
 }
 
 #######################################

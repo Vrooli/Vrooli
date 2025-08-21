@@ -21,9 +21,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # GUI toolkit support
     python3-tk python3-dev \
     # Browser automation support
-    libnss3 libgconf-2-4 libxss1 libgdk-pixbuf2.0-0 \
+    libnss3 libxss1 libgdk-pixbuf-2.0-0 \
     libgtk-3-0 libxcomposite1 libxdamage1 libxrandr2 \
-    libappindicator3-1 xdg-utils \
+    xdg-utils \
     # Fonts for proper rendering
     fonts-liberation fonts-dejavu-core fonts-noto-color-emoji \
     # Process management
@@ -71,6 +71,7 @@ COPY --chown=agents2:agents2 docker/scripts/startup.sh /opt/agent-s2/
 COPY --chown=agents2:agents2 docker/scripts/vnc-password.sh /opt/agent-s2/
 COPY --chown=agents2:agents2 docker/scripts/setup-proxy.sh /opt/agent-s2/
 COPY --chown=agents2:agents2 docker/scripts/firefox-monitor.sh /opt/agent-s2/
+COPY --chown=agents2:agents2 docker/scripts/connection-monitor.sh /opt/agent-s2/
 
 # Copy Python package
 COPY --chown=agents2:agents2 agent_s2 /opt/agent-s2/agent_s2/

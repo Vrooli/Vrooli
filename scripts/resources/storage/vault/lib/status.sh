@@ -202,17 +202,24 @@ vault::check_vault_status() {
 vault::check_secret_engines() {
     echo "  Secret Engines:"
     
-    # Check KV engine
+    # Check KV engine - use direct curl if vault::api_request fails
     local mounts_response
     mounts_response=$(vault::api_request "GET" "/v1/sys/mounts" 2>/dev/null)
     
-    if [[ $? -eq 0 ]]; then
-        local kv_engine_path="${VAULT_SECRET_ENGINE}/"
+    # If vault::api_request failed, try direct curl
+    if [[ -z "$mounts_response" ]] || [[ "$mounts_response" == *"error"* ]]; then
+        local token
+        token=$(vault::get_root_token 2>/dev/null) || token="myroot"
+        mounts_response=$(curl -s -H "X-Vault-Token: $token" "${VAULT_BASE_URL:-http://localhost:8200}/v1/sys/mounts" 2>/dev/null)
+    fi
+    
+    if [[ -n "$mounts_response" ]]; then
+        local kv_engine_path="${VAULT_SECRET_ENGINE:-secret}/"
         # Check both old format (direct) and new format (under .data)
         if echo "$mounts_response" | jq -e ".\"$kv_engine_path\"" >/dev/null 2>&1; then
             local kv_version
             kv_version=$(echo "$mounts_response" | jq -r ".\"$kv_engine_path\".options.version // \"1\"")
-            echo "    KV Engine ($VAULT_SECRET_ENGINE): ✅ Enabled (v$kv_version)"
+            echo "    KV Engine (${VAULT_SECRET_ENGINE:-secret}): ✅ Enabled (v$kv_version)"
             
             # Test functional operations
             vault::test_secret_operations
@@ -220,15 +227,15 @@ vault::check_secret_engines() {
             # New format with data field
             local kv_version
             kv_version=$(echo "$mounts_response" | jq -r ".data.\"$kv_engine_path\".options.version // \"1\"")
-            echo "    KV Engine ($VAULT_SECRET_ENGINE): ✅ Enabled (v$kv_version)"
+            echo "    KV Engine (${VAULT_SECRET_ENGINE:-secret}): ✅ Enabled (v$kv_version)"
             
             # Test functional operations
             vault::test_secret_operations
         else
-            echo "    KV Engine ($VAULT_SECRET_ENGINE): ❌ Not enabled"
+            echo "    KV Engine (${VAULT_SECRET_ENGINE:-secret}): ❌ Not enabled"
         fi
     else
-        echo "    KV Engine ($VAULT_SECRET_ENGINE): ❓ Cannot check (API error)"
+        echo "    KV Engine (${VAULT_SECRET_ENGINE:-secret}): ❓ Cannot check (API error)"
     fi
 }
 

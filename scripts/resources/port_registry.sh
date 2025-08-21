@@ -48,6 +48,8 @@ declare -g -A RESOURCE_PORTS=(
     ["haystack"]="8075"        # End-to-end framework for question answering and search
     ["keycloak"]="8070"        # Enterprise identity and access management
     ["erpnext"]="8020"         # Complete open-source ERP suite
+    ["blender"]="8093"         # 3D creation suite with Python API
+    ["vocr"]="9420"            # Vision OCR - Advanced screen recognition and AI-powered image analysis
     
     # Future services can use:
     # - 11xxx for AI services

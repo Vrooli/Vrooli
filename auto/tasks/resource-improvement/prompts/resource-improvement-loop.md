@@ -52,6 +52,7 @@
   2) Running but missing baseline capability (e.g., Ollama baseline models) → improve
   3) Misconfiguration in connection info → diagnose and plan a safe fix
   4) All resources have healthy status and iteration > 15 (hinting that we've probably been healthy for several steps already, and have likely already done additional validations and improvements to the existing resources) → HIGHLY consider adding a high-impact resource from the curated list later in this prompt (plan-only unless in apply mode)
+  5) If all resources are healthy and every new resource in the list was added too, then work on improving/cleaning up existing resources
 
 Before choosing, also read (if present):
 - `auto/data/resource-improvement/summary.txt` — review overall health metrics first
@@ -69,6 +70,12 @@ General:
 - No critical errors in condensed logs/output
 - Data can be "injected" into (added to) the resource, if relevant (likely yes. Even if the resource only works with python files, for example, being able to store them with the resource makes it easy to share files between scenarios and connect them to CLI commands)
 - Resource's documentation is detailed, accurate, and organized. It should follow our documentation best practices, including using a "hub-and-spokes" model of organization to limit the size of the resource's main README.md.
+- Resource does not use a manage.sh script. Instead, the resource is managed through its `cli.sh` script, which acts as an ultra thin wrapper around the library functions.
+- The resource has integration tests, which are put in a `test/` folder. These use files from `scripts/__test/fixtures/data/` instead of putting the tests directly in the resources's folder, so that we can reuse them across other resources. 
+- Test results are included in the resource's `status` result, with a timestamp for the last time they were run.
+- The resource includes at least one example in an `examples/` folder.
+- All `.bats` files (if present) are co-located with the file they test, using the same name (e.g. `manage.sh` and `manage.bats`)
+- Any code that's labelled as being "legacy" or for "backwards compatability" is removed.
 
 ---
 

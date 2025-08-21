@@ -86,8 +86,8 @@ else
 fi
 
 # Setup security proxy if enabled
-if [ "${AGENT_S2_ENABLE_PROXY:-true}" = "true" ]; then
-    log_info "Setting up security proxy (iptables rules)..."
+if [ "${AGENT_S2_ENABLE_PROXY:-false}" = "true" ]; then
+    log_info "Setting up security proxy (iptables rules) - WARNING: This will intercept ALL system HTTP/HTTPS traffic!"
     
     # Check if we have the required tools
     if ! command -v iptables >/dev/null 2>&1; then
@@ -205,7 +205,8 @@ if [ "${AGENT_S2_ENABLE_PROXY:-true}" = "true" ]; then
     fi
     
 else
-    log_info "Security proxy disabled - skipping iptables setup"
+    log_info "Transparent proxy disabled (safer default) - Agent S2 will run without system-wide traffic interception"
+    log_info "To enable proxy for enhanced security monitoring, set AGENT_S2_ENABLE_PROXY=true"
 fi
 
 # Ensure proper directory permissions

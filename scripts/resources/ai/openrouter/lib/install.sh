@@ -18,7 +18,10 @@ openrouter::install() {
     # Just ensure configuration is set up
     
     # Register CLI
-    "${var_SCRIPTS_RESOURCES_LIB_DIR}/resources/install-resource-cli.sh" "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)" 2>/dev/null || true
+    local cli_installer="${OPENROUTER_INSTALL_DIR}/../../../lib/resources/install-resource-cli.sh"
+    if [[ -f "$cli_installer" ]]; then
+        "$cli_installer" --name openrouter --cli-path "${OPENROUTER_INSTALL_DIR}/../cli.sh" 2>/dev/null || true
+    fi
     
     # Try to get API key from user if not already configured
     if [[ -z "$OPENROUTER_API_KEY" ]]; then
