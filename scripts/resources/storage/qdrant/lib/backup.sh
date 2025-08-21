@@ -146,13 +146,45 @@ qdrant::backup::list() {
             local backup_name
             backup_name=$(basename "$backup_path")
             
-            # Skip if name looks malformed (contains special chars or is too long)
-            if [[ ${#backup_name} -gt 50 ]] || [[ "$backup_name" =~ [{}] ]]; then
+            # Skip if name looks malformed (contains special chars, newlines, or is too long)
+            if [[ ${#backup_name} -gt 50 ]] || [[ "$backup_name" =~ [{}\"\'\ ] ]] || [[ "$backup_name" =~ $'\n' ]]; then
+                log::debug "Skipping malformed backup directory: $backup_name"
                 continue
             fi
             
-            # Display the backup path
-            echo "$backup_path"
+            # Additional validation - ensure it matches expected timestamp format
+            if [[ ! "$backup_name" =~ ^[0-9]{8}_[0-9]{6}_ ]]; then
+                log::debug "Skipping directory with invalid timestamp format: $backup_name"
+                continue
+            fi
+            
+            # Format the output nicely with metadata if available
+            local formatted_entry
+            if [[ -f "$backup_path/backup_info.json" ]]; then
+                local timestamp
+                local label
+                timestamp=$(jq -r '.created_at // ""' "$backup_path/backup_info.json" 2>/dev/null)
+                label=$(jq -r '.label // ""' "$backup_path/backup_info.json" 2>/dev/null)
+                if [[ -n "$timestamp" && -n "$label" ]]; then
+                    # Convert ISO timestamp to readable format
+                    local readable_time
+                    readable_time=$(date -d "$timestamp" "+%Y-%m-%d %H:%M:%S" 2>/dev/null || echo "$timestamp")
+                    formatted_entry="  $backup_name  ($label, created: $readable_time)"
+                else
+                    formatted_entry="  $backup_name"
+                fi
+            else
+                # Extract timestamp from directory name for display
+                local date_part
+                local time_part
+                date_part=$(echo "$backup_name" | cut -d'_' -f1)
+                time_part=$(echo "$backup_name" | cut -d'_' -f2)
+                local readable_time
+                readable_time=$(date -d "${date_part:0:4}-${date_part:4:2}-${date_part:6:2} ${time_part:0:2}:${time_part:2:2}:${time_part:4:2}" "+%Y-%m-%d %H:%M:%S" 2>/dev/null || echo "unknown")
+                formatted_entry="  $backup_name  (created: $readable_time)"
+            fi
+            
+            echo "$formatted_entry"
         done | sort -r
     else
         echo "  No framework backups found"

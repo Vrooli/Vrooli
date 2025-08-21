@@ -1090,8 +1090,173 @@ scenario_to_app::copy_from_manifest() {
     # Create instance manager wrapper for standalone app 
     scenario_to_app::create_instance_manager_wrapper "$app_path"
     
+    # Phase 2: Bulk copy remaining scenario files (if enabled and not filtered)
+    if [[ -z "$filter" ]] || [[ "$filter" == "scenario" ]]; then
+        scenario_to_app::bulk_copy_remaining_files "$app_path" "$scenario_path" "$manifest"
+    fi
+    
     log::success "File copying completed successfully"
     return 0
+}
+
+#######################################
+# Bulk copy remaining scenario files not handled by manifest
+# Arguments:
+#   $1 - app_path (destination)
+#   $2 - scenario_path (source)
+#   $3 - manifest_path (for configuration)
+# Returns:
+#   0 on success, 1 on failure
+#######################################
+scenario_to_app::bulk_copy_remaining_files() {
+    local app_path="$1"
+    local scenario_path="$2" 
+    local manifest_path="$3"
+    
+    # Check if bulk copy is enabled in manifest
+    local bulk_enabled
+    bulk_enabled=$(jq -r '.bulk_copy.enabled // false' "$manifest_path" 2>/dev/null)
+    
+    if [[ "$bulk_enabled" != "true" ]]; then
+        [[ "$VERBOSE" == "true" ]] && log::info "Bulk copy disabled in manifest, skipping"
+        return 0
+    fi
+    
+    [[ "$VERBOSE" == "true" ]] && log::info "Starting bulk copy of remaining scenario files..."
+    
+    # Build set of already copied paths from manifest rules
+    declare -A copied_paths
+    scenario_to_app::build_copied_paths_set copied_paths "$scenario_path" "$manifest_path"
+    
+    # Get exclusion patterns from manifest
+    local exclude_patterns
+    mapfile -t exclude_patterns < <(jq -r '.bulk_copy.exclude_patterns[]? // empty' "$manifest_path" 2>/dev/null)
+    
+    # Find and copy remaining files
+    local files_copied=0
+    local files_skipped=0
+    
+    # Use find to get all files, then filter
+    while IFS= read -r -d '' file; do
+        local rel_path="${file#$scenario_path/}"
+        
+        # Skip if already copied by manifest
+        if [[ "${copied_paths[$rel_path]:-}" == "1" ]]; then
+            ((files_skipped++))
+            [[ "$VERBOSE" == "true" ]] && log::info "  Skipping (already copied): $rel_path"
+            continue
+        fi
+        
+        # Check exclusion patterns
+        local excluded=false
+        for pattern in "${exclude_patterns[@]}"; do
+            if [[ -n "$pattern" ]]; then
+                # Convert glob pattern to match against relative path
+                if [[ "$rel_path" == $pattern ]] || [[ "$rel_path" == */$pattern ]] || [[ "$rel_path" == $pattern/* ]]; then
+                    excluded=true
+                    break
+                fi
+            fi
+        done
+        
+        if [[ "$excluded" == "true" ]]; then
+            ((files_skipped++))
+            [[ "$VERBOSE" == "true" ]] && log::info "  Skipping (excluded): $rel_path"
+            continue
+        fi
+        
+        # Copy the file
+        local dest_file="$app_path/$rel_path"
+        if scenario_to_app::copy_bulk_file "$file" "$dest_file" "$rel_path"; then
+            ((files_copied++))
+        else
+            log::warning "Failed to copy: $rel_path"
+        fi
+        
+    done < <(find "$scenario_path" -type f -print0 2>/dev/null)
+    
+    if [[ $files_copied -gt 0 ]]; then
+        log::success "Bulk copied $files_copied additional file(s) from scenario (skipped $files_skipped)"
+    else
+        [[ "$VERBOSE" == "true" ]] && log::info "No additional files to bulk copy (skipped $files_skipped already handled)"
+    fi
+    
+    return 0
+}
+
+#######################################
+# Build set of paths already copied by manifest rules
+# Arguments:
+#   $1 - nameref to associative array to populate
+#   $2 - scenario_path
+#   $3 - manifest_path
+#######################################
+scenario_to_app::build_copied_paths_set() {
+    local -n paths_ref=$1
+    local scenario_path="$2"
+    local manifest_path="$3"
+    
+    # Get all copy rules from manifest
+    local rule_count
+    rule_count=$(jq '.copy_rules | length' "$manifest_path")
+    
+    for ((i=0; i<rule_count; i++)); do
+        local rule
+        rule=$(jq -c ".copy_rules[$i]" "$manifest_path")
+        
+        local from source type
+        from=$(echo "$rule" | jq -r '.from // "vrooli"')
+        source=$(echo "$rule" | jq -r '.source')
+        type=$(echo "$rule" | jq -r '.type')
+        
+        # Only track scenario files (skip vrooli files)
+        if [[ "$from" == "scenario" ]]; then
+            if [[ "$type" == "file" ]]; then
+                # Single file
+                paths_ref["$source"]=1
+            elif [[ "$type" == "directory" ]]; then
+                # Directory - mark all files within it
+                if [[ -d "$scenario_path/$source" ]]; then
+                    while IFS= read -r -d '' file; do
+                        local rel_path="${file#$scenario_path/}"
+                        paths_ref["$rel_path"]=1
+                    done < <(find "$scenario_path/$source" -type f -print0 2>/dev/null)
+                fi
+            fi
+        fi
+    done
+    
+    [[ "$VERBOSE" == "true" ]] && log::info "Tracking ${#paths_ref[@]} paths already copied by manifest"
+}
+
+#######################################
+# Copy a single file during bulk copy
+# Arguments:
+#   $1 - source file path
+#   $2 - destination file path  
+#   $3 - relative path (for logging)
+# Returns:
+#   0 on success, 1 on failure
+#######################################
+scenario_to_app::copy_bulk_file() {
+    local src="$1"
+    local dest="$2"
+    local rel_path="$3"
+    
+    # Create parent directory
+    mkdir -p "$(dirname "$dest")" || {
+        log::error "Failed to create directory for: $rel_path"
+        return 1
+    }
+    
+    # Copy file preserving permissions and timestamps
+    if cp -p "$src" "$dest" 2>/dev/null; then
+        [[ "$VERBOSE" == "true" ]] && log::info "  Copied: $rel_path"
+        return 0
+    else
+        log::warning "Failed to copy file: $rel_path"
+        return 1
+    fi
 }
 
 #######################################

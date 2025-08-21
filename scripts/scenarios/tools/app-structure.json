@@ -1,6 +1,33 @@
 {
-  "version": "1.0.0",
-  "description": "Defines what gets copied when generating standalone apps from scenarios",
+  "version": "1.1.0",
+  "description": "Defines controlled copying rules for critical files. Remaining scenario files are copied automatically with exclusion patterns.",
+  "bulk_copy": {
+    "enabled": true,
+    "description": "After manifest rules, copy all remaining scenario files not already copied",
+    "exclude_patterns": [
+      ".git",
+      ".git/**",
+      "node_modules",
+      "node_modules/**",
+      ".DS_Store",
+      "Thumbs.db",
+      "*.log",
+      ".env.local",
+      ".env.*.local",
+      "coverage",
+      "coverage/**",
+      ".nyc_output",
+      ".nyc_output/**",
+      "dist",
+      "build",
+      ".cache",
+      ".cache/**",
+      "*.tmp",
+      "*.temp",
+      ".vscode/settings.json",
+      ".idea/workspace.xml"
+    ]
+  },
   "copy_rules": [
     {
       "name": "core-lifecycle",

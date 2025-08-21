@@ -80,13 +80,35 @@ cli::register_command "uninstall" "Uninstall Qdrant (requires --force)" "qdrant_
 # Resource-specific command implementations
 ################################################################################
 
-# Inject data into Qdrant
+# Inject data into Qdrant (DEPRECATED - delegates to content add)
 qdrant_inject() {
     local file="${1:-}"
+    
+    # Handle help requests
+    if [[ "$file" == "--help" || "$file" == "-h" || "$file" == "help" ]]; then
+        echo "Usage: resource-qdrant inject <file.json>"
+        echo ""
+        echo "⚠️  DEPRECATED: Use 'resource-qdrant content add' instead"
+        echo ""
+        echo "Inject data from JSON file into Qdrant collections"
+        echo ""
+        echo "Arguments:"
+        echo "  <file.json>    Path to JSON file containing injection data"
+        echo ""
+        echo "Examples:"
+        echo "  resource-qdrant inject vectors.json"
+        echo "  resource-qdrant inject shared:initialization/storage/qdrant/collections.json"
+        echo ""
+        echo "Recommended alternative:"
+        echo "  resource-qdrant content add --file vectors.json"
+        return 0
+    fi
     
     if [[ -z "$file" ]]; then
         log::error "File path required for injection"
         echo "Usage: resource-qdrant inject <file.json>"
+        echo ""
+        echo "⚠️  DEPRECATED: Use 'resource-qdrant content add' instead"
         echo ""
         echo "Examples:"
         echo "  resource-qdrant inject vectors.json"
@@ -94,21 +116,14 @@ qdrant_inject() {
         return 1
     fi
     
-    # Handle shared: prefix
-    if [[ "$file" == shared:* ]]; then
-        file="${var_ROOT_DIR}/${file#shared:}"
-    fi
+    # Show deprecation warning but continue with operation
+    log::warn "⚠️  DEPRECATED: 'inject' command is deprecated. Use 'resource-qdrant content add --file $file' instead"
     
-    if [[ ! -f "$file" ]]; then
-        log::error "File not found: $file"
-        return 1
-    fi
-    
-    # Use existing injection function
-    if command -v qdrant::inject &>/dev/null; then
-        INJECTION_CONFIG="$(cat "$file")" qdrant::inject
+    # Delegate to content add command with file parameter
+    if command -v qdrant::content::add &>/dev/null; then
+        qdrant::content::add --file "$file"
     else
-        log::error "qdrant injection functions not available"
+        log::error "Content add function not available"
         return 1
     fi
 }
