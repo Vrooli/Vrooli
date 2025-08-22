@@ -38,7 +38,7 @@ source "${var_SCRIPTS_RESOURCES_LIB_DIR}/cli-command-framework.sh"
 source "${CLAUDE_CODE_CLI_DIR}/config/defaults.sh" 2>/dev/null || true
 
 # Source Claude Code libraries
-for lib in common status install session session-enhanced mcp templates settings automation execute batch error-handling; do
+for lib in common status install session session-enhanced mcp templates settings automation execute batch error-handling content; do
     lib_file="${CLAUDE_CODE_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -53,7 +53,8 @@ cli::init "claude-code" "Claude Code AI development assistant"
 cli::register_command "help" "Show this help message with Claude Code examples" "claude_code_show_help"
 
 # Register additional Claude Code-specific commands
-cli::register_command "inject" "Inject templates/prompts into Claude Code" "claude_code_inject" "modifies-system"
+cli::register_command "inject" "Inject templates/prompts into Claude Code (deprecated, use content)" "claude_code_inject" "modifies-system"
+cli::register_command "content" "Manage Claude Code content (templates, prompts, configs)" "claude_code_content" "modifies-system"
 cli::register_command "run" "Run a prompt with Claude Code" "claude_code_run" "modifies-system"
 cli::register_command "session" "Session management" "claude_code_session"
 cli::register_command "mcp" "MCP server management" "claude_code_mcp" "modifies-system"
@@ -105,6 +106,21 @@ claude_code_inject() {
     VROOLI_ROOT="${var_ROOT_DIR}" \
     RESOURCE_DIR="${RESOURCE_DIR}" \
     "${CLAUDE_CODE_CLI_DIR}/inject.sh" --inject "$file"
+}
+
+# Content management (replacement for inject)
+claude_code_content() {
+    # Source the content management library
+    if [[ -f "${CLAUDE_CODE_CLI_DIR}/lib/content.sh" ]]; then
+        # shellcheck disable=SC1090
+        source "${CLAUDE_CODE_CLI_DIR}/lib/content.sh"
+        
+        # Call the content function with all arguments
+        claude_code::content "$@"
+    else
+        log::error "Content management library not found"
+        return 1
+    fi
 }
 
 # Validate Claude Code configuration
@@ -183,6 +199,9 @@ claude_code_uninstall() {
 # Run a command with Claude Code
 claude_code_run() {
     local prompt="${*:-}"
+    
+    echo "🔍 CLAUDE_CODE_RUN FUNCTION CALLED"
+    echo "🔍 PROMPT: '$prompt'"
     
     if [[ -z "$prompt" ]]; then
         log::error "Prompt required"
