@@ -183,7 +183,7 @@
       "steps": [
         {
           "name": "start-api-server",
-          "run": "cd api && PORT=$SERVICE_PORT N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} WINDMILL_BASE_URL=http://localhost:${RESOURCE_PORTS[windmill]} QDRANT_BASE_URL=http://localhost:${RESOURCE_PORTS[qdrant]} DATABASE_URL=postgres://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/task_planner?sslmode=disable ./task-planner-api &",
+          "run": "cd api && PORT=$SERVICE_PORT ./task-planner-api &",
           "description": "Start Go coordination API server in background",
           "background": true,
           "condition": {

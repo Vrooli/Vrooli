@@ -163,7 +163,7 @@
       "steps": [
         {
           "name": "start-api-server",
-          "run": "cd api && PORT=$SERVICE_PORT N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} WINDMILL_BASE_URL=http://localhost:${RESOURCE_PORTS[windmill]} COMFYUI_BASE_URL=http://localhost:${RESOURCE_PORTS[comfyui]} WHISPER_BASE_URL=http://localhost:${RESOURCE_PORTS[whisper]} POSTGRES_URL=postgres://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/image_generation_pipeline MINIO_ENDPOINT=localhost:${RESOURCE_PORTS[minio]} QDRANT_URL=http://localhost:${RESOURCE_PORTS[qdrant]} ./image-generation-pipeline-api &",
+          "run": "cd api && PORT=$SERVICE_PORT ./image-generation-pipeline-api &",
           "description": "Start Go API server in background",
           "background": true,
           "condition": {

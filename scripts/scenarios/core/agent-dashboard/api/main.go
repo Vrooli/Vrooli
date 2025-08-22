@@ -26,6 +26,10 @@ type APIResponse struct {
     Error   string      `json:"error,omitempty"`
 }
 
+type APIServer struct {
+    agents map[string]*Agent
+}
+
 func main() {
     port := os.Getenv("PORT")
     if port == "" {

@@ -162,7 +162,7 @@
       "steps": [
         {
           "name": "start-api-server",
-          "run": "cd api && PORT=$SERVICE_PORT N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} WINDMILL_BASE_URL=http://localhost:${RESOURCE_PORTS[windmill]} SEARXNG_URL=http://localhost:${RESOURCE_PORTS[searxng]} QDRANT_URL=http://localhost:${RESOURCE_PORTS[qdrant]} MINIO_URL=http://localhost:${RESOURCE_PORTS[minio]} POSTGRES_URL=postgres://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/research_assistant ./research-assistant-api &",
+          "run": "cd api && PORT=$SERVICE_PORT ./research-assistant-api &",
           "description": "Start Go coordination API server in background",
           "background": true,
           "condition": {

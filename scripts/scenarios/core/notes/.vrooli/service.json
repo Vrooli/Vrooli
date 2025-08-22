@@ -169,7 +169,7 @@
       "steps": [
         {
           "name": "start-api-server",
-          "run": "cd api && PORT=$SERVICE_PORT N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} POSTGRES_URL=postgres://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/notes QDRANT_URL=http://localhost:${RESOURCE_PORTS[qdrant]} REDIS_URL=redis://localhost:${RESOURCE_PORTS[redis]} ./notes-api &",
+          "run": "cd api && PORT=$SERVICE_PORT ./notes-api &",
           "description": "Start API server",
           "background": true,
           "condition": {

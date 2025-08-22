@@ -185,7 +185,7 @@
       "steps": [
         {
           "name": "start-api-server",
-          "run": "cd api && PORT=$SERVICE_PORT N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} WINDMILL_BASE_URL=http://localhost:${RESOURCE_PORTS[windmill]} POSTGRES_URL=postgres://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/file_manager QDRANT_URL=http://localhost:${RESOURCE_PORTS[qdrant]} MINIO_URL=http://localhost:${RESOURCE_PORTS[minio]} REDIS_URL=redis://localhost:${RESOURCE_PORTS[redis]} OLLAMA_URL=http://localhost:${RESOURCE_PORTS[ollama]} UNSTRUCTURED_URL=http://localhost:${RESOURCE_PORTS[unstructured-io]} ./smart-file-photo-manager-api &",
+          "run": "cd api && PORT=$SERVICE_PORT ./smart-file-photo-manager-api &",
           "description": "Start Go coordination API server in background",
           "background": true,
           "condition": {

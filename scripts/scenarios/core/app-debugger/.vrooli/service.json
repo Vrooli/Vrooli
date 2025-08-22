@@ -138,7 +138,7 @@
       "steps": [
         {
           "name": "start-api-server",
-          "run": "cd api && PORT=$SERVICE_PORT N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} POSTGRES_URL=postgres://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/app_debugger REDIS_URL=redis://localhost:${RESOURCE_PORTS[redis]} QUESTDB_URL=http://localhost:${RESOURCE_PORTS[questdb]:-9000} ./app-debugger-api &",
+          "run": "cd api && PORT=$SERVICE_PORT ./app-debugger-api &",
           "description": "Start API server",
           "background": true,
           "condition": {

@@ -903,3 +903,24 @@ func (s *APIServer) manageCampaignViaWorkflow(w http.ResponseWriter, r *http.Req
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(result)
 }
+// Export/Import stub implementations
+func (s *APIServer) exportData(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+	json.NewEncoder(w).Encode(map[string]string{"error": "Export functionality not yet implemented"})
+}
+
+func (s *APIServer) importData(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+	json.NewEncoder(w).Encode(map[string]string{"error": "Import functionality not yet implemented"})
+}
+
+// Version control stub implementations
+func (s *APIServer) getPromptVersions(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+	json.NewEncoder(w).Encode(map[string]string{"error": "Version history not yet implemented"})
+}
+
+func (s *APIServer) revertPromptVersion(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+	json.NewEncoder(w).Encode(map[string]string{"error": "Version revert not yet implemented"})
+}

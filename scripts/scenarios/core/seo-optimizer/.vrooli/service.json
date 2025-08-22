@@ -156,7 +156,7 @@
       "steps": [
         {
           "name": "start-api-server",
-          "run": "cd api && PORT=$SERVICE_PORT N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} POSTGRES_URL=postgres://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/seo_optimizer REDIS_URL=redis://localhost:${RESOURCE_PORTS[redis]} QDRANT_URL=http://localhost:${RESOURCE_PORTS[qdrant]} ./seo-optimizer-api &",
+          "run": "cd api && PORT=$SERVICE_PORT ./seo-optimizer-api &",
           "description": "Start API server",
           "background": true,
           "condition": {

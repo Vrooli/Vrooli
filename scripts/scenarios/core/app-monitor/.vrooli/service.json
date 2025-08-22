@@ -167,7 +167,7 @@
       "steps": [
         {
           "name": "start-api-server",
-          "run": "cd api && PORT=$SERVICE_PORT N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} WINDMILL_BASE_URL=http://localhost:${RESOURCE_PORTS[windmill]} NODE_RED_BASE_URL=http://localhost:${RESOURCE_PORTS[node-red]} POSTGRES_URL=postgres://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/app_monitor REDIS_URL=redis://localhost:${RESOURCE_PORTS[redis]} ./app-monitor-api &",
+          "run": "cd api && PORT=$SERVICE_PORT ./app-monitor-api &",
           "description": "Start Go coordination API server in background",
           "background": true,
           "condition": {

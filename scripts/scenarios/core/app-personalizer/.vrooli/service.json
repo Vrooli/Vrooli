@@ -120,7 +120,7 @@
       "steps": [
         {
           "name": "start-api-server",
-          "run": "cd api && PORT=$SERVICE_PORT N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} POSTGRES_URL=postgres://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/app_personalizer MINIO_ENDPOINT=localhost:${RESOURCE_PORTS[minio]} ./app-personalizer-api &",
+          "run": "cd api && PORT=$SERVICE_PORT ./app-personalizer-api &",
           "description": "Start Go API server in background",
           "background": true,
           "condition": {

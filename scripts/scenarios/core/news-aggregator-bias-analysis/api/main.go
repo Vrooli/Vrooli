@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"sync"
 	"time"
 
@@ -238,7 +239,12 @@ func addFeedHandler(w http.ResponseWriter, r *http.Request) {
 
 func updateFeedHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	id := vars["id"]
+	idStr := vars["id"]
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "Invalid feed ID", http.StatusBadRequest)
+		return
+	}
 
 	var feed Feed
 	if err := json.NewDecoder(r.Body).Decode(&feed); err != nil {
@@ -246,7 +252,7 @@ func updateFeedHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err := db.Exec(`
+	_, err = db.Exec(`
 		UPDATE feeds 
 		SET name = $2, url = $3, category = $4, bias_rating = $5, active = $6
 		WHERE id = $1

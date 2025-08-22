@@ -151,7 +151,7 @@
       "steps": [
         {
           "name": "start-api-server",
-          "run": "cd api && PORT=$SERVICE_PORT N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} WINDMILL_BASE_URL=http://localhost:${RESOURCE_PORTS[windmill]} EMBEDDING_MODEL=nomic-embed-text ./agent-metareasoning-manager-api &",
+          "run": "cd api && PORT=$SERVICE_PORT ./agent-metareasoning-manager-api &",
           "description": "Start Go coordination API server in background",
           "background": true,
           "condition": {

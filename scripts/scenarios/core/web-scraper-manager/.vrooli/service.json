@@ -189,7 +189,7 @@
       "steps": [
         {
           "name": "start-api-server",
-          "run": "cd api && PORT=$SERVICE_PORT N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} WINDMILL_BASE_URL=http://localhost:${RESOURCE_PORTS[windmill]} POSTGRES_URL=postgres://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/scraper_manager REDIS_URL=redis://localhost:${RESOURCE_PORTS[redis]} MINIO_URL=http://localhost:${RESOURCE_PORTS[minio]} QDRANT_URL=http://localhost:${RESOURCE_PORTS[qdrant]} ./web-scraper-manager-api &",
+          "run": "cd api && PORT=$SERVICE_PORT ./web-scraper-manager-api &",
           "description": "Start Go coordination API server in background",
           "background": true,
           "condition": {

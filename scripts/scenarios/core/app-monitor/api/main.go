@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
@@ -63,7 +64,7 @@ type Server struct {
 
 func main() {
 	server, err := NewServer()
-	if err \!= nil {
+	if err != nil {
 		log.Fatal("Failed to initialize server:", err)
 	}
 	defer server.Close()
@@ -71,7 +72,7 @@ func main() {
 	r := setupRoutes(server)
 	
 	log.Printf("🚀 App Monitor API server starting on port %s", server.port)
-	if err := r.Run(":" + server.port); err \!= nil {
+	if err := r.Run(":" + server.port); err != nil {
 		log.Fatal("Failed to start server:", err)
 	}
 }
@@ -86,28 +87,28 @@ func NewServer() (*Server, error) {
 
 	// Initialize database connection
 	db, err := sql.Open("postgres", postgresURL)
-	if err \!= nil {
+	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 
-	if err := db.Ping(); err \!= nil {
+	if err := db.Ping(); err != nil {
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
 	// Initialize Redis connection
 	redisOpts, err := redis.ParseURL(redisURL)
-	if err \!= nil {
+	if err != nil {
 		return nil, fmt.Errorf("failed to parse Redis URL: %w", err)
 	}
 	rdb := redis.NewClient(redisOpts)
 
-	if err := rdb.Ping(context.Background()).Err(); err \!= nil {
+	if err := rdb.Ping(context.Background()).Err(); err != nil {
 		return nil, fmt.Errorf("failed to connect to Redis: %w", err)
 	}
 
 	// Initialize Docker client
 	dockerClient, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
-	if err \!= nil {
+	if err != nil {
 		return nil, fmt.Errorf("failed to create Docker client: %w", err)
 	}
 
@@ -128,13 +129,13 @@ func NewServer() (*Server, error) {
 }
 
 func (s *Server) Close() {
-	if s.db \!= nil {
+	if s.db != nil {
 		s.db.Close()
 	}
-	if s.redis \!= nil {
+	if s.redis != nil {
 		s.redis.Close()
 	}
-	if s.docker \!= nil {
+	if s.docker != nil {
 		s.docker.Close()
 	}
 }
@@ -182,21 +183,21 @@ func (s *Server) healthCheck(c *gin.Context) {
 	services := make(map[string]string)
 
 	// Check database
-	if err := s.db.Ping(); err \!= nil {
+	if err := s.db.Ping(); err != nil {
 		services["database"] = "error"
 	} else {
 		services["database"] = "ok"
 	}
 
 	// Check Redis
-	if err := s.redis.Ping(ctx).Err(); err \!= nil {
+	if err := s.redis.Ping(ctx).Err(); err != nil {
 		services["redis"] = "error"
 	} else {
 		services["redis"] = "ok"
 	}
 
 	// Check Docker
-	if _, err := s.docker.Ping(ctx); err \!= nil {
+	if _, err := s.docker.Ping(ctx); err != nil {
 		services["docker"] = "error"
 	} else {
 		services["docker"] = "ok"
@@ -237,7 +238,7 @@ func (s *Server) getApps(c *gin.Context) {
 	`
 
 	rows, err := s.db.Query(query)
-	if err \!= nil {
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch apps"})
 		return
 	}
@@ -253,7 +254,7 @@ func (s *Server) getApps(c *gin.Context) {
 			&app.CreatedAt, &app.UpdatedAt, &app.Status,
 			&portMappingsJSON, &environmentJSON, &configJSON,
 		)
-		if err \!= nil {
+		if err != nil {
 			log.Printf("Error scanning app row: %v", err)
 			continue
 		}
@@ -289,7 +290,7 @@ func (s *Server) getApp(c *gin.Context) {
 		&app.CreatedAt, &app.UpdatedAt, &app.Status,
 		&portMappingsJSON, &environmentJSON, &configJSON,
 	)
-	if err \!= nil {
+	if err != nil {
 		if err == sql.ErrNoRows {
 			c.JSON(http.StatusNotFound, gin.H{"error": "App not found"})
 		} else {
@@ -311,11 +312,11 @@ func (s *Server) startApp(c *gin.Context) {
 	
 	// Get app details
 	var app App
-	var portMappingsJSON, environmentJSON, configJSON string
+	var configJSON string
 
 	query := `SELECT id, name, config FROM apps WHERE id = $1`
 	err := s.db.QueryRow(query, id).Scan(&app.ID, &app.Name, &configJSON)
-	if err \!= nil {
+	if err != nil {
 		if err == sql.ErrNoRows {
 			c.JSON(http.StatusNotFound, gin.H{"error": "App not found"})
 		} else {
@@ -335,7 +336,7 @@ func (s *Server) startApp(c *gin.Context) {
 	// Start container
 	ctx := context.Background()
 	err = s.docker.ContainerStart(ctx, containerName, types.ContainerStartOptions{})
-	if err \!= nil {
+	if err != nil {
 		log.Printf("Error starting container %s: %v", containerName, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to start app"})
 		return
@@ -343,7 +344,7 @@ func (s *Server) startApp(c *gin.Context) {
 
 	// Update app status
 	_, err = s.db.Exec("UPDATE apps SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2", "running", id)
-	if err \!= nil {
+	if err != nil {
 		log.Printf("Error updating app status: %v", err)
 	}
 
@@ -369,7 +370,7 @@ func (s *Server) stopApp(c *gin.Context) {
 
 	query := `SELECT id, name, config FROM apps WHERE id = $1`
 	err := s.db.QueryRow(query, id).Scan(&app.ID, &app.Name, &configJSON)
-	if err \!= nil {
+	if err != nil {
 		if err == sql.ErrNoRows {
 			c.JSON(http.StatusNotFound, gin.H{"error": "App not found"})
 		} else {
@@ -389,8 +390,10 @@ func (s *Server) stopApp(c *gin.Context) {
 	// Stop container
 	ctx := context.Background()
 	timeout := 10
-	err = s.docker.ContainerStop(ctx, containerName, &timeout)
-	if err \!= nil {
+	err = s.docker.ContainerStop(ctx, containerName, container.StopOptions{
+		Timeout: &timeout,
+	})
+	if err != nil {
 		log.Printf("Error stopping container %s: %v", containerName, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to stop app"})
 		return
@@ -398,7 +401,7 @@ func (s *Server) stopApp(c *gin.Context) {
 
 	// Update app status
 	_, err = s.db.Exec("UPDATE apps SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2", "stopped", id)
-	if err \!= nil {
+	if err != nil {
 		log.Printf("Error updating app status: %v", err)
 	}
 
@@ -432,7 +435,7 @@ func (s *Server) getAppLogs(c *gin.Context) {
 	`
 
 	rows, err := s.db.Query(query, id, limit, offset)
-	if err \!= nil {
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch logs"})
 		return
 	}
@@ -444,7 +447,7 @@ func (s *Server) getAppLogs(c *gin.Context) {
 		var timestamp time.Time
 
 		err := rows.Scan(&logID, &appID, &level, &message, &source, &timestamp)
-		if err \!= nil {
+		if err != nil {
 			continue
 		}
 
@@ -475,7 +478,7 @@ func (s *Server) getAppMetrics(c *gin.Context) {
 	`
 
 	rows, err := s.db.Query(fmt.Sprintf(query, hours), id)
-	if err \!= nil {
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch metrics"})
 		return
 	}
@@ -489,7 +492,7 @@ func (s *Server) getAppMetrics(c *gin.Context) {
 			&status.CPUUsage, &status.MemUsage, &status.DiskUsage,
 			&status.NetworkIn, &status.NetworkOut, &status.Timestamp,
 		)
-		if err \!= nil {
+		if err != nil {
 			continue
 		}
 		metrics = append(metrics, status)
@@ -501,7 +504,7 @@ func (s *Server) getAppMetrics(c *gin.Context) {
 func (s *Server) getDockerInfo(c *gin.Context) {
 	ctx := context.Background()
 	info, err := s.docker.Info(ctx)
-	if err \!= nil {
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get Docker info"})
 		return
 	}
@@ -512,7 +515,7 @@ func (s *Server) getDockerInfo(c *gin.Context) {
 func (s *Server) getContainers(c *gin.Context) {
 	ctx := context.Background()
 	containers, err := s.docker.ContainerList(ctx, types.ContainerListOptions{All: true})
-	if err \!= nil {
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to list containers"})
 		return
 	}
@@ -522,7 +525,7 @@ func (s *Server) getContainers(c *gin.Context) {
 
 func (s *Server) handleWebSocket(c *gin.Context) {
 	conn, err := s.upgrader.Upgrade(c.Writer, c.Request, nil)
-	if err \!= nil {
+	if err != nil {
 		log.Printf("Failed to upgrade connection: %v", err)
 		return
 	}
@@ -537,7 +540,7 @@ func (s *Server) handleWebSocket(c *gin.Context) {
 
 	for msg := range ch {
 		err := conn.WriteMessage(websocket.TextMessage, []byte(msg.Payload))
-		if err \!= nil {
+		if err != nil {
 			log.Printf("Failed to write WebSocket message: %v", err)
 			break
 		}
@@ -545,9 +548,8 @@ func (s *Server) handleWebSocket(c *gin.Context) {
 }
 
 func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value \!= "" {
+	if value := os.Getenv(key); value != "" {
 		return value
 	}
 	return defaultValue
 }
-GOEOF < /dev/null

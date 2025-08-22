@@ -140,7 +140,7 @@
       "steps": [
         {
           "name": "start-api-server",
-          "run": "cd api && PORT=$SERVICE_PORT N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} OLLAMA_BASE_URL=http://localhost:${RESOURCE_PORTS[ollama]} POSTGRES_HOST=localhost POSTGRES_PORT=${RESOURCE_PORTS[postgres]} QDRANT_HOST=localhost QDRANT_PORT=${RESOURCE_PORTS[qdrant]} ./personal-digital-twin-api &",
+          "run": "cd api && PORT=$SERVICE_PORT ./personal-digital-twin-api &",
           "description": "Start Go API server in background",
           "background": true,
           "condition": {

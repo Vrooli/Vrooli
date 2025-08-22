@@ -196,7 +196,7 @@
       "steps": [
         {
           "name": "start-api-server",
-          "run": "cd api && PORT=$SERVICE_PORT N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} WINDMILL_BASE_URL=http://localhost:${RESOURCE_PORTS[windmill]} COMFYUI_BASE_URL=http://localhost:${RESOURCE_PORTS[comfyui]} POSTGRES_URL=postgres://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/brand_manager MINIO_ENDPOINT=localhost:${RESOURCE_PORTS[minio]} VAULT_ADDR=http://localhost:${RESOURCE_PORTS[vault]} ./brand-manager-api &",
+          "run": "cd api && PORT=$SERVICE_PORT ./brand-manager-api &",
           "description": "Start Go coordination API server in background",
           "background": true,
           "condition": {

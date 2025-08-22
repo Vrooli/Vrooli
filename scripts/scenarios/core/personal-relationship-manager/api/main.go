@@ -9,7 +9,7 @@ import (
 	"os"
 	"strconv"
 
-	_ "github.com/lib/pq"
+	"github.com/lib/pq"
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
 )

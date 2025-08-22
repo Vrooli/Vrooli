@@ -188,7 +188,7 @@
       "steps": [
         {
           "name": "start-api-server",
-          "run": "cd api && PORT=$SERVICE_PORT POSTGRES_URL=postgres://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/document_manager REDIS_URL=redis://localhost:${RESOURCE_PORTS[redis]} QDRANT_URL=http://localhost:${RESOURCE_PORTS[qdrant]} OLLAMA_URL=http://localhost:${RESOURCE_PORTS[ollama]} N8N_URL=http://localhost:${RESOURCE_PORTS[n8n]} WINDMILL_URL=http://localhost:${RESOURCE_PORTS[windmill]} UNSTRUCTURED_URL=http://localhost:${RESOURCE_PORTS[unstructured_io]} ./document-manager-api &",
+          "run": "cd api && PORT=$SERVICE_PORT ./document-manager-api &",
           "description": "Start Go coordination API server in background",
           "background": true,
           "condition": {

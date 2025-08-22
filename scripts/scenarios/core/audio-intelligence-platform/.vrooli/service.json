@@ -31,8 +31,8 @@
     "automation": {
       "n8n": {
         "type": "n8n",
-        "enabled": true,
-        "required": true,
+        "enabled": false,
+        "required": false,
         "initialization": [
           {
             "file": "initialization/automation/n8n/transcription-pipeline.json",
@@ -50,8 +50,8 @@
       },
       "windmill": {
         "type": "windmill",
-        "enabled": true,
-        "required": true,
+        "enabled": false,
+        "required": false,
         "initialization": [
           {
             "file": "initialization/automation/windmill/transcription-manager-app.json",
@@ -63,13 +63,13 @@
     "ai": {
       "whisper": {
         "type": "whisper",
-        "enabled": true,
+        "enabled": false,
         "required": true
       },
       "ollama": {
         "type": "ollama",
-        "enabled": true,
-        "required": true,
+        "enabled": false,
+        "required": false,
         "models": [
           "llama3.1:8b",
           "nomic-embed-text"
@@ -79,8 +79,8 @@
     "storage": {
       "postgres": {
         "type": "postgres",
-        "enabled": true,
-        "required": true,
+        "enabled": false,
+        "required": false,
         "purpose": "transcription metadata and analytics",
         "initialization": [
           {
@@ -95,14 +95,14 @@
       },
       "minio": {
         "type": "minio",
-        "enabled": true,
-        "required": true,
+        "enabled": false,
+        "required": false,
         "purpose": "audio files and transcription storage"
       },
       "qdrant": {
         "type": "qdrant",
-        "enabled": true,
-        "required": true,
+        "enabled": false,
+        "required": false,
         "purpose": "semantic search for transcriptions"
       }
     }
@@ -144,7 +144,7 @@
       "steps": [
         {
           "name": "start-api-server",
-          "run": "cd api && PORT=$SERVICE_PORT N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} WINDMILL_BASE_URL=http://localhost:${RESOURCE_PORTS[windmill]} WHISPER_BASE_URL=http://localhost:${RESOURCE_PORTS[whisper]} OLLAMA_BASE_URL=http://localhost:${RESOURCE_PORTS[ollama]} POSTGRES_URL=postgres://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/audio_intelligence_platform MINIO_ENDPOINT=localhost:${RESOURCE_PORTS[minio]} QDRANT_URL=http://localhost:${RESOURCE_PORTS[qdrant]} ./audio-intelligence-platform-api &",
+          "run": "cd api && PORT=$SERVICE_PORT ./audio-intelligence-platform-api &",
           "description": "Start Go API server in background",
           "background": true,
           "condition": {

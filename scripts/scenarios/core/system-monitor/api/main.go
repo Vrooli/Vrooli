@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -167,7 +166,7 @@ func getCPUUsage() float64 {
 	}
 
 	// Fallback for non-Linux systems
-	return float64(15.5 + (time.Now().Second() % 30)) // Mock varying CPU usage
+	return float64(15 + (time.Now().Second() % 30)) // Mock varying CPU usage
 }
 
 func getMemoryUsage() float64 {
@@ -187,7 +186,7 @@ func getMemoryUsage() float64 {
 	}
 
 	// Fallback for non-Linux systems
-	return float64(45.2 + (time.Now().Second() % 20)) // Mock varying memory usage
+	return float64(45 + (time.Now().Second() % 20)) // Mock varying memory usage
 }
 
 func getTCPConnections() int {
