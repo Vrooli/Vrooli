@@ -100,10 +100,10 @@ Utilities:
 ## Useful Environment Variables
 
 - `INTERVAL_SECONDS` (default 300): Delay between iterations
-- `MAX_TURNS` (default 25): Max turns for the code worker
+- `MAX_TURNS` (default 30): Max turns for the code worker
 - `TIMEOUT` (default 1800): Per-iteration timeout (seconds)
 - `MAX_CONCURRENT_WORKERS` (default task-defined): Concurrency limit
-- `MAX_TCP_CONNECTIONS` (default 15): TCP gating threshold
+- `MAX_TCP_CONNECTIONS` (default 30): TCP gating threshold
 - `LOOP_TCP_FILTER` (default includes `claude|anthropic|resource-claude-code`): Process/TCP filter. Empty disables gating
 - `PROMPT_PATH`: Absolute path to a custom prompt
 - `OLLAMA_SUMMARY_MODEL` (default `llama3.2:3b`): Used to generate `summary.txt` when available
