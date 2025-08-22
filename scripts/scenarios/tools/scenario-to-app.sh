@@ -194,7 +194,7 @@ scenario_to_app::shared_initialization() {
         [[ "$VERBOSE" == "true" ]] && log::info "  ✅ Loaded port registry"
     fi
     
-    # Pre-load base service.json for inheritance processing
+    # Pre-load base service.json for batch processing
     local base_service_json="${var_ROOT_DIR}/.vrooli/service.json"
     if [[ -f "$base_service_json" ]]; then
         SHARED_BASE_SERVICE_JSON=$(cat "$base_service_json")
@@ -703,131 +703,6 @@ EOF
     [[ "$VERBOSE" == "true" ]] && log::info "Created default service.json with basic lifecycle configuration"
 }
 
-#######################################
-# Adjust inheritance path in service.json for standalone app
-# Arguments:
-#   $1 - Service.json path
-#######################################
-scenario_to_app::adjust_inheritance_path() {
-    local service_json_path="$1"
-    
-    # Check if inheritance.extends exists
-    if jq -e '.inheritance.extends' "$service_json_path" >/dev/null 2>&1; then
-        [[ "$VERBOSE" == "true" ]] && log::info "Processing inheritance for standalone app"
-        
-        local base_service_json="${var_ROOT_DIR}/.vrooli/service.json"
-        
-        if [[ -f "$base_service_json" ]]; then
-            # Load both service.json files
-            local app_json
-            app_json=$(cat "$service_json_path")
-            local base_json
-            base_json=$(cat "$base_service_json")
-            
-            # Extract base lifecycle if present
-            local base_lifecycle
-            base_lifecycle=$(echo "$base_json" | jq -r '.lifecycle // {}')
-            
-            # Check if app has lifecycle section
-            local app_lifecycle
-            app_lifecycle=$(echo "$app_json" | jq -r '.lifecycle // {}')
-            
-            # Merge lifecycles - app lifecycle phases override base phases
-            # BUT filter out Vrooli-specific steps that reference files that won't exist in standalone apps
-            local merged_lifecycle
-            
-            
-            # First, always filter Vrooli-specific steps from base
-            local filtered_base
-            # Write base_lifecycle to temp file to avoid shell escaping issues
-            local temp_base="/tmp/base_lifecycle_$$.json"
-            echo "$base_lifecycle" > "$temp_base"
-            
-            [[ "$VERBOSE" == "true" ]] && log::info "DEBUG: Base lifecycle file content: $(jq -c '.' < "$temp_base")"
-            
-            # Simplified approach: create a clean base with essential phases
-            filtered_base=$(jq -c '
-                # Extract essential metadata and create clean phases  
-                {
-                    version: (.version // "1.0.0"),
-                    setup: (
-                        if .setup then 
-                            .setup + {steps: []}
-                        else 
-                            {description: "Initialize application environment", steps: [], universal: "./scripts/lib/setup.sh"}
-                        end
-                    ),
-                    develop: {
-                        description: "Start the development environment", 
-                        steps: [], 
-                        universal: "./scripts/lib/lifecycle/phases/develop.sh"
-                    },
-                    build: {
-                        description: "Build application artifacts", 
-                        steps: [], 
-                        universal: "./scripts/lib/lifecycle/phases/build.sh"
-                    },
-                    deploy: {
-                        description: "Deploy the application", 
-                        steps: [], 
-                        universal: "./scripts/lib/lifecycle/phases/deploy.sh"
-                    },
-                    test: {
-                        description: "Run tests", 
-                        steps: [], 
-                        universal: "./scripts/lib/lifecycle/phases/test.sh"
-                    },
-                    backup: {
-                        description: "Create backups of data and configuration", 
-                        steps: [], 
-                        universal: "./scripts/lib/lifecycle/phases/backup.sh"
-                    }
-                } + (if .hooks then {hooks: .hooks} else {} end)
-                  + (if .dependencies then {dependencies: .dependencies} else {} end)
-                  + (if .readiness then {readiness: .readiness} else {} end)
-                  + (if .liveness then {liveness: .liveness} else {} end)
-            ' "$temp_base" || echo '{}')
-            
-            [[ "$VERBOSE" == "true" ]] && log::info "DEBUG: Filtered lifecycle: $(echo "$filtered_base" | jq -c '.')"
-            [[ "$VERBOSE" == "true" ]] && log::info "DEBUG: Phases after filtering: $(echo "$filtered_base" | jq -r 'keys | join(", ")' 2>/dev/null)"
-            
-            # Clean up temp file
-            trash::safe_remove "$temp_base" --no-confirm
-            
-            
-            # Now merge with app lifecycle (app phases take precedence, but base phases are preserved)
-            if [[ "$app_lifecycle" == "{}" ]]; then
-                # App has no lifecycle, use filtered base
-                merged_lifecycle="$filtered_base"
-            else
-                # Merge filtered base with app - preserve ALL base phases, but let app override specific phases
-                merged_lifecycle=$(jq -n --argjson base "$filtered_base" --argjson app "$app_lifecycle" '
-                    # Start with all base phases, then override with app-defined phases
-                    $base + $app
-                ')
-            fi
-            
-            # Update app service.json with merged lifecycle and remove inheritance
-            local temp_file="${service_json_path}.tmp"
-            jq --argjson lifecycle "$merged_lifecycle" '
-                del(.inheritance) | .lifecycle = $lifecycle
-            ' "$service_json_path" > "$temp_file"
-            mv "$temp_file" "$service_json_path"
-            
-            [[ "$VERBOSE" == "true" ]] && log::info "Merged inherited lifecycle configuration into app service.json (filtered Vrooli-specific steps)"
-        else
-            log::warning "Base service.json not found at: $base_service_json"
-            log::warning "Removing inheritance configuration as base is unavailable"
-            
-            # Remove inheritance configuration if base doesn't exist
-            local temp_file="${service_json_path}.tmp"
-            jq 'del(.inheritance)' "$service_json_path" > "$temp_file"
-            mv "$temp_file" "$service_json_path"
-        fi
-    else
-        [[ "$VERBOSE" == "true" ]] && log::info "No inheritance configuration found in service.json"
-    fi
-}
 
 #######################################
 # Enhance existing service.json with basic lifecycle if missing
@@ -908,7 +783,7 @@ scenario_to_app::enhance_service_json_lifecycle() {
     fi
 }
 
-# Process template variables in files (conditionally based on inheritance)
+# Process template variables in files
 scenario_to_app::process_template_variables() {
     local file="$1"
     # local service_json="$2"  # Currently unused but may be needed for future template processing
@@ -932,26 +807,8 @@ scenario_to_app::process_template_variables() {
         fi
     fi
     
-    if ! command -v service_config::has_inheritance >/dev/null 2>&1; then
-        local service_config_util="${var_ROOT_DIR}/scripts/lib/service/service_config.sh"
-        if [[ -f "$service_config_util" ]]; then
-            # shellcheck disable=SC1090
-            source "$service_config_util"
-        fi
-    fi
-    
-    # Check if the service.json has inheritance defined
-    local should_substitute="yes"
-    if [[ "$(basename "$file")" == "service.json" ]] && command -v service_config::has_inheritance >/dev/null 2>&1; then
-        # Check for inheritance - if present, preserve templates for runtime resolution
-        if service_config::has_inheritance "$file"; then
-            should_substitute="no"
-            [[ "$VERBOSE" == "true" ]] && log::info "Inheritance detected in $(basename "$file"), preserving templates for runtime resolution"
-        fi
-    fi
-    
-    # Only substitute if no inheritance or if not a service.json file
-    if [[ "$should_substitute" == "yes" ]] && command -v secrets::substitute_safe_templates >/dev/null 2>&1; then
+    # Process template variables (no inheritance checks needed)
+    if command -v secrets::substitute_safe_templates >/dev/null 2>&1; then
         # Read file content and substitute safe templates (only Vrooli secrets and service references)
         local content
         content=$(cat "$file")
@@ -1527,17 +1384,6 @@ scenario_to_app::process_file() {
     local file_path="$1" processor="$2" service_json="$3"
     
     case "$processor" in
-        resolve_inheritance)
-            if [[ -f "$file_path/service.json" ]]; then
-                scenario_to_app::adjust_inheritance_path "$file_path/service.json"
-                # Only enhance if lifecycle is missing or invalid after adjustment
-                if ! jq -e '.lifecycle' "$file_path/service.json" >/dev/null 2>&1; then
-                    scenario_to_app::enhance_service_json_lifecycle "$file_path/service.json"
-                else
-                    [[ "$VERBOSE" == "true" ]] && log::info "Lifecycle already configured, skipping enhancement"
-                fi
-            fi
-            ;;
         substitute_variables)
             if [[ -f "$file_path/service.json" ]]; then
                 # Note: The service.json here is the app's service.json, not the original scenario one

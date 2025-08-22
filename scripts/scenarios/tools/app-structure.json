@@ -88,7 +88,6 @@
       "optional": true,
       "merge": "overlay",
       "process": [
-        "resolve_inheritance",
         "substitute_variables"
       ]
     },

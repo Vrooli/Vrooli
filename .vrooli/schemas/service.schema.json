@@ -14,10 +14,6 @@
       "$ref": "common.schema.json#/definitions/semver",
       "description": "Configuration version"
     },
-    "inheritance": {
-      "$ref": "#/definitions/inheritance",
-      "description": "Configuration inheritance settings"
-    },
     "service": {
       "$ref": "#/definitions/serviceMetadata",
       "description": "Service metadata and identification"
@@ -44,30 +40,6 @@
     }
   },
   "definitions": {
-    "inheritance": {
-      "type": "object",
-      "properties": {
-        "extends": {
-          "type": "string",
-          "description": "Path to parent configuration file"
-        },
-        "merge": {
-          "type": "object",
-          "properties": {
-            "strategy": {
-              "type": "string",
-              "enum": ["merge", "replace", "append"],
-              "default": "merge"
-            },
-            "arrays": {
-              "type": "string",
-              "enum": ["concat", "replace", "merge"],
-              "default": "concat"
-            }
-          }
-        }
-      }
-    },
     "serviceMetadata": {
       "type": "object",
       "required": ["name", "version"],
