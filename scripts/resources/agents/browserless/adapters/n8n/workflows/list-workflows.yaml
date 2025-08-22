@@ -3,8 +3,7 @@ workflow:
   description: "List all N8n workflows via UI scraping"
   version: "2.0.0"
   debug_level: "steps"
-  
-    enabled: true
+  enabled: true
     
   parameters:
     n8n_url:
@@ -15,66 +14,122 @@ workflow:
       default: true
 
   steps:
-    - name: "navigate-workflows"
+    - name: "navigate-to-workflows"
       action: "navigate"
-      url: "http://localhost:5678/workflows"
-      wait_for: "networkidle2"
-      
-    - name: "check-auth"
-      action: "evaluate"
-      script: |
-        return {
-          needsLogin: !!document.querySelector('.login-form, input[type="email"]'),
-          hasWorkflows: !!document.querySelector('.workflow-card, .workflows-list')
-        };
+      url: "${params.n8n_url}/workflows"
+      debug:
+        screenshot: true
+        console: true
         
-    - name: "handle-auth"
-      action: "jump_if"
-      condition: "window.__lastEvalResult.needsLogin"
-      success_target: "login_flow"
-      failure_target: "extract_workflows"
-      
-    - name: "login"
-      label: "login_flow"
-      action: "call_sub_workflow"
-      sub_workflow: "n8n_login"
-      jump_to: "navigate-workflows"
-      
-    - name: "wait-for-workflows"
-      label: "extract_workflows"  
-      action: "wait_for_element"
-      selector: ".card, .empty-state"
-      timeout: 15000
-      
-    - name: "extract-all-workflows"
+    - name: "wait-for-load"
+      action: "wait"
+      duration: 2000
+      debug:
+        console: true
+        
+    - name: "extract-workflows"
       action: "evaluate"
       script: |
+        console.log('=== EXTRACTING WORKFLOWS FROM PAGE ===');
+        console.log('Current URL:', window.location.href);
+        console.log('Page title:', document.title);
+        
+        console.log('=== CHECKING AUTH STATUS ===');
+        const currentUrl = window.location.href;
+        const needsLogin = !!document.querySelector('.login-form, input[type="email"]');
+        const hasWorkflows = !!document.querySelector('.workflow-card, .workflows-list');
+        
+        console.log('Current URL:', currentUrl);
+        console.log('Needs login:', needsLogin);
+        console.log('Has workflows:', hasWorkflows);
+        console.log('Page title:', document.title);
+        
+        if (needsLogin) {
+          console.log('LOGIN REQUIRED - checking for login form elements');
+          console.log('Available login selectors:', {
+            loginForm: document.querySelector('.login-form'),
+            emailInput: document.querySelector('input[type="email"]'),
+            passwordInput: document.querySelector('input[type="password"]'),
+            submitButton: document.querySelector('button[type="submit"]')
+          });
+          
+          return {
+            needsLogin: true,
+            currentUrl: currentUrl,
+            pageTitle: document.title,
+            workflows: [],
+            message: 'Authentication required - set N8N_EMAIL and N8N_PASSWORD environment variables'
+          };
+        }
+        
+        console.log('=== EXTRACTING WORKFLOWS ===');
+        
+        // Try multiple selectors for workflow cards
+        const selectors = [
+          '.card',
+          '.workflow-card', 
+          '[data-test-id="workflow"]',
+          '.workflow-item',
+          '.list-item',
+          '[class*="workflow"]'
+        ];
+        
+        let cards = [];
+        for (const selector of selectors) {
+          const found = document.querySelectorAll(selector);
+          console.log(`Selector '${selector}' found:`, found.length, 'elements');
+          if (found.length > 0) {
+            cards = Array.from(found);
+            console.log('Using selector:', selector);
+            break;
+          }
+        }
+        
+        console.log('Total cards found:', cards.length);
+        
+        // If no specific workflow cards, log page content for debugging
+        if (cards.length === 0) {
+          console.log('No workflow cards found, checking page content...');
+          console.log('Page body innerHTML length:', document.body.innerHTML.length);
+          console.log('Page text content preview:', document.body.textContent.substring(0, 500));
+          
+          // Look for empty state or error messages
+          const emptyState = document.querySelector('.empty-state, .no-workflows, [class*="empty"]');
+          if (emptyState) {
+            console.log('Found empty state:', emptyState.textContent);
+          }
+        }
+        
         const workflows = [];
-        const cards = document.querySelectorAll('.card');
         
-        cards.forEach(card => {
-          // Get workflow name from h1, h2, h3, or first line of text
-          const nameElement = card.querySelector('h1, h2, h3');
+        cards.forEach((card, index) => {
+          console.log(`Processing card ${index}:`, {
+            className: card.className,
+            textContent: card.textContent.substring(0, 100)
+          });
+          
+          // Get workflow name from various possible selectors
+          const nameElement = card.querySelector('h1, h2, h3, .name, .title, [class*="name"], [class*="title"]');
           const name = nameElement?.textContent?.trim() || 
                        card.textContent?.split('\n')[0]?.split(' ')[0]?.trim();
           
-          // Try to extract ID from href or use name as fallback
+          // Try to extract ID from href
           const linkElement = card.querySelector('a');
           const href = linkElement?.href || '';
           const id = href.match(/workflow\/([^\/\?]+)/)?.[1] || 
                      href.match(/\/([a-f0-9-]+)$/)?.[1] || 
                      name;
           
-          // Check if workflow is active (look for "Active" text)
+          // Check if workflow is active
           const active = card.textContent?.includes('Active') || false;
           
-          // Extract any visible metadata
+          // Extract metadata
           const textContent = card.textContent || '';
           const lastUpdated = textContent.match(/Last updated (.+?) \|/)?.[1] || '';
           const created = textContent.match(/Created (.+?)\s/)?.[1] || '';
           
           if (name && name.length > 0) {
-            workflows.push({
+            const workflow = {
               id: id || name.toLowerCase().replace(/[^a-z0-9]/g, '-'),
               name,
               active,
@@ -82,35 +137,79 @@ workflow:
               created,
               url: href || `${window.location.origin}/workflow/${id || name}`,
               textContent: textContent.substring(0, 200)
-            });
+            };
+            
+            console.log(`Added workflow:`, workflow);
+            workflows.push(workflow);
+          } else {
+            console.log(`Skipped card ${index} - no valid name found`);
           }
         });
         
-        return {
-          workflows,
+        const result = {
+          needsLogin: false,
+          workflows: workflows,
           total: workflows.length,
           active: workflows.filter(w => w.active).length,
-          inactive: workflows.filter(w => !w.active).length
+          inactive: workflows.filter(w => !w.active).length,
+          currentUrl: currentUrl,
+          pageTitle: document.title,
+          debug: {
+            cardsFound: cards.length,
+            selectorsChecked: selectors,
+            pageUrl: window.location.href
+          }
         };
-      
-    - name: "filter-inactive"
-      action: "evaluate"
-      script: |
-        const includeInactive = (context.params && context.params.include_inactive !== false);
-        const allWorkflows = window.__lastEvalResult.workflows;
         
-        return {
-          workflows: includeInactive ? allWorkflows : allWorkflows.filter(w => w.active),
-          filtered: !includeInactive
-        };
-      condition: "context.params && context.params.include_inactive === false"
-      
-    - name: "save-results"
+        console.log('Final result:', result);
+        return result;
+      output: "${context.outputDir}/complete-results.json"
+      debug:
+        screenshot: true
+        console: true
+        html: true
+        
+    - name: "process-results"
       action: "evaluate"
       script: |
+        console.log('=== PROCESSING FINAL RESULTS ===');
         const results = window.__lastEvalResult;
-        console.log(`Found ${results.workflows.length} workflows`);
-        return results;
+        
+        if (results.needsLogin) {
+          console.log('Login required, returning empty array with message');
+          return {
+            workflows: [],
+            message: results.message,
+            needsLogin: true
+          };
+        }
+        
+        console.log('Final workflow count:', results.workflows?.length || 0);
+        
+        // Apply include_inactive filter
+        const includeInactive = ${params.include_inactive};
+        let filteredWorkflows = results.workflows || [];
+        
+        if (!includeInactive) {
+          filteredWorkflows = filteredWorkflows.filter(w => w.active);
+          console.log('Filtered to active workflows only:', filteredWorkflows.length);
+        }
+        
+        const finalResult = {
+          workflows: filteredWorkflows,
+          total: filteredWorkflows.length,
+          active: filteredWorkflows.filter(w => w.active).length,
+          inactive: filteredWorkflows.filter(w => !w.active).length,
+          includeInactive: includeInactive,
+          debug: results.debug
+        };
+        
+        console.log('Final processed result:', JSON.stringify(finalResult, null, 2));
+        return finalResult;
+      output: "${context.outputDir}/final-results.json"
+      debug:
+        screenshot: true
+        console: true
 
   sub_workflows:
     n8n_login:
