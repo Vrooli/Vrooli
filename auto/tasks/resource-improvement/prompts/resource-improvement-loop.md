@@ -68,7 +68,7 @@
   1) Enabled but not running → attempt start with diagnostics
   2) Running but missing baseline capability (e.g., Ollama baseline models) → improve
   3) Misconfiguration in connection info → diagnose and plan a safe fix
-  4) All resources have healthy status and iteration > 15 (hinting that we've probably been healthy for several steps already, and have likely already done additional validations and improvements to the existing resources) → HIGHLY consider adding a high-impact resource from the curated list later in this prompt (plan-only unless in apply mode)
+  4) All resources have healthy status and iteration > 15 (hinting that we've probably been healthy for several steps already, and have likely already done additional validations and improvements to the existing resources) → HIGHLY consider adding a high-impact resource from the curated list later in this prompt
   5) If all resources are healthy and every new resource in the list was added too, then work on improving/cleaning up existing resources
 
 Before choosing, also read (if present):

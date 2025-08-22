@@ -91,7 +91,7 @@ Perform exactly these steps:
    - Start: `vrooli app start <name>` (stop with Ctrl+C from same terminal)
    - Verify:
      - API/CLI outputs match expectations, and/or
-     - Browserless screenshot shows the expected UI state
+     - Browserless screenshot (e.g. `vrooli resource browserless screenshot http://localhost:3200 --output /tmp/picker-wheel-test.png`) shows the expected UI state. Please READ the screenshot
      - PRD success metrics are met
 
 4) If a gate fails twice

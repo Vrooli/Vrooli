@@ -291,7 +291,7 @@ browser::screenshot() {
         if [[ "$success" == "true" ]]; then
             # Save screenshot to file
             echo "$response" | jq -r '.screenshot' | base64 -d > "$output_path"
-            log::info "📸 Screenshot saved: $output_path"
+            log::info "📸 Screenshot saved: $output_path" >&2
             
             # Return response without base64 data to avoid cluttering output
             echo "$response" | jq 'del(.screenshot) + {"screenshot_file": "'"$output_path"'"}'
@@ -767,7 +767,7 @@ browser::navigate_and_screenshot() {
     if [[ "$success" == "true" ]]; then
         # Save screenshot to file
         echo "$response" | jq -r '.screenshot' | base64 -d > "$output_path"
-        log::info "📸 Screenshot saved: $output_path"
+        log::info "📸 Screenshot saved: $output_path" >&2
         
         # Return response without base64 data
         echo "$response" | jq 'del(.screenshot) + {"screenshot_file": "'"$output_path"'"}'

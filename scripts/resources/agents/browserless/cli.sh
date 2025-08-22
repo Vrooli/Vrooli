@@ -84,11 +84,16 @@ case "${1:-}" in
             exit 1
         fi
         ;;
+    # Atomic Actions - Single-purpose browser operations
+    screenshot|navigate|health-check|element-exists|extract-text|extract|extract-forms|interact|console|performance)
+        source "$BROWSERLESS_CLI_DIR/lib/actions.sh"
+        actions::dispatch "$@"
+        ;;
     *)
         echo "📚 Browserless CLI"
-        echo "Usage: $0 {start|stop|status|install|uninstall|test|inject|for|workflow}"
+        echo "Usage: $0 {start|stop|status|install|uninstall|test|inject|for|workflow|<action>}"
         echo ""
-        echo "Commands:"
+        echo "Service Commands:"
         echo "  start      - Start browserless container"
         echo "  stop       - Stop browserless container  "
         echo "  status     - Show browserless status"
@@ -99,10 +104,40 @@ case "${1:-}" in
         echo "  for        - Use adapters for other resources (e.g., for n8n execute <id>)"
         echo "  workflow   - Workflow compilation with flow control"
         echo ""
+        echo "Atomic Actions (for quick agent tasks):"
+        echo "  screenshot     - Take screenshots of URLs"
+        echo "  navigate       - Navigate to URLs and get basic info"
+        echo "  health-check   - Check if URLs load successfully"
+        echo "  element-exists - Check if elements exist on pages"
+        echo "  extract-text   - Extract text content from elements"
+        echo "  extract        - Extract structured data with custom scripts"
+        echo "  extract-forms  - Extract form data and input fields"
+        echo "  interact       - Perform form fills, clicks, and interactions"
+        echo "  console        - Capture console logs from pages"
+        echo "  performance    - Measure page performance metrics"
+        echo ""
+        echo "Universal Options (for atomic actions):"
+        echo "  --output <path>    - Save result to file"
+        echo "  --timeout <ms>     - Max wait time (default: 30000)"
+        echo "  --wait-ms <ms>     - Initial wait before action (default: 2000)"
+        echo "  --session <name>   - Use persistent session"
+        echo "  --fullpage         - Full page screenshots"
+        echo "  --mobile           - Use mobile viewport"
+        echo ""
         echo "Examples:"
+        echo "  # Service management"
         echo "  $0 for n8n execute <workflow-id>    # Execute N8n workflow via browserless"
         echo "  $0 for n8n list                     # List N8n workflows"
-        echo "  $0 for                               # Show available adapters"
+        echo ""
+        echo "  # Atomic actions"
+        echo "  $0 screenshot http://localhost:3000 --output ui-check.png --fullpage"
+        echo "  $0 health-check http://localhost:8080/health \"OK\""
+        echo "  $0 element-exists http://localhost:3000 --selector \".main-navigation\""
+        echo "  $0 extract-text http://localhost:3000 --selector \"h1\" --output title.txt"
+        echo "  $0 extract http://localhost:3000 --script \"return {links: [...document.querySelectorAll('a')].length}\" --output data.json"
+        echo "  $0 interact http://localhost:3000 --fill \"input[name=email]:test@example.com\" --click \"button[type=submit]\" --screenshot result.png"
+        echo "  $0 console http://localhost:3000 --filter error --output errors.json"
+        echo "  $0 performance http://localhost:3000 --output metrics.json"
         exit 1
         ;;
 esac
