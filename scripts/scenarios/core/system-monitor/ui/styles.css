@@ -456,3 +456,57 @@ body {
         width: 95%;
     }
 }
+
+/* Investigation Status Styles */
+.status-progress {
+    background: var(--warning-orange) !important;
+    animation: pulse 2s infinite;
+}
+
+.status-completed {
+    background: var(--success-green) !important;
+}
+
+.status-failed {
+    background: var(--danger-red) !important;
+}
+
+.status-pending {
+    background: var(--text-dim) !important;
+}
+
+.investigation-loading {
+    text-align: center;
+    color: var(--warning-orange);
+    font-style: italic;
+    padding: 2rem;
+    animation: pulse 2s infinite;
+}
+
+.investigation-error {
+    text-align: center;
+    color: var(--danger-red);
+    font-weight: bold;
+    padding: 2rem;
+}
+
+.investigation-timestamp {
+    color: var(--text-dim);
+    font-size: 0.8rem;
+    margin-top: 0.5rem;
+    text-align: right;
+}
+
+/* Button disabled state */
+.btn-action:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    background: var(--text-dim) !important;
+}
+
+/* Pulse animation for loading states */
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}

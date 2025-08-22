@@ -222,31 +222,37 @@ qdrant::embeddings::process_workflows() {
         return 0
     fi
     
-    # Process each workflow
-    local content=""
-    local workflow_id=""
-    
-    while IFS= read -r line; do
-        if [[ "$line" == "---SEPARATOR---" ]]; then
-            if [[ -n "$content" ]]; then
-                # Generate embedding
-                local embedding=$(qdrant::embeddings::generate "$content" "$DEFAULT_MODEL")
-                
-                if [[ -n "$embedding" ]]; then
-                    # Create unique ID from content hash
-                    workflow_id=$(echo -n "$content" | sha256sum | cut -d' ' -f1)
+    # Check if parallel processing is available
+    if [[ -f "${EMBEDDINGS_DIR}/lib/parallel.sh" ]] && command -v xargs >/dev/null 2>&1; then
+        # Use parallel processing
+        source "${EMBEDDINGS_DIR}/lib/parallel.sh"
+        count=$(qdrant::parallel::process_batch "$output_file" "qdrant::parallel::process_workflow_chunk" "$collection" "$app_id")
+    else
+        # Fall back to sequential processing
+        local content=""
+        local workflow_id=""
+        
+        while IFS= read -r line; do
+            if [[ "$line" == "---SEPARATOR---" ]]; then
+                if [[ -n "$content" ]]; then
+                    # Generate embedding
+                    local embedding=$(qdrant::embeddings::generate "$content" "$DEFAULT_MODEL")
                     
-                    # Store in collection
-                    qdrant::collections::upsert_point "$collection" \
-                        "$workflow_id" \
-                        "$embedding" \
-                        "{\"content\": $(echo "$content" | jq -Rs .), \"type\": \"workflow\", \"app_id\": \"$app_id\"}"
-                    
-                    ((count++))
+                    if [[ -n "$embedding" ]]; then
+                        # Create unique ID from content hash
+                        workflow_id=$(echo -n "$content" | sha256sum | cut -d' ' -f1)
+                        
+                        # Store in collection
+                        qdrant::collections::upsert_point "$collection" \
+                            "$workflow_id" \
+                            "$embedding" \
+                            "{\"content\": $(echo "$content" | jq -Rs .), \"type\": \"workflow\", \"app_id\": \"$app_id\"}"
+                        
+                        ((count++))
+                    fi
                 fi
-            fi
-            content=""
-        else
+                content=""
+            else
             content="${content}${line}"$'\n'
         fi
     done < "$output_file"

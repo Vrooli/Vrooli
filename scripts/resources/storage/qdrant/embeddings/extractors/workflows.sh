@@ -34,7 +34,7 @@ qdrant::extract::workflow() {
     local name=$(jq -r '.name // "Unnamed Workflow"' "$file" 2>/dev/null || echo "Unknown")
     local description=$(jq -r '.description // ""' "$file" 2>/dev/null || echo "")
     local active=$(jq -r '.active // false' "$file" 2>/dev/null || echo "false")
-    local tags=$(jq -r '.tags[]? // empty' "$file" 2>/dev/null | tr '\n' ', ' | sed 's/,$//' || echo "")
+    local tags=$(jq -r '.tags[]?.name // empty' "$file" 2>/dev/null | tr '\n' ', ' | sed 's/,$//' || echo "")
     
     # Extract node types and count
     local node_types=$(jq -r '[.nodes[].type] | unique | join(", ")' "$file" 2>/dev/null || echo "")
@@ -52,48 +52,69 @@ qdrant::extract::workflow() {
     # Extract comments from sticky notes
     local notes=$(jq -r '.nodes[] | select(.type == "n8n-nodes-base.stickyNote") | .parameters.content // empty' "$file" 2>/dev/null | tr '\n' ' ' || echo "")
     
-    # Build embeddable content
-    local content="N8n Workflow: $name"
+    # Build semantically-rich embeddable content
+    local content="This is an N8n workflow named '$name' that automates business processes."
     
     if [[ -n "$description" ]]; then
-        content="$content
-Description: $description"
+        content="$content The workflow's purpose is: $description"
     fi
     
-    content="$content
-File: $file
-Status: $(if [[ "$active" == "true" ]]; then echo "Active"; else echo "Inactive"; fi)
-Nodes: $node_count nodes"
-    
-    if [[ -n "$node_types" ]]; then
-        content="$content
-Node Types: $node_types"
+    # Add status in natural language
+    if [[ "$active" == "true" ]]; then
+        content="$content This workflow is currently active and running in production."
+    else
+        content="$content This workflow is currently inactive."
     fi
     
+    # Describe functionality
+    content="$content It contains $node_count processing nodes."
+    
+    # Describe triggers in natural language
     if [[ -n "$triggers" ]]; then
-        content="$content
-Triggers: $triggers"
+        local trigger_desc="${triggers//n8n-nodes-base./}"
+        trigger_desc="${trigger_desc//,/ and}"
+        content="$content The workflow can be triggered by: $trigger_desc."
     fi
     
-    if [[ -n "$integrations" ]]; then
-        content="$content
-Integrations: $integrations"
-    fi
-    
+    # Describe webhook endpoints
     if [[ -n "$webhook_paths" ]]; then
-        content="$content
-Webhook Paths: $webhook_paths"
+        content="$content It exposes API endpoints at paths: $webhook_paths."
     fi
     
+    # Describe integrations
+    if [[ -n "$integrations" ]]; then
+        content="$content It integrates with these services: $integrations."
+    fi
+    
+    # Describe functionality based on node types
+    if [[ "$node_types" == *"httpRequest"* ]]; then
+        content="$content Makes HTTP API calls to external services."
+    fi
+    if [[ "$node_types" == *"postgres"* ]] || [[ "$node_types" == *"mysql"* ]]; then
+        content="$content Performs database operations for data storage."
+    fi
+    if [[ "$node_types" == *"code"* ]] || [[ "$node_types" == *"function"* ]]; then
+        content="$content Contains custom JavaScript code for data processing."
+    fi
+    if [[ "$node_types" == *"if"* ]] || [[ "$node_types" == *"switch"* ]]; then
+        content="$content Implements conditional logic and decision trees."
+    fi
+    if [[ "$node_types" == *"email"* ]]; then
+        content="$content Sends automated email notifications."
+    fi
+    
+    # Add tags as categories
     if [[ -n "$tags" ]]; then
-        content="$content
-Tags: $tags"
+        content="$content Categories: $tags."
     fi
     
+    # Add notes if present
     if [[ -n "$notes" ]]; then
-        content="$content
-Notes: $notes"
+        content="$content Additional context: $notes"
     fi
+    
+    # Add file location for reference
+    content="$content File location: $file"
     
     # Add workflow purpose analysis based on node types
     local purpose=$(qdrant::extract::analyze_workflow_purpose "$file")

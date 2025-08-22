@@ -125,6 +125,10 @@ EOF
         
         if [[ "$status" == "ok" ]]; then
             log::success "${MSG_COLLECTION_CREATED}: $collection_name (size: $vector_size, distance: $distance_metric)"
+            
+            # Force index creation for better performance
+            qdrant::collections::create_index "$collection_name" 2>/dev/null || true
+            
             return 0
         else
             local error_msg
@@ -897,6 +901,82 @@ qdrant::collections::list_brief() {
     if [[ $? -eq 0 ]]; then
         echo "$response" | jq -r '.result.collections[] | "\(.name)"' 2>/dev/null
     fi
+}
+
+#######################################
+# Force index creation on a collection
+# Arguments:
+#   $1 - Collection name
+# Returns: 0 on success, 1 on failure
+#######################################
+qdrant::collections::create_index() {
+    local collection_name="$1"
+    
+    if [[ -z "$collection_name" ]]; then
+        log::error "Collection name is required"
+        return 1
+    fi
+    
+    # Trigger index creation by updating collection parameters
+    local index_config='{"optimizers_config": {"indexing_threshold": 1}}'
+    
+    local response
+    response=$(qdrant::api::request "PATCH" "/collections/${collection_name}" "$index_config" 2>/dev/null)
+    
+    if [[ $? -eq 0 ]]; then
+        local status
+        status=$(echo "$response" | jq -r '.status // "unknown"' 2>/dev/null)
+        
+        if [[ "$status" == "ok" ]]; then
+            log::debug "Index creation triggered for collection: $collection_name"
+            return 0
+        fi
+    fi
+    
+    return 1
+}
+
+#######################################
+# Optimize collection for search performance
+# Arguments:
+#   $1 - Collection name
+# Returns: 0 on success, 1 on failure
+#######################################
+qdrant::collections::optimize() {
+    local collection_name="$1"
+    
+    if [[ -z "$collection_name" ]]; then
+        log::error "Collection name is required"
+        return 1
+    fi
+    
+    # Create index if not exists
+    qdrant::collections::create_index "$collection_name"
+    
+    # Wait for indexing to complete
+    local max_wait=30
+    local wait_time=0
+    
+    while [[ $wait_time -lt $max_wait ]]; do
+        local info
+        info=$(qdrant::api::request "GET" "/collections/${collection_name}" 2>/dev/null)
+        
+        if [[ -n "$info" ]]; then
+            local indexed=$(echo "$info" | jq -r '.result.indexed_vectors_count // 0' 2>/dev/null)
+            local total=$(echo "$info" | jq -r '.result.points_count // 0' 2>/dev/null)
+            
+            if [[ "$indexed" -ge "$total" ]] && [[ "$total" -gt 0 ]]; then
+                log::success "Collection optimized: $collection_name (indexed: $indexed/$total)"
+                return 0
+            fi
+        fi
+        
+        sleep 1
+        ((wait_time++))
+    done
+    
+    log::warn "Optimization timeout for collection: $collection_name"
+    return 1
 }
 
 #######################################

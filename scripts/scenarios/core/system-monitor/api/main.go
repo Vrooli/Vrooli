@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -9,6 +11,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -27,12 +30,30 @@ type MetricsResponse struct {
 
 type Investigation struct {
 	ID        string    `json:"id"`
-	Status    string    `json:"status"`
+	Status    string    `json:"status"` // queued, in_progress, completed, failed
 	AnomalyID string    `json:"anomaly_id"`
 	StartTime time.Time `json:"start_time"`
 	EndTime   time.Time `json:"end_time,omitempty"`
 	Findings  string    `json:"findings,omitempty"`
+	Progress  int       `json:"progress"` // 0-100
+	Details   map[string]interface{} `json:"details,omitempty"` // Structured data
+	Steps     []InvestigationStep    `json:"steps,omitempty"`
 }
+
+type InvestigationStep struct {
+	Name      string    `json:"name"`
+	Status    string    `json:"status"`
+	StartTime time.Time `json:"start_time"`
+	EndTime   time.Time `json:"end_time,omitempty"`
+	Findings  string    `json:"findings,omitempty"`
+}
+
+// Global variables to store investigations
+var (
+	latestInvestigation *Investigation
+	investigations = make(map[string]*Investigation)
+	investigationsMutex sync.RWMutex
+)
 
 type ReportRequest struct {
 	Type string `json:"type"`
@@ -58,6 +79,12 @@ func main() {
 
 	// Investigation endpoints
 	r.HandleFunc("/api/investigations/latest", getLatestInvestigationHandler).Methods("GET")
+	r.HandleFunc("/api/investigations/trigger", triggerInvestigationHandler).Methods("POST")
+	r.HandleFunc("/api/investigations/{id}", getInvestigationHandler).Methods("GET")
+	r.HandleFunc("/api/investigations/{id}/status", updateInvestigationStatusHandler).Methods("PUT")
+	r.HandleFunc("/api/investigations/{id}/findings", updateInvestigationFindingsHandler).Methods("PUT")
+	r.HandleFunc("/api/investigations/{id}/progress", updateInvestigationProgressHandler).Methods("PUT")
+	r.HandleFunc("/api/investigations/{id}/step", addInvestigationStepHandler).Methods("POST")
 
 	// Report endpoints
 	r.HandleFunc("/api/reports/generate", generateReportHandler).Methods("POST")
@@ -106,18 +133,22 @@ func getCurrentMetricsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func getLatestInvestigationHandler(w http.ResponseWriter, r *http.Request) {
-	// Mock investigation for testing
-	investigation := Investigation{
-		ID:        "inv_" + strconv.FormatInt(time.Now().Unix(), 10),
-		Status:    "completed",
-		AnomalyID: "cpu_spike_001",
-		StartTime: time.Now().Add(-5 * time.Minute),
-		EndTime:   time.Now(),
-		Findings:  "High CPU usage detected due to intensive background process. Recommended: Monitor process ID 1234 for resource optimization.",
+	if latestInvestigation == nil {
+		// Default mock investigation if none triggered yet
+		investigation := Investigation{
+			ID:        "inv_default",
+			Status:    "pending",
+			AnomalyID: "none",
+			StartTime: time.Now(),
+			Findings:  "No investigations have been triggered yet. Click 'RUN ANOMALY CHECK' to start an investigation.",
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(investigation)
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(investigation)
+	json.NewEncoder(w).Encode(latestInvestigation)
 }
 
 func generateReportHandler(w http.ResponseWriter, r *http.Request) {
@@ -206,4 +237,259 @@ func getTCPConnections() int {
 		return 0
 	}
 	return count
+}
+
+func triggerInvestigationHandler(w http.ResponseWriter, r *http.Request) {
+	// Generate new investigation ID
+	investigationID := "inv_" + strconv.FormatInt(time.Now().Unix(), 10)
+	
+	// Create investigation with queued status
+	investigation := &Investigation{
+		ID:        investigationID,
+		Status:    "queued",
+		AnomalyID: "ai_investigation_" + strconv.FormatInt(time.Now().Unix(), 10),
+		StartTime: time.Now(),
+		Findings:  "Investigation queued for processing...",
+		Progress:  0,
+		Details:   make(map[string]interface{}),
+		Steps:     []InvestigationStep{},
+	}
+	
+	// Store investigation
+	investigationsMutex.Lock()
+	investigations[investigationID] = investigation
+	latestInvestigation = investigation
+	investigationsMutex.Unlock()
+	
+	// Start investigation in background
+	go func() {
+		runClaudeInvestigation(investigationID)
+	}()
+	
+	// Return immediate response with API info
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status": "queued",
+		"investigation_id": investigationID,
+		"api_base_url": "http://localhost:8080",
+		"message": "Investigation queued for Claude Code processing",
+	})
+}
+
+func runClaudeInvestigation(investigationID string) {
+	// Update status to in_progress
+	updateInvestigationField(investigationID, "Status", "in_progress")
+	
+	// Get current system metrics for context
+	cpuUsage := getCPUUsage()
+	memoryUsage := getMemoryUsage()
+	tcpConnections := getTCPConnections()
+	timestamp := time.Now().Format(time.RFC3339)
+	
+	// Load prompt template from file (hot-reloadable) with investigation context
+	prompt, err := loadAndProcessPromptWithInvestigation(cpuUsage, memoryUsage, tcpConnections, timestamp, investigationID)
+	if err != nil {
+		log.Printf("Failed to load prompt template: %v", err)
+		// Fallback to basic prompt if file cannot be read
+		prompt = fmt.Sprintf(`System Anomaly Investigation
+Investigation ID: %s
+API Base URL: http://localhost:8080
+CPU: %.2f%%, Memory: %.2f%%, TCP Connections: %d
+Analyze system for anomalies and provide findings.`,
+			investigationID, cpuUsage, memoryUsage, tcpConnections)
+	}
+	
+	// Execute Claude Code investigation with timeout
+	cmd := exec.Command("bash", "-c", fmt.Sprintf(`cd /home/matthalloran8/Vrooli && echo %q | timeout 300 vrooli resource claude-code`, prompt))
+	output, err := cmd.Output()
+	
+	if err != nil {
+		// Investigation failed
+		updateInvestigationField(investigationID, "Status", "failed")
+		updateInvestigationField(investigationID, "EndTime", time.Now())
+		updateInvestigationField(investigationID, "Findings", fmt.Sprintf("Investigation failed: %v\n\nPartial output:\n%s", err, string(output)))
+		return
+	}
+	
+	// Store raw output as fallback
+	updateInvestigationField(investigationID, "Findings", string(output))
+	
+	// Check if investigation was marked as completed via API
+	investigationsMutex.RLock()
+	inv, exists := investigations[investigationID]
+	investigationsMutex.RUnlock()
+	
+	if exists && inv.Status != "completed" {
+		// If not marked as completed via API, mark it now
+		updateInvestigationField(investigationID, "Status", "completed")
+		updateInvestigationField(investigationID, "EndTime", time.Now())
+		updateInvestigationField(investigationID, "Progress", 100)
+	}
+}
+
+func loadAndProcessPromptWithInvestigation(cpuUsage, memoryUsage float64, tcpConnections int, timestamp string, investigationID string) (string, error) {
+	// Construct path to prompt file
+	// Try both the local scenario path and the generated app path
+	promptPaths := []string{
+		"/home/matthalloran8/Vrooli/scripts/scenarios/core/system-monitor/initialization/claude-code/anomaly-check.md",
+		"/home/matthalloran8/generated-apps/system-monitor/initialization/claude-code/anomaly-check.md",
+		"initialization/claude-code/anomaly-check.md", // Relative path as fallback
+	}
+	
+	var promptContent []byte
+	var err error
+	
+	// Try each path until we find the file
+	for _, path := range promptPaths {
+		promptContent, err = ioutil.ReadFile(path)
+		if err == nil {
+			log.Printf("Loaded prompt from: %s", path)
+			break
+		}
+	}
+	
+	if err != nil {
+		return "", fmt.Errorf("could not read prompt file from any location: %v", err)
+	}
+	
+	// Replace placeholders with actual values
+	prompt := string(promptContent)
+	prompt = strings.ReplaceAll(prompt, "{{CPU_USAGE}}", fmt.Sprintf("%.2f", cpuUsage))
+	prompt = strings.ReplaceAll(prompt, "{{MEMORY_USAGE}}", fmt.Sprintf("%.2f", memoryUsage))
+	prompt = strings.ReplaceAll(prompt, "{{TCP_CONNECTIONS}}", strconv.Itoa(tcpConnections))
+	prompt = strings.ReplaceAll(prompt, "{{TIMESTAMP}}", timestamp)
+	prompt = strings.ReplaceAll(prompt, "{{INVESTIGATION_ID}}", investigationID)
+	prompt = strings.ReplaceAll(prompt, "{{API_BASE_URL}}", "http://localhost:8080")
+	
+	return prompt, nil
+}
+
+// Helper function to update investigation fields
+func updateInvestigationField(id string, field string, value interface{}) {
+	investigationsMutex.Lock()
+	defer investigationsMutex.Unlock()
+	
+	if inv, exists := investigations[id]; exists {
+		switch field {
+		case "Status":
+			inv.Status = value.(string)
+		case "Findings":
+			inv.Findings = value.(string)
+		case "Progress":
+			inv.Progress = value.(int)
+		case "EndTime":
+			inv.EndTime = value.(time.Time)
+		}
+	}
+}
+
+// New handler functions for investigation updates
+func getInvestigationHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id := vars["id"]
+	
+	investigationsMutex.RLock()
+	inv, exists := investigations[id]
+	investigationsMutex.RUnlock()
+	
+	if !exists {
+		http.Error(w, "Investigation not found", http.StatusNotFound)
+		return
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(inv)
+}
+
+func updateInvestigationStatusHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id := vars["id"]
+	
+	var req struct {
+		Status string `json:"status"`
+	}
+	
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	
+	updateInvestigationField(id, "Status", req.Status)
+	
+	if req.Status == "completed" || req.Status == "failed" {
+		updateInvestigationField(id, "EndTime", time.Now())
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"status": "updated"})
+}
+
+func updateInvestigationFindingsHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id := vars["id"]
+	
+	var req struct {
+		Findings string                 `json:"findings"`
+		Details  map[string]interface{} `json:"details,omitempty"`
+	}
+	
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	
+	investigationsMutex.Lock()
+	if inv, exists := investigations[id]; exists {
+		inv.Findings = req.Findings
+		if req.Details != nil {
+			for k, v := range req.Details {
+				inv.Details[k] = v
+			}
+		}
+	}
+	investigationsMutex.Unlock()
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"status": "updated"})
+}
+
+func updateInvestigationProgressHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id := vars["id"]
+	
+	var req struct {
+		Progress int `json:"progress"`
+	}
+	
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	
+	updateInvestigationField(id, "Progress", req.Progress)
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"status": "updated"})
+}
+
+func addInvestigationStepHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id := vars["id"]
+	
+	var step InvestigationStep
+	if err := json.NewDecoder(r.Body).Decode(&step); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	
+	step.StartTime = time.Now()
+	
+	investigationsMutex.Lock()
+	if inv, exists := investigations[id]; exists {
+		inv.Steps = append(inv.Steps, step)
+	}
+	investigationsMutex.Unlock()
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"status": "step_added"})
 }

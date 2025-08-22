@@ -214,13 +214,35 @@ class SystemMonitor {
     displayInvestigation(investigation) {
         const investigationList = document.getElementById('investigation-list');
         
+        let statusClass = '';
+        let statusIcon = '';
+        
+        switch(investigation.status) {
+            case 'in_progress':
+                statusClass = 'status-progress';
+                statusIcon = '🔍';
+                break;
+            case 'completed':
+                statusClass = 'status-completed';
+                statusIcon = '✅';
+                break;
+            case 'failed':
+                statusClass = 'status-failed';
+                statusIcon = '❌';
+                break;
+            default:
+                statusClass = 'status-pending';
+                statusIcon = '⏳';
+        }
+        
         investigationList.innerHTML = `
             <div class="investigation-item">
                 <div class="investigation-header">
                     <span class="investigation-id">${investigation.id}</span>
-                    <span class="investigation-status">${investigation.status}</span>
+                    <span class="investigation-status ${statusClass}">${statusIcon} ${investigation.status.toUpperCase()}</span>
                 </div>
                 <div class="investigation-findings">${investigation.findings}</div>
+                <div class="investigation-timestamp">Started: ${new Date(investigation.start_time).toLocaleString()}</div>
             </div>
         `;
     }
@@ -292,8 +314,47 @@ async function simulateAnomaly() {
 }
 
 async function triggerInvestigation() {
-    monitor.addTerminalLine('Triggering anomaly investigation...', 'info');
-    await monitor.loadInvestigations();
+    const button = document.querySelector('.btn-action');
+    const investigationList = document.getElementById('investigation-list');
+    
+    // Disable button and show loading
+    button.disabled = true;
+    button.textContent = 'RUNNING INVESTIGATION...';
+    button.style.opacity = '0.6';
+    
+    // Show loading in investigation panel
+    investigationList.innerHTML = '<div class="investigation-loading">🔍 Claude Code is analyzing system metrics and logs...</div>';
+    
+    monitor.addTerminalLine('Triggering AI-powered anomaly investigation...', 'info');
+    
+    try {
+        // Call the new trigger endpoint
+        const response = await fetch(`${monitor.baseUrl}/api/investigations/trigger`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        monitor.addTerminalLine(`Investigation started: ${result.investigation_id}`, 'success');
+        
+        // Start polling for results
+        pollInvestigationResults();
+        
+    } catch (error) {
+        monitor.addTerminalLine(`Failed to start investigation: ${error.message}`, 'error');
+        investigationList.innerHTML = '<div class="investigation-error">❌ Failed to start investigation</div>';
+        
+        // Re-enable button
+        button.disabled = false;
+        button.textContent = 'RUN ANOMALY CHECK';
+        button.style.opacity = '1';
+    }
 }
 
 function toggleTerminal() {
@@ -307,6 +368,36 @@ function refreshDashboard() {
     monitor.refreshDashboard().then(() => {
         monitor.addTerminalLine('Dashboard refreshed', 'success');
     });
+}
+
+// Polling function for investigation results
+function pollInvestigationResults() {
+    const pollInterval = setInterval(async () => {
+        try {
+            const response = await fetch(`${monitor.baseUrl}/api/investigations/latest`);
+            const investigation = await response.json();
+            
+            monitor.displayInvestigation(investigation);
+            
+            // If investigation is complete, stop polling and re-enable button
+            if (investigation.status === 'completed' || investigation.status === 'failed') {
+                clearInterval(pollInterval);
+                
+                const button = document.querySelector('.btn-action');
+                button.disabled = false;
+                button.textContent = 'RUN ANOMALY CHECK';
+                button.style.opacity = '1';
+                
+                if (investigation.status === 'completed') {
+                    monitor.addTerminalLine('Investigation completed successfully', 'success');
+                } else {
+                    monitor.addTerminalLine('Investigation failed', 'error');
+                }
+            }
+        } catch (error) {
+            console.error('Polling error:', error);
+        }
+    }, 2000); // Poll every 2 seconds
 }
 
 // Initialize the system monitor when page loads
