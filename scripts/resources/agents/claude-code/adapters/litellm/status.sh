@@ -25,9 +25,37 @@ litellm::get_resource_status() {
         return 1
     fi
     
-    # Get JSON status from the enhanced LiteLLM resource
+    # Try to get JSON status without timeout first (avoids buffering issues)
     local status_json
-    if status_json=$(resource-litellm status --json 2>/dev/null); then
+    local temp_file
+    temp_file=$(mktemp)
+    
+    # Run command in background with timeout
+    (
+        resource-litellm status --json 2>/dev/null > "$temp_file"
+    ) &
+    local pid=$!
+    
+    # Wait up to 25 seconds for the command
+    local count=0
+    while kill -0 $pid 2>/dev/null && [ $count -lt 25 ]; do
+        sleep 1
+        count=$((count + 1))
+    done
+    
+    # Kill if still running
+    if kill -0 $pid 2>/dev/null; then
+        kill -9 $pid 2>/dev/null
+        rm -f "$temp_file"
+        echo '{"error": "Status command timed out", "available": false}'
+        return 1
+    fi
+    
+    # Read the output
+    if [[ -f "$temp_file" ]] && [[ -s "$temp_file" ]]; then
+        status_json=$(cat "$temp_file")
+        rm -f "$temp_file"
+        
         # Validate it's proper JSON and has expected fields
         if echo "$status_json" | jq -e '.container_running' >/dev/null 2>&1; then
             echo "$status_json"
@@ -35,18 +63,35 @@ litellm::get_resource_status() {
         fi
     fi
     
+    rm -f "$temp_file"
     # Fallback: get basic status info
     echo '{"error": "Failed to get LiteLLM status", "available": false}'
     return 1
 }
 
 #######################################
-# Check if LiteLLM resource is available
+# Check if LiteLLM resource is available (simplified check)
 # Returns: 0 if available, 1 otherwise
 #######################################
 litellm::check_resource_available() {
+    # First check if CLI is available
+    if ! command -v resource-litellm &>/dev/null; then
+        return 1
+    fi
+    
+    # Quick check if container is running using docker directly
+    if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^vrooli-litellm$"; then
+        # Container is running, now do a simple API test
+        # Use the resource's test command as it's more reliable than parsing JSON
+        if timeout 15 resource-litellm test >/dev/null 2>&1; then
+            return 0
+        fi
+    fi
+    
+    # If we get here, either container isn't running or test failed
+    # Try the JSON status as a fallback (but don't rely on it)
     local status_json
-    status_json=$(litellm::get_resource_status)
+    status_json=$(litellm::get_resource_status 2>/dev/null || echo '{"available": false}')
     
     # Check if container is running and API is healthy
     if echo "$status_json" | jq -e '.container_running == true and .api_healthy == true' >/dev/null 2>&1; then
@@ -63,16 +108,25 @@ litellm::check_resource_available() {
 litellm::test_connection() {
     local test_prompt="${1:-Hello, please respond with 'OK' if you can hear me.}"
     
-    if ! litellm::check_resource_available; then
-        log::error "LiteLLM resource is not available"
+    # Direct test without circular dependency on check_resource_available
+    # First check if CLI is available
+    if ! command -v resource-litellm &>/dev/null; then
+        log::error "LiteLLM CLI not available"
         return 1
     fi
     
-    # Use the resource's own test functionality
-    if resource-litellm test >/dev/null 2>&1; then
+    # Check if container is running
+    if ! docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^vrooli-litellm$"; then
+        log::error "LiteLLM container is not running"
+        return 1
+    fi
+    
+    # Use the resource's own test functionality with timeout
+    if timeout 15 resource-litellm test >/dev/null 2>&1; then
         return 0
     fi
     
+    log::error "LiteLLM test failed"
     return 1
 }
 
@@ -323,10 +377,10 @@ litellm::display_status() {
             echo "$model_mappings" | jq -r 'to_entries[] | "   " + .key + " → " + .value'
         else
             # Show default mappings
-            log::info "   claude-3-5-sonnet → claude-3-5-sonnet-20241022"
-            log::info "   claude-3-5-haiku → claude-3-haiku-20241022"
-            log::info "   claude-3-opus → claude-3-opus-20240229"
-            log::info "   claude-3-5-sonnet-latest → claude-3-5-sonnet-20241022"
+            log::info "   claude-3-5-sonnet → qwen2.5-coder"
+            log::info "   claude-3-5-sonnet-latest → qwen2.5-coder"
+            log::info "   claude-3-haiku → qwen2.5"
+            log::info "   claude-3-opus → llama3.1-8b"
             log::info "   (default mappings - configure custom ones with 'config set')"
         fi
     fi

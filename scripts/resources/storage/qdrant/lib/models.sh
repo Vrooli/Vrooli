@@ -185,6 +185,27 @@ qdrant::models::detect_dimensions() {
     
     log::debug "Detecting dimensions for model: $model_name"
     
+    # First, check if the model exists at all
+    local models_response
+    models_response=$(timeout 3 curl -s "${ollama_url}/api/tags" 2>/dev/null || echo "")
+    
+    if [[ -z "$models_response" ]]; then
+        log::error "Cannot connect to Ollama at $ollama_url"
+        echo "unknown"
+        return 1
+    fi
+    
+    # Check if model is in the list
+    local model_exists
+    model_exists=$(echo "$models_response" | jq -r ".models[]? | select(.name == \"$model_name\") | .name" 2>/dev/null || echo "")
+    
+    if [[ -z "$model_exists" ]]; then
+        log::error "Model '$model_name' not found in Ollama"
+        log::info "Available models: $(echo "$models_response" | jq -r '.models[]?.name' 2>/dev/null | head -3 | tr '\n' ' ')"
+        echo "unknown"
+        return 1
+    fi
+    
     # Try to generate a test embedding with timeout
     local test_text="test"
     local request_body
@@ -302,17 +323,24 @@ qdrant::models::validate_compatibility() {
 qdrant::models::get_model_dimensions() {
     local model_name="$1"
     
+    log::debug "get_model_dimensions called for: $model_name"
+    log::debug "Cache file: $QDRANT_MODEL_CACHE"
+    
     # Check cache first
     if [[ -f "$QDRANT_MODEL_CACHE" ]]; then
+        log::debug "Cache file exists, checking for cached dimensions"
         local cached_dims
-        cached_dims=$(jq -r ".[] | select(.name == \"$model_name\") | .dimensions" "$QDRANT_MODEL_CACHE" 2>/dev/null || echo "")
+        cached_dims=$(timeout 5 jq -r ".[] | select(.name == \"$model_name\") | .dimensions" "$QDRANT_MODEL_CACHE" 2>/dev/null || echo "")
+        log::debug "Cache lookup result: [$cached_dims]"
         
         if [[ -n "$cached_dims" ]] && [[ "$cached_dims" != "null" ]]; then
+            log::debug "Returning cached dimensions: $cached_dims"
             echo "$cached_dims"
             return 0
         fi
     fi
     
+    log::debug "No cache hit, calling detect_dimensions"
     # Try to detect dimensions
     qdrant::models::detect_dimensions "$model_name"
 }

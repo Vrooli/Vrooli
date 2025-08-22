@@ -56,46 +56,26 @@ litellm::execute() {
     
     log::debug "Executing through LiteLLM with model: $litellm_model"
     
-    # Build LiteLLM command
-    local litellm_cmd="resource-litellm run"
-    litellm_cmd+=" --model '$litellm_model'"
-    litellm_cmd+=" --prompt '$prompt'"
-    
-    # Add optional parameters
+    # Determine max tokens based on max_turns (rough approximation)
+    local max_tokens=4000
     if [[ -n "$max_turns" && "$max_turns" != "1" ]]; then
-        # LiteLLM might not support max-turns directly, adapt as needed
-        litellm_cmd+=" --max-tokens $((max_turns * 1000))"
-    else
-        litellm_cmd+=" --max-tokens 4000"
+        max_tokens=$((max_turns * 1000))
     fi
     
-    # Handle tools if specified
-    if [[ -n "$allowed_tools" ]]; then
-        # Translate Claude tools to LiteLLM format
-        local translated_tools
-        translated_tools=$(litellm::translate_tools "$allowed_tools" 2>/dev/null || echo "")
-        if [[ -n "$translated_tools" ]]; then
-            litellm_cmd+=" --tools '$translated_tools'"
-        fi
-    fi
-    
-    # Add output format if JSON
-    if [[ "$output_format" == "json" || "$output_format" == "stream-json" ]]; then
-        litellm_cmd+=" --format json"
-    fi
-    
-    # Execute the command
+    # Execute the command using the resource-litellm CLI
+    # Note: litellm_complete expects positional arguments: message, model, max_tokens
     local response
     local exit_code
     
-    log::debug "Executing: $litellm_cmd"
+    log::debug "Executing: resource-litellm complete <prompt> '$litellm_model' '$max_tokens'"
     
     # Create a temp file for output
     local temp_output
     temp_output=$(mktemp)
     
-    # Execute with timeout
-    if timeout "${TIMEOUT:-600}" bash -c "$litellm_cmd" > "$temp_output" 2>&1; then
+    # Execute with timeout, passing prompt as argument directly
+    # The prompt variable already contains the text we need
+    if timeout "${TIMEOUT:-600}" resource-litellm complete "$prompt" "$litellm_model" "$max_tokens" > "$temp_output" 2>&1; then
         exit_code=0
         response=$(cat "$temp_output")
         

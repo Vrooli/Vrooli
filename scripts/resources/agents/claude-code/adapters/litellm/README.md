@@ -118,12 +118,12 @@ The adapter maintains two JSON files in `~/.claude/`:
 
 Default model mappings:
 
-| Claude Model | LiteLLM Model |
-|-------------|---------------|
-| claude-3-5-sonnet | claude-3-5-sonnet-20241022 |
-| claude-3-5-haiku | claude-3-haiku-20241022 |
-| claude-3-opus | claude-3-opus-20240229 |
-| claude-3-5-sonnet-latest | claude-3-5-sonnet-20241022 |
+| Claude Model | LiteLLM Model (Ollama) |
+|-------------|------------------------|
+| claude-3-5-sonnet | qwen2.5-coder |
+| claude-3-5-sonnet-latest | qwen2.5-coder |
+| claude-3-haiku | qwen2.5 |
+| claude-3-opus | llama3.1-8b |
 
 ## Configuration Reference
 

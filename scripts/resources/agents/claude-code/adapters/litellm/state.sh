@@ -46,12 +46,16 @@ litellm::init_state() {
 		    "auto_fallback_on_rate_limit": true,
 		    "auto_fallback_on_error": false,
 		    "auto_disconnect_after_hours": 5,
-		    "preferred_model": "claude-3-5-sonnet-latest",
+		    "preferred_model": "qwen2.5-coder",
 		    "model_mappings": {
-		        "claude-3-5-sonnet": "claude-3-5-sonnet-20241022",
-		        "claude-3-5-haiku": "claude-3-haiku-20241022",
-		        "claude-3-opus": "claude-3-opus-20240229",
-		        "claude-3-5-sonnet-latest": "claude-3-5-sonnet-20241022"
+		        "claude-3-5-sonnet": "qwen2.5-coder",
+		        "claude-3-5-sonnet-latest": "qwen2.5-coder",
+		        "claude-3-5-sonnet-20241022": "qwen2.5-coder",
+		        "claude-3-haiku": "qwen2.5",
+		        "claude-3-haiku-20241022": "qwen2.5",
+		        "claude-3-opus": "llama3.1-8b",
+		        "claude-3-opus-20240229": "llama3.1-8b",
+		        "claude-3-opus-latest": "llama3.1-8b"
 		    },
 		    "litellm_endpoint": null,
 		    "litellm_api_key_env": "LITELLM_API_KEY",

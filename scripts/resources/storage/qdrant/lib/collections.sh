@@ -299,20 +299,33 @@ qdrant::collections::info() {
     fi
     
     local response
-    response=$(qdrant::api::request "GET" "/collections/${collection_name}" 2>/dev/null)
+    response=$(qdrant::api::request "GET" "/collections/${collection_name}" 2>/dev/null || true)
     
-    if [[ $? -ne 0 ]]; then
+    # Check if we got any response at all
+    if [[ -z "$response" ]]; then
         log::error "Failed to retrieve collection information for: $collection_name"
         log::info "Check that Qdrant is running and the collection name is correct"
         return 1
     fi
     
+    # Check if the response contains an error
+    local error_message
+    error_message=$(echo "$response" | jq -r '.status.error // empty' 2>/dev/null)
+    
+    if [[ -n "$error_message" ]]; then
+        log::error "Collection not found: $collection_name"
+        log::error "API Error: $error_message"
+        log::info "Use 'resource-qdrant collections list' to see available collections"
+        return 1
+    fi
+    
+    # Check for successful status
     local status
     status=$(echo "$response" | jq -r '.status // "unknown"' 2>/dev/null)
     
     if [[ "$status" != "ok" ]]; then
-        log::error "Collection not found: $collection_name"
-        log::info "Use 'resource-qdrant collections list' to see available collections"
+        log::error "Unexpected API response for collection: $collection_name"
+        log::error "Status: $status"
         return 1
     fi
     
@@ -621,17 +634,31 @@ qdrant::collections::create_from_model() {
         return 1
     fi
     
-    # Get model dimensions
+    # Get model dimensions with timeout to prevent hanging
     log::info "Detecting dimensions for model: $model_name"
     local dimensions
-    dimensions=$(qdrant::models::get_model_dimensions "$model_name")
+    local temp_file
+    temp_file=$(mktemp)
+    
+    # Use timeout to prevent hanging on model detection, capture stderr separately
+    if timeout 10 bash -c "source \"${QDRANT_COLLECTIONS_DIR}/models.sh\"; qdrant::models::get_model_dimensions \"$model_name\"" 2>"$temp_file"; then
+        dimensions=$(timeout 10 bash -c "source \"${QDRANT_COLLECTIONS_DIR}/models.sh\"; qdrant::models::get_model_dimensions \"$model_name\"" 2>/dev/null)
+    else
+        dimensions="unknown"
+    fi
     
     if [[ "$dimensions" == "unknown" ]] || [[ -z "$dimensions" ]]; then
         log::error "Cannot determine dimensions for model: $model_name"
+        # Show any error messages from the detection process
+        if [[ -s "$temp_file" ]]; then
+            cat "$temp_file" >&2
+        fi
         log::info "Please ensure the model is installed and is an embedding model"
+        rm -f "$temp_file"
         return 1
     fi
     
+    rm -f "$temp_file"
     log::info "Model '$model_name' has $dimensions dimensions"
     
     # Create collection with detected dimensions

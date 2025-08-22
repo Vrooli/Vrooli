@@ -111,7 +111,7 @@ run_tests() {
     log::info "Test 6: Model mapping"
     local mapped_model
     mapped_model=$(litellm::get_model_mapping "claude-3-5-sonnet")
-    if [[ "$mapped_model" == "claude-3-5-sonnet-20241022" ]]; then
+    if [[ "$mapped_model" == "qwen2.5-coder" ]]; then
         log::success "  ✅ Model mapping working"
         tests_passed=$((tests_passed + 1))
     else
