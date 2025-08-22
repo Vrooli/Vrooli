@@ -103,6 +103,19 @@ litellm::config_set() {
             fi
             ;;
             
+        auto-fallback-on-rate-limit)
+            if [[ "$value" == "on" || "$value" == "true" ]]; then
+                litellm::set_config "auto_fallback_on_rate_limit" "true"
+                log::success "✅ Auto-fallback on rate limit enabled"
+            elif [[ "$value" == "off" || "$value" == "false" ]]; then
+                litellm::set_config "auto_fallback_on_rate_limit" "false"
+                log::success "✅ Auto-fallback on rate limit disabled"
+            else
+                log::error "Invalid value. Use 'on' or 'off'"
+                return 1
+            fi
+            ;;
+            
         model|set-model)
             litellm::set_config "preferred_model" "$value"
             log::success "✅ Preferred model set to: $value"
@@ -171,6 +184,7 @@ litellm::config_set() {
             log::info "Available settings:"
             log::info "  auto-fallback <on|off>"
             log::info "  auto-fallback-on-error <on|off>"
+            log::info "  auto-fallback-on-rate-limit <on|off>"
             log::info "  model <model-name>"
             log::info "  endpoint <url>"
             log::info "  auto-disconnect-hours <hours>"
@@ -194,6 +208,9 @@ litellm::config_get() {
     case "$setting" in
         auto-fallback)
             value=$(litellm::get_config "auto_fallback_enabled")
+            ;;
+        auto-fallback-on-rate-limit)
+            value=$(litellm::get_config "auto_fallback_on_rate_limit")
             ;;
         model)
             value=$(litellm::get_config "preferred_model")

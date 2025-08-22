@@ -5,12 +5,12 @@ import (
     "encoding/json"
     "fmt"
     "log"
+    "math/rand"
     "net/http"
     "os"
     "time"
 
     "github.com/gorilla/mux"
-    "github.com/lib/pq"
     "github.com/rs/cors"
     _ "github.com/lib/pq"
 )
@@ -45,6 +45,8 @@ type HealthResponse struct {
 }
 
 var db *sql.DB
+var wheels []Wheel
+var history []SpinResult
 
 func initDB() {
     var err error
@@ -77,6 +79,10 @@ func main() {
             db.Close()
         }
     }()
+    
+    // Initialize in-memory data as fallback
+    wheels = getDefaultWheels()
+    history = []SpinResult{}
     
     port := os.Getenv("API_PORT")
     if port == "" {
@@ -293,9 +299,32 @@ func spinHandler(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    // For simplicity, just return a mock result
+    // Select random option based on weights
+    var selectedOption string
+    if len(spinRequest.Options) > 0 {
+        // Calculate total weight
+        var totalWeight float64
+        for _, option := range spinRequest.Options {
+            totalWeight += option.Weight
+        }
+        
+        // Generate random number and select option
+        randValue := rand.Float64() * totalWeight
+        var currentWeight float64
+        
+        for _, option := range spinRequest.Options {
+            currentWeight += option.Weight
+            if randValue <= currentWeight {
+                selectedOption = option.Label
+                break
+            }
+        }
+    } else {
+        selectedOption = "No options provided"
+    }
+
     result := SpinResult{
-        Result:    "Random Result",
+        Result:    selectedOption,
         WheelID:   spinRequest.WheelID,
         SessionID: spinRequest.SessionID,
         Timestamp: time.Now(),

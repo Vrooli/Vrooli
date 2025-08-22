@@ -451,20 +451,38 @@ qdrant_collection_info() {
     
     if [[ -z "$name" ]]; then
         log::error "Collection name required"
-        echo "Usage: resource-qdrant collection-info <name>"
+        echo "Usage: resource-qdrant collections info <name>"
         echo ""
         echo "Examples:"
-        echo "  resource-qdrant collection-info my-vectors"
-        echo "  resource-qdrant collection-info embeddings"
+        echo "  resource-qdrant collections info my-vectors"
+        echo "  resource-qdrant collections info embeddings"
         return 1
     fi
     
+    # Ensure configuration is loaded
+    if [[ -z "${QDRANT_CONFIG_EXPORTED:-}" ]]; then
+        if command -v qdrant::export_config &>/dev/null; then
+            qdrant::export_config 2>/dev/null || true
+        fi
+    fi
+    
     if command -v qdrant::collections::info &>/dev/null; then
-        qdrant::collections::info "$name"
+        log::debug "Calling qdrant::collections::info for collection: $name"
+        if ! qdrant::collections::info "$name"; then
+            local exit_code=$?
+            log::error "Collection info failed for: $name"
+            return $exit_code
+        fi
     elif command -v qdrant::api::get_collection &>/dev/null; then
-        qdrant::api::get_collection "$name"
+        log::debug "Falling back to qdrant::api::get_collection"
+        if ! qdrant::api::get_collection "$name"; then
+            local exit_code=$?
+            log::error "Collection API call failed for: $name"
+            return $exit_code
+        fi
     else
-        log::error "Collection info not available"
+        log::error "Collection info functions not available"
+        log::info "This may indicate missing dependencies or configuration"
         return 1
     fi
 }
@@ -672,9 +690,16 @@ qdrant_models_info() {
     local model="${1:-}"
     
     if command -v qdrant::models::info &>/dev/null; then
-        qdrant::models::info "$model"
+        log::debug "Getting model info for: ${model:-'default'}"
+        if ! qdrant::models::info "$model"; then
+            local exit_code=$?
+            log::error "Model info failed for: ${model:-'default'}"
+            log::info "Check that Ollama is running and the model is installed"
+            return $exit_code
+        fi
     else
-        log::error "Model info not available"
+        log::error "Model info functions not available"
+        log::info "This may indicate missing dependencies or Ollama unavailability"
         return 1
     fi
 }
