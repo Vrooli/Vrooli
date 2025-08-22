@@ -182,3 +182,99 @@ resource-qdrant restore --path <path>         # Restore from backup
 3. Update documentation with examples
 4. Add backup automation
 5. Implement performance benchmarks
+
+## 🧠 Semantic Knowledge System
+
+### Overview
+Transform Qdrant from a simple vector database into an intelligent semantic knowledge system that enables AI agents to discover and leverage existing code patterns, workflows, and architectural decisions across the entire Vrooli codebase.
+
+### Core Objectives
+- **Enable Semantic Discovery**: Allow agents to find relevant code, workflows, and patterns through meaning-based search
+- **Maintain Synchronization**: Ensure embeddings stay current as the codebase evolves
+- **Foster Knowledge Reuse**: Make successful patterns discoverable and reusable across scenarios
+- **Support Recursive Improvement**: Track what works, what doesn't, and why
+
+### Implementation Phases
+
+#### Phase 1: Foundation Setup
+- [ ] Design collection schemas for each knowledge type
+- [ ] Implement base embedding generation pipeline
+- [ ] Create CLI commands for manual indexing
+- [ ] Establish content identification strategy (hashing, versioning)
+- [ ] Set up embedding manifest for tracking state
+
+#### Phase 2: Automated Synchronization
+- [ ] Implement change detection mechanism (git hooks, file watchers)
+- [ ] Create incremental update pipeline for modified content
+- [ ] Add garbage collection for orphaned embeddings
+- [ ] Build reconciliation system for consistency checks
+- [ ] Establish monitoring for embedding freshness
+
+#### Phase 3: Knowledge Collections
+
+##### Workflows Collection
+- [ ] Extract and embed n8n workflow descriptions
+- [ ] Capture node types and capabilities
+- [ ] Index input/output schemas and data flow patterns
+- [ ] Add tags for complexity, resources, success rates
+- [ ] Create cross-references to consuming scenarios
+- [ ] Track performance metrics and execution times
+
+##### Scenarios Collection
+- [ ] Embed PRD content and business goals
+- [ ] Index implementation patterns and architecture decisions
+- [ ] Capture resource requirements and dependencies
+- [ ] Store revenue projections and value metrics
+- [ ] Track test coverage and quality scores
+- [ ] Document lessons learned and optimizations
+
+##### Code Patterns Collection
+- [ ] Index function signatures with docstrings
+- [ ] Capture common error handling patterns
+- [ ] Embed API endpoint descriptions and contracts
+- [ ] Document shell script purposes and parameters
+- [ ] Store configuration patterns and best practices
+- [ ] Index security implementation patterns
+
+##### Resources Collection
+- [ ] Document resource capabilities and limitations
+- [ ] Embed API documentation and usage examples
+- [ ] Index integration patterns between resources
+- [ ] Capture performance characteristics
+- [ ] Store common troubleshooting solutions
+
+##### Project Knowledge Collection
+- [ ] Embed architecture decisions and rationale
+- [ ] Index discovered performance optimizations
+- [ ] Document failed approaches and reasons
+- [ ] Capture effective testing strategies
+- [ ] Store domain-specific terminology and concepts
+
+##### Dependencies Collection
+- [ ] Map inter-scenario relationships
+- [ ] Index shared utility functions
+- [ ] Document resource coupling patterns
+- [ ] Track workflow chains and sequences
+- [ ] Maintain breaking change history
+
+#### Phase 4: Integration & Intelligence
+- [ ] Create search APIs for agent consumption
+- [ ] Add learning from agent interactions
+- [ ] Build recommendation system based on patterns
+- [ ] Implement quality scoring for search results
+- [ ] Enable relationship traversal for connected items
+
+### Success Criteria
+- [ ] All six knowledge collections operational
+- [ ] Automated synchronization maintains <24hr staleness
+- [ ] Search latency <100ms for semantic queries
+- [ ] >90% of codebase indexed and searchable
+- [ ] Agents successfully use system for discovery
+- [ ] Measurable improvement in code reuse metrics
+
+### Monitoring & Maintenance
+- [ ] Dashboard showing embedding coverage and freshness
+- [ ] Alerts for synchronization failures
+- [ ] Regular quality audits of search results
+- [ ] Performance tracking for indexing pipeline
+- [ ] Usage analytics for optimization insights

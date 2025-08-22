@@ -47,6 +47,13 @@ for lib in core health collections backup inject content status models embedding
     fi
 done
 
+# Source embeddings management system if available
+EMBEDDINGS_MANAGE="${QDRANT_CLI_DIR}/embeddings/manage.sh"
+if [[ -f "$EMBEDDINGS_MANAGE" ]]; then
+    # shellcheck disable=SC1090
+    source "$EMBEDDINGS_MANAGE" 2>/dev/null || true
+fi
+
 # Initialize CLI framework
 cli::init "qdrant" "Qdrant vector database management"
 
@@ -71,6 +78,9 @@ cli::register_command "models" "Manage embedding models (list/info)" "qdrant_mod
 
 # Backup commands
 cli::register_command "backup" "Manage backups (create/list)" "qdrant_backup_dispatch"
+
+# Embeddings knowledge system commands
+cli::register_command "embeddings" "Manage semantic knowledge system" "qdrant_embeddings_dispatch"
 
 # Other commands
 cli::register_command "credentials" "Show connection details for Qdrant" "qdrant_credentials"
@@ -714,16 +724,21 @@ qdrant_show_help() {
     echo "🔍 Common Qdrant Operations:"
     echo ""
     echo "  collections <subcommand>    Manage vector collections"
+    echo "  embeddings <subcommand>     Semantic knowledge system"
     echo "  backup <subcommand>         Create and restore backups"
     echo "  models <subcommand>         List and inspect embedding models"
     echo "  embed <text>                Generate embeddings from text"
     echo ""
     echo "Quick Start:"
+    echo "  resource-qdrant embeddings init           # Initialize for current project"
+    echo "  resource-qdrant embeddings refresh        # Index all content"
+    echo "  resource-qdrant embeddings search \"email\" # Search knowledge"
+    echo ""
+    echo "Collections:"
     echo "  resource-qdrant collections create my-docs --model nomic-embed-text"
     echo "  resource-qdrant embed \"machine learning\""
-    echo "  resource-qdrant collections search \"AI research\""
     echo ""
-    echo "Use '<command> help' for detailed examples (e.g., 'collections help')"
+    echo "Use '<command> help' for detailed examples (e.g., 'embeddings help')"
     echo ""
     echo "Default Port: 6333 | Web UI: http://localhost:6333/dashboard"
 }

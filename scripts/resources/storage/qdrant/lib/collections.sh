@@ -19,6 +19,11 @@ source "${QDRANT_COLLECTIONS_DIR}/../config/defaults.sh"
 # shellcheck disable=SC1091
 source "${QDRANT_COLLECTIONS_DIR}/../config/messages.sh"
 
+# Initialize Qdrant base URL if not set
+if [[ -z "${QDRANT_BASE_URL:-}" ]]; then
+    QDRANT_BASE_URL="http://localhost:6333"
+fi
+
 # Initialize configuration and messages if not already done
 if [[ -z "${QDRANT_CONFIG_EXPORTED:-}" ]]; then
     qdrant::export_config 2>/dev/null || true
@@ -891,5 +896,108 @@ qdrant::collections::list_brief() {
     
     if [[ $? -eq 0 ]]; then
         echo "$response" | jq -r '.result.collections[] | "\(.name)"' 2>/dev/null
+    fi
+}
+
+#######################################
+# Upsert a point (vector with payload) into a collection
+# Arguments:
+#   $1 - Collection name
+#   $2 - Point ID (unique identifier)
+#   $3 - Vector (JSON array of floats)
+#   $4 - Payload (JSON object with metadata)
+# Returns: 0 on success, 1 on failure
+#######################################
+qdrant::collections::upsert_point() {
+    local collection_name="$1"
+    local point_id="$2"
+    local vector="$3"
+    local payload="$4"
+    
+    if [[ -z "$collection_name" ]] || [[ -z "$point_id" ]] || [[ -z "$vector" ]]; then
+        log::error "Collection name, point ID, and vector are required"
+        return 1
+    fi
+    
+    # If no payload provided, use empty object
+    if [[ -z "$payload" ]]; then
+        payload="{}"
+    fi
+    
+    # Convert string ID to UUID format if it's not already numeric
+    local formatted_id
+    if [[ "$point_id" =~ ^[0-9]+$ ]]; then
+        # Already numeric, use as-is
+        formatted_id="$point_id"
+    elif [[ "$point_id" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]]; then
+        # Already a UUID, use as-is
+        formatted_id="\"$point_id\""
+    else
+        # Convert string to UUID format using hash
+        local hash=$(echo -n "$point_id" | sha256sum | cut -d' ' -f1)
+        formatted_id="\"${hash:0:8}-${hash:8:4}-${hash:12:4}-${hash:16:4}-${hash:20:12}\""
+    fi
+    
+    # Construct the points data for the API
+    local points_data
+    if [[ "$formatted_id" =~ ^[0-9]+$ ]]; then
+        # Numeric ID
+        points_data=$(jq -n \
+            --argjson id "$formatted_id" \
+            --argjson vector "$vector" \
+            --argjson payload "$payload" \
+            '{
+                points: [
+                    {
+                        id: $id,
+                        vector: $vector,
+                        payload: $payload
+                    }
+                ]
+            }'
+        )
+    else
+        # UUID string ID
+        points_data=$(jq -n \
+            --argjson id "$formatted_id" \
+            --argjson vector "$vector" \
+            --argjson payload "$payload" \
+            '{
+                points: [
+                    {
+                        id: $id,
+                        vector: $vector,
+                        payload: $payload
+                    }
+                ]
+            }'
+        )
+    fi
+    
+    # Make the API request using direct curl
+    local response
+    response=$(curl -s -X PUT \
+        -H "Content-Type: application/json" \
+        -d "$points_data" \
+        "${QDRANT_BASE_URL}/collections/${collection_name}/points" 2>/dev/null)
+    
+    # Check if curl succeeded
+    if [[ $? -eq 0 ]] && [[ -n "$response" ]]; then
+        # Check if the response indicates success
+        local status
+        status=$(echo "$response" | jq -r '.status // "unknown"' 2>/dev/null)
+        
+        if [[ "$status" == "ok" ]]; then
+            log::debug "Successfully upserted point '$point_id' into collection '$collection_name'"
+            return 0
+        else
+            local error_msg
+            error_msg=$(echo "$response" | jq -r '.status.error // "Unknown error"' 2>/dev/null)
+            log::error "Failed to upsert point: $error_msg"
+            return 1
+        fi
+    else
+        log::error "Failed to upsert point into collection '$collection_name'"
+        return 1
     fi
 }

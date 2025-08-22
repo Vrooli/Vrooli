@@ -1,0 +1,22 @@
+{
+  "app_id": "test-simple-app",
+  "type": "generated", 
+  "source_scenario": "simple-test",
+  "last_indexed": "2025-01-22T10:00:00Z",
+  "index_commit": "abc123def456789",
+  "embedding_config": {
+    "model": "mxbai-embed-large",
+    "dimensions": 1024,
+    "collections": {
+      "workflows": "test-simple-app-workflows",
+      "scenarios": "test-simple-app-scenarios", 
+      "knowledge": "test-simple-app-knowledge",
+      "code": "test-simple-app-code",
+      "resources": "test-simple-app-resources"
+    }
+  },
+  "stats": {
+    "total_embeddings": 15,
+    "last_refresh_duration_seconds": 8
+  }
+}

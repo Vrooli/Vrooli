@@ -112,10 +112,10 @@ qdrant::export_config() {
         readonly QDRANT_STORAGE_OPTIMIZED_SEGMENT_SIZE=20000
     fi
     if [[ -z "${QDRANT_STORAGE_MEMMAP_THRESHOLD:-}" ]]; then
-        readonly QDRANT_STORAGE_MEMMAP_THRESHOLD=100000
+        readonly QDRANT_STORAGE_MEMMAP_THRESHOLD=10000
     fi
     if [[ -z "${QDRANT_STORAGE_INDEXING_THRESHOLD:-}" ]]; then
-        readonly QDRANT_STORAGE_INDEXING_THRESHOLD=20000
+        readonly QDRANT_STORAGE_INDEXING_THRESHOLD=100
     fi
 
     # Performance settings
