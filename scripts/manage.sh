@@ -36,158 +36,6 @@ manage::get_git_commit() {
     git rev-parse HEAD 2>/dev/null || echo "no-git"
 }
 
-#######################################
-# Get hash of current git working tree status
-# Includes tracked file modifications and untracked files, filtered by setup relevance
-#######################################
-manage::get_git_status_hash() {
-    if ! git status --porcelain 2>/dev/null >/dev/null; then
-        echo "no-git"
-        return 0
-    fi
-    
-    # Define patterns for files to ignore (don't affect setup)
-    # These are files that when changed, don't require re-running setup
-    local ignore_patterns=(
-        # Documentation and markdown files
-        "docs/"
-        "*.md"
-        "README"
-        "LICENSE"
-        "CHANGELOG"
-        
-        # Test directories and files
-        "test/"
-        "tests/"
-        "__tests__/"
-        "scripts/__test"
-        "*.test.*"
-        "*.spec.*"
-        
-        # Scenario and automation content (handled separately)
-        "scripts/scenarios/"
-        "auto/"
-        "initialization/"
-        
-        # Resource definitions (don't affect main setup)
-        "scripts/resources/"
-        
-        # CLI command files (runtime only)
-        "cli/commands/"
-        
-        # Config files that are runtime-only
-        ".vrooli/service.json"
-        ".vrooli/resource-registry/"
-        ".vrooli/running-resources.json"
-        "*.json.bak"
-        "*.json.backup*"
-        "*.bak"
-        
-        # Build artifacts
-        "node_modules/"
-        "dist/"
-        "build/"
-        ".next/"
-        "api/api-server"
-        "api/*-api"
-        
-        # Data and state files
-        "data/"
-        
-        # Editor and IDE files
-        ".git/"
-        ".vscode/"
-        ".idea/"
-        "*.swp"
-        "*.swo"
-        
-        # Environment files
-        ".env.local"
-        ".env.example"
-        
-        # Logs and temporary files
-        "*.log"
-        "*.tmp"
-        "*.temp"
-        
-        # Media files
-        "*.mp4"
-        "*.mp3"
-        "*.jpg"
-        "*.png"
-        "*.gif"
-        
-        # Misc files that don't affect setup
-        "test-*.sh"
-        "*~"
-        "2"  # Weird file in your git status
-    )
-    
-    # Function to check if a file should be ignored
-    should_ignore_file() {
-        local file="$1"
-        local pattern
-        for pattern in "${ignore_patterns[@]}"; do
-            # Handle glob patterns and directory patterns
-            case "$pattern" in
-                */)
-                    # Directory pattern - check if file is in this directory
-                    if [[ "$file" == "$pattern"* ]]; then
-                        return 0  # Should ignore
-                    fi
-                    ;;
-                *.*)
-                    # File extension pattern
-                    if [[ "$file" == $pattern ]]; then
-                        return 0  # Should ignore
-                    fi
-                    ;;
-                *)
-                    # Substring pattern
-                    if [[ "$file" == *"$pattern"* ]]; then
-                        return 0  # Should ignore
-                    fi
-                    ;;
-            esac
-        done
-        return 1  # Should not ignore
-    }
-    
-    # Filter git status output to exclude blacklisted files
-    local filtered_status
-    filtered_status=$(git status --porcelain 2>/dev/null | while IFS= read -r line; do
-        # Extract filename from git status line (handle spaces in filenames)
-        local file
-        file=$(echo "$line" | sed 's/^...//')  # Remove first 3 characters (status codes)
-        
-        # Check if this file should be ignored
-        if ! should_ignore_file "$file"; then
-            echo "$line"
-        fi
-    done | sort)
-    
-    # Filter untracked files to exclude blacklisted files  
-    local filtered_untracked
-    filtered_untracked=$(git ls-files --others --exclude-standard 2>/dev/null | while IFS= read -r file; do
-        if ! should_ignore_file "$file"; then
-            echo "$file"
-        fi
-    done | sort)
-    
-    # Create hash from filtered results
-    local hash_result
-    hash_result=$((echo "$filtered_status"; echo "$filtered_untracked") | sha256sum | cut -d' ' -f1)
-    
-    # Debug: show filtering results (only if DEBUG_SETUP is set)
-    if [[ "${DEBUG_SETUP:-}" == "true" ]]; then
-        echo "DEBUG: Filtered git status hash generation:" >&2
-        echo "  Original files: $(git status --porcelain 2>/dev/null | wc -l)" >&2
-        echo "  Filtered files: $(echo "$filtered_status" | grep -c '^' || echo 0)" >&2
-        echo "  Hash: $hash_result" >&2
-    fi
-    
-    echo "$hash_result"
-}
 
 #######################################
 # Check if setup artifacts exist and are valid
@@ -228,21 +76,16 @@ manage::verify_setup_artifacts() {
 }
 
 #######################################
-# Check if app needs setup based on git state and artifacts
+# Check if app needs setup based on git commit only
 # Sets SETUP_REASONS global array with specific reasons
 #
-# Setup IS required when:
-# - Core scripts change (scripts/lib/, scripts/main/, manage.sh)
-# - Package files change (package.json, go.mod, requirements.txt)
-# - Source code changes (ui/src/, api/src/)
-# - Build configs change (webpack, vite, tsconfig, etc.)
+# Simplified logic: Only runs setup when:
+# - First run (no state file)
+# - Git commit changed
+# - Critical artifacts are missing
 #
-# Setup is NOT required when:
-# - Documentation changes
-# - Test files change
-# - Resource definitions change
-# - Scenario content changes
-# - Runtime configs change
+# Local changes don't trigger setup since developers
+# know when they need to re-run setup
 #######################################
 manage::needs_setup() {
     local state_file="data/.setup-state"
@@ -268,28 +111,20 @@ manage::needs_setup() {
         return 0
     fi
     
-    # Get current git state
-    local current_commit current_status
+    # Get current git commit
+    local current_commit
     current_commit=$(manage::get_git_commit)
-    current_status=$(manage::get_git_status_hash)
     
-    # Get recorded state
-    local recorded_commit recorded_status
+    # Get recorded commit
+    local recorded_commit
     recorded_commit=$(jq -r '.git_commit // empty' "$state_file" 2>/dev/null || echo "")
-    recorded_status=$(jq -r '.git_status_hash // empty' "$state_file" 2>/dev/null || echo "")
     
-    # If git state changed, needs setup
+    # If git commit changed, needs setup
     if [[ "$current_commit" != "$recorded_commit" ]]; then
         log::debug "Git commit changed (${recorded_commit} -> ${current_commit}), setup needed"
         local short_old="${recorded_commit:0:8}"
         local short_new="${current_commit:0:8}"
         SETUP_REASONS+=("Git commit changed: ${short_old} → ${short_new}")
-        return 0
-    fi
-    
-    if [[ "$current_status" != "$recorded_status" ]]; then
-        log::debug "Working tree status changed, setup needed"
-        SETUP_REASONS+=("Code changes detected in tracked files")
         return 0
     fi
     
@@ -333,16 +168,14 @@ manage::mark_setup_complete() {
     local state_file="data/.setup-state"
     mkdir -p "$(dirname "$state_file")"
     
-    local current_commit current_status setup_steps
+    local current_commit setup_steps
     current_commit=$(manage::get_git_commit)
-    current_status=$(manage::get_git_status_hash)
     setup_steps=$(manage::get_setup_steps_list)
     
     cat > "$state_file" << EOF
 {
   "setup_version": "1.0.0",
   "git_commit": "$current_commit",
-  "git_status_hash": "$current_status",
   "setup_completed_at": "$(date -Iseconds)",
   "setup_steps_completed": $setup_steps
 }
