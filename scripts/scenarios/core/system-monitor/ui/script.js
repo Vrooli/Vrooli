@@ -1,8 +1,8 @@
 // System Monitor Dashboard JavaScript
 class SystemMonitor {
     constructor() {
-        this.apiPort = window.location.hostname === 'localhost' ? 
-            (process?.env?.API_PORT || '8083') : '8083';
+        // This gets replaced by server.js at runtime with actual port
+        this.apiPort = '8080';
         this.baseUrl = `http://${window.location.hostname}:${this.apiPort}`;
         
         this.isOnline = false;
@@ -16,9 +16,11 @@ class SystemMonitor {
     }
 
     init() {
-        this.checkApiHealth();
-        this.startMetricsPolling();
-        this.loadInvestigations();
+        // Wait for health check before starting metrics polling
+        this.checkApiHealth().then(() => {
+            this.startMetricsPolling();
+            this.loadInvestigations();
+        });
         this.setupEventListeners();
         this.addTerminalLine('System Monitor dashboard initialized', 'success');
     }
@@ -38,14 +40,20 @@ class SystemMonitor {
             
             if (data.status === 'healthy') {
                 this.setSystemStatus(true);
-                this.addTerminalLine('API health check: HEALTHY', 'success');
+                // Only log on initial connection, not every health check
+                if (!this.isOnline) {
+                    this.addTerminalLine('API health check: HEALTHY', 'success');
+                }
             } else {
                 this.setSystemStatus(false);
                 this.addTerminalLine('API health check: UNHEALTHY', 'error');
             }
         } catch (error) {
             this.setSystemStatus(false);
-            this.addTerminalLine(`API connection failed: ${error.message}`, 'error');
+            // Only log errors when status changes
+            if (this.isOnline) {
+                this.addTerminalLine(`API connection failed: ${error.message}`, 'error');
+            }
         }
     }
 
@@ -87,7 +95,11 @@ class SystemMonitor {
             this.checkAlerts();
             
         } catch (error) {
-            this.addTerminalLine(`Metrics fetch error: ${error.message}`, 'error');
+            // Only log metrics errors occasionally, not on every poll
+            if (!this.lastMetricsError || Date.now() - this.lastMetricsError > 60000) {
+                this.addTerminalLine(`Metrics fetch error: ${error.message}`, 'error');
+                this.lastMetricsError = Date.now();
+            }
         }
     }
 
@@ -191,7 +203,11 @@ class SystemMonitor {
             this.displayInvestigation(investigation);
             
         } catch (error) {
-            this.addTerminalLine(`Investigation fetch error: ${error.message}`, 'error');
+            // Only log investigation errors occasionally
+            if (!this.lastInvestigationError || Date.now() - this.lastInvestigationError > 60000) {
+                this.addTerminalLine(`Investigation fetch error: ${error.message}`, 'error');
+                this.lastInvestigationError = Date.now();
+            }
         }
     }
 
@@ -235,11 +251,10 @@ class SystemMonitor {
     }
 
     async refreshDashboard() {
-        this.addTerminalLine('Refreshing dashboard...', 'info');
+        // Silent refresh - no terminal output for auto-refreshes
         await this.checkApiHealth();
         await this.fetchMetrics();
         await this.loadInvestigations();
-        this.addTerminalLine('Dashboard refreshed', 'success');
     }
 }
 
@@ -287,7 +302,11 @@ function toggleTerminal() {
 }
 
 function refreshDashboard() {
-    monitor.refreshDashboard();
+    // Manual refresh with terminal output
+    monitor.addTerminalLine('Manual refresh triggered...', 'info');
+    monitor.refreshDashboard().then(() => {
+        monitor.addTerminalLine('Dashboard refreshed', 'success');
+    });
 }
 
 // Initialize the system monitor when page loads
@@ -295,11 +314,5 @@ let monitor;
 document.addEventListener('DOMContentLoaded', () => {
     monitor = new SystemMonitor();
     
-    // Show terminal briefly on load
-    setTimeout(() => {
-        document.getElementById('terminal').classList.add('open');
-        setTimeout(() => {
-            document.getElementById('terminal').classList.remove('open');
-        }, 3000);
-    }, 1000);
+    // Terminal stays hidden by default - user can toggle it if needed
 });

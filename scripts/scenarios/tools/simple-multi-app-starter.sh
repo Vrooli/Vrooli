@@ -21,7 +21,7 @@ source "${var_LOG_FILE}"
 # Default configuration
 GENERATED_APPS_DIR="${GENERATED_APPS_DIR:-$HOME/generated-apps}"
 PORT_START="${VROOLI_DEV_PORT_START:-3001}"
-MAX_APPS="${VROOLI_DEV_MAX_APPS:-10}"
+MAX_APPS="${VROOLI_DEV_MAX_APPS:-100}"
 VERBOSE=false
 # Fast mode is always enabled when running within Vrooli context
 # The main Vrooli setup handles network diagnostics, firewall, etc.

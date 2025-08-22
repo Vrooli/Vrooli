@@ -2,24 +2,32 @@ const express = require('express');
 const path = require('path');
 
 const app = express();
-const PORT = process.env.PORT || 3003;
-const API_PORT = process.env.API_PORT || 8083;
+const PORT = process.env.PORT || process.env.UI_PORT || 3003;
+const API_PORT = process.env.API_PORT || process.env.SERVICE_PORT || 8080;
 
-// Serve static files
-app.use(express.static(__dirname));
+// Serve static files (except script.js which we handle specially)
+app.use(express.static(__dirname, { 
+    index: false,
+    setHeaders: (res, path) => {
+        if (path.endsWith('.js')) {
+            res.setHeader('Cache-Control', 'no-cache');
+        }
+    }
+}));
 
-// Inject API port into the frontend
+// Inject API port into the frontend dynamically
 app.get('/script.js', (req, res) => {
     const fs = require('fs');
     let script = fs.readFileSync(path.join(__dirname, 'script.js'), 'utf8');
     
-    // Replace the API port placeholder with actual port
+    // Replace the hardcoded port with actual runtime port
     script = script.replace(
-        "(process?.env?.API_PORT || '8083')",
-        `'${API_PORT}'`
+        /this\.apiPort = ['"]8080['"]/g,
+        `this.apiPort = '${API_PORT}'`
     );
     
     res.setHeader('Content-Type', 'application/javascript');
+    res.setHeader('Cache-Control', 'no-cache');
     res.send(script);
 });
 

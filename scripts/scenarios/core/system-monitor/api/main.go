@@ -39,9 +39,13 @@ type ReportRequest struct {
 }
 
 func main() {
-	port := os.Getenv("PORT")
+	// Try SERVICE_PORT first (allocated by Vrooli), then PORT, then fallback
+	port := os.Getenv("SERVICE_PORT")
 	if port == "" {
-		port = "8083"
+		port = os.Getenv("PORT")
+	}
+	if port == "" {
+		port = "8080"
 	}
 
 	r := mux.NewRouter()
