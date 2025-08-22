@@ -55,22 +55,154 @@ case "${1:-help}" in
         ;;
     
     status|s)
-        echo "🔍 Checking LiteLLM status..."
-        if docker ps --format '{{.Names}}' | grep -q "^${LITELLM_CONTAINER}$"; then
-            echo "✅ LiteLLM is running"
-            echo "📍 URL: ${LITELLM_URL}"
-            echo "🔑 Master Key: ${LITELLM_MASTER_KEY}"
-            
-            # Test the health endpoint
-            if curl -s -f -H "Authorization: Bearer ${LITELLM_MASTER_KEY}" "${LITELLM_URL}/health" >/dev/null 2>&1; then
-                echo "💚 API is healthy"
-            else
-                echo "⚠️  API is not responding"
-            fi
-        else
-            echo "❌ LiteLLM is not running"
-            echo "Run: resource-litellm start"
+        # Support JSON output format
+        output_format="${2:-text}"
+        if [[ "$2" == "--json" ]] || [[ "$2" == "json" ]]; then
+            output_format="json"
+        elif [[ "$2" == "--verbose" ]]; then
+            output_format="verbose"  
         fi
+        
+        # Check if container is running
+        is_running="false"
+        container_status="Not running"
+        
+        if docker ps --format '{{.Names}}' | grep -q "^${LITELLM_CONTAINER}$"; then
+            is_running="true"
+            container_status="Running"
+        fi
+        
+        # Initialize status data
+        api_healthy="false"
+        available_models="[]"
+        endpoint_health="{}"
+        api_response_time=""
+        
+        if [[ "$is_running" == "true" ]]; then
+            # Test API health with timing (with timeout to prevent hanging)
+            start_time=$(date +%s%N)
+            if timeout 15 curl -s -f -H "Authorization: Bearer ${LITELLM_MASTER_KEY}" "${LITELLM_URL}/health" >/dev/null 2>&1; then
+                api_healthy="true"
+                end_time=$(date +%s%N)
+                api_response_time=$(( (end_time - start_time) / 1000000 ))  # Convert to milliseconds
+            fi
+            
+            # Get available models
+            models_response=""
+            if models_response=$(curl -s -H "Authorization: Bearer ${LITELLM_MASTER_KEY}" "${LITELLM_URL}/v1/models" 2>/dev/null); then
+                if echo "$models_response" | jq -e '.data' >/dev/null 2>&1; then
+                    available_models=$(echo "$models_response" | jq '.data')
+                fi
+            fi
+            
+            # Get endpoint health details (with timeout to prevent hanging)
+            health_response=""
+            if health_response=$(timeout 15 curl -s -H "Authorization: Bearer ${LITELLM_MASTER_KEY}" "${LITELLM_URL}/health" 2>/dev/null); then
+                if echo "$health_response" | jq -e '.healthy_endpoints' >/dev/null 2>&1; then
+                    endpoint_health="$health_response"
+                fi
+            fi
+        fi
+        
+        # Output based on format
+        case "$output_format" in
+            json)
+                # JSON output
+                jq -n \
+                    --arg container_running "$is_running" \
+                    --arg container_status "$container_status" \
+                    --arg api_healthy "$api_healthy" \
+                    --arg url "$LITELLM_URL" \
+                    --arg master_key "$LITELLM_MASTER_KEY" \
+                    --arg container_name "$LITELLM_CONTAINER" \
+                    --arg response_time "$api_response_time" \
+                    --argjson models "$available_models" \
+                    --argjson health "$endpoint_health" \
+                    '{
+                        "container_running": ($container_running == "true"),
+                        "container_status": $container_status,
+                        "api_healthy": ($api_healthy == "true"),
+                        "api_url": $url,
+                        "master_key": $master_key,
+                        "container_name": $container_name,
+                        "api_response_time_ms": ($response_time | tonumber? // null),
+                        "available_models": $models,
+                        "endpoint_health": $health,
+                        "timestamp": now | strftime("%Y-%m-%dT%H:%M:%SZ")
+                    }'
+                ;;
+                
+            verbose)
+                # Verbose text output
+                echo "🔍 Checking LiteLLM status..."
+                echo "📦 Container: $LITELLM_CONTAINER ($container_status)"
+                echo "📍 URL: $LITELLM_URL"
+                echo "🔑 Master Key: $LITELLM_MASTER_KEY"
+                
+                if [[ "$is_running" == "true" ]]; then
+                    if [[ "$api_healthy" == "true" ]]; then
+                        echo "💚 API is healthy"
+                        if [[ -n "$api_response_time" ]]; then
+                            echo "⚡ Response time: ${api_response_time}ms"
+                        fi
+                        
+                        # Show available models
+                        model_count=$(echo "$available_models" | jq '. | length' 2>/dev/null || echo "0")
+                        echo ""
+                        echo "🤖 Available Models ($model_count):"
+                        if [[ $model_count -gt 0 ]]; then
+                            echo "$available_models" | jq -r '.[] | "   • " + .id + " (owned by: " + .owned_by + ")"' 2>/dev/null
+                        else
+                            echo "   No models found"
+                        fi
+                        
+                        # Show endpoint health
+                        if echo "$endpoint_health" | jq -e '.healthy_endpoints' >/dev/null 2>&1; then
+                            healthy_count=$(echo "$endpoint_health" | jq -r '.healthy_count // 0')
+                            unhealthy_count=$(echo "$endpoint_health" | jq -r '.unhealthy_count // 0')
+                            echo ""
+                            echo "💚 Endpoint Health:"
+                            echo "   Healthy: $healthy_count, Unhealthy: $unhealthy_count"
+                            
+                            if [[ $healthy_count -gt 0 ]]; then
+                                echo "   Healthy Endpoints:"
+                                echo "$endpoint_health" | jq -r '.healthy_endpoints[]? | "   ✅ " + .model + (if .api_base then " (" + .api_base + ")" else "" end)' 2>/dev/null
+                            fi
+                            
+                            if [[ $unhealthy_count -gt 0 ]]; then
+                                echo "   Unhealthy Endpoints:"
+                                echo "$endpoint_health" | jq -r '.unhealthy_endpoints[]? | "   ❌ " + .model + (if .api_base then " (" + .api_base + ")" else "" end)' 2>/dev/null
+                            fi
+                        fi
+                    else
+                        echo "⚠️  API is not responding"
+                        echo "   Try: resource-litellm restart"
+                    fi
+                else
+                    echo "❌ LiteLLM is not running"
+                    echo "   Run: resource-litellm start"
+                fi
+                ;;
+                
+            *)
+                # Default text output (backward compatible)
+                echo "🔍 Checking LiteLLM status..."
+                if [[ "$is_running" == "true" ]]; then
+                    echo "✅ LiteLLM is running"
+                    echo "📍 URL: ${LITELLM_URL}"
+                    echo "🔑 Master Key: ${LITELLM_MASTER_KEY}"
+                    
+                    if [[ "$api_healthy" == "true" ]]; then
+                        echo "💚 API is healthy"
+                    else
+                        echo "⚠️  API is not responding"
+                    fi
+                else
+                    echo "❌ LiteLLM is not running"
+                    echo "Run: resource-litellm start"
+                fi
+                ;;
+        esac
         ;;
     
     start)
@@ -146,7 +278,10 @@ Commands:
                           resource-litellm c "Explain quantum physics" gpt-3.5-turbo 200
                           resource-litellm chat "What is 2+2?"
 
-  status, s             Check if LiteLLM is running
+  status, s [--json|--verbose] 
+                        Check if LiteLLM is running
+                        --json: Output detailed status as JSON
+                        --verbose: Show detailed models and endpoint health
   start                 Start LiteLLM service
   stop                  Stop LiteLLM service
   restart               Restart LiteLLM service

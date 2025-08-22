@@ -14,6 +14,7 @@ source "${OPENROUTER_CLI_DIR}/lib/status.sh"
 source "${OPENROUTER_CLI_DIR}/lib/install.sh"
 source "${OPENROUTER_CLI_DIR}/lib/inject.sh"
 source "${OPENROUTER_CLI_DIR}/lib/configure.sh"
+source "${OPENROUTER_CLI_DIR}/lib/content.sh"
 
 # Main CLI handler
 openrouter::cli() {
@@ -64,6 +65,9 @@ openrouter::cli() {
             ;;
         show-config)
             openrouter::show_config
+            ;;
+        content)
+            openrouter::content "$@"
             ;;
         run-tests)
             # Run integration tests and save results
@@ -120,6 +124,7 @@ Commands:
   list-models                               List available models
   usage|credits                             Show usage and credits
   inject <target> [data]                   Inject config to other resources
+  content <add|list|get|remove|execute>    Manage prompts and configurations
   run-tests                                 Run integration tests
   help                                      Show this help message
 
@@ -127,6 +132,7 @@ Examples:
   $0 status
   $0 install --verbose
   $0 list-models
+  $0 content add --file prompt.txt --type prompt --name my-prompt
   $0 inject n8n
 EOF
             ;;

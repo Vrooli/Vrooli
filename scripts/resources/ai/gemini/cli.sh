@@ -14,6 +14,8 @@ source "${GEMINI_CLI_DIR}/lib/core.sh"
 source "${GEMINI_CLI_DIR}/lib/status.sh"
 source "${GEMINI_CLI_DIR}/lib/install.sh"
 source "${GEMINI_CLI_DIR}/lib/inject.sh"
+source "${GEMINI_CLI_DIR}/lib/content.sh"
+source "${GEMINI_CLI_DIR}/../../../lib/utils/log.sh"
 
 # Main CLI handler
 gemini::cli() {
@@ -69,7 +71,12 @@ gemini::cli() {
             gemini::generate "$@"
             ;;
         inject)
+            # Backwards compatibility - redirect to content for prompts/templates
+            log::warn "inject is deprecated, use 'content' instead"
             gemini::inject "$@"
+            ;;
+        content)
+            gemini::content "$@"
             ;;
         help|--help|-h)
             cat <<EOF
@@ -86,15 +93,25 @@ Commands:
   test|test-connection                     Test API connectivity
   list-models                               List available models
   generate <prompt> [model]                Generate content
-  inject <target> [data]                   Inject config to other resources
+  content <action> [options]               Manage prompts/templates/functions
+  inject <target> [data]                   [DEPRECATED] Use 'content' instead
   help                                      Show this help message
+
+Content Management:
+  content add <name> [type] [file|-]       Add prompt/template/function
+  content list [type] [format]             List stored content
+  content get <name> [type]                Get stored content
+  content remove <name> [type]             Remove stored content
+  content execute <name> [model] [params]  Execute stored content
 
 Examples:
   $0 status
   $0 install --verbose
   $0 list-models
   $0 generate "Explain quantum computing"
-  $0 inject n8n
+  $0 content add my-prompt prompt -
+  $0 content list
+  $0 content execute my-prompt
 EOF
             ;;
         *)
