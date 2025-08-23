@@ -19,12 +19,10 @@ set -euo pipefail
 [[ -n "${_JSON_SH_SOURCED:-}" ]] && return 0
 _JSON_SH_SOURCED=1
 
-# Get the directory where this script is located
-JSON_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 
-# Source required utilities
 # shellcheck disable=SC1091
-source "${JSON_LIB_DIR}/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091  
 source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
@@ -52,15 +50,16 @@ json::find_service_config() {
     # 1. Explicitly set path (highest priority)
     [[ -n "${SERVICE_JSON_PATH:-}" ]] && config_paths+=("${SERVICE_JSON_PATH}")
     
-    # 2. Current directory (project-specific)
-    config_paths+=("$(pwd)/.vrooli/service.json")
+    # 2. Script's actual location (prefer script context over PWD)
+    # This ensures generated apps use their own service.json even when called from different directories
+    [[ -n "${var_SERVICE_JSON_FILE:-}" ]] && config_paths+=("${var_SERVICE_JSON_FILE}")
     
     # 3. Script context (scenario/app specific)
     [[ -n "${SCENARIO_DIR:-}" ]] && config_paths+=("${SCENARIO_DIR}/.vrooli/service.json")
     [[ -n "${APP_ROOT:-}" ]] && config_paths+=("${APP_ROOT}/config/service.json")
     
-    # 4. Project root (fallback)
-    [[ -n "${var_SERVICE_JSON_FILE:-}" ]] && config_paths+=("${var_SERVICE_JSON_FILE}")
+    # 4. Current directory (lower priority - only if script location doesn't have config)
+    config_paths+=("$(pwd)/.vrooli/service.json")
     
     # 5. Global config (lowest priority)
     [[ -n "${HOME:-}" ]] && config_paths+=("${HOME}/.vrooli/service.json")

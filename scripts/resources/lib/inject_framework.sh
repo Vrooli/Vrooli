@@ -494,6 +494,155 @@ inject_framework::process_array() {
 }
 
 #######################################
+# Process array items in parallel batches for improved performance
+# Processes items concurrently with configurable batch size and proper error handling
+# Arguments:
+#   $1 - array configuration JSON
+#   $2 - callback function name
+#   $3 - callback description (for logging)
+#   $4 - batch size (optional, default: 5)
+#   $5 - enable parallel processing (optional, default: yes)
+# Returns:
+#   0 if all items processed successfully, 1 if any failed
+#######################################
+inject_framework::process_array_parallel() {
+    local array_config="$1"
+    local callback_func="$2"
+    local description="${3:-items}"
+    local batch_size="${4:-5}"
+    local enable_parallel="${5:-yes}"
+    
+    # Fall back to sequential processing if parallel is disabled
+    if [[ "$enable_parallel" != "yes" ]]; then
+        log::debug "Parallel processing disabled, using sequential method"
+        inject_framework::process_array "$array_config" "$callback_func" "$description"
+        return $?
+    fi
+    
+    local item_count
+    item_count=$(echo "$array_config" | jq 'length')
+    
+    if [[ "$item_count" -eq 0 ]]; then
+        log::info "No $description to process"
+        return 0
+    fi
+    
+    log::info "Processing $item_count $description in parallel batches of $batch_size..."
+    
+    # Create temporary directory for parallel job tracking
+    local temp_dir
+    temp_dir=$(mktemp -d)
+    local failed_items=()
+    local processed_count=0
+    
+    # Function to clean up background jobs and temp files
+    cleanup_parallel_jobs() {
+        # Kill any remaining background jobs
+        local jobs_list
+        jobs_list=$(jobs -p)
+        if [[ -n "$jobs_list" ]]; then
+            echo "$jobs_list" | xargs -r kill 2>/dev/null || true
+        fi
+        # Clean up temp directory
+        [[ -d "$temp_dir" ]] && rm -rf "$temp_dir"
+    }
+    
+    # Set up signal handlers for cleanup
+    trap cleanup_parallel_jobs EXIT INT TERM
+    
+    # Process items in batches
+    for ((i=0; i<item_count; i+=batch_size)); do
+        local batch_start=$i
+        local batch_end=$((i + batch_size - 1))
+        if [[ $batch_end -ge $item_count ]]; then
+            batch_end=$((item_count - 1))
+        fi
+        
+        log::debug "Processing batch: items $((batch_start + 1))-$((batch_end + 1)) of $item_count"
+        
+        # Start background jobs for this batch
+        local batch_jobs=()
+        for ((j=batch_start; j<=batch_end; j++)); do
+            local item
+            item=$(echo "$array_config" | jq -c ".[$j]")
+            
+            # Get item name for tracking
+            local item_name
+            for name_field in name id file path; do
+                item_name=$(echo "$item" | jq -r ".$name_field // empty")
+                if [[ -n "$item_name" ]]; then
+                    break
+                fi
+            done
+            item_name="${item_name:-item_$j}"
+            
+            # Create unique result file for this job
+            local result_file="$temp_dir/result_$j"
+            
+            # Start background job with output redirection
+            (
+                if "$callback_func" "$item" 2>&1; then
+                    echo "SUCCESS:$item_name" > "$result_file"
+                else
+                    echo "FAILED:$item_name" > "$result_file"
+                fi
+            ) &
+            
+            local job_pid=$!
+            batch_jobs+=("$job_pid:$j:$item_name")
+            log::debug "Started background job for '$item_name' (PID: $job_pid)"
+        done
+        
+        # Wait for all jobs in this batch to complete
+        log::debug "Waiting for batch of ${#batch_jobs[@]} jobs to complete..."
+        for job_info in "${batch_jobs[@]}"; do
+            local job_pid="${job_info%%:*}"
+            local job_index="${job_info#*:}"
+            job_index="${job_index%:*}"
+            local job_name="${job_info##*:}"
+            
+            if wait "$job_pid"; then
+                log::debug "Job completed successfully: $job_name"
+            else
+                log::debug "Job completed with error: $job_name"
+            fi
+            
+            # Read result from file
+            local result_file="$temp_dir/result_$job_index"
+            if [[ -f "$result_file" ]]; then
+                local result_content
+                result_content=$(cat "$result_file")
+                if [[ "$result_content" == FAILED:* ]]; then
+                    local failed_name="${result_content#FAILED:}"
+                    failed_items+=("$failed_name")
+                fi
+                rm -f "$result_file"
+            else
+                log::warn "No result file found for job: $job_name"
+                failed_items+=("$job_name")
+            fi
+            
+            processed_count=$((processed_count + 1))
+        done
+        
+        log::debug "Completed batch: $processed_count/$item_count items processed"
+    done
+    
+    # Clean up
+    cleanup_parallel_jobs
+    trap - EXIT INT TERM
+    
+    # Report results
+    if [[ ${#failed_items[@]} -eq 0 ]]; then
+        log::success "All $description processed successfully using parallel batches"
+        return 0
+    else
+        log::error "Failed to process $description in parallel: ${failed_items[*]}"
+        return 1
+    fi
+}
+
+#######################################
 # Main command dispatcher
 # Handles standard command interface and delegates to registered functions
 # Arguments:

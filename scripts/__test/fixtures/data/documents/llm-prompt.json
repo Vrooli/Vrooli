@@ -1,7 +1,0 @@
-{
-  "model": "llama3.1:8b",
-  "prompt": "Explain the concept of integration testing in software development. Include benefits and challenges.",
-  "temperature": 0.3,
-  "max_tokens": 500,
-  "stream": false
-}

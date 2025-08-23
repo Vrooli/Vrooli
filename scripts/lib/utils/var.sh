@@ -4,28 +4,27 @@ set -euo pipefail
 # var.sh defines directory variables and should always be sourced
 # No source guard needed as variables are idempotent
 
-_HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# Get APP_ROOT using cached value or compute once (3 levels up: scripts/lib/utils/var.sh)  
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+var_ROOT_DIR="$APP_ROOT"
+export var_ROOT_DIR
 
-# Common directories
-export var_LIB_UTILS_DIR="$_HERE"
-var_LIB_DIR=$(cd "$var_LIB_UTILS_DIR"/.. && pwd)
-export var_LIB_DIR
+# DERIVE all paths from ROOT - zero subshells!
+export var_SCRIPTS_DIR="$var_ROOT_DIR/scripts"
+export var_LIB_DIR="$var_SCRIPTS_DIR/lib"
+export var_LIB_UTILS_DIR="$var_LIB_DIR/utils"
 export var_LIB_DEPLOY_DIR="$var_LIB_DIR/deploy"
 export var_LIB_DEPS_DIR="$var_LIB_DIR/deps"
 export var_LIB_LIFECYCLE_DIR="$var_LIB_DIR/lifecycle"
 export var_LIB_NETWORK_DIR="$var_LIB_DIR/network"
 export var_LIB_SERVICE_DIR="$var_LIB_DIR/service"
 export var_LIB_SYSTEM_DIR="$var_LIB_DIR/system"
-var_SCRIPTS_DIR=$(cd "$var_LIB_DIR"/.. && pwd)
-export var_SCRIPTS_DIR
 export var_SCRIPTS_TEST_DIR="$var_SCRIPTS_DIR/__test"
 export var_SCRIPTS_RESOURCES_DIR="$var_SCRIPTS_DIR/resources"
 export var_SCRIPTS_RESOURCES_LIB_DIR="$var_SCRIPTS_RESOURCES_DIR/lib"
 export var_SCRIPTS_RESOURCES_TESTS_LIB_DIR="$var_SCRIPTS_RESOURCES_DIR/tests/lib"
 export var_SCRIPTS_SCENARIOS_DIR="$var_SCRIPTS_DIR/scenarios"
 export var_SCRIPTS_SCENARIOS_INJECTION_DIR="$var_SCRIPTS_SCENARIOS_DIR/injection"
-var_ROOT_DIR=$(cd "$var_SCRIPTS_DIR"/.. && pwd)
-export var_ROOT_DIR
 
 # Vrooli configuration directory and files
 export var_VROOLI_CONFIG_DIR="$var_ROOT_DIR/.vrooli"
@@ -45,7 +44,8 @@ export var_PORT_REGISTRY_FILE="$var_SCRIPTS_RESOURCES_DIR/port_registry.sh"
 export var_RUNTIME_ENGINE="$var_SCRIPTS_SCENARIOS_INJECTION_DIR/engine.sh"
 
 # Detect if we're in Vrooli monorepo based on root folder name (case-insensitive)
-ROOT_FOLDER_NAME=$(basename "$var_ROOT_DIR")
+# Use parameter expansion instead of basename subshell
+ROOT_FOLDER_NAME="${var_ROOT_DIR##*/}"
 if [[ "${ROOT_FOLDER_NAME,,}" == "vrooli" ]]; then
     export VROOLI_CONTEXT="monorepo"
 

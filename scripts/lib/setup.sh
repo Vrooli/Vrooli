@@ -15,14 +15,14 @@
 
 set -euo pipefail
 
-# Get script directory
-LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Get APP_ROOT using cached value or compute once (2 levels up: scripts/lib/setup.sh)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
 
 # Clear any source guards that may have been inherited from parent process
 unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED 2>/dev/null || true
 
 # shellcheck disable=SC1091
-source "${LIB_DIR}/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
 

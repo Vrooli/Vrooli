@@ -4,55 +4,53 @@ set -euo pipefail
 # Set default terminal type if not set
 export TERM=${TERM:-xterm}
 
-# Helper function to get color code
-log::get_color_code() {
-    local color=$1
-    case $color in
-    RED) echo "1" ;;
-    GREEN) echo "2" ;;
-    YELLOW) echo "3" ;;
-    BLUE) echo "4" ;;
-    MAGENTA) echo "5" ;;
-    CYAN) echo "6" ;;
-    WHITE) echo "7" ;;
-    *) echo "0" ;;
-    esac
-}
+# SMART CACHING: Initialize colors only once
+declare -g LOG_COLORS_INITIALIZED="${LOG_COLORS_INITIALIZED:-0}"
 
-# Initialize a single color
-log::initialize_color() {
-    local color_name="$1"
-    local color_code
-    color_code=$(log::get_color_code "$color_name")
-
-    # NOTE: Don't use system::is_command here, because it will cause a circular dependency
+# Pre-initialize all colors ONCE when sourced (eliminates repeated tput subshells)
+if [[ "$LOG_COLORS_INITIALIZED" == "0" ]]; then
     if [ -t 1 ] && command -v tput >/dev/null 2>&1; then
-        eval "$color_name=$(tput setaf "$color_code")"
-    else
-        eval "$color_name=''"
-    fi
-}
-
-# Initialize color reset
-log::initialize_reset() {
-    # NOTE: Don't use system::is_command here, because it will cause a circular dependency
-    if [ -t 1 ] && command -v tput >/dev/null 2>&1; then
+        # Do all tput calls once and cache results
+        RED=$(tput setaf 1)
+        GREEN=$(tput setaf 2)
+        YELLOW=$(tput setaf 3)
+        BLUE=$(tput setaf 4)
+        MAGENTA=$(tput setaf 5)
+        CYAN=$(tput setaf 6)
+        WHITE=$(tput setaf 7)
         RESET=$(tput sgr0)
     else
-        RESET=''
+        # No colors in non-terminal or if tput unavailable
+        RED=""
+        GREEN=""
+        YELLOW=""
+        BLUE=""
+        MAGENTA=""
+        CYAN=""
+        WHITE=""
+        RESET=""
     fi
+    export RED GREEN YELLOW BLUE MAGENTA CYAN WHITE RESET
+    LOG_COLORS_INITIALIZED=1
+fi
+
+# Legacy functions kept for compatibility but now do nothing (colors already initialized)
+log::initialize_color() {
+    : # No-op - colors already initialized
 }
 
-# Echo colored text
+log::initialize_reset() {
+    : # No-op - reset already initialized
+}
+
+# Echo colored text (now much faster - no subshells!)
 log::echo_color() {
     local color="$1"
     local message="$2"
     local color_value
 
-    log::initialize_color "$color"
-    log::initialize_reset
-
-    eval "color_value=\$$color"
+    # Use indirect variable expansion (no eval needed)
+    color_value="${!color}"
 
     printf '%s%s%s\n' "$color_value" "$message" "$RESET"
 }
