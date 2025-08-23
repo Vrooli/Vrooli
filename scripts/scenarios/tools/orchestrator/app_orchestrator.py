@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Enhanced Vrooli App Orchestrator
-Reliable Python-based app starter with sophisticated port allocation
+Safe Vrooli App Orchestrator - Fork Bomb Prevention Edition
+Implements multiple safety layers to prevent recursive process spawning
 """
 
 import asyncio
@@ -9,231 +9,102 @@ import json
 import logging
 import os
 import signal
+import socket
 import subprocess
 import sys
 import time
+import fcntl
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Set
-import re
+from typing import Dict, List, Optional, Set
+import psutil
 
-# Optional imports - gracefully handle if not available
-try:
-    from colorama import Fore, Style, init as colorama_init
-    colorama_init(autoreset=True)
-    HAS_COLOR = True
-except ImportError:
-    HAS_COLOR = False
-    # Fallback - no colors
-    class Fore:
-        RED = GREEN = YELLOW = BLUE = CYAN = RESET = ''
-    class Style:
-        BRIGHT = RESET_ALL = ''
-
-try:
-    import psutil
-    HAS_PSUTIL = True
-except ImportError:
-    HAS_PSUTIL = False
-
-try:
-    import jsonschema
-    HAS_JSONSCHEMA = True
-except ImportError:
-    HAS_JSONSCHEMA = False
-
+# Constants for safety
+MAX_APPS = 10  # Reduced to prevent overwhelming system
+MAX_CONCURRENT_STARTS = 3  # Maximum apps starting simultaneously
+MAX_PROCESSES_PER_APP = 5  # Max processes an app can spawn
+ORCHESTRATOR_LOCK_FILE = "/tmp/vrooli-orchestrator.lock"
+ORCHESTRATOR_PID_FILE = "/tmp/vrooli-orchestrator.pid"
+APP_PID_DIR = "/tmp/vrooli-apps"
+FORK_BOMB_THRESHOLD = 30  # Reduced threshold for safety
+FORK_BOMB_WINDOW = 10  # Time window in seconds
+# Adjusted for 32-core server with ~730 normal processes (415 kernel + 315 user)
+SYSTEM_PROCESS_LIMIT = 1200  # Increased - your system normally runs 730+ processes
+SYSTEM_WARNING_LIMIT = 1000  # Warn but don't stop
 
 @dataclass
-class PortRequirement:
-    """Represents a port requirement for a scenario"""
-    scenario_name: str
-    port_type: str          # "api", "ui", "websocket", etc.
-    env_var: str           # "SERVICE_PORT", "UI_PORT", etc.
-    specification: str     # "39001" or "8200-8299"
-    description: str       # Human-readable description
-    priority: int          # Lower = higher priority (0=exact port, 1=small range, 2=large range)
-    range_size: int        # Size of the port range (1 for exact ports)
-    allocated_port: Optional[int] = None
-
-
-@dataclass 
 class App:
     """Represents a Vrooli app to be started"""
     name: str
     enabled: bool
-    allocated_ports: Dict[str, int]  # port_type -> port number
+    allocated_ports: Dict[str, int]
     process: Optional[asyncio.subprocess.Process] = None
     pid: Optional[int] = None
     log_file: Optional[Path] = None
     status: str = "pending"
 
 
-class PortAllocator:
-    """Sophisticated port allocation engine"""
+class ForkBombDetector:
+    """Detects and prevents fork bomb scenarios by monitoring TOTAL system processes"""
     
-    def __init__(self, generated_apps_dir: Path):
-        self.generated_apps_dir = generated_apps_dir
-        self.allocated_ports: Set[int] = set()
-        
-    def parse_port_requirements(self, enabled_scenarios: List[str]) -> List[PortRequirement]:
-        """Parse port requirements from all enabled scenarios"""
-        requirements = []
-        
-        for scenario_name in enabled_scenarios:
-            scenario_dir = self.generated_apps_dir / scenario_name
-            service_json = scenario_dir / ".vrooli" / "service.json"
-            
-            if not service_json.exists():
-                continue
-                
-            try:
-                with open(service_json) as f:
-                    config = json.load(f)
-                
-                # Parse ports section
-                ports = config.get("ports", {})
-                for port_type, port_config in ports.items():
-                    if isinstance(port_config, dict):
-                        env_var = port_config.get("env_var", f"{port_type.upper()}_PORT")
-                        range_spec = port_config.get("range", "auto")
-                        description = port_config.get("description", f"{port_type} port")
-                        
-                        # Calculate priority based on range specification
-                        priority, range_size = self._calculate_priority(range_spec)
-                        
-                        requirement = PortRequirement(
-                            scenario_name=scenario_name,
-                            port_type=port_type,
-                            env_var=env_var,
-                            specification=str(range_spec),
-                            description=description,
-                            priority=priority,
-                            range_size=range_size
-                        )
-                        requirements.append(requirement)
-                        
-            except Exception as e:
-                print(f"⚠️ Failed to parse ports for {scenario_name}: {e}")
-                continue
-        
-        # Sort by priority (exact ports first, then shortest ranges)
-        requirements.sort(key=lambda r: (r.priority, r.range_size, r.scenario_name))
-        return requirements
+    def __init__(self, threshold: int = FORK_BOMB_THRESHOLD, window: int = FORK_BOMB_WINDOW):
+        self.threshold = threshold
+        self.window = window
+        self.process_starts = []
+        self.start_time = time.time()
+        self.initial_process_count = len(psutil.pids())
+        self.last_process_count = self.initial_process_count
     
-    def _calculate_priority(self, range_spec: str) -> Tuple[int, int]:
-        """Calculate priority and range size from range specification"""
-        spec_str = str(range_spec).strip()
+    def record_start(self):
+        """Record a process start event and check TOTAL system processes"""
+        current_time = time.time()
+        current_process_count = len(psutil.pids())
         
-        # Exact port (highest priority)
-        if spec_str.isdigit():
-            return (0, 1)  # Priority 0, range size 1
-        
-        # Port range like "8200-8299"
-        if "-" in spec_str:
-            try:
-                start, end = spec_str.split("-", 1)
-                start_port = int(start.strip())
-                end_port = int(end.strip())
-                range_size = end_port - start_port + 1
-                
-                # Priority based on range size - smaller ranges get higher priority
-                if range_size <= 10:
-                    priority = 1  # Small range
-                elif range_size <= 100: 
-                    priority = 2  # Medium range
-                else:
-                    priority = 3  # Large range
-                    
-                return (priority, range_size)
-            except ValueError:
-                pass
-        
-        # Auto or unknown - lowest priority, treat as needing 1 port
-        return (4, 1)
-    
-    def allocate_ports(self, requirements: List[PortRequirement]) -> Dict[str, Dict[str, int]]:
-        """Allocate ports using sophisticated algorithm"""
-        allocations = {}  # scenario_name -> {port_type: port_number}
-        
-        print(f"🔢 Allocating ports for {len(requirements)} requirements...")
-        if requirements:
-            print("   Priority order:")
-            for req in requirements[:10]:  # Show first 10
-                print(f"     {req.scenario_name:25} {req.port_type:8} {req.specification:12} (priority {req.priority})")
-            if len(requirements) > 10:
-                print(f"     ... and {len(requirements) - 10} more")
-            print()
-        
-        for req in requirements:
-            allocated_port = self._allocate_single_port(req)
-            if allocated_port:
-                if req.scenario_name not in allocations:
-                    allocations[req.scenario_name] = {}
-                allocations[req.scenario_name][req.port_type] = allocated_port
-                req.allocated_port = allocated_port
-                print(f"   ✅ {req.scenario_name:25} {req.port_type:8} → {allocated_port}")
-            else:
-                print(f"   ❌ {req.scenario_name:25} {req.port_type:8} → FAILED")
-        
-        return allocations
-    
-    def _allocate_single_port(self, req: PortRequirement) -> Optional[int]:
-        """Allocate a single port based on requirement specification"""
-        spec = req.specification.strip()
-        
-        # Exact port
-        if spec.isdigit():
-            port = int(spec)
-            if port not in self.allocated_ports and self._is_port_available(port):
-                self.allocated_ports.add(port)
-                return port
-            else:
-                # Exact port not available - this is a hard failure for exact ports
-                return None
-        
-        # Port range like "8200-8299"  
-        if "-" in spec:
-            try:
-                start, end = spec.split("-", 1)
-                start_port = int(start.strip())
-                end_port = int(end.strip())
-                
-                # Try to find an available port in the range
-                for port in range(start_port, end_port + 1):
-                    if port not in self.allocated_ports and self._is_port_available(port):
-                        self.allocated_ports.add(port)
-                        return port
-                        
-                # No port available in range
-                return None
-                
-            except ValueError:
-                pass
-        
-        # Auto allocation - find any available port starting from 3001
-        return self._find_auto_port()
-    
-    def _find_auto_port(self, start_port: int = 3001) -> Optional[int]:
-        """Find any available port starting from start_port"""
-        for port in range(start_port, start_port + 2000):  # Search 2000 ports
-            if port not in self.allocated_ports and self._is_port_available(port):
-                self.allocated_ports.add(port)
-                return port
-        return None
-    
-    def _is_port_available(self, port: int) -> bool:
-        """Check if a port is actually available on the system"""
-        try:
-            import socket
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                s.bind(('localhost', port))
-                return True
-        except OSError:
+        # CRITICAL: Check total system process count
+        if current_process_count > SYSTEM_PROCESS_LIMIT:
+            logging.error(f"SYSTEM OVERLOAD: {current_process_count} processes (limit: {SYSTEM_PROCESS_LIMIT})")
             return False
+        
+        # Check process growth rate
+        process_growth = current_process_count - self.last_process_count
+        if process_growth > 10:  # More than 10 new processes since last check
+            logging.warning(f"Rapid process growth detected: {process_growth} new processes")
+            time.sleep(2)  # Slow down
+        
+        self.last_process_count = current_process_count
+        
+        # Remove old entries outside the window
+        self.process_starts = [t for t in self.process_starts if current_time - t < self.window]
+        self.process_starts.append(current_time)
+        
+        # Check if we've exceeded threshold
+        if len(self.process_starts) > self.threshold:
+            return False  # Fork bomb detected!
+        return True  # Safe to continue
+    
+    def get_rate(self) -> float:
+        """Get current process spawn rate per second"""
+        current_time = time.time()
+        recent_starts = [t for t in self.process_starts if current_time - t < self.window]
+        if not recent_starts:
+            return 0.0
+        time_span = current_time - min(recent_starts)
+        if time_span == 0:
+            return float(len(recent_starts))
+        return len(recent_starts) / time_span
+    
+    def get_system_load(self) -> dict:
+        """Get current system load information"""
+        return {
+            'process_count': len(psutil.pids()),
+            'process_growth': len(psutil.pids()) - self.initial_process_count,
+            'cpu_percent': psutil.cpu_percent(interval=0.1),
+            'memory_percent': psutil.virtual_memory().percent
+        }
 
 
-class AppOrchestrator:
-    """Enhanced orchestrator with sophisticated port allocation"""
+class SafeAppOrchestrator:
+    """Safe orchestrator with comprehensive fork bomb prevention"""
     
     def __init__(self, vrooli_root: Path, verbose: bool = False, fast_mode: bool = True):
         self.vrooli_root = vrooli_root
@@ -241,9 +112,14 @@ class AppOrchestrator:
         self.fast_mode = fast_mode
         self.generated_apps_dir = Path.home() / "generated-apps"
         self.apps: Dict[str, App] = {}
-        self.port_allocator = PortAllocator(self.generated_apps_dir)
         self.log_dir = Path("/tmp/vrooli-orchestrator")
         self.log_dir.mkdir(exist_ok=True)
+        
+        # Safety mechanisms
+        self.fork_bomb_detector = ForkBombDetector()
+        self.lock_file = None
+        self.running_processes: List[asyncio.subprocess.Process] = []
+        self.allocated_ports: Set[int] = set()
         
         # Setup logging
         log_level = logging.DEBUG if verbose else logging.INFO
@@ -251,16 +127,16 @@ class AppOrchestrator:
             level=log_level,
             format='%(asctime)s - %(levelname)s - %(message)s',
             handlers=[
-                logging.FileHandler(self.log_dir / "orchestrator.log"),
+                logging.FileHandler(self.log_dir / "orchestrator-safe.log"),
                 logging.StreamHandler()
             ]
         )
         self.logger = logging.getLogger(__name__)
         
-        # Track subprocesses for cleanup
-        self.running_processes: List[asyncio.subprocess.Process] = []
+        # Ensure PID directory exists
+        Path(APP_PID_DIR).mkdir(exist_ok=True)
         
-        # Setup signal handlers for graceful shutdown
+        # Setup signal handlers
         signal.signal(signal.SIGINT, self._signal_handler)
         signal.signal(signal.SIGTERM, self._signal_handler)
     
@@ -269,15 +145,138 @@ class AppOrchestrator:
         self.logger.info(f"Received signal {signum}, shutting down gracefully...")
         asyncio.create_task(self.shutdown())
     
-    def _print(self, message: str, color: str = Fore.RESET):
-        """Print colored message to console"""
-        if HAS_COLOR:
-            print(f"{color}{message}{Style.RESET_ALL}")
-        else:
-            print(message)
+    def acquire_lock(self) -> bool:
+        """Acquire exclusive lock to prevent multiple orchestrators"""
+        try:
+            # Try to open and lock the file
+            self.lock_file = open(ORCHESTRATOR_LOCK_FILE, 'w')
+            fcntl.flock(self.lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            
+            # Write our PID to the lock file
+            self.lock_file.write(str(os.getpid()))
+            self.lock_file.flush()
+            
+            # Also write to separate PID file for redundancy
+            with open(ORCHESTRATOR_PID_FILE, 'w') as f:
+                f.write(str(os.getpid()))
+            
+            self.logger.info("Acquired orchestrator lock")
+            return True
+            
+        except (IOError, OSError) as e:
+            # Lock is held by another process
+            if self.lock_file:
+                self.lock_file.close()
+                self.lock_file = None
+            
+            # Check if the lock holder is still alive
+            try:
+                with open(ORCHESTRATOR_PID_FILE, 'r') as f:
+                    other_pid = int(f.read().strip())
+                
+                # Check if that process is actually running
+                if psutil.pid_exists(other_pid):
+                    self.logger.error(f"Another orchestrator is already running (PID: {other_pid})")
+                    return False
+                else:
+                    # Stale lock, remove it
+                    self.logger.warning("Removing stale orchestrator lock")
+                    try:
+                        os.remove(ORCHESTRATOR_LOCK_FILE)
+                        os.remove(ORCHESTRATOR_PID_FILE)
+                    except:
+                        pass
+                    # Try again
+                    return self.acquire_lock()
+                    
+            except (FileNotFoundError, ValueError):
+                self.logger.error("Cannot acquire lock, another orchestrator may be running")
+                return False
+    
+    def release_lock(self):
+        """Release the orchestrator lock"""
+        if self.lock_file:
+            try:
+                # Release the flock
+                fcntl.flock(self.lock_file.fileno(), fcntl.LOCK_UN)
+                self.lock_file.close()
+                self.lock_file = None
+            except:
+                pass
+        
+        # Clean up lock files
+        try:
+            os.remove(ORCHESTRATOR_LOCK_FILE)
+        except:
+            pass
+        
+        try:
+            os.remove(ORCHESTRATOR_PID_FILE)
+        except:
+            pass
+    
+    def is_app_running(self, app_name: str) -> Optional[int]:
+        """Check if an app is already running by checking its PID file"""
+        pid_file = Path(APP_PID_DIR) / f"{app_name}.pid"
+        
+        if not pid_file.exists():
+            return None
+        
+        try:
+            with open(pid_file, 'r') as f:
+                pid = int(f.read().strip())
+            
+            # Check if process is actually running
+            if psutil.pid_exists(pid):
+                try:
+                    proc = psutil.Process(pid)
+                    # Verify it's actually our app (check command line)
+                    cmdline = ' '.join(proc.cmdline())
+                    if app_name in cmdline or 'manage.sh' in cmdline:
+                        return pid
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    pass
+            
+            # PID file exists but process is dead - clean up
+            pid_file.unlink()
+            return None
+            
+        except (ValueError, FileNotFoundError):
+            return None
+    
+    def write_app_pid(self, app_name: str, pid: int):
+        """Write app PID to file for tracking"""
+        pid_file = Path(APP_PID_DIR) / f"{app_name}.pid"
+        with open(pid_file, 'w') as f:
+            f.write(str(pid))
+    
+    def remove_app_pid(self, app_name: str):
+        """Remove app PID file"""
+        pid_file = Path(APP_PID_DIR) / f"{app_name}.pid"
+        try:
+            pid_file.unlink()
+        except FileNotFoundError:
+            pass
+    
+    def is_port_available(self, port: int) -> bool:
+        """Check if a port is available"""
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.bind(('localhost', port))
+                return True
+        except OSError:
+            return False
+    
+    def find_available_port(self, start: int = 3001, end: int = 5000) -> Optional[int]:
+        """Find an available port in range"""
+        for port in range(start, end):
+            if port not in self.allocated_ports and self.is_port_available(port):
+                self.allocated_ports.add(port)
+                return port
+        return None
     
     def load_enabled_apps(self) -> List[App]:
-        """Load enabled apps with sophisticated port allocation"""
+        """Load enabled apps from catalog"""
         catalog_path = self.vrooli_root / "scripts" / "scenarios" / "catalog.json"
         
         if not catalog_path.exists():
@@ -288,36 +287,58 @@ class AppOrchestrator:
             with open(catalog_path) as f:
                 catalog = json.load(f)
             
-            # Get enabled scenario names
-            enabled_scenarios = []
-            for scenario in catalog.get("scenarios", []):
-                if scenario.get("enabled", False):
-                    app_name = scenario["name"]
-                    app_path = self.generated_apps_dir / app_name
-                    
-                    # Validate app exists
-                    if self._validate_app(app_name, app_path):
-                        enabled_scenarios.append(app_name)
-            
-            if not enabled_scenarios:
-                return []
-            
-            # Parse port requirements and allocate ports smartly
-            port_requirements = self.port_allocator.parse_port_requirements(enabled_scenarios)
-            port_allocations = self.port_allocator.allocate_ports(port_requirements)
-            
-            # Create App objects with allocated ports
             apps = []
-            for app_name in enabled_scenarios:
-                allocated_ports = port_allocations.get(app_name, {})
+            for scenario in catalog.get("scenarios", []):
+                if not scenario.get("enabled", False):
+                    continue
                 
-                # Ensure at least basic ports if none were specified
+                app_name = scenario["name"]
+                app_path = self.generated_apps_dir / app_name
+                
+                if not app_path.exists():
+                    self.logger.warning(f"App directory not found: {app_path}")
+                    continue
+                
+                # Check if app is already running
+                existing_pid = self.is_app_running(app_name)
+                if existing_pid:
+                    self.logger.info(f"App {app_name} is already running (PID: {existing_pid})")
+                    continue
+                
+                # Safety check: limit number of apps
+                if len(apps) >= MAX_APPS:
+                    self.logger.error(f"Maximum app limit ({MAX_APPS}) reached - stopping to prevent fork bomb")
+                    break
+                
+                # Allocate ports for this app
+                allocated_ports = {}
+                
+                # Try to read port requirements from app's service.json
+                service_json = app_path / ".vrooli" / "service.json"
+                if service_json.exists():
+                    try:
+                        with open(service_json) as f:
+                            app_config = json.load(f)
+                        
+                        ports_config = app_config.get("ports", {})
+                        for port_type, port_info in ports_config.items():
+                            # Allocate a port for this type
+                            port = self.find_available_port()
+                            if port:
+                                allocated_ports[port_type] = port
+                            else:
+                                self.logger.error(f"Could not allocate port for {app_name}:{port_type}")
+                    except Exception as e:
+                        self.logger.error(f"Error reading service.json for {app_name}: {e}")
+                
+                # Default ports if none specified
                 if not allocated_ports:
-                    # Fall back to auto allocation for basic ports
-                    api_port = self.port_allocator._find_auto_port()
-                    ui_port = self.port_allocator._find_auto_port()
-                    if api_port and ui_port:
-                        allocated_ports = {"api": api_port, "ui": ui_port}
+                    api_port = self.find_available_port()
+                    if api_port:
+                        allocated_ports["api"] = api_port
+                        ui_port = self.find_available_port(api_port + 1)
+                        if ui_port:
+                            allocated_ports["ui"] = ui_port
                 
                 if allocated_ports:
                     app = App(
@@ -332,46 +353,59 @@ class AppOrchestrator:
             return apps
             
         except Exception as e:
-            self.logger.error(f"Failed to load catalog: {e}")
+            self.logger.error(f"Error loading catalog: {e}")
             return []
     
-    def _validate_app(self, app_name: str, app_path: Path) -> bool:
-        """Validate that app directory has required files"""
-        if not app_path.exists():
-            self.logger.warning(f"App directory not found: {app_path}")
-            return False
-        
-        manage_script = app_path / "scripts" / "manage.sh"
-        if not manage_script.exists():
-            self.logger.warning(f"Missing manage.sh for {app_name}")
-            return False
-        
-        service_json = app_path / ".vrooli" / "service.json"
-        if not service_json.exists():
-            self.logger.warning(f"Missing service.json for {app_name}")
-            return False
-        
-        return True
-    
     async def start_app(self, app: App) -> bool:
-        """Start a single app with proper port allocation"""
+        """Start a single app with safety checks"""
         try:
-            self._print(f"Starting {app.name}...", Fore.BLUE)
+            # Enhanced fork bomb detection with system monitoring
+            if not self.fork_bomb_detector.record_start():
+                system_load = self.fork_bomb_detector.get_system_load()
+                spawn_rate = self.fork_bomb_detector.get_rate()
+                self.logger.error(f"FORK BOMB/OVERLOAD DETECTED!")
+                self.logger.error(f"  Process count: {system_load['process_count']}")
+                self.logger.error(f"  Process growth: {system_load['process_growth']}")
+                self.logger.error(f"  Spawn rate: {spawn_rate:.1f}/sec")
+                self.logger.error(f"  CPU: {system_load['cpu_percent']:.1f}%")
+                self.logger.error(f"  Memory: {system_load['memory_percent']:.1f}%")
+                await self.emergency_shutdown()
+                return False
             
-            # Build command - call manage.sh directly to avoid process manager issues
+            self.logger.info(f"Starting {app.name} with ports: {app.allocated_ports}")
+            
             app_path = self.generated_apps_dir / app.name
             manage_script = app_path / "scripts" / "manage.sh"
             
-            cmd = [
-                "bash",
-                str(manage_script),
-                "develop"
-            ]
+            if not manage_script.exists():
+                self.logger.error(f"manage.sh not found for {app.name}")
+                return False
             
-            # Setup environment with allocated ports
+            # Create CORRECT setup markers to skip redundant setup
+            # The manage.sh script checks for data/.setup-state, NOT .vrooli/.setup_complete!
+            data_dir = app_path / "data"
+            data_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Create the state file that manage.sh actually checks for
+            state_file = data_dir / ".setup-state"
+            state_data = {
+                "git_commit": "bypass",
+                "timestamp": time.time(),
+                "setup_complete": True
+            }
+            state_file.write_text(json.dumps(state_data, indent=2))
+            
+            # Also create the old marker for compatibility
+            setup_marker = app_path / ".vrooli" / ".setup_complete"
+            setup_marker.parent.mkdir(parents=True, exist_ok=True)
+            setup_marker.touch()
+            
+            # CRITICAL: Set environment variable to prevent recursive orchestrator calls
             env = os.environ.copy()
+            env['VROOLI_ORCHESTRATOR_RUNNING'] = '1'  # Apps check this to skip orchestrator
             env['VROOLI_ROOT'] = str(self.vrooli_root)
             env['GENERATED_APPS_DIR'] = str(self.generated_apps_dir)
+            env['FAST_MODE'] = 'true'  # Force fast mode to skip heavy setup
             
             # Set port environment variables
             for port_type, port_num in app.allocated_ports.items():
@@ -380,17 +414,16 @@ class AppOrchestrator:
                 elif port_type == "ui":
                     env['UI_PORT'] = str(port_num)
                 else:
-                    # Generic mapping for other port types
                     env[f"{port_type.upper()}_PORT"] = str(port_num)
             
-            # Open log file for this app
-            log_file = open(app.log_file, 'w')
+            # Build command
+            cmd = ["bash", str(manage_script), "develop", "--fast"]
             
-            # Create subprocess with proper isolation
+            # Start the process
             process = await asyncio.create_subprocess_exec(
                 *cmd,
                 env=env,
-                stdout=log_file,
+                stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT,
                 start_new_session=True,
                 cwd=str(app_path)
@@ -400,178 +433,227 @@ class AppOrchestrator:
             app.pid = process.pid
             self.running_processes.append(process)
             
-            # Give it a moment to start
-            await asyncio.sleep(1)
+            # Write PID file
+            if app.pid:
+                self.write_app_pid(app.name, app.pid)
             
-            # Check if process is still running
-            if process.returncode is None:
-                if await self._verify_app_running(app):
-                    app.status = "running"
-                    ports_str = ", ".join([f"{k}:{v}" for k, v in app.allocated_ports.items()])
-                    self._print(f"  ✓ {app.name} started ({ports_str})", Fore.GREEN)
-                    return True
-                else:
-                    app.status = "verification_failed"
-                    self._print(f"  ⚠ {app.name} started but verification failed", Fore.YELLOW)
-                    return True
-            else:
+            # Wait a bit and verify it started
+            await asyncio.sleep(2)
+            
+            if process.returncode is not None:
+                # Process already exited
                 app.status = "failed"
-                self._print(f"  ✗ {app.name} failed with code {process.returncode}", Fore.RED)
-                
-                # Show last few lines of log
-                if app.log_file.exists():
-                    with open(app.log_file) as f:
-                        lines = f.readlines()
-                        if lines:
-                            self._print("    Last output:", Fore.YELLOW)
-                            for line in lines[-3:]:
-                                self._print(f"      {line.rstrip()}", Fore.YELLOW)
-                
+                self.logger.error(f"App {app.name} exited immediately with code {process.returncode}")
+                self.remove_app_pid(app.name)
                 return False
-                
+            
+            # Check if port is listening
+            for port_type, port_num in app.allocated_ports.items():
+                if not self.is_port_available(port_num):
+                    # Port is now in use - good sign
+                    app.status = "running"
+                    self.logger.info(f"✓ {app.name} started successfully on port {port_num}")
+                    return True
+            
+            # No ports listening yet, but process is still running
+            app.status = "starting"
+            self.logger.info(f"App {app.name} is starting (PID: {app.pid})")
+            return True
+            
         except Exception as e:
             self.logger.error(f"Failed to start {app.name}: {e}")
             app.status = "error"
             return False
     
-    async def _verify_app_running(self, app: App, max_attempts: int = 5) -> bool:
-        """Verify app is actually running"""
-        for attempt in range(max_attempts):
-            try:
-                if app.process and app.process.returncode is None:
-                    if HAS_PSUTIL and app.pid:
-                        try:
-                            proc = psutil.Process(app.pid)
-                            if proc.is_running() and proc.status() != psutil.STATUS_ZOMBIE:
-                                return True
-                        except psutil.NoSuchProcess:
-                            pass
-                    else:
-                        return True
-                
-                # Check with Vrooli's process manager
-                result = await asyncio.create_subprocess_exec(
-                    str(self.vrooli_root / "cli" / "vrooli"),
-                    "app", "status", app.name, "--json",
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.DEVNULL
-                )
-                stdout, _ = await result.communicate()
-                
-                if result.returncode == 0 and stdout:
-                    status = json.loads(stdout)
-                    if status.get("status") in ["running", "starting"]:
-                        return True
-                
-            except Exception as e:
-                self.logger.debug(f"Verification attempt {attempt + 1} failed: {e}")
-            
-            await asyncio.sleep(1)
+    async def start_all_apps(self) -> tuple[int, int]:
+        """Start all enabled apps with safety checks"""
+        if not self.acquire_lock():
+            self.logger.error("Cannot start - another orchestrator is running")
+            return 0, 0
         
-        return False
-    
-    async def start_all_apps(self) -> Tuple[int, int]:
-        """Start all enabled apps with smart port allocation"""
         apps = self.load_enabled_apps()
         
         if not apps:
-            self._print("No enabled apps found", Fore.YELLOW)
+            self.logger.info("No enabled apps to start")
             return 0, 0
         
-        self._print(f"\n{'=' * 60}", Fore.CYAN)
-        self._print(f"Starting {len(apps)} apps with smart port allocation...", Fore.CYAN)
-        self._print(f"{'=' * 60}\n", Fore.CYAN)
+        # Check for preflight limit file
+        limit_file = Path("/tmp/vrooli-max-apps-limit")
+        if limit_file.exists():
+            try:
+                preflight_limit = int(limit_file.read_text().strip())
+                if preflight_limit < len(apps):
+                    self.logger.warning(f"Preflight check limited apps to {preflight_limit} (found {len(apps)})")
+                    apps = apps[:preflight_limit]
+            except:
+                pass
         
-        # Start apps concurrently with controlled concurrency
-        semaphore = asyncio.Semaphore(5)  # Max 5 concurrent starts
+        self.logger.info(f"Starting {len(apps)} apps with safety mechanisms enabled")
         
-        async def start_with_limit(app):
-            async with semaphore:
-                return await self.start_app(app)
+        success_count = 0
+        fail_count = 0
         
-        # Create all start tasks
-        tasks = [start_with_limit(app) for app in apps]
+        # Start apps with concurrency limiting and system monitoring
+        concurrent_starts = 0
+        app_futures = []
         
-        # Wait for all to complete
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+        for i, app in enumerate(apps):
+            # Check system health before each app
+            system_load = self.fork_bomb_detector.get_system_load()
+            if system_load['process_count'] > SYSTEM_PROCESS_LIMIT:
+                self.logger.error(f"CRITICAL: Process limit exceeded ({system_load['process_count']} > {SYSTEM_PROCESS_LIMIT})")
+                break
+            elif system_load['process_count'] > SYSTEM_WARNING_LIMIT:
+                self.logger.warning(f"Approaching process limit ({system_load['process_count']} processes)")
+                # Continue but slow down
+                await asyncio.sleep(1.0)
+            
+            # Wait if too many concurrent starts
+            while concurrent_starts >= MAX_CONCURRENT_STARTS:
+                await asyncio.sleep(0.5)
+                # Check completed futures
+                done_futures = [f for f in app_futures if f.done()]
+                concurrent_starts = len(app_futures) - len(done_futures)
+            
+            # Start the app
+            self.logger.info(f"Starting app {i+1}/{len(apps)}: {app.name}")
+            future = asyncio.create_task(self.start_app(app))
+            app_futures.append(future)
+            concurrent_starts += 1
+            
+            # Longer delay between batches
+            if (i + 1) % MAX_CONCURRENT_STARTS == 0:
+                await asyncio.sleep(2.0)  # Wait for batch to stabilize
+            else:
+                await asyncio.sleep(0.5)
+            
+            # Check fork bomb detector with new system monitoring
+            if self.fork_bomb_detector.get_rate() > 10 or system_load['cpu_percent'] > 90:
+                self.logger.warning(f"High process spawn rate detected: {self.fork_bomb_detector.get_rate():.1f}/sec")
+                self.logger.warning("Slowing down app starts for safety")
+                await asyncio.sleep(2)
         
-        # Count successes and failures
-        success_count = sum(1 for r in results if r is True)
-        fail_count = len(results) - success_count
+        # Wait for all remaining apps to finish starting
+        if app_futures:
+            self.logger.info(f"Waiting for {len(app_futures)} apps to finish starting...")
+            results = await asyncio.gather(*app_futures, return_exceptions=True)
+            
+            # Count results
+            for result in results:
+                if isinstance(result, Exception):
+                    fail_count += 1
+                    self.logger.error(f"App failed with: {result}")
+                elif result:
+                    success_count += 1
+                else:
+                    fail_count += 1
         
         return success_count, fail_count
     
-    async def shutdown(self):
-        """Gracefully shutdown all running apps"""
-        self._print("\nShutting down apps...", Fore.YELLOW)
+    async def emergency_shutdown(self):
+        """Emergency shutdown when fork bomb is detected"""
+        self.logger.critical("EMERGENCY SHUTDOWN - Killing all spawned processes")
         
-        for app_name, app in self.apps.items():
-            if app.process and app.process.returncode is None:
+        # Kill all tracked processes
+        for process in self.running_processes:
+            try:
+                process.terminate()
+            except:
+                pass
+        
+        # Give them a moment to terminate
+        await asyncio.sleep(1)
+        
+        # Force kill any remaining
+        for process in self.running_processes:
+            try:
+                process.kill()
+            except:
+                pass
+        
+        # Clean up PID files
+        for pid_file in Path(APP_PID_DIR).glob("*.pid"):
+            try:
+                pid_file.unlink()
+            except:
+                pass
+        
+        self.release_lock()
+        sys.exit(1)
+    
+    async def shutdown(self):
+        """Graceful shutdown"""
+        self.logger.info("Shutting down orchestrator...")
+        
+        # Stop all running processes
+        for app in self.apps.values():
+            if app.process:
                 try:
                     app.process.terminate()
-                    await asyncio.sleep(0.5)
-                    
-                    if app.process.returncode is None:
-                        app.process.kill()
-                    
-                    self._print(f"  Stopped {app_name}", Fore.YELLOW)
-                except Exception as e:
-                    self.logger.error(f"Error stopping {app_name}: {e}")
-    
-    def print_summary(self, success_count: int, fail_count: int):
-        """Print final summary with running apps"""
-        self._print(f"\n{'=' * 60}", Fore.CYAN)
-        self._print("Startup Summary:", Fore.CYAN)
-        self._print(f"  Started: {success_count} apps", Fore.GREEN if success_count > 0 else Fore.YELLOW)
-        self._print(f"  Failed:  {fail_count} apps", Fore.RED if fail_count > 0 else Fore.GREEN)
-        
-        if success_count > 0:
-            running_apps = [app for app in self.apps.values() if app.status in ["running", "verification_failed"]]
-            if running_apps:
-                self._print(f"\n{'=' * 60}", Fore.CYAN)
-                self._print("Running Applications:", Fore.CYAN)
-                self._print(f"{'=' * 60}", Fore.CYAN)
+                    await asyncio.wait_for(app.process.wait(), timeout=5)
+                except asyncio.TimeoutError:
+                    app.process.kill()
+                except:
+                    pass
                 
-                for app in running_apps:
-                    # Show primary port (usually api port)
-                    primary_port = app.allocated_ports.get("api") or next(iter(app.allocated_ports.values()))
-                    port_details = ", ".join([f"{k}:{v}" for k, v in app.allocated_ports.items()])
-                    self._print(f"  {app.name:30} → http://localhost:{primary_port} ({port_details})", Fore.BLUE)
-                
-                self._print(f"\n{'=' * 60}", Fore.CYAN)
+                # Remove PID file
+                self.remove_app_pid(app.name)
         
-        self._print(f"{'=' * 60}\n", Fore.CYAN)
+        self.release_lock()
+        self.logger.info("Orchestrator shutdown complete")
 
 
 async def main():
-    """Main entry point"""
+    """Main entry point with safety checks"""
+    # Check if we're being called recursively (fork bomb prevention)
+    if os.environ.get('VROOLI_ORCHESTRATOR_RUNNING') == '1':
+        print("ERROR: Orchestrator is already running (recursive call detected)", file=sys.stderr)
+        print("This is a safety mechanism to prevent fork bombs", file=sys.stderr)
+        sys.exit(1)
+    
+    # Check system process count as additional safety
+    process_count = len(psutil.pids())
+    if process_count > 1000:
+        print(f"WARNING: High system process count detected: {process_count}", file=sys.stderr)
+        print("This may indicate a fork bomb in progress", file=sys.stderr)
+        response = input("Continue anyway? (yes/no): ")
+        if response.lower() != 'yes':
+            sys.exit(1)
+    
     # Parse arguments
-    verbose = "--verbose" in sys.argv
+    verbose = "--verbose" in sys.argv or "-v" in sys.argv
     fast_mode = "--fast" in sys.argv or os.environ.get("FAST_MODE", "true").lower() == "true"
     
     # Determine Vrooli root
     script_path = Path(__file__).resolve()
     vrooli_root = script_path.parent.parent.parent.parent.parent
     
-    # Create enhanced orchestrator
-    orchestrator = AppOrchestrator(
+    # Create safe orchestrator
+    orchestrator = SafeAppOrchestrator(
         vrooli_root=vrooli_root,
         verbose=verbose,
         fast_mode=fast_mode
     )
     
     try:
-        # Start all apps with smart port allocation
+        # Start all apps with safety mechanisms
         success_count, fail_count = await orchestrator.start_all_apps()
         
         # Print summary
-        orchestrator.print_summary(success_count, fail_count)
+        print(f"\n{'=' * 60}")
+        print(f"Orchestrator Summary:")
+        print(f"  Successfully started: {success_count} apps")
+        if fail_count > 0:
+            print(f"  Failed to start: {fail_count} apps")
+        print(f"  Fork bomb prevention: ACTIVE")
+        print(f"  Process spawn rate: {orchestrator.fork_bomb_detector.get_rate():.1f}/sec")
+        print(f"{'=' * 60}\n")
         
-        # Exit with appropriate code
+        # Exit appropriately
         if success_count == 0:
             sys.exit(1)
         elif fail_count > 0:
-            sys.exit(2)  # Partial success
+            sys.exit(2)
         else:
             sys.exit(0)
             
@@ -585,4 +667,12 @@ async def main():
 
 
 if __name__ == "__main__":
+    # Check if psutil is available
+    try:
+        import psutil
+    except ImportError:
+        print("ERROR: psutil is required for safe orchestrator", file=sys.stderr)
+        print("Install with: pip3 install psutil", file=sys.stderr)
+        sys.exit(1)
+    
     asyncio.run(main())

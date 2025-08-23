@@ -1,15 +1,30 @@
 #!/usr/bin/env bash
 #############################################################################
-# Wrapper script to run Python App Orchestrator
-# Intelligently chooses between full and minimal versions
+# Wrapper script to run SAFE Python App Orchestrator
+# Uses fork-bomb-safe version with multiple protection layers
 #############################################################################
 
 set -euo pipefail
 
+# Fork bomb prevention - check if orchestrator is already running
+if [[ "${VROOLI_ORCHESTRATOR_RUNNING:-}" == "1" ]]; then
+    echo "ERROR: Orchestrator is already running (recursive call blocked)" >&2
+    echo "This safety mechanism prevents fork bombs" >&2
+    exit 1
+fi
+
 # Get script directory
 ORCHESTRATOR_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VENV_DIR="${ORCHESTRATOR_DIR}/venv"
+
+# Use the orchestrator with fork bomb prevention
 PYTHON_SCRIPT="${ORCHESTRATOR_DIR}/app_orchestrator.py"
+
+# Verify orchestrator exists
+if [[ ! -f "$PYTHON_SCRIPT" ]]; then
+    echo "ERROR: Orchestrator not found at $PYTHON_SCRIPT" >&2
+    exit 1
+fi
 # Determine which Python environment to use
 if [[ -d "$VENV_DIR" ]] && [[ -f "${VENV_DIR}/bin/activate" ]]; then
     # Virtual environment exists and is complete, use it

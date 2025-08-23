@@ -917,7 +917,18 @@ app_stop() {
 
 # Stop all apps
 app_stop_all() {
-	# Source process manager if not already available
+	# Try enhanced stop-all first if available
+	local enhanced_stop="${VROOLI_ROOT}/scripts/lib/enhanced-stop-all.sh"
+	if [[ -f "$enhanced_stop" ]]; then
+		log::info "Using enhanced multi-method stop-all..."
+		if bash "$enhanced_stop" "$@"; then
+			return 0
+		fi
+		# Fall through to legacy method if enhanced fails
+		log::warning "Enhanced stop-all failed, trying legacy method..."
+	fi
+	
+	# Legacy method: Source process manager if not already available
 	if ! type -t pm::list >/dev/null 2>&1; then
 		local process_manager="${VROOLI_ROOT}/scripts/lib/process-manager.sh"
 		if [[ -f "$process_manager" ]]; then

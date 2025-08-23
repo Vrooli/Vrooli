@@ -256,6 +256,16 @@ setup::generic_main() {
     log::info "Installing SQLite..."
     sqlite::ensure_installed || log::warning "SQLite installation failed (not critical)"
     
+    # Cloudflare tunnel support
+    log::info "Setting up Cloudflare tunnel support..."
+    if [[ -f "${var_LIB_SERVICE_DIR}/cloudflare-tunnel.sh" ]]; then
+        # shellcheck disable=SC1091
+        source "${var_LIB_SERVICE_DIR}/cloudflare-tunnel.sh"
+        main || log::warning "Cloudflare tunnel setup failed (not critical)"
+    else
+        log::debug "Cloudflare tunnel setup script not found - skipping"
+    fi
+    
     # Step 7: Install Enabled Resources
     log::header "🔨 Installing Enabled Resources"
     # shellcheck disable=SC1091
