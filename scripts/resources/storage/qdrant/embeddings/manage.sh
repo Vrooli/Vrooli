@@ -256,6 +256,7 @@ qdrant::embeddings::process_workflows() {
             content="${content}${line}"$'\n'
         fi
     done < "$output_file"
+    fi
     
     log::debug "Created $count workflow embeddings"
     echo "$count"
