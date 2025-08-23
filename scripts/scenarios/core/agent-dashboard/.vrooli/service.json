@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "parent": "vrooli",
@@ -71,17 +71,136 @@
   },
   "ports": {
     "ui": {
-      "range": [9000, 9099]
+      "env_var": "UI_PORT",
+      "range": "3004-3019",
+      "fallback": "auto",
+      "description": "Agent Dashboard UI port"
     },
     "api": {
-      "range": [4000, 4099]
+      "env_var": "SERVICE_PORT",
+      "range": "3005-3019",
+      "fallback": "auto",
+      "description": "Agent Dashboard API port"
     }
   },
   "lifecycle": {
-    "start": ["ui", "api"],
-    "health_check": {
-      "enabled": true,
-      "interval": 15
+    "version": "1.0.0",
+    "setup": {
+      "description": "Initialize Agent Dashboard",
+      "steps": [
+        {
+          "name": "base-setup",
+          "run": "bash scripts/lib/setup.sh",
+          "description": "Execute generic setup (e.g. network, system, git)"
+        },
+        {
+          "name": "add-data",
+          "run": "scripts/resources/injection/engine.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "install-cli",
+          "run": "chmod +x cli/agent-dashboard && ln -sf $(pwd)/cli/agent-dashboard /usr/local/bin/agent-dashboard 2>/dev/null || true",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o agent-dashboard-api main.go",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo 'Agent Dashboard initialized - UI: http://localhost:${UI_PORT} - API: http://localhost:${SERVICE_PORT} - CLI: agent-dashboard --help'",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start Agent Dashboard with API and UI servers",
+      "steps": [
+        {
+          "name": "start-api-server",
+          "run": "cd api && PORT=$SERVICE_PORT ./agent-dashboard-api &",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/agent-dashboard-api"
+          }
+        },
+        {
+          "name": "start-ui-server",
+          "run": "cd ui && PORT=$UI_PORT API_URL=http://localhost:$SERVICE_PORT npm start &",
+          "description": "Start UI server in background",
+          "background": true
+        },
+        {
+          "name": "wait-for-services",
+          "run": "sleep 2 && curl -sf http://localhost:$SERVICE_PORT/health > /dev/null && curl -sf http://localhost:$UI_PORT > /dev/null",
+          "description": "Wait for services to be ready",
+          "retry": {
+            "max_attempts": 15,
+            "delay": 1
+          }
+        },
+        {
+          "name": "show-running-services",
+          "run": "echo 'Services running - UI: http://localhost:${UI_PORT} - API: http://localhost:${SERVICE_PORT} - CLI: agent-dashboard --help'",
+          "description": "Display all running service URLs"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test Agent Dashboard API and CLI",
+      "steps": [
+        {
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build main.go && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-agents-endpoint",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/api/agents",
+          "description": "Test API agents endpoint"
+        },
+        {
+          "name": "test-cli-status",
+          "run": "agent-dashboard status",
+          "description": "Test CLI status command"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop Agent Dashboard services",
+      "steps": [
+        {
+          "name": "stop-api-server",
+          "run": "pkill -f 'agent-dashboard-api' || true",
+          "description": "Stop Go API server processes"
+        },
+        {
+          "name": "stop-ui-server",
+          "run": "pkill -f 'npm.*start' || true",
+          "description": "Stop UI server processes"
+        },
+        {
+          "name": "confirm-stop",
+          "run": "echo 'Agent Dashboard services stopped'",
+          "description": "Confirm services stopped"
+        }
+      ]
     }
   },
   "dependencies": {

@@ -736,12 +736,12 @@ app_start() {
 		local process_manager="${VROOLI_ROOT}/scripts/lib/process-manager.sh"
 		if [[ -f "$process_manager" ]]; then
 			# shellcheck disable=SC1090
-			source "$process_manager" 2>/dev/null || {
-				log::error "Failed to load process manager"
+			source "$process_manager" || {
+				log::error "Failed to load process manager: $?"
 				return 1
 			}
 		else
-			log::error "Process manager not found"
+			log::error "Process manager not found at: $process_manager"
 			return 1
 		fi
 	fi
@@ -785,11 +785,40 @@ app_start() {
 	# Start via develop phase
 	log::info "Starting $app_name..."
 	if [[ -f "$app_path/scripts/manage.sh" ]]; then
-		# Start the app using process manager
+		# Extract port configuration from service.json and set environment variables
+		local service_json="$app_path/.vrooli/service.json"
+		local api_port_start=""
+		local ui_port_start=""
+		if [[ -f "$service_json" ]]; then
+			# Get API port configuration
+			local api_port_range=$(jq -r '.ports.api.range // ""' "$service_json" 2>/dev/null)
+			if [[ -n "$api_port_range" ]]; then
+				api_port_start=$(echo "$api_port_range" | cut -d'-' -f1)
+			fi
+			
+			# Get UI port configuration
+			local ui_port_range=$(jq -r '.ports.ui.range // ""' "$service_json" 2>/dev/null)
+			if [[ -n "$ui_port_range" ]]; then
+				ui_port_start=$(echo "$ui_port_range" | cut -d'-' -f1)
+			fi
+		fi
+		
+		# Start the app using process manager with port environment variables
+		# Export ports to current environment for proper propagation
+		if [[ -n "$api_port_start" ]]; then
+			export SERVICE_PORT="${api_port_start}"
+		fi
+		if [[ -n "$ui_port_start" ]]; then
+			export UI_PORT="${ui_port_start}"
+		fi
+		
+		# Build develop command without inline exports (they're now in environment)
 		local develop_cmd="./scripts/manage.sh develop"
 		[[ "$fast_mode" == "true" ]] && develop_cmd="$develop_cmd --fast"
+		
+		# Pass environment through process manager
 		if pm::start "vrooli.develop.$app_name" \
-			"cd '$app_path' && $develop_cmd" \
+			"cd '$app_path' && SERVICE_PORT='${SERVICE_PORT:-}' UI_PORT='${UI_PORT:-}' $develop_cmd" \
 			"$app_path"; then
 			log::success "Started $app_name"
 			
@@ -903,50 +932,29 @@ app_stop_all() {
 		fi
 	fi
 	
-	log::info "Stopping all running apps..."
+	log::info "Stopping all running apps in parallel..."
 	
 	local stopped_count=0
 	local orphaned_count=0
 	local -A stopped_apps  # Track unique apps to avoid duplicate messages
 	local -A orphaned_apps  # Track orphaned processes
+	local -a managed_processes=()  # Array to store managed processes to stop
+	local -a orphaned_processes=()  # Array to store orphaned processes to kill
+	local -a background_jobs=()  # Track background job PIDs
 	
-	# First, stop process manager controlled processes
+	# Phase 1: Collect all managed processes that need stopping
 	while IFS= read -r process; do
 		# Only stop develop processes
 		if [[ "$process" == "vrooli.develop."* ]]; then
 			if pm::is_running "$process" 2>/dev/null; then
-				# Extract app name for reporting
-				local app_name=""
-				if [[ "$process" =~ ^vrooli\.develop\.([^.]+)$ ]]; then
-					app_name="${BASH_REMATCH[1]}"
-				elif [[ "$process" =~ ^vrooli\.develop\.start-(.+)$ ]]; then
-					# For service processes, try to determine app from working directory
-					local info_file="$HOME/.vrooli/processes/$process/info"
-					if [[ -f "$info_file" ]]; then
-						local working_dir
-						working_dir=$(grep '^working_dir=' "$info_file" 2>/dev/null | cut -d= -f2- || echo "")
-						if [[ -n "$working_dir" ]]; then
-							app_name=$(basename "$working_dir")
-						fi
-					fi
-				fi
-				
-				# Stop the process
-				if pm::stop "$process" 2>/dev/null; then
-					if [[ -n "$app_name" ]] && [[ -z "${stopped_apps[$app_name]:-}" ]]; then
-						log::success "Stopped $app_name (managed)"
-						stopped_apps["$app_name"]=1
-						stopped_count=$((stopped_count + 1))
-					fi
-				fi
+				managed_processes+=("$process")
 			fi
 		fi
 	done < <(pm::list 2>/dev/null)
 	
-	# Second, find and stop orphaned app processes
+	# Phase 2: Collect all orphaned app processes
 	local generated_dir="${GENERATED_APPS_DIR:-$HOME/generated-apps}"
 	if [[ -d "$generated_dir" ]]; then
-		# Look for Node.js processes running from generated-apps directories
 		while IFS= read -r line; do
 			# Parse ps output: PID CMD
 			local pid=$(echo "$line" | awk '{print $1}')
@@ -981,9 +989,7 @@ app_stop_all() {
 			
 			# Method 3: Check if running from trashed app directories
 			if [[ -z "$app_name" ]] && [[ "$cwd" == *"/Trash/files/"* ]]; then
-				# Look for app-like directory names in trash
 				if [[ "$cwd" =~ /Trash/files/([^/]+_[0-9]{8}_[0-9]{6})/ ]]; then
-					# Extract base name (remove timestamp suffix)
 					local trashed_name="${BASH_REMATCH[1]}"
 					if [[ "$trashed_name" =~ ^(.+)_[0-9]{8}_[0-9]{6}$ ]]; then
 						app_name="${BASH_REMATCH[1]}"
@@ -992,9 +998,7 @@ app_stop_all() {
 				fi
 			fi
 			
-			# Only target app-related processes (not system processes)
-			# IMPORTANT: We only kill if is_app_process is true, meaning the process is definitely
-			# running from generated-apps or Trash directories
+			# Only target app-related processes
 			if [[ "$is_app_process" == "true" ]] && [[ -n "$app_name" ]]; then
 				# Check if this looks like an app-related process
 				local is_likely_app_process=false
@@ -1026,35 +1030,106 @@ app_stop_all() {
 				
 				if [[ "$is_likely_app_process" == "true" ]]; then
 					if [[ -z "${orphaned_apps[$app_name]:-}" ]]; then
-						log::warning "Found orphaned process for $app_name (PID: $pid)"
-						if kill -TERM "$pid" 2>/dev/null; then
-							# Wait briefly for graceful shutdown
-							sleep 1
-							if kill -0 "$pid" 2>/dev/null; then
-								# Force kill if still running
-								kill -KILL "$pid" 2>/dev/null
-							fi
-							log::success "Stopped $app_name (orphaned)"
-							orphaned_apps["$app_name"]=1
-							orphaned_count=$((orphaned_count + 1))
-						fi
+						orphaned_processes+=("$pid:$app_name")
+						orphaned_apps["$app_name"]=1
 					fi
 				fi
 			fi
 		done < <(ps -eo pid,cmd --no-headers | grep -v grep)
 	fi
 	
-	# Report results
+	# Phase 3: Stop managed processes in parallel
+	if [[ ${#managed_processes[@]} -gt 0 ]]; then
+		log::info "Stopping ${#managed_processes[@]} managed processes in parallel..."
+		for process in "${managed_processes[@]}"; do
+			{
+				# Extract app name for reporting
+				local app_name=""
+				if [[ "$process" =~ ^vrooli\.develop\.([^.]+)$ ]]; then
+					app_name="${BASH_REMATCH[1]}"
+				elif [[ "$process" =~ ^vrooli\.develop\.start-(.+)$ ]]; then
+					local info_file="$HOME/.vrooli/processes/$process/info"
+					if [[ -f "$info_file" ]]; then
+						local working_dir
+						working_dir=$(grep '^working_dir=' "$info_file" 2>/dev/null | cut -d= -f2- || echo "")
+						if [[ -n "$working_dir" ]]; then
+							app_name=$(basename "$working_dir")
+						fi
+					fi
+				fi
+				
+				if pm::stop "$process" 2>/dev/null; then
+					if [[ -n "$app_name" ]]; then
+						echo "MANAGED_SUCCESS:$app_name"
+					fi
+				fi
+			} &
+			background_jobs+=($!)
+		done
+	fi
+	
+	# Phase 4: Kill orphaned processes in parallel
+	if [[ ${#orphaned_processes[@]} -gt 0 ]]; then
+		log::info "Stopping ${#orphaned_processes[@]} orphaned processes in parallel..."
+		for orphan_info in "${orphaned_processes[@]}"; do
+			{
+				local pid="${orphan_info%%:*}"
+				local app_name="${orphan_info#*:}"
+				
+				log::warning "Found orphaned process for $app_name (PID: $pid)"
+				if kill -TERM "$pid" 2>/dev/null; then
+					# Wait briefly for graceful shutdown
+					sleep 1
+					if kill -0 "$pid" 2>/dev/null; then
+						# Force kill if still running
+						kill -KILL "$pid" 2>/dev/null
+					fi
+					echo "ORPHANED_SUCCESS:$app_name"
+				fi
+			} &
+			background_jobs+=($!)
+		done
+	fi
+	
+	# Phase 5: Wait for all background jobs to complete and collect results
+	if [[ ${#background_jobs[@]} -gt 0 ]]; then
+		log::info "Waiting for all ${#background_jobs[@]} stop operations to complete..."
+		for job_pid in "${background_jobs[@]}"; do
+			if wait "$job_pid" 2>/dev/null; then
+				# Job completed successfully, check for success messages
+				:
+			fi
+		done 2>&1 | while IFS= read -r line; do
+			if [[ "$line" == "MANAGED_SUCCESS:"* ]]; then
+				local app_name="${line#MANAGED_SUCCESS:}"
+				if [[ -z "${stopped_apps[$app_name]:-}" ]]; then
+					log::success "Stopped $app_name (managed)"
+					stopped_apps["$app_name"]=1
+					stopped_count=$((stopped_count + 1))
+				fi
+			elif [[ "$line" == "ORPHANED_SUCCESS:"* ]]; then
+				local app_name="${line#ORPHANED_SUCCESS:}"
+				log::success "Stopped $app_name (orphaned)"
+				orphaned_count=$((orphaned_count + 1))
+			fi
+		done
+	fi
+	
+	# Recalculate counts since the subshell above doesn't update the main shell variables
+	stopped_count=${#managed_processes[@]}
+	orphaned_count=${#orphaned_processes[@]}
+	
+	# Phase 6: Report results
 	local total_stopped=$((stopped_count + orphaned_count))
 	if [[ $total_stopped -eq 0 ]]; then
 		log::info "No apps were running"
 	else
 		if [[ $stopped_count -gt 0 ]] && [[ $orphaned_count -gt 0 ]]; then
-			log::success "Stopped $total_stopped app(s): $stopped_count managed, $orphaned_count orphaned"
+			log::success "Stopped $total_stopped app(s) in parallel: $stopped_count managed, $orphaned_count orphaned"
 		elif [[ $stopped_count -gt 0 ]]; then
-			log::success "Stopped $stopped_count managed app(s)"
+			log::success "Stopped $stopped_count managed app(s) in parallel"
 		else
-			log::success "Stopped $orphaned_count orphaned app(s)"
+			log::success "Stopped $orphaned_count orphaned app(s) in parallel"
 		fi
 	fi
 	

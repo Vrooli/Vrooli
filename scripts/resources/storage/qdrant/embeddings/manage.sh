@@ -28,10 +28,11 @@ source "${EMBEDDINGS_DIR}/extractors/resources.sh"
 source "${EMBEDDINGS_DIR}/search/single.sh"
 source "${EMBEDDINGS_DIR}/search/multi.sh"
 
-# Default settings
+# Default settings optimized for parallel processing
 DEFAULT_MODEL="mxbai-embed-large"
 DEFAULT_DIMENSIONS=1024
-BATCH_SIZE=10
+BATCH_SIZE=${QDRANT_EMBEDDING_BATCH_SIZE:-50}  # Increased from 10 to 50 for better throughput
+MAX_PARALLEL_WORKERS=${QDRANT_MAX_WORKERS:-16}  # Match CPU cores
 TEMP_DIR="/tmp/qdrant-embeddings-$$"
 
 # Cleanup on exit
@@ -150,38 +151,106 @@ qdrant::embeddings::refresh() {
             }
     done
     
-    # Extract and embed content by type
+    # Extract and embed content by type (PARALLEL PROCESSING)
     local total_embeddings=0
     
-    # Process workflows
-    log::info "Processing workflows..."
-    local workflow_count
-    workflow_count=$(qdrant::embeddings::process_workflows "$app_id")
-    total_embeddings=$((total_embeddings + workflow_count))
+    log::info "Processing all content types in parallel with $MAX_PARALLEL_WORKERS workers..."
     
-    # Process scenarios
-    log::info "Processing scenarios..."
-    local scenario_count
-    scenario_count=$(qdrant::embeddings::process_scenarios "$app_id")
-    total_embeddings=$((total_embeddings + scenario_count))
+    # Create background jobs for each content type
+    local workflow_count_file="$TEMP_DIR/workflow_count"
+    local scenario_count_file="$TEMP_DIR/scenario_count"
+    local doc_count_file="$TEMP_DIR/doc_count"
+    local code_count_file="$TEMP_DIR/code_count"
+    local resource_count_file="$TEMP_DIR/resource_count"
     
-    # Process documentation
-    log::info "Processing documentation..."
-    local doc_count
-    doc_count=$(qdrant::embeddings::process_documentation "$app_id")
-    total_embeddings=$((total_embeddings + doc_count))
+    # Start all content type processing in parallel
+    {
+        log::info "Processing workflows..."
+        workflow_count=$(qdrant::embeddings::process_workflows "$app_id")
+        echo "$workflow_count" > "$workflow_count_file"
+    } &
+    local workflow_pid=$!
     
-    # Process code
-    log::info "Processing code..."
-    local code_count
-    code_count=$(qdrant::embeddings::process_code "$app_id")
-    total_embeddings=$((total_embeddings + code_count))
+    {
+        log::info "Processing scenarios..."
+        scenario_count=$(qdrant::embeddings::process_scenarios "$app_id")
+        echo "$scenario_count" > "$scenario_count_file"
+    } &
+    local scenario_pid=$!
     
-    # Process resources
-    log::info "Processing resources..."
-    local resource_count
-    resource_count=$(qdrant::embeddings::process_resources "$app_id")
-    total_embeddings=$((total_embeddings + resource_count))
+    {
+        log::info "Processing documentation..."
+        doc_count=$(qdrant::embeddings::process_documentation "$app_id")
+        echo "$doc_count" > "$doc_count_file"
+    } &
+    local doc_pid=$!
+    
+    {
+        log::info "Processing code..."
+        code_count=$(qdrant::embeddings::process_code "$app_id")
+        echo "$code_count" > "$code_count_file"
+    } &
+    local code_pid=$!
+    
+    {
+        log::info "Processing resources..."
+        resource_count=$(qdrant::embeddings::process_resources "$app_id")
+        echo "$resource_count" > "$resource_count_file"
+    } &
+    local resource_pid=$!
+    
+    # Wait for all background jobs to complete with monitoring
+    log::info "Waiting for all content type processing to complete..."
+    
+    # Monitor memory usage during parallel processing
+    {
+        while kill -0 $workflow_pid $scenario_pid $doc_pid $code_pid $resource_pid 2>/dev/null; do
+            local mem_usage
+            mem_usage=$(free | awk '/Mem:/ {printf "%.0f", $3/$2 * 100}')
+            if [[ $mem_usage -gt 85 ]]; then
+                log::warn "High memory usage detected: ${mem_usage}% - Consider reducing parallel workers"
+            fi
+            sleep 2
+        done
+    } &
+    local monitor_pid=$!
+    
+    # Wait for all jobs with timeout and error handling
+    local failed_jobs=0
+    local job_names=("workflows" "scenarios" "documentation" "code" "resources")
+    local job_pids=($workflow_pid $scenario_pid $doc_pid $code_pid $resource_pid)
+    
+    for i in "${!job_pids[@]}"; do
+        local pid="${job_pids[$i]}"
+        local job_name="${job_names[$i]}"
+        
+        if wait "$pid"; then
+            log::info "✅ ${job_name} processing completed successfully"
+        else
+            log::error "❌ ${job_name} processing failed"
+            ((failed_jobs++))
+        fi
+    done
+    
+    # Stop memory monitor
+    kill $monitor_pid 2>/dev/null || true
+    
+    # Report parallel processing results
+    if [[ $failed_jobs -eq 0 ]]; then
+        log::success "All content types processed successfully in parallel"
+    else
+        log::warn "$failed_jobs out of ${#job_names[@]} content type jobs failed"
+    fi
+    
+    # Read results from temporary files
+    local workflow_count=$(cat "$workflow_count_file" 2>/dev/null || echo "0")
+    local scenario_count=$(cat "$scenario_count_file" 2>/dev/null || echo "0")
+    local doc_count=$(cat "$doc_count_file" 2>/dev/null || echo "0")
+    local code_count=$(cat "$code_count_file" 2>/dev/null || echo "0")
+    local resource_count=$(cat "$resource_count_file" 2>/dev/null || echo "0")
+    
+    # Calculate total
+    total_embeddings=$((workflow_count + scenario_count + doc_count + code_count + resource_count))
     
     # Calculate duration
     local end_time=$(date +%s)

@@ -358,15 +358,15 @@ class AppOrchestrator:
         try:
             self._print(f"Starting {app.name}...", Fore.BLUE)
             
-            # Build command
-            cmd = [
-                str(self.vrooli_root / "cli" / "commands" / "app-commands.sh"),
-                "start",
-                app.name
-            ]
+            # Build command - call manage.sh directly to avoid process manager issues
+            app_path = self.generated_apps_dir / app.name
+            manage_script = app_path / "scripts" / "manage.sh"
             
-            if self.fast_mode:
-                cmd.append("--fast")
+            cmd = [
+                "bash",
+                str(manage_script),
+                "develop"
+            ]
             
             # Setup environment with allocated ports
             env = os.environ.copy()
@@ -393,7 +393,7 @@ class AppOrchestrator:
                 stdout=log_file,
                 stderr=asyncio.subprocess.STDOUT,
                 start_new_session=True,
-                cwd=str(self.vrooli_root)
+                cwd=str(app_path)
             )
             
             app.process = process

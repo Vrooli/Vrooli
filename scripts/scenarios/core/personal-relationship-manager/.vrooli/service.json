@@ -1,4 +1,5 @@
 {
+  "$schema": "../../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "parent": "vrooli",
@@ -14,26 +15,7 @@
       "gift-ideas",
       "birthday-reminders",
       "social"
-    ],
-    "maintainers": [
-      {
-        "name": "Vrooli Team",
-        "email": "support@vrooli.com",
-        "url": "https://vrooli.com"
-      }
-    ],
-    "repository": {
-      "type": "git",
-      "url": "https://github.com/Vrooli/Vrooli",
-      "directory": "/scripts/scenarios/core/personal-relationship-manager"
-    },
-    "license": "MIT",
-    "homepage": "https://github.com/Vrooli/Vrooli",
-    "documentation": "./README.md",
-    "support": {
-      "email": "support@vrooli.com",
-      "issues": "https://github.com/Vrooli/Vrooli/issues"
-    }
+    ]
   },
   "ports": {
     "api": {
@@ -49,49 +31,183 @@
       "description": "UI server port"
     }
   },
-  "dependencies": {
-    "resources": {
-      "postgres": {
-        "enabled": true,
-        "required": true
-      },
+  "resources": {
+    "automation": {
       "n8n": {
+        "type": "n8n",
         "enabled": true,
-        "required": true
-      },
-      "ollama": {
-        "enabled": true,
-        "required": true
-      },
-      "redis": {
-        "enabled": true,
-        "required": false
+        "required": true,
+        "initialization": [
+          {
+            "file": "initialization/n8n/birthday-reminder.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/gift-suggester.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/relationship-insights.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/contact-enricher.json",
+            "type": "workflow"
+          }
+        ]
       }
     },
-    "scenarios": []
-  },
-  "initialization": {
-    "postgres": {
-      "schemas": ["initialization/postgres/schema.sql"],
-      "seeds": ["initialization/postgres/seed.sql"]
+    "storage": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store relationship data, contacts, and interaction history",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "script"
+          },
+          {
+            "file": "initialization/postgres/seed.sql",
+            "type": "script"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": false,
+        "purpose": "Cache session data and reminders"
+      }
     },
-    "n8n": {
-      "workflows": [
-        "initialization/n8n/birthday-reminder.json",
-        "initialization/n8n/gift-suggester.json",
-        "initialization/n8n/relationship-insights.json",
-        "initialization/n8n/contact-enricher.json"
-      ]
+    "ai": {
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "purpose": "AI-powered gift suggestions and relationship insights"
+      }
     }
   },
-  "features": {
-    "ui": true,
-    "api": true,
-    "cli": true,
-    "automation": true
-  },
-  "deployment": {
-    "scalable": true,
-    "multi_tenant": true
+  "lifecycle": {
+    "version": "1.0.0",
+    "setup": {
+      "description": "Initialize Personal Relationship Manager",
+      "steps": [
+        {
+          "name": "base-setup",
+          "run": "bash scripts/lib/setup.sh",
+          "description": "Execute generic setup (e.g. network, system, git)"
+        },
+        {
+          "name": "add-data",
+          "run": "scripts/resources/injection/engine.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "install-cli",
+          "run": "chmod +x cli/relationship-manager && ln -sf $(pwd)/cli/relationship-manager /usr/local/bin/relationship-manager 2>/dev/null || true",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o personal-relationship-manager-api main.go",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo 'Personal Relationship Manager initialized - UI: http://localhost:${UI_PORT} - API: http://localhost:${SERVICE_PORT} - CLI: relationship-manager --help'",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start Personal Relationship Manager with API and UI servers",
+      "steps": [
+        {
+          "name": "start-api-server",
+          "run": "cd api && PORT=$SERVICE_PORT ./personal-relationship-manager-api &",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/personal-relationship-manager-api"
+          }
+        },
+        {
+          "name": "start-ui-server",
+          "run": "cd ui && PORT=$UI_PORT API_URL=http://localhost:$SERVICE_PORT npm start &",
+          "description": "Start UI server in background",
+          "background": true
+        },
+        {
+          "name": "wait-for-services",
+          "run": "sleep 2 && curl -sf http://localhost:$SERVICE_PORT/health > /dev/null && curl -sf http://localhost:$UI_PORT > /dev/null",
+          "description": "Wait for services to be ready",
+          "retry": {
+            "max_attempts": 15,
+            "delay": 1
+          }
+        },
+        {
+          "name": "show-running-services",
+          "run": "echo 'Services running - UI: http://localhost:${UI_PORT} - API: http://localhost:${SERVICE_PORT} - CLI: relationship-manager --help'",
+          "description": "Display all running service URLs"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test Personal Relationship Manager API and CLI",
+      "steps": [
+        {
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build main.go && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-contacts-endpoint",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/api/contacts",
+          "description": "Test API contacts endpoint"
+        },
+        {
+          "name": "test-cli-help",
+          "run": "relationship-manager --help",
+          "description": "Test CLI help command"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop Personal Relationship Manager services",
+      "steps": [
+        {
+          "name": "stop-api-server",
+          "run": "pkill -f 'personal-relationship-manager-api' || true",
+          "description": "Stop Go API server processes"
+        },
+        {
+          "name": "stop-ui-server",
+          "run": "pkill -f 'npm.*start' || true",
+          "description": "Stop UI server processes"
+        },
+        {
+          "name": "confirm-stop",
+          "run": "echo 'Personal Relationship Manager services stopped'",
+          "description": "Confirm services stopped"
+        }
+      ]
+    }
   }
 }

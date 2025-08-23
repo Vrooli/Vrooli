@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "parent": "vrooli",
@@ -35,111 +35,197 @@
       "description": "ROI Fit Analysis UI port"
     }
   },
-  "components": {
-    "api": {
-      "enabled": true,
-      "language": "go",
-      "path": "api",
-      "main": "main.go"
-    },
-    "ui": {
-      "enabled": true,
-      "framework": "javascript",
-      "path": "ui", 
-      "main": "server.js"
-    },
-    "cli": {
-      "enabled": true,
-      "language": "go",
-      "path": "cli",
-      "command": "roi-fit"
-    }
-  },
   "resources": {
-    "n8n": {
-      "enabled": true,
-      "required": true
+    "automation": {
+      "n8n": {
+        "type": "n8n",
+        "enabled": true,
+        "required": true,
+        "initialization": [
+          {
+            "file": "initialization/n8n/roi-analyzer.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/market-researcher.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/financial-calculator.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/competitive-landscape-analyzer.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/enhanced-market-researcher.json",
+            "type": "workflow"
+          }
+        ]
+      }
     },
-    "postgres": {
-      "enabled": true,
-      "required": true
+    "storage": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store analysis data, research results, and investment metrics",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "script"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": true,
+        "purpose": "Cache research data and session storage"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": false,
+        "purpose": "Vector storage for market research and investment opportunity matching"
+      }
     },
-    "redis": {
-      "enabled": true,
-      "required": true
+    "ai": {
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "purpose": "Local LLM for financial analysis and market research"
+      }
     },
-    "qdrant": {
-      "enabled": true,
-      "required": false
-    },
-    "ollama": {
-      "enabled": true,
-      "required": true
-    },
-    "browserless": {
-      "enabled": true,
-      "required": true
+    "agents": {
+      "browserless": {
+        "type": "browserless",
+        "enabled": true,
+        "required": true,
+        "purpose": "Web scraping for financial data and market research"
+      }
     }
   },
-  "initialization": {
-    "n8n": [
-      {
-        "name": "roi-analyzer",
-        "file": "initialization/n8n/roi-analyzer.json",
-        "active": true
-      },
-      {
-        "name": "market-researcher",
-        "file": "initialization/n8n/market-researcher.json",
-        "active": true
-      },
-      {
-        "name": "financial-calculator",
-        "file": "initialization/n8n/financial-calculator.json",
-        "active": true
-      },
-      {
-        "name": "competitive-landscape-analyzer",
-        "file": "initialization/n8n/competitive-landscape-analyzer.json",
-        "active": true
-      },
-      {
-        "name": "enhanced-market-researcher",
-        "file": "initialization/n8n/enhanced-market-researcher.json",
-        "active": true
-      }
-    ],
-    "postgres": [
-      {
-        "file": "initialization/postgres/schema.sql",
-        "type": "schema"
-      }
-    ]
-  },
-  "dependencies": {
-    "shared_workflows": [
-      "ollama",
-      "embedding-generator",
-      "structured-data-extractor"
-    ]
-  },
-  "healthcheck": {
-    "enabled": true,
-    "interval": 30,
-    "timeout": 10,
-    "retries": 3,
-    "endpoints": [
-      {
-        "type": "http",
-        "url": "http://localhost:${SERVICE_PORT}/health",
-        "method": "GET",
-        "expected_status": 200
-      }
-    ]
-  },
-  "logging": {
-    "level": "info",
-    "format": "json",
-    "output": "stdout"
+  "lifecycle": {
+    "version": "1.0.0",
+    "setup": {
+      "description": "Initialize ROI Fit Analysis",
+      "steps": [
+        {
+          "name": "base-setup",
+          "run": "bash scripts/lib/setup.sh",
+          "description": "Execute generic setup (e.g. network, system, git)"
+        },
+        {
+          "name": "add-data",
+          "run": "scripts/resources/injection/engine.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "install-cli",
+          "run": "chmod +x cli/roi-fit && ln -sf $(pwd)/cli/roi-fit /usr/local/bin/roi-fit 2>/dev/null || true",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o roi-fit-analysis-api main.go",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo 'ROI Fit Analysis initialized - UI: http://localhost:${UI_PORT} - API: http://localhost:${SERVICE_PORT} - CLI: roi-fit --help'",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start ROI Fit Analysis with API and UI servers",
+      "steps": [
+        {
+          "name": "start-api-server",
+          "run": "cd api && PORT=$SERVICE_PORT ./roi-fit-analysis-api &",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/roi-fit-analysis-api"
+          }
+        },
+        {
+          "name": "start-ui-server",
+          "run": "cd ui && PORT=$UI_PORT API_URL=http://localhost:$SERVICE_PORT npm start &",
+          "description": "Start UI server in background",
+          "background": true
+        },
+        {
+          "name": "wait-for-services",
+          "run": "sleep 2 && curl -sf http://localhost:$SERVICE_PORT/health > /dev/null && curl -sf http://localhost:$UI_PORT > /dev/null",
+          "description": "Wait for services to be ready",
+          "retry": {
+            "max_attempts": 15,
+            "delay": 1
+          }
+        },
+        {
+          "name": "show-running-services",
+          "run": "echo 'Services running - UI: http://localhost:${UI_PORT} - API: http://localhost:${SERVICE_PORT} - CLI: roi-fit --help'",
+          "description": "Display all running service URLs"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test ROI Fit Analysis API and CLI",
+      "steps": [
+        {
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build main.go && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-analysis-endpoint",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/api/analysis",
+          "description": "Test API analysis endpoint"
+        },
+        {
+          "name": "test-cli-help",
+          "run": "roi-fit --help",
+          "description": "Test CLI help command"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop ROI Fit Analysis services",
+      "steps": [
+        {
+          "name": "stop-api-server",
+          "run": "pkill -f 'roi-fit-analysis-api' || true",
+          "description": "Stop Go API server processes"
+        },
+        {
+          "name": "stop-ui-server",
+          "run": "pkill -f 'npm.*start' || true",
+          "description": "Stop UI server processes"
+        },
+        {
+          "name": "confirm-stop",
+          "run": "echo 'ROI Fit Analysis services stopped'",
+          "description": "Confirm services stopped"
+        }
+      ]
+    }
   }
 }
