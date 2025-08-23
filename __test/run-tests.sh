@@ -23,6 +23,7 @@ PHASES:
   resources   Validate resources/ construction & test with mocks  
   scenarios   Validate scenarios & run integration tests for converted ones
   bats        Execute all BATS tests with caching mechanism
+  docs        Validate markdown documentation (syntax and file references)
   all         Run all phases sequentially (default)
 
 OPTIONS:
@@ -39,6 +40,7 @@ EXAMPLES:
   ./run-tests.sh resources --verbose # Resource testing with details
   ./run-tests.sh scenarios --dry-run # Show what scenarios would be tested
   ./run-tests.sh bats --no-cache    # Run BATS without caching
+  ./run-tests.sh docs --verbose     # Documentation validation with details
 
 Each phase can be run independently and will report its own results.
 EOF
@@ -54,7 +56,7 @@ CLEAR_CACHE=""
 
 while [[ $# -gt 0 ]]; do
     case $1 in
-        static|resources|scenarios|bats|all)
+        static|resources|scenarios|bats|docs|all)
             PHASE="$1"
             shift
             ;;
@@ -286,9 +288,12 @@ main() {
         bats)
             run_phase "bats" || overall_success=false
             ;;
+        docs)
+            run_phase "docs" || overall_success=false
+            ;;
         all)
             # Run all phases in sequence
-            local phases=("static" "resources" "scenarios" "bats")
+            local phases=("static" "resources" "scenarios" "bats" "docs")
             
             for phase in "${phases[@]}"; do
                 if ! run_phase "$phase"; then

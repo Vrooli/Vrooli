@@ -64,10 +64,10 @@ show_main_help() {
                                    
 🚀 Vrooli CLI - AI Platform Management Tool
 
-USAGE:
+📋 USAGE:
     vrooli <command> [options]
 
-LIFECYCLE COMMANDS:
+🔄 LIFECYCLE COMMANDS:
     setup               Initialize the development environment
     develop             Start development servers
     build               Build the project
@@ -75,14 +75,15 @@ LIFECYCLE COMMANDS:
     clean               Clean build artifacts
     status              Show system health and status overview
 
-TESTING COMMANDS:
+🧪 TESTING COMMANDS:
     test                Run comprehensive scenario-first test suite
     test static         Run static analysis (shellcheck, syntax)
     test resources      Run resource validation and mock testing
     test scenarios      Run scenario validation and integration tests
     test bats           Run BATS test execution with caching
 
-APP MANAGEMENT:
+📱 APP MANAGEMENT:
+    # Apps are generated applications created from scenarios
     app list            List all apps with runtime status
     app start <name>    Start a specific app
     app stop <name>     Stop a specific app
@@ -92,12 +93,14 @@ APP MANAGEMENT:
     app status <name>   Show detailed app status
     app protect <name>  Protect app from regeneration
 
-SCENARIO MANAGEMENT:
+🎯 SCENARIO MANAGEMENT:
+    # Scenarios are templates that define how to generate apps
     scenario list       List available scenarios
     scenario generate   Generate app from scenario
     scenario validate   Validate scenario configuration
 
-RESOURCE MANAGEMENT:
+🔧 RESOURCE MANAGEMENT:
+    # Resources are external services and dependencies (databases, APIs, etc.)
     resource list       List available resources
     resource status     Show resource status
     resource install    Install a resource (initial setup)
@@ -107,11 +110,11 @@ RESOURCE MANAGEMENT:
     resource stop-all   Stop all running resources
 
 
-OPTIONS:
+⚙️ OPTIONS:
     --help, -h          Show help for a command
     --version, -v       Show version information
 
-EXAMPLES:
+💡 EXAMPLES:
     vrooli setup                        # First-time setup
     vrooli develop                      # Start development environment
     vrooli test                         # Run all tests
@@ -119,10 +122,10 @@ EXAMPLES:
     vrooli app list                     # List generated apps
     vrooli app logs my-app              # Show app logs
 
-For more help on a specific command:
+📖 For more help on a specific command:
     vrooli <command> --help
 
-Documentation: https://docs.vrooli.com/cli
+📚 Documentation: docs/
 EOF
 }
 
