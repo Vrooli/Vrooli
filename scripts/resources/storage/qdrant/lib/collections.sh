@@ -1081,3 +1081,122 @@ qdrant::collections::upsert_point() {
         return 1
     fi
 }
+
+#######################################
+# Batch upsert multiple points in collection (PERFORMANCE OPTIMIZATION)
+# Arguments:
+#   $1 - collection name
+#   $2 - points array (JSON array of point objects)
+# Returns: 0 on success, 1 on failure
+#######################################
+qdrant::collections::batch_upsert() {
+    local collection_name="$1"
+    local points_json="$2"
+    
+    if [[ -z "$collection_name" || -z "$points_json" ]]; then
+        log::error "Collection name and points array are required"
+        return 1
+    fi
+    
+    # Validate points array format
+    if ! echo "$points_json" | jq -e 'type == "array"' >/dev/null 2>&1; then
+        log::error "Points must be a valid JSON array"
+        return 1
+    fi
+    
+    # Prepare the batch upsert payload
+    local payload
+    payload=$(jq -n --argjson points "$points_json" '{
+        "points": $points
+    }')
+    
+    log::debug "Batch upserting $(echo "$points_json" | jq 'length') points to collection: $collection_name"
+    
+    # Send batch upsert request
+    local response
+    response=$(curl -s -X PUT \
+        -H "Content-Type: application/json" \
+        -d "$payload" \
+        "${QDRANT_BASE_URL}/collections/${collection_name}/points" 2>/dev/null)
+    
+    if [[ $? -ne 0 || -z "$response" ]]; then
+        log::error "Failed to batch upsert points"
+        return 1
+    fi
+    
+    # Check response status
+    local status
+    status=$(echo "$response" | jq -r '.status // "error"' 2>/dev/null)
+    
+    if [[ "$status" == "ok" ]]; then
+        log::debug "Successfully batch upserted points"
+        return 0
+    else
+        local error_msg
+        error_msg=$(echo "$response" | jq -r '.result // "Unknown error"' 2>/dev/null)
+        log::error "Batch upsert failed: $error_msg"
+        return 1
+    fi
+}
+
+#######################################
+# Accumulate points and batch write when threshold reached
+# Arguments:
+#   $1 - collection name
+#   $2 - point JSON object to add
+#   $3 - batch size threshold (default: 50)
+#   $4 - force flush (yes/no, default: no)
+# Uses global variables: BATCH_ACCUMULATOR_<collection>, BATCH_COUNT_<collection>
+# Returns: 0 on success, 1 on failure
+#######################################
+qdrant::collections::accumulate_and_batch() {
+    local collection_name="$1"
+    local point_json="$2"
+    local batch_size="${3:-50}"
+    local force_flush="${4:-no}"
+    
+    # Create unique variable names for this collection
+    local accumulator_var="BATCH_ACCUMULATOR_${collection_name//[^a-zA-Z0-9]/_}"
+    local count_var="BATCH_COUNT_${collection_name//[^a-zA-Z0-9]/_}"
+    
+    # Initialize accumulator and counter if they don't exist
+    if [[ -z "${!accumulator_var:-}" ]]; then
+        declare -g "$accumulator_var"="[]"
+        declare -g "$count_var"="0"
+    fi
+    
+    # Add point to accumulator (if provided)
+    if [[ -n "$point_json" ]]; then
+        local current_accumulator="${!accumulator_var}"
+        local updated_accumulator
+        updated_accumulator=$(echo "$current_accumulator" | jq ". += [$point_json]")
+        declare -g "$accumulator_var"="$updated_accumulator"
+        
+        local current_count="${!count_var}"
+        declare -g "$count_var"="$((current_count + 1))"
+    fi
+    
+    local current_count="${!count_var}"
+    
+    # Check if we should flush
+    if [[ "$force_flush" == "yes" ]] || [[ "$current_count" -ge "$batch_size" ]]; then
+        if [[ "$current_count" -gt 0 ]]; then
+            local points_to_write="${!accumulator_var}"
+            
+            # Perform batch write
+            if qdrant::collections::batch_upsert "$collection_name" "$points_to_write"; then
+                log::debug "Flushed batch of $current_count points to $collection_name"
+                
+                # Reset accumulator
+                declare -g "$accumulator_var"="[]"
+                declare -g "$count_var"="0"
+                return 0
+            else
+                log::error "Failed to flush batch to $collection_name"
+                return 1
+            fi
+        fi
+    fi
+    
+    return 0
+}

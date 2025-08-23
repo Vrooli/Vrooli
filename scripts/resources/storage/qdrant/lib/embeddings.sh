@@ -23,10 +23,10 @@ qdrant::export_config 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${QDRANT_EMBEDDINGS_DIR}/models.sh"
 
-# Embedding cache settings
+# Embedding cache settings optimized for parallel processing
 QDRANT_EMBEDDING_CACHE_ENABLED="${QDRANT_EMBEDDING_CACHE_ENABLED:-true}"
 QDRANT_EMBEDDING_CACHE_TTL="${QDRANT_EMBEDDING_CACHE_TTL:-3600}"  # 1 hour
-QDRANT_EMBEDDING_BATCH_SIZE="${QDRANT_EMBEDDING_BATCH_SIZE:-10}"  # Process in batches of 10
+QDRANT_EMBEDDING_BATCH_SIZE="${QDRANT_EMBEDDING_BATCH_SIZE:-32}"  # Increased from 10 to 32 for better parallel throughput
 
 # Check if Redis is available for caching
 REDIS_AVAILABLE="false"
@@ -178,7 +178,7 @@ qdrant::embeddings::generate() {
         return 1
     fi
     
-    # Generate embedding via Ollama
+    # Generate embedding via Ollama with retry mechanism
     local ollama_url="${OLLAMA_BASE_URL:-http://localhost:11434}"
     local request_body
     request_body=$(jq -n \
@@ -190,15 +190,42 @@ qdrant::embeddings::generate() {
     log::debug "Request body: $request_body"
     log::debug "Ollama URL: ${ollama_url}/api/embeddings"
     
+    # Retry logic for resilient embedding generation
     local response
-    response=$(http::request "POST" "${ollama_url}/api/embeddings" "$request_body" "Content-Type: application/json")
-    local http_exit_code=$?
+    local max_retries=3
+    local retry_delay=1
+    local attempt=1
     
-    log::debug "HTTP response: $response"
-    log::debug "HTTP exit code: $http_exit_code"
+    while [[ $attempt -le $max_retries ]]; do
+        log::debug "Embedding generation attempt $attempt/$max_retries"
+        
+        response=$(http::request "POST" "${ollama_url}/api/embeddings" "$request_body" "Content-Type: application/json")
+        local http_exit_code=$?
+        
+        log::debug "HTTP response: $response"
+        log::debug "HTTP exit code: $http_exit_code"
+        
+        if [[ -n "$response" ]]; then
+            # Check if response contains a valid embedding
+            if echo "$response" | jq -e '.embedding' >/dev/null 2>&1; then
+                log::debug "Successfully generated embedding on attempt $attempt"
+                break
+            fi
+        fi
+        
+        if [[ $attempt -eq $max_retries ]]; then
+            log::error "Failed to generate embedding after $max_retries attempts: empty or invalid response"
+            return 1
+        fi
+        
+        log::warn "Attempt $attempt failed, retrying in ${retry_delay}s..."
+        sleep $retry_delay
+        retry_delay=$((retry_delay * 2))  # Exponential backoff
+        ((attempt++))
+    done
     
     if [[ -z "$response" ]]; then
-        log::error "Failed to generate embedding: empty response"
+        log::error "Failed to generate embedding: empty response after retries"
         return 1
     fi
     

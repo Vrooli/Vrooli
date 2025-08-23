@@ -104,7 +104,7 @@ safe_kill() {
 # Method 1: Use Python Process Tracker (Safest)
 ################################################################################
 stop_via_tracker() {
-    local count=0
+    STOPPED_COUNT=0
     
     # Try safe tracker first
     local safe_tracker="$VROOLI_ROOT/scripts/lib/process-tracker-safe.py"
@@ -113,23 +113,23 @@ stop_via_tracker() {
     if [[ -f "$safe_tracker" ]]; then
         log_info "Method 1: Using SAFE process tracker..."
         if python3 "$safe_tracker" stop all $([[ "$FORCE_MODE" == "true" ]] && echo "--force") 2>/dev/null; then
-            count=$(python3 "$safe_tracker" status 2>/dev/null | wc -l || echo 0)
+            STOPPED_COUNT=$(python3 "$safe_tracker" status 2>/dev/null | wc -l || echo 0)
         fi
     elif [[ -f "$tracker" ]]; then
         log_warning "Using original tracker (has security issues)..."
         if python3 "$tracker" stop all 2>/dev/null; then
-            count=$(python3 "$tracker" status 2>/dev/null | wc -l || echo 0)
+            STOPPED_COUNT=$(python3 "$tracker" status 2>/dev/null | wc -l || echo 0)
         fi
     fi
     
-    return $count
+    return 0
 }
 
 ################################################################################
 # Method 2: Stop via Process Manager (with validation)
 ################################################################################
 stop_via_process_manager() {
-    local count=0
+    STOPPED_COUNT=0
     
     if [[ -f "$VROOLI_ROOT/scripts/lib/process-manager.sh" ]]; then
         log_info "Method 2: Using process manager..."
@@ -143,7 +143,7 @@ stop_via_process_manager() {
                 # Validate process name format
                 if [[ "$process" =~ ^vrooli\.develop\.[a-zA-Z0-9_-]+$ ]]; then
                     if pm::stop "$process" 2>/dev/null; then
-                        ((count++))
+                        ((STOPPED_COUNT++))
                         log_info "  Stopped: $process"
                     fi
                 fi
@@ -151,14 +151,14 @@ stop_via_process_manager() {
         fi
     fi
     
-    return $count
+    return 0
 }
 
 ################################################################################
 # Method 3: Find by Environment Variables (with strict validation)
 ################################################################################
 stop_via_environment() {
-    local count=0
+    STOPPED_COUNT=0
     log_info "Method 3: Searching by environment variables..."
     
     local pids=()
@@ -190,7 +190,7 @@ stop_via_environment() {
         log_info "  Stopping $app_name (PID: $pid)"
         
         if safe_kill "$pid" "$([[ "$FORCE_MODE" == "true" ]] && echo "KILL" || echo "TERM")"; then
-            ((count++))
+            ((STOPPED_COUNT++))
             if [[ "$FORCE_MODE" != "true" ]]; then
                 sleep 0.2
                 # Force kill if still running
@@ -199,14 +199,14 @@ stop_via_environment() {
         fi
     done
     
-    return $count
+    return 0
 }
 
 ################################################################################
 # Method 4: Find by Working Directory (with strict path validation)
 ################################################################################
 stop_via_working_directory() {
-    local count=0
+    STOPPED_COUNT=0
     log_info "Method 4: Searching by working directory..."
     
     if [[ ! -d "$GENERATED_APPS_DIR" ]]; then
@@ -249,11 +249,11 @@ stop_via_working_directory() {
         log_info "  Stopping $app_name (PID: $pid)"
         
         if safe_kill "$pid" "$([[ "$FORCE_MODE" == "true" ]] && echo "KILL" || echo "TERM")"; then
-            ((count++))
+            ((STOPPED_COUNT++))
         fi
     done
     
-    return $count
+    return 0
 }
 
 ################################################################################
@@ -308,20 +308,25 @@ main() {
     log_info "Starting SAFE enhanced stop-all for Vrooli apps..."
     echo ""
     
+    # Global counter for stopped processes
+    STOPPED_COUNT=0
     local total_stopped=0
     
     # Try all methods in order of safety/reliability
     stop_via_tracker
-    total_stopped=$((total_stopped + $?))
+    total_stopped=$((total_stopped + STOPPED_COUNT))
     
+    STOPPED_COUNT=0
     stop_via_process_manager
-    total_stopped=$((total_stopped + $?))
+    total_stopped=$((total_stopped + STOPPED_COUNT))
     
+    STOPPED_COUNT=0
     stop_via_environment
-    total_stopped=$((total_stopped + $?))
+    total_stopped=$((total_stopped + STOPPED_COUNT))
     
+    STOPPED_COUNT=0
     stop_via_working_directory
-    total_stopped=$((total_stopped + $?))
+    total_stopped=$((total_stopped + STOPPED_COUNT))
     
     # Clean up orphaned resources
     cleanup_orphaned_resources

@@ -12,7 +12,19 @@ source "${EMBEDDINGS_DIR}/../../../../lib/utils/var.sh"
 source "${var_LIB_UTILS_DIR}/log.sh"
 
 # Maximum parallel workers (can be overridden)
-MAX_WORKERS="${QDRANT_MAX_WORKERS:-4}"
+# Increased to 16 to match CPU cores and Ollama parallel capacity
+MAX_WORKERS="${QDRANT_MAX_WORKERS:-16}"
+
+# Auto-detect CPU cores if MAX_WORKERS is 0
+if [[ "$MAX_WORKERS" -eq 0 ]]; then
+    MAX_WORKERS=$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
+    log::debug "Auto-detected $MAX_WORKERS CPU cores for parallel processing"
+fi
+
+# Ensure MAX_WORKERS is at least 1
+if [[ "$MAX_WORKERS" -lt 1 ]]; then
+    MAX_WORKERS=1
+fi
 
 #######################################
 # Process files in parallel batches
@@ -59,13 +71,30 @@ qdrant::parallel::process_batch() {
         ((chunk_num++))
     done
     
-    # Wait for all parallel jobs to complete
+    # Wait for all parallel jobs to complete with enhanced error handling
     local failed=0
+    local completed=0
+    local total_jobs=${#pids[@]}
+    
     for pid in "${pids[@]}"; do
-        if ! wait "$pid"; then
+        if wait "$pid"; then
+            ((completed++))
+            log::debug "Parallel job $pid completed successfully ($completed/$total_jobs)"
+        else
+            local exit_code=$?
             ((failed++))
+            log::warn "Parallel job $pid failed with exit code $exit_code ($failed failures so far)"
+            
+            # If too many jobs are failing, consider reducing parallelism
+            if [[ $failed -gt $((total_jobs / 2)) ]]; then
+                log::error "More than 50% of parallel jobs failing - consider reducing MAX_WORKERS"
+            fi
         fi
     done
+    
+    # Performance metrics
+    local success_rate=$((completed * 100 / total_jobs))
+    log::info "Parallel processing completed: $completed successful, $failed failed (${success_rate}% success rate)"
     
     # Aggregate results
     local total_processed=0
