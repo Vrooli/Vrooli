@@ -8,7 +8,7 @@ PARALLEL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 EMBEDDINGS_DIR="$(dirname "$PARALLEL_DIR")"
 
 # Source required utilities
-source "${EMBEDDINGS_DIR}/../../../../lib/utils/var.sh"
+source "${EMBEDDINGS_DIR}/../../../scripts/lib/utils/var.sh"
 source "${var_LIB_UTILS_DIR}/log.sh"
 
 # Maximum parallel workers (can be overridden)

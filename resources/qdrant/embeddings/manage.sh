@@ -9,7 +9,7 @@ EMBEDDINGS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 QDRANT_DIR="$(dirname "$EMBEDDINGS_DIR")"
 
 # Source required utilities
-source "${QDRANT_DIR}/../../../lib/utils/var.sh"
+source "${QDRANT_DIR}/../../scripts/lib/utils/var.sh"
 source "${var_LIB_UTILS_DIR}/log.sh"
 # source "${var_LIB_UTILS_DIR}/validation.sh"  # Not used, commented out
 
@@ -597,8 +597,13 @@ qdrant::embeddings::validate() {
     local code_count=$(find "$dir" -type f \( -name "*.sh" -o -name "*.ts" -o -name "*.js" \) ! -path "*/node_modules/*" 2>/dev/null | wc -l)
     echo "  • Code Files: $code_count"
     
-    # Resources
-    local resource_count=$(find "$dir/scripts/resources" -mindepth 2 -maxdepth 2 -type d 2>/dev/null | wc -l)
+    # Resources - check both new and old locations
+    local resource_count=0
+    if [[ -d "$dir/resources" ]]; then
+        resource_count=$(find "$dir/resources" -mindepth 1 -maxdepth 1 -type d -exec test -f {}/cli.sh \; -print 2>/dev/null | wc -l)
+    elif [[ -d "$dir/scripts/resources" ]]; then
+        resource_count=$(find "$dir/scripts/resources" -mindepth 2 -maxdepth 2 -type d 2>/dev/null | wc -l)
+    fi
     echo "  • Resources: $resource_count"
     echo
     

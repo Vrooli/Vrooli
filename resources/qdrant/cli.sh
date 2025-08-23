@@ -21,7 +21,7 @@ QDRANT_CLI_DIR="$(cd "$(dirname "$QDRANT_CLI_SCRIPT")" && pwd)"
 
 # Source standard variables
 # shellcheck disable=SC1091
-source "${QDRANT_CLI_DIR}/../../../lib/utils/var.sh"
+source "${QDRANT_CLI_DIR}/../../scripts/lib/utils/var.sh"
 
 # Source utilities using var_ variables
 # shellcheck disable=SC1091

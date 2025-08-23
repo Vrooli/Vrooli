@@ -9,7 +9,7 @@ EXTRACTOR_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 EMBEDDINGS_DIR="$(dirname "$EXTRACTOR_DIR")"
 
 # Source required utilities
-source "${EMBEDDINGS_DIR}/../../../../lib/utils/var.sh"
+source "${EMBEDDINGS_DIR}/../../../scripts/lib/utils/var.sh"
 source "${var_LIB_UTILS_DIR}/log.sh"
 
 # Temporary directory for extracted content
@@ -212,6 +212,41 @@ API Endpoints: $endpoint_count"
 }
 
 #######################################
+# Detect resource category from resource name
+# Arguments:
+#   $1 - Resource name
+# Returns: Category string
+#######################################
+qdrant::extract::detect_resource_category() {
+    local resource_name="$1"
+    
+    # Map resources to categories based on known patterns
+    case "$resource_name" in
+        ollama|litellm|gemini|openai|claude-code|openrouter|llamaindex|langchain)
+            echo "ai"
+            ;;
+        postgres|redis|qdrant|minio|neo4j|questdb|vault|postgis)
+            echo "storage"
+            ;;
+        n8n|windmill|node-red|huginn)
+            echo "automation"
+            ;;
+        browserless|agent-s2|autogpt|crewai)
+            echo "agents"
+            ;;
+        judge0|ffmpeg|blender|obs-studio|kicad|openscad)
+            echo "execution"
+            ;;
+        btcpay|erpnext|odoo|keycloak|mail-in-a-box|home-assistant)
+            echo "services"
+            ;;
+        *)
+            echo "utility"
+            ;;
+    esac
+}
+
+#######################################
 # Extract resource dependencies
 # Arguments:
 #   $1 - Path to resource directory
@@ -352,23 +387,50 @@ qdrant::extract::resources_batch() {
     # Find all resource directories
     local resource_dirs=()
     
-    # Look for resources in standard locations
-    if [[ -d "$dir/scripts/resources" ]]; then
+    # Check if caching is available for performance optimization
+    if [[ -f "${EMBEDDINGS_DIR}/lib/cache.sh" ]]; then
+        source "${EMBEDDINGS_DIR}/lib/cache.sh"
+        # Use cached resource locations if available
         while IFS= read -r resource_dir; do
-            if [[ -f "$resource_dir/cli.sh" ]]; then
+            resource_dirs+=("$resource_dir")
+        done < <(qdrant::cache::get_resources 2>/dev/null)
+    fi
+    
+    # If no cached results, use direct discovery
+    if [[ ${#resource_dirs[@]} -eq 0 ]]; then
+        # Look for resources in NEW structure first (flat under resources/)
+        if [[ -d "$dir/resources" ]]; then
+            # Optimized single-level find for flatter structure
+            while IFS= read -r resource_dir; do
                 resource_dirs+=("$resource_dir")
-            fi
-        done < <(find "$dir/scripts/resources" -mindepth 2 -maxdepth 3 -type d 2>/dev/null)
+            done < <(find "$dir/resources" -mindepth 1 -maxdepth 1 -type d -exec test -f {}/cli.sh \; -print 2>/dev/null)
+        fi
+        
+        # Fallback to OLD structure if no resources found in new location
+        if [[ ${#resource_dirs[@]} -eq 0 ]] && [[ -d "$dir/scripts/resources" ]]; then
+            while IFS= read -r resource_dir; do
+                if [[ -f "$resource_dir/cli.sh" ]]; then
+                    resource_dirs+=("$resource_dir")
+                fi
+            done < <(find "$dir/scripts/resources" -mindepth 2 -maxdepth 3 -type d 2>/dev/null)
+        fi
     fi
     
     # Also check for .vrooli/service.json resources
     if [[ -f "$dir/.vrooli/service.json" ]]; then
         local resource_names=$(jq -r '.resources | keys[]' "$dir/.vrooli/service.json" 2>/dev/null)
         for resource_name in $resource_names; do
-            local resource_path="$dir/scripts/resources/*/$resource_name"
-            local found_dir=$(ls -d $resource_path 2>/dev/null | head -1)
-            if [[ -d "$found_dir" ]] && [[ ! " ${resource_dirs[@]} " =~ " $found_dir " ]]; then
-                resource_dirs+=("$found_dir")
+            # Try new structure first
+            local resource_path="$dir/resources/$resource_name"
+            if [[ -d "$resource_path" ]] && [[ ! " ${resource_dirs[@]} " =~ " $resource_path " ]]; then
+                resource_dirs+=("$resource_path")
+            else
+                # Fallback to old structure
+                resource_path="$dir/scripts/resources/*/$resource_name"
+                local found_dir=$(ls -d $resource_path 2>/dev/null | head -1)
+                if [[ -d "$found_dir" ]] && [[ ! " ${resource_dirs[@]} " =~ " $found_dir " ]]; then
+                    resource_dirs+=("$found_dir")
+                fi
             fi
         done
     fi
@@ -440,7 +502,16 @@ qdrant::extract::resource_metadata() {
     fi
     
     local resource_name=$(basename "$dir")
-    local resource_type=$(basename "$(dirname "$dir")")
+    # Detect resource type - handle both old and new structures
+    local parent_dir=$(basename "$(dirname "$dir")")
+    local resource_type=""
+    if [[ "$parent_dir" == "resources" ]]; then
+        # New structure - detect type from resource name
+        resource_type=$(qdrant::extract::detect_resource_category "$resource_name")
+    else
+        # Old structure - use parent directory as type
+        resource_type="$parent_dir"
+    fi
     
     # Count components
     local lib_count=$(find "$dir/lib" -type f -name "*.sh" 2>/dev/null | wc -l)
@@ -521,7 +592,16 @@ qdrant::extract::resources_summary() {
     
     # Find all resources
     local resource_dirs=()
-    if [[ -d "$dir/scripts/resources" ]]; then
+    # Check new structure first
+    if [[ -d "$dir/resources" ]]; then
+        while IFS= read -r resource_dir; do
+            if [[ -f "$resource_dir/cli.sh" ]]; then
+                resource_dirs+=("$resource_dir")
+            fi
+        done < <(find "$dir/resources" -mindepth 1 -maxdepth 1 -type d 2>/dev/null)
+    fi
+    # Fallback to old structure
+    if [[ ${#resource_dirs[@]} -eq 0 ]] && [[ -d "$dir/scripts/resources" ]]; then
         while IFS= read -r resource_dir; do
             if [[ -f "$resource_dir/cli.sh" ]]; then
                 resource_dirs+=("$resource_dir")
@@ -546,7 +626,16 @@ qdrant::extract::resources_summary() {
     
     for resource_dir in "${resource_dirs[@]}"; do
         local resource_name=$(basename "$resource_dir")
-        local resource_category=$(basename "$(dirname "$resource_dir")")
+        # Detect category - new structure doesn't have category dirs
+        local parent_dir=$(basename "$(dirname "$resource_dir")")
+        local resource_category=""
+        if [[ "$parent_dir" == "resources" ]]; then
+            # New structure - need to detect category from resource name
+            resource_category=$(qdrant::extract::detect_resource_category "$resource_name")
+        else
+            # Old structure - use parent directory as category
+            resource_category="$parent_dir"
+        fi
         
         case "$resource_category" in
             ai|llm|inference)

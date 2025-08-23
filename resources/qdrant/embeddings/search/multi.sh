@@ -10,7 +10,7 @@ EMBEDDINGS_DIR="$(dirname "$SEARCH_DIR")"
 QDRANT_DIR="$(dirname "$EMBEDDINGS_DIR")"
 
 # Source required utilities
-source "${QDRANT_DIR}/../../../lib/utils/var.sh"
+source "${QDRANT_DI../../../scripts/lib/utils/var.sh"
 source "${var_LIB_UTILS_DIR}/log.sh"
 
 # Source search components
