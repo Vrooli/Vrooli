@@ -19,12 +19,12 @@ show_usage() {
 Usage: ./run-tests.sh [PHASE] [OPTIONS]
 
 PHASES:
-  static      Run static analysis (shellcheck, bash -n) on all shell scripts
-  resources   Validate resources/ construction & test with mocks  
-  scenarios   Validate scenarios & run integration tests for converted ones
-  bats        Execute all BATS tests with caching mechanism
-  docs        Validate markdown documentation (syntax and file references)
-  all         Run all phases sequentially (default)
+  static        Run static analysis (shellcheck, TypeScript, Python, Go) on all files
+  structure     Validate file/directory structures and configurations  
+  integration   Run integration tests (resource mocks, app testing, etc.)
+  unit          Execute all unit tests (BATS) with caching mechanism
+  docs          Validate markdown documentation (syntax and file references)
+  all           Run all phases sequentially (default)
 
 OPTIONS:
   --verbose       Show detailed output from all phases
@@ -35,12 +35,12 @@ OPTIONS:
   --help         Show this help
 
 EXAMPLES:
-  ./run-tests.sh                    # Run all phases
-  ./run-tests.sh static             # Only static analysis
-  ./run-tests.sh resources --verbose # Resource testing with details
-  ./run-tests.sh scenarios --dry-run # Show what scenarios would be tested
-  ./run-tests.sh bats --no-cache    # Run BATS without caching
-  ./run-tests.sh docs --verbose     # Documentation validation with details
+  ./run-tests.sh                      # Run all phases
+  ./run-tests.sh static               # Only static analysis
+  ./run-tests.sh structure --verbose  # Structure validation with details
+  ./run-tests.sh integration --dry-run # Show what integration tests would run
+  ./run-tests.sh unit --no-cache      # Run unit tests without caching
+  ./run-tests.sh docs --verbose       # Documentation validation with details
 
 Each phase can be run independently and will report its own results.
 EOF
@@ -53,10 +53,11 @@ PARALLEL=""
 NO_CACHE=""
 DRY_RUN=""
 CLEAR_CACHE=""
+PHASE_ARGS=()
 
 while [[ $# -gt 0 ]]; do
     case $1 in
-        static|resources|scenarios|bats|docs|all)
+        static|structure|integration|unit|docs|all)
             PHASE="$1"
             shift
             ;;
@@ -85,9 +86,15 @@ while [[ $# -gt 0 ]]; do
             exit 0
             ;;
         *)
-            log_error "Unknown option: $1"
-            show_usage
-            exit 1
+            # If we have a phase selected, treat remaining args as phase-specific
+            if [[ "$PHASE" != "all" ]]; then
+                PHASE_ARGS+=("$1")
+                shift
+            else
+                log_error "Unknown option: $1"
+                show_usage
+                exit 1
+            fi
             ;;
     esac
 done
@@ -117,9 +124,10 @@ export TEST_CACHE_MAX_AGE="${TEST_CACHE_MAX_AGE:-86400}"
 ensure_script_permissions() {
     local scripts_to_check=(
         "$SCRIPT_DIR/phases/test-static.sh"
-        "$SCRIPT_DIR/phases/test-resources.sh"
-        "$SCRIPT_DIR/phases/test-scenarios.sh"
-        "$SCRIPT_DIR/phases/test-bats.sh"
+        "$SCRIPT_DIR/phases/test-structure.sh"
+        "$SCRIPT_DIR/phases/test-integration.sh"
+        "$SCRIPT_DIR/phases/test-unit.sh"
+        "$SCRIPT_DIR/phases/test-docs.sh"
         "$SCRIPT_DIR/shared/logging.bash"
         "$SCRIPT_DIR/shared/test-helpers.bash"
         "$SCRIPT_DIR/shared/cache.bash"
@@ -194,6 +202,8 @@ TOTAL_FAILED=0
 
 run_phase() {
     local phase_name="$1"
+    shift  # Remove phase_name, remaining args are phase-specific
+    local phase_args=("$@")
     local phase_script="$SCRIPT_DIR/phases/test-$phase_name.sh"
     
     # Double-check permissions before running (in case they changed)
@@ -213,6 +223,9 @@ run_phase() {
     fi
     
     log_info "🚀 Starting $phase_name phase..."
+    if [[ ${#phase_args[@]} -gt 0 ]]; then
+        log_info "📋 Phase arguments: ${phase_args[*]}"
+    fi
     
     local start_time
     start_time=$(date +%s)
@@ -224,6 +237,11 @@ run_phase() {
     [[ -n "$NO_CACHE" ]] && cmd+=("$NO_CACHE")
     [[ -n "$DRY_RUN" ]] && cmd+=("$DRY_RUN")
     [[ -n "$CLEAR_CACHE" ]] && cmd+=("$CLEAR_CACHE")
+    
+    # Add phase-specific arguments
+    if [[ ${#phase_args[@]} -gt 0 ]]; then
+        cmd+=("${phase_args[@]}")
+    fi
     
     # Execute with explicit environment variable propagation
     # This ensures all variables are available to the child process
@@ -277,23 +295,23 @@ main() {
     
     case $PHASE in
         static)
-            run_phase "static" || overall_success=false
+            run_phase "static" "${PHASE_ARGS[@]}" || overall_success=false
             ;;
-        resources)
-            run_phase "resources" || overall_success=false
+        structure)
+            run_phase "structure" "${PHASE_ARGS[@]}" || overall_success=false
             ;;
-        scenarios)
-            run_phase "scenarios" || overall_success=false
+        integration)
+            run_phase "integration" "${PHASE_ARGS[@]}" || overall_success=false
             ;;
-        bats)
-            run_phase "bats" || overall_success=false
+        unit)
+            run_phase "unit" "${PHASE_ARGS[@]}" || overall_success=false
             ;;
         docs)
-            run_phase "docs" || overall_success=false
+            run_phase "docs" "${PHASE_ARGS[@]}" || overall_success=false
             ;;
         all)
-            # Run all phases in sequence
-            local phases=("static" "resources" "scenarios" "bats" "docs")
+            # Run all phases in sequence (no phase-specific args for all)
+            local phases=("static" "structure" "integration" "unit" "docs")
             
             for phase in "${phases[@]}"; do
                 if ! run_phase "$phase"; then
