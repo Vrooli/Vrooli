@@ -72,6 +72,8 @@ source "${LIB_DIR}/runtimes/nodejs.sh"
 # shellcheck disable=SC1091
 source "${LIB_DIR}/runtimes/go.sh"
 # shellcheck disable=SC1091
+source "${LIB_DIR}/runtimes/python.sh"
+# shellcheck disable=SC1091
 source "${LIB_DIR}/runtimes/helm.sh"
 # shellcheck disable=SC1091
 source "${LIB_DIR}/runtimes/sqlite.sh"
@@ -237,6 +239,10 @@ setup::generic_main() {
     # Node.js (commonly needed)
     log::info "Installing Node.js..."
     nodejs::ensure_installed || log::warning "Node.js installation failed (not critical)"
+    
+    # Python (commonly needed - with venv support)
+    log::info "Installing Python..."
+    python::ensure_installed || log::warning "Python installation failed (not critical)"
     
     # Go (commonly needed)
     log::info "Installing Go..."

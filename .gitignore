@@ -340,6 +340,7 @@ celerybeat.pid
 
 # Python virtual environments (additional)
 .venv/
+venv/
 env.bak/
 venv.bak/
 
