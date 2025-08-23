@@ -1,0 +1,53 @@
+{
+  "name": "Multi-AI Processing Pipeline",
+  "description": "Cross-platform workflow demonstrating integration between multiple AI resources",
+  "platforms": ["n8n", "node-red"],
+  "workflow": {
+    "steps": [
+      {
+        "name": "document_ingestion",
+        "resource": "unstructured-io",
+        "endpoint": "http://localhost:11450/general/v0/general",
+        "input": "test_document.pdf",
+        "output": "structured_data"
+      },
+      {
+        "name": "content_analysis",
+        "resource": "ollama", 
+        "endpoint": "http://localhost:11434/api/generate",
+        "input": "{{structured_data.text}}",
+        "prompt": "Analyze this document and extract key insights",
+        "model": "llama3.1:8b",
+        "output": "analysis_result"
+      },
+      {
+        "name": "vector_storage",
+        "resource": "qdrant",
+        "endpoint": "http://localhost:6333/collections/documents/points",
+        "input": "{{analysis_result}}",
+        "operation": "upsert",
+        "output": "vector_id"
+      },
+      {
+        "name": "artifact_storage",
+        "resource": "minio",
+        "endpoint": "http://localhost:9000/processed-documents/",
+        "input": "{{analysis_result}}",
+        "operation": "upload",
+        "output": "storage_url"
+      }
+    ],
+    "expected_outputs": {
+      "structured_data": "non-empty object with text field",
+      "analysis_result": "non-empty string with insights",
+      "vector_id": "valid UUID",
+      "storage_url": "valid MinIO URL"
+    },
+    "error_conditions": {
+      "document_parsing_failed": "unstructured-io returns error",
+      "ai_analysis_failed": "ollama request times out or errors",
+      "vector_storage_failed": "qdrant unavailable or insertion fails",
+      "artifact_storage_failed": "minio unavailable or upload fails"
+    }
+  }
+}

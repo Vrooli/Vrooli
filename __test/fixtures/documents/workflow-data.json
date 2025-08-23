@@ -1,0 +1,29 @@
+{
+  "workflow": {
+    "name": "Test Integration Workflow",
+    "description": "Test workflow for integration testing",
+    "steps": [
+      {
+        "id": "step1",
+        "type": "data_input",
+        "config": {
+          "source": "test_data"
+        }
+      },
+      {
+        "id": "step2",
+        "type": "process",
+        "config": {
+          "operation": "transform"
+        }
+      },
+      {
+        "id": "step3",
+        "type": "output",
+        "config": {
+          "destination": "test_output"
+        }
+      }
+    ]
+  }
+}

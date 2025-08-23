@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Vrooli Resource Configuration
+  Test fixture for XML parsing and configuration management
+-->
+<configuration xmlns="http://vrooli.com/config/v1" 
+               xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+               version="2.1.0">
+  
+  <metadata>
+    <name>Resource Integration Test Config</name>
+    <description>Configuration file for testing XML parsing and resource management</description>
+    <created>2025-07-29T14:30:00Z</created>
+    <author>Vrooli Test System</author>
+  </metadata>
+
+  <database>
+    <primary>
+      <host>localhost</host>
+      <port>5432</port>
+      <name>vrooli_test</name>
+      <username>postgres</username>
+      <password>encrypted:AES256:test_password_hash</password>
+      <ssl_mode>require</ssl_mode>
+      <connection_pool>
+        <min_connections>5</min_connections>
+        <max_connections>20</max_connections>
+        <idle_timeout>300</idle_timeout>
+      </connection_pool>
+    </primary>
+    <cache>
+      <type>redis</type>
+      <host>localhost</host>
+      <port>6379</port>
+      <ttl>3600</ttl>
+    </cache>
+  </database>
+
+  <resources>
+    <ai_services>
+      <ollama enabled="true">
+        <base_url>http://localhost:11434</base_url>
+        <models>
+          <model name="llama3.1:8b" priority="1"/>
+          <model name="qwen2.5-coder:7b" priority="2"/>
+          <model name="llama3.2-vision:11b" priority="3"/>
+        </models>
+        <health_check>
+          <interval>60</interval>
+          <timeout>5</timeout>
+          <endpoint>/api/tags</endpoint>
+        </health_check>
+      </ollama>
+      <whisper enabled="true">
+        <base_url>http://localhost:8090</base_url>
+        <supported_formats>
+          <format>wav</format>
+          <format>mp3</format>
+          <format>ogg</format>
+          <format>m4a</format>
+        </supported_formats>
+      </whisper>
+    </ai_services>
+
+    <automation_services>
+      <n8n enabled="true">
+        <base_url>http://localhost:5678</base_url>
+        <api_key>eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9</api_key>
+        <workflows_path>/data/n8n/workflows</workflows_path>
+      </n8n>
+      <node_red enabled="true">
+        <base_url>http://localhost:1880</base_url>
+        <admin_url>http://localhost:1880/admin</admin_url>
+        <flows_directory>/data/flows</flows_directory>
+        <auto_backup enabled="true" interval="1h"/>
+      </node_red>
+    </automation_services>
+
+    <storage_services>
+      <minio enabled="true">
+        <endpoint>http://localhost:9000</endpoint>
+        <access_key>minioadmin</access_key>
+        <secret_key>minioadmin</secret_key>
+        <buckets>
+          <bucket name="documents" public="false"/>
+          <bucket name="artifacts" public="false"/>
+          <bucket name="backups" public="false"/>
+        </buckets>
+      </minio>
+    </storage_services>
+  </resources>
+
+  <security>
+    <authentication>
+      <jwt>
+        <secret>test_jwt_secret_key_for_testing</secret>
+        <expiration>86400</expiration>
+        <issuer>vrooli-test</issuer>
+      </jwt>
+      <oauth>
+        <providers>
+          <provider name="github" enabled="true">
+            <client_id>test_github_client_id</client_id>
+            <client_secret>test_github_client_secret</client_secret>
+            <scope>user:email,read:user</scope>
+          </provider>
+        </providers>
+      </oauth>
+    </authentication>
+    <rate_limiting>
+      <api_calls>100</api_calls>
+      <time_window>60</time_window>
+      <burst_limit>20</burst_limit>
+    </rate_limiting>
+  </security>
+
+  <logging>
+    <level>debug</level>
+    <format>json</format>
+    <outputs>
+      <console enabled="true"/>
+      <file enabled="true" path="/var/log/vrooli/app.log"/>
+      <remote enabled="false" endpoint="http://logging-service:9200"/>
+    </outputs>
+    <modules>
+      <module name="database" level="info"/>
+      <module name="resources" level="debug"/>
+      <module name="security" level="warn"/>
+    </modules>
+  </logging>
+
+  <monitoring>
+    <metrics enabled="true">
+      <prometheus>
+        <endpoint>/metrics</endpoint>
+        <port>9090</port>
+      </prometheus>
+    </metrics>
+    <health_checks>
+      <endpoint>/health</endpoint>
+      <interval>30</interval>
+      <services>
+        <service name="database" critical="true"/>
+        <service name="redis" critical="true"/>
+        <service name="ollama" critical="false"/>
+      </services>
+    </health_checks>
+  </monitoring>
+
+</configuration>

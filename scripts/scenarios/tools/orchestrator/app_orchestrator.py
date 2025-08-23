@@ -20,7 +20,7 @@ from typing import Dict, List, Optional, Set
 import psutil
 
 # Constants for safety
-MAX_APPS = 10  # Reduced to prevent overwhelming system
+MAX_APPS = 100
 MAX_CONCURRENT_STARTS = 3  # Maximum apps starting simultaneously
 MAX_PROCESSES_PER_APP = 5  # Max processes an app can spawn
 ORCHESTRATOR_LOCK_FILE = "/tmp/vrooli-orchestrator.lock"
@@ -29,8 +29,8 @@ APP_PID_DIR = "/tmp/vrooli-apps"
 FORK_BOMB_THRESHOLD = 30  # Reduced threshold for safety
 FORK_BOMB_WINDOW = 10  # Time window in seconds
 # Adjusted for 32-core server with ~730 normal processes (415 kernel + 315 user)
-SYSTEM_PROCESS_LIMIT = 1200  # Increased - your system normally runs 730+ processes
-SYSTEM_WARNING_LIMIT = 1000  # Warn but don't stop
+SYSTEM_PROCESS_LIMIT = 2000  # Increased - your system normally runs 730+ processes
+SYSTEM_WARNING_LIMIT = 1500  # Warn but don't stop
 
 @dataclass
 class App:

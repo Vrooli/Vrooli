@@ -1,0 +1,13 @@
+{
+  "level1": {
+    "level2": {
+      "level3": {
+        "level4": {
+          "level5": {
+            "description": "Deeply nested but safe structure for testing depth limits"
+          }
+        }
+      }
+    }
+  }
+}

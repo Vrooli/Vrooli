@@ -1,0 +1,5 @@
+{
+  "a": {"ref": "#/a"},
+  "b": {"ref": "#/b"},
+  "recursive": {"nested": {"deeply": {"ref": "#/recursive"}}}
+}
