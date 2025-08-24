@@ -20,7 +20,8 @@ set -euo pipefail
 #
 ################################################################################
 
-SCENARIO_TOOLS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+SCENARIO_TOOLS_DIR="${APP_ROOT}/scripts/scenarios/tools"
 
 # shellcheck disable=SC1091
 source "${SCENARIO_TOOLS_DIR}/../../lib/utils/var.sh"

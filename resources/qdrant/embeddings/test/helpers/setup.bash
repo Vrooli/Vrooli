@@ -2,7 +2,8 @@
 # Test setup helpers for embedding system tests
 
 # Paths to important directories
-EMBEDDING_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../../../.." && builtin pwd)}"
+EMBEDDING_ROOT="${APP_ROOT}/resources/qdrant/embeddings"
 FIXTURE_ROOT="$EMBEDDING_ROOT/test/fixtures"
 TEST_ROOT="$EMBEDDING_ROOT/test"
 

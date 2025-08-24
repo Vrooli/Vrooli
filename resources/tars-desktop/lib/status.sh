@@ -2,7 +2,8 @@
 # TARS-desktop status functionality
 
 # Get script directory
-TARS_DESKTOP_STATUS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+TARS_DESKTOP_STATUS_DIR="${APP_ROOT}/resources/tars-desktop/lib"
 
 # Source dependencies
 source "${TARS_DESKTOP_STATUS_DIR}/core.sh"

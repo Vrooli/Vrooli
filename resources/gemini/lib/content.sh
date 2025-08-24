@@ -1,13 +1,13 @@
 #!/bin/bash
 # Gemini content management functionality
 
-# Get script directory
-GEMINI_CONTENT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+GEMINI_CONTENT_DIR="${APP_ROOT}/resources/gemini/lib"
 
 # Source dependencies
 source "${GEMINI_CONTENT_DIR}/core.sh"
-source "${GEMINI_CONTENT_DIR}/../../../../lib/utils/log.sh"
-source "${GEMINI_CONTENT_DIR}/../../../../lib/utils/format.sh"
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
+source "${APP_ROOT}/scripts/lib/utils/format.sh"
 
 # Content storage directory
 GEMINI_CONTENT_STORAGE="${VROOLI_DATA_DIR:-${HOME}/Vrooli/data}/gemini/content"

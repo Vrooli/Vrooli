@@ -5,7 +5,8 @@
 set -euo pipefail
 
 # Source common functions and format utilities
-WIKIJS_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+WIKIJS_LIB_DIR="${APP_ROOT}/resources/wikijs/lib"
 
 # Source var.sh first to set up environment variables
 source "$WIKIJS_LIB_DIR/../../../../lib/utils/var.sh" 2>/dev/null || true

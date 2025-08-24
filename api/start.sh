@@ -5,7 +5,8 @@
 
 set -euo pipefail
 
-API_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/.." && builtin pwd)}"
+API_DIR="${APP_ROOT}/api"
 PORT="${VROOLI_API_PORT:-8092}"
 
 # Check if already running

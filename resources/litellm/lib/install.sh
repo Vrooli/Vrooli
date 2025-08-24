@@ -1,13 +1,13 @@
 #!/bin/bash
 # LiteLLM installation functionality
 
-# Get script directory
-LITELLM_INSTALL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+LITELLM_INSTALL_DIR="${APP_ROOT}/resources/litellm/lib"
 
 # Source dependencies
 source "${LITELLM_INSTALL_DIR}/core.sh"
 source "${LITELLM_INSTALL_DIR}/docker.sh"
-source "${LITELLM_INSTALL_DIR}/../../../lib/resources/install-resource-cli.sh"
+source "${APP_ROOT}/scripts/lib/resources/install-resource-cli.sh"
 
 # Install LiteLLM resource
 litellm::install() {

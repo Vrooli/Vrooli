@@ -8,7 +8,8 @@
 
 set -euo pipefail
 
-CLI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+CLI_DIR="${APP_ROOT}/cli/commands"
 # shellcheck disable=SC1091
 source "${CLI_DIR}/../../scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091

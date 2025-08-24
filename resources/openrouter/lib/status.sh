@@ -2,7 +2,8 @@
 # OpenRouter status functionality
 
 # Get script directory
-OPENROUTER_STATUS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+OPENROUTER_STATUS_DIR="${APP_ROOT}/resources/openrouter/lib"
 
 # Source dependencies
 source "${OPENROUTER_STATUS_DIR}/core.sh"

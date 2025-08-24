@@ -13,10 +13,10 @@
 
 set -euo pipefail
 
-# Get CLI directory
-CLI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+CLI_DIR="${APP_ROOT}/cli/commands"
 # shellcheck disable=SC1091
-source "${CLI_DIR}/../../scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE:-${CLI_DIR}/../../scripts/lib/utils/log.sh}"
 # shellcheck disable=SC1091

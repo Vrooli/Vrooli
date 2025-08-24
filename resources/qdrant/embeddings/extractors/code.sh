@@ -10,6 +10,13 @@ APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin
 EMBEDDINGS_DIR="${APP_ROOT}/resources/qdrant/embeddings"
 EXTRACTOR_DIR="${EMBEDDINGS_DIR}/extractors"
 
+# Source required utilities
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${var_LIB_UTILS_DIR}/log.sh"
+
+# Source unified embedding service
+source "${EMBEDDINGS_DIR}/lib/embedding-service.sh"
+
 # Extract FILE-LEVEL summary for better performance
 qdrant::extract::code() {
     local file="$1"
@@ -152,7 +159,159 @@ qdrant::extract::code_batch() {
     return 0
 }
 
+#######################################
+# Process code using unified embedding service
+# Arguments:
+#   $1 - App ID
+# Returns: Number of code files processed
+#######################################
+qdrant::embeddings::process_code() {
+    local app_id="$1"
+    local collection="${app_id}-code"
+    local count=0
+    
+    # Extract code to temp file
+    local output_file="$TEMP_DIR/code.txt"
+    qdrant::extract::code_batch "." "$output_file" >&2
+    
+    if [[ ! -f "$output_file" ]] || [[ ! -s "$output_file" ]]; then
+        log::debug "No code found for processing"
+        echo "0"
+        return 0
+    fi
+    
+    # Process each code file through unified embedding service
+    local content=""
+    local processing_code=false
+    
+    while IFS= read -r line; do
+        if [[ "$line" == "File: "* ]]; then
+            # Start of new code file content
+            processing_code=true
+            content="$line"
+        elif [[ "$line" == "---SEPARATOR---" ]] && [[ "$processing_code" == true ]]; then
+            # End of code file, process it
+            if [[ -n "$content" ]]; then
+                # Extract code metadata from content
+                local metadata
+                metadata=$(qdrant::extract::code_metadata_from_content "$content")
+                
+                # Process through unified embedding service
+                if qdrant::embedding::process_item "$content" "code" "$collection" "$app_id" "$metadata"; then
+                    ((count++))
+                fi
+            fi
+            processing_code=false
+            content=""
+        elif [[ "$processing_code" == true ]]; then
+            # Continue accumulating code content
+            content="${content}"$'\n'"${line}"
+        fi
+    done < "$output_file"
+    
+    log::debug "Created $count code embeddings"
+    echo "$count"
+}
+
+#######################################
+# Extract metadata from code content text
+# Arguments:
+#   $1 - Code content text
+# Returns: JSON metadata object
+#######################################
+qdrant::extract::code_metadata_from_content() {
+    local content="$1"
+    
+    # Extract file information from content
+    local file_path
+    file_path=$(echo "$content" | grep "^File: " | cut -d: -f2- | sed 's/^ *//')
+    
+    local filename=""
+    local file_ext=""
+    local language=""
+    if [[ -n "$file_path" ]]; then
+        filename=$(basename "$file_path")
+        file_ext="${filename##*.}"
+        
+        # Determine language from file extension
+        case "$file_ext" in
+            js|jsx) language="javascript" ;;
+            ts|tsx) language="typescript" ;;
+            py) language="python" ;;
+            sh|bash) language="shell" ;;
+            go) language="go" ;;
+            rs) language="rust" ;;
+            java) language="java" ;;
+            cpp|cc|cxx) language="cpp" ;;
+            c) language="c" ;;
+            h|hpp) language="header" ;;
+            rb) language="ruby" ;;
+            php) language="php" ;;
+            swift) language="swift" ;;
+            kt) language="kotlin" ;;
+            scala) language="scala" ;;
+            r) language="r" ;;
+            m) language="matlab" ;;
+            *) language="unknown" ;;
+        esac
+    fi
+    
+    # Extract language info if present
+    local detected_language
+    detected_language=$(echo "$content" | grep "^Language: " | cut -d: -f2- | sed 's/^ *//' | cut -d' ' -f1)
+    if [[ -n "$detected_language" ]]; then
+        language="$detected_language"
+    fi
+    
+    # Extract size if present
+    local file_size
+    file_size=$(echo "$content" | grep "^Size: " | cut -d: -f2- | sed 's/^ *//' | cut -d' ' -f1)
+    
+    # Estimate complexity based on content
+    local content_length
+    content_length=$(echo -n "$content" | wc -c)
+    
+    local line_count
+    line_count=$(echo "$content" | wc -l)
+    
+    # Determine file category
+    local category="source"
+    if [[ "$file_ext" == "h" ]] || [[ "$file_ext" == "hpp" ]]; then
+        category="header"
+    elif [[ "$language" == "shell" ]]; then
+        category="script"
+    elif [[ "$filename" == *"test"* ]] || [[ "$filename" == *"spec"* ]]; then
+        category="test"
+    elif [[ "$filename" == *"config"* ]] || [[ "$filename" == *"setup"* ]]; then
+        category="configuration"
+    fi
+    
+    # Build metadata JSON
+    jq -n \
+        --arg filename "${filename:-Unknown}" \
+        --arg file_path "${file_path:-}" \
+        --arg file_ext "${file_ext:-}" \
+        --arg language "${language:-unknown}" \
+        --arg category "$category" \
+        --arg file_size "${file_size:-0}" \
+        --arg content_length "$content_length" \
+        --arg line_count "$line_count" \
+        '{
+            filename: $filename,
+            source_file: $file_path,
+            file_extension: $file_ext,
+            language: $language,
+            category: $category,
+            file_size: ($file_size | tonumber),
+            content_length: ($content_length | tonumber),
+            line_count: ($line_count | tonumber),
+            content_type: "code",
+            extractor: "code"
+        }'
+}
+
 # Export functions
 export -f qdrant::extract::code
 export -f qdrant::extract::find_code
 export -f qdrant::extract::code_batch
+export -f qdrant::embeddings::process_code

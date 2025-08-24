@@ -2,7 +2,8 @@
 # SimPy configuration defaults
 
 # Get script directory
-SIMPY_CONFIG_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+SIMPY_CONFIG_DIR="${APP_ROOT}/resources/simpy/config"
 
 # Source variable utilities FIRST
 # shellcheck disable=SC1091

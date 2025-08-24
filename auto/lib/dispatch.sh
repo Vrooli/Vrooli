@@ -182,7 +182,8 @@ run_loop() {
 }
 
 # Load modular dispatcher if available
-COMMANDS_DIR="${LIB_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}/commands"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+COMMANDS_DIR="${APP_ROOT}/auto/lib/commands"
 if [[ -f "$COMMANDS_DIR/dispatcher.sh" ]]; then
 	# shellcheck disable=SC1090
 	source "$COMMANDS_DIR/dispatcher.sh"

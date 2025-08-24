@@ -23,8 +23,8 @@ if [[ -n "${_AUTO_ERROR_HANDLER_SOURCED:-}" ]]; then
 fi
 readonly _AUTO_ERROR_HANDLER_SOURCED=1
 
-# Source dependencies
-LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+LIB_DIR="${APP_ROOT}/auto/lib"
 # shellcheck disable=SC1091
 source "$LIB_DIR/constants.sh"
 # shellcheck disable=SC1091

@@ -13,8 +13,8 @@ if [[ "${VROOLI_ORCHESTRATOR_RUNNING:-}" == "1" ]]; then
     exit 1
 fi
 
-# Get script directory
-ORCHESTRATOR_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
+ORCHESTRATOR_DIR="${APP_ROOT}/scripts/scenarios/tools/orchestrator"
 VENV_DIR="${ORCHESTRATOR_DIR}/venv"
 
 # Use the orchestrator with fork bomb prevention

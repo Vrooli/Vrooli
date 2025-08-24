@@ -6,8 +6,8 @@
 
 set -euo pipefail
 
-# Get script directory
-ORCHESTRATOR_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
+ORCHESTRATOR_DIR="${APP_ROOT}/scripts/scenarios/tools/orchestrator"
 VENV_DIR="${ORCHESTRATOR_DIR}/venv"
 
 # Colors

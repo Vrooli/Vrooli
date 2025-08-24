@@ -2,8 +2,9 @@
 
 set -euo pipefail
 
-AUTO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")"/../.. && pwd)"
-BASE_DIR="$(cd "$AUTO_DIR"/.. && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+AUTO_DIR="${APP_ROOT}/auto"
+BASE_DIR="${APP_ROOT}"
 TOOLS_DIR="${AUTO_DIR}/tools/selection"
 DATA_DIR="${AUTO_DIR}/data/scenario-improvement"
 EVENTS_FILE="${SCENARIO_EVENTS_JSONL:-${DATA_DIR}/events.ndjson}"

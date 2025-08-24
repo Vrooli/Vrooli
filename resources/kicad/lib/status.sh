@@ -2,11 +2,12 @@
 # KiCad Status Functions
 
 # Get script directory
-KICAD_STATUS_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+KICAD_STATUS_LIB_DIR="${APP_ROOT}/resources/kicad/lib"
 
 # Source dependencies
 source "${KICAD_STATUS_LIB_DIR}/common.sh"
-source "${KICAD_STATUS_LIB_DIR}/../../../lib/status-args.sh"
+source "${APP_ROOT}/scripts/lib/status-args.sh"
 
 # Collect KiCad status data
 kicad::status::collect_data() {

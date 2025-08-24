@@ -5,8 +5,8 @@
 
 set -euo pipefail
 
-# Source required modules
-LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+LIB_DIR="${APP_ROOT}/auto/lib"
 # shellcheck disable=SC1091
 source "$LIB_DIR/file-rotation.sh"
 # shellcheck disable=SC1091

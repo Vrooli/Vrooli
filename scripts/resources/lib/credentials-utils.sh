@@ -8,13 +8,13 @@ set -euo pipefail
 [[ -n "${_CREDENTIALS_UTILS_SOURCED:-}" ]] && return 0
 _CREDENTIALS_UTILS_SOURCED=1
 
-# Get directory and source dependencies
-CREDENTIALS_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+CREDENTIALS_LIB_DIR="${APP_ROOT}/scripts/resources/lib"
 
 # shellcheck disable=SC1091
-source "${CREDENTIALS_LIB_DIR}/../../../lib/utils/var.sh" 2>/dev/null || {
+source "${APP_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || {
     # Fallback if var.sh not found
-    VROOLI_ROOT="${VROOLI_ROOT:-$(cd "${CREDENTIALS_LIB_DIR}/../../../.." && pwd)}"
+    VROOLI_ROOT="$APP_ROOT"
 }
 # shellcheck disable=SC1091
 source "${var_LOG_FILE:-${CREDENTIALS_LIB_DIR}/../../../lib/utils/log.sh}" 2>/dev/null || {

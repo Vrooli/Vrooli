@@ -2,10 +2,10 @@
 # PostgreSQL Installation Functions
 # Handles installation and uninstallation of PostgreSQL resource
 
-# Source required utilities
-POSTGRES_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+POSTGRES_LIB_DIR="${APP_ROOT}/resources/postgres/lib"
 # shellcheck disable=SC1091
-source "${POSTGRES_LIB_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
@@ -66,7 +66,7 @@ postgres::install() {
     log::info "Maximum instances: ${POSTGRES_MAX_INSTANCES}"
     
     # Auto-install CLI if available
-    "${var_SCRIPTS_RESOURCES_LIB_DIR}/install-resource-cli.sh" "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)" 2>/dev/null || true
+    "${var_SCRIPTS_RESOURCES_LIB_DIR}/install-resource-cli.sh" "${APP_ROOT}/resources/postgres" 2>/dev/null || true
     
     return 0
 }

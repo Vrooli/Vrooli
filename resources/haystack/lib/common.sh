@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Get the directory of this script
-HAYSTACK_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+HAYSTACK_LIB_DIR="${APP_ROOT}/resources/haystack/lib"
 
 # Source the shared var utility FIRST
-source "${HAYSTACK_LIB_DIR}/../../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 # Set up paths
 HAYSTACK_BASE_DIR="${HAYSTACK_LIB_DIR}/.."
@@ -18,7 +18,7 @@ HAYSTACK_PID_FILE="${HAYSTACK_DATA_DIR}/haystack.pid"
 HAYSTACK_SCRIPTS_DIR="${HAYSTACK_DATA_DIR}/scripts"
 
 # Source port registry
-source "${HAYSTACK_LIB_DIR}/../../../../resources/port_registry.sh"
+source "${APP_ROOT}/scripts/resources/port_registry.sh"
 
 # Get port for Haystack
 haystack::get_port() {

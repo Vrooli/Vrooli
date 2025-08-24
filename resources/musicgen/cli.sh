@@ -7,10 +7,12 @@ set -euo pipefail
 # Get script directory - handle both direct and symlinked execution
 if [[ -L "${BASH_SOURCE[0]}" ]]; then
     # If symlinked, resolve the real path
-    MUSICGEN_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+    APP_ROOT="${APP_ROOT:-$(builtin cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/..\" && builtin pwd)}"
 else
-    MUSICGEN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/..\" && builtin pwd)}"
 fi
+
+MUSICGEN_DIR="${APP_ROOT}/resources/musicgen"
 
 # Source dependencies
 source "${MUSICGEN_DIR}/lib/common.sh"

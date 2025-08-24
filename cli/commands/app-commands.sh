@@ -23,10 +23,9 @@ BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 NC='\033[0m'
 
-# Source utilities for display
-# shellcheck disable=SC1091
-CLI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VROOLI_ROOT="$(cd "$CLI_DIR/../.." && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+CLI_DIR="${APP_ROOT}/cli/commands"
+VROOLI_ROOT="$APP_ROOT"
 # Unset source guards to ensure utilities are properly loaded when exec'd from CLI
 unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED 2>/dev/null || true
 source "${VROOLI_ROOT}/scripts/lib/utils/var.sh"

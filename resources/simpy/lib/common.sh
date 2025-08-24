@@ -3,11 +3,12 @@
 # SimPy Resource - Common Functions
 set -euo pipefail
 
-# Get the script directory
-SIMPY_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SIMPY_DIR="$(dirname "$SIMPY_LIB_DIR")"
-SIMPY_CONFIG_DIR="$SIMPY_DIR/config"
-SIMPY_EXAMPLES_DIR="$SIMPY_DIR/examples"
+# Define directories using cached APP_ROOT
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+SIMPY_LIB_DIR="${APP_ROOT}/resources/simpy/lib"
+SIMPY_DIR="${APP_ROOT}/resources/simpy"
+SIMPY_CONFIG_DIR="${APP_ROOT}/resources/simpy/config"
+SIMPY_EXAMPLES_DIR="${APP_ROOT}/resources/simpy/examples"
 
 # Source shared utilities
 source "$SIMPY_LIB_DIR/../../../../lib/utils/var.sh"

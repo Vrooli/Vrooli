@@ -3,11 +3,12 @@
 # Comprehensive status monitoring and diagnostics
 
 # Source format utilities and required libraries
-VAULT_STATUS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+VAULT_STATUS_DIR="${APP_ROOT}/resources/vault/lib"
 # shellcheck disable=SC1091
-source "${VAULT_STATUS_DIR}/../../../../lib/utils/format.sh"
+source "${APP_ROOT}/scripts/lib/utils/format.sh"
 # shellcheck disable=SC1091
-source "${VAULT_STATUS_DIR}/../../../lib/status-args.sh"
+source "${APP_ROOT}/scripts/lib/status-args.sh"
 # shellcheck disable=SC1091
 source "${VAULT_STATUS_DIR}/../config/defaults.sh" 2>/dev/null || true
 

@@ -14,6 +14,9 @@ EXTRACTOR_DIR="${EMBEDDINGS_DIR}/extractors"
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${var_LIB_UTILS_DIR}/log.sh"
 
+# Source unified embedding service
+source "${EMBEDDINGS_DIR}/lib/embedding-service.sh"
+
 # Temporary directory for extracted content
 EXTRACT_TEMP_DIR="/tmp/qdrant-resource-extract-$$"
 trap "rm -rf $EXTRACT_TEMP_DIR" EXIT
@@ -736,3 +739,174 @@ qdrant::extract::resources_summary() {
         echo "  No inter-resource adapters found"
     fi
 }
+
+#######################################
+# Process resources using unified embedding service
+# Arguments:
+#   $1 - App ID
+# Returns: Number of resources processed
+#######################################
+qdrant::embeddings::process_resources() {
+    local app_id="$1"
+    local collection="${app_id}-resources"
+    local count=0
+    
+    # Extract resources to temp file
+    local output_file="$TEMP_DIR/resources.txt"
+    qdrant::extract::resources_batch "." "$output_file" >&2
+    
+    if [[ ! -f "$output_file" ]] || [[ ! -s "$output_file" ]]; then
+        log::debug "No resources found for processing"
+        echo "0"
+        return 0
+    fi
+    
+    # Process each resource through unified embedding service
+    local content=""
+    local processing_resource=false
+    
+    while IFS= read -r line; do
+        if [[ "$line" == "Resource: "* ]] || [[ "$line" == "Resource Configuration: "* ]] || \
+           [[ "$line" == "Resource Documentation: "* ]] || [[ "$line" == "Resource Dependencies: "* ]] || \
+           [[ "$line" == "Resource Services: "* ]] || [[ "$line" == "Resource Integrations: "* ]] || \
+           [[ "$line" == "Resource API: "* ]] || [[ "$line" == "Resource Container: "* ]] || \
+           [[ "$line" == "Resource Environment: "* ]]; then
+            # Start of new resource content
+            processing_resource=true
+            content="$line"
+        elif [[ "$line" == "---SEPARATOR---" ]] && [[ "$processing_resource" == true ]]; then
+            # End of resource, process it
+            if [[ -n "$content" ]]; then
+                # Extract resource metadata from content
+                local metadata
+                metadata=$(qdrant::extract::resource_metadata_from_content "$content")
+                
+                # Process through unified embedding service
+                if qdrant::embedding::process_item "$content" "resource" "$collection" "$app_id" "$metadata"; then
+                    ((count++))
+                fi
+            fi
+            processing_resource=false
+            content=""
+        elif [[ "$processing_resource" == true ]]; then
+            # Continue accumulating resource content
+            content="${content}"$'\n'"${line}"
+        fi
+    done < "$output_file"
+    
+    log::debug "Created $count resource embeddings"
+    echo "$count"
+}
+
+#######################################
+# Extract metadata from resource content text
+# Arguments:
+#   $1 - Resource content text
+# Returns: JSON metadata object
+#######################################
+qdrant::extract::resource_metadata_from_content() {
+    local content="$1"
+    
+    # Extract resource name from first line
+    local resource_name
+    if [[ "$content" == "Resource: "* ]]; then
+        resource_name=$(echo "$content" | head -1 | cut -d: -f2- | sed 's/^ *//')
+    elif [[ "$content" == "Resource Configuration: "* ]]; then
+        resource_name=$(echo "$content" | head -1 | cut -d: -f2- | sed 's/^ *//')
+    elif [[ "$content" == "Resource Documentation: "* ]]; then
+        resource_name=$(echo "$content" | head -1 | cut -d: -f2- | sed 's/^ *//')
+    elif [[ "$content" == "Resource Dependencies: "* ]]; then
+        resource_name=$(echo "$content" | head -1 | cut -d: -f2- | sed 's/^ *//')
+    elif [[ "$content" == "Resource Services: "* ]]; then
+        resource_name=$(echo "$content" | head -1 | cut -d: -f2- | sed 's/^ *//')
+    elif [[ "$content" == "Resource API: "* ]]; then
+        resource_name=$(echo "$content" | head -1 | cut -d: -f2- | sed 's/^ *//')
+    fi
+    
+    local file_path
+    file_path=$(echo "$content" | grep "^File: " | cut -d: -f2- | sed 's/^ *//')
+    
+    # Determine resource type from content
+    local resource_type="utility"
+    if [[ -n "$resource_name" ]]; then
+        resource_type=$(qdrant::extract::detect_resource_category "$resource_name")
+    fi
+    
+    # Extract various metadata from content
+    local description
+    description=$(echo "$content" | grep "^Description: " | cut -d: -f2- | sed 's/^ *//' | head -1)
+    
+    local commands
+    commands=$(echo "$content" | grep "^Commands: " | cut -d: -f2- | sed 's/^ *//' | head -1)
+    
+    local capabilities
+    capabilities=$(echo "$content" | grep "^Capabilities: " | cut -d: -f2- | sed 's/^ *//' | head -1)
+    
+    local library_files
+    library_files=$(echo "$content" | grep "^Library Files: " | cut -d: -f2- | sed 's/^ *//' | head -1)
+    
+    local base_image
+    base_image=$(echo "$content" | grep "^Base Image: " | cut -d: -f2- | sed 's/^ *//' | head -1)
+    
+    local exposed_ports
+    exposed_ports=$(echo "$content" | grep "^Exposed Ports: " | cut -d: -f2- | sed 's/^ *//' | head -1)
+    
+    local integrations
+    integrations=$(echo "$content" | grep "^Integrates With: " | cut -d: -f2- | sed 's/^ *//' | head -1)
+    
+    local services
+    services=$(echo "$content" | grep "^Services: " | cut -d: -f2- | sed 's/^ *//' | head -1)
+    
+    local dependencies_count
+    dependencies_count=$(echo "$content" | grep "^Dependencies: " | cut -d: -f2- | sed 's/^ *//' | head -1)
+    
+    # Determine content category
+    local category="resource"
+    if [[ "$content" == "Resource Configuration: "* ]]; then
+        category="configuration"
+    elif [[ "$content" == "Resource Documentation: "* ]]; then
+        category="documentation"  
+    elif [[ "$content" == "Resource Dependencies: "* ]]; then
+        category="dependencies"
+    elif [[ "$content" == "Resource API: "* ]]; then
+        category="api"
+    elif [[ "$content" == "Resource Container: "* ]]; then
+        category="container"
+    fi
+    
+    # Build metadata JSON
+    jq -n \
+        --arg resource_name "${resource_name:-Unknown}" \
+        --arg resource_type "$resource_type" \
+        --arg file_path "${file_path:-}" \
+        --arg category "$category" \
+        --arg description "${description:-}" \
+        --arg commands "${commands:-}" \
+        --arg capabilities "${capabilities:-}" \
+        --arg library_files "${library_files:-0}" \
+        --arg base_image "${base_image:-}" \
+        --arg exposed_ports "${exposed_ports:-}" \
+        --arg integrations "${integrations:-}" \
+        --arg services "${services:-}" \
+        --arg dependencies_count "${dependencies_count:-0}" \
+        '{
+            resource_name: $resource_name,
+            resource_type: $resource_type,
+            source_file: $file_path,
+            category: $category,
+            description: $description,
+            commands: $commands,
+            capabilities: $capabilities,
+            library_files: ($library_files | tonumber),
+            base_image: $base_image,
+            exposed_ports: $exposed_ports,
+            integrations: $integrations,
+            services: $services,
+            dependencies_count: ($dependencies_count | tonumber),
+            content_type: "resource",
+            extractor: "resources"
+        }'
+}
+
+# Export processing function for manage.sh
+export -f qdrant::embeddings::process_resources

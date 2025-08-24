@@ -2,10 +2,10 @@
 # PostgreSQL Status Functions
 # Functions for checking PostgreSQL health and status
 
-# Get script directory and source status args library
-POSTGRES_STATUS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+POSTGRES_STATUS_DIR="${APP_ROOT}/resources/postgres/lib"
 # shellcheck disable=SC1091
-source "${POSTGRES_STATUS_DIR}/../../../lib/status-args.sh"
+source "${APP_ROOT}/scripts/lib/status-args.sh"
 
 #######################################
 # Get comprehensive PostgreSQL resource status

@@ -2,7 +2,8 @@
 # Geth Stop Functions
 
 # Get the script directory
-GETH_STOP_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+GETH_STOP_DIR="${APP_ROOT}/resources/geth/lib"
 
 # Source common functions
 # shellcheck disable=SC1091

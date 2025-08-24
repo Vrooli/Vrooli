@@ -2,10 +2,10 @@
 # Vault Installation Functions
 # Installation, initialization, and setup operations
 
-# Source required utilities
-VAULT_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+VAULT_LIB_DIR="${APP_ROOT}/resources/vault/lib"
 # shellcheck disable=SC1091
-source "${VAULT_LIB_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
@@ -41,7 +41,7 @@ vault::install() {
         
         # Auto-install CLI if available
         # shellcheck disable=SC1091
-        "${var_SCRIPTS_RESOURCES_LIB_DIR}/install-resource-cli.sh" "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)" 2>/dev/null || true
+        "${var_SCRIPTS_RESOURCES_LIB_DIR}/install-resource-cli.sh" "${APP_ROOT}/resources/vault" 2>/dev/null || true
         
         return 0
     else

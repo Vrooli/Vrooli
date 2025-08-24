@@ -14,6 +14,9 @@ EXTRACTOR_DIR="${EMBEDDINGS_DIR}/extractors"
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${var_LIB_UTILS_DIR}/log.sh"
 
+# Source unified embedding service
+source "${EMBEDDINGS_DIR}/lib/embedding-service.sh"
+
 # Temporary directory for extracted content
 EXTRACT_TEMP_DIR="/tmp/qdrant-docs-extract-$$"
 trap "rm -rf $EXTRACT_TEMP_DIR" EXIT
@@ -524,3 +527,140 @@ qdrant::extract::docs_coverage() {
         echo "  All standard documentation files present!"
     fi
 }
+
+#######################################
+# Process documentation using unified embedding service
+# Arguments:
+#   $1 - App ID
+# Returns: Number of documentation sections processed
+#######################################
+qdrant::embeddings::process_documentation() {
+    local app_id="$1"
+    local collection="${app_id}-knowledge"
+    local count=0
+    
+    # Extract documentation to temp file
+    local output_file="$TEMP_DIR/docs.txt"
+    qdrant::extract::docs_batch "." "$output_file" >&2
+    
+    if [[ ! -f "$output_file" ]] || [[ ! -s "$output_file" ]]; then
+        log::debug "No documentation found for processing"
+        echo "0"
+        return 0
+    fi
+    
+    # Process each documentation section through unified embedding service
+    local content=""
+    local processing_doc=false
+    
+    while IFS= read -r line; do
+        if [[ "$line" == *" Documentation" ]]; then
+            # Start of new documentation content
+            processing_doc=true
+            content="$line"
+        elif [[ "$line" == "---SEPARATOR---" ]] && [[ "$processing_doc" == true ]]; then
+            # End of documentation section, process it
+            if [[ -n "$content" ]]; then
+                # Extract documentation metadata from content
+                local metadata
+                metadata=$(qdrant::extract::docs_metadata_from_content "$content")
+                
+                # Process through unified embedding service
+                if qdrant::embedding::process_item "$content" "documentation" "$collection" "$app_id" "$metadata"; then
+                    ((count++))
+                fi
+            fi
+            processing_doc=false
+            content=""
+        elif [[ "$line" == "---SECTION---" ]] && [[ "$processing_doc" == true ]]; then
+            # Section break within a document - process current section and start new one
+            if [[ -n "$content" ]]; then
+                local metadata
+                metadata=$(qdrant::extract::docs_metadata_from_content "$content")
+                
+                if qdrant::embedding::process_item "$content" "documentation" "$collection" "$app_id" "$metadata"; then
+                    ((count++))
+                fi
+            fi
+            # Start accumulating next section
+            content=""
+        elif [[ "$processing_doc" == true ]]; then
+            # Continue accumulating documentation content
+            content="${content}"$'\n'"${line}"
+        fi
+    done < "$output_file"
+    
+    log::debug "Created $count documentation embeddings"
+    echo "$count"
+}
+
+#######################################
+# Extract metadata from documentation content text
+# Arguments:
+#   $1 - Documentation content text
+# Returns: JSON metadata object
+#######################################
+qdrant::extract::docs_metadata_from_content() {
+    local content="$1"
+    
+    # Extract document type from the first line
+    local doc_type
+    doc_type=$(echo "$content" | head -1 | sed 's/ Documentation$//')
+    
+    local file_path
+    file_path=$(echo "$content" | grep -o "File: .*" | cut -d: -f2- | sed 's/^ *//')
+    
+    # Extract filename
+    local filename=""
+    if [[ -n "$file_path" ]]; then
+        filename=$(basename "$file_path")
+    fi
+    
+    # Count content sections by looking for markers
+    local has_marked_sections="false"
+    if [[ "$content" == *"EMBED:"* ]]; then
+        has_marked_sections="true"
+    fi
+    
+    # Estimate content complexity
+    local content_length
+    content_length=$(echo -n "$content" | wc -c)
+    
+    local line_count
+    line_count=$(echo "$content" | wc -l)
+    
+    # Determine documentation category
+    local category="general"
+    case "$doc_type" in
+        "Architecture") category="technical" ;;
+        "Security") category="security" ;;
+        "Lessons Learned") category="insights" ;;
+        "Performance") category="technical" ;;
+        "Breaking Changes") category="versioning" ;;
+        "Patterns") category="technical" ;;
+    esac
+    
+    # Build metadata JSON
+    jq -n \
+        --arg doc_type "$doc_type" \
+        --arg filename "${filename:-Unknown}" \
+        --arg file_path "${file_path:-}" \
+        --arg category "$category" \
+        --arg has_marked_sections "$has_marked_sections" \
+        --arg content_length "$content_length" \
+        --arg line_count "$line_count" \
+        '{
+            doc_type: $doc_type,
+            filename: $filename,
+            source_file: $file_path,
+            category: $category,
+            has_marked_sections: ($has_marked_sections == "true"),
+            content_length: ($content_length | tonumber),
+            line_count: ($line_count | tonumber),
+            content_type: "documentation",
+            extractor: "docs"
+        }'
+}
+
+# Export processing function for manage.sh
+export -f qdrant::embeddings::process_documentation

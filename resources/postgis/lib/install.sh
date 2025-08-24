@@ -1,13 +1,13 @@
 #!/bin/bash
 # PostGIS Standalone Installation Functions
 
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+
 # PostGIS Docker configuration
 POSTGIS_IMAGE="postgis/postgis:16-3.4-alpine"
 POSTGIS_CONTAINER="postgis-main"
 POSTGIS_STANDALONE_PORT="${POSTGIS_STANDALONE_PORT:-5434}"
-
-# Get script directory
-POSTGIS_INSTALL_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+POSTGIS_INSTALL_LIB_DIR="${APP_ROOT}/resources/postgis/lib"
 
 # Source var.sh for access to project variables
 source "${POSTGIS_INSTALL_LIB_DIR}/../../../../lib/utils/var.sh"
@@ -104,10 +104,9 @@ postgis_install() {
     create_sample_data_standalone
     
     # Register CLI with Vrooli
-    if [ -f "${POSTGIS_INSTALL_LIB_DIR}/../../lib/install-resource-cli.sh" ]; then
-        "${POSTGIS_INSTALL_LIB_DIR}/../../lib/install-resource-cli.sh" "$(cd "${POSTGIS_INSTALL_LIB_DIR}/.." && pwd)" 2>/dev/null || true
-    elif [ -f "${POSTGIS_INSTALL_LIB_DIR}/../../../lib/resources/install-resource-cli.sh" ]; then
-        "${POSTGIS_INSTALL_LIB_DIR}/../../../lib/resources/install-resource-cli.sh" "$(cd "${POSTGIS_INSTALL_LIB_DIR}/.." && pwd)" 2>/dev/null || true
+    local resource_dir="${APP_ROOT}/resources/postgis"
+    if [ -f "${APP_ROOT}/scripts/lib/resources/install-resource-cli.sh" ]; then
+        "${APP_ROOT}/scripts/lib/resources/install-resource-cli.sh" "${resource_dir}" 2>/dev/null || true
     fi
     
     # Verify installation
@@ -116,7 +115,7 @@ postgis_install() {
     if [ -n "$version" ]; then
         # Register PostGIS CLI with vrooli
         if [ -n "${var_SCRIPTS_RESOURCES_LIB_DIR:-}" ] && [ -f "${var_SCRIPTS_RESOURCES_LIB_DIR}/install-resource-cli.sh" ]; then
-            "${var_SCRIPTS_RESOURCES_LIB_DIR}/install-resource-cli.sh" "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)" 2>/dev/null || true
+            "${var_SCRIPTS_RESOURCES_LIB_DIR}/install-resource-cli.sh" "${APP_ROOT}/resources/postgis" 2>/dev/null || true
         fi
         
         log::success "PostGIS $version installed and running on port ${POSTGIS_STANDALONE_PORT}"

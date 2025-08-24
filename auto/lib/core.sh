@@ -5,8 +5,8 @@
 
 set -euo pipefail
 
-# Get the library directory using consistent pattern
-LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+LIB_DIR="${APP_ROOT}/auto/lib"
 
 # Source constants first
 # shellcheck disable=SC1091
@@ -22,8 +22,8 @@ if [[ -z "${LOOP_TASK:-}" ]]; then
 	exit 1
 fi
 
-# Directories - use standardized path resolution
-AUTO_DIR="${AUTO_DIR:-$(cd "$LIB_DIR/.." && pwd)}"
+# Directories - use APP_ROOT for consistent paths
+AUTO_DIR="${AUTO_DIR:-${APP_ROOT}/auto}"
 DATA_DIR="${DATA_DIR:-${AUTO_DIR}/data/${LOOP_TASK}}"
 mkdir -p "$DATA_DIR" 2>/dev/null || true
 TMP_DIR="${DATA_DIR}/tmp"

@@ -6,14 +6,15 @@
 export _N8N_STATUS_SOURCED=1
 
 # Source core and frameworks
-N8N_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+N8N_LIB_DIR="${APP_ROOT}/resources/n8n/lib"
 
 # shellcheck disable=SC1091
-source "${N8N_LIB_DIR}/../../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "${N8N_LIB_DIR}/../../../../lib/utils/format.sh"
+source "${APP_ROOT}/scripts/lib/utils/format.sh"
 # shellcheck disable=SC1091
-source "${N8N_LIB_DIR}/../../../lib/status-args.sh"
+source "${APP_ROOT}/scripts/lib/status-args.sh"
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_LIB_DIR}/status-engine.sh"
 # shellcheck disable=SC1091

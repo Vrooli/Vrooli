@@ -16,19 +16,20 @@ API_PORT="${VROOLI_API_PORT:-8092}"
 API_BASE="http://localhost:${API_PORT}"
 
 # Get CLI directory
-CLI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+CLI_DIR="${APP_ROOT}/cli/commands"
 
 # Source utilities
 # shellcheck disable=SC1091
-source "${CLI_DIR}/../../scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
-source "${CLI_DIR}/../../scripts/lib/utils/format.sh"
+source "${APP_ROOT}/scripts/lib/utils/format.sh"
 # shellcheck disable=SC1091
-source "${CLI_DIR}/../lib/arg-parser.sh"
+source "${APP_ROOT}/cli/lib/arg-parser.sh"
 # shellcheck disable=SC1091
-source "${CLI_DIR}/../lib/output-formatter.sh"
+source "${APP_ROOT}/cli/lib/output-formatter.sh"
 
 # Check if API is running
 check_api() {

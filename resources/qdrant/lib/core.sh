@@ -295,7 +295,7 @@ qdrant::display_connection_info() {
     
     # Auto-install CLI if available
     # shellcheck disable=SC1091
-    "${var_SCRIPTS_RESOURCES_LIB_DIR}/install-resource-cli.sh" "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)" 2>/dev/null || true
+    "${var_SCRIPTS_RESOURCES_LIB_DIR}/install-resource-cli.sh" "${APP_ROOT}/resources/qdrant" 2>/dev/null || true
 }
 
 #######################################

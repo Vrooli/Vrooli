@@ -6,7 +6,8 @@ set -euo pipefail
 
 DESCRIPTION="Install and manage MinIO S3-compatible object storage using Docker"
 
-MINIO_SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+MINIO_SCRIPT_DIR="${APP_ROOT}/resources/minio"
 MINIO_LIB_DIR="${MINIO_SCRIPT_DIR}/lib"
 
 # Source var.sh first to get directory variables

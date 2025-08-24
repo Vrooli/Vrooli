@@ -14,6 +14,9 @@ EXTRACTOR_DIR="${EMBEDDINGS_DIR}/extractors"
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${var_LIB_UTILS_DIR}/log.sh"
 
+# Source unified embedding service
+source "${EMBEDDINGS_DIR}/lib/embedding-service.sh"
+
 # Temporary directory for extracted content
 EXTRACT_TEMP_DIR="/tmp/qdrant-workflow-extract-$$"
 trap "rm -rf $EXTRACT_TEMP_DIR" EXIT
@@ -393,3 +396,113 @@ qdrant::extract::workflows_summary() {
         echo "  $nodes nodes: $name"
     done
 }
+
+#######################################
+# Process workflows using unified embedding service
+# Arguments:
+#   $1 - App ID
+# Returns: Number of workflows processed
+#######################################
+qdrant::embeddings::process_workflows() {
+    local app_id="$1"
+    local collection="${app_id}-workflows"
+    local count=0
+    
+    # Extract workflows to temp file
+    local output_file="$TEMP_DIR/workflows.txt"
+    qdrant::extract::workflows_batch "." "$output_file" >&2
+    
+    if [[ ! -f "$output_file" ]] || [[ ! -s "$output_file" ]]; then
+        log::debug "No workflows found for processing"
+        echo "0"
+        return 0
+    fi
+    
+    # Process each workflow through unified embedding service
+    local content=""
+    local processing_workflow=false
+    
+    while IFS= read -r line; do
+        if [[ "$line" == "This is an N8n workflow named"* ]]; then
+            # Start of new workflow content
+            processing_workflow=true
+            content="$line"
+        elif [[ "$line" == "---SEPARATOR---" ]] && [[ "$processing_workflow" == true ]]; then
+            # End of workflow, process it
+            if [[ -n "$content" ]]; then
+                # Extract workflow metadata from content
+                local metadata
+                metadata=$(qdrant::extract::workflow_metadata_from_content "$content")
+                
+                # Process through unified embedding service
+                if qdrant::embedding::process_item "$content" "workflow" "$collection" "$app_id" "$metadata"; then
+                    ((count++))
+                fi
+            fi
+            processing_workflow=false
+            content=""
+        elif [[ "$processing_workflow" == true ]]; then
+            # Continue accumulating workflow content
+            content="${content}"$'\n'"${line}"
+        fi
+    done < "$output_file"
+    
+    log::debug "Created $count workflow embeddings"
+    echo "$count"
+}
+
+#######################################
+# Extract metadata from workflow content text
+# Arguments:
+#   $1 - Workflow content text
+# Returns: JSON metadata object
+#######################################
+qdrant::extract::workflow_metadata_from_content() {
+    local content="$1"
+    
+    # Extract key information from the content text
+    local name
+    name=$(echo "$content" | grep -o "named '[^']*'" | sed "s/named '//" | sed "s/'//")
+    
+    local file_path
+    file_path=$(echo "$content" | grep -o "File location: .*" | cut -d: -f2- | sed 's/^ *//')
+    
+    local active_status="false"
+    if [[ "$content" == *"currently active and running in production"* ]]; then
+        active_status="true"
+    fi
+    
+    # Count nodes mentioned in content
+    local node_count
+    node_count=$(echo "$content" | grep -o "contains [0-9]* processing nodes" | grep -o "[0-9]*")
+    
+    # Extract integrations
+    local integrations
+    integrations=$(echo "$content" | grep -o "integrates with these services: [^.]*" | cut -d: -f2 | sed 's/^ *//')
+    
+    # Extract purpose
+    local purpose
+    purpose=$(echo "$content" | grep -o "Purpose: [^$]*" | cut -d: -f2- | sed 's/^ *//')
+    
+    # Build metadata JSON
+    jq -n \
+        --arg name "${name:-Unknown}" \
+        --arg file_path "${file_path:-}" \
+        --arg active "$active_status" \
+        --arg nodes "${node_count:-0}" \
+        --arg integrations "${integrations:-}" \
+        --arg purpose "${purpose:-}" \
+        '{
+            workflow_name: $name,
+            source_file: $file_path,
+            active: ($active == "true"),
+            node_count: ($nodes | tonumber),
+            integrations: $integrations,
+            purpose: $purpose,
+            content_type: "workflow",
+            extractor: "workflows"
+        }'
+}
+
+# Export processing function for manage.sh
+export -f qdrant::embeddings::process_workflows

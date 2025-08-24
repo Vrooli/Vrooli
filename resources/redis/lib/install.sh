@@ -2,10 +2,10 @@
 # Redis Installation Functions
 # Functions for installing and uninstalling Redis resource
 
-# Source var.sh to get proper directory variables
-_REDIS_INSTALL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+_REDIS_INSTALL_DIR="${APP_ROOT}/resources/redis/lib"
 # shellcheck disable=SC1091
-source "${_REDIS_INSTALL_DIR}/../../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 # Source shared secrets management library
 # shellcheck disable=SC1091
@@ -71,7 +71,7 @@ redis::install::main() {
     
     # Auto-install CLI if available
     # shellcheck disable=SC1091
-    "${var_SCRIPTS_RESOURCES_LIB_DIR}/install-resource-cli.sh" "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)" 2>/dev/null || true
+    "${var_SCRIPTS_RESOURCES_LIB_DIR}/install-resource-cli.sh" "${APP_ROOT}/resources/redis" 2>/dev/null || true
     
     return 0
 }
@@ -155,26 +155,9 @@ redis::install::create_cli_helper() {
 # Redis CLI Helper for Vrooli Resource
 # This script connects to the Redis resource instance
 
-# Source var.sh to get proper directory variables  
-REDIS_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${REDIS_LIB_DIR}/../../../lib/utils/var.sh" 2>/dev/null || {
-    # Fallback for older installations
-    _detect_project_root() {
-        local current_dir
-        current_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-        while [[ "$current_dir" != "/" ]]; do
-            if [[ -d "$current_dir/.vrooli" ]]; then
-                echo "$current_dir"
-                return 0
-            fi
-            current_dir="$(dirname "$current_dir")"
-        done
-        echo "$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
-    }
-    
-    PROJECT_ROOT="$(_detect_project_root)"
-    var_LIB_SERVICE_DIR="$PROJECT_ROOT/scripts/lib/service"
-}
+# Get APP_ROOT using cached value or compute once (4 levels up from config/redis/redis-cli)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 source "${var_LIB_SERVICE_DIR}/secrets.sh" 2>/dev/null || true
 

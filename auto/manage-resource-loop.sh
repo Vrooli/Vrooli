@@ -5,7 +5,8 @@
 
 set -euo pipefail
 
-AUTO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/.." && builtin pwd)}"
+AUTO_DIR="${APP_ROOT}/auto"
 TASK_MANAGER="${AUTO_DIR}/task-manager.sh"
 
 if [[ ! -x "$TASK_MANAGER" ]]; then

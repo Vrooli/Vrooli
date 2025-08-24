@@ -3,7 +3,8 @@
 # Functions for checking and displaying SearXNG status information
 
 # Source format utilities and config
-SEARXNG_STATUS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+SEARXNG_STATUS_DIR="${APP_ROOT}/resources/searxng/lib"
 # shellcheck disable=SC1091
 source "${SEARXNG_STATUS_DIR}/../../../lib/status-args.sh"
 # shellcheck disable=SC1091

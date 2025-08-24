@@ -1,8 +1,8 @@
 #!/bin/bash
 # Gemini installation functionality
 
-# Get script directory
-GEMINI_INSTALL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+GEMINI_INSTALL_DIR="${APP_ROOT}/resources/gemini/lib"
 
 # Source dependencies
 source "${GEMINI_INSTALL_DIR}/core.sh"
@@ -50,7 +50,7 @@ EOF
     fi
     
     # Register CLI using standard helper
-    "${var_SCRIPTS_RESOURCES_LIB_DIR}/resources/install-resource-cli.sh" "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)" 2>/dev/null || true
+    "${var_SCRIPTS_RESOURCES_LIB_DIR}/resources/install-resource-cli.sh" "${APP_ROOT}/resources/gemini" 2>/dev/null || true
     
     # Verify installation
     if gemini::test_connection 2>/dev/null; then

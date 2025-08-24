@@ -32,10 +32,12 @@ set -euo pipefail
 #
 ################################################################################
 
-SCENARIO_TOOLS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# Get APP_ROOT using cached value or compute once (3 levels up: scripts/scenarios/tools/scenario-to-app.sh)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+SCENARIO_TOOLS_DIR="${APP_ROOT}/scripts/scenarios/tools"
 
 # shellcheck disable=SC1091
-source "${SCENARIO_TOOLS_DIR}/../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
@@ -498,7 +500,7 @@ scenario_to_app::validate_initialization_paths() {
             # Relative path from service.json location (.vrooli/ directory)
             full_path="${service_json_dir}/${file_path}"
             # Normalize the path (resolve .. and .)
-            full_path=$(cd "$(dirname "$full_path")" 2>/dev/null && pwd)/$(basename "$full_path")
+            full_path=$(builtin cd "$(dirname "$full_path")" 2>/dev/null && builtin pwd)/$(basename "$full_path")
         else
             # Simple path - relative to scenario root directory
             full_path="${scenario_path}/${file_path}"
@@ -529,7 +531,7 @@ scenario_to_app::validate_initialization_paths() {
             # Relative path from service.json location (.vrooli/ directory)
             full_path="${service_json_dir}/${file_path}"
             # Normalize the path (resolve .. and .)
-            full_path=$(cd "$(dirname "$full_path")" 2>/dev/null && pwd)/$(basename "$full_path")
+            full_path=$(builtin cd "$(dirname "$full_path")" 2>/dev/null && builtin pwd)/$(basename "$full_path")
         else
             # Simple path - relative to scenario root directory
             full_path="${scenario_path}/${file_path}"
@@ -1430,10 +1432,11 @@ scenario_to_app::create_instance_manager_wrapper() {
 # The generic instance manager reads configuration from service.json automatically.
 set -euo pipefail
 
-APP_LIFECYCLE_DEVELOP_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+APP_ROOT="\${APP_ROOT:-\$(builtin cd \"\${BASH_SOURCE[0]%/*}/../../..\" && builtin pwd)}"
+APP_LIFECYCLE_DEVELOP_DIR="\${APP_ROOT}/scripts/scenarios/tools"
 
 # shellcheck disable=SC1091
-source "${APP_LIFECYCLE_DEVELOP_DIR}/../../../lib/utils/var.sh"
+source "\${APP_ROOT}/scripts/lib/utils/var.sh"
 
 # Source the generic instance manager
 # shellcheck disable=SC1091

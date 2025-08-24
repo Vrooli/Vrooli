@@ -4,8 +4,9 @@
 set -euo pipefail
 
 # Get script directory
-TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VOCR_DIR="$(dirname "$TEST_DIR")"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+TEST_DIR="${APP_ROOT}/resources/vocr/test"
+VOCR_DIR="${APP_ROOT}/resources/vocr"
 
 # Source utilities
 source "${VOCR_DIR}/../../../lib/utils/log.sh"

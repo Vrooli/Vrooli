@@ -14,6 +14,9 @@ EXTRACTOR_DIR="${EMBEDDINGS_DIR}/extractors"
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${var_LIB_UTILS_DIR}/log.sh"
 
+# Source unified embedding service
+source "${EMBEDDINGS_DIR}/lib/embedding-service.sh"
+
 # Temporary directory for extracted content
 EXTRACT_TEMP_DIR="/tmp/qdrant-scenario-extract-$$"
 trap "rm -rf $EXTRACT_TEMP_DIR" EXIT
@@ -403,3 +406,138 @@ qdrant::extract::scenarios_summary() {
         echo "  • $scenario_name"
     done
 }
+
+#######################################
+# Process scenarios using unified embedding service
+# Arguments:
+#   $1 - App ID
+# Returns: Number of scenarios processed
+#######################################
+qdrant::embeddings::process_scenarios() {
+    local app_id="$1"
+    local collection="${app_id}-scenarios"
+    local count=0
+    
+    # Extract scenarios to temp file
+    local output_file="$TEMP_DIR/scenarios.txt"
+    qdrant::extract::scenarios_batch "." "$output_file" >&2
+    
+    if [[ ! -f "$output_file" ]] || [[ ! -s "$output_file" ]]; then
+        log::debug "No scenarios found for processing"
+        echo "0"
+        return 0
+    fi
+    
+    # Process each scenario through unified embedding service
+    local content=""
+    local processing_scenario=false
+    
+    while IFS= read -r line; do
+        if [[ "$line" == "Scenario:"* ]] || [[ "$line" == "Scenario Configuration:"* ]]; then
+            # Start of new scenario content
+            processing_scenario=true
+            content="$line"
+        elif [[ "$line" == "---SEPARATOR---" ]] && [[ "$processing_scenario" == true ]]; then
+            # End of scenario, process it
+            if [[ -n "$content" ]]; then
+                # Extract scenario metadata from content
+                local metadata
+                metadata=$(qdrant::extract::scenario_metadata_from_content "$content")
+                
+                # Process through unified embedding service
+                if qdrant::embedding::process_item "$content" "scenario" "$collection" "$app_id" "$metadata"; then
+                    ((count++))
+                fi
+            fi
+            processing_scenario=false
+            content=""
+        elif [[ "$processing_scenario" == true ]]; then
+            # Continue accumulating scenario content
+            content="${content}"$'\n'"${line}"
+        fi
+    done < "$output_file"
+    
+    log::debug "Created $count scenario embeddings"
+    echo "$count"
+}
+
+#######################################
+# Extract metadata from scenario content text
+# Arguments:
+#   $1 - Scenario content text
+# Returns: JSON metadata object
+#######################################
+qdrant::extract::scenario_metadata_from_content() {
+    local content="$1"
+    
+    # Extract key information from the content text
+    local name
+    if [[ "$content" == "Scenario:"* ]]; then
+        # PRD format
+        name=$(echo "$content" | grep "^Scenario:" | cut -d: -f2- | sed 's/^ *//')
+    elif [[ "$content" == "Scenario Configuration:"* ]]; then
+        # Config format
+        name=$(echo "$content" | grep "^Scenario Configuration:" | cut -d: -f2- | sed 's/^ *//')
+    fi
+    
+    local file_path
+    file_path=$(echo "$content" | grep -o "File: .*" | cut -d: -f2- | sed 's/^ *//')
+    
+    # Extract other metadata from content
+    local category
+    category=$(echo "$content" | grep -o "Category: [^$]*" | cut -d: -f2- | sed 's/^ *//' | head -1)
+    
+    local status
+    status=$(echo "$content" | grep -o "Status: [^$]*" | cut -d: -f2- | sed 's/^ *//' | head -1)
+    
+    local complexity
+    complexity=$(echo "$content" | grep -o "Complexity: [^$]*" | cut -d: -f2- | sed 's/^ *//' | head -1)
+    
+    local version
+    version=$(echo "$content" | grep -o "Version: [^$]*" | cut -d: -f2- | sed 's/^ *//' | head -1)
+    
+    local resources
+    resources=$(echo "$content" | grep -o "Required Resources: [^$]*" | cut -d: -f2- | sed 's/^ *//' | head -1)
+    
+    local features
+    features=$(echo "$content" | grep -o "Key Features: [^$]*" | cut -d: -f2- | sed 's/^ *//' | head -1)
+    
+    local target_users
+    target_users=$(echo "$content" | grep -o "Target Users: [^$]*" | cut -d: -f2- | sed 's/^ *//' | head -1)
+    
+    # Determine file type
+    local file_type="prd"
+    if [[ "$file_path" == *".scenario.yaml" ]]; then
+        file_type="config"
+    fi
+    
+    # Build metadata JSON
+    jq -n \
+        --arg name "${name:-Unknown}" \
+        --arg file_path "${file_path:-}" \
+        --arg category "${category:-}" \
+        --arg status "${status:-}" \
+        --arg complexity "${complexity:-}" \
+        --arg version "${version:-}" \
+        --arg resources "${resources:-}" \
+        --arg features "${features:-}" \
+        --arg target_users "${target_users:-}" \
+        --arg file_type "$file_type" \
+        '{
+            scenario_name: $name,
+            source_file: $file_path,
+            category: $category,
+            status: $status,
+            complexity: $complexity,
+            version: $version,
+            required_resources: $resources,
+            key_features: $features,
+            target_users: $target_users,
+            file_type: $file_type,
+            content_type: "scenario",
+            extractor: "scenarios"
+        }'
+}
+
+# Export processing function for manage.sh
+export -f qdrant::embeddings::process_scenarios

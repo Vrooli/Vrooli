@@ -1,8 +1,8 @@
 #!/bin/bash
 # LiteLLM content management functionality
 
-# Get script directory
-LITELLM_CONTENT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+LITELLM_CONTENT_DIR="${APP_ROOT}/resources/litellm/lib"
 
 # Source dependencies
 source "${LITELLM_CONTENT_DIR}/core.sh"

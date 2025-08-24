@@ -1,13 +1,14 @@
 #!/bin/bash
 # Gemini CLI interface
 
-# Get script directory (resolving symlinks for installed CLI)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+# Handle symlinks for installed CLI
 if [[ -L "${BASH_SOURCE[0]}" ]]; then
     GEMINI_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
-else
-    GEMINI_CLI_SCRIPT="${BASH_SOURCE[0]}"
+    # Recalculate APP_ROOT from resolved symlink location
+    APP_ROOT="$(builtin cd "$(dirname "$GEMINI_CLI_SCRIPT")/../.." && builtin pwd)"
 fi
-GEMINI_CLI_DIR="$(cd "$(dirname "$GEMINI_CLI_SCRIPT")" && pwd)"
+GEMINI_CLI_DIR="${APP_ROOT}/resources/gemini"
 
 # Source dependencies
 source "${GEMINI_CLI_DIR}/lib/core.sh"
@@ -15,7 +16,7 @@ source "${GEMINI_CLI_DIR}/lib/status.sh"
 source "${GEMINI_CLI_DIR}/lib/install.sh"
 source "${GEMINI_CLI_DIR}/lib/inject.sh"
 source "${GEMINI_CLI_DIR}/lib/content.sh"
-source "${GEMINI_CLI_DIR}/../../../lib/utils/log.sh"
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
 
 # Main CLI handler
 gemini::cli() {

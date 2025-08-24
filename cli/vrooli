@@ -26,7 +26,8 @@ elif git rev-parse --show-toplevel >/dev/null 2>&1; then
 	VROOLI_ROOT="$(git rev-parse --show-toplevel)"
 else
 	# Fallback to relative path from script location
-	VROOLI_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+	APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/.." && builtin pwd)}"
+	VROOLI_ROOT="${APP_ROOT}"
 fi
 
 export VROOLI_ROOT

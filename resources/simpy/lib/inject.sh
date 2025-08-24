@@ -3,8 +3,9 @@
 # SimPy Resource - Injection Functions
 set -euo pipefail
 
-# Get the script directory
-SIMPY_INJECT_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Define directory using cached APP_ROOT
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+SIMPY_INJECT_LIB_DIR="${APP_ROOT}/resources/simpy/lib"
 
 # Source common functions
 source "$SIMPY_INJECT_LIB_DIR/common.sh"

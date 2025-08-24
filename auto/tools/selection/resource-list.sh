@@ -17,9 +17,9 @@ if command -v vrooli >/dev/null 2>&1; then
 fi
 
 # Resolve repo root
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
-CONFIG_PATH="${ROOT_DIR}/.vrooli/service.json"
-RES_DIR="${ROOT_DIR}/scripts/resources"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+CONFIG_PATH="${APP_ROOT}/.vrooli/service.json"
+RES_DIR="${APP_ROOT}/resources"
 
 # 2) Fallback: derive from service.json (authoritative enable flags)
 if [[ -f "$CONFIG_PATH" ]]; then
@@ -31,7 +31,7 @@ if [[ -f "$CONFIG_PATH" ]]; then
 	exit 0
 fi
 
-# 3) Last-resort: scan scripts/resources for valid resource dirs (with manage.sh or cli.sh)
+# 3) Last-resort: scan resources for valid resource dirs (with manage.sh or cli.sh)
 if [[ -d "$RES_DIR" ]]; then
 	# Find directories that contain manage.sh or cli.sh directly inside
 	mapfile -t dirs < <(find "$RES_DIR" -mindepth 2 -maxdepth 2 -type f \( -name 'manage.sh' -o -name 'cli.sh' \) -printf '%h\n' 2>/dev/null | sort -u)
