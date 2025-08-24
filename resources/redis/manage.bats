@@ -2,9 +2,10 @@
 # Tests for Redis manage.sh script
 
 # Source var.sh to get proper directory variables
-_REDIS_BATS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/.." && builtin pwd)}"
+_REDIS_BATS_DIR="$APP_ROOT/resources/redis"
 # shellcheck disable=SC1091
-source "${_REDIS_BATS_DIR}/../../../lib/utils/var.sh"
+source "${APP_ROOT}/lib/utils/var.sh"
 
 # Load Vrooli test infrastructure
 # shellcheck disable=SC1091

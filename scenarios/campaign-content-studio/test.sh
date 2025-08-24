@@ -5,8 +5,9 @@
 set -euo pipefail
 
 # Resolve paths
-SCENARIO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-FRAMEWORK_DIR="$(cd "$SCENARIO_DIR/../../framework" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+SCENARIO_DIR="${APP_ROOT}/scenarios/campaign-content-studio"
+FRAMEWORK_DIR="${APP_ROOT}/scenarios/framework"
 
 echo "🚀 Testing Ai Content Assistant Example Business Scenario"
 echo "📁 Scenario: $(basename "$SCENARIO_DIR")"

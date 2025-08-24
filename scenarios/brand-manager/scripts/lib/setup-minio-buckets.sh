@@ -2,8 +2,9 @@
 # Setup MinIO buckets for Brand Manager
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SCENARIO_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/scenarios/brand-manager/scripts/lib"
+SCENARIO_DIR="${APP_ROOT}/scenarios/brand-manager"
 
 # MinIO Configuration
 MINIO_ENDPOINT="${MINIO_ENDPOINT:-localhost:${RESOURCE_PORTS[minio]:-9000}}"

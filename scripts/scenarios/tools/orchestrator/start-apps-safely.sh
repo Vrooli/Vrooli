@@ -19,8 +19,8 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-# Run pre-flight checks first
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/scripts/scenarios/tools/orchestrator"
 PREFLIGHT_CHECK="${SCRIPT_DIR}/preflight-check.sh"
 
 if [[ -f "$PREFLIGHT_CHECK" ]]; then
@@ -105,7 +105,7 @@ if [[ -d /tmp/vrooli-apps ]]; then
 fi
 
 # Safety check 6: Verify orchestrator exists
-ORCHESTRATOR_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ORCHESTRATOR_DIR="$SCRIPT_DIR"
 ORCHESTRATOR="${ORCHESTRATOR_DIR}/app_orchestrator.py"
 
 if [[ ! -f "$ORCHESTRATOR" ]]; then

@@ -5,9 +5,9 @@
 source "${BATS_TEST_DIRNAME}/../../../lib/utils/var.sh"
 
 # Source trash module for safe test cleanup
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
+source "${APP_ROOT}/lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 

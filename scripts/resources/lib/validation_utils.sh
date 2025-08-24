@@ -13,9 +13,10 @@ readonly VROOLI_VALIDATION_UTILS_LOADED=1
 readonly VALIDATION_UTILS_VERSION="1.0.0"
 
 # Source required utilities (relative to framework location)
-VALIDATION_UTILS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+VALIDATION_UTILS_DIR="${APP_ROOT}/scripts/resources/lib"
 # shellcheck disable=SC1091
-source "${VALIDATION_UTILS_DIR}/../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
 # shellcheck disable=SC1091

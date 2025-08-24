@@ -159,7 +159,7 @@ qdrant::models::discover_ollama() {
     done <<< "$model_names"
     
     # Cache the results
-    mkdir -p "$(dirname "$QDRANT_MODEL_CACHE")"
+    mkdir -p "${QDRANT_MODEL_CACHE%/*}"
     echo "$models_info" > "$QDRANT_MODEL_CACHE"
     
     echo "$models_info"

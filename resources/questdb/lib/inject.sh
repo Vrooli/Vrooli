@@ -3,7 +3,8 @@
 # Provides capability to inject SQL, CSV, and JSON data into QuestDB
 
 # Get the script directory
-QUESTDB_INJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+QUESTDB_INJECT_DIR="${APP_ROOT}/resources/questdb/lib"
 
 # Source required libraries
 source "${QUESTDB_INJECT_DIR}/../../../../lib/utils/var.sh"

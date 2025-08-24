@@ -5,7 +5,8 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/scenarios/personal-digital-twin/cli"
 API_BASE_URL="${API_BASE_URL:-http://localhost:8200}"
 CHAT_BASE_URL="${CHAT_BASE_URL:-http://localhost:8201}"
 

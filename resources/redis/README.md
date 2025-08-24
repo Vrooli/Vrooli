@@ -33,13 +33,13 @@ A comprehensive Redis resource implementation for Vrooli's automation ecosystem,
 ### Installation
 ```bash
 # Install Redis resource
-./scripts/resources/storage/redis/manage.sh --action install
+./resources/redis/manage.sh --action install
 
 # Check status
-./scripts/resources/storage/redis/manage.sh --action status
+./resources/redis/manage.sh --action status
 
 # Start monitoring
-./scripts/resources/storage/redis/manage.sh --action monitor
+./resources/redis/manage.sh --action monitor
 ```
 
 ### Basic Usage
@@ -48,7 +48,7 @@ A comprehensive Redis resource implementation for Vrooli's automation ecosystem,
 redis-cli -p 6380
 
 # Or use the resource CLI wrapper
-./scripts/resources/storage/redis/manage.sh --action cli
+./resources/redis/manage.sh --action cli
 
 # Basic operations
 redis-cli -p 6380 SET mykey "Hello Redis"

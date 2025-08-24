@@ -4,9 +4,10 @@ set -euo pipefail
 # Brand Manager Test Runner
 # Runs comprehensive integration tests for the brand-manager scenario
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/scenarios/brand-manager"
 SCENARIO_DIR="$SCRIPT_DIR"
-PROJECT_ROOT="$(dirname "$(dirname "$(dirname "$SCENARIO_DIR")")")"
+PROJECT_ROOT="$APP_ROOT"
 
 # shellcheck disable=SC1091
 source "$PROJECT_ROOT/scripts/lib/utils/var.sh"

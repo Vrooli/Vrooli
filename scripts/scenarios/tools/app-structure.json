@@ -119,7 +119,10 @@
       "type": "directory",
       "from": "scenario",
       "optional": true,
-      "merge": "overlay"
+      "merge": "overlay",
+      "process": [
+        "adjust_app_root_depth"
+      ]
     },
     {
       "name": "scenario-deployment",
@@ -127,7 +130,10 @@
       "destination": "deployment",
       "type": "directory",
       "from": "scenario",
-      "optional": true
+      "optional": true,
+      "process": [
+        "adjust_app_root_depth"
+      ]
     },
     {
       "name": "scenario-test",
@@ -136,7 +142,10 @@
       "type": "file",
       "from": "scenario",
       "optional": true,
-      "executable": true
+      "executable": true,
+      "process": [
+        "adjust_app_root_depth"
+      ]
     },
     {
       "name": "scenario-readme",
@@ -168,7 +177,10 @@
       "destination": "cli",
       "type": "directory",
       "from": "scenario",
-      "optional": true
+      "optional": true,
+      "process": [
+        "adjust_app_root_depth"
+      ]
     },
     {
       "name": "scenario-prompts",

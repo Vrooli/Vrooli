@@ -3,9 +3,10 @@
 # Functions for backing up and restoring Redis data
 
 # Source var.sh to get proper directory variables
-_REDIS_BACKUP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../.." && builtin pwd)}"
+_REDIS_BACKUP_DIR="$APP_ROOT/resources/redis/lib"
 # shellcheck disable=SC1091
-source "${_REDIS_BACKUP_DIR}/../../../../lib/utils/var.sh"
+source "${APP_ROOT}/lib/utils/var.sh"
 
 # Source shared secrets management library
 # shellcheck disable=SC1091

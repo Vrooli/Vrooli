@@ -6,7 +6,7 @@
 # Setup test environment
 setup() {
     # Get script directories
-    export BATS_TEST_DIRNAME="$( cd "$( dirname "$BATS_TEST_FILENAME" )" >/dev/null 2>&1 && pwd )"
+    export BATS_TEST_DIRNAME="$(builtin cd "${BATS_TEST_FILENAME%/*}" >/dev/null 2>&1 && builtin pwd)"
     export TOOLS_DIR="$BATS_TEST_DIRNAME"
     export SCENARIOS_DIR="$(dirname "$TOOLS_DIR")"
     export SCRIPTS_DIR="$(dirname "$SCENARIOS_DIR")"

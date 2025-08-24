@@ -3,7 +3,7 @@ set -euo pipefail
 
 DESCRIPTION="Content management for Qdrant vector database"
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
 QDRANT_CONTENT_DIR="${APP_ROOT}/resources/qdrant/lib"
 
 # Source shared frameworks

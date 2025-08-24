@@ -8,10 +8,11 @@ if [[ -L "${BASH_SOURCE[0]}" ]]; then
 else
     SAGEMATH_CLI_SCRIPT="${BASH_SOURCE[0]}"
 fi
-SCRIPT_DIR="$(cd "$(dirname "$SAGEMATH_CLI_SCRIPT")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/resources/sagemath"
 
 # Source the var utility first for consistent variable access
-source "$SCRIPT_DIR/../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 # Source library functions
 source "$SCRIPT_DIR/lib/common.sh"

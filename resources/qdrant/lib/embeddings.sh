@@ -23,10 +23,16 @@ qdrant::export_config 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${QDRANT_EMBEDDINGS_DIR}/models.sh"
 
-# Embedding cache settings optimized for parallel processing
-QDRANT_EMBEDDING_CACHE_ENABLED="${QDRANT_EMBEDDING_CACHE_ENABLED:-true}"
-QDRANT_EMBEDDING_CACHE_TTL="${QDRANT_EMBEDDING_CACHE_TTL:-3600}"  # 1 hour
-QDRANT_EMBEDDING_BATCH_SIZE="${QDRANT_EMBEDDING_BATCH_SIZE:-32}"  # Increased from 10 to 32 for better parallel throughput
+# Embedding cache settings - use existing values if already set by unified config
+if [[ -z "${QDRANT_EMBEDDING_CACHE_ENABLED:-}" ]]; then
+    QDRANT_EMBEDDING_CACHE_ENABLED="true"
+fi
+if [[ -z "${QDRANT_EMBEDDING_CACHE_TTL:-}" ]]; then
+    QDRANT_EMBEDDING_CACHE_TTL="3600"  # 1 hour
+fi
+if [[ -z "${QDRANT_EMBEDDING_BATCH_SIZE:-}" ]]; then
+    QDRANT_EMBEDDING_BATCH_SIZE="32"  # Optimized for parallel throughput
+fi
 
 # Check if Redis is available for caching
 REDIS_AVAILABLE="false"

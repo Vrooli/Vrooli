@@ -5,7 +5,8 @@
 
 set -e
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/scenarios/chore-tracking/cli"
 API_URL="${CHORE_API_URL:-http://localhost:8456}"
 
 # Colors for output

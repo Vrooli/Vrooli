@@ -6,7 +6,8 @@
 set -euo pipefail
 
 # Source shared integration test library
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/resources/questdb/test"
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/../../../tests/lib/integration-test-lib.sh"
 
@@ -15,7 +16,7 @@ source "$SCRIPT_DIR/../../../tests/lib/integration-test-lib.sh"
 #######################################
 
 # Load QuestDB configuration
-RESOURCES_DIR="$SCRIPT_DIR/../../.."
+RESOURCES_DIR="${APP_ROOT}/resources"
 # shellcheck disable=SC1091
 source "$RESOURCES_DIR/common.sh"
 # shellcheck disable=SC1091

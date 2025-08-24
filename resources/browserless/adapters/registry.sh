@@ -8,9 +8,9 @@
 # can provide as fallbacks or alternatives for other resources.
 #######################################
 
-# Get script directory
-REGISTRY_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BROWSERLESS_RESOURCE_DIR="$(dirname "$REGISTRY_DIR")"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+REGISTRY_DIR="${APP_ROOT}/resources/browserless/adapters"
+BROWSERLESS_RESOURCE_DIR="${APP_ROOT}/resources/browserless"
 
 # Source common utilities
 source "${REGISTRY_DIR}/common.sh"
@@ -23,7 +23,7 @@ source "${REGISTRY_DIR}/common.sh"
 #######################################
 registry::init() {
     local registry_file="${var_ROOT_DIR}/.vrooli/adapter-registry.json"
-    local registry_dir=$(dirname "$registry_file")
+    local registry_dir=${registry_file%/*
     
     # Ensure directory exists
     mkdir -p "$registry_dir"

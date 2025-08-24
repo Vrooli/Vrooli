@@ -17,7 +17,8 @@ HTTP_ERRORS=0
 HTTP_WARNINGS=0
 
 # Source common utilities if available
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/scripts/scenarios/framework/handlers"
 if [[ -f "$SCRIPT_DIR/../clients/common.sh" ]]; then
     source "$SCRIPT_DIR/../clients/common.sh"
 fi
@@ -220,7 +221,7 @@ execute_http_test_from_config() {
     required="${required:-true}"
     
     # Source resource validator for get_resource_url function
-    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    local script_dir="${APP_ROOT}/scripts/scenarios/framework/handlers"
     if [[ -f "$script_dir/../validators/resources.sh" ]]; then
         source "$script_dir/../validators/resources.sh"
     fi

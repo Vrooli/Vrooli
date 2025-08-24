@@ -2,7 +2,7 @@
 # Redis Installation Functions
 # Functions for installing and uninstalling Redis resource
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
 _REDIS_INSTALL_DIR="${APP_ROOT}/resources/redis/lib"
 # shellcheck disable=SC1091
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
@@ -155,8 +155,7 @@ redis::install::create_cli_helper() {
 # Redis CLI Helper for Vrooli Resource
 # This script connects to the Redis resource instance
 
-# Get APP_ROOT using cached value or compute once (4 levels up from config/redis/redis-cli)
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../../.." && builtin pwd)}"
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 source "${var_LIB_SERVICE_DIR}/secrets.sh" 2>/dev/null || true

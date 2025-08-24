@@ -3,8 +3,9 @@
 # SmartNotes CLI
 # Local AI-enabled note-taking application
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/scenarios/notes/cli"
+PROJECT_ROOT="${APP_ROOT}/scenarios/notes"
 
 # Default configuration
 API_URL="${NOTES_API_URL:-http://localhost:8950}"

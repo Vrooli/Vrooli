@@ -4,8 +4,7 @@
 
 set -euo pipefail
 
-# Get APP_ROOT using cached value or compute once (3 levels up: resources/qdrant/lib/api-client.sh)
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
 API_CLIENT_DIR="${APP_ROOT}/resources/qdrant/lib"
 
 # Source required utilities

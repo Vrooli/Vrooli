@@ -20,10 +20,11 @@ set -euo pipefail
 #
 ################################################################################
 
-SCENARIO_TOOLS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+SCENARIO_TOOLS_DIR="${APP_ROOT}/scripts/scenarios/tools"
 
 # shellcheck disable=SC1091
-source "${SCENARIO_TOOLS_DIR}/../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
 
@@ -141,7 +142,7 @@ print_info() {
 validate_scenario_exists() {
     print_check "Checking scenario directory..."
     
-    VALIDATE_SCENARIO_PATH="${var_SCRIPTS_SCENARIOS_DIR}/core/${VALIDATE_SCENARIO_NAME}"
+    VALIDATE_SCENARIO_PATH="${var_SCENARIOS_DIR}/${VALIDATE_SCENARIO_NAME}"
     
     if [[ ! -d "$VALIDATE_SCENARIO_PATH" ]]; then
         print_error "Scenario directory not found: $VALIDATE_SCENARIO_PATH"

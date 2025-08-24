@@ -3,8 +3,9 @@
 set -euo pipefail
 
 # Source framework utilities if available
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-FRAMEWORK_DIR="$(cd "$SCRIPT_DIR/../../framework" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/scenarios/campaign-content-studio"
+FRAMEWORK_DIR="${APP_ROOT}/scenarios/framework"
 
 # Source custom handler for print functions
 if [[ -f "$FRAMEWORK_DIR/handlers/custom.sh" ]]; then

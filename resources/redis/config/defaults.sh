@@ -3,9 +3,10 @@
 # This file contains all configuration variables for the Redis resource
 
 # Source var.sh to get proper project paths
-_REDIS_CONFIG_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+_REDIS_CONFIG_DIR="${APP_ROOT}/resources/redis/config"
 # shellcheck disable=SC1091
-source "${_REDIS_CONFIG_DIR}/../../../../lib/utils/var.sh"
+source "${_REDIS_CONFIG_DIR}/../../../lib/utils/var.sh"
 
 # Redis Docker Configuration
 REDIS_IMAGE="${REDIS_IMAGE:-redis:7-alpine}"

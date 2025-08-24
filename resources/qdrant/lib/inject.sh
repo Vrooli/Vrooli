@@ -3,7 +3,7 @@ set -euo pipefail
 
 DESCRIPTION="Inject collections and vectors into Qdrant vector database"
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
 QDRANT_INJECT_DIR="${APP_ROOT}/resources/qdrant/lib"
 
 # Source shared frameworks (MASSIVE reduction through framework leverage!)
@@ -23,8 +23,8 @@ if ! command -v inject_framework::resolve_file_path &>/dev/null; then
         local file="$1"
         if [[ -f "$file" ]]; then
             echo "$file"
-        elif [[ -f "$(dirname "${BASH_SOURCE[0]}")/$file" ]]; then
-            echo "$(dirname "${BASH_SOURCE[0]}")/$file"
+        elif [[ -f "${BASH_SOURCE[0]}%/*/$file" ]]; then
+            echo "${BASH_SOURCE[0]}%/*/$file"
         else
             echo "$file"
         fi

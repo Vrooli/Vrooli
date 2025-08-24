@@ -5,10 +5,11 @@
 set -euo pipefail
 
 # Resolve paths
-SCENARIO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+SCENARIO_DIR="${APP_ROOT}/scenarios/audio-intelligence-platform"
 
 # shellcheck disable=SC1091
-source "${SCENARIO_DIR}/../../../lib/utils/var.sh"
+source "${APP_ROOT}/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
 

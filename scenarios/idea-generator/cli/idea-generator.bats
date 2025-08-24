@@ -8,7 +8,7 @@ setup() {
     export N8N_URL="http://localhost:5678"
     
     # Path to CLI script
-    CLI_PATH="$(dirname "$BATS_TEST_FILENAME")/idea-generator"
+    CLI_PATH="${BATS_TEST_FILENAME%/*}/idea-generator"
 }
 
 @test "CLI shows help when no arguments provided" {

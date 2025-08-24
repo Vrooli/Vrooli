@@ -3,7 +3,7 @@
 # SageMath integration tests
 
 setup() {
-    export SAGEMATH_TEST_DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")" && pwd)"
+    export SAGEMATH_TEST_DIR="$(builtin cd "${BATS_TEST_FILENAME%/*}" && builtin pwd)"
     export SAGEMATH_CLI="$SAGEMATH_TEST_DIR/../cli.sh"
 }
 

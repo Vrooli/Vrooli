@@ -2,7 +2,7 @@
 # Redis Status Management - Standardized Format
 # Functions for checking and displaying Redis status information
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
 REDIS_STATUS_DIR="${APP_ROOT}/resources/redis/lib"
 # shellcheck disable=SC1091
 source "${APP_ROOT}/scripts/lib/utils/format.sh"

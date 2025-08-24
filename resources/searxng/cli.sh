@@ -18,7 +18,7 @@ if [[ -L "${BASH_SOURCE[0]}" ]]; then
 else
     SEARXNG_CLI_SCRIPT="${BASH_SOURCE[0]}"
 fi
-SEARXNG_CLI_DIR="$(cd "$(dirname "$SEARXNG_CLI_SCRIPT")" && pwd)"
+SEARXNG_CLI_DIR="$(builtin cd "${SEARXNG_CLI_SCRIPT%/*" && builtin pwd)"
 
 # Source standard variables
 # shellcheck disable=SC1091

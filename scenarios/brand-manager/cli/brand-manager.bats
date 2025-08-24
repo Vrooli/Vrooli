@@ -3,7 +3,7 @@
 
 setup() {
     # Get the directory of this test file
-    CLI_DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")" && pwd)"
+    CLI_DIR="$(cd "${BATS_TEST_FILENAME%/*}" && pwd)"
     CLI_SCRIPT="$CLI_DIR/brand-manager-cli.sh"
     
     # Ensure CLI script exists and is executable

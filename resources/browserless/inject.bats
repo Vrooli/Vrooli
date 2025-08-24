@@ -3,9 +3,9 @@
 bats_require_minimum_version 1.5.0
 
 # Setup paths and source var.sh first
-SCRIPT_DIR="$(cd "$(dirname "${BATS_TEST_FILENAME}")" && pwd)"
+SCRIPT_DIR="$(builtin cd "${BATS_TEST_FILENAME%/*}" && builtin pwd)"
 # shellcheck disable=SC1091
-source "$(cd "${SCRIPT_DIR}/../../../.." && pwd)/scripts/lib/utils/var.sh"
+source "$(builtin cd "${SCRIPT_DIR%/*/*/*}" && builtin pwd)/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 

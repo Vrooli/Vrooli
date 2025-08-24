@@ -21,7 +21,8 @@
 
 set -euo pipefail
 
-_HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../../.." && builtin pwd)}"
+_HERE="${APP_ROOT}/scripts/resources/tests/framework/cache"
 
 # shellcheck disable=SC1091
 source "${_HERE}/../../../../../lib/utils/var.sh"
@@ -52,7 +53,7 @@ CACHE_WRITES=0
 cache_manager::init() {
     # Determine cache directory
     local script_dir
-    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    script_dir="${_HERE}"
     CACHE_DIR="$script_dir"
     
     # Create cache directory if it doesn't exist

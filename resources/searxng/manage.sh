@@ -6,11 +6,12 @@ set -euo pipefail
 
 DESCRIPTION="Install and manage SearXNG metasearch engine using Docker"
 
-SEARXNG_SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../.." && builtin pwd)}"
+SEARXNG_SCRIPT_DIR="${APP_ROOT}/resources/searxng"
 
 # Source var.sh first to get path variables
 # shellcheck disable=SC1091
-source "${SEARXNG_SCRIPT_DIR}/../../../lib/utils/var.sh"
+source "${SEARXNG_SCRIPT_DIR}/../../lib/utils/var.sh"
 
 # Source common resources using var_ variables
 # shellcheck disable=SC1091

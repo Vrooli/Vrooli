@@ -6,7 +6,7 @@ setup() {
     # Set up test environment
     export API_BASE_URL="http://localhost:8200"
     export CHAT_BASE_URL="http://localhost:8201"
-    CLI_SCRIPT="$(dirname "$BATS_TEST_FILENAME")/personal-digital-twin"
+    CLI_SCRIPT="${BATS_TEST_FILENAME%/*}/personal-digital-twin"
     
     # Skip tests if API is not running
     if ! curl -sf "$API_BASE_URL/health" > /dev/null 2>&1; then

@@ -269,7 +269,7 @@ run_static_validation() {
 generate_app() {
     print_phase "Phase 2: App Generation"
     
-    SCENARIO_PATH="${var_SCRIPTS_SCENARIOS_DIR}/core/${SCENARIO_NAME}"
+    SCENARIO_PATH="${var_SCENARIOS_DIR}/${SCENARIO_NAME}"
     GENERATED_APP_PATH="${HOME}/generated-apps/${SCENARIO_NAME}"
     
     if [[ "$SKIP_GENERATION" == "true" ]]; then

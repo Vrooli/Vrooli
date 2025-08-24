@@ -32,7 +32,6 @@ set -euo pipefail
 #
 ################################################################################
 
-# Get APP_ROOT using cached value or compute once (3 levels up: scripts/scenarios/tools/scenario-to-app.sh)
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 SCENARIO_TOOLS_DIR="${APP_ROOT}/scripts/scenarios/tools"
 
@@ -223,7 +222,7 @@ scenario_to_app::validate_scenario() {
     local scenario_name="$1"
     local -n scenario_data_ref="$2"  # nameref for returning data
     
-    local scenario_path="${var_SCRIPTS_SCENARIOS_DIR}/core/${scenario_name}"
+    local scenario_path="${var_ROOT_DIR}/scenarios/${scenario_name}"
     
     if [[ ! -d "$scenario_path" ]]; then
         log::error "Scenario directory not found: $scenario_path"
@@ -500,7 +499,7 @@ scenario_to_app::validate_initialization_paths() {
             # Relative path from service.json location (.vrooli/ directory)
             full_path="${service_json_dir}/${file_path}"
             # Normalize the path (resolve .. and .)
-            full_path=$(builtin cd "$(dirname "$full_path")" 2>/dev/null && builtin pwd)/$(basename "$full_path")
+            full_path=$(builtin cd "${full_path%/*}" 2>/dev/null && builtin pwd)/${full_path##*/}
         else
             # Simple path - relative to scenario root directory
             full_path="${scenario_path}/${file_path}"
@@ -531,7 +530,7 @@ scenario_to_app::validate_initialization_paths() {
             # Relative path from service.json location (.vrooli/ directory)
             full_path="${service_json_dir}/${file_path}"
             # Normalize the path (resolve .. and .)
-            full_path=$(builtin cd "$(dirname "$full_path")" 2>/dev/null && builtin pwd)/$(basename "$full_path")
+            full_path=$(builtin cd "${full_path%/*}" 2>/dev/null && builtin pwd)/${full_path##*/}
         else
             # Simple path - relative to scenario root directory
             full_path="${scenario_path}/${file_path}"
@@ -581,7 +580,7 @@ scenario_to_app::validate_initialization_paths() {
 scenario_to_app::create_default_service_json() {
     local dest="$1"
     local app_name
-    app_name="$(basename "$(dirname "$(dirname "$dest")")")"
+    app_name="$(basename "${dest%/*%/*}")"
     
     cat > "$dest" << EOF
 {
@@ -833,6 +832,77 @@ scenario_to_app::process_template_variables() {
             fi
         fi
     fi
+}
+
+#######################################
+# Adjust APP_ROOT depth for scenario-to-app conversion
+# Converts 3-level scenario paths (../../..) to 1-level app paths (/..)
+# Arguments:
+#   $1 - file path
+# Returns:
+#   0 on success, 1 on failure
+#######################################
+scenario_to_app::adjust_app_root_depth() {
+    local file="$1"
+    
+    # Skip if file doesn't exist or is binary
+    [[ ! -f "$file" ]] && return 0
+    file -b --mime-type "$file" | grep -q "text/" || return 0
+    
+    # Only process shell scripts
+    local is_shell_script=false
+    if [[ "$file" =~ \.(sh|bash)$ ]] || head -1 "$file" | grep -q "#!/.*bash\|#!/.*sh"; then
+        is_shell_script=true
+    fi
+    
+    [[ "$is_shell_script" != "true" ]] && return 0
+    
+    # Read file content
+    local content
+    content=$(cat "$file")
+    local modified=false
+    
+    # Transform scenario depth (2 levels up) to app depth (0 levels up)
+    # Scenarios: /Vrooli/scenarios/name/script.sh → go up /../.. to reach /Vrooli  
+    # Apps: /generated-apps/name/script.sh → stay at name/ directory (the app root)
+    local original_content="$content"
+    
+    # Pattern 1: Transform ${VAR%/*}/../.. to ${VAR%/*} (remove the /../.. part)
+    # This makes APP_ROOT point to the script's directory (the app root)
+    content=$(echo "$content" | sed 's|%/\*}/\.\./\.\.|%/*}|g')
+    
+    # Pattern 2: Transform builtin cd ".../../.." to builtin cd "..." 
+    content=$(echo "$content" | sed 's|"\.\./\.\./|"./|g')
+    content=$(echo "$content" | sed 's|\.\./\.\./|./|g')
+    
+    # Pattern 3: Remove /scenarios/<scenario-name> from paths
+    # This converts paths like ${APP_ROOT}/scenarios/simple-test/cli to ${APP_ROOT}/cli
+    # We need to detect the scenario name from the content itself
+    # Look for patterns like /scenarios/XXXXX/ where XXXXX is the scenario name
+    if echo "$content" | grep -q "/scenarios/[^/]*/"; then
+        # Extract the scenario name from the content
+        local scenario_name=$(echo "$content" | grep -o "/scenarios/[^/]*/" | head -1 | sed 's|/scenarios/||g' | sed 's|/||g')
+        
+        if [[ -n "$scenario_name" ]]; then
+            # Remove /scenarios/<scenario-name> from all paths
+            content=$(echo "$content" | sed "s|/scenarios/${scenario_name}/|/|g")
+            content=$(echo "$content" | sed "s|/scenarios/${scenario_name}\"|/\"|g")
+            [[ "$VERBOSE" == "true" ]] && log::info "Removed /scenarios/${scenario_name} paths from: $(basename "$file")"
+        fi
+    fi
+    
+    if [[ "$content" != "$original_content" ]]; then
+        modified=true
+        [[ "$VERBOSE" == "true" ]] && log::info "Adjusted APP_ROOT depth for scenario-to-app conversion in: $(basename "$file")"
+    fi
+    
+    # Write back if modified
+    if [[ "$modified" == "true" ]]; then
+        echo "$content" > "$file"
+        [[ "$VERBOSE" == "true" ]] && log::success "APP_ROOT depth adjusted for scenario-to-app conversion: $(basename "$file")"
+    fi
+    
+    return 0
 }
 
 #######################################
@@ -1103,7 +1173,7 @@ scenario_to_app::copy_bulk_file() {
     local rel_path="$3"
     
     # Create parent directory
-    mkdir -p "$(dirname "$dest")" || {
+    mkdir -p "${dest%/*}" || {
         log::error "Failed to create directory for: $rel_path"
         return 1
     }
@@ -1136,7 +1206,7 @@ scenario_to_app::copy_item() {
     [[ "$VERBOSE" == "true" ]] && log::info "Copying $name: $src -> $dest"
     
     # Create parent directory
-    mkdir -p "$(dirname "$dest")"
+    mkdir -p "${dest%/*}"
     
     case "$type" in
         file)
@@ -1202,7 +1272,7 @@ scenario_to_app::create_vrooli_base_tar() {
     
     # Copy only Vrooli files to temp directory
     # Use any scenario path - we'll filter to only "vrooli" files
-    local sample_scenario_path="${var_SCRIPTS_SCENARIOS_DIR}/core/simple-test"
+    local sample_scenario_path="${var_ROOT_DIR}/scenarios/simple-test"
     
     if ! scenario_to_app::copy_from_manifest "$temp_base_dir" "$sample_scenario_path" "/dev/null" "vrooli"; then
         log::error "Failed to copy Vrooli base files"
@@ -1402,6 +1472,19 @@ scenario_to_app::process_file() {
                 scenario_to_app::filter_shared_initialization "$file_path" "$service_json"
             fi
             ;;
+        adjust_app_root_depth)
+            # Adjust APP_ROOT depth for scenario-to-app conversion
+            # Convert 3-level scenario paths to 1-level app paths
+            if [[ -d "$file_path" ]]; then
+                # Process all shell scripts in the directory
+                find "$file_path" -type f \( -name "*.sh" -o -name "*.bash" \) | while IFS= read -r shell_file; do
+                    scenario_to_app::adjust_app_root_depth "$shell_file"
+                done
+            elif [[ -f "$file_path" ]]; then
+                # Process single file
+                scenario_to_app::adjust_app_root_depth "$file_path"
+            fi
+            ;;
         *)
             log::warning "Unknown processor: $processor"
             return 1
@@ -1421,7 +1504,7 @@ scenario_to_app::create_instance_manager_wrapper() {
     local app_instance_manager="$app_path/scripts/app/lifecycle/develop/instance_manager.sh"
     
     # Create app lifecycle develop directory if it doesn't exist
-    mkdir -p "$(dirname "$app_instance_manager")"
+    mkdir -p "${app_instance_manager%/*}"
     
     # Create a wrapper that properly integrates with the standalone app structure
     cat > "$app_instance_manager" << 'EOF'

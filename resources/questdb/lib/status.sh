@@ -5,7 +5,7 @@
 # Functions for checking and displaying QuestDB status information
 
 # Source format utilities
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
 QUESTDB_LIB_DIR="${APP_ROOT}/resources/questdb/lib"
 # shellcheck disable=SC1091
 source "${QUESTDB_LIB_DIR}/../../../../lib/utils/format.sh"
@@ -410,7 +410,7 @@ questdb::test() {
     log::info "Testing QuestDB functionality..."
     
     local test_result_file="/home/matthalloran8/Vrooli/data/questdb/test_results.json"
-    mkdir -p "$(dirname "$test_result_file")"
+    mkdir -p "${test_result_file%/*"
     local test_passed=true
     local start_time=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
     

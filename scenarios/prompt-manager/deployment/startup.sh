@@ -2,8 +2,9 @@
 # Prompt Manager Startup Script
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SCENARIO_DIR="$(dirname "$SCRIPT_DIR")"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/scenarios/prompt-manager/deployment"
+SCENARIO_DIR="${APP_ROOT}/scenarios/prompt-manager"
 
 # Import logging utilities if available
 if [[ -f "${SCRIPT_DIR}/../../../../lib/utils/var.sh" ]]; then

@@ -11,20 +11,7 @@
       "template",
       "testing",
       "integration"
-    ],
-    "maintainers": [
-      {
-        "name": "MAINTAINER_NAME_PLACEHOLDER",
-        "email": "MAINTAINER_EMAIL_PLACEHOLDER"
-      }
-    ],
-    "repository": {
-      "type": "git",
-      "url": "https://github.com/Vrooli/Vrooli",
-      "directory": "/scenarios/basic"
-    },
-    "license": "MIT",
-    "documentation": "./README.md"
+    ]
   },
   "resources": {
     "storage": {

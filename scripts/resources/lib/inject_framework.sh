@@ -12,11 +12,13 @@ readonly VROOLI_INJECT_FRAMEWORK_LOADED=1
 
 # Framework initialization
 readonly FRAMEWORK_VERSION="1.1.0"  # Updated: Fixed critical security vulnerabilities
-readonly FRAMEWORK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Source required utilities (using relative paths from framework location)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+readonly FRAMEWORK_DIR="${APP_ROOT}/scripts/resources/lib"
+
+# Source required utilities
 # shellcheck disable=SC1091
-source "${FRAMEWORK_DIR}/../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
 # shellcheck disable=SC1091

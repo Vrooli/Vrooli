@@ -27,7 +27,8 @@ log_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
-SCENARIO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+SCENARIO_DIR="${APP_ROOT}/scenarios/document-manager"
 MIGRATION_ERRORS=0
 
 check_file_exists() {
