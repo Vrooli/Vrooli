@@ -726,3 +726,5 @@ export -f helm_debug helm_check_error
 # Initialize with defaults
 helm_mock_reset
 helm_debug "Helm Tier 2 mock initialized"
+# Ensure we return success when sourced
+return 0 2>/dev/null || true

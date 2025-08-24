@@ -3,7 +3,8 @@
 # Provides common utilities used across all test phases
 
 # shellcheck disable=SC1091
-[[ -z "${SCRIPT_DIR:-}" ]] && SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+[[ -z "${SCRIPT_DIR:-}" ]] && SCRIPT_DIR="${APP_ROOT}/__test"
 source "$SCRIPT_DIR/shared/logging.bash"
 
 # File existence and validation helpers

@@ -4,9 +4,10 @@
 
 set -euo pipefail
 
-# Script directory
+# Get APP_ROOT using cached value or compute once (2 levels up: __test/fixtures/cleanup-manager.sh)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
 if [[ -z "${CLEANUP_MANAGER_SCRIPT_DIR:-}" ]]; then
-    CLEANUP_MANAGER_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    CLEANUP_MANAGER_SCRIPT_DIR="${APP_ROOT}/__test/fixtures"
     readonly CLEANUP_MANAGER_SCRIPT_DIR
 fi
 
@@ -15,7 +16,7 @@ source "$CLEANUP_MANAGER_SCRIPT_DIR/cleanup.bash"
 
 # Source var.sh first to get proper directory variables
 # shellcheck disable=SC1091
-source "${CLEANUP_MANAGER_SCRIPT_DIR}/../../lib/utils/var.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || true
 
 # Source trash system for safe removal using var_ variables
 # shellcheck disable=SC1091

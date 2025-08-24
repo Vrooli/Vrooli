@@ -660,3 +660,5 @@ export -f fs_debug fs_check_error
 # Initialize with defaults
 filesystem_mock_reset
 fs_debug "Filesystem Tier 2 mock initialized"
+# Ensure we return success when sourced
+return 0 2>/dev/null || true

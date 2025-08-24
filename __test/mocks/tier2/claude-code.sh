@@ -465,3 +465,5 @@ export -f claude_debug claude_check_error
 # Initialize with defaults
 claude_mock_reset
 claude_debug "Claude CLI Tier 2 mock initialized"
+# Ensure we return success when sourced
+return 0 2>/dev/null || true

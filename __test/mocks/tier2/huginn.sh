@@ -421,3 +421,5 @@ export -f huginn_debug huginn_check_error
 # Initialize
 huginn_mock_reset
 huginn_debug "Huginn Tier 2 mock initialized"
+# Ensure we return success when sourced
+return 0 2>/dev/null || true

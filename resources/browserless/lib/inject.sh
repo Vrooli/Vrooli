@@ -5,7 +5,8 @@
 set -euo pipefail
 
 # Get script directory (resolve symlinks)
-BROWSERLESS_INJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+BROWSERLESS_INJECT_DIR="${APP_ROOT}/resources/browserless/lib"
 source "$BROWSERLESS_INJECT_DIR/common.sh"
 
 #######################################  

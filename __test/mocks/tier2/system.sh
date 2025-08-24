@@ -678,3 +678,5 @@ export -f system_debug system_check_error
 # Initialize with defaults
 system_mock_reset
 system_debug "System Tier 2 mock initialized"
+# Ensure we return success when sourced
+return 0 2>/dev/null || true

@@ -543,3 +543,5 @@ export -f comfyui_debug comfyui_check_error
 # Initialize with defaults
 comfyui_mock_reset
 comfyui_debug "ComfyUI Tier 2 mock initialized"
+# Ensure we return success when sourced
+return 0 2>/dev/null || true

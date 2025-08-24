@@ -356,3 +356,5 @@ export -f dig_debug
 # Initialize
 dig_mock_reset
 dig_debug "Dig Tier 2 mock initialized"
+# Ensure we return success when sourced
+return 0 2>/dev/null || true

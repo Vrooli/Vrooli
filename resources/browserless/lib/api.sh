@@ -2,14 +2,16 @@
 # Browserless API Functions
 # API testing, examples, and usage demonstrations
 
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+
 # Source var.sh for directory variables
 # shellcheck disable=SC1091
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../../lib/utils/var.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
 # Source configuration messages
-BROWSERLESS_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+BROWSERLESS_LIB_DIR="${APP_ROOT}/resources/browserless/lib"
 # shellcheck disable=SC1091
 source "${BROWSERLESS_LIB_DIR}/../config/messages.sh" 2>/dev/null || true
 # Export message variables

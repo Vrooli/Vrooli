@@ -282,8 +282,8 @@ export -f logs_debug
 export -f logs_init
 export -f logs_cleanup
 
-# Auto-initialize if enabled
-if [[ "${MOCK_UTILS_AUTO_INIT:-true}" == "true" ]]; then
+# Auto-initialize if enabled (skip in BATS environment)
+if [[ "${MOCK_UTILS_AUTO_INIT:-true}" == "true" ]] && [[ -z "${BATS_TEST_FILENAME:-}" ]]; then
     logs_init
 fi
 
@@ -294,4 +294,6 @@ export MOCK_UTILS_LOADED="true"
 mock::init_logging() { logs_init "$@"; }
 export -f mock::init_logging
 
-logs_debug "Logs Tier 2 mock initialized"
+# logs_debug "Logs Tier 2 mock initialized" # Disabled in BATS environment
+# Ensure we return success when sourced
+return 0 2>/dev/null || true

@@ -502,3 +502,5 @@ export -f http_debug http_check_error
 # Initialize with defaults
 http_mock_reset
 http_debug "HTTP Tier 2 mock initialized"
+# Ensure we return success when sourced
+return 0 2>/dev/null || true

@@ -408,3 +408,5 @@ export -f judge0_debug judge0_check_error
 # Initialize
 judge0_mock_reset
 judge0_debug "Judge0 Tier 2 mock initialized"
+# Ensure we return success when sourced
+return 0 2>/dev/null || true

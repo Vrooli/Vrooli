@@ -15,8 +15,9 @@
 #######################################
 
 # Get script directory
-N8N_ADAPTER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ADAPTERS_DIR="$(dirname "$N8N_ADAPTER_DIR")"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
+N8N_ADAPTER_DIR="${APP_ROOT}/resources/browserless/adapters/n8n"
+ADAPTERS_DIR="${APP_ROOT}/resources/browserless/adapters"
 
 # Source adapter framework
 source "${ADAPTERS_DIR}/common.sh"

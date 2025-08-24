@@ -573,3 +573,5 @@ export -f n8n_generate_id
 # Initialize
 n8n_mock_reset
 n8n_debug "N8n Tier 2 mock initialized"
+# Ensure we return success when sourced
+return 0 2>/dev/null || true

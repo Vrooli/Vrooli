@@ -11,12 +11,13 @@
 set -euo pipefail
 
 # Get script directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/resources/browserless/adapters/n8n"
 N8N_ADAPTER_DIR="$SCRIPT_DIR"
-BROWSERLESS_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
+BROWSERLESS_DIR="${APP_ROOT}/resources/browserless"
 
 # Source required libraries
-source "/home/matthalloran8/Vrooli/scripts/lib/utils/log.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/log.sh" 2>/dev/null || true
 source "${BROWSERLESS_DIR}/lib/browser-ops.sh"
 source "${BROWSERLESS_DIR}/lib/session-manager.sh"
 

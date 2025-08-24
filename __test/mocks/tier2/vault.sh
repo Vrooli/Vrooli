@@ -924,3 +924,5 @@ export -f vault_debug vault_check_error
 # Initialize with defaults
 vault_mock_reset
 vault_debug "Vault Tier 2 mock initialized"
+# Ensure we return success when sourced
+return 0 2>/dev/null || true

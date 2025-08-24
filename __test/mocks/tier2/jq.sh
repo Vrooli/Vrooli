@@ -354,3 +354,5 @@ export -f jq_debug
 # Initialize
 jq_mock_reset
 jq_debug "JQ Tier 2 mock initialized"
+# Ensure we return success when sourced
+return 0 2>/dev/null || true

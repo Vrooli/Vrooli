@@ -567,3 +567,6 @@ export -f redis_check_expiry
 
 # Initialize
 redis_debug "Redis Tier 2 mock initialized"
+
+# Ensure we return success when sourced
+return 0 2>/dev/null || true

@@ -4,7 +4,9 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Get APP_ROOT using cached value or compute once (2 levels up: __test/fixtures/generate-negative-fixtures.sh)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/__test/fixtures"
 NEGATIVE_DIR="$SCRIPT_DIR/negative-tests"
 
 # Create negative tests directory
@@ -313,7 +315,8 @@ cat > "$NEGATIVE_DIR/validate-negative-tests.sh" << 'EOF'
 
 set -euo pipefail
 
-NEGATIVE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+NEGATIVE_DIR="${APP_ROOT}/__test/fixtures/negative-tests"
 
 echo "Validating negative test fixtures..."
 echo "===================================="

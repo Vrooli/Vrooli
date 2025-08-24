@@ -10,10 +10,11 @@
 set -euo pipefail
 
 # Get script directory
-SESSION_MANAGER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+SESSION_MANAGER_DIR="${APP_ROOT}/resources/browserless/lib"
 
 # Source log utilities
-source "/home/matthalloran8/Vrooli/scripts/lib/utils/log.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/log.sh" 2>/dev/null || true
 
 # Source common utilities
 source "${SESSION_MANAGER_DIR}/common.sh"

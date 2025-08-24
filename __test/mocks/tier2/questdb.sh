@@ -462,3 +462,5 @@ export -f questdb_debug questdb_check_error
 # Initialize with defaults
 questdb_mock_reset
 questdb_debug "QuestDB Tier 2 mock initialized"
+# Ensure we return success when sourced
+return 0 2>/dev/null || true

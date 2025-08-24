@@ -373,3 +373,5 @@ export -f nodered_debug nodered_check_error
 # Initialize with defaults
 nodered_mock_reset
 nodered_debug "Node-RED Tier 2 mock initialized"
+# Ensure we return success when sourced
+return 0 2>/dev/null || true

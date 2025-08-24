@@ -463,3 +463,5 @@ export -f qdrant_handle_api_request
 # Initialize with default state
 qdrant_mock_reset
 qdrant_debug "Qdrant Tier 2 mock initialized"
+# Ensure we return success when sourced
+return 0 2>/dev/null || true

@@ -463,3 +463,5 @@ export -f unstructured_debug unstructured_check_error
 # Initialize
 unstructured_mock_reset
 unstructured_debug "Unstructured.io Tier 2 mock initialized"
+# Ensure we return success when sourced
+return 0 2>/dev/null || true

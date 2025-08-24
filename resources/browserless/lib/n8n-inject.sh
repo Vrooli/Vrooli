@@ -7,9 +7,9 @@
 
 set -euo pipefail
 
-# Get script directory
-N8N_INJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BROWSERLESS_DIR="$(dirname "$N8N_INJECT_DIR")"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+N8N_INJECT_DIR="${APP_ROOT}/resources/browserless/lib"
+BROWSERLESS_DIR="${APP_ROOT}/resources/browserless"
 
 # Source required components
 source "${BROWSERLESS_DIR}/lib/common.sh"

@@ -4,11 +4,13 @@
 
 set -e
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Get APP_ROOT using cached value or compute once (3 levels up: __test/fixtures/images/validate-images.sh)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/__test/fixtures/images"
 
 # Source var.sh first to get proper directory variables
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || true
 
 # Source trash system for safe removal using var_ variables
 # shellcheck disable=SC1091

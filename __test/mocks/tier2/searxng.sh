@@ -381,3 +381,5 @@ export -f searxng_debug searxng_check_error
 # Initialize with defaults
 searxng_mock_reset
 searxng_debug "SearXNG Tier 2 mock initialized"
+# Ensure we return success when sourced
+return 0 2>/dev/null || true

@@ -1,0 +1,36 @@
+{
+  "version": "3.0",
+  "phase": "integration",
+  "updated": "2025-08-23T19:14:40-04:00",
+  "ttl_seconds": 3600,
+  "entries": {
+    "mock-ollama": {
+      "file": {
+        "mtime": 0
+      },
+      "results": {
+        "connection": {
+          "status": "passed",
+          "timestamp": 1755990880,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        },
+        "health": {
+          "status": "passed",
+          "timestamp": 1755990880,
+          "duration_ms": 3,
+          "message": " ",
+          "exit_code": 0
+        },
+        "basic": {
+          "status": "passed",
+          "timestamp": 1755990880,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    }
+  }
+}

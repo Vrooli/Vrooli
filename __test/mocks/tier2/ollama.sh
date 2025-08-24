@@ -535,3 +535,5 @@ export -f ollama_check_error
 # Initialize with default state
 ollama_mock_reset
 ollama_debug "Ollama Tier 2 mock initialized"
+# Ensure we return success when sourced
+return 0 2>/dev/null || true

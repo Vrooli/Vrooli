@@ -523,3 +523,5 @@ export -f postgres_format_table
 # Initialize with default state
 postgres_mock_reset
 postgres_debug "PostgreSQL Tier 2 mock initialized"
+# Ensure we return success when sourced
+return 0 2>/dev/null || true

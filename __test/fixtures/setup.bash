@@ -8,15 +8,27 @@ if [[ "${VROOLI_TEST_SETUP_LOADED:-}" == "true" ]]; then
 fi
 export VROOLI_TEST_SETUP_LOADED="true"
 
-# Determine the test root directory
-VROOLI_TEST_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Determine the test root directory  
+APP_ROOT="${APP_ROOT:-$(builtin cd "$(dirname "${BASH_SOURCE[0]}")/../.." && builtin pwd)}"
+VROOLI_TEST_ROOT="${APP_ROOT}/__test"
 export VROOLI_TEST_ROOT
 
-echo "[SETUP] Vrooli Test Setup - Loading from: $VROOLI_TEST_ROOT"
+# Set up mock paths - using Tier 2 mocks
+export VROOLI_MOCK_DIR="${VROOLI_TEST_ROOT}/mocks/tier2"
+export MOCK_MODE="tier2"  # Default to Tier 2 mocks
+
+[[ -n "${BATS_DEBUG:-}" ]] && echo "[SETUP] Vrooli Test Setup - Loading from: $VROOLI_TEST_ROOT" >&2
+[[ -n "${BATS_DEBUG:-}" ]] && echo "[SETUP] Mock directory: $VROOLI_MOCK_DIR" >&2
 
 #######################################
 # Load required dependencies
 #######################################
+
+# Load the Tier 2 mock adapter and test helper
+if [[ -f "$VROOLI_TEST_ROOT/mocks/test_helper.sh" ]]; then
+    source "$VROOLI_TEST_ROOT/mocks/test_helper.sh"
+    [[ -n "${BATS_DEBUG:-}" ]] && echo "[SETUP] Loaded Tier 2 mock test helper (v${MOCK_TEST_HELPER_VERSION})" >&2
+fi
 
 # Load configuration system first (using simple variable-based system for BATS compatibility)
 source "$VROOLI_TEST_ROOT/shared/config-simple.bash"
@@ -28,8 +40,8 @@ if ! vrooli_config_init; then
 fi
 
 # Load other shared utilities
-source "$VROOLI_TEST_ROOT/shared/utils.bash" 2>/dev/null || echo "[SETUP] Utils not loaded (optional)"
-source "$VROOLI_TEST_ROOT/shared/logging.bash" 2>/dev/null || echo "[SETUP] Logging not loaded (optional)"
+source "$VROOLI_TEST_ROOT/shared/utils.bash" 2>/dev/null || { [[ -n "${BATS_DEBUG:-}" ]] && echo "[SETUP] Utils not loaded (optional)" >&2; }
+source "$VROOLI_TEST_ROOT/shared/logging.bash" 2>/dev/null || { [[ -n "${BATS_DEBUG:-}" ]] && echo "[SETUP] Logging not loaded (optional)" >&2; }
 
 # Load assertions
 source "$VROOLI_TEST_ROOT/fixtures/assertions.bash"
@@ -42,7 +54,7 @@ if [[ -f "$VROOLI_TEST_ROOT/fixtures/cleanup-manager.sh" ]]; then
     source "$VROOLI_TEST_ROOT/fixtures/cleanup-manager.sh"
     # Register automatic cleanup handlers
     vrooli_register_cleanup
-    echo "[SETUP] Cleanup manager loaded with automatic cleanup registration"
+    [[ -n "${BATS_DEBUG:-}" ]] && echo "[SETUP] Cleanup manager loaded with automatic cleanup registration" >&2
 fi
 
 #######################################
@@ -56,7 +68,7 @@ fi
 # Returns: 0 on success, 1 on failure
 #######################################
 vrooli_setup_unit_test() {
-    echo "[SETUP] Setting up unit test environment"
+    [[ -n "${BATS_DEBUG:-}" ]] && echo "[SETUP] Setting up unit test environment" >&2
     
     # Configure test environment
     _vrooli_setup_test_environment
@@ -64,7 +76,7 @@ vrooli_setup_unit_test() {
     # Load basic system mocks
     _vrooli_load_system_mocks
     
-    echo "[SETUP] Unit test environment ready"
+    [[ -n "${BATS_DEBUG:-}" ]] && echo "[SETUP] Unit test environment ready" >&2
     return 0
 }
 
@@ -81,7 +93,7 @@ vrooli_setup_service_test() {
         return 1
     fi
     
-    echo "[SETUP] Setting up service test for: $service"
+    [[ -n "${BATS_DEBUG:-}" ]] && echo "[SETUP] Setting up service test for: $service" >&2
     
     # Basic unit test setup
     vrooli_setup_unit_test
@@ -92,7 +104,7 @@ vrooli_setup_service_test() {
     # Configure service environment
     _vrooli_configure_service_environment "$service"
     
-    echo "[SETUP] Service test environment ready for: $service"
+    [[ -n "${BATS_DEBUG:-}" ]] && echo "[SETUP] Service test environment ready for: $service" >&2
     return 0
 }
 
@@ -109,7 +121,7 @@ vrooli_setup_integration_test() {
         return 1
     fi
     
-    echo "[SETUP] Setting up integration test for services: ${services[*]}"
+    [[ -n "${BATS_DEBUG:-}" ]] && echo "[SETUP] Setting up integration test for services: ${services[*]}" >&2
     
     # Basic unit test setup
     vrooli_setup_unit_test
@@ -120,7 +132,7 @@ vrooli_setup_integration_test() {
         _vrooli_configure_service_environment "$service"
     done
     
-    echo "[SETUP] Integration test environment ready"
+    [[ -n "${BATS_DEBUG:-}" ]] && echo "[SETUP] Integration test environment ready" >&2
     return 0
 }
 
@@ -130,7 +142,7 @@ vrooli_setup_integration_test() {
 # Returns: 0 on success, 1 on failure
 #######################################
 vrooli_setup_performance_test() {
-    echo "[SETUP] Setting up performance test environment"
+    [[ -n "${BATS_DEBUG:-}" ]] && echo "[SETUP] Setting up performance test environment" >&2
     
     # Minimal environment setup
     _vrooli_setup_test_environment "performance"
@@ -138,7 +150,7 @@ vrooli_setup_performance_test() {
     # Load only essential mocks
     _vrooli_load_minimal_mocks
     
-    echo "[SETUP] Performance test environment ready"
+    [[ -n "${BATS_DEBUG:-}" ]] && echo "[SETUP] Performance test environment ready" >&2
     return 0
 }
 
@@ -187,7 +199,7 @@ _vrooli_setup_test_environment() {
             ;;
     esac
     
-    echo "[SETUP] Test environment configured (type: $test_type, namespace: $TEST_NAMESPACE)"
+    [[ -n "${BATS_DEBUG:-}" ]] && echo "[SETUP] Test environment configured (type: $test_type, namespace: $TEST_NAMESPACE)" >&2
     return 0
 }
 
@@ -197,33 +209,42 @@ _vrooli_setup_test_environment() {
 # Returns: 0 on success
 #######################################
 _vrooli_load_system_mocks() {
-    local mocks_enabled
-    mocks_enabled=$(vrooli_config_get_bool "mocks_enabled" "true")
+    # For now, just enable mocks by default since the config system seems problematic
+    local mocks_enabled="true"
+    
+    [[ -n "${BATS_DEBUG:-}" ]] && echo "[SETUP] Mock loading enabled (mocks_enabled='$mocks_enabled')" >&2
     
     if [[ "$mocks_enabled" != "true" ]]; then
-        echo "[SETUP] Mocks disabled, skipping system mock loading"
+        [[ -n "${BATS_DEBUG:-}" ]] && echo "[SETUP] Mocks disabled, skipping system mock loading" >&2
         return 0
     fi
     
     # Load mock utilities first (provides centralized logging and common functions)
-    local utils_file="$VROOLI_TEST_ROOT/fixtures/mocks/logs.sh"
+    # Try Tier 2 location first
+    local utils_file="$VROOLI_MOCK_DIR/logs.sh"
     if [[ -f "$utils_file" ]]; then
         source "$utils_file"
-        echo "[SETUP] Loaded mock utilities"
+        [[ -n "${BATS_DEBUG:-}" ]] && echo "[SETUP] Loaded mock utilities from Tier 2" >&2
     else
-        echo "[SETUP] WARNING: Mock utilities not found: $utils_file"
+        [[ -n "${BATS_DEBUG:-}" ]] && echo "[SETUP] WARNING: Mock utilities not found: $utils_file" >&2
     fi
     
-    # Load system mocks if they exist
+    # Load system mocks using the test_helper if available
     local system_mocks=("docker" "http" "system")
     
     for mock in "${system_mocks[@]}"; do
-        local mock_file="$VROOLI_TEST_ROOT/fixtures/mocks/$mock.sh"
-        if [[ -f "$mock_file" ]]; then
-            source "$mock_file"
-            echo "[SETUP] Loaded system mock: $mock"
+        if declare -F load_test_mock >/dev/null 2>&1; then
+            # Use test_helper.sh function if available
+            load_test_mock "$mock"
         else
-            echo "[SETUP] System mock not found: $mock (file: $mock_file)"
+            # Fallback to direct loading from Tier 2 directory
+            local mock_file="$VROOLI_MOCK_DIR/$mock.sh"
+            if [[ -f "$mock_file" ]]; then
+                source "$mock_file"
+                [[ -n "${BATS_DEBUG:-}" ]] && echo "[SETUP] Loaded system mock: $mock" >&2
+            else
+                [[ -n "${BATS_DEBUG:-}" ]] && echo "[SETUP] System mock not found: $mock (file: $mock_file)" >&2
+            fi
         fi
     done
     
@@ -241,9 +262,9 @@ _vrooli_load_service_mock() {
     
     if [[ -f "$mock_file" ]]; then
         source "$mock_file"
-        echo "[SETUP] Loaded service mock: $service"
+        [[ -n "${BATS_DEBUG:-}" ]] && echo "[SETUP] Loaded service mock: $service" >&2
     else
-        echo "[SETUP] WARNING: Service mock not found: $service (file: $mock_file)"
+        [[ -n "${BATS_DEBUG:-}" ]] && echo "[SETUP] WARNING: Service mock not found: $service (file: $mock_file)" >&2
         # Create a generic mock environment for the service
         _vrooli_create_generic_service_mock "$service"
     fi
@@ -276,9 +297,9 @@ _vrooli_configure_service_environment() {
         export "${service_upper}_PORT=$port"
         export "${service_upper}_BASE_URL=http://localhost:$port"
         
-        echo "[SETUP] Configured environment for $service (port: $port)"
+        [[ -n "${BATS_DEBUG:-}" ]] && echo "[SETUP] Configured environment for $service (port: $port)" >&2
     else
-        echo "[SETUP] WARNING: No port configured for service: $service"
+        [[ -n "${BATS_DEBUG:-}" ]] && echo "[SETUP] WARNING: No port configured for service: $service" >&2
     fi
     
     return 0
@@ -295,7 +316,7 @@ _vrooli_create_generic_service_mock() {
     # Create basic mock function for the service
     eval "${service}() { echo 'Mock ${service} called with: \$*'; return 0; }"
     
-    echo "[SETUP] Created generic mock for service: $service"
+    [[ -n "${BATS_DEBUG:-}" ]] && echo "[SETUP] Created generic mock for service: $service" >&2
     return 0
 }
 
@@ -309,9 +330,15 @@ _vrooli_load_minimal_mocks() {
     local essential_mocks=("system")
     
     for mock in "${essential_mocks[@]}"; do
-        local mock_file="$VROOLI_TEST_ROOT/fixtures/mocks/$mock.sh"
-        if [[ -f "$mock_file" ]]; then
-            source "$mock_file"
+        if declare -F load_test_mock >/dev/null 2>&1; then
+            # Use test_helper.sh function if available
+            load_test_mock "$mock"
+        else
+            # Fallback to direct loading from Tier 2 directory
+            local mock_file="$VROOLI_MOCK_DIR/$mock.sh"
+            if [[ -f "$mock_file" ]]; then
+                source "$mock_file"
+            fi
         fi
     done
     
@@ -336,16 +363,16 @@ vrooli_auto_setup() {
         # Extract service name from path
         local service
         service=$(basename "$(dirname "$test_file")" .bats)
-        echo "[SETUP] Auto-detected service test: $service"
+        [[ -n "${BATS_DEBUG:-}" ]] && echo "[SETUP] Auto-detected service test: $service" >&2
         vrooli_setup_service_test "$service"
     elif [[ "$test_file" =~ /integration/ ]] || [[ "$test_name" =~ integration ]]; then
-        echo "[SETUP] Auto-detected integration test"
+        [[ -n "${BATS_DEBUG:-}" ]] && echo "[SETUP] Auto-detected integration test" >&2
         vrooli_setup_unit_test  # Start with basic setup, services can be added explicitly
     elif [[ "$test_name" =~ performance|benchmark ]]; then
-        echo "[SETUP] Auto-detected performance test"
+        [[ -n "${BATS_DEBUG:-}" ]] && echo "[SETUP] Auto-detected performance test" >&2
         vrooli_setup_performance_test
     else
-        echo "[SETUP] Default unit test setup"
+        [[ -n "${BATS_DEBUG:-}" ]] && echo "[SETUP] Default unit test setup" >&2
         vrooli_setup_unit_test
     fi
 }
@@ -361,4 +388,4 @@ export -f _vrooli_setup_test_environment _vrooli_load_system_mocks _vrooli_load_
 export -f _vrooli_configure_service_environment _vrooli_create_generic_service_mock _vrooli_load_minimal_mocks
 # Note: Cleanup functions are exported by cleanup.bash
 
-echo "[SETUP] Vrooli Test Setup loaded successfully"
+[[ -n "${BATS_DEBUG:-}" ]] && echo "[SETUP] Vrooli Test Setup loaded successfully" >&2

@@ -139,7 +139,7 @@ services:
 
   whisper:
     build:
-      context: ./scripts/resources/ai/whisper
+      context: ./resources/whisper
       dockerfile: Dockerfile
     ports:
       - "8090:8090"
@@ -200,7 +200,7 @@ services:
     volumes:
       - node_red_data:/data
       - ./workflows/node-red:/data/flows
-      - ./scripts/resources/automation/node-red/settings.js:/data/settings.js
+      - ./resources/node-red/settings.js:/data/settings.js
     restart: unless-stopped
     networks:
       - vrooli-network

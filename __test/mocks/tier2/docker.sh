@@ -690,3 +690,5 @@ export -f docker_check_error
 # Initialize with default state
 docker_mock_reset
 docker_debug "Docker Tier 2 mock initialized"
+# Ensure we return success when sourced
+return 0 2>/dev/null || true

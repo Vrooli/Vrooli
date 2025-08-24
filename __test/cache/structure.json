@@ -1,0 +1,3102 @@
+{
+  "version": "3.0",
+  "phase": "structure",
+  "updated": "2025-08-23T20:22:37-04:00",
+  "ttl_seconds": 3600,
+  "entries": {
+    "/home/matthalloran8/Vrooli/scenarios/make-it-vegan/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755897765
+      },
+      "results": {
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 3,
+          "message": " ",
+          "exit_code": 0
+        },
+        "scenario-structure": {
+          "status": "failed",
+          "timestamp": 1755994953,
+          "duration_ms": 4,
+          "message": "exit code ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/scenarios/seo-optimizer/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755897728
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "scenario-structure": {
+          "status": "failed",
+          "timestamp": 1755994953,
+          "duration_ms": 4,
+          "message": "exit code ",
+          "exit_code": 0
+        },
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/scenarios/campaign-content-studio/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755897811
+      },
+      "results": {
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994952,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994952,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/secure-document-processing/scripts/manage.sh": {
+      "file": {
+        "mtime": 1755966373
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "executable": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/scenarios/agent-metareasoning-manager/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755897821
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994952,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994952,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        },
+        "scenario-structure": {
+          "status": "failed",
+          "timestamp": 1755994952,
+          "duration_ms": 4,
+          "message": "exit code ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/scenarios/video-downloader/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755897728
+      },
+      "results": {
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994952,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994952,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "scenario-structure": {
+          "status": "failed",
+          "timestamp": 1755994952,
+          "duration_ms": 4,
+          "message": "exit code ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/scenarios/palette-gen/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755897765
+      },
+      "results": {
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/audio-intelligence-platform/scripts/manage.sh": {
+      "file": {
+        "mtime": 1755966373
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "executable": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/scenarios/app-issue-tracker/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755897689
+      },
+      "results": {
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994952,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994952,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "scenario-structure": {
+          "status": "failed",
+          "timestamp": 1755994952,
+          "duration_ms": 4,
+          "message": "exit code ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/picker-wheel/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755912212
+      },
+      "results": {
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/scenario-generator-v1/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755912215
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/resources/ollama/config/messages.sh": {
+      "file": {
+        "mtime": 1754799699
+      },
+      "results": {
+        "executable": {
+          "status": "passed",
+          "timestamp": 1755990866,
+          "duration_ms": 2,
+          "message": "  ",
+          "exit_code": 0
+        },
+        "shellcheck": {
+          "status": "failed",
+          "timestamp": 1755990866,
+          "duration_ms": 55,
+          "message": "exit code  ",
+          "exit_code": 0
+        },
+        "syntax": {
+          "status": "passed",
+          "timestamp": 1755990866,
+          "duration_ms": 3,
+          "message": "  ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/scenarios/product-manager-agent/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755897728
+      },
+      "results": {
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 3,
+          "message": " ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "scenario-structure": {
+          "status": "failed",
+          "timestamp": 1755994953,
+          "duration_ms": 4,
+          "message": "exit code ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/agent-dashboard/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755913214
+      },
+      "results": {
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/scenarios/workflow-scheduler/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755897728
+      },
+      "results": {
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        },
+        "scenario-structure": {
+          "status": "failed",
+          "timestamp": 1755994953,
+          "duration_ms": 4,
+          "message": "exit code ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/workflow-scheduler/scripts/manage.sh": {
+      "file": {
+        "mtime": 1755966373
+      },
+      "results": {
+        "executable": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/app-debugger/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755912302
+      },
+      "results": {
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/scenarios/idea-generator/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755897765
+      },
+      "results": {
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994952,
+          "duration_ms": 3,
+          "message": " ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994952,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/idea-generator/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755912266
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/scenarios/agent-dashboard/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755913087
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994952,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994952,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/scenarios/roi-fit-analysis/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755913040
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994952,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994952,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/brand-manager/scripts/manage.sh": {
+      "file": {
+        "mtime": 1755966373
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "executable": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/task-planner/scripts/manage.sh": {
+      "file": {
+        "mtime": 1755966373
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "executable": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/news-aggregator-bias-analysis/scripts/manage.sh": {
+      "file": {
+        "mtime": 1755966373
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "executable": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/qr-code-generator/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755912294
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/resources/ollama/lib/inject.sh": {
+      "file": {
+        "mtime": 1755543430
+      },
+      "results": {
+        "executable": {
+          "status": "passed",
+          "timestamp": 1755990872,
+          "duration_ms": 2,
+          "message": "  ",
+          "exit_code": 0
+        },
+        "syntax": {
+          "status": "passed",
+          "timestamp": 1755990872,
+          "duration_ms": 3,
+          "message": "  ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/scenarios/picker-wheel/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755897765
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994952,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994952,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/smart-file-photo-manager/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755912285
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/smart-file-photo-manager/scripts/manage.sh": {
+      "file": {
+        "mtime": 1755966373
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "executable": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/resource-experimenter/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755912277
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/prompt-manager/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755913214
+      },
+      "results": {
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/scenarios/invoice-generator/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755897765
+      },
+      "results": {
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "scenario-structure": {
+          "status": "failed",
+          "timestamp": 1755994953,
+          "duration_ms": 4,
+          "message": "exit code ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/scenarios/research-assistant/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755897728
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994952,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "scenario-structure": {
+          "status": "failed",
+          "timestamp": 1755994952,
+          "duration_ms": 3,
+          "message": "exit code ",
+          "exit_code": 0
+        },
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994952,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/scenarios/retro-game-launcher/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755897728
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "scenario-structure": {
+          "status": "failed",
+          "timestamp": 1755994953,
+          "duration_ms": 4,
+          "message": "exit code ",
+          "exit_code": 0
+        },
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/research-assistant/scripts/manage.sh": {
+      "file": {
+        "mtime": 1755966373
+      },
+      "results": {
+        "executable": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/scenarios/stream-of-consciousness-analyzer/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755897728
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "scenario-structure": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        },
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/scenarios/qr-code-generator/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755897728
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994952,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "scenario-structure": {
+          "status": "failed",
+          "timestamp": 1755994952,
+          "duration_ms": 4,
+          "message": "exit code ",
+          "exit_code": 0
+        },
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994952,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/app-issue-tracker/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755912274
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/roi-fit-analysis/scripts/manage.sh": {
+      "file": {
+        "mtime": 1755966373
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "executable": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/mind-maps/scripts/manage.sh": {
+      "file": {
+        "mtime": 1755966373
+      },
+      "results": {
+        "executable": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/fall-foliage-explorer/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755912317
+      },
+      "results": {
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/agent-metareasoning-manager/scripts/manage.sh": {
+      "file": {
+        "mtime": 1755966373
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "executable": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/mind-maps/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755912305
+      },
+      "results": {
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/brand-manager/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755912252
+      },
+      "results": {
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/image-generation-pipeline/scripts/manage.sh": {
+      "file": {
+        "mtime": 1755966373
+      },
+      "results": {
+        "executable": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/research-assistant/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755912221
+      },
+      "results": {
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/scenarios/app-personalizer/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755897811
+      },
+      "results": {
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994952,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994952,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "scenario-structure": {
+          "status": "failed",
+          "timestamp": 1755994952,
+          "duration_ms": 4,
+          "message": "exit code ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/scenarios/typing-test/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755897728
+      },
+      "results": {
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994952,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994952,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "scenario-structure": {
+          "status": "failed",
+          "timestamp": 1755994952,
+          "duration_ms": 4,
+          "message": "exit code ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/scenarios/system-monitor/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755897728
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994952,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994952,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/invoice-generator/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755912297
+      },
+      "results": {
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/resume-screening-assistant/scripts/manage.sh": {
+      "file": {
+        "mtime": 1755966373
+      },
+      "results": {
+        "executable": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/web-scraper-manager/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755914495
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/notes/scripts/manage.sh": {
+      "file": {
+        "mtime": 1755966373
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "executable": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/resources/ollama/lib/common.sh": {
+      "file": {
+        "mtime": 1755061894
+      },
+      "results": {
+        "executable": {
+          "status": "passed",
+          "timestamp": 1755990872,
+          "duration_ms": 2,
+          "message": "  ",
+          "exit_code": 0
+        },
+        "shellcheck": {
+          "status": "passed",
+          "timestamp": 1755990872,
+          "duration_ms": 50,
+          "message": "  ",
+          "exit_code": 0
+        },
+        "syntax": {
+          "status": "passed",
+          "timestamp": 1755990872,
+          "duration_ms": 3,
+          "message": "  ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/scenarios/local-info-scout/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755897765
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/scenarios/scenario-generator-v1/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755897728
+      },
+      "results": {
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "scenario-structure": {
+          "status": "failed",
+          "timestamp": 1755994953,
+          "duration_ms": 3,
+          "message": "exit code ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/resource-experimenter/scripts/manage.sh": {
+      "file": {
+        "mtime": 1755966373
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "executable": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/app-monitor/scripts/manage.sh": {
+      "file": {
+        "mtime": 1755966373
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "executable": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/fall-foliage-explorer/scripts/manage.sh": {
+      "file": {
+        "mtime": 1755966373
+      },
+      "results": {
+        "executable": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/resources/ollama/lib/install.sh": {
+      "file": {
+        "mtime": 1755914444
+      },
+      "results": {
+        "syntax": {
+          "status": "passed",
+          "timestamp": 1755990870,
+          "duration_ms": 4,
+          "message": "  ",
+          "exit_code": 0
+        },
+        "shellcheck": {
+          "status": "failed",
+          "timestamp": 1755990871,
+          "duration_ms": 1275,
+          "message": "exit code  ",
+          "exit_code": 0
+        },
+        "executable": {
+          "status": "passed",
+          "timestamp": 1755990870,
+          "duration_ms": 2,
+          "message": "  ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/palette-gen/scripts/manage.sh": {
+      "file": {
+        "mtime": 1755966373
+      },
+      "results": {
+        "executable": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/scenarios/smart-file-photo-manager/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755897728
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "scenario-structure": {
+          "status": "failed",
+          "timestamp": 1755994953,
+          "duration_ms": 4,
+          "message": "exit code ",
+          "exit_code": 0
+        },
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/palette-gen/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755912314
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 5,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/campaign-content-studio/scripts/manage.sh": {
+      "file": {
+        "mtime": 1755966373
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "executable": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/scenarios/resource-experimenter/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755897728
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994952,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "scenario-structure": {
+          "status": "failed",
+          "timestamp": 1755994952,
+          "duration_ms": 4,
+          "message": "exit code ",
+          "exit_code": 0
+        },
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994952,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/personal-relationship-manager/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755913214
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/news-aggregator-bias-analysis/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755912300
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/image-generation-pipeline/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755912231
+      },
+      "results": {
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/audio-intelligence-platform/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755912234
+      },
+      "results": {
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/scenarios/nutrition-tracker/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755897765
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "scenario-structure": {
+          "status": "failed",
+          "timestamp": 1755994953,
+          "duration_ms": 3,
+          "message": "exit code ",
+          "exit_code": 0
+        },
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/document-manager/scripts/manage.sh": {
+      "file": {
+        "mtime": 1755966373
+      },
+      "results": {
+        "executable": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/resources/ollama/config/defaults.sh": {
+      "file": {
+        "mtime": 1755910795
+      },
+      "results": {
+        "syntax": {
+          "status": "passed",
+          "timestamp": 1755990866,
+          "duration_ms": 3,
+          "message": "  ",
+          "exit_code": 0
+        },
+        "shellcheck": {
+          "status": "failed",
+          "timestamp": 1755990866,
+          "duration_ms": 18,
+          "message": "exit code  ",
+          "exit_code": 0
+        },
+        "executable": {
+          "status": "passed",
+          "timestamp": 1755990866,
+          "duration_ms": 2,
+          "message": "  ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/scenarios/web-scraper-manager/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755897728
+      },
+      "results": {
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994952,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994952,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "scenario-structure": {
+          "status": "failed",
+          "timestamp": 1755994952,
+          "duration_ms": 4,
+          "message": "exit code ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/resources/ollama/cli.sh": {
+      "file": {
+        "mtime": 1755914552
+      },
+      "results": {
+        "syntax": {
+          "status": "passed",
+          "timestamp": 1755990866,
+          "duration_ms": 4,
+          "message": "  ",
+          "exit_code": 0
+        },
+        "executable": {
+          "status": "passed",
+          "timestamp": 1755990866,
+          "duration_ms": 2,
+          "message": "  ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/app-personalizer/scripts/manage.sh": {
+      "file": {
+        "mtime": 1755966373
+      },
+      "results": {
+        "executable": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/resources/ollama/lib/models.sh": {
+      "file": {
+        "mtime": 1755465803
+      },
+      "results": {
+        "executable": {
+          "status": "passed",
+          "timestamp": 1755990870,
+          "duration_ms": 2,
+          "message": "  ",
+          "exit_code": 0
+        },
+        "syntax": {
+          "status": "passed",
+          "timestamp": 1755990870,
+          "duration_ms": 4,
+          "message": "  ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/system-monitor/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755912246
+      },
+      "results": {
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/study-buddy/scripts/manage.sh": {
+      "file": {
+        "mtime": 1755966373
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "executable": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/picker-wheel/scripts/manage.sh": {
+      "file": {
+        "mtime": 1755966373
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "executable": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/scenarios/chore-tracking/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755897811
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        },
+        "scenario-structure": {
+          "status": "failed",
+          "timestamp": 1755994953,
+          "duration_ms": 4,
+          "message": "exit code ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/scenarios/competitor-change-monitor/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755897811
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994952,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        },
+        "scenario-structure": {
+          "status": "failed",
+          "timestamp": 1755994953,
+          "duration_ms": 4,
+          "message": "exit code ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/scenarios/morning-vision-walk/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755897765
+      },
+      "results": {
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994952,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994952,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "scenario-structure": {
+          "status": "failed",
+          "timestamp": 1755994952,
+          "duration_ms": 4,
+          "message": "exit code ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/typing-test/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755912291
+      },
+      "results": {
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/invoice-generator/scripts/manage.sh": {
+      "file": {
+        "mtime": 1755966373
+      },
+      "results": {
+        "executable": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/scenario-generator-v1/scripts/manage.sh": {
+      "file": {
+        "mtime": 1755966373
+      },
+      "results": {
+        "executable": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/scenarios/app-debugger/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755897811
+      },
+      "results": {
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994952,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        },
+        "scenario-structure": {
+          "status": "failed",
+          "timestamp": 1755994952,
+          "duration_ms": 4,
+          "message": "exit code ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994952,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/retro-game-launcher/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755912260
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/scenarios/personal-relationship-manager/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755913130
+      },
+      "results": {
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994952,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        },
+        "scenario-structure": {
+          "status": "failed",
+          "timestamp": 1755994952,
+          "duration_ms": 4,
+          "message": "exit code ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994952,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/scenarios/travel-map-filler/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755897728
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994952,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994952,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/campaign-content-studio/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755912218
+      },
+      "results": {
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/app-issue-tracker/scripts/manage.sh": {
+      "file": {
+        "mtime": 1755966373
+      },
+      "results": {
+        "executable": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/scenarios/study-buddy/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755912986
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/resources/ollama/lib/status.sh": {
+      "file": {
+        "mtime": 1755637706
+      },
+      "results": {
+        "executable": {
+          "status": "passed",
+          "timestamp": 1755990871,
+          "duration_ms": 2,
+          "message": "  ",
+          "exit_code": 0
+        },
+        "syntax": {
+          "status": "passed",
+          "timestamp": 1755990871,
+          "duration_ms": 4,
+          "message": "  ",
+          "exit_code": 0
+        },
+        "shellcheck": {
+          "status": "failed",
+          "timestamp": 1755990872,
+          "duration_ms": 163,
+          "message": "exit code  ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/scenarios/fall-foliage-explorer/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755897765
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/scenarios/news-aggregator-bias-analysis/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755897765
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994952,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994952,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/scenarios/brand-manager/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755897811
+      },
+      "results": {
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        },
+        "scenario-structure": {
+          "status": "failed",
+          "timestamp": 1755994953,
+          "duration_ms": 3,
+          "message": "exit code ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/resume-screening-assistant/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755912237
+      },
+      "results": {
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 3,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/scenarios/image-generation-pipeline/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755897765
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/notes/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755912309
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/app-personalizer/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755912255
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/scenarios/task-planner/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755897728
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994952,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "scenario-structure": {
+          "status": "failed",
+          "timestamp": 1755994952,
+          "duration_ms": 3,
+          "message": "exit code ",
+          "exit_code": 0
+        },
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994952,
+          "duration_ms": 3,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/document-manager/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755912258
+      },
+      "results": {
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/resources/ollama/test/integration-test.sh": {
+      "file": {
+        "mtime": 1754799699
+      },
+      "results": {
+        "syntax": {
+          "status": "passed",
+          "timestamp": 1755990866,
+          "duration_ms": 4,
+          "message": "  ",
+          "exit_code": 0
+        },
+        "shellcheck": {
+          "status": "failed",
+          "timestamp": 1755990867,
+          "duration_ms": 582,
+          "message": "exit code  ",
+          "exit_code": 0
+        },
+        "executable": {
+          "status": "passed",
+          "timestamp": 1755990866,
+          "duration_ms": 2,
+          "message": "  ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/scenarios/mind-maps/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755897765
+      },
+      "results": {
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994952,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994952,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/resources/ollama/lib/api.sh": {
+      "file": {
+        "mtime": 1754799699
+      },
+      "results": {
+        "executable": {
+          "status": "passed",
+          "timestamp": 1755990871,
+          "duration_ms": 2,
+          "message": "  ",
+          "exit_code": 0
+        },
+        "shellcheck": {
+          "status": "failed",
+          "timestamp": 1755990871,
+          "duration_ms": 78,
+          "message": "exit code  ",
+          "exit_code": 0
+        },
+        "syntax": {
+          "status": "passed",
+          "timestamp": 1755990871,
+          "duration_ms": 4,
+          "message": "  ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/workflow-scheduler/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755912319
+      },
+      "results": {
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755968176
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994952,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "has-resources": {
+          "status": "passed",
+          "timestamp": 1755994952,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        },
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994952,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/system-monitor/scripts/manage.sh": {
+      "file": {
+        "mtime": 1755966373
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "executable": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/scenarios/personal-digital-twin/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755897765
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/scenarios/document-manager/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755897811
+      },
+      "results": {
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994952,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994952,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/scenarios/audio-intelligence-platform/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755836305
+      },
+      "results": {
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "scenario-structure": {
+          "status": "failed",
+          "timestamp": 1755994953,
+          "duration_ms": 3,
+          "message": "exit code ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/resources/ollama/inject.sh": {
+      "file": {
+        "mtime": 1755063465
+      },
+      "results": {
+        "syntax": {
+          "status": "passed",
+          "timestamp": 1755990867,
+          "duration_ms": 4,
+          "message": "  ",
+          "exit_code": 0
+        },
+        "executable": {
+          "status": "passed",
+          "timestamp": 1755990867,
+          "duration_ms": 2,
+          "message": "  ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/typing-test/scripts/manage.sh": {
+      "file": {
+        "mtime": 1755966373
+      },
+      "results": {
+        "executable": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/scenarios/resume-screening-assistant/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755897728
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        },
+        "scenario-structure": {
+          "status": "failed",
+          "timestamp": 1755994953,
+          "duration_ms": 4,
+          "message": "exit code ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/scenarios/secure-document-processing/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755897728
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        },
+        "scenario-structure": {
+          "status": "failed",
+          "timestamp": 1755994953,
+          "duration_ms": 4,
+          "message": "exit code ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/roi-fit-analysis/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755913214
+      },
+      "results": {
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/idea-generator/scripts/manage.sh": {
+      "file": {
+        "mtime": 1755966373
+      },
+      "results": {
+        "executable": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/scenarios/notes/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755897765
+      },
+      "results": {
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994952,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994952,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "scenario-structure": {
+          "status": "failed",
+          "timestamp": 1755994952,
+          "duration_ms": 4,
+          "message": "exit code ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/scenarios/prompt-manager/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755912932
+      },
+      "results": {
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        },
+        "scenario-structure": {
+          "status": "failed",
+          "timestamp": 1755994953,
+          "duration_ms": 4,
+          "message": "exit code ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/prompt-manager/scripts/manage.sh": {
+      "file": {
+        "mtime": 1755966373
+      },
+      "results": {
+        "executable": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/agent-metareasoning-manager/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755912269
+      },
+      "results": {
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/app-debugger/scripts/manage.sh": {
+      "file": {
+        "mtime": 1755966373
+      },
+      "results": {
+        "executable": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/scenarios/simple-test/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755897728
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/retro-game-launcher/scripts/manage.sh": {
+      "file": {
+        "mtime": 1755966373
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "executable": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/qr-code-generator/scripts/manage.sh": {
+      "file": {
+        "mtime": 1755966373
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "executable": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/web-scraper-manager/scripts/manage.sh": {
+      "file": {
+        "mtime": 1755966373
+      },
+      "results": {
+        "executable": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/scenarios/app-monitor/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755928151
+      },
+      "results": {
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "scenario-structure": {
+          "status": "failed",
+          "timestamp": 1755994953,
+          "duration_ms": 4,
+          "message": "exit code ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/secure-document-processing/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755912240
+      },
+      "results": {
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/personal-relationship-manager/scripts/manage.sh": {
+      "file": {
+        "mtime": 1755966373
+      },
+      "results": {
+        "executable": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994953,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/task-planner/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755912282
+      },
+      "results": {
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/scenarios/ai-model-orchestra-controller/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755897821
+      },
+      "results": {
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994952,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        },
+        "scenario-structure": {
+          "status": "failed",
+          "timestamp": 1755994952,
+          "duration_ms": 4,
+          "message": "exit code ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994952,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/app-monitor/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755959681
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/study-buddy/.vrooli/service.json": {
+      "file": {
+        "mtime": 1755913214
+      },
+      "results": {
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        },
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/generated-apps/agent-dashboard/scripts/manage.sh": {
+      "file": {
+        "mtime": 1755966373
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "executable": {
+          "status": "passed",
+          "timestamp": 1755994954,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    }
+  }
+}

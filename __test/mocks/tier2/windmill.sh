@@ -565,3 +565,5 @@ export -f windmill_debug windmill_check_error
 # Initialize with defaults
 windmill_mock_reset
 windmill_debug "Windmill Tier 2 mock initialized"
+# Ensure we return success when sourced
+return 0 2>/dev/null || true

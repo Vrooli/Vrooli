@@ -263,10 +263,11 @@ find_markdown_files() {
     
     # Use scoped file discovery if scope is set
     if [[ -n "${SCOPE_RESOURCE:-}" ]] || [[ -n "${SCOPE_SCENARIO:-}" ]] || [[ -n "${SCOPE_PATH:-}" ]]; then
-        # Get scoped markdown files (.md)
-        get_scoped_files "*.md" "$PROJECT_ROOT"
-        # Also get .markdown files
-        get_scoped_files "*.markdown" "$PROJECT_ROOT"
+        # Get scoped markdown files (.md and .markdown) with null termination for consumer compatibility
+        {
+            get_scoped_files "*.md" "$PROJECT_ROOT"
+            get_scoped_files "*.markdown" "$PROJECT_ROOT"
+        } | tr '\n' '\0'
     else
         # No scope - find all markdown files, excluding build directories
         find "$PROJECT_ROOT" \

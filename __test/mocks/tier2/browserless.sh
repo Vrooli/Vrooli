@@ -480,3 +480,5 @@ export -f browserless_debug browserless_check_error
 # Initialize
 browserless_mock_reset
 browserless_debug "Browserless Tier 2 mock initialized"
+# Ensure we return success when sourced
+return 0 2>/dev/null || true

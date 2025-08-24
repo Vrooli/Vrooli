@@ -650,3 +650,5 @@ export -f whisper_debug whisper_check_error
 # Initialize with defaults
 whisper_mock_reset
 whisper_debug "Whisper Tier 2 mock initialized"
+# Ensure we return success when sourced
+return 0 2>/dev/null || true

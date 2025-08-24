@@ -653,3 +653,5 @@ export -f minio_check_error
 # Initialize with default state
 minio_mock_reset
 minio_debug "MinIO Tier 2 mock initialized"
+# Ensure we return success when sourced
+return 0 2>/dev/null || true

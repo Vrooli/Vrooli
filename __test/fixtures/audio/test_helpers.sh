@@ -5,8 +5,9 @@
 # Provides functions to work with audio metadata in tests
 #
 
-# Get the directory of this script
-AUDIO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Get APP_ROOT using cached value or compute once (3 levels up: __test/fixtures/audio/test_helpers.sh)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+AUDIO_DIR="${APP_ROOT}/__test/fixtures/audio"
 METADATA_FILE="$AUDIO_DIR/audio.yaml"
 
 # Load metadata for a specific audio file

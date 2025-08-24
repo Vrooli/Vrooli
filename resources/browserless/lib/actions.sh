@@ -10,13 +10,13 @@
 
 set -euo pipefail
 
-# Get script directory
-ACTIONS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+ACTIONS_DIR="${APP_ROOT}/resources/browserless/lib"
 
 # Source required libraries
 source "$ACTIONS_DIR/browser-ops.sh"
 source "$ACTIONS_DIR/session-manager.sh"
-source "/home/matthalloran8/Vrooli/scripts/lib/utils/log.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/log.sh" 2>/dev/null || true
 
 # Global variables for universal options
 OUTPUT_PATH=""

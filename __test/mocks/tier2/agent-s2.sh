@@ -584,3 +584,5 @@ export -f agents2_debug agents2_check_error
 # Initialize with defaults
 mock::agents2::reset
 agents2_debug "Agent-S2 Tier 2 mock initialized"
+# Ensure we return success when sourced
+return 0 2>/dev/null || true

@@ -8,8 +8,10 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+# Get APP_ROOT using cached value or compute once (1 level up: __test/run-tests.sh)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/__test"
+PROJECT_ROOT="$APP_ROOT"
 
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/shared/logging.bash"
@@ -27,20 +29,29 @@ PHASES:
   all           Run all phases sequentially (default)
 
 OPTIONS:
-  --verbose       Show detailed output from all phases
-  --parallel      Run tests in parallel where possible
-  --no-cache      Skip caching optimizations
-  --dry-run       Show what would be tested without running
-  --clear-cache   Clear test cache before running
-  --help         Show this help
+  --verbose         Show detailed output from all phases
+  --parallel        Run tests in parallel where possible
+  --no-cache        Skip caching optimizations
+  --dry-run         Show what would be tested without running
+  --clear-cache     Clear test cache before running
+  --resource=NAME   Test only specific resource (e.g., --resource=ollama)
+  --scenario=NAME   Test only specific scenario (e.g., --scenario=app-generator)
+  --path=PATH       Test only specific directory/file path
+  --help            Show this help
 
+SCOPING:
+  All phases now support consistent scoping to test specific components:
+  - Use --resource=NAME to test only files related to a specific resource
+  - Use --scenario=NAME to test only files related to a specific scenario
+  - Use --path=PATH to test only files in a specific directory
+  
 EXAMPLES:
   ./run-tests.sh                      # Run all phases
   ./run-tests.sh static               # Only static analysis
+  ./run-tests.sh all --resource=ollama # Test everything for ollama resource
+  ./run-tests.sh unit --scenario=app-generator # Unit tests for app-generator
+  ./run-tests.sh docs --path=docs/architecture # Test docs in specific path
   ./run-tests.sh structure --verbose  # Structure validation with details
-  ./run-tests.sh integration --dry-run # Show what integration tests would run
-  ./run-tests.sh unit --no-cache      # Run unit tests without caching
-  ./run-tests.sh docs --verbose       # Documentation validation with details
 
 Each phase can be run independently and will report its own results.
 EOF
@@ -79,6 +90,11 @@ while [[ $# -gt 0 ]]; do
             ;;
         --clear-cache)
             CLEAR_CACHE="--clear-cache"
+            shift
+            ;;
+        --resource=*|--scenario=*|--path=*)
+            # Scope arguments are passed to all phases
+            PHASE_ARGS+=("$1")
             shift
             ;;
         --help)
@@ -310,11 +326,11 @@ main() {
             run_phase "docs" "${PHASE_ARGS[@]}" || overall_success=false
             ;;
         all)
-            # Run all phases in sequence (no phase-specific args for all)
+            # Run all phases in sequence, passing scope arguments to each
             local phases=("static" "structure" "integration" "unit" "docs")
             
             for phase in "${phases[@]}"; do
-                if ! run_phase "$phase"; then
+                if ! run_phase "$phase" "${PHASE_ARGS[@]}"; then
                     overall_success=false
                     # Continue with other phases even if one fails
                 fi

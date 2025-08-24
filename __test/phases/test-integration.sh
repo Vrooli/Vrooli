@@ -174,17 +174,66 @@ load_resource_mocks() {
         return 1
     fi
     
-    # Source all available mock files
+    # First, load the adapter and helpers for compatibility
+    if [[ -f "$mocks_dir/adapter.sh" ]]; then
+        # shellcheck disable=SC1090
+        source "$mocks_dir/adapter.sh" || {
+            log_warning "Failed to load adapter"
+        }
+        is_verbose && log_debug "Loaded mock adapter"
+    fi
+    
+    if [[ -f "$mocks_dir/test_helper.sh" ]]; then
+        # shellcheck disable=SC1090
+        source "$mocks_dir/test_helper.sh" || {
+            log_warning "Failed to load test helper"
+            return 1
+        }
+        is_verbose && log_debug "Loaded test helper"
+    fi
+    
+    # Load Tier 2 mocks from tier2/ subdirectory
+    local tier2_dir="$mocks_dir/tier2"
+    if [[ -d "$tier2_dir" ]]; then
+        log_debug "Loading Tier 2 mocks from $tier2_dir..."
+        for mock_file in "$tier2_dir"/*.sh; do
+            if [[ -f "$mock_file" ]]; then
+                # shellcheck disable=SC1090
+                source "$mock_file" || {
+                    log_warning "Failed to load Tier 2 mock: $(basename "$mock_file")"
+                    continue
+                }
+                is_verbose && log_debug "Loaded Tier 2 mock: $(basename "$mock_file")"
+            fi
+        done
+    else
+        log_warning "Tier 2 mocks directory not found: $tier2_dir"
+    fi
+    
+    # Also load any legacy mocks if they exist (for backward compatibility)
     for mock_file in "$mocks_dir"/*.sh; do
+        # Skip adapter and test_helper as we loaded them already
+        [[ "$(basename "$mock_file")" == "adapter.sh" ]] && continue
+        [[ "$(basename "$mock_file")" == "test_helper.sh" ]] && continue
+        [[ "$(basename "$mock_file")" == "TEMPLATE_TIER2.sh" ]] && continue
+        
         if [[ -f "$mock_file" ]]; then
             # shellcheck disable=SC1090
             source "$mock_file" || {
-                log_warning "Failed to load mock: $mock_file"
+                log_warning "Failed to load legacy mock: $(basename "$mock_file")"
                 continue
             }
-            is_verbose && log_debug "Loaded mock: $(basename "$mock_file")"
+            is_verbose && log_debug "Loaded legacy mock: $(basename "$mock_file")"
         fi
     done
+    
+    # Debug: List all available test functions
+    if is_verbose; then
+        log_debug "Available test functions after loading mocks:"
+        declare -F | grep -E "test_.*_(connection|health|basic|advanced)" | while read -r _ _ func; do
+            log_debug "  - $func"
+        done
+    fi
     
     return 0
 }
