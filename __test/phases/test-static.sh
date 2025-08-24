@@ -1,56 +1,78 @@
 #!/usr/bin/env bash
-# Static Analysis Phase - Vrooli Testing Infrastructure
+# Static Analysis Phase - Orchestrator for all language-specific static analyzers
 # 
-# Performs static analysis on all shell scripts in scripts/ directory:
-# - Discovers all shell scripts
-# - Runs shellcheck static analysis
-# - Validates bash syntax with 'bash -n'
-# - Uses caching to avoid unnecessary reruns
-# - Provides detailed reporting
+# Orchestrates static analysis across multiple languages:
+# - Bash/Shell scripts (shellcheck, syntax validation)
+# - TypeScript (tsc, ESLint)
+# - Python (mypy, ruff/flake8)
+# - Go (go vet, gofmt, golangci-lint)
+#
+# Each language has its own analyzer in static/ subdirectory
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-PROJECT_ROOT="${PROJECT_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+# Get APP_ROOT using cached value or compute once (2 levels up: __test/phases/test-static.sh)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/__test"
+PROJECT_ROOT="${PROJECT_ROOT:-$APP_ROOT}"
+STATIC_DIR="$SCRIPT_DIR/phases/static"
 
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/shared/logging.bash"
 # shellcheck disable=SC1091  
 source "$SCRIPT_DIR/shared/test-helpers.bash"
-# shellcheck disable=SC1091
-source "$SCRIPT_DIR/shared/cache.bash"
 
 show_usage() {
     cat << 'EOF'
-Static Analysis Phase - Test all shell scripts with shellcheck and bash syntax validation
+Static Analysis Phase - Multi-language static analysis orchestrator
 
-Usage: ./test-static.sh [OPTIONS]
+Usage: ./test-static.sh [OPTIONS] [LANGUAGES]
+
+LANGUAGES:
+  all         Run all language analyzers (default)
+  bash        Run Bash/Shell script analysis only
+  typescript  Run TypeScript analysis only
+  python      Run Python analysis only
+  go          Run Go analysis only
 
 OPTIONS:
-  --verbose      Show detailed output for each file tested
-  --parallel     Run tests in parallel (when possible)  
-  --no-cache     Skip caching optimizations
-  --dry-run      Show what would be tested without running
-  --clear-cache  Clear static analysis cache before running
-  --help         Show this help
+  --verbose         Show detailed output for each file tested
+  --parallel        Run language analyzers in parallel
+  --no-cache        Skip caching optimizations
+  --dry-run         Show what would be tested without running
+  --clear-cache     Clear static analysis cache before running
+  --resource=NAME   Analyze only specific resource (e.g., --resource=ollama)
+  --scenario=NAME   Analyze only specific scenario (e.g., --scenario=app-generator)
+  --path=PATH       Analyze only specific directory/file path
+  --help            Show this help
 
 WHAT THIS PHASE TESTS:
-  1. Discovers all shell scripts in scripts/ directory
-  2. Validates bash syntax with 'bash -n'
-  3. Runs shellcheck static analysis (if available)
-  4. Uses intelligent caching based on file modification time
-  5. Reports summary of all findings
+  Bash:       shellcheck, syntax validation (bash -n)
+  TypeScript: tsc --noEmit, ESLint (if configured)
+  Python:     syntax check, mypy/pyright, ruff/flake8
+  Go:         go build, go vet, gofmt, golangci-lint
 
-EXAMPLES:
-  ./test-static.sh                    # Run all static analysis
-  ./test-static.sh --verbose          # Show detailed output
-  ./test-static.sh --no-cache         # Force re-analysis of all files
-  ./test-static.sh --clear-cache      # Clear cache and re-run
+SCOPING EXAMPLES:
+  ./test-static.sh --resource=ollama           # Analyze only ollama resource files
+  ./test-static.sh --scenario=app-generator    # Analyze only app-generator scenario
+  ./test-static.sh --path=scenarios/core       # Analyze only specific directory
+  ./test-static.sh typescript --resource=n8n   # TypeScript analysis for n8n only
+
+COMBINED EXAMPLES:
+  ./test-static.sh                             # Run all static analysis
+  ./test-static.sh bash python                 # Run only bash and python
+  ./test-static.sh --parallel                  # Run all analyzers in parallel
+  ./test-static.sh --clear-cache all           # Clear cache and run all
 EOF
 }
 
 # Parse command line arguments
 CLEAR_CACHE=""
+LANGUAGES=()
+RUN_PARALLEL=false
+SCOPE_RESOURCE=""
+SCOPE_SCENARIO=""
+SCOPE_PATH=""
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -58,12 +80,33 @@ while [[ $# -gt 0 ]]; do
             CLEAR_CACHE="true"
             shift
             ;;
+        --parallel)
+            RUN_PARALLEL=true
+            export PARALLEL=1
+            shift
+            ;;
+        --resource=*)
+            SCOPE_RESOURCE="${1#*=}"
+            shift
+            ;;
+        --scenario=*)
+            SCOPE_SCENARIO="${1#*=}"
+            shift
+            ;;
+        --path=*)
+            SCOPE_PATH="${1#*=}"
+            shift
+            ;;
         --help)
             show_usage
             exit 0
             ;;
-        --verbose|--parallel|--no-cache|--dry-run)
-            # These are handled by the main orchestrator
+        --verbose|--no-cache|--dry-run)
+            # These are handled by the environment
+            shift
+            ;;
+        all|bash|typescript|python|go)
+            LANGUAGES+=("$1")
             shift
             ;;
         *)
@@ -74,417 +117,253 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Clear cache if requested
-if [[ -n "$CLEAR_CACHE" ]]; then
-    clear_cache "static"
+# Default to all languages if none specified
+if [[ ${#LANGUAGES[@]} -eq 0 ]]; then
+    LANGUAGES=("all")
 fi
 
-# Main static analysis function
-run_static_analysis() {
-    log_section "Static Analysis Phase"
-    
-    reset_test_counters
-    reset_cache_stats
-    
-    # Load cache for this phase
-    load_cache "static"
-    
-    # Find all shell scripts in project directory
-    log_info "🔍 Discovering shell scripts in project directory..."
-    
-    local scripts_dir="$PROJECT_ROOT"
-    if [[ ! -d "$scripts_dir" ]]; then
-        log_error "Scripts directory not found: $scripts_dir"
-        return 1
-    fi
-    
-    # Define exclusion patterns for directories we should skip
-    # PERFORMANCE: Added more exclusion patterns to reduce unnecessary file scanning
-    local exclude_dirs="__test __test-revised .git node_modules vendor dist build cache tmp temp .next .cache .turbo coverage out target debug release .vscode .idea __pycache__ .pytest_cache .tox venv env .env .venv"
-    local find_excludes=""
-    for dir in $exclude_dirs; do
-        find_excludes="$find_excludes -path '*/$dir' -prune -o"
+# Expand "all" to individual languages
+if [[ " ${LANGUAGES[*]} " =~ " all " ]]; then
+    LANGUAGES=("bash" "typescript" "python" "go")
+fi
+
+# Clear cache if requested
+if [[ -n "$CLEAR_CACHE" ]]; then
+    log_info "🗑️  Clearing static analysis cache..."
+    for lang in "${LANGUAGES[@]}"; do
+        case "$lang" in
+            bash)       rm -f "$SCRIPT_DIR/cache/static-bash.json" ;;
+            typescript) rm -f "$SCRIPT_DIR/cache/static-typescript.json" ;;
+            python)     rm -f "$SCRIPT_DIR/cache/static-python.json" ;;
+            go)         rm -f "$SCRIPT_DIR/cache/static-go.json" ;;
+        esac
     done
+fi
+
+# Check which analyzers are available
+check_available_analyzers() {
+    local available=()
     
-    # Find shell scripts with various patterns
-    local shell_scripts=()
-    
-    # Find .sh files (excluding test directories)
-    while IFS= read -r -d '' script; do
-        shell_scripts+=("$script")
-    done < <(eval "find '$scripts_dir' $find_excludes -type f -name '*.sh' -print0 2>/dev/null")
-    
-    # Find files with shell shebangs (but no .sh extension, excluding test directories)
-    # PERFORMANCE: Added file existence and size checks to avoid processing invalid files
-    while IFS= read -r -d '' script; do
-        if [[ -f "$script" && -s "$script" && ! "$script" =~ \.sh$ ]]; then
-            if head -n1 "$script" 2>/dev/null | grep -q '^#!/.*\(bash\|sh\|zsh\|ksh\)'; then
-                shell_scripts+=("$script")
-            fi
-        fi
-    done < <(eval "find '$scripts_dir' $find_excludes -type f -executable -print0 2>/dev/null")
-    
-    # Remove duplicates, sort, and validate files exist
-    # PERFORMANCE: Filter out non-existent files that cause test failures
-    local unique_scripts
-    local validated_scripts=()
-    mapfile -t unique_scripts < <(printf '%s\n' "${shell_scripts[@]}" | sort -u)
-    
-    # Validate each script exists and is readable
-    for script in "${unique_scripts[@]}"; do
-        if [[ -f "$script" && -r "$script" ]]; then
-            validated_scripts+=("$script")
-        fi
-    done
-    unique_scripts=("${validated_scripts[@]}")
-    
-    local total_scripts=${#unique_scripts[@]}
-    
-    if [[ $total_scripts -eq 0 ]]; then
-        log_warning "No shell scripts found in $scripts_dir"
-        print_test_summary
-        return 0
-    fi
-    
-    log_info "📋 Found $total_scripts shell scripts to analyze"
-    
-    # Check if parallel processing is enabled
-    local use_parallel=false
-    local parallel_jobs=4  # Default number of parallel jobs
-    
-    # Check for --parallel flag from environment variable
-    if [[ -n "${PARALLEL:-}" ]]; then
-        use_parallel=true
-    fi
-    
-    # Determine number of CPU cores for optimal parallelization
-    # PERFORMANCE: Use 2x CPU cores for better throughput (I/O bound operations)
-    if [[ "$use_parallel" == "true" ]]; then
-        if command -v nproc >/dev/null 2>&1; then
-            parallel_jobs=$(($(nproc) * 2))
-        elif command -v sysctl >/dev/null 2>&1; then
-            parallel_jobs=$(($(sysctl -n hw.ncpu 2>/dev/null || echo 4) * 2))
-        fi
-        # Cap at reasonable maximum to avoid resource exhaustion
-        if [[ $parallel_jobs -gt 128 ]]; then
-            parallel_jobs=128
-        fi
-        log_info "🚀 Parallel processing enabled with $parallel_jobs jobs (2x CPU cores for I/O bound operations)"
-    fi
-    
-    if [[ "$use_parallel" == "true" ]] && command -v xargs >/dev/null 2>&1; then
-        # PERFORMANCE: Two-phase testing - syntax first, then shellcheck
-        log_info "⚡ Running two-phase parallel analysis..."
-        
-        # Phase 1: Syntax validation for all files in parallel
-        log_info "📋 Phase 1: Validating syntax for $total_scripts files..."
-        
-        # Function for syntax checking only
-        check_syntax_only() {
-            local script="$1"
-            if [[ -f "$script" ]] && validate_shell_syntax "$script" "shell script" >/dev/null 2>&1; then
-                echo "PASS:$script"
-            else
-                echo "FAIL:$script"
-            fi
-        }
-        
-        # Export functions for parallel execution
-        export -f check_syntax_only
-        export -f validate_shell_syntax
-        export PROJECT_ROOT
-        
-        # Run syntax checks in parallel and collect results
-        local syntax_results="/tmp/syntax_results_$$"
-        local syntax_passed_files="/tmp/syntax_passed_$$"
-        
-        printf '%s\n' "${unique_scripts[@]}" | \
-            xargs -P "$parallel_jobs" -I {} bash -c 'check_syntax_only "$@"' _ {} > "$syntax_results" 2>&1
-        
-        # Process syntax results and build list of files that passed
-        local syntax_passed_count=0
-        local syntax_failed_count=0
-        
-        while IFS=: read -r status script; do
-            local relative_script
-            relative_script=$(relative_path "$script")
-            
-            if [[ "$status" == "PASS" ]]; then
-                echo "$script" >> "$syntax_passed_files"
-                log_test_pass "bash-syntax: $relative_script"
-                cache_test_result "$script" "bash-syntax" "passed" ""
-                increment_test_counter "passed"
-                ((syntax_passed_count++))
-            else
-                log_test_fail "bash-syntax: $relative_script" "Syntax validation failed"
-                cache_test_result "$script" "bash-syntax" "failed" "Syntax validation failed"
-                increment_test_counter "failed"
-                ((syntax_failed_count++))
-            fi
-        done < "$syntax_results"
-        
-        log_info "✅ Phase 1 complete: $syntax_passed_count passed, $syntax_failed_count failed"
-        
-        # Phase 2: Run shellcheck only on files that passed syntax
-        if [[ -f "$syntax_passed_files" ]] && [[ -s "$syntax_passed_files" ]]; then
-            local shellcheck_count=$(wc -l < "$syntax_passed_files")
-            log_info "📋 Phase 2: Running shellcheck on $shellcheck_count files that passed syntax..."
-            
-            # Function for shellcheck only
-            run_shellcheck_only() {
-                local script="$1"
-                if command -v shellcheck >/dev/null 2>&1 && shellcheck "$script" >/dev/null 2>&1; then
-                    echo "PASS:$script"
-                else
-                    echo "FAIL:$script"
-                fi
-            }
-            
-            export -f run_shellcheck_only
-            
-            # Run shellcheck in parallel on syntax-valid files
-            local shellcheck_results="/tmp/shellcheck_results_$$"
-            
-            cat "$syntax_passed_files" | \
-                xargs -P "$parallel_jobs" -I {} bash -c 'run_shellcheck_only "$@"' _ {} > "$shellcheck_results" 2>&1
-            
-            # Process shellcheck results
-            while IFS=: read -r status script; do
-                local relative_script
-                relative_script=$(relative_path "$script")
-                
-                if [[ "$status" == "PASS" ]]; then
-                    log_test_pass "shellcheck: $relative_script"
-                    cache_test_result "$script" "shellcheck" "passed" ""
-                    increment_test_counter "passed"
-                else
-                    log_test_fail "shellcheck: $relative_script" "Shellcheck found issues"
-                    cache_test_result "$script" "shellcheck" "failed" "Shellcheck found issues"
-                    increment_test_counter "failed"
-                fi
-            done < "$shellcheck_results"
-            
-            # Clean up temp files
-            rm -f "$shellcheck_results"
+    for lang in "${LANGUAGES[@]}"; do
+        local analyzer="$STATIC_DIR/${lang}.sh"
+        if [[ -f "$analyzer" && -x "$analyzer" ]]; then
+            available+=("$lang")
+        elif [[ -f "$analyzer" ]]; then
+            # Make it executable if it exists but isn't executable
+            chmod +x "$analyzer"
+            available+=("$lang")
         else
-            log_warning "⚠️ No files passed syntax validation, skipping shellcheck phase"
+            log_warning "Analyzer not found: $analyzer"
         fi
-        
-        # Mark shellcheck as skipped for files that failed syntax
-        while IFS= read -r script; do
-            if ! grep -q "^$script$" "$syntax_passed_files" 2>/dev/null; then
-                local relative_script
-                relative_script=$(relative_path "$script")
-                log_test_skip "shellcheck: $relative_script" "Skipped due to syntax errors"
-                cache_test_result "$script" "shellcheck" "skipped" "syntax errors"
-                increment_test_counter "skipped"
-            fi
-        done < <(printf '%s\n' "${unique_scripts[@]}")
-        
-        # Clean up temp files
-        rm -f "$syntax_results" "$syntax_passed_files"
-    else
-        # Sequential processing (original implementation)
-        local current=0
-        for script in "${unique_scripts[@]}"; do
-            ((current++))
-            local relative_script
-            relative_script=$(relative_path "$script")
-            
-            log_progress "$current" "$total_scripts" "Analyzing scripts"
-            
-            # Test 1: Bash syntax validation
-            local syntax_passed=false
-            if run_cached_test "$script" "bash-syntax" "validate_shell_syntax '$script' 'shell script'" "bash-syntax: $relative_script"; then
-                syntax_passed=true
-                increment_test_counter "passed"
-            else
-                increment_test_counter "failed"
-            fi
-            
-            # Test 2: Shellcheck static analysis (only if syntax is valid)
-            if [[ "$syntax_passed" == "true" ]]; then
-                if run_cached_test "$script" "shellcheck" "run_shellcheck '$script' 'shell script'" "shellcheck: $relative_script"; then
-                    increment_test_counter "passed"
-                else
-                    increment_test_counter "failed"
-                fi
-            else
-                log_test_skip "shellcheck: $relative_script" "Skipped due to syntax errors"
-                cache_test_result "$script" "shellcheck" "skipped" "syntax errors"
-                increment_test_counter "skipped"
-            fi
-        done
+    done
+    
+    printf '%s\n' "${available[@]}"
+}
+
+# Run a single language analyzer
+run_language_analyzer() {
+    local language="$1"
+    local analyzer="$STATIC_DIR/${language}.sh"
+    
+    if [[ ! -f "$analyzer" ]]; then
+        log_error "Analyzer not found: $analyzer"
+        return 1
     fi
     
-    # Save cache before printing results
-    save_cache
+    log_info "🔍 Running $language static analysis..."
     
-    # Print final results
-    print_test_summary
+    # Build command with scoping arguments
+    local cmd=("$analyzer")
+    [[ -n "$SCOPE_RESOURCE" ]] && cmd+=("--resource=$SCOPE_RESOURCE")
+    [[ -n "$SCOPE_SCENARIO" ]] && cmd+=("--scenario=$SCOPE_SCENARIO")
+    [[ -n "$SCOPE_PATH" ]] && cmd+=("--path=$SCOPE_PATH")
     
-    # Show cache statistics if verbose
-    if is_verbose; then
-        log_info ""
-        show_cache_stats
-    fi
-    
-    # Return success if no failures
-    local counters
-    read -r total passed failed skipped <<< "$(get_test_counters)"
-    
-    if [[ $failed -eq 0 ]]; then
+    if "${cmd[@]}"; then
+        log_success "✅ $language analysis completed successfully"
         return 0
     else
+        log_error "❌ $language analysis failed"
         return 1
     fi
 }
 
-# Additional helper functions for static analysis
-
-check_static_analysis_tools() {
-    log_info "🔧 Checking available static analysis tools..."
+# Run analyzers in parallel
+run_parallel_analysis() {
+    local languages=("$@")
+    local pids=()
+    local results_dir="/tmp/static_results_$$"
+    mkdir -p "$results_dir"
     
-    local tools_available=true
+    log_info "🚀 Running ${#languages[@]} analyzers in parallel..."
     
-    if ! command -v bash >/dev/null 2>&1; then
-        log_error "bash not found - cannot perform syntax validation"
-        tools_available=false
-    else
-        is_verbose && log_success "bash available for syntax validation"
-    fi
+    # Start all analyzers in background
+    for lang in "${languages[@]}"; do
+        (
+            if run_language_analyzer "$lang"; then
+                echo "PASS" > "$results_dir/$lang"
+            else
+                echo "FAIL" > "$results_dir/$lang"
+            fi
+        ) &
+        pids+=($!)
+        log_info "  Started $lang analyzer (PID: ${pids[-1]})"
+    done
     
-    if ! command -v shellcheck >/dev/null 2>&1; then
-        log_warning "shellcheck not found - static analysis will be limited"
-        log_info "Install shellcheck for comprehensive static analysis:"
-        log_info "  apt-get install shellcheck    # Ubuntu/Debian"
-        log_info "  brew install shellcheck       # macOS"
-        log_info "  dnf install ShellCheck        # Fedora"
-    else
-        local shellcheck_version
-        shellcheck_version=$(shellcheck --version | grep '^version:' | cut -d' ' -f2 2>/dev/null || echo "unknown")
-        is_verbose && log_success "shellcheck available (version: $shellcheck_version)"
-    fi
+    # Wait for all to complete
+    log_info "⏳ Waiting for analyzers to complete..."
+    for pid in "${pids[@]}"; do
+        wait "$pid" 2>/dev/null || true
+    done
     
-    if ! command -v find >/dev/null 2>&1; then
-        log_error "find not found - cannot discover shell scripts"
-        tools_available=false
-    else
-        is_verbose && log_success "find available for script discovery"
-    fi
+    # Collect results
+    local all_passed=true
+    local passed_count=0
+    local failed_count=0
     
-    # Return based on boolean value
-    if [[ "$tools_available" == "true" ]]; then
-        return 0
-    else
-        return 1
-    fi
-}
-
-# Show discovered scripts summary
-show_discovery_summary() {
-    local scripts_dir="$PROJECT_ROOT"
+    for lang in "${languages[@]}"; do
+        if [[ -f "$results_dir/$lang" ]]; then
+            local result
+            result=$(cat "$results_dir/$lang")
+            if [[ "$result" == "PASS" ]]; then
+                ((passed_count++))
+                log_success "  ✅ $lang: PASSED"
+            else
+                ((failed_count++))
+                log_error "  ❌ $lang: FAILED"
+                all_passed=false
+            fi
+        else
+            log_error "  ⚠️  $lang: NO RESULT"
+            all_passed=false
+            ((failed_count++))
+        fi
+    done
+    
+    # Clean up
+    rm -rf "$results_dir"
     
     log_info ""
-    log_info "🔍 Script Discovery Summary:"
-    log_info "================================"
+    log_info "📊 Parallel Analysis Summary:"
+    log_info "  Total: ${#languages[@]} languages"
+    log_info "  Passed: $passed_count"
+    log_info "  Failed: $failed_count"
     
-    # Define exclusion patterns (same as in run_static_analysis)
-    local exclude_dirs="__test __test-revised .git node_modules vendor dist build cache tmp temp"
-    local find_excludes=""
-    for dir in $exclude_dirs; do
-        find_excludes="$find_excludes -path '*/$dir' -prune -o"
+    if [[ "$all_passed" == "true" ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+# Run analyzers sequentially
+run_sequential_analysis() {
+    local languages=("$@")
+    local all_passed=true
+    local passed_count=0
+    local failed_count=0
+    
+    for lang in "${languages[@]}"; do
+        if run_language_analyzer "$lang"; then
+            ((passed_count++))
+        else
+            ((failed_count++))
+            all_passed=false
+        fi
     done
     
-    # Count by file extension (with exclusions)
-    local sh_count=0
-    local executable_count=0
+    log_info ""
+    log_info "📊 Sequential Analysis Summary:"
+    log_info "  Total: ${#languages[@]} languages"
+    log_info "  Passed: $passed_count"
+    log_info "  Failed: $failed_count"
     
-    # Count .sh files with exclusions
-    if command -v find >/dev/null 2>&1; then
-        sh_count=$(eval "find '$scripts_dir' $find_excludes -type f -name '*.sh' -print 2>/dev/null" | wc -l || echo "0")
-    fi
-    
-    # Count executable files with shell shebangs (with exclusions)
-    if command -v find >/dev/null 2>&1 && command -v grep >/dev/null 2>&1; then
-        local exec_files
-        exec_files=$(eval "find '$scripts_dir' $find_excludes -type f -executable ! -name '*.sh' -print 2>/dev/null")
-        if [[ -n "$exec_files" ]]; then
-            # Count shell scripts among executable files
-            executable_count=$(echo "$exec_files" | xargs -I{} head -n1 {} 2>/dev/null | grep -c '^#!/.*sh' 2>/dev/null || echo "0")
-        else
-            executable_count=0
-        fi
-    fi
-    
-    # Ensure counts are clean integers (avoid any formatting issues)
-    sh_count="${sh_count:-0}"
-    executable_count="${executable_count:-0}"
-    
-    # Clean up any whitespace or formatting issues - but avoid string manipulation that could cause duplication
-    if [[ "$sh_count" =~ ^[0-9]+$ ]]; then
-        sh_count="$sh_count"
+    if [[ "$all_passed" == "true" ]]; then
+        return 0
     else
-        sh_count="0"
-    fi
-    
-    if [[ "$executable_count" =~ ^[0-9]+$ ]]; then
-        executable_count="$executable_count"
-    else
-        executable_count="0"
-    fi
-    
-    log_info "  .sh files: $sh_count"
-    log_info "  Executable shell scripts: ${executable_count}"
-    log_info "  Total shell scripts: $((sh_count + executable_count))"
-    
-    # Show directory breakdown if verbose (simplified)
-    if is_verbose; then
-        log_info ""
-        log_info "📁 Top-level directories containing scripts:"
-        find "$scripts_dir" -maxdepth 2 -name "*.sh" 2>/dev/null | \
-            sed "s|$scripts_dir/||" | \
-            cut -d'/' -f1 | \
-            sort | uniq -c | \
-            head -10 | \
-            while read -r count dir; do
-                log_info "  $dir/: $count .sh files"
-            done
+        return 1
     fi
 }
 
 # Main execution
 main() {
+    local start_time
+    start_time=$(date +%s)
+    
+    log_section "Static Analysis Phase (Multi-Language)"
+    
+    # Show scope information
+    if [[ -n "$SCOPE_RESOURCE" || -n "$SCOPE_SCENARIO" || -n "$SCOPE_PATH" ]]; then
+        log_info "🎯 Scoped analysis enabled:"
+        [[ -n "$SCOPE_RESOURCE" ]] && log_info "  📦 Resource: $SCOPE_RESOURCE"
+        [[ -n "$SCOPE_SCENARIO" ]] && log_info "  🎬 Scenario: $SCOPE_SCENARIO"
+        [[ -n "$SCOPE_PATH" ]] && log_info "  📁 Path: $SCOPE_PATH"
+    fi
+    
     if is_dry_run; then
-        log_info "🔍 [DRY RUN] Static Analysis Phase"
-        log_info "Would analyze all shell scripts in: $PROJECT_ROOT"
-        show_discovery_summary
+        log_info "🔍 [DRY RUN] Would run static analysis for: ${LANGUAGES[*]}"
+        for lang in "${LANGUAGES[@]}"; do
+            log_info "  - $lang: $STATIC_DIR/${lang}.sh"
+        done
+        
+        if [[ -n "$SCOPE_RESOURCE" || -n "$SCOPE_SCENARIO" || -n "$SCOPE_PATH" ]]; then
+            log_info "🎯 Scope filters would be applied:"
+            [[ -n "$SCOPE_RESOURCE" ]] && log_info "  📦 Resource: $SCOPE_RESOURCE"
+            [[ -n "$SCOPE_SCENARIO" ]] && log_info "  🎬 Scenario: $SCOPE_SCENARIO"
+            [[ -n "$SCOPE_PATH" ]] && log_info "  📁 Path: $SCOPE_PATH"
+        fi
         return 0
     fi
     
-    # Check that required tools are available
-    if ! check_static_analysis_tools; then
-        log_error "Required tools are missing for static analysis"
+    # Check which analyzers are actually available
+    local available_analyzers=()
+    while IFS= read -r analyzer; do
+        [[ -n "$analyzer" ]] && available_analyzers+=("$analyzer")
+    done < <(check_available_analyzers)
+    
+    if [[ ${#available_analyzers[@]} -eq 0 ]]; then
+        log_error "No analyzers available for requested languages: ${LANGUAGES[*]}"
         return 1
     fi
     
-    # Show discovery summary if verbose
-    if is_verbose; then
-        show_discovery_summary
+    log_info "📋 Running analyzers for: ${available_analyzers[*]}"
+    
+    # Run the analyzers
+    local analysis_result
+    if [[ "$RUN_PARALLEL" == "true" ]] && [[ ${#available_analyzers[@]} -gt 1 ]]; then
+        if run_parallel_analysis "${available_analyzers[@]}"; then
+            analysis_result=0
+        else
+            analysis_result=1
+        fi
+    else
+        if run_sequential_analysis "${available_analyzers[@]}"; then
+            analysis_result=0
+        else
+            analysis_result=1
+        fi
     fi
     
-    # Run the static analysis
-    if run_static_analysis; then
-        log_success "✅ Static analysis phase completed successfully"
+    # Calculate total duration
+    local end_time
+    end_time=$(date +%s)
+    local duration=$((end_time - start_time))
+    
+    log_info ""
+    log_section "Static Analysis Complete"
+    log_info "⏱️  Total duration: ${duration}s"
+    
+    if [[ $analysis_result -eq 0 ]]; then
+        log_success "🎉 All static analysis passed!"
         return 0
     else
-        log_error "❌ Static analysis phase completed with failures"
+        log_error "💥 Some static analysis checks failed"
         return 1
     fi
 }
 
 # Export functions for testing
-export -f run_static_analysis check_static_analysis_tools show_discovery_summary
+export -f check_available_analyzers run_language_analyzer
+export -f run_parallel_analysis run_sequential_analysis
 
 # Run main function if script is executed directly
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then

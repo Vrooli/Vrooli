@@ -15,12 +15,12 @@
 ########################################
 set -euo pipefail
 
-# Get script directory
-INTERPRETER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BROWSERLESS_LIB_DIR="$(dirname "$INTERPRETER_DIR")"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
+INTERPRETER_DIR="${APP_ROOT}/resources/browserless/lib/workflow"
+BROWSERLESS_LIB_DIR="${APP_ROOT}/resources/browserless/lib"
 
 # Source required libraries
-source "/home/matthalloran8/Vrooli/scripts/lib/utils/log.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/log.sh" 2>/dev/null || true
 source "${BROWSERLESS_LIB_DIR}/browser-ops.sh"
 source "${BROWSERLESS_LIB_DIR}/session-manager.sh"
 

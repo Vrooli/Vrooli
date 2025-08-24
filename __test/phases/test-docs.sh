@@ -9,8 +9,9 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-PROJECT_ROOT="${PROJECT_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/__test"
+PROJECT_ROOT="${PROJECT_ROOT:-$APP_ROOT}"
 
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/shared/logging.bash"
@@ -18,6 +19,8 @@ source "$SCRIPT_DIR/shared/logging.bash"
 source "$SCRIPT_DIR/shared/test-helpers.bash"
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/shared/cache.bash"
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/shared/scoping.bash"
 
 show_usage() {
     cat << 'EOF'
@@ -26,11 +29,14 @@ Documentation Validation Phase - Test markdown syntax and file references
 Usage: ./test-docs.sh [OPTIONS]
 
 OPTIONS:
-  --verbose      Show detailed output for each file tested
-  --no-cache     Skip caching optimizations
-  --dry-run      Show what would be tested without running
-  --clear-cache  Clear documentation validation cache before running
-  --help         Show this help
+  --verbose        Show detailed output for each file tested
+  --no-cache       Skip caching optimizations
+  --dry-run        Show what would be tested without running
+  --clear-cache    Clear documentation validation cache before running
+  --resource=NAME  Test only specific resource docs (e.g., --resource=ollama)
+  --scenario=NAME  Test only specific scenario docs (e.g., --scenario=app-generator)
+  --path=PATH      Test only specific directory/file path
+  --help           Show this help
 
 ENVIRONMENT:
   DOCS_MAX_CORES Set max parallel workers (default: 4 or half available cores)
@@ -42,6 +48,11 @@ WHAT THIS PHASE TESTS:
   4. Image and code example files exist
   5. Relative paths point to real files
 
+SCOPING EXAMPLES:
+  ./test-docs.sh --resource=ollama          # Only test ollama documentation
+  ./test-docs.sh --scenario=app-generator   # Only test app-generator docs
+  ./test-docs.sh --path=docs/architecture   # Only test docs in specific path
+
 EXAMPLES:
   ./test-docs.sh                      # Validate all documentation
   ./test-docs.sh --verbose            # Show detailed validation output
@@ -52,11 +63,26 @@ EOF
 
 # Parse command line arguments
 CLEAR_CACHE=""
+SCOPE_RESOURCE=""
+SCOPE_SCENARIO=""
+SCOPE_PATH=""
 
 while [[ $# -gt 0 ]]; do
     case $1 in
         --clear-cache)
             CLEAR_CACHE="true"
+            shift
+            ;;
+        --resource=*)
+            SCOPE_RESOURCE="${1#*=}"
+            shift
+            ;;
+        --scenario=*)
+            SCOPE_SCENARIO="${1#*=}"
+            shift
+            ;;
+        --path=*)
+            SCOPE_PATH="${1#*=}"
             shift
             ;;
         --help)
@@ -74,6 +100,11 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+
+# Export scope variables for the scoping functions
+export SCOPE_RESOURCE
+export SCOPE_SCENARIO
+export SCOPE_PATH
 
 # Set number of parallel workers (default to 4 or half of available cores, whichever is smaller)
 MAX_CORES="${DOCS_MAX_CORES:-}"
@@ -226,17 +257,29 @@ EOFYAML
 
 # Find all markdown files to test
 find_markdown_files() {
-    # Find all .md and .markdown files, excluding node_modules and other build directories
-    find "$PROJECT_ROOT" \
-        -type f \( -name "*.md" -o -name "*.markdown" \) \
-        -not -path "*/node_modules/*" \
-        -not -path "*/.git/*" \
-        -not -path "*/dist/*" \
-        -not -path "*/build/*" \
-        -not -path "*/.next/*" \
-        -not -path "*/coverage/*" \
-        -not -path "*/.cache/*" \
-        -print0 2>/dev/null | sort -z
+    local scope_desc
+    scope_desc=$(get_scope_description)
+    log_info "Finding markdown files for $scope_desc..."
+    
+    # Use scoped file discovery if scope is set
+    if [[ -n "${SCOPE_RESOURCE:-}" ]] || [[ -n "${SCOPE_SCENARIO:-}" ]] || [[ -n "${SCOPE_PATH:-}" ]]; then
+        # Get scoped markdown files (.md)
+        get_scoped_files "*.md" "$PROJECT_ROOT"
+        # Also get .markdown files
+        get_scoped_files "*.markdown" "$PROJECT_ROOT"
+    else
+        # No scope - find all markdown files, excluding build directories
+        find "$PROJECT_ROOT" \
+            -type f \( -name "*.md" -o -name "*.markdown" \) \
+            -not -path "*/node_modules/*" \
+            -not -path "*/.git/*" \
+            -not -path "*/dist/*" \
+            -not -path "*/build/*" \
+            -not -path "*/.next/*" \
+            -not -path "*/coverage/*" \
+            -not -path "*/.cache/*" \
+            -print0 2>/dev/null | sort -z
+    fi
 }
 
 # Get file hash for caching

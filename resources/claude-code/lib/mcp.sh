@@ -4,7 +4,8 @@ set -euo pipefail
 # MCP (Model Context Protocol) helper functions for Claude Code integration
 # This file provides utilities for registering Vrooli as an MCP server with Claude Code
 
-CLAUDE_CODE_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+CLAUDE_CODE_LIB_DIR="${APP_ROOT}/resources/claude-code/lib"
 
 # Source required libraries
 source "${CLAUDE_CODE_LIB_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true

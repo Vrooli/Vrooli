@@ -13,11 +13,9 @@ source-path=scripts/lib/network
 source-path=scripts/lib/lifecycle
 source-path=scripts/lib/service
 source-path=scripts/lib/deploy
-source-path=scripts/__test/fixtures
-source-path=scripts/__test/fixtures/mocks
-source-path=scripts/__test-revised/shared
-source-path=scripts/resources
-source-path=scripts/scenarios
+source-path=__test/fixtures
+source-path=resources
+source-path=scenarios
 
 # Exclude specific warnings that are handled by our framework
 # SC1090: Can't follow non-constant source (we use dynamic paths intentionally)
