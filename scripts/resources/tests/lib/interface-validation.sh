@@ -4,10 +4,10 @@
 
 set -euo pipefail
 
-_HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
 
 # shellcheck disable=SC1091
-source "${_HERE}/../../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
 
@@ -104,21 +104,6 @@ declare -A AGENT_OPTIONAL_FUNCTIONS=(
     ["automate"]="--task TASK - Execute automation task"
     ["interact"]="--element SELECTOR - Interact with UI element"
 )
-
-#######################################
-# Resource category detection
-#######################################
-
-interface_validation::detect_resource_category() {
-    local resource_path="$1"
-    
-    # Extract category from path (e.g., scripts/resources/ai/ollama -> ai)
-    if [[ "$resource_path" =~ scripts/resources/([^/]+)/([^/]+) ]]; then
-        echo "${BASH_REMATCH[1]}"
-    else
-        echo "unknown"
-    fi
-}
 
 #######################################
 # Validate manage.sh exists and is executable
@@ -339,9 +324,8 @@ interface_validation::validate_resource_interface() {
     local resource_name
     resource_name=$(basename "$resource_path")
     local category
-    category=$(interface_validation::detect_resource_category "$resource_path")
     
-    echo "Validating resource interface: $resource_name (category: $category)"
+    echo "Validating resource interface: $resource_name"
     echo "========================================"
     
     local tests_passed=0
@@ -397,7 +381,6 @@ interface_validation::validate_resource_interface() {
 }
 
 # Export functions for use in BATS tests
-export -f interface_validation::detect_resource_category
 export -f interface_validation::validate_manage_script
 export -f interface_validation::extract_available_actions
 export -f interface_validation::validate_required_functions

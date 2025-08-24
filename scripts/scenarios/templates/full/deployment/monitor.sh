@@ -5,14 +5,15 @@
 set -euo pipefail
 
 # Source trash module for safe cleanup
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../../../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/scripts/scenarios/templates/full/deployment"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
 # Configuration
-SCENARIO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SCENARIO_DIR="${APP_ROOT}/scripts/scenarios/templates/full"
 SCENARIO_ID="{{ scenario.id }}"
 SCENARIO_NAME="{{ scenario.name }}"
 MONITOR_LOG="/tmp/vrooli-${SCENARIO_ID}-monitor.log"

@@ -39,8 +39,9 @@
 set -euo pipefail
 
 # Script directory and paths
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-RESOURCES_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/scripts/resources/tools"
+RESOURCES_DIR="${APP_ROOT}/scripts/resources"
 TOOLS_DIR="$SCRIPT_DIR"
 CONTRACTS_DIR="$RESOURCES_DIR/contracts"
 

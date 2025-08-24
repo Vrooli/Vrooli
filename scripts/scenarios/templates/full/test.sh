@@ -10,7 +10,8 @@
 set -euo pipefail
 
 # Source the test framework
-SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
+SCRIPT_DIR="${SCRIPT_DIR:-${APP_ROOT}/scripts/scenarios}"
 source "$SCRIPT_DIR/framework/helpers/assertions.sh"
 source "$SCRIPT_DIR/framework/helpers/cleanup.sh"
 source "$SCRIPT_DIR/framework/helpers/fixtures.sh"
@@ -18,7 +19,7 @@ source "$SCRIPT_DIR/framework/helpers/metadata.sh"
 source "$SCRIPT_DIR/framework/helpers/secure-config.sh"
 
 # Load scenario metadata
-SCENARIO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCENARIO_DIR="${APP_ROOT}/scripts/scenarios/templates/full"
 SERVICE_FILE="${SCENARIO_DIR}/service.json"
 
 # Parse service configuration

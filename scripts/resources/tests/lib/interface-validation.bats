@@ -3,10 +3,11 @@
 
 setup() {
     # Get the directory of the test file
-    TEST_DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")" && pwd)"
+    TEST_DIR="$(builtin cd "${BATS_TEST_FILENAME%/*}" && builtin pwd)"
     
     # Source trash module for safe test cleanup
-    SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+    APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
+    SCRIPT_DIR="${APP_ROOT}/scripts/resources/tests/lib"
     # shellcheck disable=SC1091
     source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
     # shellcheck disable=SC1091
@@ -35,34 +36,6 @@ setup() {
 teardown() {
     # Cleanup
     trash::safe_remove "$TEST_RESOURCE_DIR" --test-cleanup
-}
-
-@test "interface_validation::detect_resource_category - detects AI category" {
-    run interface_validation::detect_resource_category "scripts/resources/ai/ollama"
-    
-    assert_success
-    assert_output "ai"
-}
-
-@test "interface_validation::detect_resource_category - detects automation category" {
-    run interface_validation::detect_resource_category "scripts/resources/automation/n8n"
-    
-    assert_success
-    assert_output "automation"
-}
-
-@test "interface_validation::detect_resource_category - detects storage category" {
-    run interface_validation::detect_resource_category "scripts/resources/storage/postgres"
-    
-    assert_success
-    assert_output "storage"
-}
-
-@test "interface_validation::detect_resource_category - returns unknown for invalid path" {
-    run interface_validation::detect_resource_category "/some/other/path"
-    
-    assert_success
-    assert_output "unknown"
 }
 
 @test "interface_validation::validate_manage_script - validates existing executable" {
@@ -220,7 +193,7 @@ EOF
 
 @test "interface_validation::validate_port_registry - checks port registration" {
     # Create mock port registry
-    mkdir -p "$(dirname "$var_PORT_REGISTRY_FILE")"
+    mkdir -p "${var_PORT_REGISTRY_FILE%/*}"
     cat > "$var_PORT_REGISTRY_FILE" <<'EOF'
 declare -A PORTS=(
     ["test-resource"]="8080"

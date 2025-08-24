@@ -7,7 +7,8 @@
 # =============================================================================
 
 # Source var.sh for standardized paths
-_HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
+_HERE="${APP_ROOT}/scripts/resources/tests/shared"
 
 # shellcheck disable=SC1091
 source "${_HERE}/../../../lib/utils/var.sh"

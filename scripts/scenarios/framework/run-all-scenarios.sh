@@ -31,8 +31,9 @@ declare -a DEGRADED_SCENARIOS=()
 declare -a PASSED_SCENARIOS=()
 
 # Resolve script location
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SCENARIOS_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/scripts/scenarios/framework"
+SCENARIOS_ROOT="${APP_ROOT}/scripts/scenarios"
 
 # Source required utilities
 # shellcheck disable=SC1091

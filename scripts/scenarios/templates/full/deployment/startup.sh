@@ -5,7 +5,8 @@
 set -euo pipefail
 
 # Configuration
-SCENARIO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../../../.." && builtin pwd)}"
+SCENARIO_DIR="${APP_ROOT}/scripts/scenarios/templates/full"
 SCENARIO_ID="{{ scenario.id }}"
 SCENARIO_NAME="{{ scenario.name }}"
 LOG_FILE="/tmp/vrooli-${SCENARIO_ID}-startup.log"
