@@ -4,12 +4,12 @@
 
 set -euo pipefail
 
-# Get directory of this script
-QDRANT_SEARCH_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+QDRANT_SEARCH_DIR="${APP_ROOT}/resources/qdrant/lib"
 
 # Source required utilities
 # shellcheck disable=SC1091
-source "${QDRANT_SEARCH_DIR}/../../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/log.sh"
 # shellcheck disable=SC1091
@@ -18,6 +18,8 @@ source "${var_SCRIPTS_RESOURCES_LIB_DIR}/http-utils.sh"
 # Source configuration and dependencies
 # shellcheck disable=SC1091
 source "${QDRANT_SEARCH_DIR}/../config/defaults.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${QDRANT_SEARCH_DIR}/api-client.sh"
 # shellcheck disable=SC1091
 source "${QDRANT_SEARCH_DIR}/core.sh"
 # shellcheck disable=SC1091
@@ -257,11 +259,11 @@ qdrant::search::by_vector() {
     
     log::info "Searching in collection '$collection'..."
     
-    # Perform search via Qdrant API
+    # Perform search via Qdrant API client
     local response
-    response=$(qdrant::api::request "POST" "/collections/${collection}/points/search" "$search_request" 2>/dev/null)
+    response=$(qdrant::client::search_raw "$collection" "$search_request" 2>/dev/null)
     
-    if [[ -z "$response" ]]; then
+    if [[ $? -ne 0 ]]; then
         log::error "Search request failed"
         return 1
     fi
@@ -563,11 +565,11 @@ EOF
         search_request=$(echo "$search_request" | jq --argjson filter "$filter" '.filter = $filter')
     fi
     
-    # Perform search
+    # Perform search using API client
     local response
-    response=$(qdrant::api::request "POST" "/collections/${collection}/points/search" "$search_request" 2>/dev/null)
+    response=$(qdrant::client::search_raw "$collection" "$search_request" 2>/dev/null)
     
-    if [[ -z "$response" ]]; then
+    if [[ $? -ne 0 ]]; then
         log::error "Search request failed"
         return 1
     fi
@@ -647,12 +649,12 @@ qdrant::search::insert_and_search() {
     # Add text to payload
     point=$(echo "$point" | jq --arg text "$text" '.points[0].payload.text = $text')
     
-    # Insert into Qdrant
+    # Insert into Qdrant using API client
     log::info "Inserting vector into collection '$collection'..."
     local response
-    response=$(qdrant::api::request "PUT" "/collections/${collection}/points" "$point" 2>/dev/null)
+    response=$(qdrant::client::insert_points "$collection" "$point" 2>/dev/null)
     
-    if [[ -z "$response" ]]; then
+    if [[ $? -ne 0 ]]; then
         log::error "Failed to insert vector"
         return 1
     fi
@@ -689,7 +691,7 @@ qdrant::collections::get_dimensions() {
     fi
     
     local response
-    response=$(qdrant::api::request "GET" "/collections/${collection}" 2>/dev/null)
+    response=$(qdrant::client::get_collection_info "$collection" 2>/dev/null)
     
     if [[ -n "$response" ]]; then
         local dimensions

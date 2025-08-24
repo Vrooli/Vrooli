@@ -3,19 +3,19 @@ set -euo pipefail
 
 DESCRIPTION="Content management for Qdrant vector database"
 
-# Get script directory and source frameworks
-QDRANT_CONTENT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+QDRANT_CONTENT_DIR="${APP_ROOT}/resources/qdrant/lib"
 
 # Source shared frameworks
 # shellcheck disable=SC1091
-source "${QDRANT_CONTENT_DIR}/../../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/log.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/format.sh"
 
 # Source Qdrant lib functions
-for lib_file in "${QDRANT_CONTENT_DIR}/"{core,api,collections}.sh; do
+for lib_file in "${QDRANT_CONTENT_DIR}/"{api-client,core,collections}.sh; do
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
         source "$lib_file" || log::warn "Could not load $lib_file"
@@ -183,7 +183,7 @@ qdrant::content::list() {
     
     # Also list actual collections from Qdrant
     local collections
-    collections=$(qdrant::list_collections 2>/dev/null || echo "[]")
+    collections=$(qdrant::client::get_collections 2>/dev/null | jq -r '.result.collections[] | .name' 2>/dev/null || echo "[]")
     
     if [[ "$format" == "json" ]]; then
         echo "{\"stored_content\": [$(IFS=,; echo "${content_list[*]}")], \"collections\": $collections}"

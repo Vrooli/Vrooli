@@ -11,17 +11,18 @@
 
 set -euo pipefail
 
-# Get script directory (resolving symlinks for installed CLI)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+# Handle symlinks for installed CLI
 if [[ -L "${BASH_SOURCE[0]}" ]]; then
     QDRANT_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
-else
-    QDRANT_CLI_SCRIPT="${BASH_SOURCE[0]}"
+    # Recalculate APP_ROOT from resolved symlink location
+    APP_ROOT="$(builtin cd "$(dirname "$QDRANT_CLI_SCRIPT")/../.." && builtin pwd)"
 fi
-QDRANT_CLI_DIR="$(cd "$(dirname "$QDRANT_CLI_SCRIPT")" && pwd)"
+QDRANT_CLI_DIR="${APP_ROOT}/resources/qdrant"
 
 # Source standard variables
 # shellcheck disable=SC1091
-source "${QDRANT_CLI_DIR}/../../scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 # Source utilities using var_ variables
 # shellcheck disable=SC1091
@@ -373,8 +374,8 @@ qdrant_list_collections() {
         fi
     elif command -v qdrant::collections::list &>/dev/null; then
         qdrant::collections::list
-    elif command -v qdrant::api::list_collections &>/dev/null; then
-        qdrant::api::list_collections
+    elif command -v qdrant::client::get_collections &>/dev/null; then
+        qdrant::client::get_collections
     else
         log::error "Collection listing not available"
         return 1
@@ -447,8 +448,8 @@ qdrant_delete_collection() {
     
     if command -v qdrant::collections::delete &>/dev/null; then
         qdrant::collections::delete "$name" "yes"
-    elif command -v qdrant::api::delete_collection &>/dev/null; then
-        qdrant::api::delete_collection "$name"
+    elif command -v qdrant::client::delete_collection &>/dev/null; then
+        qdrant::client::delete_collection "$name"
     else
         log::error "Collection deletion not available"
         return 1
@@ -483,9 +484,9 @@ qdrant_collection_info() {
             log::error "Collection info failed for: $name"
             return $exit_code
         fi
-    elif command -v qdrant::api::get_collection &>/dev/null; then
-        log::debug "Falling back to qdrant::api::get_collection"
-        if ! qdrant::api::get_collection "$name"; then
+    elif command -v qdrant::client::get_collection_info &>/dev/null; then
+        log::debug "Falling back to qdrant::client::get_collection_info"
+        if ! qdrant::client::get_collection_info "$name"; then
             local exit_code=$?
             log::error "Collection API call failed for: $name"
             return $exit_code

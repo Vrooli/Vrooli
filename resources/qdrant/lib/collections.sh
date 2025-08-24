@@ -4,12 +4,12 @@
 
 set -euo pipefail
 
-# Get directory of this script
-QDRANT_COLLECTIONS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+QDRANT_COLLECTIONS_DIR="${APP_ROOT}/resources/qdrant/lib"
 
 # Source required utilities
 # shellcheck disable=SC1091
-source "${QDRANT_COLLECTIONS_DIR}/../../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/log.sh"
 
@@ -18,6 +18,8 @@ source "${var_LIB_UTILS_DIR}/log.sh"
 source "${QDRANT_COLLECTIONS_DIR}/../config/defaults.sh"
 # shellcheck disable=SC1091
 source "${QDRANT_COLLECTIONS_DIR}/../config/messages.sh"
+# shellcheck disable=SC1091
+source "${QDRANT_COLLECTIONS_DIR}/api-client.sh"
 
 # Initialize Qdrant base URL if not set
 if [[ -z "${QDRANT_BASE_URL:-}" ]]; then
@@ -113,29 +115,14 @@ qdrant::collections::create() {
 EOF
 )
     
-    # Create the collection
-    local response
-    response=$(qdrant::api::request "PUT" "/collections/${collection_name}" "$config" 2>/dev/null)
-    
-    # Check if request was successful (api::request returns 0 for success)
-    if [[ $? -eq 0 ]]; then
-        # Check if the response indicates success
-        local status
-        status=$(echo "$response" | jq -r '.status // "unknown"' 2>/dev/null)
+    # Create the collection using API client
+    if qdrant::client::put "/collections/${collection_name}" "$config" "create collection" >/dev/null; then
+        log::success "${MSG_COLLECTION_CREATED}: $collection_name (size: $vector_size, distance: $distance_metric)"
         
-        if [[ "$status" == "ok" ]]; then
-            log::success "${MSG_COLLECTION_CREATED}: $collection_name (size: $vector_size, distance: $distance_metric)"
-            
-            # Force index creation for better performance
-            qdrant::collections::create_index "$collection_name" 2>/dev/null || true
-            
-            return 0
-        else
-            local error_msg
-            error_msg=$(echo "$response" | jq -r '.status.error // "Unknown error"' 2>/dev/null)
-            log::error "${MSG_COLLECTION_CREATE_FAILED}: $error_msg"
-            return 1
-        fi
+        # Force index creation for better performance
+        qdrant::collections::create_index "$collection_name" 2>/dev/null || true
+        
+        return 0
     else
         log::error "${MSG_COLLECTION_CREATE_FAILED}"
         return 1
@@ -178,24 +165,10 @@ qdrant::collections::delete() {
         fi
     fi
     
-    # Delete the collection
-    local response
-    response=$(qdrant::api::request "DELETE" "/collections/${collection_name}" 2>/dev/null)
-    
-    # Check if request was successful
-    if [[ $? -eq 0 ]]; then
-        local status
-        status=$(echo "$response" | jq -r '.status // "unknown"' 2>/dev/null)
-        
-        if [[ "$status" == "ok" ]]; then
-            log::success "Collection deleted: $collection_name"
-            return 0
-        else
-            local error_msg
-            error_msg=$(echo "$response" | jq -r '.status.error // "Unknown error"' 2>/dev/null)
-            log::error "${MSG_COLLECTION_DELETE_FAILED}: $error_msg"
-            return 1
-        fi
+    # Delete the collection using API client
+    if qdrant::client::delete_collection "$collection_name" >/dev/null; then
+        log::success "Collection deleted: $collection_name"
+        return 0
     else
         log::error "${MSG_COLLECTION_DELETE_FAILED}"
         return 1
@@ -233,7 +206,7 @@ qdrant::collections::list() {
     qdrant::collections::verify_init || return 1
     
     local response
-    response=$(qdrant::api::request "GET" "/collections" 2>/dev/null)
+    response=$(qdrant::client::get_collections 2>/dev/null)
     
     if [[ $? -ne 0 ]]; then
         log::error "Failed to retrieve collections"
@@ -308,7 +281,7 @@ qdrant::collections::info() {
     fi
     
     local response
-    response=$(qdrant::api::request "GET" "/collections/${collection_name}" 2>/dev/null || true)
+    response=$(qdrant::client::get_collection_info "$collection_name" 2>/dev/null || true)
     
     # Check if we got any response at all
     if [[ -z "$response" ]]; then
@@ -425,7 +398,7 @@ qdrant::collections::index_stats() {
     fi
     
     local response
-    response=$(qdrant::api::request "GET" "/collections/${collection_name}/cluster" 2>/dev/null)
+    response=$(qdrant::client::get "/collections/${collection_name}/cluster" "get cluster info" 2>/dev/null)
     
     if [[ $? -ne 0 ]]; then
         log::error "Failed to retrieve index statistics"
@@ -735,7 +708,7 @@ qdrant::collections::list_with_models() {
     qdrant::collections::verify_init || return 1
     
     local response
-    response=$(qdrant::api::request "GET" "/collections" 2>/dev/null)
+    response=$(qdrant::client::get_collections 2>/dev/null)
     
     if [[ $? -ne 0 ]]; then
         log::error "Failed to retrieve collections"
@@ -766,7 +739,7 @@ qdrant::collections::list_with_models() {
         if [[ -n "$collection_name" ]]; then
             # Get collection info
             local coll_info
-            coll_info=$(qdrant::api::request "GET" "/collections/${collection_name}" 2>/dev/null)
+            coll_info=$(qdrant::client::get_collection_info "$collection_name" 2>/dev/null)
             
             local dimensions
             dimensions=$(echo "$coll_info" | jq -r '.result.config.params.vectors.size // "unknown"' 2>/dev/null)
@@ -814,7 +787,7 @@ if ! command -v qdrant::collections::get_dimensions >/dev/null 2>&1; then
         fi
         
         local response
-        response=$(qdrant::api::request "GET" "/collections/${collection}" 2>/dev/null)
+        response=$(qdrant::client::get_collection_info "$collection" 2>/dev/null)
         
         if [[ -n "$response" ]]; then
             local dimensions
@@ -896,7 +869,7 @@ qdrant::collections::migrate() {
 #######################################
 qdrant::collections::list_brief() {
     local response
-    response=$(qdrant::api::request "GET" "/collections" 2>/dev/null)
+    response=$(qdrant::client::get_collections 2>/dev/null)
     
     if [[ $? -eq 0 ]]; then
         echo "$response" | jq -r '.result.collections[] | "\(.name)"' 2>/dev/null
@@ -921,7 +894,7 @@ qdrant::collections::create_index() {
     local index_config='{"optimizers_config": {"indexing_threshold": 1}}'
     
     local response
-    response=$(qdrant::api::request "PATCH" "/collections/${collection_name}" "$index_config" 2>/dev/null)
+    response=$(qdrant::client::request "PATCH" "/collections/${collection_name}" "$index_config" 2>/dev/null)
     
     if [[ $? -eq 0 ]]; then
         local status
@@ -959,7 +932,7 @@ qdrant::collections::optimize() {
     
     while [[ $wait_time -lt $max_wait ]]; do
         local info
-        info=$(qdrant::api::request "GET" "/collections/${collection_name}" 2>/dev/null)
+        info=$(qdrant::client::get_collection_info "$collection_name" 2>/dev/null)
         
         if [[ -n "$info" ]]; then
             local indexed=$(echo "$info" | jq -r '.result.indexed_vectors_count // 0' 2>/dev/null)

@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Resolve symlinks to find the actual script location
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+# Handle symlinks for installed CLI
 if [[ -L "${BASH_SOURCE[0]}" ]]; then
     KEYCLOAK_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
-else
-    KEYCLOAK_CLI_SCRIPT="${BASH_SOURCE[0]}"
+    # Recalculate APP_ROOT from resolved symlink location
+    APP_ROOT="$(builtin cd "$(dirname "$KEYCLOAK_CLI_SCRIPT")/../.." && builtin pwd)"
 fi
-KEYCLOAK_CLI_DIR="$(cd "$(dirname "$KEYCLOAK_CLI_SCRIPT")" && pwd)"
+KEYCLOAK_CLI_DIR="${APP_ROOT}/resources/keycloak"
 
 # Main CLI handler
 main() {
@@ -17,58 +18,58 @@ main() {
     case "${command}" in
         start)
             source "${KEYCLOAK_CLI_DIR}/lib/common.sh"
-            source "${KEYCLOAK_CLI_DIR}/../../../lib/utils/log.sh"
+            source "${APP_ROOT}/scripts/lib/utils/log.sh"
             source "${KEYCLOAK_CLI_DIR}/lib/install.sh"
             source "${KEYCLOAK_CLI_DIR}/lib/lifecycle.sh"
             keycloak::start "$@"
             ;;
         stop)
             source "${KEYCLOAK_CLI_DIR}/lib/common.sh"
-            source "${KEYCLOAK_CLI_DIR}/../../../lib/utils/log.sh"
+            source "${APP_ROOT}/scripts/lib/utils/log.sh"
             source "${KEYCLOAK_CLI_DIR}/lib/lifecycle.sh"
             keycloak::stop "$@"
             ;;
         restart)
             source "${KEYCLOAK_CLI_DIR}/lib/common.sh"
-            source "${KEYCLOAK_CLI_DIR}/../../../lib/utils/log.sh"
+            source "${APP_ROOT}/scripts/lib/utils/log.sh"
             source "${KEYCLOAK_CLI_DIR}/lib/install.sh"
             source "${KEYCLOAK_CLI_DIR}/lib/lifecycle.sh"
             keycloak::restart "$@"
             ;;
         status)
             source "${KEYCLOAK_CLI_DIR}/lib/common.sh"
-            source "${KEYCLOAK_CLI_DIR}/../../../lib/utils/log.sh"
+            source "${APP_ROOT}/scripts/lib/utils/log.sh"
             source "${KEYCLOAK_CLI_DIR}/../../../lib/utils/format.sh"
             source "${KEYCLOAK_CLI_DIR}/lib/status.sh"
             keycloak::status "$@"
             ;;
         install)
             source "${KEYCLOAK_CLI_DIR}/lib/common.sh"
-            source "${KEYCLOAK_CLI_DIR}/../../../lib/utils/log.sh"
+            source "${APP_ROOT}/scripts/lib/utils/log.sh"
             source "${KEYCLOAK_CLI_DIR}/lib/install.sh"
             keycloak::install "$@"
             ;;
         uninstall)
             source "${KEYCLOAK_CLI_DIR}/lib/common.sh"
-            source "${KEYCLOAK_CLI_DIR}/../../../lib/utils/log.sh"
+            source "${APP_ROOT}/scripts/lib/utils/log.sh"
             source "${KEYCLOAK_CLI_DIR}/lib/install.sh"
             keycloak::uninstall "$@"
             ;;
         inject)
             source "${KEYCLOAK_CLI_DIR}/lib/common.sh"
-            source "${KEYCLOAK_CLI_DIR}/../../../lib/utils/log.sh"
+            source "${APP_ROOT}/scripts/lib/utils/log.sh"
             source "${KEYCLOAK_CLI_DIR}/lib/inject.sh"
             keycloak::inject "$@"
             ;;
         list|list-injected)
             source "${KEYCLOAK_CLI_DIR}/lib/common.sh"
-            source "${KEYCLOAK_CLI_DIR}/../../../lib/utils/log.sh"
+            source "${APP_ROOT}/scripts/lib/utils/log.sh"
             source "${KEYCLOAK_CLI_DIR}/lib/inject.sh"
             keycloak::list_injected "$@"
             ;;
         clear|clear-data)
             source "${KEYCLOAK_CLI_DIR}/lib/common.sh"
-            source "${KEYCLOAK_CLI_DIR}/../../../lib/utils/log.sh"
+            source "${APP_ROOT}/scripts/lib/utils/log.sh"
             source "${KEYCLOAK_CLI_DIR}/lib/inject.sh"
             keycloak::clear_data "$@"
             ;;

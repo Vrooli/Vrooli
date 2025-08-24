@@ -419,6 +419,85 @@ EOF
     return 0
 }
 
+go::install_dev_tools() {
+    log::header "Installing Go development tools..."
+    
+    # Check if Go is installed first
+    if ! command -v go >/dev/null 2>&1; then
+        log::error "Go not found - cannot install development tools"
+        return 1
+    fi
+    
+    # Install golangci-lint (comprehensive Go linter)
+    if command -v golangci-lint >/dev/null 2>&1; then
+        log::info "golangci-lint is already installed"
+        local version
+        version=$(golangci-lint --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || echo "unknown")
+        log::info "Current version: $version"
+    else
+        log::info "Installing golangci-lint..."
+        
+        # Install via Go modules (recommended method)
+        if go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest 2>/dev/null; then
+            log::success "golangci-lint installed successfully"
+        else
+            log::warning "Failed to install golangci-lint via go install, trying curl method..."
+            
+            # Fallback to curl installation
+            local install_script
+            install_script=$(mktemp)
+            if curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh -o "$install_script" && \
+               sh "$install_script" -b "$(go env GOPATH)/bin" latest; then
+                log::success "golangci-lint installed via install script"
+            else
+                log::error "Failed to install golangci-lint"
+                rm -f "$install_script"
+                return 1
+            fi
+            rm -f "$install_script"
+        fi
+    fi
+    
+    # Install other useful Go tools
+    local tools=(
+        "golang.org/x/tools/cmd/goimports@latest"    # Better import formatting
+        "github.com/fatih/gomodifytags@latest"        # Struct tag manipulation  
+        "github.com/josharian/impl@latest"            # Interface implementation generator
+        "github.com/go-delve/delve/cmd/dlv@latest"    # Go debugger
+        "honnef.co/go/tools/cmd/staticcheck@latest"   # Advanced static analysis
+    )
+    
+    for tool in "${tools[@]}"; do
+        local tool_name
+        tool_name=$(basename "${tool%%@*}")
+        
+        if command -v "$tool_name" >/dev/null 2>&1; then
+            log::info "$tool_name is already installed"
+        else
+            log::info "Installing $tool_name..."
+            if go install "$tool" 2>/dev/null; then
+                log::success "$tool_name installed successfully"
+            else
+                log::warning "Failed to install $tool_name (may not be compatible with current Go version)"
+            fi
+        fi
+    done
+    
+    # Verify GOPATH/bin is in PATH
+    local gopath_bin
+    if command -v go >/dev/null 2>&1; then
+        gopath_bin="$(go env GOPATH)/bin"
+        if [[ -d "$gopath_bin" ]] && [[ ":$PATH:" != *":$gopath_bin:"* ]]; then
+            log::warning "GOPATH/bin ($gopath_bin) is not in PATH"
+            log::info "Add the following to your shell profile:"
+            log::info "  export PATH=\"\$(go env GOPATH)/bin:\$PATH\""
+        fi
+    fi
+    
+    log::success "Go development tools installation complete"
+    return 0
+}
+
 go::check_and_install() {
     local version="${1:-$DEFAULT_GO_VERSION}"
     local platform
@@ -490,6 +569,11 @@ go::check_and_install() {
             return 1
             ;;
     esac
+    
+    # Install development tools if requested
+    if [[ "${GO_INSTALL_DEV_TOOLS:-false}" == "true" ]]; then
+        go::install_dev_tools
+    fi
 }
 
 go::show_post_install_info() {

@@ -3,14 +3,14 @@
 # LlamaIndex CLI Interface
 # Direct wrapper for LlamaIndex resource management
 
-# Resolve symlinks to get the actual script directory
-LLAMAINDEX_CLI_SCRIPT="${BASH_SOURCE[0]}"
-while [[ -L "$LLAMAINDEX_CLI_SCRIPT" ]]; do
-    LLAMAINDEX_CLI_DIR="$(cd "$(dirname "$LLAMAINDEX_CLI_SCRIPT")" && pwd)"
-    LLAMAINDEX_CLI_SCRIPT="$(readlink "$LLAMAINDEX_CLI_SCRIPT")"
-    [[ "$LLAMAINDEX_CLI_SCRIPT" != /* ]] && LLAMAINDEX_CLI_SCRIPT="$LLAMAINDEX_CLI_DIR/$LLAMAINDEX_CLI_SCRIPT"
-done
-LLAMAINDEX_CLI_DIR="$(cd "$(dirname "$LLAMAINDEX_CLI_SCRIPT")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+# Handle symlinks for installed CLI
+if [[ -L "${BASH_SOURCE[0]}" ]]; then
+    LLAMAINDEX_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
+    # Recalculate APP_ROOT from resolved symlink location
+    APP_ROOT="$(builtin cd "$(dirname "$LLAMAINDEX_CLI_SCRIPT")/../.." && builtin pwd)"
+fi
+LLAMAINDEX_CLI_DIR="${APP_ROOT}/resources/llamaindex"
 LLAMAINDEX_LIB_DIR="$LLAMAINDEX_CLI_DIR/lib"
 
 # Source core functions

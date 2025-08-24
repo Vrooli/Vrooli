@@ -5,10 +5,12 @@
 
 set -euo pipefail
 
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/resources/qdrant/test"
+
 # Source shared integration test library
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
-source "$SCRIPT_DIR/../../../tests/lib/integration-test-lib.sh"
+source "${APP_ROOT}/tests/lib/integration-test-lib.sh"
 
 # Create alias for make_api_request function  
 make_api_request() {

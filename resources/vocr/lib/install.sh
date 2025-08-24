@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 # VOCR Installation Module
 
-# Get script directory
-VOCR_INSTALL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+VOCR_INSTALL_DIR="${APP_ROOT}/resources/vocr/lib"
 
 # Source utilities first
 # shellcheck disable=SC1091
-source "${VOCR_INSTALL_DIR}/../../../../lib/utils/log.sh"
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
 # shellcheck disable=SC1091
-source "${VOCR_INSTALL_DIR}/../../../../lib/utils/format.sh"
+source "${APP_ROOT}/scripts/lib/utils/format.sh"
 # shellcheck disable=SC1091
-source "${VOCR_INSTALL_DIR}/../../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "${VOCR_INSTALL_DIR}/../../../../lib/utils/sudo.sh"
+source "${APP_ROOT}/scripts/lib/utils/sudo.sh"
 
 # Source configuration
 # shellcheck disable=SC1091

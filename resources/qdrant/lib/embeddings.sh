@@ -4,12 +4,12 @@
 
 set -euo pipefail
 
-# Get directory of this script
-QDRANT_EMBEDDINGS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+QDRANT_EMBEDDINGS_DIR="${APP_ROOT}/resources/qdrant/lib"
 
 # Source required utilities
 # shellcheck disable=SC1091
-source "${QDRANT_EMBEDDINGS_DIR}/../../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/log.sh"
 # shellcheck disable=SC1091

@@ -14,8 +14,8 @@
 
 set -euo pipefail
 
-# Get the library directory using consistent pattern
-AUTO_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+AUTO_LIB_DIR="${APP_ROOT}/auto/lib"
 
 # Source all module files in dependency order
 # Note: core.sh now sources constants.sh automatically

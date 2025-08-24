@@ -3,12 +3,12 @@
 
 set -euo pipefail
 
-# Get directory of this script
-PARALLEL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-EMBEDDINGS_DIR="$(dirname "$PARALLEL_DIR")"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
+PARALLEL_DIR="${APP_ROOT}/resources/qdrant/embeddings/lib"
+EMBEDDINGS_DIR="${APP_ROOT}/resources/qdrant/embeddings"
 
 # Source required utilities
-source "${EMBEDDINGS_DIR}/../../../scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${var_LIB_UTILS_DIR}/log.sh"
 
 # Maximum parallel workers (can be overridden)

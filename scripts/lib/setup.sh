@@ -18,9 +18,6 @@ set -euo pipefail
 # Get APP_ROOT using cached value or compute once (2 levels up: scripts/lib/setup.sh)
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
 
-# Clear any source guards that may have been inherited from parent process
-unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED 2>/dev/null || true
-
 # shellcheck disable=SC1091
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
@@ -66,17 +63,17 @@ source "${var_LIB_SYSTEM_DIR}/common_deps.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/config.sh"  # Consolidated config
 # shellcheck disable=SC1091
-source "${LIB_DIR}/runtimes/docker.sh"
+source "${var_LIB_DIR}/runtimes/docker.sh"
 # shellcheck disable=SC1091
-source "${LIB_DIR}/runtimes/nodejs.sh"
+source "${var_LIB_DIR}/runtimes/nodejs.sh"
 # shellcheck disable=SC1091
-source "${LIB_DIR}/runtimes/go.sh"
+source "${var_LIB_DIR}/runtimes/go.sh"
 # shellcheck disable=SC1091
-source "${LIB_DIR}/runtimes/python.sh"
+source "${var_LIB_DIR}/runtimes/python.sh"
 # shellcheck disable=SC1091
-source "${LIB_DIR}/runtimes/helm.sh"
+source "${var_LIB_DIR}/runtimes/helm.sh"
 # shellcheck disable=SC1091
-source "${LIB_DIR}/runtimes/sqlite.sh"
+source "${var_LIB_DIR}/runtimes/sqlite.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_NETWORK_DIR}/firewall.sh"
 # shellcheck disable=SC1091

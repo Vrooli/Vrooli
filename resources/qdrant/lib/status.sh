@@ -2,16 +2,20 @@
 # Qdrant Status Management - Standardized Format
 # Functions for checking and displaying Qdrant status information
 
+set -euo pipefail
+
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+QDRANT_STATUS_DIR="${APP_ROOT}/resources/qdrant/lib"
+
 # Source format utilities and config
-QDRANT_STATUS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
-source "${QDRANT_STATUS_DIR}/../../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/format.sh"
 # shellcheck disable=SC1091
-source "${QDRANT_STATUS_DIR}/../../../lib/status-args.sh"
+source "${APP_ROOT}/scripts/lib/status-args.sh"
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_LIB_DIR}/docker-utils.sh"
 # shellcheck disable=SC1091
@@ -102,7 +106,7 @@ qdrant::status::collect_data() {
     if [[ "$running" == "true" && "$healthy" == "true" ]]; then
         # Get cluster info
         local cluster_info
-        cluster_info=$(qdrant::get_cluster_info 2>/dev/null)
+        cluster_info=$(qdrant::client::get_cluster_info 2>/dev/null)
         
         if [[ -n "$cluster_info" ]]; then
             # Parse cluster info
@@ -129,7 +133,7 @@ qdrant::status::collect_data() {
         
         # Get collection count
         local collections_info
-        collections_info=$(qdrant::list_collections 2>/dev/null)
+        collections_info=$(qdrant::client::get_collections 2>/dev/null)
         
         if [[ -n "$collections_info" ]]; then
             local collection_count
@@ -150,7 +154,7 @@ qdrant::status::collect_data() {
                 while IFS= read -r collection_name; do
                     [[ -z "$collection_name" ]] && continue
                     local collection_detail
-                    collection_detail=$(qdrant::get_collection_info "$collection_name" 2>/dev/null)
+                    collection_detail=$(qdrant::client::get_collection_info "$collection_name" 2>/dev/null)
                     
                     if [[ -n "$collection_detail" ]]; then
                         local points_count

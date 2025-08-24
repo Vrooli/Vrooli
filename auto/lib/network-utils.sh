@@ -14,10 +14,10 @@ if [[ -n "${_AUTO_NETWORK_UTILS_SOURCED:-}" ]]; then
 fi
 readonly _AUTO_NETWORK_UTILS_SOURCED=1
 
-# Source constants
-LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Get APP_ROOT using cached value or compute once (2 levels up: auto/lib/network-utils.sh)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
 # shellcheck disable=SC1091
-source "$LIB_DIR/constants.sh"
+source "${APP_ROOT}/auto/lib/constants.sh"
 
 # Count processes matching a pattern
 # Args: $1 - pattern (optional, defaults to claude-related processes)
@@ -104,7 +104,7 @@ network_utils::count_tcp_connections() {
 #       $2 - filter pattern (optional, defaults to LOOP_TCP_FILTER)
 # Returns: 0 if within limits, 1 if exceeded
 network_utils::check_connection_limit() {
-    local max_connections="${1:-${MAX_TCP_CONNECTIONS:-15}}"
+    local max_connections="${1:-${MAX_TCP_CONNECTIONS:-100}}"
     local filter="${2:-${LOOP_TCP_FILTER:-}}"
     
     # If filter is empty, gating is disabled
@@ -147,10 +147,10 @@ network_utils::get_connection_stats() {
 }
 
 # Wait for connections to drop below threshold
-# Args: $1 - max connections, $2 - filter pattern, $3 - max wait seconds (optional, default 30)
+# Args: $1 - max connections, $2 - filter pattern, $3 - max wait seconds (optional, default 100)
 # Returns: 0 if connections dropped, 1 if timeout
 network_utils::wait_for_connection_drop() {
-    local max_connections="${1:-${MAX_TCP_CONNECTIONS:-15}}"
+    local max_connections="${1:-${MAX_TCP_CONNECTIONS:-100}}"
     local filter="${2:-${LOOP_TCP_FILTER:-}}"
     local max_wait="${3:-30}"
     

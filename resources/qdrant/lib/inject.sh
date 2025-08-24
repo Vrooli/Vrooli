@@ -3,12 +3,12 @@ set -euo pipefail
 
 DESCRIPTION="Inject collections and vectors into Qdrant vector database"
 
-# Get script directory and source frameworks
-QDRANT_INJECT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+QDRANT_INJECT_DIR="${APP_ROOT}/resources/qdrant/lib"
 
 # Source shared frameworks (MASSIVE reduction through framework leverage!)
 # shellcheck disable=SC1091
-source "${QDRANT_INJECT_DIR}/../../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 # Try to source framework files if available, but don't fail if missing
 if [[ -f "${var_SCRIPTS_RESOURCES_LIB_DIR}/inject_framework.sh" ]]; then
@@ -32,7 +32,7 @@ if ! command -v inject_framework::resolve_file_path &>/dev/null; then
 fi
 
 # Source Qdrant lib functions to reuse existing infrastructure
-for lib_file in "${QDRANT_INJECT_DIR}/"{core,api,collections}.sh; do
+for lib_file in "${QDRANT_INJECT_DIR}/"{api-client,core,api,collections}.sh; do
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
         source "$lib_file" || log::warn "Could not load $lib_file"
@@ -209,11 +209,8 @@ qdrant::inject_vectors() {
     local vectors_data
     vectors_data=$(cat "$resolved_file")
     
-    # Use existing API function for batch insertion
-    local response
-    response=$(qdrant::api::request "PUT" "/collections/$collection/points" "$vectors_data")
-    
-    if [[ $? -eq 0 ]]; then
+    # Use API client for batch insertion
+    if qdrant::client::insert_points "$collection" "$vectors_data" >/dev/null; then
         log::success "Successfully inserted vectors into $collection"
         return 0
     else

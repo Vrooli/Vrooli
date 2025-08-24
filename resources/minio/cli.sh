@@ -11,17 +11,18 @@
 
 set -euo pipefail
 
-# Get script directory (resolving symlinks for installed CLI)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+# Handle symlinks for installed CLI
 if [[ -L "${BASH_SOURCE[0]}" ]]; then
     MINIO_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
-else
-    MINIO_CLI_SCRIPT="${BASH_SOURCE[0]}"
+    # Recalculate APP_ROOT from resolved symlink location
+    APP_ROOT="$(builtin cd "$(dirname "$MINIO_CLI_SCRIPT")/../.." && builtin pwd)"
 fi
-MINIO_CLI_DIR="$(cd "$(dirname "$MINIO_CLI_SCRIPT")" && pwd)"
+MINIO_CLI_DIR="${APP_ROOT}/resources/minio"
 
 # Source standard variables
 # shellcheck disable=SC1091
-source "${MINIO_CLI_DIR}/../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 # Source utilities using var_ variables
 # shellcheck disable=SC1091

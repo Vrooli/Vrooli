@@ -3,11 +3,13 @@
 # Combines docker.sh, api.sh, and status.sh functionality
 # All generic operations delegated to shared frameworks
 
-# Source shared libraries
-QDRANT_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+set -euo pipefail
+
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+QDRANT_LIB_DIR="${APP_ROOT}/resources/qdrant/lib"
 
 # shellcheck disable=SC1091
-source "${QDRANT_LIB_DIR}/../../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_LIB_DIR}/docker-utils.sh"
 # shellcheck disable=SC1091
@@ -24,6 +26,8 @@ source "${var_SCRIPTS_RESOURCES_LIB_DIR}/init-framework.sh"
 source "${var_SCRIPTS_RESOURCES_LIB_DIR}/wait-utils.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh"
+# shellcheck disable=SC1091
+source "${QDRANT_LIB_DIR}/api-client.sh"
 
 #######################################
 # Qdrant Configuration Constants
@@ -509,9 +513,6 @@ qdrant::validate_injection() {
 # DOCKER MANAGEMENT (from docker.sh)
 #######################################
 
-qdrant::start() {
-    qdrant::docker::start
-}
 
 qdrant::docker::start() {
     if ! docker::check_daemon; then
@@ -593,65 +594,13 @@ qdrant::docker::remove() {
 }
 
 #######################################
-# API OPERATIONS (from api.sh)
+# API OPERATIONS - Kept for backwards compatibility only
+# New code should use qdrant::client::* functions directly from api-client.sh
 #######################################
 
-qdrant::api::request() {
-    local method="$1"
-    local endpoint="$2"
-    local body="${3:-}"
-    
-    local url="${QDRANT_BASE_URL}${endpoint}"
-    local headers="Content-Type: application/json"
-    
-    # Add authentication header if API key is configured
-    if [[ -n "${QDRANT_API_KEY:-}" ]]; then
-        headers="${headers}\napi-key: ${QDRANT_API_KEY}"
-    fi
-    
-    # Use http-utils framework for the request
-    if [[ -n "$body" ]]; then
-        http::request "$method" "$url" "$body" "$headers"
-    else
-        http::request "$method" "$url" "" "$headers"
-    fi
-}
-
-qdrant::api::health_check() {
-    local response
-    response=$(qdrant::api::request "GET" "/" 2>/dev/null)
-    
-    if [[ $? -eq 0 && -n "$response" ]]; then
-        # Check if response contains version information
-        if echo "$response" | jq -e '.version' >/dev/null 2>&1; then
-            return 0
-        fi
-    fi
-    
-    return 1
-}
-
-qdrant::api::get_version() {
-    local response
-    response=$(qdrant::api::request "GET" "/" 2>/dev/null)
-    
-    if [[ $? -eq 0 && -n "$response" ]]; then
-        echo "$response" | jq -r '.version // "unknown"' 2>/dev/null || echo "unknown"
-        return 0
-    else
-        echo "unknown"
-        return 1
-    fi
-}
-
-
-
-# Additional API functions consolidated from api.sh
+# This function adds value with logging, so we keep it
 qdrant::api::test() {
-    local response
-    response=$(qdrant::api::request "GET" "/" 2>/dev/null || true)
-    
-    if echo "$response" | grep -q "qdrant\|version"; then
+    if qdrant::client::health_check; then
         log::success "Qdrant API is accessible"
         return 0
     else
@@ -660,138 +609,13 @@ qdrant::api::test() {
     fi
 }
 
-qdrant::api::list_collections() {
-    local response
-    response=$(qdrant::api::request "GET" "/collections" 2>/dev/null || true)
-    
-    if [[ -n "$response" ]] && echo "$response" | jq -e '.result' >/dev/null 2>&1; then
-        echo "$response"
-        return 0
-    fi
-    
-    log::error "Failed to list collections"
-    return 1
-}
-
-qdrant::api::get_collection() {
-    local collection="${1:-}"
-    
-    if [[ -z "$collection" ]]; then
-        log::error "Collection name is required"
-        return 1
-    fi
-    
-    local response
-    response=$(qdrant::api::request "GET" "/collections/${collection}" 2>/dev/null || true)
-    
-    if echo "$response" | grep -q '"status":"ok"\|"result"'; then
-        echo "$response"
-        return 0
-    elif echo "$response" | grep -q "not found"; then
-        log::error "Collection '$collection' not found"
-        return 1
-    else
-        log::error "Failed to get collection info: $collection"
-        return 1
-    fi
-}
-
-qdrant::api::create_collection() {
-    local collection="${1:-}"
-    local vector_size="${2:-1536}"
-    local distance="${3:-Cosine}"
-    
-    if [[ -z "$collection" ]]; then
-        log::error "Collection name is required"
-        return 1
-    fi
-    
-    local config='{"vectors":{"size":'$vector_size',"distance":"'$distance'"}}'
-    
-    local response
-    response=$(qdrant::api::request "PUT" "/collections/${collection}" "$config" 2>/dev/null || true)
-    
-    if echo "$response" | grep -q '"status":"ok"\|"result"'; then
-        echo "$response"
-        return 0
-    else
-        log::error "Failed to create collection: $collection"
-        return 1
-    fi
-}
-
-qdrant::api::delete_collection() {
-    local collection="${1:-}"
-    
-    if [[ -z "$collection" ]]; then
-        log::error "Collection name is required"
-        return 1
-    fi
-    
-    local response
-    response=$(qdrant::api::request "DELETE" "/collections/${collection}" 2>/dev/null || true)
-    echo "$response"
-    return 0
-}
-
-qdrant::api::create_snapshot() {
-    local collection="${1:-}"
-    
-    if [[ -z "$collection" ]]; then
-        log::error "Collection name is required"
-        return 1
-    fi
-    
-    qdrant::api::request "POST" "/collections/${collection}/snapshots"
-}
-
-qdrant::api::list_snapshots() {
-    local collection="${1:-}"
-    
-    if [[ -z "$collection" ]]; then
-        log::error "Collection name is required"
-        return 1
-    fi
-    
-    qdrant::api::request "GET" "/collections/${collection}/snapshots"
-}
-
 #######################################
-# MISSING FUNCTIONS FOR STATUS OPTIMIZATION
+# COMPATIBILITY ALIASES
+# These exist for backwards compatibility - prefer direct function calls
 #######################################
 
-# Get cluster/version information from root endpoint
-qdrant::get_cluster_info() {
-    local response
-    response=$(qdrant::api::request "GET" "/" 2>/dev/null || true)
-    
-    if [[ -n "$response" ]]; then
-        # Transform simple response to expected cluster format
-        local cluster_response
-        cluster_response=$(echo "$response" | jq \
-            '{
-                "result": {
-                    "version": .version,
-                    "peers": [],
-                    "peer_id": "single-node"
-                }
-            }' 2>/dev/null || echo '{"result":{"version":"unknown","peers":[],"peer_id":"unknown"}}')
-        echo "$cluster_response"
-        return 0
-    fi
-    
-    # Fallback response
-    echo '{"result":{"version":"unknown","peers":[],"peer_id":"unknown"}}'
-    return 1
-}
-
-# Alias functions for status.sh compatibility  
-qdrant::list_collections() {
-    qdrant::api::list_collections "$@"
-}
-
-qdrant::get_collection_info() {
-    qdrant::api::get_collection "$@"
+qdrant::start() {
+    qdrant::docker::start
 }
 
 #######################################
@@ -1089,7 +913,7 @@ qdrant::display_additional_info() {
     
     # Performance metrics
     local cluster_info
-    if cluster_info=$(qdrant::api::request "GET" "/cluster" 2>/dev/null); then
+    if cluster_info=$(qdrant::client::get "/cluster" "cluster info" 2>/dev/null); then
         local peer_count
         peer_count=$(echo "$cluster_info" | jq -r '.result.peers | length' 2>/dev/null)
         if [[ "$peer_count" =~ ^[0-9]+$ ]]; then

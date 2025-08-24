@@ -4,13 +4,15 @@
 
 set -euo pipefail
 
-# Get directory of this script
-SEARCH_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-EMBEDDINGS_DIR="$(dirname "$SEARCH_DIR")"
-QDRANT_DIR="$(dirname "$EMBEDDINGS_DIR")"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
+
+# Define paths from APP_ROOT
+QDRANT_DIR="${APP_ROOT}/resources/qdrant"
+EMBEDDINGS_DIR="${QDRANT_DIR}/embeddings"
+SEARCH_DIR="${EMBEDDINGS_DIR}/search"
 
 # Source required utilities
-source "${QDRANT_DI../../../scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${var_LIB_UTILS_DIR}/log.sh"
 
 # Source search components

@@ -482,7 +482,8 @@ python::install_dev_tools() {
     if command -v pipx >/dev/null 2>&1; then
         local tools=(
             "black"           # Code formatter
-            "flake8"          # Linter
+            "ruff"            # Fast linter (replaces flake8 for better performance)
+            "flake8"          # Linter (legacy, but some projects still need it)
             "mypy"            # Type checker
             "pytest"          # Testing framework
             "poetry"          # Dependency management

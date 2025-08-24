@@ -2,6 +2,14 @@
 # Code File Content Extractor for Qdrant Embeddings
 # Extracts FILE-LEVEL summaries instead of individual functions
 
+set -euo pipefail
+
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
+
+# Define paths from APP_ROOT
+EMBEDDINGS_DIR="${APP_ROOT}/resources/qdrant/embeddings"
+EXTRACTOR_DIR="${EMBEDDINGS_DIR}/extractors"
+
 # Extract FILE-LEVEL summary for better performance
 qdrant::extract::code() {
     local file="$1"

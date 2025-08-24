@@ -4,12 +4,14 @@
 
 set -euo pipefail
 
-# Get directory of this script
-CONTENT_OPTIMIZER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-EMBEDDINGS_DIR="$(dirname "$CONTENT_OPTIMIZER_DIR")"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
+
+# Define paths from APP_ROOT
+EMBEDDINGS_DIR="${APP_ROOT}/resources/qdrant/embeddings"
+CONTENT_OPTIMIZER_DIR="${EMBEDDINGS_DIR}/lib"
 
 # Source required utilities
-source "${EMBEDDINGS_DIR}/../../../scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${var_LIB_UTILS_DIR}/log.sh"
 
 # Content optimization settings

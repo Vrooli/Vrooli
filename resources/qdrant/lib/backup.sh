@@ -5,12 +5,12 @@
 
 set -euo pipefail
 
-# Get directory of this script
-QDRANT_BACKUP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+QDRANT_BACKUP_DIR="${APP_ROOT}/resources/qdrant/lib"
 
 # Source required utilities
 # shellcheck disable=SC1091
-source "${QDRANT_BACKUP_DIR}/../../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_LIB_DIR}/backup-framework.sh"
 # shellcheck disable=SC1091
@@ -21,6 +21,8 @@ source "${var_LIB_SYSTEM_DIR}/trash.sh"
 # Source configuration and dependencies
 # shellcheck disable=SC1091
 source "${QDRANT_BACKUP_DIR}/../config/defaults.sh"
+# shellcheck disable=SC1091
+source "${QDRANT_BACKUP_DIR}/api-client.sh"
 # Note: core.sh and collections.sh are sourced by CLI before this file
 
 # Configuration exported by CLI
@@ -578,7 +580,7 @@ EOF
             
             # Create snapshot via API
             local snapshot_response
-            if snapshot_response=$(qdrant::api::create_snapshot "$collection" 2>/dev/null || true); then
+            if snapshot_response=$(qdrant::client::create_snapshot "$collection" 2>/dev/null || true); then
                 local snapshot_name
                 snapshot_name=$(echo "$snapshot_response" | jq -r '.result.name // empty' 2>/dev/null)
                 
@@ -800,7 +802,7 @@ qdrant::backup::create_collection_snapshot() {
     
     # Create snapshot via API
     local snapshot_response
-    snapshot_response=$(qdrant::api::create_snapshot "$collection_name" 2>/dev/null || echo "")
+    snapshot_response=$(qdrant::client::create_snapshot "$collection_name" 2>/dev/null || echo "")
     
     if [[ -z "$snapshot_response" ]]; then
         return 1
@@ -819,12 +821,12 @@ qdrant::backup::create_collection_snapshot() {
     
     if curl -s "${QDRANT_CURL_OPTS[@]}" "$download_url" -o "$local_file" && [[ -s "$local_file" ]]; then
         # Cleanup remote snapshot
-        qdrant::api::request "DELETE" "/collections/${collection_name}/snapshots/${snapshot_name}" >/dev/null 2>&1 || true
+        qdrant::client::delete_snapshot "$collection_name" "$snapshot_name" >/dev/null 2>&1 || true
         return 0
     else
         # Cleanup on failure
         trash::safe_remove "$local_file" --temp 2>/dev/null || true
-        qdrant::api::request "DELETE" "/collections/${collection_name}/snapshots/${snapshot_name}" >/dev/null 2>&1 || true
+        qdrant::client::delete_snapshot "$collection_name" "$snapshot_name" >/dev/null 2>&1 || true
         return 1
     fi
 }
@@ -942,7 +944,7 @@ qdrant::backup::create_enhanced_metadata() {
   "created_at": "$(date -Iseconds)",
   "qdrant_version": "$(qdrant::version 2>/dev/null || echo 'unknown')",
   "backup_type": "full",
-  "cluster_info": $(qdrant::api::request "GET" "/cluster" 2>/dev/null || echo '{}'),
+  "cluster_info": $(qdrant::client::get_cluster_info 2>/dev/null || echo '{}'),
   "collections": $(qdrant::collections::list_simple | jq -R . | jq -s . 2>/dev/null || echo '[]')
 }
 EOF

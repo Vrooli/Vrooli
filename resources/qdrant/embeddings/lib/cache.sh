@@ -4,6 +4,8 @@
 
 set -euo pipefail
 
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
+
 # Cache file location
 CACHE_DIR="${HOME}/.cache/qdrant-embeddings"
 RESOURCE_CACHE_FILE="${CACHE_DIR}/resource-locations.cache"

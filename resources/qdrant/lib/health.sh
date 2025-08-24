@@ -4,12 +4,12 @@
 
 set -euo pipefail
 
-# Get directory of this script
-QDRANT_HEALTH_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+QDRANT_HEALTH_DIR="${APP_ROOT}/resources/qdrant/lib"
 
 # Source required utilities
 # shellcheck disable=SC1091
-source "${QDRANT_HEALTH_DIR}/../../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_LIB_DIR}/health-framework.sh"
 # shellcheck disable=SC1091
@@ -20,6 +20,8 @@ source "${var_LIB_UTILS_DIR}/log.sh"
 # Source configuration and core functions
 # shellcheck disable=SC1091
 source "${QDRANT_HEALTH_DIR}/../config/defaults.sh"
+# shellcheck disable=SC1091
+source "${QDRANT_HEALTH_DIR}/api-client.sh"
 # shellcheck disable=SC1091
 source "${QDRANT_HEALTH_DIR}/core.sh"
 
@@ -67,23 +69,14 @@ qdrant::health::basic() {
         return 1
     fi
     
-    # Check if API responds
-    local response
-    response=$(qdrant::api::request "GET" "/" 2>/dev/null || true)
-    
-    if [[ -z "$response" ]]; then
+    # Check if API responds using centralized health check
+    if qdrant::client::health_check; then
+        log::success "Basic health check passed"
+        return 0
+    else
         log::error "Qdrant API not responding"
         return 1
     fi
-    
-    # Check for Qdrant signature in response
-    if echo "$response" | grep -q "qdrant\|version"; then
-        log::success "Basic health check passed"
-        return 0
-    fi
-    
-    log::error "Qdrant API response invalid"
-    return 1
 }
 
 #######################################
@@ -94,7 +87,7 @@ qdrant::health::basic() {
 qdrant::health::advanced() {
     # Test cluster endpoint
     local cluster_response
-    cluster_response=$(qdrant::api::request "GET" "/cluster" 2>/dev/null || true)
+    cluster_response=$(qdrant::client::get "/cluster" "cluster endpoint" 2>/dev/null || true)
     local cluster_code=$?
     
     if [[ $cluster_code -ne 0 ]]; then
@@ -113,7 +106,7 @@ qdrant::health::advanced() {
     
     # Test collections endpoint
     local collections_response
-    collections_response=$(qdrant::api::request "GET" "/collections" 2>/dev/null || true)
+    collections_response=$(qdrant::client::get_collections 2>/dev/null || true)
     local collections_code=$?
     
     if [[ $collections_code -ne 0 ]]; then
@@ -175,7 +168,7 @@ qdrant::test() {
     local test_passed=true
     
     # Test API connectivity
-    if qdrant::api::test; then
+    if qdrant::client::health_check; then
         log::success "API connectivity test passed"
     else
         log::error "API connectivity test failed"
@@ -186,11 +179,11 @@ qdrant::test() {
     local test_collection="test_health_check"
     
     # Try to create a test collection
-    if qdrant::api::create_collection "$test_collection" 128 "Cosine" >/dev/null 2>&1; then
+    if qdrant::client::create_collection "$test_collection" 128 "Cosine" >/dev/null 2>&1; then
         log::success "Collection creation test passed"
         
         # Try to get collection info
-        if qdrant::api::get_collection "$test_collection" >/dev/null 2>&1; then
+        if qdrant::client::get_collection_info "$test_collection" >/dev/null 2>&1; then
             log::success "Collection info test passed"
         else
             log::error "Collection info test failed"
@@ -198,7 +191,7 @@ qdrant::test() {
         fi
         
         # Clean up test collection
-        if qdrant::api::delete_collection "$test_collection" >/dev/null 2>&1; then
+        if qdrant::client::delete_collection "$test_collection" >/dev/null 2>&1; then
             log::success "Collection deletion test passed"
         else
             log::error "Collection deletion test failed"
@@ -230,25 +223,16 @@ qdrant::tiered_health_check() {
     fi
     
     # Check basic API connectivity
-    local api_response
-    api_response=$(qdrant::api::request "GET" "/" 2>/dev/null || true)
-    
-    if [[ -z "$api_response" ]]; then
-        echo "UNHEALTHY"
-        return 0
-    fi
-    
-    # Check if response contains Qdrant signature
-    if ! echo "$api_response" | grep -q "qdrant\|version"; then
+    if ! qdrant::client::health_check 2>/dev/null; then
         echo "UNHEALTHY"
         return 0
     fi
     
     # Check collections endpoint for advanced health
     local collections_response
-    collections_response=$(qdrant::api::request "GET" "/collections" 2>/dev/null || true)
+    collections_response=$(qdrant::client::get_collections 2>/dev/null || true)
     
-    if [[ -z "$collections_response" ]]; then
+    if [[ $? -ne 0 ]] || [[ -z "$collections_response" ]]; then
         # API works but collections endpoint doesn't - degraded
         echo "DEGRADED"
         return 0

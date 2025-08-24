@@ -14,8 +14,8 @@ if [[ -n "${_AUTO_FILE_ROTATION_SOURCED:-}" ]]; then
 fi
 readonly _AUTO_FILE_ROTATION_SOURCED=1
 
-# Source constants for size limits
-LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+LIB_DIR="${APP_ROOT}/auto/lib"
 # shellcheck disable=SC1091
 source "$LIB_DIR/constants.sh"
 
