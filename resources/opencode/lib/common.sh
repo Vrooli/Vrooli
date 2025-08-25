@@ -4,7 +4,7 @@
 set -euo pipefail
 
 # Get directories  
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 OPENCODE_LIB_DIR="${APP_ROOT}/resources/opencode/lib"
 OPENCODE_DIR="${APP_ROOT}/resources/opencode"
 OPENCODE_ROOT="${APP_ROOT}"

@@ -8,7 +8,7 @@ DESCRIPTION="Inject agents and scenarios into Huginn automation platform"
 export _HUGINN_INJECT_SOURCED=1
 
 # Get script directory and source framework
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 HUGINN_LIB_DIR="${APP_ROOT}/resources/huginn/lib"
 
 # shellcheck disable=SC1091

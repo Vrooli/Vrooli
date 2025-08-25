@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Get the directory of this script
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 PANDAS_AI_LIB_DIR="${APP_ROOT}/resources/pandas-ai/lib"
 
 # Source dependencies
@@ -14,7 +14,7 @@ PANDAS_AI_NAME="pandas-ai"
 PANDAS_AI_DESC="AI-powered data analysis and manipulation"
 PANDAS_AI_CATEGORY="execution"
 PANDAS_AI_PORT="8095"
-PANDAS_AI_DATA_DIR="${var_DATA_DIR}/pandas-ai"
+PANDAS_AI_DATA_DIR="${var_DATA_DIR}/resources/pandas-ai"
 PANDAS_AI_VENV_DIR="${PANDAS_AI_DATA_DIR}/venv"
 PANDAS_AI_SCRIPTS_DIR="${PANDAS_AI_DATA_DIR}/scripts"
 PANDAS_AI_PID_FILE="${PANDAS_AI_DATA_DIR}/pandas-ai.pid"

@@ -3,7 +3,7 @@
 # LlamaIndex Injection Functions
 # Handles injection of documents and indices into LlamaIndex
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 LLAMAINDEX_INJECT_LIB_DIR="${APP_ROOT}/resources/llamaindex/lib"
 LLAMAINDEX_INJECT_DIR="${APP_ROOT}/resources/llamaindex"
 LLAMAINDEX_INJECT_ROOT_DIR="${APP_ROOT}/resources"

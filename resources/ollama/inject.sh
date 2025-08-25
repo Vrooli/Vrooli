@@ -7,7 +7,7 @@ set -euo pipefail
 
 export DESCRIPTION="Inject models and configurations into Ollama AI server"
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
 OLLAMA_INJECT_DIR="${APP_ROOT}/resources/ollama"
 
 # Source var.sh first to get directory variables
@@ -101,7 +101,7 @@ ollama_inject::check_accessibility() {
         return 0
     else
         log::error "Ollama is not accessible at $OLLAMA_HOST"
-        log::info "Ensure Ollama is running: ./scripts/resources/ai/ollama/manage.sh --action start"
+        log::info "Ensure Ollama is running: ./resources/ollama/manage.sh --action start"
         return 1
     fi
 }

@@ -2,7 +2,7 @@
 # PostGIS Common Functions
 
 # Get script directory
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 POSTGIS_LIB_DIR="${APP_ROOT}/resources/postgis/lib"
 POSTGIS_ROOT_DIR="${APP_ROOT}/resources/postgis"
 

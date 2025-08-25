@@ -510,13 +510,13 @@ test_filesystem_connection() {
     
     # Test basic ls command
     local result
-    result=$(ls / 2>&1)
+    result=$(ls / 2>/dev/null)
     
-    if [[ "$result" =~ "." || -z "$result" ]]; then
+    if [[ -n "$result" ]]; then
         fs_debug "Connection test passed"
         return 0
     else
-        fs_debug "Connection test failed: $result"
+        fs_debug "Connection test failed: empty result"
         return 1
     fi
 }

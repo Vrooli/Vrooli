@@ -1,7 +1,7 @@
 #!/bin/bash
 # Gemini content management functionality
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 GEMINI_CONTENT_DIR="${APP_ROOT}/resources/gemini/lib"
 
 # Source dependencies
@@ -114,18 +114,17 @@ gemini::content::list() {
     fi
     
     if [[ "$format" == "json" ]]; then
-        local json_array="["
+        printf '{"content":['
         local first=true
         for item in "${results[@]}"; do
             IFS=: read -r item_type item_name <<< "$item"
             if [[ "$first" != true ]]; then
-                json_array+=","
+                printf ','
             fi
-            json_array+="{\"type\":\"$item_type\",\"name\":\"$item_name\"}"
+            printf '{"type":"%s","name":"%s"}' "$item_type" "$item_name"
             first=false
         done
-        json_array+="]"
-        echo "{\"content\":$json_array}"
+        printf ']}\n'
     else
         for item in "${results[@]}"; do
             echo "$item"

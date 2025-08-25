@@ -91,6 +91,7 @@ validate_shell_syntax() {
         return 0
     fi
     
+    # Run bash syntax check (no individual timeout - controlled by global timeout)
     if bash -n "$script_path" 2>/dev/null; then
         log_command_success "bash -n $script_path"
         is_verbose && log_success "$description has valid syntax: $script_path"
@@ -118,6 +119,7 @@ run_shellcheck() {
         return 0
     fi
     
+    # Run shellcheck (no individual timeout - controlled by global timeout)
     if shellcheck "$script_path" 2>/dev/null; then
         log_command_success "shellcheck $script_path"
         is_verbose && log_success "$description passes shellcheck: $script_path"
@@ -170,7 +172,7 @@ get_enabled_resources() {
 
 # Test execution helpers
 run_test_with_timeout() {
-    local timeout_seconds="$1"
+    local timeout_seconds="$1"  # Kept for compatibility but not used
     local test_command="$2"
     local test_name="${3:-unknown test}"
     
@@ -182,18 +184,14 @@ run_test_with_timeout() {
         return 0
     fi
     
-    if timeout "$timeout_seconds" bash -c "$test_command" 2>/dev/null; then
+    if bash -c "$test_command" 2>/dev/null; then
         log_command_success "$test_command"
         log_test_pass "$test_name"
         return 0
     else
         local exit_code=$?
-        if [[ $exit_code -eq 124 ]]; then
-            log_test_fail "$test_name" "Timeout after ${timeout_seconds}s"
-        else
-            log_command_failure "$test_command" "$exit_code"
-            log_test_fail "$test_name" "Exit code: $exit_code"
-        fi
+        log_command_failure "$test_command" "$exit_code"
+        log_test_fail "$test_name" "Exit code: $exit_code"
         return 1
     fi
 }

@@ -3,7 +3,7 @@
 # All configuration constants and default values
 
 # Source var.sh first to get standard directory variables
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 NODE_RED_CONFIG_DIR="${APP_ROOT}/resources/node-red/config"
 # shellcheck disable=SC1091
 source "${APP_ROOT}/lib/utils/var.sh"

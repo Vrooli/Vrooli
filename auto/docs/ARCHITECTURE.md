@@ -156,7 +156,7 @@ task_run_worker()
   "event": "iteration_start|iteration_end|error|warning",
   "iteration": 1,
   "task": "resource-improvement",
-  "duration": 300,
+  "duration": 60,
   "exit_code": 0,
   "details": {}
 }

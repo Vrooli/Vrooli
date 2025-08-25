@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Test Helper - Provides compatibility layer for BATS tests
 #
-# This helper enables gradual migration from legacy to Tier 2 mocks
-# by providing a unified interface that works with both architectures.
+# This helper provides a unified interface for loading Tier 2 mocks
+# with BATS framework compatibility and testing utilities.
 #
 # Usage in BATS tests:
 #   source __test/mocks/test_helper.sh
@@ -10,7 +10,7 @@
 
 # === Configuration ===
 export MOCK_TEST_HELPER_VERSION="1.0.0"
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../.." 2>/dev/null && pwd)}"
 export MOCK_BASE_DIR="${MOCK_BASE_DIR:-${APP_ROOT}/__test/mocks}"
 export MOCK_MODE="${MOCK_MODE:-tier2}"  # Default to Tier 2
 
@@ -29,28 +29,18 @@ fi
 
 # Ensure MOCK_TIER2_DIR is set and exported (fix for BATS environment)
 export MOCK_TIER2_DIR="${MOCK_BASE_DIR}/tier2"
-export MOCK_LEGACY_DIR="${MOCK_BASE_DIR}/../mocks-legacy"
 
 # === BATS Compatibility Functions ===
 
 # Load a mock for testing (BATS-friendly wrapper)
 load_test_mock() {
     local mock_name="$1"
-    local force_mode="${2:-}"
-    
-    # Debug: Check paths
-    if [[ -n "${BATS_TEST_FILENAME:-}" ]]; then
-        echo "[DEBUG] load_test_mock called for: $mock_name" >&2
-        echo "[DEBUG] MOCK_BASE_DIR: ${MOCK_BASE_DIR}" >&2
-        echo "[DEBUG] MOCK_TIER2_DIR: ${MOCK_TIER2_DIR}" >&2
-        echo "[DEBUG] APP_ROOT: ${APP_ROOT}" >&2
-    fi
     
     # Set adapter mode from environment if specified
     [[ -n "$MOCK_MODE" ]] && export MOCK_ADAPTER_MODE="$MOCK_MODE"
     
     # Load the mock
-    if load_mock "$mock_name" "$force_mode"; then
+    if load_mock "$mock_name"; then
         # Add BATS-specific compatibility
         setup_bats_compatibility "$mock_name"
         return 0
@@ -75,7 +65,7 @@ setup_bats_compatibility() {
             assert_redis_key() {
                 local key="$1"
                 local expected="$2"
-                local actual=$(redis get "$key")
+                local actual=$(redis-cli get "$key")
                 [[ "$actual" == "$expected" ]] || \
                     fail "Expected redis[$key]='$expected', got '$actual'"
             }
@@ -113,8 +103,6 @@ test_setup() {
     for mock in "${!LOADED_MOCKS[@]}"; do
         if declare -F "${mock}_mock_reset" >/dev/null 2>&1; then
             "${mock}_mock_reset"
-        elif declare -F "mock::${mock}::reset" >/dev/null 2>&1; then
-            "mock::${mock}::reset"
         fi
     done
 }
@@ -125,7 +113,7 @@ test_teardown() {
     for mock in "${!LOADED_MOCKS[@]}"; do
         case "$mock" in
             redis)
-                redis flushall 2>/dev/null || true
+                redis-cli flushall 2>/dev/null || true
                 ;;
             postgres)
                 psql -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;" 2>/dev/null || true
@@ -181,12 +169,9 @@ inject_test_error() {
     local mock_name="$1"
     local error_type="$2"
     
-    # Try Tier 2 method first
+    # Try Tier 2 method
     if declare -F "${mock_name}_mock_set_error" >/dev/null 2>&1; then
         "${mock_name}_mock_set_error" "$error_type"
-    # Fall back to legacy method
-    elif declare -F "mock::${mock_name}::inject_error" >/dev/null 2>&1; then
-        "mock::${mock_name}::inject_error" "$error_type"
     else
         echo "Warning: Cannot inject error for $mock_name" >&2
     fi
@@ -199,9 +184,6 @@ clear_test_errors() {
     # Try Tier 2 method
     if declare -F "${mock_name}_mock_set_error" >/dev/null 2>&1; then
         "${mock_name}_mock_set_error" ""
-    # Try legacy method
-    elif declare -F "mock::${mock_name}::inject_error" >/dev/null 2>&1; then
-        "mock::${mock_name}::inject_error" ""
     fi
 }
 
@@ -259,13 +241,6 @@ require_tier2() {
     fi
 }
 
-# Run only if using legacy mocks
-require_legacy() {
-    if [[ "$MOCK_MODE" != "legacy" ]]; then
-        skip "Test requires legacy mocks"
-    fi
-}
-
 # === Export Functions ===
 export -f load_test_mock
 export -f setup_bats_compatibility
@@ -277,11 +252,10 @@ export -f clear_test_errors
 export -f load_resource_test_mocks
 export -f skip_if_mock_unavailable
 export -f require_tier2
-export -f require_legacy
 
 # === Initialize ===
-# Only output when explicitly in debug mode to avoid breaking test output
-[[ -n "${MOCK_DEBUG:-}" ]] && echo "Test helper loaded (v${MOCK_TEST_HELPER_VERSION}, mode: ${MOCK_MODE})"
+# Output to stderr to avoid interfering with test output
+[[ -n "${MOCK_TEST_HELPER_DEBUG:-}" ]] && echo "Test helper loaded (v${MOCK_TEST_HELPER_VERSION}, mode: ${MOCK_MODE})" >&2
 
-# Ensure we return success
+# Return success
 return 0 2>/dev/null || true

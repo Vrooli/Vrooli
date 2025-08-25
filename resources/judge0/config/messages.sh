@@ -93,7 +93,7 @@ export JUDGE0_MSG_WARN_UPDATE="⚠️  New Judge0 version available: %s"
 export JUDGE0_MSG_INFO_DOCS="📚 Documentation: https://judge0.com/docs"
 export JUDGE0_MSG_INFO_API="🔗 API endpoint: ${JUDGE0_BASE_URL}"
 export JUDGE0_MSG_INFO_DASHBOARD="📊 System info: ${JUDGE0_BASE_URL}/system_info"
-export JUDGE0_MSG_INFO_EXAMPLES="💡 Examples: scripts/resources/execution/judge0/examples/"
+export JUDGE0_MSG_INFO_EXAMPLES="💡 Examples: resources/judge0/examples/"
 
 # ============================================================================
 # USAGE MESSAGES

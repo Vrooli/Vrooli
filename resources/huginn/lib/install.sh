@@ -3,7 +3,7 @@
 # Installation, uninstallation, and configuration management
 
 # Source required utilities using unique directory variable
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 HUGINN_LIB_DIR="${APP_ROOT}/resources/huginn/lib"
 # shellcheck disable=SC1091
 source "${HUGINN_LIB_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true

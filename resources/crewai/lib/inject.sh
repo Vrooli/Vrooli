@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # CrewAI Injection Script
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 INJECT_LIB_DIR="${APP_ROOT}/resources/crewai/lib"
 
 # Source utilities and core

@@ -1,10 +1,21 @@
 #!/usr/bin/env bash
 # Validate that negative test files exist and have expected properties
+# Now generates files on-demand using the generator script
 
 set -euo pipefail
 
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 NEGATIVE_DIR="${APP_ROOT}/__test/fixtures/negative-tests"
+GENERATOR_SCRIPT="${APP_ROOT}/__test/fixtures/generators/generate-stress-files.sh"
+
+# Generate negative test files if they don't exist
+if [[ ! -d "$NEGATIVE_DIR/images" ]] || [[ ! -d "$NEGATIVE_DIR/audio" ]] || \
+   [[ ! -d "$NEGATIVE_DIR/documents" ]] || [[ ! -d "$NEGATIVE_DIR/edge-cases" ]] || \
+   [[ ! -d "$NEGATIVE_DIR/stress" ]]; then
+    echo "Generating negative test files on-demand..."
+    "$GENERATOR_SCRIPT" all-negative
+    echo
+fi
 
 echo "Validating negative test fixtures..."
 echo "===================================="
@@ -53,5 +64,20 @@ if [[ -f "$NEGATIVE_DIR/edge-cases/zero_bytes.txt" ]]; then
     fi
 fi
 
+# Check stress test files
+echo
+echo "Checking stress test files..."
+for file in changing_content.txt many_columns.csv; do
+    if [[ -f "$NEGATIVE_DIR/stress/$file" ]]; then
+        echo "  ✓ $file exists"
+    else
+        echo "  ✗ $file missing"
+    fi
+done
+
 echo
 echo "Validation complete!"
+echo
+echo "Note: Files are now generated on-demand by the generator script."
+echo "To regenerate: $GENERATOR_SCRIPT all-negative"
+echo "To clean up: $GENERATOR_SCRIPT clean"

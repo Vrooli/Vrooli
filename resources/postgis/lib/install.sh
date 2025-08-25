@@ -1,7 +1,7 @@
 #!/bin/bash
 # PostGIS Standalone Installation Functions
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 
 # PostGIS Docker configuration
 POSTGIS_IMAGE="postgis/postgis:16-3.4-alpine"
@@ -10,7 +10,7 @@ POSTGIS_STANDALONE_PORT="${POSTGIS_STANDALONE_PORT:-5434}"
 POSTGIS_INSTALL_LIB_DIR="${APP_ROOT}/resources/postgis/lib"
 
 # Source var.sh for access to project variables
-source "${POSTGIS_INSTALL_LIB_DIR}/../../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 # Source dependencies
 source "${POSTGIS_INSTALL_LIB_DIR}/common.sh"

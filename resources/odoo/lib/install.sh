@@ -1,6 +1,10 @@
 #!/bin/bash
 # Install functions for Odoo resource
 
+# Get script directory and source common
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+source "${APP_ROOT}/resources/odoo/lib/common.sh"
+
 odoo_install() {
     local force="${1:-false}"
     
@@ -61,7 +65,7 @@ EOF
     
     # Register CLI
     echo "Registering Odoo CLI..."
-    "$ODOO_BASE_DIR/../../../lib/resources/install-resource-cli.sh" \
+    "${APP_ROOT}/scripts/lib/resources/install-resource-cli.sh" \
         "odoo" \
         "$ODOO_BASE_DIR/cli.sh" \
         "resource-odoo"

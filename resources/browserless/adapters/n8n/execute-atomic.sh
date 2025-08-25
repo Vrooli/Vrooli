@@ -11,7 +11,7 @@
 set -euo pipefail
 
 # Get script directory
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
 SCRIPT_DIR="${APP_ROOT}/resources/browserless/adapters/n8n"
 N8N_ADAPTER_DIR="$SCRIPT_DIR"
 BROWSERLESS_DIR="${APP_ROOT}/resources/browserless"

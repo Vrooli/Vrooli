@@ -215,12 +215,9 @@ echo
 echo "Creating stress test files..."
 mkdir -p "$NEGATIVE_DIR/stress"
 
-# 1. Many small files in a directory
-mkdir -p "$NEGATIVE_DIR/stress/many_files"
-for i in {1..100}; do
-    echo "File $i" > "$NEGATIVE_DIR/stress/many_files/file_$i.txt"
-done
-echo "  ✓ Created 100 small files"
+# 1. Many small files - NOW GENERATED ON-DEMAND
+# Use: ./generators/generate-stress-files.sh many-files
+echo "  ℹ Many small files: Generated on-demand via generators/generate-stress-files.sh"
 
 # 2. File with many columns (CSV)
 python3 -c "

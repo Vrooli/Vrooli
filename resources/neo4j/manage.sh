@@ -2,7 +2,7 @@
 # Neo4j Resource Management Script
 
 # Get script directory
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
 SCRIPT_DIR="${APP_ROOT}/resources/neo4j"
 
 # Parse --action parameter if present

@@ -3,7 +3,7 @@
 # LlamaIndex Core Functions
 # Provides RAG capabilities, document processing, and knowledge base management
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 LLAMAINDEX_LIB_DIR="${APP_ROOT}/resources/llamaindex/lib"
 LLAMAINDEX_DIR="${APP_ROOT}/resources/llamaindex"
 LLAMAINDEX_ROOT_DIR="${APP_ROOT}/resources"

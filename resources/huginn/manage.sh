@@ -10,7 +10,7 @@ trap 'huginn::show_interrupt_message; exit 130' INT TERM
 export DESCRIPTION="Install and manage Huginn agent-based workflow automation platform"
 
 # Get the directory of this script (unique variable name)
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
 HUGINN_SCRIPT_DIR="${APP_ROOT}/resources/huginn"
 HUGINN_LIB_DIR="${HUGINN_SCRIPT_DIR}/lib"
 

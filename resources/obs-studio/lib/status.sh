@@ -2,7 +2,7 @@
 # OBS Studio Status Functions
 
 # Get script directory
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 OBS_STATUS_LIB_DIR="${APP_ROOT}/resources/obs-studio/lib"
 
 # Source dependencies

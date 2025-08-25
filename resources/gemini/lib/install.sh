@@ -6,7 +6,7 @@ GEMINI_INSTALL_DIR="${APP_ROOT}/resources/gemini/lib"
 
 # Source dependencies
 source "${GEMINI_INSTALL_DIR}/core.sh"
-source "${GEMINI_INSTALL_DIR}/../../../../lib/utils/log.sh"
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
 
 # Install Gemini (configure API access)
 gemini::install() {

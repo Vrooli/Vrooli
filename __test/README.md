@@ -12,9 +12,8 @@ __test/
 │   └── test_helper.sh       # BATS integration framework
 ├── integration/             # Integration test suites
 │   ├── tier2_direct_test.sh         # Direct Tier 2 mock tests (✅ 12/12 passing)
-│   ├── tier2_comprehensive_test.sh  # Comprehensive integration tests
-│   ├── test_tier2_bats.bats        # BATS framework tests (🔧 partially working)
-│   └── test_tier2_mocks.sh         # Mock-specific tests
+│   ├── tier2_comprehensive_test.sh  # Tests via adapter/helper approach
+│   └── test_tier2_bats.bats        # BATS framework compatibility tests
 ├── fixtures/                # Test fixtures and shared utilities
 │   ├── setup.bash                  # Full Vrooli test infrastructure
 │   ├── simple-tier2-setup.bash    # Simplified BATS setup
@@ -36,19 +35,20 @@ __test/
 ```bash
 # From Vrooli root directory:
 
-# Run comprehensive Tier 2 integration tests (✅ All passing)
+# Run direct Tier 2 integration tests (✅ All passing)
 bash __test/integration/tier2_direct_test.sh
 
-# Run verification scripts
-bash __test/verify_all_mocks.sh    # Comprehensive verification (all 28 mocks)
-bash __test/verify_tier2.sh        # Core mocks only (6 services)
-bash __test/verify_new_mocks.sh    # New mocks only (4 utilities)
+# Run comprehensive tests via adapter
+bash __test/integration/tier2_comprehensive_test.sh
 
-# Run BATS tests (⚠️ Some limitations with state persistence)
+# Run BATS compatibility tests
 bats __test/integration/test_tier2_bats.bats
 
+# Verify all mocks
+bash __test/verify_mocks.sh
+
 # Run from any directory (path-robust)
-cd /tmp && bash /path/to/Vrooli/__test/verify_all_mocks.sh  # ✅ Works
+cd /tmp && bash /path/to/Vrooli/__test/integration/tier2_direct_test.sh  # ✅ Works
 ```
 
 ## 🎯 Tier 2 Mock System

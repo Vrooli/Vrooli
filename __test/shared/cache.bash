@@ -162,16 +162,35 @@ save_cache() {
             local safe_mtime="${mtime:-0}"
             [[ -z "$safe_mtime" ]] && safe_mtime="0"
             
+            # Ensure result_json is valid JSON
+            if [[ -z "$result_json" ]] || ! echo "$result_json" | jq empty 2>/dev/null; then
+                result_json='{"status": "error", "timestamp": 0, "duration_ms": 0, "message": "Invalid cache data", "exit_code": 1}'
+            fi
+            
             file_results["$file"]=$(jq -n \
                 --arg mtime "$safe_mtime" \
                 --argjson result "$result_json" \
                 --arg test_type "$test_type" \
                 '{file: {mtime: ($mtime | tonumber)}, results: {($test_type): $result}}')
         else
-            file_results["$file"]=$(echo "${file_results[$file]}" | jq \
-                --argjson result "$result_json" \
-                --arg test_type "$test_type" \
-                '.results[$test_type] = $result')
+            # Ensure existing data is valid JSON before processing
+            local existing_data="${file_results[$file]}"
+            if [[ -z "$existing_data" ]] || ! echo "$existing_data" | jq empty 2>/dev/null; then
+                # Reset to valid structure if corrupted
+                local safe_mtime="${mtime:-0}"
+                [[ -z "$safe_mtime" ]] && safe_mtime="0"
+                
+                file_results["$file"]=$(jq -n \
+                    --arg mtime "$safe_mtime" \
+                    --argjson result "$result_json" \
+                    --arg test_type "$test_type" \
+                    '{file: {mtime: ($mtime | tonumber)}, results: {($test_type): $result}}')
+            else
+                file_results["$file"]=$(echo "$existing_data" | jq \
+                    --argjson result "$result_json" \
+                    --arg test_type "$test_type" \
+                    '.results[$test_type] = $result')
+            fi
         fi
     done
     

@@ -388,4 +388,7 @@ export -f _vrooli_setup_test_environment _vrooli_load_system_mocks _vrooli_load_
 export -f _vrooli_configure_service_environment _vrooli_create_generic_service_mock _vrooli_load_minimal_mocks
 # Note: Cleanup functions are exported by cleanup.bash
 
-[[ -n "${BATS_DEBUG:-}" ]] && echo "[SETUP] Vrooli Test Setup loaded successfully" >&2
+# Debug output only when BATS_DEBUG is set
+if [[ -n "${BATS_DEBUG:-}" ]]; then
+    echo "[SETUP] Vrooli Test Setup loaded successfully" >&2
+fi

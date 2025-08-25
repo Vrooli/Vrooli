@@ -3,7 +3,7 @@
 # System status, health checks, and information display
 
 # Source format utilities and config
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 HUGINN_STATUS_DIR="${APP_ROOT}/resources/huginn/lib"
 # shellcheck disable=SC1091
 source "${HUGINN_STATUS_DIR}/../../../../lib/utils/format.sh"

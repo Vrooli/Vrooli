@@ -3,7 +3,7 @@
 # Handle installation of LangChain framework
 
 # Source required libraries
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 LANGCHAIN_INSTALL_DIR="${APP_ROOT}/resources/langchain/lib"
 # shellcheck disable=SC1091
 source "${LANGCHAIN_INSTALL_DIR}/../../../../lib/utils/var.sh"

@@ -10,7 +10,6 @@
 
 set -euo pipefail
 
-# Get APP_ROOT using cached value or compute once (2 levels up: __test/phases/test-integration.sh)
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
 SCRIPT_DIR="${APP_ROOT}/__test"
 PROJECT_ROOT="${PROJECT_ROOT:-$APP_ROOT}"
@@ -470,7 +469,7 @@ test_app_is_current() {
         # Compare with source scenario hash if available
         local app_name
         app_name=$(basename "$app_dir")
-        local source_scenario_dir="$PROJECT_ROOT/scenarios/core/$app_name"
+        local source_scenario_dir="$PROJECT_ROOT/scenarios/$app_name"
         
         if [[ -d "$source_scenario_dir" ]]; then
             local source_hash_file="$source_scenario_dir/.vrooli/schema-hash"

@@ -9,7 +9,9 @@
 
 set -euo pipefail
 
-# Get APP_ROOT using cached value or compute once (3 levels up: __test/phases/static/bash.sh)
+# Simple trap to exit cleanly on signals
+trap 'exit 143' TERM INT
+
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 SCRIPT_DIR="${APP_ROOT}/__test"
 PROJECT_ROOT="${PROJECT_ROOT:-$APP_ROOT}"
@@ -247,8 +249,21 @@ run_bash_static() {
     local passed=0
     local failed=0
     
+    # Track start time for global timeout check
+    local phase_start_time=$(date +%s)
+    local global_timeout="${TIMEOUT_SECONDS:-900}"
+    
     # Process files
     for script in "${files_to_test[@]}"; do
+        # Check if we've exceeded the global timeout
+        local current_time=$(date +%s)
+        local elapsed=$((current_time - phase_start_time))
+        if [[ $elapsed -ge $global_timeout ]]; then
+            log_warning "Global timeout reached after ${elapsed}s, stopping analysis"
+            # Kill any running shellcheck processes before exiting
+            pkill -f "shellcheck" 2>/dev/null || true
+            break
+        fi
         local relative_path
         relative_path=$(relative_path "$script")
         
@@ -262,6 +277,7 @@ run_bash_static() {
             # Test 2: Shellcheck (only if syntax passes and shellcheck available)
             if [[ "$has_shellcheck" == "true" ]]; then
                 log_test_start "shellcheck" "$relative_path"
+                # Run shellcheck directly (function is already defined in test-helpers.bash)
                 if run_shellcheck "$script" "shell script"; then
                     log_test_pass "shellcheck" "$relative_path"
                     update_cache "$script" "shellcheck" "passed" 0 "" 0

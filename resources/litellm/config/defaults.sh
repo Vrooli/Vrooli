@@ -1,6 +1,11 @@
 #!/bin/bash
 # LiteLLM resource default configuration
 
+# Get the directory of this script
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+# Source utilities
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+
 # Basic resource information
 [[ -z "${LITELLM_RESOURCE_NAME:-}" ]] && readonly LITELLM_RESOURCE_NAME="litellm"
 [[ -z "${LITELLM_RESOURCE_CATEGORY:-}" ]] && readonly LITELLM_RESOURCE_CATEGORY="ai"
@@ -16,9 +21,9 @@
 [[ -z "${LITELLM_INTERNAL_PORT:-}" ]] && readonly LITELLM_INTERNAL_PORT="4000"
 
 # Paths and directories
-[[ -z "${LITELLM_CONFIG_DIR:-}" ]] && readonly LITELLM_CONFIG_DIR="${var_ROOT_DIR}/data/litellm/config"
-[[ -z "${LITELLM_LOG_DIR:-}" ]] && readonly LITELLM_LOG_DIR="${var_ROOT_DIR}/data/litellm/logs"
-[[ -z "${LITELLM_DATA_DIR:-}" ]] && readonly LITELLM_DATA_DIR="${var_ROOT_DIR}/data/litellm/data"
+[[ -z "${LITELLM_CONFIG_DIR:-}" ]] && readonly LITELLM_CONFIG_DIR="${var_DATA_DIR}/resources/litellm/config"
+[[ -z "${LITELLM_LOG_DIR:-}" ]] && readonly LITELLM_LOG_DIR="${var_DATA_DIR}/resources/litellm/logs"
+[[ -z "${LITELLM_DATA_DIR:-}" ]] && readonly LITELLM_DATA_DIR="${var_DATA_DIR}/resources/litellm/data"
 
 # Configuration files
 [[ -z "${LITELLM_CONFIG_FILE:-}" ]] && readonly LITELLM_CONFIG_FILE="${LITELLM_CONFIG_DIR}/config.yaml"

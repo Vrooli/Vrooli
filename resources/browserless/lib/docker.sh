@@ -2,7 +2,7 @@
 # Browserless Docker Management - Optimized for browser automation
 # Uses docker-resource-utils.sh pattern for consistency
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 _BROWSERLESS_DOCKER_DIR="${APP_ROOT}/resources/browserless/lib"
 # shellcheck disable=SC1091
 source "${_BROWSERLESS_DOCKER_DIR}/../../../lib/utils/var.sh"

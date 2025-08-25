@@ -3,7 +3,7 @@
 # OBS Studio Core Functions
 # Provides streaming, recording, and content production capabilities via obs-websocket
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 OBS_LIB_DIR="${APP_ROOT}/resources/obs-studio/lib"
 OBS_DIR="${APP_ROOT}/resources/obs-studio"
 OBS_SCRIPTS_DIR="${APP_ROOT}/scripts"

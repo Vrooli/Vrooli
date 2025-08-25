@@ -6,13 +6,13 @@ POSTGIS_CONTAINER="postgis-main"
 POSTGIS_STANDALONE_PORT="${POSTGIS_STANDALONE_PORT:-5434}"
 
 # Get script directory
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/*}/../.." && builtin pwd)}"
 POSTGIS_STATUS_LIB_DIR="${APP_ROOT}/resources/postgis/lib"
 
 # Source dependencies
 source "${POSTGIS_STATUS_LIB_DIR}/common.sh"
 # shellcheck disable=SC1091
-source "${POSTGIS_STATUS_LIB_DIR}/../../../lib/status-args.sh"
+source "${POSTGIS_STATUS_LIB_DIR}/../../../scripts/resources/lib/status-args.sh"
 
 #######################################
 # Collect PostGIS status data in format-agnostic structure

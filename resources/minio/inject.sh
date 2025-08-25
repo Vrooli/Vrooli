@@ -7,7 +7,7 @@ set -euo pipefail
 
 export DESCRIPTION="Inject buckets and files into MinIO S3-compatible object storage"
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
 SCRIPT_DIR="${APP_ROOT}/resources/minio"
 
 # Source var.sh first to get directory variables
@@ -127,7 +127,7 @@ minio_inject::check_accessibility() {
         return 0
     else
         log::error "MinIO is not accessible at $MINIO_ENDPOINT"
-        log::info "Ensure MinIO is running: ./scripts/resources/storage/minio/manage.sh --action start"
+        log::info "Ensure MinIO is running: ./resources/minio/manage.sh --action start"
         return 1
     fi
 }

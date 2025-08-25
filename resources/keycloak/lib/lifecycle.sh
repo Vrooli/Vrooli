@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Get the directory of this script
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 KEYCLOAK_LIB_DIR="${APP_ROOT}/resources/keycloak/lib"
 
 # Dependencies are expected to be sourced by caller

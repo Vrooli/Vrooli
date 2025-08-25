@@ -8,7 +8,10 @@ if [[ "${VROOLI_ASSERTIONS_LOADED:-}" == "true" ]]; then
 fi
 export VROOLI_ASSERTIONS_LOADED="true"
 
-echo "[ASSERTIONS] Loading Vrooli test assertions"
+# Debug output only when BATS_DEBUG is set
+if [[ -n "${BATS_DEBUG:-}" ]]; then
+    echo "[ASSERTIONS] Loading Vrooli test assertions" >&2
+fi
 
 #######################################
 # Basic Assertions
@@ -560,4 +563,7 @@ export -f assert_service_healthy assert_docker_container_running
 export -f assert_function_exists assert_command_exists
 export -f assert_greater_than assert_less_than
 
-echo "[ASSERTIONS] Vrooli test assertions loaded successfully"
+# Debug output only when BATS_DEBUG is set
+if [[ -n "${BATS_DEBUG:-}" ]]; then
+    echo "[ASSERTIONS] Vrooli test assertions loaded successfully" >&2
+fi

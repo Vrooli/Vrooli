@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Define Keycloak lib directory using cached APP_ROOT
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 KEYCLOAK_LIB_DIR="${APP_ROOT}/resources/keycloak/lib"
 
 # Source utilities

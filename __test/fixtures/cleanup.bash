@@ -8,7 +8,10 @@ if [[ "${VROOLI_CLEANUP_LOADED:-}" == "true" ]]; then
 fi
 export VROOLI_CLEANUP_LOADED="true"
 
-echo "[CLEANUP] Loading Vrooli test cleanup functions"
+# Debug output only when BATS_DEBUG is set
+if [[ -n "${BATS_DEBUG:-}" ]]; then
+    echo "[CLEANUP] Loading Vrooli test cleanup functions" >&2
+fi
 
 #######################################
 # Main cleanup function - call this from teardown()
@@ -416,4 +419,7 @@ export -f cleanup_mocks
 export -f _vrooli_cleanup_processes _vrooli_cleanup_mocks _vrooli_cleanup_temp_files
 export -f _vrooli_cleanup_environment _vrooli_cleanup_shared_memory
 
-echo "[CLEANUP] Vrooli test cleanup functions loaded successfully"
+# Debug output only when BATS_DEBUG is set
+if [[ -n "${BATS_DEBUG:-}" ]]; then
+    echo "[CLEANUP] Vrooli test cleanup functions loaded successfully" >&2
+fi

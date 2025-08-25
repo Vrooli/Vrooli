@@ -5,9 +5,9 @@
 set -euo pipefail
 
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-SCRIPT_DIR="${APP_ROOT}/resources/browserless/lib"
+BROWSERLESS_LIB_DIR="${APP_ROOT}/resources/browserless/lib"
 source "${APP_ROOT}/scripts/lib/utils/format.sh"
-source "$SCRIPT_DIR/common.sh"
+source "$BROWSERLESS_LIB_DIR/common.sh"
 
 function install_browserless() {
     format_section "📦 Installing Browserless"
@@ -27,9 +27,9 @@ function install_browserless() {
     
     # Register CLI with install-resource-cli.sh
     format_info "Registering Browserless CLI..."
-    if "$SCRIPT_DIR/../../../lib/resources/install-resource-cli.sh" \
+    if "${APP_ROOT}/scripts/lib/resources/install-resource-cli.sh" \
         --name browserless \
-        --cli-path "$SCRIPT_DIR/../cli.sh"; then
+        --cli-path "$BROWSERLESS_LIB_DIR/../cli.sh"; then
         format_success "CLI registered successfully"
     else
         format_warning "Failed to register CLI"
@@ -37,7 +37,7 @@ function install_browserless() {
     
     # Start the service
     format_info "Starting Browserless..."
-    source "$SCRIPT_DIR/start.sh"
+    source "$BROWSERLESS_LIB_DIR/start.sh"
     if start_browserless; then
         format_success "Browserless installed and started successfully"
     else

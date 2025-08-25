@@ -7,7 +7,7 @@ set -euo pipefail
 
 export DESCRIPTION="Inject languages, submissions, and configurations into Judge0 code execution service"
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
 JUDGE0_SCRIPT_DIR="${APP_ROOT}/resources/judge0"
 
 # Source var.sh first to get directory variables
@@ -127,7 +127,7 @@ judge0_inject::check_accessibility() {
         return 0
     else
         log::error "Judge0 is not accessible at $JUDGE0_HOST"
-        log::info "Ensure Judge0 is running: ./scripts/resources/execution/judge0/manage.sh --action start"
+        log::info "Ensure Judge0 is running: ./resources/judge0/manage.sh --action start"
         return 1
     fi
 }

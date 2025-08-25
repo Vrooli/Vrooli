@@ -2,13 +2,13 @@
 # Neo4j Resource - Common Functions
 
 # Define directories using cached APP_ROOT
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 NEO4J_LIB_DIR="${APP_ROOT}/resources/neo4j/lib"
 NEO4J_RESOURCE_DIR="${APP_ROOT}/resources/neo4j"
 
 # Source utilities
-source "$NEO4J_RESOURCE_DIR/../../../lib/utils/var.sh"
-source "$NEO4J_RESOURCE_DIR/../../../lib/utils/format.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/format.sh"
 
 # Neo4j configuration
 export NEO4J_CONTAINER_NAME="vrooli-neo4j"

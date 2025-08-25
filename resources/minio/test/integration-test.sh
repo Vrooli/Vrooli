@@ -6,7 +6,7 @@
 set -euo pipefail
 
 # Source var.sh first to get directory variables
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 SCRIPT_DIR="${APP_ROOT}/resources/minio/test"
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/../../../lib/utils/var.sh"

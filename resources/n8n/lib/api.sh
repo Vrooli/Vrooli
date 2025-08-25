@@ -7,7 +7,7 @@
 export _N8N_API_SOURCED=1
 
 # Source shared libraries
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 N8N_LIB_DIR="${APP_ROOT}/resources/n8n/lib"
 
 # shellcheck disable=SC1091

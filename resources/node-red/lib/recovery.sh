@@ -2,7 +2,7 @@
 # Node-RED Backup and Recovery Functions
 # Provides comprehensive backup/recovery using backup framework
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 NODE_RED_RECOVERY_LIB_DIR="${APP_ROOT}/resources/node-red/lib"
 
 # shellcheck disable=SC1091

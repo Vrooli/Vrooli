@@ -4,7 +4,7 @@
 # Note: Not using set -euo pipefail to avoid early exits in status checks
 
 # Get script directory
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 OBS_LIB_DIR="${APP_ROOT}/resources/obs-studio/lib"
 OBS_RESOURCE_DIR="${APP_ROOT}/resources/obs-studio"
 PROJECT_ROOT="${APP_ROOT}"

@@ -152,7 +152,7 @@ Export Formats:
     svg     - Vector graphics
     step    - 3D model for mechanical CAD
 
-For more information, see: scripts/resources/execution/kicad/README.md
+For more information, see: resources/kicad/README.md
 EOF
 }
 

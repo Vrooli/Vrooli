@@ -190,7 +190,7 @@ spec:
   
   # Testing and validation
   testing:
-    test_file: "scripts/resources/execution/judge0/test/integration-test.sh"
+    test_file: "resources/judge0/test/integration-test.sh"
     test_coverage:
       - service_health
       - language_compilation
@@ -208,11 +208,11 @@ spec:
   
   # Documentation and examples
   documentation:
-    readme: "scripts/resources/execution/judge0/README.md"
-    api_reference: "scripts/resources/execution/judge0/docs/API.md"
-    examples_dir: "scripts/resources/execution/judge0/examples/"
-    configuration: "scripts/resources/execution/judge0/docs/CONFIGURATION.md"
-    security: "scripts/resources/execution/judge0/docs/SECURITY.md"
+    readme: "resources/judge0/README.md"
+    api_reference: "resources/judge0/docs/API.md"
+    examples_dir: "resources/judge0/examples/"
+    configuration: "resources/judge0/docs/CONFIGURATION.md"
+    security: "resources/judge0/docs/SECURITY.md"
   
   # Version and compatibility
   version_info:

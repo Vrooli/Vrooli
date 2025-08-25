@@ -219,6 +219,203 @@ EOF
     log_info "✓ Generated network timeout file"
 }
 
+# Generate negative test image files
+generate_negative_images() {
+    local target_dir="${1:-${APP_ROOT}/__test/fixtures/negative-tests/images}"
+    
+    log_info "Generating negative test images in $target_dir..."
+    
+    mkdir -p "$target_dir"
+    
+    # Empty JPG
+    touch "$target_dir/empty.jpg"
+    
+    # Invalid JPEG header
+    echo "Not a JPEG file" > "$target_dir/invalid_jpeg.jpg"
+    
+    # Partial PNG (PNG header but truncated)
+    printf "\x89\x50\x4E\x47\x0D\x0A\x1A\x0A" > "$target_dir/partial_png.png"
+    
+    # Random binary as JPG
+    dd if=/dev/urandom of="$target_dir/random.jpg" bs=1024 count=10 2>/dev/null
+    
+    # Text file disguised as image
+    echo "This is actually text, not an image" > "$target_dir/text_as_image.png"
+    
+    # Truncated GIF (GIF header only)
+    printf "GIF89a" > "$target_dir/truncated.gif"
+    
+    log_info "✓ Generated negative test images"
+}
+
+# Generate negative test audio files
+generate_negative_audio() {
+    local target_dir="${1:-${APP_ROOT}/__test/fixtures/negative-tests/audio}"
+    
+    log_info "Generating negative test audio files in $target_dir..."
+    
+    mkdir -p "$target_dir"
+    
+    # Empty MP3
+    touch "$target_dir/empty.mp3"
+    
+    # Invalid MP3 header
+    echo "Not an MP3 file" > "$target_dir/invalid_header.mp3"
+    
+    # Random binary as WAV
+    dd if=/dev/urandom of="$target_dir/random_binary.wav" bs=1024 count=5 2>/dev/null
+    
+    # Text disguised as audio
+    echo "This is text pretending to be audio" > "$target_dir/text_as_audio.mp3"
+    
+    # Truncated MP3 (ID3 header only)
+    printf "ID3\x04\x00\x00" > "$target_dir/truncated.mp3"
+    
+    log_info "✓ Generated negative test audio files"
+}
+
+# Generate negative test document files
+generate_negative_documents() {
+    local target_dir="${1:-${APP_ROOT}/__test/fixtures/negative-tests/documents}"
+    
+    log_info "Generating negative test documents in $target_dir..."
+    
+    mkdir -p "$target_dir"
+    
+    # Binary disguised as PDF
+    dd if=/dev/urandom of="$target_dir/binary.pdf" bs=1024 count=10 2>/dev/null
+    
+    # Circular reference JSON
+    cat > "$target_dir/circular_reference.json" << 'EOF'
+{
+  "a": {"ref": "#/b"},
+  "b": {"ref": "#/a"}
+}
+EOF
+    
+    # Corrupted DOCX (just random bytes)
+    dd if=/dev/urandom of="$target_dir/corrupted.docx" bs=1024 count=20 2>/dev/null
+    
+    # Empty PDF
+    touch "$target_dir/empty.pdf"
+    
+    # Huge empty JSON
+    echo "{}" > "$target_dir/huge_empty.json"
+    
+    # Invalid XML
+    cat > "$target_dir/invalid.xml" << 'EOF'
+<?xml version="1.0"?>
+<root>
+  <unclosed>
+  <mismatched></wrong>
+EOF
+    
+    # Invalid PDF (PDF header but garbage content)
+    printf "%%PDF-1.4\n%%Garbage content here\n" > "$target_dir/invalid_pdf.pdf"
+    
+    # Malformed JSON
+    cat > "$target_dir/malformed.json" << 'EOF'
+{
+  "key": "value",
+  "broken": 
+}
+EOF
+    
+    # Partial PDF (header only)
+    printf "%%PDF-1.4\n1 0 obj\n<<\n" > "$target_dir/partial_pdf.pdf"
+    
+    log_info "✓ Generated negative test documents"
+}
+
+# Generate edge case files
+generate_edge_cases() {
+    local target_dir="${1:-${APP_ROOT}/__test/fixtures/negative-tests/edge-cases}"
+    
+    log_info "Generating edge case files in $target_dir..."
+    
+    mkdir -p "$target_dir"
+    
+    # File with spaces in name
+    touch "$target_dir/file with spaces.txt"
+    
+    # File with emojis
+    touch "$target_dir/file_with_émojis_🎉.txt"
+    
+    # Long single line (already handled by generate_long_line)
+    printf "%1000000s" | tr ' ' 'A' > "$target_dir/long_single_line.txt"
+    
+    # Mixed line endings
+    printf "Line1\r\nLine2\nLine3\rLine4" > "$target_dir/mixed_line_endings.txt"
+    
+    # Nested JSON structure
+    cat > "$target_dir/nested_structure.json" << 'EOF'
+{
+  "level1": {
+    "level2": {
+      "level3": {
+        "level4": {
+          "level5": {
+            "deep": "value"
+          }
+        }
+      }
+    }
+  }
+}
+EOF
+    
+    # Null bytes in text
+    printf "Hello\x00World\x00Test" > "$target_dir/null_bytes.txt"
+    
+    # Only whitespace
+    printf "   \n\t\n   \t" > "$target_dir/only_whitespace.txt"
+    
+    # Unicode stress (already handled by generate_unicode_stress)
+    cat > "$target_dir/unicode_stress.txt" << 'EOF'
+Unicode: café ñ 你好 🚀 α∑∫ ‮RTL‬ Z̴̡͖̈́a̸̛̰̐l̵̨̉g̸̨̐o̵̧̐
+EOF
+    
+    # Zero bytes file
+    touch "$target_dir/zero_bytes.txt"
+    
+    log_info "✓ Generated edge case files"
+}
+
+# Generate stress test files
+generate_stress_tests() {
+    local target_dir="${1:-${APP_ROOT}/__test/fixtures/negative-tests/stress}"
+    
+    log_info "Generating stress test files in $target_dir..."
+    
+    mkdir -p "$target_dir"
+    
+    # Changing content simulation
+    cat > "$target_dir/changing_content.txt" << EOF
+This file simulates content that changes.
+Timestamp: $(date)
+Random: $RANDOM
+EOF
+    
+    # Many columns CSV
+    python3 -c "
+import csv
+with open('$target_dir/many_columns.csv', 'w', newline='') as f:
+    writer = csv.writer(f)
+    headers = [f'col_{i}' for i in range(1000)]
+    writer.writerow(headers)
+    writer.writerow(['data'] * 1000)
+" 2>/dev/null || {
+    # Fallback if Python not available
+    local cols=""
+    for i in {1..1000}; do
+        cols="${cols}col_$i,"
+    done
+    echo "${cols%,}" > "$target_dir/many_columns.csv"
+}
+    
+    log_info "✓ Generated stress test files"
+}
+
 # Generate all standard test files
 generate_all() {
     log_info "Generating all standard test files..."
@@ -237,9 +434,38 @@ generate_all() {
     generate_long_line
     echo
     generate_network_timeout
+    echo
+    generate_negative_images
+    echo
+    generate_negative_audio
+    echo
+    generate_negative_documents
+    echo
+    generate_edge_cases
+    echo
+    generate_stress_tests
     
     echo
     log_info "✅ All test files generated successfully!"
+}
+
+# Generate all negative test files
+generate_all_negative() {
+    log_info "Generating all negative test files..."
+    echo
+    
+    generate_negative_images
+    echo
+    generate_negative_audio
+    echo
+    generate_negative_documents
+    echo
+    generate_edge_cases
+    echo
+    generate_stress_tests
+    
+    echo
+    log_info "✅ All negative test files generated successfully!"
 }
 
 # Clean generated files
@@ -250,6 +476,18 @@ clean_generated() {
     if [[ -d "$DEFAULT_STRESS_DIR/many_files" ]]; then
         rm -rf "$DEFAULT_STRESS_DIR/many_files"
         log_info "✓ Removed many_files directory"
+    fi
+    
+    # Remove negative test directories if they exist
+    local negative_base="${APP_ROOT}/__test/fixtures/negative-tests"
+    if [[ -d "$negative_base" ]]; then
+        # Only remove if directories are generated (empty or contain only generated files)
+        for dir in images audio documents edge-cases stress; do
+            if [[ -d "$negative_base/$dir" ]]; then
+                rm -rf "$negative_base/$dir"
+                log_info "✓ Removed $dir directory"
+            fi
+        done
     fi
     
     # Remove large generated files
@@ -283,7 +521,7 @@ Generate Test Files On-Demand
 
 Usage: $0 [command] [options]
 
-Commands:
+Core Commands:
     many-files [dir] [count]     Generate many small files (default: 100 files)
     huge-text [file] [size_mb]   Generate large text file (default: 10MB)
     binary [file] [size_kb]      Generate binary file (default: 100KB)
@@ -291,16 +529,26 @@ Commands:
     unicode [file]               Generate unicode stress test
     long-line [file] [length]    Generate file with long line
     network-timeout [file]       Generate network timeout test
-    all                          Generate all standard test files
+
+Negative Test Commands:
+    negative-images [dir]        Generate negative test images
+    negative-audio [dir]         Generate negative test audio files
+    negative-documents [dir]     Generate negative test documents
+    edge-cases [dir]             Generate edge case test files
+    stress-tests [dir]           Generate stress test files
+    
+Batch Commands:
+    all                          Generate all test files (standard + negative)
+    all-negative                 Generate all negative test files only
     clean                        Remove all generated files
     help                         Show this help message
 
 Examples:
     $0 many-files                      # Generate 100 files in default location
-    $0 many-files /tmp/test 500        # Generate 500 files in /tmp/test
-    $0 huge-text /tmp/big.txt 50       # Generate 50MB text file
-    $0 all                              # Generate all test files
-    $0 clean                            # Remove generated files
+    $0 negative-images                 # Generate negative test images
+    $0 all-negative                    # Generate all negative test files
+    $0 all                              # Generate everything
+    $0 clean                            # Remove all generated files
 
 EOF
 }
@@ -332,8 +580,26 @@ main() {
         network-timeout)
             generate_network_timeout "$@"
             ;;
+        negative-images)
+            generate_negative_images "$@"
+            ;;
+        negative-audio)
+            generate_negative_audio "$@"
+            ;;
+        negative-documents)
+            generate_negative_documents "$@"
+            ;;
+        edge-cases)
+            generate_edge_cases "$@"
+            ;;
+        stress-tests)
+            generate_stress_tests "$@"
+            ;;
         all)
             generate_all
+            ;;
+        all-negative)
+            generate_all_negative
             ;;
         clean)
             clean_generated

@@ -235,6 +235,6 @@ Environment Variables:
   ERPNEXT_PORT     API port (default: 8020)
   ERPNEXT_DATA_DIR Data directory
 
-For more information, see scripts/resources/automation/erpnext/README.md
+For more information, see resources/erpnext/README.md
 EOF
 }

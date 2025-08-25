@@ -4,7 +4,7 @@
 # This file contains status checking, service control, and health monitoring functions
 
 # Set script directory for sourcing
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 OLLAMA_STATUS_DIR="${APP_ROOT}/resources/ollama/lib"
 
 # Source status argument library

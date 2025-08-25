@@ -6,7 +6,7 @@ export ODOO_RESOURCE_NAME="odoo"
 export ODOO_RESOURCE_CATEGORY="execution"
 
 # Paths  
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 export ODOO_BASE_DIR="${APP_ROOT}/resources/odoo"
 export ODOO_DATA_DIR="${var_DATA_DIR:-/home/matthalloran8/Vrooli/data}/resources/odoo"
 export ODOO_CONFIG_DIR="$ODOO_BASE_DIR/config"

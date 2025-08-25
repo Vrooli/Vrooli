@@ -2,7 +2,7 @@
 
 # Source configuration and utilities
 ffmpeg::inject::init() {
-    APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+    APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
     local FFMPEG_LIB_DIR="${APP_ROOT}/resources/ffmpeg/lib"
     source "${FFMPEG_LIB_DIR}/../../../../lib/utils/log.sh" || {
         echo "Error: Could not source log.sh"

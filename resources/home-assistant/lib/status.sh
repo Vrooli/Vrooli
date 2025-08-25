@@ -2,7 +2,7 @@
 # Home Assistant Status Functions
 
 # Define directory using cached APP_ROOT
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 HOME_ASSISTANT_STATUS_DIR="${APP_ROOT}/resources/home-assistant/lib"
 
 # Source dependencies

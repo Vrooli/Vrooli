@@ -162,10 +162,10 @@ spec:
   
   # Documentation and examples
   documentation:
-    readme: "scripts/resources/ai/ollama/README.md"
-    api_reference: "scripts/resources/ai/ollama/docs/API.md"
-    examples_dir: "scripts/resources/ai/ollama/examples/"
-    configuration: "scripts/resources/ai/ollama/docs/CONFIGURATION.md"
+    readme: "resources/ollama/README.md"
+    api_reference: "resources/ollama/docs/API.md"
+    examples_dir: "resources/ollama/examples/"
+    configuration: "resources/ollama/docs/CONFIGURATION.md"
   
   # Version and compatibility
   version_info:

@@ -38,8 +38,8 @@ test_core_infrastructure() {
     load_test_mock "docker"
     
     # Test cross-service data flow
-    redis set "db_config" "host=localhost,port=5432"
-    local config=$(redis get "db_config")
+    redis-cli set "db_config" "host=localhost,port=5432"
+    local config=$(redis-cli get "db_config")
     
     psql -c "CREATE TABLE config (key TEXT, value TEXT)" >/dev/null
     psql -c "INSERT INTO config VALUES ('redis_config', '$config')" >/dev/null
@@ -119,7 +119,7 @@ test_cross_service_integration() {
     psql -c "INSERT INTO ai_requests (prompt) VALUES ('test prompt')" >/dev/null
     
     # 2. Cache in Redis
-    redis set "last_prompt" "test prompt" >/dev/null
+    redis-cli set "last_prompt" "test prompt" >/dev/null
     
     # 3. Process with AI
     local response=$(ollama generate "llama2" "test prompt" 2>/dev/null)
@@ -164,7 +164,7 @@ test_performance() {
     
     # Test bulk operations
     for i in {1..50}; do
-        redis set "key$i" "value$i" >/dev/null 2>&1
+        redis-cli set "key$i" "value$i" >/dev/null 2>&1
     done
     
     # Test database operations

@@ -3,7 +3,7 @@
 set -euo pipefail
 
 # Get the directory of this script using unique directory variable
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 HUGINN_LIB_DIR="${APP_ROOT}/resources/huginn/lib"
 cd "$HUGINN_LIB_DIR"
 

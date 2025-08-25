@@ -3,7 +3,7 @@
 # Handles status checking and health monitoring with format-agnostic output
 
 # Source format utilities
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 JUDGE0_STATUS_DIR="${APP_ROOT}/resources/judge0/lib"
 # shellcheck disable=SC1091
 source "${JUDGE0_STATUS_DIR}/../../../../lib/utils/format.sh"

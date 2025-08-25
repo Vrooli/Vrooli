@@ -211,11 +211,11 @@ spec:
   
   # Documentation and examples
   documentation:
-    readme: "scripts/resources/automation/n8n/README.md"
-    api_reference: "scripts/resources/automation/n8n/docs/API.md"
-    examples_dir: "scripts/resources/automation/n8n/examples/"
-    configuration: "scripts/resources/automation/n8n/docs/CONFIGURATION.md"
-    troubleshooting: "scripts/resources/automation/n8n/docs/TROUBLESHOOTING.md"
+    readme: "resources/n8n/README.md"
+    api_reference: "resources/n8n/docs/API.md"
+    examples_dir: "resources/n8n/examples/"
+    configuration: "resources/n8n/docs/CONFIGURATION.md"
+    troubleshooting: "resources/n8n/docs/TROUBLESHOOTING.md"
   
   # Version and compatibility
   version_info:

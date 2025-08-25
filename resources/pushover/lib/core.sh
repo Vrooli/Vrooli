@@ -2,7 +2,7 @@
 # Pushover core functionality
 
 # Define directory using cached APP_ROOT
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 PUSHOVER_CORE_DIR="${APP_ROOT}/resources/pushover/lib"
 
 # Source dependencies
@@ -12,9 +12,9 @@ source "${PUSHOVER_CORE_DIR}/../../../../lib/utils/format.sh"
 
 # Configuration
 PUSHOVER_API_URL="https://api.pushover.net/1"
-PUSHOVER_DATA_DIR="${var_DATA_DIR:-/home/matthalloran8/.vrooli}/pushover"
+PUSHOVER_DATA_DIR="${var_DATA_DIR:-/home/matthalloran8/.vrooli}/resources/pushover"
 PUSHOVER_CONFIG_FILE="${PUSHOVER_DATA_DIR}/config.json"
-PUSHOVER_CREDENTIALS_FILE="${var_DATA_DIR:-/home/matthalloran8/.vrooli}/pushover-credentials.json"
+PUSHOVER_CREDENTIALS_FILE="${var_DATA_DIR:-/home/matthalloran8/.vrooli}/resources/pushover-credentials.json"
 PUSHOVER_TEMPLATES_DIR="${PUSHOVER_DATA_DIR}/templates"
 
 # Initialize Pushover

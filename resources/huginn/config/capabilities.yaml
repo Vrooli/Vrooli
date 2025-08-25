@@ -197,7 +197,7 @@ spec:
   
   # Testing and validation
   testing:
-    test_file: "scripts/resources/automation/huginn/test/integration-test.sh"
+    test_file: "resources/huginn/test/integration-test.sh"
     test_coverage:
       - service_health
       - agent_creation
@@ -215,11 +215,11 @@ spec:
   
   # Documentation and examples
   documentation:
-    readme: "scripts/resources/automation/huginn/README.md"
-    api_reference: "scripts/resources/automation/huginn/docs/API.md"
-    examples_dir: "scripts/resources/automation/huginn/examples/"
-    configuration: "scripts/resources/automation/huginn/docs/CONFIGURATION.md"
-    troubleshooting: "scripts/resources/automation/huginn/docs/TROUBLESHOOTING.md"
+    readme: "resources/huginn/README.md"
+    api_reference: "resources/huginn/docs/API.md"
+    examples_dir: "resources/huginn/examples/"
+    configuration: "resources/huginn/docs/CONFIGURATION.md"
+    troubleshooting: "resources/huginn/docs/TROUBLESHOOTING.md"
   
   # Version and compatibility
   version_info:

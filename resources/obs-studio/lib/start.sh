@@ -4,7 +4,7 @@
 set -euo pipefail
 
 # Define directory using cached APP_ROOT
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 OBS_START_DIR="${APP_ROOT}/resources/obs-studio/lib"
 source "${OBS_START_DIR}/common.sh"
 

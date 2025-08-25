@@ -3,7 +3,7 @@
 # Functions for checking MinIO health and status
 
 # Source format utilities and required libraries
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 MINIO_STATUS_DIR="${APP_ROOT}/resources/minio/lib"
 # shellcheck disable=SC1091
 source "${MINIO_STATUS_DIR}/../../../../lib/utils/var.sh"

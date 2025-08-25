@@ -2,9 +2,12 @@
 # FFmpeg Configuration Defaults
 
 # Get the directory of this script
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 FFMPEG_CONFIG_DIR="${APP_ROOT}/resources/ffmpeg/config"
 
+# Source utilities
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # Source port registry for dynamic port allocation (if needed)
 # shellcheck disable=SC1091
 source "${FFMPEG_CONFIG_DIR}/../../../port_registry.sh"
@@ -18,7 +21,7 @@ ffmpeg::export_config() {
     export FFMPEG_CATEGORY="execution"
     
     # Paths
-    export FFMPEG_DATA_DIR="${FFMPEG_DATA_DIR:-${HOME}/Vrooli/data/ffmpeg}"
+    export FFMPEG_DATA_DIR="${FFMPEG_DATA_DIR:-${var_DATA_DIR}/resources/ffmpeg}"
     export FFMPEG_TEMP_DIR="${FFMPEG_TEMP_DIR:-${FFMPEG_DATA_DIR}/temp}"
     export FFMPEG_OUTPUT_DIR="${FFMPEG_OUTPUT_DIR:-${FFMPEG_DATA_DIR}/output}"
     export FFMPEG_LOGS_DIR="${FFMPEG_LOGS_DIR:-${FFMPEG_DATA_DIR}/logs}"

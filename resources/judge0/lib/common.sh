@@ -3,7 +3,7 @@
 # Shared functions used across Judge0 management modules
 
 # Source required utilities
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 JUDGE0_LIB_DIR="${APP_ROOT}/resources/judge0/lib"
 # shellcheck disable=SC1091
 source "${JUDGE0_LIB_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true

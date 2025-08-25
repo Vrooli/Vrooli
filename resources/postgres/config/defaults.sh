@@ -6,7 +6,7 @@
 # Detect project root for proper configuration paths
 _postgres_defaults_detect_project_root() {
     local current_dir
-    APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+    APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
     current_dir="$APP_ROOT/resources/postgres/config"
     
     # Walk up directory tree looking for .vrooli directory

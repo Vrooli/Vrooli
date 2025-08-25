@@ -15,7 +15,7 @@
 ########################################
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
 INTERPRETER_DIR="${APP_ROOT}/resources/browserless/lib/workflow"
 BROWSERLESS_LIB_DIR="${APP_ROOT}/resources/browserless/lib"
 

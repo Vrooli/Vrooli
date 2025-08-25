@@ -3,7 +3,7 @@
 # Injection functions for Mail-in-a-Box resource
 # Allows adding email accounts, domains, and aliases
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 MAILINABOX_INJECT_LIB_DIR="${APP_ROOT}/resources/mail-in-a-box/lib"
 
 # Source dependencies

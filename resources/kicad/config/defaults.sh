@@ -1,10 +1,13 @@
 #!/bin/bash
 # KiCad Resource Configuration
 
+# Get the directory of this script
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+# Source utilities
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+
 # KiCad directories
-# Use project data directory that doesn't require root permissions
-VROOLI_ROOT="${VROOLI_ROOT:-/home/matthalloran8/Vrooli}"
-export KICAD_DATA_DIR="${KICAD_DATA_DIR:-${VROOLI_ROOT}/data/kicad}"
+export KICAD_DATA_DIR="${KICAD_DATA_DIR:-${var_DATA_DIR}/resources/kicad}"
 export KICAD_CONFIG_DIR="${KICAD_DATA_DIR}/config"
 export KICAD_PROJECTS_DIR="${KICAD_DATA_DIR}/projects"
 export KICAD_LIBRARIES_DIR="${KICAD_DATA_DIR}/libraries"

@@ -4,7 +4,7 @@
 set -euo pipefail
 
 # Get directories
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 MUSICGEN_LIB_DIR="${APP_ROOT}/resources/musicgen/lib"
 MUSICGEN_BASE_DIR="${APP_ROOT}/resources/musicgen"
 VROOLI_DIR="${APP_ROOT}"
@@ -19,7 +19,7 @@ source "${VROOLI_DIR}/scripts/lib/runtimes/docker.sh"
 export MUSICGEN_CONTAINER_NAME="musicgen"
 export MUSICGEN_IMAGE="vrooli/musicgen:latest"
 export MUSICGEN_PORT=8765
-export MUSICGEN_DATA_DIR="${var_DATA_DIR}/musicgen"
+export MUSICGEN_DATA_DIR="${var_DATA_DIR}/resources/musicgen"
 export MUSICGEN_MODELS_DIR="${MUSICGEN_DATA_DIR}/models"
 export MUSICGEN_OUTPUT_DIR="${MUSICGEN_DATA_DIR}/outputs"
 export MUSICGEN_CONFIG_DIR="${MUSICGEN_DATA_DIR}/config"
@@ -49,6 +49,6 @@ Examples:
   resource-musicgen list-models
 
 Documentation:
-  See scripts/resources/execution/musicgen/README.md for detailed usage
+  See resources/musicgen/README.md for detailed usage
 EOF
 }

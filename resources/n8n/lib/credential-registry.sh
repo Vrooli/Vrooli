@@ -9,7 +9,7 @@ set -euo pipefail
 export _N8N_CREDENTIAL_REGISTRY_SOURCED=1
 
 # Define directory using cached APP_ROOT
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 REGISTRY_DIR="${APP_ROOT}/resources/n8n/lib"
 
 # shellcheck disable=SC1091

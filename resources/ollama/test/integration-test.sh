@@ -5,7 +5,7 @@
 
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 OLLAMA_TEST_DIR="${APP_ROOT}/resources/ollama/test"
 
 # Source var.sh first to get directory variables

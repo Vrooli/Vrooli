@@ -430,7 +430,7 @@ postgres::status::collect_data() {
     status_data+=("description" "PostgreSQL database with multi-instance support")
     
     # Check installation and running status
-    local instances_dir="/home/matthalloran8/Vrooli/scripts/resources/storage/postgres/instances"
+    local instances_dir="/home/matthalloran8/Vrooli/resources/postgres/instances"
     local installed="false"
     local running="false"
     local healthy="false"

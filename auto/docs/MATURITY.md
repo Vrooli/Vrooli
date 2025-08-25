@@ -319,8 +319,8 @@ echo ""
 # Resources
 echo "## Resources"
 for resource in $(vrooli resource list --format json | jq -r '.[].Name'); do
-  prd_completion=$(grep -c "\[x\]" scripts/resources/$resource/PRD.md 2>/dev/null || echo 0)
-  prd_total=$(grep -c "\[ \]" scripts/resources/$resource/PRD.md 2>/dev/null || echo 1)
+  prd_completion=$(grep -c "\[x\]" resources/$resource/PRD.md 2>/dev/null || echo 0)
+  prd_total=$(grep -c "\[ \]" resources/$resource/PRD.md 2>/dev/null || echo 1)
   completion=$((prd_completion * 100 / (prd_completion + prd_total)))
   
   status=$(vrooli resource $resource status --format json | jq -r '.status')

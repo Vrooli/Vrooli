@@ -2,7 +2,7 @@
 # Geth Start Functions
 
 # Get the script directory
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 GETH_START_DIR="${APP_ROOT}/resources/geth/lib"
 
 # Source common functions

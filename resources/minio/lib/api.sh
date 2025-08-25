@@ -3,7 +3,7 @@
 # Functions for interacting with MinIO S3 API
 
 # Get script directory
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 MINIO_API_DIR="${APP_ROOT}/resources/minio/lib"
 
 # Source required dependencies

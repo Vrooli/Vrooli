@@ -5,7 +5,7 @@
 
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 JUDGE0_TEST_DIR="${APP_ROOT}/resources/judge0/test"
 
 # Source var.sh first to get directory variables

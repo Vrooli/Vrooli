@@ -4,7 +4,6 @@
 
 set -euo pipefail
 
-# Get APP_ROOT using cached value or compute once (2 levels up: __test/fixtures/cleanup-manager.sh)
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
 if [[ -z "${CLEANUP_MANAGER_SCRIPT_DIR:-}" ]]; then
     CLEANUP_MANAGER_SCRIPT_DIR="${APP_ROOT}/__test/fixtures"
@@ -45,24 +44,24 @@ CLEANUP_EXIT_CODE=0
 #######################################
 vrooli_register_cleanup() {
     if [[ "$CLEANUP_REGISTERED" == "true" ]]; then
-        echo "[CLEANUP-MANAGER] Cleanup already registered"
+        [[ -n "${BATS_DEBUG:-}" ]] && echo "[CLEANUP-MANAGER] Cleanup already registered" >&2
         return 0
     fi
     
     # Skip automatic trap registration in BATS context
     # BATS manages its own test lifecycle and cleanup
     if [[ -n "${BATS_VERSION:-}" || -n "${BATS_TEST_FILENAME:-}" ]]; then
-        echo "[CLEANUP-MANAGER] Skipping trap registration in BATS context"
+        [[ -n "${BATS_DEBUG:-}" ]] && echo "[CLEANUP-MANAGER] Skipping trap registration in BATS context" >&2
         CLEANUP_REGISTERED=true
         return 0
     fi
     
-    echo "[CLEANUP-MANAGER] Registering automatic cleanup handlers"
+    [[ -n "${BATS_DEBUG:-}" ]] && echo "[CLEANUP-MANAGER] Registering automatic cleanup handlers" >&2
     
     # Create a cleanup handler function
     _cleanup_handler() {
         local exit_code=$?
-        echo "[CLEANUP-MANAGER] Cleanup handler triggered (exit code: $exit_code)"
+        [[ -n "${BATS_DEBUG:-}" ]] && echo "[CLEANUP-MANAGER] Cleanup handler triggered (exit code: $exit_code)" >&2
         
         # Run cleanup
         vrooli_aggressive_cleanup
@@ -81,7 +80,7 @@ vrooli_register_cleanup() {
     trap _cleanup_handler HUP
     
     CLEANUP_REGISTERED=true
-    echo "[CLEANUP-MANAGER] Cleanup handlers registered successfully"
+    [[ -n "${BATS_DEBUG:-}" ]] && echo "[CLEANUP-MANAGER] Cleanup handlers registered successfully" >&2
     return 0
 }
 
@@ -429,10 +428,16 @@ export -f vrooli_cleanup_status
 
 # Auto-register cleanup if sourced from a test runner
 if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
-    echo "[CLEANUP-MANAGER] Cleanup manager loaded (source mode)"
+    # Debug output only when BATS_DEBUG is set
+    if [[ -n "${BATS_DEBUG:-}" ]]; then
+        echo "[CLEANUP-MANAGER] Cleanup manager loaded (source mode)" >&2
+    fi
     # Don't auto-register in source mode - let the caller decide
 else
-    echo "[CLEANUP-MANAGER] Cleanup manager loaded (script mode)"
+    # Debug output only when BATS_DEBUG is set
+    if [[ -n "${BATS_DEBUG:-}" ]]; then
+        echo "[CLEANUP-MANAGER] Cleanup manager loaded (script mode)" >&2
+    fi
     # If run directly, show status
     vrooli_cleanup_status
 fi

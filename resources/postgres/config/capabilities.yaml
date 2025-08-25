@@ -191,7 +191,7 @@ spec:
   
   # Testing and validation
   testing:
-    test_file: "scripts/resources/storage/postgres/test/integration-test.sh"
+    test_file: "resources/postgres/test/integration-test.sh"
     test_coverage:
       - service_health
       - connection_establishment
@@ -209,11 +209,11 @@ spec:
   
   # Documentation and examples
   documentation:
-    readme: "scripts/resources/storage/postgres/README.md"
-    api_reference: "scripts/resources/storage/postgres/docs/API.md"
-    examples_dir: "scripts/resources/storage/postgres/examples/"
-    configuration: "scripts/resources/storage/postgres/docs/CONFIGURATION.md"
-    client_handoff: "scripts/resources/storage/postgres/docs/CLIENT-HANDOFF-GUIDE.md"
+    readme: "resources/postgres/README.md"
+    api_reference: "resources/postgres/docs/API.md"
+    examples_dir: "resources/postgres/examples/"
+    configuration: "resources/postgres/docs/CONFIGURATION.md"
+    client_handoff: "resources/postgres/docs/CLIENT-HANDOFF-GUIDE.md"
   
   # Version and compatibility
   version_info:

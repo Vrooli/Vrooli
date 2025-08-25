@@ -7,7 +7,7 @@ DESCRIPTION="Inject workflows and configurations into n8n automation platform"
 [[ -n "${_N8N_INJECT_SOURCED:-}" ]] && return 0
 export _N8N_INJECT_SOURCED=1
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
 N8N_LIB_DIR="${APP_ROOT}/resources/n8n/lib"
 
 # shellcheck disable=SC1091
@@ -86,7 +86,7 @@ n8n::check_health() {
         return 0
     else
         log::error "n8n is not accessible for data injection"
-        log::info "Ensure n8n is running: ./scripts/resources/automation/n8n/manage.sh --action start"
+        log::info "Ensure n8n is running: ./resources/n8n/manage.sh --action start"
         return 1
     fi
 }

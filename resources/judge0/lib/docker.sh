@@ -3,7 +3,7 @@
 # Handles multi-service Judge0 container lifecycle operations
 
 # Source simplified docker utilities
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../..\" && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../..\" && builtin pwd)}"
 _JUDGE0_DOCKER_DIR="${APP_ROOT}/resources/judge0/lib"
 # shellcheck disable=SC1091
 source "${_JUDGE0_DOCKER_DIR}/../../../lib/utils/var.sh"

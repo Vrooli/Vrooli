@@ -2,7 +2,7 @@
 # Browserless API Functions
 # API testing, examples, and usage demonstrations
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 
 # Source var.sh for directory variables
 # shellcheck disable=SC1091
