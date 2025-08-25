@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # VOCR Installation Module
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 VOCR_INSTALL_DIR="${APP_ROOT}/resources/vocr/lib"
 
 # Source utilities first
@@ -137,7 +137,8 @@ vocr::install::docker_tesseract() {
     cat > "${VOCR_DATA_DIR}/tesseract-wrapper.sh" << 'EOF'
 #!/bin/bash
 # Wrapper that uses Python OCR instead of tesseract binary
-PYTHON_SCRIPT="${VOCR_DATA_DIR:-/home/matthalloran8/Vrooli/data/vocr}/venv/bin/python"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+PYTHON_SCRIPT="${VOCR_DATA_DIR:-${APP_ROOT}/data/vocr}/venv/bin/python"
 if [[ ! -x "$PYTHON_SCRIPT" ]]; then
     echo "Error: Python environment not found" >&2
     exit 1

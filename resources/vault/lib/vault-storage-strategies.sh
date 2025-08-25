@@ -76,37 +76,55 @@ vault::storage::remove_volumes() {
 # Returns: 0 on success, 1 on failure
 #######################################
 vault::storage::copy_config_to_volume() {
-    local temp_config="/tmp/vault-config-$$"
-    
-    # Create temporary config directory
-    mkdir -p "${temp_config}"
-    
-    # Generate configuration
+    # Generate configuration first
     vault::create_config "${VAULT_MODE}"
     
-    # Copy local config to temp
-    if [[ -f "${VAULT_CONFIG_DIR}/vault.hcl" ]]; then
-        cp "${VAULT_CONFIG_DIR}/vault.hcl" "${temp_config}/vault.hcl"
-    fi
-    
-    # Copy TLS certificates if they exist
-    if [[ -d "${VAULT_CONFIG_DIR}/tls" ]]; then
-        cp -r "${VAULT_CONFIG_DIR}/tls" "${temp_config}/tls"
-    fi
-    
-    # Use Alpine container to copy files to volume
+    # Use a more robust approach with the vault image itself for better compatibility
     log::info "Copying configuration to Docker volume..."
-    docker run --rm \
-        -v "${VAULT_VOLUME_CONFIG}:/target" \
-        -v "${temp_config}:/source:ro" \
-        alpine sh -c "cp -r /source/* /target/ && chmod -R 755 /target"
     
-    local result=$?
+    local copy_success=false
+    local max_retries=3
+    local retry_count=0
     
-    # Clean up temp directory
-    trash::safe_remove "${temp_config}" --temp
+    while [[ $retry_count -lt $max_retries ]] && [[ "$copy_success" == false ]]; do
+        retry_count=$((retry_count + 1))
+        log::info "Copy attempt ${retry_count}/${max_retries}..."
+        
+        # Method 1: Use the vault image itself (more compatible)
+        if docker run --rm \
+            -v "${VAULT_VOLUME_CONFIG}:/target" \
+            -v "${VAULT_CONFIG_DIR}:/source:ro" \
+            --entrypoint="" \
+            "${VAULT_IMAGE}" \
+            sh -c "cp -r /source/* /target/ 2>/dev/null || cp /source/vault.hcl /target/; chmod -R 755 /target; ls -la /target" >/dev/null 2>&1; then
+            copy_success=true
+            log::info "Configuration copied successfully using vault image"
+        else
+            log::warn "Attempt ${retry_count} failed with vault image, trying Alpine..."
+            
+            # Method 2: Fallback to Alpine with timeout
+            if timeout 30s docker run --rm \
+                -v "${VAULT_VOLUME_CONFIG}:/target" \
+                -v "${VAULT_CONFIG_DIR}:/source:ro" \
+                alpine sh -c "cp -r /source/* /target/ 2>/dev/null || cp /source/vault.hcl /target/; chmod -R 755 /target; echo 'Alpine copy done'" >/dev/null 2>&1; then
+                copy_success=true
+                log::info "Configuration copied successfully using Alpine"
+            else
+                log::warn "Attempt ${retry_count} failed"
+                if [[ $retry_count -lt $max_retries ]]; then
+                    log::info "Retrying in 2 seconds..."
+                    sleep 2
+                fi
+            fi
+        fi
+    done
     
-    return ${result}
+    if [[ "$copy_success" == true ]]; then
+        return 0
+    else
+        log::error "Failed to copy configuration to volume after ${max_retries} attempts"
+        return 1
+    fi
 }
 
 #######################################

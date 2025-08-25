@@ -1,15 +1,10 @@
 #!/bin/bash
 # Run All Scenarios Test Runner
-# Orchestrates testing of all scenarios in the core/ directory
+# Orchestrates testing of all scenarios in the scenarios/ directory
 
 set -euo pipefail
 
-# Colors for output
-readonly RED='\033[0;31m'
-readonly GREEN='\033[0;32m'
-readonly YELLOW='\033[1;33m'
-readonly BLUE='\033[0;34m'
-readonly NC='\033[0m'
+# Colors are available from log.sh via var.sh
 
 # Configuration
 QUICK_MODE=false
@@ -32,30 +27,30 @@ declare -a PASSED_SCENARIOS=()
 
 # Resolve script location
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-SCRIPT_DIR="${APP_ROOT}/scripts/scenarios/framework"
+SCRIPT_DIR="${APP_ROOT}/scripts/scenarios/validation"
 SCENARIOS_ROOT="${APP_ROOT}/scripts/scenarios"
 
 # Source required utilities
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh"
 
 # Print functions
 print_info() {
-    echo -e "${BLUE}[INFO]${NC} $1"
+    echo -e "${BLUE}[INFO]${RESET} $1"
 }
 
 print_success() {
-    echo -e "${GREEN}[✓]${NC} $1"
+    echo -e "${GREEN}[✓]${RESET} $1"
 }
 
 print_error() {
-    echo -e "${RED}[✗]${NC} $1" >&2
+    echo -e "${RED}[✗]${RESET} $1" >&2
 }
 
 print_warning() {
-    echo -e "${YELLOW}[!]${NC} $1"
+    echo -e "${YELLOW}[!]${RESET} $1"
 }
 
 print_header() {

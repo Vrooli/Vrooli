@@ -312,7 +312,7 @@ validate_prerequisites() {
 detect_resource_category() {
     local resource_path="$1"
     
-    # Extract category from path (e.g., scripts/resources/ai/whisper -> ai)
+    # Extract category from path (e.g., resources/whisper -> ai)
     if [[ "$resource_path" =~ scripts/resources/([^/]+)/([^/]+) ]]; then
         echo "${BASH_REMATCH[1]}"
     else

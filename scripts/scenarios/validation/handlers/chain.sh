@@ -23,7 +23,7 @@ declare -A CHAIN_VARIABLES
 
 # Source dependencies
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
-SCRIPT_DIR="${APP_ROOT}/scripts/scenarios/framework/handlers"
+SCRIPT_DIR="${APP_ROOT}/scripts/scenarios/validation/handlers"
 if [[ -f "$SCRIPT_DIR/http.sh" ]]; then
     source "$SCRIPT_DIR/http.sh"
 fi

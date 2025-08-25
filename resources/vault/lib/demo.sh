@@ -9,15 +9,15 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
-# Get script directory
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 VAULT_LIB_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
 cd "$VAULT_LIB_DIR"
 
 # Source trash module for safe cleanup
 # shellcheck disable=SC1091
-source "${VAULT_LIB_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+source "${var_LIB_SYSTEM_DIR}/trash.sh"
 
 echo -e "${BLUE}=== HashiCorp Vault Demo ===${NC}"
 echo "This demo will show you how Vault manages secrets"

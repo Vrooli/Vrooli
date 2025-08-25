@@ -3,7 +3,7 @@
 # Provides both legacy and modern status reporting
 
 # Source the standardized status helper
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 VAULT_LIB_DIR="${VAULT_LIB_DIR:-${APP_ROOT}/resources/vault/lib}"
 RESOURCES_DIR="${VAULT_LIB_DIR}/../../.."
 # shellcheck disable=SC1091

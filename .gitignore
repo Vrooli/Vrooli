@@ -222,9 +222,10 @@ __tests/helpers
 test/helpers
 tests/helpers
 
-# Local execution configuration
+# Local configuration
 .vrooli/*.local.json
 .vrooli/secrets.json
+.vrooli/resource-registry/
 
 # Node-RED test artifacts
 node-red-flows-export-*.json

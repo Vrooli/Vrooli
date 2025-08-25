@@ -296,7 +296,7 @@ resources::get_script_path() {
     local resource="$1"
     local category
     category=$(resources::get_category "$resource")
-    echo "${RESOURCES_DIR}/${category}/${resource}/manage.sh"
+    echo "${RESOURCES_DIR}/${category}/${resource}/cli.sh"
 }
 
 #######################################
@@ -750,7 +750,7 @@ resources::run_interface_validation() {
         script_path=$(resources::get_script_path "$resource")
         
         if [[ ! -f "$script_path" ]]; then
-            log::error "❌ $resource: manage.sh not found at $script_path"
+            log::error "❌ $resource: cli.sh not found at $script_path"
             validation_errors=$((validation_errors + 1))
             failed_resources+=("$resource (missing script)")
             continue

@@ -2,33 +2,14 @@
 # Vault Development Token Setup
 # Script for setting up development tokens for Vault
 
-# Source shared secrets management library
-# Use the same project root detection method as the secrets library
-_vault_setup_detect_project_root() {
-    local current_dir
-    APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
-    current_dir="${APP_ROOT}/resources/vault/lib"
-    
-    # Walk up directory tree looking for .vrooli directory
-    while [[ "$current_dir" != "/" ]]; do
-        if [[ -d "$current_dir/.vrooli" ]]; then
-            echo "$current_dir"
-            return 0
-        fi
-        current_dir="${current_dir%/*"
-    done
-    
-    # Fallback: assume we're in scripts and go up to project root
-    echo "/home/matthalloran8/Vrooli"
-}
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 
-PROJECT_ROOT="$(_vault_setup_detect_project_root)"
 # shellcheck disable=SC1091
-source "$PROJECT_ROOT/scripts/lib/service/secrets.sh"
+source "${APP_ROOT}/scripts/lib/service/secrets.sh"
 # shellcheck disable=SC1091
-source "$PROJECT_ROOT/scripts/lib/utils/var.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+source "${var_LIB_SYSTEM_DIR}/trash.sh"
 # ====================================================================
 # Vault Development Token Setup Script  
 # ====================================================================
@@ -65,7 +46,6 @@ NC='\033[0m' # No Color
 VAULT_BASE_URL="http://localhost:8200"
 TOKEN_FILE="/tmp/vault-token"
 CONFIG_FILE="$(secrets::get_project_config_file)"
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
 VAULT_LIB_DIR="${APP_ROOT}/resources/vault/lib"
 
 # Parse command line arguments

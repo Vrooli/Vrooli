@@ -1,4 +1,4 @@
-# Vrooli Scenario Testing Framework
+# Vrooli Scenario Validation Framework
 
 **A declarative testing framework that replaces 1000+ lines of boilerplate with clean, maintainable YAML configurations.**
 
@@ -18,7 +18,7 @@ The Scenario Testing Framework provides a robust, extensible testing system for 
 ## 🏗️ Architecture
 
 ```
-framework/
+validation/
 ├── scenario-test-runner.sh    # Main orchestrator (like pytest)
 ├── run-all-scenarios.sh       # Batch runner for all scenarios
 ├── clients/                   # Resource client libraries
@@ -107,29 +107,29 @@ framework/
 
 ```bash
 # Test a single scenario
-./framework/scenario-test-runner.sh --scenario /path/to/scenario
+./validation/scenario-test-runner.sh --scenario /path/to/scenario
 
 # Test with verbose output
-./framework/scenario-test-runner.sh --scenario /path/to/scenario --verbose
+./validation/scenario-test-runner.sh --scenario /path/to/scenario --verbose
 
 # Dry run (show what would be executed)
-./framework/scenario-test-runner.sh --scenario /path/to/scenario --dry-run
+./validation/scenario-test-runner.sh --scenario /path/to/scenario --dry-run
 ```
 
 ### Batch Testing
 
 ```bash
 # Test all scenarios
-./framework/run-all-scenarios.sh
+./validation/run-all-scenarios.sh
 
 # Quick mode (shorter timeouts)
-./framework/run-all-scenarios.sh --quick
+./validation/run-all-scenarios.sh --quick
 
 # Filter scenarios
-./framework/run-all-scenarios.sh --filter "multi-modal*"
+./validation/run-all-scenarios.sh --filter "multi-modal*"
 
 # Parallel execution (experimental)
-./framework/run-all-scenarios.sh --parallel
+./validation/run-all-scenarios.sh --parallel
 ```
 
 ### Integration with Main Test Suite
@@ -314,8 +314,8 @@ validation:
    #!/bin/bash
    set -euo pipefail
    
-   # Source framework utilities
-   FRAMEWORK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../framework" && pwd)"
+   # Source validation framework utilities
+   FRAMEWORK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../validation" && pwd)"
    source "$FRAMEWORK_DIR/handlers/custom.sh"
    source "$FRAMEWORK_DIR/clients/common.sh"
    
@@ -390,7 +390,7 @@ validation:
 
 ```bash
 # During development
-./framework/scenario-test-runner.sh --scenario ./my-scenario --verbose
+./validation/scenario-test-runner.sh --scenario ./my-scenario --verbose
 
 # Before committing
 pnpm test:scenarios:quick
@@ -432,14 +432,14 @@ pnpm test:scenarios
 ```bash
 # Enable debug output
 export FRAMEWORK_DEBUG=true
-./framework/scenario-test-runner.sh --scenario ./my-scenario --verbose
+./validation/scenario-test-runner.sh --scenario ./my-scenario --verbose
 ```
 
 ### Service Discovery Debug
 
 ```bash
 # Check service URL resolution
-source ./framework/clients/common.sh
+source ./validation/clients/common.sh
 get_resource_url "my-service"
 ```
 

@@ -9,7 +9,7 @@ SIMPY_CORE_DIR="${APP_ROOT}/resources/simpy/lib"
 # shellcheck disable=SC1091
 source "${SIMPY_CORE_DIR}/../config/defaults.sh"
 # shellcheck disable=SC1091
-source "${SIMPY_CORE_DIR}/../../../../lib/utils/log.sh"
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
 
 # Export configuration
 simpy::export_config

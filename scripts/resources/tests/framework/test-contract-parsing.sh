@@ -153,13 +153,13 @@ test_contract_parsing::test_real_resources() {
     )
     
     for resource_dir in "${sample_resources[@]}"; do
-        if [[ -f "$resource_dir/manage.sh" ]]; then
+        if [[ -f "$resource_dir/cli.sh" ]]; then
             local resource_name
             resource_name=$(basename "$resource_dir")
             echo "Testing $resource_name..."
             
             # Test script analysis
-            if script_analyzer::extract_script_actions "$resource_dir/manage.sh" >/dev/null; then
+            if script_analyzer::extract_script_actions "$resource_dir/cli.sh" >/dev/null; then
                 echo "✅ $resource_name: Actions extracted successfully"
                 ((test_passed++))
             else
@@ -168,7 +168,7 @@ test_contract_parsing::test_real_resources() {
             fi
             
             # Test basic script checks
-            if script_analyzer::check_script_basics "$resource_dir/manage.sh" >/dev/null; then
+            if script_analyzer::check_script_basics "$resource_dir/cli.sh" >/dev/null; then
                 echo "✅ $resource_name: Basic script checks passed"
                 ((test_passed++))
             else
@@ -176,7 +176,7 @@ test_contract_parsing::test_real_resources() {
                 # Don't count as failure since existing resources may not meet all standards yet
             fi
         else
-            echo "⚠️  $resource_name: manage.sh not found at $resource_dir"
+            echo "⚠️  $resource_name: cli.sh not found at $resource_dir"
         fi
     done
     

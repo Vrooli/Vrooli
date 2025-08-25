@@ -464,10 +464,10 @@ syntax_validator::validate_resources_batch() {
         local category
         category=$(syntax::detect_resource_category "$resource_path")
         
-        local script_path="$resource_path/manage.sh"
+        local script_path="$resource_path/cli.sh"
         
         if [[ ! -f "$script_path" ]]; then
-            echo "⚠️  Skipping $resource_name: manage.sh not found"
+            echo "⚠️  Skipping $resource_name: cli.sh not found"
             continue
         fi
         

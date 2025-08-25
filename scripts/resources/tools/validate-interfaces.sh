@@ -3,7 +3,7 @@
 # Resource Interface Validation Script
 # ====================================================================
 #
-# Validates that all resource manage.sh scripts implement the standard
+# Validates that all resource cli.sh scripts implement the standard
 # interface required by the Vrooli resource ecosystem. This can be used
 # as a standalone validation tool or integrated into CI/CD pipelines.
 #
@@ -262,31 +262,31 @@ validate_prerequisites() {
 # Find all manage.sh scripts
 find_all_manage_scripts() {
     if [[ -n "$SPECIFIC_RESOURCE" ]]; then
-        log_verbose "Looking for manage.sh script for specific resource: $SPECIFIC_RESOURCE"
+        log_verbose "Looking for cli.sh script for specific resource: $SPECIFIC_RESOURCE"
         
         # Try to find the specific resource
         local found_script
-        log_verbose "Searching for: find \"$RESOURCES_DIR\" -name \"manage.sh\" -path \"*/$SPECIFIC_RESOURCE/*\" -type f"
-        found_script=$(find "$RESOURCES_DIR" -name "manage.sh" -path "*/$SPECIFIC_RESOURCE/*" -type f 2>/dev/null | head -1)
+        log_verbose "Searching for: find \"$RESOURCES_DIR\" -name \"cli.sh\" -path \"*/$SPECIFIC_RESOURCE/*\" -type f"
+        found_script=$(find "$RESOURCES_DIR" -name "cli.sh" -path "*/$SPECIFIC_RESOURCE/*" -type f 2>/dev/null | head -1)
         log_verbose "Find result: '$found_script'"
         
         if [[ -n "$found_script" && -f "$found_script" ]]; then
             log_verbose "Found script for $SPECIFIC_RESOURCE: $found_script"
             printf '%s\0' "$found_script"
         else
-            log_error "No manage.sh script found for resource: $SPECIFIC_RESOURCE"
-            log_verbose "Search was: find \"$RESOURCES_DIR\" -name \"manage.sh\" -path \"*/$SPECIFIC_RESOURCE/*\" -type f"
+            log_error "No cli.sh script found for resource: $SPECIFIC_RESOURCE"
+            log_verbose "Search was: find \"$RESOURCES_DIR\" -name \"cli.sh\" -path \"*/$SPECIFIC_RESOURCE/*\" -type f"
             log_verbose "Directory listing around $SPECIFIC_RESOURCE:"
             find "$RESOURCES_DIR" -name "*$SPECIFIC_RESOURCE*" -type d 2>/dev/null | head -5 | while read dir; do
                 log_verbose "  Found directory: $dir"
-                if [[ -f "$dir/manage.sh" ]]; then
-                    log_verbose "    -> Contains manage.sh: $dir/manage.sh"
+                if [[ -f "$dir/cli.sh" ]]; then
+                    log_verbose "    -> Contains cli.sh: $dir/cli.sh"
                 fi
             done
             exit 1
         fi
     else
-        log_verbose "Searching for all manage.sh scripts in: $RESOURCES_DIR"
+        log_verbose "Searching for all cli.sh scripts in: $RESOURCES_DIR"
         
         # Find all manage.sh scripts, excluding tests directory
         find "$RESOURCES_DIR" -name "manage.sh" -type f -not -path "*/tests/*" -print0 2>/dev/null
@@ -358,31 +358,31 @@ run_validation() {
     # Find all scripts to validate
     local scripts=()
     if [[ -n "$SPECIFIC_RESOURCE" ]]; then
-        log_verbose "Looking for manage.sh script for specific resource: $SPECIFIC_RESOURCE"
+        log_verbose "Looking for cli.sh script for specific resource: $SPECIFIC_RESOURCE"
         
         # Try to find the specific resource
         local found_script
-        log_verbose "Searching for: find \"$RESOURCES_DIR\" -name \"manage.sh\" -path \"*/$SPECIFIC_RESOURCE/*\" -type f"
-        found_script=$(find "$RESOURCES_DIR" -name "manage.sh" -path "*/$SPECIFIC_RESOURCE/*" -type f 2>/dev/null | head -1)
+        log_verbose "Searching for: find \"$RESOURCES_DIR\" -name \"cli.sh\" -path \"*/$SPECIFIC_RESOURCE/*\" -type f"
+        found_script=$(find "$RESOURCES_DIR" -name "cli.sh" -path "*/$SPECIFIC_RESOURCE/*" -type f 2>/dev/null | head -1)
         log_verbose "Find result: '$found_script'"
         
         if [[ -n "$found_script" && -f "$found_script" ]]; then
             log_verbose "Found script for $SPECIFIC_RESOURCE: $found_script"
             scripts+=("$found_script")
         else
-            log_error "No manage.sh script found for resource: $SPECIFIC_RESOURCE"
-            log_verbose "Search was: find \"$RESOURCES_DIR\" -name \"manage.sh\" -path \"*/$SPECIFIC_RESOURCE/*\" -type f"
+            log_error "No cli.sh script found for resource: $SPECIFIC_RESOURCE"
+            log_verbose "Search was: find \"$RESOURCES_DIR\" -name \"cli.sh\" -path \"*/$SPECIFIC_RESOURCE/*\" -type f"
             log_verbose "Directory listing around $SPECIFIC_RESOURCE:"
             find "$RESOURCES_DIR" -name "*$SPECIFIC_RESOURCE*" -type d 2>/dev/null | head -5 | while read dir; do
                 log_verbose "  Found directory: $dir"
-                if [[ -f "$dir/manage.sh" ]]; then
-                    log_verbose "    -> Contains manage.sh: $dir/manage.sh"
+                if [[ -f "$dir/cli.sh" ]]; then
+                    log_verbose "    -> Contains cli.sh: $dir/cli.sh"
                 fi
             done
             exit 1
         fi
     else
-        log_verbose "Searching for all manage.sh scripts in: $RESOURCES_DIR"
+        log_verbose "Searching for all cli.sh scripts in: $RESOURCES_DIR"
         
         # Find all manage.sh scripts, excluding tests directory
         while IFS= read -r -d '' script_path; do

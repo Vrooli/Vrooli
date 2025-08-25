@@ -3,6 +3,12 @@
 
 # Get the real script directory (follows symlinks)
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+# Handle symlinks for installed CLI
+if [[ -L "${BASH_SOURCE[0]}" ]]; then
+    SIMPY_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
+    # Recalculate APP_ROOT from resolved symlink location
+    APP_ROOT="$(builtin cd "${SIMPY_CLI_SCRIPT%/*}/../.." && builtin pwd)"
+fi
 SIMPY_CLI_DIR="${APP_ROOT}/resources/simpy"
 
 # Source library functions
@@ -17,7 +23,7 @@ source "${SIMPY_CLI_DIR}/lib/stop.sh"
 # shellcheck disable=SC1091
 source "${SIMPY_CLI_DIR}/lib/status.sh"
 # shellcheck disable=SC1091
-source "${SIMPY_CLI_DIR}/../../../lib/utils/log.sh"
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
 
 #######################################
 # Show help message

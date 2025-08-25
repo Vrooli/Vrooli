@@ -28,7 +28,7 @@ TESTS_SKIPPED=0
 TESTS_DEGRADED=0
 
 # Resolve script location using var_ variables
-FRAMEWORK_DIR="$var_SCRIPTS_SCENARIOS_DIR/framework"
+FRAMEWORK_DIR="$var_SCRIPTS_SCENARIOS_DIR/validation"
 
 # Print colored output
 print_info() {
@@ -108,13 +108,13 @@ Options:
 
 Examples:
     # Run tests for a scenario
-    $(basename "$0") --scenario ./core/research-assistant
+    $(basename "$0") --scenario ./research-assistant
 
     # Run with custom config file
-    $(basename "$0") --scenario ./core/my-scenario --config custom-test.yaml
+    $(basename "$0") --scenario ./my-scenario --config custom-test.yaml
 
     # Dry run to see what would be executed
-    $(basename "$0") --scenario ./core/my-scenario --dry-run
+    $(basename "$0") --scenario ./my-scenario --dry-run
 EOF
 }
 

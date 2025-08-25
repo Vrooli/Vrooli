@@ -2,14 +2,14 @@
 # VOCR Screen Capture Module
 
 # Get script directory
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 VOCR_CAPTURE_DIR="${APP_ROOT}/resources/vocr/lib"
 
 # Source utilities
 # shellcheck disable=SC1091
-source "${VOCR_CAPTURE_DIR}/../../../../lib/utils/log.sh"
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
 # shellcheck disable=SC1091
-source "${VOCR_CAPTURE_DIR}/../../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 # Source configuration
 # shellcheck disable=SC1091
@@ -32,7 +32,7 @@ vocr::capture::screen() {
     
     # Ensure output directory exists
     local output_dir
-    output_dir=${output%/*
+    output_dir=${output%/*}
     mkdir -p "$output_dir"
     
     # Platform-specific capture
@@ -51,7 +51,7 @@ vocr::capture::screen() {
         Linux*)
             # Linux using scrot, import, or Python fallback
             local capture_cmd=""
-            local fallback_script="/home/matthalloran8/Vrooli/data/vocr/scrot-fallback"
+            local fallback_script="${VROOLI_ROOT:-${HOME}/Vrooli}/data/vocr/scrot-fallback"
             
             # Check for available capture tools
             if command -v scrot &>/dev/null; then

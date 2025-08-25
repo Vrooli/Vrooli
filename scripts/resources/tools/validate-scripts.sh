@@ -352,7 +352,7 @@ generate_report() {
     
     echo
     log_info "Next Steps:"
-    log_info "  1. Run tests: cd /home/matthalloran8/Vrooli && pnpm test:resources:quick"
+    log_info "  1. Run tests: cd \${VROOLI_ROOT:-\$HOME/Vrooli} && pnpm test:resources:quick"
     log_info "  2. Regular validation: Add this script to your maintenance routine"
     log_info "  3. Training: Share safe patterns with the team"
 }

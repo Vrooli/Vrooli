@@ -4,7 +4,7 @@ set -euo pipefail
 # Structure Verification Script
 # Verifies all resources follow the standardized structure
 
-RESOURCES_DIR="/home/matthalloran8/Vrooli/scripts/resources"
+RESOURCES_DIR="${VROOLI_ROOT:-${HOME}/Vrooli}/scripts/resources"
 ISSUES_FOUND=0
 
 echo "🔍 Resource Structure Verification"

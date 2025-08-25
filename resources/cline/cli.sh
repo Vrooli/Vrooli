@@ -7,6 +7,12 @@ if [[ -L "$SCRIPT_PATH" ]]; then
     SCRIPT_PATH="$(readlink -f "$SCRIPT_PATH")"
 fi
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+# Handle symlinks for installed CLI
+if [[ -L "${BASH_SOURCE[0]}" ]]; then
+    CLINE_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
+    # Recalculate APP_ROOT from resolved symlink location
+    APP_ROOT="$(builtin cd "${CLINE_CLI_SCRIPT%/*}/../.." && builtin pwd)"
+fi
 CLINE_CLI_DIR="${APP_ROOT}/resources/cline"
 
 # Source utilities

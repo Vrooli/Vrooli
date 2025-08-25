@@ -2,12 +2,15 @@
 # VOCR Configuration Defaults
 
 # Get the directory of this script
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 VOCR_SCRIPT_CONFIG_DIR="${APP_ROOT}/resources/vocr/config"
 
+# Source utilities
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # Source port registry for dynamic port allocation
 # shellcheck disable=SC1091
-source "${VOCR_SCRIPT_CONFIG_DIR}/../../../port_registry.sh"
+source "${APP_ROOT}/scripts/resources/port_registry.sh"
 
 # Export configuration function
 vocr::export_config() {
@@ -29,9 +32,7 @@ vocr::export_config() {
     export VOCR_BASE_URL="http://${VOCR_HOST}:${VOCR_PORT}"
     
     # Paths - use project directory structure
-    local project_root
-    project_root="$(cd "${VOCR_SCRIPT_CONFIG_DIR}/../../../../.." && pwd)"
-    export VOCR_DATA_DIR="${VOCR_DATA_DIR:-${project_root}/data/vocr}"
+    export VOCR_DATA_DIR="${VOCR_DATA_DIR:-${var_DATA_DIR}/resources/vocr}"
     export VOCR_CONFIG_DIR="${VOCR_CONFIG_DIR:-${VOCR_DATA_DIR}/config}"
     export VOCR_SCREENSHOTS_DIR="${VOCR_SCREENSHOTS_DIR:-${VOCR_DATA_DIR}/screenshots}"
     export VOCR_MODELS_DIR="${VOCR_MODELS_DIR:-${VOCR_DATA_DIR}/models}"

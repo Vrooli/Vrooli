@@ -457,8 +457,8 @@ EOF
 # =============================================================================
 
 @test "integration: analyzes real manage.sh script" {
-    # Test with an actual manage.sh script if it exists
-    local real_manage="${BATS_TEST_DIRNAME}/../../../ai/ollama/manage.sh"
+    # Test with an actual cli.sh script if it exists
+    local real_manage="${BATS_TEST_DIRNAME}/../../../ai/ollama/cli.sh"
     
     if [[ -f "$real_manage" ]]; then
         run script_analyzer::extract_script_actions "$real_manage"
@@ -470,12 +470,12 @@ EOF
         assert_line "stop"
         assert_line "status"
     else
-        skip "Real manage.sh script not found"
+        skip "Real cli.sh script not found"
     fi
 }
 
 @test "integration: validates real script structure" {
-    local real_manage="${BATS_TEST_DIRNAME}/../../../ai/ollama/manage.sh"
+    local real_manage="${BATS_TEST_DIRNAME}/../../../ai/ollama/cli.sh"
     
     if [[ -f "$real_manage" ]]; then
         run script_analyzer::check_required_files "$real_manage"
@@ -484,6 +484,6 @@ EOF
         assert_output --partial "FOUND: config/"
         assert_output --partial "FOUND: lib/"
     else
-        skip "Real manage.sh script not found"
+        skip "Real cli.sh script not found"
     fi
 }

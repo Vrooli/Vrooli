@@ -7,7 +7,7 @@ SIMPY_CONFIG_DIR="${APP_ROOT}/resources/simpy/config"
 
 # Source variable utilities FIRST
 # shellcheck disable=SC1091
-source "${SIMPY_CONFIG_DIR}/../../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 # SimPy Configuration
 export SIMPY_NAME="simpy"

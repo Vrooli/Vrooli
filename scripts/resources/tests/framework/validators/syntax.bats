@@ -397,12 +397,12 @@ setup_mock_cache_manager() {
     mkdir -p "${TEST_TEMP_DIR}/resources/storage/postgres"
     local resource_paths=(
         "${TEST_TEMP_DIR}/resources/ai/ollama"
-        "${TEST_TEMP_DIR}/resources/storage/postgres"  # No manage.sh
+        "${TEST_TEMP_DIR}/resources/storage/postgres"  # No cli.sh
     )
     
     run syntax::validate_resources_batch "${resource_paths[@]}"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"Skipping postgres: manage.sh not found"* ]]
+    [[ "$output" == *"Skipping postgres: cli.sh not found"* ]]
 }
 
 #######################################

@@ -2,16 +2,16 @@
 # VOCR Status Module - Using Standard Format
 
 # Get script directory
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 VOCR_STATUS_DIR="${APP_ROOT}/resources/vocr/lib"
 
 # Source utilities
 # shellcheck disable=SC1091
-source "${VOCR_STATUS_DIR}/../../../../lib/utils/log.sh"
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
 # shellcheck disable=SC1091
-source "${VOCR_STATUS_DIR}/../../../../lib/utils/format.sh"
+source "${APP_ROOT}/scripts/lib/utils/format.sh"
 # shellcheck disable=SC1091
-source "${VOCR_STATUS_DIR}/../../../lib/status-args.sh"
+source "${APP_ROOT}/scripts/resources/lib/status-args.sh"
 # shellcheck disable=SC1091
 source "${VOCR_STATUS_DIR}/../config/defaults.sh"
 
@@ -34,7 +34,7 @@ vocr::status::collect_data() {
     # Check if installed
     local installed="false"
     # Get data directory from config or use default
-    local data_dir="${VOCR_DATA_DIR:-/home/matthalloran8/Vrooli/data/vocr}"
+    local data_dir="${VOCR_DATA_DIR:-${APP_ROOT}/data/vocr}"
     if [[ -d "$data_dir" ]] && [[ -f "${data_dir}/vocr-service.py" ]]; then
         installed="true"
     fi
@@ -56,7 +56,7 @@ vocr::status::collect_data() {
         if curl -s -f "http://${VOCR_HOST}:${VOCR_PORT}/health" >/dev/null 2>&1; then
             # Service is responding, check if essential tools are available
             local missing_deps=""
-            local fallback_script="/home/matthalloran8/Vrooli/data/vocr/scrot-fallback"
+            local fallback_script="${APP_ROOT}/data/vocr/scrot-fallback"
             
             # Check OCR capability
             if [[ "$VOCR_OCR_ENGINE" == "tesseract" ]]; then
@@ -125,7 +125,7 @@ vocr::status::collect_data() {
     
     # Check for screen capture tools
     local capture_tool=""
-    local fallback_script="/home/matthalloran8/Vrooli/data/vocr/scrot-fallback"
+    local fallback_script="${APP_ROOT}/data/vocr/scrot-fallback"
     if command -v scrot &>/dev/null; then
         capture_tool="scrot"
     elif command -v import &>/dev/null; then

@@ -2,12 +2,14 @@
 # Vault Installation Functions
 # Installation, initialization, and setup operations
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 VAULT_LIB_DIR="${APP_ROOT}/resources/vault/lib"
 # shellcheck disable=SC1091
 source "${APP_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${VAULT_LIB_DIR}/docker.sh" 2>/dev/null || true
 
 #######################################
 # Install Vault
@@ -26,8 +28,7 @@ vault::install() {
         return 1
     fi
     
-    # Pull image and start container
-    vault::docker::pull_image
+    # Start container (which will pull image if needed)
     vault::docker::start_container
     
     if [[ $? -eq 0 ]]; then
