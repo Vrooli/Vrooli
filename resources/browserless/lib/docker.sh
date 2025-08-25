@@ -5,7 +5,7 @@
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 _BROWSERLESS_DOCKER_DIR="${APP_ROOT}/resources/browserless/lib"
 # shellcheck disable=SC1091
-source "${_BROWSERLESS_DOCKER_DIR}/../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_SERVICE_DIR}/secrets.sh"
 # shellcheck disable=SC1091

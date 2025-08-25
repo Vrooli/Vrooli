@@ -197,7 +197,7 @@ spec:
   
   # Testing and validation
   testing:
-    test_file: "scripts/resources/storage/vault/test/integration-test.sh"
+    test_file: "resources/vault/test/integration-test.sh"
     test_coverage:
       - service_health
       - secret_operations
@@ -215,11 +215,11 @@ spec:
   
   # Documentation and examples
   documentation:
-    readme: "scripts/resources/storage/vault/README.md"
-    api_reference: "scripts/resources/storage/vault/docs/API.md"
-    examples_dir: "scripts/resources/storage/vault/examples/"
-    configuration: "scripts/resources/storage/vault/docs/CONFIGURATION.md"
-    quickstart: "scripts/resources/storage/vault/docs/QUICKSTART.md"
+    readme: "resources/vault/README.md"
+    api_reference: "resources/vault/docs/API.md"
+    examples_dir: "resources/vault/examples/"
+    configuration: "resources/vault/docs/CONFIGURATION.md"
+    quickstart: "resources/vault/docs/QUICKSTART.md"
   
   # Version and compatibility
   version_info:

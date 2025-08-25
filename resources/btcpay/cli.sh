@@ -4,14 +4,21 @@
 
 set -euo pipefail
 
+# Handle symlinks for installed CLI
+if [[ -L "${BASH_SOURCE[0]}" ]]; then
+    RESOURCE_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
+    APP_ROOT="$(builtin cd "${RESOURCE_CLI_SCRIPT%/*}/../.." && builtin pwd)"
+else
+    APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+fi
+
 # Get script directory
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
 BTCPAY_CLI_DIR="${APP_ROOT}/resources/btcpay"
 
 # Determine if we're running from the installed location or the source location
 if [[ "${BTCPAY_CLI_DIR}" == *"/.local/bin"* ]]; then
     # Running from installed location, use absolute path to source
-    BTCPAY_RESOURCE_DIR="/home/matthalloran8/Vrooli/resources/btcpay"
+    BTCPAY_RESOURCE_DIR="${APP_ROOT}/resources/btcpay"
 else
     # Running from source location
     BTCPAY_RESOURCE_DIR="${BTCPAY_CLI_DIR}"

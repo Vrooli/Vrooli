@@ -11,7 +11,7 @@ AGENT_S2_TEST_DIR="${APP_ROOT}/resources/agent-s2/test"
 
 # Source var.sh first to get proper directory variables
 # shellcheck disable=SC1091
-source "$AGENT_S2_TEST_DIR/../../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 # shellcheck disable=SC1091
 source "$var_SCRIPTS_RESOURCES_DIR/tests/lib/integration-test-lib.sh"
@@ -24,7 +24,7 @@ source "$var_SCRIPTS_RESOURCES_DIR/tests/lib/integration-test-lib.sh"
 # shellcheck disable=SC1091
 source "$var_SCRIPTS_RESOURCES_DIR/common.sh"
 # shellcheck disable=SC1091
-source "$AGENT_S2_TEST_DIR/../config/defaults.sh"
+source "${APP_ROOT}/resources/agent-s2/config/defaults.sh"
 agents2::export_config
 
 # Override library defaults with Agent-S2-specific settings

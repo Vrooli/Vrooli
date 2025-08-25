@@ -176,7 +176,7 @@ def main():
             return
     except:
         print("❌ Cannot connect to Agent S2")
-        print("   Start it with: ./scripts/resources/agents/agent-s2/manage.sh --action start")
+        print("   Start it with: ./resources/agent-s2/cli.sh start")
         return
     
     print("✅ Agent S2 is running")

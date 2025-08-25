@@ -8,7 +8,7 @@ BLENDER_CORE_DIR="${APP_ROOT}/resources/blender/lib"
 # Only source if not already loaded
 if [[ -z "${var_LIB_DIR:-}" ]]; then
     set +euo pipefail
-    source "${BLENDER_CORE_DIR}/../../../../lib/utils/var.sh" || true
+    source "${APP_ROOT}/scripts/lib/utils/var.sh" || true
     set -euo pipefail 2>/dev/null || true
 fi
 

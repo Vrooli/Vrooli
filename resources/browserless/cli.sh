@@ -22,8 +22,16 @@ if [[ -L "${BASH_SOURCE[0]}" ]]; then
 fi
 BROWSERLESS_CLI_DIR="${APP_ROOT}/resources/browserless"
 
-# Source shared utilities
-source "${APP_ROOT}/scripts/lib/utils/format.sh"
+# Source standard variables
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+
+# Source utilities using var_ variables
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_UTILS_DIR}/format.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
 source "$BROWSERLESS_CLI_DIR/lib/common.sh"
 
 # Main command handler

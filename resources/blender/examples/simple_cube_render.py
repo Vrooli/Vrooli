@@ -59,7 +59,7 @@ def render_scene(output_path=None):
     
     if output_path is None:
         # Default to output directory
-        output_dir = Path("/home/matthalloran8/.vrooli/blender/output")
+        output_dir = Path(os.path.expanduser("~/.vrooli/blender/output"))
         output_dir.mkdir(parents=True, exist_ok=True)
         output_path = str(output_dir / "test_render.png")
     

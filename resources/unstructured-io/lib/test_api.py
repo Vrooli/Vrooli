@@ -367,7 +367,7 @@ def main():
     if not client.check_health():
         print("❌ Service is not available!")
         print("Make sure Unstructured.io is running:")
-        print("  ./scripts/resources/ai/unstructured-io/manage.sh --action status")
+        print("  ./resources/unstructured-io/manage.sh --action status")
         sys.exit(1)
     
     print("✅ Service is healthy")

@@ -9,9 +9,9 @@ CLINE_LIB_DIR="${APP_ROOT}/resources/cline/lib"
 # shellcheck disable=SC1091
 source "${CLINE_LIB_DIR}/common.sh"
 # shellcheck disable=SC1091
-source "${CLINE_LIB_DIR}/../../../../lib/utils/format.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/format.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
-source "${CLINE_LIB_DIR}/../../../lib/status-args.sh"
+source "${APP_ROOT}/scripts/resources/lib/status-args.sh"
 
 #######################################
 # Collect Cline status data in format-agnostic structure

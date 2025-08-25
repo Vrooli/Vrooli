@@ -7,7 +7,7 @@ set -euo pipefail
 
 export DESCRIPTION="Inject secrets and policies into HashiCorp Vault"
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
 VAULT_SCRIPT_DIR="${APP_ROOT}/resources/vault"
 RESOURCES_DIR="${APP_ROOT}/resources"
 
@@ -110,7 +110,7 @@ vault_inject::check_accessibility() {
     local health_response
     if ! health_response=$(curl -s "${VAULT_ADDR}/v1/sys/health" 2>/dev/null); then
         log::error "Vault is not accessible at $VAULT_ADDR"
-        log::info "Ensure Vault is running: ./scripts/resources/storage/vault/manage.sh --action start"
+        log::info "Ensure Vault is running: ./resources/vault/manage.sh --action start"
         return 1
     fi
     

@@ -87,7 +87,7 @@ try:
     print("[SUCCESS] Script is valid Blender Python")
     sys.exit(0)
 except Exception as e:
-    print(f"[ERROR] Script validation failed: {e}")
+    print("[ERROR] Script validation failed: " + str(e))
     traceback.print_exc()
     sys.exit(1)
 EOF
@@ -225,7 +225,7 @@ blender::export() {
     
     # Create destination directory if needed
     local dest_dir
-    dest_dir=${dest_path%/*
+    dest_dir=${dest_path%/*}
     if [[ ! -d "$dest_dir" ]]; then
         mkdir -p "$dest_dir"
     fi
@@ -282,7 +282,7 @@ blender::export_all() {
         if [[ -n "$file" ]]; then
             if docker cp "${BLENDER_CONTAINER_NAME}:/output/$file" "$dest_dir/$file" 2>/dev/null; then
                 echo "  ✓ Exported: $file"
-                ((count++))
+                count=$((count + 1))
             else
                 echo "  ✗ Failed to export: $file"
             fi

@@ -11,7 +11,7 @@ SCRIPT_DIR="${APP_ROOT}/resources/claude-code/test"
 
 # Source var.sh first to get proper directory variables
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 # Source shared integration test library if it exists
 # shellcheck disable=SC1091
@@ -123,7 +123,7 @@ fi
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../config/defaults.sh"
+source "${APP_ROOT}/resources/claude-code/config/defaults.sh"
 claude_code::export_config
 
 # Override library defaults with Claude Code-specific settings

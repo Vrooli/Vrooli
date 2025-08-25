@@ -10,7 +10,7 @@ blender::test() {
     local last_test_time
     
     # Get last test timestamp if it exists
-    local test_timestamp_file="${BLENDER_DATA_DIR:-/home/matthalloran8/.vrooli/blender}/.last_test"
+    local test_timestamp_file="${BLENDER_DATA_DIR:-${HOME}/.vrooli/blender}/.last_test"
     if [[ -f "$test_timestamp_file" ]]; then
         last_test_time=$(cat "$test_timestamp_file")
     else
@@ -46,8 +46,8 @@ blender::test() {
     
     # Test 3: Check Python API
     test_count=$((test_count + 1))
-    local test_python_script="${BLENDER_DATA_DIR:-/home/matthalloran8/.vrooli/blender}/temp/test_api.py"
-    mkdir -p "${test_python_script%/*"
+    local test_python_script="${BLENDER_DATA_DIR:-${HOME}/.vrooli/blender}/temp/test_api.py"
+    mkdir -p "${test_python_script%/*}"
     cat > "$test_python_script" << 'EOF'
 import bpy
 import sys
@@ -70,7 +70,7 @@ EOF
     
     # Test 4: Check data directory exists and is writable
     test_count=$((test_count + 1))
-    local data_dir="${BLENDER_DATA_DIR:-/home/matthalloran8/.vrooli/blender}"
+    local data_dir="${BLENDER_DATA_DIR:-${HOME}/.vrooli/blender}"
     if [[ -d "$data_dir" && -w "$data_dir" ]]; then
         test_results+=("✅ Data directory writable")
         pass_count=$((pass_count + 1))
@@ -80,7 +80,7 @@ EOF
     
     # Test 5: Test rendering capability
     test_count=$((test_count + 1))
-    local test_render_script="${BLENDER_DATA_DIR:-/home/matthalloran8/.vrooli/blender}/temp/test_render.py"
+    local test_render_script="${BLENDER_DATA_DIR:-${HOME}/.vrooli/blender}/temp/test_render.py"
     cat > "$test_render_script" << 'EOF'
 import bpy
 # Create a simple cube scene
@@ -96,7 +96,7 @@ try:
     bpy.ops.render.render(write_still=False)
     print("RENDER_TEST_SUCCESS")
 except Exception as e:
-    print(f"RENDER_TEST_FAILED: {e}")
+    print("RENDER_TEST_FAILED: " + str(e))
 EOF
     
     # Use correct path for Docker vs native
@@ -141,6 +141,7 @@ EOF
     fi
     
     # Output results based on format
+    local first=true
     if [[ "$format" == "json" ]]; then
         echo "{"
         echo "  \"test_status\": \"$overall_status\","
@@ -150,7 +151,7 @@ EOF
         echo "  \"last_test\": \"$(date -Iseconds)\","
         echo "  \"previous_test\": \"$last_test_time\","
         echo "  \"results\": ["
-        local first=true
+        first=true
         for result in "${test_results[@]}"; do
             if [[ "$first" == "false" ]]; then
                 echo ","

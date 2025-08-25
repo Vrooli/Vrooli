@@ -9,7 +9,7 @@ AGENT_S2_TESTS_DIR="${APP_ROOT}/resources/agent-s2/tests"
 
 # Source var.sh first to get proper directory variables
 # shellcheck disable=SC1091
-source "${AGENT_S2_TESTS_DIR}/../../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 # Source common utilities using var_ variables
 # shellcheck disable=SC1091
@@ -209,7 +209,6 @@ setup_test_environment() {
         for item in "${TEST_RESULTS_DIR:?}"/*; do
             [ -e "$item" ] && trash::safe_remove "$item" --test-cleanup
         done
-        fi
     fi
     
     # Set environment variables for testing

@@ -8,6 +8,8 @@ set -euo pipefail
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 BROWSERLESS_INJECT_DIR="${APP_ROOT}/resources/browserless/lib"
 source "$BROWSERLESS_INJECT_DIR/common.sh"
+source "${APP_ROOT}/scripts/lib/utils/log.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/resources/lib/http-utils.sh" 2>/dev/null || true
 
 #######################################  
 # Inject function or test data into Browserless
@@ -25,12 +27,12 @@ browserless::inject() {
     fi
     
     # Otherwise, fallback to legacy test data injection
-    echo "[INFO]info "Injecting test data into Browserless..."
+    log::info "Injecting test data into Browserless..."
     
     # Verify service is available
     if ! is_running; then
-        echo "[ERROR] Browserless container not running - start it first"
-        echo "[INFO] Run: resource-browserless start"
+        log::error "Browserless container not running - start it first"
+        log::info "Run: resource-browserless start"
         return 1
     fi
     
@@ -38,7 +40,7 @@ browserless::inject() {
     local test_dir="${BROWSERLESS_DATA_DIR}/test-data"
     mkdir -p "$test_dir"
     
-    echo "[INFO]info "Creating test validation script..."
+    log::info "Creating test validation script..."
     
     # Create minimal test script
     cat > "$test_dir/validation.js" << 'EOF'
@@ -63,15 +65,15 @@ module.exports = async ({ page }) => {
 };
 EOF
     
-    echo "[INFO]success "Test scripts created in $test_dir"
+    log::success "Test scripts created in $test_dir"
     
     # Validate injection worked
     if browserless::validate_injection; then
-        echo "[INFO]success "✅ Test data injected and validated successfully"
+        log::success "✅ Test data injected and validated successfully"
         browserless::show_injection_info
         return 0
     else
-        echo "[INFO]error "❌ Injection validation failed"
+        log::error "❌ Injection validation failed"
         return 1
     fi
 }
@@ -83,28 +85,28 @@ browserless::validate_injection() {
     # Check test directory exists
     local test_dir="${BROWSERLESS_DATA_DIR}/test-data"
     if [[ ! -d "$test_dir" ]]; then
-        echo "[INFO]error "Test data directory not found: $test_dir"
+        log::error "Test data directory not found: $test_dir"
         return 1
     fi
     
     # Check test files exist
     if [[ ! -f "$test_dir/validation.js" ]]; then
-        echo "[INFO]error "Validation script not found"
+        log::error "Validation script not found"
         return 1
     fi
     
     if [[ ! -f "$test_dir/screenshot-test.js" ]]; then
-        echo "[INFO]error "Screenshot test script not found"  
+        log::error "Screenshot test script not found"  
         return 1
     fi
     
     # Check service responds
     if ! http::check_endpoint "http://localhost:$BROWSERLESS_PORT/pressure"; then
-        echo "[INFO]error "Browserless API not responding"
+        log::error "Browserless API not responding"
         return 1
     fi
     
-    echo "[INFO]success "All injection validation checks passed"
+    log::success "All injection validation checks passed"
     return 0
 }
 
@@ -114,12 +116,12 @@ browserless::validate_injection() {
 browserless::injection_status() {
     local test_dir="${BROWSERLESS_DATA_DIR}/test-data"
     
-    echo "[INFO]header "📊 Browserless Injection Status"
+    log::header "📊 Browserless Injection Status"
     
     if [[ -d "$test_dir" ]]; then
         local file_count=$(find "$test_dir" -name "*.js" | wc -l)
-        echo "[INFO]info "Test data directory: $test_dir"
-        echo "[INFO]info "Test script files: $file_count"
+        log::info "Test data directory: $test_dir"
+        log::info "Test script files: $file_count"
         
         # List test files
         if [[ $file_count -gt 0 ]]; then
@@ -129,14 +131,14 @@ browserless::injection_status() {
         
         echo
         if browserless::validate_injection 2>/dev/null; then
-            echo "[INFO]success "✅ Injection is healthy and validated"
+            log::success "✅ Injection is healthy and validated"
         else
-            echo "[INFO]warn "⚠️  Injection exists but validation failed"  
-            echo "[INFO]info "Try: ./manage.sh --action inject (to recreate)"
+            log::warn "⚠️  Injection exists but validation failed"  
+            log::info "Try: ./manage.sh --action inject (to recreate)"
         fi
     else
-        echo "[INFO]info "❌ No test data found"
-        echo "[INFO]info "Run: ./manage.sh --action inject"
+        log::info "❌ No test data found"
+        log::info "Run: ./manage.sh --action inject"
     fi
 }
 
@@ -165,22 +167,22 @@ browserless::show_injection_info() {
 browserless::inject_function() {
     local file_path="${1:?JSON file path required}"
     
-    echo "[INFO]header "🚀 Injecting Custom Function from $file_path"
+    log::header "🚀 Injecting Custom Function from $file_path"
     
     # Validate file exists and is readable
     if [[ ! -f "$file_path" ]]; then
-        echo "[INFO]error "File not found: $file_path"
+        log::error "File not found: $file_path"
         return 1
     fi
     
     if [[ ! -r "$file_path" ]]; then
-        echo "[INFO]error "File not readable: $file_path"
+        log::error "File not readable: $file_path"
         return 1
     fi
     
     # Validate JSON format
     if ! jq . "$file_path" >/dev/null 2>&1; then
-        echo "[INFO]error "Invalid JSON format in file: $file_path"
+        log::error "Invalid JSON format in file: $file_path"
         return 1
     fi
     
@@ -192,17 +194,17 @@ browserless::inject_function() {
     function_name=$(jq -r '.metadata.name // empty' "$file_path")
     
     if [[ -z "$function_name" ]]; then
-        echo "[INFO]error "Function name missing from metadata.name in JSON file"
+        log::error "Function name missing from metadata.name in JSON file"
         return 1
     fi
     
     # Validate function name format
     if ! [[ "$function_name" =~ ^[a-zA-Z0-9_-]+$ ]]; then
-        echo "[INFO]error "Invalid function name: $function_name (only alphanumeric, dash, underscore allowed)"
+        log::error "Invalid function name: $function_name (only alphanumeric, dash, underscore allowed)"
         return 1
     fi
     
-    echo "[INFO]info "📝 Function name: $function_name"
+    log::info "📝 Function name: $function_name"
     
     # Create function directory
     local function_dir="${BROWSERLESS_DATA_DIR}/functions/${function_name}"
@@ -213,13 +215,13 @@ browserless::inject_function() {
     function_code=$(jq -r '.function.code // empty' "$file_path")
     
     if [[ -z "$function_code" ]]; then
-        echo "[INFO]error "Function code missing from function.code in JSON file"
+        log::error "Function code missing from function.code in JSON file"
         return 1
     fi
     
     # Basic JavaScript syntax validation
     if ! echo "$function_code" | node -c 2>/dev/null; then
-        echo "[INFO]warn "⚠️  JavaScript syntax validation failed (function may still work in browser context)"
+        log::warn "⚠️  JavaScript syntax validation failed (function may still work in browser context)"
     fi
     
     # Store function files
@@ -229,9 +231,9 @@ browserless::inject_function() {
     # Update registry
     browserless::update_function_registry "$function_name" "add"
     
-    echo "[INFO]success "✅ Function '$function_name' injected successfully"
-    echo "[INFO]info "📁 Stored in: $function_dir"
-    echo "[INFO]info "🔧 Execute with: resource-browserless execute $function_name"
+    log::success "✅ Function '$function_name' injected successfully"
+    log::info "📁 Stored in: $function_dir"
+    log::info "🔧 Execute with: resource-browserless execute $function_name"
     
     return 0
 }
@@ -265,7 +267,7 @@ EOF
         local timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
         jq --arg timestamp "$timestamp" '.metadata.created = $timestamp | .metadata.last_updated = $timestamp' "$registry_file" > "${registry_file}.tmp" && mv "${registry_file}.tmp" "$registry_file"
         
-        echo "[INFO]debug "Initialized function registry: $registry_file"
+        log::debug "Initialized function registry: $registry_file"
     fi
 }
 
@@ -317,12 +319,12 @@ browserless::update_function_registry() {
                "$registry_file" > "${registry_file}.tmp" && mv "${registry_file}.tmp" "$registry_file"
             ;;
         *)
-            echo "[INFO]error "Unknown registry operation: $operation"
+            log::error "Unknown registry operation: $operation"
             return 1
             ;;
     esac
     
-    echo "[INFO]debug "Registry updated: $operation $function_name"
+    log::debug "Registry updated: $operation $function_name"
     return 0
 }
 
@@ -333,17 +335,17 @@ browserless::cleanup_injection() {
     local test_dir="${BROWSERLESS_DATA_DIR}/test-data"
     
     if [[ -d "$test_dir" ]]; then
-        echo "[INFO]info "Removing test data directory..."
+        log::info "Removing test data directory..."
         rm -rf "$test_dir"
-        echo "[INFO]success "✅ Test data cleaned up"
+        log::success "✅ Test data cleaned up"
         
         # Also clean up any test screenshots
         local screenshots_dir="${BROWSERLESS_DATA_DIR}/screenshots"
         if [[ -f "$screenshots_dir/validation-test.png" ]]; then
             rm -f "$screenshots_dir/validation-test.png"
-            echo "[INFO]info "Removed validation screenshot"
+            log::info "Removed validation screenshot"
         fi
     else
-        echo "[INFO]info "No test data to clean up"
+        log::info "No test data to clean up"
     fi
 }

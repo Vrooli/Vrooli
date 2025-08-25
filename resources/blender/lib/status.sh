@@ -11,7 +11,7 @@ if ! type blender::is_running &>/dev/null; then
 fi
 
 # Source status-args library
-source "${BLENDER_STATUS_DIR}/../../../lib/status-args.sh"
+source "${APP_ROOT}/scripts/resources/lib/status-args.sh"
 
 # Check Blender health
 blender::health_check() {
@@ -173,8 +173,8 @@ blender::status::display_text() {
     local verbose="${STATUS_VERBOSE:-false}"
     
     # Source format and log utilities for proper logging functions
-    source "${BLENDER_STATUS_DIR}/../../../../lib/utils/format.sh"
-    source "${BLENDER_STATUS_DIR}/../../../../lib/utils/log.sh"
+    source "${APP_ROOT}/scripts/lib/utils/format.sh"
+    source "${APP_ROOT}/scripts/lib/utils/log.sh"
     
     # Header
     log::header "🎨 Blender Status"

@@ -52,7 +52,7 @@ def check_ollama_setup():
     print("   ollama pull mistral:7b")
     print("   ollama pull codellama:7b")
     print("\n3. Start Agent S2 with Ollama provider:")
-    print("   ./scripts/resources/agents/agent-s2/manage.sh --action install \\")
+    print("   ./resources/agent-s2/cli.sh install \\")
     print("     --llm-provider ollama \\")
     print("     --llm-model llama2:7b \\")
     print("     --enable-ai yes")
