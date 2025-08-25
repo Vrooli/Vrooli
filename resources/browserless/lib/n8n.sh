@@ -15,7 +15,7 @@
 
 # The browserless API functionality needs to be available
 # We source common.sh for basic logging and depend on api.sh being loaded elsewhere
-source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
+source "${BASH_SOURCE[0]}%/*/common.sh"
 
 #######################################
 # Execute n8n workflow via browser automation with session persistence
@@ -1266,8 +1266,8 @@ EOF
         selectors_raw="$N8N_SELECTORS"
     elif [[ -n "${N8N_SELECTORS_FILE:-}" && -f "$N8N_SELECTORS_FILE" ]]; then
         selectors_raw=$(cat "$N8N_SELECTORS_FILE" 2>/dev/null || echo "")
-    elif [[ -f "$(dirname "${BASH_SOURCE[0]}")/n8n-selectors.json" ]]; then
-        selectors_raw=$(cat "$(dirname "${BASH_SOURCE[0]}")/n8n-selectors.json" 2>/dev/null || echo "")
+    elif [[ -f "${BASH_SOURCE[0]}%/*/n8n-selectors.json" ]]; then
+        selectors_raw=$(cat "${BASH_SOURCE[0]}%/*/n8n-selectors.json" 2>/dev/null || echo "")
     else
         selectors_raw="$selectors_default"
     fi

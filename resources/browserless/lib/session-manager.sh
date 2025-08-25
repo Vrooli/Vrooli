@@ -10,7 +10,7 @@
 set -euo pipefail
 
 # Get script directory
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
 SESSION_MANAGER_DIR="${APP_ROOT}/resources/browserless/lib"
 
 # Source log utilities

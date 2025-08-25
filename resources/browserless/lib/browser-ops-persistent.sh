@@ -10,8 +10,8 @@
 
 set -euo pipefail
 
-# Get script directory
-BROWSER_OPS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+BROWSER_OPS_DIR="${APP_ROOT}/resources/browserless/lib"
 
 # Source log utilities
 source "/home/matthalloran8/Vrooli/scripts/lib/utils/log.sh" 2>/dev/null || true
@@ -270,7 +270,7 @@ browser::screenshot_persistent() {
     log::debug "Taking screenshot in session $session_id"
     
     # Ensure output directory exists
-    mkdir -p "$(dirname "$output_path")"
+    mkdir -p "${output_path%/*"
     
     local js_code="
         const screenshot = await page.screenshot({

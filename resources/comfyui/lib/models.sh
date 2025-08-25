@@ -3,7 +3,8 @@
 # Handles downloading, listing, and managing AI models
 
 # Source trash module for safe cleanup using unique directory variable
-COMFYUI_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+COMFYUI_LIB_DIR="${APP_ROOT}/resources/comfyui/lib"
 # shellcheck disable=SC1091
 source "${COMFYUI_LIB_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
@@ -157,7 +158,7 @@ models::download_model() {
     
     # Create target directory if needed
     local target_dir
-    target_dir=$(dirname "$target_path")
+    target_dir=${target_path%/*
     mkdir -p "$target_dir"
     
     # Download with retry logic

@@ -8,7 +8,8 @@ if [[ -L "${BASH_SOURCE[0]}" ]]; then
 else
     AUTOGPT_CLI_SCRIPT="${BASH_SOURCE[0]}"
 fi
-SCRIPT_DIR="$(cd "$(dirname "$AUTOGPT_CLI_SCRIPT")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/resources/autogpt"
 
 # Source the var utility first for consistent variable access
 source "$SCRIPT_DIR/../../../lib/utils/var.sh"

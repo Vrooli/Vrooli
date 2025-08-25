@@ -7,7 +7,8 @@ set -euo pipefail
 export DESCRIPTION="Manages ComfyUI - AI image generation workflow platform"
 
 # Get script directory (unique variable name)
-COMFYUI_SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../.." && builtin pwd)}"
+COMFYUI_SCRIPT_DIR="${APP_ROOT}/resources/comfyui"
 COMFYUI_LIB_DIR="${COMFYUI_SCRIPT_DIR}/lib"
 
 # Source var.sh first to get all path variables

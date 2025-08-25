@@ -3,9 +3,9 @@
 bats_require_minimum_version 1.5.0
 
 # Setup paths and source var.sh first
-SCRIPT_DIR="$(cd "$(dirname "${BATS_TEST_FILENAME}")" && pwd)"
+SCRIPT_DIR="$(builtin cd "${BATS_TEST_FILENAME%/*}" && builtin pwd)"
 # shellcheck disable=SC1091
-source "$(cd "${SCRIPT_DIR}/../../../../../" && pwd)/lib/utils/var.sh"
+source "$(builtin cd "${SCRIPT_DIR%/*/*/*/*/*}" && builtin pwd)/lib/utils/var.sh"
 
 # Load Vrooli test infrastructure using var_ variables
 # shellcheck disable=SC1091

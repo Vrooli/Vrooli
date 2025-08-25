@@ -7,11 +7,12 @@ set -euo pipefail
 
 DESCRIPTION="Inject templates, prompts, and configurations into Claude Code assistant"
 
-CLAUDE_CODE_SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../.." && builtin pwd)}"
+CLAUDE_CODE_SCRIPT_DIR="${APP_ROOT}/resources/claude-code"
 
 # Source var.sh first to get proper directory variables
 # shellcheck disable=SC1091
-source "${CLAUDE_CODE_SCRIPT_DIR}/../../../lib/utils/var.sh"
+source "${CLAUDE_CODE_SCRIPT_DIR}/../../lib/utils/var.sh"
 
 # Source log utilities for log::header and other log functions
 # shellcheck disable=SC1091

@@ -5,7 +5,8 @@
 set -euo pipefail
 
 # Get script directory
-AUTOGPT_TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+AUTOGPT_TEST_DIR="${APP_ROOT}/resources/autogpt/lib"
 
 # Source common functions
 source "${AUTOGPT_TEST_DIR}/common.sh"

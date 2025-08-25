@@ -3,7 +3,8 @@
 # Handles the main installation flow and cleanup procedures
 
 # Source required utilities using unique directory variable
-COMFYUI_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+COMFYUI_LIB_DIR="${APP_ROOT}/resources/comfyui/lib"
 # shellcheck disable=SC1091
 source "${COMFYUI_LIB_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
@@ -307,7 +308,7 @@ install::check_disk_space() {
     log::info "Checking disk space requirements..."
     
     local data_dir_parent
-    data_dir_parent=$(dirname "$COMFYUI_DATA_DIR")
+    data_dir_parent=${COMFYUI_DATA_DIR%/*
     
     # Get available space in GB
     local available_gb

@@ -221,7 +221,7 @@ Agent-S2 is used in these business scenarios:
 ./scripts/__test/resources/quick-test.sh agent-s2
 
 # Test in business scenarios
-cd ./scripts/scenarios/core/research-assistant && ./test.sh
+cd ./scenarios/research-assistant && ./test.sh
 
 # Run all tests using Agent-S2
 ./scripts/scenarios/tools/test-by-resource.sh --resource agent-s2

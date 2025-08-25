@@ -3,7 +3,8 @@
 # All generic operations delegated to shared libraries
 
 # Source shared libraries
-BROWSERLESS_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+BROWSERLESS_LIB_DIR="${APP_ROOT}/resources/browserless/lib"
 
 # shellcheck disable=SC1091
 source "${BROWSERLESS_LIB_DIR}/../../../../lib/utils/var.sh"

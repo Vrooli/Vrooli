@@ -15,7 +15,7 @@
 ########################################
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../../.." && builtin pwd)}"
 INTERPRETER_DIR="${APP_ROOT}/resources/browserless/lib/workflow"
 BROWSERLESS_LIB_DIR="${APP_ROOT}/resources/browserless/lib"
 
@@ -187,7 +187,7 @@ workflow::execute_step() {
             if [[ -n "$output_path" ]]; then
                 local resolved_path
                 resolved_path=$(workflow::substitute_variables "$output_path")
-                mkdir -p "$(dirname "$resolved_path")"
+                mkdir -p "${resolved_path%/*"
                 
                 # ALWAYS remove any base64 data from final output - humans don't want to see this
                 local clean_result
@@ -257,7 +257,7 @@ workflow::execute_step() {
             if [[ -n "$output_path" ]]; then
                 local resolved_path
                 resolved_path=$(workflow::substitute_variables "$output_path")
-                mkdir -p "$(dirname "$resolved_path")"
+                mkdir -p "${resolved_path%/*"
                 echo "$result" > "$resolved_path"
                 log::debug "Saved result to: $resolved_path"
             fi
@@ -454,7 +454,7 @@ workflow::execute_step() {
             if [[ -n "$output_path" ]]; then
                 local resolved_path
                 resolved_path=$(workflow::substitute_variables "$output_path")
-                mkdir -p "$(dirname "$resolved_path")"
+                mkdir -p "${resolved_path%/*"
                 echo "$result" > "$resolved_path"
                 log::debug "Saved result to: $resolved_path"
             fi

@@ -5,9 +5,10 @@
 
 set -euo pipefail
 
-# Get script directory
-AUTOGEN_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-AUTOGEN_DIR="$(dirname "${AUTOGEN_LIB_DIR}")"
+# Define directories using cached APP_ROOT
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+AUTOGEN_LIB_DIR="${APP_ROOT}/resources/autogen-studio/lib"
+AUTOGEN_DIR="${APP_ROOT}/resources/autogen-studio"
 
 # Source required utilities
 source "${AUTOGEN_DIR}/../../../lib/utils/var.sh"

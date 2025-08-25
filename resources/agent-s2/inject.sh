@@ -7,11 +7,12 @@ set -euo pipefail
 
 export DESCRIPTION="Inject configurations and automations into Agent-S2 web automation agent"
 
-AGENT_S2_SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../.." && builtin pwd)}"
+AGENT_S2_SCRIPT_DIR="${APP_ROOT}/resources/agent-s2"
 
 # Source var.sh first to get proper directory variables
 # shellcheck disable=SC1091
-source "${AGENT_S2_SCRIPT_DIR}/../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 # Source common utilities using var_ variables
 # shellcheck disable=SC1091
@@ -129,7 +130,7 @@ inject::check_accessibility() {
         return 0
     else
         log::error "Agent-S2 is not accessible at $AGENT_S2_HOST"
-        log::info "Ensure Agent-S2 is running: ./scripts/resources/agents/agent-s2/manage.sh --action start"
+        log::info "Ensure Agent-S2 is running: ./resources/agent-s2/cli.sh start"
         return 1
     fi
 }

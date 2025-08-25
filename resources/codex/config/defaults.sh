@@ -2,7 +2,8 @@
 # Codex Default Configuration
 
 # Get the directory where this script is located
-CODEX_CONFIG_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+CODEX_CONFIG_DIR="${APP_ROOT}/resources/codex/config"
 
 # Default values
 export CODEX_NAME="codex"

@@ -3,12 +3,13 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-RESOURCE_DIR="$(dirname "${SCRIPT_DIR}")"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/resources/cloudflare-ai-gateway/lib"
+RESOURCE_DIR="${APP_ROOT}/resources/cloudflare-ai-gateway"
 RESOURCE_NAME="cloudflare-ai-gateway"
 
 # Source installation helpers
-source "${RESOURCE_DIR}/../../../lib/utils/install-resource-cli.sh"
+source "${APP_ROOT}/scripts/lib/utils/install-resource-cli.sh"
 
 # Install the resource
 install_cloudflare_ai_gateway() {

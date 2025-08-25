@@ -9,11 +9,12 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BROWSERLESS_DIR="$(dirname "$SCRIPT_DIR")"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/resources/browserless/examples"
+BROWSERLESS_DIR="${APP_ROOT}/resources/browserless"
 
 # Source log utilities first
-source "/home/matthalloran8/Vrooli/scripts/lib/utils/log.sh"
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
 
 # Source required libraries
 source "${BROWSERLESS_DIR}/lib/common.sh"

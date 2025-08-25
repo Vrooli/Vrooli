@@ -47,7 +47,7 @@ blender::test() {
     # Test 3: Check Python API
     test_count=$((test_count + 1))
     local test_python_script="${BLENDER_DATA_DIR:-/home/matthalloran8/.vrooli/blender}/temp/test_api.py"
-    mkdir -p "$(dirname "$test_python_script")"
+    mkdir -p "${test_python_script%/*"
     cat > "$test_python_script" << 'EOF'
 import bpy
 import sys

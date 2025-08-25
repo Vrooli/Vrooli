@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Get the directory of this script
-CLINE_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CLINE_DIR="$(dirname "$CLINE_LIB_DIR")"
+# Define directories using cached APP_ROOT
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+CLINE_LIB_DIR="${APP_ROOT}/resources/cline/lib"
+CLINE_DIR="${APP_ROOT}/resources/cline"
 
 # Source utilities
 source "$CLINE_DIR/../../../lib/utils/var.sh"
@@ -43,7 +44,7 @@ export MSG_CLINE_UNINSTALLING="Uninstalling Cline extension..."
 cline::ensure_dirs() {
     mkdir -p "$CLINE_CONFIG_DIR"
     mkdir -p "$CLINE_DATA_DIR"
-    mkdir -p "$(dirname "$VSCODE_SETTINGS")"
+    mkdir -p "${VSCODE_SETTINGS%/*"
 }
 
 # Check if VS Code is installed

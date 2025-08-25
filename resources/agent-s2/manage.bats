@@ -2,7 +2,8 @@
 # Tests for Agent S2 manage.sh script
 
 # Get the script directory and source var.sh first
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/resources/agent-s2"
 
 # Source var.sh first to get proper directory variables
 # shellcheck disable=SC1091

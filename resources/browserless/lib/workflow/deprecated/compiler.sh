@@ -6,7 +6,8 @@
 #######################################
 
 # Get script directory
-WORKFLOW_COMPILER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../../../.." && builtin pwd)}"
+WORKFLOW_COMPILER_DIR="${APP_ROOT}/resources/browserless/lib/workflow/deprecated"
 
 # Source dependencies
 source "${WORKFLOW_COMPILER_DIR}/parser.sh"

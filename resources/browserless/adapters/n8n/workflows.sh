@@ -8,10 +8,10 @@
 # manual JavaScript generation.
 #######################################
 
-# Get script directory
-WORKFLOWS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../../.." && builtin pwd)}"
+WORKFLOWS_DIR="${APP_ROOT}/resources/browserless/adapters/n8n"
 N8N_ADAPTER_DIR="$WORKFLOWS_DIR"
-BROWSERLESS_DIR="$(dirname "$(dirname "$N8N_ADAPTER_DIR")")"
+BROWSERLESS_DIR="${APP_ROOT}/resources/browserless""
 
 # Source required libraries
 source "${BROWSERLESS_DIR}/lib/common.sh"
@@ -30,7 +30,7 @@ else
 fi
 
 # Source secrets system for N8n authentication
-SECRETS_LIB="$(dirname "$(dirname "$(dirname "$(dirname "$BROWSERLESS_DIR")")")")/scripts/lib/service/secrets.sh"
+SECRETS_LIB="${BROWSERLESS_DIR%/*/*/*}/scripts/lib/service/secrets.sh"
 if [[ -f "$SECRETS_LIB" ]]; then
     source "$SECRETS_LIB"
 fi
@@ -258,7 +258,7 @@ n8n::export_workflow() {
     n8n::init_workflows
     
     # Create export directory
-    mkdir -p "$(dirname "$output_file")"
+    mkdir -p "${output_file%/*"
     
     # Prepare parameters
     local params_json

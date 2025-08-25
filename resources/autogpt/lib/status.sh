@@ -2,9 +2,11 @@
 
 # Status functions for AutoGPT
 
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+
 autogpt_status() {
     # Source format utility for consistent JSON output
-    source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && cd ../../../lib/utils && pwd)/format.sh"
+    source "${APP_ROOT}/scripts/lib/utils/format.sh"
     
     # Handle --format json flag
     local format="text"

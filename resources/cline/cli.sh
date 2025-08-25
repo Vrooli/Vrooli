@@ -6,11 +6,12 @@ SCRIPT_PATH="${BASH_SOURCE[0]}"
 if [[ -L "$SCRIPT_PATH" ]]; then
     SCRIPT_PATH="$(readlink -f "$SCRIPT_PATH")"
 fi
-CLINE_CLI_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+CLINE_CLI_DIR="${APP_ROOT}/resources/cline"
 
 # Source utilities
-source "$CLINE_CLI_DIR/../../../lib/utils/var.sh"
-source "$CLINE_CLI_DIR/../../../lib/utils/format.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/format.sh"
 source "$CLINE_CLI_DIR/lib/common.sh"
 source "$CLINE_CLI_DIR/lib/status.sh"
 source "$CLINE_CLI_DIR/lib/install.sh"

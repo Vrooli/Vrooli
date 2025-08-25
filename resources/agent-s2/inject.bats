@@ -2,11 +2,11 @@
 # Tests for Agent S2 inject.sh script
 
 # Get the script directory and source var.sh first
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
 
 # Source var.sh first to get proper directory variables
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../lib/utils/var.sh"
+source "${APP_ROOT}/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
@@ -20,8 +20,8 @@ setup_file() {
     vrooli_setup_service_test "agent-s2"
     
     # Set up directories and mock path
-    SCRIPT_DIR="${BATS_TEST_DIRNAME}"
-    export MOCK_DIR="${SCRIPT_DIR}/../../../__test/fixtures/mocks"
+    SCRIPT_DIR="${APP_ROOT}/resources/agent-s2"
+    export MOCK_DIR="${APP_ROOT}/scripts/__test/fixtures/mocks"
     
     # Load all dependencies once (expensive operations)
     # shellcheck disable=SC1091
@@ -204,7 +204,7 @@ teardown() {
 
 @test "inject::validate_workflows accepts valid workflows with existing files" {
     # Create a test workflow file
-    local test_file="${var_ROOT_DIR}/test-workflow.json"
+    local test_file="${APP_ROOT}/test-workflow.json"
     echo '{"steps": []}' > "$test_file"
     
     local workflows='[{"name": "test_workflow", "file": "test-workflow.json"}]'
@@ -282,7 +282,7 @@ teardown() {
 
 @test "inject::install_workflow installs workflow file" {
     # Create a test workflow file
-    local test_file="${var_ROOT_DIR}/test-workflow.json"
+    local test_file="${APP_ROOT}/test-workflow.json"
     echo '{"steps": ["step1", "step2"]}' > "$test_file"
     
     local workflow='{"name": "test_workflow", "file": "test-workflow.json", "autoload": false}'
@@ -304,7 +304,7 @@ teardown() {
 
 @test "inject::install_workflow creates metadata file" {
     # Create a test workflow file
-    local test_file="${var_ROOT_DIR}/test-workflow.json"
+    local test_file="${APP_ROOT}/test-workflow.json"
     echo '{"steps": []}' > "$test_file"
     
     local workflow='{"name": "meta_test", "file": "test-workflow.json", "autoload": true}'

@@ -13,7 +13,7 @@ LITELLM_CONFIG_FILE="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/litellm_config.json"
 #######################################
 litellm::init_state() {
     local state_dir
-    state_dir=$(dirname "$LITELLM_STATE_FILE")
+    state_dir=${LITELLM_STATE_FILE%/*
     
     # Create directory if it doesn't exist
     mkdir -p "$state_dir"

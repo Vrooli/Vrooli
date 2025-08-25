@@ -13,7 +13,7 @@ Cline (formerly Claude Dev) is a powerful VS Code extension that brings AI-power
 vrooli resource cline install
 
 # Or using the direct CLI
-./scripts/resources/agents/cline/cli.sh install
+./resources/cline/cli.sh install
 ```
 
 ## Configuration

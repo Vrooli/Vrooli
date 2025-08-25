@@ -1,33 +1,33 @@
 #!/usr/bin/env bats
 
 # Source trash module for safe test cleanup
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+source "${APP_ROOT}/lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
-source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
+source "${APP_ROOT}/__test/fixtures/setup.bash"
 
 # BATS setup function - runs before each test
 setup() {
     # Load shared test infrastructure
-    source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
+    source "${APP_ROOT}/__test/fixtures/setup.bash"
     
     # Setup test environment
     vrooli_auto_setup
     
     # Load the functions we are testing (required for bats isolation)
-    SCRIPT_DIR="${BATS_TEST_DIRNAME}"
+    SCRIPT_DIR="${CLAUDE_CODE_DIR}/lib"
     source "${SCRIPT_DIR}/execute.sh"
     
     # Set up paths using proper var.sh approach
-    CLAUDE_CODE_DIR="$BATS_TEST_DIRNAME/.."
-    SCRIPT_PATH="$BATS_TEST_DIRNAME/execute.sh"
+    CLAUDE_CODE_DIR="${APP_ROOT}/resources/claude-code"
+    SCRIPT_PATH="${CLAUDE_CODE_DIR}/lib/execute.sh"
     
     # Source var.sh first to get proper directory variables
     # shellcheck disable=SC1091
-    source "${CLAUDE_CODE_DIR}/../../../../lib/utils/var.sh"
+    source "${APP_ROOT}/lib/utils/var.sh"
     
     # Source dependencies using var_ variables
     # shellcheck disable=SC1091

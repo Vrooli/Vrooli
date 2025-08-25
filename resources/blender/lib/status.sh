@@ -2,7 +2,8 @@
 # Blender status functionality
 
 # Get script directory
-BLENDER_STATUS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+BLENDER_STATUS_DIR="${APP_ROOT}/resources/blender/lib"
 
 # Only source core.sh if functions aren't already defined
 if ! type blender::is_running &>/dev/null; then

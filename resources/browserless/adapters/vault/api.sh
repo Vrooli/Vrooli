@@ -14,9 +14,10 @@
 #   - Audit log viewing
 #######################################
 
-# Get script directory
-VAULT_ADAPTER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ADAPTERS_DIR="$(dirname "$VAULT_ADAPTER_DIR")"
+# Define adapter directories using cached APP_ROOT
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../../.." && builtin pwd)}"
+VAULT_ADAPTER_DIR="${APP_ROOT}/resources/browserless/adapters/vault"
+ADAPTERS_DIR="${APP_ROOT}/resources/browserless/adapters"
 
 # Source adapter framework
 source "${ADAPTERS_DIR}/common.sh"

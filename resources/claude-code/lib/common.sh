@@ -240,7 +240,7 @@ claude_code::init_usage_tracking() {
 	local usage_file="${CLAUDE_USAGE_FILE:-$HOME/.claude/usage_tracking.json}"
 	
 	# Create directory if it doesn't exist
-	mkdir -p "$(dirname "$usage_file")"
+	mkdir -p "${usage_file%/*"
 	
 	# Initialize file if it doesn't exist
 	if [[ ! -f "$usage_file" ]]; then

@@ -5,12 +5,13 @@
 set -euo pipefail
 
 # Get script directory
-BTCPAY_COMMON_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+BTCPAY_COMMON_DIR="${APP_ROOT}/resources/btcpay/lib"
 
 # Source shared utilities
-source "${BTCPAY_COMMON_DIR}/../../../../lib/utils/log.sh"
-source "${BTCPAY_COMMON_DIR}/../../../../lib/utils/format.sh"
-source "${BTCPAY_COMMON_DIR}/../../../lib/docker-utils.sh"
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
+source "${APP_ROOT}/scripts/lib/utils/format.sh"
+source "${APP_ROOT}/scripts/lib/docker-utils.sh"
 
 # BTCPay constants
 export BTCPAY_CONTAINER_NAME="btcpay-server"

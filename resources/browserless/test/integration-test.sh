@@ -5,8 +5,9 @@
 set -euo pipefail
 
 # Get the directory of this script
-TEST_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-BROWSERLESS_DIR=$(dirname "$TEST_DIR")
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+TEST_DIR="${APP_ROOT}/resources/browserless/test"
+BROWSERLESS_DIR="${APP_ROOT}/resources/browserless"
 
 # Source test framework
 # shellcheck disable=SC1091

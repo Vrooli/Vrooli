@@ -15,8 +15,8 @@ A simple workflow demonstrating the fundamental ComfyUI text-to-image generation
 
 **Usage:**
 ```bash
-./scripts/resources/automation/comfyui/manage.sh --action execute-workflow \
-  --workflow ./scripts/resources/automation/comfyui/examples/basic_text_to_image.json
+./resources/comfyui/manage.sh --action execute-workflow \
+  --workflow ./resources/comfyui/examples/basic_text_to_image.json
 ```
 
 ### 2. Advanced Comic Book Workflows
@@ -128,22 +128,22 @@ curl -X POST http://localhost:8188/prompt \
   -H "Content-Type: application/json" \
   -d '{
     "client_id": "comic-panels",
-    "prompt": '$(cat ./scripts/resources/automation/comfyui/examples/pirate_rabbit_comic_composite_v2.json)'
+    "prompt": '$(cat ./resources/comfyui/examples/pirate_rabbit_comic_composite_v2.json)'
   }'
 
 # Wait for generation to complete, then compose into comic page
-python3 ./scripts/resources/automation/comfyui/examples/composite_comic_panels.py
+python3 ./resources/comfyui/examples/composite_comic_panels.py
 ```
 
 ### Method 2: Via Management Script
 ```bash
 # Execute single-page comic workflow
-./scripts/resources/automation/comfyui/manage.sh --action execute-workflow \
-  --workflow ./scripts/resources/automation/comfyui/examples/pirate_rabbit_comic_advanced.json
+./resources/comfyui/manage.sh --action execute-workflow \
+  --workflow ./resources/comfyui/examples/pirate_rabbit_comic_advanced.json
 
 # Execute multi-panel workflow  
-./scripts/resources/automation/comfyui/manage.sh --action execute-workflow \
-  --workflow ./scripts/resources/automation/comfyui/examples/pirate_rabbit_comic_composite_v2.json
+./resources/comfyui/manage.sh --action execute-workflow \
+  --workflow ./resources/comfyui/examples/pirate_rabbit_comic_composite_v2.json
 ```
 
 ### Method 2: Via ComfyUI Web Interface

@@ -286,22 +286,22 @@ jobs:
       
       - name: Install dependencies
         run: |
-          cd scripts/resources/agents/agent-s2/tests
+          cd resources/agent-s2/tests
           ./run_tests.sh --setup-venv
       
       - name: Run unit tests
         run: |
-          cd scripts/resources/agents/agent-s2/tests  
+          cd resources/agent-s2/tests  
           ./run_tests.sh unit --coverage --junit-xml
       
       - name: Start Agent S2
         run: |
-          cd scripts/resources/agents/agent-s2
+          cd resources/agent-s2
           ./manage.sh --action install --mode sandbox --yes yes
       
       - name: Run integration tests
         run: |
-          cd scripts/resources/agents/agent-s2/tests
+          cd resources/agent-s2/tests
           ./run_tests.sh integration --junit-xml
       
       - name: Upload test results
@@ -309,7 +309,7 @@ jobs:
         if: always()
         with:
           name: test-results
-          path: scripts/resources/agents/agent-s2/tests/results/
+          path: resources/agent-s2/tests/results/
 ```
 
 ## Contributing

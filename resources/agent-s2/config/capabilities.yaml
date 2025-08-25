@@ -221,12 +221,12 @@ spec:
   
   # Documentation and examples
   documentation:
-    readme: "scripts/resources/agents/agent-s2/README.md"
-    api_reference: "scripts/resources/agents/agent-s2/docs/API.md"
-    examples_dir: "scripts/resources/agents/agent-s2/examples/"
-    configuration: "scripts/resources/agents/agent-s2/docs/CONFIGURATION.md"
-    security: "scripts/resources/agents/agent-s2/docs/SECURITY.md"
-    troubleshooting: "scripts/resources/agents/agent-s2/docs/TROUBLESHOOTING.md"
+    readme: "resources/agent-s2/README.md"
+    api_reference: "resources/agent-s2/docs/API.md"
+    examples_dir: "resources/agent-s2/examples/"
+    configuration: "resources/agent-s2/docs/CONFIGURATION.md"
+    security: "resources/agent-s2/docs/SECURITY.md"
+    troubleshooting: "resources/agent-s2/docs/TROUBLESHOOTING.md"
   
   # Version and compatibility
   version_info:

@@ -13,15 +13,17 @@
 
 set -euo pipefail
 
-# Get script directory (resolve symlinks)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+# Handle symlinks for installed CLI
 if [[ -L "${BASH_SOURCE[0]}" ]]; then
-    BROWSERLESS_CLI_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
-else
-    BROWSERLESS_CLI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    BROWSERLESS_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
+    # Recalculate APP_ROOT from resolved symlink location
+    APP_ROOT="$(builtin cd "${BROWSERLESS_CLI_SCRIPT%/*}/../.." && builtin pwd)"
 fi
+BROWSERLESS_CLI_DIR="${APP_ROOT}/resources/browserless"
 
 # Source shared utilities
-source "$BROWSERLESS_CLI_DIR/../../../lib/utils/format.sh"
+source "${APP_ROOT}/scripts/lib/utils/format.sh"
 source "$BROWSERLESS_CLI_DIR/lib/common.sh"
 
 # Main command handler

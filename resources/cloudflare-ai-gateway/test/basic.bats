@@ -5,7 +5,7 @@
 load "${BATS_SUPPORT_LOAD_PATH}/load"
 load "${BATS_ASSERT_LOAD_PATH}/load"
 
-RESOURCE_DIR="$(cd "$(dirname "$BATS_TEST_DIRNAME")" && pwd)"
+RESOURCE_DIR="$(builtin cd "${BATS_TEST_DIRNAME%/*}" && builtin pwd)"
 CLI="${RESOURCE_DIR}/cli.sh"
 
 @test "CLI script exists and is executable" {

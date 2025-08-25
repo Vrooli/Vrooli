@@ -3,14 +3,14 @@
 bats_require_minimum_version 1.5.0
 
 # Source trash module for safe test cleanup
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
+source "${APP_ROOT}/lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
 # Load Vrooli test infrastructure
-source "${BATS_TEST_DIRNAME}/../../../__test/fixtures/setup.bash"
+source "${APP_ROOT}/scripts/__test/fixtures/setup.bash"
 
 # Expensive setup operations run once per file
 setup_file() {
@@ -18,7 +18,7 @@ setup_file() {
     vrooli_setup_service_test "claude-code"
     
     # Load Claude Code specific configuration once per file
-    SCRIPT_DIR="${BATS_TEST_DIRNAME}"
+    SCRIPT_DIR="${APP_ROOT}/resources/claude-code"
     
     # Load configuration if available
     if [[ -f "${SCRIPT_DIR}/config/defaults.sh" ]]; then
@@ -27,7 +27,7 @@ setup_file() {
     
     # Load all dependencies needed by inject.sh using proper var_ variables
     # shellcheck disable=SC1091
-    source "${SCRIPT_DIR}/../../../lib/utils/var.sh" || true
+    source "${APP_ROOT}/lib/utils/var.sh" || true
     # shellcheck disable=SC1091
     source "${var_SCRIPTS_RESOURCES_DIR}/common.sh" || true
     

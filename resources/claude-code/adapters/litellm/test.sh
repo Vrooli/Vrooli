@@ -4,12 +4,12 @@
 
 set -euo pipefail
 
-# Get script directory
-ADAPTER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../../.." && builtin pwd)}"
+ADAPTER_DIR="${APP_ROOT}/resources/claude-code/adapters/litellm"
 
 # Source required libraries
 # shellcheck disable=SC1091
-source "${ADAPTER_DIR}/../../../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
 # shellcheck disable=SC1091

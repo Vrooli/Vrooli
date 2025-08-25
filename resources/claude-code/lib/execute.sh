@@ -2,6 +2,8 @@
 # Claude Code Execution Functions
 # Handles running Claude with prompts and batch operations
 
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+
 #######################################
 # Run Claude with a single prompt
 #######################################
@@ -19,7 +21,7 @@ claude_code::run() {
     fi
     
     # Check if connected to LiteLLM and route through adapter if so
-    local adapter_dir="${CLAUDE_CODE_CLI_DIR:-$(dirname "${BASH_SOURCE[0]}")/..}/adapters/litellm"
+    local adapter_dir="${CLAUDE_CODE_CLI_DIR:-${APP_ROOT}/resources/claude-code}/adapters/litellm"
     if [[ -f "$adapter_dir/state.sh" ]]; then
         # shellcheck disable=SC1090
         source "$adapter_dir/state.sh"
@@ -163,7 +165,7 @@ claude_code::run() {
                 log::error "Rate/Usage limit reached (type: $limit_type)"
                 
                 # Attempt automatic fallback to LiteLLM
-                local adapter_dir="${CLAUDE_CODE_CLI_DIR:-$(dirname "${BASH_SOURCE[0]}")/..}/adapters/litellm"
+                local adapter_dir="${CLAUDE_CODE_CLI_DIR:-${APP_ROOT}/resources/claude-code}/adapters/litellm"
                 if [[ -f "$adapter_dir/execute.sh" ]]; then
                     # shellcheck disable=SC1090
                     source "$adapter_dir/execute.sh"
@@ -258,7 +260,7 @@ claude_code::run() {
                 log::error "Rate/Usage limit reached (type: $limit_type)"
                 
                 # Attempt automatic fallback to LiteLLM
-                local adapter_dir="${CLAUDE_CODE_CLI_DIR:-$(dirname "${BASH_SOURCE[0]}")/..}/adapters/litellm"
+                local adapter_dir="${CLAUDE_CODE_CLI_DIR:-${APP_ROOT}/resources/claude-code}/adapters/litellm"
                 if [[ -f "$adapter_dir/execute.sh" ]]; then
                     # shellcheck disable=SC1090
                     source "$adapter_dir/execute.sh"

@@ -10,7 +10,7 @@
 
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
 ACTIONS_DIR="${APP_ROOT}/resources/browserless/lib"
 
 # Source required libraries
@@ -125,7 +125,7 @@ actions::screenshot() {
     fi
     
     # Ensure output directory exists
-    mkdir -p "$(dirname "$OUTPUT_PATH")"
+    mkdir -p "${OUTPUT_PATH%/*"
     
     local session_id
     session_id=$(actions::create_temp_session)
@@ -194,7 +194,7 @@ actions::navigate() {
             }')
             
             if [[ -n "$OUTPUT_PATH" ]]; then
-                mkdir -p "$(dirname "$OUTPUT_PATH")"
+                mkdir -p "${OUTPUT_PATH%/*"
                 echo "$clean_result" > "$OUTPUT_PATH"
                 echo "Navigation result saved: $OUTPUT_PATH"
             fi
@@ -274,7 +274,7 @@ actions::health_check() {
             fi
             
             if [[ -n "$OUTPUT_PATH" ]]; then
-                mkdir -p "$(dirname "$OUTPUT_PATH")"
+                mkdir -p "${OUTPUT_PATH%/*"
                 echo "$health_result" > "$OUTPUT_PATH"
                 echo "Health check result saved: $OUTPUT_PATH"
             fi
@@ -434,7 +434,7 @@ actions::extract_text() {
             local text
             if text=$(browser::get_text "$selector" "$session_id"); then
                 if [[ -n "$OUTPUT_PATH" ]]; then
-                    mkdir -p "$(dirname "$OUTPUT_PATH")"
+                    mkdir -p "${OUTPUT_PATH%/*"
                     echo "$text" > "$OUTPUT_PATH"
                     echo "Text saved: $OUTPUT_PATH"
                 fi
@@ -513,7 +513,7 @@ actions::extract() {
                     local extracted_data=$(echo "$result" | jq '.result')
                     
                     if [[ -n "$OUTPUT_PATH" ]]; then
-                        mkdir -p "$(dirname "$OUTPUT_PATH")"
+                        mkdir -p "${OUTPUT_PATH%/*"
                         echo "$extracted_data" | jq '.' > "$OUTPUT_PATH"
                         echo "Data saved: $OUTPUT_PATH"
                     fi
@@ -646,7 +646,7 @@ actions::interact() {
             
             # Take final screenshot if output path provided
             if [[ -n "$OUTPUT_PATH" ]]; then
-                mkdir -p "$(dirname "$OUTPUT_PATH")"
+                mkdir -p "${OUTPUT_PATH%/*"
                 if browser::screenshot "$OUTPUT_PATH" "$session_id" "$FULL_PAGE"; then
                     echo "Final screenshot saved: $OUTPUT_PATH"
                 else
@@ -770,7 +770,7 @@ actions::console() {
         filtered_result=$(echo "$result" | jq --argjson logs "$logs" '.logs = $logs')
         
         if [[ -n "$OUTPUT_PATH" ]]; then
-            mkdir -p "$(dirname "$OUTPUT_PATH")"
+            mkdir -p "${OUTPUT_PATH%/*"
             echo "$filtered_result" > "$OUTPUT_PATH"
             echo "Console logs saved: $OUTPUT_PATH"
         fi
@@ -887,7 +887,7 @@ actions::performance() {
     local success=$(echo "$result" | jq -r '.success // false')
     if [[ "$success" == "true" ]]; then
         if [[ -n "$OUTPUT_PATH" ]]; then
-            mkdir -p "$(dirname "$OUTPUT_PATH")"
+            mkdir -p "${OUTPUT_PATH%/*"
             echo "$result" > "$OUTPUT_PATH"
             echo "Performance metrics saved: $OUTPUT_PATH"
         fi
@@ -977,7 +977,7 @@ actions::extract_forms() {
                     local forms_data=$(echo "$result" | jq '.result')
                     
                     if [[ -n "$OUTPUT_PATH" ]]; then
-                        mkdir -p "$(dirname "$OUTPUT_PATH")"
+                        mkdir -p "${OUTPUT_PATH%/*"
                         echo "$forms_data" | jq '.' > "$OUTPUT_PATH"
                         echo "Forms data saved: $OUTPUT_PATH"
                     fi

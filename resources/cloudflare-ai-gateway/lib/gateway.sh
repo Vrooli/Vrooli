@@ -3,15 +3,16 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-RESOURCE_DIR="$(dirname "${SCRIPT_DIR}")"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/resources/cloudflare-ai-gateway/lib"
+RESOURCE_DIR="${APP_ROOT}/resources/cloudflare-ai-gateway"
 DATA_DIR="${HOME}/Vrooli/data/cloudflare-ai-gateway"
 CONFIG_FILE="${DATA_DIR}/config.json"
 STATE_FILE="${DATA_DIR}/state.json"
 
 # Source utilities
-source "${RESOURCE_DIR}/../../../lib/utils/format.sh"
-source "${RESOURCE_DIR}/../../../lib/credentials-utils.sh"
+source "${APP_ROOT}/scripts/lib/utils/format.sh"
+source "${APP_ROOT}/scripts/resources/lib/credentials-utils.sh"
 
 # Initialize data directory
 initialize_data_dir() {

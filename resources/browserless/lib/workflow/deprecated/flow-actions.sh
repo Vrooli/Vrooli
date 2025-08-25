@@ -6,7 +6,8 @@
 #######################################
 
 # Get script directory
-FLOW_ACTIONS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../../../.." && builtin pwd)}"
+FLOW_ACTIONS_DIR="${APP_ROOT}/resources/browserless/lib/workflow/deprecated"
 
 # Source original actions for base functionality
 source "${FLOW_ACTIONS_DIR}/actions.sh"

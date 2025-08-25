@@ -2,7 +2,8 @@
 # Codex Status Functions
 
 # Set script directory for sourcing
-CODEX_STATUS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+CODEX_STATUS_DIR="${APP_ROOT}/resources/codex/lib"
 
 # Source required utilities
 # shellcheck disable=SC1091

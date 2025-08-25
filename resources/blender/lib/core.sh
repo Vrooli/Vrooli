@@ -1,8 +1,8 @@
 #!/bin/bash
 # Blender core functionality
 
-# Get script directory
-BLENDER_CORE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+BLENDER_CORE_DIR="${APP_ROOT}/resources/blender/lib"
 
 # Source utilities (disable strict mode for compatibility)
 # Only source if not already loaded
@@ -44,8 +44,8 @@ EOF
     fi
     
     # Port registry is optional - skip if causes issues
-    if [[ -f "${BLENDER_CORE_DIR}/../../../../resources/port_registry.sh" ]]; then
-        source "${BLENDER_CORE_DIR}/../../../../resources/port_registry.sh" 2>/dev/null || true
+    if [[ -f "${APP_ROOT}/scripts/resources/port_registry.sh" ]]; then
+        source "${APP_ROOT}/scripts/resources/port_registry.sh" 2>/dev/null || true
         
         # Register our port if not already registered
         if type port_registry::is_registered &>/dev/null; then
@@ -94,9 +94,9 @@ blender::install() {
             echo "[SUCCESS] Blender installed natively"
             
             # Register the CLI with vrooli
-            local resource_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-            if [[ -f "${resource_dir}/../../lib/resources/install-resource-cli.sh" ]]; then
-                "${resource_dir}/../../lib/resources/install-resource-cli.sh" "${resource_dir}" 2>/dev/null || true
+            local resource_dir="${APP_ROOT}/resources/blender"
+            if [[ -f "${APP_ROOT}/scripts/lib/resources/install-resource-cli.sh" ]]; then
+                "${APP_ROOT}/scripts/lib/resources/install-resource-cli.sh" "${resource_dir}" 2>/dev/null || true
             fi
             
             return 0
@@ -158,9 +158,9 @@ DOCKERFILE
     echo "[SUCCESS] Blender installed successfully"
     
     # Register the CLI with vrooli
-    local resource_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-    if [[ -f "${resource_dir}/../../lib/resources/install-resource-cli.sh" ]]; then
-        "${resource_dir}/../../lib/resources/install-resource-cli.sh" "${resource_dir}" 2>/dev/null || true
+    local resource_dir="${APP_ROOT}/resources/blender"
+    if [[ -f "${APP_ROOT}/scripts/lib/resources/install-resource-cli.sh" ]]; then
+        "${APP_ROOT}/scripts/lib/resources/install-resource-cli.sh" "${resource_dir}" 2>/dev/null || true
     fi
     
     return 0

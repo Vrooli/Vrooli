@@ -23,7 +23,8 @@
 set -e # Exit immediately if a command exits with a non-zero status.
 
 # Source trash module for safe cleanup
-K8S_CHART_TESTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+K8S_CHART_TESTS_DIR="${APP_ROOT}/k8s/chart/tests"
 # shellcheck disable=SC1091
 source "${K8S_CHART_TESTS_DIR}/../../../scripts/lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091

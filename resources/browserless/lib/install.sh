@@ -4,8 +4,9 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/../../../lib/utils/format.sh"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/resources/browserless/lib"
+source "${APP_ROOT}/scripts/lib/utils/format.sh"
 source "$SCRIPT_DIR/common.sh"
 
 function install_browserless() {

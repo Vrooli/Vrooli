@@ -6,8 +6,9 @@
 #######################################
 
 # Get script directory
-WORKFLOW_PARSER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-WORKFLOW_LIB_DIR="$(dirname "$WORKFLOW_PARSER_DIR")"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../../../.." && builtin pwd)}"
+WORKFLOW_PARSER_DIR="${APP_ROOT}/resources/browserless/lib/workflow/deprecated"
+WORKFLOW_LIB_DIR="${APP_ROOT}/resources/browserless/lib/workflow"
 
 #######################################
 # Parse workflow from YAML or JSON file

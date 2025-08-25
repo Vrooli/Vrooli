@@ -6,11 +6,12 @@
 set -euo pipefail
 
 # Script directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/resources/claude-code/test"
 
 # Source var.sh first to get proper directory variables
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../../lib/utils/var.sh"
+source "${SCRIPT_DIR}/../../../lib/utils/var.sh"
 
 # Source shared integration test library if it exists
 # shellcheck disable=SC1091

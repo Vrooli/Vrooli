@@ -3,11 +3,12 @@
 # Provides clean, reusable batch execution patterns
 
 # Set CLAUDE_CODE_SCRIPT_DIR if not already set (for BATS test compatibility)
-CLAUDE_CODE_SCRIPT_DIR="${CLAUDE_CODE_SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+CLAUDE_CODE_SCRIPT_DIR="${CLAUDE_CODE_SCRIPT_DIR:-${APP_ROOT}/resources/claude-code}"
 
 # Source trash module for safe cleanup
 # shellcheck disable=SC1091
-source "${CLAUDE_CODE_SCRIPT_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
+source "${CLAUDE_CODE_SCRIPT_DIR}/../../lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 

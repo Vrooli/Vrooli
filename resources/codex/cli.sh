@@ -8,7 +8,8 @@ SCRIPT_PATH="${BASH_SOURCE[0]}"
 if [[ -L "$SCRIPT_PATH" ]]; then
     SCRIPT_PATH="$(readlink -f "$SCRIPT_PATH")"
 fi
-CODEX_CLI_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+CODEX_CLI_DIR="${APP_ROOT}/resources/codex"
 
 # Source libraries
 # shellcheck disable=SC1091

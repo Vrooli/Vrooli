@@ -1,12 +1,15 @@
 #!/bin/bash
 # Blender Resource CLI
 
-# Get the real script directory (following symlinks)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+# Handle symlinks for installed CLI
 if [[ -L "${BASH_SOURCE[0]}" ]]; then
-    BLENDER_CLI_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
-else
-    BLENDER_CLI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    BLENDER_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
+    # Recalculate APP_ROOT from resolved symlink location
+    APP_ROOT="$(builtin cd "${BLENDER_CLI_SCRIPT%/*}/../.." && builtin pwd)"
 fi
+
+BLENDER_CLI_DIR="${APP_ROOT}/resources/blender"
 
 # Source libraries
 source "${BLENDER_CLI_DIR}/lib/core.sh"

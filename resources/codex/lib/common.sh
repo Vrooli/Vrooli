@@ -2,7 +2,8 @@
 # Codex Common Functions
 
 # Set script directory for sourcing
-CODEX_COMMON_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+CODEX_COMMON_DIR="${APP_ROOT}/resources/codex/lib"
 
 # Source configuration
 # shellcheck disable=SC1091

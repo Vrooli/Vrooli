@@ -150,7 +150,7 @@ Default model mappings:
 Run the test suite to verify adapter functionality:
 
 ```bash
-/home/matthalloran8/Vrooli/scripts/resources/agents/claude-code/adapters/litellm/test.sh
+resources/claude-code/adapters/litellm/test.sh
 ```
 
 Tests cover:

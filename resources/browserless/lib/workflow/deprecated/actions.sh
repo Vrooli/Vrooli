@@ -6,7 +6,8 @@
 #######################################
 
 # Get script directory
-WORKFLOW_ACTIONS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../../../.." && builtin pwd)}"
+WORKFLOW_ACTIONS_DIR="${APP_ROOT}/resources/browserless/lib/workflow/deprecated"
 
 #######################################
 # Get JavaScript implementation for an action

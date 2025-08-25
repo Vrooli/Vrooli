@@ -6,8 +6,9 @@
 #######################################
 
 # Get script directory
-FLOW_PARSER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BROWSERLESS_LIB_DIR="$(dirname "$FLOW_PARSER_DIR")"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../../../.." && builtin pwd)}"
+FLOW_PARSER_DIR="${APP_ROOT}/resources/browserless/lib/workflow/deprecated"
+BROWSERLESS_LIB_DIR="${APP_ROOT}/resources/browserless/lib"
 
 # Source common utilities for logging
 source "${BROWSERLESS_LIB_DIR}/common.sh" 2>/dev/null || {

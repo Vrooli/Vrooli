@@ -5,7 +5,8 @@
 set -euo pipefail
 
 # Source test utilities using unique directory variable
-COMFYUI_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+COMFYUI_LIB_DIR="${APP_ROOT}/resources/comfyui/lib"
 MANAGE_SCRIPT="${COMFYUI_LIB_DIR}/../manage.sh"
 # Source trash module for safe cleanup
 # shellcheck disable=SC1091

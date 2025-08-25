@@ -5,7 +5,8 @@
 set -euo pipefail
 
 # Get script directory
-BTCPAY_CLI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+BTCPAY_CLI_DIR="${APP_ROOT}/resources/btcpay"
 
 # Determine if we're running from the installed location or the source location
 if [[ "${BTCPAY_CLI_DIR}" == *"/.local/bin"* ]]; then

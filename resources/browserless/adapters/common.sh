@@ -14,8 +14,9 @@
 #######################################
 
 # Get script directory
-ADAPTER_COMMON_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BROWSERLESS_RESOURCE_DIR="$(dirname "$ADAPTER_COMMON_DIR")"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+ADAPTER_COMMON_DIR="${APP_ROOT}/resources/browserless/adapters"
+BROWSERLESS_RESOURCE_DIR="${APP_ROOT}/resources/browserless"
 
 # Source browserless core functionality
 source "${BROWSERLESS_RESOURCE_DIR}/lib/common.sh"
