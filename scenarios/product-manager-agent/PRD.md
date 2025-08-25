@@ -666,9 +666,9 @@ tests:
 - ui/docs/components.md - UI component library
 
 ### Related PRDs
-- scenarios/core/mind-maps/PRD.md - Visual organization capability
-- scenarios/core/research-assistant/PRD.md - Competitor research
-- scenarios/core/task-planner/PRD.md - Task breakdown
+- scenarios/mind-maps/PRD.md - Visual organization capability
+- scenarios/research-assistant/PRD.md - Competitor research
+- scenarios/task-planner/PRD.md - Task breakdown
 
 ### External Resources
 - [RICE Scoring Framework](https://www.intercom.com/blog/rice-simple-prioritization-for-product-managers/)

@@ -2,27 +2,34 @@
 bats_require_minimum_version 1.5.0
 
 # Source trash module for safe test cleanup
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/scripts/lib/network"
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/../../lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
-# Load test helpers
+# Load test infrastructure
+source "${BATS_TEST_DIRNAME}/../../__test/fixtures/setup.bash"
+
+# Load test helpers  
 load "../../__test/helpers/bats-support/load"
 load "../../__test/helpers/bats-assert/load"
-
-# Load mocks
-load "../../__test/fixtures/mocks/logs.sh"
-load "../../__test/fixtures/mocks/system.sh"
 
 # Script under test
 SCRIPT_PATH="$BATS_TEST_DIRNAME/ports.sh"
 
 setup() {
-    # Initialize mocks
-    mock::cleanup_logs "" || true
-    mock::system::reset || true
+    # Setup will load the required mocks via setup.bash
+    vrooli_setup_unit_test
+    
+    # Reset mocks if functions are available (Tier 2 mock naming)
+    if declare -F logs_mock_reset >/dev/null 2>&1; then
+        logs_mock_reset
+    fi
+    if declare -F system_mock_reset >/dev/null 2>&1; then
+        system_mock_reset
+    fi
     
     # Set up test environment variables
     export YES=""
@@ -33,9 +40,7 @@ setup() {
 }
 
 teardown() {
-    # Clean up mocks
-    mock::cleanup_logs "" || true
-    mock::system::reset || true
+    vrooli_cleanup_test
     
     # Clean up environment variables
     unset YES SUDO_MODE MOCK_KILL_SUCCESS MOCK_CONFIRM_RESPONSE || true

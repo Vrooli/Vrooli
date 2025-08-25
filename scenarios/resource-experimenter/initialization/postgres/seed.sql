@@ -11,15 +11,15 @@ INSERT INTO experiment_templates (name, description, prompt_template, target_sce
 
 -- Insert available scenarios for experimentation
 INSERT INTO available_scenarios (name, display_name, description, path, current_resources, resource_categories, complexity_level, experimentation_friendly) VALUES
-('analytics-dashboard', 'Analytics Dashboard', 'Business analytics and monitoring dashboard', '/scripts/scenarios/core/analytics-dashboard', ARRAY['postgres', 'n8n', 'windmill'], ARRAY['storage', 'automation'], 'intermediate', true),
-('research-assistant', 'Research Assistant', 'AI-powered research and document analysis platform', '/scripts/scenarios/core/research-assistant', ARRAY['postgres', 'qdrant', 'minio', 'ollama', 'n8n'], ARRAY['storage', 'ai', 'automation'], 'advanced', true),
-('idea-generator', 'Idea Generator', 'Creative idea generation and development platform', '/scripts/scenarios/core/idea-generator', ARRAY['postgres', 'qdrant', 'ollama', 'n8n'], ARRAY['storage', 'ai', 'automation'], 'intermediate', true),
-('document-manager', 'Document Manager', 'Intelligent document processing and management', '/scripts/scenarios/core/document-manager', ARRAY['postgres', 'qdrant', 'n8n'], ARRAY['storage', 'automation'], 'intermediate', true),
-('brand-manager', 'Brand Manager', 'Brand asset generation and management platform', '/scripts/scenarios/core/brand-manager', ARRAY['postgres', 'minio', 'comfyui', 'n8n'], ARRAY['storage', 'ai', 'automation'], 'advanced', true),
-('audio-intelligence-platform', 'Audio Intelligence Platform', 'Audio processing and transcription platform', '/scripts/scenarios/core/audio-intelligence-platform', ARRAY['postgres', 'whisper', 'qdrant', 'n8n'], ARRAY['storage', 'ai', 'automation'], 'advanced', true),
-('image-generation-pipeline', 'Image Generation Pipeline', 'AI-powered image creation and management', '/scripts/scenarios/core/image-generation-pipeline', ARRAY['postgres', 'comfyui', 'minio'], ARRAY['storage', 'ai'], 'intermediate', true),
-('prompt-manager', 'Prompt Manager', 'AI prompt management and optimization platform', '/scripts/scenarios/core/prompt-manager', ARRAY['postgres'], ARRAY['storage'], 'simple', true),
-('scenario-generator-v1', 'Scenario Generator V1', 'AI-powered scenario creation system', '/scripts/scenarios/core/scenario-generator-v1', ARRAY['postgres', 'claude-code'], ARRAY['storage', 'ai'], 'intermediate', false);
+('analytics-dashboard', 'Analytics Dashboard', 'Business analytics and monitoring dashboard', 'scenarios/analytics-dashboard', ARRAY['postgres', 'n8n', 'windmill'], ARRAY['storage', 'automation'], 'intermediate', true),
+('research-assistant', 'Research Assistant', 'AI-powered research and document analysis platform', 'scenarios/research-assistant', ARRAY['postgres', 'qdrant', 'minio', 'ollama', 'n8n'], ARRAY['storage', 'ai', 'automation'], 'advanced', true),
+('idea-generator', 'Idea Generator', 'Creative idea generation and development platform', 'scenarios/idea-generator', ARRAY['postgres', 'qdrant', 'ollama', 'n8n'], ARRAY['storage', 'ai', 'automation'], 'intermediate', true),
+('document-manager', 'Document Manager', 'Intelligent document processing and management', 'scenarios/document-manager', ARRAY['postgres', 'qdrant', 'n8n'], ARRAY['storage', 'automation'], 'intermediate', true),
+('brand-manager', 'Brand Manager', 'Brand asset generation and management platform', 'scenarios/brand-manager', ARRAY['postgres', 'minio', 'comfyui', 'n8n'], ARRAY['storage', 'ai', 'automation'], 'advanced', true),
+('audio-intelligence-platform', 'Audio Intelligence Platform', 'Audio processing and transcription platform', 'scenarios/audio-intelligence-platform', ARRAY['postgres', 'whisper', 'qdrant', 'n8n'], ARRAY['storage', 'ai', 'automation'], 'advanced', true),
+('image-generation-pipeline', 'Image Generation Pipeline', 'AI-powered image creation and management', 'scenarios/image-generation-pipeline', ARRAY['postgres', 'comfyui', 'minio'], ARRAY['storage', 'ai'], 'intermediate', true),
+('prompt-manager', 'Prompt Manager', 'AI prompt management and optimization platform', 'scenarios/prompt-manager', ARRAY['postgres'], ARRAY['storage'], 'simple', true),
+('scenario-generator-v1', 'Scenario Generator V1', 'AI-powered scenario creation system', 'scenarios/scenario-generator-v1', ARRAY['postgres', 'claude-code'], ARRAY['storage', 'ai'], 'intermediate', false);
 
 -- Insert some sample experiment records for demonstration
 INSERT INTO experiments (name, description, prompt, target_scenario, new_resource, status) VALUES

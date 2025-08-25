@@ -5,11 +5,12 @@
 set -euo pipefail
 
 # Source var.sh first with proper relative path
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
 # shellcheck disable=SC1091
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../../lib/utils/var.sh"
+source "${APP_ROOT}/lib/utils/var.sh"
 
 # Resolve paths
-SCENARIO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCENARIO_DIR="${APP_ROOT}/scenarios/resume-screening-assistant"
 FRAMEWORK_DIR="$var_SCRIPTS_SCENARIOS_DIR/framework"
 
 echo "🚀 Testing Resume Screening Assistant Business Scenario"

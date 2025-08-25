@@ -112,7 +112,7 @@ flowchart TB
 ### **Setup**
 ```bash
 # Navigate to the scenario directory
-cd scripts/scenarios/core/workflow-scheduler
+cd scenarios/workflow-scheduler
 
 # Run setup (initializes database, imports workflows)
 vrooli scenario setup workflow-scheduler

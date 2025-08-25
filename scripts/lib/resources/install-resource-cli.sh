@@ -14,9 +14,9 @@
 
 set -euo pipefail
 
-# Get script directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VROOLI_ROOT="${VROOLI_ROOT:-$(cd "$SCRIPT_DIR/../../../.." && pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/scripts/lib/resources"
+VROOLI_ROOT="$APP_ROOT"
 
 # Source utilities
 # shellcheck disable=SC1091
@@ -124,7 +124,7 @@ install_resource_cli() {
     local resource_name
     resource_name=$(basename "$resource_dir")
     local category
-    category=$(basename "$(dirname "$resource_dir")")
+    category=$(basename "${resource_dir%/*}")
     local command_name="resource-${resource_name}"
     
     log::info "Installing CLI for ${resource_name}..."
@@ -187,7 +187,7 @@ install_all_resource_clis() {
     # Find all cli.sh files
     while IFS= read -r cli_file; do
         local resource_dir
-        resource_dir=$(dirname "$cli_file")
+        resource_dir=${cli_file%/*}
         
         if install_resource_cli "$resource_dir"; then
             ((count++))

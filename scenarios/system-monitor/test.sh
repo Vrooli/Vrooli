@@ -3,10 +3,11 @@ set -euo pipefail
 
 # System Monitor Scenario - Integration Test Script
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/scenarios/system-monitor"
 
 # shellcheck disable=SC1091
-source "$(cd "$SCRIPT_DIR" && cd ../../lib/utils && pwd)/var.sh"
+source "${APP_ROOT}/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "$var_LOG_FILE"
 

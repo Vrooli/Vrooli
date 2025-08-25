@@ -3,7 +3,7 @@
 # Test suite for Secure Document Processing CLI
 
 setup() {
-    CLI_PATH="$(dirname "$BATS_TEST_FILENAME")/secure-document-processing"
+    CLI_PATH="${BATS_TEST_FILENAME%/*}/secure-document-processing"
     export SERVICE_PORT="${SERVICE_PORT:-8090}"
 }
 

@@ -9,13 +9,14 @@ set -euo pipefail
 # 3. Environment variables (fallback)
 
 # Source var.sh with relative path first
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 # shellcheck disable=SC1091
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 # Detect project root dynamically
 secrets::get_project_root() {
     local current_dir
-    current_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    current_dir="${APP_ROOT}/scripts/lib/service"
     
     # Walk up directory tree looking for .vrooli directory
     while [[ "$current_dir" != "/" ]]; do
@@ -23,11 +24,11 @@ secrets::get_project_root() {
             echo "$current_dir"
             return 0
         fi
-        current_dir="$(dirname "$current_dir")"
+        current_dir="${current_dir%/*}"
     done
     
     # Fallback: use var_ROOT_DIR if available
-    echo "${var_ROOT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)}"
+    echo "${var_ROOT_DIR:-$APP_ROOT}"
 }
 
 # Get paths to secret files
@@ -424,7 +425,7 @@ secrets::save_key() {
     
     # Ensure secrets directory exists
     local secrets_dir
-    secrets_dir="$(dirname "$secrets_file")"
+    secrets_dir="${secrets_file%/*}"
     mkdir -p "$secrets_dir"
     
     # Load existing secrets or create new structure
@@ -665,7 +666,7 @@ secrets::migrate_config() {
     local project_config_file
     project_config_file="$(secrets::get_project_config_file)"
     local project_config_dir
-    project_config_dir="$(dirname "$project_config_file")"
+    project_config_dir="${project_config_file%/*}"
     
     # Check if migration is needed
     if [[ ! -f "$user_config_file" ]]; then
@@ -744,7 +745,7 @@ secrets::update_project_config() {
     local project_config_file
     project_config_file="$(secrets::get_project_config_file)"
     local project_config_dir
-    project_config_dir="$(dirname "$project_config_file")"
+    project_config_dir="${project_config_file%/*}"
     
     # Validate inputs
     if [[ -z "$resource_name" ]] || [[ -z "$config_path" ]] || [[ -z "$config_json" ]]; then

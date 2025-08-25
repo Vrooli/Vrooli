@@ -850,9 +850,9 @@ tests:
 - cli/docs/study-workflows.md - Effective CLI usage
 
 ### Related PRDs
-- scenarios/core/research-assistant/PRD.md - Content generation patterns
-- scenarios/core/stream-of-consciousness-analyzer/PRD.md - Note processing
-- scenarios/core/idea-generator/PRD.md - AI content creation
+- scenarios/research-assistant/PRD.md - Content generation patterns
+- scenarios/stream-of-consciousness-analyzer/PRD.md - Note processing
+- scenarios/idea-generator/PRD.md - AI content creation
 
 ### External Resources
 - [Spaced Repetition Research](https://www.gwern.net/Spaced-repetition)

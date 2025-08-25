@@ -3,10 +3,11 @@ set -euo pipefail
 
 # Simple Test Scenario - Integration Test Script
 
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
 # shellcheck disable=SC1091
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../../lib/utils/var.sh"
+source "${APP_ROOT}/lib/utils/var.sh"
 
-SCENARIO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCENARIO_DIR="${APP_ROOT}/scenarios/simple-test"
 # shellcheck disable=SC1091
 source "$var_LOG_FILE"
 

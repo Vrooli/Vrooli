@@ -3,7 +3,8 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/scenarios/scenario-generator-v1"
 API_PORT="${SERVICE_PORT:-8080}"
 POSTGRES_PORT="${POSTGRES_PORT:-5432}"
 

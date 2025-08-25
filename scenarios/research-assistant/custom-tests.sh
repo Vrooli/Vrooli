@@ -3,8 +3,9 @@
 set -euo pipefail
 
 # Source var.sh first with proper relative path
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
 # shellcheck disable=SC1091
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../../lib/utils/var.sh"
+source "${APP_ROOT}/lib/utils/var.sh"
 
 # Source framework utilities if available
 FRAMEWORK_DIR="$var_SCRIPTS_SCENARIOS_DIR/framework"

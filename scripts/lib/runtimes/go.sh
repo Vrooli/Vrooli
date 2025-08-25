@@ -2,10 +2,10 @@
 # Install Go via platform-appropriate method
 set -euo pipefail
 
-# Get runtime directory
-RUNTIME_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+RUNTIME_DIR="${APP_ROOT}/scripts/lib/runtimes"
 # shellcheck disable=SC1091
-source "${RUNTIME_DIR}/../utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
@@ -144,7 +144,7 @@ go::remove_old_installation() {
         log::info "Removing previous Go installation at $go_root..."
         
         # Check if we need sudo to remove the directory
-        if [[ ! -w "$go_root" ]] || [[ ! -w "$(dirname "$go_root")" ]]; then
+        if [[ ! -w "$go_root" ]] || [[ ! -w "${go_root%/*}" ]]; then
             if permissions::check_sudo; then
                 sudo bash -c "source ${var_LIB_SYSTEM_DIR}/trash.sh && trash::safe_remove '$go_root' --no-confirm"
             else

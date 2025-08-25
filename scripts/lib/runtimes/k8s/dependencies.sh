@@ -18,7 +18,8 @@
 set -euo pipefail
 
 # Get script directory
-K8S_DEPS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
+K8S_DEPS_DIR="${APP_ROOT}/scripts/lib/runtimes/k8s"
 
 # Source dependencies
 source "${K8S_DEPS_DIR}/../../../utils/var.sh"

@@ -5,7 +5,8 @@ set -euo pipefail
 # Workflow Scheduler CLI
 # Professional CLI interface for the Workflow Scheduler platform
 
-readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+readonly SCRIPT_DIR="${APP_ROOT}/scenarios/workflow-scheduler/cli"
 readonly API_BASE="${SCHEDULER_API_URL:-http://localhost:8090}"
 readonly VERSION="1.0.0"
 

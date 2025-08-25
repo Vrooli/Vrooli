@@ -411,7 +411,7 @@ unit_tests:
 integration_tests:
   location: test/ directory
   coverage: API operations, secret CRUD, seal/unseal
-  test_data: Uses shared fixtures from scripts/__test/fixtures/data/
+  test_data: Uses shared fixtures from __test/fixtures/data/
   test_scenarios:
     - Vault initialization and unsealing
     - Secret storage and retrieval
@@ -419,7 +419,7 @@ integration_tests:
     - Policy enforcement
   
 system_tests:
-  location: scripts/__test/resources/vault/
+  location: __test/resources/vault/
   coverage: Full resource lifecycle, HA failover
   automation: Integrated with Vrooli test framework
   
@@ -438,7 +438,7 @@ test_specification:
   test_structure:
     - BATS files co-located with source files
     - Integration tests in test/ directory
-    - Shared fixtures from scripts/__test/fixtures/data/
+    - Shared fixtures from __test/fixtures/data/
     - Test results included in status output with timestamp
     - Examples in examples/ directory
   

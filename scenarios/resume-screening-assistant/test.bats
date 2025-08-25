@@ -2,7 +2,7 @@
 # Tests for test.sh
 
 # Source test setup infrastructure
-source "$(dirname "${BATS_TEST_FILENAME}")/../../../../__test/fixtures/setup.bash"
+source "${{BATS_TEST_FILENAME}%/*}/../../../../__test/fixtures/setup.bash"
 
 setup() {
     vrooli_setup_unit_test

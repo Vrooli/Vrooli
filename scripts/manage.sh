@@ -8,7 +8,6 @@ set -euo pipefail
 # All behavior is controlled by .vrooli/service.json
 #######################################
 
-# Get APP_ROOT using cached value or compute once (1 level up: scripts/manage.sh)
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/.." && builtin pwd)}"
 MAIN_SCRIPT_DIR="${APP_ROOT}/scripts"
 export MAIN_SCRIPT_DIR

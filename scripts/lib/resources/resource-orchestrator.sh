@@ -8,9 +8,9 @@
 
 set -euo pipefail
 
-# Get script directory
-RESOURCE_AUTO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VROOLI_ROOT="${VROOLI_ROOT:-$(cd "$RESOURCE_AUTO_DIR/../../.." && pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+RESOURCE_AUTO_DIR="${APP_ROOT}/scripts/lib/resources"
+VROOLI_ROOT="$APP_ROOT"
 
 # Source dependencies
 source "${VROOLI_ROOT}/scripts/lib/utils/var.sh"
@@ -28,7 +28,7 @@ RESOURCE_REGISTRY="${VROOLI_ROOT}/.vrooli/running-resources.json"
 # Initialize resource registry
 #######################################
 resource_registry::init() {
-    local registry_dir="$(dirname "$RESOURCE_REGISTRY")"
+    local registry_dir="${RESOURCE_REGISTRY%/*}"
     
     if [[ ! -d "$registry_dir" ]]; then
         mkdir -p "$registry_dir"
@@ -141,11 +141,10 @@ resource_auto::install_resource() {
         fi
     fi
     
-    # Find resource directory (check both flat and categorized structure)
+    # Find resource directory
     local resource_dir=""
     local possible_locations=(
-        "${VROOLI_ROOT}/scripts/resources/${resource_name}"
-        "${VROOLI_ROOT}/scripts/resources/*/${resource_name}"
+        "${VROOLI_ROOT}/resources/${resource_name}"
     )
     
     for pattern in "${possible_locations[@]}"; do

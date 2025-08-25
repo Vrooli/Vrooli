@@ -6,12 +6,13 @@ set -euo pipefail
 
 # Source var.sh for directory variables
 # shellcheck disable=SC1091
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../../lib/utils/var.sh" 2>/dev/null || true
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+source "${APP_ROOT}/lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
 # Configuration
-SCENARIO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SCENARIO_DIR="${APP_ROOT}/scenarios/scenario-generator-v1"
 SCENARIO_ID="scenario-generator-v1"
 SCENARIO_NAME="Scenario Generator V1"
 MONITOR_LOG="/tmp/vrooli-${SCENARIO_ID}-monitor.log"

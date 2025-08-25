@@ -16,27 +16,7 @@
       "media",
       "converter",
       "javascript-ui"
-    ],
-    "maintainers": [
-      {
-        "name": "Vrooli Team",
-        "email": "support@vrooli.com",
-        "url": "https://vrooli.com"
-      }
-    ],
-    "repository": {
-      "type": "git",
-      "url": "https://github.com/Vrooli/Vrooli",
-      "directory": "/scripts/scenarios/core/video-downloader"
-    },
-    "license": "MIT",
-    "homepage": "https://github.com/Vrooli/Vrooli",
-    "documentation": "./README.md",
-    "support": {
-      "email": "support@vrooli.com",
-      "issues": "https://github.com/Vrooli/Vrooli/issues",
-      "chat": "https://discord.gg/vrooli"
-    }
+    ]
   },
   "ports": {
     "api": {
@@ -116,8 +96,13 @@
     ]
   },
   "dependencies": {
-    "system": ["yt-dlp", "ffmpeg"],
-    "shared_workflows": ["rate-limiter"]
+    "system": [
+      "yt-dlp",
+      "ffmpeg"
+    ],
+    "shared_workflows": [
+      "rate-limiter"
+    ]
   },
   "healthcheck": {
     "enabled": true,

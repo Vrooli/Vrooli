@@ -3,7 +3,8 @@
 # Test suite for manage.sh - the universal lifecycle management script
 
 # Source trash module for safe test cleanup
-MAIN_SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)}"
+MAIN_SCRIPT_DIR="${APP_ROOT}/scripts"
 # shellcheck disable=SC1091
 source "${MAIN_SCRIPT_DIR}/lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091

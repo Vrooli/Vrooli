@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-CLI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$CLI_DIR/../scripts/lib/utils/cli-install.sh"
+# T using cached value or compute once (3 levels up: scenarios/task-planner/cli/install.sh)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+CLI_DIR="${APP_ROOT}/scenarios/task-planner/cli"
+source "${APP_ROOT}/scripts/lib/utils/cli-install.sh"
 
 install_cli "$CLI_DIR/task-planner-cli.sh" "task-planner"

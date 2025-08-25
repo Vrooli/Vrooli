@@ -731,9 +731,9 @@ tests:
 - ui/docs/customization.md - Theme modifications
 
 ### Related PRDs
-- scenarios/core/incident-manager/PRD.md - Consumes anomaly events
-- scenarios/core/auto-scaler/PRD.md - Uses metrics for scaling
-- scenarios/core/cost-optimizer/PRD.md - Analyzes resource usage
+- scenarios/incident-manager/PRD.md - Consumes anomaly events
+- scenarios/auto-scaler/PRD.md - Uses metrics for scaling
+- scenarios/cost-optimizer/PRD.md - Analyzes resource usage
 
 ### External Resources
 - [QuestDB Documentation](https://questdb.io/docs/)

@@ -2,7 +2,8 @@
 # This script sets up keyless SSH access to a remote server.
 
 # Source var.sh first with relative path
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../utils/var.sh"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 # Now source everything else using var_ variables
 # shellcheck disable=SC1091

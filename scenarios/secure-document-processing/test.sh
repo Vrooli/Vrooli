@@ -5,12 +5,13 @@
 set -euo pipefail
 
 # Resolve paths
-SCENARIO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+SCENARIO_DIR="${APP_ROOT}/scenarios/secure-document-processing"
 
 # shellcheck disable=SC1091
-source "$(cd "$SCENARIO_DIR" && cd ../../lib/utils && pwd)/var.sh"
+source "${APP_ROOT}/lib/utils/var.sh"
 
-FRAMEWORK_DIR="$(cd "$SCENARIO_DIR/../../framework" && pwd)"
+FRAMEWORK_DIR="${APP_ROOT}/scenarios/framework"
 
 echo "🚀 Testing Secure Document Processing Business Scenario"
 echo "📁 Scenario: $(basename "$SCENARIO_DIR")"

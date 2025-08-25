@@ -876,9 +876,9 @@ tests:
 - cli/docs/business-workflows.md - Efficient invoice management
 
 ### Related PRDs
-- scenarios/core/product-manager-agent/PRD.md - Project billing integration
-- scenarios/core/roi-fit-analysis/PRD.md - Financial planning extension
-- scenarios/core/document-manager/PRD.md - Invoice archival patterns
+- scenarios/product-manager-agent/PRD.md - Project billing integration
+- scenarios/roi-fit-analysis/PRD.md - Financial planning extension
+- scenarios/document-manager/PRD.md - Invoice archival patterns
 
 ### External Resources
 - [Professional Invoice Standards](https://www.invoiceberry.com/blog/invoice-requirements-by-country/)

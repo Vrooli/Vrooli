@@ -15,7 +15,6 @@
 
 set -euo pipefail
 
-# Get APP_ROOT using cached value or compute once (2 levels up: scripts/lib/setup.sh)
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
 
 # shellcheck disable=SC1091
@@ -80,6 +79,8 @@ source "${var_LIB_NETWORK_DIR}/firewall.sh"
 source "${var_LIB_DEPS_DIR}/bats.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_DEPS_DIR}/shellcheck.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_DEPS_DIR}/lychee.sh"
 
 ################################################################################
 # Main Setup Logic
@@ -219,6 +220,7 @@ setup::generic_main() {
         log::info "Installing test tools..."
         bats::install
         shellcheck::install
+        lychee::install
     fi
     
     # Step 6: Install Common Runtimes

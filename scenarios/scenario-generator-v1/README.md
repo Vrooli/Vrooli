@@ -68,7 +68,7 @@ Ensure the following resources are available:
 
 1. **Deploy the scenario:**
    ```bash
-   cd scripts/scenarios/core/scenario-generator-v1
+   cd scenarios/scenario-generator-v1
    ./deployment/startup.sh deploy
    ```
 
@@ -195,7 +195,7 @@ The system automatically learns from:
 **Useful Commands:**
 ```bash
 # Check Claude Code status
-bash /home/matthalloran8/Vrooli/scripts/resources/agents/claude-code/manage.sh --action status
+bash /home/matthalloran8/Vrooli/resources/claude-code/manage.sh --action status
 
 # View n8n workflows
 curl http://localhost:5678/api/v1/workflows

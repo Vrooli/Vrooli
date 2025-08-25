@@ -2,8 +2,9 @@
 # Tests for test.sh
 
 # Source test setup infrastructure
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BATS_TEST_FILENAME%/*}/../.." && builtin pwd)}"
 # shellcheck disable=SC1091
-source "$(dirname "${BATS_TEST_FILENAME}")/../../../../__test/fixtures/setup.bash"
+source "${APP_ROOT}/__test/fixtures/setup.bash"
 
 setup() {
     vrooli_setup_unit_test
@@ -117,7 +118,7 @@ teardown() {
     mkdir -p "$VROOLI_TEST_TMPDIR/mock-scenario"
     cat > "$VROOLI_TEST_TMPDIR/test-mock.sh" <<'EOF'
 #!/bin/bash
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../../lib/utils/var.sh"
+source "$(builtin cd "${BASH_SOURCE[0]%/*}/../../../lib/utils" && builtin pwd)/var.sh"
 SCENARIO_DIR="$1"
 source "$var_LOG_FILE"
 

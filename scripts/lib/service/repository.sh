@@ -6,7 +6,8 @@
 # parsing across the Vrooli codebase.
 set -euo pipefail
 
-LIB_SERVICE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+LIB_SERVICE_DIR="${APP_ROOT}/scripts/lib/service"
 
 # shellcheck disable=SC1091
 source "${LIB_SERVICE_DIR}/../utils/var.sh"

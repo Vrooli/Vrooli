@@ -17,9 +17,10 @@ log_info() { echo -e "${BLUE}[INFO]${NC} $1" >&2; }
 log_success() { echo -e "${GREEN}[SUCCESS]${NC} $1" >&2; }
 log_warning() { echo -e "${YELLOW}[WARNING]${NC} $1" >&2; }
 
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+
 # Configuration
 GENERATED_APPS_DIR="${GENERATED_APPS_DIR:-$HOME/generated-apps}"
-VROOLI_ROOT="${VROOLI_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 
 main() {
     log_info "Stopping all Vrooli apps..."

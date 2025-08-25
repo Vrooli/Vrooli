@@ -3,10 +3,10 @@
 -- Insert sample app records for demonstration
 INSERT INTO apps (name, scenario_name, path, status, port_mappings, environment, config)
 VALUES 
-('sample-web-app', 'web-application', '/scripts/scenarios/core/sample-web-app', 'stopped', 
+('sample-web-app', 'web-application', '/scenarios/sample-web-app', 'stopped', 
  '{"web": 3000, "api": 8080}', '{"NODE_ENV": "production"}', 
  '{"container_name": "sample-web-app", "auto_restart": true}'),
-('task-scheduler', 'automation', '/scripts/scenarios/core/task-scheduler', 'stopped',
+('task-scheduler', 'automation', '/scenarios/task-scheduler', 'stopped',
  '{"api": 8090}', '{"LOG_LEVEL": "info"}',
  '{"container_name": "task-scheduler", "auto_restart": false}')
 ON CONFLICT (name) DO NOTHING;

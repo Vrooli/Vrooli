@@ -769,9 +769,9 @@ tests:
 - ui/docs/mindful-design.md - Design philosophy
 
 ### Related PRDs
-- scenarios/core/mind-maps/PRD.md - Visualization consumer
-- scenarios/core/research-assistant/PRD.md - Research integration
-- scenarios/core/idea-generator/PRD.md - Creative thought processing
+- scenarios/mind-maps/PRD.md - Visualization consumer
+- scenarios/research-assistant/PRD.md - Research integration
+- scenarios/idea-generator/PRD.md - Creative thought processing
 
 ### External Resources
 - [Mindful Design Principles](https://www.mindfuldesign.xyz/)

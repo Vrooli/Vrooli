@@ -3,8 +3,9 @@
 # Travel Map Filler CLI
 # Interactive world map for tracking travel history
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/scenarios/travel-map-filler/cli"
+PROJECT_ROOT="${APP_ROOT}/scenarios/travel-map-filler"
 
 # Source common functions if available
 if [[ -f "$PROJECT_ROOT/scripts/lib/common.sh" ]]; then

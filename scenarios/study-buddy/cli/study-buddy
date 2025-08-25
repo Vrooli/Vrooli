@@ -5,8 +5,9 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-APP_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/scenarios/study-buddy/cli"
+APP_DIR="${APP_ROOT}/scenarios/study-buddy"
 
 # Load environment variables if available
 if [ -f "$APP_DIR/.env" ]; then

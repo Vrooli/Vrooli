@@ -4,7 +4,8 @@ set -euo pipefail
 
 # Install the Workflow Scheduler CLI
 
-readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+readonly SCRIPT_DIR="${APP_ROOT}/scenarios/workflow-scheduler/cli"
 readonly CLI_NAME="scheduler-cli"
 readonly CLI_SOURCE="${SCRIPT_DIR}/${CLI_NAME}"
 

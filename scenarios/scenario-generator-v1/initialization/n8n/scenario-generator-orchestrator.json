@@ -12,7 +12,10 @@
       "name": "Webhook Trigger",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1.1,
-      "position": [200, 300]
+      "position": [
+        200,
+        300
+      ]
     },
     {
       "parameters": {},
@@ -20,7 +23,10 @@
       "name": "Manual Trigger",
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
-      "position": [200, 500]
+      "position": [
+        200,
+        500
+      ]
     },
     {
       "parameters": {
@@ -31,7 +37,10 @@
       "name": "Set Test Defaults",
       "type": "n8n-nodes-base.code",
       "typeVersion": 1,
-      "position": [400, 500]
+      "position": [
+        400,
+        500
+      ]
     },
     {
       "parameters": {},
@@ -39,7 +48,10 @@
       "name": "Merge Triggers",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 2.1,
-      "position": [600, 400]
+      "position": [
+        600,
+        400
+      ]
     },
     {
       "parameters": {
@@ -50,7 +62,10 @@
       "name": "Validate Input",
       "type": "n8n-nodes-base.code",
       "typeVersion": 1,
-      "position": [800, 400]
+      "position": [
+        800,
+        400
+      ]
     },
     {
       "parameters": {
@@ -76,7 +91,10 @@
       "name": "Generate service.json",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1000, 400]
+      "position": [
+        1000,
+        400
+      ]
     },
     {
       "parameters": {
@@ -102,7 +120,10 @@
       "name": "Generate Database Schema",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1000, 550]
+      "position": [
+        1000,
+        550
+      ]
     },
     {
       "parameters": {
@@ -128,7 +149,10 @@
       "name": "Generate Main Workflow",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1000, 700]
+      "position": [
+        1000,
+        700
+      ]
     },
     {
       "parameters": {
@@ -154,19 +178,25 @@
       "name": "Generate UI Code",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1000, 850],
+      "position": [
+        1000,
+        850
+      ],
       "continueOnFail": true
     },
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Parse and validate all generated components\nconst config = $('Validate Input').item.json.config;\nconst metadata = $('Validate Input').item.json.metadata;\n\n// Parse service.json\nlet serviceJson;\ntry {\n  const response = $('Generate service.json').item.json;\n  const responseText = response.response || response.text || '';\n  const jsonMatch = responseText.match(/\\{[\\s\\S]*\\}/);\n  \n  if (jsonMatch) {\n    serviceJson = JSON.parse(jsonMatch[0]);\n    serviceJson.service.name = config.scenario_name;\n    serviceJson.service.displayName = config.display_name;\n    serviceJson.service.description = config.description;\n    metadata.steps_completed.push('service_json_generated');\n  }\n} catch (error) {\n  metadata.errors.push({\n    step: 'service_json_generation',\n    error: error.message\n  });\n}\n\n// Parse database schema\nlet schemaSQL;\ntry {\n  const response = $('Generate Database Schema').item.json;\n  const responseText = response.response || response.text || '';\n  schemaSQL = responseText.replace(/```sql/gi, '').replace(/```/g, '').trim();\n  if (schemaSQL.includes('CREATE TABLE')) {\n    metadata.steps_completed.push('schema_generated');\n  }\n} catch (error) {\n  metadata.errors.push({\n    step: 'schema_generation',\n    error: error.message\n  });\n}\n\n// Parse workflow\nlet workflowJson;\ntry {\n  const response = $('Generate Main Workflow').item.json;\n  if (response.success) {\n    workflowJson = response.workflow_json || response.result || {};\n    metadata.steps_completed.push('workflow_generated');\n  }\n} catch (error) {\n  metadata.errors.push({\n    step: 'workflow_generation',\n    error: error.message\n  });\n}\n\n// Parse UI code if applicable\nlet uiFiles = {};\nif (config.ui_type === 'javascript' || config.ui_type === 'react') {\n  try {\n    const response = $('Generate UI Code').item.json;\n    if (response.success && response.files) {\n      uiFiles = response.files;\n      metadata.steps_completed.push('ui_generated');\n    }\n  } catch (error) {\n    metadata.warnings.push({\n      step: 'ui_generation',\n      warning: 'UI generation not available or failed',\n      error: error.message\n    });\n  }\n}\n\n// Update metadata\nmetadata.completed_at = new Date().toISOString();\nmetadata.status = metadata.errors.length > 0 ? 'completed_with_errors' : 'success';\n\n// Create fallback values if needed\nif (!serviceJson) {\n  serviceJson = {\n    \"$schema\": \"../../../../.vrooli/schemas/service.schema.json\",\n    \"version\": \"1.0.0\",\n    \"service\": {\n      \"parent\": \"vrooli\",\n      \"name\": config.scenario_name,\n      \"displayName\": config.display_name,\n      \"description\": config.description,\n      \"version\": \"1.0.0\",\n      \"type\": \"business-application\",\n      \"category\": config.category,\n      \"tags\": config.tags\n    },\n    \"ports\": {\n      \"api\": {\n        \"env_var\": \"SERVICE_PORT\",\n        \"range\": \"8090-8999\",\n        \"fallback\": \"auto\"\n      }\n    },\n    \"resources\": {\n      \"automation\": {\n        \"n8n\": {\n          \"type\": \"n8n\",\n          \"enabled\": true,\n          \"required\": true,\n          \"shared_workflows\": [\"ollama\"],\n          \"initialization\": []\n        }\n      },\n      \"storage\": {\n        \"postgres\": {\n          \"type\": \"postgres\",\n          \"enabled\": true,\n          \"required\": true,\n          \"initialization\": []\n        }\n      }\n    },\n    \"lifecycle\": {\n      \"version\": \"1.0.0\",\n      \"setup\": { \"steps\": [] },\n      \"develop\": { \"steps\": [] },\n      \"test\": { \"steps\": [] },\n      \"stop\": { \"steps\": [] }\n    }\n  };\n}\n\nif (!schemaSQL) {\n  schemaSQL = `-- Database schema for ${config.scenario_name}\\nCREATE TABLE IF NOT EXISTS data (\\n    id SERIAL PRIMARY KEY,\\n    content JSONB,\\n    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\\n);`;\n}\n\nif (!workflowJson) {\n  workflowJson = {\n    \"name\": `${config.display_name} Main Workflow`,\n    \"nodes\": [\n      {\n        \"parameters\": {\n          \"httpMethod\": \"POST\",\n          \"path\": config.scenario_name,\n          \"responseMode\": \"responseNode\"\n        },\n        \"id\": \"webhook_trigger\",\n        \"name\": \"Webhook Trigger\",\n        \"type\": \"n8n-nodes-base.webhook\",\n        \"typeVersion\": 1.1,\n        \"position\": [250, 300]\n      },\n      {\n        \"parameters\": {},\n        \"id\": \"manual_trigger\",\n        \"name\": \"Manual Trigger\",\n        \"type\": \"n8n-nodes-base.manualTrigger\",\n        \"typeVersion\": 1,\n        \"position\": [250, 150]\n      },\n      {\n        \"parameters\": {\n          \"respondWith\": \"json\",\n          \"responseBody\": \"{\\\"success\\\": true, \\\"message\\\": \\\"Workflow executed\\\"}\"\n        },\n        \"id\": \"respond\",\n        \"name\": \"Respond\",\n        \"type\": \"n8n-nodes-base.respondToWebhook\",\n        \"typeVersion\": 1,\n        \"position\": [650, 300]\n      }\n    ],\n    \"connections\": {\n      \"webhook_trigger\": {\n        \"main\": [[{\"node\": \"respond\", \"type\": \"main\", \"index\": 0}]]\n      }\n    }\n  };\n}\n\n// Build file structure\nconst fileStructure = {\n  '.vrooli': {\n    'service.json': serviceJson\n  },\n  'initialization': {\n    'postgres': {\n      'schema.sql': schemaSQL\n    },\n    'n8n': {\n      'main-workflow.json': workflowJson\n    }\n  },\n  'api': {\n    'main.go': `package main\\n\\nimport (\\n    \"fmt\"\\n    \"net/http\"\\n    \"os\"\\n)\\n\\nfunc main() {\\n    http.HandleFunc(\"/health\", func(w http.ResponseWriter, r *http.Request) {\\n        w.WriteHeader(http.StatusOK)\\n        fmt.Fprintf(w, \"{\\\\\"status\\\\\":\\\\\"healthy\\\\\"}\\\\n\")\\n    })\\n    \\n    port := os.Getenv(\"SERVICE_PORT\")\\n    if port == \"\" {\\n        port = \"8090\"\\n    }\\n    \\n    fmt.Printf(\"Starting ${config.display_name} API on port %s\\\\n\", port)\\n    http.ListenAndServe(\":\" + port, nil)\\n}`,\n    'go.mod': `module ${config.scenario_name}\\n\\ngo 1.19`\n  }\n};\n\n// Add UI files if generated\nif (Object.keys(uiFiles).length > 0) {\n  fileStructure.ui = uiFiles;\n}\n\n// Add README\nfileStructure['README.md'] = `# ${config.display_name}\\n\\n${config.description}\\n\\n## Business Value\\n${config.business_value}\\n\\n## Target Market\\n${config.target_market}\\n\\n## Revenue Potential\\n$${config.revenue_range.min} - $${config.revenue_range.max} ${config.revenue_range.currency || 'USD'}\\n\\n## Resources Used\\n${config.resources_needed.map(r => '- ' + r).join('\\n')}\\n\\n## Generated\\nGenerated on ${metadata.completed_at} by Scenario Generator V1\\nGeneration ID: ${metadata.generation_id}`;\n\n// Create summary\nconst summary = {\n  success: metadata.status === 'success',\n  scenario_name: config.scenario_name,\n  display_name: config.display_name,\n  generation_id: metadata.generation_id,\n  files_generated: Object.keys(fileStructure).length,\n  warnings: metadata.warnings,\n  errors: metadata.errors,\n  next_steps: [\n    `1. Review generated files in scripts/scenarios/core/${config.scenario_name}/`,\n    `2. Run 'vrooli scenario convert ${config.scenario_name}' to test the scenario`,\n    `3. Customize the generated files as needed`,\n    `4. Add UI components if required (${config.ui_type} type selected)`\n  ]\n};\n\nreturn {\n  summary: summary,\n  file_structure: fileStructure,\n  metadata: metadata,\n  config: config\n};"
+        "jsCode": "// Parse and validate all generated components\nconst config = $('Validate Input').item.json.config;\nconst metadata = $('Validate Input').item.json.metadata;\n\n// Parse service.json\nlet serviceJson;\ntry {\n  const response = $('Generate service.json').item.json;\n  const responseText = response.response || response.text || '';\n  const jsonMatch = responseText.match(/\\{[\\s\\S]*\\}/);\n  \n  if (jsonMatch) {\n    serviceJson = JSON.parse(jsonMatch[0]);\n    serviceJson.service.name = config.scenario_name;\n    serviceJson.service.displayName = config.display_name;\n    serviceJson.service.description = config.description;\n    metadata.steps_completed.push('service_json_generated');\n  }\n} catch (error) {\n  metadata.errors.push({\n    step: 'service_json_generation',\n    error: error.message\n  });\n}\n\n// Parse database schema\nlet schemaSQL;\ntry {\n  const response = $('Generate Database Schema').item.json;\n  const responseText = response.response || response.text || '';\n  schemaSQL = responseText.replace(/```sql/gi, '').replace(/```/g, '').trim();\n  if (schemaSQL.includes('CREATE TABLE')) {\n    metadata.steps_completed.push('schema_generated');\n  }\n} catch (error) {\n  metadata.errors.push({\n    step: 'schema_generation',\n    error: error.message\n  });\n}\n\n// Parse workflow\nlet workflowJson;\ntry {\n  const response = $('Generate Main Workflow').item.json;\n  if (response.success) {\n    workflowJson = response.workflow_json || response.result || {};\n    metadata.steps_completed.push('workflow_generated');\n  }\n} catch (error) {\n  metadata.errors.push({\n    step: 'workflow_generation',\n    error: error.message\n  });\n}\n\n// Parse UI code if applicable\nlet uiFiles = {};\nif (config.ui_type === 'javascript' || config.ui_type === 'react') {\n  try {\n    const response = $('Generate UI Code').item.json;\n    if (response.success && response.files) {\n      uiFiles = response.files;\n      metadata.steps_completed.push('ui_generated');\n    }\n  } catch (error) {\n    metadata.warnings.push({\n      step: 'ui_generation',\n      warning: 'UI generation not available or failed',\n      error: error.message\n    });\n  }\n}\n\n// Update metadata\nmetadata.completed_at = new Date().toISOString();\nmetadata.status = metadata.errors.length > 0 ? 'completed_with_errors' : 'success';\n\n// Create fallback values if needed\nif (!serviceJson) {\n  serviceJson = {\n    \"$schema\": \"../../../../.vrooli/schemas/service.schema.json\",\n    \"version\": \"1.0.0\",\n    \"service\": {\n      \"parent\": \"vrooli\",\n      \"name\": config.scenario_name,\n      \"displayName\": config.display_name,\n      \"description\": config.description,\n      \"version\": \"1.0.0\",\n      \"type\": \"business-application\",\n      \"category\": config.category,\n      \"tags\": config.tags\n    },\n    \"ports\": {\n      \"api\": {\n        \"env_var\": \"SERVICE_PORT\",\n        \"range\": \"8090-8999\",\n        \"fallback\": \"auto\"\n      }\n    },\n    \"resources\": {\n      \"automation\": {\n        \"n8n\": {\n          \"type\": \"n8n\",\n          \"enabled\": true,\n          \"required\": true,\n          \"shared_workflows\": [\"ollama\"],\n          \"initialization\": []\n        }\n      },\n      \"storage\": {\n        \"postgres\": {\n          \"type\": \"postgres\",\n          \"enabled\": true,\n          \"required\": true,\n          \"initialization\": []\n        }\n      }\n    },\n    \"lifecycle\": {\n      \"version\": \"1.0.0\",\n      \"setup\": { \"steps\": [] },\n      \"develop\": { \"steps\": [] },\n      \"test\": { \"steps\": [] },\n      \"stop\": { \"steps\": [] }\n    }\n  };\n}\n\nif (!schemaSQL) {\n  schemaSQL = `-- Database schema for ${config.scenario_name}\\nCREATE TABLE IF NOT EXISTS data (\\n    id SERIAL PRIMARY KEY,\\n    content JSONB,\\n    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\\n);`;\n}\n\nif (!workflowJson) {\n  workflowJson = {\n    \"name\": `${config.display_name} Main Workflow`,\n    \"nodes\": [\n      {\n        \"parameters\": {\n          \"httpMethod\": \"POST\",\n          \"path\": config.scenario_name,\n          \"responseMode\": \"responseNode\"\n        },\n        \"id\": \"webhook_trigger\",\n        \"name\": \"Webhook Trigger\",\n        \"type\": \"n8n-nodes-base.webhook\",\n        \"typeVersion\": 1.1,\n        \"position\": [250, 300]\n      },\n      {\n        \"parameters\": {},\n        \"id\": \"manual_trigger\",\n        \"name\": \"Manual Trigger\",\n        \"type\": \"n8n-nodes-base.manualTrigger\",\n        \"typeVersion\": 1,\n        \"position\": [250, 150]\n      },\n      {\n        \"parameters\": {\n          \"respondWith\": \"json\",\n          \"responseBody\": \"{\\\"success\\\": true, \\\"message\\\": \\\"Workflow executed\\\"}\"\n        },\n        \"id\": \"respond\",\n        \"name\": \"Respond\",\n        \"type\": \"n8n-nodes-base.respondToWebhook\",\n        \"typeVersion\": 1,\n        \"position\": [650, 300]\n      }\n    ],\n    \"connections\": {\n      \"webhook_trigger\": {\n        \"main\": [[{\"node\": \"respond\", \"type\": \"main\", \"index\": 0}]]\n      }\n    }\n  };\n}\n\n// Build file structure\nconst fileStructure = {\n  '.vrooli': {\n    'service.json': serviceJson\n  },\n  'initialization': {\n    'postgres': {\n      'schema.sql': schemaSQL\n    },\n    'n8n': {\n      'main-workflow.json': workflowJson\n    }\n  },\n  'api': {\n    'main.go': `package main\\n\\nimport (\\n    \"fmt\"\\n    \"net/http\"\\n    \"os\"\\n)\\n\\nfunc main() {\\n    http.HandleFunc(\"/health\", func(w http.ResponseWriter, r *http.Request) {\\n        w.WriteHeader(http.StatusOK)\\n        fmt.Fprintf(w, \"{\\\\\"status\\\\\":\\\\\"healthy\\\\\"}\\\\n\")\\n    })\\n    \\n    port := os.Getenv(\"SERVICE_PORT\")\\n    if port == \"\" {\\n        port = \"8090\"\\n    }\\n    \\n    fmt.Printf(\"Starting ${config.display_name} API on port %s\\\\n\", port)\\n    http.ListenAndServe(\":\" + port, nil)\\n}`,\n    'go.mod': `module ${config.scenario_name}\\n\\ngo 1.19`\n  }\n};\n\n// Add UI files if generated\nif (Object.keys(uiFiles).length > 0) {\n  fileStructure.ui = uiFiles;\n}\n\n// Add README\nfileStructure['README.md'] = `# ${config.display_name}\\n\\n${config.description}\\n\\n## Business Value\\n${config.business_value}\\n\\n## Target Market\\n${config.target_market}\\n\\n## Revenue Potential\\n$${config.revenue_range.min} - $${config.revenue_range.max} ${config.revenue_range.currency || 'USD'}\\n\\n## Resources Used\\n${config.resources_needed.map(r => '- ' + r).join('\\n')}\\n\\n## Generated\\nGenerated on ${metadata.completed_at} by Scenario Generator V1\\nGeneration ID: ${metadata.generation_id}`;\n\n// Create summary\nconst summary = {\n  success: metadata.status === 'success',\n  scenario_name: config.scenario_name,\n  display_name: config.display_name,\n  generation_id: metadata.generation_id,\n  files_generated: Object.keys(fileStructure).length,\n  warnings: metadata.warnings,\n  errors: metadata.errors,\n  next_steps: [\n    `1. Review generated files in scenarios/${config.scenario_name}/`,\n    `2. Run 'vrooli scenario convert ${config.scenario_name}' to test the scenario`,\n    `3. Customize the generated files as needed`,\n    `4. Add UI components if required (${config.ui_type} type selected)`\n  ]\n};\n\nreturn {\n  summary: summary,\n  file_structure: fileStructure,\n  metadata: metadata,\n  config: config\n};"
       },
       "id": "compile_result",
       "name": "Compile Result",
       "type": "n8n-nodes-base.code",
       "typeVersion": 1,
-      "position": [1400, 550]
+      "position": [
+        1400,
+        550
+      ]
     },
     {
       "parameters": {
@@ -183,7 +213,7 @@
         },
         "sendBody": true,
         "bodyContentType": "json",
-        "jsonBody": "={\n  \"base_path\": \"/home/matthalloran8/Vrooli/scripts/scenarios/core/{{ $json.config.scenario_name }}\",\n  \"files\": {{ JSON.stringify($json.file_structure) }},\n  \"create_directories\": true,\n  \"overwrite\": false\n}",
+        "jsonBody": "={\n  \"base_path\": \"/home/matthalloran8/Vrooli/scenarios/{{ $json.config.scenario_name }}\",\n  \"files\": {{ JSON.stringify($json.file_structure) }},\n  \"create_directories\": true,\n  \"overwrite\": false\n}",
         "options": {
           "timeout": 60000
         }
@@ -192,7 +222,10 @@
       "name": "Write Files to Disk",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1600, 550],
+      "position": [
+        1600,
+        550
+      ],
       "continueOnFail": true
     },
     {
@@ -204,7 +237,10 @@
       "name": "Respond Success",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1800, 550]
+      "position": [
+        1800,
+        550
+      ]
     }
   ],
   "connections": {

@@ -15,8 +15,9 @@
 set -euo pipefail
 
 # Get script directory
-FIREWALL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VROOLI_ROOT="${VROOLI_ROOT:-$(cd "$FIREWALL_DIR/../../.." && pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+FIREWALL_DIR="${APP_ROOT}/scripts/lib/firewall"
+VROOLI_ROOT="${VROOLI_ROOT:-$APP_ROOT}"
 
 # Source dependencies
 # shellcheck disable=SC1091

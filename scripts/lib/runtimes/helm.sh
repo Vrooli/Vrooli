@@ -4,10 +4,10 @@ set -euo pipefail
 # Helm deployment library - comprehensive Helm operations for Kubernetes deployments
 # Provides installation, chart management, release operations, and health checks
 
-# Get runtime directory
-RUNTIME_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+RUNTIME_DIR="${APP_ROOT}/scripts/lib/runtimes"
 # shellcheck disable=SC1091
-source "${RUNTIME_DIR}/../utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
