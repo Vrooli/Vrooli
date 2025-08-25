@@ -33,6 +33,7 @@ OPTIONS:
   --no-cache        Skip caching optimizations
   --dry-run         Show what would be tested without running
   --clear-cache     Clear test cache before running
+  --timeout=N       Set timeout in seconds (default: 900)
   --resource=NAME   Test only specific resource (e.g., --resource=ollama)
   --scenario=NAME   Test only specific scenario (e.g., --scenario=app-generator)
   --path=PATH       Test only specific directory/file path
@@ -45,8 +46,9 @@ SCOPING:
   - Use --path=PATH to test only files in a specific directory
   
 EXAMPLES:
-  ./run-tests.sh                      # Run all phases
+  ./run-tests.sh                      # Run all phases (900s timeout)
   ./run-tests.sh static               # Only static analysis
+  ./run-tests.sh all --timeout=1800   # All phases with 30 minute timeout
   ./run-tests.sh all --resource=ollama # Test everything for ollama resource
   ./run-tests.sh unit --scenario=app-generator # Unit tests for app-generator
   ./run-tests.sh docs --path=docs/architecture # Test docs in specific path
@@ -63,6 +65,7 @@ PARALLEL=""
 NO_CACHE=""
 DRY_RUN=""
 CLEAR_CACHE=""
+TIMEOUT_SECONDS="900"  # Default timeout of 900 seconds (15 minutes)
 PHASE_ARGS=()
 
 while [[ $# -gt 0 ]]; do
@@ -90,6 +93,20 @@ while [[ $# -gt 0 ]]; do
         --clear-cache)
             CLEAR_CACHE="--clear-cache"
             shift
+            ;;
+        --timeout=*)
+            TIMEOUT_SECONDS="${1#*=}"
+            shift
+            ;;
+        --timeout)
+            shift
+            if [[ $# -gt 0 ]] && [[ "$1" =~ ^[0-9]+$ ]]; then
+                TIMEOUT_SECONDS="$1"
+                shift
+            else
+                log_error "--timeout requires a numeric value in seconds"
+                exit 1
+            fi
             ;;
         --resource=*|--scenario=*|--path=*)
             # Scope arguments are passed to all phases
@@ -121,6 +138,7 @@ PARALLEL="${PARALLEL:-}"
 NO_CACHE="${NO_CACHE:-}"
 DRY_RUN="${DRY_RUN:-}"
 CLEAR_CACHE="${CLEAR_CACHE:-}"
+TIMEOUT_SECONDS="${TIMEOUT_SECONDS:-900}"
 
 export PROJECT_ROOT
 export SCRIPT_DIR
@@ -129,6 +147,7 @@ export PARALLEL
 export NO_CACHE
 export DRY_RUN
 export CLEAR_CACHE
+export TIMEOUT_SECONDS
 
 # Also export these for backward compatibility
 export LOG_LEVEL="${LOG_LEVEL:-INFO}"
@@ -258,9 +277,10 @@ run_phase() {
         cmd+=("${phase_args[@]}")
     fi
     
-    # Execute with explicit environment variable propagation
-    # This ensures all variables are available to the child process
-    if env \
+    # Execute with timeout that kills entire process group
+    # Using --foreground to put command in its own process group
+    # This ensures all child processes are killed when timeout expires
+    if timeout --foreground --signal=KILL "${TIMEOUT_SECONDS}" env \
         PROJECT_ROOT="$PROJECT_ROOT" \
         SCRIPT_DIR="$SCRIPT_DIR" \
         VERBOSE="$VERBOSE" \
@@ -268,6 +288,7 @@ run_phase() {
         NO_CACHE="$NO_CACHE" \
         DRY_RUN="$DRY_RUN" \
         CLEAR_CACHE="$CLEAR_CACHE" \
+        TIMEOUT_SECONDS="$TIMEOUT_SECONDS" \
         LOG_LEVEL="$LOG_LEVEL" \
         TEST_CACHE_TTL="$TEST_CACHE_TTL" \
         TEST_CACHE_MAX_AGE="$TEST_CACHE_MAX_AGE" \
@@ -295,6 +316,7 @@ main() {
     log_info "🔬 Vrooli Testing Infrastructure v2.0"
     log_info "📁 Project root: $PROJECT_ROOT"
     log_info "🎯 Phase: $PHASE"
+    log_info "⏱️  Timeout: ${TIMEOUT_SECONDS} seconds"
     [[ -n "$VERBOSE" ]] && log_info "📝 Verbose mode enabled"
     [[ -n "$PARALLEL" ]] && log_info "🚀 Parallel execution enabled"
     [[ -n "$NO_CACHE" ]] && log_info "🚫 Cache disabled"
@@ -367,9 +389,10 @@ main() {
     fi
 }
 
-# Trap to ensure cleanup on exit
+# Trap to show results on exit
 cleanup() {
     local exit_code=$?
+    
     if [[ $exit_code -ne 0 ]] && [[ ${#PHASE_RESULTS[@]} -gt 0 ]]; then
         log_info ""
         log_info "🛑 Execution interrupted. Partial results:"
@@ -380,7 +403,9 @@ cleanup() {
     fi
 }
 
+# Trap to show results and exit cleanly
 trap cleanup EXIT
+trap 'exit 130' INT TERM
 
 # Run main function
 main "$@"

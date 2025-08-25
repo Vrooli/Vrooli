@@ -4,7 +4,6 @@
 
 set -e
 
-# Get APP_ROOT using cached value or compute once (3 levels up: __test/fixtures/audio/validate-audio.sh)
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 SCRIPT_DIR="${APP_ROOT}/__test/fixtures/audio"
 FIXTURES_DIR="$SCRIPT_DIR"

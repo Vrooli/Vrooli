@@ -3,7 +3,6 @@
 
 set -euo pipefail
 
-# Get APP_ROOT using cached value or compute once (3 levels up: __test/fixtures/negative-tests/validate-negative-tests.sh)
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 NEGATIVE_DIR="${APP_ROOT}/__test/fixtures/negative-tests"
 

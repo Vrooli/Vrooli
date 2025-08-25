@@ -5,7 +5,6 @@
 # Provides functions to work with image metadata in tests
 #
 
-# Get APP_ROOT using cached value or compute once (3 levels up: __test/fixtures/images/test_helpers.sh)
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 IMAGES_DIR="${APP_ROOT}/__test/fixtures/images"
 METADATA_FILE="$IMAGES_DIR/images.yaml"

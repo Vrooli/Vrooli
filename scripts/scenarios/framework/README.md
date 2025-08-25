@@ -390,7 +390,7 @@ validation:
 
 ```bash
 # During development
-./framework/scenario-test-runner.sh --scenario ./core/my-scenario --verbose
+./framework/scenario-test-runner.sh --scenario ./my-scenario --verbose
 
 # Before committing
 pnpm test:scenarios:quick
@@ -432,7 +432,7 @@ pnpm test:scenarios
 ```bash
 # Enable debug output
 export FRAMEWORK_DEBUG=true
-./framework/scenario-test-runner.sh --scenario ./core/my-scenario --verbose
+./framework/scenario-test-runner.sh --scenario ./my-scenario --verbose
 ```
 
 ### Service Discovery Debug

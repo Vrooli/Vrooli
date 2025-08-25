@@ -3,9 +3,10 @@
 # 
 # Validates all markdown documentation for:
 # - Markdown syntax and formatting (markdownlint)
-# - File references and internal links (remark-validate-links)
+# - File references and internal links (lychee)
+# - Plain text file path references (path-references)
 # 
-# Uses npm-based tools with intelligent caching to avoid re-testing unchanged files.
+# Uses modern link checking tools with intelligent caching to avoid re-testing unchanged files.
 
 set -euo pipefail
 
@@ -21,6 +22,8 @@ source "$SCRIPT_DIR/shared/test-helpers.bash"
 source "$SCRIPT_DIR/shared/cache.bash"
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/shared/scoping.bash"
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/phases/docs/path-references.sh"
 
 show_usage() {
     cat << 'EOF'
@@ -215,44 +218,8 @@ MD046:
 EOFYAML
     fi
     
-    # Create remark configuration
-    if [[ ! -f "$config_dir/.remarkrc.yaml" ]]; then
-        log_info "Creating remark configuration..."
-        cat > "$config_dir/.remarkrc.yaml" << 'EOFYAML'
-# Remark configuration for link validation
-plugins:
-  - - remark-validate-links
-    - 
-      # Work with local files only (no repository URL needed)
-      repository: false
-      
-      # File extensions to check when referenced
-      fileExtensions: 
-        - md
-        - markdown
-        - sh
-        - bash
-        - ts
-        - tsx
-        - js
-        - jsx
-        - json
-        - yaml
-        - yml
-        - txt
-        - sql
-        
-      # Ignore external URLs (we only validate local references)
-      urlWhitelist:
-        - "^https?://"
-        - "^mailto:"
-        - "^ftp://"
-        - "^#"  # Allow pure anchor links
-        
-  # Support YAML frontmatter in markdown files
-  - remark-frontmatter
-EOFYAML
-    fi
+    # Note: Lychee configuration is now handled by the project's lychee.toml file
+    # No additional configuration needed for link validation
 }
 
 # Find all markdown files to test
@@ -343,8 +310,8 @@ run_markdownlint() {
     fi
 }
 
-# Run remark-validate-links on a file
-run_remark_validate_links() {
+# Run lychee link validation on a file
+run_lychee_validation() {
     local file="$1"
     local relative_path
     relative_path=$(relative_path "$file")
@@ -356,39 +323,55 @@ run_remark_validate_links() {
         return 0
     fi
     
-    # Run remark with validate-links plugin
+    # Check if lychee is installed
+    if ! command -v lychee >/dev/null 2>&1; then
+        log_warning "Lychee is not installed, skipping link validation"
+        log_info "To install Lychee: ./scripts/lib/deps/lychee.sh"
+        update_cache "$file" "lychee-links" "skipped" 0 "lychee not installed" 0
+        return 0
+    fi
+    
+    # Run lychee with offline mode to check only local file references
+    # Use the project's lychee.toml config if it exists
+    local config_args=""
+    if [[ -f "$PROJECT_ROOT/lychee.toml" ]]; then
+        config_args="--config $PROJECT_ROOT/lychee.toml"
+    else
+        # Use inline configuration for offline local file checking
+        config_args="--offline --scheme file --include-verbatim"
+    fi
+    
     local output
-    if output=$(npx --prefix "$SCRIPT_DIR" remark \
-        --rc-path "$SCRIPT_DIR/config/.remarkrc.yaml" \
-        --quiet \
-        --frail \
-        "$file" 2>&1); then
+    if output=$(lychee $config_args "$file" 2>&1); then
         log_test_pass "link-validation" "$relative_path"
-        update_cache "$file" "remark-links" "passed" 0 "" 0
+        update_cache "$file" "lychee-links" "passed" 0 "" 0
         return 0
     else
         log_test_fail "link-validation" "$relative_path"
-        # Show specific link validation errors
-        # Look for common remark-validate-links error patterns
-        echo "$output" | grep -E "(Cannot find file|Cannot find heading|warning|missing)" | head -5 | while IFS= read -r line; do
-            # Extract just the error message part
+        # Show specific link validation errors from lychee
+        # Lychee output format: [ERROR] file:///path | Error message
+        echo "$output" | grep -E "\[ERROR\]" | head -5 | while IFS= read -r line; do
+            # Extract the error message after the pipe
             local clean_line
-            # Remove file path prefix and clean up spacing
-            clean_line=$(echo "$line" | sed -E 's/^[[:space:]]+//' | sed -E "s|^[^:]+:[0-9]+:[0-9]+-[0-9]+:[0-9]+[[:space:]]+||")
+            if [[ "$line" =~ \|[[:space:]]*(.*) ]]; then
+                clean_line="${BASH_REMATCH[1]}"
+            else
+                clean_line="$line"
+            fi
             log_warning "    └─ $clean_line"
         done
         
-        # Count total issues and show if there are more
+        # Count total errors and show if there are more
         local error_count
-        error_count=$(echo "$output" | grep -cE "(Cannot find|warning)" 2>/dev/null || echo "0")
+        error_count=$(echo "$output" | grep -c "\[ERROR\]" 2>/dev/null || echo "0")
         # Ensure error_count is a valid number
         error_count=${error_count//[^0-9]/}
         error_count=${error_count:-0}
         if [[ "$error_count" -gt 5 ]]; then
-            log_warning "    └─ ... and $((error_count - 5)) more issues"
+            log_warning "    └─ ... and $((error_count - 5)) more errors"
         fi
         
-        update_cache "$file" "remark-links" "failed" 0 "$output" 1
+        update_cache "$file" "lychee-links" "failed" 0 "$output" 1
         return 1
     fi
 }
@@ -445,6 +428,7 @@ main() {
     local files_to_test=()
     local syntax_cached=0
     local links_cached=0
+    local paths_cached=0
     
     for file in "${markdown_files[@]}"; do
         local needs_test=false
@@ -456,21 +440,28 @@ main() {
             ((syntax_cached++)) || true
         fi
         
-        # Check remark-links cache
-        if ! check_cache "$file" "remark-links"; then
+        # Check lychee-links cache
+        if ! check_cache "$file" "lychee-links"; then
             needs_test=true
         else
             ((links_cached++)) || true
         fi
         
-        # Add to test list if either test needs to run
+        # Check path-references cache
+        if ! check_cache "$file" "path-references"; then
+            needs_test=true
+        else
+            ((paths_cached++)) || true
+        fi
+        
+        # Add to test list if any test needs to run
         if [[ "$needs_test" == "true" ]]; then
             files_to_test+=("$file")
         fi
     done
     
     local num_to_test=${#files_to_test[@]}
-    log_info "📊 Cache results: $syntax_cached syntax + $links_cached links already validated"
+    log_info "📊 Cache results: $syntax_cached syntax + $links_cached links + $paths_cached paths already validated"
     log_info "📦 Need to test: $num_to_test files"
     
     # Test counters (start with cached counts)
@@ -478,6 +469,8 @@ main() {
     local syntax_failed=0
     local links_passed=$links_cached
     local links_failed=0
+    local paths_passed=$paths_cached
+    local paths_failed=0
     
     if [[ $num_to_test -eq 0 ]]; then
         log_success "All files validated from cache!"
@@ -489,7 +482,7 @@ main() {
     results_file=$(mktemp)
     
     # Export functions and variables for subshells
-    export -f run_markdownlint run_remark_validate_links
+    export -f run_markdownlint run_lychee_validation run_path_reference_validation
     export -f log_test_start log_test_pass log_test_fail log_warning
     export -f relative_path get_file_hash check_cache update_cache load_cache save_cache
     export -f is_verbose is_dry_run timestamp
@@ -497,27 +490,35 @@ main() {
     export CACHE_PHASE CACHE_MODIFIED
     export -A CACHE_DATA
     
-    # Process files in parallel using xargs
-    printf '%s\0' "${files_to_test[@]}" | \
-    xargs -0 -n 1 -P "$MAX_CORES" -I {} bash -c '
-        file="$1"
-        result="PASS:PASS"
+    # Process files sequentially to avoid subshell issues
+    for file in "${files_to_test[@]}"; do
+        local syntax_result="PASS"
+        local links_result="PASS"
+        local paths_result="PASS"
+        
+        # Run ALL tests regardless of failures
         
         # Run markdownlint
         if ! run_markdownlint "$file"; then
-            result="FAIL:${result#*:}"
+            syntax_result="FAIL"
         fi
         
-        # Run remark-validate-links  
-        if ! run_remark_validate_links "$file"; then
-            result="${result%:*}:FAIL"
+        # Run lychee link validation (runs even if markdownlint failed)
+        if ! run_lychee_validation "$file"; then
+            links_result="FAIL"
         fi
         
-        echo "$result"
-    ' -- {} >> "$results_file"
+        # Run path reference validation (runs even if previous tests failed)
+        if ! run_path_reference_validation "$file"; then
+            paths_result="FAIL"
+        fi
+        
+        # Record results
+        echo "$syntax_result:$links_result:$paths_result" >> "$results_file"
+    done
     
     # Count results
-    while IFS=: read -r syntax_result links_result; do
+    while IFS=: read -r syntax_result links_result paths_result; do
         if [[ "$syntax_result" == "PASS" ]]; then
             ((syntax_passed++)) || true
         else
@@ -527,6 +528,11 @@ main() {
             ((links_passed++)) || true
         else
             ((links_failed++)) || true
+        fi
+        if [[ "$paths_result" == "PASS" ]]; then
+            ((paths_passed++)) || true
+        else
+            ((paths_failed++)) || true
         fi
     done < "$results_file"
     
@@ -549,13 +555,17 @@ main() {
     if [[ $links_failed -gt 0 ]]; then
         log_warning "  Link Issues: $links_failed files"
     fi
+    log_info "  Path Check: $paths_passed/$total_files passed"
+    if [[ $paths_failed -gt 0 ]]; then
+        log_warning "  Path Issues: $paths_failed files"
+    fi
     log_info "  Total Time: ${duration}s"
     
     # Save cache before returning
     save_cache
     
     # Return failure if any tests failed
-    if [[ $syntax_failed -gt 0 ]] || [[ $links_failed -gt 0 ]]; then
+    if [[ $syntax_failed -gt 0 ]] || [[ $links_failed -gt 0 ]] || [[ $paths_failed -gt 0 ]]; then
         return 1
     fi
     

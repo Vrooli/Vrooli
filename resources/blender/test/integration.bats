@@ -4,8 +4,8 @@
 
 # Test directory setup
 setup() {
-    load '../../../../../scripts/__test/helpers/bats-support/load'
-    load '../../../../../scripts/__test/helpers/bats-assert/load'
+    load '../../../../../__test/helpers/bats-support/load'
+    load '../../../../../__test/helpers/bats-assert/load'
     
     # Source the CLI
     BLENDER_CLI="${BATS_TEST_DIRNAME}/../cli.sh"

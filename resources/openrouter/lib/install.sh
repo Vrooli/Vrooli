@@ -62,7 +62,7 @@ openrouter::install() {
         
         # Register the resource as configured (not fully running)
         local registry_file="${var_ROOT_DIR}/.vrooli/resource-registry/openrouter.json"
-        mkdir -p "${registry_file%/*"
+        mkdir -p "${registry_file%/*}"
         
         cat > "$registry_file" <<EOF
 {
@@ -100,7 +100,7 @@ EOF
         
         # Register the resource as running
         local registry_file="${var_ROOT_DIR}/.vrooli/resource-registry/openrouter.json"
-        mkdir -p "${registry_file%/*"
+        mkdir -p "${registry_file%/*}"
         
         cat > "$registry_file" <<EOF
 {

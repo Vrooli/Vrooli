@@ -10,7 +10,7 @@ source "${APP_ROOT}/lib/utils/var.sh" 2>/dev/null || true
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
 # Load Vrooli test infrastructure
-source "${APP_ROOT}/scripts/__test/fixtures/setup.bash"
+source "${APP_ROOT}/__test/fixtures/setup.bash"
 
 # Expensive setup operations run once per file
 setup_file() {

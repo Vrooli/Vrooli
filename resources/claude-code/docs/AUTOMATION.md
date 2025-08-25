@@ -172,7 +172,7 @@ jobs:
         
       - name: AI Code Review
         run: |
-          ./scripts/resources/agents/claude-code/manage.sh \
+          ./resources/claude-code/manage.sh \
             --action run \
             --prompt "Review this PR for security and best practices" \
             --allowed-tools "Read,Grep,WebSearch" \
@@ -203,7 +203,7 @@ jobs:
 set -euo pipefail
 
 # Configuration
-CLAUDE_SCRIPT="./scripts/resources/agents/claude-code/manage.sh"
+CLAUDE_SCRIPT="./resources/claude-code/manage.sh"
 LOG_DIR="logs/maintenance/$(date +%Y-%m-%d)"
 mkdir -p "$LOG_DIR"
 
@@ -254,7 +254,7 @@ FROM node:18-alpine
 RUN npm install -g @anthropic-ai/claude-code
 
 # Copy management scripts
-COPY scripts/resources/agents/claude-code /claude-code
+COPY resources/claude-code /claude-code
 WORKDIR /workspace
 
 # Entry point for automation

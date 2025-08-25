@@ -29,7 +29,7 @@ docker update agent-s2 --memory 4g --memory-swap 8g
 ```
 
 ### 2. Quick Configuration Fix
-Edit `/scripts/resources/agents/agent-s2/docker/config/supervisor.conf`:
+Edit `resources/agent-s2/docker/config/supervisor.conf`:
 
 ```ini
 [program:security-proxy]
@@ -48,7 +48,7 @@ command=/home/agents2/.local/bin/mitmdump \
 ```
 
 ### 3. Add Connection Management Script
-Create `/scripts/resources/agents/agent-s2/docker/scripts/connection-monitor.sh`:
+Create `/resources/agent-s2/docker/scripts/connection-monitor.sh`:
 
 ```bash
 #!/bin/bash
@@ -266,7 +266,7 @@ journalctl -f | grep "gnome-remote" &
 - Add memory swap limit of 8GB
 
 ## Monitoring Dashboard
-Create monitoring script at `/scripts/resources/agents/agent-s2/monitor-health.sh`:
+Create monitoring script at `/resources/agent-s2/monitor-health.sh`:
 
 ```bash
 #!/bin/bash

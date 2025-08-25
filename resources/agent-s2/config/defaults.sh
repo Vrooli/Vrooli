@@ -3,9 +3,10 @@
 # This file contains all configuration constants and defaults for the Agent-S2 resource
 
 # Source var.sh first to get proper directory variables
-_DEFAULTS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+_DEFAULTS_DIR="${APP_ROOT}/resources/agent-s2/config"
 # shellcheck disable=SC1091
-source "${_DEFAULTS_DIR}/../../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 # Source shared secrets management library using var_ variables
 # shellcheck disable=SC1091

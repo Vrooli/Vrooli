@@ -32,7 +32,7 @@ This guide covers installation, configuration, and optimization of Claude Code f
 ./scripts/resources/index.sh --action install --resources claude-code
 
 # Or directly with the manage script
-./scripts/resources/agents/claude-code/manage.sh --action install
+./resources/claude-code/manage.sh --action install
 ```
 
 ### Manual Installation

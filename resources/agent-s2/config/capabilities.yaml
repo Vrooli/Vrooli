@@ -203,7 +203,7 @@ spec:
   
   # Testing and validation
   testing:
-    test_file: "scripts/__test/resources/single/agents/agent-s2.test.sh"
+    test_file: "__test/resources/single/agents/agent-s2.test.sh"
     test_coverage:
       - service_health
       - ai_task_execution

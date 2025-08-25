@@ -5,7 +5,7 @@
     {
       "name": "picker-wheel",
       "description": "Fun random selection wheel with customizable options and animated spinning",
-      "location": "core/picker-wheel",
+      "location": "picker-wheel",
       "category": "saas-applications",
       "validated": false,
       "enabled": true,
@@ -14,7 +14,7 @@
     {
       "name": "scenario-generator-v1",
       "description": "Generates new scenarios from user requirements",
-      "location": "core/scenario-generator-v1",
+      "location": "scenario-generator-v1",
       "category": "vrooli-helpers",
       "validated": false,
       "enabled": true,
@@ -23,7 +23,7 @@
     {
       "name": "campaign-content-studio",
       "description": "Campaign-based content management with AI generation",
-      "location": "core/campaign-content-studio",
+      "location": "campaign-content-studio",
       "category": "saas-applications",
       "validated": false,
       "enabled": true,
@@ -32,7 +32,7 @@
     {
       "name": "research-assistant",
       "description": "AI-powered research and report generation",
-      "location": "core/research-assistant",
+      "location": "research-assistant",
       "category": "saas-applications",
       "validated": true,
       "enabled": true,
@@ -41,7 +41,7 @@
     {
       "name": "image-generation-pipeline",
       "description": "Automated image generation and management pipeline",
-      "location": "core/image-generation-pipeline",
+      "location": "image-generation-pipeline",
       "category": "saas-applications",
       "validated": false,
       "enabled": true,
@@ -50,7 +50,7 @@
     {
       "name": "audio-intelligence-platform",
       "description": "Audio transcription and analysis platform",
-      "location": "core/audio-intelligence-platform",
+      "location": "audio-intelligence-platform",
       "category": "saas-applications",
       "validated": false,
       "enabled": true,
@@ -59,7 +59,7 @@
     {
       "name": "resume-screening-assistant",
       "description": "AI-powered resume screening and matching",
-      "location": "core/resume-screening-assistant",
+      "location": "resume-screening-assistant",
       "category": "saas-applications",
       "validated": false,
       "enabled": true,
@@ -68,7 +68,7 @@
     {
       "name": "secure-document-processing",
       "description": "Secure document handling with encryption",
-      "location": "core/secure-document-processing",
+      "location": "secure-document-processing",
       "category": "saas-applications",
       "validated": false,
       "enabled": true,
@@ -77,7 +77,7 @@
     {
       "name": "app-monitor",
       "description": "Dashboard to manage all running generated apps",
-      "location": "core/app-monitor",
+      "location": "app-monitor",
       "category": "vrooli-helpers",
       "validated": false,
       "enabled": true,
@@ -86,7 +86,7 @@
     {
       "name": "system-monitor",
       "description": "Server monitoring with AI-driven anomaly investigation",
-      "location": "core/system-monitor",
+      "location": "system-monitor",
       "category": "vrooli-helpers",
       "validated": false,
       "enabled": true,
@@ -95,7 +95,7 @@
     {
       "name": "prompt-manager",
       "description": "Clean UX for storing prompts organized by campaigns",
-      "location": "core/prompt-manager",
+      "location": "prompt-manager",
       "category": "saas-applications",
       "validated": false,
       "enabled": true,
@@ -104,7 +104,7 @@
     {
       "name": "brand-manager",
       "description": "Generates complete branding assets (logos, slogans, ad copy) with export and integration capabilities",
-      "location": "core/brand-manager",
+      "location": "brand-manager",
       "category": "saas-applications",
       "validated": false,
       "enabled": true,
@@ -113,7 +113,7 @@
     {
       "name": "personal-digital-twin",
       "description": "Creates AI personas from connected data sources with semantic search and model fine-tuning",
-      "location": "core/personal-digital-twin",
+      "location": "personal-digital-twin",
       "category": "saas-applications",
       "validated": false,
       "enabled": true,
@@ -122,7 +122,7 @@
     {
       "name": "app-personalizer",
       "description": "Customizes generated apps using prompts or digital twins for personalized experiences",
-      "location": "core/app-personalizer",
+      "location": "app-personalizer",
       "category": "saas-applications",
       "validated": false,
       "enabled": true,
@@ -131,7 +131,7 @@
     {
       "name": "document-manager",
       "description": "AI agents for monitoring and maintaining documentation health with queue-based improvements",
-      "location": "core/document-manager",
+      "location": "document-manager",
       "category": "saas-applications",
       "validated": false,
       "enabled": true,
@@ -140,7 +140,7 @@
     {
       "name": "retro-game-launcher",
       "description": "Retro-style launcher for AI-generated games with remix capabilities",
-      "location": "core/retro-game-launcher",
+      "location": "retro-game-launcher",
       "category": "saas-applications",
       "validated": false,
       "enabled": true,
@@ -149,7 +149,7 @@
     {
       "name": "web-scraper-manager",
       "description": "Unified dashboard for managing Huginn, Browserless, and Agent-S2 web scrapers",
-      "location": "core/web-scraper-manager",
+      "location": "web-scraper-manager",
       "category": "saas-applications",
       "validated": false,
       "enabled": true,
@@ -158,7 +158,7 @@
     {
       "name": "idea-generator",
       "description": "AI-powered idea generation with campaign context and interactive agent refinement",
-      "location": "core/idea-generator",
+      "location": "idea-generator",
       "category": "saas-applications",
       "validated": false,
       "enabled": true,
@@ -167,7 +167,7 @@
     {
       "name": "agent-metareasoning-manager",
       "description": "Dashboard for managing metareasoning tools (prompts, workflows) that enhance agent decision-making",
-      "location": "core/agent-metareasoning-manager",
+      "location": "agent-metareasoning-manager",
       "category": "vrooli-helpers",
       "validated": false,
       "enabled": true,
@@ -176,7 +176,7 @@
     {
       "name": "agent-dashboard",
       "description": "Dashboard for managing and monitoring all active agents",
-      "location": "core/agent-dashboard",
+      "location": "agent-dashboard",
       "category": "vrooli-helpers",
       "validated": false,
       "enabled": true,
@@ -185,7 +185,7 @@
     {
       "name": "app-issue-tracker",
       "description": "Issue tracking system for Vrooli and scenarios with AI-powered investigation and automated fixes",
-      "location": "core/app-issue-tracker",
+      "location": "app-issue-tracker",
       "category": "vrooli-helpers",
       "validated": false,
       "enabled": true,
@@ -194,7 +194,7 @@
     {
       "name": "resource-experimenter",
       "description": "Experimental resource testing platform for evaluating new services before native Vrooli integration",
-      "location": "core/resource-experimenter",
+      "location": "resource-experimenter",
       "category": "vrooli-helpers",
       "validated": false,
       "enabled": true,
@@ -203,7 +203,7 @@
     {
       "name": "task-planner",
       "description": "General task planner and scheduler with AI-powered task refinement and implementation",
-      "location": "core/task-planner",
+      "location": "task-planner",
       "category": "saas-applications",
       "validated": false,
       "enabled": true,
@@ -212,7 +212,7 @@
     {
       "name": "smart-file-photo-manager",
       "description": "Semantic file and photo management with AI-powered organization suggestions",
-      "location": "core/smart-file-photo-manager",
+      "location": "smart-file-photo-manager",
       "category": "saas-applications",
       "validated": false,
       "enabled": true,
@@ -221,7 +221,7 @@
     {
       "name": "study-buddy",
       "description": "AI-powered study assistant with flashcards, quizzes, and spaced repetition learning",
-      "location": "core/study-buddy",
+      "location": "study-buddy",
       "category": "saas-applications",
       "validated": false,
       "enabled": true,
@@ -230,7 +230,7 @@
     {
       "name": "typing-test",
       "description": "Interactive typing speed and accuracy test with progress tracking",
-      "location": "core/typing-test",
+      "location": "typing-test",
       "category": "saas-applications",
       "validated": false,
       "enabled": true,
@@ -239,7 +239,7 @@
     {
       "name": "qr-code-generator",
       "description": "AI-enhanced QR code generator with custom designs and batch processing",
-      "location": "core/qr-code-generator",
+      "location": "qr-code-generator",
       "category": "saas-applications",
       "validated": false,
       "enabled": true,
@@ -248,7 +248,7 @@
     {
       "name": "invoice-generator",
       "description": "Professional invoice creation with payment tracking and recurring billing",
-      "location": "core/invoice-generator",
+      "location": "invoice-generator",
       "category": "saas-applications",
       "validated": false,
       "enabled": true,
@@ -257,7 +257,7 @@
     {
       "name": "news-aggregator-bias-analysis",
       "description": "News aggregation with AI-powered bias detection and fact-checking",
-      "location": "core/news-aggregator-bias-analysis",
+      "location": "news-aggregator-bias-analysis",
       "category": "saas-applications",
       "validated": false,
       "enabled": true,
@@ -266,7 +266,7 @@
     {
       "name": "app-debugger",
       "description": "AI-assisted debugging and performance profiling for generated apps",
-      "location": "core/app-debugger",
+      "location": "app-debugger",
       "category": "vrooli-helpers",
       "validated": false,
       "enabled": true,
@@ -275,7 +275,7 @@
     {
       "name": "mind-maps",
       "description": "AI-enabled mind mapping tool for visual organization and semantic search of ideas and knowledge",
-      "location": "core/mind-maps",
+      "location": "mind-maps",
       "category": "saas-applications",
       "validated": false,
       "enabled": true,
@@ -284,7 +284,7 @@
     {
       "name": "stream-of-consciousness-analyzer",
       "description": "Transform unstructured text/voice into organized notes with AI-powered insights and campaign-based organization",
-      "location": "core/stream-of-consciousness-analyzer",
+      "location": "stream-of-consciousness-analyzer",
       "category": "saas-applications",
       "validated": false,
       "enabled": true,
@@ -293,7 +293,7 @@
     {
       "name": "notes",
       "description": "Local AI-enabled note-taking with intelligent organization, semantic search, and real-time suggestions",
-      "location": "core/notes",
+      "location": "notes",
       "category": "saas-applications",
       "validated": false,
       "enabled": true,
@@ -302,7 +302,7 @@
     {
       "name": "nutrition-tracker",
       "description": "Smart nutrition tracking with calorie counting, macro tracking, and AI-powered meal suggestions",
-      "location": "core/nutrition-tracker",
+      "location": "nutrition-tracker",
       "category": "saas-applications",
       "validated": false,
       "enabled": true,
@@ -311,7 +311,7 @@
     {
       "name": "roi-fit-analysis",
       "description": "Deep financial research tool for ROI analysis and investment decision-making",
-      "location": "core/roi-fit-analysis",
+      "location": "roi-fit-analysis",
       "category": "saas-applications",
       "validated": true,
       "enabled": true,
@@ -320,7 +320,7 @@
     {
       "name": "palette-gen",
       "description": "AI-powered color palette generator with harmony analysis and accessibility checking",
-      "location": "core/palette-gen",
+      "location": "palette-gen",
       "category": "saas-applications",
       "validated": false,
       "enabled": true,
@@ -329,7 +329,7 @@
     {
       "name": "fall-foliage-explorer",
       "description": "Interactive map for tracking and forecasting fall foliage peaks across North America with real-time data",
-      "location": "core/fall-foliage-explorer",
+      "location": "fall-foliage-explorer",
       "category": "saas-applications",
       "validated": false,
       "enabled": true,
@@ -338,7 +338,7 @@
     {
       "name": "workflow-scheduler",
       "description": "Enterprise-grade cron scheduling platform for orchestrating Vrooli workflows",
-      "location": "core/workflow-scheduler",
+      "location": "workflow-scheduler",
       "category": "automation-tools",
       "validated": false,
       "enabled": true,
@@ -347,7 +347,7 @@
     {
       "name": "personal-relationship-manager",
       "description": "Thoughtful relationship management with birthday reminders, gift suggestions, and interaction tracking",
-      "location": "core/personal-relationship-manager",
+      "location": "personal-relationship-manager",
       "category": "saas-applications",
       "validated": false,
       "enabled": true,

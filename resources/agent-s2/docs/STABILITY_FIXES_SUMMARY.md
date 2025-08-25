@@ -72,7 +72,7 @@
 ### How to Test:
 ```bash
 # Run the test suite
-python /home/matthalloran8/Vrooli/scripts/resources/agents-s2/test_stability_fixes.py
+python resources/agents-s2/test_stability_fixes.py
 
 # Monitor Firefox crashes
 docker exec agent-s2 tail -f /var/log/firefox-crashes.log
@@ -105,7 +105,7 @@ To deploy these fixes:
 
 1. Rebuild the Docker image:
    ```bash
-   cd /home/matthalloran8/Vrooli/scripts/resources/agents/agent-s2
+   cd resources/agent-s2
    docker build -f docker/images/agent-s2/Dockerfile -t agent-s2:latest .
    ```
 

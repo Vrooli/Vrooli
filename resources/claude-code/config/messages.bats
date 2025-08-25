@@ -16,7 +16,7 @@ setup() {
     mkdir -p "$MOCK_RESPONSES_DIR"
     
     # Load mock framework
-    MOCK_DIR="${APP_ROOT}/scripts/__test/fixtures/mocks"
+    MOCK_DIR="${APP_ROOT}/__test/fixtures/mocks"
     source "$MOCK_DIR/system_mocks.bash"
     source "$MOCK_DIR/mock_helpers.bash"
     source "$MOCK_DIR/resource_mocks.bash"

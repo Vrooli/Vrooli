@@ -79,7 +79,7 @@ New `test-safe` action provides:
 ### Standard Test Execution
 ```bash
 # From project root
-./scripts/__test/resources/run.sh --resource claude-code
+./__test/resources/run.sh --resource claude-code
 
 # Test automatically uses sandbox
 ```
@@ -87,7 +87,7 @@ New `test-safe` action provides:
 ### Manual Test with Sandbox
 ```bash
 # Force sandbox mode
-FORCE_SANDBOX=true ./scripts/__test/resources/single/agents/claude-code.test.sh
+FORCE_SANDBOX=true ./__test/resources/single/agents/claude-code.test.sh
 ```
 
 ### Verify Sandbox Usage
@@ -113,17 +113,17 @@ Look for this message in test output:
 
 3. **Sandbox built**
    ```bash
-   cd scripts/resources/agents/claude-code/sandbox
+   cd resources/claude-code/sandbox
    ./claude-sandbox.sh build
    ```
 
 ### First-Time Setup
 ```bash
 # Build sandbox image
-./scripts/resources/agents/claude-code/sandbox/claude-sandbox.sh build
+./resources/claude-code/sandbox/claude-sandbox.sh build
 
 # Optional: Set up sandbox authentication
-./scripts/resources/agents/claude-code/sandbox/claude-sandbox.sh setup
+./resources/claude-code/sandbox/claude-sandbox.sh setup
 ```
 
 ## 🚨 Troubleshooting

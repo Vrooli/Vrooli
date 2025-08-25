@@ -715,16 +715,16 @@ This comprehensive troubleshooting guide provides solutions for common issues en
 2. **Run tests with debug:**
    ```bash
    # Run with verbose output
-   bash scripts/__tests/__runTests.sh --verbose
+   bash __test/__runTests.sh --verbose
    
    # Run specific test file
-   bats scripts/__tests/utils/log.bats
+   bats __test/utils/log.bats
    ```
 
 3. **Fix test syntax:**
    ```bash
    # Check test file syntax
-   bash -n scripts/__tests/utils/log.bats
+   bash -n __test/utils/log.bats
    
    # Common BATS syntax
    @test "test description" {

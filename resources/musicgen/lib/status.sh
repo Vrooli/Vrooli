@@ -2,7 +2,7 @@
 # MusicGen Status Module - Using Standard Format
 
 # Get script directory
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 MUSICGEN_STATUS_DIR="${APP_ROOT}/resources/musicgen/lib"
 
 # Source utilities
@@ -11,7 +11,7 @@ source "${APP_ROOT}/scripts/lib/utils/log.sh"
 # shellcheck disable=SC1091
 source "${APP_ROOT}/scripts/lib/utils/format.sh"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/status-args.sh"
+source "${APP_ROOT}/scripts/resources/lib/status-args.sh"
 # shellcheck disable=SC1091  
 source "${MUSICGEN_STATUS_DIR}/common.sh"
 # shellcheck disable=SC1091

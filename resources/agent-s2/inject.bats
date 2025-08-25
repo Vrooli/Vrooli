@@ -21,7 +21,7 @@ setup_file() {
     
     # Set up directories and mock path
     SCRIPT_DIR="${APP_ROOT}/resources/agent-s2"
-    export MOCK_DIR="${APP_ROOT}/scripts/__test/fixtures/mocks"
+    export MOCK_DIR="${APP_ROOT}/__test/fixtures/mocks"
     
     # Load all dependencies once (expensive operations)
     # shellcheck disable=SC1091

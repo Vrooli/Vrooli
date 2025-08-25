@@ -236,7 +236,7 @@ resource-browserless for n8n execute-workflow my-workflow
 resource-browserless for --help
 
 # Check adapter directory
-ls scripts/resources/agents/browserless/adapters/
+ls resources/browserless/adapters/
 ```
 
 ### Browserless Not Running

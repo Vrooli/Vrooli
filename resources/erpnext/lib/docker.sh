@@ -72,7 +72,7 @@ erpnext::docker::remove() {
 erpnext::docker::create_compose() {
     local compose_file="$ERPNEXT_RESOURCE_DIR/docker/docker-compose.yml"
     
-    mkdir -p "${compose_file%/*"
+    mkdir -p "${compose_file%/*}"
     
     cat > "$compose_file" << EOF
 services:

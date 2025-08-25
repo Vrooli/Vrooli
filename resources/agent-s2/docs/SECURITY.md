@@ -86,13 +86,13 @@ Password managers, system settings still blocked
 
 ```bash
 # Keep container updated
-./scripts/resources/agents/agent-s2/manage.sh --action update
+./resources/agent-s2/cli.sh update
 
 # Monitor resource usage
 docker stats agent-s2
 
 # Review logs regularly
-./scripts/resources/agents/agent-s2/manage.sh --action logs
+./resources/agent-s2/cli.sh logs
 
 # Verify container integrity
 docker inspect agent-s2 | jq '.Config.SecurityOpt'
@@ -111,10 +111,10 @@ sudo tail -f /var/log/agent-s2/audit/$(date +%Y-%m-%d).log
 curl http://localhost:4113/modes/security | jq '.recent_events'
 
 # Check for security violations
-./scripts/resources/agents/agent-s2/security/check-violations.sh
+./resources/agent-s2/security/check-violations.sh
 
 # Validate security profile
-./scripts/resources/agents/agent-s2/security/validate-profile.sh
+./resources/agent-s2/security/validate-profile.sh
 ```
 
 ## Security Monitoring
@@ -154,10 +154,10 @@ curl http://localhost:4113/modes/security/blocked | jq '.'
 curl -N http://localhost:4113/modes/security/stream
 
 # Set up alerts for security violations
-./scripts/resources/agents/agent-s2/security/setup-alerts.sh
+./resources/agent-s2/security/setup-alerts.sh
 
 # Configure threat response automation
-./scripts/resources/agents/agent-s2/security/setup-response.sh
+./resources/agent-s2/security/setup-response.sh
 ```
 
 ## Component Security
@@ -218,7 +218,7 @@ export AGENT_S2_VNC_SSL=true
 export AGENT_S2_API_AUTH=true
 
 # Install with security hardening
-./scripts/resources/agents/agent-s2/manage.sh --action install \
+./resources/agent-s2/cli.sh install \
   --mode sandbox \
   --host-mode-enabled yes \
   --audit-logging yes \
@@ -272,29 +272,29 @@ export AGENT_S2_API_AUTH=true
 
 ```bash
 # Immediate threat response
-./scripts/resources/agents/agent-s2/security/emergency-stop.sh
+./resources/agent-s2/security/emergency-stop.sh
 
 # Isolate compromised container
 docker pause agent-s2
 
 # Collect forensic data
-./scripts/resources/agents/agent-s2/security/collect-forensics.sh
+./resources/agent-s2/security/collect-forensics.sh
 
 # Generate incident report
-./scripts/resources/agents/agent-s2/security/incident-report.sh
+./resources/agent-s2/security/incident-report.sh
 ```
 
 ### Recovery Procedures
 
 ```bash
 # Clean shutdown and forensic backup
-./scripts/resources/agents/agent-s2/manage.sh --action stop --forensic-backup
+./resources/agent-s2/cli.sh stop --forensic-backup
 
 # Reinstall with clean state
-./scripts/resources/agents/agent-s2/manage.sh --action install --clean-install
+./resources/agent-s2/cli.sh install --clean-install
 
 # Restore verified data only
-./scripts/resources/agents/agent-s2/security/restore-clean-data.sh
+./resources/agent-s2/security/restore-clean-data.sh
 ```
 
 ## Security Updates
@@ -303,13 +303,13 @@ docker pause agent-s2
 
 ```bash
 # Update security profiles
-./scripts/resources/agents/agent-s2/security/update-profiles.sh
+./resources/agent-s2/security/update-profiles.sh
 
 # Update container base images
-./scripts/resources/agents/agent-s2/manage.sh --action update --security-patches
+./resources/agent-s2/cli.sh update --security-patches
 
 # Verify security configuration
-./scripts/resources/agents/agent-s2/security/audit-config.sh
+./resources/agent-s2/security/audit-config.sh
 ```
 
 ## Reporting Security Issues

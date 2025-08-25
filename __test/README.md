@@ -8,9 +8,8 @@ Comprehensive testing infrastructure for the Vrooli platform, featuring a modern
 __test/
 ├── mocks/                    # Mock system (Tier 2 architecture)
 │   ├── tier2/               # 28 modern mocks (production-ready)
-│   ├── adapter.sh           # Legacy-to-Tier2 compatibility layer
-│   ├── test_helper.sh       # BATS integration framework
-│   └── migrate.sh           # Migration management tools
+│   ├── adapter.sh           # Tier 2 mock system interface
+│   └── test_helper.sh       # BATS integration framework
 ├── integration/             # Integration test suites
 │   ├── tier2_direct_test.sh         # Direct Tier 2 mock tests (✅ 12/12 passing)
 │   ├── tier2_comprehensive_test.sh  # Comprehensive integration tests
@@ -41,14 +40,15 @@ __test/
 bash __test/integration/tier2_direct_test.sh
 
 # Run verification scripts
-bash __test/verify_tier2.sh        # Core mocks (6 services)
-bash __test/verify_new_mocks.sh    # New mocks (logs, jq, verification, dig)
+bash __test/verify_all_mocks.sh    # Comprehensive verification (all 28 mocks)
+bash __test/verify_tier2.sh        # Core mocks only (6 services)
+bash __test/verify_new_mocks.sh    # New mocks only (4 utilities)
 
 # Run BATS tests (⚠️ Some limitations with state persistence)
 bats __test/integration/test_tier2_bats.bats
 
 # Run from any directory (path-robust)
-cd /tmp && bash /path/to/Vrooli/__test/verify_tier2.sh  # ✅ Works
+cd /tmp && bash /path/to/Vrooli/__test/verify_all_mocks.sh  # ✅ Works
 ```
 
 ## 🎯 Tier 2 Mock System
@@ -269,7 +269,7 @@ redis_mock_dump_state
 ## 📊 Migration Status
 
 ### Complete Migration ✅
-- **28 of 28 mocks** migrated to Tier 2
+- **28 Tier 2 mocks** fully operational
 - **~12,000+ lines of code eliminated** (50% reduction)
 - **All legacy files cleaned up** 
 - **Zero production disruption** achieved

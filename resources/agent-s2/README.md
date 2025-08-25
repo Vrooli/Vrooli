@@ -193,9 +193,9 @@ The AI layer intelligently orchestrates core automation functions to achieve com
 ## 🧪 Testing & Examples
 
 ### Individual Resource Tests
-- **Test Location**: `scripts/__test/resources/single/agents/agent-s2.test.sh`
+- **Test Location**: `__test/resources/single/agents/agent-s2.test.sh`
 - **Test Coverage**: Service health, AI task execution, screenshot functionality, automation capabilities
-- **Run Test**: `cd scripts/__test/resources && ./quick-test.sh agent-s2`
+- **Run Test**: `cd __test/resources && ./quick-test.sh agent-s2`
 
 ### Working Examples
 - **Examples Folder**: [examples/](examples/)
@@ -208,17 +208,17 @@ The AI layer intelligently orchestrates core automation functions to achieve com
 
 ### Integration with Scenarios
 Agent-S2 is used in these business scenarios:
-- **[Research Assistant](../../scenarios/core/research-assistant/)** - AI-powered research with automated data collection ($15k-30k projects)
-- **[Analytics Dashboard](../../scenarios/core/analytics-dashboard/)** - Automated dashboard creation and data visualization ($12k-25k projects)
+- **[Research Assistant](../../scenarios/research-assistant/)** - AI-powered research with automated data collection ($15k-30k projects)
+- **[Analytics Dashboard](../../scenarios/analytics-dashboard/)** - Automated dashboard creation and data visualization ($12k-25k projects)
 
 ### Test Fixtures
-- **Shared Test Data**: `scripts/__test/resources/fixtures/images/` (test screenshots and visual validation)
-- **Integration Data**: `scripts/__test/resources/fixtures/workflows/` (automation scenarios)
+- **Shared Test Data**: `__test/resources/fixtures/images/` (test screenshots and visual validation)
+- **Integration Data**: `__test/resources/fixtures/workflows/` (automation scenarios)
 
 ### Quick Test Commands
 ```bash
 # Test individual Agent-S2 functionality
-./scripts/__test/resources/quick-test.sh agent-s2
+./__test/resources/quick-test.sh agent-s2
 
 # Test in business scenarios
 cd ./scenarios/research-assistant && ./test.sh

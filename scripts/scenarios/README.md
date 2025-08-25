@@ -64,11 +64,11 @@ All scenarios have been migrated to the new framework:
 ### For Validation Testing
 ```bash
 # Run integration tests for a specific scenario
-cd core/research-assistant
+cd scripts/research-assistant
 ./test.sh
 
 # Run all scenario tests  
-for dir in core/*/; do
+for dir in scripts/*/; do
     echo "Testing $(basename $dir)..."
     (cd "$dir" && ./test.sh)
 done
@@ -92,11 +92,11 @@ vrooli scenario convert secure-document-processing --no-cleanup
 ### For Developers
 ```bash
 # 1. Explore existing scenarios
-ls -la core/                             # See all available scenarios
+ls -la scripts/                             # See all available scenarios
 
 # 2. Create a new scenario using the unified template
-cp -r templates/full/ core/my-new-scenario/
-cd core/my-new-scenario/
+cp -r templates/full/ scripts/my-new-scenario/
+cd scripts/my-new-scenario/
 # Edit service.json and initialization files
 # Template supports both manual editing AND AI generation patterns
 
@@ -106,20 +106,6 @@ cd core/my-new-scenario/
 # 4. Run as live application using resource infrastructure
 vrooli scenario convert my-new-scenario
 # Starts all required resources and runs the application
-```
-
-### For AI Generation
-```bash
-# Use the unified template for AI generation
-cp -r templates/full/ core/ai-generated-scenario/
-# → AI agents can use the built-in placeholder patterns:
-#   - SCENARIO_ID_PLACEHOLDER, VALUE_PROPOSITION_PLACEHOLDER, etc.
-#   - AI guidance comments throughout all files
-#   - Both Jinja2 templates AND AI placeholders supported
-
-# Run AI-generated scenario as live application
-vrooli scenario convert ai-generated-scenario
-# Orchestrates existing resources to run the application
 ```
 
 ## 🔄 **Template Consolidation (COMPLETED)**
@@ -171,7 +157,7 @@ scenarios/
 
 | **Quick Reference** | **Examples & Support** |
 |---|---|
-| 📁 [All Scenarios](core/) | 💡 [Example Walkthroughs](docs/examples/) |
+| 📁 [All Scenarios](scenarios/) | 💡 [Example Walkthroughs](docs/examples/) |
 | 🎯 [Template Guide](templates/README.md) | 🔍 [Troubleshooting](injection/docs/troubleshooting.md) |
 | 📚 [Full Documentation](docs/) | 🆘 [Injection Support](injection/docs/) |
 

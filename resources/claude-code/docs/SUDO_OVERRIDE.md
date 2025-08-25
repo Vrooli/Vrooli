@@ -57,7 +57,7 @@ When no specific commands are provided, the following commands are allowed by de
 
 ```bash
 # Run Claude Code with sudo override
-./scripts/resources/agents/claude-code/manage.sh \
+./resources/claude-code/manage.sh \
   --action run \
   --prompt "Install and configure PostgreSQL service" \
   --sudo-override yes \
@@ -68,7 +68,7 @@ When no specific commands are provided, the following commands are allowed by de
 
 ```bash
 # Only allow specific commands
-./scripts/resources/agents/claude-code/manage.sh \
+./resources/claude-code/manage.sh \
   --action run \
   --prompt "Start Docker service and check status" \
   --sudo-override yes \
@@ -85,7 +85,7 @@ export SUDO_COMMANDS="systemctl,service,docker,apt-get"
 export SUDO_PASSWORD="your-password"
 
 # Run Claude Code
-./scripts/resources/agents/claude-code/manage.sh \
+./resources/claude-code/manage.sh \
   --action run \
   --prompt "Install and start Redis service" \
   --dangerously-skip-permissions yes
@@ -95,7 +95,7 @@ export SUDO_PASSWORD="your-password"
 
 ```bash
 # Test sudo override functionality
-./scripts/resources/agents/claude-code/manage.sh \
+./resources/claude-code/manage.sh \
   --action test-sudo \
   --sudo-override yes
 ```
@@ -136,10 +136,10 @@ Sudo passwords can be provided via:
 
 ```bash
 # Test basic sudo functionality
-./scripts/resources/agents/claude-code/manage.sh --action test-sudo
+./resources/claude-code/manage.sh --action test-sudo
 
 # Test with specific configuration
-./scripts/resources/agents/claude-code/manage.sh \
+./resources/claude-code/manage.sh \
   --action test-sudo \
   --sudo-override yes \
   --sudo-commands "systemctl,docker"
@@ -176,7 +176,7 @@ export CLAUDE_DANGEROUSLY_SKIP_PERMISSIONS="yes"
 
 ```bash
 # Example: Automated PostgreSQL setup
-./scripts/resources/agents/claude-code/manage.sh \
+./resources/claude-code/manage.sh \
   --action run \
   --prompt "Install PostgreSQL, create user, configure service, and start it" \
   --sudo-override yes \
