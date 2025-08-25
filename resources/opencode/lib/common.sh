@@ -4,14 +4,15 @@
 set -euo pipefail
 
 # Get directories  
-OPENCODE_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-OPENCODE_DIR="$(cd "${OPENCODE_LIB_DIR}/.." && pwd)"
-OPENCODE_ROOT="$(cd "${OPENCODE_DIR}/../../.." && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+OPENCODE_LIB_DIR="${APP_ROOT}/resources/opencode/lib"
+OPENCODE_DIR="${APP_ROOT}/resources/opencode"
+OPENCODE_ROOT="${APP_ROOT}"
 
 # Source shared utilities
-source "${OPENCODE_ROOT}/lib/utils/var.sh"
-source "${OPENCODE_ROOT}/lib/utils/format.sh"
-source "${OPENCODE_ROOT}/lib/utils/validation.sh"
+source "${OPENCODE_ROOT}/scripts/lib/utils/var.sh"
+source "${OPENCODE_ROOT}/scripts/lib/utils/format.sh"
+source "${OPENCODE_ROOT}/scripts/lib/utils/validation.sh"
 
 # Configuration
 OPENCODE_DATA_DIR="${var_data_dir}/opencode"

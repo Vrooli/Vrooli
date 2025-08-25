@@ -2,7 +2,8 @@
 # PostGIS Injection Functions
 
 # Get script directory
-POSTGIS_INJECT_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+POSTGIS_INJECT_LIB_DIR="${APP_ROOT}/resources/postgis/lib"
 
 # Source dependencies
 source "${POSTGIS_INJECT_LIB_DIR}/common.sh"

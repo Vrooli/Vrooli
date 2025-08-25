@@ -7,7 +7,8 @@ set -euo pipefail
 # shellcheck disable=SC2034
 DESCRIPTION="Install and manage Judge0 secure code execution service"
 
-JUDGE0_SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../.." && builtin pwd)}"
+JUDGE0_SCRIPT_DIR="${APP_ROOT}/resources/judge0"
 
 # Source var.sh first to get directory variables
 # shellcheck disable=SC1091

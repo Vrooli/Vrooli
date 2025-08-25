@@ -3,7 +3,7 @@
 # Integration tests for Odoo resource
 
 setup() {
-    export ODOO_BASE_DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")/.." && pwd)"
+    export ODOO_BASE_DIR="$(builtin cd "${BATS_TEST_FILENAME%/*}/.." && builtin pwd)"
     export PATH="$ODOO_BASE_DIR:$PATH"
     
     # Source the CLI

@@ -16,8 +16,8 @@ set -euo pipefail
 # Configuration
 #######################################
 
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-POSTGRES_DIR="${SCRIPT_DIR}/.."
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+POSTGRES_DIR="${APP_ROOT}/resources/postgres"
 
 # Source the PostgreSQL management script
 # shellcheck disable=SC1091

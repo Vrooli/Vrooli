@@ -8,7 +8,7 @@ setup() {
     load "${BATS_TEST_DIRNAME}/../../../../__test/helpers/bats-assert/load"
     
     # Set up test variables
-    export TEST_DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")" && pwd)"
+    export TEST_DIR="$(builtin cd "${BATS_TEST_FILENAME%/*}" && builtin pwd)"
     export OBS_CLI="${TEST_DIR}/../cli.sh"
     export OBS_DATA_DIR="${HOME}/.vrooli/obs-studio"
     

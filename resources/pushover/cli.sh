@@ -2,7 +2,8 @@
 # Pushover resource CLI
 
 # Get script directory (resolve symlinks)
-PUSHOVER_CLI_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+PUSHOVER_CLI_DIR="${APP_ROOT}/resources/pushover"
 
 # Source lib functions
 source "${PUSHOVER_CLI_DIR}/lib/core.sh"

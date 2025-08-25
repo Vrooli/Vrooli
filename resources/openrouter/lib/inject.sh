@@ -1,8 +1,9 @@
 #!/bin/bash
 # OpenRouter injection functionality
 
-# Get script directory
-OPENROUTER_INJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Define directory using cached APP_ROOT
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+OPENROUTER_INJECT_DIR="${APP_ROOT}/resources/openrouter/lib"
 
 # Source dependencies
 source "${OPENROUTER_INJECT_DIR}/core.sh"

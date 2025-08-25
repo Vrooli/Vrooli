@@ -2,7 +2,7 @@
 # PostgreSQL Status Functions
 # Functions for checking PostgreSQL health and status
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
 POSTGRES_STATUS_DIR="${APP_ROOT}/resources/postgres/lib"
 # shellcheck disable=SC1091
 source "${APP_ROOT}/scripts/lib/status-args.sh"
@@ -90,7 +90,7 @@ postgres::status::check() {
     # Check disk space
     if postgres::common::check_disk_space >/dev/null 2>&1; then
         if [[ "$verbose" == "true" ]]; then
-            local available_gb=$(df -BG "$(dirname "${POSTGRES_INSTANCES_DIR}")" | awk 'NR==2 {print $4}' | sed 's/G//')
+            local available_gb=$(df -BG "${POSTGRES_INSTANCES_DIR}%/*" | awk 'NR==2 {print $4}' | sed 's/G//')
             log::success "Disk Space: ${available_gb}GB available"
         fi
     else

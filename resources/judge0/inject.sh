@@ -7,11 +7,12 @@ set -euo pipefail
 
 export DESCRIPTION="Inject languages, submissions, and configurations into Judge0 code execution service"
 
-JUDGE0_SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../.." && builtin pwd)}"
+JUDGE0_SCRIPT_DIR="${APP_ROOT}/resources/judge0"
 
 # Source var.sh first to get directory variables
 # shellcheck disable=SC1091
-source "${JUDGE0_SCRIPT_DIR}/../../../lib/utils/var.sh"
+source "${JUDGE0_SCRIPT_DIR}/../../lib/utils/var.sh"
 
 # Source common utilities using var_ variables
 # shellcheck disable=SC1091

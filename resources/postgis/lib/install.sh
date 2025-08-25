@@ -1,7 +1,7 @@
 #!/bin/bash
 # PostGIS Standalone Installation Functions
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
 
 # PostGIS Docker configuration
 POSTGIS_IMAGE="postgis/postgis:16-3.4-alpine"

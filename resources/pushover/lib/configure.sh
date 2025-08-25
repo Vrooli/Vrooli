@@ -1,8 +1,9 @@
 #!/bin/bash
 # Pushover configuration functionality
 
-# Get script directory
-PUSHOVER_CONFIGURE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Define directory using cached APP_ROOT
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+PUSHOVER_CONFIGURE_DIR="${APP_ROOT}/resources/pushover/lib"
 
 # Source dependencies
 source "${PUSHOVER_CONFIGURE_DIR}/core.sh"

@@ -3,7 +3,8 @@
 # Functions for backing up and restoring PostgreSQL instance data
 
 # Source required utilities
-POSTGRES_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+POSTGRES_LIB_DIR="${APP_ROOT}/resources/postgres/lib"
 # shellcheck disable=SC1091
 source "${POSTGRES_LIB_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091

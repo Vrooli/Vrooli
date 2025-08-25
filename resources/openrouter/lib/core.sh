@@ -1,16 +1,17 @@
 #!/bin/bash
 # OpenRouter core functionality
 
-# Get script directory
-OPENROUTER_CORE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-OPENROUTER_RESOURCE_DIR="$(dirname "$OPENROUTER_CORE_DIR")"
+# Define directories using cached APP_ROOT
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+OPENROUTER_CORE_DIR="${APP_ROOT}/resources/openrouter/lib"
+OPENROUTER_RESOURCE_DIR="${APP_ROOT}/resources/openrouter"
 
 # Source dependencies
-source "${OPENROUTER_RESOURCE_DIR}/../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${OPENROUTER_RESOURCE_DIR}/config/defaults.sh"
-source "${OPENROUTER_RESOURCE_DIR}/../../../lib/utils/format.sh"
-source "${OPENROUTER_RESOURCE_DIR}/../../../lib/utils/log.sh"
-source "${OPENROUTER_RESOURCE_DIR}/../../lib/credentials-utils.sh"
+source "${APP_ROOT}/scripts/lib/utils/format.sh"
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
+source "${APP_ROOT}/scripts/resources/lib/credentials-utils.sh"
 
 # Initialize OpenRouter
 openrouter::init() {
@@ -76,7 +77,7 @@ openrouter::test_connection() {
     response=$(timeout "$timeout" curl -s -X POST \
         -H "Authorization: Bearer $OPENROUTER_API_KEY" \
         -H "Content-Type: application/json" \
-        -d "{\"model\": \"$model\", \"messages\": [{\"role\": \"user\", \"content\": \"test\"}], \"max_tokens\": 1}" \
+        -d '{"model": "'"$model"'", "messages": [{"role": "user", "content": "test"}], "max_tokens": 1}' \
         "${OPENROUTER_API_BASE}/chat/completions" 2>/dev/null)
     
     if [[ $? -ne 0 ]]; then

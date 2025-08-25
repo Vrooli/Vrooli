@@ -4,7 +4,7 @@
 # Test setup
 setup() {
     # Get the test directory
-    TEST_DIR="$(cd "$(dirname "${BATS_TEST_DIRNAME}")" && pwd)"
+    TEST_DIR="$(builtin cd "${BATS_TEST_DIRNAME%/*}" && builtin pwd)"
     POSTGIS_CLI="${TEST_DIR}/cli.sh"
     TEST_FIXTURES="${TEST_DIR}/../../../__test/fixtures/data/spatial"
     

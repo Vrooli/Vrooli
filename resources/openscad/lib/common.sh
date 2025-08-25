@@ -2,7 +2,8 @@
 set -euo pipefail
 
 # Get the directory of this script
-OPENSCAD_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+OPENSCAD_LIB_DIR="${APP_ROOT}/resources/openscad/lib"
 
 # OpenSCAD constants
 export OPENSCAD_RESOURCE_NAME="openscad"

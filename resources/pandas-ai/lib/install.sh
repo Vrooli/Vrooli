@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Get the directory of this script
-PANDAS_AI_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Define directory using cached APP_ROOT
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+PANDAS_AI_LIB_DIR="${APP_ROOT}/resources/pandas-ai/lib"
 
 # Source dependencies
 source "${PANDAS_AI_LIB_DIR}/common.sh"
@@ -16,7 +17,7 @@ pandas_ai::install() {
     mkdir -p "${PANDAS_AI_DATA_DIR}"
     mkdir -p "${PANDAS_AI_VENV_DIR}"
     mkdir -p "${PANDAS_AI_SCRIPTS_DIR}"
-    mkdir -p "$(dirname "${PANDAS_AI_PID_FILE}")"
+    mkdir -p "${PANDAS_AI_PID_FILE}%/*"
     
     # Check Python version
     if ! command -v python3 &>/dev/null; then
@@ -159,7 +160,7 @@ EOF
     chmod +x "${PANDAS_AI_SCRIPTS_DIR}/server.py"
     
     # Register the CLI
-    local resource_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+    local resource_dir="${APP_ROOT}/resources/pandas-ai"
     "${PANDAS_AI_LIB_DIR}/../../../../lib/resources/install-resource-cli.sh" "${resource_dir}" 2>/dev/null || true
     
     log::success "Pandas AI installed successfully"

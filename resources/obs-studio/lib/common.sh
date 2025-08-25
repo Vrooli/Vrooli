@@ -4,9 +4,10 @@
 # Note: Not using set -euo pipefail to avoid early exits in status checks
 
 # Get script directory
-OBS_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-OBS_RESOURCE_DIR="$(dirname "${OBS_LIB_DIR}")"
-PROJECT_ROOT="$(cd "${OBS_LIB_DIR}/../../../../.." && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+OBS_LIB_DIR="${APP_ROOT}/resources/obs-studio/lib"
+OBS_RESOURCE_DIR="${APP_ROOT}/resources/obs-studio"
+PROJECT_ROOT="${APP_ROOT}"
 
 # Source shared utilities
 source "${PROJECT_ROOT}/scripts/lib/utils/var.sh"

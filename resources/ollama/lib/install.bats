@@ -2,14 +2,15 @@
 # Tests for Ollama installation functions
 
 # Get script directory first
-INSTALL_BATS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+INSTALL_BATS_DIR="${APP_ROOT}/resources/ollama/lib"
 
 # Source var.sh first to get directory variables
 # shellcheck disable=SC1091
 source "${INSTALL_BATS_DIR}/../../../../lib/utils/var.sh"
 
 # Source trash module for safe test cleanup
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+SCRIPT_DIR="${INSTALL_BATS_DIR}"
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 

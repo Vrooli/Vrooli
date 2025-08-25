@@ -4,7 +4,8 @@
 set -euo pipefail
 
 # Get script directory
-OPENCODE_CLI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+OPENCODE_CLI_DIR="${APP_ROOT}/resources/opencode"
 
 # Source library functions
 source "${OPENCODE_CLI_DIR}/lib/common.sh"

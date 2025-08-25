@@ -472,7 +472,7 @@ unit_tests:
 integration_tests:
   location: test/ directory
   coverage: API functionality, model operations, cross-resource communication, content management
-  test_data: Uses shared fixtures from scripts/__test/fixtures/data/
+  test_data: Uses shared fixtures from __test/fixtures/data/
   test_scenarios: 
     - Model download and loading
     - Inference API functionality
@@ -481,7 +481,7 @@ integration_tests:
     - Content management operations (add/list/get/remove/execute)
   
 system_tests:
-  location: scripts/__test/resources/single/ai/
+  location: __test/resources/single/ai/
   coverage: Full Ollama lifecycle, performance, failure scenarios
   automation: Integrated with Vrooli test framework
   
@@ -500,7 +500,7 @@ test_specification:
   test_structure:
     - BATS files co-located with source files
     - Integration tests in test/ directory
-    - Shared fixtures from scripts/__test/fixtures/data/
+    - Shared fixtures from __test/fixtures/data/
     - Test results included in status output with timestamp
     - Examples in examples/ directory
   
@@ -522,7 +522,7 @@ test_specification:
         
     - name: "Content Management - Add Model"
       command: resource-ollama content add --modelfile custom.modelfile --name test-model
-      fixture: scripts/__test/fixtures/data/documents/llm-prompt.json
+      fixture: __test/fixtures/data/documents/llm-prompt.json
       expect:
         exit_code: 0
         model_created: true

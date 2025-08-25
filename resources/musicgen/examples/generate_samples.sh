@@ -4,7 +4,8 @@
 set -euo pipefail
 
 # Source the CLI
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/resources/musicgen/examples"
 source "${SCRIPT_DIR}/../cli.sh"
 
 # Generate various music samples

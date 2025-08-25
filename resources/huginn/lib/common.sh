@@ -3,7 +3,8 @@
 # Shared utilities used across all modules
 
 # Define Huginn lib directory
-HUGINN_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+HUGINN_LIB_DIR="${APP_ROOT}/resources/huginn/lib"
 
 # Source required dependencies
 # shellcheck disable=SC1091

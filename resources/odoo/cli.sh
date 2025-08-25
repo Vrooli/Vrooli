@@ -3,10 +3,13 @@ set -euo pipefail
 
 # Get the real script directory (following symlinks)
 if [[ -L "${BASH_SOURCE[0]}" ]]; then
-    ODOO_CLI_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+    RESOLVED_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
+    APP_ROOT="${APP_ROOT:-$(builtin cd "${RESOLVED_PATH%/*/.." && builtin pwd)}"
 else
-    ODOO_CLI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/..\" && builtin pwd)}"
 fi
+
+ODOO_CLI_DIR="${APP_ROOT}/resources/odoo"
 
 # Source library functions
 source "$ODOO_CLI_DIR/lib/common.sh"

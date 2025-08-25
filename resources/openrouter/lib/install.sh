@@ -7,7 +7,7 @@ OPENROUTER_INSTALL_DIR="${APP_ROOT}/resources/openrouter/lib"
 
 # Source dependencies
 source "${OPENROUTER_INSTALL_DIR}/core.sh"
-source "${APP_ROOT}/scripts/lib/credentials-utils.sh"
+source "${APP_ROOT}/scripts/resources/lib/credentials-utils.sh"
 
 # Main install function
 openrouter::install() {
@@ -19,7 +19,7 @@ openrouter::install() {
     # Just ensure configuration is set up
     
     # Register CLI
-    local cli_installer="${OPENROUTER_INSTALL_DIR}/../../../lib/resources/install-resource-cli.sh"
+    local cli_installer="${APP_ROOT}/scripts/lib/resources/install-resource-cli.sh"
     if [[ -f "$cli_installer" ]]; then
         "$cli_installer" --name openrouter --cli-path "${OPENROUTER_INSTALL_DIR}/../cli.sh" 2>/dev/null || true
     fi
@@ -62,7 +62,7 @@ openrouter::install() {
         
         # Register the resource as configured (not fully running)
         local registry_file="${var_ROOT_DIR}/.vrooli/resource-registry/openrouter.json"
-        mkdir -p "$(dirname "$registry_file")"
+        mkdir -p "${registry_file%/*"
         
         cat > "$registry_file" <<EOF
 {
@@ -100,7 +100,7 @@ EOF
         
         # Register the resource as running
         local registry_file="${var_ROOT_DIR}/.vrooli/resource-registry/openrouter.json"
-        mkdir -p "$(dirname "$registry_file")"
+        mkdir -p "${registry_file%/*"
         
         cat > "$registry_file" <<EOF
 {

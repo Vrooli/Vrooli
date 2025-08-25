@@ -2,11 +2,12 @@
 # OpenRouter configuration functionality
 
 # Get script directory
-OPENROUTER_CONFIGURE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+OPENROUTER_CONFIGURE_DIR="${APP_ROOT}/resources/openrouter/lib"
 
 # Source dependencies
 source "${OPENROUTER_CONFIGURE_DIR}/core.sh"
-source "${OPENROUTER_CONFIGURE_DIR}/../../../../lib/utils/log.sh"
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
 
 #######################################
 # Configure OpenRouter API key

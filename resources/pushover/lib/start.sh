@@ -2,7 +2,8 @@
 # Pushover start/stop functionality
 
 # Get script directory
-PUSHOVER_START_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+PUSHOVER_START_DIR="${APP_ROOT}/resources/pushover/lib"
 
 # Source dependencies
 source "${PUSHOVER_START_DIR}/core.sh"

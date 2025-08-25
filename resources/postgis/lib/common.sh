@@ -2,8 +2,9 @@
 # PostGIS Common Functions
 
 # Get script directory
-POSTGIS_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-POSTGIS_ROOT_DIR="$(dirname "$POSTGIS_LIB_DIR")"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+POSTGIS_LIB_DIR="${APP_ROOT}/resources/postgis/lib"
+POSTGIS_ROOT_DIR="${APP_ROOT}/resources/postgis"
 
 # Default container name
 POSTGIS_CONTAINER="${POSTGIS_CONTAINER:-postgis-main}"
@@ -12,7 +13,7 @@ POSTGIS_CONTAINER="${POSTGIS_CONTAINER:-postgis-main}"
 source "${POSTGIS_ROOT_DIR}/config/defaults.sh"
 
 # Source shared utilities
-SCRIPTS_DIR="$(dirname "$(dirname "$(dirname "$POSTGIS_ROOT_DIR")")")"
+SCRIPTS_DIR="${POSTGIS_ROOT_DIR%/*/*%/*}"
 if [ -f "${SCRIPTS_DIR}/lib/utils/format.sh" ]; then
     source "${SCRIPTS_DIR}/lib/utils/format.sh"
 fi

@@ -4,9 +4,10 @@
 set -euo pipefail
 
 # Get directories
-MUSICGEN_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-MUSICGEN_BASE_DIR="$(dirname "${MUSICGEN_LIB_DIR}")"
-VROOLI_DIR="$(cd "${MUSICGEN_BASE_DIR}/../../../../" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+MUSICGEN_LIB_DIR="${APP_ROOT}/resources/musicgen/lib"
+MUSICGEN_BASE_DIR="${APP_ROOT}/resources/musicgen"
+VROOLI_DIR="${APP_ROOT}"
 
 # Source shared utilities
 source "${VROOLI_DIR}/scripts/lib/utils/log.sh"

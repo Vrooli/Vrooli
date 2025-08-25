@@ -6,7 +6,8 @@
 # Detect project root for proper configuration paths
 _postgres_defaults_detect_project_root() {
     local current_dir
-    current_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+    current_dir="$APP_ROOT/resources/postgres/config"
     
     # Walk up directory tree looking for .vrooli directory
     while [[ "$current_dir" != "/" ]]; do
@@ -14,14 +15,14 @@ _postgres_defaults_detect_project_root() {
             echo "$current_dir"
             return 0
         fi
-        current_dir="$(dirname "$current_dir")"
+        current_dir="${current_dir%/*"
     done
     
     # Fallback: use standard scripts directory structure
-    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    local postgres_dir="$(dirname "$script_dir")"
-    local scripts_dir="$(dirname "$(dirname "$(dirname "$postgres_dir")")")"
-    local project_root="$(dirname "$scripts_dir")"
+    local script_dir="$APP_ROOT/resources/postgres/config"
+    local postgres_dir="${script_dir%/*"
+    local scripts_dir="${postgres_dir%/*/*%/*}"
+    local project_root="${scripts_dir%/*"
     echo "$project_root"
 }
 
@@ -60,10 +61,10 @@ readonly POSTGRES_BACKUP_DIR="${POSTGRES_PROJECT_ROOT}/.vrooli/backups/postgres"
 readonly POSTGRES_BACKUP_RETENTION_DAYS=7
 
 # Template directory
-readonly POSTGRES_TEMPLATE_DIR="$(dirname "${BASH_SOURCE[0]}")/../templates"
+readonly POSTGRES_TEMPLATE_DIR="${BASH_SOURCE[0]}%/*/../templates"
 
 # Instance data directory
-readonly POSTGRES_INSTANCES_DIR="$(dirname "${BASH_SOURCE[0]}")/../instances"
+readonly POSTGRES_INSTANCES_DIR="${BASH_SOURCE[0]}%/*/../instances"
 
 # Configuration directory (using project root)
 readonly POSTGRES_CONFIG_DIR="${POSTGRES_PROJECT_ROOT}/.vrooli/postgres"

@@ -7,11 +7,12 @@ set -euo pipefail
 
 export DESCRIPTION="Inject models and configurations into Ollama AI server"
 
-OLLAMA_INJECT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../.." && builtin pwd)}"
+OLLAMA_INJECT_DIR="${APP_ROOT}/resources/ollama"
 
 # Source var.sh first to get directory variables
 # shellcheck disable=SC1091
-source "${OLLAMA_INJECT_DIR}/../../../lib/utils/var.sh"
+source "${OLLAMA_INJECT_DIR}/../../lib/utils/var.sh"
 
 # Source common utilities using var_ variables
 # shellcheck disable=SC1091

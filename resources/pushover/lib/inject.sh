@@ -2,7 +2,8 @@
 # Pushover injection functionality
 
 # Get script directory
-PUSHOVER_INJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+PUSHOVER_INJECT_DIR="${APP_ROOT}/resources/pushover/lib"
 
 # Source dependencies
 source "${PUSHOVER_INJECT_DIR}/core.sh"

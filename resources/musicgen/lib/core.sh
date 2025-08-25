@@ -4,7 +4,8 @@
 set -euo pipefail
 
 # Source dependencies
-MUSICGEN_CORE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+MUSICGEN_CORE_DIR="${APP_ROOT}/resources/musicgen/lib"
 source "${MUSICGEN_CORE_DIR}/common.sh"
 
 # Install MusicGen

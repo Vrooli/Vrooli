@@ -2,7 +2,8 @@
 set -euo pipefail
 
 # Get the directory of this script
-PANDAS_AI_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+PANDAS_AI_LIB_DIR="${APP_ROOT}/resources/pandas-ai/lib"
 
 # Source dependencies
 source "${PANDAS_AI_LIB_DIR}/../../../../lib/utils/var.sh"

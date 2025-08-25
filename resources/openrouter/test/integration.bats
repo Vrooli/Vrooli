@@ -2,8 +2,8 @@
 # OpenRouter integration tests
 
 # Get script directory
-OPENROUTER_TEST_DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")" && pwd)"
-OPENROUTER_DIR="$(dirname "$OPENROUTER_TEST_DIR")"
+OPENROUTER_TEST_DIR="$(builtin cd "${BATS_TEST_FILENAME%/*}" && builtin pwd)"
+OPENROUTER_DIR="${OPENROUTER_TEST_DIR%/*}"
 CLI_PATH="${OPENROUTER_DIR}/cli.sh"
 
 # Load test helpers if available

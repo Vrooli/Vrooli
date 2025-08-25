@@ -2,7 +2,8 @@
 # PostGIS Test Runner
 
 # Get script directory
-POSTGIS_TEST_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+POSTGIS_TEST_LIB_DIR="${APP_ROOT}/resources/postgis/lib"
 
 # Source common functions
 source "${POSTGIS_TEST_LIB_DIR}/common.sh"

@@ -2,8 +2,8 @@
 # MusicGen Resource Tests
 
 setup() {
-    export MUSICGEN_DIR="$(cd "$(dirname "$BATS_TEST_DIRNAME")" && pwd)"
-    export VROOLI_DIR="$(cd "${MUSICGEN_DIR}/../../../../" && pwd)"
+    export MUSICGEN_DIR="$(builtin cd "${BATS_TEST_DIRNAME%/*}" && builtin pwd)"
+    export VROOLI_DIR="$(builtin cd "${MUSICGEN_DIR}/../../../../" && builtin pwd)"
     source "${MUSICGEN_DIR}/lib/common.sh"
     source "${MUSICGEN_DIR}/lib/core.sh"
 }

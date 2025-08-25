@@ -2,9 +2,10 @@
 set -euo pipefail
 
 # Source var.sh first to get proper directory variables
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/resources/postgres/examples"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || true
 
 # Source trash system for safe removal using var_ variables
 # shellcheck disable=SC1091
@@ -28,8 +29,8 @@ source "${var_LIB_UTILS_DIR}/sudo.sh" 2>/dev/null || true
 # Configuration
 #######################################
 
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-POSTGRES_DIR="${SCRIPT_DIR}/.."
+SCRIPT_DIR="${APP_ROOT}/resources/postgres/examples"
+POSTGRES_DIR="${APP_ROOT}/resources/postgres"
 
 # Source the PostgreSQL management script
 # shellcheck disable=SC1091
@@ -587,7 +588,7 @@ if [[ -z "${DATABASE_PASSWORD:-}" ]]; then
 fi
 
 # Change to docker directory
-cd "$(dirname "$0")/../docker"
+cd "$(builtin cd "${0%/*" && builtin pwd)/../docker"
 
 # Build and start the container
 echo "Building PostgreSQL image..."
@@ -795,7 +796,7 @@ if ! kubectl cluster-info >/dev/null 2>&1; then
     exit 1
 fi
 
-cd "$(dirname "$0")/../kubernetes"
+cd "$(builtin cd "${0%/*" && builtin pwd)/../kubernetes"
 
 # Apply manifests
 echo "Creating namespace..."
@@ -1616,7 +1617,7 @@ compress_package() {
     local archive_name="${package_name}-${VERSION}.tar.gz"
     local archive_path="${OUTPUT_DIR}/${archive_name}"
     
-    cd "$(dirname "$package_path")"
+    cd "$(builtin cd "${package_path%/*" && builtin pwd)"
     if tar -czf "$archive_path" "$(basename "$package_path")"; then
         log_success "Package compressed: $archive_path"
         

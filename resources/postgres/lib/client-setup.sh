@@ -6,7 +6,8 @@ set -euo pipefail
 
 DESCRIPTION="Automated client database environment setup for Vrooli projects"
 
-POSTGRES_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+POSTGRES_LIB_DIR="${APP_ROOT}/resources/postgres/lib"
 source "${POSTGRES_LIB_DIR}/../config/defaults.sh"
 
 # Default values

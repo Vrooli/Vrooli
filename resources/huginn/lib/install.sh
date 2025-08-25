@@ -3,7 +3,8 @@
 # Installation, uninstallation, and configuration management
 
 # Source required utilities using unique directory variable
-HUGINN_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+HUGINN_LIB_DIR="${APP_ROOT}/resources/huginn/lib"
 # shellcheck disable=SC1091
 source "${HUGINN_LIB_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
@@ -68,7 +69,7 @@ huginn::install() {
     
     # Auto-install CLI if available
     # shellcheck disable=SC1091
-    "${var_SCRIPTS_RESOURCES_LIB_DIR}/install-resource-cli.sh" "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)" 2>/dev/null || true
+    "${var_SCRIPTS_RESOURCES_LIB_DIR}/install-resource-cli.sh" "${APP_ROOT}/resources/huginn" 2>/dev/null || true
     
     return 0
 }

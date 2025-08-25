@@ -144,7 +144,7 @@ spec:
   
   # Testing and validation
   testing:
-    test_file: "scripts/__test/resources/single/ai/ollama.test.sh"
+    test_file: "__test/resources/single/ai/ollama.test.sh"
     test_coverage:
       - health_check
       - model_listing

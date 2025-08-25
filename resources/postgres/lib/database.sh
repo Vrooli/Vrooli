@@ -563,7 +563,7 @@ postgres::database::dump_schema() {
     local container_name="${POSTGRES_CONTAINER_PREFIX}-${instance_name}"
     
     # Create output directory if it doesn't exist
-    mkdir -p "$(dirname "$output_file")"
+    mkdir -p "${output_file%/*"
     
     # Dump schema only (no data)
     if docker exec "$container_name" pg_dump \
@@ -615,7 +615,7 @@ postgres::database::dump_data() {
     local container_name="${POSTGRES_CONTAINER_PREFIX}-${instance_name}"
     
     # Create output directory if it doesn't exist
-    mkdir -p "$(dirname "$output_file")"
+    mkdir -p "${output_file%/*"
     
     # Build pg_dump command
     local dump_cmd="pg_dump -U $POSTGRES_DEFAULT_USER -d $database --data-only --no-owner --no-privileges"

@@ -2,11 +2,12 @@
 # Tests for Ollama common utilities
 
 # Get script directory first
-COMMON_BATS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+COMMON_BATS_DIR="$APP_ROOT/resources/ollama/lib"
 
 # Source var.sh first to get directory variables
 # shellcheck disable=SC1091
-source "${COMMON_BATS_DIR}/../../../../lib/utils/var.sh"
+source "${APP_ROOT}/lib/utils/var.sh"
 
 # Load Vrooli test infrastructure using var_ variables
 # shellcheck disable=SC1091
@@ -19,7 +20,7 @@ setup_file() {
     
     # Load dependencies once
     SCRIPT_DIR="${BATS_TEST_DIRNAME}"
-    OLLAMA_DIR="$(dirname "$SCRIPT_DIR")"
+    OLLAMA_DIR="${SCRIPT_DIR%/*}"
     
     # Load configuration and messages once
     source "${OLLAMA_DIR}/config/defaults.sh"

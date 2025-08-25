@@ -3,7 +3,8 @@
 # Tests for Ollama configuration messages
 
 # Get script directory first
-MESSAGES_BATS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+MESSAGES_BATS_DIR="${APP_ROOT}/resources/ollama/config"
 
 setup() {
     # Source the messages

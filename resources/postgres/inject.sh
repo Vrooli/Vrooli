@@ -7,11 +7,12 @@ set -euo pipefail
 
 export DESCRIPTION="Inject schemas, data, and migrations into PostgreSQL database"
 
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/resources/postgres"
 
 # Source var.sh first for directory variables
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../lib/utils/var.sh"
+source "${SCRIPT_DIR}/../../lib/utils/var.sh"
 
 # Source common utilities using var_ variables
 # shellcheck disable=SC1091

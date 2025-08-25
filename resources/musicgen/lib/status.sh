@@ -2,19 +2,20 @@
 # MusicGen Status Module - Using Standard Format
 
 # Get script directory
-MUSICGEN_STATUS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+MUSICGEN_STATUS_DIR="${APP_ROOT}/resources/musicgen/lib"
 
 # Source utilities
 # shellcheck disable=SC1091
-source "${MUSICGEN_STATUS_DIR}/../../../../lib/utils/log.sh"
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
 # shellcheck disable=SC1091
-source "${MUSICGEN_STATUS_DIR}/../../../../lib/utils/format.sh"
+source "${APP_ROOT}/scripts/lib/utils/format.sh"
 # shellcheck disable=SC1091
-source "${MUSICGEN_STATUS_DIR}/../../../lib/status-args.sh"
+source "${APP_ROOT}/scripts/lib/status-args.sh"
 # shellcheck disable=SC1091  
 source "${MUSICGEN_STATUS_DIR}/common.sh"
 # shellcheck disable=SC1091
-source "${MUSICGEN_STATUS_DIR}/../../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 #######################################
 # Main status function using standard framework

@@ -2,7 +2,8 @@
 # K6 Status Functions
 
 # Source format utility for JSON support
-K6_STATUS_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+K6_STATUS_SCRIPT_DIR="${APP_ROOT}/resources/k6/lib"
 # shellcheck disable=SC1091
 source "${K6_STATUS_SCRIPT_DIR}/../../../../lib/utils/format.sh" 2>/dev/null || true
 

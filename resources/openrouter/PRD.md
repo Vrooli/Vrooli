@@ -385,7 +385,7 @@ unit_tests:
 integration_tests:
   location: test/ directory
   coverage: API connectivity, model listing, request routing
-  test_data: Uses shared fixtures from scripts/__test/fixtures/data/
+  test_data: Uses shared fixtures from __test/fixtures/data/
   test_scenarios: 
     - API key configuration and validation
     - Model discovery and listing
@@ -393,7 +393,7 @@ integration_tests:
     - Error handling and retry logic
   
 system_tests:
-  location: scripts/__test/resources/
+  location: __test/resources/
   coverage: End-to-end workflow integration
   automation: Integrated with Vrooli test framework
   
@@ -412,7 +412,7 @@ test_specification:
   test_structure:
     - BATS files co-located with source files
     - Integration tests in test/ directory
-    - Shared fixtures from scripts/__test/fixtures/data/
+    - Shared fixtures from __test/fixtures/data/
     - Test results included in status output with timestamp
     - Examples in examples/ directory
   
@@ -434,7 +434,7 @@ test_specification:
         
     - name: "Content Management"
       command: resource-openrouter content add --file prompt-template.json
-      fixture: scripts/__test/fixtures/data/prompts/template.json
+      fixture: __test/fixtures/data/prompts/template.json
       expect:
         exit_code: 0
         content_stored: true

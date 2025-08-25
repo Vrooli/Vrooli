@@ -142,7 +142,7 @@ postgres::common::create_directories() {
 #######################################
 postgres::common::check_disk_space() {
     local instances_dir="${POSTGRES_INSTANCES_DIR}"
-    local parent_dir=$(dirname "$instances_dir")
+    local parent_dir=${instances_dir%/*
     
     # Create parent directory if it doesn't exist
     mkdir -p "$parent_dir"
@@ -266,7 +266,7 @@ postgres::common::set_instance_config() {
     local config_key="$2"
     local config_value="$3"
     local config_file="${POSTGRES_INSTANCES_DIR}/${instance_name}/config/instance.conf"
-    local config_dir="$(dirname "$config_file")"
+    local config_dir="${config_file%/*"
     
     # Create config directory if it doesn't exist
     mkdir -p "$config_dir"

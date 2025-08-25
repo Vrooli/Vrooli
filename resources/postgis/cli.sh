@@ -5,7 +5,8 @@ set -euo pipefail
 
 # Get the real script location (resolving symlinks)
 SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
-POSTGIS_CLI_DIR="$(cd "$(dirname "${SCRIPT_PATH}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+POSTGIS_CLI_DIR="${APP_ROOT}/resources/postgis"
 
 # Source libraries
 source "${POSTGIS_CLI_DIR}/lib/common.sh"

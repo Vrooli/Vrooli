@@ -386,7 +386,7 @@ unit_tests:
 integration_tests:
   location: test/ directory
   coverage: Database connectivity, API endpoints, content management
-  test_data: Uses shared fixtures from scripts/__test/fixtures/data/
+  test_data: Uses shared fixtures from __test/fixtures/data/
   test_scenarios: 
     - Resource lifecycle (install, start, stop, uninstall)
     - Content management operations
@@ -394,7 +394,7 @@ integration_tests:
     - Health checks and status reporting
   
 system_tests:
-  location: scripts/__test/resources/
+  location: __test/resources/
   coverage: End-to-end analysis workflows
   automation: Integrated with Vrooli test framework
   
@@ -413,7 +413,7 @@ test_specification:
   test_structure:
     - BATS files co-located with source files
     - Integration tests in test/ directory
-    - Shared fixtures from scripts/__test/fixtures/data/
+    - Shared fixtures from __test/fixtures/data/
     - Test results included in status output with timestamp
     - Examples in examples/ directory
   
@@ -434,7 +434,7 @@ test_specification:
         
     - name: "Content Management"
       command: resource-pandas-ai content add --file test_analysis.py
-      fixture: scripts/__test/fixtures/data/python/analysis.py
+      fixture: __test/fixtures/data/python/analysis.py
       expect:
         exit_code: 0
         content_stored: true

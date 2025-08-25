@@ -195,9 +195,9 @@ See the [Models Guide](docs/MODELS.md) for 50+ additional models.
 ## 🧪 Testing & Examples
 
 ### Individual Resource Tests
-- **Test Location**: `scripts/__test/resources/single/ai/ollama.test.sh`
+- **Test Location**: `__test/resources/single/ai/ollama.test.sh`
 - **Test Coverage**: Health checks, model listing, text generation, API functionality
-- **Run Test**: `cd scripts/__test/resources && ./quick-test.sh ollama`
+- **Run Test**: `cd __test/resources && ./quick-test.sh ollama`
 
 ### Working Examples
 - **Examples Folder**: [examples/](examples/)
@@ -207,21 +207,21 @@ See the [Models Guide](docs/MODELS.md) for 50+ additional models.
 
 ### Integration with Scenarios
 Ollama is used in these business scenarios:
-- **[Research Assistant](../../scenarios/core/research-assistant/)** - Knowledge management and analysis ($10k-25k projects)  
-- **[Campaign Content Studio](../../scenarios/core/campaign-content-studio/)** - Content creation workflows ($8k-20k projects)
-- **[Secure Document Processing](../../scenarios/core/secure-document-processing/)** - Compliant document processing ($20k-40k projects)
+- **[Research Assistant](../../scenarios/research-assistant/)** - Knowledge management and analysis ($10k-25k projects)  
+- **[Campaign Content Studio](../../scenarios/campaign-content-studio/)** - Content creation workflows ($8k-20k projects)
+- **[Secure Document Processing](../../scenarios/secure-document-processing/)** - Compliant document processing ($20k-40k projects)
 
 ### Test Fixtures
-- **Shared Test Data**: `scripts/__test/resources/fixtures/documents/` (prompts, text samples)
-- **Audio Fixtures**: `scripts/__test/resources/fixtures/audio/` (for multi-modal scenarios)
+- **Shared Test Data**: `__test/resources/fixtures/documents/` (prompts, text samples)
+- **Audio Fixtures**: `__test/resources/fixtures/audio/` (for multi-modal scenarios)
 
 ### Quick Test Commands
 ```bash
 # Test individual Ollama functionality
-./scripts/__test/resources/quick-test.sh ollama
+./__test/resources/quick-test.sh ollama
 
 # Test in real business scenarios
-cd ./scripts/scenarios/core/research-assistant && ./test.sh
+cd ./scenarios/research-assistant && ./test.sh
 
 # Run all tests using Ollama
 ./scripts/scenarios/tools/test-by-resource.sh --resource ollama

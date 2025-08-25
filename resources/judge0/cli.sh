@@ -16,7 +16,7 @@ APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}
 if [[ -L "${BASH_SOURCE[0]}" ]]; then
     JUDGE0_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
     # Recalculate APP_ROOT from resolved symlink location
-    APP_ROOT="$(builtin cd "$(dirname "$JUDGE0_CLI_SCRIPT")/../.." && builtin pwd)"
+    APP_ROOT="$(builtin cd "${JUDGE0_CLI_SCRIPT%/*}/../.." && builtin pwd)"
 fi
 JUDGE0_CLI_DIR="${APP_ROOT}/resources/judge0"
 

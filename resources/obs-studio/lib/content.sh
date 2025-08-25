@@ -3,7 +3,7 @@
 
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
 OBS_CONTENT_DIR="${APP_ROOT}/resources/obs-studio/lib"
 source "${OBS_CONTENT_DIR}/common.sh"
 

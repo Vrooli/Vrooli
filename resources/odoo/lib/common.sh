@@ -6,7 +6,8 @@ export ODOO_RESOURCE_NAME="odoo"
 export ODOO_RESOURCE_CATEGORY="execution"
 
 # Paths  
-export ODOO_BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+export ODOO_BASE_DIR="${APP_ROOT}/resources/odoo"
 export ODOO_DATA_DIR="${var_DATA_DIR:-/home/matthalloran8/Vrooli/data}/resources/odoo"
 export ODOO_CONFIG_DIR="$ODOO_BASE_DIR/config"
 export ODOO_LOG_FILE="${var_LOG_DIR:-/home/matthalloran8/Vrooli/logs}/odoo.log"
@@ -34,7 +35,7 @@ export ODOO_ADMIN_PASSWORD="${ODOO_ADMIN_PASSWORD:-admin}"
 odoo_init_dirs() {
     mkdir -p "$ODOO_DATA_DIR"/{addons,config,filestore,sessions}
     mkdir -p "$ODOO_DATA_DIR/postgres"
-    mkdir -p "$(dirname "$ODOO_LOG_FILE")"
+    mkdir -p "${ODOO_LOG_FILE%/*"
 }
 
 # Check if Odoo is installed

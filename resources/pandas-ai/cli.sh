@@ -2,12 +2,13 @@
 set -euo pipefail
 
 # Get the real directory of this script (follows symlinks)
-SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/resources/pandas-ai"
 PANDAS_AI_LIB_DIR="${SCRIPT_DIR}/lib"
 
 # Source dependencies using absolute paths
-source "${SCRIPT_DIR}/../../../lib/utils/var.sh"
-source "${SCRIPT_DIR}/../../../lib/utils/log.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
 source "${PANDAS_AI_LIB_DIR}/common.sh"
 source "${PANDAS_AI_LIB_DIR}/lifecycle.sh"
 source "${PANDAS_AI_LIB_DIR}/status.sh"

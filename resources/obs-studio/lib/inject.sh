@@ -8,7 +8,8 @@ DESCRIPTION="Inject scenes, sources, and configurations into OBS Studio"
 export _OBS_INJECT_SOURCED=1
 
 # Get script directory and source framework
-OBS_INJECT_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+OBS_INJECT_LIB_DIR="${APP_ROOT}/resources/obs-studio/lib"
 
 # Source dependencies
 # shellcheck disable=SC1091
@@ -22,7 +23,7 @@ source "${var_LIB_SERVICE_DIR}/secrets.sh"
 
 # Load OBS configuration and infrastructure
 if command -v inject_framework::load_adapter_config &>/dev/null; then
-    inject_framework::load_adapter_config "obs-studio" "$(dirname "$OBS_INJECT_LIB_DIR")"
+    inject_framework::load_adapter_config "obs-studio" "${OBS_INJECT_LIB_DIR%/*"
 fi
 
 # Source OBS lib functions

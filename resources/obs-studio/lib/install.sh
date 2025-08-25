@@ -3,8 +3,9 @@
 # Installation script for OBS Studio
 set -euo pipefail
 
-# Get script directory
-OBS_INSTALL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Define directory using cached APP_ROOT
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+OBS_INSTALL_DIR="${APP_ROOT}/resources/obs-studio/lib"
 source "${OBS_INSTALL_DIR}/common.sh"
 
 # Installation method (native or docker)
