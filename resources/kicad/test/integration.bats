@@ -4,7 +4,7 @@
 
 setup() {
     # Get the directory containing this test file
-    TEST_DIR="$( cd "$( dirname "$BATS_TEST_FILENAME" )" && pwd )"
+    TEST_DIR="$(builtin cd "${BATS_TEST_FILENAME%/*}" && builtin pwd)"
     CLI_PATH="${TEST_DIR}/../cli.sh"
     
     # Source test fixtures path

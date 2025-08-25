@@ -4,13 +4,14 @@ set -euo pipefail
 # Resource Data Injection Engine - Simplified but Compatible Version
 # Maintains interface compatibility while removing unnecessary complexity
 
-SCRIPTS_SCENARIOS_INJECTION_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+SCRIPTS_SCENARIOS_INJECTION_DIR="${APP_ROOT}/scripts/resources/injection"
 # shellcheck disable=SC1091
-source "${SCRIPTS_SCENARIOS_INJECTION_DIR}/../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
 
-DEFAULT_SCENARIOS_DIR="${var_SCRIPTS_SCENARIOS_DIR}/core"
+DEFAULT_SCENARIOS_DIR="${var_SCENARIOS_DIR}"
 
 # Parse arguments
 ACTION="inject"

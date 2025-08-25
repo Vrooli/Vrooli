@@ -2,7 +2,8 @@
 # Neo4j Resource - Start/Stop Functions
 
 # Get script directory and source common
-NEO4J_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+NEO4J_LIB_DIR="${APP_ROOT}/resources/neo4j/lib"
 source "$NEO4J_LIB_DIR/common.sh"
 source "$NEO4J_LIB_DIR/install.sh"
 

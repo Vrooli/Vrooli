@@ -2,8 +2,9 @@
 
 # CLI interface for Mail-in-a-Box resource
 
-MAILINABOX_CLI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-MAILINABOX_LIB_DIR="$MAILINABOX_CLI_DIR/lib"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+MAILINABOX_CLI_DIR="${APP_ROOT}/resources/mail-in-a-box"
+MAILINABOX_LIB_DIR="${APP_ROOT}/resources/mail-in-a-box/lib"
 
 # Source all library functions
 source "$MAILINABOX_LIB_DIR/core.sh"

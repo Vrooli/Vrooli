@@ -7,10 +7,11 @@
 export _N8N_API_SOURCED=1
 
 # Source shared libraries
-N8N_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+N8N_LIB_DIR="${APP_ROOT}/resources/n8n/lib"
 
 # shellcheck disable=SC1091
-source "${N8N_LIB_DIR}/../../../../lib/utils/var.sh"
+source "${N8N_LIB_DIR}/../../../lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_SERVICE_DIR}/secrets.sh"
 # shellcheck disable=SC1091

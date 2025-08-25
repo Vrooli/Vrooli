@@ -73,7 +73,7 @@ setup::is_needed() {
     SETUP_REASONS=()
     
     # Ensure data directory exists
-    mkdir -p "$(dirname "$state_file")"
+    mkdir -p "${state_file%/*}"
     
     # No state file = needs setup
     if [[ ! -f "$state_file" ]]; then
@@ -147,7 +147,7 @@ setup::get_steps_list() {
 #######################################
 setup::mark_complete() {
     local state_file="data/.setup-state"
-    mkdir -p "$(dirname "$state_file")"
+    mkdir -p "${state_file%/*}"
     
     local current_commit setup_steps
     current_commit=$(git::get_commit)

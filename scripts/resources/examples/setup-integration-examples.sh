@@ -4,7 +4,8 @@ set -euo pipefail
 # Setup Integration Examples
 # This script sets up the necessary secrets and data for the integration cookbook examples
 
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/scripts/resources/examples"
 VAULT_SCRIPT="${SCRIPT_DIR}/storage/vault/manage.sh"
 
 echo "🔧 Setting up integration examples..."
@@ -13,7 +14,7 @@ echo
 # Check if Vault is available
 if ! curl -sf http://localhost:8200/v1/sys/health >/dev/null 2>&1; then
     echo "❌ Vault is not available at http://localhost:8200"
-    echo "💡 Start Vault first: ./scripts/resources/storage/vault/manage.sh --action start"
+    echo "💡 Start Vault first: ./resources/vault/manage.sh --action start"
     exit 1
 fi
 

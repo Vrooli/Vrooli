@@ -10,12 +10,12 @@ fi
 [[ -n "${_CLI_COMMAND_FRAMEWORK_SOURCED:-}" ]] && return 0
 _CLI_COMMAND_FRAMEWORK_SOURCED=1
 
-# Source required utilities
-SCRIPTS_RESOURCES_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+SCRIPTS_RESOURCES_LIB_DIR="${APP_ROOT}/scripts/resources/lib"
 # shellcheck disable=SC1091
-source "${SCRIPTS_RESOURCES_LIB_DIR}/../../lib/utils/var.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
-source "${SCRIPTS_RESOURCES_LIB_DIR}/../../lib/utils/log.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/log.sh" 2>/dev/null || true
 
 # Framework state
 declare -gA CLI_COMMANDS=()

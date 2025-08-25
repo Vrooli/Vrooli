@@ -3,10 +3,11 @@
 
 setup() {
     # Get the directory of the test file
-    TEST_DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")" && pwd)"
+    TEST_DIR="$(builtin cd "${BATS_TEST_FILENAME%/*}" && builtin pwd)"
     
     # Source trash module for safe test cleanup
-    SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+    APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
+    SCRIPT_DIR="${APP_ROOT}/scripts/resources/tests/lib"
     # shellcheck disable=SC1091
     source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
     # shellcheck disable=SC1091

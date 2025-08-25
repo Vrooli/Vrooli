@@ -139,7 +139,7 @@ permissions::can_write() {
     else
         # Check parent directory
         local parent
-        parent=$(dirname "$path")
+        parent=${path%/*}
         [[ -w "$parent" ]]
     fi
 }

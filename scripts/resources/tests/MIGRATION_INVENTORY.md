@@ -3,42 +3,42 @@
 ## Resources with Existing Integration Tests (Need Migration)
 
 ### 1. unstructured-io (AI)
-- **Source**: `scripts/resources/ai/unstructured-io/lib/test-api.sh`
+- **Source**: `resources/unstructured-io/lib/test-api.sh`
 - **Type**: Comprehensive API integration test
 - **Status**: Ready for migration
-- **Target**: `scripts/resources/ai/unstructured-io/test/integration-test.sh`
+- **Target**: `resources/unstructured-io/test/integration-test.sh`
 - **Notes**: Well-structured test with health checks, API endpoints, and file processing
 
 ### 2. unstructured-io (AI) - Comprehensive Suite  
-- **Source**: `scripts/resources/ai/unstructured-io/lib/test-suite.sh`
+- **Source**: `resources/unstructured-io/lib/test-suite.sh`
 - **Type**: Full functionality test suite
 - **Status**: Evaluate if should be merged with test-api.sh or kept separate
 - **Target**: Could be integrated into the main integration-test.sh
 - **Notes**: More comprehensive than test-api.sh, includes fixtures and edge cases
 
 ### 3. comfyui (Automation)
-- **Source**: `scripts/resources/automation/comfyui/lib/test_workflow.sh`
+- **Source**: `resources/comfyui/lib/test_workflow.sh`
 - **Type**: Workflow execution integration test
 - **Status**: Ready for migration
-- **Target**: `scripts/resources/automation/comfyui/test/integration-test.sh`
+- **Target**: `resources/comfyui/test/integration-test.sh`
 - **Notes**: Tests actual workflow execution with test outputs
 
 ## Resources with Test Runners (BATS - No Migration Needed)
 
 These orchestrate BATS tests which will be handled by `pnpm run test:shell`:
 
-- `scripts/resources/automation/node-red/lib/run-tests.sh` - BATS orchestrator
-- `scripts/resources/automation/huginn/lib/run-tests.sh` - BATS orchestrator  
-- `scripts/resources/agents/agent-s2/tests/run_tests.sh` - Python/BATS orchestrator
-- `scripts/resources/automation/huginn/lib/testing.sh` - Test utilities
-- `scripts/resources/automation/node-red/lib/testing.sh` - Test utilities
+- `resources/node-red/lib/run-tests.sh` - BATS orchestrator
+- `resources/huginn/lib/run-tests.sh` - BATS orchestrator  
+- `resources/agent-s2/tests/run_tests.sh` - Python/BATS orchestrator
+- `resources/huginn/lib/testing.sh` - Test utilities
+- `resources/node-red/lib/testing.sh` - Test utilities
 
 ## Resources with Integration Tests Already Working
 
 ### 1. ollama (AI)
-- **Location**: `scripts/__test/integration/services/ollama.sh`
+- **Location**: `__test/integration/services/ollama.sh`
 - **Status**: Needs to be moved to standardized location
-- **Target**: `scripts/resources/ai/ollama/test/integration-test.sh`
+- **Target**: `resources/ollama/test/integration-test.sh`
 - **Notes**: Already follows the standard interface
 
 ## Resources Needing Integration Tests Created
@@ -47,22 +47,22 @@ Based on the 6 healthy resources detected in testing:
 
 ### 1. whisper (AI)
 - **Status**: No integration test exists
-- **Target**: `scripts/resources/ai/whisper/test/integration-test.sh`
+- **Target**: `resources/whisper/test/integration-test.sh`
 - **Needs**: API health check, transcription test with sample audio
 
 ### 2. node-red (Automation)  
 - **Status**: Has BATS tests but no integration test
-- **Target**: `scripts/resources/automation/node-red/test/integration-test.sh`
+- **Target**: `resources/node-red/test/integration-test.sh`
 - **Needs**: UI availability, flow execution, API endpoint tests
 
 ### 3. vault (Storage)
 - **Status**: No integration test exists  
-- **Target**: `scripts/resources/storage/vault/test/integration-test.sh`
+- **Target**: `resources/vault/test/integration-test.sh`
 - **Needs**: Seal status, auth, secret operations
 
 ### 4. qdrant (Storage)
 - **Status**: No integration test exists
-- **Target**: `scripts/resources/storage/qdrant/test/integration-test.sh`
+- **Target**: `resources/qdrant/test/integration-test.sh`
 - **Needs**: Collection operations, vector search, health check
 
 ## Migration Priority

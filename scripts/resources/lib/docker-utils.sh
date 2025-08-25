@@ -13,19 +13,19 @@ if [[ -n "${_DOCKER_UTILS_SOURCED:-}" ]]; then
 fi
 _DOCKER_UTILS_SOURCED=1
 
-# Source required utilities
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/scripts/resources/lib"
 
 # Source var.sh to get directory variables
 # shellcheck disable=SC1091
-if [[ -f "${SCRIPT_DIR}/../../lib/utils/var.sh" ]]; then
-    source "${SCRIPT_DIR}/../../lib/utils/var.sh"
+if [[ -f "${APP_ROOT}/scripts/lib/utils/var.sh" ]]; then
+    source "${APP_ROOT}/scripts/lib/utils/var.sh"
 fi
 
 # Source logging utilities
 # shellcheck disable=SC1091
-if [[ -f "${SCRIPT_DIR}/../../lib/utils/log.sh" ]]; then
-    source "${SCRIPT_DIR}/../../lib/utils/log.sh"
+if [[ -f "${APP_ROOT}/scripts/lib/utils/log.sh" ]]; then
+    source "${APP_ROOT}/scripts/lib/utils/log.sh"
 fi
 
 # Source system commands - try multiple paths to ensure it's loaded

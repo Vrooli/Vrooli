@@ -2,8 +2,8 @@
 # Claude Code Installation Functions
 # Handles installation and uninstallation of Claude Code CLI
 
-# Set script directory for sourcing
-CLAUDE_CODE_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+CLAUDE_CODE_LIB_DIR="${APP_ROOT}/resources/claude-code/lib"
 
 # Source required utilities
 # shellcheck disable=SC1091
@@ -78,7 +78,7 @@ claude_code::install() {
         fi
         
         # Install CLI command
-        if "${var_SCRIPTS_RESOURCES_LIB_DIR}/install-resource-cli.sh" "${CLAUDE_CODE_SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../" && pwd)}" 2>/dev/null; then
+        if "${var_SCRIPTS_RESOURCES_LIB_DIR}/install-resource-cli.sh" "${CLAUDE_CODE_SCRIPT_DIR:-${APP_ROOT}/resources/claude-code}" 2>/dev/null; then
             log::success "✓ CLI command 'resource-claude-code' installed"
         else
             log::warn "⚠️  CLI installation failed (non-critical)"

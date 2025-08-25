@@ -249,7 +249,7 @@ find scripts/resources -name "*whisper*" -type d
 ```bash
 # This is expected - implement the actual logic
 # Use existing functions as reference:
-grep -A 20 "whisper::start_container" scripts/resources/ai/whisper/manage.sh
+grep -A 20 "whisper::start_container" resources/whisper/manage.sh
 ```
 
 **Backup files accumulating**

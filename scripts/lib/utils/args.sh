@@ -5,9 +5,10 @@
 # Provides functions for parsing command-line arguments
 ################################################################################
 
-# Source var.sh with relative path first
+# Source var.sh with cached APP_ROOT pattern
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 # shellcheck disable=SC1091
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 #######################################
 # Parse arguments into associative array

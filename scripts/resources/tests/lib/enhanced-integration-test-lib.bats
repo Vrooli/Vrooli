@@ -3,7 +3,7 @@
 
 setup() {
     # Get the directory of the test file
-    TEST_DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")" && pwd)"
+    TEST_DIR="$(builtin cd "${BATS_TEST_FILENAME%/*}" && builtin pwd)"
     
     # Source var.sh
     # shellcheck disable=SC1091

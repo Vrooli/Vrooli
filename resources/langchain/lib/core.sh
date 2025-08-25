@@ -3,7 +3,8 @@
 # Core functionality for LangChain resource management
 
 # Source required libraries
-LANGCHAIN_CORE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+LANGCHAIN_CORE_DIR="${APP_ROOT}/resources/langchain/lib"
 # shellcheck disable=SC1091
 source "${LANGCHAIN_CORE_DIR}/../../../../lib/utils/var.sh"
 # shellcheck disable=SC1091

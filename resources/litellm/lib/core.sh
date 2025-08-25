@@ -1,7 +1,7 @@
 #!/bin/bash
 # LiteLLM core functionality
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
 LITELLM_CORE_DIR="${APP_ROOT}/resources/litellm/lib"
 LITELLM_RESOURCE_DIR="${APP_ROOT}/resources/litellm"
 

@@ -2,7 +2,8 @@
 # KiCad Test Runner
 
 # Get script directory
-KICAD_TEST_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+KICAD_TEST_LIB_DIR="${APP_ROOT}/resources/kicad/lib"
 
 # Source common functions
 source "${KICAD_TEST_LIB_DIR}/common.sh"

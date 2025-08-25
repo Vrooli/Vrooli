@@ -2,8 +2,9 @@
 
 # Core functions for Mail-in-a-Box resource
 
-MAILINABOX_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-MAILINABOX_CONFIG_DIR="$(dirname "$MAILINABOX_LIB_DIR")/config"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+MAILINABOX_LIB_DIR="${APP_ROOT}/resources/mail-in-a-box/lib"
+MAILINABOX_CONFIG_DIR="${APP_ROOT}/resources/mail-in-a-box/config"
 
 # Source dependencies
 source "$MAILINABOX_CONFIG_DIR/defaults.sh"

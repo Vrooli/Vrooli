@@ -6,7 +6,8 @@
 set -euo pipefail
 
 # Source enhanced integration test library with fixture support
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/resources/n8n/test"
 
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/../../../../lib/utils/var.sh"

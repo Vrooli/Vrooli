@@ -5,11 +5,12 @@
 set -euo pipefail
 
 # Source enhanced integration test library
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-NODE_RED_ROOT_DIR="$(dirname "$SCRIPT_DIR")"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/resources/node-red/test"
+NODE_RED_ROOT_DIR="${APP_ROOT}/resources/node-red"
 
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../../lib/utils/var.sh"
+source "${SCRIPT_DIR}/../../../lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_TESTS_LIB_DIR}/enhanced-integration-test-lib.sh"
 

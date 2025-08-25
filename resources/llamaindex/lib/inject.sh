@@ -3,10 +3,11 @@
 # LlamaIndex Injection Functions
 # Handles injection of documents and indices into LlamaIndex
 
-LLAMAINDEX_INJECT_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LLAMAINDEX_INJECT_DIR="$(dirname "$LLAMAINDEX_INJECT_LIB_DIR")"
-LLAMAINDEX_INJECT_ROOT_DIR="$(dirname "$LLAMAINDEX_INJECT_DIR")"
-LLAMAINDEX_INJECT_SCRIPTS_DIR="$(dirname "$(dirname "$LLAMAINDEX_INJECT_ROOT_DIR")")"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+LLAMAINDEX_INJECT_LIB_DIR="${APP_ROOT}/resources/llamaindex/lib"
+LLAMAINDEX_INJECT_DIR="${APP_ROOT}/resources/llamaindex"
+LLAMAINDEX_INJECT_ROOT_DIR="${APP_ROOT}/resources"
+LLAMAINDEX_INJECT_SCRIPTS_DIR="${APP_ROOT}/scripts"
 
 # Source dependencies
 source "$LLAMAINDEX_INJECT_SCRIPTS_DIR/lib/utils/var.sh" || exit 1

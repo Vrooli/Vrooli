@@ -8,7 +8,8 @@ if [[ -L "${BASH_SOURCE[0]}" ]]; then
 else
     KICAD_CLI_SCRIPT="${BASH_SOURCE[0]}"
 fi
-KICAD_CLI_DIR="$(cd "$(dirname "$KICAD_CLI_SCRIPT")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+KICAD_CLI_DIR="${APP_ROOT}/resources/kicad"
 
 # Source the library functions
 source "${KICAD_CLI_DIR}/lib/common.sh"
@@ -61,7 +62,7 @@ kicad_cli() {
             echo "KiCad Projects:"
             if [[ -d "$KICAD_PROJECTS_DIR" ]]; then
                 find "$KICAD_PROJECTS_DIR" -name "*.kicad_pro" -o -name "*.pro" 2>/dev/null | while read -r proj; do
-                    echo "  - $(basename "$(dirname "$proj")")"
+                    echo "  - $(basename "${proj%/*")"
                 done
             else
                 echo "  No projects found"

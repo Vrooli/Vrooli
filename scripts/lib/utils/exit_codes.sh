@@ -2,9 +2,9 @@
 # Standard exit codes used throughout the Vrooli project
 # These codes provide consistent error handling across all scripts
 
-# Source var.sh with relative path first
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 # shellcheck disable=SC1091
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 # Prevent multiple sourcing
 if [[ -n "${_EXIT_CODES_SOURCED:-}" ]]; then

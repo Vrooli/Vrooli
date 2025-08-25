@@ -204,7 +204,7 @@ find_scenarios_for_resource() {
     local matching_scenarios=()
     
     # Iterate through all scenarios
-    for scenario_dir in "$SCENARIOS_DIR"/core/*/; do
+    for scenario_dir in "$SCENARIOS_DIR"/*/; do
         if [[ -d "$scenario_dir" ]]; then
             local scenario_data=$(extract_scenario_metadata "$scenario_dir")
             if scenario_uses_resource "$scenario_data" "$target_resource"; then

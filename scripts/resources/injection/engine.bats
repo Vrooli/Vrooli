@@ -3,7 +3,7 @@
 
 # Load test setup
 # shellcheck disable=SC1091
-source "$(cd "$(dirname "$BATS_TEST_FILENAME")" && pwd)/../../__test/fixtures/setup.bash"
+source "$(builtin cd "${BATS_TEST_FILENAME%/*}" && builtin pwd)/../../__test/fixtures/setup.bash"
 
 setup() {
     vrooli_setup_unit_test

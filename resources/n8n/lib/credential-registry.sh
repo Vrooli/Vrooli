@@ -8,8 +8,9 @@ set -euo pipefail
 [[ -n "${_N8N_CREDENTIAL_REGISTRY_SOURCED:-}" ]] && return 0
 export _N8N_CREDENTIAL_REGISTRY_SOURCED=1
 
-# Get script directory and source dependencies
-REGISTRY_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Define directory using cached APP_ROOT
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+REGISTRY_DIR="${APP_ROOT}/resources/n8n/lib"
 
 # shellcheck disable=SC1091
 source "${REGISTRY_DIR}/../../../../lib/utils/var.sh"
@@ -24,7 +25,7 @@ CREDENTIAL_REGISTRY_FILE="${var_ROOT_DIR}/data/resources/n8n/n8n-credentials-reg
 #######################################
 credential_registry::init() {
     local registry_dir
-    registry_dir=$(dirname "$CREDENTIAL_REGISTRY_FILE")
+    registry_dir=${CREDENTIAL_REGISTRY_FILE%/*
     
     # Create directory if it doesn't exist
     mkdir -p "$registry_dir"

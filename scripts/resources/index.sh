@@ -7,8 +7,9 @@ set -euo pipefail
 DESCRIPTION="Manages local development resources (AI, automation, storage, agents)"
 
 # Source var.sh first with relative path
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
 # shellcheck disable=SC1091
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 # Handle Ctrl+C and other signals gracefully
 trap 'echo ""; log::info "Resource installation interrupted by user. Exiting..."; exit 130' INT TERM

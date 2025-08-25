@@ -18,11 +18,12 @@ if [[ -L "${BASH_SOURCE[0]}" ]]; then
 else
     NODE_RED_CLI_SCRIPT="${BASH_SOURCE[0]}"
 fi
-NODE_RED_CLI_DIR="$(cd "$(dirname "$NODE_RED_CLI_SCRIPT")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+NODE_RED_CLI_DIR="${APP_ROOT}/resources/node-red"
 
 # Source standard variables
 # shellcheck disable=SC1091
-source "${NODE_RED_CLI_DIR}/../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 # Source utilities using var_ variables
 # shellcheck disable=SC1091

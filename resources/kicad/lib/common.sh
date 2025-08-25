@@ -2,7 +2,8 @@
 # KiCad Common Functions
 
 # Get script directory
-KICAD_COMMON_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+KICAD_COMMON_LIB_DIR="${APP_ROOT}/resources/kicad/lib"
 
 # Source defaults
 source "${KICAD_COMMON_LIB_DIR}/../config/defaults.sh"

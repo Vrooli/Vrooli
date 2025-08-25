@@ -154,7 +154,7 @@ Each resource implements a standardized injection adapter (`resource/lib/inject.
 
 ```bash
 # Inject workflows directly into n8n
-./scripts/resources/automation/n8n/lib/inject.sh --inject '{
+./resources/n8n/lib/inject.sh --inject '{
   "workflows": [
     {
       "name": "test-workflow",
@@ -165,7 +165,7 @@ Each resource implements a standardized injection adapter (`resource/lib/inject.
 }'
 
 # Validate before injection
-./scripts/resources/automation/n8n/lib/inject.sh --validate '{
+./resources/n8n/lib/inject.sh --validate '{
   "workflows": [{"name": "test", "file": "test.json"}]
 }'
 ```
@@ -256,7 +256,7 @@ Every injection is validated before execution:
 ./scripts/resources/injection/engine.sh --action validate --scenario my-app
 
 # Resource-specific validation
-./scripts/resources/automation/n8n/lib/inject.sh --validate CONFIG_JSON
+./resources/n8n/lib/inject.sh --validate CONFIG_JSON
 ```
 
 ### Safe Operations

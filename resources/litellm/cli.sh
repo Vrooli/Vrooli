@@ -1,7 +1,6 @@
 #!/bin/bash
 # LiteLLM CLI interface
 
-# Get APP_ROOT using cached value or compute once (4 levels up: scripts/resources/ai/litellm/cli.sh)
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
 LITELLM_CLI_DIR="${APP_ROOT}/scripts/resources/ai/litellm"
 

@@ -50,7 +50,7 @@ curl -X POST http://localhost:5678/api/v1/workflows/WORKFLOW_ID/activate \
 ### Method 3: Using the Management Script
 ```bash
 # Execute a workflow (if it has a webhook trigger)
-./scripts/resources/automation/n8n/manage.sh --action execute --workflow-id WORKFLOW_ID
+./resources/n8n/manage.sh --action execute --workflow-id WORKFLOW_ID
 ```
 
 ## Tips

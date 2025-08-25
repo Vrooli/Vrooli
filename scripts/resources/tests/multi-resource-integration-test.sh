@@ -5,16 +5,16 @@
 
 set -euo pipefail
 
-_HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 
 # shellcheck disable=SC1091
-source "${_HERE}/../../../lib/utils/var.sh"
+source "${APP_ROOT}/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh"
 # shellcheck disable=SC1091
-source "${_HERE}/lib/integration-test-lib.sh"
+source "${APP_ROOT}/scripts/resources/tests/lib/integration-test-lib.sh"
 # shellcheck disable=SC1091
-source "${_HERE}/lib/fixture-helpers.sh"
+source "${APP_ROOT}/scripts/resources/tests/lib/fixture-helpers.sh"
 
 #######################################
 # CONFIGURATION

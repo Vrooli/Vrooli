@@ -3,9 +3,9 @@
 # Provides safe alternatives to rm -rf to prevent accidental data loss
 set -euo pipefail
 
-# Source var.sh with relative path first
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 # shellcheck disable=SC1091
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
 
@@ -428,7 +428,7 @@ trash::find_project_root() {
     local current_dir
     
     if [[ -f "$start_path" ]]; then
-        current_dir="$(dirname "$start_path")"
+        current_dir="${start_path%/*}"
     else
         current_dir="$start_path"
     fi
@@ -439,7 +439,7 @@ trash::find_project_root() {
             echo "$current_dir"
             return 0
         fi
-        current_dir="$(dirname "$current_dir")"
+        current_dir="${current_dir%/*}"
     done
     
     # Fallback to current working directory
@@ -486,7 +486,7 @@ trash::log_operation() {
     local audit_log="${XDG_DATA_HOME:-$HOME/.local/share}/trash_audit.log"
     
     # Create directory if it doesn't exist
-    mkdir -p "$(dirname "$audit_log")"
+    mkdir -p "${audit_log%/*}"
     
     # Log the operation with timestamp and context
     echo "$(date --iso-8601=seconds 2>/dev/null || date) - $operation - $target - $result - PID:$$ - USER:${USER:-unknown} - PWD:$PWD" >> "$audit_log"

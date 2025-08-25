@@ -7,7 +7,7 @@ DESCRIPTION="Inject workflows and configurations into n8n automation platform"
 [[ -n "${_N8N_INJECT_SOURCED:-}" ]] && return 0
 export _N8N_INJECT_SOURCED=1
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../.." && builtin pwd)}"
 N8N_LIB_DIR="${APP_ROOT}/resources/n8n/lib"
 
 # shellcheck disable=SC1091
@@ -21,7 +21,7 @@ source "${var_LIB_SERVICE_DIR}/secrets.sh"
 
 # Load n8n configuration and infrastructure
 if command -v inject_framework::load_adapter_config &>/dev/null; then
-    inject_framework::load_adapter_config "n8n" "$(dirname "$N8N_LIB_DIR")"
+    inject_framework::load_adapter_config "n8n" "${N8N_LIB_DIR%/*"
 fi
 
 # Source n8n lib functions (load core, status, and auto-credentials)

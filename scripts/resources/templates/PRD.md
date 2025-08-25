@@ -355,7 +355,7 @@ unit_tests:
 integration_tests:
   location: test/ directory
   coverage: Cross-resource communication, API endpoints, content management
-  test_data: Uses shared fixtures from scripts/__test/fixtures/data/
+  test_data: Uses shared fixtures from __test/fixtures/data/
   test_scenarios: 
     - Resource lifecycle (install, start, stop, uninstall)
     - Content management operations
@@ -363,7 +363,7 @@ integration_tests:
     - Error handling and recovery
   
 system_tests:
-  location: scripts/__test/resources/
+  location: __test/resources/
   coverage: Full resource lifecycle, failure scenarios
   automation: Integrated with Vrooli test framework
   
@@ -383,7 +383,7 @@ test_specification:
   test_structure:
     - BATS files co-located with source files
     - Integration tests in test/ directory
-    - Shared fixtures from scripts/__test/fixtures/data/
+    - Shared fixtures from __test/fixtures/data/
     - Test results included in status output with timestamp
     - At least one example in examples/ directory
   
@@ -405,7 +405,7 @@ test_specification:
         
     - name: "Content Management"
       command: resource-[name] content add --file test.json
-      fixture: scripts/__test/fixtures/data/documents/test-data.json
+      fixture: __test/fixtures/data/documents/test-data.json
       expect:
         exit_code: 0
         content_stored: true

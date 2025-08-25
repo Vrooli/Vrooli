@@ -7,7 +7,8 @@ if [[ -L "${BASH_SOURCE[0]}" ]]; then
 else
     LANGCHAIN_CLI_SCRIPT="${BASH_SOURCE[0]}"
 fi
-LANGCHAIN_CLI_DIR="$(cd "$(dirname "$LANGCHAIN_CLI_SCRIPT")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+LANGCHAIN_CLI_DIR="${APP_ROOT}/resources/langchain"
 
 # Source dependencies
 source "${LANGCHAIN_CLI_DIR}/../../../lib/utils/var.sh"

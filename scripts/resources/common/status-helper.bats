@@ -323,7 +323,7 @@ teardown() {
     mock::docker::add_container "test-container" "running" "test:latest"
     
     run bash -c "
-        source '$COMMON_DIR/../../../scripts/__test/fixtures/mocks/docker.sh'
+        source '$COMMON_DIR/../../../__test/fixtures/mocks/docker.sh'
         source '$COMMON_DIR/status-helper.sh'
         
         # Override docker command to use mock

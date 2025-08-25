@@ -3,9 +3,10 @@
 # All configuration constants and default values
 
 # Source var.sh first to get standard directory variables
-NODE_RED_CONFIG_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+NODE_RED_CONFIG_DIR="${APP_ROOT}/resources/node-red/config"
 # shellcheck disable=SC1091
-source "$(dirname "$(dirname "$(dirname "$(dirname "${NODE_RED_CONFIG_DIR}")")")")/lib/utils/var.sh"
+source "${APP_ROOT}/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
 

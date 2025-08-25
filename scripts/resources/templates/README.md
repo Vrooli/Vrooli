@@ -17,7 +17,7 @@ Complete Product Requirements Document template for resources. This template ens
 
 ```bash
 # Copy template to your resource
-cp scripts/resources/templates/PRD.md scripts/resources/storage/my-resource/PRD.md
+cp scripts/resources/templates/PRD.md resources/my-resource/PRD.md
 
 # Edit the template to match your resource
 # Fill in all sections completely

@@ -27,7 +27,8 @@
 
 set -euo pipefail
 
-SCRIPTS_SCENARIOS_INJECTION_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+SCRIPTS_SCENARIOS_INJECTION_DIR="${APP_ROOT}/scripts/resources/injection"
 
 # Source var.sh first to get standardized paths
 # shellcheck disable=SC1091
@@ -35,8 +36,8 @@ source "${SCRIPTS_SCENARIOS_INJECTION_DIR}/../../lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
 
-SCENARIOS_DIR="${var_SCRIPTS_SCENARIOS_DIR}/core"
-RESOURCES_DIR="${var_SCRIPTS_RESOURCES_DIR}"
+SCENARIOS_DIR="${var_SCENARIOS_DIR}"
+RESOURCES_DIR="${var_RESOURCES_DIR}"
 INIT_STATE_FILE="${var_VROOLI_CONFIG_DIR}/.initialization-state.json"
 
 

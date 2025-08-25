@@ -9,12 +9,13 @@ set -euo pipefail
 trap 'log::info "\nInterrupted. Exiting..."; exit 130' INT TERM
 
 # Get the directory of this script (unique variable name)
-NODE_RED_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../.." && builtin pwd)}"
+NODE_RED_SCRIPT_DIR="${APP_ROOT}/resources/node-red"
 NODE_RED_LIB_DIR="${NODE_RED_SCRIPT_DIR}/lib"
 
 # Source var.sh first to get standard directory variables
 # shellcheck disable=SC1091
-source "${NODE_RED_SCRIPT_DIR}/../../../lib/utils/var.sh"
+source "${NODE_RED_SCRIPT_DIR}/../../lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
 # shellcheck disable=SC1091

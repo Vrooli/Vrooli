@@ -3,9 +3,10 @@
 # Only essential functions needed for Node-RED operation
 
 # Source var.sh to get proper directory variables
-_NODE_RED_DOCKER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+_NODE_RED_DOCKER_DIR="${APP_ROOT}/resources/node-red/lib"
 # shellcheck disable=SC1091
-source "${_NODE_RED_DOCKER_DIR}/../../../../lib/utils/var.sh"
+source "${_NODE_RED_DOCKER_DIR}/../../../lib/utils/var.sh"
 
 # Source shared libraries
 # shellcheck disable=SC1091

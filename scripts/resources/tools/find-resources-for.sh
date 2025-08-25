@@ -392,7 +392,7 @@ analyze_all_scenarios() {
     local scenarios=()
     
     # Find all scenario directories
-    for scenario_dir in "$SCENARIOS_DIR"/core/*/; do
+    for scenario_dir in "$SCENARIOS_DIR"/*/; do
         if [[ -d "$scenario_dir" ]]; then
             scenarios+=("$scenario_dir")
         fi
@@ -436,7 +436,7 @@ main() {
     if [[ "$SHOW_ALL" == true ]]; then
         analyze_all_scenarios
     else
-        local scenario_dir="$SCENARIOS_DIR/core/$SCENARIO"
+        local scenario_dir="$SCENARIOS_DIR/$SCENARIO"
         local analysis=$(analyze_scenario "$scenario_dir")
         display_scenario_analysis "$analysis"
     fi

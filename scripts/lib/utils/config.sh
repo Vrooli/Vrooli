@@ -8,8 +8,8 @@
 
 set -euo pipefail
 
-# Source dependencies
-UTILS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+UTILS_DIR="${APP_ROOT}/scripts/lib/utils"
 source "$UTILS_DIR/var.sh"
 source "$UTILS_DIR/log.sh"
 

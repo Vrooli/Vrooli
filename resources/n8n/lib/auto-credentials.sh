@@ -9,10 +9,11 @@ set -euo pipefail
 export _N8N_AUTO_CREDENTIALS_SOURCED=1
 
 # Get script directory and source dependencies
-N8N_AUTO_CREDS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+N8N_AUTO_CREDS_DIR="${APP_ROOT}/resources/n8n/lib"
 
 # shellcheck disable=SC1091
-source "${N8N_AUTO_CREDS_DIR}/../../../../lib/utils/var.sh"
+source "${N8N_AUTO_CREDS_DIR}/../../../lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE:-${N8N_AUTO_CREDS_DIR}/../../../../lib/utils/log.sh}"
 # shellcheck disable=SC1091

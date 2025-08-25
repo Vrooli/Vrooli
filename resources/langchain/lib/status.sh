@@ -3,7 +3,8 @@
 # Functions for checking LangChain health and status
 
 # Source format utilities and required libraries
-LANGCHAIN_STATUS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+LANGCHAIN_STATUS_DIR="${APP_ROOT}/resources/langchain/lib"
 # shellcheck disable=SC1091
 source "${LANGCHAIN_STATUS_DIR}/../../../../lib/utils/var.sh"
 # shellcheck disable=SC1091

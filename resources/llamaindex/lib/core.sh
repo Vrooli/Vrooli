@@ -3,10 +3,11 @@
 # LlamaIndex Core Functions
 # Provides RAG capabilities, document processing, and knowledge base management
 
-LLAMAINDEX_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LLAMAINDEX_DIR="$(dirname "$LLAMAINDEX_LIB_DIR")"
-LLAMAINDEX_ROOT_DIR="$(dirname "$LLAMAINDEX_DIR")"
-LLAMAINDEX_SCRIPTS_DIR="$(dirname "$(dirname "$LLAMAINDEX_ROOT_DIR")")"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+LLAMAINDEX_LIB_DIR="${APP_ROOT}/resources/llamaindex/lib"
+LLAMAINDEX_DIR="${APP_ROOT}/resources/llamaindex"
+LLAMAINDEX_ROOT_DIR="${APP_ROOT}/resources"
+LLAMAINDEX_SCRIPTS_DIR="${APP_ROOT}"
 
 # Source dependencies
 source "$LLAMAINDEX_SCRIPTS_DIR/lib/utils/var.sh" || exit 1
@@ -353,7 +354,7 @@ llamaindex::install() {
             
             # Register CLI with Vrooli
             # shellcheck disable=SC1091
-            "${var_SCRIPTS_RESOURCES_LIB_DIR}/install-resource-cli.sh" "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)" 2>/dev/null || true
+            "${var_SCRIPTS_RESOURCES_LIB_DIR}/install-resource-cli.sh" "${APP_ROOT}/resources/llamaindex" 2>/dev/null || true
             
             return 0
         else
