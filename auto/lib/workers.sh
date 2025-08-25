@@ -43,11 +43,8 @@ execute_worker_core() {
 	
 	emit_start_event "$prompt_path" "$iter" "$event_pid"
 	
-	# Use sudo if SKIP_PERMISSIONS is enabled for elevated access
+	# Use resource-claude-code without sudo
 	local claude_cmd="resource-claude-code"
-	if [[ "${SKIP_PERMISSIONS:-}" == "yes" ]]; then
-		claude_cmd="sudo resource-claude-code"
-	fi
 	
 	set +e
 	if ! timeout --signal=TERM --kill-after="$WORKER_KILL_AFTER_SECONDS" "$TIMEOUT" $claude_cmd run "$full_prompt" 2>&1 | tee "$tmp_out"; then
@@ -136,7 +133,7 @@ run_iteration() {
 	
 	# Launch a wrapper subshell in background with proper process group management
 	(
-# Clear any inherited cleanup functions from parent
+		# Clear any inherited cleanup functions from parent
 		# This prevents the worker from accidentally cleaning up parent resources
 		unset ERROR_CLEANUP_FUNCTIONS
 		ERROR_CLEANUP_FUNCTIONS=()

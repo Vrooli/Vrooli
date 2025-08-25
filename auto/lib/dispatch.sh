@@ -124,7 +124,7 @@ run_loop() {
 	if ! check_worker_available; then log_with_timestamp "FATAL: worker not available"; exit 1; fi
 	log_with_timestamp "Writing PID $BASHPID to $PID_FILE"
 	# Ensure the directory exists
-	local pid_dir; pid_dir=$(dirname "$PID_FILE")
+	local pid_dir; pid_dir=${PID_FILE%/*}
 	if [[ ! -d "$pid_dir" ]]; then
 		log_with_timestamp "ERROR: PID directory does not exist: $pid_dir"
 		mkdir -p "$pid_dir" || log_with_timestamp "ERROR: Failed to create PID directory"

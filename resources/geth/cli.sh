@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 # Geth Resource CLI
 
-# Get the real script directory (following symlinks)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+# Handle symlinks for installed CLI
 if [[ -L "${BASH_SOURCE[0]}" ]]; then
-    GETH_CLI_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
-else
-    GETH_CLI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    GETH_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
+    # Recalculate APP_ROOT from resolved symlink location
+    APP_ROOT="$(builtin cd "${GETH_CLI_SCRIPT%/*}/../.." && builtin pwd)"
 fi
+GETH_CLI_DIR="${APP_ROOT}/resources/geth"
 
 # Source libraries
 source "${GETH_CLI_DIR}/lib/common.sh"

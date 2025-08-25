@@ -25,7 +25,7 @@ declare -g DOCKER_DEBUG="${DOCKER_DEBUG:-}"
 
 # === Helper Functions ===
 docker_debug() {
-    [[ -n "$DOCKER_DEBUG" ]] && echo "[MOCK:DOCKER] $*" >&2
+    [[ -n "${DOCKER_DEBUG:-}" ]] && echo "[MOCK:DOCKER] $*" >&2 || true
 }
 
 docker_check_error() {

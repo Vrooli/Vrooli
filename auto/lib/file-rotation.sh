@@ -122,13 +122,13 @@ file_rotation::prune_rotated_files() {
     local base_path="$1"
     local keep="${2:-$ROTATE_KEEP}"
     
-    if [[ ! -d "$(dirname "$base_path")" ]]; then
+    if [[ ! -d "${base_path%/*}" ]]; then
         echo "0"
         return 1
     fi
     
     local pruned=0
-    local dir; dir=$(dirname "$base_path")
+    local dir; dir=${base_path%/*}
     local base; base=$(basename "$base_path")
     
     # Find and prune old rotated files

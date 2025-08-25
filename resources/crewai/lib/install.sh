@@ -1,8 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 
-CREWAI_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CREWAI_RESOURCE_DIR="$(cd "${CREWAI_LIB_DIR}/.." && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+CREWAI_LIB_DIR="${APP_ROOT}/resources/crewai/lib"
+CREWAI_RESOURCE_DIR="${APP_ROOT}/resources/crewai"
 
 source "${CREWAI_RESOURCE_DIR}/../../../lib/utils/var.sh"
 source "${CREWAI_RESOURCE_DIR}/../../../lib/utils/log.sh"

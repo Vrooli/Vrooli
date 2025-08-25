@@ -3,7 +3,8 @@
 # Functions for checking MinIO health and status
 
 # Source format utilities and required libraries
-MINIO_STATUS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+MINIO_STATUS_DIR="${APP_ROOT}/resources/minio/lib"
 # shellcheck disable=SC1091
 source "${MINIO_STATUS_DIR}/../../../../lib/utils/var.sh"
 # shellcheck disable=SC1091
@@ -112,7 +113,7 @@ minio::status::collect_data() {
     local disk_available="false"
     if minio::common::check_disk_space >/dev/null 2>&1; then
         disk_available="true"
-        local available_gb=$(df -BG "$(dirname "${MINIO_DATA_DIR}")" 2>/dev/null | awk 'NR==2 {print $4}' | sed 's/G//' || echo "unknown")
+        local available_gb=$(df -BG "${MINIO_DATA_DIR}%/*" 2>/dev/null | awk 'NR==2 {print $4}' | sed 's/G//' || echo "unknown")
         disk_space="${available_gb}GB"
     fi
     status_data+=("disk_space" "$disk_space")

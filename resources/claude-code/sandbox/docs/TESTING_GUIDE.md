@@ -21,7 +21,7 @@ node --version  # Should be 18+
 ### 2. Build Sandbox Image
 
 ```bash
-cd scripts/resources/agents/claude-code/sandbox
+cd resources/claude-code/sandbox
 ./claude-sandbox.sh build
 ```
 

@@ -3,7 +3,8 @@
 # Functions for injecting data, buckets, and configurations into MinIO
 
 # Get script directory
-MINIO_INJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+MINIO_INJECT_DIR="${APP_ROOT}/resources/minio/lib"
 
 # Source dependencies
 source "${MINIO_INJECT_DIR}/common.sh"

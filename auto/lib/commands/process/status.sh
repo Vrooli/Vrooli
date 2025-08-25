@@ -17,6 +17,7 @@ cmd_execute() {
     local status="STOPPED"
     local main_pid=""
     
+    # First check PID file
     if [[ -f "$PID_FILE" ]]; then
         main_pid=$(commands::safe_read "$PID_FILE")
         if [[ -n "$main_pid" ]]; then
@@ -27,6 +28,26 @@ cmd_execute() {
             fi
         else
             status="STOPPED (empty PID file)"
+        fi
+    fi
+    
+    # If no PID file or stale, check for actual running processes using pgrep
+    if [[ "$status" == "STOPPED"* ]] || [[ "$status" == "STOPPED" ]]; then
+        # Use a simpler pgrep approach
+        local running_pids
+        if pgrep -f "task-manager" >/dev/null 2>&1; then
+            # Check if any of the task-manager processes match our task
+            running_pids=$(pgrep -f "task-manager" 2>/dev/null | while read -r pid; do
+                if ps -p "$pid" -o cmd --no-headers 2>/dev/null | grep -q "$LOOP_TASK.*run-loop"; then
+                    echo "$pid"
+                    break
+                fi
+            done | head -1)
+            
+            if [[ -n "$running_pids" ]]; then
+                status="RUNNING (PID: $running_pids, no PID file)"
+                main_pid="$running_pids"
+            fi
         fi
     fi
     

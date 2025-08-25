@@ -14,7 +14,6 @@ if [[ -n "${_AUTO_NETWORK_UTILS_SOURCED:-}" ]]; then
 fi
 readonly _AUTO_NETWORK_UTILS_SOURCED=1
 
-# Get APP_ROOT using cached value or compute once (2 levels up: auto/lib/network-utils.sh)
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
 # shellcheck disable=SC1091
 source "${APP_ROOT}/auto/lib/constants.sh"

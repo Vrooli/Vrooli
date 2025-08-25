@@ -3,13 +3,14 @@
 # Shared functions used across Geth management modules
 
 # Source required utilities
-GETH_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+GETH_LIB_DIR="${APP_ROOT}/resources/geth/lib"
 # shellcheck disable=SC1091
-source "${GETH_LIB_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
-source "${GETH_LIB_DIR}/../../../lib/docker-utils.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/docker-utils.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/format.sh" 2>/dev/null || true
 

@@ -21,7 +21,7 @@ Vrooli's testing infrastructure provides:
 ### Test Directory Structure
 
 ```
-scripts/__tests/
+__test/
 ├── __binstub             # Binary stub executable for mocking commands
 ├── __runTests.sh         # Test runner script
 ├── __stub.bash           # Stubbing framework
@@ -302,7 +302,7 @@ bats --verbose-run scripts/helpers/utils/log.bats
 
 ```bash
 # Run all tests using the test runner
-bash scripts/__tests/__runTests.sh
+bash __test/__runTests.sh
 
 # Or find and run all .bats files
 find scripts/ -name "*.bats" -exec bats {} \;
@@ -341,7 +341,7 @@ jobs:
       - name: Setup BATS
         run: bash scripts/helpers/setup/bats.sh
       - name: Run Shell Script Tests
-        run: bash scripts/__tests/__runTests.sh
+        run: bash __test/__runTests.sh
 ```
 
 ### Test Dependencies
@@ -502,7 +502,7 @@ The testing infrastructure covers:
 
 ```bash
 # Time test execution
-time bash scripts/__tests/__runTests.sh
+time bash __test/__runTests.sh
 
 # Profile individual tests
 bats --timing scripts/helpers/utils/log.bats

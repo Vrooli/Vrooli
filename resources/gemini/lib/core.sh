@@ -1,16 +1,17 @@
 #!/bin/bash
 # Gemini core functionality
 
-# Get script directory
-GEMINI_CORE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-GEMINI_RESOURCE_DIR="$(dirname "$GEMINI_CORE_DIR")"
+# Define directories using cached APP_ROOT
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+GEMINI_CORE_DIR="${APP_ROOT}/resources/gemini/lib"
+GEMINI_RESOURCE_DIR="${APP_ROOT}/resources/gemini"
 
 # Source dependencies
-source "${GEMINI_RESOURCE_DIR}/../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${GEMINI_RESOURCE_DIR}/config/defaults.sh"
-source "${GEMINI_RESOURCE_DIR}/../../../lib/utils/format.sh"
-source "${GEMINI_RESOURCE_DIR}/../../../lib/utils/log.sh"
-source "${GEMINI_RESOURCE_DIR}/../../lib/credentials-utils.sh"
+source "${APP_ROOT}/scripts/lib/utils/format.sh"
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
+source "${APP_ROOT}/scripts/resources/lib/credentials-utils.sh"
 
 # Initialize Gemini
 gemini::init() {

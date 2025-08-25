@@ -2,7 +2,8 @@
 # FFmpeg Configuration Defaults
 
 # Get the directory of this script
-FFMPEG_CONFIG_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+FFMPEG_CONFIG_DIR="${APP_ROOT}/resources/ffmpeg/config"
 
 # Source port registry for dynamic port allocation (if needed)
 # shellcheck disable=SC1091

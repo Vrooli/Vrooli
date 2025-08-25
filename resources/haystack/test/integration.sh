@@ -4,8 +4,9 @@
 set -euo pipefail
 
 # Test directory
-TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-HAYSTACK_DIR="$(dirname "$TEST_DIR")"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+TEST_DIR="${APP_ROOT}/resources/haystack/test"
+HAYSTACK_DIR="${APP_ROOT}/resources/haystack"
 
 # Test counter
 TESTS_PASSED=0

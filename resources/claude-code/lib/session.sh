@@ -3,7 +3,7 @@
 # Handles session listing and resumption
 
 # Set CLAUDE_CODE_SCRIPT_DIR if not already set (for BATS test compatibility)
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
 CLAUDE_CODE_SCRIPT_DIR="${CLAUDE_CODE_SCRIPT_DIR:-${APP_ROOT}/resources/claude-code}"
 
 # Source required utilities

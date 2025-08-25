@@ -3,7 +3,8 @@
 set -euo pipefail
 
 # Get script directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/resources/crewai"
 
 # Source shared utilities
 source "${SCRIPT_DIR}/../../../lib/utils/var.sh"

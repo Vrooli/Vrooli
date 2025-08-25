@@ -3,7 +3,8 @@
 
 # Get the actual script location, resolving any symlinks
 SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
-ERPNEXT_CLI_DIR="$(cd "$(dirname "${SCRIPT_PATH}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+ERPNEXT_CLI_DIR="${APP_ROOT}/resources/erpnext"
 
 # Source the main library
 source "${ERPNEXT_CLI_DIR}/lib/main.sh" || {

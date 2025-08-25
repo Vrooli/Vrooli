@@ -12,9 +12,9 @@
 
 set -euo pipefail
 
-# Get CLI directory
-CLI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VROOLI_ROOT="$(cd "$CLI_DIR/../.." && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+CLI_DIR="${APP_ROOT}/cli/commands"
+VROOLI_ROOT="$APP_ROOT"
 
 # Source utilities
 # shellcheck disable=SC1091

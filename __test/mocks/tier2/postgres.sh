@@ -33,7 +33,7 @@ declare -ga POSTGRES_TRANSACTION_BACKUP=()
 
 # === Helper Functions ===
 postgres_debug() {
-    [[ -n "$POSTGRES_DEBUG" ]] && echo "[MOCK:POSTGRES] $*" >&2
+    [[ -n "${POSTGRES_DEBUG:-}" ]] && echo "[MOCK:POSTGRES] $*" >&2 || true
 }
 
 postgres_check_error() {

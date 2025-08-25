@@ -20,7 +20,7 @@ if [[ -n "${VROOLI_ROOT:-}" ]]; then
 elif [[ -L "${BASH_SOURCE[0]}" ]]; then
 	# If this script is a symlink, resolve it
 	SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
-	VROOLI_ROOT="$(cd "$(dirname "$SCRIPT_PATH")/.." && pwd)"
+	VROOLI_ROOT="$(builtin cd "${SCRIPT_PATH%/*}/.." && builtin pwd)"
 elif git rev-parse --show-toplevel >/dev/null 2>&1; then
 	# Try to find git root
 	VROOLI_ROOT="$(git rev-parse --show-toplevel)"

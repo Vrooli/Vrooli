@@ -17,7 +17,8 @@ if [[ -L "${BASH_SOURCE[0]}" ]]; then
 else
     K6_CLI_SCRIPT="${BASH_SOURCE[0]}"
 fi
-K6_CLI_DIR="$(cd "$(dirname "$K6_CLI_SCRIPT")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+K6_CLI_DIR="${APP_ROOT}/resources/k6"
 
 # Source standard variables
 # shellcheck disable=SC1091

@@ -3,7 +3,8 @@
 # Shared functions used across Judge0 management modules
 
 # Source required utilities
-JUDGE0_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+JUDGE0_LIB_DIR="${APP_ROOT}/resources/judge0/lib"
 # shellcheck disable=SC1091
 source "${JUDGE0_LIB_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
@@ -14,7 +15,7 @@ source "${JUDGE0_LIB_DIR}/../../lib/docker-utils.sh" 2>/dev/null || true
 # Load dependencies if not already loaded (but preserve test environment)
 if [[ -z "${JUDGE0_API_KEY_LENGTH:-}" ]]; then
     # Try to load config from relative path
-    JUDGE0_PARENT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+    JUDGE0_PARENT_DIR="${APP_ROOT}/resources/judge0"
     if [[ -f "${JUDGE0_PARENT_DIR}/config/defaults.sh" ]]; then
         # Store test environment variables
         _test_config_dir="${JUDGE0_CONFIG_DIR:-}"

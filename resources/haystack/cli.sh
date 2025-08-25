@@ -6,7 +6,7 @@ APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}
 if [[ -L "${BASH_SOURCE[0]}" ]]; then
     HAYSTACK_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
     # Recalculate APP_ROOT from resolved symlink location
-    APP_ROOT="$(builtin cd "$(dirname "$HAYSTACK_CLI_SCRIPT")/../.." && builtin pwd)"
+    APP_ROOT="$(builtin cd "${HAYSTACK_CLI_SCRIPT%/*}/../.." && builtin pwd)"
 fi
 HAYSTACK_CLI_DIR="${APP_ROOT}/resources/haystack"
 

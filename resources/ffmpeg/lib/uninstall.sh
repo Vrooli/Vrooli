@@ -5,7 +5,8 @@ ffmpeg_uninstall() {
     local remove_data="${2:-no}"
     
     # Get the directory of this lib file
-    local FFMPEG_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+    local FFMPEG_LIB_DIR="${APP_ROOT}/resources/ffmpeg/lib"
     source "${FFMPEG_LIB_DIR}/../../../../lib/utils/format.sh"
     source "${FFMPEG_LIB_DIR}/../../../../lib/utils/log.sh"
     source "${FFMPEG_LIB_DIR}/../config/defaults.sh"

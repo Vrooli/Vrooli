@@ -403,7 +403,7 @@ unit_tests:
 integration_tests:
   location: test/ directory
   coverage: Script execution, result parsing, API endpoints
-  test_data: Uses shared fixtures from scripts/__test/fixtures/data/
+  test_data: Uses shared fixtures from __test/fixtures/data/
   test_scenarios: 
     - Resource lifecycle (install, start, stop, uninstall)
     - Test script execution
@@ -411,7 +411,7 @@ integration_tests:
     - Content management operations
   
 system_tests:
-  location: scripts/__test/resources/
+  location: __test/resources/
   coverage: Full resource lifecycle, load generation
   automation: Integrated with Vrooli test framework
   
@@ -430,7 +430,7 @@ test_specification:
   test_structure:
     - BATS files co-located with source files
     - Integration tests in test/ directory
-    - Shared fixtures from scripts/__test/fixtures/data/
+    - Shared fixtures from __test/fixtures/data/
     - Test results included in status output with timestamp
     - Multiple examples in examples/ directory
   
@@ -452,7 +452,7 @@ test_specification:
         
     - name: "Script Management"
       command: resource-k6 content add --file test.js
-      fixture: scripts/__test/fixtures/data/k6/simple-test.js
+      fixture: __test/fixtures/data/k6/simple-test.js
       expect:
         exit_code: 0
         content_stored: true

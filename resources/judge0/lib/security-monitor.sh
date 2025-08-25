@@ -4,7 +4,8 @@
 
 set -euo pipefail
 
-JUDGE0_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+JUDGE0_LIB_DIR="${APP_ROOT}/resources/judge0/lib"
 
 # Source var.sh first to get directory variables
 # shellcheck disable=SC1091
@@ -32,7 +33,7 @@ PROCESS_ALERT_THRESHOLD=150  # number of processes
 # Initialize monitoring
 #######################################
 monitor::init() {
-    local log_dir=$(dirname "$ALERT_LOG")
+    local log_dir=${ALERT_LOG%/*
     mkdir -p "$log_dir"
     
     log::info "Starting Judge0 security monitoring..."

@@ -2,8 +2,9 @@
 set -euo pipefail
 
 # CrewAI Core Functions
-CREWAI_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CREWAI_ROOT_DIR="$(dirname "${CREWAI_LIB_DIR}")"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+CREWAI_LIB_DIR="${APP_ROOT}/resources/crewai/lib"
+CREWAI_ROOT_DIR="${APP_ROOT}/resources/crewai"
 
 # Source utilities
 source "${CREWAI_ROOT_DIR}/../../../lib/utils/var.sh"

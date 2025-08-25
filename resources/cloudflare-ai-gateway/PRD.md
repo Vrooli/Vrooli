@@ -52,7 +52,7 @@ The Cloudflare AI Gateway resource provides a resilient proxy layer for AI traff
 ### 6. Testing Requirements
 - [ ] Unit tests for CLI commands
 - [ ] Integration tests with AI providers
-- [ ] Test fixtures in `scripts/__test/fixtures/data/`
+- [ ] Test fixtures in `__test/fixtures/data/`
 - [ ] BATS test co-location
 - [ ] Test results in status output
 

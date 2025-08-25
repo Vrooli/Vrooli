@@ -6,7 +6,9 @@
 set -euo pipefail
 
 LOOP_TASK="resource-improvement"
-TASK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+TASK_DIR="${APP_ROOT}/auto/tasks/resource-improvement"
 TASK_PROMPTS_DIR="${TASK_DIR}/prompts"
 
 # Candidates in priority order

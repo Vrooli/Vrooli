@@ -96,7 +96,7 @@ minio::common::create_directories() {
 #######################################
 minio::common::check_disk_space() {
     local data_dir="${MINIO_DATA_DIR}"
-    local parent_dir=$(dirname "$data_dir")
+    local parent_dir=${data_dir%/*
     
     # Create parent directory if it doesn't exist
     mkdir -p "$parent_dir"

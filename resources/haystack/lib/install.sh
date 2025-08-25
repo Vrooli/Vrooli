@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Get the directory of this script
-HAYSTACK_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Define directory using cached APP_ROOT
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+HAYSTACK_LIB_DIR="${APP_ROOT}/resources/haystack/lib"
 
 # Source dependencies
 source "${HAYSTACK_LIB_DIR}/common.sh"
@@ -259,7 +260,7 @@ EOF
     chmod +x "${HAYSTACK_SCRIPTS_DIR}/server.py"
     
     # Register the CLI
-    local resource_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+    local resource_dir="${APP_ROOT}/resources/haystack"
     "${HAYSTACK_LIB_DIR}/../../../../lib/resources/install-resource-cli.sh" "${resource_dir}" 2>/dev/null || true
     
     log::success "Haystack installed successfully"

@@ -89,7 +89,7 @@ General:
 - **Content management implemented** (`resource-[name] content add/list/get/remove/execute`) for storing and managing resource data (workflows, SQL, scripts, etc.). This replaces the old "inject" pattern.
 - Resource's documentation is detailed, accurate, and organized. It should follow our documentation best practices, including using a "hub-and-spokes" model of organization to limit the size of the resource's main README.md.
 - Resource does not use a manage.sh script. Instead, the resource is managed through its `cli.sh` script, which acts as an ultra thin wrapper around the library functions.
-- The resource has integration tests, which are put in a `test/` folder. These use files from `scripts/__test/fixtures/data/` instead of putting the tests directly in the resources's folder, so that we can reuse them across other resources. 
+- The resource has integration tests, which are put in a `test/` folder. These use files from `__test/fixtures/data/` instead of putting the tests directly in the resources's folder, so that we can reuse them across other resources. 
 - Test results are included in the resource's `status` result, with a timestamp for the last time they were run.
 - The resource status correctly supports text and json output
 - The resource includes at least one example in an `examples/` folder.
@@ -121,7 +121,7 @@ General:
 - All "false alarms" are fixed. Meaning, if you investigate a resource that looks unhealthy and find out that it was actually an issue with the status check or something like that, you fix all of those issues so that we don't get tricked next time.
 - Resource CLIs are thin wrappers over the lib/ functions, and call them directly instead of going through a manage.sh or other intermediary.
 - Resources elegantly use shared functions to reduce the amount of code they have to define themselves
-- New resources that don't fit well into one of the existing categories can just go in `scripts/resources/execution/`. We'll eventually get rid of the categories format, so it doesn't matter
+- New resources that don't fit well into one of the existing categories can just go in `resources/`. We'll eventually get rid of the categories format, so it doesn't matter
 - Resource documentation is accurate, organized, and follows best practices. It should be clear exactly what the resource does, what benefits it has for Vrooli, what sorts of scenarios it allows us to build, how to use it, etc.
 
 ---

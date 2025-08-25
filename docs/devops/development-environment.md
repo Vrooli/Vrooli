@@ -380,7 +380,7 @@ pnpm --filter server run test
 pnpm --filter ui run test
 
 # Run shell script tests
-bash scripts/__tests/__runTests.sh
+bash __test/__runTests.sh
 
 # Run with coverage
 pnpm run test:coverage
@@ -407,7 +407,7 @@ describe('Auth Service', () => {
 ```
 
 ```bash
-# Example BATS test (scripts/__tests/utils/log.bats)
+# Example BATS test (__test/utils/log.bats)
 #!/usr/bin/env bats
 
 @test "log function outputs correct format" {

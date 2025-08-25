@@ -5,14 +5,15 @@
 set -eo pipefail
 
 # Get script directory
-JUDGE0_INJECT_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+JUDGE0_INJECT_LIB_DIR="${APP_ROOT}/resources/judge0/lib"
 
 # Source common functions
 source "${JUDGE0_INJECT_LIB_DIR}/common.sh"
 source "${JUDGE0_INJECT_LIB_DIR}/api.sh"
 
 # Source utilities
-SCRIPTS_DIR="$(cd "${JUDGE0_INJECT_LIB_DIR}/../../../.." && pwd)"
+SCRIPTS_DIR="${APP_ROOT}/scripts"
 source "${SCRIPTS_DIR}/lib/utils/format.sh"
 source "${SCRIPTS_DIR}/lib/utils/log.sh"
 

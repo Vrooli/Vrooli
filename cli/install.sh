@@ -274,7 +274,7 @@ uninstall_cli() {
 	for location in "${locations[@]}"; do
 		if [[ -L "$location" ]] || [[ -f "$location" ]]; then
 			print_info "Removing: $location"
-			if [[ "$location" == "/usr/local/bin/vrooli" ]] && [[ ! -w "$(dirname "$location")" ]]; then
+			if [[ "$location" == "/usr/local/bin/vrooli" ]] && [[ ! -w "${location%/*}" ]]; then
 				sudo rm -f "$location"
 			else
 				rm -f "$location"

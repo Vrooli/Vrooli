@@ -4,12 +4,12 @@
 
 set -euo pipefail
 
-# Get script directory - handle both direct and symlinked execution
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+# Handle symlinks for installed CLI
 if [[ -L "${BASH_SOURCE[0]}" ]]; then
-    # If symlinked, resolve the real path
-    APP_ROOT="${APP_ROOT:-$(builtin cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/..\" && builtin pwd)}"
-else
-    APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/..\" && builtin pwd)}"
+    MUSICGEN_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
+    # Recalculate APP_ROOT from resolved symlink location
+    APP_ROOT="$(builtin cd "${MUSICGEN_CLI_SCRIPT%/*}/../.." && builtin pwd)"
 fi
 
 MUSICGEN_DIR="${APP_ROOT}/resources/musicgen"

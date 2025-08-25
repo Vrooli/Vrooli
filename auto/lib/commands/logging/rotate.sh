@@ -91,7 +91,7 @@ rotate_events_file() {
         echo "Rotated events to $rotated_events"
         
         # Prune old events files safely
-        local events_dir; events_dir=$(dirname "$EVENTS_JSONL")
+        local events_dir; events_dir=${EVENTS_JSONL%/*}
         local events_basename; events_basename=$(basename "$EVENTS_JSONL")
         
         # Find old events files and remove excess

@@ -4,11 +4,12 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/resources/cloudflare-ai-gateway"
 RESOURCE_NAME="cloudflare-ai-gateway"
 
 # Source required libraries
-source "${SCRIPT_DIR}/../../../lib/cli-command-framework.sh"
+source "${APP_ROOT}/scripts/resources/lib/cli-command-framework.sh"
 source "${SCRIPT_DIR}/lib/gateway.sh"
 source "${SCRIPT_DIR}/lib/config.sh"
 source "${SCRIPT_DIR}/lib/providers.sh"

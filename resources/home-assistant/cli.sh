@@ -2,7 +2,8 @@
 # Home Assistant Resource CLI
 
 # Get script directory - resolve symlinks
-HOME_ASSISTANT_CLI_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+HOME_ASSISTANT_CLI_DIR="${APP_ROOT}/resources/home-assistant"
 
 # Source all library functions
 source "${HOME_ASSISTANT_CLI_DIR}/lib/core.sh"

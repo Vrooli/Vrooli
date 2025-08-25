@@ -1,15 +1,17 @@
 #!/bin/bash
 
-# Resolve the actual script location (handles symlinks)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+# Handle symlinks for installed CLI
 if [[ -L "${BASH_SOURCE[0]}" ]]; then
-    FFMPEG_CLI_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
-else
-    FFMPEG_CLI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    FFMPEG_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
+    # Recalculate APP_ROOT from resolved symlink location
+    APP_ROOT="$(builtin cd "${FFMPEG_CLI_SCRIPT%/*}/../.." && builtin pwd)"
 fi
+FFMPEG_CLI_DIR="${APP_ROOT}/resources/ffmpeg"
 
 # Source required utilities first
-source "${FFMPEG_CLI_DIR}/../../../lib/utils/log.sh"
-source "${FFMPEG_CLI_DIR}/../../../lib/utils/format.sh"
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
+source "${APP_ROOT}/scripts/lib/utils/format.sh"
 
 # Source all lib functions directly
 for lib in install status start stop uninstall inject; do

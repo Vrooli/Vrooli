@@ -3,7 +3,8 @@
 # Functions for managing MinIO buckets
 
 # Source trash module for safe cleanup
-MINIO_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+MINIO_LIB_DIR="${APP_ROOT}/resources/minio/lib"
 # shellcheck disable=SC1091
 source "${MINIO_LIB_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091

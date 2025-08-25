@@ -1,8 +1,9 @@
 #!/bin/bash
 # Home Assistant Installation Functions
 
-# Get script directory
-HOME_ASSISTANT_INSTALL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Define directory using cached APP_ROOT
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+HOME_ASSISTANT_INSTALL_DIR="${APP_ROOT}/resources/home-assistant/lib"
 
 # Source dependencies
 source "${HOME_ASSISTANT_INSTALL_DIR}/core.sh"

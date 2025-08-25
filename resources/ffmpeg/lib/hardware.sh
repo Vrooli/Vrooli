@@ -3,7 +3,8 @@
 # Hardware acceleration detection and configuration for FFmpeg
 
 # Get the directory of this lib file
-FFMPEG_HW_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+FFMPEG_HW_LIB_DIR="${APP_ROOT}/resources/ffmpeg/lib"
 
 # Source utilities
 source "${FFMPEG_HW_LIB_DIR}/../../../../lib/utils/log.sh"

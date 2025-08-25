@@ -143,7 +143,7 @@ Reduce batch size or use smaller models if encountering OOM errors.
 
 ## Examples
 
-See `/scripts/resources/execution/musicgen/examples/` for:
+See `/resources/musicgen/examples/` for:
 - `generate_samples.sh` - Basic generation examples
 - `batch_processing.py` - Batch music creation
 - `style_transfer.py` - Musical style experiments

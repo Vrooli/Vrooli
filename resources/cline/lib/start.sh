@@ -2,7 +2,8 @@
 set -euo pipefail
 
 # Get the directory of this script
-CLINE_START_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+CLINE_START_DIR="${APP_ROOT}/resources/cline/lib"
 
 # Source common functions
 source "$CLINE_START_DIR/common.sh"

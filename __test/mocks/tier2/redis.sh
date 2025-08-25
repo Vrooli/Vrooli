@@ -31,7 +31,7 @@ declare -ga REDIS_TRANSACTION_QUEUE=()
 
 # === Helper Functions ===
 redis_debug() {
-    [[ -n "$REDIS_DEBUG" ]] && echo "[MOCK:REDIS] $*" >&2
+    [[ -n "${REDIS_DEBUG:-}" ]] && echo "[MOCK:REDIS] $*" >&2 || true
 }
 
 redis_check_error() {

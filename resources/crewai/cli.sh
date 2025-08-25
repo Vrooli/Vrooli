@@ -1,15 +1,20 @@
 #!/bin/bash
 set -euo pipefail
 
-# CrewAI CLI wrapper - resolve symlinks to get actual script location
-REAL_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
-SCRIPT_DIR="$(dirname "${REAL_PATH}")"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+# Handle symlinks for installed CLI
+if [[ -L "${BASH_SOURCE[0]}" ]]; then
+    REAL_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
+    # Recalculate APP_ROOT from resolved symlink location
+    APP_ROOT="$(builtin cd "${REAL_PATH%/*}/../.." && builtin pwd)"
+fi
+SCRIPT_DIR="${APP_ROOT}/resources/crewai"
 LIB_DIR="${SCRIPT_DIR}/lib"
 
 # Source utilities
-source "${SCRIPT_DIR}/../../../lib/utils/var.sh"
-source "${SCRIPT_DIR}/../../../lib/utils/log.sh"
-source "${SCRIPT_DIR}/../../../lib/utils/format.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
+source "${APP_ROOT}/scripts/lib/utils/format.sh"
 
 # Command handling
 case "${1:-help}" in

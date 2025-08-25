@@ -178,8 +178,8 @@ prepare_worker_env() {
 		}
 	fi
 	
-	if [[ ! -w "$(dirname "$EVENTS_JSONL")" ]]; then
-		log_with_timestamp "ERROR: Events directory not writable: $(dirname "$EVENTS_JSONL")"
+	if [[ ! -w "${EVENTS_JSONL%/*}" ]]; then
+		log_with_timestamp "ERROR: Events directory not writable: ${EVENTS_JSONL%/*}"
 		return 1
 	fi
 	

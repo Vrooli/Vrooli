@@ -14,7 +14,7 @@ Successfully created a complete Keycloak resource following Vrooli's established
 
 ## Files Created
 ```
-scripts/resources/execution/keycloak/
+resources/keycloak/
 ├── cli.sh                     # Main CLI handler
 ├── resource-keycloak         # Wrapper script  
 ├── config/

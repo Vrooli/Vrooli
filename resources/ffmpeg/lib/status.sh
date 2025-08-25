@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # Get the directory of this lib file
-FFMPEG_STATUS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+FFMPEG_STATUS_DIR="${APP_ROOT}/resources/ffmpeg/lib"
 
 # Source status-args library
 source "${FFMPEG_STATUS_DIR}/../../../lib/status-args.sh"

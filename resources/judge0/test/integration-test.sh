@@ -5,7 +5,8 @@
 
 set -euo pipefail
 
-JUDGE0_TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+JUDGE0_TEST_DIR="${APP_ROOT}/resources/judge0/test"
 
 # Source var.sh first to get directory variables
 # shellcheck disable=SC1091

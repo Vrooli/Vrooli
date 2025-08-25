@@ -86,7 +86,7 @@ minio::install() {
     
     # Auto-install CLI if available
     # shellcheck disable=SC1091
-    "${var_SCRIPTS_RESOURCES_LIB_DIR}/install-resource-cli.sh" "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)" 2>/dev/null || true
+    "${var_SCRIPTS_RESOURCES_LIB_DIR}/install-resource-cli.sh" "${var_ROOT_DIR}/resources/minio" 2>/dev/null || true
     
     return 0
 }
@@ -130,7 +130,7 @@ minio::install::pre_checks() {
 minio::install::update_vrooli_config() {
     local config_file
     config_file="$(secrets::get_project_config_file)"
-    local config_dir=$(dirname "$config_file")
+    local config_dir=${config_file%/*
     
     # Create directory if it doesn't exist
     if [[ ! -d "$config_dir" ]]; then

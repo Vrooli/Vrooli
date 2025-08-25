@@ -4,7 +4,8 @@
 
 # Source var.sh for directory variables if not already sourced
 # shellcheck disable=SC1091
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../../../lib/utils/var.sh" 2>/dev/null || true
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+source "${APP_ROOT}/lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
@@ -122,10 +123,10 @@ claude_code::settings_set() {
     # Determine which settings file to use
     if [[ "$scope" == "project" ]]; then
         settings_file="$CLAUDE_PROJECT_SETTINGS"
-        mkdir -p "$(dirname "$settings_file")"
+        mkdir -p "${settings_file%/*"
     elif [[ "$scope" == "global" ]]; then
         settings_file="$CLAUDE_SETTINGS_FILE"
-        mkdir -p "$(dirname "$settings_file")"
+        mkdir -p "${settings_file%/*"
     else
         log::error "Invalid scope: $scope (use 'project' or 'global')"
         return 1

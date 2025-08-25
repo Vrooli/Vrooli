@@ -13,7 +13,8 @@ if [[ -n "${INPUT_ARG}" && -f "${INPUT_ARG}" ]]; then
 elif [[ "${INPUT_ARG:-}" == "-" || "${INPUT_ARG:-}" == "/dev/stdin" ]]; then
 	INPUT_JSON="$(cat)"
 else
-	INPUT_JSON=$("$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/resource-list.sh" 2>/dev/null || echo '[]')
+	APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+	INPUT_JSON=$("${APP_ROOT}/auto/tools/selection/resource-list.sh" 2>/dev/null || echo '[]')
 fi
 
 # Validate JSON; fall back to empty array if invalid

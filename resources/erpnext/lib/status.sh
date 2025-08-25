@@ -2,7 +2,8 @@
 # ERPNext Status Functions
 
 # Source format utilities and config
-ERPNEXT_STATUS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+ERPNEXT_STATUS_DIR="${APP_ROOT}/resources/erpnext/lib"
 # shellcheck disable=SC1091
 source "${ERPNEXT_STATUS_DIR}/../../../../lib/utils/format.sh"
 # shellcheck disable=SC1091

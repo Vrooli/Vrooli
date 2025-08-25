@@ -2,9 +2,10 @@
 
 set -euo pipefail
 
-AUTO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")"/../.. && pwd)"
-BASE_DIR="$(cd "$AUTO_DIR"/.. && pwd)"
-SCEN_DIR="${1:-${BASE_DIR}/scripts/scenarios/core}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+AUTO_DIR="${APP_ROOT}/auto"
+BASE_DIR="${APP_ROOT}"
+SCEN_DIR="${1:-${BASE_DIR}/scenarios}"
 
 if [[ ! -d "$SCEN_DIR" ]]; then
 	echo "[]"

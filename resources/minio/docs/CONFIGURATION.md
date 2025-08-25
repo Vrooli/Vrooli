@@ -8,7 +8,7 @@ This guide covers installation, configuration, and optimization of MinIO for obj
 
 ```bash
 # Install with default settings
-./scripts/resources/storage/minio/manage.sh --action install
+./resources/minio/manage.sh --action install
 
 # Default configuration:
 # - API Port: 9000

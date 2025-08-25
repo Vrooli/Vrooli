@@ -366,7 +366,7 @@ collect_resource_status_data() {
     fi
     
     local category
-    category=$(basename "$(dirname "$resource_dir")")
+    category=$(basename "${resource_dir%/*}")
     
     # Check if enabled in config
     local enabled="false"

@@ -2,7 +2,7 @@
 
 ### TL;DR — One Iteration in 5 Steps
 
-1) Select ONE scenario in `scripts/scenarios/core/` using the selection tools:
+1) Select ONE scenario in `scenarios/` using the selection tools:
    - Recommend: `auto/tools/selection/scenario-recommend.sh` (respects cooldown; optional GOALS, K)
    - Record pick: `auto/tools/selection/scenario-select.sh <name>`
 2) **Check PRD.md compliance** - verify scenario has PRD.md; create from template if missing
@@ -19,7 +19,7 @@ Use `auto/tasks/scenario-improvement/prompts/cheatsheet.md` for metrics and jq h
 
 ### 🎯 Purpose & Context
 
-- Improve AND validate scenarios in `scripts/scenarios/core/` to increase Vrooli's capabilities and reliability.
+- Improve AND validate scenarios in `scenarios/` to increase Vrooli's capabilities and reliability.
 - Scenarios must be able to convert into generated apps and pass validation via API/CLI outputs or Browserless screenshots.
 - Prefer shared workflows in `initialization/n8n/` (e.g., `ollama.json`) to reduce per-scenario complexity and increase reuse.
 - See `docs/context.md` for the broader vision and why scenarios are central to Vrooli.
@@ -36,7 +36,7 @@ Use `auto/tasks/scenario-improvement/prompts/cheatsheet.md` for metrics and jq h
 ### ✅ DO / ❌ DON’T
 
 - ✅ Adhere to the scenario's PRD.md. If missing, create one using `scripts/scenarios/templates/full/PRD.md` and the current state of the scenario.
-- ✅ Keep changes inside `scripts/scenarios/core/<scenario>/...`.
+- ✅ Keep changes inside `scenarios/<scenario>/...`.
 - ✅ Prefer shared n8n workflows (e.g., `initialization/n8n/ollama.json`) over direct resource calls.
 - ✅ Validate every change: never assume success.
 - ✅ If adding a shared workflow (must be truly generic and not scenario-specific), place it in `initialization/n8n/` (assuming it's an n8n workflow. Obviously if it was a huginn workflow it'd be in `initialization/huginn`, etc.).
@@ -45,7 +45,7 @@ Use `auto/tasks/scenario-improvement/prompts/cheatsheet.md` for metrics and jq h
 - ❌ Do NOT modify main scripts or general resources.
 - ❌ Do NOT alter the n8n resource itself; if webhooks fail (as of now they WILL), use the Browserless workaround.
 - ❌ Do NOT use git commands except `git status`/`git diff` for inspection.
-- ❌ Avoid `vrooli develop` unless you identify and mitigate the CPU issue first.
+- ❌ Avoid `vrooli develop`, as you will only be working on one scenario.
 
 > Note: Operational commands, workarounds, and jq helpers are in `auto/tasks/scenario-improvement/prompts/cheatsheet.md`.
 
@@ -81,7 +81,7 @@ Perform exactly these steps:
    - Identify highest-priority uncompleted PRD requirement (P0→P1→P2)
 
 2) Make changes to fix/improve the scenario
-   - Keep edits within `scripts/scenarios/core/<scenario>/...`
+   - Keep edits within `scenarios/<scenario>/...`
    - Prefer adopting a shared workflow over adding bespoke logic
    - If you must add a new shared workflow, place it in `initialization/n8n/` and document why it's reusable
    - **Update PRD.md checkboxes** as requirements are completed
@@ -113,7 +113,7 @@ All must be satisfied for success:
 - PRD checkboxes are updated to reflect implementation status
 - Verification:
   - For API/CLI validation: outputs match expected values (document the command and output)
-  - For UI validation: Browserless screenshot contains a specific UI element/text indicating success
+  - For UI validation: Browserless screenshot contains a specific UI element/text indicating success. Please generate the screenshot in the `/tmp` directory with a name unique to this scenario, so that we don't clutter the project or conflict with other agents that may be working on other scenarios at the same time.
 
 ---
 
@@ -189,9 +189,8 @@ This appendix preserves important specifics from the original prompt while keepi
 - Converting and running:
   - Convert: `vrooli scenario convert <scenario-name> --force`
   - Run: `vrooli scenario start <scenario-name>` (stop with Ctrl+C in the same terminal)
-- `vrooli setup` converts scenarios into generated apps but does not run them (and may skip conversions due to caching).
-- `vrooli develop` runs apps but does not convert them. Prefer not to use it unless necessary.
-  - Known issue: a CPU usage bug may exist (possibly in shared scripts like `manage.sh`). Investigate and mitigate before using `vrooli develop`.
+- `vrooli setup` converts scenarios into generated apps but *all* of them. Please do not use it.
+- `vrooli develop` runs apps, but *all* of them. Please do not use it.
 
 ### Resource policy and caveats
 - Many resources may be flaky. Do not modify or add resources.
@@ -212,7 +211,7 @@ This appendix preserves important specifics from the original prompt while keepi
 
 ### Scenario structure and artifacts
 - Maintain scenario structure consistency:
-  - `.vrooli/service.json` (see `scripts/scenarios/core/agent-metareasoning-manager/.vrooli/service.json` for a good example).
+  - `.vrooli/service.json` (see `scenarios/agent-metareasoning-manager/.vrooli/service.json` for a good example).
   - `initialization/` (resource data injected by Vrooli)
   - `ui/`
   - `scenario-test.yaml` for tests
@@ -232,12 +231,12 @@ This appendix preserves important specifics from the original prompt while keepi
 ### Reading list (pre-work)
 - `/tmp/vrooli-scenario-improvement.md` (recent notes)
 - Project `README.md`
-- `scripts/scenarios/README.md`
+- `docs/scenarios/README.md`
 - `scripts/scenarios/catalog.json`
 - `scripts/scenarios/tools/app-structure.json` (describes copying to generated apps; some files come from the project root)
-- `scripts/resources/README.md` (what resources are and how scenarios use them)
+- `docs/resources/README.md` (what resources are and how scenarios use them)
 - `initialization/README.md` (project-level shared resource data injected by Vrooli)
-- The add/fix scenario prompt (untested): `scripts/scenarios/core/prompt-manager/initialization/prompts/features/add-fix-scenario.md`
+- The add/fix scenario prompt (untested): `scenarios/prompt-manager/initialization/prompts/features/add-fix-scenario.md`
 
 ### Change heuristics (granular)
 - Avoid large code additions. Scenarios should be small and single-purpose.

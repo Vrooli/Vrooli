@@ -25,10 +25,10 @@ This allows the isolate sandbox to create secure isolated environments for code 
 ### Installation
 ```bash
 # Install Judge0 (auto-detects system and configures)
-./scripts/resources/execution/judge0/manage.sh --action install
+./resources/judge0/manage.sh --action install
 
 # Install with custom settings
-./scripts/resources/execution/judge0/manage.sh --action install \
+./resources/judge0/manage.sh --action install \
   --workers 4 \
   --cpu-limit 10 \
   --memory-limit 512
@@ -37,15 +37,15 @@ This allows the isolate sandbox to create secure isolated environments for code 
 ### Basic Usage
 ```bash
 # Check status
-./scripts/resources/execution/judge0/manage.sh --action status
+./resources/judge0/manage.sh --action status
 
 # Submit code
-./scripts/resources/execution/judge0/manage.sh --action submit \
+./resources/judge0/manage.sh --action submit \
   --code 'print("Hello, Judge0!")' \
   --language python
 
 # List languages
-./scripts/resources/execution/judge0/manage.sh --action languages
+./resources/judge0/manage.sh --action languages
 ```
 
 ## 🔧 Configuration
@@ -323,8 +323,8 @@ export JUDGE0_MEMORY_LIMIT_DOCKER=4G
 
 - **Official Docs**: https://judge0.com/docs
 - **API Reference**: http://localhost:2358/docs
-- **Examples**: `scripts/resources/execution/judge0/examples/`
-- **Security Guide**: `scripts/resources/execution/judge0/docs/security.md`
+- **Examples**: `resources/judge0/examples/`
+- **Security Guide**: `resources/judge0/docs/security.md`
 
 ## 🤝 Integration with Vrooli
 

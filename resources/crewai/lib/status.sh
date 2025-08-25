@@ -2,7 +2,8 @@
 set -euo pipefail
 
 # CrewAI Status Script
-STATUS_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+STATUS_LIB_DIR="${APP_ROOT}/resources/crewai/lib"
 
 # Source core first
 source "${STATUS_LIB_DIR}/core.sh"
