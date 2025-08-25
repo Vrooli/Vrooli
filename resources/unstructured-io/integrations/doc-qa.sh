@@ -4,8 +4,9 @@
 
 set -euo pipefail
 
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-MANAGE_SCRIPT="${SCRIPT_DIR}/../manage.sh"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../.." && builtin pwd)}"
+SCRIPT_DIR="$APP_ROOT/resources/unstructured-io/integrations"
+MANAGE_SCRIPT="$APP_ROOT/resources/unstructured-io/manage.sh"
 
 # Parse arguments
 DOCUMENT="${1:-}"

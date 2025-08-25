@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 
 # Define paths from APP_ROOT
 EMBEDDINGS_DIR="${APP_ROOT}/resources/qdrant/embeddings"
@@ -178,7 +178,7 @@ qdrant::extract::workflows_batch() {
     local dir="${1:-.}"
     local output_file="${2:-${EXTRACT_TEMP_DIR}/workflows.txt}"
     
-    mkdir -p "$(dirname "$output_file")"
+    mkdir -p "${output_file%/*}"
     
     # Find all workflow JSON files
     local workflow_files=()
@@ -506,3 +506,13 @@ qdrant::extract::workflow_metadata_from_content() {
 
 # Export processing function for manage.sh
 export -f qdrant::embeddings::process_workflows
+
+# Export additional functions for testing
+export -f qdrant::extract::workflows_batch
+export -f qdrant::extract::find_workflows
+export -f qdrant::extract::workflow
+export -f qdrant::extract::analyze_workflow_purpose
+export -f qdrant::extract::validate_workflow
+export -f qdrant::extract::workflow_metadata
+export -f qdrant::extract::workflow_metadata_from_content
+export -f qdrant::extract::workflows_summary

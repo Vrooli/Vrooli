@@ -368,7 +368,7 @@ unit_tests:
 integration_tests:
   location: test/ directory
   coverage: API connectivity, model listing, content generation
-  test_data: Uses shared fixtures from scripts/__test/fixtures/data/
+  test_data: Uses shared fixtures from __test/fixtures/data/
   test_scenarios: 
     - API key validation
     - Model listing and selection
@@ -376,7 +376,7 @@ integration_tests:
     - Error handling for rate limits
   
 system_tests:
-  location: scripts/__test/resources/
+  location: __test/resources/
   coverage: Full integration with other resources
   automation: Integrated with Vrooli test framework
 ```
@@ -390,7 +390,7 @@ test_specification:
   test_structure:
     - BATS files co-located with source files
     - Integration tests in test/ directory
-    - Shared fixtures from scripts/__test/fixtures/data/
+    - Shared fixtures from __test/fixtures/data/
     - Test results included in status output with timestamp
     - Examples in examples/ directory
   

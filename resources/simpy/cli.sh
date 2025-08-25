@@ -2,7 +2,8 @@
 # SimPy CLI - Thin wrapper around library functions
 
 # Get the real script directory (follows symlinks)
-SIMPY_CLI_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+SIMPY_CLI_DIR="${APP_ROOT}/resources/simpy"
 
 # Source library functions
 # shellcheck disable=SC1091

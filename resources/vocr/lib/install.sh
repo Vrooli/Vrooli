@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # VOCR Installation Module
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
 VOCR_INSTALL_DIR="${APP_ROOT}/resources/vocr/lib"
 
 # Source utilities first

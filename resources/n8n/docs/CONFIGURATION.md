@@ -455,7 +455,7 @@ docker exec n8n env | grep N8N_ > n8n-config-backup.env
 
 ```bash
 # Cron job for daily backup
-0 2 * * * cd /path/to/vrooli && ./scripts/resources/automation/n8n/manage.sh --action export-workflows --output "backups/workflows-$(date +\%Y\%m\%d).json"
+0 2 * * * cd /path/to/vrooli && ./resources/n8n/manage.sh --action export-workflows --output "backups/workflows-$(date +\%Y\%m\%d).json"
 ```
 
 ### Recovery Procedure

@@ -2,7 +2,8 @@
 set -euo pipefail
 
 # Get the directory of this script
-TARS_DESKTOP_MANAGE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../.." && builtin pwd)}"
+TARS_DESKTOP_MANAGE_DIR="${APP_ROOT}/resources/tars-desktop"
 
 # Source shared utilities  
 source "$TARS_DESKTOP_MANAGE_DIR/../../../lib/utils/var.sh"

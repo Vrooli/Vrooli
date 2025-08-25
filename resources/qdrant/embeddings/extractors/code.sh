@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 
 # Define paths from APP_ROOT
 EMBEDDINGS_DIR="${APP_ROOT}/resources/qdrant/embeddings"
@@ -27,7 +27,7 @@ qdrant::extract::code() {
     
     local file_ext="${file##*.}"
     local filename=$(basename "$file")
-    local dir=$(dirname "$file")
+    local dir=${file%/*}
     local file_size=$(wc -c < "$file" 2>/dev/null || echo "0")
     local line_count=$(wc -l < "$file" 2>/dev/null || echo "0")
     
@@ -132,7 +132,7 @@ qdrant::extract::code_batch() {
     fi
     
     # Ensure output directory exists and clear output file
-    mkdir -p "$(dirname "$output_file")"
+    mkdir -p "${output_file%/*}"
     > "$output_file"
     
     local count=0

@@ -37,8 +37,8 @@ This document outlines the comprehensive parallel processing improvements implem
 ### 1. Ollama Parallel Processing Configuration
 
 **Files Modified:**
-- `scripts/resources/ai/ollama/config/defaults.sh`
-- `scripts/resources/ai/ollama/lib/install.sh`
+- `resources/ollama/config/defaults.sh`
+- `resources/ollama/lib/install.sh`
 
 **Changes:**
 ```bash
@@ -61,9 +61,9 @@ Environment="OLLAMA_ORIGINS=*"
 ### 2. Qdrant Parallel Worker Optimization
 
 **Files Modified:**
-- `scripts/resources/storage/qdrant/embeddings/lib/parallel.sh`
-- `scripts/resources/storage/qdrant/embeddings/manage.sh`
-- `scripts/resources/storage/qdrant/lib/embeddings.sh`
+- `resources/qdrant/embeddings/lib/parallel.sh`
+- `resources/qdrant/embeddings/manage.sh`
+- `resources/qdrant/lib/embeddings.sh`
 
 **Key Changes:**
 ```bash
@@ -75,7 +75,7 @@ QDRANT_EMBEDDING_BATCH_SIZE="${QDRANT_EMBEDDING_BATCH_SIZE:-32}"  # Increased fr
 
 ### 3. Content-Type Level Parallelism
 
-**File Modified:** `scripts/resources/storage/qdrant/embeddings/manage.sh`
+**File Modified:** `resources/qdrant/embeddings/manage.sh`
 
 **Implementation:**
 ```bash
@@ -100,7 +100,7 @@ wait $workflow_pid $scenario_pid $doc_pid $code_pid $resource_pid
 
 ### 4. Qdrant Batch Write Operations
 
-**File Modified:** `scripts/resources/storage/qdrant/lib/collections.sh`
+**File Modified:** `resources/qdrant/lib/collections.sh`
 
 **New Functions Added:**
 ```bash
@@ -312,12 +312,12 @@ tail -f /var/log/syslog | grep -i qdrant
 ## 📋 Change Summary
 
 ### Files Modified
-1. `scripts/resources/ai/ollama/config/defaults.sh` - Added parallel processing environment variables
-2. `scripts/resources/ai/ollama/lib/install.sh` - Updated systemd service template  
-3. `scripts/resources/storage/qdrant/embeddings/lib/parallel.sh` - Increased worker limits and added monitoring
-4. `scripts/resources/storage/qdrant/embeddings/manage.sh` - Implemented content-type parallelism and resource monitoring
-5. `scripts/resources/storage/qdrant/lib/embeddings.sh` - Added retry mechanisms and batch size optimization
-6. `scripts/resources/storage/qdrant/lib/collections.sh` - Added batch write operations
+1. `resources/ollama/config/defaults.sh` - Added parallel processing environment variables
+2. `resources/ollama/lib/install.sh` - Updated systemd service template  
+3. `resources/qdrant/embeddings/lib/parallel.sh` - Increased worker limits and added monitoring
+4. `resources/qdrant/embeddings/manage.sh` - Implemented content-type parallelism and resource monitoring
+5. `resources/qdrant/lib/embeddings.sh` - Added retry mechanisms and batch size optimization
+6. `resources/qdrant/lib/collections.sh` - Added batch write operations
 
 ### Configuration Changes
 - **MAX_WORKERS**: 4 → 16 (400% increase)

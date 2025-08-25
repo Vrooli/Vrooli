@@ -3,9 +3,10 @@
 # Uses docker-resource-utils.sh for minimal boilerplate
 
 # Source var.sh to get proper directory variables
-_VAULT_DOCKER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+_VAULT_DOCKER_DIR="${APP_ROOT}/resources/vault/lib"
 # shellcheck disable=SC1091
-source "${_VAULT_DOCKER_DIR}/../../../../lib/utils/var.sh"
+source "${_VAULT_DOCKER_DIR}/../../../lib/utils/var.sh"
 
 # Source shared libraries
 # shellcheck disable=SC1091

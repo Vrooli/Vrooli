@@ -1,12 +1,12 @@
 #!/bin/bash
 # ERPNext Resource Library - Main functions
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 ERPNEXT_LIB_DIR="${APP_ROOT}/resources/erpnext/lib"
 ERPNEXT_RESOURCE_DIR="${APP_ROOT}/resources/erpnext"
 
 # Source utilities and dependencies
-source "$ERPNEXT_RESOURCE_DIR/../../../lib/utils/var.sh" || return 1
+source "${APP_ROOT}/scripts/lib/utils/var.sh" || return 1
 source "${var_LIB_UTILS_DIR}/format.sh" || return 1
 source "${var_LIB_UTILS_DIR}/log.sh" || return 1
 

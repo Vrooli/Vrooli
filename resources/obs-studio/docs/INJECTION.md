@@ -261,7 +261,7 @@ vrooli resource obs-studio list-sources
 
 ```bash
 # Source the injection library
-source scripts/resources/execution/obs-studio/lib/inject.sh
+source resources/obs-studio/lib/inject.sh
 
 # Check health
 obs::check_health

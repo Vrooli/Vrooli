@@ -67,7 +67,7 @@ Integration tests are available in the `test/` directory:
 
 ```bash
 # Run integration tests
-bats scripts/resources/execution/simpy/test/integration.bats
+bats resources/simpy/test/integration.bats
 ```
 
 ## Integration with Vrooli

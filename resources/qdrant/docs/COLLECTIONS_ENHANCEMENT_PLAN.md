@@ -19,7 +19,7 @@
 
 ### 1. New Library Structure
 ```bash
-/scripts/resources/storage/qdrant/lib/
+/resources/qdrant/lib/
 ├── core.sh           # Existing
 ├── collections.sh    # Enhanced with new functions
 ├── embeddings.sh     # NEW - Embedding generation & management

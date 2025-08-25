@@ -2,7 +2,8 @@
 # SimPy stop module
 
 # Get script directory
-SIMPY_STOP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+SIMPY_STOP_DIR="${APP_ROOT}/resources/simpy/lib"
 
 # Source dependencies
 # shellcheck disable=SC1091

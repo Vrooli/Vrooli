@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 
 # Define paths from APP_ROOT
 EMBEDDINGS_DIR="${APP_ROOT}/resources/qdrant/embeddings"
@@ -310,7 +310,7 @@ qdrant::extract::docs_batch() {
     local dir="${1:-.}"
     local output_file="${2:-${EXTRACT_TEMP_DIR}/docs.txt}"
     
-    mkdir -p "$(dirname "$output_file")"
+    mkdir -p "${output_file%/*}"
     
     # Find all standard documentation files
     local doc_files=()
@@ -364,7 +364,7 @@ qdrant::extract::doc_metadata() {
     
     local filename=$(basename "$file")
     local doc_type="${filename%.md}"
-    local doc_path=$(dirname "$file")
+    local doc_path=${file%/*}
     
     # Count sections
     local section_count=$(grep -c "^##[^#]" "$file" 2>/dev/null || echo "0")
@@ -664,3 +664,12 @@ qdrant::extract::docs_metadata_from_content() {
 
 # Export processing function for manage.sh
 export -f qdrant::embeddings::process_documentation
+
+# Export additional functions for testing
+export -f qdrant::extract::docs_batch
+export -f qdrant::extract::docs_coverage
+export -f qdrant::extract::standard_doc
+export -f qdrant::extract::architecture
+export -f qdrant::extract::security
+export -f qdrant::extract::lessons
+export -f qdrant::extract::generic_doc

@@ -2,7 +2,7 @@
 # Vault Installation Functions
 # Installation, initialization, and setup operations
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
 VAULT_LIB_DIR="${APP_ROOT}/resources/vault/lib"
 # shellcheck disable=SC1091
 source "${APP_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || true

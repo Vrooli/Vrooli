@@ -6,7 +6,7 @@ setup() {
     load "${BATS_TEST_DIRNAME}/../../../../__test/helpers/bats-support/load"
     load "${BATS_TEST_DIRNAME}/../../../../__test/helpers/bats-assert/load"
     
-    export SIMPY_TEST_DIR="$(cd "$(dirname "${BATS_TEST_FILENAME}")" && pwd)"
+    export SIMPY_TEST_DIR="$(builtin cd "${BATS_TEST_FILENAME%/*}" && builtin pwd)"
     export SIMPY_LIB_DIR="${SIMPY_TEST_DIR}/../lib"
     
     # Source core module

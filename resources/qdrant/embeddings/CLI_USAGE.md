@@ -299,9 +299,9 @@ $ resource-qdrant embeddings solutions "send email with attachments"
 
 ## 📚 More Information
 
-- Full documentation: `/scripts/resources/storage/qdrant/embeddings/README.md`
-- Implementation details: `/scripts/resources/storage/qdrant/embeddings/IMPLEMENTATION_PLAN.md`
-- Progress status: `/scripts/resources/storage/qdrant/embeddings/PROGRESS_SUMMARY.md`
+- Full documentation: `/resources/qdrant/embeddings/README.md`
+- Implementation details: `/resources/qdrant/embeddings/IMPLEMENTATION_PLAN.md`
+- Progress status: `/resources/qdrant/embeddings/PROGRESS_SUMMARY.md`
 
 ---
 
@@ -1004,7 +1004,7 @@ Based on discovered patterns, here's a comprehensive example:
 
 ```bash
 # Robust error handling implementation combining all discovered patterns
-source scripts/resources/storage/qdrant/embeddings/manage.sh
+source resources/qdrant/embeddings/manage.sh
 
 # Discover the complete error handling strategy
 qdrant::search::all_apps "complete error handling implementation" code

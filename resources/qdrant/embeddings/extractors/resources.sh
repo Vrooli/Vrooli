@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 
 # Define paths from APP_ROOT
 EMBEDDINGS_DIR="${APP_ROOT}/resources/qdrant/embeddings"
@@ -34,7 +34,7 @@ qdrant::extract::resource_cli() {
         return 1
     fi
     
-    local resource_dir=$(dirname "$file")
+    local resource_dir=${file%/*}
     local resource_name=$(basename "$resource_dir")
     
     # Extract resource name and description from CLI header
@@ -387,7 +387,7 @@ qdrant::extract::resources_batch() {
     local dir="${1:-.}"
     local output_file="${2:-${EXTRACT_TEMP_DIR}/resources.txt}"
     
-    mkdir -p "$(dirname "$output_file")"
+    mkdir -p "${output_file%/*}"
     
     # Find all resource directories
     local resource_dirs=()
@@ -508,7 +508,7 @@ qdrant::extract::resource_metadata() {
     
     local resource_name=$(basename "$dir")
     # Detect resource type - handle both old and new structures
-    local parent_dir=$(basename "$(dirname "$dir")")
+    local parent_dir=$(basename "${dir%/*}")
     local resource_type=""
     if [[ "$parent_dir" == "resources" ]]; then
         # New structure - detect type from resource name
@@ -632,7 +632,7 @@ qdrant::extract::resources_summary() {
     for resource_dir in "${resource_dirs[@]}"; do
         local resource_name=$(basename "$resource_dir")
         # Detect category - new structure doesn't have category dirs
-        local parent_dir=$(basename "$(dirname "$resource_dir")")
+        local parent_dir=$(basename "${resource_dir%/*}")
         local resource_category=""
         if [[ "$parent_dir" == "resources" ]]; then
             # New structure - need to detect category from resource name
@@ -910,3 +910,15 @@ qdrant::extract::resource_metadata_from_content() {
 
 # Export processing function for manage.sh
 export -f qdrant::embeddings::process_resources
+
+# Export additional functions for testing
+export -f qdrant::extract::resources_batch
+export -f qdrant::extract::resource_config
+export -f qdrant::extract::resource_cli
+export -f qdrant::extract::resource_docs
+export -f qdrant::extract::resource_metadata
+export -f qdrant::extract::detect_resource_category
+export -f qdrant::extract::resource_dependencies
+export -f qdrant::extract::resource_integrations
+export -f qdrant::extract::resource_metadata_from_content
+export -f qdrant::extract::resources_summary

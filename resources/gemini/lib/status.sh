@@ -2,13 +2,13 @@
 # Gemini status functionality
 
 # Get script directory
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 GEMINI_STATUS_DIR="${APP_ROOT}/resources/gemini/lib"
 
 # Source dependencies
 source "${GEMINI_STATUS_DIR}/core.sh"
 # shellcheck disable=SC1091
-source "${GEMINI_STATUS_DIR}/../../../lib/status-args.sh"
+source "${APP_ROOT}/scripts/resources/lib/status-args.sh"
 
 #######################################
 # Collect Gemini status data

@@ -4,10 +4,11 @@
 # This file contains argument parsing, usage display, and other common utility functions
 
 # Get script directory for relative path resolution
-LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+LIB_DIR="${APP_ROOT}/resources/unstructured-io/lib"
 
 # shellcheck disable=SC1091
-source "${LIB_DIR}/../../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_NETWORK_DIR}/ports.sh"
 

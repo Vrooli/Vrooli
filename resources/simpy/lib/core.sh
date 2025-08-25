@@ -2,7 +2,8 @@
 # SimPy core functionality
 
 # Get script directory
-SIMPY_CORE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+SIMPY_CORE_DIR="${APP_ROOT}/resources/simpy/lib"
 
 # Source dependencies
 # shellcheck disable=SC1091

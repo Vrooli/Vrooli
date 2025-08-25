@@ -6,7 +6,8 @@
 # Use the same project root detection method as the secrets library
 _vault_setup_detect_project_root() {
     local current_dir
-    current_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+    current_dir="${APP_ROOT}/resources/vault/lib"
     
     # Walk up directory tree looking for .vrooli directory
     while [[ "$current_dir" != "/" ]]; do
@@ -14,7 +15,7 @@ _vault_setup_detect_project_root() {
             echo "$current_dir"
             return 0
         fi
-        current_dir="$(dirname "$current_dir")"
+        current_dir="${current_dir%/*"
     done
     
     # Fallback: assume we're in scripts and go up to project root
@@ -64,7 +65,8 @@ NC='\033[0m' # No Color
 VAULT_BASE_URL="http://localhost:8200"
 TOKEN_FILE="/tmp/vault-token"
 CONFIG_FILE="$(secrets::get_project_config_file)"
-VAULT_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+VAULT_LIB_DIR="${APP_ROOT}/resources/vault/lib"
 
 # Parse command line arguments
 CREATE_TOKEN=false
@@ -325,7 +327,7 @@ update_config_file() {
     
     if [[ ! -f "$CONFIG_FILE" ]]; then
         print_warning "Configuration file not found, creating basic structure"
-        mkdir -p "$(dirname "$CONFIG_FILE")"
+        mkdir -p "${CONFIG_FILE%/*"
         echo '{"services": {"storage": {}}}' > "$CONFIG_FILE"
     fi
     
@@ -424,7 +426,7 @@ interactive_setup() {
     print_info "Next steps:"
     print_info "  1. Test Vault access: curl -H \"X-Vault-Token: $token\" $VAULT_BASE_URL/v1/secret/data/test/stripe-config"
     print_info "  2. Run integration tests: ../../index.sh --action test --resources vault"
-    print_info "  3. Test n8n integration: ../../scenarios/core/research-assistant/test.sh"
+    print_info "  3. Test n8n integration: ../../scenarios/research-assistant/test.sh"
 }
 
 #######################################

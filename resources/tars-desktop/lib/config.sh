@@ -2,8 +2,9 @@
 # TARS-desktop configuration
 
 # Get the directory of this script
-TARS_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TARS_RESOURCE_DIR="$(dirname "$TARS_LIB_DIR")"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+TARS_LIB_DIR="${APP_ROOT}/resources/tars-desktop/lib"
+TARS_RESOURCE_DIR="${APP_ROOT}/resources/tars-desktop"
 
 # Source shared utilities
 source "$TARS_RESOURCE_DIR/../../../lib/utils/var.sh"

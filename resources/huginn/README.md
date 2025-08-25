@@ -105,7 +105,7 @@ Huginn is an agent-based workflow automation platform that helps you build autom
 ## Directory Structure
 
 ```
-scripts/resources/automation/huginn/
+resources/huginn/
 ├── config/                  # Configuration files
 │   ├── defaults.sh         # Default settings and constants
 │   └── messages.sh         # User-facing messages

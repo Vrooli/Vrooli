@@ -2,8 +2,9 @@
 # TARS-desktop core functionality
 
 # Get script directory
-TARS_DESKTOP_CORE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TARS_DESKTOP_RESOURCE_DIR="$(dirname "$TARS_DESKTOP_CORE_DIR")"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+TARS_DESKTOP_CORE_DIR="${APP_ROOT}/resources/tars-desktop/lib"
+TARS_DESKTOP_RESOURCE_DIR="${APP_ROOT}/resources/tars-desktop"
 
 # Source dependencies (disable strict error handling that var.sh sets)
 source "${TARS_DESKTOP_RESOURCE_DIR}/../../../lib/utils/var.sh"

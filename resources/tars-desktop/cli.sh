@@ -1,13 +1,14 @@
 #!/bin/bash
 # TARS-desktop CLI interface
 
-# Get script directory (handle symlinks)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+# Handle symlinks for installed CLI
 if [[ -L "${BASH_SOURCE[0]}" ]]; then
-    # Script is a symlink, resolve it
-    TARS_DESKTOP_CLI_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
-else
-    TARS_DESKTOP_CLI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    TARS_DESKTOP_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
+    # Recalculate APP_ROOT from resolved symlink location
+    APP_ROOT="$(builtin cd "${TARS_DESKTOP_CLI_SCRIPT%/*}/../.." && builtin pwd)"
 fi
+TARS_DESKTOP_CLI_DIR="${APP_ROOT}/resources/tars-desktop"
 
 # Source all library files
 source "${TARS_DESKTOP_CLI_DIR}/lib/core.sh"

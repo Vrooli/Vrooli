@@ -3,8 +3,9 @@
 # SimPy Resource - Run Simulation Functions
 set -euo pipefail
 
-# Get the script directory
-SIMPY_RUN_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Define directory using cached APP_ROOT
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+SIMPY_RUN_LIB_DIR="${APP_ROOT}/resources/simpy/lib"
 
 # Source common functions
 source "$SIMPY_RUN_LIB_DIR/common.sh"
@@ -47,7 +48,7 @@ run::main() {
     log::info "Running simulation: $(basename "$sim_file")"
     
     # Prepare volumes for Docker
-    local sim_dir=$(dirname "$sim_file")
+    local sim_dir=${sim_file%/*
     local sim_name=$(basename "$sim_file")
     
     # Run with Docker

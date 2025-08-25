@@ -6,7 +6,8 @@
 set -euo pipefail
 
 # Source var.sh first to get path variables
-SEARXNG_TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+SEARXNG_TEST_DIR="${APP_ROOT}/resources/searxng/test"
 # shellcheck disable=SC1091
 source "${SEARXNG_TEST_DIR}/../../../../lib/utils/var.sh"
 

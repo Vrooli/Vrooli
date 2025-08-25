@@ -7,8 +7,9 @@ set -euo pipefail
 # shellcheck disable=SC2034
 DESCRIPTION="Install and manage QuestDB time-series database for high-performance analytics"
 
-QUESTDB_SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-RESOURCES_DIR="${QUESTDB_SCRIPT_DIR}/../.."
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../.." && builtin pwd)}"
+QUESTDB_SCRIPT_DIR="${APP_ROOT}/resources/questdb"
+RESOURCES_DIR="${APP_ROOT}/resources"
 
 # Source common resources
 # shellcheck disable=SC1091

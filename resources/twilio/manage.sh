@@ -2,7 +2,8 @@
 set -euo pipefail
 
 # Get the directory of this script
-TWILIO_MANAGE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../.." && builtin pwd)}"
+TWILIO_MANAGE_DIR="${APP_ROOT}/resources/twilio"
 
 # Main router - delegates to lib scripts
 main() {

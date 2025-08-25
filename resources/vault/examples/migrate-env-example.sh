@@ -6,8 +6,8 @@
 
 set -euo pipefail
 
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-VAULT_MANAGE="${SCRIPT_DIR}/../manage.sh"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+VAULT_MANAGE="${APP_ROOT}/resources/vault/manage.sh"
 
 # Colors for output
 RED='\033[0;31m'

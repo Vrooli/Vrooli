@@ -2,6 +2,9 @@
 
 # Installation functions for SageMath
 
+# Define APP_ROOT using cached pattern  
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+
 sagemath_install() {
     local verbose="${1:-}"
     
@@ -36,7 +39,7 @@ sagemath_install() {
     
     # Register CLI
     echo "Registering SageMath CLI..."
-    "$SCRIPT_DIR/../../../lib/resources/install-resource-cli.sh" "execution/sagemath"
+    "${APP_ROOT}/scripts/lib/resources/install-resource-cli.sh" "execution/sagemath"
     
     # Create initial test script
     cat > "$SAGEMATH_SCRIPTS_DIR/test.sage" << 'EOF'
@@ -90,7 +93,7 @@ sagemath_uninstall() {
     
     # Unregister CLI
     echo "Unregistering SageMath CLI..."
-    "$SCRIPT_DIR/../../../../lib/resources/uninstall-resource-cli.sh" sagemath
+    "${APP_ROOT}/scripts/lib/resources/uninstall-resource-cli.sh" sagemath
     
     echo "SageMath uninstallation complete"
     return 0

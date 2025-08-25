@@ -191,9 +191,9 @@ ${PWD}:/workspace:ro                      # Workspace access
 ## 🧪 Testing & Examples
 
 ### Individual Resource Tests
-- **Test Location**: `scripts/__test/resources/single/automation/n8n.test.sh`
+- **Test Location**: `__test/resources/single/automation/n8n.test.sh`
 - **Test Coverage**: Service health, API functionality, workflow management, host system access
-- **Run Test**: `cd scripts/__test/resources && ./quick-test.sh n8n`
+- **Run Test**: `cd __test/resources && ./quick-test.sh n8n`
 
 ### Working Examples
 - **Examples Folder**: [examples/](examples/)
@@ -204,17 +204,17 @@ ${PWD}:/workspace:ro                      # Workspace access
 
 ### Integration with Scenarios
 n8n is used in these business scenarios:
-- **[Secure Document Processing](../../scenarios/core/secure-document-processing/)** - Compliant document workflows ($20k-40k projects)
-- **[Analytics Dashboard](../../scenarios/core/analytics-dashboard/)** - Resource monitoring workflows ($15k-30k projects)
+- **[Secure Document Processing](../../scenarios/secure-document-processing/)** - Compliant document workflows ($20k-40k projects)
+- **[Analytics Dashboard](../../scenarios/analytics-dashboard/)** - Resource monitoring workflows ($15k-30k projects)
 
 ### Test Fixtures
-- **Shared Test Data**: `scripts/__test/resources/fixtures/workflows/` (sample n8n workflows)
-- **Integration Data**: `scripts/__test/resources/fixtures/documents/` (for document processing scenarios)
+- **Shared Test Data**: `__test/resources/fixtures/workflows/` (sample n8n workflows)
+- **Integration Data**: `__test/resources/fixtures/documents/` (for document processing scenarios)
 
 ### Quick Test Commands
 ```bash
 # Test individual n8n functionality
-./scripts/__test/resources/quick-test.sh n8n
+./__test/resources/quick-test.sh n8n
 
 # Run all tests using n8n
 ./scripts/scenarios/tools/test-by-resource.sh --resource n8n

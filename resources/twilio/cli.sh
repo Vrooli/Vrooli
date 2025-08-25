@@ -1,17 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Get the directory of this script (resolving symlinks)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+# Handle symlinks for installed CLI
 if [[ -L "${BASH_SOURCE[0]}" ]]; then
-    TWILIO_CLI_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
-else
-    TWILIO_CLI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    TWILIO_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
+    # Recalculate APP_ROOT from resolved symlink location
+    APP_ROOT="$(builtin cd "${TWILIO_CLI_SCRIPT%/*}/../.." && builtin pwd)"
 fi
+TWILIO_CLI_DIR="${APP_ROOT}/resources/twilio"
 
 # Source utilities
-source "$TWILIO_CLI_DIR/../../../lib/utils/var.sh"
-source "$TWILIO_CLI_DIR/../../../lib/utils/format.sh"
-source "$TWILIO_CLI_DIR/../../../lib/utils/log.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/format.sh"
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
 source "$TWILIO_CLI_DIR/lib/common.sh"
 
 # Source all lib functions

@@ -65,7 +65,7 @@ OBS Studio (Open Broadcaster Software) is a professional streaming and recording
 ### Testing
 - [x] BATS test files co-located with implementation
 - [x] Integration tests in test/ directory
-- [x] Uses shared fixtures from scripts/__test/fixtures/data/
+- [x] Uses shared fixtures from __test/fixtures/data/
 - [x] Test results included in status output
 - [ ] Content management tests
 - [ ] Scene switching tests

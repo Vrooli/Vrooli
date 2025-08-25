@@ -22,8 +22,8 @@ source "$SCRIPT_DIR/lib/stop.sh"
 source "$SCRIPT_DIR/lib/status.sh"
 source "$SCRIPT_DIR/lib/inject.sh"
 source "$SCRIPT_DIR/lib/calculate.sh"
-# CLI framework is in resources/lib not scripts/lib
-source "$SCRIPT_DIR/../../lib/cli-command-framework.sh"
+# CLI framework is in scripts/resources/lib
+source "${APP_ROOT}/scripts/resources/lib/cli-command-framework.sh"
 
 # Define commands for the CLI framework
 declare -A COMMANDS=(

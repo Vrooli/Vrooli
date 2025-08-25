@@ -2,8 +2,9 @@
 set -euo pipefail
 
 # Get the directory of this script
-TWILIO_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TWILIO_DIR="$(dirname "$TWILIO_LIB_DIR")"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+TWILIO_LIB_DIR="${APP_ROOT}/resources/twilio/lib"
+TWILIO_DIR="${APP_ROOT}/resources/twilio"
 
 # Source utilities
 source "$TWILIO_DIR/../../../lib/utils/var.sh"

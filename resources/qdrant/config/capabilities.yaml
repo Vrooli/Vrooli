@@ -230,7 +230,7 @@ spec:
   
   # Testing and validation
   testing:
-    test_file: "scripts/resources/storage/qdrant/test/integration-test.sh"
+    test_file: "resources/qdrant/test/integration-test.sh"
     test_coverage:
       - service_health
       - api_functionality
@@ -250,11 +250,11 @@ spec:
   
   # Documentation and examples
   documentation:
-    readme: "scripts/resources/storage/qdrant/README.md"
-    api_reference: "scripts/resources/storage/qdrant/docs/API.md"
-    examples_dir: "scripts/resources/storage/qdrant/examples/"
-    configuration: "scripts/resources/storage/qdrant/docs/CONFIGURATION.md"
-    troubleshooting: "scripts/resources/storage/qdrant/docs/TROUBLESHOOTING.md"
+    readme: "resources/qdrant/README.md"
+    api_reference: "resources/qdrant/docs/API.md"
+    examples_dir: "resources/qdrant/examples/"
+    configuration: "resources/qdrant/docs/CONFIGURATION.md"
+    troubleshooting: "resources/qdrant/docs/TROUBLESHOOTING.md"
   
   # Performance characteristics
   performance:

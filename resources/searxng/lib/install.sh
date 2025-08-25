@@ -7,7 +7,8 @@ FORCE="${FORCE:-no}"
 YES="${YES:-no}"
 
 # Source required utilities
-SEARXNG_INSTALL_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+SEARXNG_INSTALL_DIR="${APP_ROOT}/resources/searxng/lib"
 source "${SEARXNG_INSTALL_DIR}/../../../../lib/utils/log.sh" 2>/dev/null || true
 source "${SEARXNG_INSTALL_DIR}/../../../../lib/docker-utils.sh" 2>/dev/null || true
 source "${SEARXNG_INSTALL_DIR}/common.sh" 2>/dev/null || true
@@ -135,7 +136,7 @@ searxng::install() {
     
     # Auto-install CLI if available
     # shellcheck disable=SC1091
-    "${var_SCRIPTS_RESOURCES_LIB_DIR}/install-resource-cli.sh" "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)" 2>/dev/null || true
+    "${var_SCRIPTS_RESOURCES_LIB_DIR}/install-resource-cli.sh" "${APP_ROOT}/resources/searxng" 2>/dev/null || true
     
     return 0
 }

@@ -5,7 +5,7 @@ set -euo pipefail
 
 # Source var.sh for directory variables
 # shellcheck disable=SC1091
-source "$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/../../../../lib/utils/var.sh" 2>/dev/null || true
+source "$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)/../../../../lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
@@ -16,7 +16,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # Get script directory
-VAULT_LIB_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+VAULT_LIB_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
 cd "$VAULT_LIB_DIR"
 
 echo "=== Vault Verification Script ==="

@@ -7,7 +7,8 @@ set -euo pipefail
 
 export DESCRIPTION="Inject parsers and configurations into Unstructured.io document processing service"
 
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/resources/unstructured-io"
 
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/../../lib/utils/var.sh"

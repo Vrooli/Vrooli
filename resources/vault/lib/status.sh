@@ -8,7 +8,7 @@ VAULT_STATUS_DIR="${APP_ROOT}/resources/vault/lib"
 # shellcheck disable=SC1091
 source "${APP_ROOT}/scripts/lib/utils/format.sh"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/status-args.sh"
+source "${APP_ROOT}/scripts/resources/lib/status-args.sh"
 # shellcheck disable=SC1091
 source "${VAULT_STATUS_DIR}/../config/defaults.sh" 2>/dev/null || true
 
@@ -126,7 +126,7 @@ vault::show_detailed_status() {
     echo "  Mode: $VAULT_MODE"
     echo "  Storage Type: $VAULT_STORAGE_TYPE"
     echo "  TLS Disabled: $VAULT_TLS_DISABLE"
-    echo "  Secret Engine: $VAULT_SECRET_ENGINE (v$VAULT_SECRET_VERSION)"
+    echo "  Secret Engine: ${VAULT_SECRET_ENGINE} (v${VAULT_SECRET_VERSION})"
     echo "  Namespace: $VAULT_NAMESPACE_PREFIX"
     if [[ "$VAULT_MODE" == "dev" ]]; then
         echo "  Dev Root Token: $VAULT_DEV_ROOT_TOKEN_ID"

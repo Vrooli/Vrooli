@@ -7,7 +7,8 @@ set -euo pipefail
 
 DESCRIPTION="Inject models and configurations into Whisper speech-to-text service"
 
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/resources/whisper"
 
 # Source var.sh first to get directory variables
 # shellcheck disable=SC1091

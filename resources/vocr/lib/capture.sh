@@ -2,7 +2,8 @@
 # VOCR Screen Capture Module
 
 # Get script directory
-VOCR_CAPTURE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+VOCR_CAPTURE_DIR="${APP_ROOT}/resources/vocr/lib"
 
 # Source utilities
 # shellcheck disable=SC1091
@@ -31,7 +32,7 @@ vocr::capture::screen() {
     
     # Ensure output directory exists
     local output_dir
-    output_dir=$(dirname "$output")
+    output_dir=${output%/*
     mkdir -p "$output_dir"
     
     # Platform-specific capture

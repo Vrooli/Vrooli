@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 
 # Define paths from APP_ROOT
 EMBEDDINGS_DIR="${APP_ROOT}/resources/qdrant/embeddings"
@@ -37,7 +37,7 @@ qdrant::extract::prd() {
     
     # Extract key sections from PRD
     local title=$(grep "^# " "$file" 2>/dev/null | head -1 | sed 's/^# //' || echo "Unknown Scenario")
-    local scenario_dir=$(dirname "$file")
+    local scenario_dir=${file%/*}
     local scenario_name=$(basename "$scenario_dir")
     
     # Extract executive summary (usually after first heading)
@@ -167,7 +167,7 @@ qdrant::extract::scenarios_batch() {
     local dir="${1:-.}"
     local output_file="${2:-${EXTRACT_TEMP_DIR}/scenarios.txt}"
     
-    mkdir -p "$(dirname "$output_file")"
+    mkdir -p "${output_file%/*}"
     
     # Find all scenario files
     local prd_files=()
@@ -231,7 +231,7 @@ qdrant::extract::scenario_metadata() {
     
     local file_type="unknown"
     local scenario_name=""
-    local scenario_path=$(dirname "$file")
+    local scenario_path=${file%/*}
     
     if [[ "$file" == *"PRD.md" ]]; then
         file_type="prd"
@@ -295,12 +295,12 @@ qdrant::extract::find_scenarios() {
     local dirs=()
     
     while IFS= read -r prd_file; do
-        local dir=$(dirname "$prd_file")
+        local dir=${prd_file%/*}
         dirs+=("$dir")
     done < <(find "$root" -type f -name "PRD.md" -path "*/scenarios/*" 2>/dev/null)
     
     while IFS= read -r config_file; do
-        local dir=$(dirname "$config_file")
+        local dir=${config_file%/*}
         dirs+=("$dir")
     done < <(find "$root" -type f -name ".scenario.yaml" 2>/dev/null)
     
@@ -541,3 +541,12 @@ qdrant::extract::scenario_metadata_from_content() {
 
 # Export processing function for manage.sh
 export -f qdrant::embeddings::process_scenarios
+
+# Export additional functions for testing
+export -f qdrant::extract::scenarios_batch
+export -f qdrant::extract::find_scenarios
+export -f qdrant::extract::prd
+export -f qdrant::extract::scenario_config
+export -f qdrant::extract::scenario_metadata
+export -f qdrant::extract::scenario_metadata_from_content
+export -f qdrant::extract::scenarios_summary

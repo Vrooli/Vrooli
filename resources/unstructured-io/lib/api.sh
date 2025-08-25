@@ -4,9 +4,10 @@
 # This file contains functions for interacting with the Unstructured.io API
 
 # Source trash module for safe cleanup
-API_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+API_LIB_DIR="${APP_ROOT}/resources/unstructured-io/lib"
 # shellcheck disable=SC1091
-source "${API_LIB_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+source "${API_LIB_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
