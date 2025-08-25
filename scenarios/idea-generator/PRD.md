@@ -869,9 +869,9 @@ tests:
 - cli/docs/creative-workflows.md - CLI usage patterns
 
 ### Related PRDs
-- scenarios/core/research-assistant/PRD.md - Document intelligence patterns
-- scenarios/core/mind-maps/PRD.md - Idea visualization integration
-- scenarios/core/stream-of-consciousness-analyzer/PRD.md - Thought processing
+- scenarios/research-assistant/PRD.md - Document intelligence patterns
+- scenarios/mind-maps/PRD.md - Idea visualization integration
+- scenarios/stream-of-consciousness-analyzer/PRD.md - Thought processing
 
 ### External Resources
 - [Multi-Agent Systems Design](https://www.multiagent.com/)

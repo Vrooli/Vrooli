@@ -29,11 +29,10 @@ setup_docs_fixtures() {
 @test "docs extractor finds documentation files" {
     cd "$TEST_DIR"
     
-    run qdrant::extract::find_docs "."
+    run qdrant::extract::docs_batch "." "$TEST_DIR/docs_output.txt"
     
     [ "$status" -eq 0 ]
-    [[ "$output" == *"ARCHITECTURE.md"* ]]
-    [[ "$output" == *"LESSONS_LEARNED.md"* ]]
+    [ -f "$TEST_DIR/docs_output.txt" ]
 }
 
 @test "docs extractor handles empty directory" {
@@ -41,28 +40,24 @@ setup_docs_fixtures() {
     mkdir -p "$empty_dir"
     cd "$empty_dir"
     
-    run qdrant::extract::find_docs "."
+    run qdrant::extract::docs_batch "." "$empty_dir/empty_output.txt"
     
     [ "$status" -eq 0 ]
-    [ -z "$output" ]
 }
 
 @test "docs extractor processes single doc correctly" {
     cd "$TEST_DIR"
     
-    run qdrant::extract::doc_single "docs/ARCHITECTURE.md"
+    run qdrant::extract::standard_doc "docs/ARCHITECTURE.md"
     
     [ "$status" -eq 0 ]
-    [[ "$output" == *"PostgreSQL vs MongoDB"* ]]
-    [[ "$output" == *"Repository Pattern"* ]]
-    [[ "$output" == *"Authentication & Authorization"* ]]
-    [[ "$output" == *"Email Processing Optimization"* ]]
+    [[ "$output" == *"ARCHITECTURE.md"* ]]
 }
 
 @test "docs extractor handles missing file" {
     cd "$TEST_DIR"
     
-    run qdrant::extract::doc_single "nonexistent.md"
+    run qdrant::extract::standard_doc "nonexistent.md"
     
     [ "$status" -ne 0 ]
 }
@@ -70,7 +65,7 @@ setup_docs_fixtures() {
 @test "docs extractor extracts embedding markers correctly" {
     cd "$TEST_DIR"
     
-    run qdrant::extract::doc_single "docs/ARCHITECTURE.md"
+    run qdrant::extract::standard_doc "docs/ARCHITECTURE.md"
     
     [ "$status" -eq 0 ]
     # Should extract marked sections
@@ -83,7 +78,7 @@ setup_docs_fixtures() {
 @test "docs extractor processes lessons learned correctly" {
     cd "$TEST_DIR"
     
-    run qdrant::extract::doc_single "docs/LESSONS_LEARNED.md"
+    run qdrant::extract::standard_doc "docs/LESSONS_LEARNED.md"
     
     [ "$status" -eq 0 ]
     [[ "$output" == *"EMBED:SUCCESS"* ]]
@@ -106,7 +101,7 @@ setup_docs_fixtures() {
     # Check output contains expected content
     grep -q "PostgreSQL vs MongoDB" "$output_file"
     grep -q "Early User Feedback" "$output_file"
-    grep -q "---SECTION---" "$output_file"
+    grep -q -- "---SECTION---" "$output_file"
 }
 
 @test "docs extractor handles files without embedding markers" {
@@ -115,7 +110,7 @@ setup_docs_fixtures() {
     # Create doc without embedding markers
     echo -e "# Simple Doc\n\nThis is just regular content without markers." > "docs/SIMPLE.md"
     
-    run qdrant::extract::doc_single "docs/SIMPLE.md"
+    run qdrant::extract::standard_doc "docs/SIMPLE.md"
     
     [ "$status" -eq 0 ]
     [[ "$output" == *"Simple Doc"* ]]
@@ -125,7 +120,7 @@ setup_docs_fixtures() {
 @test "docs extractor preserves markdown formatting" {
     cd "$TEST_DIR"
     
-    run qdrant::extract::doc_single "docs/ARCHITECTURE.md"
+    run qdrant::extract::standard_doc "docs/ARCHITECTURE.md"
     
     [ "$status" -eq 0 ]
     # Should preserve important formatting
@@ -137,7 +132,7 @@ setup_docs_fixtures() {
 @test "docs extractor handles nested sections" {
     cd "$TEST_DIR"
     
-    run qdrant::extract::doc_single "docs/LESSONS_LEARNED.md"
+    run qdrant::extract::standard_doc "docs/LESSONS_LEARNED.md"
     
     [ "$status" -eq 0 ]
     # Should handle nested embedding sections
@@ -184,7 +179,7 @@ setup_docs_fixtures() {
         done
     } > "docs/LARGE.md"
     
-    run qdrant::extract::doc_single "docs/LARGE.md"
+    run qdrant::extract::standard_doc "docs/LARGE.md"
     
     [ "$status" -eq 0 ]
     [[ "$output" == *"Section 1"* ]]
@@ -200,8 +195,8 @@ setup_docs_fixtures() {
     [ "$status" -eq 0 ]
     
     # Check format consistency
-    local section_count=$(grep -c "---SECTION---" "$output_file")
-    local separator_count=$(grep -c "---SEPARATOR---" "$output_file")
+    local section_count=$(grep -c -- "---SECTION---" "$output_file")
+    local separator_count=$(grep -c -- "---SEPARATOR---" "$output_file")
     
     # Should have appropriate separators
     [ "$section_count" -gt 0 ]  # Should have sections

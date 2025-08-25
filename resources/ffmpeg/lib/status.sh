@@ -5,7 +5,7 @@ APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd
 FFMPEG_STATUS_DIR="${APP_ROOT}/resources/ffmpeg/lib"
 
 # Source status-args library
-source "${FFMPEG_STATUS_DIR}/../../../lib/status-args.sh"
+source "${APP_ROOT}/scripts/resources/lib/status-args.sh"
 
 # Collect FFmpeg status data in format-agnostic structure
 ffmpeg::status::collect_data() {
@@ -114,7 +114,7 @@ ffmpeg::status::display_text() {
     done
     
     # Source format utilities for proper logging functions
-    source "${FFMPEG_STATUS_DIR}/../../../../lib/utils/format.sh"
+    source "${APP_ROOT}/scripts/lib/utils/format.sh"
     
     # Header
     log::header "🎬 FFmpeg Status"

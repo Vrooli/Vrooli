@@ -6,11 +6,15 @@
 set -euo pipefail
 
 # Get script directory (resolve symlinks)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+# Handle symlinks for installed CLI
 if [[ -L "${BASH_SOURCE[0]}" ]]; then
-    WIKIJS_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
-else
-    WIKIJS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    WIKIJS_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
+    # Recalculate APP_ROOT from resolved symlink location
+    APP_ROOT="$(builtin cd "${WIKIJS_CLI_SCRIPT%/*}/../.." && builtin pwd)"
 fi
+
+WIKIJS_DIR="${APP_ROOT}/resources/wikijs"
 
 # Source dependencies
 source "$WIKIJS_DIR/../../../lib/utils/var.sh"

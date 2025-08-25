@@ -311,7 +311,7 @@ windmill::create_directories() {
     local dirs=(
         "$WINDMILL_DATA_DIR"
         "$WINDMILL_BACKUP_DIR"
-        "$(dirname "$WINDMILL_ENV_FILE")"
+        "${WINDMILL_ENV_FILE%/*"
     )
     
     for dir in "${dirs[@]}"; do

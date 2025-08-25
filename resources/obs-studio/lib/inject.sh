@@ -8,12 +8,12 @@ DESCRIPTION="Inject scenes, sources, and configurations into OBS Studio"
 export _OBS_INJECT_SOURCED=1
 
 # Get script directory and source framework
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 OBS_INJECT_LIB_DIR="${APP_ROOT}/resources/obs-studio/lib"
 
 # Source dependencies
 # shellcheck disable=SC1091
-source "${OBS_INJECT_LIB_DIR}/../../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_LIB_DIR}/inject_framework.sh"
 # shellcheck disable=SC1091

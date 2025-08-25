@@ -18,11 +18,12 @@ if [[ -L "${BASH_SOURCE[0]}" ]]; then
 else
     WINDMILL_CLI_SCRIPT="${BASH_SOURCE[0]}"
 fi
-WINDMILL_CLI_DIR="$(cd "$(dirname "$WINDMILL_CLI_SCRIPT")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+WINDMILL_CLI_DIR="${APP_ROOT}/resources/windmill"
 
 # Source standard variables
 # shellcheck disable=SC1091
-source "${WINDMILL_CLI_DIR}/../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 # Source utilities using var_ variables
 # shellcheck disable=SC1091

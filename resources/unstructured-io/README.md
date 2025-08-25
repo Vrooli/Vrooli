@@ -6,13 +6,13 @@ Transform any document into AI-ready structured data. Unstructured.io provides e
 
 ```bash
 # Install Unstructured.io
-./scripts/resources/ai/unstructured-io/manage.sh --action install
+./resources/unstructured-io/manage.sh --action install
 
 # Process a document
-./scripts/resources/ai/unstructured-io/manage.sh --action process --file document.pdf
+./resources/unstructured-io/manage.sh --action process --file document.pdf
 
 # Check service status
-./scripts/resources/ai/unstructured-io/manage.sh --action status
+./resources/unstructured-io/manage.sh --action status
 ```
 
 ## 📋 Overview
@@ -36,17 +36,17 @@ Unstructured.io is a comprehensive document processing platform that converts co
 ### Install Command
 ```bash
 # Basic installation
-./scripts/resources/ai/unstructured-io/manage.sh --action install
+./resources/unstructured-io/manage.sh --action install
 
 # Force reinstall
-./scripts/resources/ai/unstructured-io/manage.sh --action install --force yes
+./resources/unstructured-io/manage.sh --action install --force yes
 ```
 
 ### Docker Compose Deployment
 For standardized deployments, you can use the provided docker-compose.yml:
 ```bash
 # Start service with docker-compose
-cd scripts/resources/ai/unstructured-io
+cd resources/unstructured-io
 docker compose up -d
 
 # Stop service

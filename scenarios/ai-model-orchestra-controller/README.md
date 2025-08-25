@@ -38,7 +38,7 @@ The Orchestra Controller provides:
 
 ```bash
 # Navigate to scenario directory
-cd scripts/scenarios/core/ai-model-orchestra-controller
+cd scenarios/ai-model-orchestra-controller
 
 # Run setup script
 ./initialization/scripts/setup.sh

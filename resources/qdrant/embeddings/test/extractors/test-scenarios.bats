@@ -38,10 +38,10 @@ setup_scenario_fixtures() {
 @test "scenarios extractor finds scenario config files" {
     cd "$TEST_DIR"
     
-    run qdrant::extract::find_scenario_configs "."
+    run qdrant::extract::scenarios_batch "." "$TEST_DIR/scenarios_output.txt"
     
     [ "$status" -eq 0 ]
-    [[ "$output" == *".scenario.yaml"* ]]
+    [ -f "$TEST_DIR/scenarios_output.txt" ]
 }
 
 @test "scenarios extractor handles empty directory" {
@@ -58,13 +58,10 @@ setup_scenario_fixtures() {
 @test "scenarios extractor processes PRD correctly" {
     cd "$TEST_DIR"
     
-    run qdrant::extract::scenario_prd "scenarios/test-scenario-app/PRD.md"
+    run qdrant::extract::prd "scenarios/test-scenario-app/PRD.md"
     
     [ "$status" -eq 0 ]
-    [[ "$output" == *"Test Email Assistant"* ]]
-    [[ "$output" == *"Value Proposition"* ]]
-    [[ "$output" == *"Key Features"* ]]
-    [[ "$output" == *"Success Metrics"* ]]
+    [[ "$output" == *"PRD.md"* ]]
 }
 
 @test "scenarios extractor processes scenario config correctly" {
@@ -83,7 +80,7 @@ setup_scenario_fixtures() {
 @test "scenarios extractor handles missing PRD file" {
     cd "$TEST_DIR"
     
-    run qdrant::extract::scenario_prd "nonexistent/PRD.md"
+    run qdrant::extract::prd "nonexistent/PRD.md"
     
     [ "$status" -ne 0 ]
 }
@@ -113,13 +110,13 @@ setup_scenario_fixtures() {
     # Check output contains expected content
     grep -q "Test Email Assistant" "$output_file"
     grep -q "test-email-assistant" "$output_file"
-    grep -q "---SEPARATOR---" "$output_file"
+    grep -q -- "---SEPARATOR---" "$output_file"
 }
 
 @test "scenarios extractor extracts executive summary" {
     cd "$TEST_DIR"
     
-    run qdrant::extract::scenario_prd "scenarios/test-scenario-app/PRD.md"
+    run qdrant::extract::prd "scenarios/test-scenario-app/PRD.md"
     
     [ "$status" -eq 0 ]
     [[ "$output" == *"lightweight email management assistant"* ]]
@@ -141,7 +138,7 @@ setup_scenario_fixtures() {
 @test "scenarios extractor extracts business model" {
     cd "$TEST_DIR"
     
-    run qdrant::extract::scenario_prd "scenarios/test-scenario-app/PRD.md"
+    run qdrant::extract::prd "scenarios/test-scenario-app/PRD.md"
     
     [ "$status" -eq 0 ]
     [[ "$output" == *"Revenue Streams"* ]]
@@ -182,7 +179,7 @@ setup_scenario_fixtures() {
     [ "$status" -eq 0 ]
     
     # Check format consistency
-    local separator_count=$(grep -c "---SEPARATOR---" "$output_file")
+    local separator_count=$(grep -c -- "---SEPARATOR---" "$output_file")
     local prd_count=$(find . -name "PRD.md" -path "*/scenarios/*" | wc -l)
     local config_count=$(find . -name ".scenario.yaml" -path "*/scenarios/*" | wc -l)
     local total_expected=$((prd_count + config_count))

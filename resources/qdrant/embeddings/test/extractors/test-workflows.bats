@@ -87,7 +87,7 @@ setup_workflow_fixtures() {
     # Check output contains expected content
     grep -q "Email Notification Workflow" "$output_file"
     grep -q "Data Processing Pipeline" "$output_file"
-    grep -q "---SEPARATOR---" "$output_file"
+    grep -q -- "---SEPARATOR---" "$output_file"
 }
 
 @test "workflows extractor extracts node types correctly" {
@@ -162,7 +162,7 @@ setup_workflow_fixtures() {
     [ "$status" -eq 0 ]
     
     # Check format consistency
-    local separator_count=$(grep -c "---SEPARATOR---" "$output_file")
+    local separator_count=$(grep -c -- "---SEPARATOR---" "$output_file")
     local workflow_count=$(find . -name "*.json" -path "*/initialization/*" | wc -l)
     
     # Should have separators between workflows

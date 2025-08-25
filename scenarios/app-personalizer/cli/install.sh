@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-CLI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$CLI_DIR/../scripts/lib/utils/cli-install.sh"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+CLI_DIR="${APP_ROOT}/scenarios/app-personalizer/cli"
+source "${APP_ROOT}/scripts/lib/utils/cli-install.sh"
 
 install_cli "$CLI_DIR/app-personalizer-cli.sh" "app-personalizer"

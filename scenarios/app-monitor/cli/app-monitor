@@ -5,7 +5,8 @@ set -euo pipefail
 
 # Configuration
 API_BASE_URL="${APP_MONITOR_API_URL:-http://localhost:8090}"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/scenarios/app-monitor/cli"
 
 # Colors for output
 RED='\033[0;31m'

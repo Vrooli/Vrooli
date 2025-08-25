@@ -4,7 +4,8 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/scenarios/app-issue-tracker/cli"
 
 # Configuration
 API_URL="${ISSUE_TRACKER_API_URL:-http://localhost:8090/api}"
@@ -88,7 +89,7 @@ save_config() {
     local token=$1
     local url=$2
     
-    mkdir -p "$(dirname "$CONFIG_FILE")"
+    mkdir -p "${CONFIG_FILE%/*}"
     cat > "$CONFIG_FILE" << EOF
 {
   "api_token": "$token",

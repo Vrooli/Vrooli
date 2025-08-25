@@ -5,12 +5,13 @@
 set -euo pipefail
 
 # Get the directory of this script
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../../../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/scenarios/ai-model-orchestra-controller/initialization/scripts"
 CONFIG_DIR="$SCRIPT_DIR/../configuration"
 RESOURCE_URLS_FILE="$CONFIG_DIR/resource-urls.json"
 
 # Source the port registry to get RESOURCE_PORTS
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../../../../.." && pwd)"
+PROJECT_ROOT="$APP_ROOT"
 PORT_REGISTRY="$PROJECT_ROOT/scripts/resources/port_registry.sh"
 
 if [[ ! -f "$PORT_REGISTRY" ]]; then

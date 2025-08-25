@@ -3,7 +3,7 @@
 # Functions for checking and displaying Whisper status information
 
 # Source format utilities and config
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
 WHISPER_STATUS_DIR="${APP_ROOT}/resources/whisper/lib"
 # shellcheck disable=SC1091
 source "${WHISPER_STATUS_DIR}/../../../../lib/utils/format.sh"

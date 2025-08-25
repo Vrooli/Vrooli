@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 
 # Define paths from APP_ROOT
 EMBEDDINGS_DIR="${APP_ROOT}/resources/qdrant/embeddings"
@@ -32,7 +32,7 @@ qdrant::identity::init() {
     local source_scenario="${3:-}"
     
     # Create .vrooli directory if it doesn't exist
-    mkdir -p "$(dirname "$APP_IDENTITY_FILE")"
+    mkdir -p "${APP_IDENTITY_FILE%/*}"
     
     # Detect app ID if not provided
     if [[ -z "$app_id" ]]; then
@@ -274,7 +274,7 @@ qdrant::identity::list_all() {
             local app_type=$(jq -r '.type' "$identity_file" 2>/dev/null)
             local last_indexed=$(jq -r '.last_indexed // "Never"' "$identity_file" 2>/dev/null)
             local embeddings=$(jq -r '.stats.total_embeddings' "$identity_file" 2>/dev/null)
-            local app_dir=$(dirname "$(dirname "$identity_file")")
+            local app_dir=$(dirname "${identity_file%/*}")
             
             echo "📱 $app_id ($app_type)"
             echo "   Path: $app_dir"

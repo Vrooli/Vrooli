@@ -11,8 +11,9 @@ readonly SCRIPT_VERSION="1.0.0"
 readonly SCENARIO_NAME="ai-model-orchestra-controller"
 
 # Paths
-readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-readonly SCENARIO_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../../../.." && builtin pwd)}"
+readonly SCRIPT_DIR="${APP_ROOT}/scenarios/ai-model-orchestra-controller/initialization/scripts"
+readonly SCENARIO_DIR="${APP_ROOT}/scenarios/ai-model-orchestra-controller"
 readonly CONFIG_DIR="$SCENARIO_DIR/initialization/configuration"
 readonly WORKFLOWS_DIR="$SCENARIO_DIR/initialization/workflows"
 readonly UI_DIR="$SCENARIO_DIR/ui"
@@ -406,7 +407,7 @@ create_startup_scripts() {
 
 set -euo pipefail
 
-readonly SCENARIO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCENARIO_DIR="${APP_ROOT}/scenarios/ai-model-orchestra-controller"
 
 echo "🚀 Starting AI Model Orchestra Controller..."
 
@@ -450,7 +451,7 @@ EOF
 
 set -euo pipefail
 
-readonly SCENARIO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCENARIO_DIR="${APP_ROOT}/scenarios/ai-model-orchestra-controller"
 readonly PID_FILE="$SCENARIO_DIR/.api_pid"
 
 echo "🛑 Stopping AI Model Orchestra Controller..."

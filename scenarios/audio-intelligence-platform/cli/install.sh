@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-CLI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$CLI_DIR/../scripts/lib/utils/cli-install.sh"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+CLI_DIR="${APP_ROOT}/scenarios/audio-intelligence-platform/cli"
+source "${APP_ROOT}/scripts/lib/utils/cli-install.sh"
 
 install_cli "$CLI_DIR/audio-intelligence-platform-cli.sh" "audio-intelligence-platform"

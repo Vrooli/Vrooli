@@ -6,7 +6,7 @@ This guide will help you get started with HashiCorp Vault in the Vrooli ecosyste
 
 ### 1. Install Vault (Development Mode)
 ```bash
-cd scripts/resources/storage/vault
+cd resources/vault
 ./manage.sh --action install
 ./manage.sh --action init-dev
 ```

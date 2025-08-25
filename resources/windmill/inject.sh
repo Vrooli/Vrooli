@@ -8,7 +8,8 @@ set -euo pipefail
 export DESCRIPTION="Inject scripts, apps, and resources into Windmill workflow platform"
 
 # Source var.sh first with relative path
-INJECT_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../.." && builtin pwd)}"
+INJECT_SCRIPT_DIR="${APP_ROOT}/resources/windmill"
 # shellcheck disable=SC1091
 source "${INJECT_SCRIPT_DIR}/../../../lib/utils/var.sh"
 

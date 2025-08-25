@@ -4,8 +4,8 @@ ffmpeg_start() {
     # Get the directory of this lib file
     APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
     local FFMPEG_LIB_DIR="${APP_ROOT}/resources/ffmpeg/lib"
-    source "${FFMPEG_LIB_DIR}/../../../../lib/utils/format.sh"
-    source "${FFMPEG_LIB_DIR}/../../../../lib/utils/log.sh"
+    source "${APP_ROOT}/scripts/lib/utils/format.sh"
+    source "${APP_ROOT}/scripts/lib/utils/log.sh"
     source "${FFMPEG_LIB_DIR}/../config/defaults.sh"
     source "${FFMPEG_LIB_DIR}/hardware.sh"
     

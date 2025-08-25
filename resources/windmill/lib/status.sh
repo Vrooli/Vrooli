@@ -3,7 +3,8 @@
 # Functions for checking and displaying Windmill status information
 
 # Source format utilities and config
-WINDMILL_STATUS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+WINDMILL_STATUS_DIR="${APP_ROOT}/resources/windmill/lib"
 # shellcheck disable=SC1091
 source "${WINDMILL_STATUS_DIR}/../../../../lib/utils/format.sh"
 # shellcheck disable=SC1091

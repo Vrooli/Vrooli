@@ -95,7 +95,7 @@ ollama list | grep -E "llama3.2|mistral|codellama|nomic-embed-text"
 ### **Setup**
 ```bash
 # Navigate to the scenario directory
-cd /path/to/vrooli/scripts/scenarios/core/agent-metareasoning-manager
+cd /path/to/vrooli/scenarios/agent-metareasoning-manager
 
 # Run setup lifecycle phase (with target environment specification)
 ../../manage.sh setup --target native-linux

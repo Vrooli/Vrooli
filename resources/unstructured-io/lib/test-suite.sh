@@ -4,10 +4,11 @@
 
 set -euo pipefail
 
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-MANAGE_SCRIPT="${SCRIPT_DIR}/manage.sh"
-TEST_FIXTURES="${SCRIPT_DIR}/test-fixtures"
-RESULTS_DIR="${SCRIPT_DIR}/test-results"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../.." && builtin pwd)}"
+SCRIPT_DIR="$APP_ROOT/resources/unstructured-io/lib"
+MANAGE_SCRIPT="$APP_ROOT/resources/unstructured-io/manage.sh"
+TEST_FIXTURES="$SCRIPT_DIR/test-fixtures"
+RESULTS_DIR="$SCRIPT_DIR/test-results"
 
 # Colors for output
 GREEN='\033[0;32m'

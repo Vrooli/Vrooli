@@ -8,8 +8,9 @@ export DESCRIPTION="Install and manage Windmill developer-centric workflow autom
 
 # Source var.sh first with relative path
 # shellcheck disable=SC1091
-WINDMILL_SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-source "$(dirname "$(dirname "$(dirname "${WINDMILL_SCRIPT_DIR}")")")/lib/utils/var.sh"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../.." && builtin pwd)}"
+WINDMILL_SCRIPT_DIR="${APP_ROOT}/resources/windmill"
+source "$(dirname "${{WINDMILL_SCRIPT_DIR}%/*%/*}")/lib/utils/var.sh"
 
 # Source common resources using var_ variables
 # shellcheck disable=SC1091

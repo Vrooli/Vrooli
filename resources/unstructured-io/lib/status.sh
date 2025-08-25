@@ -3,7 +3,7 @@
 # Functions for checking and displaying Unstructured.io status information
 
 # Source format utilities and config
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
 UNSTRUCTURED_IO_STATUS_DIR="${APP_ROOT}/resources/unstructured-io/lib"
 # shellcheck disable=SC1091
 source "${UNSTRUCTURED_IO_STATUS_DIR}/../../../../lib/utils/format.sh"

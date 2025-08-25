@@ -7,8 +7,9 @@ set -euo pipefail
 
 export DESCRIPTION="Inject tables and timeseries data into QuestDB database"
 
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-RESOURCES_DIR="${SCRIPT_DIR}/../.."
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/resources/questdb"
+RESOURCES_DIR="${APP_ROOT}/resources"
 
 # Source common utilities
 # shellcheck disable=SC1091

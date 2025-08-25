@@ -4,7 +4,8 @@
 # This file contains all configuration constants and defaults for the Unstructured.io resource
 
 # Get script directory for relative path resolution
-CONFIG_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+CONFIG_DIR="${APP_ROOT}/resources/unstructured-io/config"
 
 # shellcheck disable=SC1091
 source "${CONFIG_DIR}/../../../../lib/utils/var.sh"

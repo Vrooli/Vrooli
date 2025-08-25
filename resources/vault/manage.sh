@@ -8,7 +8,7 @@ export DESCRIPTION="Install and manage HashiCorp Vault secret management service
 
 # Source var.sh first to get directory variables
 # shellcheck disable=SC1091
-source "$(dirname "${BASH_SOURCE[0]}")/../../../lib/utils/var.sh"
+source "${BASH_SOURCE[0]}%/*/../../../lib/utils/var.sh"
 
 # Source common resources using var_ variables
 # shellcheck disable=SC1091

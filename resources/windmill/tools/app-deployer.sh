@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
 
 # Colors for output
 RED='\033[0;31m'
@@ -122,8 +122,6 @@ check_api() {
 #######################################
 prepare_app() {
     local app_name="$1"
-    local windmill_dir="${SCRIPT_DIR}/.."
-    
     if [[ -z "$app_name" ]]; then
         echo -e "${RED}Error: App name required${NC}"
         echo "Usage: $0 prepare <app-name>"
@@ -131,8 +129,8 @@ prepare_app() {
     fi
     
     # Use the windmill manage script
-    if [[ -x "${windmill_dir}/manage.sh" ]]; then
-        "${windmill_dir}/manage.sh" --action prepare-app --app-name "$app_name"
+    if [[ -x "${APP_ROOT}/resources/windmill/manage.sh" ]]; then
+        "${APP_ROOT}/resources/windmill/manage.sh" --action prepare-app --app-name "$app_name"
     else
         echo -e "${RED}Error: Windmill manage script not found${NC}"
         exit 1

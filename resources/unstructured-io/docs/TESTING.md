@@ -62,20 +62,20 @@ The Unstructured.io service provides a REST API for document processing at `http
 
 ```bash
 # Run the comprehensive test suite
-./scripts/resources/ai/unstructured-io/test-api.sh
+./resources/unstructured-io/test-api.sh
 
 # Test specific functionality
-./scripts/resources/ai/unstructured-io/manage.sh --action test
+./resources/unstructured-io/manage.sh --action test
 ```
 
 ### 2. Python Testing
 
 ```bash
 # Run Python test suite
-python3 ./scripts/resources/ai/unstructured-io/test_api.py
+python3 ./resources/unstructured-io/test_api.py
 
 # Or with explicit Python path
-/usr/bin/python3 ./scripts/resources/ai/unstructured-io/test_api.py
+/usr/bin/python3 ./resources/unstructured-io/test_api.py
 ```
 
 ### 3. Jest Integration Tests
@@ -205,7 +205,7 @@ The API returns a JSON array of elements, each with:
 
 ```bash
 # Using manage script
-./scripts/resources/ai/unstructured-io/manage.sh --action status
+./resources/unstructured-io/manage.sh --action status
 
 # Check Docker container
 docker ps | grep unstructured
@@ -220,7 +220,7 @@ lsof -i :11450
 1. **Service Not Available**
    ```bash
    # Start the service
-   ./scripts/resources/ai/unstructured-io/manage.sh --action start
+   ./resources/unstructured-io/manage.sh --action start
    ```
 
 2. **Processing Timeout**

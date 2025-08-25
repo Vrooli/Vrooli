@@ -7,7 +7,8 @@
 set -euo pipefail
 
 # Source shared integration test library
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/resources/whisper/test"
 
 # Source var.sh for directory variables
 # shellcheck disable=SC1091

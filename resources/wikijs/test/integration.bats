@@ -4,7 +4,7 @@
 
 setup() {
     # Set test directory
-    export TEST_DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")" && pwd)"
+    export TEST_DIR="$(builtin cd "${BATS_TEST_FILENAME%/*}" && builtin pwd)"
     export WIKIJS_CLI="$TEST_DIR/../cli.sh"
     
     # Skip tests if Wiki.js is not installed

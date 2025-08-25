@@ -4,7 +4,8 @@
 # Ensures no sensitive data is stored in git
 
 # Source trash module for safe cleanup
-WINDMILL_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+WINDMILL_LIB_DIR="${APP_ROOT}/resources/windmill/lib"
 # shellcheck disable=SC1091
 source "${WINDMILL_LIB_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
@@ -367,7 +368,7 @@ windmill::recover_orphaned_password() {
     echo "INFO: Attempting to recover password for orphaned installation"
     
     # Check if .env file exists with password
-    local env_file="$(dirname "${WINDMILL_LIB_DIR}")/docker/.env"
+    local env_file="${WINDMILL_LIB_DIR}%/*/docker/.env"
     if [[ -f "$env_file" ]]; then
         local env_password=$(grep "^WINDMILL_DB_PASSWORD=" "$env_file" | cut -d'=' -f2)
         if [[ -n "$env_password" ]] && windmill::test_database_connection "$env_password"; then
@@ -518,7 +519,7 @@ windmill::auto_recover_password() {
     
     if windmill::reset_database_password "$state_password"; then
         # Update .env file
-        local env_file="$(dirname "${WINDMILL_LIB_DIR}")/docker/.env"
+        local env_file="${WINDMILL_LIB_DIR}%/*/docker/.env"
         if [[ -f "$env_file" ]]; then
             sed -i "s|^WINDMILL_DB_PASSWORD=.*|WINDMILL_DB_PASSWORD=${state_password}|" "$env_file"
         fi

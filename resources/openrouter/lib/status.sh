@@ -8,7 +8,7 @@ OPENROUTER_STATUS_DIR="${APP_ROOT}/resources/openrouter/lib"
 # Source dependencies
 source "${OPENROUTER_STATUS_DIR}/core.sh"
 # shellcheck disable=SC1091
-source "${OPENROUTER_STATUS_DIR}/../../../lib/status-args.sh"
+source "${APP_ROOT}/scripts/resources/lib/status-args.sh"
 
 #######################################
 # Collect OpenRouter status data

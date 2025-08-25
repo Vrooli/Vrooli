@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 
 # Define paths from APP_ROOT
 EMBEDDINGS_DIR="${APP_ROOT}/resources/qdrant/embeddings"
@@ -135,7 +135,7 @@ content::optimize_scenario() {
     local raw_content="$1"
     local file_path="$2"
     
-    local scenario_name=$(basename "$(dirname "$file_path")")
+    local scenario_name=$(basename "${file_path%/*}")
     
     echo "SCENARIO: $scenario_name"
     echo "BUSINESS_CASE: This scenario implements:"
@@ -218,7 +218,7 @@ content::add_semantic_tags() {
     local file_path="$3"
     
     local filename=$(basename "$file_path")
-    local directory=$(dirname "$file_path")
+    local directory=${file_path%/*}
     local file_ext="${filename##*.}"
     
     # Detect semantic categories

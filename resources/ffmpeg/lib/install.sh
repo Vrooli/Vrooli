@@ -4,10 +4,10 @@ ffmpeg_install() {
     local force="${1:-false}"
     
     # Get the directory of this lib file
-    local APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+    local APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
     local FFMPEG_LIB_DIR="${APP_ROOT}/resources/ffmpeg/lib"
-    source "${FFMPEG_LIB_DIR}/../../../../lib/utils/format.sh"
-    source "${FFMPEG_LIB_DIR}/../../../../lib/utils/log.sh"
+    source "${APP_ROOT}/scripts/lib/utils/format.sh"
+    source "${APP_ROOT}/scripts/lib/utils/log.sh"
     
     log::header "🎬 Installing FFmpeg"
     
