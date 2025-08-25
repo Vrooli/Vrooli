@@ -53,6 +53,9 @@ packages/*/.vitest
 # V8 compile cache
 v8-compile-cache-*/
 
+# Other caches
+__test/cache/
+
 # Grunt intermediate storage (https://gruntjs.com/creating-plugins#storing-task-files)
 .grunt
 
@@ -214,10 +217,10 @@ upload_certificate.pem
 upload-keystore.jks
 
 # Bats test helpers (e.g. bats-core)
-scripts/tests/helpers
-scripts/tests/tmp
-
-/scripts/__tests/helpers
+__test/helpers
+__tests/helpers
+test/helpers
+tests/helpers
 
 # Local execution configuration
 .vrooli/*.local.json
