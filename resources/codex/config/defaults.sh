@@ -2,7 +2,7 @@
 # Codex Default Configuration
 
 # Get the directory where this script is located
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 CODEX_CONFIG_DIR="${APP_ROOT}/resources/codex/config"
 
 # Default values

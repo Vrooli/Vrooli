@@ -7,7 +7,7 @@ set -euo pipefail
 
 DESCRIPTION="Inject templates, prompts, and configurations into Claude Code assistant"
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
 CLAUDE_CODE_SCRIPT_DIR="${APP_ROOT}/resources/claude-code"
 
 # Source var.sh first to get proper directory variables
@@ -140,7 +140,7 @@ claude_code_inject::check_accessibility() {
             return 0
         else
             log::warn "Claude Code CLI not found and data directory doesn't exist"
-            log::info "Install Claude Code: ./scripts/resources/agents/claude-code/manage.sh --action install"
+            log::info "Install Claude Code: ./resources/claude-code/manage.sh --action install"
             return 1
         fi
     fi

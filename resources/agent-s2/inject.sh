@@ -7,7 +7,7 @@ set -euo pipefail
 
 export DESCRIPTION="Inject configurations and automations into Agent-S2 web automation agent"
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
 AGENT_S2_SCRIPT_DIR="${APP_ROOT}/resources/agent-s2"
 
 # Source var.sh first to get proper directory variables

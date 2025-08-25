@@ -5,7 +5,7 @@
 set -euo pipefail
 
 # Script directory
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 CLAUDE_CODE_SANDBOX_DIR="${APP_ROOT}/resources/claude-code/sandbox"
 
 # Source var.sh first to get proper directory variables

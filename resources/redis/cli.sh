@@ -184,7 +184,7 @@ redis::cli_test() {
     # Export required variables for the test
     export REDIS_PORT="${REDIS_PORT:-6380}"
     export REDIS_CONTAINER_NAME="${REDIS_CONTAINER_NAME:-vrooli-redis-resource}"
-    export REDIS_DATA_DIR="${REDIS_DATA_DIR:-${var_DATA_DIR}/redis}"
+    export REDIS_DATA_DIR="${REDIS_DATA_DIR:-${var_DATA_DIR}/resources/redis}"
     export REDIS_MAX_MEMORY="${REDIS_MAX_MEMORY:-2gb}"
     export REDIS_DATABASES="${REDIS_DATABASES:-16}"
     

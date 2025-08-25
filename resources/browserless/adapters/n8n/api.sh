@@ -15,7 +15,7 @@
 #######################################
 
 # Get script directory
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
 N8N_ADAPTER_DIR="${APP_ROOT}/resources/browserless/adapters/n8n"
 ADAPTERS_DIR="${APP_ROOT}/resources/browserless/adapters"
 

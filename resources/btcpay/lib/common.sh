@@ -5,7 +5,7 @@
 set -euo pipefail
 
 # Get script directory
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 BTCPAY_COMMON_DIR="${APP_ROOT}/resources/btcpay/lib"
 
 # Source shared utilities
@@ -20,7 +20,7 @@ export BTCPAY_NETWORK="btcpay-network"
 export BTCPAY_IMAGE="btcpayserver/btcpayserver:1.13.5"
 export BTCPAY_POSTGRES_IMAGE="postgres:14-alpine"
 export BTCPAY_PORT=23000
-export BTCPAY_DATA_DIR="${HOME}/Vrooli/data/btcpay"
+export BTCPAY_DATA_DIR="${var_DATA_DIR}/resources/btcpay"
 export BTCPAY_CONFIG_DIR="${BTCPAY_DATA_DIR}/config"
 export BTCPAY_POSTGRES_DATA="${BTCPAY_DATA_DIR}/postgres"
 export BTCPAY_LOGS_DIR="${BTCPAY_DATA_DIR}/logs"

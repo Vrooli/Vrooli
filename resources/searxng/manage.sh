@@ -6,7 +6,7 @@ set -euo pipefail
 
 DESCRIPTION="Install and manage SearXNG metasearch engine using Docker"
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
 SEARXNG_SCRIPT_DIR="${APP_ROOT}/resources/searxng"
 
 # Source var.sh first to get path variables

@@ -9,7 +9,7 @@ trap 'echo ""; log::info "Agent S2 installation interrupted by user. Exiting..."
 
 DESCRIPTION="Install and manage Agent S2 autonomous computer interaction service using Docker"
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
 AGENT_S2_SCRIPT_DIR="${APP_ROOT}/resources/agent-s2"
 
 # Source var.sh first to get proper directory variables

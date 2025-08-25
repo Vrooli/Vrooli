@@ -14,7 +14,7 @@
 #######################################
 
 # Get script directory
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 ADAPTER_COMMON_DIR="${APP_ROOT}/resources/browserless/adapters"
 BROWSERLESS_RESOURCE_DIR="${APP_ROOT}/resources/browserless"
 
@@ -93,9 +93,9 @@ adapter::load_target_config() {
     
     # Try to load resource configuration from common locations
     local config_locations=(
-        "${var_ROOT_DIR}/scripts/resources/automation/${resource}/config/defaults.sh"
-        "${var_ROOT_DIR}/scripts/resources/agents/${resource}/config/defaults.sh"
-        "${var_ROOT_DIR}/scripts/resources/ai/${resource}/config/defaults.sh"
+        "${var_ROOT_DIR}/resources/${resource}/config/defaults.sh"
+        "${var_ROOT_DIR}/resources/${resource}/config/defaults.sh"
+        "${var_ROOT_DIR}/resources/${resource}/config/defaults.sh"
         "${var_ROOT_DIR}/scripts/resources/data/${resource}/config/defaults.sh"
         "${var_ROOT_DIR}/scripts/resources/ui/${resource}/config/defaults.sh"
     )

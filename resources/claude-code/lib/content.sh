@@ -4,7 +4,7 @@ set -euo pipefail
 # Claude Code Content Management
 # Replaces the inject pattern with clearer content operations
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 CLAUDE_CODE_SCRIPT_DIR="${APP_ROOT}/resources/claude-code"
 
 # Source utilities

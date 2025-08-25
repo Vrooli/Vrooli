@@ -4,7 +4,7 @@
 set -euo pipefail
 
 # Define directories using cached APP_ROOT
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 SIMPY_LIB_DIR="${APP_ROOT}/resources/simpy/lib"
 SIMPY_DIR="${APP_ROOT}/resources/simpy"
 SIMPY_CONFIG_DIR="${APP_ROOT}/resources/simpy/config"

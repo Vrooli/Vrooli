@@ -178,7 +178,7 @@ spec:
   
   # Testing and validation
   testing:
-    test_file: "scripts/resources/agents/claude-code/test/integration-test.sh"
+    test_file: "resources/claude-code/test/integration-test.sh"
     test_coverage:
       - installation_check
       - authentication_status
@@ -196,11 +196,11 @@ spec:
   
   # Documentation and examples
   documentation:
-    readme: "scripts/resources/agents/claude-code/README.md"
-    api_reference: "scripts/resources/agents/claude-code/docs/API.md"
-    examples_dir: "scripts/resources/agents/claude-code/examples/"
-    configuration: "scripts/resources/agents/claude-code/docs/CONFIGURATION.md"
-    troubleshooting: "scripts/resources/agents/claude-code/docs/TROUBLESHOOTING.md"
+    readme: "resources/claude-code/README.md"
+    api_reference: "resources/claude-code/docs/API.md"
+    examples_dir: "resources/claude-code/examples/"
+    configuration: "resources/claude-code/docs/CONFIGURATION.md"
+    troubleshooting: "resources/claude-code/docs/TROUBLESHOOTING.md"
   
   # Version and compatibility
   version_info:

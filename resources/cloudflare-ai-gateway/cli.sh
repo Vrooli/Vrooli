@@ -124,7 +124,7 @@ Examples:
     ${RESOURCE_NAME} content add --file rules.json
     ${RESOURCE_NAME} logs --tail 100
 
-For more information, see: scripts/resources/execution/cloudflare-ai-gateway/README.md
+For more information, see: resources/cloudflare-ai-gateway/README.md
 EOF
 }
 

@@ -4,7 +4,7 @@
 set -euo pipefail
 
 # Get script directory and source var.sh first
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 AGENT_S2_EXAMPLES_DIR="${APP_ROOT}/resources/agent-s2/examples"
 
 # Source var.sh first to get proper directory variables

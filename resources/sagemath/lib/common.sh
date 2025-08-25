@@ -9,7 +9,7 @@ SAGEMATH_PORT_JUPYTER="${SAGEMATH_PORT_JUPYTER:-8888}"
 SAGEMATH_PORT_API="${SAGEMATH_PORT_API:-8889}"
 
 # Data directories
-SAGEMATH_DATA_DIR="${var_DATA_DIR:-/home/matthalloran8/Vrooli/data}/sagemath"
+SAGEMATH_DATA_DIR="${var_DATA_DIR:-/home/matthalloran8/Vrooli/data}/resources/sagemath"
 SAGEMATH_SCRIPTS_DIR="$SAGEMATH_DATA_DIR/scripts"
 SAGEMATH_NOTEBOOKS_DIR="$SAGEMATH_DATA_DIR/notebooks"
 SAGEMATH_OUTPUTS_DIR="$SAGEMATH_DATA_DIR/outputs"

@@ -6,7 +6,7 @@
 set -euo pipefail
 
 # Define directories using cached APP_ROOT
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 AUTOGEN_LIB_DIR="${APP_ROOT}/resources/autogen-studio/lib"
 AUTOGEN_DIR="${APP_ROOT}/resources/autogen-studio"
 

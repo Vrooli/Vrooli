@@ -8,7 +8,7 @@
 # can provide as fallbacks or alternatives for other resources.
 #######################################
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 REGISTRY_DIR="${APP_ROOT}/resources/browserless/adapters"
 BROWSERLESS_RESOURCE_DIR="${APP_ROOT}/resources/browserless"
 

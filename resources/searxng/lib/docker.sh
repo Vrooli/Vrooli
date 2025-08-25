@@ -2,7 +2,7 @@
 # SearXNG Docker Operations - Ultra-Simplified
 # Uses docker-resource-utils.sh for minimal boilerplate
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 SEARXNG_LIB_DIR="${APP_ROOT}/resources/searxng/lib"
 
 # Source shared libraries  

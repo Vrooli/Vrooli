@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Source required utilities
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
 SCRIPT_DIR="$APP_ROOT/resources/comfyui"
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/../../lib/utils/var.sh" 2>/dev/null || true
@@ -118,7 +118,7 @@ inject::check_accessibility() {
         return 0
     else
         log::error "ComfyUI is not accessible at $COMFYUI_HOST"
-        log::info "Ensure ComfyUI is running: ./scripts/resources/automation/comfyui/manage.sh --action start"
+        log::info "Ensure ComfyUI is running: ./resources/comfyui/manage.sh --action start"
         return 1
     fi
 }

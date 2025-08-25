@@ -6,7 +6,7 @@
 set -euo pipefail
 
 # Source shared integration test library
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 SCRIPT_DIR="${APP_ROOT}/resources/questdb/test"
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/../../../tests/lib/integration-test-lib.sh"

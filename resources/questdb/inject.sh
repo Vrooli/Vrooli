@@ -7,7 +7,7 @@ set -euo pipefail
 
 export DESCRIPTION="Inject tables and timeseries data into QuestDB database"
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
 SCRIPT_DIR="${APP_ROOT}/resources/questdb"
 RESOURCES_DIR="${APP_ROOT}/resources"
 
@@ -109,7 +109,7 @@ questdb_inject::check_accessibility() {
         return 0
     else
         log::error "QuestDB is not accessible at ${QUESTDB_HOST}:${QUESTDB_HTTP_PORT}"
-        log::info "Ensure QuestDB is running: ./scripts/resources/storage/questdb/manage.sh --action start"
+        log::info "Ensure QuestDB is running: ./resources/questdb/manage.sh --action start"
         return 1
     fi
 }

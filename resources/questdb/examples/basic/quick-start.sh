@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
 SCRIPT_DIR="$APP_ROOT/resources/questdb/examples/basic"
 MANAGE_SCRIPT="$APP_ROOT/resources/questdb/manage.sh"
 

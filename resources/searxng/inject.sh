@@ -7,7 +7,7 @@ set -euo pipefail
 
 export DESCRIPTION="Inject search engines, settings, and configurations into SearXNG meta search engine"
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
 SEARXNG_SCRIPT_DIR="${APP_ROOT}/resources/searxng"
 
 # shellcheck disable=SC1091
@@ -134,7 +134,7 @@ searxng_inject::check_accessibility() {
         return 0
     else
         log::error "SearXNG is not accessible at $SEARXNG_HOST"
-        log::info "Ensure SearXNG is running: ./scripts/resources/search/searxng/manage.sh --action start"
+        log::info "Ensure SearXNG is running: ./resources/searxng/manage.sh --action start"
         return 1
     fi
 }
@@ -686,7 +686,7 @@ searxng_inject::inject_data() {
     # Note about applying settings
     if [[ "$has_engines" == "true" || "$has_server" == "true" || "$has_outgoing" == "true" ]]; then
         log::warn "Note: Some settings require SearXNG restart to take effect"
-        log::info "Restart SearXNG: ./scripts/resources/search/searxng/manage.sh --action restart"
+        log::info "Restart SearXNG: ./resources/searxng/manage.sh --action restart"
     fi
     
     return 0

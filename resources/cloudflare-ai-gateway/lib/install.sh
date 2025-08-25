@@ -3,12 +3,13 @@
 
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 SCRIPT_DIR="${APP_ROOT}/resources/cloudflare-ai-gateway/lib"
 RESOURCE_DIR="${APP_ROOT}/resources/cloudflare-ai-gateway"
 RESOURCE_NAME="cloudflare-ai-gateway"
 
-# Source installation helpers
+# Source utilities
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${APP_ROOT}/scripts/lib/utils/install-resource-cli.sh"
 
 # Install the resource
@@ -22,7 +23,7 @@ install_cloudflare_ai_gateway() {
     fi
     
     # Initialize data directory
-    local data_dir="${HOME}/Vrooli/data/cloudflare-ai-gateway"
+    local data_dir="${var_DATA_DIR}/resources/cloudflare-ai-gateway"
     mkdir -p "${data_dir}"
     mkdir -p "${data_dir}/configs"
     mkdir -p "${data_dir}/logs"
@@ -87,7 +88,7 @@ uninstall_cloudflare_ai_gateway() {
     uninstall_resource_cli "${RESOURCE_NAME}"
     
     echo "✓ Cloudflare AI Gateway resource uninstalled"
-    echo "Note: Data directory preserved at: ${HOME}/Vrooli/data/cloudflare-ai-gateway"
+    echo "Note: Data directory preserved at: ${var_DATA_DIR}/resources/cloudflare-ai-gateway"
     
     return 0
 }

@@ -7,7 +7,7 @@
 set -euo pipefail
 
 # Source trash module for safe cleanup
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
 SCRIPT_DIR="${APP_ROOT}/resources/claude-code/examples/01-basic-usage"
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/../../../../../lib/utils/var.sh" 2>/dev/null || true
@@ -26,7 +26,7 @@ fi
 
 # Verify Claude Code status
 echo "📋 Checking Claude Code status..."
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
 SCRIPT_DIR="${APP_ROOT}/resources/claude-code/examples/01-basic-usage"
 MANAGE_SCRIPT="$SCRIPT_DIR/../../manage.sh"
 if ! "$MANAGE_SCRIPT" --action status &> /dev/null; then

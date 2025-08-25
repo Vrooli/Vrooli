@@ -19,7 +19,7 @@ autogpt_install() {
     autogpt_create_default_config
     
     # Install CLI
-    APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+    APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
     local cli_script_dir="${APP_ROOT}/resources/autogpt/lib"
     "${APP_ROOT}/scripts/resources/lib/install-resource-cli.sh" "execution/autogpt"
     
@@ -42,7 +42,7 @@ autogpt_uninstall() {
     fi
     
     # Uninstall CLI
-    APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+    APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
     "${APP_ROOT}/scripts/resources/lib/uninstall-resource-cli.sh" autogpt
     
     echo "[SUCCESS] AutoGPT uninstalled"

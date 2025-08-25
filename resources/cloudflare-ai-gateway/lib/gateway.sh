@@ -3,10 +3,14 @@
 
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 SCRIPT_DIR="${APP_ROOT}/resources/cloudflare-ai-gateway/lib"
 RESOURCE_DIR="${APP_ROOT}/resources/cloudflare-ai-gateway"
-DATA_DIR="${HOME}/Vrooli/data/cloudflare-ai-gateway"
+
+# Source utilities
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+
+DATA_DIR="${var_DATA_DIR}/resources/cloudflare-ai-gateway"
 CONFIG_FILE="${DATA_DIR}/config.json"
 STATE_FILE="${DATA_DIR}/state.json"
 

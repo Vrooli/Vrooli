@@ -2,7 +2,7 @@
 # Claude Code Installation Functions
 # Handles installation and uninstallation of Claude Code CLI
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 CLAUDE_CODE_LIB_DIR="${APP_ROOT}/resources/claude-code/lib"
 
 # Source required utilities

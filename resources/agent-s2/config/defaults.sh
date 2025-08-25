@@ -3,7 +3,7 @@
 # This file contains all configuration constants and defaults for the Agent-S2 resource
 
 # Source var.sh first to get proper directory variables
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 _DEFAULTS_DIR="${APP_ROOT}/resources/agent-s2/config"
 # shellcheck disable=SC1091
 source "${APP_ROOT}/scripts/lib/utils/var.sh"

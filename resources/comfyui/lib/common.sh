@@ -2,7 +2,7 @@
 # ComfyUI Common Utilities
 
 # Source required utilities using unique directory variables
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 COMFYUI_LIB_DIR="${APP_ROOT}/resources/comfyui/lib"
 # shellcheck disable=SC1091
 source "${COMFYUI_LIB_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true

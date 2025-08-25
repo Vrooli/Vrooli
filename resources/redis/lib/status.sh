@@ -2,12 +2,12 @@
 # Redis Status Management - Standardized Format
 # Functions for checking and displaying Redis status information
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 REDIS_STATUS_DIR="${APP_ROOT}/resources/redis/lib"
 # shellcheck disable=SC1091
 source "${APP_ROOT}/scripts/lib/utils/format.sh"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/status-args.sh"
+source "${APP_ROOT}/scripts/resources/lib/status-args.sh"
 # shellcheck disable=SC1091
 source "${REDIS_STATUS_DIR}/../config/defaults.sh" 2>/dev/null || true
 # shellcheck disable=SC1091

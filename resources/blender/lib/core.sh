@@ -1,7 +1,7 @@
 #!/bin/bash
 # Blender core functionality
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 BLENDER_CORE_DIR="${APP_ROOT}/resources/blender/lib"
 
 # Source utilities (disable strict mode for compatibility)

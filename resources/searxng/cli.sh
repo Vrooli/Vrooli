@@ -18,11 +18,14 @@ if [[ -L "${BASH_SOURCE[0]}" ]]; then
 else
     SEARXNG_CLI_SCRIPT="${BASH_SOURCE[0]}"
 fi
-SEARXNG_CLI_DIR="$(builtin cd "${SEARXNG_CLI_SCRIPT%/*" && builtin pwd)"
+SEARXNG_CLI_DIR="$(builtin cd "${SEARXNG_CLI_SCRIPT%/*}" && builtin pwd)"
+
+# Cached APP_ROOT for performance
+APP_ROOT="${APP_ROOT:-$(builtin cd "${SEARXNG_CLI_DIR}/../.." && builtin pwd)}"
 
 # Source standard variables
 # shellcheck disable=SC1091
-source "${SEARXNG_CLI_DIR}/../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 # Source utilities using var_ variables
 # shellcheck disable=SC1091

@@ -2,7 +2,7 @@
 # SimPy configuration defaults
 
 # Get script directory
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 SIMPY_CONFIG_DIR="${APP_ROOT}/resources/simpy/config"
 
 # Source variable utilities FIRST
@@ -11,7 +11,7 @@ source "${SIMPY_CONFIG_DIR}/../../../../lib/utils/var.sh"
 
 # SimPy Configuration
 export SIMPY_NAME="simpy"
-export SIMPY_DATA_DIR="${var_ROOT_DIR}/data/simpy"
+export SIMPY_DATA_DIR="${var_DATA_DIR}/resources/simpy"
 export SIMPY_VENV_DIR="${SIMPY_DATA_DIR}/venv"
 export SIMPY_EXAMPLES_DIR="${SIMPY_DATA_DIR}/examples"
 export SIMPY_MODELS_DIR="${SIMPY_DATA_DIR}/models"

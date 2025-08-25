@@ -7,7 +7,7 @@ FORCE="${FORCE:-no}"
 YES="${YES:-no}"
 
 # Source required utilities
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 SEARXNG_INSTALL_DIR="${APP_ROOT}/resources/searxng/lib"
 source "${SEARXNG_INSTALL_DIR}/../../../../lib/utils/log.sh" 2>/dev/null || true
 source "${SEARXNG_INSTALL_DIR}/../../../../lib/docker-utils.sh" 2>/dev/null || true

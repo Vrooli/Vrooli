@@ -2,15 +2,15 @@
 set -euo pipefail
 
 # Define directories using cached APP_ROOT
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 CLINE_LIB_DIR="${APP_ROOT}/resources/cline/lib"
 CLINE_DIR="${APP_ROOT}/resources/cline"
 
 # Source utilities
-source "$CLINE_DIR/../../../lib/utils/var.sh"
-source "$CLINE_DIR/../../../lib/utils/format.sh"
-source "$CLINE_DIR/../../../lib/utils/log.sh"
-source "$CLINE_DIR/../../port_registry.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/format.sh"
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
+source "${APP_ROOT}/scripts/resources/port_registry.sh"
 
 # Resource constants
 export CLINE_NAME="cline"
@@ -44,7 +44,7 @@ export MSG_CLINE_UNINSTALLING="Uninstalling Cline extension..."
 cline::ensure_dirs() {
     mkdir -p "$CLINE_CONFIG_DIR"
     mkdir -p "$CLINE_DATA_DIR"
-    mkdir -p "${VSCODE_SETTINGS%/*"
+    mkdir -p "${VSCODE_SETTINGS%/*}"
 }
 
 # Check if VS Code is installed

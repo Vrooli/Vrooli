@@ -2,7 +2,7 @@
 # Blender injection functionality
 
 # Get script directory
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 BLENDER_INJECT_DIR="${APP_ROOT}/resources/blender/lib"
 
 # Only source core.sh if functions aren't already defined

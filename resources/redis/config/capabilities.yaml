@@ -195,7 +195,7 @@ spec:
   
   # Testing and validation
   testing:
-    test_file: "scripts/resources/storage/redis/test/integration-test.sh"
+    test_file: "resources/redis/test/integration-test.sh"
     test_coverage:
       - service_health
       - basic_operations
@@ -213,11 +213,11 @@ spec:
   
   # Documentation and examples
   documentation:
-    readme: "scripts/resources/storage/redis/README.md"
-    api_reference: "scripts/resources/storage/redis/docs/API.md"
-    examples_dir: "scripts/resources/storage/redis/examples/"
-    configuration: "scripts/resources/storage/redis/docs/CONFIGURATION.md"
-    troubleshooting: "scripts/resources/storage/redis/docs/TROUBLESHOOTING.md"
+    readme: "resources/redis/README.md"
+    api_reference: "resources/redis/docs/API.md"
+    examples_dir: "resources/redis/examples/"
+    configuration: "resources/redis/docs/CONFIGURATION.md"
+    troubleshooting: "resources/redis/docs/TROUBLESHOOTING.md"
   
   # Version and compatibility
   version_info:

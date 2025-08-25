@@ -3,7 +3,7 @@
 # Functions for checking and displaying ComfyUI status information
 
 # Source format utilities and config
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 COMFYUI_STATUS_DIR="${APP_ROOT}/resources/comfyui/lib"
 # shellcheck disable=SC1091
 source "${COMFYUI_STATUS_DIR}/../../../../lib/utils/format.sh"

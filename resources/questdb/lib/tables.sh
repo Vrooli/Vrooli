@@ -2,7 +2,7 @@
 # QuestDB Table Management Functions
 
 # Source required utilities
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 QUESTDB_LIB_DIR="${APP_ROOT}/resources/questdb/lib"
 # shellcheck disable=SC1091
 source "${QUESTDB_LIB_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
