@@ -37,7 +37,7 @@ services:
       - DB_ROOT_PASSWORD=admin
     volumes:
       - erpnext-app-data:/home/frappe/frappe-bench/sites
-      - /home/matthalloran8/.erpnext/apps:/home/frappe/frappe-bench/apps/custom
+      - ${HOME}/.erpnext/apps:/home/frappe/frappe-bench/apps/custom
     depends_on:
       - erpnext-db
       - erpnext-redis

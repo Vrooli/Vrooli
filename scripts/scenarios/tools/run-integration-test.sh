@@ -24,7 +24,7 @@ APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pw
 SCENARIO_TOOLS_DIR="${APP_ROOT}/scripts/scenarios/tools"
 
 # shellcheck disable=SC1091
-source "${SCENARIO_TOOLS_DIR}/../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
 
@@ -377,7 +377,7 @@ run_integration_tests() {
     print_check "Running integration tests from $(basename "$test_file")..."
     
     # Use the scenario test runner if available
-    local test_runner="${var_SCRIPTS_SCENARIOS_DIR}/framework/scenario-test-runner.sh"
+    local test_runner="${var_SCRIPTS_SCENARIOS_DIR}/validation/scenario-test-runner.sh"
     
     if [[ -f "$test_runner" ]]; then
         if "$test_runner" --scenario "$SCENARIO_PATH" ${VERBOSE:+--verbose}; then

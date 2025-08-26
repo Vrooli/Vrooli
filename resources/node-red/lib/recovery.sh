@@ -6,7 +6,7 @@ APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pw
 NODE_RED_RECOVERY_LIB_DIR="${APP_ROOT}/resources/node-red/lib"
 
 # shellcheck disable=SC1091
-source "${NODE_RED_RECOVERY_LIB_DIR}/../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_LIB_DIR}/backup-framework.sh"
 

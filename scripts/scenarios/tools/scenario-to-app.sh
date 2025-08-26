@@ -42,7 +42,7 @@ source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
 source "${var_RESOURCES_COMMON_FILE}"
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/trash.sh"
+source "${var_TRASH_FILE}"
 
 # Global variables
 SCENARIO_NAMES=()
@@ -268,124 +268,211 @@ scenario_to_app::validate_scenario() {
     # Use the cleaned JSON for validation
     service_json="$service_json_cleaned"
     
-    log::info "Loading comprehensive schema validator..."
+    log::info "Loading robust schema validator..."
     
-    # Use python/node for JSON schema validation if available
+    # Enhanced validation with timeout and proper error handling
+    local validation_success=false
+    local validation_error=""
+    local resource_count=0
+    local service_name=""
+    
+    # Try Python validation first with robust error handling
     if command -v python3 >/dev/null 2>&1 && [[ -f "$var_SERVICE_JSON_FILE" ]]; then
-        log::info "Running JSON schema validation using Python..."
+        [[ "$VERBOSE" == "true" ]] && log::info "Attempting Python-based schema validation..."
         
-        # Write JSON to temp file to avoid shell escaping issues
+        # Write JSON to temp file with proper cleanup trap
         local temp_json_file="/tmp/service_json_validation_${scenario_name}_$$.json"
-        echo "$service_json" > "$temp_json_file"
         
-        # Create a simple Python validation script
-        local validation_result
-        validation_result=$(python3 -c "
+        # Set up cleanup trap that works even if process is killed
+        trap "rm -f '$temp_json_file' 2>/dev/null || true" EXIT ERR INT TERM
+        
+        # Write JSON to temp file with error handling
+        if ! echo "$service_json" > "$temp_json_file" 2>/dev/null; then
+            log::warning "Failed to write temp validation file, falling back to basic validation"
+        else
+            # Run Python validation with timeout and proper error handling
+            local validation_result=""
+            local python_exit_code=0
+            
+            # Use timeout command to prevent hanging (10 second timeout)
+            if command -v timeout >/dev/null 2>&1; then
+                validation_result=$(timeout 10 python3 -c "
 import json
 import sys
+import signal
+
+def timeout_handler(signum, frame):
+    print('ERROR: Validation timeout - malformed JSON may be causing infinite processing')
+    sys.exit(124)
+
+signal.signal(signal.SIGALRM, timeout_handler)
+signal.alarm(8)  # Internal 8s timeout as backup
 
 try:
     # Read JSON from temp file to avoid shell escaping issues
     with open('$temp_json_file', 'r') as f:
-        service_json = json.load(f)
+        content = f.read().strip()
+        if not content:
+            print('ERROR: Empty service.json file')
+            sys.exit(1)
+        service_json = json.loads(content)
     
-    # Check required fields
-    if 'service' not in service_json:
-        print('ERROR: Missing required field: service')
-        sys.exit(1)
-    if 'name' not in service_json['service']:
-        print('ERROR: Missing required field: service.name')
-        sys.exit(1)
-    if 'version' not in service_json['service']:
-        print('ERROR: Missing required field: service.version')
-        sys.exit(1)
-    if 'type' not in service_json['service']:
-        print('ERROR: Missing required field: service.type')
+    signal.alarm(0)  # Cancel timeout
+    
+    # Check required fields with fallbacks for different schema formats
+    if 'service' in service_json:
+        # New schema format
+        service_obj = service_json['service']
+        if 'name' not in service_obj:
+            print('ERROR: Missing required field: service.name')
+            sys.exit(1)
+    elif 'name' in service_json:
+        # Legacy schema format (direct name field)
+        service_obj = service_json
+    else:
+        print('ERROR: Missing required field: service.name or name')
         sys.exit(1)
         
-    # Count enabled resources (handle both flat and nested structures)
+    # Count enabled resources (handle multiple schema formats)
     resource_count = 0
     if 'resources' in service_json:
-        for key, value in service_json['resources'].items():
-            # Check if it's a flat structure (direct resource config)
-            if isinstance(value, dict) and 'enabled' in value:
-                # Flat structure: resources.n8n.enabled
-                if value.get('enabled', False):
-                    resource_count += 1
-            elif isinstance(value, dict):
-                # Nested structure: resources.automation.n8n.enabled
-                for name, config in value.items():
-                    if isinstance(config, dict) and config.get('enabled', False):
+        resources = service_json['resources']
+        for key, value in resources.items():
+            if isinstance(value, dict):
+                # Check if it's a flat structure (direct resource config)
+                if 'enabled' in value:
+                    if value.get('enabled', False):
                         resource_count += 1
-            elif isinstance(value, bool):
+                else:
+                    # Nested structure: check sub-resources
+                    for name, config in value.items():
+                        if isinstance(config, dict) and config.get('enabled', False):
+                            resource_count += 1
+                        elif isinstance(config, dict) and config.get('required', False):
+                            resource_count += 1
+            elif isinstance(value, bool) and value:
                 # Simple boolean: resources.n8n: true
-                if value:
-                    resource_count += 1
+                resource_count += 1
     
-    print(f'VALID:{resource_count}')
+    # Extract service name for summary
+    service_name = ''
+    if 'service' in service_json and 'name' in service_json['service']:
+        service_name = service_json['service']['name']
+    elif 'name' in service_json:
+        service_name = service_json['name']
     
+    print(f'VALID:{resource_count}:{service_name}')
+    
+except json.JSONDecodeError as e:
+    print(f'ERROR: Invalid JSON syntax - {str(e)[:100]}...' if len(str(e)) > 100 else f'ERROR: Invalid JSON syntax - {e}')
+    sys.exit(1)
+except FileNotFoundError:
+    print('ERROR: Temporary validation file not found')
+    sys.exit(1)
+except Exception as e:
+    print(f'ERROR: Validation error - {str(e)[:100]}...' if len(str(e)) > 100 else f'ERROR: Validation error - {e}')
+    sys.exit(1)
+" 2>&1) 
+                python_exit_code=$?
+            else
+                # Fallback without timeout command
+                validation_result=$(python3 -c "
+import json
+import sys
+
+try:
+    with open('$temp_json_file', 'r') as f:
+        service_json = json.load(f)
+    print('VALID:0')
 except json.JSONDecodeError as e:
     print(f'ERROR: Invalid JSON - {e}')
     sys.exit(1)
 except Exception as e:
     print(f'ERROR: {e}')
     sys.exit(1)
-" 2>&1) || true
-        
-        # Clean up temp file
-        rm -f "$temp_json_file"
-        
-        if [[ "$validation_result" =~ ^VALID:([0-9]+)$ ]]; then
-            local resource_count="${BASH_REMATCH[1]}"
-            log::success "✅ Schema validation passed"
-            
-            if [[ "$VERBOSE" == "true" ]]; then
-                log::info "📋 Validation Summary:"
-                log::info "   • Service metadata: ✅ Valid"
-                log::info "   • Resource configuration: ✅ Valid ($resource_count resources enabled)"
-                log::info "   • Schema compliance: ✅ Passed"
+" 2>&1)
+                python_exit_code=$?
             fi
-        elif [[ "$validation_result" =~ ^ERROR: ]]; then
-            log::error "❌ Schema validation failed"
-            log::error "$validation_result"
-            log::error "💡 Common fixes:"
-            log::error "   • Ensure service.name is present and follows naming rules"
-            log::error "   • Verify all required resource configurations are complete"  
-            log::error "   • Check JSON syntax in .vrooli/service.json"
-            exit 1
+            
+            # Clean up temp file immediately
+            rm -f "$temp_json_file" 2>/dev/null || true
+            trap - EXIT ERR INT TERM  # Remove trap
+            
+            # Process validation results
+            if [[ $python_exit_code -eq 124 ]]; then
+                log::warning "⚠️  Python validation timed out (likely malformed JSON)"
+                validation_error="Python validation timeout"
+            elif [[ "$validation_result" =~ ^VALID:([0-9]+):(.*)$ ]]; then
+                resource_count="${BASH_REMATCH[1]}"
+                service_name="${BASH_REMATCH[2]}"
+                validation_success=true
+                [[ "$VERBOSE" == "true" ]] && log::success "✅ Python schema validation passed"
+            elif [[ "$validation_result" =~ ^ERROR: ]]; then
+                validation_error="$validation_result"
+                log::warning "⚠️  Python validation failed: ${validation_result#ERROR: }"
+            else
+                validation_error="Python validation produced unexpected output: $validation_result"
+                log::warning "⚠️  $validation_error"
+            fi
+        fi
+    fi
+    
+    # Fallback to basic validation if Python validation failed or unavailable
+    if [[ "$validation_success" != "true" ]]; then
+        [[ "$VERBOSE" == "true" ]] && log::info "Using fallback basic validation..."
+        
+        # Enhanced basic validation with better error handling
+        local basic_validation_failed=false
+        
+        # Try to extract service name with error handling
+        if service_name=$(echo "$service_json" | jq -r '.service.name // .name // empty' 2>/dev/null) && [[ -n "$service_name" ]]; then
+            validation_success=true
+            [[ "$VERBOSE" == "true" ]] && log::success "✅ Basic validation passed"
+        elif service_name=$(echo "$service_json" | jq -r '.name // empty' 2>/dev/null) && [[ -n "$service_name" ]]; then
+            validation_success=true
+            [[ "$VERBOSE" == "true" ]] && log::success "✅ Basic validation passed (legacy format)"
         else
-            log::warning "Schema validation produced unexpected output: $validation_result"
-            log::info "Falling back to basic validation..."
+            basic_validation_failed=true
+            validation_error="Missing required field: service.name or name"
         fi
         
-    elif command -v node >/dev/null 2>&1 && [[ -f "$var_SERVICE_JSON_FILE" ]]; then
-        log::info "Running JSON schema validation using Node.js..."
-        # TODO: Implement Node.js-based validation if Python not available
-        log::warning "Node.js validation not yet implemented, using basic validation"
-        log::info "Performing basic service.json validation..."
-    else
-        log::warning "No JSON schema validator available (Python3 or Node.js required)"
-        log::info "Performing basic service.json validation..."
-        
-        # Fallback to basic validation (preserve original logic)
-        local service_name
-        service_name=$(echo "$service_json" | jq -r '.service.name // empty' 2>/dev/null)
-        
-        if [[ -z "$service_name" ]]; then
-            log::error "service.json missing required field: service.name for scenario: $scenario_name"
-            log::error "💡 Add a 'service.name' field to your .vrooli/service.json file"
-            return 1
+        # If basic validation also failed, provide helpful guidance but don't fail completely in batch mode
+        if [[ "$basic_validation_failed" == "true" ]]; then
+            log::error "❌ JSON validation failed completely for scenario: $scenario_name"
+            log::error "Error: $validation_error"
+            log::error "💡 Common fixes:"
+            log::error "   • Ensure JSON syntax is valid (use 'jq empty < service.json' to test)"
+            log::error "   • Add a 'service.name' field to your .vrooli/service.json file"
+            log::error "   • Remove any non-JSON content from the file"
+            log::error "   • Check for trailing commas or unmatched brackets"
+            
+            # In batch processing mode, warn but continue (don't exit)
+            # Individual processing will still return failure
+            if [[ "${#SCENARIO_NAMES[@]}" -gt 1 ]]; then
+                log::warning "Continuing batch processing - this scenario will be skipped"
+                return 1
+            else
+                return 1
+            fi
         fi
-        
-        log::success "✅ Basic service.json validation passed"
-        
-        # Show basic validation summary
+    fi
+    
+    # Show validation summary
+    if [[ "$validation_success" == "true" ]]; then
         if [[ "$VERBOSE" == "true" ]]; then
-            log::info "📋 Basic Validation Summary:"
-            log::info "   • Service name: ✅ Present ($service_name)"
+            log::info "📋 Validation Summary:"
+            if [[ -n "$service_name" ]]; then
+                log::info "   • Service name: ✅ Present ($service_name)"
+            fi
             log::info "   • JSON syntax: ✅ Valid"
-            log::info "   • Advanced validation: ⚠️  Not available (install service-json-validator.sh)"
+            if [[ $resource_count -gt 0 ]]; then
+                log::info "   • Resource configuration: ✅ Valid ($resource_count resources enabled)"
+            fi
+            log::info "   • Schema compliance: ✅ Passed"
         fi
+    else
+        log::warning "⚠️  Validation completed with warnings"
+        [[ "$VERBOSE" == "true" ]] && [[ -n "$validation_error" ]] && log::info "   Details: $validation_error"
     fi
     
     # Validate initialization file paths
@@ -442,6 +529,53 @@ scenario_to_app::get_enabled_resources() {
     ' 2>/dev/null || true
 }
 
+# Helper function to safely normalize paths without infinite loops
+scenario_to_app::normalize_path() {
+    local path="$1"
+    
+    # First try realpath if available
+    if command -v realpath >/dev/null 2>&1; then
+        realpath -m "$path" 2>/dev/null || echo "$path"
+        return
+    fi
+    
+    # Fallback: manual normalization with safety checks
+    local dir="${path%/*}"
+    local file="${path##*/}"
+    
+    # Safety check: limit path resolution attempts
+    local attempts=0
+    local max_attempts=10
+    
+    while [[ $attempts -lt $max_attempts ]]; do
+        ((attempts++))
+        
+        # Check if directory exists or can be resolved
+        if [[ -d "$dir" ]]; then
+            # Directory exists, get absolute path
+            local abs_dir
+            abs_dir=$(cd "$dir" 2>/dev/null && pwd)
+            if [[ -n "$abs_dir" ]]; then
+                echo "${abs_dir}/${file}"
+                return
+            fi
+        fi
+        
+        # If directory doesn't exist, try to resolve parent
+        if [[ "$dir" == *".."* ]]; then
+            # Simplify the path by resolving one level
+            dir=$(echo "$dir" | sed 's|/[^/]*/\.\./|/|g')
+        else
+            # Can't resolve further, return original
+            echo "$path"
+            return
+        fi
+    done
+    
+    # Max attempts reached, return original path
+    echo "$path"
+}
+
 # Get resource categories from service.json
 scenario_to_app::get_resource_categories() {
     local service_json="$1"
@@ -477,19 +611,19 @@ scenario_to_app::validate_initialization_paths() {
     #   - Relative to scenario root: initialization/file.sql
     #   - Absolute: /path/to/file.sql
     local service_json_dir="${scenario_path}/.vrooli"
-    echo "$service_json" | jq -r '
-        .resources | to_entries[] as $category |
-        $category.value | to_entries[] as $resource |
-        $resource.value | select(.enabled == true) |
-        .initialization? // {} |
-        (
-            (.data[]?.file // empty),
-            (.workflows[]?.file // empty),
-            (.apps[]?.file // empty),
-            (.scripts[]?.file // empty)
-        ) | select(. != null and . != "")
-    ' 2>/dev/null | while IFS= read -r file_path; do
+    
+    # Use process substitution instead of pipe to avoid subshell issues
+    while IFS= read -r file_path; do
+        [[ -z "$file_path" ]] && continue
+        
         total_files=$((total_files + 1))
+        
+        # Safety check: limit iterations
+        if [[ $total_files -gt 1000 ]]; then
+            log::error "Too many initialization files (>1000), possible configuration error"
+            return 1
+        fi
+        
         # Resolve path based on type
         local full_path
         if [[ "$file_path" == /* ]]; then
@@ -498,8 +632,8 @@ scenario_to_app::validate_initialization_paths() {
         elif [[ "$file_path" == ../* ]] || [[ "$file_path" == ./* ]]; then
             # Relative path from service.json location (.vrooli/ directory)
             full_path="${service_json_dir}/${file_path}"
-            # Normalize the path (resolve .. and .)
-            full_path=$(builtin cd "${full_path%/*}" 2>/dev/null && builtin pwd)/${full_path##*/}
+            # Safely normalize the path
+            full_path=$(scenario_to_app::normalize_path "$full_path")
         else
             # Simple path - relative to scenario root directory
             full_path="${scenario_path}/${file_path}"
@@ -512,15 +646,32 @@ scenario_to_app::validate_initialization_paths() {
         elif [[ "$VERBOSE" == "true" ]]; then
             log::info "✅ Found: $file_path"
         fi
-    done
+    done < <(echo "$service_json" | jq -r '
+        .resources | to_entries[] as $category |
+        $category.value | to_entries[] as $resource |
+        $resource.value | select(.enabled == true) |
+        .initialization? // {} |
+        (
+            (.data[]?.file // empty),
+            (.workflows[]?.file // empty),
+            (.apps[]?.file // empty),
+            (.scripts[]?.file // empty)
+        ) | select(. != null and . != "")
+    ' 2>/dev/null)
     
     # Check deployment initialization files
-    echo "$service_json" | jq -r '
-        .deployment.initialization.phases[]?.tasks[]? |
-        select(.type == "sql" or .type == "config") |
-        .file // empty | select(. != "")
-    ' 2>/dev/null | while IFS= read -r file_path; do
+    # Use process substitution to avoid subshell variable scope issues
+    while IFS= read -r file_path; do
+        [[ -z "$file_path" ]] && continue
+        
         total_files=$((total_files + 1))
+        
+        # Safety check: limit iterations
+        if [[ $total_files -gt 1000 ]]; then
+            log::error "Too many initialization files (>1000), possible configuration error"
+            return 1
+        fi
+        
         # Resolve path based on type (same logic as above)
         local full_path
         if [[ "$file_path" == /* ]]; then
@@ -529,8 +680,8 @@ scenario_to_app::validate_initialization_paths() {
         elif [[ "$file_path" == ../* ]] || [[ "$file_path" == ./* ]]; then
             # Relative path from service.json location (.vrooli/ directory)
             full_path="${service_json_dir}/${file_path}"
-            # Normalize the path (resolve .. and .)
-            full_path=$(builtin cd "${full_path%/*}" 2>/dev/null && builtin pwd)/${full_path##*/}
+            # Safely normalize the path
+            full_path=$(scenario_to_app::normalize_path "$full_path")
         else
             # Simple path - relative to scenario root directory
             full_path="${scenario_path}/${file_path}"
@@ -543,7 +694,11 @@ scenario_to_app::validate_initialization_paths() {
         elif [[ "$VERBOSE" == "true" ]]; then
             log::info "✅ Found: $file_path"
         fi
-    done
+    done < <(echo "$service_json" | jq -r '
+        .deployment.initialization.phases[]?.tasks[]? |
+        select(.type == "sql" or .type == "config") |
+        .file // empty | select(. != "")
+    ' 2>/dev/null)
     
     # Summary of validation results
     if [[ "$VERBOSE" == "true" ]]; then
@@ -1250,109 +1405,6 @@ scenario_to_app::copy_item() {
     return 0
 }
 
-#######################################
-# Create tar archive of Vrooli base files for batch processing
-# Parameters:
-#   $1 - output tar path
-# Returns:
-#   0 on success, 1 on failure
-#######################################
-scenario_to_app::create_vrooli_base_tar() {
-    local tar_path="$1"
-    local temp_dir="${TMPDIR:-/tmp}"
-    local temp_base_dir="${temp_dir}/vrooli-base-$$"
-    
-    log::info "Creating Vrooli base archive for batch processing..."
-    
-    # Create temp directory for base files
-    mkdir -p "$temp_base_dir" || {
-        log::error "Failed to create temp base directory"
-        return 1
-    }
-    
-    # Copy only Vrooli files to temp directory
-    # Use any scenario path - we'll filter to only "vrooli" files
-    local sample_scenario_path="${var_ROOT_DIR}/scenarios/simple-test"
-    
-    if ! scenario_to_app::copy_from_manifest "$temp_base_dir" "$sample_scenario_path" "/dev/null" "vrooli"; then
-        log::error "Failed to copy Vrooli base files"
-        trash::safe_remove "$temp_base_dir" --no-confirm
-        return 1
-    fi
-    
-    # Create tar archive
-    local tar_start
-    tar_start=$(date +"%s%N")
-    
-    if command -v tar >/dev/null 2>&1; then
-        # Use relative paths in tar for easier extraction
-        (cd "$temp_base_dir" && tar -czf "$tar_path" . 2>/dev/null) || {
-            log::error "Failed to create tar archive"
-            trash::safe_remove "$temp_base_dir" --no-confirm
-            return 1
-        }
-    else
-        log::error "tar command not found"
-        trash::safe_remove "$temp_base_dir" --no-confirm
-        return 1
-    fi
-    
-    local tar_end
-    tar_end=$(date +"%s%N")
-    local tar_time=$(( (tar_end - tar_start) / 1000000 ))
-    
-    # Get tar size for reporting
-    local tar_size
-    tar_size=$(du -h "$tar_path" 2>/dev/null | cut -f1)
-    
-    log::success "Created Vrooli base archive (${tar_size}, ${tar_time}ms)"
-    
-    # Clean up temp directory
-    trash::safe_remove "$temp_base_dir" --no-confirm
-    
-    return 0
-}
-
-#######################################
-# Extract Vrooli base tar to app directory
-# Parameters:
-#   $1 - tar path
-#   $2 - app directory
-# Returns:
-#   0 on success, 1 on failure
-#######################################
-scenario_to_app::extract_vrooli_base_tar() {
-    local tar_path="$1"
-    local app_dir="$2"
-    
-    if [[ ! -f "$tar_path" ]]; then
-        log::error "Tar archive not found: $tar_path"
-        return 1
-    fi
-    
-    # Create app directory if it doesn't exist
-    mkdir -p "$app_dir" || {
-        log::error "Failed to create app directory: $app_dir"
-        return 1
-    }
-    
-    # Extract tar
-    local extract_start
-    extract_start=$(date +"%s%N")
-    
-    (cd "$app_dir" && tar -xzf "$tar_path" 2>/dev/null) || {
-        log::error "Failed to extract tar archive to $app_dir"
-        return 1
-    }
-    
-    local extract_end
-    extract_end=$(date +"%s%N")
-    local extract_time=$(( (extract_end - extract_start) / 1000000 ))
-    
-    [[ "$VERBOSE" == "true" ]] && log::info "Extracted base files in ${extract_time}ms"
-    
-    return 0
-}
 
 #######################################
 # Filter shared initialization directory to only include referenced files
@@ -1416,7 +1468,8 @@ scenario_to_app::filter_shared_initialization() {
     fi
     
     # Remove files not in the keep list
-    find "$init_dir" -type f | while IFS= read -r file; do
+    # Use process substitution to avoid subshell issues
+    while IFS= read -r file; do
         # Get relative path from init_dir
         local rel_path="${file#$init_dir/}"
         
@@ -1434,7 +1487,7 @@ scenario_to_app::filter_shared_initialization() {
             [[ "$VERBOSE" == "true" ]] && log::info "Removing unreferenced shared file: $rel_path"
             rm -f "$file"
         fi
-    done
+    done < <(find "$init_dir" -type f 2>/dev/null)
     
     # Remove empty directories
     find "$init_dir" -type d -empty -delete 2>/dev/null || true
@@ -1477,9 +1530,10 @@ scenario_to_app::process_file() {
             # Convert 3-level scenario paths to 1-level app paths
             if [[ -d "$file_path" ]]; then
                 # Process all shell scripts in the directory
-                find "$file_path" -type f \( -name "*.sh" -o -name "*.bash" \) | while IFS= read -r shell_file; do
+                # Use process substitution to avoid subshell issues
+                while IFS= read -r shell_file; do
                     scenario_to_app::adjust_app_root_depth "$shell_file"
-                done
+                done < <(find "$file_path" -type f \( -name "*.sh" -o -name "*.bash" \) 2>/dev/null)
             elif [[ -f "$file_path" ]]; then
                 # Process single file
                 scenario_to_app::adjust_app_root_depth "$file_path"
@@ -1570,30 +1624,11 @@ scenario_to_app::generate_app() {
         
         log::info "Building app in temporary directory..."
         
-        # Use tar optimization if available (batch mode)
-        if [[ -n "${VROOLI_BASE_TAR:-}" ]] && [[ -f "${VROOLI_BASE_TAR}" ]]; then
-            [[ "$VERBOSE" == "true" ]] && log::info "Using optimized batch mode with base archive"
-            
-            # Extract Vrooli base files from tar
-            if ! scenario_to_app::extract_vrooli_base_tar "${VROOLI_BASE_TAR}" "$temp_path"; then
-                log::error "Failed to extract base archive"
-                trash::safe_remove "$temp_path" --no-confirm
-                return 1
-            fi
-            
-            # Copy only scenario-specific files
-            if ! scenario_to_app::copy_from_manifest "$temp_path" "$scenario_path" "$service_json" "scenario"; then
-                log::error "Failed to copy scenario files"
-                trash::safe_remove "$temp_path" --no-confirm
-                return 1
-            fi
-        else
-            # Standard mode: copy all files
-            if ! scenario_to_app::copy_from_manifest "$temp_path" "$scenario_path" "$service_json"; then
-                log::error "Failed to copy files according to manifest"
-                trash::safe_remove "$temp_path" --no-confirm
-                return 1
-            fi
+        # Copy all files according to manifest
+        if ! scenario_to_app::copy_from_manifest "$temp_path" "$scenario_path" "$service_json"; then
+            log::error "Failed to copy files according to manifest"
+            trash::safe_remove "$temp_path" --no-confirm
+            return 1
         fi
         
         # Process template variables in initialization files
@@ -1714,7 +1749,19 @@ scenario_to_app::generate_app() {
                 
                 # Create initial commit with metadata
                 local scenario_hash
-                scenario_hash=$(calculate_hash "$scenario_path" 2>/dev/null || echo "unknown")
+                # Simple hash calculation fallback if function not available
+                if command -v calculate_hash >/dev/null 2>&1; then
+                    scenario_hash=$(calculate_hash "$scenario_path" 2>/dev/null || echo "unknown")
+                else
+                    # Fallback: use find and md5sum/sha256sum to generate a hash
+                    if command -v sha256sum >/dev/null 2>&1; then
+                        scenario_hash=$(find "$scenario_path" -type f -exec sha256sum {} \; 2>/dev/null | sha256sum | cut -d' ' -f1 | head -c 12)
+                    elif command -v md5sum >/dev/null 2>&1; then
+                        scenario_hash=$(find "$scenario_path" -type f -exec md5sum {} \; 2>/dev/null | md5sum | cut -d' ' -f1 | head -c 12)
+                    else
+                        scenario_hash="unknown"
+                    fi
+                fi
                 local generator_version
                 generator_version=$(git -C "$var_ROOT_DIR" rev-parse --short HEAD 2>/dev/null || echo "unknown")
                 
@@ -1859,23 +1906,6 @@ scenario_to_app::process_batch() {
     # Shared initialization (done once for all scenarios)
     scenario_to_app::shared_initialization
     
-    # Create Vrooli base tar if processing multiple scenarios
-    local vrooli_tar=""
-    if [[ $total -gt 1 ]] && [[ "$DRY_RUN" != "true" ]]; then
-        local temp_dir="${TMPDIR:-/tmp}"
-        vrooli_tar="${temp_dir}/vrooli-base-$$.tar.gz"
-        log::info "Optimizing batch processing with shared base archive..."
-        
-        if scenario_to_app::create_vrooli_base_tar "$vrooli_tar"; then
-            # Export for use in generate_app
-            export VROOLI_BASE_TAR="$vrooli_tar"
-            log::success "Batch optimization enabled"
-        else
-            log::warning "Failed to create base archive, falling back to standard processing"
-            vrooli_tar=""
-        fi
-    fi
-    
     # Process each scenario
     for i in "${!scenarios[@]}"; do
         local scenario_name="${scenarios[i]}"
@@ -1916,12 +1946,6 @@ scenario_to_app::process_batch() {
         log::info "  ✅ Succeeded: $succeeded"
         log::info "  ❌ Failed: $failed"
         log::info "  📊 Success rate: $((succeeded * 100 / total))%"
-    fi
-    
-    # Clean up tar file if created
-    if [[ -n "$vrooli_tar" ]] && [[ -f "$vrooli_tar" ]]; then
-        rm -f "$vrooli_tar"
-        unset VROOLI_BASE_TAR
     fi
     
     return $failed

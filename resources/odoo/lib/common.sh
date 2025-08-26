@@ -8,9 +8,9 @@ export ODOO_RESOURCE_CATEGORY="execution"
 # Paths  
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 export ODOO_BASE_DIR="${APP_ROOT}/resources/odoo"
-export ODOO_DATA_DIR="${var_DATA_DIR:-/home/matthalloran8/Vrooli/data}/resources/odoo"
+export ODOO_DATA_DIR="${var_DATA_DIR:-${VROOLI_ROOT:-${HOME}/Vrooli}/data}/resources/odoo"
 export ODOO_CONFIG_DIR="$ODOO_BASE_DIR/config"
-export ODOO_LOG_FILE="${var_LOG_DIR:-/home/matthalloran8/Vrooli/logs}/odoo.log"
+export ODOO_LOG_FILE="${var_LOG_DIR:-${VROOLI_ROOT:-${HOME}/Vrooli}/logs}/odoo.log"
 
 # Docker configuration
 export ODOO_CONTAINER_NAME="vrooli-odoo"
@@ -65,7 +65,7 @@ odoo_logs() {
 
 # Register with port registry
 odoo_register_ports() {
-    local port_registry="$ODOO_BASE_DIR/../../port_registry.sh"
+    local port_registry="${APP_ROOT}/scripts/resources/port_registry.sh"
     if [[ -f "$port_registry" ]]; then
         "$port_registry" register "odoo" "$ODOO_PORT" "Odoo Web Interface"
         "$port_registry" register "odoo-longpolling" "$ODOO_LONGPOLLING_PORT" "Odoo Longpolling"

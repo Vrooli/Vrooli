@@ -5,6 +5,21 @@
 # a single, unified specification that ensures consistency across all resources.
 #
 # Migration Status: Active (v1.0 contracts are deprecated)
+#
+# CRITICAL SEMANTIC DISTINCTION:
+# ==============================
+# - 'test' commands: Validate the RESOURCE itself (health, connectivity, lib functions)
+# - 'content' commands: Use the resource's BUSINESS FUNCTIONALITY  
+#
+# Example - K6 Resource:
+# - resource-k6 test smoke      → Test if K6 service is healthy
+# - resource-k6 content execute → Use K6 to run performance tests
+#
+# Example - Database Resource:
+# - resource-postgres test smoke      → Test if DB is accessible  
+# - resource-postgres content execute → Use DB to run queries
+#
+# This prevents confusion between "testing the tool" vs "using the tool for testing"
 # ============================================================================
 
 version: "2.0"
@@ -111,8 +126,11 @@ commands:
         timeout_seconds: 180
   
   # ==================== Testing Commands ====================
+  # NOTE: These commands test the RESOURCE itself (health, connectivity, functions)
+  # NOT the business functionality the resource provides
+  # For example: K6 test commands validate K6 service health, not performance testing
   test:
-    description: "Run resource tests"
+    description: "Run resource validation tests"
     required: true
     subcommands:
       all:
@@ -123,6 +141,7 @@ commands:
           1: "One or more tests failed"
           2: "Tests skipped or not available"
         timeout_seconds: 600
+        implementation_requirement: "Must delegate to test/run-tests.sh all"
         
       integration:
         description: "Run integration tests"
@@ -132,6 +151,7 @@ commands:
           1: "Integration tests failed"
           2: "No integration tests available"
         timeout_seconds: 300
+        implementation_requirement: "Must delegate to test/phases/test-integration.sh"
         
       unit:
         description: "Run unit tests"
@@ -141,6 +161,7 @@ commands:
           1: "Unit tests failed"
           2: "No unit tests available"
         timeout_seconds: 180
+        implementation_requirement: "Must delegate to test/phases/test-unit.sh"
         
       smoke:
         description: "Quick health validation"
@@ -149,9 +170,11 @@ commands:
           0: "Smoke test passed"
           1: "Smoke test failed"
         timeout_seconds: 30
+        implementation_requirement: "Must delegate to test/phases/test-smoke.sh"
         
       # Resources can add custom test subcommands
       # e.g., performance, load, security, etc.
+      # NOTE: These test RESOURCE health, not business functionality
   
   # ==================== Content Management ====================
   content:
@@ -331,7 +354,45 @@ file_structure:
     docs/:
       description: "Documentation"
     test/:
-      description: "Test files and fixtures"
+      description: "Resource validation tests (not business functionality tests)"
+      required_structure:
+        run-tests.sh:
+          description: "Main test runner entry point"
+          executable: true
+          must_support:
+            - "Smoke tests (quick health check)"
+            - "Integration tests (full functionality)" 
+            - "Unit tests (library validation)"
+            - "Phase selection (--smoke, --integration, --unit, --all)"
+            - "Standard exit codes (0=pass, 1=fail)"
+        phases/:
+          description: "Test phase implementations"
+          required_files:
+            - "test-smoke.sh"      # Quick health validation (30s max)
+            - "test-integration.sh" # End-to-end functionality (120s max)
+            - "test-unit.sh"       # Library function validation (60s max)
+      optional_structure:
+        fixtures/:
+          description: "Test data and sample files"
+        helpers/:
+          description: "Test utility functions"
+        mocks/:
+          description: "Mock services and data"
+        config/:
+          description: "Test-specific configuration"
+      validation_requirements:
+        smoke_test:
+          max_duration: 30
+          exit_codes: [0, 1]
+          purpose: "Validate service health and basic connectivity"
+        integration_test:
+          max_duration: 120
+          exit_codes: [0, 1]  
+          purpose: "Validate end-to-end resource functionality"
+        unit_test:
+          max_duration: 60
+          exit_codes: [0, 1]
+          purpose: "Validate individual library functions"
     
   deprecated:
     manage.sh:

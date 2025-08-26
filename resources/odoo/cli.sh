@@ -4,9 +4,9 @@ set -euo pipefail
 # Get the real script directory (following symlinks)
 if [[ -L "${BASH_SOURCE[0]}" ]]; then
     RESOLVED_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
-    APP_ROOT="${APP_ROOT:-$(builtin cd "${RESOLVED_PATH%/*/.." && builtin pwd)}"
+    APP_ROOT="${APP_ROOT:-$(builtin cd "${RESOLVED_PATH%/*}/../.." && builtin pwd)}"
 else
-    APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/..\" && builtin pwd)}"
+    APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
 fi
 
 ODOO_CLI_DIR="${APP_ROOT}/resources/odoo"

@@ -1,42 +1,36 @@
 #!/usr/bin/env bash
 ################################################################################
-# K6 Resource CLI
+# K6 Resource CLI - v2.0 Universal Contract Compliant
 # 
 # Modern load testing tool with JavaScript scripting
 #
 # Usage:
-#   resource-k6 <command> [options]
+#   resource-k6 <command> [options]                    # v1.0 backward compatibility
+#   resource-k6 <group> <subcommand> [options]        # v2.0 style
 #
 ################################################################################
 
 set -euo pipefail
 
-# Get script directory (resolving symlinks for installed CLI)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+# Handle symlinks for installed CLI
 if [[ -L "${BASH_SOURCE[0]}" ]]; then
     K6_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
-else
-    K6_CLI_SCRIPT="${BASH_SOURCE[0]}"
+    # Recalculate APP_ROOT from resolved symlink location
+    APP_ROOT="$(builtin cd "${K6_CLI_SCRIPT%/*}/../.." && builtin pwd)"
 fi
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
 K6_CLI_DIR="${APP_ROOT}/resources/k6"
 
-# Source standard variables
 # shellcheck disable=SC1091
-source "${K6_CLI_DIR}/../../../lib/utils/var.sh"
-
-# Source utilities using var_ variables
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
 source "${var_RESOURCES_COMMON_FILE}"
-
-# Source the CLI Command Framework
 # shellcheck disable=SC1091
-source "${K6_CLI_DIR}/../../lib/cli-command-framework.sh"
-
-# Source K6 configuration
+source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 # shellcheck disable=SC1091
-source "${K6_CLI_DIR}/config/defaults.sh" 2>/dev/null || true
+source "${K6_CLI_DIR}/config/defaults.sh"
 
 # Source K6 libraries
 for lib in core docker install status inject content test; do
@@ -47,67 +41,48 @@ for lib in core docker install status inject content test; do
     fi
 done
 
-# Initialize CLI framework
-cli::init "k6" "Modern load testing tool with JavaScript scripting"
+# Initialize CLI framework in v2.0 mode (auto-creates manage/test/content groups)
+cli::init "k6" "K6 load testing platform management" "v2"
 
-# Status wrapper - directly call the status function with all arguments
-k6_status() {
-    # Pass all arguments directly to the status function
-    k6::status "$@"
-}
+# Override default handlers to point directly to k6 implementations
+CLI_COMMAND_HANDLERS["manage::install"]="k6::install::execute"
+CLI_COMMAND_HANDLERS["manage::start"]="k6::docker::start"  
+CLI_COMMAND_HANDLERS["manage::stop"]="k6::docker::stop"
+CLI_COMMAND_HANDLERS["manage::restart"]="k6::docker::restart"
+CLI_COMMAND_HANDLERS["test::smoke"]="k6::test::smoke"
 
-# Register commands
-cli::register_command "status" "Show service status" "k6_status"
-cli::register_command "install" "Install K6" "k6::install::execute" "modifies-system"
-cli::register_command "start" "Start K6 service" "k6::docker::start" "modifies-system"
-cli::register_command "stop" "Stop K6 service" "k6::docker::stop" "modifies-system"
-cli::register_command "restart" "Restart K6 service" "k6::docker::restart" "modifies-system"
-cli::register_command "logs" "Show K6 logs" "k6::docker::logs"
-cli::register_command "inject" "Inject test scripts into K6 (deprecated - use content add)" "k6::inject::execute" "modifies-system"
-cli::register_command "content" "Manage K6 content (scripts, data, results)" "k6::content" "modifies-system"
-cli::register_command "run-test" "Run a K6 test script" "k6::test::run" "modifies-system"
-cli::register_command "list-tests" "List available test scripts" "k6::test::list"
-cli::register_command "validate" "Validate installation" "k6::install::validate"
-cli::register_command "uninstall" "Uninstall K6" "k6::install::uninstall" "modifies-system"
+# Override content handlers for K6-specific performance testing functionality
+CLI_COMMAND_HANDLERS["content::add"]="k6::content::add"
+CLI_COMMAND_HANDLERS["content::list"]="k6::content::list" 
+CLI_COMMAND_HANDLERS["content::get"]="k6::content::get"
+CLI_COMMAND_HANDLERS["content::remove"]="k6::content::remove"
+CLI_COMMAND_HANDLERS["content::execute"]="k6::content::execute"
+
+# Add K6-specific content subcommands not in the standard framework
+cli::register_subcommand "content" "results" "Show recent performance test results" "k6::content::show_results"
+
+# Register additional K6-specific performance testing commands  
+cli::register_subcommand "test" "load" "Run load performance test" "k6::content::run_performance_test" "modifies-system"
+cli::register_subcommand "test" "stress" "Run stress performance test" "k6::test::stress" "modifies-system"
+
+# Additional information commands
 cli::register_command "credentials" "Show K6 credentials for integration" "k6::core::credentials"
-cli::register_command "help" "Show this help message with examples" "k6::help::show"
+cli::register_command "logs" "Show K6 logs" "k6::docker::logs"
 
-# Define help function
-k6::help::show() {
-    cat << 'EOF'
-⚡ Examples:
+# Legacy commands for backward compatibility with deprecation warnings
+cli::register_command "run-test" "Run a K6 performance test (deprecated - use 'content execute')" "k6::test::run" "modifies-system"
+cli::register_command "list-tests" "List available test scripts (deprecated - use 'content list')" "k6::test::list"
 
-  # Content management (NEW - preferred way)
-  resource-k6 content add --file test-script.js
-  resource-k6 content add --file data.csv --type data
-  resource-k6 content list
-  resource-k6 content get --name test-script.js
-  resource-k6 content execute --name test-script.js --options '--vus 10 --duration 30s'
-  resource-k6 content remove --name old-test.js
-
-  # Legacy test management (still supported)
-  resource-k6 inject test-script.js
-  resource-k6 inject shared:init/k6/performance-test.js
-  resource-k6 run-test my-test.js --vus 10 --duration 30s
-  resource-k6 list-tests
-
-  # Performance testing
-  resource-k6 run-test api-load.js --vus 100 --duration 5m
-  resource-k6 run-test stress-test.js --stages '10s:10,1m:50,10s:0'
-
-  # Management
-  resource-k6 status
-  resource-k6 logs 100
-  resource-k6 credentials
-
-  # Dangerous operations
-  resource-k6 uninstall --force
-
-Default Port: 6565 (Grafana Cloud integration)
-Script Language: JavaScript/ES6
-Features: Load testing, performance monitoring, CI/CD integration
-EOF
+# Enhanced stress test function (adds functionality beyond basic execute)
+k6::test::stress() {
+    k6::content::run_performance_test "$1" --stages "1m:10,5m:50,1m:100,2m:100,1m:0" --thresholds "http_req_duration[p(95)]<500" "${@:2}"
 }
 
-# Dispatch the command
-cli::dispatch "$@"
+################################################################################
+# Main execution - dispatch to v2.0 framework
+################################################################################
+
+# Only execute if script is run directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    cli::dispatch "$@"
+fi

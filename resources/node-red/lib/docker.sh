@@ -6,7 +6,7 @@
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 _NODE_RED_DOCKER_DIR="${APP_ROOT}/resources/node-red/lib"
 # shellcheck disable=SC1091
-source "${_NODE_RED_DOCKER_DIR}/../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 # Source shared libraries
 # shellcheck disable=SC1091

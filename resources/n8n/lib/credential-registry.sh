@@ -13,9 +13,9 @@ APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pw
 REGISTRY_DIR="${APP_ROOT}/resources/n8n/lib"
 
 # shellcheck disable=SC1091
-source "${REGISTRY_DIR}/../../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "${var_LOG_FILE:-${REGISTRY_DIR}/../../../../lib/utils/log.sh}"
+source "${var_LOG_FILE:-${APP_ROOT}/scripts/lib/utils/log.sh}"
 
 # Registry file path
 CREDENTIAL_REGISTRY_FILE="${var_ROOT_DIR}/data/resources/n8n/n8n-credentials-registry.json"
@@ -25,7 +25,7 @@ CREDENTIAL_REGISTRY_FILE="${var_ROOT_DIR}/data/resources/n8n/n8n-credentials-reg
 #######################################
 credential_registry::init() {
     local registry_dir
-    registry_dir=${CREDENTIAL_REGISTRY_FILE%/*
+    registry_dir=${CREDENTIAL_REGISTRY_FILE%/*}
     
     # Create directory if it doesn't exist
     mkdir -p "$registry_dir"

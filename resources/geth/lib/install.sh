@@ -87,7 +87,7 @@ geth::install() {
         # Register CLI
         echo "[INFO] Registering Geth CLI..."
         local cli_path="${GETH_INSTALL_DIR}/../cli.sh"
-        local install_cli_script="${GETH_INSTALL_DIR}/../../../lib/resources/install-resource-cli.sh"
+        local install_cli_script="${APP_ROOT}/scripts/resources/lib/install-resource-cli.sh"
         if [[ -f "$cli_path" ]] && [[ -f "$install_cli_script" ]]; then
             bash "$install_cli_script" geth "$cli_path" || true
         fi

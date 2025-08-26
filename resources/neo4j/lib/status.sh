@@ -8,10 +8,10 @@ source "$NEO4J_LIB_DIR/common.sh"
 source "$NEO4J_LIB_DIR/start.sh"
 
 # Source format utility for consistent output
-FORMAT_UTIL="${NEO4J_LIB_DIR}/../../../lib/utils/format.sh"
+FORMAT_UTIL="${APP_ROOT}/scripts/lib/utils/format.sh"
 [[ -f "$FORMAT_UTIL" ]] && source "$FORMAT_UTIL"
 # shellcheck disable=SC1091
-source "${NEO4J_LIB_DIR}/../../../lib/status-args.sh"
+source "${APP_ROOT}/scripts/resources/lib/status-args.sh"
 
 #######################################
 # Collect Neo4j status data in format-agnostic structure

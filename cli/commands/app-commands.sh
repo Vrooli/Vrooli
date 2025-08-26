@@ -36,9 +36,9 @@ source "${var_LIB_UTILS_DIR}/flow.sh"
 # shellcheck disable=SC1091
 source "${VROOLI_ROOT}/scripts/lib/utils/format.sh"
 # shellcheck disable=SC1091
-source "${CLI_DIR}/../lib/arg-parser.sh"
+source "${APP_ROOT}/cli/lib/arg-parser.sh"
 # shellcheck disable=SC1091
-source "${CLI_DIR}/../lib/output-formatter.sh"
+source "${APP_ROOT}/cli/lib/output-formatter.sh"
 
 # Check if API is running
 check_api() {

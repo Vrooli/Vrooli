@@ -6,19 +6,19 @@
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 MINIO_STATUS_DIR="${APP_ROOT}/resources/minio/lib"
 # shellcheck disable=SC1091
-source "${MINIO_STATUS_DIR}/../../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
-source "${MINIO_STATUS_DIR}/../../../../lib/utils/format.sh"
+source "${APP_ROOT}/scripts/lib/utils/format.sh"
 # shellcheck disable=SC1091
-source "${MINIO_STATUS_DIR}/../../../lib/status-args.sh"
+source "${APP_ROOT}/scripts/resources/lib/status-args.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_SERVICE_DIR}/secrets.sh"
 # shellcheck disable=SC1091
-source "${MINIO_STATUS_DIR}/../config/defaults.sh" 2>/dev/null || true
+source "${APP_ROOT}/resources/minio/config/defaults.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
-source "${MINIO_STATUS_DIR}/../config/messages.sh" 2>/dev/null || true
+source "${APP_ROOT}/resources/minio/config/messages.sh" 2>/dev/null || true
 
 # Ensure configuration is exported
 if command -v minio::export_config &>/dev/null; then

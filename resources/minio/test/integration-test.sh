@@ -9,7 +9,7 @@ set -euo pipefail
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 SCRIPT_DIR="${APP_ROOT}/resources/minio/test"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 # Source enhanced integration test library using var_ variables
 # shellcheck disable=SC1091
@@ -23,7 +23,7 @@ source "${var_SCRIPTS_RESOURCES_DIR}/tests/lib/enhanced-integration-test-lib.sh"
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../config/defaults.sh"
+source "${APP_ROOT}/resources/minio/config/defaults.sh"
 minio::export_config
 
 # Override library defaults with MinIO-specific settings

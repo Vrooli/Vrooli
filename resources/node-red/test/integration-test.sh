@@ -10,7 +10,7 @@ SCRIPT_DIR="${APP_ROOT}/resources/node-red/test"
 NODE_RED_ROOT_DIR="${APP_ROOT}/resources/node-red"
 
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_TESTS_LIB_DIR}/enhanced-integration-test-lib.sh"
 

@@ -10,7 +10,7 @@ APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pw
 SCRIPT_DIR="${APP_ROOT}/resources/n8n/test"
 
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_DIR}/tests/lib/enhanced-integration-test-lib.sh"
 
@@ -22,7 +22,7 @@ source "${var_SCRIPTS_RESOURCES_DIR}/tests/lib/enhanced-integration-test-lib.sh"
 # shellcheck disable=SC1091
 source "${var_RESOURCES_COMMON_FILE}"
 # shellcheck disable=SC1091
-source "$SCRIPT_DIR/../config/defaults.sh"
+source "${APP_ROOT}/resources/n8n/config/defaults.sh"
 n8n::export_config
 
 # Override library defaults with n8n-specific settings

@@ -18,20 +18,20 @@ CLI_DIR="${APP_ROOT}/cli/commands"
 # shellcheck disable=SC1091
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "${var_LOG_FILE:-${CLI_DIR}/../../scripts/lib/utils/log.sh}"
+source "${var_LOG_FILE:-${APP_ROOT}/scripts/lib/utils/log.sh}"
 # shellcheck disable=SC1091
 source "${var_RESOURCES_COMMON_FILE}" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LIB_DIR}/resources/auto-install.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
-source "${CLI_DIR}/../../scripts/lib/utils/format.sh"
+source "${APP_ROOT}/scripts/lib/utils/format.sh"
 # shellcheck disable=SC1091
-source "${CLI_DIR}/../lib/arg-parser.sh"
+source "${APP_ROOT}/cli/lib/arg-parser.sh"
 # shellcheck disable=SC1091
-source "${CLI_DIR}/../lib/output-formatter.sh"
+source "${APP_ROOT}/cli/lib/output-formatter.sh"
 
-# Resource paths
-RESOURCES_DIR="${var_SCRIPTS_RESOURCES_DIR}"
+# Resource paths - use new flat structure under /resources/
+RESOURCES_DIR="${var_RESOURCES_DIR}"
 RESOURCES_CONFIG="${var_ROOT_DIR}/.vrooli/service.json"
 RESOURCE_REGISTRY="${var_ROOT_DIR}/.vrooli/resource-registry"
 
@@ -139,12 +139,10 @@ route_to_resource_cli() {
     fi
     
     # Try direct path to known CLI locations (bulletproof fallback)
+    # Resources now use flat structure under /resources/
     local direct_cli_paths=(
-        "$RESOURCES_DIR/ai/$resource_name/cli.sh"
-        "$RESOURCES_DIR/storage/$resource_name/cli.sh" 
-        "$RESOURCES_DIR/automation/$resource_name/cli.sh"
-        "$RESOURCES_DIR/*/$resource_name/cli.sh"
         "$RESOURCES_DIR/$resource_name/cli.sh"
+        "$RESOURCES_DIR/*/$resource_name/cli.sh"
     )
     
     local cli_script=""
@@ -181,53 +179,59 @@ route_to_resource_cli() {
         return $exit_code
     fi
     
-    # Fallback to legacy manage.sh approach
+    # Fallback to resource CLI approach
     route_to_manage_sh "$resource_name" "$@"
 }
 
-# Route to legacy manage.sh
+# Route to resource CLI
 route_to_manage_sh() {
     local resource_name="$1"
     shift
     
-    # Find manage.sh for this resource
+    # Find cli.sh for this resource (updated for new structure)
     local manage_script
-    manage_script=$(find "$RESOURCES_DIR" -path "*/${resource_name}/manage.sh" 2>/dev/null | head -1)
+    # First try the new resource structure
+    manage_script="${APP_ROOT}/resources/${resource_name}/cli.sh"
+    
+    # If not found, try old locations
+    if [[ ! -f "$manage_script" ]]; then
+        manage_script=$(find "$RESOURCES_DIR" -path "*/${resource_name}/cli.sh" 2>/dev/null | head -1)
+    fi
     
     if [[ -z "$manage_script" ]] || [[ ! -f "$manage_script" ]]; then
-        log::error "Resource '$resource_name' not found or has no manage.sh"
+        log::error "Resource '$resource_name' not found or has no cli.sh"
         echo "Available resources:"
         resource_list_brief
         return 1
     fi
     
-    # Convert new-style commands to legacy manage.sh arguments
+    # Execute cli.sh with direct commands (new CLI system)
     local command="${1:-status}"
     shift || true
     
-    # Execute manage.sh with error handling (not using exec to capture errors)
+    # Execute cli.sh with error handling (not using exec to capture errors)
     local exit_code=0
     case "$command" in
         inject)
-            "$manage_script" --action inject "$@" || exit_code=$?
+            "$manage_script" inject "$@" || exit_code=$?
             ;;
         validate)
-            "$manage_script" --action validate-injection "$@" || exit_code=$?
+            "$manage_script" validate "$@" || exit_code=$?
             ;;
         status)
-            "$manage_script" --action status "$@" || exit_code=$?
+            "$manage_script" status "$@" || exit_code=$?
             ;;
         start)
-            "$manage_script" --action start "$@" || exit_code=$?
+            "$manage_script" start "$@" || exit_code=$?
             ;;
         stop)
-            "$manage_script" --action stop "$@" || exit_code=$?
+            "$manage_script" stop "$@" || exit_code=$?
             ;;
         install)
-            "$manage_script" --action install "$@" || exit_code=$?
+            "$manage_script" install "$@" || exit_code=$?
             ;;
         *)
-            "$manage_script" --action "$command" "$@" || exit_code=$?
+            "$manage_script" "$command" "$@" || exit_code=$?
             ;;
     esac
     
@@ -239,7 +243,7 @@ route_to_manage_sh() {
         echo "  - Check if the resource is properly installed: vrooli resource status $resource_name"
         echo "  - Try reinstalling the resource: vrooli resource install $resource_name"
         echo "  - Check logs for more details"
-        echo "  - Run the manage script directly for debugging: $manage_script --action $command"
+        echo "  - Run the CLI script directly for debugging: $manage_script $command"
         return $exit_code
     fi
     
@@ -248,7 +252,8 @@ route_to_manage_sh() {
 
 # List resources (brief format for errors)
 resource_list_brief() {
-    find "$RESOURCES_DIR" -mindepth 2 -maxdepth 2 -type d | while read -r dir; do
+    # Resources now use flat structure (depth 1)
+    find "$RESOURCES_DIR" -mindepth 1 -maxdepth 1 -type d | while read -r dir; do
         basename "$dir"
     done | sort | tr '\n' ' '
     echo ""
@@ -297,7 +302,8 @@ collect_resource_list_data() {
             continue
         fi
         
-        local resource_dir="$RESOURCES_DIR/$category/$name"
+        # Resources now use flat structure
+        local resource_dir="$RESOURCES_DIR/$name"
         
         if [[ -d "$resource_dir" ]]; then
             # Check running status using resource CLI

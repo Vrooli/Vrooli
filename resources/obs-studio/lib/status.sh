@@ -8,7 +8,7 @@ OBS_STATUS_LIB_DIR="${APP_ROOT}/resources/obs-studio/lib"
 # Source dependencies
 source "${OBS_STATUS_LIB_DIR}/common.sh"
 # shellcheck disable=SC1091
-source "${OBS_STATUS_LIB_DIR}/../../../lib/status-args.sh"
+source "${APP_ROOT}/scripts/resources/lib/status-args.sh"
 
 #######################################
 # Collect OBS Studio status data in format-agnostic structure

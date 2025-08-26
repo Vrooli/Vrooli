@@ -12,7 +12,7 @@ OLLAMA_INJECT_DIR="${APP_ROOT}/resources/ollama"
 
 # Source var.sh first to get directory variables
 # shellcheck disable=SC1091
-source "${OLLAMA_INJECT_DIR}/../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 # Source common utilities using var_ variables
 # shellcheck disable=SC1091

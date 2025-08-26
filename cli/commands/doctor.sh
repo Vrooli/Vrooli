@@ -11,15 +11,15 @@ set -euo pipefail
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
 CLI_DIR="${APP_ROOT}/cli/commands"
 # shellcheck disable=SC1091
-source "${CLI_DIR}/../../scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
-source "${CLI_DIR}/../../scripts/lib/utils/format.sh"
+source "${APP_ROOT}/scripts/lib/utils/format.sh"
 # shellcheck disable=SC1091
-source "${CLI_DIR}/../lib/arg-parser.sh"
+source "${APP_ROOT}/cli/lib/arg-parser.sh"
 # shellcheck disable=SC1091
-source "${CLI_DIR}/../lib/output-formatter.sh"
+source "${APP_ROOT}/cli/lib/output-formatter.sh"
 
 show_help() {
 	cat << EOF

@@ -23,7 +23,7 @@ OLLAMA_INJECT_DIR="${APP_ROOT}/resources/ollama/lib"
 
 # Source dependencies
 # shellcheck disable=SC1091
-source "${OLLAMA_INJECT_DIR}/../../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
 # shellcheck disable=SC1091

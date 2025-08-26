@@ -9,7 +9,7 @@ ffmpeg_uninstall() {
     local FFMPEG_LIB_DIR="${APP_ROOT}/resources/ffmpeg/lib"
     source "${APP_ROOT}/scripts/lib/utils/format.sh"
     source "${APP_ROOT}/scripts/lib/utils/log.sh"
-    source "${FFMPEG_LIB_DIR}/../config/defaults.sh"
+    source "${APP_ROOT}/resources/ffmpeg/config/defaults.sh"
     
     # Export configuration
     ffmpeg::export_config
