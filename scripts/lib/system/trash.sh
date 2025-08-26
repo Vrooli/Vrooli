@@ -434,12 +434,14 @@ trash::find_project_root() {
     fi
     
     # Walk up directory tree looking for project markers
-    while [[ "$current_dir" != "/" ]]; do
+    while [[ "$current_dir" != "/" && "$current_dir" != "" && "$current_dir" != "." ]]; do
         if [[ -f "$current_dir/package.json" ]] || [[ -d "$current_dir/.git" ]] || [[ -f "$current_dir/pnpm-workspace.yaml" ]]; then
             echo "$current_dir"
             return 0
         fi
-        current_dir="${current_dir%/*}"
+        new_dir="${current_dir%/*}"
+        [[ -z "$new_dir" ]] && break  # Safety check to prevent infinite loop
+        current_dir="$new_dir"
     done
     
     # Fallback to current working directory

@@ -7,11 +7,11 @@ TARS_DESKTOP_CORE_DIR="${APP_ROOT}/resources/tars-desktop/lib"
 TARS_DESKTOP_RESOURCE_DIR="${APP_ROOT}/resources/tars-desktop"
 
 # Source dependencies (disable strict error handling that var.sh sets)
-source "${TARS_DESKTOP_RESOURCE_DIR}/../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 set +e  # Disable strict error handling after var.sh
 source "${TARS_DESKTOP_RESOURCE_DIR}/config/defaults.sh"
-source "${TARS_DESKTOP_RESOURCE_DIR}/../../../lib/utils/format.sh"
-source "${TARS_DESKTOP_RESOURCE_DIR}/../../../lib/utils/log.sh"
+source "${APP_ROOT}/scripts/lib/utils/format.sh"
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
 # Resource registry not currently used - removed to avoid sourcing non-existent file
 # source "${TARS_DESKTOP_RESOURCE_DIR}/../../lib/resource-registry.sh"
 

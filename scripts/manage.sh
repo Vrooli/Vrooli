@@ -22,9 +22,9 @@ source "$MAIN_SCRIPT_DIR/lib/utils/json.sh"
 # shellcheck disable=SC1091
 source "${var_PORT_REGISTRY_FILE}" 2>/dev/null || true
 # shellcheck disable=SC1091
-source "$MAIN_SCRIPT_DIR/lib/service/secrets.sh" 2>/dev/null || true
+source "$MAIN_SCRIPT_DIR/lib/service/secrets.sh"
 # shellcheck disable=SC1091
-source "$MAIN_SCRIPT_DIR/lib/process-manager.sh" 2>/dev/null || true
+source "$MAIN_SCRIPT_DIR/lib/process-manager.sh"
 
 # Source new library modules
 # shellcheck disable=SC1091

@@ -13,7 +13,7 @@ source "${var_EXIT_CODES_FILE}"
 # shellcheck disable=SC1091
 source "${var_FLOW_FILE}"
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+source "${var_TRASH_FILE}"
 
 CONN_TIMEOUT_S=10
 SETUP_MODE=false

@@ -7,8 +7,8 @@ TARS_DESKTOP_STATUS_DIR="${APP_ROOT}/resources/tars-desktop/lib"
 
 # Source dependencies
 source "${TARS_DESKTOP_STATUS_DIR}/core.sh"
-source "${TARS_DESKTOP_STATUS_DIR}/../../../lib/status-args.sh"
-source "${TARS_DESKTOP_STATUS_DIR}/../../../../lib/utils/format.sh"
+source "${APP_ROOT}/scripts/resources/lib/status-args.sh"
+source "${APP_ROOT}/scripts/lib/utils/format.sh"
 
 # Collect TARS-desktop status data in format-agnostic structure
 tars_desktop::status::collect_data() {

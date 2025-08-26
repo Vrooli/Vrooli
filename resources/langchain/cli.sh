@@ -1,32 +1,73 @@
-#!/bin/bash
+#!/usr/bin/env bash
+################################################################################
+# LangChain Resource CLI - v2.0 Universal Contract Compliant
+# 
+# Framework for developing applications with Large Language Models (LLMs)
+#
+# Usage:
+#   resource-langchain <command> [options]
+#   resource-langchain <group> <subcommand> [options]
+#
+################################################################################
+
 set -euo pipefail
 
-# Get script directory (resolving symlinks for installed CLI)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+# Handle symlinks for installed CLI
 if [[ -L "${BASH_SOURCE[0]}" ]]; then
     LANGCHAIN_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
-else
-    LANGCHAIN_CLI_SCRIPT="${BASH_SOURCE[0]}"
+    # Recalculate APP_ROOT from resolved symlink location
+    APP_ROOT="$(builtin cd "${LANGCHAIN_CLI_SCRIPT%/*}/../.." && builtin pwd)"
 fi
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
 LANGCHAIN_CLI_DIR="${APP_ROOT}/resources/langchain"
 
-# Source dependencies
-source "${LANGCHAIN_CLI_DIR}/../../../lib/utils/var.sh"
-source "${LANGCHAIN_CLI_DIR}/../../../lib/utils/format.sh"
-source "${LANGCHAIN_CLI_DIR}/../../lib/cli-command-framework.sh"
-source "${LANGCHAIN_CLI_DIR}/lib/core.sh"
-source "${LANGCHAIN_CLI_DIR}/lib/status.sh"
-source "${LANGCHAIN_CLI_DIR}/lib/install.sh"
-source "${LANGCHAIN_CLI_DIR}/lib/inject.sh"
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}"
+# shellcheck disable=SC1091
+source "${var_RESOURCES_COMMON_FILE}"
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
+# shellcheck disable=SC1091
+source "${LANGCHAIN_CLI_DIR}/config/defaults.sh"
 
-# Register commands
-cli::register_command "status" "Check LangChain status" "langchain::status"
-cli::register_command "install" "Install LangChain framework" "langchain::install"
-cli::register_command "start" "Start LangChain services" "langchain::start"
-cli::register_command "stop" "Stop LangChain services" "langchain::stop"
-cli::register_command "inject" "Inject workflow or chain" "langchain::inject"
-cli::register_command "test" "Test LangChain connectivity" "langchain::test"
-cli::register_command "help" "Show this help message" "cli::_handle_help"
+# Source LangChain libraries
+for lib in core install status content; do
+    lib_file="${LANGCHAIN_CLI_DIR}/lib/${lib}.sh"
+    if [[ -f "$lib_file" ]]; then
+        # shellcheck disable=SC1090
+        source "$lib_file" 2>/dev/null || true
+    fi
+done
 
-# Main dispatcher
-cli::dispatch "$@"
+# Initialize CLI framework in v2.0 mode (auto-creates manage/test/content groups)
+cli::init "langchain" "LangChain LLM application framework" "v2"
+
+# ==============================================================================
+# REQUIRED HANDLERS - These MUST be mapped for v2.0 compliance
+# ==============================================================================
+CLI_COMMAND_HANDLERS["manage::install"]="langchain::install"
+CLI_COMMAND_HANDLERS["manage::uninstall"]="langchain::uninstall"
+CLI_COMMAND_HANDLERS["manage::start"]="langchain::start"  
+CLI_COMMAND_HANDLERS["manage::stop"]="langchain::stop"
+CLI_COMMAND_HANDLERS["manage::restart"]="langchain::restart"
+CLI_COMMAND_HANDLERS["test::smoke"]="langchain::test"
+
+# Content handlers for LangChain-specific functionality
+CLI_COMMAND_HANDLERS["content::add"]="langchain::content::add"
+CLI_COMMAND_HANDLERS["content::list"]="langchain::content::list" 
+CLI_COMMAND_HANDLERS["content::get"]="langchain::content::get"
+CLI_COMMAND_HANDLERS["content::remove"]="langchain::content::remove"
+CLI_COMMAND_HANDLERS["content::execute"]="langchain::content::execute"
+
+# ==============================================================================
+# REQUIRED INFORMATION COMMANDS
+# ==============================================================================
+cli::register_command "status" "Show detailed resource status" "langchain::status"
+cli::register_command "logs" "Show LangChain logs" "langchain::logs"
+
+# Only execute if script is run directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    cli::dispatch "$@"
+fi

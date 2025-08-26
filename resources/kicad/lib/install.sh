@@ -124,7 +124,7 @@ kicad::install() {
     local cli_install_script="${APP_ROOT}/scripts/lib/resources/install-resource-cli.sh"
     if [[ -f "$cli_install_script" ]]; then
         source "$cli_install_script"
-        install_resource_cli "kicad" "${KICAD_INSTALL_LIB_DIR}/../cli.sh"
+        install_resource_cli "kicad" "${APP_ROOT}/resources/kicad/cli.sh"
     fi
     
     echo "KiCad installation complete!"

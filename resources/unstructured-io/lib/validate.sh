@@ -5,10 +5,10 @@
 
 # Source var.sh for directory variables
 # shellcheck disable=SC1091
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
-source "${APP_ROOT}/lib/utils/var.sh" 2>/dev/null || true
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+source "${APP_ROOT}/lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+source "${var_TRASH_FILE}"
 
 #######################################
 # Validate Unstructured.io installation

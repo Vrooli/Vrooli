@@ -6,11 +6,11 @@ APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pw
 KEYCLOAK_LIB_DIR="${APP_ROOT}/resources/keycloak/lib"
 
 # Source utilities
-source "${KEYCLOAK_LIB_DIR}/../../../../lib/utils/format.sh"
-source "${KEYCLOAK_LIB_DIR}/../../../../lib/utils/log.sh"
+source "${APP_ROOT}/scripts/lib/utils/format.sh"
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
 
 # Source status-args library
-source "${KEYCLOAK_LIB_DIR}/../../../lib/status-args.sh"
+source "${APP_ROOT}/scripts/resources/lib/status-args.sh"
 
 # Dependencies are expected to be sourced by caller
 

@@ -6,7 +6,7 @@ APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pw
 KICAD_COMMON_LIB_DIR="${APP_ROOT}/resources/kicad/lib"
 
 # Source defaults
-source "${KICAD_COMMON_LIB_DIR}/../config/defaults.sh"
+source "${APP_ROOT}/resources/kicad/config/defaults.sh"
 
 # Initialize KiCad directories
 kicad::init_dirs() {

@@ -4,22 +4,22 @@
 
 # Only source if not already loaded via CLI
 if [[ -z "${WINDMILL_LIB_DIR:-}" ]]; then
-    APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+    APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
     WINDMILL_LIB_DIR="${APP_ROOT}/resources/windmill/lib"
     # shellcheck disable=SC1091
-    source "${WINDMILL_LIB_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+    source "${APP_ROOT}/scripts/lib/utils/var.sh"
     # shellcheck disable=SC1091
-    source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+    source "${var_TRASH_FILE}"
     
     # Source necessary windmill lib files
     # shellcheck disable=SC1091
-    source "${WINDMILL_LIB_DIR}/state.sh" 2>/dev/null || true
+    source "${WINDMILL_LIB_DIR}/state.sh"
     # shellcheck disable=SC1091
-    source "${WINDMILL_LIB_DIR}/common.sh" 2>/dev/null || true
+    source "${WINDMILL_LIB_DIR}/common.sh"
     # shellcheck disable=SC1091
-    source "${WINDMILL_LIB_DIR}/docker.sh" 2>/dev/null || true
+    source "${WINDMILL_LIB_DIR}/docker.sh"
     # shellcheck disable=SC1091
-    source "${WINDMILL_LIB_DIR}/database.sh" 2>/dev/null || true
+    source "${WINDMILL_LIB_DIR}/database.sh"
 fi
 
 #######################################

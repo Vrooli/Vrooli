@@ -1,164 +1,79 @@
-#!/bin/bash
-# Home Assistant Resource CLI
+#!/usr/bin/env bash
+################################################################################
+# Home Assistant Resource CLI - v2.0 Universal Contract Compliant
+# 
+# Open source home automation platform
+#
+# Usage:
+#   resource-home-assistant <command> [options]
+#   resource-home-assistant <group> <subcommand> [options]
+#
+################################################################################
 
-# Get script directory - resolve symlinks
+set -euo pipefail
+
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+# Handle symlinks for installed CLI
+if [[ -L "${BASH_SOURCE[0]}" ]]; then
+    HOME_ASSISTANT_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
+    # Recalculate APP_ROOT from resolved symlink location
+    APP_ROOT="$(builtin cd "${HOME_ASSISTANT_CLI_SCRIPT%/*}/../.." && builtin pwd)"
+fi
 HOME_ASSISTANT_CLI_DIR="${APP_ROOT}/resources/home-assistant"
 
-# Source all library functions
-source "${HOME_ASSISTANT_CLI_DIR}/lib/core.sh"
-source "${HOME_ASSISTANT_CLI_DIR}/lib/health.sh"
-source "${HOME_ASSISTANT_CLI_DIR}/lib/install.sh"
-source "${HOME_ASSISTANT_CLI_DIR}/lib/status.sh"
-source "${HOME_ASSISTANT_CLI_DIR}/lib/inject.sh"
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}"
+# shellcheck disable=SC1091
+source "${var_RESOURCES_COMMON_FILE}"
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
+# shellcheck disable=SC1091
+source "${HOME_ASSISTANT_CLI_DIR}/config/defaults.sh"
 
-#######################################
-# Show help message
-#######################################
-home_assistant::help() {
-    cat << EOF
-Home Assistant Resource Management
+# Source Home Assistant libraries
+for lib in core health install status inject; do
+    lib_file="${HOME_ASSISTANT_CLI_DIR}/lib/${lib}.sh"
+    if [[ -f "$lib_file" ]]; then
+        # shellcheck disable=SC1090
+        source "$lib_file" 2>/dev/null || true
+    fi
+done
 
-Usage: $(basename "$0") <command> [options]
+# Initialize CLI framework in v2.0 mode (auto-creates manage/test/content groups)
+cli::init "home-assistant" "Home Assistant automation platform management" "v2"
 
-Commands:
-    install         Install Home Assistant
-    uninstall       Uninstall Home Assistant (requires --force)
-    start           Start Home Assistant
-    stop            Stop Home Assistant
-    restart         Restart Home Assistant
-    status          Show Home Assistant status
-    logs            Show Home Assistant logs
-    inject <file>   Inject automation/configuration file (.yaml, .json, .py)
-    list            List injected files
-    clear           Clear all injected files (requires --force)
-    help            Show this help message
+# Override default handlers to point directly to home-assistant implementations
+CLI_COMMAND_HANDLERS["manage::install"]="home_assistant::install"
+CLI_COMMAND_HANDLERS["manage::uninstall"]="home_assistant::uninstall"
+CLI_COMMAND_HANDLERS["manage::start"]="home_assistant::docker::start"
+CLI_COMMAND_HANDLERS["manage::stop"]="home_assistant::docker::stop"
+CLI_COMMAND_HANDLERS["manage::restart"]="home_assistant::docker::restart"
 
-Global Options:
-    --format <type> Output format: text, json (for status command)
-    --fast          Skip expensive operations (for status command)
-    --force         Force operation without confirmation
-    --help, -h      Show help for specific command
+# Test handlers for Home Assistant health checks
+CLI_COMMAND_HANDLERS["test::smoke"]="home_assistant::health::is_healthy"
+CLI_COMMAND_HANDLERS["test::integration"]="home_assistant::health::get_status"
 
-Examples:
-    $(basename "$0") install
-    $(basename "$0") status
-    $(basename "$0") inject automation.yaml
-    $(basename "$0") inject script.py
-    $(basename "$0") list
-    $(basename "$0") logs --tail 50
+# Content handlers for Home Assistant automation functionality
+CLI_COMMAND_HANDLERS["content::add"]="home_assistant::inject"
+CLI_COMMAND_HANDLERS["content::list"]="home_assistant::inject::list"
+CLI_COMMAND_HANDLERS["content::remove"]="home_assistant::inject::clear"
+CLI_COMMAND_HANDLERS["content::execute"]="home_assistant::reload_automations"
 
-Home Assistant Web UI:
-    Once installed, access Home Assistant at http://localhost:8123
-    
-Integration Notes:
-    - Automations: Place .yaml files in automations/ or use inject
-    - Python Scripts: Place .py files in python_scripts/ or use inject
-    - Packages: Complex configurations in packages/ directory
-    - JSON configs are automatically converted to YAML when applicable
-    
-For more information, see the Home Assistant documentation:
-    https://www.home-assistant.io/docs/
-EOF
-}
+# Home Assistant doesn't have a single "get" for content, but we can show config
+CLI_COMMAND_HANDLERS["content::get"]="home_assistant::export_config"
 
-#######################################
-# Main command handler
-#######################################
-main() {
-    local command="${1:-}"
-    shift || true
-    
-    case "$command" in
-        install)
-            home_assistant::install "$@"
-            ;;
-        uninstall)
-            home_assistant::uninstall "$@"
-            ;;
-        start)
-            home_assistant::init
-            if docker::container_exists "$HOME_ASSISTANT_CONTAINER_NAME"; then
-                log::info "Starting Home Assistant..."
-                docker start "$HOME_ASSISTANT_CONTAINER_NAME"
-                home_assistant::health::wait_for_healthy 60
-            else
-                log::error "Home Assistant is not installed. Run 'install' first."
-                exit 1
-            fi
-            ;;
-        stop)
-            home_assistant::init
-            if docker::is_running "$HOME_ASSISTANT_CONTAINER_NAME"; then
-                log::info "Stopping Home Assistant..."
-                docker stop "$HOME_ASSISTANT_CONTAINER_NAME"
-                log::success "Home Assistant stopped"
-            else
-                log::warning "Home Assistant is not running"
-            fi
-            ;;
-        restart)
-            home_assistant::init
-            if docker::container_exists "$HOME_ASSISTANT_CONTAINER_NAME"; then
-                log::info "Restarting Home Assistant..."
-                docker restart "$HOME_ASSISTANT_CONTAINER_NAME"
-                home_assistant::health::wait_for_healthy 60
-            else
-                log::error "Home Assistant is not installed. Run 'install' first."
-                exit 1
-            fi
-            ;;
-        status)
-            home_assistant::status "$@"
-            ;;
-        logs)
-            home_assistant::init
-            local tail_lines="50"
-            
-            # Parse options
-            while [[ $# -gt 0 ]]; do
-                case "$1" in
-                    --tail)
-                        tail_lines="$2"
-                        shift 2
-                        ;;
-                    *)
-                        shift
-                        ;;
-                esac
-            done
-            
-            if docker::container_exists "$HOME_ASSISTANT_CONTAINER_NAME"; then
-                docker logs "$HOME_ASSISTANT_CONTAINER_NAME" --tail "$tail_lines"
-            else
-                log::error "Home Assistant is not installed"
-                exit 1
-            fi
-            ;;
-        inject)
-            home_assistant::inject "$@"
-            ;;
-        list)
-            home_assistant::inject::list "$@"
-            ;;
-        clear)
-            home_assistant::inject::clear "$@"
-            ;;
-        help|--help|-h)
-            home_assistant::help
-            ;;
-        "")
-            log::error "No command provided"
-            home_assistant::help
-            exit 1
-            ;;
-        *)
-            log::error "Unknown command: $command"
-            home_assistant::help
-            exit 1
-            ;;
-    esac
-}
+# Additional information commands
+cli::register_command "status" "Show detailed resource status" "home_assistant::status"
+cli::register_command "logs" "Show Home Assistant logs" "home_assistant::docker::logs"
 
-# Run main function
-main "$@"
+# Custom Home Assistant commands for API access and configuration
+cli::register_command "api-info" "Show Home Assistant API information" "home_assistant::get_api_info"
+cli::register_subcommand "content" "reload" "Reload automations without restart" "home_assistant::reload_automations"
+cli::register_subcommand "content" "export" "Export current configuration" "home_assistant::export_config"
+
+# Only execute if script is run directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    cli::dispatch "$@"
+fi

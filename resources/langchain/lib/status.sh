@@ -6,17 +6,17 @@
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 LANGCHAIN_STATUS_DIR="${APP_ROOT}/resources/langchain/lib"
 # shellcheck disable=SC1091
-source "${LANGCHAIN_STATUS_DIR}/../../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "${LANGCHAIN_STATUS_DIR}/../../../../lib/utils/log.sh"
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
 # shellcheck disable=SC1091
-source "${LANGCHAIN_STATUS_DIR}/../../../../lib/utils/format.sh"
+source "${APP_ROOT}/scripts/lib/utils/format.sh"
 # shellcheck disable=SC1091
-source "${LANGCHAIN_STATUS_DIR}/../config/defaults.sh" 2>/dev/null || true
+source "${APP_ROOT}/resources/langchain/config/defaults.sh"
 # shellcheck disable=SC1091
-source "${LANGCHAIN_STATUS_DIR}/core.sh" 2>/dev/null || true
+source "${LANGCHAIN_STATUS_DIR}/core.sh"
 # shellcheck disable=SC1091
-source "${LANGCHAIN_STATUS_DIR}/../../../lib/status-args.sh"
+source "${APP_ROOT}/scripts/resources/lib/status-args.sh"
 
 # Ensure configuration is exported
 if command -v langchain::export_config &>/dev/null; then

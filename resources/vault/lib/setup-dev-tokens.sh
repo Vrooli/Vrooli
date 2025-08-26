@@ -9,7 +9,7 @@ source "${APP_ROOT}/scripts/lib/service/secrets.sh"
 # shellcheck disable=SC1091
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/trash.sh"
+source "${var_TRASH_FILE}"
 # ====================================================================
 # Vault Development Token Setup Script  
 # ====================================================================

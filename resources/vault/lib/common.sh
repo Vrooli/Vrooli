@@ -471,20 +471,7 @@ vault::setup_secret_rotation() {
     return 0
 }
 
-#######################################
-# Get or create Vault root token
-# Returns: root token string
-#######################################
-vault::get_root_token() {
-    if [[ "$VAULT_MODE" == "dev" ]]; then
-        echo "$VAULT_DEV_ROOT_TOKEN_ID"
-    elif [[ -f "$VAULT_TOKEN_FILE" ]]; then
-        cat "$VAULT_TOKEN_FILE"
-    else
-        log::error "Root token file not found: $VAULT_TOKEN_FILE"
-        return 1
-    fi
-}
+# Removed duplicate vault::get_root_token function - keeping the more complete version below
 
 #######################################
 # Validate secret path format

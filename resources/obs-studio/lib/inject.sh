@@ -23,7 +23,7 @@ source "${var_LIB_SERVICE_DIR}/secrets.sh"
 
 # Load OBS configuration and infrastructure
 if command -v inject_framework::load_adapter_config &>/dev/null; then
-    inject_framework::load_adapter_config "obs-studio" "${OBS_INJECT_LIB_DIR%/*"
+    inject_framework::load_adapter_config "obs-studio" "${OBS_INJECT_LIB_DIR%/*}"
 fi
 
 # Source OBS lib functions

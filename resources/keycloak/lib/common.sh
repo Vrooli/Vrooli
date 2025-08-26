@@ -6,7 +6,7 @@ APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pw
 KEYCLOAK_LIB_DIR="${APP_ROOT}/resources/keycloak/lib"
 
 # Source the shared var utility FIRST
-source "${KEYCLOAK_LIB_DIR}/../../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 # Set up paths
 KEYCLOAK_BASE_DIR="${KEYCLOAK_LIB_DIR}/.."
@@ -21,7 +21,7 @@ KEYCLOAK_REALMS_DIR="${KEYCLOAK_DATA_DIR}/realms"
 source "${KEYCLOAK_CONFIG_DIR}/defaults.sh"
 
 # Source port registry
-source "${KEYCLOAK_LIB_DIR}/../../../../resources/port_registry.sh"
+source "${APP_ROOT}/scripts/resources/port_registry.sh"
 
 # Get port for Keycloak
 keycloak::get_port() {

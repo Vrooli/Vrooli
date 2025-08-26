@@ -6,13 +6,13 @@
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 HUGINN_STATUS_DIR="${APP_ROOT}/resources/huginn/lib"
 # shellcheck disable=SC1091
-source "${HUGINN_STATUS_DIR}/../../../../lib/utils/format.sh"
+source "${APP_ROOT}/scripts/lib/utils/format.sh"
 # shellcheck disable=SC1091
-source "${HUGINN_STATUS_DIR}/../../../lib/status-args.sh"
+source "${APP_ROOT}/scripts/resources/lib/status-args.sh"
 # shellcheck disable=SC1091
-source "${HUGINN_STATUS_DIR}/../config/defaults.sh" 2>/dev/null || true
+source "${APP_ROOT}/resources/huginn/config/defaults.sh"
 # shellcheck disable=SC1091
-source "${HUGINN_STATUS_DIR}/common.sh" 2>/dev/null || true
+source "${HUGINN_STATUS_DIR}/common.sh"
 
 # Ensure configuration is exported
 if command -v huginn::export_config &>/dev/null; then
@@ -194,7 +194,7 @@ huginn::status::display_text() {
         log::error "   ❌ Installed: No"
         echo
         log::info "💡 Installation Required:"
-        log::info "   To install Huginn, run: ./manage.sh --action install"
+        log::info "   To install Huginn, run: resource-huginn manage install"
         return
     fi
     
@@ -529,12 +529,12 @@ huginn::show_info() {
     
     # Management commands
     log::info "🛠️  Management Commands:"
-    log::info "   Status: $0 --action status"
-    log::info "   Agents: $0 --action agents --operation list"
-    log::info "   Scenarios: $0 --action scenarios --operation list"
-    log::info "   Events: $0 --action events --operation recent"
-    log::info "   Logs: $0 --action logs"
-    log::info "   Backup: $0 --action backup"
+    log::info "   Status: resource-huginn status"
+    log::info "   Agents: resource-huginn agents list"
+    log::info "   Scenarios: resource-huginn scenarios list"
+    log::info "   Events: resource-huginn events recent"
+    log::info "   Logs: resource-huginn logs"
+    log::info "   Backup: resource-huginn backup"
 }
 
 #######################################
@@ -609,7 +609,7 @@ huginn::health_check() {
         return 0
     else
         log::error "⚠️  $issues_found issue(s) found"
-        log::info "Run '$0 --action logs' to investigate issues"
+        log::info "Run 'resource-huginn logs' to investigate issues"
         return 1
     fi
 }

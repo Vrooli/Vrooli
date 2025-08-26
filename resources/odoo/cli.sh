@@ -1,72 +1,85 @@
-#!/bin/bash
+#!/usr/bin/env bash
+################################################################################
+# Odoo Resource CLI - v2.0 Universal Contract Compliant
+# 
+# Comprehensive ERP platform with integrated business applications
+#
+# Usage:
+#   resource-odoo <command> [options]
+#   resource-odoo <group> <subcommand> [options]
+#
+################################################################################
+
 set -euo pipefail
 
-# Get the real script directory (following symlinks)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+# Handle symlinks for installed CLI
 if [[ -L "${BASH_SOURCE[0]}" ]]; then
-    RESOLVED_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
-    APP_ROOT="${APP_ROOT:-$(builtin cd "${RESOLVED_PATH%/*}/../.." && builtin pwd)}"
-else
-    APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+    ODOO_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
+    # Recalculate APP_ROOT from resolved symlink location
+    APP_ROOT="$(builtin cd "${ODOO_CLI_SCRIPT%/*}/../.." && builtin pwd)"
 fi
-
 ODOO_CLI_DIR="${APP_ROOT}/resources/odoo"
 
-# Source library functions
-source "$ODOO_CLI_DIR/lib/common.sh"
-source "$ODOO_CLI_DIR/lib/install.sh"
-source "$ODOO_CLI_DIR/lib/start.sh"
-source "$ODOO_CLI_DIR/lib/stop.sh"
-source "$ODOO_CLI_DIR/lib/status.sh"
-source "$ODOO_CLI_DIR/lib/inject.sh"
-source "$ODOO_CLI_DIR/lib/test.sh"
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}"
+# shellcheck disable=SC1091
+source "${var_RESOURCES_COMMON_FILE}"
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
+# shellcheck disable=SC1091
+source "${ODOO_CLI_DIR}/config/defaults.sh"
 
-# Main command dispatcher
-main() {
-    local command="${1:-}"
-    shift || true
-    
-    case "$command" in
-        install)
-            odoo_install "$@"
-            ;;
-        start)
-            odoo_start "$@"
-            ;;
-        stop)
-            odoo_stop "$@"
-            ;;
-        status)
-            odoo_status "$@"
-            ;;
-        logs)
-            odoo_logs "$@"
-            ;;
-        inject)
-            odoo_inject "$@"
-            ;;
-        test)
-            odoo_test "$@"
-            ;;
-        help|--help|-h)
-            echo "Usage: $0 {install|start|stop|status|logs|inject|test|help}"
-            echo ""
-            echo "Commands:"
-            echo "  install  - Install Odoo Community"
-            echo "  start    - Start Odoo service"
-            echo "  stop     - Stop Odoo service"
-            echo "  status   - Check service status"
-            echo "  logs     - View service logs"
-            echo "  inject   - Install modules or import data"
-            echo "  test     - Run integration tests"
-            echo "  help     - Show this help message"
-            exit 0
-            ;;
-        *)
-            echo "Error: Unknown command '$command'"
-            echo "Run '$0 help' for usage information"
-            exit 1
-            ;;
-    esac
-}
+# Source Odoo libraries
+for lib in common install start stop status docker content test; do
+    lib_file="${ODOO_CLI_DIR}/lib/${lib}.sh"
+    if [[ -f "$lib_file" ]]; then
+        # shellcheck disable=SC1090
+        source "$lib_file" 2>/dev/null || true
+    fi
+done
 
-main "$@"
+# Initialize CLI framework in v2.0 mode (auto-creates manage/test/content groups)
+cli::init "odoo" "Odoo Community Edition ERP platform" "v2"
+
+# ==============================================================================
+# REQUIRED HANDLERS - These MUST be mapped for v2.0 compliance
+# ==============================================================================
+CLI_COMMAND_HANDLERS["manage::install"]="odoo::install::execute"
+CLI_COMMAND_HANDLERS["manage::uninstall"]="odoo::install::uninstall"
+CLI_COMMAND_HANDLERS["manage::start"]="odoo::docker::start"  
+CLI_COMMAND_HANDLERS["manage::stop"]="odoo::docker::stop"
+CLI_COMMAND_HANDLERS["manage::restart"]="odoo::docker::restart"
+CLI_COMMAND_HANDLERS["test::smoke"]="odoo::test::smoke"
+CLI_COMMAND_HANDLERS["test::integration"]="odoo::test::integration"
+
+# Content handlers for ERP business functionality
+CLI_COMMAND_HANDLERS["content::add"]="odoo::content::add"
+CLI_COMMAND_HANDLERS["content::list"]="odoo::content::list" 
+CLI_COMMAND_HANDLERS["content::get"]="odoo::content::get"
+CLI_COMMAND_HANDLERS["content::remove"]="odoo::content::remove"
+CLI_COMMAND_HANDLERS["content::execute"]="odoo::content::execute"
+
+# ==============================================================================
+# REQUIRED INFORMATION COMMANDS
+# ==============================================================================
+cli::register_command "status" "Show detailed Odoo status" "odoo::status"
+cli::register_command "logs" "Show Odoo logs" "odoo::docker::logs"
+
+# ==============================================================================
+# ODOO-SPECIFIC CONTENT OPERATIONS
+# ==============================================================================
+# Add ERP-specific content subcommands
+cli::register_subcommand "content" "modules" "List installed modules" "odoo::content::list modules"
+cli::register_subcommand "content" "users" "List system users" "odoo::content::list users"
+cli::register_subcommand "content" "companies" "List companies" "odoo::content::list companies"
+cli::register_subcommand "content" "databases" "List databases" "odoo::content::list databases"
+cli::register_subcommand "content" "backup" "Create database backup" "odoo::content::execute backup" "modifies-system"
+cli::register_subcommand "content" "shell" "Open interactive Odoo shell" "odoo::content::execute shell"
+
+# Only execute if script is run directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    cli::dispatch "$@"
+fi

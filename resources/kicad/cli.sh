@@ -1,162 +1,74 @@
-#!/bin/bash
-# KiCad Resource CLI
+#!/usr/bin/env bash
+################################################################################
+# KiCad Resource CLI - v2.0 Universal Contract Compliant
+# 
+# Electronic Design Automation (EDA) for PCB design
+#
+# Usage:
+#   resource-kicad <command> [options]
+#   resource-kicad <group> <subcommand> [options]
+#
+################################################################################
 
-# Get the directory of this script (resolving symlinks)
-if [[ -L "${BASH_SOURCE[0]}" ]]; then
-    # If this is a symlink, resolve it
-    KICAD_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
-else
-    KICAD_CLI_SCRIPT="${BASH_SOURCE[0]}"
-fi
+set -euo pipefail
+
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+# Handle symlinks for installed CLI
+if [[ -L "${BASH_SOURCE[0]}" ]]; then
+    KICAD_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
+    # Recalculate APP_ROOT from resolved symlink location
+    APP_ROOT="$(builtin cd "${KICAD_CLI_SCRIPT%/*}/../.." && builtin pwd)"
+fi
 KICAD_CLI_DIR="${APP_ROOT}/resources/kicad"
 
-# Source the library functions
-source "${KICAD_CLI_DIR}/lib/common.sh"
-source "${KICAD_CLI_DIR}/lib/install.sh"
-source "${KICAD_CLI_DIR}/lib/status.sh"
-source "${KICAD_CLI_DIR}/lib/inject.sh"
-source "${KICAD_CLI_DIR}/lib/test.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}"
+# shellcheck disable=SC1091
+source "${var_RESOURCES_COMMON_FILE}"
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
+# shellcheck disable=SC1091
+source "${KICAD_CLI_DIR}/config/defaults.sh"
 
-# Main CLI handler
-kicad_cli() {
-    case "${1:-}" in
-        install)
-            shift
-            kicad::install "$@"
-            ;;
-        start)
-            # KiCad is a desktop application, no start needed
-            echo "KiCad is a desktop application - no service to start"
-            if kicad::is_installed; then
-                echo "✅ KiCad is installed and ready to use"
-            else
-                echo "❌ KiCad is not installed. Run: vrooli resource install kicad"
-            fi
-            ;;
-        stop)
-            # KiCad is a desktop application, no stop needed
-            echo "KiCad is a desktop application - no service to stop"
-            ;;
-        status)
-            shift
-            kicad_status "$@"
-            ;;
-        inject)
-            shift
-            kicad::inject "$@"
-            ;;
-        export)
-            shift
-            local project="${1:-}"
-            local formats="${2:-}"
-            if [[ -z "$project" ]]; then
-                echo "Error: Project name required"
-                echo "Usage: resource-kicad export <project> [formats]"
-                exit 1
-            fi
-            kicad::export::project "$project" "$formats"
-            ;;
-        list-projects)
-            kicad::init_dirs
-            echo "KiCad Projects:"
-            if [[ -d "$KICAD_PROJECTS_DIR" ]]; then
-                find "$KICAD_PROJECTS_DIR" -name "*.kicad_pro" -o -name "*.pro" 2>/dev/null | while read -r proj; do
-                    echo "  - $(basename "${proj%/*")"
-                done
-            else
-                echo "  No projects found"
-            fi
-            ;;
-        list-libraries)
-            kicad::init_dirs
-            echo "KiCad Libraries:"
-            if [[ -d "$KICAD_LIBRARIES_DIR" ]]; then
-                ls -la "$KICAD_LIBRARIES_DIR" 2>/dev/null | grep -E "\.(kicad_sym|kicad_mod|lib)$" | awk '{print "  - " $NF}'
-            else
-                echo "  No libraries found"
-            fi
-            ;;
-        test)
-            shift
-            if command -v kicad_run_tests &>/dev/null; then
-                kicad_run_tests "$@"
-            else
-                echo "Running KiCad integration tests..."
-                if [[ -f "${KICAD_CLI_DIR}/test/integration.bats" ]]; then
-                    timeout 60 bats "${KICAD_CLI_DIR}/test/integration.bats"
-                else
-                    echo "Test file not found"
-                    exit 1
-                fi
-            fi
-            ;;
-        examples)
-            echo "KiCad Examples:"
-            echo ""
-            echo "Project Management:"
-            echo "  resource-kicad inject /path/to/project.zip          # Import project"
-            echo "  resource-kicad list-projects                        # List all projects"
-            echo "  resource-kicad export my-board gerber,pdf          # Export to formats"
-            echo ""
-            echo "Library Management:"
-            echo "  resource-kicad inject /path/to/symbols.kicad_sym library  # Import symbols"
-            echo "  resource-kicad inject /path/to/footprints library        # Import footprints"
-            echo "  resource-kicad list-libraries                            # List libraries"
-            echo ""
-            if [[ -d "${KICAD_CLI_DIR}/examples" ]]; then
-                echo "Example files available in: ${KICAD_CLI_DIR}/examples/"
-                ls -la "${KICAD_CLI_DIR}/examples/" 2>/dev/null | grep -v "^total\|^d" | awk '{print "  - " $NF}'
-            fi
-            ;;
-        help|--help)
-            kicad_help
-            ;;
-        *)
-            echo "Error: Unknown command: ${1:-}"
-            echo
-            kicad_help
-            exit 1
-            ;;
-    esac
-}
+# Source KiCad libraries
+for lib in common install status inject test content desktop; do
+    lib_file="${KICAD_CLI_DIR}/lib/${lib}.sh"
+    if [[ -f "$lib_file" ]]; then
+        # shellcheck disable=SC1090
+        source "$lib_file" 2>/dev/null || true
+    fi
+done
 
-# Help function
-kicad_help() {
-    cat <<EOF
-KiCad CLI - Electronic Design Automation for PCB Design
+# Initialize CLI framework in v2.0 mode (auto-creates manage/test/content groups)
+cli::init "kicad" "Electronic Design Automation for PCB design" "v2"
 
-Usage: $(basename "$0") <command> [options]
+# Override default handlers for KiCad (desktop application, not Docker-based)
+CLI_COMMAND_HANDLERS["manage::install"]="kicad::install"
+CLI_COMMAND_HANDLERS["manage::uninstall"]="kicad::desktop::uninstall"
+CLI_COMMAND_HANDLERS["manage::start"]="kicad::desktop::start"
+CLI_COMMAND_HANDLERS["manage::stop"]="kicad::desktop::stop"
+CLI_COMMAND_HANDLERS["manage::restart"]="kicad::desktop::restart"
+CLI_COMMAND_HANDLERS["test::smoke"]="kicad::is_installed"
 
-Commands:
-    install         Install KiCad and dependencies
-    start           Check if KiCad is ready (desktop app)
-    stop            No-op for desktop application
-    status          Show KiCad status and configuration
-    inject          Import projects, libraries, or templates
-    export          Export project to various formats
-    list-projects   List all KiCad projects
-    list-libraries  List all KiCad libraries
-    test            Run integration tests
-    examples        Show usage examples
-    help            Show this help message
+# Content handlers for PCB design functionality
+CLI_COMMAND_HANDLERS["content::add"]="kicad::inject"
+CLI_COMMAND_HANDLERS["content::list"]="kicad::content::list"
+CLI_COMMAND_HANDLERS["content::get"]="kicad::content::get"
+CLI_COMMAND_HANDLERS["content::remove"]="kicad::content::remove"
+CLI_COMMAND_HANDLERS["content::execute"]="kicad::export::project"
 
-Examples:
-    $(basename "$0") inject circuit.kicad_pcb
-    $(basename "$0") export my-board gerber,pdf,step
-    $(basename "$0") inject symbols.kicad_sym library
+# Add KiCad-specific content subcommands
+cli::register_subcommand "content" "export" "Export PCB project to various formats" "kicad::export::project"
+cli::register_subcommand "content" "projects" "List all KiCad projects" "kicad::content::list_projects"
+cli::register_subcommand "content" "libraries" "List all KiCad libraries" "kicad::content::list_libraries"
 
-Export Formats:
-    gerber  - Manufacturing files for PCB fabrication
-    pdf     - PDF documentation
-    svg     - Vector graphics
-    step    - 3D model for mechanical CAD
+# Information commands
+cli::register_command "status" "Show detailed KiCad status" "kicad_status"
+cli::register_command "logs" "Show KiCad logs" "kicad::desktop::logs"
 
-For more information, see: resources/kicad/README.md
-EOF
-}
-
-# Execute CLI if run directly
+# Only execute if script is run directly (not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    kicad_cli "$@"
+    cli::dispatch "$@"
 fi

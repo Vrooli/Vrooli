@@ -16,7 +16,7 @@ source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
 source "$var_LIB_UTILS_DIR/flow.sh"
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+source "${var_TRASH_FILE}"
 
 # Default timeout for system installs (in seconds)
 SYSTEM_INSTALL_TIMEOUT=${SYSTEM_INSTALL_TIMEOUT:-420}

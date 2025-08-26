@@ -6,7 +6,7 @@
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 LANGCHAIN_CONFIG_DIR="${APP_ROOT}/resources/langchain/config"
 # shellcheck disable=SC1091
-source "${LANGCHAIN_CONFIG_DIR}/../../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 # Resource identity
 export LANGCHAIN_RESOURCE_NAME="langchain"

@@ -5,14 +5,14 @@
 set -euo pipefail
 
 # Source common functions and format utilities
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 WIKIJS_LIB_DIR="${APP_ROOT}/resources/wikijs/lib"
 
 # Source var.sh first to set up environment variables
-source "$WIKIJS_LIB_DIR/../../../../lib/utils/var.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 source "$WIKIJS_LIB_DIR/common.sh"
-source "$WIKIJS_LIB_DIR/../../../../lib/utils/format.sh"
+source "${APP_ROOT}/scripts/lib/utils/format.sh"
 
 # Show Wiki.js status
 status_wikijs() {

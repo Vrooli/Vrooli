@@ -6,13 +6,13 @@
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 GETH_LIB_DIR="${APP_ROOT}/resources/geth/lib"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+source "${var_TRASH_FILE}"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/docker-utils.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/resources/lib/docker-utils.sh"
 # shellcheck disable=SC1091
-source "${var_LIB_UTILS_DIR}/format.sh" 2>/dev/null || true
+source "${var_LIB_UTILS_DIR}/format.sh"
 
 # Configuration
 export GETH_VERSION="${GETH_VERSION:-v1.13.14}"
@@ -175,4 +175,19 @@ geth::export_config() {
     export GETH_DATA_DIR
     export GETH_NETWORK
     export GETH_CHAIN_ID
+}
+
+# Get account count  
+geth::get_account_count() {
+    local response
+    response=$(curl -s -X POST \
+        -H "Content-Type: application/json" \
+        --data '{"jsonrpc":"2.0","method":"eth_accounts","params":[],"id":1}' \
+        "http://localhost:${GETH_PORT}" 2>/dev/null)
+    
+    if [[ -n "$response" ]]; then
+        echo "$response" | jq '.result | length' 2>/dev/null || echo "0"
+    else
+        echo "0"
+    fi
 }

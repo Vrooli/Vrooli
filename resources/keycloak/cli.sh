@@ -1,4 +1,15 @@
 #!/usr/bin/env bash
+################################################################################
+# Keycloak Resource CLI - v2.0 Universal Contract Compliant
+# 
+# Open Source Identity and Access Management for modern applications
+#
+# Usage:
+#   resource-keycloak <command> [options]
+#   resource-keycloak <group> <subcommand> [options]
+#
+################################################################################
+
 set -euo pipefail
 
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
@@ -10,105 +21,53 @@ if [[ -L "${BASH_SOURCE[0]}" ]]; then
 fi
 KEYCLOAK_CLI_DIR="${APP_ROOT}/resources/keycloak"
 
-# Main CLI handler
-main() {
-    local command="${1:-}"
-    shift || true
-    
-    case "${command}" in
-        start)
-            source "${KEYCLOAK_CLI_DIR}/lib/common.sh"
-            source "${APP_ROOT}/scripts/lib/utils/log.sh"
-            source "${KEYCLOAK_CLI_DIR}/lib/install.sh"
-            source "${KEYCLOAK_CLI_DIR}/lib/lifecycle.sh"
-            keycloak::start "$@"
-            ;;
-        stop)
-            source "${KEYCLOAK_CLI_DIR}/lib/common.sh"
-            source "${APP_ROOT}/scripts/lib/utils/log.sh"
-            source "${KEYCLOAK_CLI_DIR}/lib/lifecycle.sh"
-            keycloak::stop "$@"
-            ;;
-        restart)
-            source "${KEYCLOAK_CLI_DIR}/lib/common.sh"
-            source "${APP_ROOT}/scripts/lib/utils/log.sh"
-            source "${KEYCLOAK_CLI_DIR}/lib/install.sh"
-            source "${KEYCLOAK_CLI_DIR}/lib/lifecycle.sh"
-            keycloak::restart "$@"
-            ;;
-        status)
-            source "${KEYCLOAK_CLI_DIR}/lib/common.sh"
-            source "${APP_ROOT}/scripts/lib/utils/log.sh"
-            source "${KEYCLOAK_CLI_DIR}/../../../lib/utils/format.sh"
-            source "${KEYCLOAK_CLI_DIR}/lib/status.sh"
-            keycloak::status "$@"
-            ;;
-        install)
-            source "${KEYCLOAK_CLI_DIR}/lib/common.sh"
-            source "${APP_ROOT}/scripts/lib/utils/log.sh"
-            source "${KEYCLOAK_CLI_DIR}/lib/install.sh"
-            keycloak::install "$@"
-            ;;
-        uninstall)
-            source "${KEYCLOAK_CLI_DIR}/lib/common.sh"
-            source "${APP_ROOT}/scripts/lib/utils/log.sh"
-            source "${KEYCLOAK_CLI_DIR}/lib/install.sh"
-            keycloak::uninstall "$@"
-            ;;
-        inject)
-            source "${KEYCLOAK_CLI_DIR}/lib/common.sh"
-            source "${APP_ROOT}/scripts/lib/utils/log.sh"
-            source "${KEYCLOAK_CLI_DIR}/lib/inject.sh"
-            keycloak::inject "$@"
-            ;;
-        list|list-injected)
-            source "${KEYCLOAK_CLI_DIR}/lib/common.sh"
-            source "${APP_ROOT}/scripts/lib/utils/log.sh"
-            source "${KEYCLOAK_CLI_DIR}/lib/inject.sh"
-            keycloak::list_injected "$@"
-            ;;
-        clear|clear-data)
-            source "${KEYCLOAK_CLI_DIR}/lib/common.sh"
-            source "${APP_ROOT}/scripts/lib/utils/log.sh"
-            source "${KEYCLOAK_CLI_DIR}/lib/inject.sh"
-            keycloak::clear_data "$@"
-            ;;
-        help|--help|-h|"")
-            cat << EOF
-Keycloak Resource CLI
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}"
+# shellcheck disable=SC1091
+source "${var_RESOURCES_COMMON_FILE}"
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
+# shellcheck disable=SC1091
+source "${KEYCLOAK_CLI_DIR}/config/defaults.sh"
 
-Usage: resource-keycloak <command> [options]
+# Source Keycloak libraries
+for lib in common install lifecycle status inject; do
+    lib_file="${KEYCLOAK_CLI_DIR}/lib/${lib}.sh"
+    if [[ -f "$lib_file" ]]; then
+        # shellcheck disable=SC1090
+        source "$lib_file" 2>/dev/null || true
+    fi
+done
 
-Commands:
-    start           Start Keycloak service
-    stop            Stop Keycloak service
-    restart         Restart Keycloak service
-    status          Check Keycloak status
-    install         Install Keycloak
-    uninstall       Uninstall Keycloak
-    inject <file>   Inject realm configuration into Keycloak (.json)
-    list            List realm and user statistics
-    clear           Clear all data from Keycloak
-    help            Show this help message
+# Initialize CLI framework in v2.0 mode (auto-creates manage/test/content groups)
+cli::init "keycloak" "Identity and Access Management platform" "v2"
 
-Examples:
-    resource-keycloak start
-    resource-keycloak status --format json
-    resource-keycloak inject realm-config.json
-    resource-keycloak list
-    resource-keycloak clear
+# Override default handlers to point directly to keycloak implementations
+CLI_COMMAND_HANDLERS["manage::install"]="keycloak::install"
+CLI_COMMAND_HANDLERS["manage::uninstall"]="keycloak::uninstall"
+CLI_COMMAND_HANDLERS["manage::start"]="keycloak::start"
+CLI_COMMAND_HANDLERS["manage::stop"]="keycloak::stop"
+CLI_COMMAND_HANDLERS["manage::restart"]="keycloak::restart"
+CLI_COMMAND_HANDLERS["test::smoke"]="keycloak::test::smoke"
 
-Keycloak will be available at: http://localhost:8070
-Admin Console: http://localhost:8070/admin
-Default credentials: admin/admin
-EOF
-            ;;
-        *)
-            echo "Unknown command: ${command}"
-            echo "Run '$0 help' for usage information"
-            exit 1
-            ;;
-    esac
-}
+# Override content handlers for Keycloak-specific realm/user management
+CLI_COMMAND_HANDLERS["content::add"]="keycloak::inject"
+CLI_COMMAND_HANDLERS["content::list"]="keycloak::list_injected"
+CLI_COMMAND_HANDLERS["content::remove"]="keycloak::clear_data"
 
-main "$@"
+# Add Keycloak-specific custom commands for realm management
+cli::register_subcommand "content" "inject" "Inject realm configuration from JSON file" "keycloak::inject"
+cli::register_subcommand "content" "realms" "List configured realms and users" "keycloak::list_injected"
+cli::register_subcommand "content" "clear" "Clear all Keycloak data" "keycloak::clear_data"
+
+# Additional information commands
+cli::register_command "status" "Show detailed resource status" "keycloak::status"
+cli::register_command "logs" "Show Keycloak logs" "keycloak::logs"
+cli::register_command "credentials" "Show Keycloak admin credentials" "keycloak::credentials"
+
+# Only execute if script is run directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    cli::dispatch "$@"
+fi

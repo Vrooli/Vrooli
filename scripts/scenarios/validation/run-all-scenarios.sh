@@ -34,7 +34,7 @@ SCENARIOS_ROOT="${APP_ROOT}/scripts/scenarios"
 # shellcheck disable=SC1091
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/trash.sh"
+source "${var_TRASH_FILE}"
 
 # Print functions
 print_info() {
@@ -54,9 +54,9 @@ print_warning() {
 }
 
 print_header() {
-    echo -e "\n${BLUE}╔════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${BLUE}║$1${NC}"
-    echo -e "${BLUE}╚════════════════════════════════════════════════════════╝${NC}"
+    echo -e "\n${BLUE}╔════════════════════════════════════════════════════════╗${RESET}"
+    echo -e "${BLUE}║$1${RESET}"
+    echo -e "${BLUE}╚════════════════════════════════════════════════════════╝${RESET}"
 }
 
 # Show usage
@@ -340,12 +340,12 @@ generate_report() {
     
     print_header "                    Final Test Report                     "
     
-    echo -e "  ${GREEN}Passed:${NC}    $SCENARIOS_PASSED"
+    echo -e "  ${GREEN}Passed:${RESET}    $SCENARIOS_PASSED"
     if [[ $SCENARIOS_DEGRADED -gt 0 ]]; then
-        echo -e "  ${YELLOW}Degraded:${NC}  $SCENARIOS_DEGRADED"
+        echo -e "  ${YELLOW}Degraded:${RESET}  $SCENARIOS_DEGRADED"
     fi
-    echo -e "  ${RED}Failed:${NC}    $SCENARIOS_FAILED"
-    echo -e "  ${YELLOW}Skipped:${NC}   $SCENARIOS_SKIPPED"
+    echo -e "  ${RED}Failed:${RESET}    $SCENARIOS_FAILED"
+    echo -e "  ${YELLOW}Skipped:${RESET}   $SCENARIOS_SKIPPED"
     echo "  ──────────────────────────────────────────────────────"
     echo "  Total:     $total"
     
@@ -357,7 +357,7 @@ generate_report() {
     # Show failed scenarios
     if [[ ${#FAILED_SCENARIOS[@]} -gt 0 ]]; then
         echo
-        echo -e "${RED}Failed Scenarios:${NC}"
+        echo -e "${RED}Failed Scenarios:${RESET}"
         for scenario in "${FAILED_SCENARIOS[@]}"; do
             echo "  - $scenario"
         done
@@ -366,7 +366,7 @@ generate_report() {
     # Show degraded scenarios
     if [[ ${#DEGRADED_SCENARIOS[@]} -gt 0 ]]; then
         echo
-        echo -e "${YELLOW}Degraded Scenarios:${NC}"
+        echo -e "${YELLOW}Degraded Scenarios:${RESET}"
         for scenario in "${DEGRADED_SCENARIOS[@]}"; do
             echo "  - $scenario"
         done
@@ -375,7 +375,7 @@ generate_report() {
     # Show passed scenarios if verbose
     if [[ "$VERBOSE" == "true" && ${#PASSED_SCENARIOS[@]} -gt 0 ]]; then
         echo
-        echo -e "${GREEN}Passed Scenarios:${NC}"
+        echo -e "${GREEN}Passed Scenarios:${RESET}"
         for scenario in "${PASSED_SCENARIOS[@]}"; do
             echo "  - $scenario"
         done

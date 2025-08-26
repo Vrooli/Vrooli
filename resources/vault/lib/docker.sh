@@ -3,16 +3,16 @@
 # Uses docker-resource-utils.sh for minimal boilerplate
 
 # Source var.sh to get proper directory variables
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 _VAULT_DOCKER_DIR="${APP_ROOT}/resources/vault/lib"
 # shellcheck disable=SC1091
-source "${_VAULT_DOCKER_DIR}/../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 # Source shared libraries
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+source "${var_TRASH_FILE}"
 # shellcheck disable=SC1091
-source "${var_LIB_UTILS_DIR}/sudo.sh" 2>/dev/null || true
+source "${var_LIB_UTILS_DIR}/sudo.sh"
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_LIB_DIR}/docker-resource-utils.sh"
 # shellcheck disable=SC1091
@@ -429,4 +429,21 @@ vault::docker::destroy_client_instance() {
     
     log::success "Vault client instance destroyed successfully"
     return 0
+}
+
+# Show Vault logs
+vault::docker::show_logs() {
+    local lines="${1:-50}"
+    local follow="${2:-}"
+    
+    if vault::is_running; then
+        if [[ "$follow" == "follow" ]]; then
+            docker logs --follow --tail "$lines" "$VAULT_CONTAINER_NAME"
+        else
+            docker logs --tail "$lines" "$VAULT_CONTAINER_NAME"
+        fi
+    else
+        log::warn "Vault container not running"
+        return 1
+    fi
 }

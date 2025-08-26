@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# Keycloak test functions for v2.0 CLI
+
+keycloak::test::smoke() {
+    log::info "Running Keycloak smoke test..."
+    
+    # Check if Keycloak is running
+    if ! docker ps --format "table {{.Names}}" | grep -q "^keycloak$"; then
+        log::error "Keycloak container is not running"
+        return 1
+    fi
+    
+    # Check health endpoint
+    local health_url="http://localhost:${KEYCLOAK_PORT:-8070}/health"
+    if curl -sf "${health_url}" > /dev/null 2>&1; then
+        log::success "Keycloak health check passed"
+        return 0
+    else
+        log::error "Keycloak health check failed"
+        return 1
+    fi
+}
+
+keycloak::logs() {
+    local lines="${1:-50}"
+    log::info "Showing last ${lines} lines of Keycloak logs..."
+    docker logs keycloak --tail "${lines}" 2>&1
+}
+
+keycloak::credentials() {
+    cat << EOF
+Keycloak Admin Credentials:
+===========================
+URL:      http://localhost:${KEYCLOAK_PORT:-8070}
+Admin UI: http://localhost:${KEYCLOAK_PORT:-8070}/admin
+Username: admin
+Password: admin
+EOF
+}

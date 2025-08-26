@@ -4,15 +4,15 @@
 # This file contains functions for installing and uninstalling the Unstructured.io service
 
 # Get script directory for relative path resolution
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 LIB_DIR="${APP_ROOT}/resources/unstructured-io/lib"
 
 # shellcheck disable=SC1091
-source "${LIB_DIR}/../../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_NETWORK_DIR}/ports.sh"
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/system_commands.sh" 2>/dev/null || true
+source "${var_LIB_SYSTEM_DIR}/system_commands.sh"
 
 #######################################
 # Install Unstructured.io service

@@ -16,7 +16,7 @@ source "${APP_ROOT}/scripts/lib/utils/sudo.sh"
 
 # Source configuration
 # shellcheck disable=SC1091
-source "${VOCR_INSTALL_DIR}/../config/defaults.sh"
+source "${APP_ROOT}/resources/vocr/config/defaults.sh"
 
 # Main installation function
 vocr::install() {
@@ -75,7 +75,7 @@ vocr::install() {
     
     # Install CLI
     log::info "Installing CLI..."
-    local install_cli_path="${VOCR_INSTALL_DIR}/../../../../lib/resources/install-resource-cli.sh"
+    local install_cli_path="${APP_ROOT}/scripts/resources/lib/install-resource-cli.sh"
     if [[ -x "$install_cli_path" ]]; then
         "$install_cli_path" vocr || log::warning "CLI installation failed"
     else

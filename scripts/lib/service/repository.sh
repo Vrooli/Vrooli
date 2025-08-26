@@ -10,7 +10,7 @@ APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pw
 LIB_SERVICE_DIR="${APP_ROOT}/scripts/lib/service"
 
 # shellcheck disable=SC1091
-source "${LIB_SERVICE_DIR}/../utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_EXIT_CODES_FILE}"
 # shellcheck disable=SC1091
@@ -18,7 +18,7 @@ source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
 source "${var_SYSTEM_COMMANDS_FILE}"
 # shellcheck disable=SC1091
-source "${LIB_SERVICE_DIR}/../utils/json.sh"
+source "${APP_ROOT}/scripts/lib/utils/json.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/sudo.sh"
 
