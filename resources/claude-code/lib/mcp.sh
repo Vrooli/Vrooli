@@ -8,7 +8,7 @@ APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pw
 CLAUDE_CODE_LIB_DIR="${APP_ROOT}/resources/claude-code/lib"
 
 # Source required libraries
-source "${CLAUDE_CODE_LIB_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/system_commands.sh"
 

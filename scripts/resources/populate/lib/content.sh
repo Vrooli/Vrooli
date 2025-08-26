@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 ################################################################################
-# Injection System v2.0 - Content Management
+# Population System v2.0 - Content Management
 # Functions for adding content to resources using v2.0 contract
 ################################################################################
 set -euo pipefail
@@ -50,7 +50,7 @@ content::add_to_resource() {
     while IFS= read -r item; do
         ((item_count++))
         
-        if [[ "$INJECTION_DRY_RUN" == "true" ]]; then
+        if [[ "$POPULATION_DRY_RUN" == "true" ]]; then
             log::info "  [DRY RUN] Would add content to $resource"
             content::show_item_details "$item"
             ((success_count++))
@@ -133,7 +133,7 @@ content::add_single_item() {
             ;;
     esac
     
-    if [[ "$INJECTION_VERBOSE" == "true" ]]; then
+    if [[ "$POPULATION_VERBOSE" == "true" ]]; then
         log::info "  Executing: $add_cmd"
     fi
     

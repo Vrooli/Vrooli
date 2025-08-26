@@ -7,7 +7,7 @@ APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pw
 HUGINN_DIR="${APP_ROOT}/resources/huginn"
 
 # shellcheck disable=SC1091
-source "${HUGINN_DIR}/../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_RESOURCES_COMMON_FILE}"
 

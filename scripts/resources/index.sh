@@ -48,7 +48,7 @@ resources::parse_arguments() {
         --flag "a" \
         --desc "Action to perform" \
         --type "value" \
-        --options "install|uninstall|start|stop|restart|status|list|discover|test|inject|inject-all" \
+        --options "install|uninstall|start|stop|restart|status|list|discover|test|populate|populate-all|inject|inject-all" \
         --default "install"
     
     args::register \
@@ -294,9 +294,13 @@ resources::get_category() {
 #######################################
 resources::get_script_path() {
     local resource="$1"
-    local category
-    category=$(resources::get_category "$resource")
-    echo "${RESOURCES_DIR}/${category}/${resource}/cli.sh"
+    # Resources now use flat structure under /resources/
+    # Use var_RESOURCES_DIR if available, otherwise calculate from APP_ROOT
+    if [[ -n "${var_RESOURCES_DIR:-}" ]]; then
+        echo "${var_RESOURCES_DIR}/${resource}/cli.sh"
+    else
+        echo "${APP_ROOT}/resources/${resource}/cli.sh"
+    fi
 }
 
 #######################################
@@ -430,7 +434,8 @@ resources::check_mcp_integration() {
     echo
     log::header "🔗 Claude Code MCP Integration Status"
     
-    local claude_code_script="${RESOURCES_DIR}/agents/claude-code/manage.sh"
+    # Use the new flat structure for resources
+    local claude_code_script="${var_RESOURCES_DIR:-${APP_ROOT}/resources}/claude-code/cli.sh"
     
     if [[ ! -f "$claude_code_script" ]]; then
         log::info "Claude Code resource not available"
@@ -962,18 +967,26 @@ resources::main() {
             resources::run_tests "$@"
             return 0
             ;;
-        "inject")
+        "inject"|"populate")
             if [[ -n "$SCENARIO_NAME" ]]; then
-                "${var_ROOT_DIR}/scripts/resources/injection/engine.sh" --action inject --scenario "$SCENARIO_NAME" --config-file "$SCENARIOS_CONFIG"
+                "${var_ROOT_DIR}/scripts/resources/populate/populate.sh" add "$SCENARIO_NAME"
             else
-                log::error "Scenario name required for injection action"
+                log::error "Scenario name required for populate action"
                 log::info "Use: --scenario SCENARIO_NAME"
                 exit 1
             fi
             return 0
             ;;
-        "inject-all")
-            "${var_ROOT_DIR}/scripts/resources/injection/engine.sh" --action inject --all-active yes --config-file "$SCENARIOS_CONFIG"
+        "inject-all"|"populate-all")
+            # Use new population system to process all scenarios
+            log::info "Populating all available scenarios..."
+            for scenario_dir in "${var_SCENARIOS_DIR}"/*/; do
+                if [[ -d "$scenario_dir" ]]; then
+                    scenario_name=$(basename "$scenario_dir")
+                    log::info "Processing: $scenario_name"
+                    "${var_ROOT_DIR}/scripts/resources/populate/populate.sh" add "$scenario_name" || true
+                fi
+            done
             return 0
             ;;
     esac

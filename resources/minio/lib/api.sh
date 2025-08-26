@@ -7,11 +7,11 @@ APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pw
 MINIO_API_DIR="${APP_ROOT}/resources/minio/lib"
 
 # Source required dependencies
-source "${MINIO_API_DIR}/common.sh" 2>/dev/null || true
-source "${MINIO_API_DIR}/docker.sh" 2>/dev/null || true
+source "${MINIO_API_DIR}/common.sh"
+source "${MINIO_API_DIR}/docker.sh"
 
 # Source and initialize messages
-source "${MINIO_API_DIR}/../config/messages.sh" 2>/dev/null || true
+source "${APP_ROOT}/resources/minio/config/messages.sh"
 if command -v minio::messages::init &>/dev/null; then
     minio::messages::init
 fi

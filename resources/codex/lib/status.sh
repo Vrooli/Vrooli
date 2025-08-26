@@ -9,9 +9,9 @@ CODEX_STATUS_DIR="${APP_ROOT}/resources/codex/lib"
 # shellcheck disable=SC1091
 source "${CODEX_STATUS_DIR}/common.sh"
 # shellcheck disable=SC1091
-source "${CODEX_STATUS_DIR}/../../../../lib/utils/format.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/format.sh"
 # shellcheck disable=SC1091
-source "${CODEX_STATUS_DIR}/../../../lib/status-args.sh"
+source "${APP_ROOT}/scripts/resources/lib/status-args.sh"
 
 #######################################
 # Collect Codex status data

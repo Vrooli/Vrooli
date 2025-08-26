@@ -10,9 +10,9 @@ CLAUDE_CODE_SANDBOX_DIR="${APP_ROOT}/resources/claude-code/sandbox"
 
 # Source var.sh first to get proper directory variables
 # shellcheck disable=SC1091
-source "${CLAUDE_CODE_SANDBOX_DIR}/../../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+source "${var_TRASH_FILE}"
 
 # Source common utilities using var_ variables
 # shellcheck disable=SC1091

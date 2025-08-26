@@ -8,19 +8,19 @@ CLAUDE_CODE_SCRIPT_DIR="${CLAUDE_CODE_SCRIPT_DIR:-${APP_ROOT}/resources/claude-c
 
 # Source var.sh for directory variables if not already sourced
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}" 2>/dev/null || true
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+source "${var_TRASH_FILE}"
 # shellcheck disable=SC1091
-source "${var_LIB_UTILS_DIR}/format.sh" 2>/dev/null || true
+source "${var_LIB_UTILS_DIR}/format.sh"
 # shellcheck disable=SC1091
-source "${CLAUDE_CODE_SCRIPT_DIR}/../../lib/status-args.sh"
+source "${APP_ROOT}/scripts/resources/lib/status-args.sh"
 # shellcheck disable=SC1091
-source "${CLAUDE_CODE_SCRIPT_DIR}/config/defaults.sh" 2>/dev/null || true
+source "${CLAUDE_CODE_SCRIPT_DIR}/config/defaults.sh"
 # shellcheck disable=SC1091
-source "${CLAUDE_CODE_SCRIPT_DIR}/common.sh" 2>/dev/null || true
+source "${CLAUDE_CODE_SCRIPT_DIR}/common.sh"
 
 # Ensure configuration is exported
 if command -v claude_code::export_config &>/dev/null; then

@@ -8,9 +8,9 @@ HUGINN_LIB_DIR="${APP_ROOT}/resources/huginn/lib"
 
 # Source required dependencies
 # shellcheck disable=SC1091
-source "${HUGINN_LIB_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "${HUGINN_LIB_DIR}/../../../../lib/system/system_commands.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/system/system_commands.sh"
 
 #######################################
 # Check if Docker is available and running

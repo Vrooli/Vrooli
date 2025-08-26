@@ -6,14 +6,14 @@ APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pw
 
 # Source var.sh for directory variables
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+source "${var_TRASH_FILE}"
 
 # Source configuration messages
 BROWSERLESS_LIB_DIR="${APP_ROOT}/resources/browserless/lib"
 # shellcheck disable=SC1091
-source "${BROWSERLESS_LIB_DIR}/../config/messages.sh" 2>/dev/null || true
+source "${APP_ROOT}/resources/browserless/config/messages.sh"
 # Export message variables
 browserless::export_messages 2>/dev/null || true
 

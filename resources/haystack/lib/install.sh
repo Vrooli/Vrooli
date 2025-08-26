@@ -7,7 +7,7 @@ HAYSTACK_LIB_DIR="${APP_ROOT}/resources/haystack/lib"
 
 # Source dependencies
 source "${HAYSTACK_LIB_DIR}/common.sh"
-source "${HAYSTACK_LIB_DIR}/../../../../lib/utils/log.sh"
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
 
 # Install Haystack
 haystack::install() {
@@ -261,7 +261,7 @@ EOF
     
     # Register the CLI
     local resource_dir="${APP_ROOT}/resources/haystack"
-    "${HAYSTACK_LIB_DIR}/../../../../lib/resources/install-resource-cli.sh" "${resource_dir}" 2>/dev/null || true
+    "${APP_ROOT}/scripts/resources/lib/install-resource-cli.sh" "${resource_dir}" 2>/dev/null || true
     
     log::success "Haystack installed successfully"
     return 0

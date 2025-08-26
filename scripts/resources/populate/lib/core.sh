@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 ################################################################################
-# Injection System v2.0 - Core Logic
-# Core functions for scenario content injection
+# Population System v2.0 - Core Logic
+# Core functions for scenario content population
 ################################################################################
 set -euo pipefail
 
 # Global settings
-INJECTION_DRY_RUN="${INJECTION_DRY_RUN:-false}"
-INJECTION_PARALLEL="${INJECTION_PARALLEL:-true}"
-INJECTION_VERBOSE="${INJECTION_VERBOSE:-false}"
+POPULATION_DRY_RUN="${POPULATION_DRY_RUN:-false}"
+POPULATION_PARALLEL="${POPULATION_PARALLEL:-true}"
+POPULATION_VERBOSE="${POPULATION_VERBOSE:-false}"
 
 #######################################
 # Add content from scenario to resources
@@ -16,7 +16,7 @@ INJECTION_VERBOSE="${INJECTION_VERBOSE:-false}"
 #   $1 - scenario name
 #   $@ - additional options
 #######################################
-inject::add() {
+populate::add() {
     local scenario_name="${1:-}"
     shift || true
     
@@ -24,19 +24,19 @@ inject::add() {
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --dry-run)
-                INJECTION_DRY_RUN=true
+                POPULATION_DRY_RUN=true
                 shift
                 ;;
             --parallel)
-                INJECTION_PARALLEL=true
+                POPULATION_PARALLEL=true
                 shift
                 ;;
             --no-parallel)
-                INJECTION_PARALLEL=false
+                POPULATION_PARALLEL=false
                 shift
                 ;;
             --verbose)
-                INJECTION_VERBOSE=true
+                POPULATION_VERBOSE=true
                 shift
                 ;;
             *)
@@ -48,11 +48,11 @@ inject::add() {
     
     if [[ -z "$scenario_name" ]]; then
         log::error "Scenario name required"
-        echo "Usage: inject.sh add <scenario> [--dry-run] [--parallel] [--verbose]"
+        echo "Usage: populate.sh add <scenario> [--dry-run] [--parallel] [--verbose]"
         return 1
     fi
     
-    log::header "📦 Injecting content from scenario: $scenario_name"
+    log::header "📦 Populating resources from scenario: $scenario_name"
     
     # Load scenario configuration
     local scenario_config
@@ -67,7 +67,7 @@ inject::add() {
         return 1
     fi
     
-    if [[ "$INJECTION_DRY_RUN" == "true" ]]; then
+    if [[ "$POPULATION_DRY_RUN" == "true" ]]; then
         log::info "[DRY RUN MODE] No changes will be made"
     fi
     
@@ -101,7 +101,7 @@ inject::add() {
     done
     
     # Summary
-    log::header "📊 Injection Summary"
+    log::header "📊 Population Summary"
     log::info "Total resources: $total"
     log::info "Successful: $success"
     if [[ $failed -gt 0 ]]; then
@@ -109,7 +109,7 @@ inject::add() {
         return 1
     fi
     
-    log::success "✅ Injection complete!"
+    log::success "✅ Population complete!"
     return 0
 }
 
@@ -118,12 +118,12 @@ inject::add() {
 # Arguments:
 #   $1 - scenario name
 #######################################
-inject::validate() {
+populate::validate() {
     local scenario_name="${1:-}"
     
     if [[ -z "$scenario_name" ]]; then
         log::error "Scenario name required"
-        echo "Usage: inject.sh validate <scenario>"
+        echo "Usage: populate.sh validate <scenario>"
         return 1
     fi
     
@@ -149,7 +149,7 @@ inject::validate() {
 #######################################
 # List available scenarios
 #######################################
-inject::list() {
+populate::list() {
     log::header "📋 Available Scenarios"
     scenario::list
 }
@@ -157,8 +157,8 @@ inject::list() {
 #######################################
 # Show injection status
 #######################################
-inject::status() {
-    log::header "📊 Injection Status"
+populate::status() {
+    log::header "📊 Population Status"
     
     # Check which resources are running
     log::info "Checking resource availability..."

@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 ################################################################################
-# Injection System v2.0 - Integration Tests
-# Tests for the injection system
+# Population System v2.0 - Integration Tests
+# Tests for the population system
 ################################################################################
 set -euo pipefail
 
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
-INJECTION_DIR="${APP_ROOT}/scripts/resources/injection"
-TEST_DIR="${INJECTION_DIR}/test"
+POPULATE_DIR="${APP_ROOT}/scripts/resources/populate"
+TEST_DIR="${POPULATE_DIR}/test"
 
 # Source utilities
 # shellcheck disable=SC1091
@@ -49,14 +49,14 @@ run_test() {
 # Test help command
 #######################################
 test_help() {
-    "${INJECTION_DIR}/inject.sh" help | grep -q "Vrooli Injection System"
+    "${POPULATE_DIR}/populate.sh" help | grep -q "Vrooli Population System"
 }
 
 #######################################
 # Test list command
 #######################################
 test_list() {
-    "${INJECTION_DIR}/inject.sh" list
+    "${POPULATE_DIR}/populate.sh" list
     return 0  # List should always work
 }
 
@@ -64,7 +64,7 @@ test_list() {
 # Test validate with missing scenario
 #######################################
 test_validate_missing() {
-    ! "${INJECTION_DIR}/inject.sh" validate non-existent-scenario 2>/dev/null
+    ! "${POPULATE_DIR}/populate.sh" validate non-existent-scenario 2>/dev/null
 }
 
 #######################################
@@ -96,7 +96,7 @@ EOF
     
     # Run dry-run
     local result
-    result=$("${INJECTION_DIR}/inject.sh" add "$test_scenario" --dry-run 2>&1)
+    result=$("${POPULATE_DIR}/populate.sh" add "$test_scenario" --dry-run 2>&1)
     
     # Clean up
     rm -f "$test_scenario" /tmp/test-workflow.json
@@ -130,7 +130,7 @@ EOF
     
     # Validate
     local result
-    result=$("${INJECTION_DIR}/inject.sh" validate "$test_scenario" 2>&1)
+    result=$("${POPULATE_DIR}/populate.sh" validate "$test_scenario" 2>&1)
     
     # Clean up
     rm -f "$test_scenario"
@@ -160,7 +160,7 @@ test_validate_invalid() {
 EOF
     
     # Validate (should fail)
-    if "${INJECTION_DIR}/inject.sh" validate "$test_scenario" 2>/dev/null; then
+    if "${POPULATE_DIR}/populate.sh" validate "$test_scenario" 2>/dev/null; then
         rm -f "$test_scenario"
         return 1  # Should have failed
     else
@@ -173,14 +173,14 @@ EOF
 # Test status command
 #######################################
 test_status() {
-    "${INJECTION_DIR}/inject.sh" status | grep -q "Injection Status"
+    "${POPULATE_DIR}/populate.sh" status | grep -q "Population Status"
 }
 
 #######################################
 # Main test runner
 #######################################
 main() {
-    log::header "🧪 Injection System Integration Tests"
+    log::header "🧪 Population System Integration Tests"
     echo ""
     
     # Run tests

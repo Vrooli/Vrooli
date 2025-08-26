@@ -9,9 +9,9 @@ CLAUDE_CODE_SCRIPT_DIR="${APP_ROOT}/resources/claude-code"
 
 # Source utilities
 # shellcheck disable=SC1091
-source "${CLAUDE_CODE_SCRIPT_DIR}/../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091  
-source "${var_LOG_FILE:-${CLAUDE_CODE_SCRIPT_DIR}/../../../lib/utils/log.sh}"
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
 

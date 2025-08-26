@@ -19,7 +19,7 @@ APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pw
 BROWSER_OPS_DIR="${APP_ROOT}/resources/browserless/lib"
 
 # Source log utilities
-source "${APP_ROOT}/scripts/lib/utils/log.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
 
 # Source common utilities
 source "${BROWSER_OPS_DIR}/common.sh"
@@ -38,8 +38,8 @@ browser::execute_js() {
     local session_id="${2:-default}"
     local browserless_port="${BROWSERLESS_PORT:-4110}"
     
-    # Create the JavaScript wrapper with proper page setup
-    local wrapped_code="export default async ({ page, context }) => {
+    # Create the JavaScript wrapper using CommonJS module.exports format
+    local wrapped_code="module.exports = async ({ page, context }) => {
         try {
             // Set viewport to ensure content is visible
             await page.setViewport({ width: 1920, height: 1080 });
@@ -64,17 +64,12 @@ browser::execute_js() {
         }
     };"
     
-    # Execute via browserless
+    # Execute via browserless using Content-Type: application/javascript
     local response
     response=$(curl -s -X POST \
-        -H "Content-Type: application/json" \
-        -d "{
-            \"code\": $(echo "$wrapped_code" | jq -Rs .),
-            \"context\": {
-                \"sessionId\": \"$session_id\"
-            }
-        }" \
-        "http://localhost:${browserless_port}/chrome/function" 2>/dev/null)
+        -H "Content-Type: application/javascript" \
+        -d "$wrapped_code" \
+        "http://localhost:${browserless_port}/function" 2>/dev/null)
     
     # Check for success
     if [[ -n "$response" ]]; then
@@ -111,8 +106,8 @@ browser::navigate() {
     
     log::debug "Navigating to: $url"
     
-    # Use a direct approach similar to our working test
-    local wrapped_code="export default async ({ page, context }) => {
+    # Use CommonJS module.exports format for browserless v2
+    local wrapped_code="module.exports = async ({ page, context }) => {
         try {
             await page.setViewport({ width: 1920, height: 1080 });
             
@@ -142,14 +137,9 @@ browser::navigate() {
     # Execute directly via browserless API
     local response
     response=$(curl -s -X POST \
-        -H "Content-Type: application/json" \
-        -d "{
-            \"code\": $(echo "$wrapped_code" | jq -Rs .),
-            \"context\": {
-                \"sessionId\": \"$session_id\"
-            }
-        }" \
-        "http://localhost:${browserless_port}/chrome/function" 2>/dev/null)
+        -H "Content-Type: application/javascript" \
+        -d "$wrapped_code" \
+        "http://localhost:${browserless_port}/function" 2>/dev/null)
     
     echo "$response"
 }
@@ -249,8 +239,8 @@ browser::screenshot() {
     
     log::debug "Taking screenshot"
     
-    # Use a direct approach similar to our working test
-    local wrapped_code="export default async ({ page, context }) => {
+    # Use CommonJS module.exports format for browserless v2
+    local wrapped_code="module.exports = async ({ page, context }) => {
         try {
             await page.setViewport({ width: 1920, height: 1080 });
             await page.waitForFunction(() => document.readyState === 'complete', { timeout: 5000 }).catch(() => {});
@@ -277,14 +267,9 @@ browser::screenshot() {
     # Execute directly via browserless API
     local response
     response=$(curl -s -X POST \
-        -H "Content-Type: application/json" \
-        -d "{
-            \"code\": $(echo "$wrapped_code" | jq -Rs .),
-            \"context\": {
-                \"sessionId\": \"$session_id\"
-            }
-        }" \
-        "http://localhost:${browserless_port}/chrome/function" 2>/dev/null)
+        -H "Content-Type: application/javascript" \
+        -d "$wrapped_code" \
+        "http://localhost:${browserless_port}/function" 2>/dev/null)
     
     if [[ $? -eq 0 ]] && [[ -n "$output_path" ]]; then
         local success=$(echo "$response" | jq -r '.success // false')
@@ -716,7 +701,7 @@ browser::navigate_and_screenshot() {
     log::debug "Navigating to: $url and taking screenshot (wait ${wait_ms}ms)"
     
     # Combined approach to maintain browser context
-    local wrapped_code="export default async ({ page, context }) => {
+    local wrapped_code="module.exports = async ({ page, context }) => {
         try {
             await page.setViewport({ width: 1920, height: 1080 });
             
@@ -794,7 +779,7 @@ browser::navigate_and_screenshot() {
                 \"sessionId\": \"$session_id\"
             }
         }" \
-        "http://localhost:${browserless_port}/chrome/function" 2>/dev/null)
+        "http://localhost:${browserless_port}/function" 2>/dev/null)
     
     local success=$(echo "$response" | jq -r '.success // false')
     if [[ "$success" == "true" ]]; then

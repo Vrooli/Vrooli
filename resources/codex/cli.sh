@@ -9,6 +9,12 @@ if [[ -L "$SCRIPT_PATH" ]]; then
     SCRIPT_PATH="$(readlink -f "$SCRIPT_PATH")"
 fi
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+# Handle symlinks for installed CLI
+if [[ -L "${BASH_SOURCE[0]}" ]]; then
+    CODEX_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
+    # Recalculate APP_ROOT from resolved symlink location
+    APP_ROOT="$(builtin cd "${CODEX_CLI_SCRIPT%/*}/../.." && builtin pwd)"
+fi
 CODEX_CLI_DIR="${APP_ROOT}/resources/codex"
 
 # Source libraries
@@ -17,7 +23,7 @@ source "${CODEX_CLI_DIR}/lib/common.sh"
 # shellcheck disable=SC1091
 source "${CODEX_CLI_DIR}/lib/status.sh"
 # shellcheck disable=SC1091
-source "${CODEX_CLI_DIR}/lib/inject.sh" 2>/dev/null || true
+source "${CODEX_CLI_DIR}/lib/inject.sh"
 
 #######################################
 # Display help message

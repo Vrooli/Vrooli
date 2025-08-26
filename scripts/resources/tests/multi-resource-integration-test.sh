@@ -10,7 +10,7 @@ APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pw
 # shellcheck disable=SC1091
 source "${APP_ROOT}/lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/trash.sh"
+source "${var_TRASH_FILE}"
 # shellcheck disable=SC1091
 source "${APP_ROOT}/scripts/resources/tests/lib/integration-test-lib.sh"
 # shellcheck disable=SC1091

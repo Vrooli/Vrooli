@@ -3,7 +3,8 @@
 # Basic Integration Test Template
 # Simple template for resource integration validation
 
-source ../../../framework/helpers/test-helpers.sh
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
+source "${APP_ROOT}/scripts/scenarios/framework/helpers/test-helpers.sh"
 
 SCENARIO_ID="basic-integration-test"
 TEST_TIMEOUT=${TEST_TIMEOUT:-300}

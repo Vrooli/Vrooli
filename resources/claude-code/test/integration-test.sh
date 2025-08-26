@@ -15,7 +15,7 @@ source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 # Source shared integration test library if it exists
 # shellcheck disable=SC1091
-source "${var_SCRIPTS_DIR}/tests/lib/integration-test-lib.sh" 2>/dev/null || true
+source "${var_SCRIPTS_DIR}/tests/lib/integration-test-lib.sh"
 
 # Fallback implementations for missing shared library functions
 if ! type register_standard_interface_tests &>/dev/null; then

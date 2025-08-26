@@ -14,7 +14,7 @@ set -euo pipefail
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 
 # shellcheck disable=SC1091
-source "${APP_ROOT}/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_DIR}/resources/tests/lib/integration-test-lib.sh"
 

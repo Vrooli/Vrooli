@@ -4,7 +4,14 @@
 
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+# Handle symlinks for installed CLI
+if [[ -L "${BASH_SOURCE[0]}" ]]; then
+    RESOURCE_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
+    APP_ROOT="$(builtin cd "${RESOURCE_CLI_SCRIPT%/*}/../.." && builtin pwd)"
+else
+    APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+fi
+
 SCRIPT_DIR="${APP_ROOT}/resources/cloudflare-ai-gateway"
 RESOURCE_NAME="cloudflare-ai-gateway"
 

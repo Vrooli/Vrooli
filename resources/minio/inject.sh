@@ -12,7 +12,7 @@ SCRIPT_DIR="${APP_ROOT}/resources/minio"
 
 # Source var.sh first to get directory variables
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 # Source common utilities
 # shellcheck disable=SC1091
@@ -21,7 +21,7 @@ source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
 # Source MinIO configuration if available
 if [[ -f "${SCRIPT_DIR}/config/defaults.sh" ]]; then
     # shellcheck disable=SC1091
-    source "${SCRIPT_DIR}/config/defaults.sh" 2>/dev/null || true
+    source "${SCRIPT_DIR}/config/defaults.sh"
 fi
 
 # Default MinIO settings

@@ -7,9 +7,9 @@ HAYSTACK_LIB_DIR="${APP_ROOT}/resources/haystack/lib"
 
 # Source dependencies
 source "${HAYSTACK_LIB_DIR}/common.sh"
-source "${HAYSTACK_LIB_DIR}/../../../../lib/utils/log.sh"
-source "${HAYSTACK_LIB_DIR}/../../../../lib/utils/format.sh"
-source "${HAYSTACK_LIB_DIR}/../../../lib/status-args.sh"
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
+source "${APP_ROOT}/scripts/lib/utils/format.sh"
+source "${APP_ROOT}/scripts/resources/lib/status-args.sh"
 
 #######################################
 # Collect Haystack status data in format-agnostic structure
@@ -120,8 +120,10 @@ haystack::status::display_text() {
     for ((i=1; i<=$#; i+=2)); do
         local key="${!i}"
         local value_idx=$((i+1))
-        local value="${!value_idx}"
-        data["$key"]="$value"
+        if [[ $value_idx -le $# ]]; then
+            local value="${!value_idx}"
+            data["$key"]="$value"
+        fi
     done
     
     # Get verbose mode from environment or default to false

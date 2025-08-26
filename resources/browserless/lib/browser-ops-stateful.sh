@@ -14,7 +14,7 @@ APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pw
 BROWSER_OPS_DIR="${APP_ROOT}/resources/browserless/lib"
 
 # Source log utilities
-source "${APP_ROOT}/scripts/lib/utils/log.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
 
 # Default configuration
 BROWSERLESS_PORT="${BROWSERLESS_PORT:-4110}"

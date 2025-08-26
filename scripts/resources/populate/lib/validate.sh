@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 ################################################################################
-# Injection System v2.0 - Validation
+# Population System v2.0 - Validation
 # Validation functions for scenarios and content
 ################################################################################
 set -euo pipefail

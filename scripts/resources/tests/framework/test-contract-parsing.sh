@@ -8,7 +8,7 @@ APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../../.." && buil
 _HERE="${APP_ROOT}/scripts/resources/tests/framework"
 
 # shellcheck disable=SC1091
-source "${_HERE}/../../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
 # shellcheck disable=SC1091,SC2154

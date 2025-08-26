@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 ################################################################################
-# Injection System v2.0 - Main Entry Point
-# Ultra-simple scenario content injection for Vrooli resources
+# Population System v2.0 - Main Entry Point
+# Ultra-simple scenario content population for Vrooli resources
 ################################################################################
 set -euo pipefail
 
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-INJECTION_DIR="${APP_ROOT}/scripts/resources/injection"
+POPULATE_DIR="${APP_ROOT}/scripts/resources/populate"
 
 # Source utilities
 # shellcheck disable=SC1091
@@ -14,25 +14,25 @@ source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
 
-# Source injection libraries
+# Source population libraries
 for lib in core content validate scenario; do
     # shellcheck disable=SC1090
-    source "${INJECTION_DIR}/lib/${lib}.sh"
+    source "${POPULATE_DIR}/lib/${lib}.sh"
 done
 
 # Show usage
 show_usage() {
     cat << EOF
-Vrooli Injection System v2.0
+Vrooli Population System v2.0
 
 USAGE:
-    inject.sh <command> [options]
+    populate.sh <command> [options]
 
 COMMANDS:
-    add <scenario>      Add content from scenario to resources
+    add <scenario>      Populate resources with content from scenario
     validate <scenario> Validate scenario configuration
     list               List available scenarios
-    status             Show injection status
+    status             Show population status
     help               Show this help message
 
 OPTIONS:
@@ -41,10 +41,10 @@ OPTIONS:
     --verbose          Show detailed output
 
 EXAMPLES:
-    inject.sh add my-scenario              # Inject content from scenario
-    inject.sh add my-scenario --dry-run    # Preview injection
-    inject.sh validate my-scenario         # Validate scenario config
-    inject.sh list                         # Show available scenarios
+    populate.sh add my-scenario              # Populate from scenario
+    populate.sh add my-scenario --dry-run    # Preview population
+    populate.sh validate my-scenario         # Validate scenario config
+    populate.sh list                         # Show available scenarios
 
 EOF
 }
@@ -56,16 +56,16 @@ main() {
     
     case "$command" in
         add)
-            inject::add "$@"
+            populate::add "$@"
             ;;
         validate)
-            inject::validate "$@"
+            populate::validate "$@"
             ;;
         list)
-            inject::list "$@"
+            populate::list "$@"
             ;;
         status)
-            inject::status "$@"
+            populate::status "$@"
             ;;
         help|--help|-h)
             show_usage

@@ -25,13 +25,13 @@ APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../../.." && buil
 _HERE="${APP_ROOT}/scripts/resources/tests/framework/cache"
 
 # shellcheck disable=SC1091
-source "${_HERE}/../../../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091,SC2154,SC1090
 source "${var_LOG_FILE}" 2>/dev/null || true
 # shellcheck disable=SC1091
-source "${var_LIB_UTILS_DIR}/hash.sh" 2>/dev/null || true
+source "${var_LIB_UTILS_DIR}/hash.sh"
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+source "${var_TRASH_FILE}"
 
 # Cache configuration
 CACHE_DIR=""

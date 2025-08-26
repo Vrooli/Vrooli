@@ -28,7 +28,7 @@ APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../../.." && buil
 _HERE="${APP_ROOT}/scripts/resources/tests/framework/reporters"
 
 # shellcheck disable=SC1091
-source "${_HERE}/../../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 # JUnit XML components
 JUNIT_TEST_SUITE_NAME=""

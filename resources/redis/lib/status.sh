@@ -9,11 +9,11 @@ source "${APP_ROOT}/scripts/lib/utils/format.sh"
 # shellcheck disable=SC1091
 source "${APP_ROOT}/scripts/resources/lib/status-args.sh"
 # shellcheck disable=SC1091
-source "${REDIS_STATUS_DIR}/../config/defaults.sh" 2>/dev/null || true
+source "${APP_ROOT}/resources/redis/config/defaults.sh"
 # shellcheck disable=SC1091
-source "${REDIS_STATUS_DIR}/../config/messages.sh" 2>/dev/null || true
+source "${APP_ROOT}/resources/redis/config/messages.sh"
 # shellcheck disable=SC1091
-source "${REDIS_STATUS_DIR}/common.sh" 2>/dev/null || true
+source "${REDIS_STATUS_DIR}/common.sh"
 
 # Ensure configuration is exported
 if command -v redis::export_config &>/dev/null; then

@@ -14,7 +14,7 @@ APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pw
 SESSION_MANAGER_DIR="${APP_ROOT}/resources/browserless/lib"
 
 # Source log utilities
-source "${APP_ROOT}/scripts/lib/utils/log.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
 
 # Source common utilities
 source "${SESSION_MANAGER_DIR}/common.sh"

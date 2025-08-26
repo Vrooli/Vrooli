@@ -36,7 +36,7 @@ source "${var_SCRIPTS_RESOURCES_LIB_DIR}/cli-command-framework.sh"
 
 # Source huginn configuration
 # shellcheck disable=SC1091
-source "${HUGINN_CLI_DIR}/config/defaults.sh" 2>/dev/null || true
+source "${HUGINN_CLI_DIR}/config/defaults.sh"
 huginn::export_config 2>/dev/null || true
 
 # Source huginn messages/config

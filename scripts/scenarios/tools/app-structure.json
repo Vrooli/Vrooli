@@ -48,8 +48,8 @@
     },
     {
       "name": "runtime-engine",
-      "source": "scripts/resources/injection/engine.sh",
-      "destination": "scripts/resources/injection/engine.sh",
+      "source": "scripts/resources/populate/populate.sh",
+      "destination": "scripts/resources/populate/populate.sh",
       "type": "file",
       "from": "vrooli",
       "required": true,

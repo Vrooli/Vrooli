@@ -17,7 +17,7 @@ source "${APP_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || {
     VROOLI_ROOT="$APP_ROOT"
 }
 # shellcheck disable=SC1091
-source "${var_LOG_FILE:-${CREDENTIALS_LIB_DIR}/../../../lib/utils/log.sh}" 2>/dev/null || {
+source "${var_LOG_FILE:-${APP_ROOT}/scripts/lib/utils/log.sh}" 2>/dev/null || {
     # Fallback logging function if log.sh not found
     log::error() { echo "ERROR: $*" >&2; }
     log::info() { echo "INFO: $*"; }

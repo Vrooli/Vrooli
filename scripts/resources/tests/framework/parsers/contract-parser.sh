@@ -8,9 +8,9 @@ APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../../.." && buil
 _HERE="${APP_ROOT}/scripts/resources/tests/framework/parsers"
 
 # shellcheck disable=SC1091
-source "${_HERE}/../../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/trash.sh"
+source "${var_TRASH_FILE}"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}" 2>/dev/null || true
 

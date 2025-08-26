@@ -7,7 +7,7 @@ HAYSTACK_LIB_DIR="${APP_ROOT}/resources/haystack/lib"
 
 # Source dependencies
 source "${HAYSTACK_LIB_DIR}/common.sh"
-source "${HAYSTACK_LIB_DIR}/../../../../lib/utils/log.sh"
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
 
 # Inject data into Haystack
 haystack::inject() {

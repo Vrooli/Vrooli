@@ -9,15 +9,15 @@ _HEALTH_FRAMEWORK_SOURCED=1
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 SCRIPT_DIR="${APP_ROOT}/scripts/resources/lib"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/utils/log.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/docker-utils.sh" 2>/dev/null || true
+source "${SCRIPT_DIR}/docker-utils.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/http-utils.sh" 2>/dev/null || true
+source "${SCRIPT_DIR}/http-utils.sh"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/runtimes/sqlite.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/runtimes/sqlite.sh"
 
 #######################################
 # Perform tiered health check using resource-specific checks

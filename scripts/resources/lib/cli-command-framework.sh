@@ -13,9 +13,9 @@ _CLI_COMMAND_FRAMEWORK_SOURCED=1
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 SCRIPTS_RESOURCES_LIB_DIR="${APP_ROOT}/scripts/resources/lib"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/utils/log.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
 
 # Framework state
 declare -gA CLI_COMMANDS=()
@@ -313,30 +313,41 @@ cli::_handle_content() {
 }
 
 #######################################
-# Fallback to manage.sh for standard operations
+# Fallback to cli.sh for standard operations
 # Args: $1 - action (start, stop, status, install), $@ - additional args
 #######################################
 cli::_fallback_to_manage() {
     local action="$1"
     shift || true
     
-    # Find manage.sh for this resource
+    # CRITICAL: Prevent infinite recursion - check if we're already in a CLI context
+    if [[ "${CLI_RECURSION_GUARD:-}" == "active" ]]; then
+        log::error "Cannot find ${action} implementation for ${CLI_RESOURCE_NAME}"
+        log::error "Please implement ${CLI_RESOURCE_NAME}::${action} function"
+        return 1
+    fi
+    
+    # Set recursion guard
+    export CLI_RECURSION_GUARD="active"
+    
+    # Find cli.sh for this resource
     local manage_script=""
     
     # Check if we're running from a symlink (installed CLI)
     if [[ -L "${BASH_SOURCE[0]}" ]]; then
         local real_path="$(readlink -f "${BASH_SOURCE[0]}")"
         local resource_dir="$(dirname "$real_path")"
-        if [[ -f "$resource_dir/manage.sh" ]]; then
-            manage_script="$resource_dir/manage.sh"
+        if [[ -f "$resource_dir/cli.sh" ]]; then
+            manage_script="$resource_dir/cli.sh"
         fi
     fi
     
     # Try common locations if not found
     if [[ -z "$manage_script" ]]; then
         local possible_locations=(
-            "${var_SCRIPTS_RESOURCES_DIR}/${CLI_RESOURCE_NAME}/manage.sh"
-            "${var_SCRIPTS_RESOURCES_DIR}/*/${CLI_RESOURCE_NAME}/manage.sh"
+            "${APP_ROOT}/resources/${CLI_RESOURCE_NAME}/cli.sh"
+            "${var_SCRIPTS_RESOURCES_DIR}/${CLI_RESOURCE_NAME}/cli.sh"
+            "${var_SCRIPTS_RESOURCES_DIR}/*/${CLI_RESOURCE_NAME}/cli.sh"
         )
         
         for pattern in "${possible_locations[@]}"; do
@@ -350,13 +361,19 @@ cli::_fallback_to_manage() {
     fi
     
     if [[ -z "$manage_script" ]]; then
-        log::error "No manage.sh found for ${CLI_RESOURCE_NAME}"
+        log::error "No cli.sh found for ${CLI_RESOURCE_NAME}"
+        unset CLI_RECURSION_GUARD
         return 1
     fi
     
-    # Execute manage.sh with the action
-    log::debug "Delegating to manage.sh: $manage_script --action $action"
-    "$manage_script" --action "$action" --yes yes "$@"
+    # Execute cli.sh with the action
+    log::debug "Delegating to cli.sh: $manage_script $action"
+    local result=0
+    "$manage_script" "$action" --yes yes "$@" || result=$?
+    
+    # Clear recursion guard
+    unset CLI_RECURSION_GUARD
+    return $result
 }
 
 #######################################

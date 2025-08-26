@@ -20,7 +20,7 @@ INTERPRETER_DIR="${APP_ROOT}/resources/browserless/lib/workflow"
 BROWSERLESS_LIB_DIR="${APP_ROOT}/resources/browserless/lib"
 
 # Source required libraries
-source "${APP_ROOT}/scripts/lib/utils/log.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
 source "${BROWSERLESS_LIB_DIR}/browser-ops.sh"
 source "${BROWSERLESS_LIB_DIR}/session-manager.sh"
 

@@ -6,11 +6,11 @@ APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pw
 HOME_ASSISTANT_CORE_DIR="${APP_ROOT}/resources/home-assistant/lib"
 
 # Source dependencies
-source "${HOME_ASSISTANT_CORE_DIR}/../../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${var_LOG_FILE}"
 source "${var_LIB_UTILS_DIR}/format.sh"
 source "${var_SCRIPTS_RESOURCES_LIB_DIR}/docker-utils.sh"
-source "${HOME_ASSISTANT_CORE_DIR}/../config/defaults.sh"
+source "${APP_ROOT}/resources/home-assistant/config/defaults.sh"
 
 #######################################
 # Export Home Assistant configuration

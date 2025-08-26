@@ -17,8 +17,8 @@ fi
 WIKIJS_DIR="${APP_ROOT}/resources/wikijs"
 
 # Source dependencies
-source "$WIKIJS_DIR/../../../lib/utils/var.sh"
-source "$WIKIJS_DIR/../../../lib/utils/format.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/format.sh"
 source "$WIKIJS_DIR/lib/common.sh"
 
 # Display help
@@ -59,7 +59,7 @@ Examples:
   $(basename "$0") api create-page --title "New Page" --content "Content here"
   $(basename "$0") search "query term"
 
-For more information, see: scripts/resources/execution/wikijs/README.md
+For more information, see: resources/wikijs/README.md
 EOF
 }
 

@@ -1,25 +1,25 @@
-# Injection System v2.0
+# Population System v2.0
 
-**Clean, simple scenario-based content deployment for Vrooli resources**
+**Clean, simple scenario-based content population for Vrooli resources**
 
 ## Overview
 
-The Injection System enables scenarios to deploy content (workflows, configurations, data) to Vrooli resources. It follows the v2.0 universal contract where all resources use consistent `content add` patterns.
+The Population System enables scenarios to populate resources with content (workflows, configurations, data). It follows the v2.0 universal contract where all resources use consistent `content add` patterns.
 
 ## Quick Start
 
 ```bash
 # List available scenarios
-./inject.sh list
+./populate.sh list
 
-# Inject content from a scenario
-./inject.sh add my-scenario
+# Populate resources from a scenario
+./populate.sh add my-scenario
 
-# Preview what would be injected (dry-run)
-./inject.sh add my-scenario --dry-run
+# Preview what would be populated (dry-run)
+./populate.sh add my-scenario --dry-run
 
 # Validate scenario configuration
-./inject.sh validate my-scenario
+./populate.sh validate my-scenario
 ```
 
 ## Commands
@@ -43,7 +43,7 @@ Display current resource availability.
 
 ## Scenario Format
 
-Scenarios define what content to inject into which resources:
+Scenarios define what content to populate into which resources:
 
 ```json
 {
@@ -115,8 +115,8 @@ resource-<name> content remove <id>
 ## Architecture
 
 ```
-injection/
-├── inject.sh          # Main entry point (80 lines)
+populate/
+├── populate.sh          # Main entry point (80 lines)
 ├── lib/
 │   ├── core.sh        # Core logic (150 lines)
 │   ├── content.sh     # Content management (130 lines)
@@ -131,7 +131,7 @@ Total: ~650 lines (vs 1000+ in old system)
 ## Key Improvements from v1.0
 
 1. **Simplicity** - Reduced from 1000+ lines to ~650
-2. **Clarity** - Clean command structure: `inject.sh add <scenario>`
+2. **Clarity** - Clean command structure: `populate.sh add <scenario>`
 3. **Consistency** - All resources use `content add` pattern
 4. **Reliability** - Proper validation before execution
 5. **Performance** - Parallel processing by default
@@ -229,19 +229,19 @@ Old v1.0 commands map to v2.0 as follows:
 engine.sh --action inject --scenario NAME --config-file PATH
 
 # New
-inject.sh add NAME
+populate.sh add NAME
 
 # Old
 engine.sh --action validate --scenario NAME
 
 # New
-inject.sh validate NAME
+populate.sh validate NAME
 
 # Old
 engine.sh --action list-scenarios
 
 # New
-inject.sh list
+populate.sh list
 ```
 
 ## Support
@@ -249,4 +249,4 @@ inject.sh list
 For issues or questions, check:
 - Resource documentation in `/resources/<name>/README.md`
 - Universal contract in `/scripts/resources/contracts/v2.0/`
-- Test examples in `/scripts/resources/injection/test/`
+- Test examples in `/scripts/resources/populate/test/`

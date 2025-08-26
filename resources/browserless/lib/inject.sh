@@ -8,8 +8,8 @@ set -euo pipefail
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 BROWSERLESS_INJECT_DIR="${APP_ROOT}/resources/browserless/lib"
 source "$BROWSERLESS_INJECT_DIR/common.sh"
-source "${APP_ROOT}/scripts/lib/utils/log.sh" 2>/dev/null || true
-source "${APP_ROOT}/scripts/resources/lib/http-utils.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
+source "${APP_ROOT}/scripts/resources/lib/http-utils.sh"
 
 #######################################  
 # Inject function or test data into Browserless

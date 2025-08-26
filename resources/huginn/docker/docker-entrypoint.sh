@@ -4,9 +4,9 @@ set -e
 
 # Source var.sh for directory variables
 # shellcheck disable=SC1091
-source "/host/scripts/lib/utils/var.sh" 2>/dev/null || true
+source "/host/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+source "${var_TRASH_FILE}"
 
 echo "Starting Huginn with enhanced entrypoint..."
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 ################################################################################
-# Injection System v2.0 - Scenario Management
+# Population System v2.0 - Scenario Management
 # Functions for loading and managing scenarios
 ################################################################################
 set -euo pipefail
