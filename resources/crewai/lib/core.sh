@@ -7,9 +7,9 @@ CREWAI_LIB_DIR="${APP_ROOT}/resources/crewai/lib"
 CREWAI_ROOT_DIR="${APP_ROOT}/resources/crewai"
 
 # Source utilities
-source "${CREWAI_ROOT_DIR}/../../../lib/utils/var.sh"
-source "${CREWAI_ROOT_DIR}/../../../lib/utils/log.sh"
-source "${CREWAI_ROOT_DIR}/../../../lib/utils/format.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
+source "${APP_ROOT}/scripts/lib/utils/format.sh"
 
 # Configuration
 CREWAI_NAME="crewai"

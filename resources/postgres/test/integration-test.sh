@@ -9,7 +9,7 @@ set -euo pipefail
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 SCRIPT_DIR="${APP_ROOT}/resources/postgres/test"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 # Source enhanced integration test library with fixture support
 # shellcheck disable=SC1091
@@ -23,9 +23,9 @@ source "${var_SCRIPTS_DIR}/__test/lib/enhanced-integration-test-lib.sh"
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../config/defaults.sh"
+source "${APP_ROOT}/resources/postgres/config/defaults.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../lib/common.sh"
+source "${APP_ROOT}/resources/postgres/lib/common.sh"
 
 # Override library defaults with PostgreSQL-specific settings
 # shellcheck disable=SC2034

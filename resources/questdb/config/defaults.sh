@@ -6,7 +6,7 @@
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 QUESTDB_DIR="${APP_ROOT}/resources/questdb"
 # shellcheck disable=SC1091
-source "${QUESTDB_DIR}/../../common.sh"
+source "${APP_ROOT}/scripts/resources/common.sh"
 
 #######################################
 # Export configuration constants

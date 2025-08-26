@@ -8,7 +8,7 @@ DESCRIPTION="Automated client database environment setup for Vrooli projects"
 
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 POSTGRES_LIB_DIR="${APP_ROOT}/resources/postgres/lib"
-source "${POSTGRES_LIB_DIR}/../config/defaults.sh"
+source "${APP_ROOT}/resources/postgres/config/defaults.sh"
 
 # Default values
 CLIENT_NAME=""

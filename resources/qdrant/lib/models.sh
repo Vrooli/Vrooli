@@ -17,7 +17,7 @@ source "${var_SCRIPTS_RESOURCES_LIB_DIR}/http-utils.sh"
 
 # Source configuration
 # shellcheck disable=SC1091
-source "${QDRANT_MODELS_DIR}/../config/defaults.sh" 2>/dev/null || true
+source "${APP_ROOT}/resources/qdrant/config/defaults.sh"
 
 # Model cache file location
 QDRANT_MODEL_CACHE="${QDRANT_DATA_DIR:-/var/lib/qdrant}/.model_cache.json"

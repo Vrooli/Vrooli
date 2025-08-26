@@ -64,7 +64,7 @@
         },
         {
           "name": "check-claude-code",
-          "run": "bash ${VROOLI_ROOT:-/home/matthalloran8/Vrooli}/scripts/resources/agents/claude-code/manage.sh --action health-check --check-type basic || echo 'Claude Code not available - experiment features will be limited'",
+          "run": "resource-claude-code status >/dev/null 2>&1 || echo 'Claude Code not available - experiment features will be limited'",
           "description": "Verify Claude Code availability for AI experimentation"
         },
         {
@@ -120,7 +120,7 @@
         },
         {
           "name": "test-claude-code",
-          "run": "bash ${VROOLI_ROOT:-/home/matthalloran8/Vrooli}/scripts/resources/agents/claude-code/manage.sh --action health-check --check-type basic",
+          "run": "resource-claude-code status >/dev/null 2>&1",
           "description": "Test Claude Code availability"
         },
         {

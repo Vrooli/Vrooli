@@ -6,15 +6,15 @@ APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pw
 PUSHOVER_CORE_DIR="${APP_ROOT}/resources/pushover/lib"
 
 # Source dependencies
-source "${PUSHOVER_CORE_DIR}/../../../../lib/utils/var.sh"
-source "${PUSHOVER_CORE_DIR}/../../../../lib/utils/log.sh"
-source "${PUSHOVER_CORE_DIR}/../../../../lib/utils/format.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
+source "${APP_ROOT}/scripts/lib/utils/format.sh"
 
 # Configuration
 PUSHOVER_API_URL="https://api.pushover.net/1"
-PUSHOVER_DATA_DIR="${var_DATA_DIR:-/home/matthalloran8/.vrooli}/resources/pushover"
+PUSHOVER_DATA_DIR="${var_DATA_DIR:-${HOME}/.vrooli}/resources/pushover"
 PUSHOVER_CONFIG_FILE="${PUSHOVER_DATA_DIR}/config.json"
-PUSHOVER_CREDENTIALS_FILE="${var_DATA_DIR:-/home/matthalloran8/.vrooli}/resources/pushover-credentials.json"
+PUSHOVER_CREDENTIALS_FILE="${var_DATA_DIR:-${HOME}/.vrooli}/resources/pushover-credentials.json"
 PUSHOVER_TEMPLATES_DIR="${PUSHOVER_DATA_DIR}/templates"
 
 # Initialize Pushover
@@ -175,4 +175,147 @@ pushover::send_notification() {
         echo "$response" | jq '.' 2>/dev/null
         return 1
     fi
+}
+
+# Restart Pushover service (stop and start)
+pushover::restart() {
+    log::info "Restarting Pushover service..."
+    pushover::stop
+    sleep 1
+    pushover::start
+}
+
+# Show logs (simulated for cloud service)
+pushover::show_logs() {
+    local lines="${1:-50}"
+    log::info "Pushover is a cloud service - showing recent activity..."
+    
+    # If there's a local log file, show it
+    local log_file="${PUSHOVER_DATA_DIR}/activity.log"
+    if [[ -f "$log_file" ]]; then
+        tail -n "$lines" "$log_file"
+    else
+        log::info "No local activity logs found"
+        log::info "API activity can be viewed at https://pushover.net"
+    fi
+}
+
+# List templates
+pushover::list_templates() {
+    pushover::init false
+    
+    if [[ ! -d "$PUSHOVER_TEMPLATES_DIR" ]]; then
+        log::info "No templates directory found"
+        return 1
+    fi
+    
+    log::header "Available Templates"
+    for template in "$PUSHOVER_TEMPLATES_DIR"/*.json; do
+        if [[ -f "$template" ]]; then
+            local name=$(basename "$template" .json)
+            local title=$(jq -r '.title // "N/A"' "$template" 2>/dev/null)
+            echo "- $name: $title"
+        fi
+    done
+}
+
+# Get template details
+pushover::get_template() {
+    local template_name="${1:-}"
+    
+    if [[ -z "$template_name" ]]; then
+        log::error "Template name required"
+        return 1
+    fi
+    
+    pushover::init false
+    local template_file="${PUSHOVER_TEMPLATES_DIR}/${template_name}.json"
+    
+    if [[ ! -f "$template_file" ]]; then
+        log::error "Template not found: $template_name"
+        return 1
+    fi
+    
+    log::header "Template: $template_name"
+    jq '.' "$template_file"
+}
+
+# Remove template
+pushover::remove_template() {
+    local template_name="${1:-}"
+    
+    if [[ -z "$template_name" ]]; then
+        log::error "Template name required"
+        return 1
+    fi
+    
+    pushover::init false
+    local template_file="${PUSHOVER_TEMPLATES_DIR}/${template_name}.json"
+    
+    if [[ ! -f "$template_file" ]]; then
+        log::error "Template not found: $template_name"
+        return 1
+    fi
+    
+    rm -f "$template_file"
+    log::success "Template removed: $template_name"
+}
+
+# Test functions
+pushover::test::smoke() {
+    log::header "Running Pushover smoke test"
+    
+    pushover::init false
+    
+    # Check if installed
+    if ! pushover::is_installed; then
+        log::error "Pushover is not installed"
+        return 1
+    fi
+    
+    # Check if configured
+    if ! pushover::is_configured; then
+        log::warning "Pushover is not configured - running in limited mode"
+    fi
+    
+    log::success "Smoke test passed"
+    return 0
+}
+
+pushover::test::integration() {
+    log::header "Running Pushover integration test"
+    
+    pushover::init false
+    
+    # Check installation
+    if ! pushover::is_installed; then
+        log::error "Pushover is not installed"
+        return 1
+    fi
+    
+    # Check configuration
+    if ! pushover::is_configured; then
+        log::error "Pushover is not configured - cannot run integration test"
+        log::info "Configure with: resource-pushover configure"
+        return 1
+    fi
+    
+    # Health check
+    if ! pushover::health_check true; then
+        log::error "Health check failed"
+        return 1
+    fi
+    
+    # Test send in demo mode (non-destructive)
+    export PUSHOVER_DEMO_MODE="true"
+    if pushover::send_notification "Integration test message" "Test" "0" "pushover"; then
+        log::success "Test notification sent (demo mode)"
+    else
+        log::error "Failed to send test notification"
+        return 1
+    fi
+    export PUSHOVER_DEMO_MODE="false"
+    
+    log::success "Integration test passed"
+    return 0
 }

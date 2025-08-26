@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 QDRANT_CREDENTIALS_DIR="${APP_ROOT}/resources/qdrant/lib"
 
 # Source required utilities
@@ -15,7 +15,7 @@ source "${var_LIB_UTILS_DIR}/log.sh"
 
 # Source configuration
 # shellcheck disable=SC1091
-source "${QDRANT_CREDENTIALS_DIR}/../config/defaults.sh" 2>/dev/null || true
+source "${APP_ROOT}/resources/qdrant/config/defaults.sh"
 
 #######################################
 # Generate n8n credentials for Qdrant

@@ -5,7 +5,7 @@
 
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 QDRANT_BACKUP_DIR="${APP_ROOT}/resources/qdrant/lib"
 
 # Source required utilities
@@ -16,11 +16,11 @@ source "${var_SCRIPTS_RESOURCES_LIB_DIR}/backup-framework.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/log.sh"
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/trash.sh"
+source "${var_TRASH_FILE}"
 
 # Source configuration and dependencies
 # shellcheck disable=SC1091
-source "${QDRANT_BACKUP_DIR}/../config/defaults.sh"
+source "${APP_ROOT}/resources/qdrant/config/defaults.sh"
 # shellcheck disable=SC1091
 source "${QDRANT_BACKUP_DIR}/api-client.sh"
 # Note: core.sh and collections.sh are sourced by CLI before this file

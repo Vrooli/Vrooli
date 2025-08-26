@@ -8,7 +8,7 @@ MAILINABOX_CONFIG_DIR="${APP_ROOT}/resources/mail-in-a-box/config"
 
 # Source dependencies
 source "$MAILINABOX_CONFIG_DIR/defaults.sh"
-source "/home/matthalloran8/Vrooli/scripts/lib/utils/format.sh"
+source "${APP_ROOT}/scripts/lib/utils/format.sh"
 
 # Check if Mail-in-a-Box is installed
 mailinabox_is_installed() {

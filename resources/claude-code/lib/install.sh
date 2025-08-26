@@ -7,11 +7,11 @@ CLAUDE_CODE_LIB_DIR="${APP_ROOT}/resources/claude-code/lib"
 
 # Source required utilities
 # shellcheck disable=SC1091
-source "${CLAUDE_CODE_LIB_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "${var_LOG_FILE:-}" 2>/dev/null || true
+source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
-source "${var_SCRIPTS_RESOURCES_LIB_DIR}/resource-cli-helper.sh" 2>/dev/null || true
+source "${var_SCRIPTS_RESOURCES_LIB_DIR}/resource-cli-helper.sh"
 
 #######################################
 # Install Claude Code

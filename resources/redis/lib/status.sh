@@ -200,7 +200,7 @@ redis::status::display_text() {
         log::error "   ❌ Installed: No"
         echo
         log::info "💡 Installation Required:"
-        log::info "   To install Redis, run: ./manage.sh --action install"
+        log::info "   To install Redis, run: resource-redis manage install"
         return
     fi
     

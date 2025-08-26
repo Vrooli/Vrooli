@@ -13,9 +13,7 @@ export FFMPEG_HOME="${FFMPEG_HOME:-$HOME/.ffmpeg}"
 export FFMPEG_BIN="${FFMPEG_HOME}/bin/ffmpeg"
 export FFMPEG_PROBE_BIN="${FFMPEG_HOME}/bin/ffprobe"
 export FFMPEG_VERSION="${FFMPEG_VERSION:-6.1.1}"
-export FFMPEG_DATA_DIR="${var_VROOLI_BASE_DIR:-/root/Vrooli}/.vrooli/ffmpeg"
-export FFMPEG_SCRIPTS_DIR="${FFMPEG_DATA_DIR}/scripts"
-export FFMPEG_OUTPUT_DIR="${FFMPEG_DATA_DIR}/output"
+# Data directories are now managed by defaults.sh
 
 # Initialize FFmpeg environment
 ffmpeg::init() {
@@ -53,7 +51,71 @@ ffmpeg::get_version() {
     fi
 }
 
+# Wrapper functions for CLI v2.0 shortcuts
+ffmpeg::info() {
+    local file_path="$1"
+    if [[ -z "$file_path" ]]; then
+        log::error "Usage: ffmpeg info <file_path>"
+        return 1
+    fi
+    ffmpeg::inject::get_detailed_info "$file_path"
+}
+
+ffmpeg::transcode() {
+    local file_path="$1"
+    if [[ -z "$file_path" ]]; then
+        log::error "Usage: ffmpeg transcode <file_path>"
+        return 1
+    fi
+    # Initialize inject system
+    ffmpeg::inject::init || return 1
+    ffmpeg_inject "$file_path" "transcode"
+}
+
+ffmpeg::extract() {
+    local file_path="$1"
+    if [[ -z "$file_path" ]]; then
+        log::error "Usage: ffmpeg extract <file_path>"
+        return 1
+    fi
+    # Initialize inject system
+    ffmpeg::inject::init || return 1
+    ffmpeg_inject "$file_path" "extract"
+}
+
+ffmpeg::logs() {
+    local tail_lines="${1:-50}"
+    local follow="${2:-false}"
+    
+    # Initialize config
+    ffmpeg::export_config
+    
+    if [[ ! -d "${FFMPEG_LOGS_DIR}" ]]; then
+        log::info "No logs directory found. Run 'resource-ffmpeg manage start' first."
+        return 0
+    fi
+    
+    local latest_log=$(find "${FFMPEG_LOGS_DIR}" -name "*.log" -type f -printf '%T@ %p\n' 2>/dev/null | sort -n | tail -1 | cut -d' ' -f2-)
+    
+    if [[ -z "$latest_log" || ! -f "$latest_log" ]]; then
+        log::info "No log files found in ${FFMPEG_LOGS_DIR}"
+        return 0
+    fi
+    
+    log::info "Showing logs from: $(basename "$latest_log")"
+    
+    if [[ "$follow" == "true" || "$follow" == "--follow" ]]; then
+        tail -f -n "$tail_lines" "$latest_log"
+    else
+        tail -n "$tail_lines" "$latest_log"
+    fi
+}
+
 # Export functions
 export -f ffmpeg::init
 export -f ffmpeg::test_installation
 export -f ffmpeg::get_version
+export -f ffmpeg::info
+export -f ffmpeg::transcode
+export -f ffmpeg::extract
+export -f ffmpeg::logs

@@ -116,7 +116,18 @@ btcpay::uninstall() {
     log::success "BTCPay Server uninstalled"
 }
 
+# Alias for v2.0 compatibility
+btcpay::install::execute() {
+    btcpay::install "$@"
+}
+
+btcpay::install::uninstall() {
+    btcpay::uninstall "$@"
+}
+
 # Export functions
 export -f btcpay::install
 export -f btcpay::uninstall
 export -f btcpay::create_default_config
+export -f btcpay::install::execute
+export -f btcpay::install::uninstall

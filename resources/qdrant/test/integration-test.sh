@@ -5,7 +5,7 @@
 
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 SCRIPT_DIR="${APP_ROOT}/resources/qdrant/test"
 
 # Source shared integration test library
@@ -26,7 +26,7 @@ RESOURCES_DIR="$SCRIPT_DIR/../../.."
 # shellcheck disable=SC1091
 source "$RESOURCES_DIR/common.sh"
 # shellcheck disable=SC1091
-source "$SCRIPT_DIR/../config/defaults.sh"
+source "${APP_ROOT}/resources/qdrant/config/defaults.sh"
 qdrant::export_config
 
 # Override library defaults with Qdrant-specific settings

@@ -6,7 +6,7 @@
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 _REDIS_CONFIG_DIR="${APP_ROOT}/resources/redis/config"
 # shellcheck disable=SC1091
-source "${_REDIS_CONFIG_DIR}/../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 # Redis Docker Configuration
 REDIS_IMAGE="${REDIS_IMAGE:-redis:7-alpine}"

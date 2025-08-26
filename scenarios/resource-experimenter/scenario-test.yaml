@@ -70,7 +70,7 @@ tests:
         
   - name: Claude Code Health Check
     type: command
-    command: bash ${VROOLI_ROOT:-/home/matthalloran8/Vrooli}/scripts/resources/agents/claude-code/manage.sh --action health-check --check-type basic
+    command: bash ${VROOLI_ROOT:-$(pwd)/..}/resources/claude-code/manage.sh --action health-check --check-type basic
     expected:
       exit_code: 0
       

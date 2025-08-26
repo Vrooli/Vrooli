@@ -18,7 +18,7 @@ source "${ADAPTER_DIR}/state.sh"
 # shellcheck disable=SC1091
 source "${ADAPTER_DIR}/status.sh"
 # shellcheck disable=SC1091
-source "${ADAPTER_DIR}/translate.sh" 2>/dev/null || true
+source "${ADAPTER_DIR}/translate.sh"
 
 #######################################
 # Execute a prompt through LiteLLM

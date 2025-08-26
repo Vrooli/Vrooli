@@ -22,6 +22,12 @@ SEARXNG_CLI_DIR="$(builtin cd "${SEARXNG_CLI_SCRIPT%/*}" && builtin pwd)"
 
 # Cached APP_ROOT for performance
 APP_ROOT="${APP_ROOT:-$(builtin cd "${SEARXNG_CLI_DIR}/../.." && builtin pwd)}"
+# Handle symlinks for installed CLI
+if [[ -L "${BASH_SOURCE[0]}" ]]; then
+    SEARXNG_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
+    # Recalculate APP_ROOT from resolved symlink location
+    APP_ROOT="$(builtin cd "${SEARXNG_CLI_SCRIPT%/*}/../.." && builtin pwd)"
+fi
 
 # Source standard variables
 # shellcheck disable=SC1091
@@ -39,22 +45,22 @@ source "${var_SCRIPTS_RESOURCES_LIB_DIR}/cli-command-framework.sh"
 
 # Source SearXNG configuration
 # shellcheck disable=SC1091
-source "${SEARXNG_CLI_DIR}/config/defaults.sh" 2>/dev/null || true
+source "${SEARXNG_CLI_DIR}/config/defaults.sh"
 searxng::export_config 2>/dev/null || true
 
 # Source SearXNG libraries - these contain the actual functionality
 # shellcheck disable=SC1091
-source "${SEARXNG_CLI_DIR}/lib/common.sh" 2>/dev/null || true
+source "${SEARXNG_CLI_DIR}/lib/common.sh"
 # shellcheck disable=SC1091
-source "${SEARXNG_CLI_DIR}/lib/docker.sh" 2>/dev/null || true
+source "${SEARXNG_CLI_DIR}/lib/docker.sh"
 # shellcheck disable=SC1091
-source "${SEARXNG_CLI_DIR}/lib/install.sh" 2>/dev/null || true
+source "${SEARXNG_CLI_DIR}/lib/install.sh"
 # shellcheck disable=SC1091
-source "${SEARXNG_CLI_DIR}/lib/status.sh" 2>/dev/null || true
+source "${SEARXNG_CLI_DIR}/lib/status.sh"
 # shellcheck disable=SC1091
-source "${SEARXNG_CLI_DIR}/lib/config.sh" 2>/dev/null || true
+source "${SEARXNG_CLI_DIR}/lib/config.sh"
 # shellcheck disable=SC1091
-source "${SEARXNG_CLI_DIR}/lib/api.sh" 2>/dev/null || true
+source "${SEARXNG_CLI_DIR}/lib/api.sh"
 
 # Initialize CLI framework
 cli::init "searxng" "SearXNG privacy-respecting search engine"
@@ -87,8 +93,8 @@ cli::register_command "headlines" "Get news headlines" "searxng::cli_headlines"
 cli::register_command "batch-search" "Batch search from file" "searxng::cli_batch_search"
 cli::register_command "interactive" "Interactive search mode" "searxng::interactive_search"
 
-# Register API and testing commands
-cli::register_command "test-api" "Test API endpoints" "searxng::test_api"
+# Test commands (v2.0 contract compliance)
+cli::register_command "test" "Run resource validation tests" "searxng_test_dispatch"
 cli::register_command "benchmark" "Run performance benchmark" "searxng::cli_benchmark"
 cli::register_command "api-config" "Show API configuration" "searxng::get_api_config"
 cli::register_command "api-examples" "Show API usage examples" "searxng::show_api_examples"
@@ -114,6 +120,124 @@ cli::register_command "troubleshooting" "Show troubleshooting guide" "searxng::s
 ################################################################################
 # CLI wrapper functions - minimal wrappers for commands that need argument handling
 ################################################################################
+
+# Test dispatch function (v2.0 contract compliance)
+searxng_test_dispatch() {
+    local subcommand="${1:-help}"
+    shift || true
+    
+    case "$subcommand" in
+        all)
+            searxng_test_all "$@"
+            ;;
+        integration)
+            searxng_test_integration "$@"
+            ;;
+        smoke)
+            searxng_test_smoke "$@"
+            ;;
+        unit)
+            searxng_test_unit "$@"
+            ;;
+        help|*)
+            searxng_test_help
+            ;;
+    esac
+}
+
+# Test all suites
+searxng_test_all() {
+    log::header "Running all SearXNG tests"
+    
+    local overall_result=0
+    
+    # Run smoke test first
+    if ! searxng_test_smoke; then
+        log::error "Smoke tests failed"
+        ((overall_result++))
+    fi
+    
+    # Run integration tests
+    if ! searxng_test_integration; then
+        log::error "Integration tests failed"
+        ((overall_result++))
+    fi
+    
+    # Run unit tests (if available)
+    if ! searxng_test_unit; then
+        log::warn "Unit tests failed or not available"
+    fi
+    
+    if [[ $overall_result -eq 0 ]]; then
+        log::success "All tests passed"
+        return 0
+    else
+        log::error "$overall_result test suite(s) failed"
+        return 1
+    fi
+}
+
+# Smoke test - quick health validation (30s max)
+searxng_test_smoke() {
+    log::info "Running SearXNG smoke test..."
+    
+    # Basic health check
+    if ! searxng::is_healthy; then
+        log::error "SearXNG health check failed"
+        return 1
+    fi
+    
+    log::success "Smoke test passed"
+    return 0
+}
+
+# Integration test - full functionality (120s max)
+searxng_test_integration() {
+    log::info "Running SearXNG integration test..."
+    
+    # Delegate to existing integration test or test-api functionality
+    if command -v searxng::test_api &>/dev/null; then
+        log::warn "Using deprecated test_api for integration testing"
+        searxng::test_api
+    elif [[ -x "/home/matthalloran8/Vrooli/resources/searxng/test/integration-test.sh" ]]; then
+        "/home/matthalloran8/Vrooli/resources/searxng/test/integration-test.sh"
+    else
+        log::error "No integration test available"
+        return 1
+    fi
+}
+
+# Unit test - library validation (60s max)
+searxng_test_unit() {
+    log::info "Running SearXNG unit tests..."
+    
+    # SearXNG doesn't have unit tests yet
+    log::warn "Unit tests not implemented for SearXNG"
+    return 2  # Exit code 2 means no tests available
+}
+
+# Test help
+searxng_test_help() {
+    echo "SearXNG Test Commands (v2.0):"
+    echo ""
+    echo "USAGE:"
+    echo "    resource-searxng test <subcommand> [options]"
+    echo ""
+    echo "SUBCOMMANDS:"
+    echo "    all          Run all test suites"
+    echo "    smoke        Quick health validation (30s max)"
+    echo "    integration  End-to-end functionality tests (120s max)"
+    echo "    unit         Library function validation (60s max)"
+    echo ""
+    echo "EXAMPLES:"
+    echo "    resource-searxng test smoke      # Quick health check"
+    echo "    resource-searxng test all        # Run all available tests"
+    echo "    resource-searxng test integration # Full API testing"
+    echo ""
+    echo "MIGRATION NOTE:"
+    echo "    Old: resource-searxng test-api"
+    echo "    New: resource-searxng test integration"
+}
 
 # Search with argument handling
 searxng::cli_search() {

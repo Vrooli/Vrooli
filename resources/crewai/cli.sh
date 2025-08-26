@@ -1,74 +1,81 @@
-#!/bin/bash
+#!/usr/bin/env bash
+################################################################################
+# CrewAI Resource CLI - v2.0 Universal Contract Compliant
+# 
+# Multi-agent AI framework for building collaborative AI systems
+#
+# Usage:
+#   resource-crewai <command> [options]
+#   resource-crewai <group> <subcommand> [options]
+#
+################################################################################
+
 set -euo pipefail
 
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
 # Handle symlinks for installed CLI
 if [[ -L "${BASH_SOURCE[0]}" ]]; then
-    REAL_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
-    # Recalculate APP_ROOT from resolved symlink location
-    APP_ROOT="$(builtin cd "${REAL_PATH%/*}/../.." && builtin pwd)"
+    CREWAI_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
+    APP_ROOT="$(builtin cd "${CREWAI_CLI_SCRIPT%/*}/../.." && builtin pwd)"
 fi
-SCRIPT_DIR="${APP_ROOT}/resources/crewai"
-LIB_DIR="${SCRIPT_DIR}/lib"
+CREWAI_CLI_DIR="${APP_ROOT}/resources/crewai"
 
-# Source utilities
+# Source standard variables
+# shellcheck disable=SC1091
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
-source "${APP_ROOT}/scripts/lib/utils/log.sh"
-source "${APP_ROOT}/scripts/lib/utils/format.sh"
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}"
+# shellcheck disable=SC1091
+source "${var_RESOURCES_COMMON_FILE}"
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
+# shellcheck disable=SC1091
+source "${CREWAI_CLI_DIR}/config/defaults.sh"
 
-# Command handling
-case "${1:-help}" in
-    install)
-        shift
-        source "${LIB_DIR}/install.sh"
-        ;;
-    start)
-        shift
-        source "${LIB_DIR}/core.sh"
-        start_crewai "$@"
-        ;;
-    stop)
-        shift
-        source "${LIB_DIR}/core.sh"
-        stop_crewai "$@"
-        ;;
-    status)
-        shift
-        source "${LIB_DIR}/status.sh"
-        main "$@"
-        ;;
-    inject)
-        shift
-        source "${LIB_DIR}/inject.sh"
-        ;;
-    list-crews)
-        shift
-        source "${LIB_DIR}/core.sh"
-        list_crews "$@"
-        ;;
-    list-agents)
-        shift
-        source "${LIB_DIR}/core.sh"
-        list_agents "$@"
-        ;;
-    help|--help|-h)
-        echo "CrewAI Resource Manager"
-        echo ""
-        echo "Usage: resource-crewai <command> [options]"
-        echo ""
-        echo "Commands:"
-        echo "  install          Install CrewAI framework"
-        echo "  start           Start CrewAI service"
-        echo "  stop            Stop CrewAI service"
-        echo "  status          Check CrewAI status"
-        echo "  inject          Inject crews/agents from a directory"
-        echo "  list-crews      List available crews"
-        echo "  list-agents     List available agents"
-        echo "  help            Show this help message"
-        ;;
-    *)
-        log::error "Unknown command: $1"
-        echo "Run 'resource-crewai help' for usage"
-        exit 1
-        ;;
-esac
+# Source CrewAI libraries
+for lib in core install status inject content manage; do
+    lib_file="${CREWAI_CLI_DIR}/lib/${lib}.sh"
+    if [[ -f "$lib_file" ]]; then
+        # shellcheck disable=SC1090
+        source "$lib_file" 2>/dev/null || true
+    fi
+done
+
+# Initialize CLI framework in v2.0 mode (auto-creates manage/test/content groups)
+cli::init "crewai" "CrewAI multi-agent AI framework" "v2"
+
+# ==============================================================================
+# REQUIRED HANDLERS - These MUST be mapped for v2.0 compliance
+# ==============================================================================
+CLI_COMMAND_HANDLERS["manage::install"]="install_crewai"
+CLI_COMMAND_HANDLERS["manage::uninstall"]="crewai::install::uninstall"
+CLI_COMMAND_HANDLERS["manage::start"]="start_crewai"
+CLI_COMMAND_HANDLERS["manage::stop"]="stop_crewai"
+CLI_COMMAND_HANDLERS["manage::restart"]="crewai::manage::restart"
+CLI_COMMAND_HANDLERS["test::smoke"]="crewai::status::check"
+
+# Content handlers - CrewAI specific content management
+CLI_COMMAND_HANDLERS["content::add"]="crewai::content::add"
+CLI_COMMAND_HANDLERS["content::list"]="crewai::content::list"
+CLI_COMMAND_HANDLERS["content::get"]="crewai::content::get"
+CLI_COMMAND_HANDLERS["content::remove"]="crewai::content::remove"
+CLI_COMMAND_HANDLERS["content::execute"]="crewai::content::execute"
+
+# ==============================================================================
+# REQUIRED INFORMATION COMMANDS
+# ==============================================================================
+cli::register_command "status" "Show detailed CrewAI status" "crewai::status"
+cli::register_command "logs" "Show CrewAI logs" "crewai::logs"
+
+# ==============================================================================
+# CUSTOM CrewAI COMMANDS
+# ==============================================================================
+# Custom content subcommands for CrewAI-specific operations
+cli::register_subcommand "content" "inject" "Inject crews/agents from directory" "crewai::content::inject"
+cli::register_subcommand "content" "crews" "List available crews" "list_crews"
+cli::register_subcommand "content" "agents" "List available agents" "list_agents"
+
+# Only execute if script is run directly
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    cli::dispatch "$@"
+fi

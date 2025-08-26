@@ -5,9 +5,23 @@
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 POSTGRES_LIB_DIR="${APP_ROOT}/resources/postgres/lib"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_TRASH_FILE}"
+# shellcheck disable=SC1091
+source "${APP_ROOT}/resources/postgres/config/messages.sh"
+# shellcheck disable=SC1091
+source "${POSTGRES_LIB_DIR}/common.sh"
+# shellcheck disable=SC1091
+source "${POSTGRES_LIB_DIR}/docker.sh"
+# shellcheck disable=SC1091
+source "${POSTGRES_LIB_DIR}/instance.sh"
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/lib/docker/utils.sh"
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/lib/system/flow.sh"
 
 #######################################
 # Install PostgreSQL resource
@@ -66,7 +80,7 @@ postgres::install() {
     log::info "Maximum instances: ${POSTGRES_MAX_INSTANCES}"
     
     # Auto-install CLI if available
-    "${var_SCRIPTS_RESOURCES_LIB_DIR}/install-resource-cli.sh" "${APP_ROOT}/resources/postgres" 2>/dev/null || true
+    "${var_SCRIPTS_RESOURCES_LIB_DIR}/install-resource-cli.sh" "${APP_ROOT}/resources/postgres"
     
     return 0
 }

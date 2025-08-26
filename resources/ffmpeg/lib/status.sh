@@ -109,8 +109,10 @@ ffmpeg::status::display_text() {
     for ((i=1; i<=$#; i+=2)); do
         local key="${!i}"
         local value_idx=$((i+1))
-        local value="${!value_idx}"
-        data["$key"]="$value"
+        if [[ $value_idx -le $# ]]; then
+            local value="${!value_idx}"
+            data["$key"]="$value"
+        fi
     done
     
     # Source format utilities for proper logging functions
@@ -146,7 +148,7 @@ ffmpeg::status::display_text() {
     echo
     
     # Test Results
-    if [[ -n "${data[test_timestamp]}" ]]; then
+    if [[ -n "${data[test_timestamp]:-}" ]]; then
         log::info "🧪 Test Results:"
         case "${data[test_status]:-not_run}" in
             "passed")

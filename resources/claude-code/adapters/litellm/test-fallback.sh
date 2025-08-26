@@ -9,7 +9,7 @@ ADAPTER_DIR="${APP_ROOT}/resources/claude-code/adapters/litellm"
 
 # Source required libraries
 # shellcheck disable=SC1091
-source "${ADAPTER_DIR}/../../../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
@@ -17,7 +17,7 @@ source "${ADAPTER_DIR}/state.sh"
 # shellcheck disable=SC1091
 source "${ADAPTER_DIR}/execute.sh"
 # shellcheck disable=SC1091
-source "${ADAPTER_DIR}/../../lib/common.sh"
+source "${APP_ROOT}/resources/claude-code/lib/common.sh"
 
 #######################################
 # Test automatic fallback trigger

@@ -2,6 +2,16 @@
 # PostgreSQL Common Utilities
 # Shared functions used across PostgreSQL management scripts
 
+# Set up APP_ROOT if not already set
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+
+# Source configuration defaults
+# shellcheck disable=SC1091
+source "${APP_ROOT}/resources/postgres/config/defaults.sh"
+
+# Export configuration variables
+postgres::export_config 2>/dev/null || true
+
 #######################################
 # Check if PostgreSQL instance container exists
 # Arguments:
@@ -142,7 +152,7 @@ postgres::common::create_directories() {
 #######################################
 postgres::common::check_disk_space() {
     local instances_dir="${POSTGRES_INSTANCES_DIR}"
-    local parent_dir=${instances_dir%/*
+    local parent_dir=${instances_dir%/*}
     
     # Create parent directory if it doesn't exist
     mkdir -p "$parent_dir"
@@ -266,7 +276,7 @@ postgres::common::set_instance_config() {
     local config_key="$2"
     local config_value="$3"
     local config_file="${POSTGRES_INSTANCES_DIR}/${instance_name}/config/instance.conf"
-    local config_dir="${config_file%/*"
+    local config_dir="${config_file%/*}"
     
     # Create config directory if it doesn't exist
     mkdir -p "$config_dir"

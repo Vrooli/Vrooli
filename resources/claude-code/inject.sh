@@ -12,22 +12,22 @@ CLAUDE_CODE_SCRIPT_DIR="${APP_ROOT}/resources/claude-code"
 
 # Source var.sh first to get proper directory variables
 # shellcheck disable=SC1091
-source "${CLAUDE_CODE_SCRIPT_DIR}/../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 # Source log utilities for log::header and other log functions
 # shellcheck disable=SC1091
-source "${var_LOG_FILE:-${CLAUDE_CODE_SCRIPT_DIR}/../../../lib/utils/log.sh}"
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
 
 # Source common utilities using var_ variables
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+source "${var_TRASH_FILE}"
 
 # Source Claude Code configuration if available
 if [[ -f "${CLAUDE_CODE_SCRIPT_DIR}/config/defaults.sh" ]]; then
     # shellcheck disable=SC1091
-    source "${CLAUDE_CODE_SCRIPT_DIR}/config/defaults.sh" 2>/dev/null || true
+    source "${CLAUDE_CODE_SCRIPT_DIR}/config/defaults.sh"
 fi
 
 # Default Claude Code settings

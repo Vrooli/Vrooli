@@ -4,11 +4,11 @@
 ffmpeg::inject::init() {
     APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
     local FFMPEG_LIB_DIR="${APP_ROOT}/resources/ffmpeg/lib"
-    source "${FFMPEG_LIB_DIR}/../../../../lib/utils/log.sh" || {
+    source "${APP_ROOT}/scripts/lib/utils/log.sh" || {
         echo "Error: Could not source log.sh"
         return 1
     }
-    source "${FFMPEG_LIB_DIR}/../config/defaults.sh" || {
+    source "${APP_ROOT}/resources/ffmpeg/config/defaults.sh" || {
         echo "Error: Could not source defaults.sh"
         return 1
     }

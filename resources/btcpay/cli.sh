@@ -1,135 +1,82 @@
-#!/bin/bash
-
-# BTCPay Server Resource CLI
+#!/usr/bin/env bash
+################################################################################
+# BTCPay Resource CLI - v2.0 Universal Contract Compliant
+# 
+# Self-hosted, open-source cryptocurrency payment processor
+#
+# Usage:
+#   resource-btcpay <command> [options]
+#   resource-btcpay <group> <subcommand> [options]
+#
+################################################################################
 
 set -euo pipefail
 
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
 # Handle symlinks for installed CLI
 if [[ -L "${BASH_SOURCE[0]}" ]]; then
-    RESOURCE_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
-    APP_ROOT="$(builtin cd "${RESOURCE_CLI_SCRIPT%/*}/../.." && builtin pwd)"
-else
-    APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+    BTCPAY_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
+    APP_ROOT="$(builtin cd "${BTCPAY_CLI_SCRIPT%/*}/../.." && builtin pwd)"
 fi
-
-# Get script directory
 BTCPAY_CLI_DIR="${APP_ROOT}/resources/btcpay"
 
-# Determine if we're running from the installed location or the source location
-if [[ "${BTCPAY_CLI_DIR}" == *"/.local/bin"* ]]; then
-    # Running from installed location, use absolute path to source
-    BTCPAY_RESOURCE_DIR="${APP_ROOT}/resources/btcpay"
-else
-    # Running from source location
-    BTCPAY_RESOURCE_DIR="${BTCPAY_CLI_DIR}"
+# Source standard variables
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+# Source utilities
+source "${var_LOG_FILE}"
+source "${var_RESOURCES_COMMON_FILE}"
+# Source v2.0 CLI Command Framework
+source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
+# Source resource configuration
+source "${BTCPAY_CLI_DIR}/config/defaults.sh"
+
+# Source BTCPay libraries
+for lib in common core docker install status content test inject; do
+    lib_file="${BTCPAY_CLI_DIR}/lib/${lib}.sh"
+    [[ -f "$lib_file" ]] && source "$lib_file" 2>/dev/null || true
+done
+
+# Initialize CLI framework in v2.0 mode
+cli::init "btcpay" "BTCPay Server - Self-hosted cryptocurrency payment processor" "v2"
+
+# ==============================================================================
+# REQUIRED HANDLERS - These MUST be mapped for v2.0 compliance
+# ==============================================================================
+CLI_COMMAND_HANDLERS["manage::install"]="btcpay::install::execute"
+CLI_COMMAND_HANDLERS["manage::uninstall"]="btcpay::install::uninstall"
+CLI_COMMAND_HANDLERS["manage::start"]="btcpay::docker::start"  
+CLI_COMMAND_HANDLERS["manage::stop"]="btcpay::docker::stop"
+CLI_COMMAND_HANDLERS["manage::restart"]="btcpay::docker::restart"
+CLI_COMMAND_HANDLERS["test::smoke"]="btcpay::test::smoke"
+
+# Content handlers
+CLI_COMMAND_HANDLERS["content::add"]="btcpay::content::add"
+CLI_COMMAND_HANDLERS["content::list"]="btcpay::content::list"
+CLI_COMMAND_HANDLERS["content::get"]="btcpay::content::get"
+CLI_COMMAND_HANDLERS["content::remove"]="btcpay::content::remove"
+CLI_COMMAND_HANDLERS["content::execute"]="btcpay::content::execute"
+
+# ==============================================================================
+# REQUIRED INFORMATION COMMANDS
+# ==============================================================================
+cli::register_command "status" "Show detailed BTCPay Server status" "btcpay::status"
+cli::register_command "logs" "Show BTCPay Server logs" "btcpay::docker::logs"
+
+# ==============================================================================
+# OPTIONAL BTCPAY-SPECIFIC COMMANDS
+# ==============================================================================
+cli::register_command "credentials" "Show BTCPay credentials and API info" "btcpay::core::credentials"
+cli::register_command "validate" "Validate BTCPay configuration" "btcpay::core::validate_config"
+
+# Custom content subcommands for payment operations
+cli::register_subcommand "content" "create-invoice" "Create a new payment invoice" "btcpay::create_invoice"
+cli::register_subcommand "content" "check-payment" "Check payment status" "btcpay::check_payment"
+cli::register_subcommand "content" "generate-address" "Generate crypto address" "btcpay::generate_address"
+
+# Custom test phase for performance testing
+cli::register_subcommand "test" "performance" "Test API performance" "btcpay::test::performance"
+
+# Only execute if script is run directly
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    cli::dispatch "$@"
 fi
-
-# Source library functions
-source "${BTCPAY_RESOURCE_DIR}/lib/common.sh"
-source "${BTCPAY_RESOURCE_DIR}/lib/install.sh"
-source "${BTCPAY_RESOURCE_DIR}/lib/start.sh"
-source "${BTCPAY_RESOURCE_DIR}/lib/stop.sh"
-source "${BTCPAY_RESOURCE_DIR}/lib/status.sh"
-source "${BTCPAY_RESOURCE_DIR}/lib/inject.sh"
-
-# Help function
-show_help() {
-    cat <<EOF
-BTCPay Server Resource Management CLI
-
-Usage: $(basename "$0") <command> [options]
-
-Commands:
-    install    Install BTCPay Server and dependencies
-    uninstall  Uninstall BTCPay Server
-    start      Start BTCPay Server
-    stop       Stop BTCPay Server
-    restart    Restart BTCPay Server
-    status     Show BTCPay Server status
-    inject     Inject configuration or data
-    help       Show this help message
-
-Options:
-    --format json    Output in JSON format (for status)
-    --type <type>    Injection type (store|webhook|invoice|api_key)
-
-Examples:
-    $(basename "$0") install
-    $(basename "$0") status --format json
-    $(basename "$0") inject store.json --type store
-    $(basename "$0") restart
-
-BTCPay Server is a self-hosted, open-source cryptocurrency payment processor.
-It's secure, private, censorship-resistant and free.
-
-For more information, visit: https://btcpayserver.org
-EOF
-}
-
-# Main command handler
-main() {
-    local command="${1:-help}"
-    shift || true
-    
-    case "${command}" in
-        install)
-            btcpay::install "$@"
-            ;;
-        uninstall)
-            btcpay::uninstall "$@"
-            ;;
-        start)
-            btcpay::start "$@"
-            ;;
-        stop)
-            btcpay::stop "$@"
-            ;;
-        restart)
-            btcpay::stop
-            btcpay::start "$@"
-            ;;
-        status)
-            local format="text"
-            while [[ $# -gt 0 ]]; do
-                case "$1" in
-                    --format)
-                        format="$2"
-                        shift 2
-                        ;;
-                    *)
-                        shift
-                        ;;
-                esac
-            done
-            btcpay::status "${format}"
-            ;;
-        inject)
-            local file="${1:-}"
-            local type="store"
-            shift || true
-            while [[ $# -gt 0 ]]; do
-                case "$1" in
-                    --type)
-                        type="$2"
-                        shift 2
-                        ;;
-                    *)
-                        shift
-                        ;;
-                esac
-            done
-            btcpay::inject "${file}" "${type}"
-            ;;
-        help|--help|-h)
-            show_help
-            ;;
-        *)
-            log::error "Unknown command: ${command}"
-            show_help
-            exit 1
-            ;;
-    esac
-}
-
-# Execute main function
-main "$@"

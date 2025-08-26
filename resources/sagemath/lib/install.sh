@@ -5,7 +5,8 @@
 # Define APP_ROOT using cached pattern  
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 
-sagemath_install() {
+# Universal Contract v2.0 handler for manage::install
+sagemath::install::execute() {
     local verbose="${1:-}"
     
     echo "Installing SageMath resource..."
@@ -77,7 +78,8 @@ EOF
     return 0
 }
 
-sagemath_uninstall() {
+# Universal Contract v2.0 handler for manage::uninstall
+sagemath::install::uninstall() {
     echo "Uninstalling SageMath resource..."
     
     # Stop container if running

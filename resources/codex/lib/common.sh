@@ -7,13 +7,13 @@ CODEX_COMMON_DIR="${APP_ROOT}/resources/codex/lib"
 
 # Source configuration
 # shellcheck disable=SC1091
-source "${CODEX_COMMON_DIR}/../config/defaults.sh"
+source "${APP_ROOT}/resources/codex/config/defaults.sh"
 
 # Source shared utilities
 # shellcheck disable=SC1091
-source "${CODEX_COMMON_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "${CODEX_COMMON_DIR}/../../../../lib/utils/log.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
 
 #######################################
 # Get OpenAI API key from Vault or environment

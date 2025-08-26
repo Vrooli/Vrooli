@@ -158,7 +158,7 @@
         },
         {
           "name": "add-data",
-          "run": "scripts/resources/injection/engine.sh .",
+          "run": "scripts/resources/populate/populate.sh .",
           "description": "Add application data to resources (database schema, collections, workflows)"
         },
         {

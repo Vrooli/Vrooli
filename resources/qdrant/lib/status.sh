@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 QDRANT_STATUS_DIR="${APP_ROOT}/resources/qdrant/lib"
 
 # Source format utilities and config
@@ -15,15 +15,15 @@ source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/format.sh"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/status-args.sh"
+source "${APP_ROOT}/scripts/resources/lib/status-args.sh"
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_LIB_DIR}/docker-utils.sh"
 # shellcheck disable=SC1091
-source "${QDRANT_STATUS_DIR}/../config/defaults.sh" 2>/dev/null || true
+source "${APP_ROOT}/resources/qdrant/config/defaults.sh"
 # shellcheck disable=SC1091
-source "${QDRANT_STATUS_DIR}/core.sh" 2>/dev/null || true
+source "${QDRANT_STATUS_DIR}/core.sh"
 # shellcheck disable=SC1091
-source "${QDRANT_STATUS_DIR}/health.sh" 2>/dev/null || true
+source "${QDRANT_STATUS_DIR}/health.sh"
 
 # Ensure configuration is exported
 if command -v qdrant::export_config &>/dev/null; then

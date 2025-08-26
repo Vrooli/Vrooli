@@ -5,14 +5,14 @@
 # Source var.sh for directory variables
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+source "${var_TRASH_FILE}"
 
 # Source API functions for test functions
 BROWSERLESS_LIB_DIR="${APP_ROOT}/resources/browserless/lib"
 # shellcheck disable=SC1091
-source "${BROWSERLESS_LIB_DIR}/api.sh" 2>/dev/null || true
+source "${BROWSERLESS_LIB_DIR}/api.sh"
 
 #######################################
 # Show usage examples help

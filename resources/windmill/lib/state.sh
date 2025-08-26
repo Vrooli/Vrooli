@@ -4,12 +4,12 @@
 # Ensures no sensitive data is stored in git
 
 # Source trash module for safe cleanup
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 WINDMILL_LIB_DIR="${APP_ROOT}/resources/windmill/lib"
 # shellcheck disable=SC1091
-source "${WINDMILL_LIB_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+source "${var_TRASH_FILE}"
 
 #######################################
 # Initialize state management system
@@ -540,23 +540,61 @@ windmill::auto_recover_password() {
 #######################################
 windmill::acquire_lock() {
     local timeout="${1:-30}"
+    
+    # Ensure state directory is initialized
+    if [[ -z "${WINDMILL_INSTALLATION_STATE_DIR:-}" ]]; then
+        windmill::state_init
+    fi
+    
     local lock_file="${WINDMILL_INSTALLATION_STATE_DIR}/.lock"
     local start_time=$(date +%s)
     
+    # Check for stale lock (older than 5 minutes)
+    if [[ -f "$lock_file" ]]; then
+        local lock_age=$(( $(date +%s) - $(stat -c %Y "$lock_file" 2>/dev/null || stat -f %m "$lock_file" 2>/dev/null || echo 0) ))
+        if [[ $lock_age -gt 300 ]]; then
+            log::warn "Found stale lock file (${lock_age}s old), removing it"
+            rm -f "$lock_file"
+        fi
+    fi
+    
+    # Try to acquire lock with timeout
+    local attempts=0
     while [[ -f "$lock_file" ]]; do
         local current_time=$(date +%s)
         local elapsed=$((current_time - start_time))
         
+        # Check if the PID in the lock file is still running
+        if [[ -f "$lock_file" ]]; then
+            local lock_pid=$(cat "$lock_file" 2>/dev/null)
+            if [[ -n "$lock_pid" ]] && ! kill -0 "$lock_pid" 2>/dev/null; then
+                log::warn "Lock held by dead process $lock_pid, removing lock"
+                rm -f "$lock_file"
+                break
+            fi
+        fi
+        
         if [[ $elapsed -gt $timeout ]]; then
-            echo "WARN: Lock timeout exceeded, forcing lock"
-            trash::safe_remove "$lock_file" --temp
+            log::warn "Lock timeout exceeded after ${timeout}s, forcing lock removal"
+            rm -f "$lock_file"
             break
         fi
         
+        # Only log waiting message every 5 attempts (5 seconds)
+        if [[ $((attempts % 5)) -eq 0 ]]; then
+            log::info "Waiting for lock to be released... (${elapsed}s elapsed)"
+        fi
+        
+        ((attempts++))
         sleep 1
     done
     
+    # Create lock file with our PID
     echo "$$" > "$lock_file"
+    
+    # Set up trap to clean up lock on exit
+    trap "rm -f '$lock_file' 2>/dev/null" EXIT INT TERM
+    
     return 0
 }
 
@@ -565,8 +603,24 @@ windmill::acquire_lock() {
 # Returns: 0
 #######################################
 windmill::release_lock() {
+    if [[ -z "${WINDMILL_INSTALLATION_STATE_DIR:-}" ]]; then
+        return 0  # No lock to release if state not initialized
+    fi
+    
     local lock_file="${WINDMILL_INSTALLATION_STATE_DIR}/.lock"
-    trash::safe_remove "$lock_file" --temp
+    
+    # Only remove if we own the lock
+    if [[ -f "$lock_file" ]]; then
+        local lock_pid=$(cat "$lock_file" 2>/dev/null)
+        if [[ "$lock_pid" == "$$" ]]; then
+            rm -f "$lock_file"
+            # Remove the trap since we're explicitly releasing
+            trap - EXIT INT TERM 2>/dev/null || true
+        else
+            log::warn "Lock owned by different process ($lock_pid), not releasing"
+        fi
+    fi
+    
     return 0
 }
 

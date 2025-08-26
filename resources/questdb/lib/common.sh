@@ -6,16 +6,16 @@
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 QUESTDB_LIB_DIR="${APP_ROOT}/resources/questdb/lib"
 # shellcheck disable=SC1091
-source "${QUESTDB_LIB_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "${var_LIB_UTILS_DIR}/flow.sh" 2>/dev/null || true
+source "${var_LIB_UTILS_DIR}/flow.sh"
 # shellcheck disable=SC1091
-source "${var_LIB_UTILS_DIR}/log.sh" 2>/dev/null || true
+source "${var_LIB_UTILS_DIR}/log.sh"
 
 # Load QuestDB configuration
-if [[ -f "${QUESTDB_LIB_DIR}/../config/defaults.sh" ]]; then
+if [[ -f "${APP_ROOT}/resources/questdb/config/defaults.sh" ]]; then
     # shellcheck disable=SC1091
-    source "${QUESTDB_LIB_DIR}/../config/defaults.sh"
+    source "${APP_ROOT}/resources/questdb/config/defaults.sh"
     questdb::export_config
 fi
 

@@ -10,9 +10,9 @@ set -euo pipefail
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
 SCRIPT_DIR="${APP_ROOT}/resources/claude-code/examples/01-basic-usage"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../../../lib/utils/var.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+source "${var_TRASH_FILE}"
 
 echo "=== Claude Code Simple Prompts Example ==="
 echo

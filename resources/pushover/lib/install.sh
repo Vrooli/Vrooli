@@ -100,7 +100,7 @@ EOF
     # Register CLI with vrooli
     if command -v install-resource-cli >/dev/null 2>&1; then
         log::info "Registering Pushover CLI..."
-        install-resource-cli pushover "${PUSHOVER_INSTALL_DIR}/../cli.sh" execution
+        install-resource-cli pushover "${APP_ROOT}/resources/pushover/cli.sh" execution
         log::success "CLI registered"
     fi
     

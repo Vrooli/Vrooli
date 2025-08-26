@@ -9,7 +9,7 @@ QUESTDB_INJECT_DIR="${APP_ROOT}/resources/questdb/lib"
 # Source required libraries
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${APP_ROOT}/scripts/lib/utils/log.sh"
-source "${QUESTDB_INJECT_DIR}/../config/defaults.sh"
+source "${APP_ROOT}/resources/questdb/config/defaults.sh"
 source "${QUESTDB_INJECT_DIR}/api.sh"
 
 #######################################

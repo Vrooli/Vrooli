@@ -17,7 +17,7 @@ source "${var_SCRIPTS_RESOURCES_LIB_DIR}/http-utils.sh"
 
 # Source configuration and dependencies
 # shellcheck disable=SC1091
-source "${QDRANT_EMBEDDINGS_DIR}/../config/defaults.sh" 2>/dev/null || true
+source "${APP_ROOT}/resources/qdrant/config/defaults.sh"
 # Export configuration variables
 qdrant::export_config 2>/dev/null || true
 # shellcheck disable=SC1091

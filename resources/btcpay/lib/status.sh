@@ -1,15 +1,7 @@
-#!/bin/bash
-
+#!/usr/bin/env bash
 # BTCPay Server Status Functions
 
 set -euo pipefail
-
-# Get script directory
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-BTCPAY_STATUS_DIR="${APP_ROOT}/resources/btcpay/lib"
-
-# Source common functions
-source "${BTCPAY_STATUS_DIR}/common.sh"
 
 # Main status function
 btcpay::status() {
@@ -114,9 +106,9 @@ Description: Self-hosted Bitcoin payment processor
 Category: execution
 
 Basic Status:
-  $(format::status_icon "$(echo "$data" | jq -r '.installed')") Installed: $(echo "$data" | jq -r '.installed')
-  $(format::status_icon "$(echo "$data" | jq -r '.running')") Running: $(echo "$data" | jq -r '.running')
-  $(format::status_icon "$(echo "$data" | jq -r 'if .health == "healthy" then "true" else "false" end')") Health: $(echo "$data" | jq -r '.health')
+  $([ "$(echo "$data" | jq -r '.installed')" = "true" ] && echo "✓" || echo "✗") Installed: $(echo "$data" | jq -r '.installed')
+  $([ "$(echo "$data" | jq -r '.running')" = "true" ] && echo "✓" || echo "✗") Running: $(echo "$data" | jq -r '.running')
+  $([ "$(echo "$data" | jq -r '.health')" = "healthy" ] && echo "✓" || echo "✗") Health: $(echo "$data" | jq -r '.health')
 
 Container Info:
   📦 Name: $(echo "$data" | jq -r '.container.name')
@@ -126,7 +118,7 @@ Container Info:
 
 API Endpoint:
   🌐 URL: $(echo "$data" | jq -r '.api.url')
-  $(format::status_icon "$(echo "$data" | jq -r '.api.accessible')") Accessible: $(echo "$data" | jq -r '.api.accessible')
+  $([ "$(echo "$data" | jq -r '.api.accessible')" = "true" ] && echo "✓" || echo "✗") Accessible: $(echo "$data" | jq -r '.api.accessible')
 
 Configuration:
   🔌 Port: $(echo "$data" | jq -r '.config.port')
@@ -134,9 +126,16 @@ Configuration:
   📁 Data Directory: $(echo "$data" | jq -r '.config.data_dir')
 
 Status Message:
-  $(format::status_icon "$(echo "$data" | jq -r 'if .health == "healthy" then "true" else "false" end')") $(echo "$data" | jq -r 'if .health == "healthy" then "BTCPay Server is healthy and ready" else "BTCPay Server needs attention" end')
+  $([ "$(echo "$data" | jq -r '.health')" = "healthy" ] && echo "✓" || echo "✗") $(echo "$data" | jq -r 'if .health == "healthy" then "BTCPay Server is healthy and ready" else "BTCPay Server needs attention" end')
 EOF
 }
 
-# Export function
+# Status check for smoke test
+btcpay::status::check() {
+    # Alias for test::smoke
+    btcpay::test::smoke
+}
+
+# Export functions
 export -f btcpay::status
+export -f btcpay::status::check

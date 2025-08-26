@@ -1,13 +1,17 @@
-#\!/usr/bin/env bash
-# Codex CLI Interface
+#!/usr/bin/env bash
+################################################################################
+# Codex Resource CLI - v2.0 Universal Contract Compliant
+# 
+# AI-powered code completion and generation via OpenAI Codex API
+#
+# Usage:
+#   resource-codex <command> [options]
+#   resource-codex <group> <subcommand> [options]
+#
+################################################################################
 
 set -euo pipefail
 
-# Get the actual directory of this script (resolving symlinks)
-SCRIPT_PATH="${BASH_SOURCE[0]}"
-if [[ -L "$SCRIPT_PATH" ]]; then
-    SCRIPT_PATH="$(readlink -f "$SCRIPT_PATH")"
-fi
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
 # Handle symlinks for installed CLI
 if [[ -L "${BASH_SOURCE[0]}" ]]; then
@@ -17,147 +21,55 @@ if [[ -L "${BASH_SOURCE[0]}" ]]; then
 fi
 CODEX_CLI_DIR="${APP_ROOT}/resources/codex"
 
-# Source libraries
 # shellcheck disable=SC1091
-source "${CODEX_CLI_DIR}/lib/common.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "${CODEX_CLI_DIR}/lib/status.sh"
+source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
-source "${CODEX_CLI_DIR}/lib/inject.sh"
+source "${var_RESOURCES_COMMON_FILE}"
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
+# shellcheck disable=SC1091
+source "${CODEX_CLI_DIR}/config/defaults.sh"
 
-#######################################
-# Display help message
-#######################################
-codex::help() {
-    cat <<EOF
-Codex Resource CLI
-
-Usage: $(basename "$0") <command> [options]
-
-Commands:
-  status [--format json]    Check Codex status
-  start                     Start Codex service (mark as running)
-  stop                      Stop Codex service (mark as stopped)
-  inject <file>            Inject a Python script for Codex processing
-  list                     List injected scripts
-  run <script>             Run a specific script with Codex
-  help                     Show this help message
-
-Options:
-  --format json            Output in JSON format (for status command)
-
-Examples:
-  $(basename "$0") status
-  $(basename "$0") start
-  $(basename "$0") inject my_script.py
-  $(basename "$0") list
-  $(basename "$0") run generate_function.py
-EOF
-}
-
-#######################################
-# Start Codex service
-#######################################
-codex::start() {
-    log::info "Starting Codex service..."
-    
-    if ! codex::is_configured; then
-        log::error "Codex not configured. Please set OPENAI_API_KEY or configure Vault"
-        return 1
+# Source Codex libraries
+for lib in common status install docker test content inject; do
+    lib_file="${CODEX_CLI_DIR}/lib/${lib}.sh"
+    if [[ -f "$lib_file" ]]; then
+        # shellcheck disable=SC1090
+        source "$lib_file" 2>/dev/null || true
     fi
-    
-    codex::save_status "running"
-    log::success "Codex service marked as running"
-    
-    # Verify API is accessible
-    if codex::is_available; then
-        log::success "Codex API is accessible"
-    else
-        log::warn "Codex API not responding. Check your API key and network connection"
-    fi
-}
+done
 
-#######################################
-# Stop Codex service
-#######################################
-codex::stop() {
-    log::info "Stopping Codex service..."
-    codex::save_status "stopped"
-    log::success "Codex service marked as stopped"
-}
+# Initialize CLI framework in v2.0 mode (auto-creates manage/test/content groups)
+cli::init "codex" "AI-powered code completion and generation via OpenAI Codex" "v2"
 
-#######################################
-# List injected scripts
-#######################################
-codex::list() {
-    log::header "Injected Codex Scripts"
-    
-    if [[ ! -d "${CODEX_SCRIPTS_DIR}" ]]; then
-        log::info "No scripts directory found"
-        return 0
-    fi
-    
-    local count=0
-    while IFS= read -r script; do
-        ((count++))
-        local basename
-        basename=$(basename "${script}")
-        echo "  ${count}. ${basename}"
-    done < <(find "${CODEX_SCRIPTS_DIR}" -name "*.py" -type f 2>/dev/null | sort)
-    
-    if [[ ${count} -eq 0 ]]; then
-        log::info "No scripts found"
-    else
-        log::info "Total: ${count} script(s)"
-    fi
-}
+# Override default handlers to point directly to codex implementations
+CLI_COMMAND_HANDLERS["manage::install"]="codex::install::execute"
+CLI_COMMAND_HANDLERS["manage::uninstall"]="codex::install::uninstall"
+CLI_COMMAND_HANDLERS["manage::start"]="codex::docker::start"  
+CLI_COMMAND_HANDLERS["manage::stop"]="codex::docker::stop"
+CLI_COMMAND_HANDLERS["manage::restart"]="codex::docker::restart"
+CLI_COMMAND_HANDLERS["test::smoke"]="codex::test::smoke"
+CLI_COMMAND_HANDLERS["test::integration"]="codex::test::integration"
+CLI_COMMAND_HANDLERS["test::all"]="codex::test::all"
 
-#######################################
-# Main command dispatcher
-#######################################
-main() {
-    local command="${1:-help}"
-    shift || true
-    
-    case "${command}" in
-        status)
-            codex::status "$@"
-            ;;
-        start)
-            codex::start "$@"
-            ;;
-        stop)
-            codex::stop "$@"
-            ;;
-        inject)
-            if type -t codex::inject &>/dev/null; then
-                codex::inject "$@"
-            else
-                log::error "Inject command not yet implemented"
-                exit 1
-            fi
-            ;;
-        list)
-            codex::list "$@"
-            ;;
-        run)
-            if type -t codex::run &>/dev/null; then
-                codex::run "$@"
-            else
-                log::error "Run command not yet implemented"
-                exit 1
-            fi
-            ;;
-        help|--help|-h)
-            codex::help
-            ;;
-        *)
-            log::error "Unknown command: ${command}"
-            codex::help
-            exit 1
-            ;;
-    esac
-}
+# Override content handlers for Codex-specific script management functionality
+CLI_COMMAND_HANDLERS["content::add"]="codex::content::add"
+CLI_COMMAND_HANDLERS["content::list"]="codex::content::list" 
+CLI_COMMAND_HANDLERS["content::get"]="codex::content::get"
+CLI_COMMAND_HANDLERS["content::remove"]="codex::content::remove"
+CLI_COMMAND_HANDLERS["content::execute"]="codex::content::execute"
 
-# Run main function
-main "$@"
+# Add Codex-specific content subcommands not in the standard framework
+cli::register_subcommand "content" "run" "Run a script with Codex API" "codex::run"
+cli::register_subcommand "content" "inject" "Inject a script for Codex processing" "codex::inject"
+
+# Additional information commands
+cli::register_command "status" "Show detailed resource status" "codex::status"
+cli::register_command "logs" "Show Codex logs" "codex::docker::logs"
+
+# Only execute if script is run directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    cli::dispatch "$@"
+fi

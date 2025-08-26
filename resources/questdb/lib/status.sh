@@ -8,19 +8,19 @@
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 QUESTDB_LIB_DIR="${APP_ROOT}/resources/questdb/lib"
 # shellcheck disable=SC1091
-source "${QUESTDB_LIB_DIR}/../../../../lib/utils/format.sh"
+source "${APP_ROOT}/scripts/lib/utils/format.sh"
 # shellcheck disable=SC1091
-source "${QUESTDB_LIB_DIR}/../../../lib/status-args.sh"
+source "${APP_ROOT}/scripts/resources/lib/status-args.sh"
 # shellcheck disable=SC1091
-source "${QUESTDB_LIB_DIR}/../config/defaults.sh" 2>/dev/null || true
+source "${APP_ROOT}/resources/questdb/config/defaults.sh"
 # shellcheck disable=SC1091
-source "${QUESTDB_LIB_DIR}/common.sh" 2>/dev/null || true
+source "${QUESTDB_LIB_DIR}/common.sh"
 # shellcheck disable=SC1091
-source "${QUESTDB_LIB_DIR}/docker.sh" 2>/dev/null || true
+source "${QUESTDB_LIB_DIR}/docker.sh"
 # shellcheck disable=SC1091
-source "${QUESTDB_LIB_DIR}/api.sh" 2>/dev/null || true
+source "${QUESTDB_LIB_DIR}/api.sh"
 # shellcheck disable=SC1091
-source "${QUESTDB_LIB_DIR}/../../../../lib/logging.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/logging.sh"
 
 # Ensure configuration is exported
 if command -v questdb::export_config &>/dev/null; then
@@ -107,7 +107,7 @@ questdb::status::collect_data() {
     # Test results - check for recent test runs
     local test_status="not_run"
     local test_timestamp=""
-    local test_result_file="/home/matthalloran8/Vrooli/data/questdb/test_results.json"
+    local test_result_file="${VROOLI_ROOT:-${HOME}/Vrooli}/data/questdb/test_results.json"
     
     if [[ -f "$test_result_file" ]]; then
         test_status=$(jq -r '.status // "unknown"' "$test_result_file" 2>/dev/null || echo "unknown")
@@ -409,7 +409,7 @@ questdb::status::monitor() {
 questdb::test() {
     log::info "Testing QuestDB functionality..."
     
-    local test_result_file="/home/matthalloran8/Vrooli/data/questdb/test_results.json"
+    local test_result_file="${VROOLI_ROOT:-${HOME}/Vrooli}/data/questdb/test_results.json"
     mkdir -p "${test_result_file%/*"
     local test_passed=true
     local start_time=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
@@ -421,7 +421,7 @@ questdb::test() {
         echo "{\"status\": \"failed\", \"timestamp\": \"$start_time\", \"error\": \"Container not installed\"}" > "$test_result_file"
         return 1
     fi
-            log::success "✅ QuestDB container is installed"
+    log::success "✅ QuestDB container is installed"
     
     # Test 2: Check if service is running
     if ! questdb::docker::is_running; then

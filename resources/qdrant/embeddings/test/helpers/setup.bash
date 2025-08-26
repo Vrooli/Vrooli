@@ -2,16 +2,17 @@
 # Test setup helpers for embedding system tests
 
 # Paths to important directories
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../../../.." && builtin pwd)}"
+# From test/helpers/setup.bash, we need to go up 5 levels to reach APP_ROOT
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../../../" && builtin pwd)}"
 EMBEDDING_ROOT="${APP_ROOT}/resources/qdrant/embeddings"
 FIXTURE_ROOT="$EMBEDDING_ROOT/test/fixtures"
 TEST_ROOT="$EMBEDDING_ROOT/test"
 
 # Source required utilities before tests run
 setup_embedding_environment() {
-    # Source basic utilities
-    source "$EMBEDDING_ROOT/../../../lib/utils/var.sh" 2>/dev/null || true
-    source "$EMBEDDING_ROOT/../../../lib/utils/log.sh" 2>/dev/null || true
+    # Source basic utilities - fix path to scripts/lib/utils
+    source "$APP_ROOT/scripts/lib/utils/var.sh" 2>/dev/null || true
+    source "$APP_ROOT/scripts/lib/utils/log.sh" 2>/dev/null || true
     
     # Mock log functions if not available
     if ! command -v log::info >/dev/null; then
@@ -26,29 +27,40 @@ setup_embedding_environment() {
     export DEFAULT_MODEL="mxbai-embed-large"
     export DEFAULT_DIMENSIONS=1024
     export BATCH_SIZE=5  # Smaller for tests
+    export TEMP_DIR="/tmp/qdrant-test-$$"
+    mkdir -p "$TEMP_DIR"
+    
+    # Cleanup temp on exit
+    trap "rm -rf $TEMP_DIR" EXIT
 }
 
 # Mock functions for testing
 mock_qdrant_collections() {
     # Mock Qdrant collection functions for testing
     qdrant::collections::create() {
-        echo "Mock: Created collection $1"
+        echo "Mock: Created collection $1" >&2
         return 0
     }
     
     qdrant::collections::delete() {
-        echo "Mock: Deleted collection $1"
+        echo "Mock: Deleted collection $1" >&2
         return 0
     }
     
     qdrant::collections::upsert_point() {
-        echo "Mock: Upserted point $2 to collection $1"
+        echo "Mock: Upserted point $2 to collection $1" >&2
+        return 0
+    }
+    
+    qdrant::collections::batch_upsert() {
+        echo "Mock: Batch upserted to collection $1" >&2
         return 0
     }
     
     export -f qdrant::collections::create
     export -f qdrant::collections::delete
     export -f qdrant::collections::upsert_point
+    export -f qdrant::collections::batch_upsert
 }
 
 # Mock embedding generation for testing
@@ -70,6 +82,55 @@ mock_embedding_generation() {
     }
     
     export -f qdrant::embeddings::generate
+}
+
+# Mock unified embedding service functions
+mock_unified_embedding_service() {
+    # Mock the main process_item function from unified service
+    qdrant::embedding::process_item() {
+        local content="$1"
+        local content_type="$2"
+        local collection="$3"
+        local app_id="$4"
+        local metadata="${5:-{}}"
+        
+        echo "Mock: Processed $content_type item for app $app_id in collection $collection" >&2
+        return 0
+    }
+    
+    qdrant::embedding::generate_id() {
+        local content="$1"
+        local type="$2"
+        echo "mock_id_$(echo -n "$content$type" | md5sum | cut -c1-8)"
+    }
+    
+    qdrant::embedding::build_payload() {
+        local content="$1"
+        local type="$2"
+        local app_id="$3"
+        local extra="${4:-{}}"
+        echo '{"content":"'"$content"'","type":"'"$type"'","app_id":"'"$app_id"'"}'
+    }
+    
+    qdrant::embedding::process_batch() {
+        local content_array="$1"
+        local type="$2"
+        local collection="$3"
+        local app_id="$4"
+        echo "Mock: Batch processed $type items for $app_id" >&2
+        echo "10"  # Return mock count
+    }
+    
+    qdrant::embedding::health_check() {
+        echo "Mock: Health check passed" >&2
+        return 0
+    }
+    
+    export -f qdrant::embedding::process_item
+    export -f qdrant::embedding::generate_id
+    export -f qdrant::embedding::build_payload
+    export -f qdrant::embedding::process_batch
+    export -f qdrant::embedding::health_check
 }
 
 # Check if required test fixtures exist

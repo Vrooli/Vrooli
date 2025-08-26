@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 
 # Define paths from APP_ROOT
 EMBEDDINGS_DIR="${APP_ROOT}/resources/qdrant/embeddings"
@@ -14,13 +14,14 @@ EMBEDDING_SERVICE_DIR="${EMBEDDINGS_DIR}/lib"
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${var_LIB_UTILS_DIR}/log.sh"
 
-# Source embedding and collection libraries
-source "${EMBEDDINGS_DIR}/../lib/embeddings.sh"
-source "${EMBEDDINGS_DIR}/../lib/collections.sh"
+# Source unified configuration first
+source "${EMBEDDINGS_DIR}/config/unified.sh"
 
-# Default configuration
-DEFAULT_MODEL="${QDRANT_DEFAULT_MODEL:-mxbai-embed-large}"
-DEFAULT_BATCH_SIZE="${QDRANT_EMBEDDING_BATCH_SIZE:-50}"
+# Source embedding and collection libraries
+source "${APP_ROOT}/resources/qdrant/lib/embeddings.sh"
+source "${APP_ROOT}/resources/qdrant/lib/collections.sh"
+
+# Configuration loaded from unified.sh - backward compatible aliases available
 
 #######################################
 # Process content item through complete embedding pipeline

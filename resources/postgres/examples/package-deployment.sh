@@ -5,13 +5,13 @@ set -euo pipefail
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
 SCRIPT_DIR="${APP_ROOT}/resources/postgres/examples"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 # Source trash system for safe removal using var_ variables
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+source "${var_TRASH_FILE}"
 # shellcheck disable=SC1091
-source "${var_LIB_UTILS_DIR}/sudo.sh" 2>/dev/null || true
+source "${var_LIB_UTILS_DIR}/sudo.sh"
 
 # PostgreSQL Client Deployment Packaging Example
 # Demonstrates packaging PostgreSQL instances for client deployment
@@ -40,7 +40,7 @@ source "${POSTGRES_DIR}/manage.sh"
 # Deployment configuration
 #######################################
 PACKAGE_DIR="/tmp/vrooli_packages"
-TEMPLATE_DIR="${SCRIPT_DIR}/../templates"
+TEMPLATE_DIR="${APP_ROOT}/resources/postgres/templates"
 
 #######################################
 # Utility functions
@@ -571,9 +571,9 @@ if ! command -v docker-compose >/dev/null 2>&1; then
 fi
 
 # Load configuration
-if [[ -f "../config/database.env" ]]; then
+if [[ -f "${APP_ROOT}/resources/postgres/config/database.env" ]]; then
     set -a
-    source "../config/database.env"
+    source "${APP_ROOT}/resources/postgres/config/database.env"
     set +a
     echo "Configuration loaded from database.env"
 else
@@ -588,7 +588,7 @@ if [[ -z "${DATABASE_PASSWORD:-}" ]]; then
 fi
 
 # Change to docker directory
-cd "$(builtin cd "${0%/*" && builtin pwd)/../docker"
+cd "${APP_ROOT}/resources/postgres/docker"
 
 # Build and start the container
 echo "Building PostgreSQL image..."
@@ -796,7 +796,7 @@ if ! kubectl cluster-info >/dev/null 2>&1; then
     exit 1
 fi
 
-cd "$(builtin cd "${0%/*" && builtin pwd)/../kubernetes"
+cd "${APP_ROOT}/resources/postgres/kubernetes"
 
 # Apply manifests
 echo "Creating namespace..."
@@ -975,9 +975,9 @@ if [[ $EUID -eq 0 ]]; then
 fi
 
 # Load configuration
-if [[ -f "../config/database.env" ]]; then
+if [[ -f "${APP_ROOT}/resources/postgres/config/database.env" ]]; then
     set -a
-    source "../config/database.env"
+    source "${APP_ROOT}/resources/postgres/config/database.env"
     set +a
     echo "Configuration loaded from database.env"
 fi
@@ -995,7 +995,7 @@ sudo::exec_with_fallback "chown postgres:postgres '$DATA_DIR'"
 sudo::exec_with_fallback "chown postgres:postgres '$CONFIG_DIR'"
 
 # Copy configuration
-sudo::exec_with_fallback "cp '../config/postgresql.conf' '$CONFIG_DIR/'"
+sudo::exec_with_fallback "cp '${APP_ROOT}/resources/postgres/config/postgresql.conf' '$CONFIG_DIR/'"
 sudo::exec_with_fallback "chown postgres:postgres '$CONFIG_DIR/postgresql.conf'"
 
 # Initialize database
@@ -1048,7 +1048,7 @@ if [[ -f "/etc/systemd/system/postgresql-${CLIENT_NAME}.service" ]]; then
     echo "Systemd service already exists"
 else
     echo "Installing systemd service..."
-    sudo::exec_with_fallback "cp '../systemd/postgresql-${CLIENT_NAME}.service' '/etc/systemd/system/'"
+    sudo::exec_with_fallback "cp '${APP_ROOT}/resources/postgres/systemd/postgresql-${CLIENT_NAME}.service' '/etc/systemd/system/'"
     sudo::exec_with_fallback "systemctl daemon-reload"
     sudo::exec_with_fallback "systemctl enable 'postgresql-${CLIENT_NAME}'"
     
@@ -1473,9 +1473,9 @@ set -euo pipefail
 echo "Verifying PostgreSQL deployment..."
 
 # Load configuration
-if [[ -f "../config/database.env" ]]; then
+if [[ -f "${APP_ROOT}/resources/postgres/config/database.env" ]]; then
     set -a
-    source "../config/database.env"
+    source "${APP_ROOT}/resources/postgres/config/database.env"
     set +a
 fi
 
@@ -1596,7 +1596,7 @@ EOF
     sed -i '$ s/,$//' "$package_path/MANIFEST.json"
     cat >> "$package_path/MANIFEST.json" << EOF
   },
-  "checksum": "$(find "$package_path" -type f -exec sha256sum {} \; | sha256sum | cut -d' ' -f1)"
+  "checksum": "$(find "$package_path" -type f -exec sha256sum {} \\; | sha256sum | cut -d' ' -f1)"
 }
 EOF
     

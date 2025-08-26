@@ -10,7 +10,7 @@ FFMPEG_CONFIG_DIR="${APP_ROOT}/resources/ffmpeg/config"
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # Source port registry for dynamic port allocation (if needed)
 # shellcheck disable=SC1091
-source "${FFMPEG_CONFIG_DIR}/../../../port_registry.sh"
+source "${APP_ROOT}/scripts/resources/port_registry.sh"
 
 # Export configuration function
 ffmpeg::export_config() {

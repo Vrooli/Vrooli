@@ -2,10 +2,11 @@
 
 # Status functions for SageMath
 
-sagemath_status() {
+# Universal Contract v2.0 handler for status command
+sagemath::status() {
     # Source format utility for consistent JSON output
-    # SCRIPT_DIR is the lib directory, so we need to go up 3 levels to get to scripts
-    source "$(cd "$SCRIPT_DIR" && cd ../../../lib/utils && pwd)/format.sh"
+    APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+    source "${APP_ROOT}/scripts/lib/utils/format.sh"
     
     # Handle --json flag
     local format="text"
@@ -131,5 +132,31 @@ sagemath_status() {
         echo ""
         echo "Status Message:"
         echo "  $([ "$health" == "healthy" ] && echo "✅ SageMath is healthy and ready" || echo "⚠️  SageMath needs attention")"
+    fi
+}
+
+# Universal Contract v2.0 handler for test::smoke
+sagemath::status::check() {
+    echo "Running SageMath health check..."
+    
+    # Check if container exists
+    if ! sagemath_container_exists; then
+        echo "❌ SageMath container does not exist"
+        return 1
+    fi
+    
+    # Check if running
+    if ! sagemath_container_running; then
+        echo "❌ SageMath container is not running"
+        return 1
+    fi
+    
+    # Check Jupyter interface health
+    if curl -s --max-time 10 "http://localhost:${SAGEMATH_PORT_JUPYTER}" >/dev/null 2>&1; then
+        echo "✅ SageMath is healthy and responding"
+        return 0
+    else
+        echo "❌ SageMath Jupyter interface is not responding"
+        return 1
     fi
 }

@@ -3,20 +3,20 @@
 # Functions for checking and displaying Windmill status information
 
 # Source format utilities and config
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 WINDMILL_STATUS_DIR="${APP_ROOT}/resources/windmill/lib"
 # shellcheck disable=SC1091
-source "${WINDMILL_STATUS_DIR}/../../../../lib/utils/format.sh"
+source "${APP_ROOT}/scripts/lib/utils/format.sh"
 # shellcheck disable=SC1091
-source "${WINDMILL_STATUS_DIR}/../../../lib/status-args.sh"
+source "${APP_ROOT}/scripts/resources/lib/status-args.sh"
 # shellcheck disable=SC1091
-source "${WINDMILL_STATUS_DIR}/../config/defaults.sh" 2>/dev/null || true
+source "${APP_ROOT}/resources/windmill/config/defaults.sh"
 # shellcheck disable=SC1091
-source "${WINDMILL_STATUS_DIR}/../config/messages.sh" 2>/dev/null || true
+source "${APP_ROOT}/resources/windmill/config/messages.sh"
 # shellcheck disable=SC1091
-source "${WINDMILL_STATUS_DIR}/common.sh" 2>/dev/null || true
+source "${WINDMILL_STATUS_DIR}/common.sh"
 # shellcheck disable=SC1091
-source "${WINDMILL_STATUS_DIR}/docker.sh" 2>/dev/null || true
+source "${WINDMILL_STATUS_DIR}/docker.sh"
 
 # Ensure configuration is exported
 if command -v windmill::export_config &>/dev/null; then

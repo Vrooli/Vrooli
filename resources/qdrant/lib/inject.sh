@@ -13,7 +13,7 @@ source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # Try to source framework files if available, but don't fail if missing
 if [[ -f "${var_SCRIPTS_RESOURCES_LIB_DIR}/inject_framework.sh" ]]; then
     # shellcheck disable=SC1091
-    source "${var_SCRIPTS_RESOURCES_LIB_DIR}/inject_framework.sh" 2>/dev/null || true
+    source "${var_SCRIPTS_RESOURCES_LIB_DIR}/inject_framework.sh"
 fi
 
 # Function stubs for framework functions we use

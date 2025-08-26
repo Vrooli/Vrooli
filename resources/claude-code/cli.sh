@@ -36,7 +36,7 @@ source "${var_SCRIPTS_RESOURCES_LIB_DIR}/cli-command-framework.sh"
 
 # Source Claude Code configuration
 # shellcheck disable=SC1091
-source "${CLAUDE_CODE_CLI_DIR}/config/defaults.sh" 2>/dev/null || true
+source "${CLAUDE_CODE_CLI_DIR}/config/defaults.sh"
 
 # Source Claude Code libraries
 for lib in common status install session session-enhanced mcp templates settings automation execute batch error-handling content; do

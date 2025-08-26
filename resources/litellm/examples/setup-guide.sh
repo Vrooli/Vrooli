@@ -4,17 +4,19 @@
 
 set -e
 
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+
 echo "🚀 LiteLLM Complete Setup Guide"
 echo "=============================="
 echo
 
 # Configuration paths
-LITELLM_CONFIG_DIR="/home/matthalloran8/Vrooli/data/litellm/config"
+LITELLM_CONFIG_DIR="${APP_ROOT}/data/litellm/config"
 LITELLM_CONFIG_FILE="${LITELLM_CONFIG_DIR}/config.yaml"
 LITELLM_ENV_FILE="${LITELLM_CONFIG_DIR}/.env"
 
 echo "1️⃣ Creating LiteLLM directories..."
-mkdir -p "/home/matthalloran8/Vrooli/data/litellm"/{config,logs,data}
+mkdir -p "${APP_ROOT}/data/litellm"/{config,logs,data}
 echo "✅ Directories created"
 echo
 
@@ -204,8 +206,8 @@ docker run -d \
     -p 11435:4000 \
     -v "${LITELLM_CONFIG_FILE}:/app/config.yaml:ro" \
     -v "${LITELLM_ENV_FILE}:/app/.env:ro" \
-    -v "/home/matthalloran8/Vrooli/data/litellm/data:/app/data" \
-    -v "/home/matthalloran8/Vrooli/data/litellm/logs:/app/logs" \
+    -v "${APP_ROOT}/data/litellm/data:/app/data" \
+    -v "${APP_ROOT}/data/litellm/logs:/app/logs" \
     --restart unless-stopped \
     --env-file "${LITELLM_ENV_FILE}" \
     ghcr.io/berriai/litellm:main-latest \

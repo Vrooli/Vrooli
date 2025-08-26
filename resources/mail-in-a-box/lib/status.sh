@@ -7,8 +7,8 @@ MAILINABOX_STATUS_LIB_DIR="${APP_ROOT}/resources/mail-in-a-box/lib"
 
 # Source dependencies
 source "$MAILINABOX_STATUS_LIB_DIR/core.sh"
-source "$MAILINABOX_STATUS_LIB_DIR/../../../lib/status-args.sh"
-source "$MAILINABOX_STATUS_LIB_DIR/../../../../lib/utils/format.sh"
+source "$MAILINABOX_STATUS_LIB_DIR/${APP_ROOT}/scripts/resources/lib/status-args.sh"
+source "${APP_ROOT}/scripts/lib/utils/format.sh"
 
 # Collect Mail-in-a-Box status data in format-agnostic structure
 mailinabox::status::collect_data() {

@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 QDRANT_COLLECTIONS_DIR="${APP_ROOT}/resources/qdrant/lib"
 
 # Source required utilities
@@ -15,9 +15,9 @@ source "${var_LIB_UTILS_DIR}/log.sh"
 
 # Source configuration and messages
 # shellcheck disable=SC1091
-source "${QDRANT_COLLECTIONS_DIR}/../config/defaults.sh"
+source "${APP_ROOT}/resources/qdrant/config/defaults.sh"
 # shellcheck disable=SC1091
-source "${QDRANT_COLLECTIONS_DIR}/../config/messages.sh"
+source "${APP_ROOT}/resources/qdrant/config/messages.sh"
 # shellcheck disable=SC1091
 source "${QDRANT_COLLECTIONS_DIR}/api-client.sh"
 
@@ -595,7 +595,7 @@ qdrant::collections::create_parsed() {
 # Source dependencies if not already loaded
 if ! command -v qdrant::models::get_model_dimensions >/dev/null 2>&1; then
     # shellcheck disable=SC1091
-    source "${QDRANT_COLLECTIONS_DIR}/models.sh" 2>/dev/null || true
+    source "${QDRANT_COLLECTIONS_DIR}/models.sh"
 fi
 
 #######################################

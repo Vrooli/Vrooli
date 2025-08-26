@@ -18,7 +18,7 @@ source "${RESOURCES_DIR}/common.sh"
 # Source QuestDB configuration if available
 if [[ -f "${SCRIPT_DIR}/config/defaults.sh" ]]; then
     # shellcheck disable=SC1091
-    source "${SCRIPT_DIR}/config/defaults.sh" 2>/dev/null || true
+    source "${SCRIPT_DIR}/config/defaults.sh"
 fi
 
 # Default QuestDB settings
@@ -109,7 +109,7 @@ questdb_inject::check_accessibility() {
         return 0
     else
         log::error "QuestDB is not accessible at ${QUESTDB_HOST}:${QUESTDB_HTTP_PORT}"
-        log::info "Ensure QuestDB is running: ./resources/questdb/manage.sh --action start"
+        log::info "Ensure QuestDB is running: resource-questdb manage start"
         return 1
     fi
 }

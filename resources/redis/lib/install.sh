@@ -11,7 +11,7 @@ source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_SERVICE_DIR}/secrets.sh"
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+source "${var_TRASH_FILE}"
 
 #######################################
 # Install Redis resource
@@ -28,8 +28,7 @@ redis::install::main() {
             return 0
         else
             log::info "Redis container exists but is not running. Starting..."
-            redis::docker::start
-            return $?
+            return redis::docker::start
         fi
     fi
     
@@ -156,10 +155,10 @@ redis::install::create_cli_helper() {
 # Redis CLI Helper for Vrooli Resource
 # This script connects to the Redis resource instance
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../../.." && builtin pwd)}"
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
-source "${var_LIB_SERVICE_DIR}/secrets.sh" 2>/dev/null || true
+source "${var_LIB_SERVICE_DIR}/secrets.sh"
 
 REDIS_PORT="${REDIS_PORT:-6380}"
 REDIS_PASSWORD="$(secrets::resolve "REDIS_PASSWORD" 2>/dev/null || echo "")"

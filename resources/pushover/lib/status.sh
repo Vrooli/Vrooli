@@ -7,8 +7,8 @@ PUSHOVER_STATUS_DIR="${APP_ROOT}/resources/pushover/lib"
 
 # Source dependencies
 source "${PUSHOVER_STATUS_DIR}/core.sh"
-source "${PUSHOVER_STATUS_DIR}/../../../lib/status-args.sh"
-source "${PUSHOVER_STATUS_DIR}/../../../../lib/utils/format.sh"
+source "${APP_ROOT}/scripts/resources/lib/status-args.sh"
+source "${APP_ROOT}/scripts/lib/utils/format.sh"
 
 # Collect Pushover status data in format-agnostic structure
 pushover::status::collect_data() {
