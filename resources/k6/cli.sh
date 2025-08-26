@@ -5,8 +5,8 @@
 # Modern load testing tool with JavaScript scripting
 #
 # Usage:
-#   resource-k6 <command> [options]                    # v1.0 backward compatibility
-#   resource-k6 <group> <subcommand> [options]        # v2.0 style
+#   resource-k6 <command> [options]
+#   resource-k6 <group> <subcommand> [options]
 #
 ################################################################################
 
@@ -46,6 +46,7 @@ cli::init "k6" "K6 load testing platform management" "v2"
 
 # Override default handlers to point directly to k6 implementations
 CLI_COMMAND_HANDLERS["manage::install"]="k6::install::execute"
+CLI_COMMAND_HANDLERS["manage::uninstall"]="k6::install::uninstall"
 CLI_COMMAND_HANDLERS["manage::start"]="k6::docker::start"  
 CLI_COMMAND_HANDLERS["manage::stop"]="k6::docker::stop"
 CLI_COMMAND_HANDLERS["manage::restart"]="k6::docker::restart"
@@ -61,26 +62,10 @@ CLI_COMMAND_HANDLERS["content::execute"]="k6::content::execute"
 # Add K6-specific content subcommands not in the standard framework
 cli::register_subcommand "content" "results" "Show recent performance test results" "k6::content::show_results"
 
-# Register additional K6-specific performance testing commands  
-cli::register_subcommand "test" "load" "Run load performance test" "k6::content::run_performance_test" "modifies-system"
-cli::register_subcommand "test" "stress" "Run stress performance test" "k6::test::stress" "modifies-system"
-
 # Additional information commands
-cli::register_command "credentials" "Show K6 credentials for integration" "k6::core::credentials"
+cli::register_command "status" "Show detailed resource status" "k6::status"
 cli::register_command "logs" "Show K6 logs" "k6::docker::logs"
-
-# Legacy commands for backward compatibility with deprecation warnings
-cli::register_command "run-test" "Run a K6 performance test (deprecated - use 'content execute')" "k6::test::run" "modifies-system"
-cli::register_command "list-tests" "List available test scripts (deprecated - use 'content list')" "k6::test::list"
-
-# Enhanced stress test function (adds functionality beyond basic execute)
-k6::test::stress() {
-    k6::content::run_performance_test "$1" --stages "1m:10,5m:50,1m:100,2m:100,1m:0" --thresholds "http_req_duration[p(95)]<500" "${@:2}"
-}
-
-################################################################################
-# Main execution - dispatch to v2.0 framework
-################################################################################
+cli::register_command "credentials" "Show K6 credentials for integration" "k6::core::credentials"
 
 # Only execute if script is run directly (not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then

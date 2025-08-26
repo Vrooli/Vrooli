@@ -13,7 +13,7 @@ export K6_IMAGE="${K6_IMAGE:-grafana/k6:latest}"
 export K6_PORT="${K6_PORT:-6565}"
 
 # Runtime configuration
-export K6_DATA_DIR="${K6_DATA_DIR:-/home/matthalloran8/.k6}"
+export K6_DATA_DIR="${K6_DATA_DIR:-${HOME}/.k6}"
 export K6_SCRIPTS_DIR="${K6_DATA_DIR}/scripts"
 export K6_RESULTS_DIR="${K6_DATA_DIR}/results"
 export K6_CONFIG_DIR="${K6_DATA_DIR}/config"

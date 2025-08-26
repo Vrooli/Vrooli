@@ -1,131 +1,68 @@
 #!/usr/bin/env bash
-# K6 Test Execution Functions
+# K6 Resource Testing Functions (Resource Validation, not Performance Testing)
+# Performance testing moved to lib/content.sh
 
-# Run a K6 test
+# ==================== RESOURCE VALIDATION FUNCTIONS ====================
+# These test K6 as a resource (health, connectivity, functionality)
+
+# Quick smoke test - validate K6 resource health
+k6::test::smoke() {
+    bash "${K6_CLI_DIR}/test/phases/test-smoke.sh" "$@"
+}
+
+# Full integration test - validate K6 end-to-end functionality  
+k6::test::integration() {
+    bash "${K6_CLI_DIR}/test/phases/test-integration.sh" "$@"
+}
+
+# Unit tests - validate K6 library functions
+k6::test::unit() {
+    bash "${K6_CLI_DIR}/test/phases/test-unit.sh" "$@"
+}
+
+# Run all resource tests
+k6::test::all() {
+    bash "${K6_CLI_DIR}/test/run-tests.sh" all "$@"
+}
+
+# ==================== LEGACY PERFORMANCE TESTING FUNCTIONS ====================
+# DEPRECATED: These functions moved to lib/content.sh
+# Kept for backward compatibility with deprecation warnings
+
+# DEPRECATED: Use content execute instead
 k6::test::run() {
-    local script="$1"
-    shift  # Remove script from arguments
+    log::warning "DEPRECATED: k6::test::run is deprecated"
+    log::warning "Use 'resource-k6 content execute' instead"
+    log::warning "This function will be removed in v3.0 (December 2025)"
     
-    if [[ -z "$script" ]]; then
-        log::error "Test script required"
-        echo "Usage: resource-k6 run-test <script.js> [k6-options]"
-        return 1
-    fi
-    
-    # Check if script exists
-    local script_path=""
-    if [[ -f "$script" ]]; then
-        script_path="$script"
-    elif [[ -f "$K6_SCRIPTS_DIR/$script" ]]; then
-        script_path="$K6_SCRIPTS_DIR/$script"
-    else
-        log::error "Test script not found: $script"
-        return 1
-    fi
-    
-    log::info "Running K6 test: $script_path"
-    
-    # Generate results filename
-    local timestamp=$(date +%Y%m%d_%H%M%S)
-    local script_name=$(basename "$script" .js)
-    local results_filename="${script_name}_${timestamp}.json"
-    local results_file="$K6_RESULTS_DIR/${results_filename}"
-    
-    # Convert local path to container path
-    local container_script="/scripts/$(basename "$script_path")"
-    
-    # Build k6 command with proper escaping
-    local k6_cmd="k6 run --out json=/results/${results_filename}"
-    
-    # Add any additional k6 arguments BEFORE the script path
-    if [[ $# -gt 0 ]]; then
-        k6_cmd="$k6_cmd $*"
-    fi
-    
-    # Add the script path at the end
-    k6_cmd="$k6_cmd ${container_script}"
-    
-    # Debug output
-    log::info "Running command: $k6_cmd"
-    
-    # Run test with JSON output (using docker exec with sh -c)
-    if docker exec vrooli-k6 sh -c "$k6_cmd"; then
-        local success=true
-    else
-        local success=false
-    fi
-    
-    if [[ "$success" == "true" ]]; then
-        log::success "Test completed successfully"
-        log::info "Results saved to: $results_file"
-        
-        # Show summary if jq is available
-        if command -v jq >/dev/null 2>&1; then
-            echo ""
-            echo "Test Summary:"
-            echo "============="
-            jq -r 'select(.type=="Point" and .metric=="http_req_duration") | 
-                   "Response Time (p95): \(.data.tags.p95 // .data.value)ms"' "$results_file" 2>/dev/null | head -1
-            jq -r 'select(.type=="Point" and .metric=="http_reqs") | 
-                   "Total Requests: \(.data.value)"' "$results_file" 2>/dev/null | tail -1
-            jq -r 'select(.type=="Point" and .metric=="http_req_failed") | 
-                   "Failed Requests: \(.data.value)"' "$results_file" 2>/dev/null | tail -1
-        fi
-    else
-        log::error "Test failed"
-        return 1
-    fi
+    # Delegate to new content system
+    k6::content::run_performance_test "$@"
 }
 
-# List available test scripts
+# DEPRECATED: Use content list instead
 k6::test::list() {
-    log::info "Available K6 test scripts:"
-    echo ""
+    log::warning "DEPRECATED: k6::test::list is deprecated"
+    log::warning "Use 'resource-k6 content list' instead"
+    log::warning "This function will be removed in v3.0 (December 2025)"
     
-    if [[ ! -d "$K6_SCRIPTS_DIR" ]] || [[ -z "$(ls -A "$K6_SCRIPTS_DIR" 2>/dev/null)" ]]; then
-        log::warn "No test scripts found in $K6_SCRIPTS_DIR"
-        return 0
-    fi
-    
-    # List scripts with descriptions
-    for script in "$K6_SCRIPTS_DIR"/*.js; do
-        if [[ -f "$script" ]]; then
-            local name=$(basename "$script")
-            local desc=""
-            
-            # Try to extract description from first comment
-            desc=$(head -n 10 "$script" | grep -m1 "^//" | sed 's|^//\s*||' || echo "No description")
-            
-            printf "  %-30s %s\n" "$name" "$desc"
-        fi
-    done
-    
-    echo ""
-    echo "Run a test with: resource-k6 run-test <script-name>"
+    # Delegate to new content system
+    k6::content::list_scripts "$@"
 }
 
-# Show test results
+# DEPRECATED: Use content results instead
 k6::test::results() {
-    local limit="${1:-10}"
+    log::warning "DEPRECATED: k6::test::results is deprecated"
+    log::warning "Use 'resource-k6 content results' instead"
+    log::warning "This function will be removed in v3.0 (December 2025)"
     
-    log::info "Recent K6 test results (last $limit):"
-    echo ""
+    # Delegate to new content system
+    k6::content::show_results "$@"
+}
+
+# Enhanced stress test function (adds value over basic content execute)
+k6::test::stress() {
+    log::info "Running K6 stress test with escalating load..."
     
-    if [[ ! -d "$K6_RESULTS_DIR" ]] || [[ -z "$(ls -A "$K6_RESULTS_DIR" 2>/dev/null)" ]]; then
-        log::warn "No test results found in $K6_RESULTS_DIR"
-        return 0
-    fi
-    
-    # List recent results
-    ls -lt "$K6_RESULTS_DIR"/*.json 2>/dev/null | head -n "$limit" | while read -r line; do
-        local file=$(echo "$line" | awk '{print $NF}')
-        local size=$(echo "$line" | awk '{print $5}')
-        local date=$(echo "$line" | awk '{print $6, $7, $8}')
-        local name=$(basename "$file" .json)
-        
-        printf "  %-40s %10s  %s\n" "$name" "$size" "$date"
-    done
-    
-    echo ""
-    echo "View results with: cat $K6_RESULTS_DIR/<result-file>.json | jq"
+    # Use enhanced stress testing parameters
+    k6::content::run_performance_test "$1" --stages "1m:10,5m:50,1m:100,2m:100,1m:0" --thresholds "http_req_duration[p(95)]<500" "${@:2}"
 }
