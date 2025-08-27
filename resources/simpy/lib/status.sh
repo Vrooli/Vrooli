@@ -13,7 +13,7 @@ source "${APP_ROOT}/scripts/lib/utils/format.sh"
 # shellcheck disable=SC1091
 source "${APP_ROOT}/scripts/resources/lib/status-args.sh"
 # shellcheck disable=SC1091
-source "${SIMPY_STATUS_DIR}/../config/defaults.sh"
+source "${APP_ROOT}/resources/simpy/config/defaults.sh"
 # shellcheck disable=SC1091
 source "${SIMPY_STATUS_DIR}/core.sh"
 

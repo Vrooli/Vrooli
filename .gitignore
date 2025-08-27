@@ -226,6 +226,7 @@ tests/helpers
 .vrooli/*.local.json
 .vrooli/secrets.json
 .vrooli/resource-registry/
+.vrooli/app-identity.json
 
 # Node-RED test artifacts
 node-red-flows-export-*.json

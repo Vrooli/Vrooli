@@ -7,10 +7,10 @@ TWILIO_LIB_DIR="${APP_ROOT}/resources/twilio/lib"
 TWILIO_DIR="${APP_ROOT}/resources/twilio"
 
 # Source utilities
-source "$TWILIO_DIR/../../../lib/utils/var.sh"
-source "$TWILIO_DIR/../../../lib/utils/format.sh"
-source "$TWILIO_DIR/../../../lib/utils/log.sh"
-source "$TWILIO_DIR/../../port_registry.sh"
+source "$APP_ROOT/scripts/lib/utils/var.sh"
+source "$APP_ROOT/scripts/lib/utils/format.sh"
+source "$APP_ROOT/scripts/lib/utils/log.sh"
+source "$APP_ROOT/scripts/resources/port_registry.sh"
 
 # Resource constants
 export TWILIO_NAME="twilio"

@@ -4,7 +4,7 @@
 
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 STATUS_ARGS_DIR="${APP_ROOT}/scripts/resources/lib"
-source "${APP_ROOT}/scripts/lib/utils/format.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/format.sh"
 
 #######################################
 # Parse standard status command arguments

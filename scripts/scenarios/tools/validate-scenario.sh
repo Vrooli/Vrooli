@@ -359,7 +359,7 @@ validate_file_paths() {
         
         # Check known framework patterns
         case "$path" in
-            scripts/lib/*.sh|scripts/manage.sh|scripts/main/*.sh)
+            scripts/lib/*.sh|scripts/manage.sh)
                 # Only validate if it's a framework pattern - let missing files be warnings
                 if [[ -e "${var_ROOT_DIR}/${path}" ]]; then
                     print_info "✓ Found framework file: $path"

@@ -5,9 +5,12 @@
 
 set -euo pipefail
 
-# Source var.sh first with relative path
+# Setup APP_ROOT with cached pattern
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
+
+# Source var.sh using APP_ROOT
 # shellcheck disable=SC1091
-source "../../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 # Source shared integration test library (if it exists)
 if [[ -f "${var_SCRIPTS_TEST_DIR}/lib/integration-test-lib.sh" ]]; then

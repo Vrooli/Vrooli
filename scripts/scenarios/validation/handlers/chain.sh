@@ -28,7 +28,7 @@ if [[ -f "$SCRIPT_DIR/http.sh" ]]; then
     source "$SCRIPT_DIR/http.sh"
 fi
 if [[ -f "$SCRIPT_DIR/../clients/common.sh" ]]; then
-    source "$SCRIPT_DIR/../clients/common.sh"
+    source "${APP_ROOT}/scripts/scenarios/validation/clients/common.sh"
 fi
 
 # Print functions

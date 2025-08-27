@@ -24,11 +24,11 @@ validate::scenario() {
         return 1
     fi
     
-    # Check for required fields
+    # Check for required fields (support both old .name and new .service.name paths)
     local name
-    name=$(echo "$config" | jq -r '.name // ""')
+    name=$(echo "$config" | jq -r '.service.name // .name // ""')
     if [[ -z "$name" ]]; then
-        log::error "Missing required field: name"
+        log::error "Missing required field: name (expected at .service.name or .name)"
         is_valid=false
     fi
     

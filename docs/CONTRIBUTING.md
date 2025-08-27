@@ -71,8 +71,8 @@ git checkout -b feature/your-feature-name
 # Install dependencies
 pnpm install
 
-# Start development environment
-./scripts/main/develop.sh --target docker --detached yes
+# Start development environment  
+vrooli develop
 ```
 
 ### 4. Make Your Changes

@@ -26,9 +26,15 @@ show_usage() {
 Vrooli Population System v2.0
 
 USAGE:
-    populate.sh <command> [options]
+    populate.sh <path|command> [options]
 
-COMMANDS:
+PATH-BASED COMMANDS (Primary Interface):
+    populate.sh .                        # Populate from current directory
+    populate.sh /path/to/scenario       # Populate from specific path
+    populate.sh --status                # Show population status  
+    populate.sh --list                  # List available scenarios
+
+LEGACY COMMANDS (Backwards Compatibility):
     add <scenario>      Populate resources with content from scenario
     validate <scenario> Validate scenario configuration
     list               List available scenarios
@@ -41,39 +47,62 @@ OPTIONS:
     --verbose          Show detailed output
 
 EXAMPLES:
-    populate.sh add my-scenario              # Populate from scenario
-    populate.sh add my-scenario --dry-run    # Preview population
-    populate.sh validate my-scenario         # Validate scenario config
-    populate.sh list                         # Show available scenarios
+    populate.sh .                            # Populate from current directory (like old injection/engine.sh .)
+    populate.sh . --dry-run                  # Preview population from current directory
+    populate.sh --status                     # Show resource status
+    populate.sh add my-scenario              # Legacy: populate from scenario name
+    populate.sh validate my-scenario         # Legacy: validate scenario config
 
 EOF
 }
 
 # Main dispatcher
 main() {
-    local command="${1:-help}"
-    shift || true
+    local first_arg="${1:-help}"
     
-    case "$command" in
+    case "$first_arg" in
+        # Flag-style commands
+        --status)
+            shift
+            populate::status "$@"
+            ;;
+        --list)
+            shift
+            populate::list "$@"
+            ;;
+        --help|-h|help)
+            show_usage
+            ;;
+        # Legacy command-style (backwards compatibility)
         add)
+            shift
             populate::add "$@"
             ;;
         validate)
+            shift
             populate::validate "$@"
             ;;
         list)
+            shift
             populate::list "$@"
             ;;
         status)
+            shift
             populate::status "$@"
             ;;
-        help|--help|-h)
-            show_usage
+        # Path-based population (new primary interface)
+        ./*|/*|.)
+            # This is a path - populate from it
+            populate::add_from_path "$first_arg"
             ;;
         *)
-            log::error "Unknown command: $command"
-            show_usage
-            exit 1
+            # Check if it's a valid path or scenario name
+            if [[ -d "$first_arg" ]] || [[ -f "$first_arg/.vrooli/service.json" ]]; then
+                populate::add_from_path "$first_arg"
+            else
+                # Try as scenario name for backwards compatibility
+                populate::add "$first_arg"
+            fi
             ;;
     esac
 }

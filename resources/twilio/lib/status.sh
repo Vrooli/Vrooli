@@ -7,8 +7,8 @@ TWILIO_LIB_DIR="${APP_ROOT}/resources/twilio/lib"
 
 # Source common functions
 source "$TWILIO_LIB_DIR/common.sh"
-source "$TWILIO_LIB_DIR/../../../lib/status-args.sh"
-source "$TWILIO_LIB_DIR/../../../../lib/utils/format.sh"
+source "${APP_ROOT}/scripts/resources/lib/status-args.sh"
+source "${APP_ROOT}/scripts/lib/utils/format.sh"
 
 # Collect Twilio status data in format-agnostic structure
 twilio::status::collect_data() {

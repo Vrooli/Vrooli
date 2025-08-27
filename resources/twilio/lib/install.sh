@@ -91,7 +91,7 @@ EOF
 }
 
 # Parse command line arguments
-twilio::install() {
+twilio::install::execute() {
     local force=false
     
     while [[ $# -gt 0 ]]; do
@@ -107,5 +107,57 @@ twilio::install() {
     done
     
     FORCE=$force install_twilio
+}
+
+# Uninstall Twilio CLI and clean up data
+twilio::install::uninstall() {
+    log::header "🗑️ Uninstalling Twilio CLI"
+    
+    # Stop any running monitor first
+    if twilio::is_monitor_running; then
+        log::info "Stopping Twilio monitor..."
+        twilio::stop
+    fi
+    
+    # Remove global CLI if installed via npm
+    if command -v twilio >/dev/null 2>&1 && command -v npm >/dev/null 2>&1; then
+        log::info "Removing global Twilio CLI..."
+        npm uninstall -g twilio-cli 2>/dev/null || true
+    fi
+    
+    # Remove local installation
+    if [[ -d "$TWILIO_DATA_DIR/node_modules" ]]; then
+        log::info "Removing local Twilio CLI installation..."
+        rm -rf "$TWILIO_DATA_DIR/node_modules"
+        rm -f "$TWILIO_DATA_DIR/package.json"
+        rm -f "$TWILIO_DATA_DIR/package-lock.json"
+    fi
+    
+    # Remove symlink
+    if [[ -L "$TWILIO_CONFIG_DIR/twilio-cli" ]]; then
+        rm -f "$TWILIO_CONFIG_DIR/twilio-cli"
+    fi
+    
+    # Optionally remove config files (ask user)
+    if [[ -d "$TWILIO_CONFIG_DIR" ]] && [[ "${FORCE:-false}" != "true" ]]; then
+        read -p "Remove Twilio configuration files? (y/N) " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            rm -rf "$TWILIO_CONFIG_DIR"
+            log::info "Removed Twilio configuration directory"
+        fi
+    elif [[ "${FORCE:-false}" == "true" ]]; then
+        rm -rf "$TWILIO_CONFIG_DIR"
+        log::info "Removed Twilio configuration directory"
+    fi
+    
+    # Remove data directory
+    if [[ -d "$TWILIO_DATA_DIR" ]]; then
+        rm -rf "$TWILIO_DATA_DIR"
+        log::info "Removed Twilio data directory"
+    fi
+    
+    log::success "Twilio CLI uninstalled successfully"
+    return 0
 }
 

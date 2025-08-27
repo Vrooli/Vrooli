@@ -223,7 +223,7 @@ inject_framework::check_accessibility() {
         return 0
     else
         log::error "$name is not accessible at $host"
-        log::info "Ensure $name is running: ./scripts/resources/*/manage.sh --action start"
+        log::info "Ensure $name is running: resource-$name manage start"
         return 1
     fi
 }

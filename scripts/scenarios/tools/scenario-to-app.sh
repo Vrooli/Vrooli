@@ -133,8 +133,22 @@ scenario_to_app::parse_args() {
                 exit 1
                 ;;
             *)
-                # This is a scenario name
-                scenarios+=("$1")
+                # This is a scenario name - validate it
+                local name="$1"
+                
+                # Validate scenario name format
+                if [[ -z "$name" ]]; then
+                    log::error "Empty scenario name provided"
+                    exit 1
+                elif [[ "$name" =~ ^[0-9]+$ ]]; then
+                    log::error "Invalid scenario name: '$name' (pure numbers are not valid scenario names)"
+                    exit 1
+                elif [[ ! "$name" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+                    log::error "Invalid scenario name: '$name' (only alphanumeric, hyphens, and underscores allowed)"
+                    exit 1
+                fi
+                
+                scenarios+=("$name")
                 ;;
         esac
         shift
@@ -152,9 +166,9 @@ scenario_to_app::parse_args() {
     
     # Log what we're processing
     if [[ ${#SCENARIO_NAMES[@]} -eq 1 ]]; then
-        [[ "$VERBOSE" == "true" ]] && log::info "Processing single scenario: ${SCENARIO_NAMES[0]}"
+        [[ "$VERBOSE" == "true" ]] && log::info "Processing single scenario: ${SCENARIO_NAMES[0]}" || true
     else
-        [[ "$VERBOSE" == "true" ]] && log::info "Processing ${#SCENARIO_NAMES[@]} scenarios in batch mode: ${SCENARIO_NAMES[*]}"
+        [[ "$VERBOSE" == "true" ]] && log::info "Processing ${#SCENARIO_NAMES[@]} scenarios in batch mode: ${SCENARIO_NAMES[*]}" || true
     fi
 }
 
@@ -164,14 +178,14 @@ scenario_to_app::parse_args() {
 #######################################
 scenario_to_app::shared_initialization() {
     if [[ "$SHARED_UTILS_LOADED" == "true" ]]; then
-        [[ "$VERBOSE" == "true" ]] && log::info "Shared utilities already loaded, skipping initialization"
+        [[ "$VERBOSE" == "true" ]] && log::info "Shared utilities already loaded, skipping initialization" || true
         return 0
     fi
     
     local init_start
     init_start=$(date +"%s%N")
     
-    [[ "$VERBOSE" == "true" ]] && log::info "Initializing shared resources for batch processing..."
+    [[ "$VERBOSE" == "true" ]] && log::info "Initializing shared resources for batch processing..." || true
     
     # Pre-load utilities (avoids sourcing per scenario)
     local secrets_util="${var_ROOT_DIR}/scripts/lib/service/secrets.sh"
@@ -180,32 +194,32 @@ scenario_to_app::shared_initialization() {
     if [[ -f "$secrets_util" ]]; then
         # shellcheck disable=SC1091
         source "$secrets_util"
-        [[ "$VERBOSE" == "true" ]] && log::info "  ✅ Loaded secrets utilities"
+        [[ "$VERBOSE" == "true" ]] && log::info "  ✅ Loaded secrets utilities" || true
     fi
     
     if [[ -f "$service_config_util" ]]; then
         # shellcheck disable=SC1090
         source "$service_config_util"
-        [[ "$VERBOSE" == "true" ]] && log::info "  ✅ Loaded service config utilities"
+        [[ "$VERBOSE" == "true" ]] && log::info "  ✅ Loaded service config utilities" || true
     fi
     
     # Pre-load port registry (avoids repeated loading)
     if command -v secrets::source_port_registry >/dev/null 2>&1; then
         secrets::source_port_registry
-        [[ "$VERBOSE" == "true" ]] && log::info "  ✅ Loaded port registry"
+        [[ "$VERBOSE" == "true" ]] && log::info "  ✅ Loaded port registry" || true
     fi
     
     # Pre-load base service.json for batch processing
     local base_service_json="${var_ROOT_DIR}/.vrooli/service.json"
     if [[ -f "$base_service_json" ]]; then
         SHARED_BASE_SERVICE_JSON=$(cat "$base_service_json")
-        [[ "$VERBOSE" == "true" ]] && log::info "  ✅ Loaded base service.json"
+        [[ "$VERBOSE" == "true" ]] && log::info "  ✅ Loaded base service.json" || true
     fi
     
     # Warm up Python for faster JSON validation
     if command -v python3 >/dev/null 2>&1; then
         python3 -c "import json; import sys" 2>/dev/null || true
-        [[ "$VERBOSE" == "true" ]] && log::info "  ✅ Warmed up Python interpreter"
+        [[ "$VERBOSE" == "true" ]] && log::info "  ✅ Warmed up Python interpreter" || true
     fi
     
     SHARED_UTILS_LOADED=true
@@ -214,7 +228,7 @@ scenario_to_app::shared_initialization() {
     init_end=$(date +"%s%N")
     local init_time=$(( (init_end - init_start) / 1000000 ))
     
-    [[ "$VERBOSE" == "true" ]] && log::info "Shared initialization completed in ${init_time}ms"
+    [[ "$VERBOSE" == "true" ]] && log::info "Shared initialization completed in ${init_time}ms" || true
 }
 
 # Validate scenario structure with comprehensive schema validation
@@ -229,7 +243,7 @@ scenario_to_app::validate_scenario() {
         return 1
     fi
     
-    [[ "$VERBOSE" == "true" ]] && log::success "Scenario directory found: $scenario_path"
+    [[ "$VERBOSE" == "true" ]] && log::success "Scenario directory found: $scenario_path" || true
     
     # Check for service.json (first in .vrooli/, then root for backwards compatibility)
     local service_json_path="${scenario_path}/.vrooli/service.json"
@@ -278,7 +292,7 @@ scenario_to_app::validate_scenario() {
     
     # Try Python validation first with robust error handling
     if command -v python3 >/dev/null 2>&1 && [[ -f "$var_SERVICE_JSON_FILE" ]]; then
-        [[ "$VERBOSE" == "true" ]] && log::info "Attempting Python-based schema validation..."
+        [[ "$VERBOSE" == "true" ]] && log::info "Attempting Python-based schema validation..." || true
         
         # Write JSON to temp file with proper cleanup trap
         local temp_json_file="/tmp/service_json_validation_${scenario_name}_$$.json"
@@ -1000,61 +1014,139 @@ scenario_to_app::process_template_variables() {
 scenario_to_app::adjust_app_root_depth() {
     local file="$1"
     
-    # Skip if file doesn't exist or is binary
+    # Skip if file doesn't exist
     [[ ! -f "$file" ]] && return 0
-    file -b --mime-type "$file" | grep -q "text/" || return 0
     
-    # Only process shell scripts
-    local is_shell_script=false
-    if [[ "$file" =~ \.(sh|bash)$ ]] || head -1 "$file" | grep -q "#!/.*bash\|#!/.*sh"; then
-        is_shell_script=true
+    # Only process shell script files (.sh, .bash, .bats)
+    if [[ ! "$file" =~ \.(sh|bash|bats)$ ]]; then
+        # Also check shebang for extensionless scripts
+        if ! head -1 "$file" 2>/dev/null | grep -qE "^#!/.*/(bash|sh)$"; then
+            return 0
+        fi
     fi
-    
-    [[ "$is_shell_script" != "true" ]] && return 0
     
     # Read file content
     local content
     content=$(cat "$file")
+    local original_content="$content"
     local modified=false
     
-    # Transform scenario depth (2 levels up) to app depth (0 levels up)
-    # Scenarios: /Vrooli/scenarios/name/script.sh → go up /../.. to reach /Vrooli  
-    # Apps: /generated-apps/name/script.sh → stay at name/ directory (the app root)
-    local original_content="$content"
-    
-    # Pattern 1: Transform ${VAR%/*}/../.. to ${VAR%/*} (remove the /../.. part)
-    # This makes APP_ROOT point to the script's directory (the app root)
-    content=$(echo "$content" | sed 's|%/\*}/\.\./\.\.|%/*}|g')
-    
-    # Pattern 2: Transform builtin cd ".../../.." to builtin cd "..." 
-    content=$(echo "$content" | sed 's|"\.\./\.\./|"./|g')
-    content=$(echo "$content" | sed 's|\.\./\.\./|./|g')
-    
-    # Pattern 3: Remove /scenarios/<scenario-name> from paths
-    # This converts paths like ${APP_ROOT}/scenarios/simple-test/cli to ${APP_ROOT}/cli
-    # We need to detect the scenario name from the content itself
-    # Look for patterns like /scenarios/XXXXX/ where XXXXX is the scenario name
+    # Extract scenario name if present in paths
+    local scenario_name=""
     if echo "$content" | grep -q "/scenarios/[^/]*/"; then
-        # Extract the scenario name from the content
-        local scenario_name=$(echo "$content" | grep -o "/scenarios/[^/]*/" | head -1 | sed 's|/scenarios/||g' | sed 's|/||g')
+        scenario_name=$(echo "$content" | grep -o "/scenarios/[^/]*/" | head -1 | sed 's|/scenarios/||g' | sed 's|/||g')
+    fi
+    
+    # Create a temporary file for processing
+    local temp_file=$(mktemp)
+    
+    # Process the file line by line
+    while IFS= read -r line; do
+        local processed_line="$line"
         
-        if [[ -n "$scenario_name" ]]; then
-            # Remove /scenarios/<scenario-name> from all paths
-            content=$(echo "$content" | sed "s|/scenarios/${scenario_name}/|/|g")
-            content=$(echo "$content" | sed "s|/scenarios/${scenario_name}\"|/\"|g")
-            [[ "$VERBOSE" == "true" ]] && log::info "Removed /scenarios/${scenario_name} paths from: $(basename "$file")"
+        # Check if this line is setting APP_ROOT
+        if echo "$line" | grep -qE "^[[:space:]]*APP_ROOT="; then
+            
+            # Pattern 1: ${BASH_SOURCE[0]%/*} followed by relative path
+            if echo "$line" | grep -q '\${BASH_SOURCE\[0\]%/\*}'; then
+                # Count the ../ segments
+                local depth=$(echo "$line" | grep -o '\.\./\.\.' | wc -l)
+                depth=$((depth * 2))  # Each ../.. is 2 levels
+                local single_dots=$(echo "$line" | sed 's|\.\./\.\.||g' | grep -o '\.\.' | wc -l)
+                depth=$((depth + single_dots))
+                
+                if [[ $depth -ge 2 ]]; then
+                    # Reduce by 2 levels
+                    local new_depth=$((depth - 2))
+                    if [[ $new_depth -eq 0 ]]; then
+                        # Remove all the /.. parts
+                        processed_line=$(echo "$line" | sed 's|\(\${BASH_SOURCE\[0\]%/\*}\)/\.*|\1|')
+                    else
+                        # Build new path
+                        local new_path=""
+                        for ((i=0; i<new_depth; i++)); do
+                            new_path="${new_path}/.."
+                        done
+                        processed_line=$(echo "$line" | sed "s|\\(\${BASH_SOURCE\\[0\\]%/\\*}\\)/[\\./]*|\\1${new_path}|")
+                    fi
+                fi
+            fi
+            
+            # Pattern 2: builtin cd or just cd with paths
+            if echo "$line" | grep -qE "(builtin )?cd "; then
+                # Count depth in the cd path
+                local depth=0
+                if echo "$line" | grep -q 'cd.*\.\.'; then
+                    # Count ../.. patterns
+                    local double_dots=$(echo "$line" | sed -n 's/.*cd[^"]*"\([^"]*\)".*/\1/p' | grep -o '\.\./\.\.' | wc -l)
+                    depth=$((double_dots * 2))
+                    # Count remaining single ..
+                    local temp_path=$(echo "$line" | sed -n 's/.*cd[^"]*"\([^"]*\)".*/\1/p' | sed 's|\.\./\.\.||g')
+                    local single_dots=$(echo "$temp_path" | grep -o '\.\.' | wc -l)
+                    depth=$((depth + single_dots))
+                    
+                    if [[ $depth -ge 2 ]]; then
+                        local new_depth=$((depth - 2))
+                        if [[ $new_depth -eq 0 ]]; then
+                            # Replace with current dir
+                            processed_line=$(echo "$line" | sed 's|\(cd[^"]*"\)[^"]*\("\)|\1.\2|')
+                        else
+                            # Build new path
+                            local new_path=""
+                            for ((i=0; i<new_depth; i++)); do
+                                [[ $i -gt 0 ]] && new_path="${new_path}/"
+                                new_path="${new_path}.."
+                            done
+                            processed_line=$(echo "$line" | sed "s|\\(cd[^\"]*\"\\)[^\"]*\\(\"\\)|\\1${new_path}\\2|")
+                        fi
+                    elif [[ $depth -eq 1 ]]; then
+                        # Single .. becomes current dir
+                        processed_line=$(echo "$line" | sed 's|\(cd[^"]*"\)[^"]*\("\)|\1.\2|')
+                    fi
+                fi
+            fi
+            
+            # Pattern 3: Simple APP_ROOT="../.." style assignments  
+            if echo "$line" | grep -qE "APP_ROOT=[\"']?\\.\\./"; then
+                local depth=$(echo "$line" | sed -n 's/.*APP_ROOT[^.]*\(\.\.[/.]*\).*/\1/' | grep -o '\.\.' | wc -l)
+                if [[ $depth -ge 2 ]]; then
+                    local new_depth=$((depth - 2))
+                    if [[ $new_depth -eq 0 ]]; then
+                        processed_line=$(echo "$line" | sed 's|\(APP_ROOT[^.]*\)[^"'\'' ]*|\1.|')
+                    else
+                        local new_path=""
+                        for ((i=0; i<new_depth; i++)); do
+                            [[ $i -gt 0 ]] && new_path="${new_path}/"
+                            new_path="${new_path}.."
+                        done
+                        processed_line=$(echo "$line" | sed "s|\\(APP_ROOT[^.]*\\)[^\"' ]*|\\1${new_path}|")
+                    fi
+                elif [[ $depth -eq 1 ]]; then
+                    processed_line=$(echo "$line" | sed 's|\(APP_ROOT[^.]*\)[^"'\'' ]*|\1.|')
+                fi
+            fi
         fi
-    fi
+        
+        # Pattern 4: Remove /scenarios/<scenario-name>/ from paths
+        if [[ -n "$scenario_name" ]]; then
+            # Remove /scenarios/<name>/ (with trailing slash)
+            processed_line=$(echo "$processed_line" | sed "s|/scenarios/${scenario_name}/|/|g")
+            # Remove /scenarios/<name> at end of line or before quote
+            processed_line=$(echo "$processed_line" | sed "s|/scenarios/${scenario_name}\\(\$\\|[\"']\\)|\\1|g")
+        fi
+        
+        echo "$processed_line" >> "$temp_file"
+    done <<< "$content"
     
-    if [[ "$content" != "$original_content" ]]; then
+    # Read the processed content
+    local new_content=$(cat "$temp_file")
+    rm -f "$temp_file"
+    
+    # Check if content was modified
+    if [[ "$new_content" != "$original_content" ]]; then
         modified=true
-        [[ "$VERBOSE" == "true" ]] && log::info "Adjusted APP_ROOT depth for scenario-to-app conversion in: $(basename "$file")"
-    fi
-    
-    # Write back if modified
-    if [[ "$modified" == "true" ]]; then
-        echo "$content" > "$file"
-        [[ "$VERBOSE" == "true" ]] && log::success "APP_ROOT depth adjusted for scenario-to-app conversion: $(basename "$file")"
+        echo "$new_content" > "$file"
+        [[ "$VERBOSE" == "true" ]] && log::info "Adjusted APP_ROOT paths in: $(basename "$file")"
     fi
     
     return 0
@@ -1948,7 +2040,12 @@ scenario_to_app::process_batch() {
         log::info "  📊 Success rate: $((succeeded * 100 / total))%"
     fi
     
-    return $failed
+    # Return proper exit code: 0 for success, 1 for any failures
+    if [[ $failed -gt 0 ]]; then
+        return 1
+    else
+        return 0
+    fi
 }
 
 ################################################################################
@@ -2003,7 +2100,7 @@ main() {
         if [[ $exit_code -eq 0 ]]; then
             log::success "✅ All ${#SCENARIO_NAMES[@]} scenarios processed successfully!"
         else
-            log::error "❌ $exit_code scenario(s) failed during batch processing"
+            log::error "❌ Some scenarios failed during batch processing"
         fi
         echo ""
         log::info "Generated apps location: $HOME/generated-apps/"

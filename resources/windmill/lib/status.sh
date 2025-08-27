@@ -89,7 +89,7 @@ windmill::status::collect_data() {
                 ;;
         esac
     else
-        health_message="Not installed - Use ./manage.sh --action install"
+        health_message="Not installed - Use resource-windmill manage install"
     fi
     
     # Basic resource information
@@ -213,7 +213,7 @@ windmill::status::display_text() {
         log::error "   ❌ Installed: No"
         echo
         log::info "💡 Installation Required:"
-        log::info "   To install Windmill, run: ./manage.sh --action install"
+        log::info "   To install Windmill, run: resource-windmill manage install"
         return
     fi
     
@@ -551,14 +551,14 @@ windmill::show_troubleshooting_tips() {
     log::info "🔧 Troubleshooting Tips:"
     
     echo "  Common Solutions:"
-    echo "    • Check logs: $0 --action logs"
-    echo "    • Restart services: $0 --action restart"
+    echo "    • Check logs: resource-windmill logs"
+    echo "    • Restart services: resource-windmill manage restart"
     echo "    • Verify port availability: sudo lsof -i :$WINDMILL_SERVER_PORT"
     echo "    • Check Docker status: docker ps -a"
     echo "    • Verify resources: docker stats"
     echo
     echo "  If problems persist:"
-    echo "    • Review installation: $0 --action install --force yes"
+    echo "    • Review installation: resource-windmill manage install --force"
     echo "    • Check system requirements (4GB+ RAM, 5GB+ disk)"
     echo "    • Verify Docker and Docker Compose versions"
     echo "    • Check firewall and network connectivity"
@@ -643,18 +643,18 @@ $(if windmill::is_installed; then
     echo "Configuration: $WINDMILL_ENV_FILE"
 else
     echo "❌ Not installed"
-    echo "Install with: $0 --action install"
+    echo "Install with: resource-windmill manage install"
 fi)
 
 Management Commands:
-• Install: $0 --action install
-• Start: $0 --action start
-• Stop: $0 --action stop
-• Status: $0 --action status
-• Logs: $0 --action logs
-• Scale workers: $0 --action scale-workers <count>
-• Backup: $0 --action backup
-• Uninstall: $0 --action uninstall
+• Install: resource-windmill manage install
+• Start: resource-windmill manage start
+• Stop: resource-windmill manage stop
+• Status: resource-windmill status
+• Logs: resource-windmill logs
+• Scale workers: resource-windmill manage scale-workers <count>
+• Backup: resource-windmill content backup
+• Uninstall: resource-windmill manage uninstall
 
 Learn More:
 • Documentation: https://docs.windmill.dev

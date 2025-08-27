@@ -32,12 +32,12 @@ fi
 # shellcheck disable=SC1091
 if [[ -n "${var_LIB_SYSTEM_DIR:-}" ]] && [[ -f "${var_LIB_SYSTEM_DIR}/system_commands.sh" ]]; then
     source "${var_LIB_SYSTEM_DIR}/system_commands.sh"
-elif [[ -f "${SCRIPT_DIR}/../../lib/system/system_commands.sh" ]]; then
-    source "${SCRIPT_DIR}/../../lib/system/system_commands.sh"
+elif [[ -f "${APP_ROOT}/scripts/lib/system/system_commands.sh" ]]; then
+    source "${APP_ROOT}/scripts/lib/system/system_commands.sh"
 else
     echo "ERROR: Cannot find system_commands.sh - docker-utils.sh cannot function" >&2
     echo "Searched: ${var_LIB_SYSTEM_DIR:-'(var_LIB_SYSTEM_DIR not set)'}/system_commands.sh" >&2
-    echo "Searched: ${SCRIPT_DIR}/../../lib/system/system_commands.sh" >&2
+    echo "Searched: ${APP_ROOT}/scripts/lib/system/system_commands.sh" >&2
     return 1 2>/dev/null || exit 1
 fi
 
@@ -287,7 +287,7 @@ docker::pull_image() {
     log::info "Pulling Docker image: $image_name"
     
     while [ $attempt -le $max_attempts ]; do
-        if docker pull "$image_name" 2>&1; then
+        if docker pull "$image_name" >/dev/null 2>&1; then
             log::success "Image pulled successfully: $image_name"
             return 0
         fi

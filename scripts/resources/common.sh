@@ -32,7 +32,7 @@ source "${var_REPOSITORY_FILE}"
 # shellcheck disable=SC1091
 source "${var_SYSTEM_COMMANDS_FILE}"
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/trash.sh"
+source "${var_TRASH_FILE}"
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/json.sh"
 
@@ -255,12 +255,21 @@ resources::is_cli_resource_healthy() {
     
     case "$resource" in
         "claude-code")
-            # Use the claude-code resource's health check
-            local script_path="${var_SCRIPTS_RESOURCES_DIR}/agents/claude-code/manage.sh"
-            if [[ -x "$script_path" ]]; then
+            # Use the claude-code resource's health check via v2.0 CLI
+            local cli_cmd="resource-claude-code"
+            if command -v "$cli_cmd" >/dev/null 2>&1; then
                 # Run health check and capture both exit code and output
                 local health_output
-                if health_output=$("$script_path" --action health-check --check-type basic --format json 2>/dev/null); then
+                if health_output=$("$cli_cmd" test smoke --format json 2>/dev/null); then
+                    # Parse JSON to check if status is healthy
+                    if echo "$health_output" | grep -q '"status": "healthy"'; then
+                        return 0
+                    fi
+                fi
+            elif [[ -x "${var_SCRIPTS_RESOURCES_DIR}/agents/claude-code/cli.sh" ]]; then
+                # Fallback to direct cli.sh invocation if wrapper not installed
+                local health_output
+                if health_output=$("${var_SCRIPTS_RESOURCES_DIR}/agents/claude-code/cli.sh" test smoke --format json 2>/dev/null); then
                     # Parse JSON to check if status is healthy
                     if echo "$health_output" | grep -q '"status": "healthy"'; then
                         return 0
@@ -1147,6 +1156,19 @@ resources::start_service() {
     if ! sudo::can_use_sudo; then
         log::error "Sudo privileges required to start systemd service"
         return 1
+    fi
+    
+    # Check if daemon-reload is needed (service file changed on disk)
+    local needs_reload=false
+    if systemctl show "$service_name" 2>/dev/null | grep -q "NeedDaemonReload=yes"; then
+        needs_reload=true
+        log::info "Service configuration changed, reloading systemd..."
+        if [[ -t 0 ]]; then
+            sudo systemctl daemon-reload </dev/tty
+        else
+            sudo::exec_with_fallback "systemctl daemon-reload"
+        fi
+        log::success "Systemd configuration reloaded"
     fi
     
     log::info "Starting service: $service_name"

@@ -1,4 +1,15 @@
 #!/usr/bin/env bash
+################################################################################
+# Twilio Resource CLI - v2.0 Universal Contract Compliant
+# 
+# Cloud communications platform for SMS, voice, and video
+#
+# Usage:
+#   resource-twilio <command> [options]
+#   resource-twilio <group> <subcommand> [options]
+#
+################################################################################
+
 set -euo pipefail
 
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
@@ -10,90 +21,54 @@ if [[ -L "${BASH_SOURCE[0]}" ]]; then
 fi
 TWILIO_CLI_DIR="${APP_ROOT}/resources/twilio"
 
-# Source utilities
+# shellcheck disable=SC1091
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
-source "${APP_ROOT}/scripts/lib/utils/format.sh"
-source "${APP_ROOT}/scripts/lib/utils/log.sh"
-source "$TWILIO_CLI_DIR/lib/common.sh"
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}"
+# shellcheck disable=SC1091
+source "${var_RESOURCES_COMMON_FILE}"
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
+# shellcheck disable=SC1091
+source "${TWILIO_CLI_DIR}/config/defaults.sh"
 
-# Source all lib functions
-for lib_file in "$TWILIO_CLI_DIR"/lib/*.sh; do
-    [[ -f "$lib_file" ]] && source "$lib_file"
+# Source Twilio libraries
+for lib in common config docker inject install logs numbers sms start status stop; do
+    lib_file="${TWILIO_CLI_DIR}/lib/${lib}.sh"
+    if [[ -f "$lib_file" ]]; then
+        # shellcheck disable=SC1090
+        source "$lib_file" 2>/dev/null || true
+    fi
 done
 
-# Help function
-show_help() {
-    cat << HELP
-Twilio Resource CLI
+# Initialize CLI framework in v2.0 mode (auto-creates manage/test/content groups)
+cli::init "twilio" "Twilio cloud communications platform management" "v2"
 
-Usage: resource-twilio <command> [options]
+# Override default handlers to point directly to twilio implementations
+CLI_COMMAND_HANDLERS["manage::install"]="twilio::install::execute"
+CLI_COMMAND_HANDLERS["manage::uninstall"]="twilio::install::uninstall"
+CLI_COMMAND_HANDLERS["manage::start"]="twilio::docker::start"  
+CLI_COMMAND_HANDLERS["manage::stop"]="twilio::docker::stop"
+CLI_COMMAND_HANDLERS["manage::restart"]="twilio::docker::restart"
+CLI_COMMAND_HANDLERS["test::smoke"]="twilio::status::new"
 
-Commands:
-    status          Check Twilio status
-    install         Install Twilio CLI
-    start           Start Twilio service (monitor mode)
-    stop            Stop Twilio monitor
-    logs            Show Twilio logs
-    config          View/update Twilio configuration
-    inject [file]   Inject templates, TwiML, or workflows
-    list-injected   List all injected data
-    send-sms        Send a test SMS message
-    list-numbers    List configured phone numbers
-    help            Show this help message
+# Override content handlers for Twilio-specific messaging functionality
+CLI_COMMAND_HANDLERS["content::add"]="twilio::inject"
+CLI_COMMAND_HANDLERS["content::list"]="twilio::list_injected" 
+CLI_COMMAND_HANDLERS["content::get"]="twilio::list_numbers"
+CLI_COMMAND_HANDLERS["content::remove"]="twilio::content::remove_placeholder"
+CLI_COMMAND_HANDLERS["content::execute"]="twilio::send_sms"
 
-Examples:
-    resource-twilio status
-    resource-twilio send-sms "+1234567890" "Test message"
-    resource-twilio inject phone-numbers.json
+# Add Twilio-specific content subcommands not in the standard framework
+cli::register_subcommand "content" "send-sms" "Send SMS message" "twilio::send_sms"
+cli::register_subcommand "content" "numbers" "List phone numbers" "twilio::list_numbers"
 
-HELP
-}
+# Additional information commands
+cli::register_command "status" "Show detailed resource status" "twilio::status::new"
+cli::register_command "logs" "Show Twilio logs" "twilio::docker::logs"
+cli::register_command "config" "View/update Twilio configuration" "twilio::config"
 
-# Main command router
-main() {
-    local cmd="${1:-help}"
-    shift || true
-    
-    case "$cmd" in
-        status)
-            twilio::status::new "$@"
-            ;;
-        install)
-            twilio::install "$@"
-            ;;
-        start)
-            twilio::start "$@"
-            ;;
-        stop)
-            twilio::stop "$@"
-            ;;
-        logs)
-            twilio::logs "$@"
-            ;;
-        config)
-            twilio::config "$@"
-            ;;
-        inject)
-            twilio::inject "$@"
-            ;;
-        list-injected)
-            twilio::list_injected "$@"
-            ;;
-        send-sms)
-            twilio::send_sms "$@"
-            ;;
-        list-numbers)
-            twilio::list_numbers "$@"
-            ;;
-        help)
-            show_help
-            ;;
-        *)
-            echo "Error: Unknown command '$cmd'"
-            show_help
-            exit 1
-            ;;
-    esac
-}
-
-main "$@"
+# Only execute if script is run directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    cli::dispatch "$@"
+fi

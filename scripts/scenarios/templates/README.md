@@ -30,8 +30,8 @@ templates/
 ### **Create Full Application Scenario:**
 ```bash
 # Copy comprehensive template
-cp -r templates/full/ core/my-business-app/
-cd core/my-business-app/
+cp -r templates/full/ scenarios/my-business-app/
+cd scenarios/my-business-app/
 
 # Edit for your use case
 # - service.json: Business model, resource requirements, and deployment orchestration
@@ -45,8 +45,8 @@ cd core/my-business-app/
 ### **Create Simple Integration Test:**
 ```bash
 # Copy minimal template
-cp -r templates/basic/ core/my-integration-test/
-cd core/my-integration-test/
+cp -r templates/basic/ scenarios/my-integration-test/
+cd scenarios/my-integration-test/
 
 # Edit for your use case  
 # - service.json: Resource requirements and test criteria

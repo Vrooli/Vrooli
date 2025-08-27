@@ -20,7 +20,7 @@ HTTP_WARNINGS=0
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
 SCRIPT_DIR="${APP_ROOT}/scripts/scenarios/validation/handlers"
 if [[ -f "$SCRIPT_DIR/../clients/common.sh" ]]; then
-    source "$SCRIPT_DIR/../clients/common.sh"
+    source "${APP_ROOT}/scripts/scenarios/validation/clients/common.sh"
 fi
 
 # Print functions
@@ -223,7 +223,7 @@ execute_http_test_from_config() {
     # Source resource validator for get_resource_url function
     local script_dir="${APP_ROOT}/scripts/scenarios/validation/handlers"
     if [[ -f "$script_dir/../validators/resources.sh" ]]; then
-        source "$script_dir/../validators/resources.sh"
+        source "${APP_ROOT}/scripts/scenarios/validation/validators/resources.sh"
     fi
     
     # Get service URL

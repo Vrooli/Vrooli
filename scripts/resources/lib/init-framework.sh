@@ -9,13 +9,13 @@ _INIT_FRAMEWORK_SOURCED=1
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 SCRIPT_DIR="${APP_ROOT}/scripts/resources/lib"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/utils/log.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/docker-utils.sh" 2>/dev/null || true
+source "${SCRIPT_DIR}/docker-utils.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/wait-utils.sh" 2>/dev/null || true
+source "${SCRIPT_DIR}/wait-utils.sh"
 
 #######################################
 # Initialize a resource with standard setup flow
@@ -178,10 +178,14 @@ init::create_container() {
     local container_name
     local image
     local port
+    local host_port
+    local container_port
     
     container_name=$(echo "$config" | jq -r '.container_name // empty')
     image=$(echo "$config" | jq -r '.image // empty')
     port=$(echo "$config" | jq -r '.port // empty')
+    host_port=$(echo "$config" | jq -r '.host_port // empty')
+    container_port=$(echo "$config" | jq -r '.container_port // empty')
     
     # Check if container already exists
     if docker::container_exists "$container_name"; then
@@ -195,8 +199,10 @@ init::create_container() {
     # Build docker run command
     local docker_cmd="docker run -d --name $container_name"
     
-    # Add port mapping
-    if [[ -n "$port" ]]; then
+    # Add port mapping - support both old "port" field and new host_port/container_port
+    if [[ -n "$host_port" ]] && [[ -n "$container_port" ]]; then
+        docker_cmd+=" -p ${host_port}:${container_port}"
+    elif [[ -n "$port" ]]; then
         docker_cmd+=" -p ${port}:${port}"
     fi
     

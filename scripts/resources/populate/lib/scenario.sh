@@ -5,13 +5,13 @@
 ################################################################################
 set -euo pipefail
 
-# Default scenario locations
-SCENARIO_SEARCH_PATHS=(
-    "${var_SCENARIOS_DIR}"
-    "${APP_ROOT}/scenarios"
-    "${HOME}/.vrooli/scenarios"
-    "${PWD}/scenarios"
-)
+# Default scenario locations - delayed evaluation to avoid unbound variable errors
+get_scenario_search_paths() {
+    echo "${var_SCENARIOS_DIR:-$(dirname "$0")/../../scenarios}"
+    echo "${APP_ROOT}/scenarios"
+    echo "${HOME}/.vrooli/scenarios" 
+    echo "${PWD}/scenarios"
+}
 
 #######################################
 # Load scenario configuration
@@ -31,7 +31,7 @@ scenario::load() {
         scenario_file="$scenario"
     else
         # Search for scenario in standard locations
-        for path in "${SCENARIO_SEARCH_PATHS[@]}"; do
+        while IFS= read -r path; do
             # Try different naming patterns
             for pattern in \
                 "$path/$scenario/scenario.json" \
@@ -43,15 +43,15 @@ scenario::load() {
                     break 2
                 fi
             done
-        done
+        done < <(get_scenario_search_paths)
     fi
     
     if [[ -z "$scenario_file" ]]; then
         log::error "Scenario not found: $scenario"
         log::info "Searched locations:"
-        for path in "${SCENARIO_SEARCH_PATHS[@]}"; do
+        while IFS= read -r path; do
             log::info "  - $path"
-        done
+        done < <(get_scenario_search_paths)
         return 1
     fi
     
@@ -151,7 +151,7 @@ scenario::extract_resources() {
 scenario::list() {
     local found_any=false
     
-    for path in "${SCENARIO_SEARCH_PATHS[@]}"; do
+    while IFS= read -r path; do
         if [[ ! -d "$path" ]]; then
             continue
         fi
@@ -207,13 +207,13 @@ scenario::list() {
                 echo ""
             fi
         done
-    done
+    done < <(get_scenario_search_paths)
     
     if [[ "$found_any" == "false" ]]; then
         log::info "No scenarios found in:"
-        for path in "${SCENARIO_SEARCH_PATHS[@]}"; do
+        while IFS= read -r path; do
             log::info "  - $path"
-        done
+        done < <(get_scenario_search_paths)
         log::info ""
         log::info "Create scenarios in these locations or specify a path directly"
     fi

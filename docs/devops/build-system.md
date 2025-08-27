@@ -1,572 +1,313 @@
-# Build System
+# Build & Deploy System
 
 > **Prerequisites**: See [Prerequisites Guide](./getting-started/prerequisites.md) for required tools installation.
 
-This guide covers Vrooli's comprehensive build system, which supports multi-platform builds, container orchestration, desktop applications, and sophisticated artifact management.
+This guide covers Vrooli's scenario-based build and deploy system, where AI-generated applications manage their own build and deployment processes.
 
-## Overview
+## Architecture Overview
 
-Vrooli's build system provides:
+Vrooli operates as an **AI intelligence system** that generates complete applications from scenarios. Unlike traditional platforms that build and deploy themselves, Vrooli's architecture works as follows:
 
-- 🏗️ **Multi-Platform Builds**: Windows, macOS, Linux, Android, iOS support
-- 📦 **Container Management**: Docker image building and registry integration
-- 🖥️ **Desktop Applications**: Electron-based cross-platform apps
-- ☸️ **Kubernetes Artifacts**: Helm charts and container deployment
-- 🎯 **Intelligent Versioning**: Automatic version management and artifact tagging
-- 🚀 **Deployment Ready**: Artifacts optimized for different deployment targets
-
-## Build Architecture
-
-### Build Process Flow
+### Current Architecture (Scenario-Based)
 
 ```mermaid
 flowchart TD
-    A[Parse Arguments] --> B{Version Specified?}
-    B -->|Yes| C[Validate Version]
-    B -->|No| D[Use Current Version]
-    C --> E[Run Setup]
-    D --> E
-    E --> F[Clean Previous Build]
-    F --> G[Build Packages]
-    G --> H[Run Tests/Lint]
-    H --> I{Build Desktop Apps?}
-    I -->|Yes| J[Build Electron Scripts]
-    I -->|No| K[Collect Artifacts]
+    A[Scenario Definition] --> B[AI Agent Processing]
+    B --> C[Generated Application]
+    C --> D[.vrooli/service.json Config]
+    D --> E[App-Specific Build Process]
+    D --> F[App-Specific Deploy Process]
+    
+    subgraph "Generated App Lifecycle"
+        G[vrooli build] --> H[Delegate to App's Build Script]
+        I[vrooli deploy] --> J[Delegate to App's Deploy Script]
+    end
+    
+    E --> G
+    F --> I
+    
+    subgraph "Deployment Targets"
+        K[App Stores]
+        L[Web Platforms]
+        M[SaaS Deployments]
+        N[AI Assistants]
+    end
+    
     J --> K
-    K --> L[Package Docker Images]
-    L --> M[Create Helm Charts]
-    M --> N[Generate Bundles]
-    N --> O{Destination}
-    O -->|Local| P[Save to Local Dist]
-    O -->|Remote| Q[Upload to Remote Server]
+    J --> L
+    J --> M
+    J --> N
 ```
 
-## Build Script Usage
+### Key Concepts
 
-### Basic Usage
+- **Scenarios**: Define complete business applications (SaaS platforms, AI assistants, mobile apps)
+- **Generated Apps**: Complete applications created by AI agents from scenario definitions
+- **Lifecycle Delegation**: Build/deploy commands delegate to each app's specific configuration
+- **Self-Contained Apps**: Each generated app knows how to build and deploy itself
+
+## Lifecycle Management
+
+### Universal Commands
+
+The Vrooli CLI provides universal lifecycle commands that delegate to each application's specific implementation:
 
 ```bash
-# Build for development with default settings
-bash scripts/main/build.sh
+# Build an application (delegates to app's build process)
+vrooli build [options]
 
-# Build for production with specific version
-bash scripts/main/build.sh --version 1.2.0 --environment production
+# Deploy an application (delegates to app's deploy process) 
+vrooli deploy [options]
 
-# Build specific artifacts
-bash scripts/main/build.sh --artifacts docker,k8s --bundles zip
+# Setup development environment
+vrooli develop
+
+# Run application-specific tests
+vrooli test [test-type]
 ```
 
-### Command Line Options
+### Application Configuration
+
+Each generated application includes a `.vrooli/service.json` file that defines its lifecycle:
+
+```json
+{
+  "name": "my-scenario-app",
+  "type": "web-application",
+  "lifecycle": {
+    "build": {
+      "command": "npm run build",
+      "output": "dist/",
+      "artifacts": ["static-files", "docker-image"]
+    },
+    "deploy": {
+      "command": "scripts/deploy.sh",
+      "targets": ["vercel", "docker"],
+      "environment": "production"
+    },
+    "develop": {
+      "command": "npm run dev",
+      "ports": [3000, 5432],
+      "resources": ["postgresql", "redis"]
+    }
+  }
+}
+```
+
+## Build Process Flow
+
+### Application-Specific Building
+
+```mermaid
+flowchart LR
+    A[vrooli build] --> B[Read .vrooli/service.json]
+    B --> C[Execute App's Build Command]
+    C --> D[Generate Artifacts]
+    D --> E[Prepare for Deployment]
+    
+    subgraph "Artifact Types"
+        F[Static Files]
+        G[Docker Images]
+        H[Mobile App Packages]
+        I[Desktop Binaries]
+    end
+    
+    E --> F
+    E --> G
+    E --> H
+    E --> I
+```
+
+### Example Build Configurations
+
+Different scenario-generated apps have different build requirements:
+
+#### SaaS Web Application
+```json
+{
+  "lifecycle": {
+    "build": {
+      "command": "pnpm build",
+      "artifacts": ["static-bundle", "docker-image"],
+      "environment": {
+        "NODE_ENV": "production"
+      }
+    }
+  }
+}
+```
+
+#### Mobile Application
+```json
+{
+  "lifecycle": {
+    "build": {
+      "command": "scripts/build-mobile.sh",
+      "artifacts": ["android-apk", "ios-ipa"],
+      "platforms": ["android", "ios"]
+    }
+  }
+}
+```
+
+#### AI Assistant
+```json
+{
+  "lifecycle": {
+    "build": {
+      "command": "python setup.py build",
+      "artifacts": ["model-package", "inference-container"],
+      "requirements": ["tensorflow", "transformers"]
+    }
+  }
+}
+```
+
+## Deployment System
+
+### Universal Deployment Interface
 
 ```bash
-# Core Options
---version <ver>           # Specify version (mandatory for production)
---environment <env>       # Target environment (development/staging/production)
---bundles <types>         # Bundle types: all|zip|cli
---artifacts <types>       # Artifact types: all|docker|k8s
---binaries <platforms>    # Platform binaries: all|windows|mac|linux|android|ios
---dest <target>           # Destination: local|remote
+# Deploy to configured targets
+vrooli deploy
 
-# Quality Control
---test yes|no             # Run tests before building (default: no)
---lint yes|no             # Run linting before building (default: no)
+# Deploy to specific environment
+vrooli deploy --environment production
 
-# System Options
---sudo-mode error|skip    # Sudo behavior for privileged operations
---yes                     # Auto-confirm all prompts
---location local|remote   # Override location detection
+# Deploy to specific platform
+vrooli deploy --target vercel
+
+# Dry run deployment
+vrooli deploy --dry-run
 ```
 
-## Bundle Types
+### Deployment Delegation
 
-### 1. ZIP Bundles
+Each application defines its own deployment strategy:
 
-Standard deployment bundles containing built artifacts:
+```mermaid
+flowchart TD
+    A[vrooli deploy] --> B[Load App Config]
+    B --> C{Deployment Target}
+    
+    C -->|Web Platform| D[Vercel/Netlify Deploy]
+    C -->|Container| E[Docker Registry Push]
+    C -->|App Store| F[Store Upload Process]
+    C -->|SaaS Platform| G[Cloud Provider Deploy]
+    
+    D --> H[Live Application]
+    E --> H
+    F --> H
+    G --> H
+```
+
+## Scenario Examples
+
+### E-commerce Platform Scenario
+Generated app includes:
+- React frontend build process
+- Node.js backend containerization
+- Database migration scripts
+- Payment gateway integration
+- Deployment to AWS/Vercel
+
+### AI Chatbot Scenario  
+Generated app includes:
+- Model training pipeline
+- Inference server containerization
+- API endpoint generation
+- Deployment to cloud AI platforms
+
+### Mobile Productivity App Scenario
+Generated app includes:
+- React Native build process
+- Platform-specific configurations
+- App store submission automation
+- Cross-platform compatibility
+
+## Development Workflow
+
+### Local Development
 
 ```bash
-# Generate ZIP bundle
-bash scripts/main/build.sh --bundles zip
+# Start development environment
+vrooli develop
 
-# Creates: dist/{version}/bundles/artifacts.zip.gz
+# This delegates to the app's develop configuration:
+# - Starts required resources (databases, caches)
+# - Launches development servers
+# - Sets up hot reloading
+# - Configures development proxies
 ```
-
-**Contents:**
-- Built package distributions
-- Configuration files
-- Package manifests (package.json, pnpm-lock.yaml)
-
-### 2. CLI Bundles
-
-Command-line interface executables:
-
-```bash
-# Generate CLI executables  
-bash scripts/main/build.sh --bundles cli
-
-# Platform-specific CLI tools for automation
-```
-
-## Artifact Types
-
-### 1. Docker Artifacts
-
-Container images and related assets:
-
-```bash
-# Build Docker artifacts
-bash scripts/main/build.sh --artifacts docker
-```
-
-**Process:**
-1. **Build Images**: Creates optimized container images
-2. **Save Images**: Exports images to tarball
-3. **Registry Push**: Uploads to Docker Hub (for K8s builds)
-
-**Generated:**
-```
-dist/{version}/artifacts/
-└── docker-images.tar    # Container images for local deployment
-```
-
-### 2. Kubernetes Artifacts
-
-Helm charts and Kubernetes manifests:
-
-```bash
-# Build Kubernetes artifacts
-bash scripts/main/build.sh --artifacts k8s
-```
-
-**Process:**
-1. **Build Docker Images**: Creates and pushes to registry
-2. **Package Helm Chart**: Creates versioned chart package
-3. **Environment Values**: Copies environment-specific configurations
-
-**Generated:**
-```
-dist/{version}/artifacts/
-├── k8s-chart-packages/
-│   └── vrooli-{version}.tgz     # Packaged Helm chart
-└── helm-value-files/
-    ├── values-dev.yaml          # Development overrides
-    └── values-prod.yaml         # Production overrides
-```
-
-## Platform Binaries
-
-### Desktop Applications (Electron)
-
-Cross-platform desktop application builds:
-
-```bash
-# Build for all desktop platforms
-bash scripts/main/build.sh --binaries all
-
-# Build for specific platforms
-bash scripts/main/build.sh --binaries windows,mac,linux
-```
-
-#### Windows Builds
-
-```bash
-# Windows-specific build
-bash scripts/main/build.sh --binaries windows
-
-# Requires Wine for cross-compilation on Linux
-# Automatically installs Wine if needed
-```
-
-**Output:** `Vrooli-Setup-{version}.exe`
-
-#### macOS Builds
-
-```bash
-# macOS-specific build
-bash scripts/main/build.sh --binaries mac
-```
-
-**Output:** `Vrooli-{version}.dmg`
-
-#### Linux Builds
-
-```bash
-# Linux-specific build
-bash scripts/main/build.sh --binaries linux
-```
-
-**Output:** `Vrooli-{version}.AppImage`
-
-### Mobile Applications
-
-#### Android Builds
-
-```bash
-# Android package build
-bash scripts/main/build.sh --binaries android
-
-# Triggers Google Play Store packaging
-```
-
-#### iOS Builds
-
-```bash
-# iOS package build (stub)
-bash scripts/main/build.sh --binaries ios
-
-# TODO: Implementation pending
-```
-
-## Version Management
-
-### Automatic Version Handling
-
-```bash
-# Use current version from package.json
-bash scripts/main/build.sh
-
-# Specify explicit version
-bash scripts/main/build.sh --version 1.2.3
-```
-
-### Version Update Process
-
-When a version is specified:
-
-1. **Package.json Updates**: All package.json files updated
-2. **Helm Chart Updates**: Chart.yaml appVersion updated  
-3. **Values File Updates**: Service tags in values-prod.yaml updated
-4. **Consistency Checks**: Validates version format and uniqueness
-
-### Production Version Requirements
-
-```bash
-# Production builds REQUIRE explicit version
-bash scripts/main/build.sh --environment production --version 1.2.3
-
-# Warns if version matches current (overwrites artifacts)
-# Allows user confirmation before proceeding
-```
-
-## Docker Integration
-
-> **Note**: For detailed Docker troubleshooting, see [Troubleshooting Guide](./troubleshooting.md#container-issues).
-
-### Image Building Strategy
-
-#### Development Images
-```bash
-# Development image tags
-ui:development
-server:development  
-jobs:development
-```
-
-#### Production Images
-```bash
-# Production image tags
-ui:prod
-server:prod
-jobs:prod
-```
-
-### Docker Hub Integration
-
-For Kubernetes deployments:
-
-```bash
-# Automatic tagging and pushing
-export DOCKERHUB_USERNAME=your-username
-export DOCKERHUB_TOKEN=your-token
-
-bash scripts/main/build.sh --artifacts k8s --version 1.2.3
-```
-
-**Process:**
-1. **Login**: Authenticates with Docker Hub
-2. **Tag Images**: Creates version and floating tags
-3. **Push Images**: Uploads to registry
-
-**Tags Created:**
-```bash
-your-username/server:1.2.3    # Specific version
-your-username/server:prod     # Floating tag (production)
-your-username/ui:1.2.3        # Specific version  
-your-username/ui:prod         # Floating tag (production)
-```
-
-### Resource Management
-
-Docker daemon resource limits are automatically configured:
-
-```bash
-# CPU Quota: (cores - 0.5) * 100%
-# Memory: 80% of total system memory
-
-# Systemd slice configuration applied automatically
-```
-
-## Build Optimization
-
-### Caching Strategy
-
-```bash
-# Build artifact caching
-- Package builds cached by dependency hash
-- Docker layers cached between builds
-- Helm packages cached by chart version
-```
-
-### Parallel Building
-
-```bash
-# Concurrent package builds
-pnpm run build    # Builds all packages in dependency order
-
-# Parallel Docker builds  
-docker-compose build --parallel
-
-# Concurrent platform builds (Electron)
-npx electron-builder --win --mac --linux --parallel
-```
-
-### Build Dependencies
-
-#### System Requirements
-
-```bash
-# Automatically installed during setup
-- Node.js (via package manager)
-- PNPM (via corepack or standalone)
-- Docker & Docker Compose
-- Build tools (gcc, make, python)
-```
-
-#### Development Dependencies
-
-```bash
-# TypeScript compilation
-- TypeScript compiler
-- ESBuild for fast builds
-- Webpack for UI bundling
-
-# Testing tools
-- Vitest for unit tests
-- BATS for shell script testing
-- Playwright for E2E testing
-```
-
-## Artifact Organization
-
-### Directory Structure
-
-```
-dist/
-└── {version}/
-    ├── artifacts/                    # Raw build artifacts
-    │   ├── docker-images.tar        # Container images
-    │   ├── k8s-chart-packages/      # Helm charts
-    │   ├── helm-value-files/        # Environment configs
-    │   ├── server-dist/             # Server build output
-    │   ├── ui-dist/                 # UI build output
-    │   └── jobs-dist/               # Jobs build output
-    ├── bundles/                     # Compressed bundles
-    │   └── artifacts.zip.gz         # Deployment bundle
-    └── desktop/                     # Desktop applications
-        ├── windows/
-        ├── mac/
-        └── linux/
-```
-
-### Deployment Bundles
-
-#### Local Deployment
-```bash
-# Self-contained deployment package
-dist/{version}/bundles/artifacts.zip.gz
-
-# Contains everything needed for deployment:
-- Built application code
-- Docker images (in tarball format)
-- Configuration files
-- Deployment scripts
-```
-
-#### Remote Deployment
-```bash
-# Upload to remote server
-rsync -avz dist/{version}/bundles/artifacts.zip.gz \
-  user@remote:/path/to/deployment/
-
-# Or automatic upload with --dest remote
-bash scripts/main/build.sh --dest remote --version 1.2.3
-```
-
-## Build Quality Control
 
 ### Testing Integration
 
 ```bash
-# Run tests before building
-bash scripts/main/build.sh --test yes
+# Run application tests
+vrooli test unit
+vrooli test integration
+vrooli test e2e
 
-# Test execution order:
-1. Shell script tests (BATS)
-2. Unit tests (Vitest)  
-3. Integration tests (Playwright)
+# Each test type delegates to app-specific test suites
 ```
 
-### Linting Integration
+## Resource Integration
 
-```bash
-# Run linting before building
-bash scripts/main/build.sh --lint yes
+Generated applications can leverage shared local resources:
 
-# Linting tools:
-- ESLint for TypeScript/JavaScript
-- ShellCheck for shell scripts
-- Prettier for code formatting
+### Available Resources
+- **Databases**: PostgreSQL, Redis, Neo4j
+- **AI Services**: Ollama, OpenAI-compatible APIs
+- **Automation**: N8n workflows
+- **Storage**: MinIO, local file systems
+- **Monitoring**: Prometheus, logging services
+
+### Resource Declaration
+
+Applications declare required resources in their service configuration:
+
+```json
+{
+  "resources": {
+    "postgresql": {
+      "version": "15",
+      "databases": ["app_data", "analytics"]
+    },
+    "redis": {
+      "version": "7",
+      "purpose": "caching"
+    },
+    "ollama": {
+      "models": ["llama2", "codellama"]
+    }
+  }
+}
 ```
 
-### Build Verification
+## Benefits of This Architecture
 
-Automatic verification steps:
+### For Developers
+- **No Platform Lock-in**: Each app defines its own build/deploy strategy
+- **Technology Freedom**: Apps can use any tech stack
+- **Resource Sharing**: Efficient use of local development resources
 
-```bash
-# Package verification
-- Verify all packages built successfully
-- Check for missing dependencies
-- Validate package.json consistency
+### For the System
+- **Compound Intelligence**: Each built app becomes a permanent capability
+- **Recursive Improvement**: Apps can build better apps
+- **Scalable Complexity**: System handles increasingly complex scenarios
 
-# Docker verification  
-- Verify images can be loaded
-- Check image sizes within limits
-- Validate container startup
+### For Deployment
+- **Flexible Targets**: Apps deploy where they make most sense (app stores, web, cloud)
+- **Optimized Processes**: Each app uses deployment strategy suited to its purpose
+- **Business Value**: Generated apps can generate real revenue
 
-# Artifact verification
-- Verify bundle completeness
-- Check file permissions
-- Validate archive integrity
-```
+## Migration from Old System
 
-## Platform-Specific Considerations
+The previous build system focused on building/deploying Vrooli itself. The new system recognizes that:
 
-### Windows Development
+1. **Vrooli is the intelligence, not the product**
+2. **Generated apps are the products that get deployed**
+3. **Build/deploy varies by application type and target**
+4. **The system grows smarter with each scenario**
 
-```bash
-# WSL2 recommended for development
-# Automatic Wine installation for Electron builds
-# Path handling for Windows-style paths
-```
-
-### macOS Development
-
-```bash
-# Homebrew integration
-# Code signing for app distribution
-# Notarization for macOS apps
-```
-
-### Linux Development
-
-```bash
-# Native development environment
-# AppImage packaging for distribution
-# Snap package support (future)
-```
-
-## Troubleshooting
-
-> **Note**: For comprehensive troubleshooting of build system issues, including version conflicts, Docker build failures, Electron build issues, and resource limitations, see [Troubleshooting Guide](./troubleshooting.md#build-system-issues).
-
-Common troubleshooting categories:
-- **Version Conflicts**: Version already exists errors, overwrite confirmation
-- **Docker Build Failures**: Daemon status, cache issues, fresh image rebuilds
-- **Electron Build Issues**: Wine installation, code signing, cross-platform builds
-- **Resource Limitations**: Memory constraints, disk space, system optimization
-
-### Debug Mode
-
-```bash
-# Enable verbose logging
-export DEBUG=1
-bash scripts/main/build.sh --version 1.2.3
-
-# Check build logs
-tail -f dist/build.log
-
-# Analyze specific component
-docker logs build-container
-```
-
-## Performance Optimization
-
-### Build Speed Improvements
-
-```bash
-# 1. Parallel builds
-export MAKEFLAGS="-j$(nproc)"
-
-# 2. Build cache optimization
-# Use ccache for native compilation
-export PATH="/usr/lib/ccache:$PATH"
-
-# 3. Docker layer caching
-# Optimize Dockerfile layer order
-# Use multi-stage builds effectively
-
-# 4. Dependency caching
-# Cache node_modules between builds
-# Use pnpm store for efficient package management
-```
-
-### Resource Usage
-
-```bash
-# Monitor build resources
-docker stats build-containers
-htop  # CPU/Memory usage
-
-# Optimize for CI/CD
-# Use smaller base images
-# Minimize build context size
-# Parallel job limits
-```
-
-## Integration with CI/CD
-
-### GitHub Actions
-
-```yaml
-name: Build and Deploy
-on:
-  push:
-    tags: ['v*']
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Build Artifacts
-        run: |
-          bash scripts/main/build.sh \
-            --version ${{ github.ref_name }} \
-            --environment production \
-            --artifacts all \
-            --bundles all
-```
-
-### Build Artifacts Storage
-
-```bash
-# GitHub Releases
-# Upload build artifacts to GitHub releases
-
-# Container Registry
-# Push images to Docker Hub/GitHub Container Registry
-
-# Cloud Storage
-# Upload bundles to S3/GCS for deployment
-```
-
-This comprehensive build system ensures reliable, reproducible builds across all platforms while supporting both simple development workflows and complex production deployments. 
+This architectural shift enables Vrooli to create everything from simple websites to complex SaaS businesses, each with deployment strategies optimized for their specific use case.

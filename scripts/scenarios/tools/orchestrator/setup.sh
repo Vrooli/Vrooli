@@ -100,7 +100,7 @@ fi
 
 # Make orchestrator executable
 chmod +x "${ORCHESTRATOR_DIR}/app_orchestrator.py"
-chmod +x "${ORCHESTRATOR_DIR}/run.sh" 2>/dev/null || true
+chmod +x "${ORCHESTRATOR_DIR}/run.sh"
 
 echo -e "${GREEN}✅ Python App Orchestrator setup complete!${NC}"
 echo ""

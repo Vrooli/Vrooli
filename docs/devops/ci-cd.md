@@ -1,575 +1,541 @@
-# CI/CD Pipeline
+# CI/CD for Generated Applications
 
-This guide covers Vrooli's sophisticated CI/CD pipeline, which provides automated testing, building, and deployment across multiple environments using GitHub Actions and the advanced scripting infrastructure.
+This guide covers CI/CD patterns and strategies for applications generated from Vrooli scenarios. Since each generated app has its own deployment requirements, this focuses on common patterns and best practices.
 
 > **Prerequisites**: See [Prerequisites Guide](./getting-started/prerequisites.md) for required tools installation.
-> **SSH Setup**: For comprehensive SSH key configuration, see [SSH Setup Guide](./getting-started/ssh-setup.md).
-> **Environment Variables**: For complete variable reference, see [Environment Variables Guide](./getting-started/environment-variables.md).
-> **Server Deployment**: For server setup and configuration, see [Server Deployment Guide](./server-deployment.md).
-> **Troubleshooting**: For CI/CD issues, see [Troubleshooting Guide](./troubleshooting.md#cicd-pipeline-issues).
 
 ## Overview
 
-Vrooli's CI/CD system provides:
+When Vrooli generates applications from scenarios, each app can implement its own CI/CD strategy based on its specific needs:
 
-- 🚀 **Multi-Environment Deployment**: Staging (from `dev` branch) and production (from `master` branch)
-- 🔐 **Advanced Secret Management**: Environment files, JWT keys, and SSH deployment keys
-- 🏗️ **Sophisticated Build Process**: Integration with the advanced `build.sh` script
-- 📦 **Remote Deployment**: Build locally, transfer securely, deploy remotely via SSH
-- 🛡️ **Quality Control**: Optional linting and testing with conditional execution
-- ⚡ **Performance Optimized**: Concurrent execution and intelligent caching
+### Generated App CI/CD Characteristics
 
-## Pipeline Architecture
+- 🎯 **Purpose-Built**: Each app's CI/CD matches its deployment targets (web platforms, app stores, cloud services)
+- 🔄 **Lifecycle Integration**: Uses `vrooli build` and `vrooli deploy` commands defined in `.vrooli/service.json`
+- 📦 **Artifact Variety**: Different apps generate different artifacts (web bundles, mobile packages, container images)
+- 🚀 **Target Flexibility**: Apps can deploy to multiple platforms simultaneously
+- 🛡️ **Security First**: Built-in secret management and secure deployment practices
 
-### Workflow Overview
+## Common CI/CD Patterns
 
-```mermaid
-flowchart TD
-    subgraph "GitHub Actions Runner"
-        A[Checkout Code] --> B[Create Environment Files]
-        B --> C[Setup JWT Keys]
-        C --> D[Configure SSH]
-        D --> E[Verify SSH Connection]
-        E --> F[Build & Package]
-        F --> G[Deploy via SSH]
-    end
-    
-    subgraph "Remote Server"
-        H[Receive Build Bundle] --> I[Extract Artifacts]
-        I --> J[Run deploy.sh]
-        J --> K[Start Services]
-    end
-    
-    G --> H
-    K --> L[Health Check]
-    
-    subgraph "Quality Gates"
-        Q1[Optional Linting]
-        Q2[Optional Testing]
-        Q3[Build Verification]
-    end
-    
-    F -.-> Q1
-    F -.-> Q2
-    F -.-> Q3
-```
+### Pattern 1: Web Application (SaaS/Website)
 
-## GitHub Actions Workflows
-
-### 1. Development Pipeline (`dev.yml`)
-
-Triggers on `dev` branch pushes and pull requests:
+For apps that deploy to web platforms like Vercel, Netlify, or custom servers:
 
 ```yaml
-name: Dev CI/CD
+# .github/workflows/deploy.yml for a generated SaaS app
+name: Deploy Web Application
+
 on:
   push:
-    branches: [dev]
+    branches: [main]
   pull_request:
-    branches: [dev]
-  workflow_dispatch:  # Manual trigger with options
+    branches: [main]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Build application
+        run: vrooli build --environment production
+        
+      - name: Deploy to production
+        if: github.ref == 'refs/heads/main'
+        run: vrooli deploy --target vercel --environment production
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          
+      - name: Deploy to preview
+        if: github.event_name == 'pull_request'
+        run: vrooli deploy --target vercel --environment preview
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
 ```
 
-**Environment**: `staging`  
-**Target Server**: Staging environment  
-**Deployment Strategy**: Docker-based deployment for rapid iteration
+### Pattern 2: Mobile Application
 
-### 2. Production Pipeline (`master.yml`)
-
-Triggers on `master` branch pushes and pull requests:
+For apps targeting app stores:
 
 ```yaml
-name: Master CI/CD
+# .github/workflows/mobile-deploy.yml for a generated mobile app
+name: Build and Deploy Mobile App
+
 on:
   push:
-    branches: [master]
-  pull_request:
-    branches: [master]
-  workflow_dispatch:  # Manual trigger with options
+    tags: ['v*']
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v2
+        
+      - name: Build Android APK
+        run: vrooli build --platform android
+        
+      - name: Sign and Deploy to Play Store
+        run: vrooli deploy --target play-store
+        env:
+          ANDROID_SIGNING_KEY: ${{ secrets.ANDROID_SIGNING_KEY }}
+          PLAY_STORE_SERVICE_ACCOUNT: ${{ secrets.PLAY_STORE_SERVICE_ACCOUNT }}
+
+  build-ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Xcode
+        uses: actions/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+          
+      - name: Build iOS IPA
+        run: vrooli build --platform ios
+        
+      - name: Deploy to App Store
+        run: vrooli deploy --target app-store
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 ```
 
-**Environment**: `production`  
-**Target Server**: Production environment  
-**Deployment Strategy**: Production-optimized Docker deployment
+### Pattern 3: AI/ML Service
+
+For AI applications deploying to cloud platforms:
+
+```yaml
+# .github/workflows/ai-deploy.yml for a generated AI service
+name: Deploy AI Service
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+          
+      - name: Build AI model package
+        run: vrooli build --artifacts model,container
+        
+      - name: Deploy to cloud
+        run: vrooli deploy --target aws --service lambda
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: us-east-1
+```
+
+### Pattern 4: Multi-Platform Deployment
+
+For apps that deploy to multiple platforms:
+
+```yaml
+# .github/workflows/multi-deploy.yml
+name: Multi-Platform Deployment
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Generate version
+        id: version
+        run: echo "version=$(date +%Y%m%d-%H%M%S)" >> $GITHUB_OUTPUT
+        
+      - name: Build all platforms
+        run: vrooli build --platforms web,android,desktop
+        
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-artifacts-${{ steps.version.outputs.version }}
+          path: dist/
+
+  deploy-web:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v3
+        with:
+          name: build-artifacts-${{ needs.build.outputs.version }}
+          path: dist/
+          
+      - name: Deploy web version
+        run: vrooli deploy --target netlify --artifacts dist/web
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+
+  deploy-desktop:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v3
+        with:
+          name: build-artifacts-${{ needs.build.outputs.version }}
+          path: dist/
+          
+      - name: Deploy desktop apps
+        run: vrooli deploy --target github-releases --artifacts dist/desktop
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
+
+## Application Configuration Integration
+
+### Service Configuration
+
+Generated apps define their CI/CD behavior in `.vrooli/service.json`:
+
+```json
+{
+  "name": "my-generated-saas",
+  "type": "web-application",
+  "ci-cd": {
+    "triggers": {
+      "build": ["push", "pull_request"],
+      "deploy": ["push:main", "tag:v*"]
+    },
+    "environments": {
+      "development": {
+        "auto-deploy": true,
+        "targets": ["vercel-preview"]
+      },
+      "production": {
+        "auto-deploy": false,
+        "targets": ["vercel", "cloudflare"],
+        "requires-approval": true
+      }
+    },
+    "quality-gates": {
+      "test": "required",
+      "lint": "required", 
+      "security-scan": "optional"
+    }
+  },
+  "deployment": {
+    "targets": {
+      "vercel": {
+        "command": "vercel deploy --prod",
+        "secrets": ["VERCEL_TOKEN"]
+      },
+      "cloudflare": {
+        "command": "wrangler deploy",
+        "secrets": ["CLOUDFLARE_API_TOKEN"]
+      }
+    }
+  }
+}
+```
+
+### Environment Management
+
+Generated apps can use standardized environment patterns:
+
+```bash
+# Development environment (.env.development)
+NODE_ENV=development
+API_BASE_URL=https://dev-api.myapp.com
+DEBUG_MODE=true
+
+# Production environment (.env.production)
+NODE_ENV=production
+API_BASE_URL=https://api.myapp.com
+DEBUG_MODE=false
+ANALYTICS_ENABLED=true
+```
+
+## Quality Gates and Testing
+
+### Automated Testing Integration
+
+```yaml
+# Example quality gate workflow
+jobs:
+  quality-gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Run linting
+        run: vrooli test lint
+        
+      - name: Run unit tests
+        run: vrooli test unit
+        
+      - name: Run integration tests
+        run: vrooli test integration
+        
+      - name: Security scan
+        run: vrooli test security
+        
+      - name: Performance test
+        if: github.ref == 'refs/heads/main'
+        run: vrooli test performance
+
+  deploy:
+    needs: quality-gates
+    if: success()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy application
+        run: vrooli deploy --environment production
+```
+
+### Test Configuration
+
+Apps define their testing strategy in `.vrooli/service.json`:
+
+```json
+{
+  "testing": {
+    "lint": {
+      "command": "eslint src/ --ext .ts,.tsx",
+      "required": true
+    },
+    "unit": {
+      "command": "jest --coverage",
+      "coverage-threshold": 80
+    },
+    "integration": {
+      "command": "playwright test",
+      "browser-matrix": ["chromium", "firefox", "webkit"]
+    },
+    "security": {
+      "command": "npm audit && snyk test",
+      "fail-on": "high"
+    }
+  }
+}
+```
+
+## Deployment Strategies by App Type
+
+### SaaS Applications
+
+**Common Deployment Targets:**
+- Vercel/Netlify for frontend
+- Railway/Render for backend APIs
+- Planet Scale for databases
+- Cloudflare for CDN and edge functions
+
+**Typical Pipeline:**
+1. Build frontend and backend separately
+2. Deploy backend API first
+3. Update frontend environment variables
+4. Deploy frontend with new API endpoints
+5. Run smoke tests against production
+
+### E-commerce Platforms
+
+**Common Deployment Targets:**
+- Shopify app store
+- WordPress plugin directory
+- WooCommerce marketplace
+- Custom hosting platforms
+
+**Typical Pipeline:**
+1. Build platform-specific packages
+2. Run comprehensive testing (payment flows, inventory)
+3. Deploy to staging environment
+4. Manual QA and approval
+5. Deploy to production marketplace
+
+### AI/ML Applications
+
+**Common Deployment Targets:**
+- AWS Lambda/SageMaker
+- Google Cloud Run/Vertex AI
+- Azure Container Instances
+- Hugging Face Spaces
+
+**Typical Pipeline:**
+1. Build and package models
+2. Create container images
+3. Run model validation tests
+4. Deploy to inference endpoints
+5. Gradual traffic shifting (canary deployment)
+
+### Mobile Applications
+
+**Common Deployment Targets:**
+- Google Play Store
+- Apple App Store
+- Enterprise distribution (TestFlight, Firebase)
+- Progressive Web App (PWA) platforms
+
+**Typical Pipeline:**
+1. Build platform-specific packages
+2. Run automated UI testing
+3. Upload to internal testing (TestFlight, Internal Testing)
+4. Manual QA approval
+5. Release to production stores
 
 ## Secret Management
 
-> **Complete Environment Guide**: For comprehensive environment variables documentation, see [Environment Variables Guide](./getting-started/environment-variables.md).
+### Generated App Secrets
 
-### Required GitHub Secrets
+Apps define required secrets in their configuration:
 
-#### Environment Configuration
-- **`ENV_FILE_CONTENT`**: Complete environment file content (`.env-dev` for staging, `.env-prod` for production)
-
-#### JWT Key Management
-- **`JWT_PRIV_PEM`**: JWT private key for token signing
-- **`JWT_PUB_PEM`**: JWT public key for token verification
-
-#### SSH Deployment
-- **`VPS_SSH_PRIVATE_KEY`**: SSH private key for secure server access
-- **`VPS_DEPLOY_USER`**: SSH username for deployment (e.g., `root`)
-- **`VPS_DEPLOY_HOST`**: Server hostname or IP address
-
-### Environment-Specific Secrets
-
-#### Development Environment (dev.yml)
-```bash
-# Uses GitHub Environment: development
-ENV_FILE_CONTENT=<content-of-.env-dev>
-JWT_PRIV_PEM=<dev-jwt-private-key>
-JWT_PUB_PEM=<dev-jwt-public-key>
-VPS_DEPLOY_USER=<dev-server-user>
-VPS_DEPLOY_HOST=<dev-server-host>
-VPS_SSH_PRIVATE_KEY=<dev-ssh-key>
+```json
+{
+  "secrets": {
+    "required": [
+      "DATABASE_URL",
+      "JWT_SECRET", 
+      "STRIPE_API_KEY"
+    ],
+    "optional": [
+      "ANALYTICS_API_KEY",
+      "SENTRY_DSN"
+    ],
+    "deployment": {
+      "vercel": ["VERCEL_TOKEN"],
+      "aws": ["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"]
+    }
+  }
+}
 ```
 
-#### Production Environment (master.yml)
-```bash
-# Uses GitHub Environment: production
-ENV_FILE_CONTENT=<content-of-.env-prod>
-JWT_PRIV_PEM=<production-jwt-private-key>
-JWT_PUB_PEM=<production-jwt-public-key>
-VPS_DEPLOY_USER=<production-server-user>
-VPS_DEPLOY_HOST=<production-server-host>
-VPS_SSH_PRIVATE_KEY=<production-ssh-key>
-```
-
-## Pipeline Execution Flow
-
-### 1. Environment Preparation
-
-> **Complete Development Guide**: For detailed environment setup, see [Development Environment](./development-environment.md).
-
-```bash
-# Create environment file from secret
-echo "${{ secrets.ENV_FILE_CONTENT }}" > .env-dev  # or .env-prod
-
-# Create JWT key files
-echo "${{ secrets.JWT_PRIV_PEM }}" > jwt_priv_dev.pem
-echo "${{ secrets.JWT_PUB_PEM }}" > jwt_pub_dev.pem
-```
-
-### 2. SSH Configuration
-
-> **Complete SSH Guide**: For comprehensive SSH setup and troubleshooting, see [SSH Setup Guide](./getting-started/ssh-setup.md).
-
-```bash
-# Configure SSH for secure deployment
-mkdir -p ~/.ssh
-echo -e "Host *\n \tStrictHostKeyChecking no\n" > ~/.ssh/config
-chmod 600 ~/.ssh/config
-
-# Setup deployment key
-echo "${{ secrets.VPS_SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
-chmod 600 ~/.ssh/deploy_key
-```
-
-### 3. Build Process
-
-Advanced build using the sophisticated `build.sh` script:
-
-```bash
-bash scripts/main/build.sh \
-  --environment development \    # or production
-  --ci-cd yes \                 # CI/CD mode
-  --bundles zip \               # Create ZIP bundle
-  --artifacts docker \          # Build Docker artifacts
-  --binaries none \             # Skip binary builds in CI
-  --dest local \                # Save locally for transfer
-  --yes yes \                   # Auto-confirm prompts
-  --location remote \           # Remote deployment target
-  --lint "$LINT_ENABLED" \      # Conditional linting
-  --test "$TEST_ENABLED"        # Conditional testing
-```
-
-### 4. Remote Deployment
-
-```bash
-# Deploy via SSH to remote server
-ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
-  ${{ secrets.VPS_DEPLOY_USER }}@${{ secrets.VPS_DEPLOY_HOST }} \
-  'bash ~/Vrooli/scripts/main/deploy.sh \
-    --environment development \
-    --source docker \
-    --yes yes'
-```
-
-## Quality Control Features
-
-### Conditional Execution
-
-The pipeline supports optional quality control steps:
-
-```bash
-# Workflow dispatch inputs
-workflow_dispatch:
-  inputs:
-    run_lint:
-      description: 'Run linting step'
-      type: boolean
-      default: false
-    run_test:
-      description: 'Run tests step' 
-      type: boolean
-      default: false
-```
-
-### Linting Integration
-
-When enabled, runs comprehensive code quality checks:
-
-```bash
-# Automatic linting detection
-RUN_LINT: ${{ github.event.inputs.run_lint != 'false' }}
-
-# Integrated with build script
---lint "${{ env.RUN_LINT == 'true' && 'yes' || 'no' }}"
-```
-
-**Linting Tools:**
-- ESLint for TypeScript/JavaScript
-- ShellCheck for shell scripts
-- Prettier for code formatting
-
-### Testing Integration
-
-When enabled, runs the full test suite:
-
-```bash
-# Automatic test detection
-RUN_TEST: ${{ github.event.inputs.run_test != 'false' }}
-
-# Integrated with build script
---test "${{ env.RUN_TEST == 'true' && 'yes' || 'no' }}"
-```
-
-**Testing Framework:**
-- BATS for shell script testing
-- Vitest for unit tests
-- Playwright for E2E testing (future)
-
-## Deployment Strategies
-
-### Docker-Based Deployment
-
-Both pipelines use Docker deployment for consistency and isolation:
-
-```bash
-# Build creates Docker images and bundles
---artifacts docker --bundles zip
-
-# Deploy extracts and runs containers
---source docker --environment <env>
-```
-
-**Deployment Process:**
-1. **Extract Bundle**: Unpack ZIP bundle on remote server
-2. **Load Images**: Import Docker images from bundle
-3. **Update Configuration**: Apply environment-specific settings
-4. **Container Orchestration**: Start/restart services with Docker Compose
-5. **Health Verification**: Confirm services are running correctly
-
-### Environment-Specific Configuration
-
-#### Staging Deployment
-```bash
-# Rapid iteration environment
-ENVIRONMENT=development
-NODE_ENV=development
-SECRETS_SOURCE=file  # File-based secrets for simplicity
-```
-
-#### Production Deployment
-```bash
-# Production-optimized environment
-ENVIRONMENT=production
-NODE_ENV=production
-SECRETS_SOURCE=vault  # Vault-based secrets for security
-```
-
-## Build Integration
-
-### Integration with Advanced Build System
-
-The CI/CD pipeline leverages the sophisticated `build.sh` script:
-
-#### CI/CD Specific Options
-```bash
---ci-cd yes              # Enables CI/CD mode
---yes yes               # Auto-confirms all prompts
---location remote       # Optimizes for remote deployment
-```
-
-#### Quality Control Integration
-```bash
---lint yes/no           # Conditional linting
---test yes/no           # Conditional testing
---sudo-mode skip        # Skips sudo operations in CI
-```
-
-#### Artifact Optimization
-```bash
---bundles zip           # Creates deployment-ready bundles
---artifacts docker      # Docker-focused artifacts
---binaries none         # Skips binary builds in CI
---dest local           # Saves for SSH transfer
-```
-
-### Build Caching Strategy
-
-Optimizations for CI/CD performance:
-
-```bash
-# Package management caching
-- PNPM store caching between runs
-- Node modules cached by dependency hash
-- Docker layer caching for faster builds
-
-# Build artifact caching
-- TypeScript compilation cache
-- ESLint cache for faster linting
-- Test result caching for faster re-runs
-```
-
-## Advanced Features
-
-### Concurrency Control
+### Security Best Practices
 
 ```yaml
-concurrency:
-  group: dev        # or master
-  cancel-in-progress: true
+# Example secure deployment workflow
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production  # GitHub environment protection
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Configure secrets
+        run: |
+          echo "${{ secrets.ENV_FILE }}" > .env.production
+          echo "${{ secrets.SERVICE_ACCOUNT_KEY }}" > service-account.json
+          chmod 600 .env.production service-account.json
+          
+      - name: Deploy with secure cleanup
+        run: |
+          vrooli deploy --environment production
+        always: |
+          rm -f .env.production service-account.json
 ```
 
-**Benefits:**
-- ✅ Prevents concurrent deployments to same environment
-- ✅ Cancels outdated builds when new commits pushed
-- ✅ Optimizes CI/CD resource usage
+## Monitoring and Observability
 
-### Environment Protection
+### Deployment Monitoring
 
-Production pipeline uses GitHub Environment protection:
+Generated apps can include monitoring configuration:
+
+```json
+{
+  "monitoring": {
+    "health-checks": {
+      "endpoint": "/health",
+      "timeout": 30,
+      "retries": 3
+    },
+    "metrics": {
+      "provider": "datadog",
+      "custom-metrics": ["user_signups", "api_latency", "error_rate"]
+    },
+    "logging": {
+      "provider": "sentry",
+      "log-level": "info"
+    },
+    "alerts": {
+      "deployment-failure": "slack://deployment-alerts",
+      "high-error-rate": "pagerduty://on-call"
+    }
+  }
+}
+```
+
+### Post-Deployment Verification
 
 ```yaml
-environment: production  # Requires manual approval for production
+jobs:
+  verify-deployment:
+    runs-on: ubuntu-latest
+    needs: deploy
+    steps:
+      - name: Health check
+        run: |
+          curl -f ${{ env.HEALTH_CHECK_URL }} || exit 1
+          
+      - name: Integration test
+        run: vrooli test integration --environment production
+        
+      - name: Performance baseline
+        run: vrooli test performance --baseline --environment production
+        
+      - name: Notify success
+        if: success()
+        run: |
+          curl -X POST ${{ secrets.SLACK_WEBHOOK }} \
+            -H 'Content-type: application/json' \
+            --data '{"text":"✅ Deployment successful for ${{ github.repository }}"}'
 ```
 
-**Protection Rules:**
-- Required reviewers for production deployments
-- Deployment branch restrictions
-- Environment-specific secrets isolation
+## Benefits of Generated App CI/CD
 
-### Health Verification
+### Flexibility
+- Each app chooses its optimal deployment strategy
+- No platform lock-in - apps can switch deployment targets
+- Technology-agnostic - works with any tech stack
 
-Automatic health checks after deployment:
+### Intelligence
+- Apps learn from successful deployment patterns
+- Common patterns become templates for new apps
+- Failed deployments inform better practices
 
-```bash
-# Built into deploy.sh script
-- Container status verification
-- Service health endpoint checks
-- Database connectivity validation
-- API response verification
-```
+### Scaling
+- Apps can start simple and evolve deployment complexity
+- Infrastructure scales with application requirements
+- Deployment knowledge compounds across all generated apps
 
-## Setting Up CI/CD
-
-### 1. Server Preparation
-
-> **Complete Server Setup**: For comprehensive server setup, see [Server Deployment Guide](./server-deployment.md).
-
-Prepare your deployment server:
-
-```bash
-# Run setup with CI/CD configuration
-bash scripts/main/setup.sh --ci-cd yes
-
-# Ensure Docker and deployment tools are installed
-# Configure firewall and security settings
-# Set up deployment directory structure
-```
-
-### 2. SSH Key Generation
-
-> **Complete SSH Guide**: For comprehensive SSH key setup, see [SSH Setup Guide](./getting-started/ssh-setup.md).
-
-Generate deployment-specific SSH keys:
-
-```bash
-# Generate environment-specific keys
-ssh-keygen -t ed25519 -f ~/.ssh/vrooli_staging_deploy -C "vrooli-staging-deploy"
-ssh-keygen -t ed25519 -f ~/.ssh/vrooli_production_deploy -C "vrooli-production-deploy"
-
-# Copy public keys to servers
-ssh-copy-id -i ~/.ssh/vrooli_staging_deploy.pub user@staging-server
-ssh-copy-id -i ~/.ssh/vrooli_production_deploy.pub user@production-server
-```
-
-### 3. GitHub Configuration
-
-#### Environment Setup
-1. **Go to**: Repository Settings → Environments
-2. **Create Environments**: `staging` and `production`
-3. **Configure Protection**: Add required reviewers for production
-
-#### Secret Configuration
-1. **Go to**: Repository Settings → Secrets and Variables → Actions
-2. **Select Environment**: staging or production
-3. **Add Required Secrets**: Environment files, JWT keys, SSH keys
-
-#### Environment File Preparation
-
-> **Complete Environment Guide**: For comprehensive environment variables, see [Environment Variables Guide](./getting-started/environment-variables.md).
-
-```bash
-# Staging environment (.env-dev)
-ENVIRONMENT=development
-NODE_ENV=development
-SECRETS_SOURCE=file
-# ... other staging-specific variables
-
-# Production environment (.env-prod)  
-ENVIRONMENT=production
-NODE_ENV=production
-SECRETS_SOURCE=vault
-# ... other production-specific variables
-```
-
-### 4. JWT Key Management
-
-Generate environment-specific JWT keys:
-
-```bash
-# Generate staging keys
-openssl genrsa -out jwt_priv_staging.pem 2048
-openssl rsa -in jwt_priv_staging.pem -pubout -out jwt_pub_staging.pem
-
-# Generate production keys
-openssl genrsa -out jwt_priv_production.pem 2048
-openssl rsa -in jwt_priv_production.pem -pubout -out jwt_pub_production.pem
-
-# Add to GitHub secrets (properly formatted)
-cat jwt_priv_staging.pem | tr '\n' '\n'    # Ensure proper line endings
-cat jwt_pub_staging.pem | tr '\n' '\n'     # Ensure proper line endings
-```
-
-## Monitoring and Troubleshooting
-
-### Pipeline Monitoring
-
-Monitor deployments through GitHub Actions:
-
-```bash
-# GitHub Actions dashboard
-- View real-time pipeline execution
-- Monitor build logs and artifacts
-- Track deployment success/failure rates
-- Set up notification webhooks
-
-# Server-side monitoring
-ssh user@server 'docker ps'              # Container status
-ssh user@server 'docker logs <container>' # Service logs
-ssh user@server 'curl localhost:5329/health' # Health checks
-```
-
-### Troubleshooting Issues
-
-> **Complete Troubleshooting**: For comprehensive troubleshooting of CI/CD pipeline issues, including SSH connection failures, environment file problems, build failures, and deployment issues, see [Troubleshooting Guide](./troubleshooting.md#cicd-pipeline-issues).
-
-Common troubleshooting categories:
-- **SSH Connection Failures**: Key format, connection testing, server configuration
-- **Environment File Issues**: Content validation, special characters, syntax errors  
-- **Build Failures**: Script logs, dependency verification, local testing
-- **Deployment Failures**: Service status, health checks, container management
-
-### Debug Mode
-
-Enable verbose logging for troubleshooting:
-
-```bash
-# In workflow files, add debug environment
-env:
-  DEBUG: 1
-  VERBOSE: 1
-
-# Check detailed logs in GitHub Actions
-# Enable SSH debugging
-ssh -vvv -i ~/.ssh/deploy_key user@server
-```
-
-## Performance Optimization
-
-### Build Speed Improvements
-
-```bash
-# Parallel builds
-export MAKEFLAGS="-j$(nproc)"
-
-# Docker layer caching
-# Optimize Dockerfile layer order
-# Use multi-stage builds
-
-# Dependency caching
-# Cache node_modules between builds
-# Use PNPM store efficiently
-```
-
-### Deployment Optimization
-
-```bash
-# Bundle optimization
-- Compress artifacts for faster transfer
-- Use rsync for incremental updates
-- Parallel deployment steps where possible
-
-# Health check optimization
-- Faster health check endpoints
-- Parallel service verification
-- Intelligent retry strategies
-```
-
-## Security Considerations
-
-### Secret Management Best Practices
-
-```bash
-# Environment separation
-- Use GitHub Environments for secret isolation
-- Separate staging and production secrets
-- Regular secret rotation
-
-# SSH key security
-- Use Ed25519 keys for better security
-- Separate keys per environment
-- Regular key rotation
-
-# Access control
-- Limit deployment permissions
-- Use required reviewers for production
-- Monitor deployment activities
-```
-
-### Audit and Compliance
-
-```bash
-# Deployment tracking
-- All deployments logged in GitHub Actions
-- Commit SHA tracking for rollback capability
-- Environment-specific deployment history
-
-# Security scanning
-- Dependency vulnerability scanning
-- Container image security scanning
-- Secret scanning in commits
-```
-
-This comprehensive CI/CD guide ensures secure, reliable, and efficient automated deployment for Vrooli across multiple environments.
-
-## Related Documentation
-
-- **Prerequisites**: [Prerequisites Guide](./getting-started/prerequisites.md)
-- **SSH Setup**: [SSH Setup Guide](./getting-started/ssh-setup.md)
-- **Environment Variables**: [Environment Variables Reference](./getting-started/environment-variables.md)
-- **Server Deployment**: [Server Deployment Guide](./server-deployment.md)
-- **Build System**: [Build System Guide](./build-system.md)
-- **Development Environment**: [Development Environment Setup](./development-environment.md)
-- **Troubleshooting**: [Troubleshooting Guide](./troubleshooting.md) 
+This approach enables each generated application to have a CI/CD pipeline perfectly suited to its specific needs, deployment targets, and operational requirements.

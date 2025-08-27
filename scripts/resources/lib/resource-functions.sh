@@ -92,27 +92,27 @@ start_required_resources() {
     
     local failed_resources=()
     
-    # Start each required resource
+    # Start each required resource using v2.0 CLI patterns
     for resource in $required_resources; do
         log_info "Starting resource: $resource"
         
-        # Find the resource's manage.sh script
-        local manage_script
-        manage_script=$(find "${RESOURCES_DIR}" -name "manage.sh" -path "*/${resource}/*" 2>/dev/null | head -1)
+        # Use the resource CLI wrapper instead of manage.sh
+        local resource_cli="resource-${resource}"
         
-        if [[ -z "$manage_script" ]]; then
-            log_warning "No management script found for resource: $resource"
+        # Check if the resource CLI exists
+        if ! command -v "$resource_cli" >/dev/null 2>&1; then
+            log_warning "Resource CLI not found: $resource_cli"
             continue
         fi
         
-        # Check if resource is already running
-        if "$manage_script" --action status >/dev/null 2>&1; then
+        # Check if resource is already running using v2.0 status command
+        if "$resource_cli" status >/dev/null 2>&1; then
             log_info "Resource already running: $resource"
             continue
         fi
         
-        # Start the resource
-        if "$manage_script" --action start; then
+        # Start the resource using v2.0 manage start command
+        if "$resource_cli" manage start; then
             log_success "Started resource: $resource"
         else
             log_error "Failed to start resource: $resource"
@@ -215,15 +215,15 @@ inject_initialization_data() {
     
     log_info "Injecting initialization data..."
     
-    # Use the runtime injection engine
-    local runtime_engine="${VROOLI_RUNTIME_DIR}/scripts/resources/injection/engine.sh"
+    # Use the runtime populate engine
+    local runtime_engine="${VROOLI_RUNTIME_DIR}/scripts/resources/populate/populate.sh"
     
     if [[ ! -x "$runtime_engine" ]]; then
-        log_error "Runtime injection engine not found: $runtime_engine"
+        log_error "Runtime populate engine not found: $runtime_engine"
         return 1
     fi
     
-    # Execute the runtime injection engine with the manifest
+    # Execute the runtime populate engine with the manifest
     if "$runtime_engine" "$manifest_file"; then
         log_success "All initialization data injected"
         return 0
@@ -286,12 +286,14 @@ stop_required_resources() {
     for resource in $required_resources; do
         log_info "Stopping resource: $resource"
         
-        # Find the resource's manage.sh script
-        local manage_script
-        manage_script=$(find "${RESOURCES_DIR}" -name "manage.sh" -path "*/${resource}/*" 2>/dev/null | head -1)
+        # Use the resource CLI wrapper instead of manage.sh
+        local resource_cli="resource-${resource}"
         
-        if [[ -n "$manage_script" ]]; then
-            "$manage_script" --action stop || true
+        # Stop using v2.0 manage stop command if CLI exists
+        if command -v "$resource_cli" >/dev/null 2>&1; then
+            "$resource_cli" manage stop || true
+        else
+            log_warning "Resource CLI not found: $resource_cli"
         fi
     done
     

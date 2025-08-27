@@ -9,15 +9,15 @@ _STATUS_ENGINE_SOURCED=1
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 SCRIPT_DIR="${APP_ROOT}/scripts/resources/lib"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/utils/log.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/docker-utils.sh" 2>/dev/null || true
+source "${SCRIPT_DIR}/docker-utils.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/http-utils.sh" 2>/dev/null || true
+source "${SCRIPT_DIR}/http-utils.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/wait-utils.sh" 2>/dev/null || true
+source "${SCRIPT_DIR}/wait-utils.sh"
 
 #######################################
 # Display unified resource status with consistent formatting
@@ -470,10 +470,10 @@ status::_display_installation_guidance() {
     echo
     log::info "💡 Installation Required:"
     log::info "   To install $resource_name, run:"
-    log::info "   ./manage.sh --action install"
+    log::info "   resource-${resource_name} manage install"
     echo
     log::info "   For installation options, run:"
-    log::info "   ./manage.sh --help"
+    log::info "   resource-${resource_name} help"
 }
 
 #######################################
@@ -489,81 +489,4 @@ status::_is_resource_installed() {
     fi
     
     docker::container_exists "$container_name"
-}
-
-#######################################
-# Standard Custom Section Examples
-# These can be used as templates for resource-specific sections
-#######################################
-
-#######################################
-# Display workflow/flow information section
-# Args: $1 - status_config (JSON), $2 - resource_name
-#######################################
-status::section_workflows() {
-    local status_config="$1"
-    local resource_name="$2"
-    
-    local container_name
-    container_name=$(echo "$status_config" | jq -r '.resource.container_name // empty')
-    
-    if [[ -z "$container_name" ]] || ! docker::is_running "$container_name"; then
-        return 0
-    fi
-    
-    log::info "⚡ Workflow Information:"
-    
-    # Resource-specific workflow listing logic would go here
-    # This is just a template - resources would implement their own version
-    
-    case "$resource_name" in
-        "n8n")
-            # Try to get workflow count via API if available
-            log::info "   💼 Workflows: Use './manage.sh --action workflow-list' to see all workflows"
-            ;;
-        "node-red")
-            # Try to get flow information
-            log::info "   🌊 Flows: Use './manage.sh --action flows' to see current flows"
-            ;;
-        "huginn")
-            # Try to get agent information
-            log::info "   🤖 Agents: Use './manage.sh --action agents' to see agent status"
-            ;;
-        *)
-            log::info "   📋 Items: Check resource-specific commands for details"
-            ;;
-    esac
-}
-
-#######################################
-# Display data directory information section
-# Args: $1 - status_config (JSON)
-#######################################
-status::section_data_directory() {
-    local status_config="$1"
-    
-    local data_dir
-    data_dir=$(echo "$status_config" | jq -r '.resource.data_dir // empty')
-    
-    if [[ -z "$data_dir" ]]; then
-        return 0
-    fi
-    
-    log::info "💾 Data Directory:"
-    
-    if [[ -d "$data_dir" ]]; then
-        local size
-        size=$(du -sh "$data_dir" 2>/dev/null | cut -f1 || echo "unknown")
-        log::info "   📁 Location: $data_dir"
-        log::info "   📊 Size: $size"
-        
-        # Check permissions
-        if [[ -w "$data_dir" ]]; then
-            log::success "   ✅ Permissions: Writable"
-        else
-            log::warn "   ⚠️  Permissions: Read-only or restricted"
-        fi
-    else
-        log::error "   ❌ Location: Directory does not exist: $data_dir"
-    fi
 }

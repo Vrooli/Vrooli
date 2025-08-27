@@ -7,7 +7,7 @@ SIMPY_CORE_DIR="${APP_ROOT}/resources/simpy/lib"
 
 # Source dependencies
 # shellcheck disable=SC1091
-source "${SIMPY_CORE_DIR}/../config/defaults.sh"
+source "${APP_ROOT}/resources/simpy/config/defaults.sh"
 # shellcheck disable=SC1091
 source "${APP_ROOT}/scripts/lib/utils/log.sh"
 
