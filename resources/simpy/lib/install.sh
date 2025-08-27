@@ -10,6 +10,13 @@ SIMPY_INSTALL_DIR="${APP_ROOT}/resources/simpy/lib"
 source "${SIMPY_INSTALL_DIR}/core.sh"
 
 #######################################
+# Install SimPy - v2.0 handler
+#######################################
+simpy::install::execute() {
+    simpy::install "$@"
+}
+
+#######################################
 # Install SimPy
 #######################################
 simpy::install() {
@@ -194,7 +201,7 @@ EOF
     
     # Install resource CLI
     log::info "Installing SimPy CLI..."
-    "${SIMPY_INSTALL_DIR}/../../../../lib/resources/install-resource-cli.sh" "execution/simpy"
+    "${APP_ROOT}/scripts/resources/lib/install-resource-cli.sh" "execution/simpy"
     
     # Create examples
     simpy::create_examples
@@ -312,4 +319,28 @@ if __name__ == '__main__':
 EOF
     
     log::success "Examples created"
+}
+
+#######################################
+# Uninstall SimPy
+#######################################
+simpy::install::uninstall() {
+    log::header "Uninstalling SimPy"
+    
+    # Stop service if running
+    if simpy::is_running; then
+        log::info "Stopping SimPy service..."
+        simpy::stop || true
+    fi
+    
+    # Remove service script and data directory
+    if [[ -d "$SIMPY_DATA_DIR" ]]; then
+        log::info "Removing SimPy data directory: $SIMPY_DATA_DIR"
+        rm -rf "$SIMPY_DATA_DIR"
+    fi
+    
+    # Note: We don't uninstall Python packages as they might be used by other applications
+    log::info "Note: Python packages (simpy, numpy, etc.) are left installed for other applications"
+    
+    log::success "SimPy uninstalled successfully"
 }

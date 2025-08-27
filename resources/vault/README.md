@@ -33,28 +33,36 @@ A secure, API-driven secret management solution that provides encrypted storage,
 ### **Development Setup**
 ```bash
 # Initialize Vault in development mode (auto-unsealed, in-memory storage)
-./manage.sh --action init-dev
+./cli.sh content init-dev
 
-# Store a secret
-./manage.sh --action put-secret --path "environments/dev/database-url" --value "postgresql://user:pass@localhost/db"
+# Store a secret (positional arguments)
+./cli.sh content add "environments/dev/database-url" "postgresql://user:pass@localhost/db"
 
-# Retrieve a secret
-./manage.sh --action get-secret --path "environments/dev/database-url"
+# Store a secret (named arguments)
+./cli.sh content add --path "environments/dev/database-url" --value "postgresql://user:pass@localhost/db"
+
+# Retrieve a secret (positional)
+./cli.sh content get "environments/dev/database-url"
+
+# Retrieve a secret (named arguments)
+./cli.sh content get --path "environments/dev/database-url"
 
 # List secrets in a path
-./manage.sh --action list-secrets --path "environments/dev"
+./cli.sh content list "environments/dev"
 ```
 
 ### **Production Setup**
 ```bash
 # Initialize Vault in production mode (manual unsealing, persistent storage)
-./manage.sh --action init-prod
+./cli.sh content init-prod
 
 # Unseal Vault after initialization
-./manage.sh --action unseal
+./cli.sh content unseal
 
-# Store production secrets
-./manage.sh --action put-secret --path "environments/prod/stripe-key" --value "sk_live_..."
+# Store production secrets (both syntaxes work)
+./cli.sh content add "environments/prod/stripe-key" "sk_live_..."
+# or:
+./cli.sh content add --path "environments/prod/stripe-key" --value "sk_live_..."
 ```
 
 ## 📋 **Available Actions**
@@ -72,13 +80,13 @@ A secure, API-driven secret management solution that provides encrypted storage,
 - `unseal` - Unseal Vault (production mode only)
 
 ### **Secret Operations**
-- `put-secret --path <path> --value <value>` - Store a secret
-- `get-secret --path <path>` - Retrieve a secret
-- `list-secrets --path <path>` - List secrets at path
-- `delete-secret --path <path>` - Delete a secret
+- `content add <path> <value>` or `content add --path <path> --value <value>` - Store a secret
+- `content get <path>` or `content get --path <path>` - Retrieve a secret  
+- `content list <path>` or `content list --path <path>` - List secrets at path
+- `content remove <path>` or `content remove --path <path>` - Delete a secret
 
 ### **Migration & Backup**
-- `migrate-env --env-file <file> --vault-prefix <prefix>` - Migrate .env file to Vault
+- `content migrate-env <file> <prefix>` or `content migrate-env --env-file <file> --vault-prefix <prefix>` - Migrate .env file to Vault
 - `backup [--backup-file <file>]` - Backup Vault data
 - `restore --backup-file <file>` - Restore Vault data
 
@@ -162,21 +170,24 @@ msg.payload = await vaultClient.getSecret('environments/prod/database-url');
 
 ### **Environment Variable Migration**
 ```bash
-# Migrate existing .env file to Vault
-./manage.sh --action migrate-env --env-file .env --vault-prefix "environments/development"
+# Migrate existing .env file to Vault (positional)
+./cli.sh content migrate-env .env "environments/development"
+
+# Migrate using named arguments
+./cli.sh content migrate-env --env-file .env --vault-prefix "environments/development"
 
 # Migrate production environment
-./manage.sh --action migrate-env --env-file .env.production --vault-prefix "environments/production"
+./cli.sh content migrate-env --env-file .env.production --vault-prefix "environments/production"
 ```
 
 ### **CI/CD Pipeline Integration**
 ```bash
 # Store deployment secrets
-./manage.sh --action put-secret --path "ci/docker-registry-token" --value "ghp_xxxx"
-./manage.sh --action put-secret --path "ci/aws-access-key" --value "AKIAXXXX"
+./cli.sh content add --path "ci/docker-registry-token" --value "ghp_xxxx"
+./cli.sh content add --path "ci/aws-access-key" --value "AKIAXXXX"
 
 # Retrieve in deployment scripts
-DB_URL=$(./manage.sh --action get-secret --path "environments/prod/database-url")
+DB_URL=$(./cli.sh content get --path "environments/prod/database-url")
 ```
 
 ## 🔒 **Security Best Practices**
@@ -219,13 +230,13 @@ DB_URL=$(./manage.sh --action get-secret --path "environments/prod/database-url"
 ### **Health Checks**
 ```bash
 # Quick status check
-./manage.sh --action status
+./cli.sh status
 
 # Comprehensive diagnostics
-./manage.sh --action diagnose
+./cli.sh diagnose
 
 # Continuous monitoring
-./manage.sh --action monitor --interval 30
+./cli.sh monitor --interval 30
 ```
 
 ### **Common Issues**
@@ -233,10 +244,10 @@ DB_URL=$(./manage.sh --action get-secret --path "environments/prod/database-url"
 #### **Vault Sealed (Production Mode)**
 ```bash
 # Check seal status
-./manage.sh --action status
+./cli.sh status
 
 # Unseal if needed
-./manage.sh --action unseal
+./cli.sh content unseal
 ```
 
 #### **Permission Issues**
@@ -245,7 +256,7 @@ DB_URL=$(./manage.sh --action get-secret --path "environments/prod/database-url"
 sudo chown -R $(whoami):$(whoami) ~/.vault
 
 # Restart with fresh configuration
-./manage.sh --action restart
+./cli.sh manage restart
 ```
 
 #### **Port Conflicts**
@@ -254,19 +265,19 @@ sudo chown -R $(whoami):$(whoami) ~/.vault
 netstat -tlnp | grep 8200
 
 # Use custom port
-VAULT_PORT=8201 ./manage.sh --action start
+VAULT_PORT=8201 ./cli.sh manage start
 ```
 
 ### **Log Analysis**
 ```bash
 # Show recent logs
-./manage.sh --action logs --lines 100
+./cli.sh logs --lines 100
 
 # Follow logs in real-time
-./manage.sh --action logs --follow
+./cli.sh logs --follow
 
 # Check for specific errors
-./manage.sh --action logs --lines 200 | grep -i error
+./cli.sh logs --lines 200 | grep -i error
 ```
 
 ## 🔄 **Backup & Recovery**
@@ -274,18 +285,18 @@ VAULT_PORT=8201 ./manage.sh --action start
 ### **Backup Operations**
 ```bash
 # Create backup
-./manage.sh --action backup --backup-file vault-backup-$(date +%Y%m%d).tar.gz
+./cli.sh content backup --backup-file vault-backup-$(date +%Y%m%d).tar.gz
 
 # Automated backup
-./manage.sh --action backup  # Uses timestamp filename
+./cli.sh content backup  # Uses timestamp filename
 ```
 
 ### **Restore Operations**
 ```bash
 # Restore from backup
-./manage.sh --action stop
-./manage.sh --action restore --backup-file vault-backup-20240128.tar.gz
-./manage.sh --action start
+./cli.sh manage stop
+./cli.sh content restore --backup-file vault-backup-20240128.tar.gz
+./cli.sh manage start
 ```
 
 ## 🌐 **API Reference**

@@ -9,7 +9,7 @@ set -euo pipefail
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 SCRIPT_DIR="${APP_ROOT}/resources/questdb/test"
 # shellcheck disable=SC1091
-source "$SCRIPT_DIR/../../../tests/lib/integration-test-lib.sh"
+source "${APP_ROOT}/scripts/tests/lib/integration-test-lib.sh"
 
 #######################################
 # SERVICE-SPECIFIC CONFIGURATION
@@ -20,7 +20,7 @@ RESOURCES_DIR="${APP_ROOT}/resources"
 # shellcheck disable=SC1091
 source "$RESOURCES_DIR/common.sh"
 # shellcheck disable=SC1091
-source "$SCRIPT_DIR/../config/defaults.sh"
+source "${APP_ROOT}/resources/questdb/config/defaults.sh"
 questdb::export_config
 
 # Override library defaults with QuestDB-specific settings

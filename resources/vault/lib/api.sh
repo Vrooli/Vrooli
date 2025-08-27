@@ -10,12 +10,42 @@
 #   $3 - secret key (optional, defaults to 'value')
 #######################################
 vault::put_secret() {
-    local path="$1"
-    local value="$2"
-    local key="${3:-value}"
+    local path="" value="" key="value"
+    
+    # Support both named and positional arguments
+    if [[ "${1:-}" == --* ]]; then
+        # Parse named arguments
+        while [[ $# -gt 0 ]]; do
+            case "$1" in
+                --path)
+                    path="$2"
+                    shift 2
+                    ;;
+                --value)
+                    value="$2"
+                    shift 2
+                    ;;
+                --key)
+                    key="$2"
+                    shift 2
+                    ;;
+                *)
+                    log::error "Unknown argument: $1"
+                    log::error "Usage: vault::put_secret --path <path> --value <value> [--key <key>]"
+                    return 1
+                    ;;
+            esac
+        done
+    else
+        # Traditional positional arguments
+        path="$1"
+        value="$2"
+        key="${3:-value}"
+    fi
     
     if [[ -z "$path" ]] || [[ -z "$value" ]]; then
         log::error "Usage: vault::put_secret <path> <value> [key]"
+        log::error "   or: vault::put_secret --path <path> --value <value> [--key <key>]"
         return 1
     fi
     
@@ -58,12 +88,42 @@ vault::put_secret() {
 #   $3 - output format (optional: 'json', 'raw', defaults to 'raw')
 #######################################
 vault::get_secret() {
-    local path="$1"
-    local key="${2:-value}"
-    local format="${3:-raw}"
+    local path="" key="value" format="raw"
+    
+    # Support both named and positional arguments
+    if [[ "${1:-}" == --* ]]; then
+        # Parse named arguments
+        while [[ $# -gt 0 ]]; do
+            case "$1" in
+                --path)
+                    path="$2"
+                    shift 2
+                    ;;
+                --key)
+                    key="$2"
+                    shift 2
+                    ;;
+                --format)
+                    format="$2"
+                    shift 2
+                    ;;
+                *)
+                    log::error "Unknown argument: $1"
+                    log::error "Usage: vault::get_secret --path <path> [--key <key>] [--format <format>]"
+                    return 1
+                    ;;
+            esac
+        done
+    else
+        # Traditional positional arguments
+        path="$1"
+        key="${2:-value}"
+        format="${3:-raw}"
+    fi
     
     if [[ -z "$path" ]]; then
         log::error "Usage: vault::get_secret <path> [key] [format]"
+        log::error "   or: vault::get_secret --path <path> [--key <key>] [--format <format>]"
         return 1
     fi
     
@@ -107,11 +167,37 @@ vault::get_secret() {
 #   $2 - output format (optional: 'json', 'list', defaults to 'list')
 #######################################
 vault::list_secrets() {
-    local path="$1"
-    local format="${2:-list}"
+    local path="" format="list"
+    
+    # Support both named and positional arguments
+    if [[ "${1:-}" == --* ]]; then
+        # Parse named arguments
+        while [[ $# -gt 0 ]]; do
+            case "$1" in
+                --path)
+                    path="$2"
+                    shift 2
+                    ;;
+                --format)
+                    format="$2"
+                    shift 2
+                    ;;
+                *)
+                    log::error "Unknown argument: $1"
+                    log::error "Usage: vault::list_secrets --path <path> [--format <format>]"
+                    return 1
+                    ;;
+            esac
+        done
+    else
+        # Traditional positional arguments
+        path="$1"
+        format="${2:-list}"
+    fi
     
     if [[ -z "$path" ]]; then
         log::error "Usage: vault::list_secrets <path> [format]"
+        log::error "   or: vault::list_secrets --path <path> [--format <format>]"
         return 1
     fi
     
@@ -157,10 +243,32 @@ vault::list_secrets() {
 #   $1 - secret path
 #######################################
 vault::delete_secret() {
-    local path="$1"
+    local path=""
+    
+    # Support both named and positional arguments
+    if [[ "${1:-}" == --* ]]; then
+        # Parse named arguments
+        while [[ $# -gt 0 ]]; do
+            case "$1" in
+                --path)
+                    path="$2"
+                    shift 2
+                    ;;
+                *)
+                    log::error "Unknown argument: $1"
+                    log::error "Usage: vault::delete_secret --path <path>"
+                    return 1
+                    ;;
+            esac
+        done
+    else
+        # Traditional positional arguments
+        path="$1"
+    fi
     
     if [[ -z "$path" ]]; then
         log::error "Usage: vault::delete_secret <path>"
+        log::error "   or: vault::delete_secret --path <path>"
         return 1
     fi
     

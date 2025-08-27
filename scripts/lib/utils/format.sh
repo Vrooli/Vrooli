@@ -17,7 +17,7 @@
 # Source dependencies
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 SCRIPT_DIR="${APP_ROOT}/scripts/lib/utils"
-source "${SCRIPT_DIR}/var.sh" 2>/dev/null || true
+source "${SCRIPT_DIR}/var.sh"
 
 ################################################################################
 # Main Output Formatter

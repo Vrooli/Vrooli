@@ -7,9 +7,6 @@ set -euo pipefail
 
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 SCRIPT_DIR="${APP_ROOT}/scripts/lib/service"
-if [[ -f "${APP_ROOT}/scripts/lib/utils/common.sh" ]]; then
-    source "${APP_ROOT}/scripts/lib/utils/common.sh"
-fi
 
 # Main setup function for Cloudflare tunnels
 cloudflare_tunnel_setup() {

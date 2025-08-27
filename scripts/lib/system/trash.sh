@@ -568,12 +568,36 @@ trash::validate_path() {
     esac
     
     # Check if any processes are using files in this path (if lsof is available)
+    # CRITICAL: Add timeout to prevent infinite hanging
     if command -v lsof >/dev/null 2>&1 && [[ -d "$canonical_target" ]]; then
-        local open_files
-        open_files=$(lsof +D "$canonical_target" 2>/dev/null | wc -l)
+        local open_files=0
+        # Use timeout to prevent lsof from hanging indefinitely
+        if command -v timeout >/dev/null 2>&1; then
+            # 5 second timeout for lsof check - capture exit code properly
+            local lsof_exit_code=0
+            open_files=$(timeout 5 lsof +D "$canonical_target" 2>/dev/null | wc -l) || lsof_exit_code=$?
+            
+            # Handle timeout or other errors
+            if [[ $lsof_exit_code -eq 124 ]]; then
+                # Timeout occurred
+                log::debug "lsof check timed out for $canonical_target (proceeding anyway)"
+                trash::log_operation "LSOF_TIMEOUT" "$canonical_target" "check timed out after 5s"
+                open_files=0
+            elif [[ $lsof_exit_code -ne 0 ]]; then
+                # Other lsof error
+                log::debug "lsof check failed for $canonical_target (proceeding anyway)"
+                trash::log_operation "LSOF_ERROR" "$canonical_target" "lsof failed with exit code $lsof_exit_code"
+                open_files=0
+            fi
+        else
+            # Fallback: skip the check if no timeout available
+            log::debug "Skipping lsof check (no timeout command available)"
+            open_files=0
+        fi
+        
+        # Only warn if we got a valid result
         if [[ "$open_files" -gt 0 ]]; then
             log::warn "WARNING: $open_files files in $canonical_target are currently open by processes"
-            # This is a warning, not a blocker, but we log it
             trash::log_operation "WARNING_FILES_IN_USE" "$canonical_target" "$open_files files in use"
         fi
     fi

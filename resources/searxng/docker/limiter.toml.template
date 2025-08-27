@@ -1,1 +1,112 @@
+# SearXNG Rate Limiter Configuration
+# This file configures bot detection and rate limiting for SearXNG
+# Variables are substituted by the Vrooli resource management system
+
+[botdetection]
+# Network prefix configuration for IP tracking
+# IPv4 prefix length for IP grouping (24 = /24 subnet, 32 = individual IPs)
+ipv4_prefix = 32
+# IPv6 prefix length for IP grouping (48 = /48 subnet, 64 = /64 subnet)
+ipv6_prefix = 48
+
+[botdetection.ip_limit]
+# To get unlimited access in a local network, by default link-local addresses
+# (networks) are not monitored by the ip_limit
+filter_link_local = true
+
+# Activate link_token method in the ip_limit method
+# This method evaluates requests as suspicious if /client<token>.css is not requested
+link_token = false
+
+# Rate limiting windows and thresholds
+# Number of requests allowed in sliding window
 rate_limit = ${SEARXNG_RATE_LIMIT}
+# Window size in seconds for rate limiting
+window_size = ${SEARXNG_RATE_LIMIT_WINDOW}
+
+# Burst allowance (requests allowed above rate limit for short periods)
+burst_size = 5
+
+[botdetection.ip_lists]
+# In the limiter, the ip_lists method has priority over all other methods
+# If an IP is in the pass_ip list, it has unrestricted access and is not checked
+# for other bot indicators (e.g. user agent)
+
+# Block specific IPs (add malicious IPs here)
+block_ip = [
+    # Example blocked IPs (uncomment and modify as needed):
+    # '93.184.216.34',      # IPv4 example
+    # '2001:db8::1',        # IPv6 example
+]
+
+# Allow specific IPs/networks unrestricted access
+pass_ip = [
+    # Local networks (uncomment as needed):
+    '127.0.0.0/8',          # IPv4 localhost
+    '10.0.0.0/8',           # IPv4 private network
+    '172.16.0.0/12',        # IPv4 private network  
+    '192.168.0.0/16',       # IPv4 private network
+    '::1/128',              # IPv6 localhost
+    'fe80::/10',            # IPv6 link-local (overrides filter_link_local)
+    'fc00::/7',             # IPv6 unique local addresses
+]
+
+# Activate passlist of (hardcoded) IPs from the SearXNG organization
+pass_searxng_org = true
+
+[botdetection.user_agent]
+# Enable user agent based bot detection
+enabled = true
+
+# Block requests with empty or suspicious user agents
+block_empty_user_agent = true
+
+# List of user agent patterns to block (regex patterns)
+block_user_agent = [
+    # Common bot patterns (add as needed):
+    '.*[Bb]ot.*',
+    '.*[Cc]rawl.*',
+    '.*[Ss]pider.*',
+    '.*[Ss]crape.*',
+    'curl.*',
+    'wget.*',
+    'python-requests.*',
+]
+
+# List of user agent patterns to allow (takes precedence over block list)
+pass_user_agent = [
+    # Allow legitimate browsers and tools:
+    '.*Mozilla.*',
+    '.*Chrome.*',
+    '.*Safari.*',
+    '.*Firefox.*',
+    '.*Edge.*',
+    '.*Opera.*',
+]
+
+[botdetection.http_accept]
+# Enable HTTP Accept header based detection
+enabled = true
+
+# Require Accept header to be present
+require_accept_header = true
+
+# Block requests with suspicious Accept headers
+block_suspicious_accept = true
+
+[botdetection.http_user_agent_ban]
+# Enable permanent banning of repeat offenders
+enabled = false
+
+# Duration to ban IPs that repeatedly trigger bot detection (in seconds)
+ban_duration = 3600  # 1 hour
+
+# Number of violations before permanent ban
+violation_threshold = 10
+
+[logging]
+# Log level for limiter operations
+level = "INFO"
+
+# Enable detailed logging of rate limiting decisions
+verbose = false

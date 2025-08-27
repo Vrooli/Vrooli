@@ -507,10 +507,6 @@ migration:
     - "Commands now grouped under manage/ and test/"
     - "Category-specific contracts replaced with universal"
     - "manage.sh deprecated in favor of cli.sh"
-  migration_tools:
-    - "detect-deprecated.sh"
-    - "migrate-resource.sh"
-    - "validate-migration.sh"
   timeline:
     v2.0_release: "2025-01"
     v1.0_deprecated: "2025-06"

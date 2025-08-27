@@ -120,12 +120,18 @@ vocr::validate_config() {
     case "$VOCR_OCR_ENGINE" in
         tesseract)
             if ! command -v tesseract &>/dev/null && [[ "$VOCR_DEV_MODE" != "true" ]]; then
-                echo "Warning: Tesseract not found in PATH"
+                # Only show warning during installation, not during normal operation
+                if [[ "${VOCR_INSTALLING:-false}" == "true" ]]; then
+                    echo "Warning: Tesseract not found in PATH"
+                fi
             fi
             ;;
         easyocr)
             if ! python3 -c "import easyocr" 2>/dev/null && [[ "$VOCR_DEV_MODE" != "true" ]]; then
-                echo "Warning: EasyOCR Python module not found"
+                # Only show warning during installation, not during normal operation
+                if [[ "${VOCR_INSTALLING:-false}" == "true" ]]; then
+                    echo "Warning: EasyOCR Python module not found"
+                fi
             fi
             ;;
     esac

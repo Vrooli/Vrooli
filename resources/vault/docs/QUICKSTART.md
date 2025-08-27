@@ -7,8 +7,8 @@ This guide will help you get started with HashiCorp Vault in the Vrooli ecosyste
 ### 1. Install Vault (Development Mode)
 ```bash
 cd resources/vault
-./manage.sh --action install
-./manage.sh --action init-dev
+./cli.sh manage install
+./cli.sh content init-dev
 ```
 
 This will:
@@ -20,7 +20,7 @@ This will:
 
 ### 2. Check Status
 ```bash
-./manage.sh --action status
+./cli.sh status
 ```
 
 You should see:
@@ -34,73 +34,74 @@ You should see:
 ### 1. Store a Secret
 ```bash
 # Store a simple key-value pair
-./manage.sh --action put-secret --path "environments/dev/api-key" --value "my-secret-api-key"
+./cli.sh content add --path "environments/dev/api-key" --value "my-secret-api-key"
 
 # Store with custom key name
-./manage.sh --action put-secret --path "environments/dev/database" --value "postgres://user:pass@host:5432/db" --key "connection_string"
+./cli.sh content add --path "environments/dev/database" --value "postgres://user:pass@host:5432/db" --key "connection_string"
 ```
 
 ### 2. Retrieve a Secret
 ```bash
 # Get a specific secret
-./manage.sh --action get-secret --path "environments/dev/api-key"
+./cli.sh content get --path "environments/dev/api-key"
 
 # Get as JSON (useful for multiple keys)
-./manage.sh --action get-secret --path "environments/dev/database" --format json
+./cli.sh content get --path "environments/dev/database" --format json
 ```
 
 ### 3. List Secrets
 ```bash
 # List all secrets in a path
-./manage.sh --action list-secrets --path "environments/"
+./cli.sh content list --path "environments/"
 
 # List as JSON
-./manage.sh --action list-secrets --path "environments/" --format json
+./cli.sh content list --path "environments/" --format json
 ```
 
 ### 4. Delete a Secret
 ```bash
-./manage.sh --action delete-secret --path "environments/dev/api-key"
+./cli.sh content remove --path "environments/dev/api-key"
 ```
 
 ## Advanced Features
 
 ### 1. Bulk Operations
 ```bash
-# Store multiple secrets from JSON
+# Store multiple secrets from JSON (Note: This feature may need implementation)
 echo '{"api_key": "secret123", "db_password": "pass456"}' > secrets.json
-./manage.sh --action bulk-put --json-file secrets.json --base-path "environments/dev"
+# Individual secret storage for now:
+./cli.sh content add --path "environments/dev/api_key" --value "secret123"
+./cli.sh content add --path "environments/dev/db_password" --value "pass456"
 rm secrets.json
 
-# Export secrets to JSON
-./manage.sh --action export-secrets --path "environments/dev" > exported-secrets.json
+# Export secrets (Note: Manual export for now)
+./cli.sh content get --path "environments/dev/api_key" > api_key.txt
 ```
 
 ### 2. Environment Migration
 ```bash
 # Migrate .env file to Vault
-./manage.sh --action migrate-env --env-file .env --vault-prefix "environments/dev"
+./cli.sh content migrate-env --env-file .env --vault-prefix "environments/dev"
 ```
 
 ### 3. Secret Rotation
 ```bash
+# Note: Manual rotation for now - generate new values and store them
 # Generate new random value
-./manage.sh --action rotate-secret --path "environments/dev/api-key" --type random
-
-# Generate new API key format
-./manage.sh --action rotate-secret --path "environments/dev/service-key" --type api-key
+NEW_SECRET=$(openssl rand -hex 32)
+./cli.sh content add --path "environments/dev/api-key" --value "$NEW_SECRET"
 ```
 
 ### 4. Monitoring
 ```bash
 # Show detailed diagnostics
-./manage.sh --action diagnose
+./cli.sh diagnose
 
 # Monitor health continuously
-./manage.sh --action monitor --interval 5
+./cli.sh monitor --interval 5
 
 # Follow container logs
-./manage.sh --action logs --follow yes
+./cli.sh logs --follow
 ```
 
 ## Integration Examples
@@ -171,19 +172,19 @@ For production use:
 
 ```bash
 # Initialize in production mode
-./manage.sh --action init-prod
+./cli.sh content init-prod
 
 # This will:
 # - Initialize Vault with 5 unseal keys
-# - Save keys to /tmp/vault-unseal-keys (SAVE THESE SECURELY!)
-# - Save root token to /tmp/vault-token
+# - Save keys to vault config directory (SAVE THESE SECURELY!)
+# - Save root token to vault config directory
 # - Require manual unsealing after restarts
 
 # Unseal after restart (needs 3 of 5 keys)
-./manage.sh --action unseal
+./cli.sh content unseal
 
 # Check seal status
-./manage.sh --action status
+./cli.sh status
 ```
 
 ## Namespace Organization
@@ -200,12 +201,12 @@ Vault is pre-configured with these namespace paths:
 
 1. **Container not running**
    ```bash
-   ./manage.sh --action start
+   ./cli.sh manage start
    ```
 
 2. **Vault is sealed (prod mode)**
    ```bash
-   ./manage.sh --action unseal
+   ./cli.sh content unseal
    ```
 
 3. **Port conflict**
@@ -214,19 +215,19 @@ Vault is pre-configured with these namespace paths:
    lsof -i :8200
    
    # Stop Vault and change port
-   ./manage.sh --action stop
+   ./cli.sh manage stop
    export VAULT_PORT=8201
-   ./manage.sh --action start
+   ./cli.sh manage start
    ```
 
 4. **View logs**
    ```bash
-   ./manage.sh --action logs --lines 50
+   ./cli.sh logs --lines 50
    ```
 
 5. **Full diagnostics**
    ```bash
-   ./manage.sh --action diagnose
+   ./cli.sh diagnose
    ```
 
 ## Security Best Practices

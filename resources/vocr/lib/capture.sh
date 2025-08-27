@@ -13,7 +13,7 @@ source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 # Source configuration
 # shellcheck disable=SC1091
-source "${VOCR_CAPTURE_DIR}/../config/defaults.sh"
+source "${APP_ROOT}/resources/vocr/config/defaults.sh"
 
 # Capture screen region
 vocr::capture::screen() {

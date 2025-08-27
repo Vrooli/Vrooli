@@ -13,19 +13,15 @@ vim .env-dev
 
 ## Setup full project based on environment variables:
 ```bash
-chmod +x ./scripts/main/setup.sh
-pnpm cache clean && ./scripts/main/setup.sh
+pnpm cache clean && vrooli setup
 ```
-**Read /scripts/main/setup.sh for available flags**
+**Run `vrooli setup --help` for available options**
 
 ## Start the development environment:
 ```bash
-# Normal start or restart
-./scripts/main/develop.sh
-# Rebuild and restart. Useful when you change config files like package.json
-./scripts/main/develop.sh --build
-# Force restart. Redownloads and rebuilds containers, keeping only volumes
-./scripts/main/develop.sh --build --force-recreate
+# Start development environment
+vrooli develop
+# Note: For rebuild options, use vrooli clean first, then vrooli develop
 ```
 
 
@@ -35,15 +31,15 @@ pnpm cache clean && ./scripts/main/setup.sh
 
 ## Build for deployment:
 ```bash
-./scripts/main/develop.sh
+vrooli build
 ```
-**Read /scripts/main/develop.sh for available flags**
+**Run `vrooli build --help` for available options**
 
 ## Deploy (typically run in remote server), after sending the build to it:
 ```bash
-./scripts/main/deploy.sh
+vrooli deploy
 ```
-**Read /scripts/main/deploy.sh for available flags**
+**Run `vrooli deploy --help` for available options**
 
 
 # Testing commands

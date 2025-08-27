@@ -6,11 +6,11 @@ services:
     container_name: ${SEARXNG_CONTAINER_NAME:-searxng}
     hostname: searxng
     ports:
-      - "${SEARXNG_BIND_ADDRESS:-127.0.0.1}:${SEARXNG_PORT:-9200}:8080"
+      - "${SEARXNG_BIND_ADDRESS:-127.0.0.1}:${SEARXNG_PORT:-8280}:8080"
     volumes:
       - "${SEARXNG_DATA_DIR:-${HOME}/.searxng}:/etc/searxng:rw"
     environment:
-      - SEARXNG_BASE_URL=${SEARXNG_BASE_URL:-http://localhost:9200}
+      - SEARXNG_BASE_URL=${SEARXNG_BASE_URL:-http://localhost:8280}
       - SEARXNG_SECRET=${SEARXNG_SECRET_KEY}
     cap_drop:
       - ALL
@@ -67,4 +67,4 @@ services:
 networks:
   searxng-network:
     name: ${SEARXNG_NETWORK_NAME:-searxng-network}
-    driver: bridge
+    external: true

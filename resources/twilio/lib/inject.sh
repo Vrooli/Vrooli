@@ -142,3 +142,13 @@ twilio::list_injected() {
     list_injected "$@"
 }
 
+# Remove content placeholder - required for v2.0 contract
+twilio::content::remove_placeholder() {
+    log::warn "Content removal not implemented for Twilio resource"
+    log::info "To remove content, manually delete files from:"
+    log::info "  - Templates: ${TWILIO_CONFIG_DIR}/templates"
+    log::info "  - TwiML: ${TWILIO_CONFIG_DIR}/twiml"
+    log::info "  - Workflows: ${TWILIO_WORKFLOWS_DIR}"
+    return 0
+}
+

@@ -2,9 +2,16 @@
 # SearXNG Configuration Defaults
 # All configuration constants and default values
 
+# Get the directory of this script for proper sourcing
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+
+# Source port registry for centralized port management
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/resources/port_registry.sh"
+
 # Initialize all variables early to prevent unbound variable errors in messages.sh
 # These are set with default values and will be overridden by export_config function
-SEARXNG_PORT="${SEARXNG_CUSTOM_PORT:-8280}"
+SEARXNG_PORT="${SEARXNG_CUSTOM_PORT:-8280}"  # Will be replaced by registry value in export_config
 SEARXNG_BASE_URL="http://localhost:${SEARXNG_PORT}"
 SEARXNG_DATA_DIR="${HOME}/.searxng"
 SEARXNG_CONTAINER_NAME="searxng"
@@ -34,8 +41,9 @@ searxng::make_config_readonly() {
 # Export function to make configuration available
 searxng::export_config() {
     # Set all configuration variables (allows for dynamic reconfiguration)
-    # SearXNG port configuration
-    SEARXNG_PORT="${SEARXNG_CUSTOM_PORT:-8280}"
+    # SearXNG port configuration - use port registry
+    local registry_port=$(ports::get_resource_port "searxng")
+    SEARXNG_PORT="${SEARXNG_CUSTOM_PORT:-${registry_port:-8280}}"
     SEARXNG_BASE_URL="${SEARXNG_BASE_URL:-http://localhost:${SEARXNG_PORT}}"
     
     # Container configuration

@@ -7,6 +7,12 @@
 # Idempotent - safe to call multiple times
 #######################################
 vault::export_config() {
+    # Ensure var.sh is sourced for DATA_DIR
+    if [[ -z "${var_DATA_DIR:-}" ]]; then
+        APP_ROOT="${APP_ROOT:-$(builtin cd "$(dirname "${BASH_SOURCE[0]}")/../.." && builtin pwd)}"
+        # shellcheck disable=SC1091
+        source "${APP_ROOT}/scripts/lib/utils/var.sh"
+    fi
     # Service configuration (only set if not already defined)
     if [[ -z "${VAULT_PORT:-}" ]]; then
         readonly VAULT_PORT="${VAULT_CUSTOM_PORT:-$(resources::get_default_port "vault")}"
@@ -19,21 +25,21 @@ vault::export_config() {
     fi
     if [[ -z "${VAULT_DATA_DIR:-}" ]]; then
         if [[ "${VROOLI_CONTEXT:-}" == "monorepo" ]]; then
-            readonly VAULT_DATA_DIR="${var_DATA_DIR}/vault/data"
+            readonly VAULT_DATA_DIR="${var_DATA_DIR}/resources/vault/data"
         else
             readonly VAULT_DATA_DIR="${HOME}/.vault/data"
         fi
     fi
     if [[ -z "${VAULT_CONFIG_DIR:-}" ]]; then
         if [[ "${VROOLI_CONTEXT:-}" == "monorepo" ]]; then
-            readonly VAULT_CONFIG_DIR="${var_DATA_DIR}/vault/config"
+            readonly VAULT_CONFIG_DIR="${var_DATA_DIR}/resources/vault/config"
         else
             readonly VAULT_CONFIG_DIR="${HOME}/.vault/config"
         fi
     fi
     if [[ -z "${VAULT_LOGS_DIR:-}" ]]; then
         if [[ "${VROOLI_CONTEXT:-}" == "monorepo" ]]; then
-            readonly VAULT_LOGS_DIR="${var_DATA_DIR}/vault/logs"
+            readonly VAULT_LOGS_DIR="${var_DATA_DIR}/resources/vault/logs"
         else
             readonly VAULT_LOGS_DIR="${HOME}/.vault/logs"
         fi

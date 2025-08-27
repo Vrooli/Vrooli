@@ -8,16 +8,16 @@ Ultra-high-performance time-series database for AI metrics, resource monitoring,
 
 ```bash
 # Install QuestDB
-./manage.sh --action install
+resource-questdb manage install
 
 # Check status
-./manage.sh --action status
+resource-questdb
 
 # Open web console
-./manage.sh --action console
+resource-questdb console
 
 # Execute a query
-./manage.sh --action query --query "SELECT * FROM tables()"
+resource-questdb query --query "SELECT * FROM tables()"
 ```
 
 ## 🎯 Use Cases
@@ -77,25 +77,25 @@ QuestDB comes pre-configured with tables optimized for Vrooli monitoring:
 ### Basic Operations
 ```bash
 # Lifecycle management
-./manage.sh --action start      # Start QuestDB
-./manage.sh --action stop       # Stop QuestDB
-./manage.sh --action restart    # Restart QuestDB
-./manage.sh --action status     # Check status
-./manage.sh --action logs       # View logs
-./manage.sh --action logs -f    # Follow logs
+resource-questdb manage start      # Start QuestDB
+resource-questdb manage stop       # Stop QuestDB
+resource-questdb manage restart    # Restart QuestDB
+resource-questdb     # Check status
+resource-questdb logs       # View logs
+resource-questdb logs -f    # Follow logs
 
 # Database operations
-./manage.sh --action tables     # List all tables
-./manage.sh --action query --query "SQL"  # Execute query
+resource-questdb tables     # List all tables
+resource-questdb query --query "SQL"  # Execute query
 ```
 
 ### Table Management
 ```bash
 # Create table from schema file
-./manage.sh --action tables --table my_metrics --schema schemas/my_metrics.sql
+resource-questdb tables --table my_metrics --schema schemas/my_metrics.sql
 
 # Get table information
-./manage.sh --action query --query "SHOW COLUMNS FROM ai_inference"
+resource-questdb query --query "SHOW COLUMNS FROM ai_inference"
 ```
 
 ## 🔗 Integration Examples
@@ -236,16 +236,16 @@ lsof -i :8812
 lsof -i :9011
 
 # Check Docker logs
-./manage.sh --action logs --tail 50
+resource-questdb logs --tail 50
 ```
 
 ### Query Performance Issues
 ```bash
 # Check table partitioning
-./manage.sh --action query --query "SELECT * FROM tables()"
+resource-questdb query --query "SELECT * FROM tables()"
 
 # Analyze query execution
-./manage.sh --action query --query "EXPLAIN SELECT ..."
+resource-questdb query --query "EXPLAIN SELECT ..."
 ```
 
 ### High Memory Usage

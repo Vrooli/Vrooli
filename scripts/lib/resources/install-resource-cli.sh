@@ -20,7 +20,7 @@ VROOLI_ROOT="$APP_ROOT"
 
 # Source utilities
 # shellcheck disable=SC1091
-source "${VROOLI_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || true
+source "${VROOLI_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE:-${VROOLI_ROOT}/scripts/lib/utils/log.sh}" 2>/dev/null || {
     # Fallback logging
@@ -106,8 +106,8 @@ install_resource_cli() {
     local resource_dir
     if [[ -d "$resource_path" ]]; then
         resource_dir="$resource_path"
-    elif [[ -d "${VROOLI_ROOT}/scripts/resources/${resource_path}" ]]; then
-        resource_dir="${VROOLI_ROOT}/scripts/resources/${resource_path}"
+    elif [[ -d "${VROOLI_ROOT}/resources/${resource_path}" ]]; then
+        resource_dir="${VROOLI_ROOT}/resources/${resource_path}"
     else
         log::error "Resource not found: $resource_path"
         return 1
@@ -115,6 +115,8 @@ install_resource_cli() {
     
     # Check if CLI exists  
     local cli_script="$(cd "$resource_dir" && pwd)/cli.sh"
+    # Make path relative to VROOLI_ROOT for registry storage
+    local relative_cli_path="${cli_script#$VROOLI_ROOT/}"
     if [[ ! -f "$cli_script" ]]; then
         log::info "No CLI found for $(basename "$resource_dir")"
         return 0
@@ -162,7 +164,7 @@ install_resource_cli() {
     # Add installation info to metadata
     local registry_file="${REGISTRY_DIR}/${resource_name}.json"
     echo "$metadata" | jq \
-        --arg path "$cli_script" \
+        --arg path "$relative_cli_path" \
         --arg installed "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" \
         '. + {path: $path, installed: $installed}' > "$registry_file"
     
@@ -182,7 +184,7 @@ install_all_resource_clis() {
     log::info "Installing all resource CLIs..."
     
     local count=0
-    local resources_dir="${VROOLI_ROOT}/scripts/resources"
+    local resources_dir="${VROOLI_ROOT}/resources"
     
     # Find all cli.sh files
     while IFS= read -r cli_file; do

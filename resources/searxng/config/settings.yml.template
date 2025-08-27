@@ -1,4 +1,88 @@
+# SearXNG Configuration Template
+# This template provides a complete configuration for SearXNG with sensible defaults
+# Variables are substituted by the Vrooli resource management system
+
+# Use default settings from SearXNG distribution and only override what's necessary
+use_default_settings: true
+
+# General instance configuration
+general:
+  debug: false
+  instance_name: "${SEARXNG_INSTANCE_NAME}"
+  privacypolicy_url: ""
+  donation_url: "${SEARXNG_DONATION_URL}"
+  contact_url: "${SEARXNG_CONTACT_URL}"
+  enable_metrics: ${SEARXNG_ENABLE_METRICS}
+
+# Search behavior configuration
+search:
+  safe_search: ${SEARXNG_SAFE_SEARCH}
+  autocomplete: "${SEARXNG_AUTOCOMPLETE}"
+  default_lang: "${SEARXNG_DEFAULT_LANG}"
+  formats:
+    - html
+    - json
+    - csv
+    - rss
+
+# Server configuration
 server:
-  instance_name: '${SEARXNG_INSTANCE_NAME}'
-  base_url: '${SEARXNG_BASE_URL}'
-  secret_key: '${SEARXNG_SECRET_KEY}'
+  port: 8080  # Internal container port
+  bind_address: "0.0.0.0"  # Bind to all interfaces within container
+  base_url: "${SEARXNG_BASE_URL}"
+  secret_key: "${SEARXNG_SECRET_KEY}"
+  limiter: ${SEARXNG_LIMITER_ENABLED}
+  image_proxy: true
+  public_instance: ${SEARXNG_ENABLE_PUBLIC_ACCESS}
+  default_http_headers:
+    X-Content-Type-Options: nosniff
+    X-XSS-Protection: "1; mode=block"
+    X-Download-Options: noopen
+    X-Robots-Tag: noindex, nofollow
+    Referrer-Policy: no-referrer
+
+# Outgoing request configuration
+outgoing:
+  request_timeout: ${SEARXNG_REQUEST_TIMEOUT}
+  max_request_timeout: ${SEARXNG_MAX_REQUEST_TIMEOUT}
+  pool_connections: ${SEARXNG_POOL_CONNECTIONS}
+  pool_maxsize: ${SEARXNG_POOL_MAXSIZE}
+  enable_http2: true
+  retries: 1
+  max_redirects: 30
+
+# Redis configuration (if enabled)
+redis:
+  url: redis://${SEARXNG_REDIS_HOST}:${SEARXNG_REDIS_PORT}/0
+
+# Engine configuration
+engines:
+  # Keep only essential search engines by default
+  - name: google
+    disabled: false
+    weight: 1.0
+  - name: bing
+    disabled: false
+    weight: 1.0
+  - name: duckduckgo
+    disabled: false
+    weight: 1.0
+  - name: startpage
+    disabled: false
+    weight: 1.0
+  - name: wikipedia
+    disabled: false
+    weight: 1.0
+
+# UI configuration
+ui:
+  static_use_hash: false
+  default_theme: simple
+  center_alignment: false
+  results_on_new_tab: false
+  advanced_search: false
+  query_in_title: false
+
+# Logging configuration
+logging:
+  level: "${SEARXNG_LOG_LEVEL}"

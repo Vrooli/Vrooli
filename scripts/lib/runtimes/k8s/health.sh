@@ -21,7 +21,7 @@ APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin
 K8S_HEALTH_DIR="${APP_ROOT}/scripts/lib/runtimes/k8s"
 
 # Source dependencies
-source "${K8S_HEALTH_DIR}/../../../utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${var_LOG_FILE}"
 
 ################################################################################

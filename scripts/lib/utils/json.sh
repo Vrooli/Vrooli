@@ -28,7 +28,7 @@ source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
 source "${var_SYSTEM_COMMANDS_FILE}"
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+source "${var_TRASH_FILE}"
 
 # Global variables for caching and configuration
 declare -g JSON_CONFIG_CACHE=""

@@ -66,7 +66,7 @@ searxng::export_messages() {
     # User Action Messages
     #######################################
     [[ -z "${MSG_SEARXNG_TRY_FORCE:-}" ]] && readonly MSG_SEARXNG_TRY_FORCE="Use --force to override"
-    [[ -z "${MSG_SEARXNG_CHECK_LOGS:-}" ]] && readonly MSG_SEARXNG_CHECK_LOGS="Check logs with: ./manage.sh --action logs"
+    [[ -z "${MSG_SEARXNG_CHECK_LOGS:-}" ]] && readonly MSG_SEARXNG_CHECK_LOGS="Check logs with: resource-searxng logs"
     [[ -z "${MSG_SEARXNG_VISIT_UI:-}" ]] && readonly MSG_SEARXNG_VISIT_UI="Visit the web interface to start searching"
     [[ -z "${MSG_SEARXNG_CONFIRM_ACTION:-}" ]] && readonly MSG_SEARXNG_CONFIRM_ACTION="Are you sure you want to proceed? (yes/no)"
 }

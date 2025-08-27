@@ -11,9 +11,9 @@ SIMPY_CONFIG_DIR="${APP_ROOT}/resources/simpy/config"
 SIMPY_EXAMPLES_DIR="${APP_ROOT}/resources/simpy/examples"
 
 # Source shared utilities
-source "$SIMPY_LIB_DIR/../../../../lib/utils/var.sh"
-source "$SIMPY_LIB_DIR/../../../../lib/utils/format.sh"
-source "$SIMPY_LIB_DIR/../../../../lib/utils/log.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/format.sh"
+source "$SIMPY_LIB_DIR/${APP_ROOT}/scripts/lib/utils/log.sh"
 
 # Configuration
 SIMPY_RESOURCE_NAME="simpy"

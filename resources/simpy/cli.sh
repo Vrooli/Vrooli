@@ -1,7 +1,17 @@
 #!/usr/bin/env bash
-# SimPy CLI - Thin wrapper around library functions
+################################################################################
+# SimPy Resource CLI - v2.0 Universal Contract Compliant
+# 
+# Discrete-event simulation library for Python
+#
+# Usage:
+#   resource-simpy <command> [options]
+#   resource-simpy <group> <subcommand> [options]
+#
+################################################################################
 
-# Get the real script directory (follows symlinks)
+set -euo pipefail
+
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
 # Handle symlinks for installed CLI
 if [[ -L "${BASH_SOURCE[0]}" ]]; then
@@ -11,90 +21,67 @@ if [[ -L "${BASH_SOURCE[0]}" ]]; then
 fi
 SIMPY_CLI_DIR="${APP_ROOT}/resources/simpy"
 
-# Source library functions
 # shellcheck disable=SC1091
-source "${SIMPY_CLI_DIR}/lib/core.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "${SIMPY_CLI_DIR}/lib/install.sh"
+source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
-source "${SIMPY_CLI_DIR}/lib/start.sh"
+source "${var_RESOURCES_COMMON_FILE}"
 # shellcheck disable=SC1091
-source "${SIMPY_CLI_DIR}/lib/stop.sh"
+source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 # shellcheck disable=SC1091
-source "${SIMPY_CLI_DIR}/lib/status.sh"
-# shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/utils/log.sh"
+source "${SIMPY_CLI_DIR}/config/defaults.sh"
 
-#######################################
-# Show help message
-#######################################
-simpy::help() {
-    cat << EOF
-SimPy Resource CLI
+# Source SimPy libraries
+for lib in core docker install status content test; do
+    lib_file="${SIMPY_CLI_DIR}/lib/${lib}.sh"
+    if [[ -f "$lib_file" ]]; then
+        # shellcheck disable=SC1090
+        source "$lib_file" 2>/dev/null || true
+    fi
+done
 
-Usage: $(basename "$0") <command> [options]
+# Initialize CLI framework in v2.0 mode (auto-creates manage/test/content groups)
+cli::init "simpy" "SimPy discrete-event simulation platform management" "v2"
 
-Commands:
-    install                 Install SimPy and dependencies
-    start                   Start SimPy service
-    stop                    Stop SimPy service
-    status [--json]         Show SimPy status
-    run <script>            Run a simulation script
-    list-examples           List available example simulations
-    help                    Show this help message
+# ==============================================================================
+# REQUIRED HANDLERS - These MUST be mapped for v2.0 compliance
+# ==============================================================================
 
-Examples:
-    $(basename "$0") install
-    $(basename "$0") start
-    $(basename "$0") status
-    $(basename "$0") run examples/machine_shop.py
-    $(basename "$0") stop
+# Management handlers
+CLI_COMMAND_HANDLERS["manage::install"]="simpy::install::execute"
+CLI_COMMAND_HANDLERS["manage::uninstall"]="simpy::install::uninstall"
+CLI_COMMAND_HANDLERS["manage::start"]="simpy::docker::start"  
+CLI_COMMAND_HANDLERS["manage::stop"]="simpy::docker::stop"
+CLI_COMMAND_HANDLERS["manage::restart"]="simpy::docker::restart"
 
-EOF
-}
+# Test handlers (focused on resource health, not business functionality)
+CLI_COMMAND_HANDLERS["test::smoke"]="simpy::test::smoke"
+CLI_COMMAND_HANDLERS["test::integration"]="simpy::test::integration"
+CLI_COMMAND_HANDLERS["test::unit"]="simpy::test::unit"
+CLI_COMMAND_HANDLERS["test::all"]="simpy::test::all"
 
-#######################################
-# Main CLI entry point
-#######################################
-main() {
-    local command="${1:-help}"
-    shift
-    
-    case "$command" in
-        install)
-            simpy::install "$@"
-            ;;
-        start)
-            simpy::start "$@"
-            ;;
-        stop)
-            simpy::stop "$@"
-            ;;
-        status)
-            simpy::status "$@"
-            ;;
-        run)
-            if [[ -z "$1" ]]; then
-                log::error "Usage: $(basename "$0") run <script>"
-                exit 1
-            fi
-            simpy::run_simulation "$@"
-            ;;
-        list-examples)
-            simpy::list_examples
-            ;;
-        help|--help|-h)
-            simpy::help
-            ;;
-        *)
-            log::error "Unknown command: $command"
-            simpy::help
-            exit 1
-            ;;
-    esac
-}
+# Content handlers (business functionality - simulation management)
+CLI_COMMAND_HANDLERS["content::add"]="simpy::content::add"
+CLI_COMMAND_HANDLERS["content::list"]="simpy::content::list" 
+CLI_COMMAND_HANDLERS["content::get"]="simpy::content::get"
+CLI_COMMAND_HANDLERS["content::remove"]="simpy::content::remove"
+CLI_COMMAND_HANDLERS["content::execute"]="simpy::content::execute"
 
-# Run main function if script is executed directly
+# ==============================================================================
+# REQUIRED INFORMATION COMMANDS
+# ==============================================================================
+cli::register_command "status" "Show detailed resource status" "simpy::status"
+cli::register_command "logs" "Show SimPy logs" "simpy::docker::logs"
+
+# ==============================================================================
+# OPTIONAL SIMPY-SPECIFIC COMMANDS
+# ==============================================================================
+
+# Add SimPy-specific content subcommands for simulation management
+cli::register_subcommand "content" "examples" "List example simulations" "simpy::list_examples"
+
+# Only execute if script is run directly (not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    main "$@"
+    cli::dispatch "$@"
 fi

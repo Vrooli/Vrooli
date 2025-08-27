@@ -4,12 +4,12 @@
 # This file contains higher-level document processing functions
 
 # Source trash module for safe cleanup
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 PROCESS_LIB_DIR="${APP_ROOT}/resources/unstructured-io/lib"
 # shellcheck disable=SC1091
-source "${PROCESS_LIB_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+source "${var_TRASH_FILE}"
 
 #######################################
 # Process documents from a directory

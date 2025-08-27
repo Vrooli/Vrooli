@@ -3,14 +3,14 @@
 # Unstructured.io API Test Suite (Shell Script)
 # This script provides comprehensive testing of the Unstructured.io API functionality
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 TEST_API_LIB_DIR="${APP_ROOT}/resources/unstructured-io/lib"
 
 # Source var.sh for directory variables
 # shellcheck disable=SC1091
-source "$TEST_API_LIB_DIR/../../../lib/utils/var.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+source "${var_TRASH_FILE}"
 
 BASE_URL="${UNSTRUCTURED_IO_BASE_URL:-http://localhost:11450}"
 TIMEOUT=30

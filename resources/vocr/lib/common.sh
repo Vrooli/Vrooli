@@ -12,10 +12,12 @@ source "${APP_ROOT}/scripts/lib/utils/log.sh"
 source "${APP_ROOT}/scripts/lib/utils/format.sh"
 # shellcheck disable=SC1091
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/lib/utils/flow.sh"
 
 # Source configuration
 # shellcheck disable=SC1091
-source "${VOCR_COMMON_DIR}/../config/defaults.sh"
+source "${APP_ROOT}/resources/vocr/config/defaults.sh"
 
 # Export configuration
 vocr::export_config
@@ -47,8 +49,8 @@ vocr::start() {
     fi
     
     # Start service
-    if [[ -f /etc/systemd/system/vocr.service ]] && command -v systemctl &>/dev/null; then
-        # Use systemd if available
+    if [[ -f /etc/systemd/system/vocr.service ]] && command -v systemctl &>/dev/null && flow::can_run_sudo "systemd service management"; then
+        # Use systemd if available and we have sudo
         log::info "Starting VOCR via systemd..."
         sudo systemctl start vocr || {
             log::error "Failed to start VOCR service"
@@ -107,8 +109,8 @@ vocr::stop() {
     fi
     
     # Stop service
-    if [[ -f /etc/systemd/system/vocr.service ]] && command -v systemctl &>/dev/null; then
-        # Use systemd if available
+    if [[ -f /etc/systemd/system/vocr.service ]] && command -v systemctl &>/dev/null && flow::can_run_sudo "systemd service management"; then
+        # Use systemd if available and we have sudo
         log::info "Stopping VOCR via systemd..."
         sudo systemctl stop vocr || {
             log::error "Failed to stop VOCR service"
@@ -211,4 +213,106 @@ vocr::configure() {
     else
         resource-vocr test-capture
     fi
+}
+
+#######################################
+# Clear captured images
+#######################################
+vocr::clear_captures() {
+    local force="${FORCE:-false}"
+    
+    if [[ "$force" != "true" ]]; then
+        log::warning "This will remove all captured images"
+        echo "Use --force to confirm"
+        return 1
+    fi
+    
+    if [[ -d "$VOCR_SCREENSHOTS_DIR" ]]; then
+        rm -rf "${VOCR_SCREENSHOTS_DIR}"/*.png 2>/dev/null || true
+        log::success "Cleared captured images"
+    else
+        log::info "No captures directory found"
+    fi
+}
+
+#######################################
+# List OCR models
+#######################################
+vocr::list_models() {
+    log::header "Available OCR Models"
+    
+    # List Tesseract models
+    if command -v tesseract &>/dev/null; then
+        echo "Tesseract languages:"
+        tesseract --list-langs 2>/dev/null | tail -n +2 || echo "  No languages found"
+    fi
+    
+    # List custom models
+    if [[ -d "$VOCR_MODELS_DIR" ]]; then
+        echo ""
+        echo "Custom models:"
+        ls -1 "$VOCR_MODELS_DIR" 2>/dev/null || echo "  No custom models"
+    fi
+}
+
+#######################################
+# Show VOCR logs
+#######################################
+vocr::logs() {
+    local lines="${1:-50}"
+    
+    if [[ -f "${VOCR_LOGS_DIR}/vocr.log" ]]; then
+        tail -n "$lines" "${VOCR_LOGS_DIR}/vocr.log"
+    else
+        log::info "No logs available"
+    fi
+}
+
+#######################################
+# Show VOCR credentials
+#######################################
+vocr::credentials() {
+    source "${var_SCRIPTS_RESOURCES_LIB_DIR}/credentials-utils.sh"
+    
+    if ! credentials::parse_args "$@"; then
+        [[ $? -eq 2 ]] && { credentials::show_help "vocr"; return 0; }
+        return 1
+    fi
+    
+    local status="not_running"
+    if pgrep -f "vocr" >/dev/null 2>&1; then
+        status="running"
+    fi
+    
+    local connections_array="[]"
+    if [[ "$status" == "running" ]]; then
+        local connection_obj
+        connection_obj=$(jq -n \
+            --arg host "$VOCR_HOST" \
+            --argjson port "$VOCR_PORT" \
+            --arg path "/api" \
+            '{host: $host, port: $port, path: $path}')
+        
+        local metadata_obj
+        metadata_obj=$(jq -n \
+            --arg engine "$VOCR_OCR_ENGINE" \
+            --arg languages "$VOCR_OCR_LANGUAGES" \
+            --arg vision "$VOCR_VISION_ENABLED" \
+            '{ocr_engine: $engine, languages: $languages, vision_enabled: $vision}')
+        
+        local connection
+        connection=$(credentials::build_connection \
+            "main" \
+            "VOCR API" \
+            "noAuth" \
+            "$connection_obj" \
+            "{}" \
+            "$metadata_obj")
+        
+        connections_array="[$connection]"
+    fi
+    
+    local response
+    response=$(credentials::build_response "vocr" "$status" "$connections_array")
+    credentials::format_output "$response"
 }

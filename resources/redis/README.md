@@ -33,13 +33,13 @@ A comprehensive Redis resource implementation for Vrooli's automation ecosystem,
 ### Installation
 ```bash
 # Install Redis resource
-./resources/redis/manage.sh --action install
+resource-redis manage install
 
 # Check status
-./resources/redis/manage.sh --action status
+resource-redis
 
 # Start monitoring
-./resources/redis/manage.sh --action monitor
+resource-redis manage monitor
 ```
 
 ### Basic Usage

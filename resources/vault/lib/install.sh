@@ -5,11 +5,14 @@
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 VAULT_LIB_DIR="${APP_ROOT}/resources/vault/lib"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+source "${var_TRASH_FILE}"
 # shellcheck disable=SC1091
-source "${VAULT_LIB_DIR}/docker.sh" 2>/dev/null || true
+source "${VAULT_LIB_DIR}/docker.sh"
+# shellcheck disable=SC1091
+source "${APP_ROOT}/resources/vault/config/messages.sh"
+vault::messages::init
 
 #######################################
 # Install Vault
@@ -322,11 +325,37 @@ vault::show_integration_info() {
 #   $2 - vault path prefix
 #######################################
 vault::migrate_env_file() {
-    local env_file="$1"
-    local vault_prefix="$2"
+    local env_file="" vault_prefix=""
+    
+    # Support both named and positional arguments
+    if [[ "${1:-}" == --* ]]; then
+        # Parse named arguments
+        while [[ $# -gt 0 ]]; do
+            case "$1" in
+                --env-file)
+                    env_file="$2"
+                    shift 2
+                    ;;
+                --vault-prefix)
+                    vault_prefix="$2"
+                    shift 2
+                    ;;
+                *)
+                    log::error "Unknown argument: $1"
+                    log::error "Usage: vault::migrate_env_file --env-file <file> --vault-prefix <prefix>"
+                    return 1
+                    ;;
+            esac
+        done
+    else
+        # Traditional positional arguments
+        env_file="$1"
+        vault_prefix="$2"
+    fi
     
     if [[ -z "$env_file" ]] || [[ -z "$vault_prefix" ]]; then
         log::error "Usage: vault::migrate_env_file <env_file> <vault_prefix>"
+        log::error "   or: vault::migrate_env_file --env-file <file> --vault-prefix <prefix>"
         return 1
     fi
     

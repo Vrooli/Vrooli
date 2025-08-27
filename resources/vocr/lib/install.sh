@@ -75,9 +75,9 @@ vocr::install() {
     
     # Install CLI
     log::info "Installing CLI..."
-    local install_cli_path="${APP_ROOT}/scripts/resources/lib/install-resource-cli.sh"
+    local install_cli_path="${APP_ROOT}/scripts/lib/resources/install-resource-cli.sh"
     if [[ -x "$install_cli_path" ]]; then
-        "$install_cli_path" vocr || log::warning "CLI installation failed"
+        "$install_cli_path" "${APP_ROOT}/resources/vocr" || log::warning "CLI installation failed"
     else
         log::warning "install-resource-cli.sh not found at $install_cli_path"
     fi

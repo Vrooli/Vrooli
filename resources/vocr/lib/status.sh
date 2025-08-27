@@ -13,7 +13,7 @@ source "${APP_ROOT}/scripts/lib/utils/format.sh"
 # shellcheck disable=SC1091
 source "${APP_ROOT}/scripts/resources/lib/status-args.sh"
 # shellcheck disable=SC1091
-source "${VOCR_STATUS_DIR}/../config/defaults.sh"
+source "${APP_ROOT}/resources/vocr/config/defaults.sh"
 
 # Always export configuration
 vocr::export_config

@@ -28,7 +28,8 @@ redis::install::main() {
             return 0
         else
             log::info "Redis container exists but is not running. Starting..."
-            return redis::docker::start
+            redis::docker::start
+            return $?
         fi
     fi
     

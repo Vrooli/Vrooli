@@ -18,7 +18,7 @@ source "${RESOURCES_DIR}/common.sh"
 # Source Vault configuration if available
 if [[ -f "${VAULT_SCRIPT_DIR}/config/defaults.sh" ]]; then
     # shellcheck disable=SC1091
-    source "${VAULT_SCRIPT_DIR}/config/defaults.sh" 2>/dev/null || true
+    source "${VAULT_SCRIPT_DIR}/config/defaults.sh"
 fi
 
 # Default Vault settings
@@ -110,7 +110,7 @@ vault_inject::check_accessibility() {
     local health_response
     if ! health_response=$(curl -s "${VAULT_ADDR}/v1/sys/health" 2>/dev/null); then
         log::error "Vault is not accessible at $VAULT_ADDR"
-        log::info "Ensure Vault is running: ./resources/vault/manage.sh --action start"
+        log::info "Ensure Vault is running: resource-vault manage start"
         return 1
     fi
     

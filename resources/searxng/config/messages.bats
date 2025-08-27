@@ -183,7 +183,7 @@ setup() {
     [[ "$MSG_SEARXNG_TROUBLESHOOT_LOGS" =~ "docker logs searxng-test" ]]
     [[ "$MSG_SEARXNG_TROUBLESHOOT_CONFIG" =~ "/test/data/settings.yml" ]]
     [[ "$MSG_SEARXNG_TROUBLESHOOT_PORT" =~ "ss -tlnp | grep 9200" ]]
-    [[ "$MSG_SEARXNG_TROUBLESHOOT_RESTART" =~ "./manage.sh --action restart" ]]
+    [[ "$MSG_SEARXNG_TROUBLESHOOT_RESTART" =~ "resource-searxng manage restart" ]]
 }
 
 @test "troubleshooting messages provide actionable guidance" {
