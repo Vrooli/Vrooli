@@ -144,7 +144,8 @@ questdb_cmd_insert() {
     IFS='|' read -r columns row_count <<< "$data"
     
     # Add timestamp if not provided
-    local timestamp=$(date +%s%N)
+    local timestamp
+    timestamp=$(date +%s%N)
     local row_key="$table:$row_count"
     QUESTDB_DATA[$row_key]="$timestamp|$values"
     
@@ -161,7 +162,8 @@ questdb_cmd_query() {
     
     [[ -z "$sql" ]] && { echo "Error: SQL query required" >&2; return 1; }
     
-    local query_hash=$(questdb_hash_query "$sql")
+    local query_hash
+    query_hash=$(questdb_hash_query "$sql")
     
     # Check cache
     if [[ -n "${QUESTDB_QUERIES[$query_hash]}" ]]; then

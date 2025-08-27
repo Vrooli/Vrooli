@@ -226,29 +226,29 @@ create_temp_script() {
 # Load official mocks - use the centralized mock system instead of ad-hoc mocks
 load_official_mocks() {
     # Load system mocks for common commands
-    if [[ -f "${var_SCRIPTS_TEST_DIR}/fixtures/mocks/system.sh" ]]; then
+    if [[ -f "${var_TEST_DIR}/fixtures/mocks/system.sh" ]]; then
         # shellcheck disable=SC1091
-        source "${var_SCRIPTS_TEST_DIR}/fixtures/mocks/system.sh"
+        source "${var_TEST_DIR}/fixtures/mocks/system.sh"
     fi
     
     # Load Docker mocks if needed
-    if [[ -f "${var_SCRIPTS_TEST_DIR}/fixtures/mocks/docker.sh" ]]; then
+    if [[ -f "${var_TEST_DIR}/fixtures/mocks/docker.sh" ]]; then
         # shellcheck disable=SC1091
-        source "${var_SCRIPTS_TEST_DIR}/fixtures/mocks/docker.sh"
+        source "${var_TEST_DIR}/fixtures/mocks/docker.sh"
     fi
     
     # Load HTTP mocks if needed
-    if [[ -f "${var_SCRIPTS_TEST_DIR}/fixtures/mocks/http.sh" ]]; then
+    if [[ -f "${var_TEST_DIR}/fixtures/mocks/http.sh" ]]; then
         # shellcheck disable=SC1091
-        source "${var_SCRIPTS_TEST_DIR}/fixtures/mocks/http.sh"
+        source "${var_TEST_DIR}/fixtures/mocks/http.sh"
     fi
 }
 
 # Initialize official mock logging
 init_official_mock_logging() {
-    if [[ -f "${var_SCRIPTS_TEST_DIR}/fixtures/mocks/logs.sh" ]]; then
+    if [[ -f "${var_TEST_DIR}/fixtures/mocks/logs.sh" ]]; then
         # shellcheck disable=SC1091
-        source "${var_SCRIPTS_TEST_DIR}/fixtures/mocks/logs.sh"
+        source "${var_TEST_DIR}/fixtures/mocks/logs.sh"
         mock::init_logging
     fi
 }

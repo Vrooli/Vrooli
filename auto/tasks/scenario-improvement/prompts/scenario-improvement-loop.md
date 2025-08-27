@@ -125,7 +125,7 @@ export N8N_PASSWORD="$N8N_PASSWORD"
 vrooli resource browserless for n8n execute-workflow "<workflowId>" '{"text":"test"}'
 ```
 
-**NOTE:** You cannot run a workflow unless it is injected and activated by n8n, which happens automatically (at least it should) by running `vrooli scenario convert <scenario-name> --force`, followed by `vrooli scenario start <scenario-name>`. You must then use the n8n resource (see `vrooli resource n8n help`) to list workflows and find the workflow ID, which is needed for the browserless execute-workflow command.
+**NOTE:** You cannot run a workflow unless it is injected and activated by n8n, which happens automatically (at least it should) by running `vrooli scenario convert <scenario-name> --force`, followed by `vrooli app start <scenario-name>`. You must then use the n8n resource (see `vrooli resource n8n help`) to list workflows and find the workflow ID, which is needed for the browserless execute-workflow command.
 
 NOTE 2: Prefer calling the shared `ollama.json` workflow over direct Ollama API calls. Prefer calling resources using bash (see `ollama.json`'s implementation for reference) over API calls, as this is known from experience to be a better approach.
 
@@ -188,7 +188,7 @@ This appendix preserves important specifics from the original prompt while keepi
 - Use `vrooli help` to discover available commands.
 - Converting and running:
   - Convert: `vrooli scenario convert <scenario-name> --force`
-  - Run: `vrooli scenario start <scenario-name>` (stop with Ctrl+C in the same terminal)
+  - Run: `vrooli app start <scenario-name>` (stop with Ctrl+C in the same terminal)
 - `vrooli setup` converts scenarios into generated apps but *all* of them. Please do not use it.
 - `vrooli develop` runs apps, but *all* of them. Please do not use it.
 
@@ -231,7 +231,7 @@ This appendix preserves important specifics from the original prompt while keepi
 ### Reading list (pre-work)
 - `/tmp/vrooli-scenario-improvement.md` (recent notes)
 - Project `README.md`
-- `docs/scenarios/README.md`
+- `scripts/scenarios/README.md`
 - `scripts/scenarios/catalog.json`
 - `scripts/scenarios/tools/app-structure.json` (describes copying to generated apps; some files come from the project root)
 - `docs/resources/README.md` (what resources are and how scenarios use them)

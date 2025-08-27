@@ -829,9 +829,9 @@ tests:
 - cli/README.md - CLI documentation
 
 ### Related PRDs
-- scenarios/core/product-manager/PRD.md - Consumes research capability
-- scenarios/core/study-buddy/PRD.md - Extends research for academic use
-- scenarios/core/agent-metareasoning-manager/PRD.md - Provides task prioritization
+- scenarios/product-manager/PRD.md - Consumes research capability
+- scenarios/study-buddy/PRD.md - Extends research for academic use
+- scenarios/agent-metareasoning-manager/PRD.md - Provides task prioritization
 
 ### External Resources
 - [SearXNG Documentation](https://docs.searxng.org/)

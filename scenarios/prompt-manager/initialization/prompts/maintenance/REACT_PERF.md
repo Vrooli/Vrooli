@@ -39,7 +39,7 @@
 1. **Launch full stack**
 
    ```bash
-   ./scripts/main/develop.sh --target docker --detached yes     # brings up app on http://localhost:3000
+   vrooli develop --target docker --detached yes     # brings up app on http://localhost:3000
    ```
 
 2. **Measure baseline**
@@ -150,7 +150,7 @@
 
 ### Remember
 
-> **Launch full app first (`./scripts/main/develop.sh …`)**—everything else builds on that.
+> **Launch full app first (`vrooli develop …`)**—everything else builds on that.
 > **Measure ➜ Fix ➜ Measure**—never “optimise” blind.
 
 [1]: https://www.reddit.com/r/react/comments/1g6ci6n/when_to_use_store_zustand_vs_context_vs_redux/?utm_source=chatgpt.com "When to use Store (Zustand) vs Context vs Redux ? : r/react - Reddit"

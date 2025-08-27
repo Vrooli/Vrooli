@@ -3,7 +3,7 @@
 # Vrooli CLI - Test Management Commands
 # 
 # Provides unified interface to the Vrooli testing infrastructure located in
-# scripts/__test-revised/. This connects the CLI to the convention-based
+# __test/. This connects the CLI to the convention-based
 # testing system designed for Vrooli's scenario-first architecture.
 #
 # Usage:
@@ -13,25 +13,25 @@
 
 set -euo pipefail
 
-# Get CLI directory and project root
-CLI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VROOLI_ROOT="$(cd "$CLI_DIR/../.." && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+CLI_DIR="${APP_ROOT}/cli/commands"
+VROOLI_ROOT="$APP_ROOT"
 
 # Source utilities
 # shellcheck disable=SC1091
-source "${CLI_DIR}/../../scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
 
-# Path to the revised testing infrastructure
-TEST_INFRASTRUCTURE_DIR="$VROOLI_ROOT/scripts/__test-revised"
+# Path to the testing infrastructure
+TEST_INFRASTRUCTURE_DIR="$VROOLI_ROOT/__test"
 TEST_ORCHESTRATOR="$TEST_INFRASTRUCTURE_DIR/run-tests.sh"
 
 # Verify test infrastructure exists
 check_test_infrastructure() {
     if [[ ! -f "$TEST_ORCHESTRATOR" ]]; then
         log::error "Test infrastructure not found at: $TEST_ORCHESTRATOR"
-        echo "The revised testing infrastructure should be available in scripts/__test-revised/"
+        echo "The testing infrastructure should be available in __test/"
         return 1
     fi
     
@@ -56,10 +56,11 @@ USAGE:
 
 TEST TYPES:
     all          Run all test suites (default)
-    static       Run static analysis (shellcheck, bash -n) on all scripts
-    resources    Run resource validation and mock testing
-    scenarios    Run scenario validation and integration tests
-    bats         Run all BATS test files with caching
+    static       Run static analysis (shellcheck, TypeScript, Python, Go) on all files
+    structure    Run file/directory structure and configuration validation
+    integration  Run integration tests (resource mocks, app testing, etc.)
+    unit         Run all unit tests (BATS) with caching
+    docs         Run documentation validation (markdown syntax & links)
 
 OPTIONS:
     --verbose      Show detailed output for all test phases
@@ -67,20 +68,22 @@ OPTIONS:
     --no-cache     Skip caching optimizations - force re-run all tests
     --dry-run      Show what tests would be run without executing
     --clear-cache  Clear test cache before running
-    --timeout N    Set timeout in minutes (default: 15)
+    --timeout N    Set timeout in seconds (default: 900)
 
 EXAMPLES:
-    vrooli test                         # Run all shell tests (static, resources, scenarios, bats)
+    vrooli test                         # Run all tests (900s timeout)
+    vrooli test --timeout 1800          # Run all tests with 30 minute timeout
     vrooli test static --verbose        # Run static analysis with detailed output
-    vrooli test resources --dry-run     # Show what resource tests would run
-    vrooli test scenarios --no-cache    # Force re-run scenario validation
-    vrooli test bats --parallel         # Run BATS tests in parallel
+    vrooli test structure --dry-run     # Show what structure tests would run
+    vrooli test integration --no-cache  # Force re-run integration tests
+    vrooli test unit --parallel         # Run unit tests in parallel
+    vrooli test docs --verbose          # Run documentation validation with details
 
 INFRASTRUCTURE:
-    The test commands connect to the convention-based testing infrastructure
-    located in scripts/__test-revised/. This system automatically discovers
-    and tests resources, validates scenarios, and runs comprehensive analysis
-    focused on Vrooli's scenario-first architecture.
+    The test commands connect to the test-type-based testing infrastructure
+    located in __test/. This system provides consistent, focused testing
+    where each phase has a single responsibility (static analysis, structure
+    validation, integration testing, unit testing, documentation validation).
     
     Test results are cached intelligently to avoid unnecessary reruns.
     Each test phase can be run independently or as part of the complete suite.
@@ -105,12 +108,21 @@ main() {
     while [[ $# -gt 0 ]]; do
         case "$1" in
             # These are test types
-            all|static|resources|scenarios|bats|help|--help|-h)
+            all|static|structure|integration|unit|docs|help|--help|-h)
                 test_type="$1"
                 shift
                 # Collect remaining arguments
                 args+=("$@")
                 break
+                ;;
+            # Handle timeout option with value
+            --timeout)
+                args+=("$1")
+                shift
+                if [[ $# -gt 0 ]]; then
+                    args+=("$1")
+                    shift
+                fi
                 ;;
             # These are options - collect them
             --*)
@@ -145,28 +157,36 @@ main() {
                 exec "$TEST_ORCHESTRATOR" static "${args[@]}"
             fi
             ;;
-        resources)
-            log::info "⚡ Running resource validation tests..."
+        structure)
+            log::info "🏗️ Running structure validation tests..."
             if [[ ${#args[@]} -eq 0 ]]; then
-                exec "$TEST_ORCHESTRATOR" resources
+                exec "$TEST_ORCHESTRATOR" structure
             else
-                exec "$TEST_ORCHESTRATOR" resources "${args[@]}"
+                exec "$TEST_ORCHESTRATOR" structure "${args[@]}"
             fi
             ;;
-        scenarios)
-            log::info "🎬 Running scenario validation tests..."
+        integration)
+            log::info "⚡ Running integration tests..."
             if [[ ${#args[@]} -eq 0 ]]; then
-                exec "$TEST_ORCHESTRATOR" scenarios
+                exec "$TEST_ORCHESTRATOR" integration
             else
-                exec "$TEST_ORCHESTRATOR" scenarios "${args[@]}"
+                exec "$TEST_ORCHESTRATOR" integration "${args[@]}"
             fi
             ;;
-        bats)
-            log::info "🦇 Running BATS test suite..."
+        unit)
+            log::info "🧪 Running unit test suite..."
             if [[ ${#args[@]} -eq 0 ]]; then
-                exec "$TEST_ORCHESTRATOR" bats
+                exec "$TEST_ORCHESTRATOR" unit
             else
-                exec "$TEST_ORCHESTRATOR" bats "${args[@]}"
+                exec "$TEST_ORCHESTRATOR" unit "${args[@]}"
+            fi
+            ;;
+        docs)
+            log::info "📚 Running documentation validation..."
+            if [[ ${#args[@]} -eq 0 ]]; then
+                exec "$TEST_ORCHESTRATOR" docs
+            else
+                exec "$TEST_ORCHESTRATOR" docs "${args[@]}"
             fi
             ;;
             

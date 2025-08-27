@@ -15,13 +15,7 @@ source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/sudo.sh"
 
-# Ensure var_SCRIPTS_TEST_DIR is defined
-if [ -z "${var_SCRIPTS_TEST_DIR:-}" ]; then
-    log::error "var_SCRIPTS_TEST_DIR not defined—please check var.sh"
-    exit 1
-fi
-
-BATS_DEPENDENCIES_DIR="${var_SCRIPTS_TEST_DIR}/helpers"
+BATS_DEPENDENCIES_DIR="${var_TEST_DIR}/helpers"
 
 # Function to determine and export BATS_PREFIX based on environment and sudo mode
 bats::determine_prefix() {

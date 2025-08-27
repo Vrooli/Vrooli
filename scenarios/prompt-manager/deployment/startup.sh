@@ -7,9 +7,9 @@ SCRIPT_DIR="${APP_ROOT}/scenarios/prompt-manager/deployment"
 SCENARIO_DIR="${APP_ROOT}/scenarios/prompt-manager"
 
 # Import logging utilities if available
-if [[ -f "${SCRIPT_DIR}/../../../../lib/utils/var.sh" ]]; then
+if [[ -f "${APP_ROOT}/scripts/lib/utils/var.sh" ]]; then
     # shellcheck disable=SC1091
-    source "${SCRIPT_DIR}/../../../../lib/utils/var.sh"
+    source "${APP_ROOT}/scripts/lib/utils/var.sh"
     # shellcheck disable=SC1091
     source "${var_LOG_FILE:-/dev/null}"
 else

@@ -242,6 +242,9 @@ node-red-flows-export-*.json
 # Test binary, built with `go test -c`
 *.test
 
+# Go compiled binaries
+api/api-server
+
 # Output of the go coverage tool
 *.out
 *.prof

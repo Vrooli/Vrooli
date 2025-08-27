@@ -46,8 +46,8 @@ create_mocks() {
         case "$1" in
             *".scenarios[]"*)
                 if [[ -f "$2" ]] && grep -q "test-scenario-1" "$2"; then
-                    echo "test-scenario-1:core/test-scenario-1"
-                    echo "test-scenario-2:core/test-scenario-2"
+                    echo "test-scenario-1:test-scenario-1"
+                    echo "test-scenario-2:test-scenario-2"
                 fi
                 ;;
             *)

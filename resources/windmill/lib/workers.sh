@@ -13,7 +13,7 @@ windmill::scale_workers() {
     
     if [[ -z "$target_count" ]]; then
         log::error "Worker count is required"
-        log::info "Usage: $0 --action scale-workers --workers <count>"
+        log::info "Usage: resource-windmill manage scale-workers <count>"
         return 1
     fi
     

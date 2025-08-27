@@ -12,15 +12,15 @@ source "${_HERE}/../../../lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
-source "${var_SCRIPTS_TEST_DIR}/test_helper.bash"
+source "${var_TEST_DIR}/test_helper.bash"
 
 # Load mocks for testing
 # shellcheck disable=SC1091
-source "${var_SCRIPTS_TEST_DIR}/fixtures/mocks/docker.sh"
+source "${var_TEST_DIR}/fixtures/mocks/docker.sh"
 # shellcheck disable=SC1091
-source "${var_SCRIPTS_TEST_DIR}/fixtures/mocks/jq.sh"
+source "${var_TEST_DIR}/fixtures/mocks/jq.sh"
 # shellcheck disable=SC1091
-source "${var_SCRIPTS_TEST_DIR}/fixtures/mocks/http.sh"
+source "${var_TEST_DIR}/fixtures/mocks/http.sh"
 
 # Setup and teardown
 setup() {

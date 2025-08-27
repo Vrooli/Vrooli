@@ -14,7 +14,7 @@ source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${BATS_TEST_DIRNAME}/../../../../lib/utils/var.sh"
 # shellcheck disable=SC1091  
-source "${var_SCRIPTS_TEST_DIR}/fixtures/setup.bash"
+source "${var_TEST_DIR}/fixtures/setup.bash"
 
 # =============================================================================
 # Test Setup and Teardown

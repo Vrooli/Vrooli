@@ -49,13 +49,13 @@ Environment Setup → Database Services → PostgreSQL/Redis → Server/Jobs/UI 
 ### Primary Development Commands
 ```bash
 # Start development environment (recommended)
-bash scripts/main/develop.sh --target native-linux
+vrooli develop --target native-linux
 
 # With specific target
-bash scripts/main/develop.sh --target docker-daemon --detached no
+vrooli develop --target docker-daemon --detached no
 
 # Root package commands
-pnpm develop                    # Wrapper for scripts/main/develop.sh
+pnpm develop                    # Wrapper for vrooli develop
 ```
 
 ### Package-Level Commands
@@ -248,10 +248,10 @@ fi
 ### Step 2: Start Development Environment with Monitoring
 ```bash
 # Start with log capture (use appropriate timeout: 5+ minutes)
-timeout 300 bash scripts/main/develop.sh --target native-linux --detached no 2>&1 | tee startup_logs.txt
+timeout 300 vrooli develop --target native-linux --detached no 2>&1 | tee startup_logs.txt
 
 # Alternative: Start in detached mode for longer monitoring
-bash scripts/main/develop.sh --target native-linux --detached yes
+vrooli develop --target native-linux --detached yes
 sleep 60  # Allow services to initialize
 ```
 
@@ -418,7 +418,7 @@ This keeps the report separate from the guide itself, allowing:
 ```bash
 # Regenerate missing environment
 rm .env-dev
-bash scripts/main/setup.sh --target native-linux
+vrooli setup --target native-linux
 
 # Fix JWT keys
 openssl genrsa -out jwt_private.pem 2048

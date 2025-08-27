@@ -11,9 +11,9 @@ source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 export TEST_TEMP_DIR=""
 
 # Load dependencies
-load "${var_SCRIPTS_TEST_DIR}/fixtures/setup.bash"
-load "${var_SCRIPTS_TEST_DIR}/fixtures/mocks/helm.sh"
-load "${var_SCRIPTS_TEST_DIR}/fixtures/mocks/system.sh"
+load "${var_TEST_DIR}/fixtures/setup.bash"
+load "${var_TEST_DIR}/fixtures/mocks/helm.sh"
+load "${var_TEST_DIR}/fixtures/mocks/system.sh"
 
 # Source the library being tested
 setup() {

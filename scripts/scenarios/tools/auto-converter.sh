@@ -254,17 +254,17 @@ if [[ ${#scenarios_to_convert[@]} -gt 0 ]]; then
             converted=$((converted + 1))
         done
     else
-        log::info "Batch converting ${#scenarios_to_convert[@]} scenario(s) in chunks of 10..."
+        log::info "Batch converting ${#scenarios_to_convert[@]} scenario(s) in chunks of 20..."
         
         # Process scenarios in chunks to avoid resource exhaustion
         batch_start=$(date +%s)
-        batch_timeout=300  # 5 minutes timeout per chunk
-        chunk_size=10
+        batch_timeout=600  # 10 minutes timeout per chunk (doubled for larger chunks)
+        chunk_size=20
         total_scenarios=${#scenarios_to_convert[@]}
         chunks_processed=0
         chunks_succeeded=0
         
-        # Process scenarios in chunks of 10
+        # Process scenarios in chunks of 20
         for ((i = 0; i < total_scenarios; i += chunk_size)); do
             chunk_start_idx=$i
             chunk_end_idx=$((i + chunk_size))

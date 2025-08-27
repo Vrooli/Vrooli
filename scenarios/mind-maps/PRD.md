@@ -790,9 +790,9 @@ tests:
 - ui/docs/shortcuts.md - Keyboard shortcuts
 
 ### Related PRDs
-- scenarios/core/stream-of-consciousness-analyzer/PRD.md - Primary consumer
-- scenarios/core/research-assistant/PRD.md - Stores findings
-- scenarios/core/product-manager-agent/PRD.md - Feature mapping
+- scenarios/stream-of-consciousness-analyzer/PRD.md - Primary consumer
+- scenarios/research-assistant/PRD.md - Stores findings
+- scenarios/product-manager-agent/PRD.md - Feature mapping
 
 ### External Resources
 - [Force-Directed Graphs](https://github.com/d3/d3-force)

@@ -166,10 +166,10 @@ smoke_test_whisper() {
     fi
     
     # Test 2: Test with audio fixture if available and comprehensive mode
-    if [[ "$TEST_MODE" == "comprehensive" && -f "${var_SCRIPTS_TEST_DIR}/fixtures/data/audio/whisper/test_speech.mp3" ]]; then
+    if [[ "$TEST_MODE" == "comprehensive" && -f "${var_TEST_DIR}/fixtures/data/audio/whisper/test_speech.mp3" ]]; then
         log_info "$test_name: Testing transcription with fixture audio"
         
-        local audio_file="${var_SCRIPTS_TEST_DIR}/fixtures/data/audio/whisper/test_speech.mp3"
+        local audio_file="${var_TEST_DIR}/fixtures/data/audio/whisper/test_speech.mp3"
         local response
         
         if response=$(curl -sf --max-time 30 "$base_url/v1/audio/transcriptions" \
@@ -206,10 +206,10 @@ smoke_test_unstructured_io() {
     fi
     
     # Test 2: Test with document fixture if available and comprehensive mode
-    if [[ "$TEST_MODE" == "comprehensive" && -f "${var_SCRIPTS_TEST_DIR}/fixtures/data/documents/pdf/simple_text.pdf" ]]; then
+    if [[ "$TEST_MODE" == "comprehensive" && -f "${var_TEST_DIR}/fixtures/data/documents/pdf/simple_text.pdf" ]]; then
         log_info "$test_name: Testing document processing with fixture PDF"
         
-        local pdf_file="${var_SCRIPTS_TEST_DIR}/fixtures/data/documents/pdf/simple_text.pdf"
+        local pdf_file="${var_TEST_DIR}/fixtures/data/documents/pdf/simple_text.pdf"
         local response
         
         if response=$(curl -sf --max-time 30 "$base_url/general/v0/general" \

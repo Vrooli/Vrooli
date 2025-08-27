@@ -20,7 +20,7 @@ setup() {
     source "${BATS_TEST_DIRNAME}/fixture-helpers.sh"
     
     # Setup test environment
-    export FIXTURE_BASE="${var_SCRIPTS_TEST_DIR}/fixtures/data"
+    export FIXTURE_BASE="${var_TEST_DIR}/fixtures"
 }
 
 teardown() {

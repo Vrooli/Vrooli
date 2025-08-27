@@ -8,7 +8,7 @@ APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}
 source "${APP_ROOT}/lib/utils/var.sh"
 
 # Source framework utilities if available
-FRAMEWORK_DIR="$var_SCRIPTS_SCENARIOS_DIR/framework"
+FRAMEWORK_DIR="$var_SCRIPTS_SCENARIOS_DIR/validation"
 
 # Source custom handler for print functions
 if [[ -f "$FRAMEWORK_DIR/handlers/custom.sh" ]]; then

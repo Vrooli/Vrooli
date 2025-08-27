@@ -125,7 +125,8 @@ claude() {
 # === Direct Prompt Handler ===
 claude_cmd_prompt() {
     local prompt="$*"
-    local prompt_hash=$(claude_hash_prompt "$prompt")
+    local prompt_hash
+    prompt_hash=$(claude_hash_prompt "$prompt")
     
     # Check for cached response
     if [[ -n "${CLAUDE_RESPONSES[$prompt_hash]}" ]]; then
@@ -185,7 +186,8 @@ Would you like me to elaborate on any specific aspect?"
 
 # === Chat Command ===
 claude_cmd_chat() {
-    local session_id=$(claude_generate_id)
+    local session_id
+    session_id=$(claude_generate_id)
     CLAUDE_SESSIONS[$session_id]="active|0|"
     
     echo "Starting Claude chat session: $session_id"
@@ -399,7 +401,8 @@ claude_mock_set_error() {
 claude_mock_set_response() {
     local prompt="$1"
     local response="$2"
-    local prompt_hash=$(claude_hash_prompt "$prompt")
+    local prompt_hash
+    prompt_hash=$(claude_hash_prompt "$prompt")
     CLAUDE_RESPONSES[$prompt_hash]="$response"
     claude_debug "Set custom response for prompt"
 }

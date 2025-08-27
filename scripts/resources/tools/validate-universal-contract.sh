@@ -689,8 +689,6 @@ generate_text_report() {
         echo
         echo "Next steps:"
         echo "  1. Fix the errors listed above"
-        echo "  2. Run deprecation detection: ./detect-deprecated.sh"
-        echo "  3. Consider migration to v2.0: ./migrate-resource.sh"
     fi
 }
 

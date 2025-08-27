@@ -19,9 +19,9 @@ setup() {
     
     # Source test helpers
     # shellcheck disable=SC1091
-    source "$var_SCRIPTS_TEST_DIR/fixtures/setup.bash"
+    source "$var_TEST_DIR/fixtures/setup.bash"
     # shellcheck disable=SC1091
-    source "$var_SCRIPTS_TEST_DIR/fixtures/assertions.bash"
+    source "$var_TEST_DIR/fixtures/assertions.bash"
     
     # Source the library being tested
     # shellcheck disable=SC1091

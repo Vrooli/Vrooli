@@ -1040,7 +1040,8 @@ scenario_to_app::adjust_app_root_depth() {
     fi
     
     # Create a temporary file for processing
-    local temp_file=$(mktemp)
+    local temp_file
+    temp_file=$(mktemp)
     
     # Process the file line by line
     while IFS= read -r line; do
@@ -1052,9 +1053,11 @@ scenario_to_app::adjust_app_root_depth() {
             # Pattern 1: ${BASH_SOURCE[0]%/*} followed by relative path
             if echo "$line" | grep -q '\${BASH_SOURCE\[0\]%/\*}'; then
                 # Count the ../ segments
-                local depth=$(echo "$line" | grep -o '\.\./\.\.' | wc -l)
+                local depth
+                depth=$(echo "$line" | grep -o '\.\./\.\.' | wc -l)
                 depth=$((depth * 2))  # Each ../.. is 2 levels
-                local single_dots=$(echo "$line" | sed 's|\.\./\.\.||g' | grep -o '\.\.' | wc -l)
+                local single_dots
+                single_dots=$(echo "$line" | sed 's|\.\./\.\.||g' | grep -o '\.\.' | wc -l)
                 depth=$((depth + single_dots))
                 
                 if [[ $depth -ge 2 ]]; then
@@ -1080,11 +1083,14 @@ scenario_to_app::adjust_app_root_depth() {
                 local depth=0
                 if echo "$line" | grep -q 'cd.*\.\.'; then
                     # Count ../.. patterns
-                    local double_dots=$(echo "$line" | sed -n 's/.*cd[^"]*"\([^"]*\)".*/\1/p' | grep -o '\.\./\.\.' | wc -l)
+                    local double_dots
+                    double_dots=$(echo "$line" | sed -n 's/.*cd[^"]*"\([^"]*\)".*/\1/p' | grep -o '\.\./\.\.' | wc -l)
                     depth=$((double_dots * 2))
                     # Count remaining single ..
-                    local temp_path=$(echo "$line" | sed -n 's/.*cd[^"]*"\([^"]*\)".*/\1/p' | sed 's|\.\./\.\.||g')
-                    local single_dots=$(echo "$temp_path" | grep -o '\.\.' | wc -l)
+                    local temp_path
+                    temp_path=$(echo "$line" | sed -n 's/.*cd[^"]*"\([^"]*\)".*/\1/p' | sed 's|\.\./\.\.||g')
+                    local single_dots
+                    single_dots=$(echo "$temp_path" | grep -o '\.\.' | wc -l)
                     depth=$((depth + single_dots))
                     
                     if [[ $depth -ge 2 ]]; then
@@ -1110,7 +1116,8 @@ scenario_to_app::adjust_app_root_depth() {
             
             # Pattern 3: Simple APP_ROOT="../.." style assignments  
             if echo "$line" | grep -qE "APP_ROOT=[\"']?\\.\\./"; then
-                local depth=$(echo "$line" | sed -n 's/.*APP_ROOT[^.]*\(\.\.[/.]*\).*/\1/' | grep -o '\.\.' | wc -l)
+                local depth
+                depth=$(echo "$line" | sed -n 's/.*APP_ROOT[^.]*\(\.\.[/.]*\).*/\1/' | grep -o '\.\.' | wc -l)
                 if [[ $depth -ge 2 ]]; then
                     local new_depth=$((depth - 2))
                     if [[ $new_depth -eq 0 ]]; then
@@ -1141,7 +1148,8 @@ scenario_to_app::adjust_app_root_depth() {
     done <<< "$content"
     
     # Read the processed content
-    local new_content=$(cat "$temp_file")
+    local new_content
+    new_content=$(cat "$temp_file")
     rm -f "$temp_file"
     
     # Check if content was modified
@@ -2000,38 +2008,137 @@ scenario_to_app::process_batch() {
     # Shared initialization (done once for all scenarios)
     scenario_to_app::shared_initialization
     
-    # Process each scenario
-    for i in "${!scenarios[@]}"; do
-        local scenario_name="${scenarios[i]}"
-        local progress="$((i+1))/$total"
-        
-        if [[ $total -gt 1 ]]; then
-            log::info "[$progress] Processing: $scenario_name"
-        else
-            log::info "Processing: $scenario_name"
+    # Determine if we should use parallel processing
+    local use_parallel=false
+    local parallel_jobs=8  # Default to 8 parallel jobs
+    
+    # Only use parallel for multiple scenarios (avoid overhead for single scenario)
+    if [[ $total -gt 1 ]]; then
+        use_parallel=true
+        # Determine optimal number of parallel jobs (use 2/3 of CPU cores, max 16 for larger batches)
+        if command -v nproc >/dev/null 2>&1; then
+            local cpu_cores
+            cpu_cores=$(nproc)
+            parallel_jobs=$((cpu_cores * 2 / 3))
+            [[ $parallel_jobs -lt 1 ]] && parallel_jobs=1
+            [[ $parallel_jobs -gt 16 ]] && parallel_jobs=16  # Increased max for larger chunks
         fi
+    fi
+    
+    # Use parallel processing with background jobs
+    if [[ "$use_parallel" == "true" ]]; then
+        log::info "Using parallel processing with up to $parallel_jobs concurrent jobs..."
         
-        # Process single scenario with isolated state
-        if scenario_to_app::process_single_scenario "$scenario_name"; then
-            ((succeeded++))
-            if [[ $total -gt 1 ]]; then
-                log::success "[$progress] ✅ $scenario_name completed"
-            else
-                log::success "✅ $scenario_name completed"
+        # Arrays to track background jobs
+        local -a pids=()
+        local -A pid_scenarios=()
+        local -A scenario_status=()
+        local running=0
+        
+        # Process scenarios with controlled parallelism
+        for scenario_name in "${scenarios[@]}"; do
+            # Wait if we've reached max parallel jobs
+            while [[ $running -ge $parallel_jobs ]]; do
+                # Check for completed jobs
+                for pid in "${pids[@]}"; do
+                    if ! kill -0 "$pid" 2>/dev/null; then
+                        # Job completed - check if we're still tracking it
+                        if [[ -n "${pid_scenarios[$pid]:-}" ]]; then
+                            wait "$pid"
+                            local exit_code=$?
+                            local completed_scenario="${pid_scenarios[$pid]}"
+                            
+                            if [[ $exit_code -eq 0 ]]; then
+                                ((succeeded++))
+                                scenario_status["$completed_scenario"]="success"
+                                log::success "✅ $completed_scenario completed"
+                            else
+                                ((failed++))
+                                scenario_status["$completed_scenario"]="failed"
+                                log::error "❌ $completed_scenario failed"
+                            fi
+                            
+                            # Remove from tracking
+                            unset "pid_scenarios[$pid]"
+                            ((running--))
+                        fi
+                    fi
+                done
+                
+                # Small sleep to avoid busy waiting
+                [[ $running -ge $parallel_jobs ]] && sleep 0.1
+            done
+            
+            # Start new background job
+            log::info "Starting: $scenario_name ($(( succeeded + failed + running + 1 ))/$total)"
+            (
+                # Run in subshell to isolate each scenario
+                scenario_to_app::process_single_scenario "$scenario_name"
+            ) &
+            
+            local pid=$!
+            pids+=("$pid")
+            pid_scenarios[$pid]="$scenario_name"
+            ((running++))
+        done
+        
+        # Wait for remaining jobs to complete
+        log::info "Waiting for final $running jobs to complete..."
+        for pid in "${pids[@]}"; do
+            if [[ -n "${pid_scenarios[$pid]:-}" ]]; then
+                wait "$pid"
+                local exit_code=$?
+                local completed_scenario="${pid_scenarios[$pid]}"
+                
+                if [[ $exit_code -eq 0 ]]; then
+                    ((succeeded++))
+                    scenario_status["$completed_scenario"]="success"
+                    log::success "✅ $completed_scenario completed"
+                else
+                    ((failed++))
+                    scenario_status["$completed_scenario"]="failed"
+                    log::error "❌ $completed_scenario failed"
+                fi
             fi
-        else
-            ((failed++))
+        done
+        
+        log::info "Parallel processing complete!"
+    else
+        # Fall back to sequential processing
+        [[ "$use_parallel" == "false" ]] && log::info "Parallel processing not available, using sequential mode..."
+        
+        for i in "${!scenarios[@]}"; do
+            local scenario_name="${scenarios[i]}"
+            local progress="$((i+1))/$total"
+            
             if [[ $total -gt 1 ]]; then
-                log::error "[$progress] ❌ $scenario_name failed"
-                # Continue with other scenarios unless critical failure
-                if [[ "$DRY_RUN" != "true" ]]; then
-                    log::info "Continuing with remaining scenarios..."
+                log::info "[$progress] Processing: $scenario_name"
+            else
+                log::info "Processing: $scenario_name"
+            fi
+            
+            # Process single scenario with isolated state
+            if scenario_to_app::process_single_scenario "$scenario_name"; then
+                ((succeeded++))
+                if [[ $total -gt 1 ]]; then
+                    log::success "[$progress] ✅ $scenario_name completed"
+                else
+                    log::success "✅ $scenario_name completed"
                 fi
             else
-                log::error "❌ $scenario_name failed"
+                ((failed++))
+                if [[ $total -gt 1 ]]; then
+                    log::error "[$progress] ❌ $scenario_name failed"
+                    # Continue with other scenarios unless critical failure
+                    if [[ "$DRY_RUN" != "true" ]]; then
+                        log::info "Continuing with remaining scenarios..."
+                    fi
+                else
+                    log::error "❌ $scenario_name failed"
+                fi
             fi
-        fi
-    done
+        done
+    fi
     
     # Batch summary
     if [[ $total -gt 1 ]]; then

@@ -56,7 +56,7 @@
 - ❌ Do NOT modify loop scripts or prompt files.
 - ❌ Do NOT create a `resource-<resource_name>` script to call the resource's `cli.sh` file. You tend to do this sometimes when the cli isn't available. However, the resource should use `install-resource-cli.sh` in its installation process, which automatically sets up the cli.
 
-> Policy: After testing any resource, keep it running. Only Whisper and agent-s2 should be stopped post-validation, due to resource constraints for whisper and known net jacking issues for agent-s2. If you run into a network issue (unlikely but possible), run `scripts/lib/network/network_diagnostics.sh` to figure out what's wrong and attempt autofixes.
+> Policy: After testing any resource, keep it running. Only Whisper and agent-s2 should be stopped post-validation, due to resource constraints for whisper and known net jacking issues for agent-s2. If you run into a network issue (unlikely but possible), run `scripts/lib/network/diagnostics/network_diagnostics.sh` to figure out what's wrong and attempt autofixes.
 
 ---
 
@@ -89,7 +89,7 @@ General:
 - **Content management implemented** (`resource-[name] content add/list/get/remove/execute`) for storing and managing resource data (workflows, SQL, scripts, etc.). This replaces the old "inject" pattern.
 - Resource's documentation is detailed, accurate, and organized. It should follow our documentation best practices, including using a "hub-and-spokes" model of organization to limit the size of the resource's main README.md.
 - Resource does not use a manage.sh script. Instead, the resource is managed through its `cli.sh` script, which acts as an ultra thin wrapper around the library functions.
-- The resource has integration tests, which are put in a `test/` folder. These use files from `__test/fixtures/data/` instead of putting the tests directly in the resources's folder, so that we can reuse them across other resources. 
+- The resource has integration tests, which are put in a `test/` folder. These use files from `__test/fixtures/` instead of putting the tests directly in the resources's folder, so that we can reuse them across other resources. 
 - Test results are included in the resource's `status` result, with a timestamp for the last time they were run.
 - The resource status correctly supports text and json output
 - The resource includes at least one example in an `examples/` folder.
@@ -212,7 +212,7 @@ Use this ranked list to decide what to fix first and how resources fit together.
 - What it does: Runs local LLMs/VLMs for low-latency and private workloads.
 - Use when: On-box inference is preferred, cost control, or offline/low-latency needs.
 - Depends on: CPU/GPU, disk for models; optional workflows (Huginn/n8n) invoking it.
-- Commands: `vrooli resource ollama status`, `resource-ollama status`, `resource-ollama list-models`
+- Commands: `vrooli resource ollama status`, `resource-ollama status`, `resource-ollama content list`
 - Signals: Model not found, OOM, slow generation; pull baseline models early.
 
 11) **Cline (IDE agent)**

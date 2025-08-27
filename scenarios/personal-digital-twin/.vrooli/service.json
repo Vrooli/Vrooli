@@ -110,7 +110,7 @@
         },
         {
           "name": "add-data",
-          "run": "scripts/resources/injection/engine.sh .",
+          "run": "scripts/resources/populate/populate.sh .",
           "description": "Add app data to resources"
         },
         {
@@ -241,4 +241,3 @@
     }
   }
 }
-EOF < /dev/null

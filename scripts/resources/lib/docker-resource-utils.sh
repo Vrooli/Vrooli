@@ -38,10 +38,10 @@ fi
 
 # Source trash utilities - try multiple paths
 # shellcheck disable=SC1091
-if [[ -n "${var_LIB_SYSTEM_DIR:-}" ]] && [[ -f "${var_LIB_SYSTEM_DIR}/trash.sh" ]]; then
-    source "${var_LIB_SYSTEM_DIR}/trash.sh"
-elif [[ -f "${SCRIPT_DIR}/../../lib/system/trash.sh" ]]; then
-    source "${SCRIPT_DIR}/../../lib/system/trash.sh"
+if [[ -n "${var_LIB_SYSTEM_DIR:-}" ]] && [[ -f "${var_TRASH_FILE}" ]]; then
+    source "${var_TRASH_FILE}"
+elif [[ -f "${APP_ROOT}/scripts/lib/system/trash.sh" ]]; then
+    source "${APP_ROOT}/scripts/lib/system/trash.sh"
 fi
 
 # Source docker-utils.sh

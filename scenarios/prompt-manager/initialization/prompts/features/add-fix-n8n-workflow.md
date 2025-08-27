@@ -12,7 +12,7 @@ You are tasked with creating or fixing n8n workflows in Vrooli. N8n workflows ar
 
 ## Pre-Implementation Research
 
-**Essential Reading**: Study n8n documentation at `scripts/resources/automation/n8n/README.md` and examine existing workflow patterns in `scripts/scenarios/core/*/initialization/automation/n8n/`. Focus on injection system and API patterns.
+**Essential Reading**: Study n8n documentation at `resources/n8n/README.md` and examine existing workflow patterns in `scenarios/*/initialization/automation/n8n/`. Focus on injection system and API patterns.
 
 ## N8n Workflow Architecture
 
@@ -44,8 +44,8 @@ You are tasked with creating or fixing n8n workflows in Vrooli. N8n workflows ar
 **Reference Examples**:
 ```bash
 # Study complete working examples:
-cat scripts/scenarios/core/agent-metareasoning-manager/initialization/n8n/reasoning-chain.json
-cat scripts/resources/automation/n8n/examples/webhook-workflow.json
+cat scenarios/agent-metareasoning-manager/initialization/n8n/reasoning-chain.json
+cat resources/n8n/examples/webhook-workflow.json
 ```
 
 ## Implementation Phases
@@ -76,7 +76,7 @@ cat scripts/resources/automation/n8n/examples/webhook-workflow.json
 ### 1. Local Testing
 ```bash
 # Start n8n resource
-./scripts/resources/automation/n8n/manage.sh --action start
+./resources/n8n/manage.sh --action start
 
 # Test workflow endpoints
 curl -X POST http://localhost:5678/webhook/your-workflow \
@@ -92,7 +92,7 @@ mkdir -p test-scenario/initialization/n8n/
 cp your-workflow.json test-scenario/initialization/n8n/
 
 # Test injection system
-./scripts/resources/automation/n8n/lib/inject.sh test-scenario/initialization/n8n/
+./resources/n8n/lib/inject.sh test-scenario/initialization/n8n/
 ```
 
 ### 3. End-to-End Validation
@@ -249,10 +249,10 @@ curl http://localhost:{port}/health
 
 ## File Locations Reference
 
-- **N8n Resource**: `scripts/resources/automation/n8n/`
-- **Workflow Examples**: `scripts/scenarios/core/*/initialization/automation/n8n/`
-- **N8n API Docs**: `scripts/resources/automation/n8n/docs/API.md`
-- **Injection System**: `scripts/resources/automation/n8n/lib/inject.sh`
+- **N8n Resource**: `resources/n8n/`
+- **Workflow Examples**: `scenarios/*/initialization/automation/n8n/`
+- **N8n API Docs**: `resources/n8n/docs/API.md`
+- **Injection System**: `resources/n8n/lib/inject.sh`
 
 ## Legacy Function Nodes
 

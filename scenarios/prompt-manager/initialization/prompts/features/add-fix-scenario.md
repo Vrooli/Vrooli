@@ -14,12 +14,12 @@ You are tasked with creating or fixing scenarios in Vrooli. Scenarios are the cr
 
 ## Pre-Implementation Research
 
-**Essential Reading**: Study scenario documentation at `scripts/scenarios/README.md` and examine existing scenarios in `scripts/scenarios/core/`. Focus on service.json patterns and testing framework at `scripts/scenarios/docs/TESTING_GUIDE.md`.
+**Essential Reading**: Study scenario documentation at `scripts/scenarios/README.md` and examine existing scenarios in `scenarios/`. Focus on service.json patterns and testing framework at `scripts/scenarios/docs/TESTING_GUIDE.md`.
 
 ## Required Scenario Structure
 
 ```
-scripts/scenarios/core/{scenario-name}/
+scenarios/{scenario-name}/
 ├── service.json         # Configuration
 ├── README.md           # Documentation  
 ├── scenario-test.yaml  # Tests
@@ -34,7 +34,7 @@ scripts/scenarios/core/{scenario-name}/
 
 **Complete structure example**: 
 ```bash
-tree -L 2 scripts/scenarios/core/prompt-manager/
+tree -L 2 scenarios/prompt-manager/
 ```
 
 ## Implementation Phases
@@ -57,8 +57,8 @@ tree -L 2 scripts/scenarios/core/prompt-manager/
 **Complete Examples**:
 ```bash
 # Study real implementations:
-cat scripts/scenarios/core/prompt-manager/service.json
-cat scripts/scenarios/core/agent-metareasoning-manager/service.json
+cat scenarios/prompt-manager/service.json
+cat scenarios/agent-metareasoning-manager/service.json
 ```
 
 - Create service.json with scenario metadata, resource declarations, and service definitions
@@ -115,7 +115,7 @@ func main() {
     // Setup routes, start server on PORT
 }
 ```
-**Full examples**: See any `api/main.go` in `/scripts/scenarios/core/*/`
+**Full examples**: See any `api/main.go` in `scenarios/*/`
 
 **Automation Workflows**:
 
@@ -123,7 +123,7 @@ Design n8n workflows for your scenario's automation needs:
 
 ```bash
 # Study workflow patterns
-cat scripts/scenarios/core/agent-metareasoning-manager/initialization/automation/n8n/reasoning-chain.json
+cat scenarios/agent-metareasoning-manager/initialization/automation/n8n/reasoning-chain.json
 
 # Create your workflow
 mkdir -p initialization/automation/n8n/
@@ -141,7 +141,7 @@ tests:
     endpoint: http://localhost:8080/health
     expected: { status: 200 }
 ```
-**Complete test examples**: `/scripts/scenarios/core/*/scenario-test.yaml`
+**Complete test examples**: `scenarios/*/scenario-test.yaml`
 
 **Deployment Scripts**:
 
@@ -166,26 +166,26 @@ cd api && go run main.go &
 ./scripts/scenarios/tools/validate-scenario.sh your-scenario
 
 # Check service.json schema
-jq . scripts/scenarios/core/your-scenario/service.json
+jq . scenarios/your-scenario/service.json
 ```
 
 ### 2. Resource Integration Testing
 ```bash
 # Test resource injection
-./scripts/resources/injection/engine.sh --scenario your-scenario --action inject
+./scripts/resources/populate/populate.sh add your-scenario
 
 # Validate resource connectivity
-./scripts/scenarios/framework/scenario-test-runner.sh your-scenario
+./scripts/scenarios/validation/scenario-test-runner.sh your-scenario
 ```
 
 ### 3. End-to-End Testing
 ```bash
 # Full scenario test
-cd scripts/scenarios/core/your-scenario/
+cd scenarios/your-scenario/
 ./test.sh
 
-# Integration with scenario framework
-./scripts/scenarios/framework/run-all-scenarios.sh --filter your-scenario
+# Integration with scenario validation framework
+./scripts/scenarios/validation/run-all-scenarios.sh --filter your-scenario
 ```
 
 ## Business Application Design
@@ -215,7 +215,7 @@ Each scenario should target a clear business need:
 ### 1. Multi-Resource Orchestration
 ```bash
 # Study complex scenarios
-cat scripts/scenarios/core/agent-metareasoning-manager/service.json
+cat scenarios/agent-metareasoning-manager/service.json
 ```
 
 Design scenarios that leverage multiple resources synergistically:
@@ -278,10 +278,10 @@ Create scenarios with robust API foundations:
 ## File Locations Reference
 
 - **Scenario Templates**: `scripts/scenarios/templates/`
-- **Testing Framework**: `scripts/scenarios/framework/`
+- **Validation Framework**: `scripts/scenarios/validation/`
 - **Validation Tools**: `scripts/scenarios/tools/`
 - **Resource Integration**: `scripts/resources/injection/`
-- **Example Scenarios**: `scripts/scenarios/core/`
+- **Example Scenarios**: `scenarios/`
 
 ## Deployment and Distribution
 

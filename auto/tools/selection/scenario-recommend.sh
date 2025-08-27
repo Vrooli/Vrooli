@@ -4,10 +4,7 @@ set -euo pipefail
 
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 AUTO_DIR="${APP_ROOT}/auto"
-BASE_DIR="${APP_ROOT}"
 TOOLS_DIR="${AUTO_DIR}/tools/selection"
-DATA_DIR="${AUTO_DIR}/data/scenario-improvement"
-EVENTS_FILE="${SCENARIO_EVENTS_JSONL:-${DATA_DIR}/events.ndjson}"
 MODEL="${OLLAMA_SUMMARY_MODEL:-llama3.2:3b}"
 K="${K:-5}"
 GOALS="${GOALS:-}" # comma-separated
@@ -50,5 +47,9 @@ fi
 if command -v shuf >/dev/null 2>&1; then
 	echo "$FILTERED" | jq -r '.[]' 2>/dev/null | shuf | head -n "$K" | jq -R . | jq -s '.' 2>/dev/null || echo "$FILTERED"
 else
-	echo "$FILTERED" | (command -v jq >/dev/null 2>&1 && jq -c '.[:'"$K"']' || cat)
+	if command -v jq >/dev/null 2>&1; then
+		echo "$FILTERED" | jq -c '.[:'"$K"']'
+	else
+		echo "$FILTERED"
+	fi
 fi 

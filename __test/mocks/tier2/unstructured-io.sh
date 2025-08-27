@@ -119,7 +119,8 @@ unstructured_cmd_process() {
         return 1
     fi
     
-    local job_id=$(unstructured_generate_id)
+    local job_id
+    job_id=$(unstructured_generate_id)
     UNSTRUCTURED_JOBS[$job_id]="$file|processing|0"
     
     echo "Processing document: $file"
@@ -360,7 +361,8 @@ unstructured_handle_api() {
     case "$url" in
         */general/v0/general)
             if [[ "$method" == "POST" ]]; then
-                local job_id=$(unstructured_generate_id)
+                local job_id
+                job_id=$(unstructured_generate_id)
                 echo '{"job_id":"'$job_id'","status":"processing","elements":[]}'
             else
                 echo '{"error":"Method not allowed"}'

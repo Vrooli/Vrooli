@@ -264,7 +264,8 @@ vault_kv_get() {
         return 1
     fi
     
-    local kv_path=$(vault_kv_path "$path")
+    local kv_path
+    kv_path=$(vault_kv_path "$path")
     local secret_data="${VAULT_SECRETS[$kv_path]}"
     
     if [[ -z "$secret_data" ]]; then
@@ -306,7 +307,8 @@ vault_kv_put() {
     local path="$1"
     shift
     
-    local kv_path=$(vault_kv_path "$path")
+    local kv_path
+    kv_path=$(vault_kv_path "$path")
     local data_obj="{"
     local first=true
     
@@ -354,7 +356,8 @@ vault_kv_delete() {
     fi
     
     local path="$1"
-    local kv_path=$(vault_kv_path "$path")
+    local kv_path
+    kv_path=$(vault_kv_path "$path")
     
     if [[ -z "${VAULT_SECRETS[$kv_path]}" ]]; then
         echo "No value found at $path" >&2
@@ -543,7 +546,8 @@ vault_token_create() {
         esac
     done
     
-    local token=$(vault_generate_token)
+    local token
+    token=$(vault_generate_token)
     VAULT_TOKENS[$token]="$ttl|$policies|$display_name"
     
     vault_debug "Created token: $token"

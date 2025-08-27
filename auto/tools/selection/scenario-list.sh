@@ -3,7 +3,6 @@
 set -euo pipefail
 
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-AUTO_DIR="${APP_ROOT}/auto"
 BASE_DIR="${APP_ROOT}"
 SCEN_DIR="${1:-${BASE_DIR}/scenarios}"
 

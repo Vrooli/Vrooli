@@ -31,25 +31,25 @@ You can control loops either via the per-task shims or the central manager. Repl
 
 ```bash
 # Start/stop a loop in the background
-/home/matthalloran8/Vrooli/auto/task-manager.sh --task <task> start
-/home/matthalloran8/Vrooli/auto/task-manager.sh --task <task> stop
+${APP_ROOT}/auto/task-manager.sh --task <task> start
+${APP_ROOT}/auto/task-manager.sh --task <task> stop
 
 # Force stop (KILL)
-/home/matthalloran8/Vrooli/auto/task-manager.sh --task <task> force-stop
+${APP_ROOT}/auto/task-manager.sh --task <task> force-stop
 
 # Status, logs, rotation, and JSON summaries
-/home/matthalloran8/Vrooli/auto/task-manager.sh --task <task> status
-/home/matthalloran8/Vrooli/auto/task-manager.sh --task <task> logs -f
-/home/matthalloran8/Vrooli/auto/task-manager.sh --task <task> rotate
-/home/matthalloran8/Vrooli/auto/task-manager.sh --task <task> json summary
+${APP_ROOT}/auto/task-manager.sh --task <task> status
+${APP_ROOT}/auto/task-manager.sh --task <task> logs -f
+${APP_ROOT}/auto/task-manager.sh --task <task> rotate
+${APP_ROOT}/auto/task-manager.sh --task <task> json summary
 
 # Foreground loop (Ctrl-C to exit); optional max iterations
-/home/matthalloran8/Vrooli/auto/task-manager.sh --task <task> run-loop
-/home/matthalloran8/Vrooli/auto/task-manager.sh --task <task> run-loop --max 3
+${APP_ROOT}/auto/task-manager.sh --task <task> run-loop
+${APP_ROOT}/auto/task-manager.sh --task <task> run-loop --max 3
 
 # One-shot iteration and health check
-/home/matthalloran8/Vrooli/auto/task-manager.sh --task <task> once
-/home/matthalloran8/Vrooli/auto/task-manager.sh --task <task> health
+${APP_ROOT}/auto/task-manager.sh --task <task> once
+${APP_ROOT}/auto/task-manager.sh --task <task> health
 ```
 
 ### Using the shims (optional)
@@ -58,16 +58,16 @@ Convenience shims exist for the common loops (delegate to `task-manager.sh`):
 
 ```bash
 # Scenario improvement loop
-/home/matthalloran8/Vrooli/auto/manage-scenario-loop.sh start
-/home/matthalloran8/Vrooli/auto/manage-scenario-loop.sh stop
+${APP_ROOT}/auto/manage-scenario-loop.sh start
+${APP_ROOT}/auto/manage-scenario-loop.sh stop
 
 # Resource improvement loop
-/home/matthalloran8/Vrooli/auto/manage-resource-loop.sh start
-/home/matthalloran8/Vrooli/auto/manage-resource-loop.sh stop
+${APP_ROOT}/auto/manage-resource-loop.sh start
+${APP_ROOT}/auto/manage-resource-loop.sh stop
 
 # Foreground run via central manager (formerly simple wrappers)
-/home/matthalloran8/Vrooli/auto/task-manager.sh --task scenario-improvement run-loop
-/home/matthalloran8/Vrooli/auto/task-manager.sh --task resource-improvement run-loop
+${APP_ROOT}/auto/task-manager.sh --task scenario-improvement run-loop
+${APP_ROOT}/auto/task-manager.sh --task resource-improvement run-loop
 ```
 
 
@@ -92,17 +92,17 @@ Utilities:
 
 ```bash
 # Follow logs
-/home/matthalloran8/Vrooli/auto/task-manager.sh --task <task> logs -f
+${APP_ROOT}/auto/task-manager.sh --task <task> logs -f
 
 # Rotate logs immediately (keeps recent N = ROTATE_KEEP)
-/home/matthalloran8/Vrooli/auto/task-manager.sh --task <task> rotate
+${APP_ROOT}/auto/task-manager.sh --task <task> rotate
 # Rotate events ledger and prune
-/home/matthalloran8/Vrooli/auto/task-manager.sh --task <task> rotate --events 5
+${APP_ROOT}/auto/task-manager.sh --task <task> rotate --events 5
 
 # Quick JSON summaries
-/home/matthalloran8/Vrooli/auto/task-manager.sh --task <task> json summary
-/home/matthalloran8/Vrooli/auto/task-manager.sh --task <task> json recent 10
-/home/matthalloran8/Vrooli/auto/task-manager.sh --task <task> json durations
+${APP_ROOT}/auto/task-manager.sh --task <task> json summary
+${APP_ROOT}/auto/task-manager.sh --task <task> json recent 10
+${APP_ROOT}/auto/task-manager.sh --task <task> json durations
 ```
 
 
@@ -129,7 +129,7 @@ Located in `auto/tools/selection/`:
 Example:
 
 ```bash
-/home/matthalloran8/Vrooli/auto/tools/selection/resource-candidates.sh
+${APP_ROOT}/auto/tools/selection/resource-candidates.sh
 ```
 
 
@@ -137,10 +137,10 @@ Example:
 
 ```bash
 # Check binaries, data dir, and prompt discovery
-/home/matthalloran8/Vrooli/auto/task-manager.sh --task <task> health
+${APP_ROOT}/auto/task-manager.sh --task <task> health
 
 # Dry-run to inspect composed prompt and config
-/home/matthalloran8/Vrooli/auto/task-manager.sh --task <task> dry-run
+${APP_ROOT}/auto/task-manager.sh --task <task> dry-run
 ```
 
 Notes:

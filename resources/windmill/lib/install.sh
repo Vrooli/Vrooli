@@ -352,12 +352,12 @@ windmill::uninstall() {
     if [[ "$backup_created" == "true" ]]; then
         echo
         log::info "💾 Your data has been backed up to: $WINDMILL_BACKUP_DIR"
-        log::info "To restore later, use: $0 --action restore --backup-path <backup-file>"
+        log::info "To restore later, use: resource-windmill content restore --file <backup-file>"
     fi
     
     echo
     log::info "To reinstall Windmill:"
-    log::info "  $0 --action install"
+    log::info "  resource-windmill manage install"
     
     return 0
 }
@@ -384,7 +384,7 @@ windmill::start() {
     
     if ! windmill::is_installed; then
         log::error "Windmill is not installed"
-        log::info "Install it first with: $0 --action install"
+        log::info "Install it first with: resource-windmill manage install"
         windmill::release_lock
         return 1
     fi
@@ -466,7 +466,7 @@ windmill::stop() {
 windmill::restart() {
     if ! windmill::is_installed; then
         log::error "Windmill is not installed"
-        log::info "Install it first with: $0 --action install"
+        log::info "Install it first with: resource-windmill manage install"
         return 1
     fi
     
@@ -506,7 +506,7 @@ windmill::backup() {
     
     if ! windmill::is_running; then
         log::error "Windmill is not running - cannot create backup"
-        log::info "Start Windmill first with: $0 --action start"
+        log::info "Start Windmill first with: resource-windmill manage start"
         return 1
     fi
     
@@ -526,7 +526,7 @@ windmill::backup() {
         
         echo
         log::info "To restore this backup:"
-        log::info "  $0 --action restore --backup-path \"$backup_file\""
+        log::info "  resource-windmill content restore --file \"$backup_file\""
         
         return 0
     else
@@ -546,7 +546,7 @@ windmill::restore() {
     
     if [[ -z "$backup_file" ]]; then
         log::error "Backup file path is required"
-        log::info "Usage: $0 --action restore --backup-path /path/to/backup.tar.gz"
+        log::info "Usage: resource-windmill content restore --file /path/to/backup.tar.gz"
         return 1
     fi
     
