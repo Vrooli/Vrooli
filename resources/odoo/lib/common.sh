@@ -35,7 +35,7 @@ export ODOO_ADMIN_PASSWORD="${ODOO_ADMIN_PASSWORD:-admin}"
 odoo_init_dirs() {
     mkdir -p "$ODOO_DATA_DIR"/{addons,config,filestore,sessions}
     mkdir -p "$ODOO_DATA_DIR/postgres"
-    mkdir -p "${ODOO_LOG_FILE%/*"
+    mkdir -p "${ODOO_LOG_FILE%/*}"
 }
 
 # Check if Odoo is installed

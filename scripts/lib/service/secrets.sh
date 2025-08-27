@@ -19,12 +19,14 @@ secrets::get_project_root() {
     current_dir="${APP_ROOT}/scripts/lib/service"
     
     # Walk up directory tree looking for .vrooli directory
-    while [[ "$current_dir" != "/" ]]; do
+    while [[ "$current_dir" != "/" && "$current_dir" != "" && "$current_dir" != "." ]]; do
         if [[ -d "$current_dir/.vrooli" ]]; then
             echo "$current_dir"
             return 0
         fi
-        current_dir="${current_dir%/*}"
+        new_dir="${current_dir%/*}"
+        [[ -z "$new_dir" ]] && break  # Safety check to prevent infinite loop
+        current_dir="$new_dir"
     done
     
     # Fallback: use var_ROOT_DIR if available

@@ -51,7 +51,8 @@ browserless::get_init_config() {
         "resource_name": "browserless",
         "container_name": "'$BROWSERLESS_CONTAINER_NAME'",
         "data_dir": "'$BROWSERLESS_DATA_DIR'",
-        "port": 3000,
+        "host_port": '$BROWSERLESS_PORT',
+        "container_port": 3000,
         "image": "'$BROWSERLESS_IMAGE'",
         "env_vars": {
             "CONCURRENT": "'$max_browsers'",
@@ -65,7 +66,7 @@ browserless::get_init_config() {
             "WORKSPACE_EXPIRE_DAYS": "7"
         },
         "volumes": '$volumes_array',
-        "networks": ["host"],
+        "networks": ["'$BROWSERLESS_NETWORK_NAME'"],
         "shm_size": "'$BROWSERLESS_DOCKER_SHM_SIZE'",
         "cap_add": ["'$BROWSERLESS_DOCKER_CAPS'"],
         "security_opt": ["seccomp='$BROWSERLESS_DOCKER_SECCOMP'"],
@@ -305,8 +306,8 @@ browserless::first_time_setup() {
 browserless::wait_for_ready() {
     log::info "Waiting for Browserless to be ready..."
     
-    # Use port 3000 for host network mode
-    if wait::for_http "http://localhost:3000/pressure" 60; then
+    # Use the configured host port (4110)
+    if wait::for_http "http://localhost:${BROWSERLESS_PORT}/pressure" 60; then
         log::success "Browserless is ready!"
         return 0
     else
@@ -325,7 +326,7 @@ browserless::post_install_setup() {
     echo
     log::success "Browserless installed successfully!"
     echo "=================================="
-    echo "Access URL: http://localhost:3000"
+    echo "Access URL: http://localhost:${BROWSERLESS_PORT}"
     echo "Max Browsers: $MAX_BROWSERS"
     echo "Timeout: ${TIMEOUT}ms"
     echo "Data Directory: $BROWSERLESS_DATA_DIR"
@@ -350,7 +351,7 @@ browserless::test_screenshot() {
     local response
     
     response=$(curl -s -X POST \
-        "http://localhost:$BROWSERLESS_PORT/screenshot" \
+        "http://localhost:$BROWSERLESS_PORT/chrome/screenshot" \
         -H "Content-Type: application/json" \
         -d "{\"url\":\"$test_url\"}" \
         -w "\n%{http_code}" \

@@ -41,7 +41,8 @@ cmd_execute() {
     echo "Exit code: $exitcode"
     
     # Show where the full log is saved
-    local iter_log="${ITERATIONS_DIR}/iter-$(printf "%05d" 1).log"
+    local iter_log
+    iter_log="${ITERATIONS_DIR}/iter-$(printf "%05d" 1).log"
     if [[ -f "$iter_log" ]]; then
         echo "Full iteration log: $iter_log"
     fi

@@ -11,7 +11,7 @@ As of August 2025, all negative test files are **generated dynamically** rather 
 ### Automatic Generation
 When tests need negative test files, they are automatically generated using:
 ```bash
-/home/matthalloran8/Vrooli/__test/fixtures/generators/generate-stress-files.sh all-negative
+${VROOLI_ROOT}/__test/fixtures/generators/generate-stress-files.sh all-negative
 ```
 
 ### Manual Generation

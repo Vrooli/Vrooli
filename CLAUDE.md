@@ -11,7 +11,7 @@ This file provides essential guidance to Claude Code (claude.ai/code) when worki
    - Run `vrooli test help` to see available test commands.
 2. **Files**: Always prefer editing existing files over creating new ones
 4. **Dependencies**: Never install packages without explicit permission
-5. **Documentation**: Read `/docs/` files at session start for context
+5. **Documentation**: Read `docs/` files at session start for context
 
 ## 🎯 Understanding Vrooli's True Nature
 
@@ -57,19 +57,11 @@ For recurring tasks (test quality, React performance, etc.), use the AI maintena
 - **After completing:** Add/update comment: `// AI_CHECK: TASK_ID=count | LAST: YYYY-MM-DD`
 - **Full system:** See [AI Maintenance Tracking](/docs/ai-maintenance/README.md)
 
-## 🏗️ Architecture Overview
-**Three-Tier AI System (Enabling Recursive Improvement):**
-- **Tier 1**: Coordination Intelligence (orchestrates agent swarms, allocates resources, strategic planning)
-- **Tier 2**: Process Intelligence (manages workflows, converts solutions to reusable patterns, routine navigation)  
-- **Tier 3**: Execution Intelligence (interfaces with resources, builds applications, tool integration)
-- **Event Bus**: Redis-based communication enabling collective learning between all agents
-- **Resource Layer**: 30+ local services (AI models, databases, automation platforms) that agents orchestrate
-
 ## 🚀 Quick Start Commands
 ```bash
 # Setup project (includes CLI installation and system configuration)
 # NOTE: First run requires sudo for kernel parameter configuration when using certain resources
-./scripts/main/setup.sh --yes yes
+./scripts/manage.sh setup --yes yes
 
 # Start development environment
 vrooli develop
@@ -83,6 +75,7 @@ Run `vrooli test help` to discover the available test commands.
 ## ❌ Common Pitfalls
 - DON'T skip reading memory files at session start
 - DON'T use mass-update scripts or automated tools to modify multiple files - check and update each file individually
+- DON'T use `2>&1` shell redirection syntax - Claude Code CLI parses this as separate arguments, breaking scripts. Use `&>` instead for redirecting both stdout and stderr to a file
 
 ## 🎯 Task Management Commands
 These commands can be invoked by using the keywords listed for each:
@@ -125,7 +118,7 @@ These commands can be invoked by using the keywords listed for each:
 
 ## 🔧 Local Resources Setup
 **Default Behavior**: Setup now automatically installs resources marked as `"enabled": true` in `.vrooli/service.json`
-- **First Run**: If no config exists, Ollama is installed by default
+- **First Run**: If no config exists, resource is installed by default
 - **Subsequent Runs**: Only installs resources explicitly enabled in configuration
 - **Skip Resources**: Use `--resources none` to skip all resource installation
 - **CI/CD**: Automatically defaults to `none` to prevent unwanted installations
@@ -135,36 +128,6 @@ These commands can be invoked by using the keywords listed for each:
 - Resources marked as enabled will be installed on next setup run
 - Use `--resources <specific>` to override and install specific resources
 - Remember: More resources = more capabilities = smarter agents
-
-
-## 🚢 Kubernetes Deployment Notes
-
-### Local Development
-**Auto-Installation**: The project automatically installs kubectl, Helm, and Minikube when targeting k8s-cluster
-- `kubectl` - Latest stable version from Google's Kubernetes release API
-- `Helm` - Package manager for Kubernetes
-- `Minikube` - Local Kubernetes cluster for development
-
-### Production Deployment
-**Prerequisites**: Production cluster setup in DigitalOcean with required operators already installed
-- Uses existing kubeconfig at `/root/Vrooli/k8s/kubeconfig-vrooli-prod.yaml`
-- **IMPORTANT**: Deploy script uses whatever kubectl context is currently active
-- Set `KUBECONFIG=/root/Vrooli/k8s/kubeconfig-vrooli-prod.yaml` for production deployments
-
-**Required Operators** (auto-installed in dev, manual setup for prod):
-- CrunchyData PostgreSQL Operator (PGO) v5.8.2
-- Spotahome Redis Operator v1.2.4  
-- Vault Secrets Operator (VSO)
-
-**Deployment Readiness**: Use `./scripts/helpers/deploy/k8s-prerequisites.sh --check-only` to verify cluster setup
-
-## 🔧 Quick Error Reference
-| Error | Solution |
-|-------|----------|
-| `Missing script: type-check` | No root-level type-check - use package-specific commands |
-| `cd: packages/ui: No such file or directory` | Ensure you're in project root `/root/Vrooli` first |
-| `Command timed out after 2m 0.0s` | Increase timeout for long-running commands |
-| `kubectl: command not found` | Run `./scripts/main/setup.sh --target k8s-cluster` to auto-install |
 
 ## ⏱️ Timeout Guidelines for Long-Running Commands
 **Remember to set appropriate timeouts when running:**

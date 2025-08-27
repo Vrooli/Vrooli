@@ -71,8 +71,75 @@ home_assistant::get_api_info() {
     }"
 }
 
+#######################################
+# Docker wrapper functions for v2.0 CLI
+#######################################
+home_assistant::docker::start() {
+    home_assistant::init
+    if docker::container_exists "$HOME_ASSISTANT_CONTAINER_NAME"; then
+        log::info "Starting Home Assistant..."
+        docker start "$HOME_ASSISTANT_CONTAINER_NAME"
+        home_assistant::health::wait_for_healthy 60
+    else
+        log::error "Home Assistant is not installed. Run 'manage install' first."
+        return 1
+    fi
+}
+
+home_assistant::docker::stop() {
+    home_assistant::init
+    if docker::is_running "$HOME_ASSISTANT_CONTAINER_NAME"; then
+        log::info "Stopping Home Assistant..."
+        docker stop "$HOME_ASSISTANT_CONTAINER_NAME"
+        log::success "Home Assistant stopped"
+    else
+        log::warning "Home Assistant is not running"
+    fi
+}
+
+home_assistant::docker::restart() {
+    home_assistant::init
+    if docker::container_exists "$HOME_ASSISTANT_CONTAINER_NAME"; then
+        log::info "Restarting Home Assistant..."
+        docker restart "$HOME_ASSISTANT_CONTAINER_NAME"
+        home_assistant::health::wait_for_healthy 60
+    else
+        log::error "Home Assistant is not installed. Run 'manage install' first."
+        return 1
+    fi
+}
+
+home_assistant::docker::logs() {
+    home_assistant::init
+    local tail_lines="${1:-50}"
+    
+    # Parse options
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --tail)
+                tail_lines="$2"
+                shift 2
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    if docker::container_exists "$HOME_ASSISTANT_CONTAINER_NAME"; then
+        docker logs "$HOME_ASSISTANT_CONTAINER_NAME" --tail "$tail_lines"
+    else
+        log::error "Home Assistant is not installed"
+        return 1
+    fi
+}
+
 # Export functions
 export -f home_assistant::export_config
 export -f home_assistant::init
 export -f home_assistant::get_port
 export -f home_assistant::get_api_info
+export -f home_assistant::docker::start
+export -f home_assistant::docker::stop
+export -f home_assistant::docker::restart
+export -f home_assistant::docker::logs

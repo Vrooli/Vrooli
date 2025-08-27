@@ -1,4 +1,21 @@
 #!/usr/bin/env bash
+
+# ⚠️ DEPRECATION NOTICE: This script is deprecated as of v2.0 (January 2025)
+# Please use cli.sh instead: resource-judge0 <command>
+# This file will be removed in v3.0 (target: December 2025)
+#
+# Migration guide:
+#   OLD: ./manage.sh --action <command>
+#   NEW: ./cli.sh <command>  OR  resource-judge0 <command>
+
+# Show deprecation warning
+if [[ "${VROOLI_SUPPRESS_DEPRECATION:-}" != "true" ]]; then
+    echo "⚠️  WARNING: manage.sh is deprecated. Please use cli.sh instead." >&2
+    echo "   This script will be removed in v3.0 (December 2025)" >&2
+    echo "   To suppress this warning: export VROOLI_SUPPRESS_DEPRECATION=true" >&2
+    echo "" >&2
+fi
+
 set -euo pipefail
 
 # Judge0 Code Execution Resource Management
@@ -12,7 +29,7 @@ JUDGE0_SCRIPT_DIR="${APP_ROOT}/resources/judge0"
 
 # Source var.sh first to get directory variables
 # shellcheck disable=SC1091
-source "${JUDGE0_SCRIPT_DIR}/../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 # Handle Ctrl+C gracefully
 trap 'echo ""; log::info "Judge0 operation interrupted by user. Exiting..."; exit 130' INT TERM

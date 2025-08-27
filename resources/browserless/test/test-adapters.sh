@@ -15,7 +15,7 @@ TEST_DIR="${APP_ROOT}/resources/browserless/test"
 BROWSERLESS_DIR="${APP_ROOT}/resources/browserless"
 
 # Source required utilities
-source "${BROWSERLESS_DIR}/../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${var_LOG_FILE}"
 source "${BROWSERLESS_DIR}/lib/common.sh"
 

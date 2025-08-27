@@ -6,7 +6,7 @@
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 NODE_RED_CONFIG_DIR="${APP_ROOT}/resources/node-red/config"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
 
@@ -22,6 +22,7 @@ readonly RESOURCE_PORT="${NODE_RED_PORT}"
 
 # Container configuration
 readonly CONTAINER_NAME="node-red"
+readonly NODE_RED_CONTAINER_NAME="node-red"  # Legacy compatibility
 readonly VOLUME_NAME="node-red-data"
 readonly NETWORK_NAME="vrooli-network"
 

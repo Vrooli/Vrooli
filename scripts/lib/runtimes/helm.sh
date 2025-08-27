@@ -13,7 +13,7 @@ source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/system_commands.sh"
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/trash.sh"
+source "${var_TRASH_FILE}"
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/sudo.sh"
 

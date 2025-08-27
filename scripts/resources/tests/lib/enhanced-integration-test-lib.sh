@@ -9,7 +9,7 @@ _ENHANCED_TEST_LIB_DIR="${APP_ROOT}/scripts/resources/tests/lib"
 # shellcheck disable=SC1091
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/trash.sh"
+source "${var_TRASH_FILE}"
 # shellcheck disable=SC1091
 source "${_ENHANCED_TEST_LIB_DIR}/integration-test-lib.sh"
 

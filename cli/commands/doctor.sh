@@ -61,8 +61,7 @@ check_port_free() {
 main() {
 	# Parse common arguments
 	local parsed_args
-	parsed_args=$(parse_combined_args "$@")
-	if [[ $? -ne 0 ]]; then
+	if ! parsed_args=$(parse_combined_args "$@"); then
 		return 1
 	fi
 	

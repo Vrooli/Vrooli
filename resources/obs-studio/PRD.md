@@ -25,7 +25,7 @@ OBS Studio (Open Broadcaster Software) is a professional streaming and recording
 - [x] `resource-obs-studio test` - Run integration tests
 
 ### Deprecated Commands (for backwards compatibility)
-- [x] `resource-obs-studio inject` - Legacy command, redirects to content add
+- [x] `resource-obs-studio content add` - Legacy command, redirects to content add
 
 ## Configuration Requirements
 

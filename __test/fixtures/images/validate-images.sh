@@ -9,11 +9,11 @@ SCRIPT_DIR="${APP_ROOT}/__test/fixtures/images"
 
 # Source var.sh first to get proper directory variables
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 # Source trash system for safe removal using var_ variables
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+source "${var_TRASH_FILE}"
 FIXTURES_DIR="$SCRIPT_DIR"
 METADATA_FILE="$FIXTURES_DIR/metadata.yaml"
 

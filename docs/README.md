@@ -249,10 +249,10 @@ You have no persistent memory between sessions. **After every memory reset, rely
 
 ```bash
 # Development Environment
-./scripts/main/setup.sh --target docker          # Initial setup
-./scripts/main/develop.sh --target docker --detached yes   # Start detached
-./scripts/main/develop.sh --target docker --detached no    # Start interactive
-./scripts/main/develop.sh --target docker --services "server ui redis postgresql"  # Specific services
+./scripts/manage.sh setup --target docker          # Initial setup
+vrooli develop --target docker --detached yes      # Start detached
+vrooli develop --target docker --detached no       # Start interactive
+vrooli develop --target docker --services "server ui redis postgresql"  # Specific services
 
 # Testing
 cd packages/server && pnpm test                   # Run all tests
@@ -423,7 +423,7 @@ The `/scripts/` directory contains comprehensive bash scripts:
 | Error | Cause | Solution |
 |-------|-------|----------|
 | `Module not found: Error: Can't resolve './file'` | Missing .js extension | Add `.js` to import: `'./file.js'` |
-| `Cannot find container vrooli_postgresql_1` | Docker not running | Run `./scripts/main/setup.sh --target docker` |
+| `Cannot find container vrooli_postgresql_1` | Docker not running | Run `./scripts/manage.sh setup --target docker` |
 | `Invalid prisma.user invocation` | Schema out of sync | Run `cd packages/server && pnpm prisma generate` |
 | `ECONNREFUSED 127.0.0.1:6379` | Redis not running | Start dev environment with scripts |
 | `Type error in test file` | Wrong import path | Use relative imports with `.js` extension |

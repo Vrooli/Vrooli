@@ -121,4 +121,18 @@ except:
     fi
 }
 
+# v2.0 naming convention handlers
+odoo::test::smoke() {
+    # Smoke test is just a status check - tests the resource itself
+    log::info "Running Odoo smoke test..."
+    odoo::status::check
+}
+
+odoo::test::integration() {
+    # Full integration test suite
+    odoo_test "$@"
+}
+
 export -f odoo_test
+export -f odoo::test::smoke
+export -f odoo::test::integration

@@ -122,7 +122,7 @@ while IFS= read -r scenario_info; do
     name="${scenario_info%%:*}"
     location="${scenario_info#*:}"
     [[ "$VERBOSE" == "true" ]] && log::info "Analyzing: $name"
-    path="${var_SCRIPTS_SCENARIOS_DIR}/${location}"
+    path="${var_SCENARIOS_DIR}/${location}"
     app_path="${GENERATED_APPS_DIR}/$name"
     
     # Calculate current hash
@@ -254,50 +254,165 @@ if [[ ${#scenarios_to_convert[@]} -gt 0 ]]; then
             converted=$((converted + 1))
         done
     else
-        log::info "Batch converting ${#scenarios_to_convert[@]} scenario(s)..."
+        log::info "Batch converting ${#scenarios_to_convert[@]} scenario(s) in chunks of 10..."
         
-        # Build the command arguments
-        batch_args=()
-        for scenario in "${scenarios_to_convert[@]}"; do
-            batch_args+=("$scenario")
-        done
-        
-        # Add common flags
-        # Always add --verbose for batch processing to ensure proper output handling
-        batch_args+=("--verbose")
-        batch_args+=("--force")
-        
-        # Run batch conversion
+        # Process scenarios in chunks to avoid resource exhaustion
         batch_start=$(date +%s)
-        if output=$(bash "$SCENARIO_TO_APP" "${batch_args[@]}" 2>&1); then
-            batch_end=$(date +%s)
-            batch_duration=$((batch_end - batch_start))
+        batch_timeout=300  # 5 minutes timeout per chunk
+        chunk_size=10
+        total_scenarios=${#scenarios_to_convert[@]}
+        chunks_processed=0
+        chunks_succeeded=0
+        
+        # Process scenarios in chunks of 10
+        for ((i = 0; i < total_scenarios; i += chunk_size)); do
+            chunk_start_idx=$i
+            chunk_end_idx=$((i + chunk_size))
+            if [[ chunk_end_idx -gt total_scenarios ]]; then
+                chunk_end_idx=$total_scenarios
+            fi
             
-            # Mark all scenarios as successfully converted
-            for scenario in "${scenarios_to_convert[@]}"; do
-                log::success "✓ $scenario"
-                new_hashes["$scenario"]="${scenario_hashes[$scenario]}"
-                converted=$((converted + 1))
+            # Build chunk scenarios array
+            chunk_scenarios=("${scenarios_to_convert[@]:$chunk_start_idx:$((chunk_end_idx - chunk_start_idx))}")
+            chunks_processed=$((chunks_processed + 1))
+            chunk_num=$chunks_processed
+            total_chunks=$(((total_scenarios + chunk_size - 1) / chunk_size))
+            
+            log::info "Processing chunk $chunk_num/$total_chunks: ${chunk_scenarios[*]}"
+            
+            # Build the command arguments for this chunk
+            batch_args=()
+            for scenario in "${chunk_scenarios[@]}"; do
+                batch_args+=("$scenario")
             done
             
-            log::success "Batch conversion completed in ${batch_duration}s"
-        else
-            # If batch conversion fails, fall back to individual conversions for better error reporting
-            log::warning "Batch conversion failed, falling back to individual conversions..."
-            [[ "$VERBOSE" == "true" ]] && echo "$output" | tail -5
+            # Add common flags
+            [[ "$VERBOSE" == "true" ]] && batch_args+=("--verbose")
+            batch_args+=("--force")
+            [[ "$DRY_RUN" == "true" ]] && batch_args+=("--dry-run")
             
-            for scenario in "${scenarios_to_convert[@]}"; do
-                log::info "Converting $scenario individually..."
-                if individual_output=$(bash "$SCENARIO_TO_APP" "$scenario" ${VERBOSE:+--verbose} --force 2>&1); then
+            # Process this chunk
+            chunk_succeeded=false
+        
+            if command -v timeout >/dev/null 2>&1; then
+                # Use timeout command to prevent hangs
+                if [[ "$VERBOSE" == "true" ]]; then
+                    # Run directly without capturing output
+                    if timeout "$batch_timeout" bash "$SCENARIO_TO_APP" "${batch_args[@]}"; then
+                        chunk_succeeded=true
+                    else
+                        exit_code=$?
+                        if [[ $exit_code -eq 124 ]]; then
+                            log::warning "Chunk $chunk_num timed out after ${batch_timeout}s"
+                        else
+                            log::warning "Chunk $chunk_num failed with exit code $exit_code"
+                        fi
+                    fi
+                else
+                    # Non-verbose: capture output for error reporting using temp file
+                    chunk_output_file=$(mktemp)
+                    if timeout "$batch_timeout" bash "$SCENARIO_TO_APP" "${batch_args[@]}" &> "$chunk_output_file"; then
+                        chunk_succeeded=true
+                    else
+                        exit_code=$?
+                        if [[ $exit_code -eq 124 ]]; then
+                            log::warning "Chunk $chunk_num timed out after ${batch_timeout}s"
+                        else
+                            log::warning "Chunk $chunk_num failed with exit code $exit_code"
+                        fi
+                        # Store output content for later use
+                        chunk_output=$(cat "$chunk_output_file" 2>/dev/null || echo "No output captured")
+                    fi
+                    rm -f "$chunk_output_file"
+                fi
+            else
+                # Fallback without timeout (less safe)
+                if [[ "$VERBOSE" == "true" ]]; then
+                    if bash "$SCENARIO_TO_APP" "${batch_args[@]}"; then
+                        chunk_succeeded=true
+                    fi
+                else
+                    # Non-verbose fallback: capture output using temp file
+                    chunk_output_file=$(mktemp)
+                    if bash "$SCENARIO_TO_APP" "${batch_args[@]}" &> "$chunk_output_file"; then
+                        chunk_succeeded=true
+                    else
+                        # Store output content for later use
+                        chunk_output=$(cat "$chunk_output_file" 2>/dev/null || echo "No output captured")
+                    fi
+                    rm -f "$chunk_output_file"
+                fi
+            fi
+            
+            if [[ "$chunk_succeeded" == "true" ]]; then
+                chunks_succeeded=$((chunks_succeeded + 1))
+                # Mark chunk scenarios as successfully converted
+                for scenario in "${chunk_scenarios[@]}"; do
                     log::success "✓ $scenario"
                     new_hashes["$scenario"]="${scenario_hashes[$scenario]}"
                     converted=$((converted + 1))
-                else
-                    log::error "✗ $scenario"
-                    [[ "$VERBOSE" == "true" ]] && echo "$individual_output" | tail -10
-                    failed=$((failed + 1))
-                fi
-            done
+                done
+                log::info "Chunk $chunk_num/$total_chunks completed successfully"
+            else
+                log::warning "Chunk $chunk_num/$total_chunks failed, processing scenarios individually..."
+                [[ "$VERBOSE" == "false" ]] && [[ -n "${chunk_output:-}" ]] && echo "$chunk_output" | tail -3
+                
+                # Process failed chunk scenarios individually
+                for scenario in "${chunk_scenarios[@]}"; do
+                    log::info "Converting $scenario individually..."
+                    individual_args=("$scenario")
+                    [[ "$VERBOSE" == "true" ]] && individual_args+=("--verbose")
+                    individual_args+=("--force")
+                    [[ "$DRY_RUN" == "true" ]] && individual_args+=("--dry-run")
+                    
+                    if command -v timeout >/dev/null 2>&1; then
+                        individual_output_file=$(mktemp)
+                        if timeout 60 bash "$SCENARIO_TO_APP" "${individual_args[@]}" &> "$individual_output_file"; then
+                            log::success "✓ $scenario"
+                            new_hashes["$scenario"]="${scenario_hashes[$scenario]}"
+                            converted=$((converted + 1))
+                        else
+                            individual_exit_code=$?
+                            if [[ $individual_exit_code -eq 124 ]]; then
+                                log::error "✗ $scenario (timed out after 60s)"
+                            else
+                                log::error "✗ $scenario (exit code: $individual_exit_code)"
+                            fi
+                            if [[ "$VERBOSE" == "true" ]]; then
+                                tail -5 "$individual_output_file" 2>/dev/null || echo "No output to display"
+                            fi
+                            failed=$((failed + 1))
+                        fi
+                        rm -f "$individual_output_file"
+                    else
+                        individual_output_file=$(mktemp)
+                        if bash "$SCENARIO_TO_APP" "${individual_args[@]}" &> "$individual_output_file"; then
+                            log::success "✓ $scenario"
+                            new_hashes["$scenario"]="${scenario_hashes[$scenario]}"
+                            converted=$((converted + 1))
+                        else
+                            log::error "✗ $scenario"
+                            if [[ "$VERBOSE" == "true" ]]; then
+                                tail -5 "$individual_output_file" 2>/dev/null || echo "No output to display"
+                            fi
+                            failed=$((failed + 1))
+                        fi
+                        rm -f "$individual_output_file"
+                    fi
+                done
+            fi
+        done
+        
+        # Report chunk processing results
+        batch_end=$(date +%s)
+        batch_duration=$((batch_end - batch_start))
+        
+        if [[ $chunks_succeeded -eq $chunks_processed ]]; then
+            log::success "All $chunks_processed chunk(s) completed successfully in ${batch_duration}s"
+        else
+            failed_chunks=$((chunks_processed - chunks_succeeded))
+            log::warning "$failed_chunks of $chunks_processed chunk(s) had failures - some scenarios processed individually"
+            log::info "Chunk processing completed in ${batch_duration}s"
         fi
     fi
 fi

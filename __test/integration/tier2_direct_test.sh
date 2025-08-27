@@ -36,7 +36,8 @@ test_redis_functionality() {
     source "${MOCK_DIR}/redis.sh"
     
     redis-cli set "test_key" "test_value"
-    local result=$(redis-cli get "test_key")
+    local result
+    result=$(redis-cli get "test_key")
     [[ "$result" == "test_value" ]]
 }
 
@@ -58,7 +59,8 @@ test_new_logs_functionality() {
 test_new_jq_functionality() {
     source "${MOCK_DIR}/jq.sh"
     
-    local result=$(jq --version)
+    local result
+    result=$(jq --version)
     [[ "$result" == "jq-1.6" ]]
 }
 
@@ -72,7 +74,8 @@ test_new_verification_functionality() {
 test_new_dig_functionality() {
     source "${MOCK_DIR}/dig.sh"
     
-    local result=$(dig +short example.com)
+    local result
+    result=$(dig +short example.com)
     [[ -n "$result" ]]
 }
 
@@ -98,7 +101,8 @@ test_redis_postgres_integration() {
     
     # Store config in Redis
     redis-cli set "db_host" "localhost"
-    local host=$(redis-cli get "db_host")
+    local host
+    host=$(redis-cli get "db_host")
     
     # Use config in PostgreSQL
     psql -c "CREATE TABLE config (host TEXT)" >/dev/null
@@ -128,7 +132,8 @@ test_bulk_operations() {
     done
     
     # Verify some
-    local result=$(redis-cli get "bulk_50")
+    local result
+    result=$(redis-cli get "bulk_50")
     [[ "$result" == "value_50" ]]
 }
 

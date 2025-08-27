@@ -114,12 +114,12 @@ update_summary_files() {
 	# Optional NL summary via Ollama
 	if command -v resource-ollama >/dev/null 2>&1 && [[ -s "$SUMMARY_JSON" ]]; then
 		# Quick health/model check; skip if not healthy
-		if resource-ollama info >/dev/null 2>&1 || resource-ollama list-models >/dev/null 2>&1; then
+		if resource-ollama test smoke >/dev/null 2>&1 || resource-ollama content list >/dev/null 2>&1; then
 			local p; p=$(mktemp -p "$TMP_DIR")
 			{
 				printf "Summarize this task metrics in 5-10 lines. Be concise.\nJSON:\n"; cat "$SUMMARY_JSON"
 			} > "$p"
-			if OUT=$(resource-ollama generate --from-file "$p" "$OLLAMA_SUMMARY_MODEL" 2>/dev/null); then
+			if OUT=$(resource-ollama content generate "$OLLAMA_SUMMARY_MODEL" "$(cat "$p")" 2>/dev/null); then
 				printf '%s\n' "$OUT" > "$SUMMARY_TXT"
 			fi
 			rm -f "$p"

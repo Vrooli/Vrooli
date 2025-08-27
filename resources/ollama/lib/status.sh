@@ -9,7 +9,7 @@ OLLAMA_STATUS_DIR="${APP_ROOT}/resources/ollama/lib"
 
 # Source status argument library
 # shellcheck disable=SC1091
-source "${OLLAMA_STATUS_DIR}/../../../lib/status-args.sh"
+source "${APP_ROOT}/scripts/resources/lib/status-args.sh"
 
 #######################################
 # Check if Ollama is installed

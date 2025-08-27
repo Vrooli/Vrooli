@@ -8,10 +8,10 @@ In the directory of your choice, enter `git clone <REPO_URL>` (or `git clone --d
 
 ## 2. Install packages
 1. `cd <PROJECT_NAME>`  
-2. `chmod +x ./scripts/main/setup.sh && bash ./scripts/main/setup.sh` (Note that we're sourcing the script, so that environment changes like the node version persist after the script is done running)
+2. `vrooli setup` (Note: This will install dependencies and configure the development environment)
 4. Restart code editor  
 
-**Note:** If `setup.sh` installs any global packages, this is because they are either used by a `Dockerfile` or `package.json`. If you want to make sure the dependency versions are correct, you should check those files.
+**Note:** If `vrooli setup` installs any global packages, this is because they are either used by a `Dockerfile` or `package.json`. If you want to make sure the dependency versions are correct, you should check those files.
 
 ## 3. Set environment variables  
 1. Edit environment variables in [.env-example](https://github.com/Vrooli/Vrooli/blob/master/.env-example)

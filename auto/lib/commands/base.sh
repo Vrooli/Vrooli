@@ -144,12 +144,18 @@ commands::get_loop_status() {
 # Safe file operations with error handling
 commands::safe_remove() {
     local file="$1"
-    [[ -f "$file" ]] && rm -f "$file" || true
+    if [[ -f "$file" ]]; then
+        rm -f "$file"
+    fi
 }
 
 commands::safe_read() {
     local file="$1"
-    [[ -f "$file" ]] && cat "$file" || echo ""
+    if [[ -f "$file" ]]; then
+        cat "$file"
+    else
+        echo ""
+    fi
 }
 
 # Export utilities for command modules

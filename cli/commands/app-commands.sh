@@ -21,7 +21,6 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 CYAN='\033[0;36m'
-NC='\033[0m'
 
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
 CLI_DIR="${APP_ROOT}/cli/commands"
@@ -99,8 +98,7 @@ EOF
 app_list() {
 	# Parse common arguments
 	local parsed_args
-	parsed_args=$(parse_combined_args "$@")
-	if [[ $? -ne 0 ]]; then
+	if ! parsed_args=$(parse_combined_args "$@"); then
 		return 1
 	fi
 	
@@ -377,8 +375,7 @@ app_list() {
 app_status() {
 	# Parse common arguments
 	local parsed_args
-	parsed_args=$(parse_combined_args "$@")
-	if [[ $? -ne 0 ]]; then
+	if ! parsed_args=$(parse_combined_args "$@"); then
 		return 1
 	fi
 	
@@ -790,13 +787,15 @@ app_start() {
 		local ui_port_start=""
 		if [[ -f "$service_json" ]]; then
 			# Get API port configuration
-			local api_port_range=$(jq -r '.ports.api.range // ""' "$service_json" 2>/dev/null)
+			local api_port_range
+			api_port_range=$(jq -r '.ports.api.range // ""' "$service_json" 2>/dev/null)
 			if [[ -n "$api_port_range" ]]; then
 				api_port_start=$(echo "$api_port_range" | cut -d'-' -f1)
 			fi
 			
 			# Get UI port configuration
-			local ui_port_range=$(jq -r '.ports.ui.range // ""' "$service_json" 2>/dev/null)
+			local ui_port_range
+			ui_port_range=$(jq -r '.ports.ui.range // ""' "$service_json" 2>/dev/null)
 			if [[ -n "$ui_port_range" ]]; then
 				ui_port_start=$(echo "$ui_port_range" | cut -d'-' -f1)
 			fi
@@ -916,20 +915,41 @@ app_stop() {
 
 # Stop all apps
 app_stop_all() {
-	# Try simple stop-all first (more reliable)
-	local simple_stop="${VROOLI_ROOT}/scripts/lib/simple-stop-all.sh"
+	# Use unified stop manager
+	local stop_manager="${VROOLI_ROOT}/scripts/lib/lifecycle/stop-manager.sh"
 	
-	if [[ -f "$simple_stop" ]]; then
-		log::info "Using simple stop-all method..."
-		bash "$simple_stop" "$@"
+	if [[ -f "$stop_manager" ]]; then
+		log::info "Using unified stop system..."
+		source "$stop_manager"
+		
+		# Parse flags for stop manager
+		local stop_args=()
+		for arg in "$@"; do
+			case "$arg" in
+				--force)
+					export FORCE_STOP=true
+					;;
+				--verbose|-v)
+					export VERBOSE=true
+					;;
+				--dry-run|--check)
+					export DRY_RUN=true
+					;;
+				*)
+					stop_args+=("$arg")
+					;;
+			esac
+		done
+		
+		stop::main apps "${stop_args[@]}"
 		return $?
 	else
-		log::error "No stop-all script found"
+		log::error "Unified stop manager not found at: $stop_manager"
 		log::info "Attempting direct process termination..."
 		
 		# Fallback: Direct kill commands
 		pkill -f "app_orchestrator" 2>/dev/null || true
-		pkill -f "generated-apps.*manage.sh" 2>/dev/null || true
+		pkill -f "generated-apps.*manage.sh"
 		pkill -f "generated-apps.*-api" 2>/dev/null || true
 		
 		log::success "Stop-all complete"

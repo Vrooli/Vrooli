@@ -6,11 +6,11 @@
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 JUDGE0_LIB_DIR="${APP_ROOT}/resources/judge0/lib"
 # shellcheck disable=SC1091
-source "${JUDGE0_LIB_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+source "${var_TRASH_FILE}"
 # shellcheck disable=SC1091
-source "${JUDGE0_LIB_DIR}/../../lib/docker-utils.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/docker-utils.sh"
 
 # Load dependencies if not already loaded (but preserve test environment)
 if [[ -z "${JUDGE0_API_KEY_LENGTH:-}" ]]; then
@@ -42,9 +42,9 @@ fi
 if ! declare -f log::info >/dev/null 2>&1; then
     # Try to source log utilities
     RESOURCES_DIR_COMMON="${JUDGE0_PARENT_DIR}/../.."
-    if [[ -f "${RESOURCES_DIR_COMMON}/../lib/utils/log.sh" ]]; then
+    if [[ -f "${APP_ROOT}/scripts/lib/utils/log.sh" ]]; then
         # shellcheck disable=SC1091
-        source "${RESOURCES_DIR_COMMON}/../lib/utils/log.sh"
+        source "${APP_ROOT}/scripts/lib/utils/log.sh"
     else
         # Fallback logging functions
         log::info() { echo "[INFO] $*"; }
@@ -297,4 +297,78 @@ judge0::get_version() {
     else
         echo "$JUDGE0_VERSION"
     fi
+}
+
+#######################################
+# Show credentials for n8n integration
+# Globals:
+#   JUDGE0_*
+# Arguments:
+#   None
+# Returns:
+#   JSON-formatted credentials
+#######################################
+judge0::core::credentials() {
+    source "${var_SCRIPTS_RESOURCES_LIB_DIR}/credentials-utils.sh"
+    
+    if ! credentials::parse_args "$@"; then
+        [[ $? -eq 2 ]] && { credentials::show_help "judge0"; return 0; }
+        return 1
+    fi
+    
+    local status
+    status=$(credentials::get_resource_status "${JUDGE0_CONTAINER_NAME:-vrooli-judge0-server}")
+    
+    local connections_array="[]"
+    if [[ "$status" == "running" ]]; then
+        # Judge0 requires API key authentication for security
+        local api_key
+        api_key=$(judge0::get_api_key 2>/dev/null || echo "")
+        
+        local connection_obj
+        connection_obj=$(jq -n \
+            --arg host "${JUDGE0_HOST:-localhost}" \
+            --argjson port "${JUDGE0_PORT:-2358}" \
+            '{
+                host: $host,
+                port: $port
+            }')
+        
+        # Build auth object with X-Auth-Token header for Judge0
+        local auth_obj
+        auth_obj=$(jq -n \
+            --arg header_name "X-Auth-Token" \
+            --arg header_value "$api_key" \
+            '{
+                header_name: $header_name,
+                header_value: $header_value
+            }')
+        
+        # Build metadata object
+        local metadata_obj
+        metadata_obj=$(jq -n \
+            --arg description "Judge0 secure code execution service" \
+            --arg base_url "${JUDGE0_BASE_URL:-http://localhost:2358}" \
+            --arg version "$(judge0::get_version)" \
+            '{
+                description: $description,
+                base_url: $base_url,
+                version: $version
+            }')
+        
+        local connection
+        connection=$(credentials::build_connection \
+            "main" \
+            "Judge0 Code Execution API" \
+            "httpHeaderAuth" \
+            "$connection_obj" \
+            "$auth_obj" \
+            "$metadata_obj")
+        
+        connections_array="[$connection]"
+    fi
+    
+    local response
+    response=$(credentials::build_response "judge0" "$status" "$connections_array")
+    credentials::format_output "$response"
 }

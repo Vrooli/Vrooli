@@ -271,9 +271,12 @@ agents2_cmd_ai_task() {
     fi
     
     local task_description="$*"
-    local task_id=$(agents2_generate_id "task")
-    local session_id=$(agents2_generate_id "session")
-    local timestamp=$(agents2_timestamp)
+    local task_id
+    task_id=$(agents2_generate_id "task")
+    local session_id
+    session_id=$(agents2_generate_id "session")
+    local timestamp
+    timestamp=$(agents2_timestamp)
     
     # Create new session if needed
     AGENTS2_SESSIONS[$session_id]="active|chrome|$timestamp|$timestamp"
@@ -420,9 +423,12 @@ mock::agents2::set_config() {
 
 mock::agents2::create_task() {
     local description="${1:-Test task}"
-    local task_id=$(agents2_generate_id "task")
-    local session_id=$(agents2_generate_id "session")
-    local timestamp=$(agents2_timestamp)
+    local task_id
+    task_id=$(agents2_generate_id "task")
+    local session_id
+    session_id=$(agents2_generate_id "session")
+    local timestamp
+    timestamp=$(agents2_timestamp)
     
     AGENTS2_TASKS[$task_id]="pending|$description|waiting|$session_id|$timestamp"
     AGENTS2_SESSIONS[$session_id]="active|chrome|$timestamp|$timestamp"

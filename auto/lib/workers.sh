@@ -136,7 +136,7 @@ run_iteration() {
 		# Clear any inherited cleanup functions from parent
 		# This prevents the worker from accidentally cleaning up parent resources
 		unset ERROR_CLEANUP_FUNCTIONS
-		ERROR_CLEANUP_FUNCTIONS=()
+		declare -g -a ERROR_CLEANUP_FUNCTIONS=()
 		
 		# Create a new process group for this worker
 		# This ensures all child processes can be killed together

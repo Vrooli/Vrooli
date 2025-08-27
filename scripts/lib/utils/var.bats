@@ -82,7 +82,7 @@ teardown() {
     [[ -n "${var_SCRIPTS_SCENARIOS_DIR+x}" ]] || { echo "var_SCRIPTS_SCENARIOS_DIR not defined"; return 1; }
     [[ -n "${var_SCRIPTS_SCENARIOS_INJECTION_DIR+x}" ]] || { echo "var_SCRIPTS_SCENARIOS_INJECTION_DIR not defined"; return 1; }
     
-    [[ "$var_SCRIPTS_TEST_DIR" == *"/scripts/__test" ]] || { echo "var_SCRIPTS_TEST_DIR incorrect: $var_SCRIPTS_TEST_DIR"; return 1; }
+    [[ "$var_SCRIPTS_TEST_DIR" == *"/__test" ]] || { echo "var_SCRIPTS_TEST_DIR incorrect: $var_SCRIPTS_TEST_DIR"; return 1; }
     [[ "$var_SCRIPTS_RESOURCES_DIR" == *"/scripts/resources" ]] || { echo "var_SCRIPTS_RESOURCES_DIR incorrect: $var_SCRIPTS_RESOURCES_DIR"; return 1; }
     [[ "$var_SCRIPTS_SCENARIOS_DIR" == *"/scripts/scenarios" ]] || { echo "var_SCRIPTS_SCENARIOS_DIR incorrect: $var_SCRIPTS_SCENARIOS_DIR"; return 1; }
 }

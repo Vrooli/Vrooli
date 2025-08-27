@@ -1295,7 +1295,7 @@ Implement a robust rollback system for Prisma database migrations to improve dep
 **Current Implementation Analysis:**
 - **Migration System**: Prisma migrations stored in `/packages/server/src/db/migrations/`
 - **Execution**: Migrations run automatically during server startup via `start.sh`
-- **Backup System**: Daily backups via `/scripts/main/backup.sh` but no pre-migration backups
+- **Backup System**: Resource-specific backups via `/resources/postgres/lib/backup.sh` and related scripts but no pre-migration backups
 - **Rollback Process**: Manual - restore from backup and mark as rolled back
 - **Missing**: Down migrations, automated rollback commands, migration validation, pre-migration backups
 

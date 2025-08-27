@@ -37,14 +37,15 @@ test_core_infrastructure() {
     load_test_mock "postgres"
     load_test_mock "docker"
     
-    # Test cross-service data flow
-    redis-cli set "db_config" "host=localhost,port=5432"
-    local config=$(redis-cli get "db_config")
+    # Test cross-service data flow using v2.0 CLI patterns
+    resource-redis content add "db_config" "host=localhost,port=5432" >/dev/null
+    local config
+    config=$(resource-redis content get "db_config")
     
-    psql -c "CREATE TABLE config (key TEXT, value TEXT)" >/dev/null
-    psql -c "INSERT INTO config VALUES ('redis_config', '$config')" >/dev/null
+    resource-postgres content execute "CREATE TABLE config (key TEXT, value TEXT)" >/dev/null
+    resource-postgres content execute "INSERT INTO config VALUES ('redis_config', '$config')" >/dev/null
     
-    docker ps >/dev/null
+    resource-docker status >/dev/null
     
     return 0
 }
@@ -55,10 +56,10 @@ test_ai_pipeline() {
     load_test_mock "whisper"
     load_test_mock "claude-code"
     
-    # Test AI workflow
-    ollama pull "llama2" >/dev/null 2>&1
-    whisper transcribe "audio.wav" >/dev/null 2>&1
-    claude-code prompt "analyze this" >/dev/null 2>&1
+    # Test AI workflow using v2.0 CLI patterns
+    resource-ollama content add --name "llama2" >/dev/null 2>&1
+    resource-whisper content execute --input "audio.wav" --operation transcribe >/dev/null 2>&1
+    resource-claude-code content execute --prompt "analyze this" >/dev/null 2>&1
     
     return 0
 }
@@ -69,10 +70,10 @@ test_automation_workflow() {
     load_test_mock "node-red"
     load_test_mock "windmill"
     
-    # Test workflow creation
-    n8n workflow create "test-workflow" >/dev/null 2>&1
-    node-red deploy >/dev/null 2>&1
-    windmill script create "test-script" "print('hello')" >/dev/null 2>&1
+    # Test workflow creation using v2.0 CLI patterns
+    resource-n8n content add --name "test-workflow" --type workflow >/dev/null 2>&1
+    resource-node-red content execute --operation deploy >/dev/null 2>&1
+    resource-windmill content add --name "test-script" --data "print('hello')" >/dev/null 2>&1
     
     return 0
 }
@@ -83,10 +84,10 @@ test_storage_layer() {
     load_test_mock "qdrant"
     load_test_mock "questdb"
     
-    # Test storage operations
-    minio mb "test-bucket" >/dev/null 2>&1
-    qdrant create-collection "test-collection" >/dev/null 2>&1
-    questdb create "metrics" "timestamp:TIMESTAMP,value:DOUBLE" >/dev/null 2>&1
+    # Test storage operations using v2.0 CLI patterns
+    resource-minio content add --name "test-bucket" --type bucket >/dev/null 2>&1
+    resource-qdrant content add --name "test-collection" --type collection >/dev/null 2>&1
+    resource-questdb content add --name "metrics" --schema "timestamp:TIMESTAMP,value:DOUBLE" >/dev/null 2>&1
     
     return 0
 }
@@ -113,25 +114,26 @@ test_cross_service_integration() {
     load_resource_test_mocks "storage"
     load_resource_test_mocks "ai"
     
-    # Simulate a complete workflow:
+    # Simulate a complete workflow using v2.0 CLI patterns:
     # 1. Store data in PostgreSQL
-    psql -c "CREATE TABLE ai_requests (id SERIAL, prompt TEXT, response TEXT)" >/dev/null
-    psql -c "INSERT INTO ai_requests (prompt) VALUES ('test prompt')" >/dev/null
+    resource-postgres content execute "CREATE TABLE ai_requests (id SERIAL, prompt TEXT, response TEXT)" >/dev/null
+    resource-postgres content execute "INSERT INTO ai_requests (prompt) VALUES ('test prompt')" >/dev/null
     
     # 2. Cache in Redis
-    redis-cli set "last_prompt" "test prompt" >/dev/null
+    resource-redis content add "last_prompt" "test prompt" >/dev/null
     
     # 3. Process with AI
-    local response=$(ollama generate "llama2" "test prompt" 2>/dev/null)
+    local response
+    response=$(resource-ollama content execute --model "llama2" --prompt "test prompt" 2>/dev/null)
     
     # 4. Update database with response
-    psql -c "UPDATE ai_requests SET response = '$response' WHERE id = 1" >/dev/null
+    resource-postgres content execute "UPDATE ai_requests SET response = '$response' WHERE id = 1" >/dev/null
     
     # 5. Store embeddings
-    qdrant upsert "embeddings" '{"id":1,"vector":[0.1,0.2,0.3]}' >/dev/null 2>&1
+    resource-qdrant content add --name "embeddings" --data '{"id":1,"vector":[0.1,0.2,0.3]}' >/dev/null 2>&1
     
     # 6. Log metrics
-    questdb insert "ai_metrics" "1,success,$(date +%s)" >/dev/null 2>&1
+    resource-questdb content add --table "ai_metrics" --data "1,success,$(date +%s)" >/dev/null 2>&1
     
     return 0
 }
@@ -144,7 +146,7 @@ test_error_handling() {
     inject_test_error "redis" "connection_refused"
     
     # This should fail
-    if redis ping >/dev/null 2>&1; then
+    if resource-redis test smoke >/dev/null 2>&1; then
         return 1
     fi
     
@@ -152,7 +154,7 @@ test_error_handling() {
     clear_test_errors "redis"
     
     # This should succeed
-    redis ping >/dev/null 2>&1
+    resource-redis test smoke >/dev/null 2>&1
     
     return 0
 }
@@ -162,15 +164,15 @@ test_performance() {
     load_test_mock "redis"
     load_test_mock "postgres"
     
-    # Test bulk operations
+    # Test bulk operations using v2.0 CLI patterns
     for i in {1..50}; do
-        redis-cli set "key$i" "value$i" >/dev/null 2>&1
+        resource-redis content add "key$i" "value$i" >/dev/null 2>&1
     done
     
     # Test database operations
-    psql -c "CREATE TABLE performance_test (id INT, data TEXT)" >/dev/null
+    resource-postgres content execute "CREATE TABLE performance_test (id INT, data TEXT)" >/dev/null
     for i in {1..20}; do
-        psql -c "INSERT INTO performance_test VALUES ($i, 'data$i')" >/dev/null
+        resource-postgres content execute "INSERT INTO performance_test VALUES ($i, 'data$i')" >/dev/null
     done
     
     return 0
@@ -180,12 +182,14 @@ test_performance() {
 test_state_management() {
     load_test_mock "redis"
     
-    # Test state persistence within session
-    redis-cli set "state_test" "initial_value"
-    local value1=$(redis-cli get "state_test")
+    # Test state persistence within session using v2.0 CLI patterns
+    resource-redis content add "state_test" "initial_value" >/dev/null
+    local value1
+    value1=$(resource-redis content get "state_test")
     
-    redis-cli set "state_test" "updated_value"
-    local value2=$(redis-cli get "state_test")
+    resource-redis content add "state_test" "updated_value" >/dev/null
+    local value2
+    value2=$(resource-redis content get "state_test")
     
     [[ "$value1" != "$value2" ]] && return 0 || return 1
 }

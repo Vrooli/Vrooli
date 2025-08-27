@@ -42,7 +42,8 @@ backup::store() {
     fi
     
     local backup_dir="${BACKUP_ROOT}/${resource}"
-    local timestamp=$(date +%Y%m%d_%H%M%S)
+    local timestamp
+    timestamp=$(date +%Y%m%d_%H%M%S)
     local backup_path="${backup_dir}/${timestamp}_${label}"
     
     # Create backup directory structure
@@ -327,14 +328,18 @@ backup::info() {
             
             for backup in "${backups[@]}"; do
                 local backup_path="${backup%/}"
-                local backup_id=$(basename "$backup_path")
+                local backup_id
+                backup_id=$(basename "$backup_path")
                 
                 # Extract info from metadata if available
                 local metadata_file="$backup_path/.metadata.json"
                 if [[ -f "$metadata_file" ]]; then
-                    local label=$(jq -r '.label // "unknown"' "$metadata_file" 2>/dev/null)
-                    local created=$(jq -r '.created // "unknown"' "$metadata_file" 2>/dev/null)
-                    local size=$(du -sh "$backup_path" 2>/dev/null | cut -f1 || echo "N/A")
+                    local label
+                    label=$(jq -r '.label // "unknown"' "$metadata_file" 2>/dev/null)
+                    local created
+                    created=$(jq -r '.created // "unknown"' "$metadata_file" 2>/dev/null)
+                    local size
+                    size=$(du -sh "$backup_path" 2>/dev/null | cut -f1 || echo "N/A")
                     
                     # Format created date
                     if [[ "$created" != "unknown" ]]; then
@@ -365,9 +370,12 @@ backup::info() {
         fi
         
         for resource_dir in "${resources[@]}"; do
-            local resource_name=$(basename "$resource_dir")
-            local backup_count=$(ls -1 "$resource_dir" 2>/dev/null | wc -l)
-            local total_size=$(du -sh "$resource_dir" 2>/dev/null | cut -f1 || echo "0")
+            local resource_name
+            resource_name=$(basename "$resource_dir")
+            local backup_count
+            backup_count=$(ls -1 "$resource_dir" 2>/dev/null | wc -l)
+            local total_size
+            total_size=$(du -sh "$resource_dir" 2>/dev/null | cut -f1 || echo "0")
             
             printf "%-20s %3d backups %10s\n" "$resource_name" "$backup_count" "$total_size"
         done

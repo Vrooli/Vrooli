@@ -15,11 +15,11 @@ source "$CLEANUP_MANAGER_SCRIPT_DIR/cleanup.bash"
 
 # Source var.sh first to get proper directory variables
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 # Source trash system for safe removal using var_ variables
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+source "${var_TRASH_FILE}"
 
 # Cleanup configuration
 readonly CLEANUP_AGE_HOURS="${CLEANUP_AGE_HOURS:-24}"  # Clean resources older than X hours

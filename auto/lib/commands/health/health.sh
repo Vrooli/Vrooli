@@ -68,7 +68,7 @@ cmd_execute() {
     
     # Check Ollama availability if resource-ollama exists
     if command -v resource-ollama >/dev/null 2>&1; then
-        if resource-ollama info >/dev/null 2>&1; then
+        if resource-ollama test smoke >/dev/null 2>&1; then
             echo "✅ ollama available"
         else
             echo "⚠️  ollama installed but not responding"

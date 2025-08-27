@@ -12,18 +12,18 @@ JUDGE0_SCRIPT_DIR="${APP_ROOT}/resources/judge0"
 
 # Source var.sh first to get directory variables
 # shellcheck disable=SC1091
-source "${JUDGE0_SCRIPT_DIR}/../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 # Source common utilities using var_ variables
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+source "${var_TRASH_FILE}"
 
 # Source Judge0 configuration if available
 if [[ -f "${JUDGE0_SCRIPT_DIR}/config/defaults.sh" ]]; then
     # shellcheck disable=SC1091
-    source "${JUDGE0_SCRIPT_DIR}/config/defaults.sh" 2>/dev/null || true
+    source "${JUDGE0_SCRIPT_DIR}/config/defaults.sh"
 fi
 
 # Default Judge0 settings
@@ -127,7 +127,7 @@ judge0_inject::check_accessibility() {
         return 0
     else
         log::error "Judge0 is not accessible at $JUDGE0_HOST"
-        log::info "Ensure Judge0 is running: ./resources/judge0/manage.sh --action start"
+        log::info "Ensure Judge0 is running: resource-judge0 manage start"
         return 1
     fi
 }

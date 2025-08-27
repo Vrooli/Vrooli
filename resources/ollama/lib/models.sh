@@ -469,3 +469,111 @@ export -f ollama::validate_model_list ollama::get_installed_models
 export -f ollama::get_best_available_model ollama::validate_model_available
 export -f ollama::parse_models ollama::pull_model ollama::install_models
 export -f ollama::list_models
+
+#######################################
+# Check if a model is an embedding model
+# Arguments:
+#   $1 - model name
+# Returns: 0 if embedding model, 1 otherwise
+#######################################
+ollama::is_embedding_model() {
+    local model="$1"
+    
+    # Check if model name contains embedding-related keywords
+    if [[ "$model" =~ embed|bge-m3|nomic-embed ]]; then
+        return 0
+    fi
+    
+    # Check capabilities in MODEL_CATALOG
+    if [[ -n "${MODEL_CATALOG[$model]:-}" ]]; then
+        local info="${MODEL_CATALOG[$model]}"
+        local capabilities=$(echo "$info" | cut -d'|' -f2)
+        if [[ "$capabilities" == *"embedding"* ]]; then
+            return 0
+        fi
+    fi
+    
+    return 1
+}
+
+#######################################
+# Get optimal parallel setting for a model
+# Arguments:
+#   $1 - model name
+# Outputs: Optimal parallel setting
+#######################################
+ollama::get_optimal_parallel() {
+    local model="$1"
+    
+    # Check if it's an embedding model
+    if ollama::is_embedding_model "$model"; then
+        # Embedding models are lightweight, can handle high parallelism
+        echo "16"
+        return
+    fi
+    
+    # Get model size for resource-intensive models
+    local size
+    size=$(ollama::get_model_size "$model")
+    
+    # Adjust parallel based on model size
+    # Larger models need lower parallelism to avoid OOM
+    if [[ "$size" =~ ^[0-9]+\.?[0-9]*$ ]]; then
+        if (( $(echo "$size > 10" | bc -l) )); then
+            # Very large models (>10GB): minimal parallelism
+            echo "1"
+        elif (( $(echo "$size > 5" | bc -l) )); then
+            # Large models (5-10GB): low parallelism
+            echo "2"
+        elif (( $(echo "$size > 3" | bc -l) )); then
+            # Medium models (3-5GB): moderate parallelism
+            echo "4"
+        else
+            # Small models (<3GB): higher parallelism
+            echo "8"
+        fi
+    else
+        # Unknown model size: conservative default
+        echo "2"
+    fi
+}
+
+#######################################
+# Configure Ollama environment for specific model
+# Arguments:
+#   $1 - model name
+# Sets environment variables for optimal performance
+#######################################
+ollama::configure_for_model() {
+    local model="$1"
+    
+    # Get optimal parallel setting
+    local optimal_parallel
+    optimal_parallel=$(ollama::get_optimal_parallel "$model")
+    
+    # Export dynamic configuration
+    export OLLAMA_NUM_PARALLEL="$optimal_parallel"
+    
+    # Adjust other settings based on model type
+    if ollama::is_embedding_model "$model"; then
+        # Embedding models: optimize for throughput
+        export OLLAMA_MAX_LOADED_MODELS="${OLLAMA_MAX_LOADED_MODELS:-5}"  # Keep more in memory
+        export OLLAMA_FLASH_ATTENTION="1"  # Always use flash attention
+        log::info "Configured for embedding model: parallel=$optimal_parallel, max_loaded=5"
+    else
+        # LLM models: optimize for memory efficiency
+        local size
+        size=$(ollama::get_model_size "$model")
+        if [[ "$size" =~ ^[0-9]+\.?[0-9]*$ ]] && (( $(echo "$size > 5" | bc -l) )); then
+            # Large models: minimize memory usage
+            export OLLAMA_MAX_LOADED_MODELS="1"
+            log::info "Configured for large LLM: parallel=$optimal_parallel, max_loaded=1"
+        else
+            # Standard configuration
+            export OLLAMA_MAX_LOADED_MODELS="${OLLAMA_MAX_LOADED_MODELS:-3}"
+            log::info "Configured for standard model: parallel=$optimal_parallel, max_loaded=3"
+        fi
+    fi
+}
+
+export -f ollama::is_embedding_model ollama::get_optimal_parallel ollama::configure_for_model

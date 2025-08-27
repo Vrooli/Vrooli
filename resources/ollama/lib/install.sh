@@ -6,13 +6,13 @@
 # Source sudo utilities if not already available
 if ! command -v sudo::exec_with_fallback &>/dev/null; then
     # shellcheck disable=SC1091
-    source "${var_LIB_UTILS_DIR}/sudo.sh" 2>/dev/null || true
+    source "${var_LIB_UTILS_DIR}/sudo.sh"
 fi
 
 # Source system commands if not already available
 if ! command -v system::is_command &>/dev/null; then
     # shellcheck disable=SC1091
-    source "${var_LIB_SYSTEM_DIR}/system_commands.sh" 2>/dev/null || true
+    source "${var_LIB_SYSTEM_DIR}/system_commands.sh"
 fi
 
 #######################################
@@ -50,12 +50,13 @@ ollama::install_binary() {
         return 1
     fi
     
-    # Make executable and run non-interactively
+    # Make executable and run non-interactively with specific version
     chmod +x "$install_script"
     
     if sudo::can_use_sudo; then
-        # Run installer non-interactively by piping yes to it
-        if sudo::exec_with_fallback "yes | bash '$install_script' 2>&1"; then
+        # Run installer non-interactively with specific version
+        # OLLAMA_VERSION environment variable is respected by the official installer
+        if sudo::exec_with_fallback "OLLAMA_VERSION='$OLLAMA_VERSION' yes | bash '$install_script' 2>&1"; then
             log::success "$MSG_INSTALLER_SUCCESS"
         else
             log::error "$MSG_INSTALLER_FAILED"

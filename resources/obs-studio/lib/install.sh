@@ -292,6 +292,37 @@ main() {
     echo "[SUCCESS] ✅ OBS Studio installation complete"
 }
 
+# Uninstall OBS Studio
+obs::uninstall() {
+    echo "[INFO] Uninstalling OBS Studio..."
+    
+    # Stop if running
+    if obs_is_running; then
+        echo "[INFO] Stopping OBS Studio first..."
+        obs::stop || true
+    fi
+    
+    # Remove Docker container if exists
+    if docker ps -a --format '{{.Names}}' | grep -q "^${OBS_CONTAINER_NAME}$"; then
+        echo "[INFO] Removing Docker container..."
+        docker stop "${OBS_CONTAINER_NAME}" 2>/dev/null || true
+        docker rm -f "${OBS_CONTAINER_NAME}" 2>/dev/null || true
+    fi
+    
+    # Remove mock installation markers
+    rm -f "${OBS_CONFIG_DIR}/.obs-installed-mock"
+    rm -f "${OBS_CONFIG_DIR}/.obs-running-mock"
+    
+    # Remove configuration (but preserve user recordings)
+    echo "[INFO] Removing configuration files..."
+    rm -rf "${OBS_CONFIG_DIR}/config"
+    rm -rf "${OBS_CONFIG_DIR}/plugins"
+    rm -f "${OBS_CONFIG_DIR}/websocket.json"
+    rm -f "${OBS_CONFIG_DIR}/websocket-password"
+    
+    echo "[SUCCESS] OBS Studio uninstalled successfully"
+}
+
 # Run if executed directly
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     main "$@"

@@ -11,7 +11,7 @@ include_verbatim = true
 scheme = ["file"]
 
 # Output format: detailed for debugging, compact for CI
-output = "detailed"
+format = "detailed"
 
 # File extensions to check when validating file references
 file_extensions = ["md", "markdown", "sh", "bash", "ts", "tsx", "js", "jsx", "json", "yaml", "yml", "txt", "sql", "py", "go", "toml"]
@@ -53,6 +53,12 @@ retry_wait_time = 1
 
 # Cache successful results to speed up repeated runs
 cache = true
+
+# Cache directory - store in data/ instead of project root
+cache_dir = "data/.lycheecache"
+
+# Output detailed results to data directory instead of root
+output = "data/.lycheecache/lychee-detailed.log"
 
 # Check fragments (anchors) in local files
 check_anchors = true

@@ -2,6 +2,17 @@
 # Browserless Health Check Functions
 # Tiered health checking using health framework
 
+# Get the directory paths
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+
+# Source required dependencies
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/resources/lib/docker-utils.sh"
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/resources/lib/http-utils.sh"
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/resources/lib/health-framework.sh"
+
 #######################################
 # Get health check configuration
 # Returns: JSON configuration for health framework

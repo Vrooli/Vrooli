@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+
+
 ################################################################################
 # Scenario-to-App Generator
 # 
@@ -1064,7 +1066,7 @@ scenario_to_app::adjust_app_root_depth() {
                     else
                         # Build new path
                         local new_path=""
-                        for ((i=0; i<new_depth; i++)); do
+                        for ((depth_i=0; depth_i<new_depth; depth_i++)); do
                             new_path="${new_path}/.."
                         done
                         processed_line=$(echo "$line" | sed "s|\\(\${BASH_SOURCE\\[0\\]%/\\*}\\)/[\\./]*|\\1${new_path}|")
@@ -1093,8 +1095,8 @@ scenario_to_app::adjust_app_root_depth() {
                         else
                             # Build new path
                             local new_path=""
-                            for ((i=0; i<new_depth; i++)); do
-                                [[ $i -gt 0 ]] && new_path="${new_path}/"
+                            for ((depth_i=0; depth_i<new_depth; depth_i++)); do
+                                [[ $depth_i -gt 0 ]] && new_path="${new_path}/"
                                 new_path="${new_path}.."
                             done
                             processed_line=$(echo "$line" | sed "s|\\(cd[^\"]*\"\\)[^\"]*\\(\"\\)|\\1${new_path}\\2|")
@@ -1115,8 +1117,8 @@ scenario_to_app::adjust_app_root_depth() {
                         processed_line=$(echo "$line" | sed 's|\(APP_ROOT[^.]*\)[^"'\'' ]*|\1.|')
                     else
                         local new_path=""
-                        for ((i=0; i<new_depth; i++)); do
-                            [[ $i -gt 0 ]] && new_path="${new_path}/"
+                        for ((depth_i=0; depth_i<new_depth; depth_i++)); do
+                            [[ $depth_i -gt 0 ]] && new_path="${new_path}/"
                             new_path="${new_path}.."
                         done
                         processed_line=$(echo "$line" | sed "s|\\(APP_ROOT[^.]*\\)[^\"' ]*|\\1${new_path}|")
@@ -1376,9 +1378,9 @@ scenario_to_app::build_copied_paths_set() {
     local rule_count
     rule_count=$(jq '.copy_rules | length' "$manifest_path")
     
-    for ((i=0; i<rule_count; i++)); do
+    for ((rule_i=0; rule_i<rule_count; rule_i++)); do
         local rule
-        rule=$(jq -c ".copy_rules[$i]" "$manifest_path")
+        rule=$(jq -c ".copy_rules[$rule_i]" "$manifest_path")
         
         local from source type
         from=$(echo "$rule" | jq -r '.from // "vrooli"')

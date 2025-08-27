@@ -4,7 +4,7 @@
 
 # Get the fixtures directory path
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
-FIXTURES_DIR="${APP_ROOT}/__test/fixtures/data"
+FIXTURES_DIR="${APP_ROOT}/__test/fixtures"
 
 #######################################
 # Load fixture file path by category and name

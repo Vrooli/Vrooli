@@ -9,7 +9,7 @@ You are working on Vrooli - a **self-improving intelligence system** where agent
 - `vrooli help` - See all available commands
 - `vrooli test help` - See test commands  
 - `vrooli develop` - Start development environment
-- `./scripts/main/setup.sh --yes yes` - Initial setup
+- `./scripts/manage.sh setup --yes yes` - Initial setup
 
 ## 🧠 Understanding Vrooli's True Nature
 

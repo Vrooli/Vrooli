@@ -6,13 +6,13 @@ Run large language models locally with Ollama. Perfect for privacy-sensitive tas
 
 ```bash
 # Install with default models (llama3.1:8b, deepseek-r1:8b, qwen2.5-coder:7b)
-./manage.sh --action install
+resource-ollama manage install
 
 # Send a prompt
-./manage.sh --action prompt --text "Explain machine learning in simple terms"
+resource-ollama generate "llama3.2:3b" "Explain machine learning in simple terms"
 
 # Check status and available models
-./manage.sh --action status
+resource-ollama
 ```
 
 **Default URL**: http://localhost:11434
@@ -41,20 +41,19 @@ For comprehensive guides and advanced configuration:
 
 ```bash
 # Model management
-./manage.sh --action models                         # List available models
-./manage.sh --action pull --models "llama3.1:70b"  # Download specific model
+resource-ollama list-models                      # List available models
+resource-ollama pull-model "llama3.1:70b"        # Download specific model
 
 # Text generation with automatic model selection
-./manage.sh --action prompt --text "Write a Python function" --type code
-./manage.sh --action prompt --text "Solve: x² + 5x = 0" --type reasoning
-./manage.sh --action prompt --text "Hello, how are you?" --type general
+resource-ollama generate "codellama:7b" "Write a Python function"
+resource-ollama generate "qwen2.5:7b" "Solve: x² + 5x = 0"
+resource-ollama generate "llama3.2:3b" "Hello, how are you?"
 
 # Advanced generation with custom parameters
-./manage.sh --action prompt \
-  --text "Explain quantum computing" \
+resource-ollama generate \
   --model "llama3.1:8b" \
   --temperature 0.3 \
-  --max-tokens 500
+  "Explain quantum computing"
 
 # Model customization (create specialized models)
 ollama create my-specialist -f my-modelfile     # Create custom model

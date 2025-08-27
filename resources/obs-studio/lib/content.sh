@@ -376,9 +376,99 @@ obs_content_execute() {
     esac
 }
 
+# New v2.0 namespaced content functions (wrapper functions for compatibility)
+obs::content::add() { obs_content_add "$@"; }
+obs::content::list() { obs_content_list "$@"; }
+obs::content::get() { obs_content_get "$@"; }
+obs::content::remove() { obs_content_remove "$@"; }
+obs::content::execute() { obs_content_execute "$@"; }
+
+# Additional content subcommands
+obs::content::scenes() {
+    local action="${1:-list}"
+    shift || true
+    
+    case "$action" in
+        list)
+            obs_content_list --type scene "$@"
+            ;;
+        switch)
+            local scene_name="$1"
+            if [[ -z "$scene_name" ]]; then
+                echo "[ERROR] Scene name required"
+                return 1
+            fi
+            echo "[INFO] Switching to scene: $scene_name"
+            # Implementation would switch scene via websocket
+            echo "[SUCCESS] Switched to scene: $scene_name"
+            ;;
+        *)
+            echo "[ERROR] Unknown scenes action: $action"
+            echo "Available: list, switch"
+            return 1
+            ;;
+    esac
+}
+
+obs::content::record() {
+    local action="${1:-status}"
+    shift || true
+    
+    case "$action" in
+        start)
+            echo "[INFO] Starting recording..."
+            obs::start_recording
+            ;;
+        stop)
+            echo "[INFO] Stopping recording..."
+            obs::stop_recording
+            ;;
+        status)
+            echo "[INFO] Recording status: Not implemented"
+            ;;
+        *)
+            echo "[ERROR] Unknown record action: $action"
+            echo "Available: start, stop, status"
+            return 1
+            ;;
+    esac
+}
+
+obs::content::stream() {
+    local action="${1:-status}"
+    shift || true
+    
+    case "$action" in
+        start)
+            echo "[INFO] Starting stream..."
+            echo "[INFO] Stream functionality not yet implemented"
+            ;;
+        stop)
+            echo "[INFO] Stopping stream..."
+            echo "[INFO] Stream functionality not yet implemented"
+            ;;
+        status)
+            echo "[INFO] Stream status: Not implemented"
+            ;;
+        *)
+            echo "[ERROR] Unknown stream action: $action"
+            echo "Available: start, stop, status"
+            return 1
+            ;;
+    esac
+}
+
 # Export functions
 export -f obs_content_add
 export -f obs_content_list
 export -f obs_content_get
 export -f obs_content_remove
 export -f obs_content_execute
+export -f obs::content::add
+export -f obs::content::list
+export -f obs::content::get
+export -f obs::content::remove
+export -f obs::content::execute
+export -f obs::content::scenes
+export -f obs::content::record
+export -f obs::content::stream

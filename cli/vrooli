@@ -75,6 +75,7 @@ show_main_help() {
     deploy              Deploy to production
     clean               Clean build artifacts
     status              Show system health and status overview
+    stop                Stop all or specific components (apps, resources, containers)
 
 🧪 TESTING COMMANDS:
     test                Run comprehensive scenario-first test suite
@@ -122,6 +123,9 @@ show_main_help() {
     vrooli test resources --verbose     # Test resources with details
     vrooli app list                     # List generated apps
     vrooli app logs my-app              # Show app logs
+    vrooli stop                         # Stop everything
+    vrooli stop apps                    # Stop only apps
+    vrooli stop --dry-run               # Preview what would be stopped
 
 📖 For more help on a specific command:
     vrooli <command> --help
@@ -185,6 +189,13 @@ main() {
 			exec "${VROOLI_ROOT}/cli/commands/resource-commands.sh" "$@"
 			;;
 			
+		# Unified stop commands
+		stop)
+			# Clear source guards to allow stop-commands.sh to load functions properly
+			unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED
+			exec "${VROOLI_ROOT}/cli/commands/stop-commands.sh" "$@"
+			;;
+			
 		# Doctor / preflight checks
 		doctor)
 			unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED
@@ -207,7 +218,7 @@ main() {
 			log::error "Unknown command: $command"
 			
 					# Try to provide fuzzy suggestions
-		local available_commands=("setup" "develop" "build" "deploy" "clean" "backup" "restore" "status" "test" "app" "scenario" "resource" "doctor" "version" "help")
+		local available_commands=("setup" "develop" "build" "deploy" "clean" "backup" "restore" "status" "stop" "test" "app" "scenario" "resource" "doctor" "version" "help")
 		local suggestions=()
 		
 		# Simple fuzzy matching

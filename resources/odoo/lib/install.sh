@@ -82,4 +82,61 @@ EOF
     return 0
 }
 
+# Uninstall Odoo - required by Universal Contract
+odoo::install::uninstall() {
+    log::info "Uninstalling Odoo..."
+    
+    # Stop containers if running
+    if odoo_is_running; then
+        log::info "Stopping Odoo services..."
+        odoo_stop
+    fi
+    
+    # Remove Docker containers
+    if docker ps -a --format "{{.Names}}" | grep -q "^${ODOO_CONTAINER_NAME}$"; then
+        log::info "Removing Odoo container..."
+        docker rm -f "$ODOO_CONTAINER_NAME" 2>/dev/null || true
+    fi
+    
+    if docker ps -a --format "{{.Names}}" | grep -q "^${ODOO_PG_CONTAINER_NAME}$"; then
+        log::info "Removing PostgreSQL container..."
+        docker rm -f "$ODOO_PG_CONTAINER_NAME" 2>/dev/null || true
+    fi
+    
+    # Remove Docker network
+    if docker network inspect "$ODOO_NETWORK_NAME" &>/dev/null; then
+        log::info "Removing Docker network..."
+        docker network rm "$ODOO_NETWORK_NAME" 2>/dev/null || true
+    fi
+    
+    # Remove Docker images
+    log::info "Removing Docker images..."
+    docker rmi "$ODOO_IMAGE" 2>/dev/null || true
+    docker rmi "$ODOO_PG_IMAGE" 2>/dev/null || true
+    
+    # Remove data directory (with confirmation)
+    if [[ -d "$ODOO_DATA_DIR" ]]; then
+        log::warn "Data directory: $ODOO_DATA_DIR"
+        log::warn "This contains your Odoo data and cannot be recovered once deleted."
+        read -p "Remove data directory? [y/N]: " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            log::info "Removing data directory..."
+            rm -rf "$ODOO_DATA_DIR"
+        else
+            log::info "Data directory preserved at: $ODOO_DATA_DIR"
+        fi
+    fi
+    
+    log::success "Odoo uninstalled"
+    return 0
+}
+
+# Map to v2.0 naming convention
+odoo::install::execute() {
+    odoo_install "$@"
+}
+
 export -f odoo_install
+export -f odoo::install::uninstall
+export -f odoo::install::execute

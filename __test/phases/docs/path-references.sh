@@ -34,23 +34,17 @@ run_path_reference_validation() {
         return 0
     fi
     
-    echo "DEBUG: After dry run check" >&2
-    
     local broken_paths=()
     local total_paths=0
     local line_num=0
     local in_code_block="false"
     local code_block_type=""
     
-    echo "DEBUG: About to open file: $file" >&2
-    
     # Extract potential file paths from the document
     # Use file descriptor 3 to avoid stdin conflicts
     exec 3< "$file"
-    echo "DEBUG: File opened, starting read loop" >&2
     while IFS= read -r line <&3; do
         ((line_num++))
-        echo "DEBUG: Line $line_num: [$line]" >&2
         
         # Check for code block boundaries
         if [[ "$line" =~ ^'```' ]]; then

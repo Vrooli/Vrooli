@@ -8,10 +8,10 @@ APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin
 _HERE="${APP_ROOT}/scripts/resources/tests/lib"
 
 # shellcheck disable=SC1091
-source "${_HERE}/../../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 # Fixture data base path
-FIXTURE_BASE="${FIXTURE_BASE:-${var_SCRIPTS_TEST_DIR}/fixtures/data}"
+FIXTURE_BASE="${FIXTURE_BASE:-${var_SCRIPTS_TEST_DIR}/fixtures}"
 
 #######################################
 # FIXTURE PATH HELPERS

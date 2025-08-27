@@ -50,19 +50,6 @@ The Resource Contract System defines standardized interfaces that all Vrooli res
 ./tools/validate-universal-contract.sh --layer 2 --verbose
 ```
 
-### Detect Deprecated Patterns
-
-```bash
-# Scan for deprecated patterns
-./tools/detect-deprecated.sh
-
-# Get migration suggestions
-./tools/detect-deprecated.sh --fix-suggestions
-
-# Generate JSON report
-./tools/detect-deprecated.sh --format json --output report.json
-```
-
 ## Contract Structure (v2.0)
 
 ### Required Commands
@@ -141,7 +128,6 @@ resource-name/
 | Tool | Purpose | Status |
 |------|---------|--------|
 | `validate-universal-contract.sh` | Validate v2.0 compliance | ✅ Active |
-| `detect-deprecated.sh` | Find deprecated patterns | ✅ Active |
 | `validate-interfaces.sh` | Legacy v1.0 validation | ⚠️ Deprecated |
 
 ### Migration Tools (Coming Soon)
@@ -153,33 +139,6 @@ resource-name/
 | `cleanup-deprecated.sh` | Remove deprecated files | 📋 Planned |
 
 ## Migration Guide
-
-### For Resource Maintainers
-
-1. **Check Current Status**
-   ```bash
-   ./tools/detect-deprecated.sh --resource your-resource
-   ```
-
-2. **Validate Against v2.0**
-   ```bash
-   ./tools/validate-universal-contract.sh --resource your-resource
-   ```
-
-3. **Migrate Structure** (when tool available)
-   ```bash
-   ./tools/migrate-resource.sh --resource your-resource
-   ```
-
-4. **Update Commands**
-   - Group lifecycle commands under `manage`
-   - Group test commands under `test`
-   - Replace `inject` with `content add`
-
-5. **Test Thoroughly**
-   ```bash
-   ./tools/validate-universal-contract.sh --layer 2 --resource your-resource
-   ```
 
 ### For New Resources
 
@@ -204,15 +163,6 @@ resource-name/
 - Skip required commands
 - Use deprecated patterns
 - Ignore validation warnings
-
-## Backward Compatibility
-
-During the migration period (until v1.0 removal):
-
-- Both `manage.sh` and `cli.sh` can coexist
-- Validation tools support both v1.0 and v2.0
-- Resources can migrate incrementally
-- Deprecation warnings don't block functionality
 
 ## FAQ
 

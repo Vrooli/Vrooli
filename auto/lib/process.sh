@@ -34,7 +34,7 @@ kill_tree() {
 	kill -s "$sig" "$pid" 2>/dev/null || true
 	# Kill children by parent relationship as a fallback
 	if command -v pkill >/dev/null 2>&1; then
-		pkill -$sig -P "$pid" 2>/dev/null || true
+		pkill -"$sig" -P "$pid" 2>/dev/null || true
 	fi
 }
 

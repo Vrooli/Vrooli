@@ -96,4 +96,16 @@ EOF
     [[ "$health" == "healthy" ]] && return 0 || return 1
 }
 
+# v2.0 naming convention handlers
+odoo::status() {
+    odoo_status "$@"
+}
+
+odoo::status::check() {
+    # Simple health check for smoke test
+    odoo_status "text" | grep -q "healthy" && return 0 || return 1
+}
+
 export -f odoo_status
+export -f odoo::status
+export -f odoo::status::check

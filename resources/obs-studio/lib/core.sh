@@ -332,6 +332,31 @@ obs::stop_recording() {
     return 0
 }
 
+# Restart OBS Studio
+obs::restart() {
+    echo "[INFO] Restarting OBS Studio..."
+    obs::stop
+    sleep 2
+    obs::start
+    echo "[SUCCESS] OBS Studio restarted"
+}
+
+# Show OBS Studio logs
+obs::logs() {
+    local lines="${1:-50}"
+    
+    if docker ps --format '{{.Names}}' | grep -q "^${OBS_CONTAINER_NAME}$"; then
+        echo "[INFO] Showing OBS Studio container logs (last ${lines} lines)..."
+        docker logs --tail "${lines}" "${OBS_CONTAINER_NAME}"
+    elif [[ -f "${OBS_CONFIG_DIR}/.obs-running-mock" ]]; then
+        echo "[INFO] Mock mode - no logs available"
+        echo "[MOCK] OBS Studio running in mock mode"
+    else
+        echo "[INFO] OBS Studio is not running in Docker mode"
+        echo "[INFO] Check system logs for native OBS installation"
+    fi
+}
+
 # Export functions
 export -f obs::init
 export -f obs::is_installed
@@ -341,6 +366,8 @@ export -f obs::get_status
 export -f obs::install
 export -f obs::start
 export -f obs::stop
+export -f obs::restart
+export -f obs::logs
 export -f obs::websocket_command
 export -f obs::create_scene
 export -f obs::start_recording

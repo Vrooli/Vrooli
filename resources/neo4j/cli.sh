@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 ################################################################################
-# Neo4j Resource CLI
+# Neo4j Resource CLI - v2.0 Universal Contract Compliant
 # 
-# Ultra-thin CLI wrapper that delegates directly to library functions
+# Native property graph database with Cypher query language
 #
 # Usage:
 #   resource-neo4j <command> [options]
+#   resource-neo4j <group> <subcommand> [options]
 #
 ################################################################################
 
@@ -15,107 +16,84 @@ APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}
 # Handle symlinks for installed CLI
 if [[ -L "${BASH_SOURCE[0]}" ]]; then
     NEO4J_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
-    # Recalculate APP_ROOT from resolved symlink location
     APP_ROOT="$(builtin cd "${NEO4J_CLI_SCRIPT%/*}/../.." && builtin pwd)"
 fi
 NEO4J_CLI_DIR="${APP_ROOT}/resources/neo4j"
 
-# Source standard variables
 # shellcheck disable=SC1091
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
-
-# Source utilities using var_ variables
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
 source "${var_RESOURCES_COMMON_FILE}"
-
-# Source the CLI Command Framework
 # shellcheck disable=SC1091
-source "${var_SCRIPTS_RESOURCES_LIB_DIR}/cli-command-framework.sh"
-
-# Source Neo4j libraries - these contain the actual functionality
+source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 # shellcheck disable=SC1091
-source "${NEO4J_CLI_DIR}/lib/common.sh" 2>/dev/null || true
-# shellcheck disable=SC1091
-source "${NEO4J_CLI_DIR}/lib/install.sh" 2>/dev/null || true
-# shellcheck disable=SC1091
-source "${NEO4J_CLI_DIR}/lib/start.sh" 2>/dev/null || true
-# shellcheck disable=SC1091
-source "${NEO4J_CLI_DIR}/lib/status.sh" 2>/dev/null || true
-# shellcheck disable=SC1091
-source "${NEO4J_CLI_DIR}/lib/inject.sh" 2>/dev/null || true
+source "${NEO4J_CLI_DIR}/config/defaults.sh"
 
-################################################################################
-# Define CLI commands
-################################################################################
+# Source Neo4j libraries
+for lib in common install start status inject; do
+    lib_file="${NEO4J_CLI_DIR}/lib/${lib}.sh"
+    if [[ -f "$lib_file" ]]; then
+        # shellcheck disable=SC1090
+        source "$lib_file" 2>/dev/null || true
+    fi
+done
 
-# Help command
-neo4j::show_help() {
-    cat <<EOF
-Neo4j Graph Database Resource
+# Initialize CLI framework in v2.0 mode (auto-creates manage/test/content groups)
+cli::init "neo4j" "Neo4j graph database management" "v2"
 
-Usage: resource-neo4j <command> [options]
+# Override default handlers to point directly to neo4j implementations
+CLI_COMMAND_HANDLERS["manage::install"]="neo4j_install"
+CLI_COMMAND_HANDLERS["manage::uninstall"]="neo4j_uninstall"
+CLI_COMMAND_HANDLERS["manage::start"]="neo4j_start"  
+CLI_COMMAND_HANDLERS["manage::stop"]="neo4j_stop"
+CLI_COMMAND_HANDLERS["manage::restart"]="neo4j_restart"
+CLI_COMMAND_HANDLERS["test::smoke"]="neo4j_status"
 
-Core Commands:
-  install             Install Neo4j
-  uninstall          Uninstall Neo4j  
-  start              Start Neo4j container
-  stop               Stop Neo4j container
-  restart            Restart Neo4j container
-  status [format]    Show status (format: text|json)
-  logs               Show Neo4j logs
-  help               Show this help message
+# Override content handlers for Neo4j-specific graph database functionality
+CLI_COMMAND_HANDLERS["content::add"]="neo4j_inject"
+CLI_COMMAND_HANDLERS["content::list"]="neo4j_list_injected" 
+CLI_COMMAND_HANDLERS["content::get"]="neo4j::content::get"
+CLI_COMMAND_HANDLERS["content::remove"]="neo4j::content::remove"
+CLI_COMMAND_HANDLERS["content::execute"]="neo4j_query"
 
-Data Management:
-  inject <file>      Inject Cypher file
-  list-injected      List injected files
-  query <cypher>     Execute Cypher query
+# Add Neo4j-specific content subcommands for graph operations
+cli::register_subcommand "content" "query" "Execute Cypher query" "neo4j_query"
+cli::register_subcommand "content" "backup" "Backup graph database" "neo4j::content::backup" "modifies-system"
 
-Examples:
-  resource-neo4j install
-  resource-neo4j start
-  resource-neo4j status json
-  resource-neo4j inject schema.cypher
-  resource-neo4j query "MATCH (n) RETURN count(n)"
+# Additional information commands
+cli::register_command "status" "Show detailed resource status" "neo4j_status"
+cli::register_command "logs" "Show Neo4j logs" "neo4j_logs"
 
-Default Port: 7474 (HTTP), 7687 (Bolt)
-Web UI: http://localhost:7474
-Features: Native graph database with Cypher query language
-EOF
+# Define missing content and docker functions
+neo4j::content::get() {
+    echo "Content retrieval not implemented for Neo4j"
+    echo "Use 'content query' to run Cypher queries instead"
+    return 1
 }
 
-# Wrapper for logs (if not already defined)
-neo4j::logs() {
-    docker logs neo4j --tail 50 2>&1 || echo "Neo4j container not running"
+neo4j::content::remove() {
+    echo "Content removal not implemented for Neo4j"
+    echo "Use 'content query' to run deletion Cypher queries instead"
+    return 1
 }
 
-################################################################################
-# Register CLI commands
-################################################################################
+neo4j::content::backup() {
+    if ! neo4j_is_running; then
+        echo "Error: Neo4j is not running"
+        return 1
+    fi
+    
+    local backup_file="neo4j-backup-$(date +%Y%m%d-%H%M%S).dump"
+    echo "Creating Neo4j backup: $backup_file"
+    docker exec "$NEO4J_CONTAINER_NAME" neo4j-admin database dump neo4j --to-path=/var/lib/neo4j/data/dumps
+    echo "Backup created successfully"
+}
 
-# Help
-cli::register_command "help" "Show this help message with examples" "neo4j::show_help"
-
-# Service management
-cli::register_command "install" "Install Neo4j" "neo4j_install" "modifies-system"
-cli::register_command "uninstall" "Uninstall Neo4j" "neo4j_uninstall" "modifies-system"
-cli::register_command "start" "Start Neo4j" "neo4j_start" "modifies-system"
-cli::register_command "stop" "Stop Neo4j" "neo4j_stop" "modifies-system"
-cli::register_command "restart" "Restart Neo4j" "neo4j_restart" "modifies-system"
-
-# Status & validation
-cli::register_command "status" "Show service status" "neo4j_status"
-cli::register_command "logs" "Show Neo4j logs" "neo4j::logs"
-
-# Data management
-cli::register_command "inject" "Inject Cypher file into Neo4j" "neo4j_inject" "modifies-system"
-cli::register_command "list-injected" "List injected files" "neo4j_list_injected"
-cli::register_command "query" "Execute Cypher query" "neo4j_query"
-
-################################################################################
-# Main execution - dispatch to framework
-################################################################################
+neo4j_logs() {
+    docker logs "${NEO4J_CONTAINER_NAME}" --tail 50 2>&1 || echo "Neo4j container not running"
+}
 
 # Only execute if script is run directly (not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then

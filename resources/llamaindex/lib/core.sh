@@ -10,11 +10,11 @@ LLAMAINDEX_ROOT_DIR="${APP_ROOT}/resources"
 LLAMAINDEX_SCRIPTS_DIR="${APP_ROOT}"
 
 # Source dependencies
-source "$LLAMAINDEX_SCRIPTS_DIR/lib/utils/var.sh" || exit 1
-source "$LLAMAINDEX_SCRIPTS_DIR/lib/utils/log.sh" || exit 1
-source "$LLAMAINDEX_SCRIPTS_DIR/lib/utils/format.sh" || exit 1
-source "$LLAMAINDEX_SCRIPTS_DIR/resources/lib/resource-functions.sh" || exit 1
-source "$LLAMAINDEX_SCRIPTS_DIR/resources/port_registry.sh" || exit 1
+source "$LLAMAINDEX_SCRIPTS_DIR/scripts/lib/utils/var.sh" || exit 1
+source "$LLAMAINDEX_SCRIPTS_DIR/scripts/lib/utils/log.sh" || exit 1
+source "$LLAMAINDEX_SCRIPTS_DIR/scripts/lib/utils/format.sh" || exit 1
+source "$LLAMAINDEX_SCRIPTS_DIR/scripts/resources/lib/resource-functions.sh" || exit 1
+source "$LLAMAINDEX_SCRIPTS_DIR/scripts/resources/port_registry.sh" || exit 1
 
 # Configuration
 LLAMAINDEX_PORT="$(ports::get_resource_port "llamaindex" 8091)"
@@ -497,6 +497,18 @@ llamaindex::list_indices() {
     curl -s "http://localhost:$LLAMAINDEX_PORT/indices" | jq '.' 2>/dev/null || echo '{"error": "Failed to list indices"}'
 }
 
+# Show logs
+llamaindex::logs() {
+    local lines="${1:-50}"
+    if docker ps --format "{{.Names}}" | grep -q "^llamaindex$"; then
+        log::info "Showing last $lines lines of LlamaIndex logs:"
+        docker logs --tail "$lines" llamaindex 2>&1
+    else
+        log::warning "LlamaIndex container is not running"
+        return 1
+    fi
+}
+
 # Export functions
 export -f llamaindex::init
 export -f llamaindex::is_installed
@@ -512,3 +524,4 @@ export -f llamaindex::index_documents
 export -f llamaindex::query
 export -f llamaindex::list_indices
 export -f llamaindex::create_server_script
+export -f llamaindex::logs

@@ -179,10 +179,10 @@ Run Vrooli on your own infrastructure with complete control and privacy:
 
 ```bash
 # Quick setup with default resources (includes Ollama AI models)
-./scripts/main/setup.sh --target native-linux
+./scripts/manage.sh setup
 
 # Start your personal development server
-./scripts/main/develop.sh --target docker
+vrooli develop
 ```
 
 **Why Local?** This unlocks Vrooli's full potential:

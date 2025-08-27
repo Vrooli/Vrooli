@@ -10,7 +10,7 @@ OLLAMA_TEST_DIR="${APP_ROOT}/resources/ollama/test"
 
 # Source var.sh first to get directory variables
 # shellcheck disable=SC1091
-source "${OLLAMA_TEST_DIR}/../../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 # Source enhanced integration test library with fixture support
 # shellcheck disable=SC1091

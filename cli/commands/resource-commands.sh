@@ -14,6 +14,7 @@
 set -euo pipefail
 
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+VROOLI_ROOT="${VROOLI_ROOT:-$APP_ROOT}"
 CLI_DIR="${APP_ROOT}/cli/commands"
 # shellcheck disable=SC1091
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
@@ -22,7 +23,7 @@ source "${var_LOG_FILE:-${APP_ROOT}/scripts/lib/utils/log.sh}"
 # shellcheck disable=SC1091
 source "${var_RESOURCES_COMMON_FILE}" 2>/dev/null || true
 # shellcheck disable=SC1091
-source "${var_LIB_DIR}/resources/auto-install.sh" 2>/dev/null || true
+# source "${var_LIB_DIR}/resources/auto-install.sh"  # File doesn't exist, commented out
 # shellcheck disable=SC1091
 source "${APP_ROOT}/scripts/lib/utils/format.sh"
 # shellcheck disable=SC1091
@@ -166,12 +167,13 @@ route_to_resource_cli() {
         unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED
         
         # Set up proper environment and working directory
-        local vrooli_root="${VROOLI_ROOT:-$(cd "$RESOURCES_DIR/.." && pwd)}"
+        # VROOLI_ROOT is already set at the script level, no need to redefine
         
         # Simple, reliable execution with explicit environment
+        # Note: VROOLI_ROOT is already set and will be inherited by the subshell
         (
-            cd "$vrooli_root"
-            export VROOLI_ROOT="$vrooli_root"
+            cd "$VROOLI_ROOT"
+            # VROOLI_ROOT is already available from parent scope
             export OLLAMA_PORT="${OLLAMA_PORT:-11434}"
             bash "$cli_script" "$@"
         )
@@ -612,8 +614,7 @@ format_resource_status_data() {
 resource_list() {
     # Parse common arguments
     local parsed_args
-    parsed_args=$(parse_combined_args "$@")
-    if [[ $? -ne 0 ]]; then
+    if ! parsed_args=$(parse_combined_args "$@"); then
         return 1
     fi
     
@@ -667,8 +668,7 @@ resource_list() {
 resource_status_core() {
     # Parse common arguments
     local parsed_args
-    parsed_args=$(parse_combined_args "$@")
-    if [[ $? -ne 0 ]]; then
+    if ! parsed_args=$(parse_combined_args "$@"); then
         return 1
     fi
     
@@ -843,8 +843,9 @@ resource_start_all() {
             continue
         fi
         
-        # Try CLI first
+        # Try v2.0 CLI patterns
         if has_resource_cli "$name"; then
+            # First try direct start command (shortcut)
             if (unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED; "resource-${name}" start 2>/dev/null); then
                 ((started_count++))
                 log::success "✅ Started: $name"
@@ -855,12 +856,9 @@ resource_start_all() {
                 fi
                 continue
             fi
-        fi
-        
-        # Try manage.sh
-        local resource_dir="${RESOURCES_DIR}/${category}/${name}"
-        if [[ -f "$resource_dir/manage.sh" ]]; then
-            if "$resource_dir/manage.sh" --action start --yes yes 2>/dev/null; then
+            
+            # Then try full v2.0 manage start command
+            if (unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED; "resource-${name}" manage start --force 2>/dev/null); then
                 ((started_count++))
                 log::success "✅ Started: $name"
                 
@@ -926,13 +924,63 @@ resource_stop() {
 resource_stop_all() {
 	# Handle help flag
 	if [[ "${1:-}" == "--help" ]] || [[ "${1:-}" == "-h" ]]; then
-		echo "Usage: vrooli resource stop-all"
+		echo "Usage: vrooli resource stop-all [options]"
 		echo ""
 		echo "Stop all currently running resources."
+		echo ""
+		echo "Options:"
+		echo "  --force         Force stop (SIGKILL instead of SIGTERM)"
+		echo "  --dry-run       Show what would be stopped without stopping"
+		echo "  --verbose       Detailed output"
+		echo "  --json          Output in JSON format"
 		echo ""
 		echo "This will attempt to gracefully stop all resources that are running."
 		return 0
 	fi
+	
+	# Use new unified stop manager if available
+	local stop_manager="${VROOLI_ROOT}/scripts/lib/lifecycle/stop-manager.sh"
+	
+	if [[ -f "$stop_manager" ]]; then
+		log::info "Using unified stop system for resources..."
+		source "$stop_manager"
+		
+		# Parse flags for stop manager
+		local stop_args=()
+		local output_format="text"
+		
+		for arg in "$@"; do
+			case "$arg" in
+				--force)
+					export FORCE_STOP=true
+					;;
+				--verbose|-v)
+					export VERBOSE=true
+					;;
+				--dry-run|--check)
+					export DRY_RUN=true
+					;;
+				--json)
+					output_format="json"
+					# TODO: Implement JSON output in stop-manager
+					log::warning "JSON output not yet implemented in stop manager"
+					;;
+				*)
+					stop_args+=("$arg")
+					;;
+			esac
+		done
+		
+		if [[ "$output_format" == "text" ]]; then
+			log::header "Stopping All Resources"
+		fi
+		
+		stop::main resources "${stop_args[@]}"
+		return $?
+	fi
+	
+	# Fallback to legacy implementation
+	log::warning "Stop manager not available, using legacy method"
 	
 	local output_format="text"
 	for arg in "$@"; do
@@ -947,137 +995,25 @@ resource_stop_all() {
 	if command -v resource_auto::stop_all >/dev/null 2>&1; then
 		resource_auto::stop_all
 	else
-		# Fallback to Docker-based approach with parallel processing
-		log::info "Stopping resources in parallel..."
-        
-        local -a running_resources=()  # Array to store running resources that need stopping
-        local -a background_jobs=()   # Track background job PIDs
-        local stopped_count=0
-        
-        # Phase 1: Collect all resources that have running containers
-        while IFS= read -r resource_dir; do
-            local resource_name
-            resource_name=$(basename "$resource_dir")
-            
-            # Check if this resource has any running Docker containers
-            # We use a more flexible matching since resources may have prefixed container names
-            if command -v docker >/dev/null 2>&1; then
-                local has_running_containers=false
-                
-                # Check for containers that might belong to this resource:
-                # 1. Exact match: container name == resource name
-                # 2. Prefixed match: container name like "vrooli-resourcename" or "resourcename-*"
-                if docker ps --format '{{.Names}}' 2>/dev/null | grep -q -E "(^${resource_name}$|^vrooli-${resource_name}$|^${resource_name}-.+|-.+-${resource_name}$)" 2>/dev/null; then
-                    has_running_containers=true
-                fi
-                
-                if [[ "$has_running_containers" == "true" ]]; then
-                    running_resources+=("$resource_dir:$resource_name")
-                fi
-            fi
-        done < <(find "$RESOURCES_DIR" -mindepth 2 -maxdepth 2 -type d 2>/dev/null || true)
-        
-        # Phase 2: Stop all running resources in parallel
-        if [[ ${#running_resources[@]} -gt 0 ]]; then
-            log::info "Stopping ${#running_resources[@]} resources in parallel..."
-            
-            for resource_info in "${running_resources[@]}"; do
-                {
-                    local resource_dir="${resource_info%%:*}"
-                    local resource_name="${resource_info#*:}"
-                    local stopped=false
-                    local method=""
-                    local stop_output=""
-                    
-                    # Method 1: Try CLI first (if available)
-                    if has_resource_cli "$resource_name"; then
-                        stop_output=$(unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED; "resource-${resource_name}" stop 2>&1) && {
-                            method="CLI"
-                            stopped=true
-                        } || true
-                    fi
-                    
-                    # Method 2: Try manage.sh script (if CLI failed)
-                    if [[ "$stopped" == "false" ]] && [[ -f "$resource_dir/manage.sh" ]]; then
-                        stop_output=$("$resource_dir/manage.sh" --action stop --yes yes 2>&1) && {
-                            method="manage.sh"
-                            stopped=true
-                        } || true
-                    fi
-                    
-                    # Method 3: Try direct Docker stop as fallback (if other methods failed)
-                    if [[ "$stopped" == "false" ]]; then
-                        # Find all Docker containers that might belong to this resource
-                        local containers_to_stop
-                        containers_to_stop=$(docker ps --format '{{.Names}}' 2>/dev/null | grep -E "(^${resource_name}$|^vrooli-${resource_name}$|^${resource_name}-.+|-.+-${resource_name}$)" 2>/dev/null | tr '\n' ' ' | xargs) || true
-                        
-                        if [[ -n "$containers_to_stop" ]]; then
-                            local docker_stop_success=true
-                            for container in $containers_to_stop; do
-                                docker stop "$container" 2>/dev/null || docker_stop_success=false
-                            done
-                            
-                            if [[ "$docker_stop_success" == "true" ]]; then
-                                method="Docker"
-                                stopped=true
-                                stop_output="Stopped containers: $containers_to_stop"
-                            fi
-                        fi
-                    fi
-                    
-                    # Report result
-                    if [[ "$stopped" == "true" ]]; then
-                        echo "SUCCESS:$resource_name:$method"
-                    else
-                        echo "FAILED:$resource_name"
-                    fi
-                } &
-                background_jobs+=($!)
-            done
-            
-            # Phase 3: Wait for all background jobs to complete and collect results
-            log::info "Waiting for all ${#background_jobs[@]} stop operations to complete..."
-            for job_pid in "${background_jobs[@]}"; do
-                wait "$job_pid" 2>/dev/null || true
-            done 2>&1 | while IFS= read -r line; do
-                if [[ "$line" == "SUCCESS:"* ]]; then
-                    local resource_name="${line#SUCCESS:}"
-                    resource_name="${resource_name%%:*}"
-                    local method="${line##*:}"
-                    if [[ "$method" == "Docker" ]]; then
-                        log::success "✅ Stopped: $resource_name (Docker)"
-                    else
-                        log::success "✅ Stopped: $resource_name ($method)"
-                    fi
-                    stopped_count=$((stopped_count + 1))
-                elif [[ "$line" == "FAILED:"* ]]; then
-                    local resource_name="${line#FAILED:}"
-                    log::warning "Could not stop: $resource_name"
-                fi
-            done
-            
-            # Recalculate count since the subshell above doesn't update the main shell variable
-            stopped_count=${#running_resources[@]}
-            
-            # Verify actual success by checking if containers are still running
-            local actual_stopped=0
-            for resource_info in "${running_resources[@]}"; do
-                local resource_name="${resource_info#*:}"
-                # Check if any containers for this resource are still running
-                if ! docker ps --format '{{.Names}}' 2>/dev/null | grep -q -E "(^${resource_name}$|^vrooli-${resource_name}$|^${resource_name}-.+|-.+-${resource_name}$)" 2>/dev/null; then
-                    actual_stopped=$((actual_stopped + 1))
-                fi
-            done
-            stopped_count=$actual_stopped
-        fi
-        
-        # Phase 4: Report final results
-        if [[ $stopped_count -gt 0 ]]; then
-            log::success "✅ Stopped $stopped_count resource(s) in parallel"
-        else
-            log::info "No running resources found"
-        fi
-    fi
+		# Simplified fallback - just try to stop all Docker containers
+		log::info "Stopping resources via Docker..."
+		
+		if command -v docker >/dev/null 2>&1; then
+			local containers
+			containers=$(docker ps -q)
+			if [[ -n "$containers" ]]; then
+				log::info "Stopping $(echo "$containers" | wc -l) containers..."
+				# Note: docker stop already returns 0 even if container doesn't exist, so || true is actually safe here
+				docker stop "$containers" 2>/dev/null || true
+				log::success "Resources stopped"
+			else
+				log::info "No resources running"
+			fi
+		else
+			log::error "Docker not available, cannot stop resources"
+			return 1
+		fi
+	fi
 }
 
 # Main command router

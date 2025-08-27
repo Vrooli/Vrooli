@@ -107,9 +107,20 @@ resource_auto::validate_resource() {
         return 1
     fi
     
-    # Try to get status - if it succeeds, the resource is functional
-    # Use --fast mode for quick health check
+    # Try to get status - functional means installed (exit codes 0, 1, or 2 are all functional)
+    # Exit codes: 0=healthy, 1=unhealthy, 2=not_running, >2=not_functional
+    # Use --fast mode for quick health check if supported, otherwise fallback to regular status
+    local status_exit_code
     if "resource-${resource_name}" status --fast >/dev/null 2>&1; then
+        status_exit_code=$?
+    elif "resource-${resource_name}" status >/dev/null 2>&1; then
+        status_exit_code=$?
+    else
+        status_exit_code=$?
+    fi
+    
+    # Resource is functional if installed: 0=healthy, 1=unhealthy, 2=not_running
+    if [[ $status_exit_code -le 2 ]]; then
         return 0
     fi
     
@@ -130,8 +141,8 @@ resource_auto::install_resource() {
         log::debug "Resource CLI available: resource-${resource_name}"
         
         # Verify the resource is actually functional by checking its status
-        # Use --fast mode for quick health check
-        if "resource-${resource_name}" status --fast >/dev/null 2>&1; then
+        # Use --fast mode for quick health check if supported, otherwise fallback to regular status
+        if "resource-${resource_name}" status --fast >/dev/null 2>&1 || "resource-${resource_name}" status >/dev/null 2>&1; then
             log::debug "Resource is functional: resource-${resource_name}"
             resource_registry::register "$resource_name" "installed"
             return 0
@@ -169,7 +180,8 @@ resource_auto::install_resource() {
         log::info "Running installation for $resource_name..."
         
         # Build installation command - use verbose for better feedback
-        local install_cmd="$resource_dir/cli.sh install --verbose"
+        # Use v2.0 contract: manage install instead of direct install
+        local install_cmd="$resource_dir/cli.sh manage install --verbose"
         
         # Execute installation
         if eval "$install_cmd"; then
@@ -208,8 +220,8 @@ resource_auto::start_resource() {
     # Check if resource is already running first
     # Try using CLI status check
     if command -v "resource-${resource_name}" &>/dev/null; then
-        # Use --fast mode for quick health check
-        if "resource-${resource_name}" status --fast >/dev/null 2>&1; then
+        # Use --fast mode for quick health check if supported, otherwise fallback to regular status
+        if "resource-${resource_name}" status --fast >/dev/null 2>&1 || "resource-${resource_name}" status >/dev/null 2>&1; then
             log::info "Resource already running: $resource_name"
             resource_registry::register "$resource_name" "running"
             return 0
@@ -227,7 +239,8 @@ resource_auto::start_resource() {
     if command -v "resource-${resource_name}" &>/dev/null; then
         log::info "Starting resource: $resource_name"
         # Don't redirect stderr - sudo needs it for password prompts
-        if "resource-${resource_name}" start; then
+        # Use v2.0 contract: manage start instead of direct start
+        if "resource-${resource_name}" manage start; then
             resource_registry::register "$resource_name" "running"
             log::success "✅ Resource started: $resource_name"
             return 0
@@ -236,7 +249,7 @@ resource_auto::start_resource() {
     
     # Fallback to direct CLI
     local resource_dir=""
-    for dir in "${VROOLI_ROOT}/scripts/resources"/*/"${resource_name}"; do
+    for dir in "${VROOLI_ROOT}/resources/${resource_name}"; do
         if [[ -d "$dir" && -f "$dir/cli.sh" ]]; then
             resource_dir="$dir"
             break
@@ -252,7 +265,8 @@ resource_auto::start_resource() {
         fi
         
         log::info "Starting resource via CLI: $resource_name"
-        if "$resource_dir/cli.sh" start; then
+        # Use v2.0 contract: manage start instead of direct start
+        if "$resource_dir/cli.sh" manage start; then
             resource_registry::register "$resource_name" "running"
             log::success "✅ Resource started: $resource_name"
             return 0
@@ -382,7 +396,8 @@ resource_auto::stop_all() {
         
         # Try CLI first
         if command -v "resource-${resource_name}" &>/dev/null; then
-            if "resource-${resource_name}" stop 2>/dev/null; then
+            # Use v2.0 contract: manage stop instead of direct stop
+            if "resource-${resource_name}" manage stop 2>/dev/null; then
                 resource_registry::register "$resource_name" "stopped"
                 ((stopped_count++))
                 log::success "✅ Stopped: $resource_name"
@@ -392,7 +407,7 @@ resource_auto::stop_all() {
         
         # Fallback to direct CLI
         local resource_dir=""
-        for dir in "${VROOLI_ROOT}/scripts/resources"/*/"${resource_name}"; do
+        for dir in "${VROOLI_ROOT}/resources/${resource_name}"; do
             if [[ -d "$dir" && -f "$dir/cli.sh" ]]; then
                 resource_dir="$dir"
                 break
@@ -400,7 +415,8 @@ resource_auto::stop_all() {
         done
         
         if [[ -n "$resource_dir" && -f "$resource_dir/cli.sh" ]]; then
-            if "$resource_dir/cli.sh" stop 2>/dev/null; then
+            # Use v2.0 contract: manage stop instead of direct stop
+            if "$resource_dir/cli.sh" manage stop 2>/dev/null; then
                 resource_registry::register "$resource_name" "stopped"
                 ((stopped_count++))
                 log::success "✅ Stopped: $resource_name"
