@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
 
 # Define paths from APP_ROOT
 EMBEDDINGS_DIR="${APP_ROOT}/resources/qdrant/embeddings"
@@ -57,7 +57,7 @@ qdrant::extract::workflow() {
     # Extract comments from sticky notes
     local notes=$(jq -r '.nodes[] | select(.type == "n8n-nodes-base.stickyNote") | .parameters.content // empty' "$file" 2>/dev/null | tr '\n' ' ' || echo "")
     
-    # Build semantically-rich embeddable content
+    # Build semantically-rich content summary
     local content="This is an N8n workflow named '$name' that automates business processes."
     
     if [[ -n "$description" ]]; then
@@ -118,17 +118,44 @@ qdrant::extract::workflow() {
         content="$content Additional context: $notes"
     fi
     
-    # Add file location for reference
-    content="$content File location: $file"
-    
-    # Add workflow purpose analysis based on node types
+    # Get workflow purpose analysis
     local purpose=$(qdrant::extract::analyze_workflow_purpose "$file")
     if [[ -n "$purpose" ]]; then
-        content="$content
-Purpose: $purpose"
+        content="$content Purpose: $purpose"
     fi
     
-    echo "$content"
+    # Output structured JSON with clean separation
+    jq -n \
+        --arg content "$content" \
+        --arg file "$file" \
+        --arg name "$name" \
+        --arg description "$description" \
+        --arg active "$active" \
+        --arg tags "$tags" \
+        --arg node_types "$node_types" \
+        --arg node_count "$node_count" \
+        --arg triggers "$triggers" \
+        --arg integrations "$integrations" \
+        --arg webhook_paths "$webhook_paths" \
+        --arg notes "$notes" \
+        --arg purpose "$purpose" \
+        '{
+            content: $content,
+            metadata: {
+                file: $file,
+                name: $name,
+                description: $description,
+                active: ($active == "true"),
+                tags: ($tags | split(",") | map(ltrimstr(" ")) | select(length > 0)),
+                node_types: ($node_types | split(", ") | select(length > 0)),
+                node_count: ($node_count | tonumber),
+                triggers: ($triggers | split(",") | map(ltrimstr(" ")) | select(length > 0)),
+                integrations: ($integrations | split(",") | map(ltrimstr(" ")) | select(length > 0)),
+                webhook_paths: ($webhook_paths | split(",") | map(ltrimstr(" ")) | select(length > 0)),
+                notes: $notes,
+                purpose: $purpose
+            }
+        }' | jq -c
 }
 
 #######################################
@@ -176,15 +203,28 @@ qdrant::extract::analyze_workflow_purpose() {
 #######################################
 qdrant::extract::workflows_batch() {
     local dir="${1:-.}"
-    local output_file="${2:-${EXTRACT_TEMP_DIR}/workflows.txt}"
+    local output_file="${2:-${EXTRACT_TEMP_DIR}/workflows.jsonl}"
     
     mkdir -p "${output_file%/*}"
+    > "$output_file"
     
     # Find all workflow JSON files
     local workflow_files=()
+    
+    # Look for workflow files in initialization/n8n directory
+    local init_dir="${dir}/initialization/n8n"
+    if [[ -d "$init_dir" ]]; then
+        while IFS= read -r file; do
+            workflow_files+=("$file")
+        done < <(find "$init_dir" -type f -name "*.json" 2>/dev/null)
+    fi
+    
+    # Also look in any n8n directories
     while IFS= read -r file; do
         workflow_files+=("$file")
-    done < <(find "$dir" -type f -name "*.json" -path "*/initialization/*" -o -path "*/n8n/*" 2>/dev/null)
+    done < <(find "$dir" -type d -name "n8n" 2>/dev/null | while read -r n8n_dir; do
+        find "$n8n_dir" -type f -name "*.json" 2>/dev/null
+    done)
     
     if [[ ${#workflow_files[@]} -eq 0 ]]; then
         log::warn "No workflow files found in $dir"
@@ -193,21 +233,18 @@ qdrant::extract::workflows_batch() {
     
     log::info "Extracting content from ${#workflow_files[@]} workflow files"
     
-    # Extract content from each file
+    # Extract content from each file as JSON line
     local count=0
     for file in "${workflow_files[@]}"; do
         # Validate it's actually an n8n workflow
         if jq -e '.nodes' "$file" >/dev/null 2>&1; then
-            local content=$(qdrant::extract::workflow "$file")
-            if [[ -n "$content" ]]; then
-                echo "$content" >> "$output_file"
-                echo "---SEPARATOR---" >> "$output_file"
-                ((count++))
-                
-                # Show progress
-                if [[ $((count % 10)) -eq 0 ]]; then
-                    log::debug "Processed $count/${#workflow_files[@]} workflows"
-                fi
+            # Output JSON directly (one line per workflow)
+            qdrant::extract::workflow "$file" >> "$output_file"
+            ((count++))
+            
+            # Show progress
+            if [[ $((count % 10)) -eq 0 ]]; then
+                log::debug "Processed $count/${#workflow_files[@]} workflows"
             fi
         fi
     done
@@ -243,7 +280,14 @@ qdrant::extract::workflow_metadata() {
     local file_size=$(stat -f%z "$file" 2>/dev/null || stat -c%s "$file" 2>/dev/null || echo "0")
     local modified=$(stat -f%Sm -t '%Y-%m-%dT%H:%M:%S' "$file" 2>/dev/null || stat -c %y "$file" 2>/dev/null | cut -d' ' -f1-2 | tr ' ' 'T')
     
-    # Build metadata JSON
+    # Build metadata JSON - ensure numeric fields have valid defaults
+    local safe_node_count="${node_count:-0}"
+    local safe_file_size="${file_size:-0}"
+    
+    # Ensure numeric fields are not empty
+    [[ -z "$safe_node_count" || "$safe_node_count" == " " ]] && safe_node_count="0"
+    [[ -z "$safe_file_size" || "$safe_file_size" == " " ]] && safe_file_size="0"
+    
     jq -n \
         --arg name "$name" \
         --arg id "$id" \
@@ -251,9 +295,9 @@ qdrant::extract::workflow_metadata() {
         --arg active "$active" \
         --arg created "$created" \
         --arg updated "$updated" \
-        --arg node_count "$node_count" \
+        --arg node_count "$safe_node_count" \
         --argjson tags "$tags" \
-        --arg file_size "$file_size" \
+        --arg file_size "$safe_file_size" \
         --arg modified "$modified" \
         --arg type "workflow" \
         --arg extractor "workflows" \
@@ -409,7 +453,7 @@ qdrant::embeddings::process_workflows() {
     local count=0
     
     # Extract workflows to temp file
-    local output_file="$TEMP_DIR/workflows.txt"
+    local output_file="$TEMP_DIR/workflows.jsonl"
     qdrant::extract::workflows_batch "." "$output_file" >&2
     
     if [[ ! -f "$output_file" ]] || [[ ! -s "$output_file" ]]; then
@@ -418,32 +462,22 @@ qdrant::embeddings::process_workflows() {
         return 0
     fi
     
-    # Process each workflow through unified embedding service
-    local content=""
-    local processing_workflow=false
-    
-    while IFS= read -r line; do
-        if [[ "$line" == "This is an N8n workflow named"* ]]; then
-            # Start of new workflow content
-            processing_workflow=true
-            content="$line"
-        elif [[ "$line" == "---SEPARATOR---" ]] && [[ "$processing_workflow" == true ]]; then
-            # End of workflow, process it
+    # Process each JSON line through unified embedding service
+    while IFS= read -r json_line; do
+        if [[ -n "$json_line" ]] && [[ "$json_line" != "---SEPARATOR---" ]]; then
+            # Parse JSON to extract content and metadata
+            local content
+            content=$(echo "$json_line" | jq -r '.content // empty' 2>/dev/null)
+            
+            local metadata
+            metadata=$(echo "$json_line" | jq -c '.metadata // {}' 2>/dev/null)
+            
             if [[ -n "$content" ]]; then
-                # Extract workflow metadata from content
-                local metadata
-                metadata=$(qdrant::extract::workflow_metadata_from_content "$content")
-                
-                # Process through unified embedding service
+                # Process through unified embedding service with structured metadata
                 if qdrant::embedding::process_item "$content" "workflow" "$collection" "$app_id" "$metadata"; then
                     ((count++))
                 fi
             fi
-            processing_workflow=false
-            content=""
-        elif [[ "$processing_workflow" == true ]]; then
-            # Continue accumulating workflow content
-            content="${content}"$'\n'"${line}"
         fi
     done < "$output_file"
     
@@ -484,12 +518,15 @@ qdrant::extract::workflow_metadata_from_content() {
     local purpose
     purpose=$(echo "$content" | grep -o "Purpose: [^$]*" | cut -d: -f2- | sed 's/^ *//')
     
-    # Build metadata JSON
+    # Build metadata JSON - ensure numeric fields have valid defaults
+    local safe_nodes="${node_count:-0}"
+    [[ -z "$safe_nodes" || "$safe_nodes" == " " ]] && safe_nodes="0"
+    
     jq -n \
         --arg name "${name:-Unknown}" \
         --arg file_path "${file_path:-}" \
         --arg active "$active_status" \
-        --arg nodes "${node_count:-0}" \
+        --arg nodes "$safe_nodes" \
         --arg integrations "${integrations:-}" \
         --arg purpose "${purpose:-}" \
         '{

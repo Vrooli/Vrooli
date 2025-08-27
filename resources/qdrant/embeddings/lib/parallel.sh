@@ -7,24 +7,14 @@ APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin
 PARALLEL_DIR="${APP_ROOT}/resources/qdrant/embeddings/lib"
 EMBEDDINGS_DIR="${APP_ROOT}/resources/qdrant/embeddings"
 
+# Source unified configuration first
+source "${EMBEDDINGS_DIR}/config/unified.sh"
+
 # Source required utilities
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${var_LIB_UTILS_DIR}/log.sh"
 
-# Maximum parallel workers (can be overridden)
-# Increased to 16 to match CPU cores and Ollama parallel capacity
-MAX_WORKERS="${QDRANT_MAX_WORKERS:-16}"
-
-# Auto-detect CPU cores if MAX_WORKERS is 0
-if [[ "$MAX_WORKERS" -eq 0 ]]; then
-    MAX_WORKERS=$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
-    log::debug "Auto-detected $MAX_WORKERS CPU cores for parallel processing"
-fi
-
-# Ensure MAX_WORKERS is at least 1
-if [[ "$MAX_WORKERS" -lt 1 ]]; then
-    MAX_WORKERS=1
-fi
+# Configuration loaded from unified.sh - MAX_WORKERS alias already set
 
 #######################################
 # Process files in parallel batches
@@ -114,7 +104,7 @@ qdrant::parallel::process_batch() {
 }
 
 #######################################
-# Process workflow chunk
+# Process workflow chunk using unified embedding service
 # Arguments:
 #   $1 - Chunk file
 #   $2 - Collection name
@@ -127,41 +117,36 @@ qdrant::parallel::process_workflow_chunk() {
     local app_id="$3"
     local count=0
     
-    # Source required functions
-    source "${EMBEDDINGS_DIR}/lib/embeddings.sh"
-    source "${EMBEDDINGS_DIR}/../lib/collections.sh"
+    # Source unified embedding service and workflow extractor for metadata
+    source "${EMBEDDINGS_DIR}/lib/embedding-service.sh"
+    source "${EMBEDDINGS_DIR}/extractors/workflows.sh"
     
-    # Process each workflow in chunk
+    # Process each workflow in chunk using modern content format
     local content=""
-    local in_workflow=false
+    local processing_workflow=false
     
     while IFS= read -r line; do
-        if [[ "$line" == "=== N8n Workflow ===" ]]; then
-            in_workflow=true
-            content=""
-        elif [[ "$line" == "---SEPARATOR---" ]] && [[ "$in_workflow" == true ]]; then
+        if [[ "$line" == "This is an N8n workflow named"* ]]; then
+            # Start of new workflow content (modern format)
+            processing_workflow=true
+            content="$line"
+        elif [[ "$line" == "---SEPARATOR---" ]] && [[ "$processing_workflow" == true ]]; then
+            # End of workflow, process it through unified service
             if [[ -n "$content" ]]; then
-                # Generate embedding
-                local embedding=$(qdrant::embeddings::generate "$content" "mxbai-embed-large" 2>/dev/null)
+                # Extract metadata from workflow content
+                local metadata
+                metadata=$(qdrant::extract::workflow_metadata_from_content "$content" 2>/dev/null || echo "{}")
                 
-                if [[ -n "$embedding" ]]; then
-                    # Create unique ID from content hash
-                    local workflow_id=$(echo -n "$content" | sha256sum | cut -d' ' -f1)
-                    
-                    # Store in collection
-                    if qdrant::collections::upsert_point "$collection" \
-                        "$workflow_id" \
-                        "$embedding" \
-                        "{\"content\": $(echo "$content" | jq -Rs .), \"type\": \"workflow\", \"app_id\": \"$app_id\"}" 2>/dev/null; then
-                        ((count++))
-                    fi
+                # Process through unified embedding service
+                if qdrant::embedding::process_item "$content" "workflow" "$collection" "$app_id" "$metadata"; then
+                    ((count++))
                 fi
             fi
-            in_workflow=false
+            processing_workflow=false
             content=""
-        elif [[ "$in_workflow" == true ]]; then
-            content="${content}${line}
-"
+        elif [[ "$processing_workflow" == true ]]; then
+            # Continue accumulating workflow content
+            content="${content}"$'\n'"${line}"
         fi
     done < "$chunk_file"
     
@@ -175,7 +160,12 @@ qdrant::parallel::process_workflow_chunk() {
 export -f qdrant::parallel::process_workflow_chunk
 
 #######################################
-# Process scenarios chunk (similar to workflows)
+# Process scenarios chunk using unified embedding service
+# Arguments:
+#   $1 - Chunk file
+#   $2 - Collection name
+#   $3 - App ID
+# Returns: Number of embeddings created
 #######################################
 qdrant::parallel::process_scenario_chunk() {
     local chunk_file="$1"
@@ -183,41 +173,36 @@ qdrant::parallel::process_scenario_chunk() {
     local app_id="$3"
     local count=0
     
-    # Source required functions
-    source "${EMBEDDINGS_DIR}/lib/embeddings.sh"
-    source "${EMBEDDINGS_DIR}/../lib/collections.sh"
+    # Source unified embedding service and scenario extractor for metadata
+    source "${EMBEDDINGS_DIR}/lib/embedding-service.sh"
+    source "${EMBEDDINGS_DIR}/extractors/scenarios.sh"
     
-    # Process scenarios similarly to workflows
+    # Process scenarios using modern content format
     local content=""
-    local in_scenario=false
+    local processing_scenario=false
     
     while IFS= read -r line; do
-        if [[ "$line" == "=== Scenario ===" ]]; then
-            in_scenario=true
-            content=""
-        elif [[ "$line" == "---SEPARATOR---" ]] && [[ "$in_scenario" == true ]]; then
+        if [[ "$line" == "Scenario:"* ]]; then
+            # Start of new scenario content (modern format)
+            processing_scenario=true
+            content="$line"
+        elif [[ "$line" == "---SEPARATOR---" ]] && [[ "$processing_scenario" == true ]]; then
+            # End of scenario, process it through unified service
             if [[ -n "$content" ]]; then
-                # Generate embedding
-                local embedding=$(qdrant::embeddings::generate "$content" "mxbai-embed-large" 2>/dev/null)
+                # Extract metadata from scenario content
+                local metadata
+                metadata=$(qdrant::extract::scenario_metadata_from_content "$content" 2>/dev/null || echo "{}")
                 
-                if [[ -n "$embedding" ]]; then
-                    # Create unique ID from content hash
-                    local scenario_id=$(echo -n "$content" | sha256sum | cut -d' ' -f1)
-                    
-                    # Store in collection
-                    if qdrant::collections::upsert_point "$collection" \
-                        "$scenario_id" \
-                        "$embedding" \
-                        "{\"content\": $(echo "$content" | jq -Rs .), \"type\": \"scenario\", \"app_id\": \"$app_id\"}" 2>/dev/null; then
-                        ((count++))
-                    fi
+                # Process through unified embedding service
+                if qdrant::embedding::process_item "$content" "scenario" "$collection" "$app_id" "$metadata"; then
+                    ((count++))
                 fi
             fi
-            in_scenario=false
+            processing_scenario=false
             content=""
-        elif [[ "$in_scenario" == true ]]; then
-            content="${content}${line}
-"
+        elif [[ "$processing_scenario" == true ]]; then
+            # Continue accumulating scenario content
+            content="${content}"$'\n'"${line}"
         fi
     done < "$chunk_file"
     

@@ -7,7 +7,7 @@ A powerful embedding system that indexes project knowledge into Qdrant vector co
 ```bash
 # Initialize embeddings for your project
 cd /path/to/your/app
-source scripts/resources/storage/qdrant/embeddings/manage.sh
+source resources/qdrant/embeddings/manage.sh
 qdrant::embeddings::init
 
 # Refresh embeddings (auto-detects changes)

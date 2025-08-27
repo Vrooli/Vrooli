@@ -14,6 +14,7 @@ import subprocess
 import sys
 import time
 import fcntl
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Set
@@ -120,8 +121,10 @@ class SafeAppOrchestrator:
         self.lock_file = None
         self.running_processes: List[asyncio.subprocess.Process] = []
         self.allocated_ports: Set[int] = set()
+        self.port_allocations: Dict[tuple, int] = {}  # (app_name, port_type) -> port
+        self.resource_ports: Set[int] = set()  # Reserved ports from port_registry.sh
         
-        # Setup logging
+        # Setup logging first (before any logger calls)
         log_level = logging.DEBUG if verbose else logging.INFO
         logging.basicConfig(
             level=log_level,
@@ -132,6 +135,9 @@ class SafeAppOrchestrator:
             ]
         )
         self.logger = logging.getLogger(__name__)
+        
+        # Load reserved resource ports (after logger is initialized)
+        self._load_resource_ports()
         
         # Ensure PID directory exists
         Path(APP_PID_DIR).mkdir(exist_ok=True)
@@ -268,15 +274,165 @@ class SafeAppOrchestrator:
             return False
     
     def find_available_port(self, start: int = 3001, end: int = 5000) -> Optional[int]:
-        """Find an available port in range"""
+        """Find an available port in range, avoiding resource ports"""
         for port in range(start, end):
-            if port not in self.allocated_ports and self.is_port_available(port):
+            if (port not in self.allocated_ports and 
+                port not in self.resource_ports and 
+                self.is_port_available(port)):
                 self.allocated_ports.add(port)
                 return port
         return None
     
+    def _load_resource_ports(self):
+        """Load reserved ports from port_registry.sh"""
+        # Common resource ports that should be avoided
+        # Based on scripts/resources/port_registry.sh
+        reserved = {
+            8092,   # vrooli-api
+            11434,  # ollama
+            11435,  # litellm
+            8090,   # whisper (conflicts with some apps!)
+            5678,   # n8n
+            8188,   # comfyui
+            1880,   # node-red
+            5681,   # windmill
+            9000,   # minio
+            8200,   # vault (conflicts with picker-wheel!)
+            6333,   # qdrant
+            9009,   # questdb
+            5433,   # postgres
+            6380,   # redis
+            7474,   # neo4j
+            7687,   # neo4j-bolt
+            4110,   # browserless
+            4113,   # agent-s2
+            8280,   # searxng
+            2358,   # judge0
+            8070,   # keycloak
+            8020,   # erpnext
+        }
+        self.resource_ports = reserved
+        self.logger.debug(f"Loaded {len(self.resource_ports)} reserved resource ports")
+    
+    def _load_all_app_configs(self) -> Dict[str, dict]:
+        """Load all app service.json configs for port planning"""
+        app_configs = {}
+        
+        if not self.generated_apps_dir.exists():
+            return app_configs
+        
+        for app_dir in self.generated_apps_dir.iterdir():
+            if not app_dir.is_dir():
+                continue
+                
+            service_json = app_dir / ".vrooli" / "service.json"
+            if service_json.exists():
+                try:
+                    with open(service_json) as f:
+                        config = json.load(f)
+                        app_configs[app_dir.name] = config
+                except Exception as e:
+                    self.logger.warning(f"Could not load config for {app_dir.name}: {e}")
+        
+        return app_configs
+    
+    def _pre_allocate_all_ports(self, enabled_apps: List[str]) -> Dict[tuple, int]:
+        """
+        Pre-allocate all ports using smart strategy:
+        1. Fixed ports first (must have exact port)
+        2. Smallest ranges next (less flexibility)  
+        3. Largest ranges last (most flexibility)
+        
+        Returns dict of (app_name, port_type) -> allocated_port
+        """
+        allocations = {}
+        all_configs = self._load_all_app_configs()
+        
+        # Step 1: Collect all port requirements
+        fixed_requirements = []  # [(app, port_type, port)]
+        range_requirements = []  # [(app, port_type, start, end, size)]
+        
+        for app_name in enabled_apps:
+            if app_name not in all_configs:
+                continue
+                
+            ports_config = all_configs[app_name].get("ports", {})
+            
+            for port_type, port_info in ports_config.items():
+                if isinstance(port_info, dict):
+                    # Check for fixed port
+                    if "fixed" in port_info:
+                        fixed_port = int(port_info["fixed"])
+                        fixed_requirements.append((app_name, port_type, fixed_port))
+                    # Check for range
+                    elif "range" in port_info:
+                        range_str = port_info["range"]
+                        if "-" in range_str:
+                            start, end = map(int, range_str.split("-"))
+                            size = end - start + 1
+                            range_requirements.append((app_name, port_type, start, end, size))
+                        else:
+                            self.logger.warning(f"Invalid range format for {app_name}:{port_type}: {range_str}")
+        
+        # Step 2: Sort ranges by size (smallest first)
+        range_requirements.sort(key=lambda x: x[4])
+        
+        # Step 3: Allocate fixed ports first
+        for app_name, port_type, fixed_port in fixed_requirements:
+            if fixed_port in self.resource_ports:
+                self.logger.error(f"Fixed port {fixed_port} for {app_name}:{port_type} conflicts with resource port!")
+                # Try to find alternative in nearby range
+                alt_port = self.find_available_port(fixed_port + 1, fixed_port + 100)
+                if alt_port:
+                    allocations[(app_name, port_type)] = alt_port
+                    self.logger.warning(f"Using alternative port {alt_port} for {app_name}:{port_type}")
+            elif fixed_port not in self.allocated_ports and self.is_port_available(fixed_port):
+                allocations[(app_name, port_type)] = fixed_port
+                self.allocated_ports.add(fixed_port)
+                self.logger.debug(f"Allocated fixed port {fixed_port} for {app_name}:{port_type}")
+            else:
+                self.logger.error(f"Fixed port {fixed_port} unavailable for {app_name}:{port_type}")
+        
+        # Step 4: Allocate ranges (smallest to largest for optimal packing)
+        for app_name, port_type, start, end, size in range_requirements:
+            allocated = False
+            
+            # Try to allocate within requested range
+            for port in range(start, end + 1):
+                if (port not in self.allocated_ports and 
+                    port not in self.resource_ports and 
+                    self.is_port_available(port)):
+                    allocations[(app_name, port_type)] = port
+                    self.allocated_ports.add(port)
+                    allocated = True
+                    self.logger.debug(f"Allocated port {port} (from range {start}-{end}) for {app_name}:{port_type}")
+                    break
+            
+            if not allocated:
+                # Fallback: Find any available port
+                fallback_port = self.find_available_port(3001, 9999)
+                if fallback_port:
+                    allocations[(app_name, port_type)] = fallback_port
+                    self.logger.warning(f"Range {start}-{end} exhausted for {app_name}:{port_type}, using fallback port {fallback_port}")
+                else:
+                    self.logger.error(f"Could not allocate any port for {app_name}:{port_type}")
+        
+        # Step 5: Handle apps without port configs
+        for app_name in enabled_apps:
+            if app_name not in all_configs:
+                # App without config - allocate default ports
+                api_port = self.find_available_port(3001, 9999)
+                if api_port:
+                    allocations[(app_name, "api")] = api_port
+                    ui_port = self.find_available_port(api_port + 1, 9999)
+                    if ui_port:
+                        allocations[(app_name, "ui")] = ui_port
+        
+        self.logger.info(f"Pre-allocated {len(allocations)} ports for {len(enabled_apps)} apps")
+        return allocations
+    
     def load_enabled_apps(self) -> List[App]:
-        """Load enabled apps from catalog"""
+        """Load enabled apps from catalog with smart port pre-allocation"""
         catalog_path = self.vrooli_root / "scripts" / "scenarios" / "catalog.json"
         
         if not catalog_path.exists():
@@ -287,7 +443,10 @@ class SafeAppOrchestrator:
             with open(catalog_path) as f:
                 catalog = json.load(f)
             
-            apps = []
+            # Step 1: Collect all enabled apps
+            enabled_apps = []
+            app_paths = {}
+            
             for scenario in catalog.get("scenarios", []):
                 if not scenario.get("enabled", False):
                     continue
@@ -306,40 +465,26 @@ class SafeAppOrchestrator:
                     continue
                 
                 # Safety check: limit number of apps
-                if len(apps) >= MAX_APPS:
-                    self.logger.error(f"Maximum app limit ({MAX_APPS}) reached - stopping to prevent fork bomb")
+                if len(enabled_apps) >= MAX_APPS:
+                    self.logger.warning(f"Maximum app limit ({MAX_APPS}) reached")
                     break
                 
-                # Allocate ports for this app
+                enabled_apps.append(app_name)
+                app_paths[app_name] = app_path
+            
+            # Step 2: Pre-allocate all ports using smart strategy
+            self.port_allocations = self._pre_allocate_all_ports(enabled_apps)
+            
+            # Step 3: Create App objects with allocated ports
+            apps = []
+            for app_name in enabled_apps:
+                # Gather all allocated ports for this app
                 allocated_ports = {}
+                for (name, port_type), port in self.port_allocations.items():
+                    if name == app_name:
+                        allocated_ports[port_type] = port
                 
-                # Try to read port requirements from app's service.json
-                service_json = app_path / ".vrooli" / "service.json"
-                if service_json.exists():
-                    try:
-                        with open(service_json) as f:
-                            app_config = json.load(f)
-                        
-                        ports_config = app_config.get("ports", {})
-                        for port_type, port_info in ports_config.items():
-                            # Allocate a port for this type
-                            port = self.find_available_port()
-                            if port:
-                                allocated_ports[port_type] = port
-                            else:
-                                self.logger.error(f"Could not allocate port for {app_name}:{port_type}")
-                    except Exception as e:
-                        self.logger.error(f"Error reading service.json for {app_name}: {e}")
-                
-                # Default ports if none specified
-                if not allocated_ports:
-                    api_port = self.find_available_port()
-                    if api_port:
-                        allocated_ports["api"] = api_port
-                        ui_port = self.find_available_port(api_port + 1)
-                        if ui_port:
-                            allocated_ports["ui"] = ui_port
-                
+                # Create app only if we allocated at least one port
                 if allocated_ports:
                     app = App(
                         name=app_name,
@@ -349,12 +494,62 @@ class SafeAppOrchestrator:
                     )
                     apps.append(app)
                     self.apps[app_name] = app
+                    
+                    self.logger.info(f"Prepared {app_name} with ports: {allocated_ports}")
+                else:
+                    self.logger.warning(f"No ports allocated for {app_name}, skipping")
             
+            self.logger.info(f"Loaded {len(apps)} apps with pre-allocated ports")
             return apps
             
         except Exception as e:
             self.logger.error(f"Error loading catalog: {e}")
             return []
+    
+    def prepare_app_binaries(self, app_name: str) -> bool:
+        """Pre-build or use cached binaries to avoid spawning build processes"""
+        app_path = self.generated_apps_dir / app_name
+        cache_dir = Path.home() / ".vrooli" / "build-cache"
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Check for Go API binary
+        api_source = app_path / "api" / "main.go"
+        if api_source.exists():
+            cached_binary = cache_dir / f"{app_name}-api"
+            target_binary = app_path / "api" / f"{app_name}-api"
+            
+            # Check if we need to rebuild
+            need_rebuild = True
+            if cached_binary.exists() and target_binary.exists():
+                # Compare modification times
+                source_mtime = api_source.stat().st_mtime
+                cache_mtime = cached_binary.stat().st_mtime
+                if cache_mtime >= source_mtime:
+                    need_rebuild = False
+                    self.logger.info(f"Using cached binary for {app_name}")
+            
+            if need_rebuild:
+                self.logger.info(f"Building {app_name} binary (one-time)")
+                # Build directly to cache to avoid duplicate builds
+                build_cmd = f"cd {app_path}/api && go build -o {cached_binary} main.go"
+                result = os.system(build_cmd)
+                if result != 0:
+                    self.logger.error(f"Failed to build {app_name}")
+                    return False
+            
+            # Copy from cache to target
+            shutil.copy2(cached_binary, target_binary)
+            os.chmod(target_binary, 0o755)
+        
+        # Check for Node modules (just verify, don't install here)
+        package_json = app_path / "ui" / "package.json"
+        if package_json.exists():
+            node_modules = app_path / "ui" / "node_modules"
+            if not node_modules.exists():
+                # Create marker to trigger install on first real run only
+                self.logger.info(f"Node modules missing for {app_name}, will install on first run")
+        
+        return True
     
     async def start_app(self, app: App) -> bool:
         """Start a single app with safety checks"""
@@ -373,6 +568,11 @@ class SafeAppOrchestrator:
                 return False
             
             self.logger.info(f"Starting {app.name} with ports: {app.allocated_ports}")
+            
+            # Pre-build binaries if needed (BEFORE starting the app)
+            if not self.prepare_app_binaries(app.name):
+                self.logger.error(f"Failed to prepare binaries for {app.name}")
+                return False
             
             app_path = self.generated_apps_dir / app.name
             manage_script = app_path / "scripts" / "manage.sh"
@@ -402,19 +602,39 @@ class SafeAppOrchestrator:
             
             # CRITICAL: Set environment variable to prevent recursive orchestrator calls
             env = os.environ.copy()
+            
+            # Remove any existing port variables to prevent conflicts
+            for key in list(env.keys()):
+                if key.endswith('_PORT'):
+                    del env[key]
+            
             env['VROOLI_ORCHESTRATOR_RUNNING'] = '1'  # Apps check this to skip orchestrator
             env['VROOLI_ROOT'] = str(self.vrooli_root)
             env['GENERATED_APPS_DIR'] = str(self.generated_apps_dir)
             env['FAST_MODE'] = 'true'  # Force fast mode to skip heavy setup
             
-            # Set port environment variables
+            # CRITICAL: Tell app that ports are pre-allocated
+            env['PORTS_PREALLOCATED'] = '1'
+            
+            # PRE-CALCULATE APP_ROOT to eliminate subshells in bash scripts
+            env['APP_ROOT'] = str(app_path)
+            
+            # Set tracking environment variables for stop-all script
+            env['VROOLI_APP_NAME'] = app.name
+            env['VROOLI_TRACKED'] = '1'
+            env['VROOLI_SAFE'] = '1'
+            
+            # Set port environment variables with explicit values
             for port_type, port_num in app.allocated_ports.items():
                 if port_type == "api":
                     env['SERVICE_PORT'] = str(port_num)
+                    self.logger.debug(f"Set SERVICE_PORT={port_num} for {app.name}")
                 elif port_type == "ui":
                     env['UI_PORT'] = str(port_num)
+                    self.logger.debug(f"Set UI_PORT={port_num} for {app.name}")
                 else:
                     env[f"{port_type.upper()}_PORT"] = str(port_num)
+                    self.logger.debug(f"Set {port_type.upper()}_PORT={port_num} for {app.name}")
             
             # Build command
             cmd = ["bash", str(manage_script), "develop", "--fast"]
@@ -510,7 +730,7 @@ class SafeAppOrchestrator:
             
             # Wait if too many concurrent starts
             while concurrent_starts >= MAX_CONCURRENT_STARTS:
-                await asyncio.sleep(0.5)
+                await asyncio.sleep(1)
                 # Check completed futures
                 done_futures = [f for f in app_futures if f.done()]
                 concurrent_starts = len(app_futures) - len(done_futures)
@@ -523,7 +743,7 @@ class SafeAppOrchestrator:
             
             # Longer delay between batches
             if (i + 1) % MAX_CONCURRENT_STARTS == 0:
-                await asyncio.sleep(2.0)  # Wait for batch to stabilize
+                await asyncio.sleep(10.0)  # Wait for batch to stabilize
             else:
                 await asyncio.sleep(0.5)
             
@@ -533,10 +753,32 @@ class SafeAppOrchestrator:
                 self.logger.warning("Slowing down app starts for safety")
                 await asyncio.sleep(2)
         
-        # Wait for all remaining apps to finish starting
+        # Wait for all remaining apps to finish starting with timeout
         if app_futures:
             self.logger.info(f"Waiting for {len(app_futures)} apps to finish starting...")
-            results = await asyncio.gather(*app_futures, return_exceptions=True)
+            try:
+                # Give apps 60 seconds total to start
+                results = await asyncio.wait_for(
+                    asyncio.gather(*app_futures, return_exceptions=True),
+                    timeout=60.0
+                )
+            except asyncio.TimeoutError:
+                self.logger.error("Timeout waiting for apps to start (60s exceeded)")
+                # Cancel remaining futures
+                for future in app_futures:
+                    if not future.done():
+                        future.cancel()
+                # Count timeouts as failures
+                results = []
+                for future in app_futures:
+                    if future.done():
+                        try:
+                            results.append(future.result())
+                        except:
+                            results.append(None)
+                    else:
+                        results.append(None)
+                        fail_count += 1
             
             # Count results
             for result in results:
@@ -649,13 +891,15 @@ async def main():
         print(f"  Process spawn rate: {orchestrator.fork_bomb_detector.get_rate():.1f}/sec")
         print(f"{'=' * 60}\n")
         
-        # Exit appropriately
+        # Keep orchestrator running to maintain child processes
         if success_count == 0:
             sys.exit(1)
         elif fail_count > 0:
             sys.exit(2)
         else:
-            sys.exit(0)
+            # Keep the event loop running indefinitely
+            print("Orchestrator keeping apps alive. Press Ctrl+C to stop all apps.")
+            await asyncio.Event().wait()
             
     except KeyboardInterrupt:
         await orchestrator.shutdown()

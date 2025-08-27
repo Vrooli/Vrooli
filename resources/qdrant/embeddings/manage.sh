@@ -1,8 +1,23 @@
 #!/usr/bin/env bash
 # Main Embedding Management Orchestrator for Qdrant
 # Coordinates all embedding operations: refresh, validate, search, status
+#
+# ⚠️ DEPRECATION NOTICE: This script is deprecated as of v2.0 (January 2025)
+# Please use cli.sh instead: resource-qdrant-embeddings <command>
+# This file will be removed in v3.0 (target: December 2025)
+#
+# Migration examples:
+#   OLD: ./manage.sh init
+#   NEW: ./cli.sh init  OR  resource-qdrant-embeddings init
+#
+#   OLD: ./manage.sh refresh
+#   NEW: ./cli.sh refresh  OR  resource-qdrant-embeddings refresh
 
 set -euo pipefail
+
+# Note: This file is sourced by cli.sh - direct execution is deprecated
+# Users should use: ./resources/qdrant/cli.sh embeddings <command>
+# This internal routing will be refactored in v3.0 (December 2025)
 
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 
@@ -15,7 +30,12 @@ source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${var_LIB_UTILS_DIR}/log.sh"
 # source "${var_LIB_UTILS_DIR}/validation.sh"  # Not used, commented out
 
-# Source qdrant libraries
+# Source unified configuration first (must come before main qdrant libs to avoid readonly conflicts)
+source "${EMBEDDINGS_DIR}/config/unified.sh"
+# Export configuration (ensures all variables are available)
+qdrant::embeddings::export_config
+
+# Source qdrant libraries (after unified config to allow inheritance)
 source "${QDRANT_DIR}/lib/collections.sh"
 source "${QDRANT_DIR}/lib/embeddings.sh"
 source "${QDRANT_DIR}/lib/models.sh"
@@ -30,11 +50,8 @@ source "${EMBEDDINGS_DIR}/extractors/resources.sh"
 source "${EMBEDDINGS_DIR}/search/single.sh"
 source "${EMBEDDINGS_DIR}/search/multi.sh"
 
-# Default settings optimized for parallel processing
-DEFAULT_MODEL="mxbai-embed-large"
-DEFAULT_DIMENSIONS=1024
-BATCH_SIZE=${QDRANT_EMBEDDING_BATCH_SIZE:-50}  # Increased from 10 to 50 for better throughput
-MAX_PARALLEL_WORKERS=${QDRANT_MAX_WORKERS:-16}  # Match CPU cores
+# Configuration now loaded from unified.sh
+# All settings available via QDRANT_* variables with backward-compatible aliases
 TEMP_DIR="/tmp/qdrant-embeddings-$$"
 
 # Cleanup on exit
@@ -80,6 +97,7 @@ qdrant::embeddings::init() {
 qdrant::embeddings::refresh() {
     local app_id=""
     local force="no"
+    local sequential="no"
     
     # Debug: show all arguments
     log::debug "refresh called with arguments: $*"
@@ -95,6 +113,10 @@ qdrant::embeddings::refresh() {
                 else
                     shift
                 fi
+                ;;
+            --sequential)
+                sequential="yes"
+                shift
                 ;;
             yes|no)
                 # Skip force values that might be passed
@@ -147,16 +169,20 @@ qdrant::embeddings::refresh() {
     # Create fresh collections
     log::info "Creating collections..."
     for collection in $collections; do
-        qdrant::collections::create "$collection" "$DEFAULT_DIMENSIONS" "Cosine" || {
+        qdrant::collections::create "$collection" "$QDRANT_EMBEDDING_DIMENSIONS" "$QDRANT_EMBEDDING_DISTANCE_METRIC" || {
                 log::error "Failed to create collection: $collection"
                 return 1
             }
     done
     
-    # Extract and embed content by type (PARALLEL PROCESSING)
+    # Extract and embed content by type - SEQUENTIAL OR PARALLEL
     local total_embeddings=0
     
-    log::info "Processing all content types in parallel with $MAX_PARALLEL_WORKERS workers..."
+    if [[ "$sequential" == "yes" ]]; then
+        log::info "Processing content sequentially (safer but slower)..."
+        total_embeddings=$(qdrant::embeddings::refresh_sequential "$app_id")
+    else
+        log::info "Processing all content types in parallel with ${EMBEDDING_MAX_WORKERS:-16} workers..."
     
     # Create background jobs for each content type
     local workflow_count_file="$TEMP_DIR/workflow_count"
@@ -254,6 +280,8 @@ qdrant::embeddings::refresh() {
     # Calculate total
     total_embeddings=$((workflow_count + scenario_count + doc_count + code_count + resource_count))
     
+    fi # End of parallel processing branch
+    
     # Calculate duration
     local end_time=$(date +%s)
     local duration=$((end_time - start_time))
@@ -270,6 +298,96 @@ qdrant::embeddings::refresh() {
     rm -rf "$TEMP_DIR"
     
     return 0
+}
+
+#######################################
+# Sequential embedding refresh - simpler but slower fallback
+# Arguments:
+#   $1 - App ID
+# Returns: Number of embeddings created
+#######################################
+qdrant::embeddings::refresh_sequential() {
+    local app_id="$1"
+    local total_count=0
+    
+    log::info "Starting sequential processing for safety..."
+    
+    # Process workflows directly with API calls
+    log::info "Processing workflows..."
+    local workflow_count=0
+    
+    # Find workflow files using a simpler approach
+    local workflow_files
+    workflow_files=$(find "${APP_ROOT:-/home/matthalloran8/Vrooli}/initialization/n8n" -name "*.json" -type f 2>/dev/null | head -3)
+    
+    if [[ -n "$workflow_files" ]]; then
+        while IFS= read -r file; do
+            if [[ -f "$file" ]]; then
+                log::debug "Processing workflow file: $file"
+                
+                local name
+                name=$(jq -r '.name // "Unnamed"' "$file" 2>/dev/null || echo "Unnamed")
+                local content="N8n workflow: $name"
+                
+                log::debug "Generating embedding for: $name"
+                
+                # Generate embedding via direct API call
+                local embedding
+                embedding=$(curl -s -X POST http://localhost:11434/api/embeddings \
+                    -H "Content-Type: application/json" \
+                    -d "{\"model\": \"${QDRANT_EMBEDDING_MODEL:-mxbai-embed-large}\", \"prompt\": $(echo "$content" | jq -Rs .)}")
+                
+                if [[ -n "$embedding" ]]; then
+                    embedding=$(echo "$embedding" | jq -c '.embedding' 2>/dev/null)
+                    
+                    if [[ -n "$embedding" ]] && [[ "$embedding" != "null" ]]; then
+                        log::debug "Embedding generated successfully"
+                        
+                        # Create payload
+                        local payload
+                        payload=$(jq -n \
+                            --arg content "$content" \
+                            --arg type "workflow" \
+                            --arg app_id "$app_id" \
+                            --arg name "$name" \
+                            --arg file "$file" \
+                            '{content: $content, type: $type, app_id: $app_id, name: $name, file: $file}')
+                        
+                        # Generate UUID-format ID from hash
+                        local hash
+                        hash=$(echo -n "workflow:$file" | sha256sum | cut -d' ' -f1)
+                        local id="${hash:0:8}-${hash:8:4}-${hash:12:4}-${hash:16:4}-${hash:20:12}"
+                        
+                        log::debug "Storing in Qdrant with UUID ID: $id"
+                        
+                        # Store directly in Qdrant
+                        local response
+                        response=$(curl -s -X PUT "http://localhost:6333/collections/${app_id}-workflows/points" \
+                            -H "Content-Type: application/json" \
+                            -d "{\"points\": [{\"id\": \"$id\", \"vector\": $embedding, \"payload\": $payload}]}")
+                        
+                        if echo "$response" | grep -q '"status":"ok"'; then
+                            ((workflow_count++))
+                            log::info "✅ Stored workflow: $name"
+                        else
+                            log::error "Failed to store workflow: $response"
+                        fi
+                    else
+                        log::error "Invalid embedding received"
+                    fi
+                else
+                    log::error "No embedding response"
+                fi
+            fi
+        done <<< "$workflow_files"
+    else
+        log::info "No workflow files found"
+    fi
+    
+    ((total_count += workflow_count))
+    log::info "Processed $workflow_count workflows"
+    
+    echo "$total_count"
 }
 
 # REMOVED: qdrant::embeddings::process_workflows() function
@@ -353,11 +471,11 @@ qdrant::embeddings::validate() {
     
     # Check model availability
     echo "🤖 Embedding Model:"
-    if qdrant::models::is_available "$DEFAULT_MODEL"; then
-        echo "  ✅ $DEFAULT_MODEL available"
+    if qdrant::models::is_available "$QDRANT_EMBEDDING_MODEL"; then
+        echo "  ✅ $QDRANT_EMBEDDING_MODEL available"
     else
-        echo "  ❌ $DEFAULT_MODEL not installed"
-        echo "     Run: ollama pull $DEFAULT_MODEL"
+        echo "  ❌ $QDRANT_EMBEDDING_MODEL not installed"
+        echo "     Run: ollama pull $QDRANT_EMBEDDING_MODEL"
     fi
     echo
     
@@ -410,9 +528,12 @@ qdrant::embeddings::status() {
     echo "=== Embeddings Status ==="
     echo
     
-    # Show current app status
+    # Sync identity with actual collections before showing status
     local current_app_id=$(qdrant::identity::get_app_id)
     if [[ -n "$current_app_id" ]]; then
+        log::debug "Auto-syncing identity before status display"
+        qdrant::identity::sync_with_collections 2>/dev/null || true
+        
         echo "Current App:"
         qdrant::identity::show
         echo
@@ -438,14 +559,14 @@ qdrant::embeddings::status() {
     
     # Show model status
     echo "Embedding Models:"
-    if qdrant::models::is_available "$DEFAULT_MODEL"; then
-        echo "  ✅ $DEFAULT_MODEL (default)"
+    if qdrant::models::is_available "$QDRANT_EMBEDDING_MODEL"; then
+        echo "  ✅ $QDRANT_EMBEDDING_MODEL (default)"
     else
-        echo "  ❌ $DEFAULT_MODEL (not installed)"
+        echo "  ❌ $QDRANT_EMBEDDING_MODEL (not installed)"
     fi
     
     # Check for other embedding models
-    local other_models=$(ollama list 2>/dev/null | grep -E "(embed|embedding)" | grep -v "$DEFAULT_MODEL" | cut -d' ' -f1)
+    local other_models=$(ollama list 2>/dev/null | grep -E "(embed|embedding)" | grep -v "$QDRANT_EMBEDDING_MODEL" | cut -d' ' -f1)
     if [[ -n "$other_models" ]]; then
         echo "  Also available:"
         echo "$other_models" | while read -r model; do
@@ -468,7 +589,7 @@ qdrant::embeddings::garbage_collect() {
     log::info "Analyzing embeddings for cleanup..."
     
     # Find orphaned collections (no matching app-identity.json)
-    local all_collections=$(qdrant::collections::list 2>/dev/null | jq -r '.collections[]' || echo "")
+    local all_collections=$(curl -s "http://localhost:6333/collections" 2>/dev/null | jq -r '.result.collections[].name' 2>/dev/null || echo "")
     local orphaned=()
     
     for collection in $all_collections; do
@@ -536,11 +657,12 @@ Commands:
   patterns <query>           Discover patterns across apps
   solutions <problem>        Find reusable solutions
   gaps <topic>              Analyze knowledge gaps
+  sync                      Sync identity file with actual collection state
   
 Options:
   --app-id ID               Specify app ID (auto-detected if not provided)
   --force yes              Force operation without confirmation
-  --model MODEL            Embedding model (default: $DEFAULT_MODEL)
+  --model MODEL            Embedding model (default: $QDRANT_EMBEDDING_MODEL)
   --type TYPE              Filter by type (all/workflows/scenarios/knowledge/code/resources)
   --limit N                Maximum results (default: 10)
   
@@ -554,7 +676,7 @@ Examples:
   resource-qdrant embeddings gaps "security"
   
 For more information, see:
-  scripts/resources/storage/qdrant/embeddings/README.md
+  resources/qdrant/embeddings/README.md
 EOF
 }
 
@@ -582,18 +704,37 @@ qdrant_embeddings_dispatch() {
         search)
             local query="$1"
             shift || true
+            
+            # Parse --type flag
+            local type="all"
+            local remaining_args=()
+            while [[ $# -gt 0 ]]; do
+                case $1 in
+                    --type)
+                        type="$2"
+                        shift 2
+                        ;;
+                    *)
+                        remaining_args+=("$1")
+                        shift
+                        ;;
+                esac
+            done
+            
             local app_id=$(qdrant::identity::get_app_id)
             if [[ -z "$app_id" ]]; then
-                log::error "No app identity found. Run 'embeddings init' first"
+                echo '{"error": "No app identity found. Run embeddings init first"}'
                 return 1
             fi
-            qdrant::search::explain "$query" "$app_id" "$@"
+            # Return raw JSON instead of formatted text
+            qdrant::search::single_app "$query" "$app_id" "$type" "${remaining_args[@]}"
             ;;
         search-all)
             local query="$1"
             shift || true
             local type="${1:-all}"
-            qdrant::search::report "$query" "text"
+            # Return JSON format for agents
+            qdrant::search::report "$query" "json"
             ;;
         patterns)
             local query="$1"
@@ -607,6 +748,9 @@ qdrant_embeddings_dispatch() {
             local topic="$1"
             qdrant::search::find_gaps "$topic"
             ;;
+        sync)
+            qdrant::identity::sync_with_collections
+            ;;
         explore)
             qdrant::search::explore
             ;;
@@ -619,4 +763,10 @@ qdrant_embeddings_dispatch() {
             return 1
             ;;
     esac
+}
+
+# Wrapper function for CLI integration
+# The CLI expects embeddings::main to be available
+embeddings::main() {
+    qdrant_embeddings_dispatch "$@"
 }

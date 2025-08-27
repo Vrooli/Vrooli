@@ -352,7 +352,64 @@ file_structure:
         - "messages.sh"  # User messages
         - "capabilities.yaml"  # Resource capabilities
     docs/:
-      description: "Documentation"
+      description: "Resource documentation - flat structure"
+      recommended_files:
+        # Strategic hub + navigation
+        - README.md           # Already handled at root level
+        
+        # Core documentation files
+        - CAPABILITIES.md     # What can this resource do?
+        - PATTERNS.md         # How is this typically used?
+        - INTEGRATION.md      # How does this connect to other resources?
+        - ARCHITECTURE.md     # How does this work internally?
+        - TROUBLESHOOTING.md  # What goes wrong and solutions?
+        - LESSONS_LEARNED.md  # What have we learned over time?
+        
+        # Implementation guidance
+        - INSTALLATION.md     # Setup instructions
+        - CONFIGURATION.md    # Config options and tuning
+        - USAGE.md           # Practical examples and workflows
+        - API_REFERENCE.md   # Complete API documentation
+        - EXAMPLES.md        # Working code samples
+        - SECURITY.md        # Security considerations
+        - PERFORMANCE.md     # Optimization guides and benchmarks
+        - FAQ.md             # Common questions and answers
+        
+        # Development and maintenance
+        - CHANGELOG.md       # Version history
+        - CONTRIBUTING.md    # Development guidelines
+        - TESTING.md         # Test procedures
+        - DEPLOYMENT.md      # Production deployment
+        - MONITORING.md      # Observability setup
+        - MIGRATION.md       # Version upgrade guides
+      
+      file_purposes:
+        # Note: How these files are processed by semantic extraction is an
+        # implementation detail of the knowledge system, not the resource contract
+        core_decision_making:
+          - CAPABILITIES.md
+          - PATTERNS.md
+          - INTEGRATION.md
+        deep_understanding:
+          - ARCHITECTURE.md
+          - TROUBLESHOOTING.md
+          - LESSONS_LEARNED.md
+        practical_implementation:
+          - INSTALLATION.md
+          - CONFIGURATION.md
+          - USAGE.md
+          - API_REFERENCE.md
+          - EXAMPLES.md
+          - SECURITY.md
+          - PERFORMANCE.md
+          - FAQ.md
+        development_maintenance:
+          - CHANGELOG.md
+          - CONTRIBUTING.md
+          - TESTING.md
+          - DEPLOYMENT.md
+          - MONITORING.md
+          - MIGRATION.md
     test/:
       description: "Resource validation tests (not business functionality tests)"
       required_structure:

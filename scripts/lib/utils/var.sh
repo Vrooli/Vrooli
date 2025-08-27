@@ -4,7 +4,6 @@ set -euo pipefail
 # var.sh defines directory variables and should always be sourced
 # No source guard needed as variables are idempotent
 
-# Get APP_ROOT using cached value or compute once (3 levels up: scripts/lib/utils/var.sh)  
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 var_ROOT_DIR="$APP_ROOT"
 export var_ROOT_DIR
@@ -36,6 +35,7 @@ export var_SCHEMAS_DIR="$var_VROOLI_CONFIG_DIR/schemas"
 export var_LIFECYCLE_ENGINE_FILE="$var_LIB_LIFECYCLE_DIR/engine.sh"
 export var_REPOSITORY_FILE="$var_LIB_SERVICE_DIR/repository.sh"
 export var_SYSTEM_COMMANDS_FILE="$var_LIB_SYSTEM_DIR/system_commands.sh"
+export var_TRASH_FILE="$var_LIB_SYSTEM_DIR/trash.sh"
 export var_EXIT_CODES_FILE="$var_LIB_UTILS_DIR/exit_codes.sh"
 export var_FLOW_FILE="$var_LIB_UTILS_DIR/flow.sh"
 export var_LOG_FILE="$var_LIB_UTILS_DIR/log.sh"

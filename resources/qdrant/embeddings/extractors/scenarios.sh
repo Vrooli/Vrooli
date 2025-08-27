@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
 
 # Define paths from APP_ROOT
 EMBEDDINGS_DIR="${APP_ROOT}/resources/qdrant/embeddings"
@@ -58,49 +58,90 @@ qdrant::extract::prd() {
     # Extract revenue model
     local revenue=$(awk '/^## Revenue Model/,/^##[^#]/' "$file" 2>/dev/null | grep -v "^##" | tr '\n' ' ' | sed 's/  */ /g' || echo "")
     
-    # Build embeddable content
-    local content="Scenario: $title
-Name: $scenario_name
-File: $file"
+    # Extract technical requirements if present
+    local tech_stack=$(awk '/^## Technical Requirements/,/^##[^#]/' "$file" 2>/dev/null | grep "^- " | sed 's/^- //' | tr '\n' ', ' | sed 's/,$//' || echo "")
+    
+    # Build semantically rich content summary
+    local content_summary="This is a scenario document titled '$title' for the $scenario_name project."
     
     if [[ -n "$summary" ]]; then
-        content="$content
-Summary: $summary"
+        content_summary="$content_summary Executive Summary: $summary"
     fi
     
     if [[ -n "$value_prop" ]]; then
-        content="$content
-Value Proposition: $value_prop"
+        content_summary="$content_summary Value Proposition: $value_prop"
     fi
     
     if [[ -n "$target_users" ]]; then
-        content="$content
-Target Users: $target_users"
+        content_summary="$content_summary Target Users: $target_users"
     fi
     
     if [[ -n "$features" ]]; then
-        content="$content
-Key Features: $features"
+        content_summary="$content_summary Key Features: $features"
     fi
     
     if [[ -n "$metrics" ]]; then
-        content="$content
-Success Metrics: $metrics"
+        content_summary="$content_summary Success Metrics: $metrics"
     fi
     
     if [[ -n "$revenue" ]]; then
-        content="$content
-Revenue Model: $revenue"
+        content_summary="$content_summary Revenue Model: $revenue"
     fi
     
-    # Add technical requirements if present
-    local tech_stack=$(awk '/^## Technical Requirements/,/^##[^#]/' "$file" 2>/dev/null | grep "^- " | sed 's/^- //' | tr '\n' ', ' | sed 's/,$//' || echo "")
     if [[ -n "$tech_stack" ]]; then
-        content="$content
-Technical Stack: $tech_stack"
+        content_summary="$content_summary Technical Stack: $tech_stack"
     fi
     
-    echo "$content"
+    # Get file stats
+    local file_size=$(wc -c < "$file" 2>/dev/null || echo "0")
+    local line_count=$(wc -l < "$file" 2>/dev/null || echo "0")
+    
+    # Check for associated files
+    local has_config="false"
+    [[ -f "$scenario_dir/.scenario.yaml" ]] && has_config="true"
+    local has_workflows="false"
+    [[ -d "$scenario_dir/initialization" ]] && has_workflows="true"
+    
+    # Output structured JSON with clean separation
+    jq -n \
+        --arg content "$content_summary" \
+        --arg file "$file" \
+        --arg title "$title" \
+        --arg name "$scenario_name" \
+        --arg scenario_dir "$scenario_dir" \
+        --arg summary "$summary" \
+        --arg value_prop "$value_prop" \
+        --arg target_users "$target_users" \
+        --arg features "$features" \
+        --arg metrics "$metrics" \
+        --arg revenue "$revenue" \
+        --arg tech_stack "$tech_stack" \
+        --arg file_size "$file_size" \
+        --arg line_count "$line_count" \
+        --arg has_config "$has_config" \
+        --arg has_workflows "$has_workflows" \
+        '{
+            content: $content,
+            metadata: {
+                file: $file,
+                title: $title,
+                name: $name,
+                scenario_dir: $scenario_dir,
+                summary: $summary,
+                value_proposition: $value_prop,
+                target_users: $target_users,
+                key_features: $features,
+                success_metrics: $metrics,
+                revenue_model: $revenue,
+                technical_stack: $tech_stack,
+                file_size: ($file_size | tonumber),
+                line_count: ($line_count | tonumber),
+                has_config: ($has_config == "true"),
+                has_workflows: ($has_workflows == "true"),
+                file_type: "prd",
+                content_type: "scenario"
+            }
+        }' | jq -c
 }
 
 #######################################
@@ -131,30 +172,79 @@ qdrant::extract::scenario_config() {
     # Extract tags
     local tags=$(awk '/^tags:/,/^[a-z]/' "$file" 2>/dev/null | grep "  - " | sed 's/  - //' | tr '\n' ', ' | sed 's/,$//' || echo "")
     
-    # Build content
-    local content="Scenario Configuration: $name
-Version: $version
-File: $file"
+    # Build semantically rich content summary
+    local content_summary="This is a scenario configuration for '$name' version $version."
     
-    [[ -n "$description" ]] && content="$content
-Description: $description"
+    if [[ -n "$description" ]]; then
+        content_summary="$content_summary Description: $description"
+    fi
     
-    [[ -n "$category" ]] && content="$content
-Category: $category"
+    if [[ -n "$category" ]]; then
+        content_summary="$content_summary Category: $category."
+    fi
     
-    [[ -n "$status" ]] && content="$content
-Status: $status"
+    if [[ -n "$status" ]]; then
+        content_summary="$content_summary Status: $status."
+    fi
     
-    [[ -n "$complexity" ]] && content="$content
-Complexity: $complexity"
+    if [[ -n "$complexity" ]]; then
+        content_summary="$content_summary Complexity: $complexity."
+    fi
     
-    [[ -n "$resources" ]] && content="$content
-Required Resources: $resources"
+    if [[ -n "$resources" ]]; then
+        content_summary="$content_summary Required Resources: $resources."
+    fi
     
-    [[ -n "$tags" ]] && content="$content
-Tags: $tags"
+    if [[ -n "$tags" ]]; then
+        content_summary="$content_summary Tags: $tags."
+    fi
     
-    echo "$content"
+    # Get file stats
+    local file_size=$(wc -c < "$file" 2>/dev/null || echo "0")
+    local scenario_dir=${file%/*}
+    
+    # Check for associated files
+    local has_prd="false"
+    [[ -f "$scenario_dir/PRD.md" ]] && has_prd="true"
+    local has_workflows="false"
+    [[ -d "$scenario_dir/initialization" ]] && has_workflows="true"
+    
+    # Output structured JSON with clean separation
+    jq -n \
+        --arg content "$content_summary" \
+        --arg file "$file" \
+        --arg name "$name" \
+        --arg description "$description" \
+        --arg version "$version" \
+        --arg category "$category" \
+        --arg status "$status" \
+        --arg complexity "$complexity" \
+        --arg resources "$resources" \
+        --arg tags "$tags" \
+        --arg file_size "$file_size" \
+        --arg scenario_dir "$scenario_dir" \
+        --arg has_prd "$has_prd" \
+        --arg has_workflows "$has_workflows" \
+        '{
+            content: $content,
+            metadata: {
+                file: $file,
+                name: $name,
+                description: $description,
+                version: $version,
+                category: $category,
+                status: $status,
+                complexity: $complexity,
+                resources: $resources,
+                tags: $tags,
+                file_size: ($file_size | tonumber),
+                scenario_dir: $scenario_dir,
+                has_prd: ($has_prd == "true"),
+                has_workflows: ($has_workflows == "true"),
+                file_type: "config",
+                content_type: "scenario"
+            }
+        }' | jq -c
 }
 
 #######################################
@@ -165,9 +255,10 @@ Tags: $tags"
 #######################################
 qdrant::extract::scenarios_batch() {
     local dir="${1:-.}"
-    local output_file="${2:-${EXTRACT_TEMP_DIR}/scenarios.txt}"
+    local output_file="${2:-${EXTRACT_TEMP_DIR}/scenarios.jsonl}"
     
     mkdir -p "${output_file%/*}"
+    > "$output_file"
     
     # Find all scenario files
     local prd_files=()
@@ -190,25 +281,19 @@ qdrant::extract::scenarios_batch() {
     
     log::info "Extracting content from $total_files scenario files"
     
-    # Extract PRDs
+    # Extract PRDs as JSON lines
     local count=0
     for file in "${prd_files[@]}"; do
-        local content=$(qdrant::extract::prd "$file")
-        if [[ -n "$content" ]]; then
-            echo "$content" >> "$output_file"
-            echo "---SEPARATOR---" >> "$output_file"
-            ((count++))
-        fi
+        # Output JSON directly (one line per PRD)
+        qdrant::extract::prd "$file" >> "$output_file"
+        ((count++))
     done
     
-    # Extract configs
+    # Extract configs as JSON lines
     for file in "${config_files[@]}"; do
-        local content=$(qdrant::extract::scenario_config "$file")
-        if [[ -n "$content" ]]; then
-            echo "$content" >> "$output_file"
-            echo "---SEPARATOR---" >> "$output_file"
-            ((count++))
-        fi
+        # Output JSON directly (one line per config)
+        qdrant::extract::scenario_config "$file" >> "$output_file"
+        ((count++))
     done
     
     log::success "Extracted content from $count scenario files"
@@ -254,13 +339,18 @@ qdrant::extract::scenario_metadata() {
     [[ -f "$scenario_path/.scenario.yaml" ]] && has_config="true"
     [[ -d "$scenario_path/initialization" ]] && has_workflows="true"
     
-    # Build metadata JSON
+    # Build metadata JSON - ensure numeric fields have valid defaults
+    local safe_file_size="${file_size:-0}"
+    
+    # Ensure numeric fields are not empty
+    [[ -z "$safe_file_size" || "$safe_file_size" == " " ]] && safe_file_size="0"
+    
     jq -n \
         --arg name "$scenario_name" \
         --arg file "$file" \
         --arg file_type "$file_type" \
         --arg scenario_path "$scenario_path" \
-        --arg file_size "$file_size" \
+        --arg file_size "$safe_file_size" \
         --arg modified "$modified" \
         --arg has_prd "$has_prd" \
         --arg has_config "$has_config" \
@@ -419,7 +509,7 @@ qdrant::embeddings::process_scenarios() {
     local count=0
     
     # Extract scenarios to temp file
-    local output_file="$TEMP_DIR/scenarios.txt"
+    local output_file="$TEMP_DIR/scenarios.jsonl"
     qdrant::extract::scenarios_batch "." "$output_file" >&2
     
     if [[ ! -f "$output_file" ]] || [[ ! -s "$output_file" ]]; then
@@ -428,32 +518,22 @@ qdrant::embeddings::process_scenarios() {
         return 0
     fi
     
-    # Process each scenario through unified embedding service
-    local content=""
-    local processing_scenario=false
-    
-    while IFS= read -r line; do
-        if [[ "$line" == "Scenario:"* ]] || [[ "$line" == "Scenario Configuration:"* ]]; then
-            # Start of new scenario content
-            processing_scenario=true
-            content="$line"
-        elif [[ "$line" == "---SEPARATOR---" ]] && [[ "$processing_scenario" == true ]]; then
-            # End of scenario, process it
+    # Process each JSON line through unified embedding service
+    while IFS= read -r json_line; do
+        if [[ -n "$json_line" ]]; then
+            # Parse JSON to extract content and metadata
+            local content
+            content=$(echo "$json_line" | jq -r '.content // empty' 2>/dev/null)
+            
+            local metadata
+            metadata=$(echo "$json_line" | jq -c '.metadata // {}' 2>/dev/null)
+            
             if [[ -n "$content" ]]; then
-                # Extract scenario metadata from content
-                local metadata
-                metadata=$(qdrant::extract::scenario_metadata_from_content "$content")
-                
-                # Process through unified embedding service
+                # Process through unified embedding service with structured metadata
                 if qdrant::embedding::process_item "$content" "scenario" "$collection" "$app_id" "$metadata"; then
                     ((count++))
                 fi
             fi
-            processing_scenario=false
-            content=""
-        elif [[ "$processing_scenario" == true ]]; then
-            # Continue accumulating scenario content
-            content="${content}"$'\n'"${line}"
         fi
     done < "$output_file"
     

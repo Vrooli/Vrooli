@@ -4,12 +4,19 @@
 
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 
-# Cache file location
-CACHE_DIR="${HOME}/.cache/qdrant-embeddings"
+# Source unified configuration
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+EMBEDDINGS_DIR="${APP_ROOT}/resources/qdrant/embeddings"
+source "${EMBEDDINGS_DIR}/config/unified.sh"
+
+# Cache file location (using unified config)
+CACHE_DIR="$EMBEDDING_CACHE_DIR"
 RESOURCE_CACHE_FILE="${CACHE_DIR}/resource-locations.cache"
-CACHE_TTL=3600  # 1 hour in seconds
+if [[ -z "${CACHE_TTL:-}" ]]; then
+    CACHE_TTL="$EMBEDDING_CACHE_TTL"
+fi
 
 # Ensure cache directory exists
 mkdir -p "$CACHE_DIR"

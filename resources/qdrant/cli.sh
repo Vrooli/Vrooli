@@ -47,12 +47,8 @@ for lib in core health collections backup inject content status models embedding
     fi
 done
 
-# Source embeddings management system if available
-EMBEDDINGS_MANAGE="${QDRANT_CLI_DIR}/embeddings/manage.sh"
-if [[ -f "$EMBEDDINGS_MANAGE" ]]; then
-    # shellcheck disable=SC1090
-    source "$EMBEDDINGS_MANAGE" 2>/dev/null || true
-fi
+# Note: Embeddings management system is loaded on-demand to avoid conflicts
+# The embeddings dispatcher will source it when needed
 
 # Initialize CLI framework in v2.0 mode (auto-creates manage/test/content groups)
 cli::init "qdrant" "Qdrant vector database with semantic knowledge system" "v2"
@@ -293,18 +289,88 @@ qdrant_embeddings_dispatch() {
     shift || true
     
     # Check if embeddings system is available
-    if [[ ! -f "${QDRANT_CLI_DIR}/embeddings/manage.sh" ]]; then
+    local embeddings_manage="${QDRANT_CLI_DIR}/embeddings/manage.sh"
+    if [[ ! -f "${embeddings_manage}" ]]; then
         log::error "Embeddings knowledge system not available"
         return 1
     fi
     
-    # Delegate to embeddings management system
-    if command -v embeddings::main &>/dev/null; then
-        embeddings::main "$subcommand" "$@"
-    else
-        log::error "Embeddings management system not loaded"
-        return 1
-    fi
+    # Source embeddings system in a subshell to avoid conflicts
+    (
+        # Source the embeddings management system
+        source "${embeddings_manage}"
+        
+        # Call the embeddings dispatcher directly
+        # Note: We call the function from manage.sh, not embeddings::main to avoid recursion
+        if command -v qdrant::embeddings::init &>/dev/null; then
+            # The manage.sh has loaded successfully, call its dispatcher
+            case "$subcommand" in
+                init) qdrant::embeddings::init "$@" ;;
+                refresh) qdrant::embeddings::refresh "$@" ;;
+                validate) qdrant::embeddings::validate "$@" ;;
+                status) qdrant::embeddings::status "$@" ;;
+                gc|garbage-collect) qdrant::embeddings::garbage_collect "$@" ;;
+                sync) qdrant::identity::sync_with_collections "$@" ;;
+                search) 
+                    local query="$1"
+                    shift || true
+                    
+                    # Parse --type flag
+                    local type="all"
+                    local remaining_args=()
+                    while [[ $# -gt 0 ]]; do
+                        case $1 in
+                            --type)
+                                type="$2"
+                                shift 2
+                                ;;
+                            *)
+                                remaining_args+=("$1")
+                                shift
+                                ;;
+                        esac
+                    done
+                    
+                    local app_id
+                    app_id=$(qdrant::identity::get_app_id 2>/dev/null) || app_id=""
+                    if [[ -z "$app_id" ]]; then
+                        echo '{"error": "No app identity found. Run embeddings init first"}'
+                        return 1
+                    fi
+                    # Return raw JSON instead of formatted text
+                    qdrant::search::single_app "$query" "$app_id" "$type" "${remaining_args[@]}"
+                    ;;
+                search-all)
+                    local query="$1"
+                    shift || true
+                    # Return raw JSON instead of formatted text
+                    qdrant::search::all_apps "$query" "$@"
+                    ;;
+                patterns)
+                    local query="$1"
+                    qdrant::search::discover_patterns "$query"
+                    ;;
+                solutions)
+                    local problem="$1"
+                    qdrant::search::find_solutions "$problem"
+                    ;;
+                gaps)
+                    local topic="$1"
+                    qdrant::search::find_gaps "$topic"
+                    ;;
+                explore) qdrant::search::explore ;;
+                help|--help|-h) qdrant::embeddings::show_help ;;
+                *)
+                    log::error "Unknown command: $subcommand"
+                    qdrant::embeddings::show_help
+                    return 1
+                    ;;
+            esac
+        else
+            log::error "Failed to load embeddings management system"
+            return 1
+        fi
+    )
 }
 
 # Deprecated inject command with warning

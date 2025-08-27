@@ -43,24 +43,55 @@ qdrant::search::all_apps() {
         return 1
     fi
     
-    log::info "Searching all apps for: $query"
+    # Silent operation for JSON output
     local search_start=$(date +%s%3N)
     
-    # Find all app identities
+    # Find all app identities (with debug output)
     local app_ids=()
+    local seen_apps=()  # Track seen app_ids to prevent duplicates
+    
+    # Start search from current working directory, not HOME (too broad)
+    local search_base="${SEARCH_BASE:-$(pwd)}"
+    # Debug: Looking for app identities
+    
+    # Find app-identity.json files only in .vrooli directories
+    # Exclude test fixtures and backup directories
+    local identity_files=$(find "$search_base" -path "*/.vrooli/app-identity.json" -type f 2>/dev/null \
+        | grep -v "/test/" \
+        | grep -v "/backup/" \
+        | grep -v "/.git/")
+    # Debug: Found identity files
+    
     while IFS= read -r identity_file; do
         if [[ -f "$identity_file" ]]; then
+            # Debug: Processing identity file
             local app_id=$(jq -r '.app_id // empty' "$identity_file" 2>/dev/null)
-            if [[ -n "$app_id" ]]; then
+            # Debug: Extracted app_id
+            
+            # Check if we've already seen this app_id (deduplication)
+            local already_seen=false
+            for seen_id in "${seen_apps[@]}"; do
+                if [[ "$seen_id" == "$app_id" ]]; then
+                    already_seen=true
+                    # Debug: Skipping duplicate app_id
+                    break
+                fi
+            done
+            
+            if [[ -n "$app_id" && "$already_seen" == "false" ]]; then
                 app_ids+=("$app_id")
+                seen_apps+=("$app_id")
             fi
         fi
-    done < <(find "${HOME}" -name "app-identity.json" -type f 2>/dev/null | grep -E "/.vrooli/app-identity.json$")
+    done <<< "$identity_files"
     
     # Fallback: search for collections by pattern
     if [[ ${#app_ids[@]} -eq 0 ]]; then
+        # Debug: No app identities found, trying fallback
         log::debug "No app identities found, searching by collection pattern"
-        app_ids=($(qdrant::search::discover_apps))
+        local discovered_apps=$(qdrant::search::discover_apps)
+        # Debug: Fallback discovered apps
+        app_ids=($(echo "$discovered_apps"))
     fi
     
     if [[ ${#app_ids[@]} -eq 0 ]]; then
@@ -76,6 +107,7 @@ qdrant::search::all_apps() {
         return 0
     fi
     
+    # Debug: Found apps to search
     log::debug "Found ${#app_ids[@]} apps to search"
     
     # Search each app in parallel (if possible)
@@ -83,9 +115,11 @@ qdrant::search::all_apps() {
     local apps_with_results=0
     
     for app_id in "${app_ids[@]}"; do
+        # Debug: Starting search for app
         log::debug "Searching app: $app_id"
         
         # Search single app
+        # Debug: Calling single_app search
         local app_results=$(qdrant::search::single_app \
             "$query" \
             "$app_id" \
@@ -93,17 +127,30 @@ qdrant::search::all_apps() {
             "$limit_per_app" \
             "$min_score" 2>/dev/null)
         
+        # Debug: single_app returned results
+        
         if [[ -n "$app_results" ]]; then
-            local result_count=$(echo "$app_results" | jq -r '.result_count // 0')
+            # Debug: Processing app results
+            local result_count=$(echo "$app_results" | jq -r '.result_count // 0' 2>/dev/null)
+            # Debug: Extracted result count
             if [[ "$result_count" -gt 0 ]]; then
+                # Debug: Result count > 0
                 ((apps_with_results++))
                 
                 # Extract just the results array
-                local results_array=$(echo "$app_results" | jq -c '.results // []')
+                local results_array=$(echo "$app_results" | jq -c '.results // []' 2>/dev/null)
+                # Debug: Extracted results array
                 
                 # Merge with all results
-                all_results=$(echo "$all_results $results_array" | jq -s 'add')
+                all_results=$(echo "$all_results $results_array" | jq -s 'add' 2>/dev/null)
+                # Debug: After merge
+            else
+                # Debug: Result count is 0 or invalid
+                :
             fi
+        else
+            # Debug: app_results is empty
+            :
         fi
     done
     
@@ -113,21 +160,31 @@ qdrant::search::all_apps() {
         total_limit=$DEFAULT_LIMIT
     fi
     
+    # Debug: Before sorting
+    # Debug: Applying limit
+    
     all_results=$(echo "$all_results" | jq --argjson limit "$total_limit" \
-        'sort_by(-.score) | .[0:$limit]')
+        'sort_by(-.score) | .[0:$limit]' 2>/dev/null)
+    
+    # Debug: After sorting
     
     # Calculate search time
     local search_end=$(date +%s%3N)
     local search_time=$((search_end - search_start))
     
-    # Build final response
+    # Build final response (with debug)
+    # Debug: Building final response
+    # Debug: all_results length
+    # Debug: apps_with_results
+    # Debug: app_ids count
+    
     jq -n \
         --arg query "$query" \
         --arg type "$type" \
         --argjson results "$all_results" \
         --arg apps_searched "${#app_ids[@]}" \
         --arg apps_with_results "$apps_with_results" \
-        --arg total_results "$(echo "$all_results" | jq 'length')" \
+        --arg total_results "$(echo "$all_results" | jq 'length' 2>/dev/null || echo '0')" \
         --arg search_time "$search_time" \
         '{
             query: $query,
@@ -138,7 +195,7 @@ qdrant::search::all_apps() {
             total_results: ($total_results | tonumber),
             search_time_ms: ($search_time | tonumber),
             timestamp: now | strftime("%Y-%m-%dT%H:%M:%SZ")
-        }'
+        }' 2>/dev/null
 }
 
 #######################################
@@ -164,8 +221,15 @@ qdrant::search::discover_apps() {
         app_id="${app_id%-code}"
         app_id="${app_id%-resources}"
         
-        # Add if not already in array
-        if [[ ! " ${app_ids[@]} " =~ " ${app_id} " ]]; then
+        # Add if not already in array  
+        local already_exists=false
+        for existing_id in "${app_ids[@]}"; do
+            if [[ "$existing_id" == "$app_id" ]]; then
+                already_exists=true
+                break
+            fi
+        done
+        if [[ "$already_exists" == "false" ]]; then
             app_ids+=("$app_id")
         fi
     done <<< "$collections"
@@ -184,40 +248,34 @@ qdrant::search::discover_patterns() {
     local query="$1"
     local threshold="${2:-0.7}"
     
-    log::info "Discovering patterns for: $query"
-    
     # Search all apps
     local results=$(qdrant::search::all_apps "$query" "all" "10" "$threshold")
     
-    if [[ -z "$results" ]] || [[ "$(echo "$results" | jq -r '.total_results')" -eq 0 ]]; then
-        echo "No patterns found matching: $query"
+    if [[ -z "$results" ]] || [[ "$(echo "$results" | jq -r '.total_results // 0' 2>/dev/null || echo "0")" -eq 0 ]]; then
+        echo '{"query": "'"$query"'", "patterns": [], "message": "No patterns found"}'
         return 0
     fi
     
-    # Analyze patterns
-    echo "=== Pattern Discovery ==="
-    echo "Query: \"$query\""
-    echo
-    
-    # Group by type
-    echo "By Type:"
-    echo "$results" | jq -r '.results | group_by(.type) | .[] | 
-        "\(.[]|.type // "unknown" | select(. == .)):" + 
-        " \(length) occurrence(s)"' | sort -u
-    echo
-    
-    # Group by app
-    echo "By App:"
-    echo "$results" | jq -r '.results | group_by(.app_id) | .[] | 
-        "\(.[]|.app_id // "unknown" | select(. == .)):" + 
-        " \(length) match(es)"' | sort -u
-    echo
-    
-    # Show top patterns
-    echo "Top Patterns (score > $threshold):"
-    echo "$results" | jq -r --arg t "$threshold" '.results[] | 
-        select(.score > ($t|tonumber)) |
-        "[\(.score|tostring[0:4])] \(.type) in \(.app_id):\n  \(.content | split("\n")[0] | .[0:100])\n"'
+    # Analyze patterns and return JSON
+    echo "$results" | jq --arg query "$query" --arg threshold "$threshold" '{
+        query: $query,
+        threshold: ($threshold | tonumber),
+        patterns: {
+            by_type: (.results | group_by(.type) | map({
+                type: .[0].type,
+                count: length,
+                examples: [.[:3] | .[] | {app_id, score, content: (.content | split("\n")[0] | .[0:100])}]
+            })),
+            by_app: (.results | group_by(.app_id) | map({
+                app_id: .[0].app_id,
+                count: length,
+                types: ([.[].type] | unique)
+            })),
+            top_matches: (.results | map(select(.score > ($threshold|tonumber))) | .[:5])
+        },
+        total_patterns: .total_results,
+        timestamp: now | strftime("%Y-%m-%dT%H:%M:%SZ")
+    }'
 }
 
 #######################################
@@ -231,38 +289,35 @@ qdrant::search::find_solutions() {
     local problem="$1"
     local preferred_type="${2:-workflows}"
     
-    log::info "Finding solutions for: $problem"
-    
     # Search with focus on preferred type
     local primary_results=$(qdrant::search::all_apps "$problem" "$preferred_type" "5" "0.6")
     local secondary_results=$(qdrant::search::all_apps "$problem" "all" "3" "0.7")
     
-    # Combine and deduplicate
-    local combined=$(echo "$primary_results $secondary_results" | jq -s '
-        .[0].results + .[1].results | 
-        unique_by(.id) | 
-        sort_by(-.score)')
-    
-    # Format as solutions
-    echo "=== Reusable Solutions ==="
-    echo "Problem: \"$problem\""
-    echo
-    
-    local count=0
-    echo "$combined" | jq -r '.[] | 
-        "Solution #\(input_line_number):\n" +
-        "  Type: \(.type)\n" +
-        "  App: \(.app_id)\n" +
-        "  Score: \(.score|tostring[0:4])\n" +
-        "  Description: \(.content | split("\n")[0:2] | join(" "))\n" +
-        (if .metadata.source_file then "  File: \(.metadata.source_file)\n" else "" end)' | 
-    while IFS= read -r line; do
-        echo "$line"
-        ((count++))
-        if [[ $count -ge 5 ]]; then
-            break
-        fi
-    done
+    # Combine, deduplicate and format as JSON
+    printf '%s\n%s\n' "$primary_results" "$secondary_results" | jq -s --arg problem "$problem" --arg pref_type "$preferred_type" '{
+        problem: $problem,
+        preferred_type: $pref_type,
+        solutions: (
+            .[0].results + .[1].results | 
+            unique_by(.id) | 
+            sort_by(-.score) | 
+            .[:10] | 
+            map({
+                type: .type,
+                app_id: .app_id,
+                score: .score,
+                content: .content,
+                metadata: .metadata,
+                relevance: (
+                    if .score >= 0.9 then "high"
+                    elif .score >= 0.7 then "medium"
+                    else "low" end
+                )
+            })
+        ),
+        solution_count: (.[0].results + .[1].results | unique_by(.id) | length),
+        timestamp: now | strftime("%Y-%m-%dT%H:%M:%SZ")
+    }'
 }
 
 #######################################
@@ -279,46 +334,47 @@ qdrant::search::compare_apps() {
     local app2="$3"
     
     if [[ -z "$query" ]] || [[ -z "$app1" ]] || [[ -z "$app2" ]]; then
-        log::error "Query and two app IDs required"
+        echo '{"error": "Query and two app IDs required"}'
         return 1
     fi
-    
-    echo "=== App Comparison ==="
-    echo "Query: \"$query\""
-    echo "Comparing: $app1 vs $app2"
-    echo
     
     # Search both apps
     local results1=$(qdrant::search::single_app "$query" "$app1" "all" "5")
     local results2=$(qdrant::search::single_app "$query" "$app2" "all" "5")
     
-    local count1=$(echo "$results1" | jq -r '.result_count // 0')
-    local count2=$(echo "$results2" | jq -r '.result_count // 0')
-    
-    echo "$app1:"
-    echo "  Results: $count1"
-    if [[ "$count1" -gt 0 ]]; then
-        echo "  Best Score: $(echo "$results1" | jq -r '.results[0].score // 0' | cut -c1-4)"
-        echo "  Types: $(echo "$results1" | jq -r '[.results[].type] | unique | join(", ")')"
-    fi
-    echo
-    
-    echo "$app2:"
-    echo "  Results: $count2"
-    if [[ "$count2" -gt 0 ]]; then
-        echo "  Best Score: $(echo "$results2" | jq -r '.results[0].score // 0' | cut -c1-4)"
-        echo "  Types: $(echo "$results2" | jq -r '[.results[].type] | unique | join(", ")')"
-    fi
-    echo
-    
-    # Determine winner
-    if [[ "$count1" -gt "$count2" ]]; then
-        echo "Recommendation: $app1 has more relevant content"
-    elif [[ "$count2" -gt "$count1" ]]; then
-        echo "Recommendation: $app2 has more relevant content"
-    else
-        echo "Recommendation: Both apps have similar content"
-    fi
+    # Combine results and create comparison JSON
+    jq -n --arg query "$query" --arg app1 "$app1" --arg app2 "$app2" \
+        --argjson r1 "$results1" --argjson r2 "$results2" '{
+        query: $query,
+        comparison: {
+            app1: {
+                id: $app1,
+                result_count: $r1.result_count,
+                best_score: ($r1.results[0].score // 0),
+                types: [$r1.results[].type] | unique,
+                top_results: $r1.results[:3]
+            },
+            app2: {
+                id: $app2,
+                result_count: $r2.result_count,
+                best_score: ($r2.results[0].score // 0),
+                types: [$r2.results[].type] | unique,
+                top_results: $r2.results[:3]
+            }
+        },
+        analysis: {
+            better_coverage: (if $r1.result_count > $r2.result_count then $app1 
+                             elif $r2.result_count > $r1.result_count then $app2 
+                             else "equal" end),
+            higher_relevance: (if ($r1.results[0].score // 0) > ($r2.results[0].score // 0) then $app1 
+                              elif ($r2.results[0].score // 0) > ($r1.results[0].score // 0) then $app2 
+                              else "equal" end),
+            unique_in_app1: ([$r1.results[].type] | unique) - ([$r2.results[].type] | unique),
+            unique_in_app2: ([$r2.results[].type] | unique) - ([$r1.results[].type] | unique),
+            common_types: ([$r1.results[].type] | unique) - (([$r1.results[].type] | unique) - ([$r2.results[].type] | unique))
+        },
+        timestamp: now | strftime("%Y-%m-%dT%H:%M:%SZ")
+    }'
 }
 
 #######################################
@@ -359,49 +415,41 @@ qdrant::search::track_evolution() {
 qdrant::search::find_gaps() {
     local topic="$1"
     
-    log::info "Analyzing knowledge gaps for: $topic"
-    
     # Search for the topic
     local results=$(qdrant::search::all_apps "$topic" "all" "10" "0.3")
     local total=$(echo "$results" | jq -r '.total_results // 0')
     
-    echo "=== Knowledge Gap Analysis: $topic ==="
-    echo
-    
-    if [[ "$total" -eq 0 ]]; then
-        echo "❌ No knowledge found on this topic"
-        echo "   Recommendation: Create new documentation or workflows"
-        return 0
-    fi
-    
-    # Analyze coverage by type
-    local types=$(echo "$results" | jq -r '[.results[].type] | unique | sort')
-    
-    echo "Current Coverage:"
-    echo "$results" | jq -r '.results | group_by(.type) | .[] | 
-        "  • \(.[0].type): \(length) item(s)"'
-    echo
-    
-    # Identify missing types
-    echo "Potential Gaps:"
-    local all_types='["workflows", "scenarios", "knowledge", "code", "resources"]'
-    local missing=$(echo "$all_types $types" | jq -s '.[0] - .[1]')
-    
-    if [[ "$(echo "$missing" | jq 'length')" -gt 0 ]]; then
-        echo "$missing" | jq -r '.[] | "  ❌ No \(.) found"'
-    else
-        echo "  ✅ All content types have coverage"
-    fi
-    echo
-    
-    # Analyze app coverage
-    local app_count=$(echo "$results" | jq -r '.apps_with_results // 0')
-    local total_apps=$(echo "$results" | jq -r '.apps_searched // 0')
-    
-    echo "App Coverage: $app_count/$total_apps apps have relevant content"
-    if [[ "$app_count" -lt "$total_apps" ]]; then
-        echo "  Consider adding $topic content to more apps"
-    fi
+    # Analyze coverage and return JSON
+    echo "$results" | jq --arg topic "$topic" '{
+        topic: $topic,
+        total_results: .total_results,
+        coverage: {
+            by_type: (.results | group_by(.type) | map({
+                type: .[0].type,
+                count: length,
+                items: [.[:3] | .[] | {app_id, score, content: (.content | split("\n")[0] | .[0:100])}]
+            })),
+            by_app: {
+                apps_with_content: .apps_with_results,
+                total_apps_searched: .apps_searched,
+                coverage_percentage: (if .apps_searched > 0 then (.apps_with_results / .apps_searched * 100) else 0 end)
+            }
+        },
+        gaps: {
+            missing_types: (["workflows", "scenarios", "knowledge", "code", "resources"] - ([.results[].type] | unique)),
+            has_all_types: (([.results[].type] | unique | length) == 5),
+            recommendations: (
+                if .total_results == 0 then
+                    ["No knowledge found - create initial documentation", "Add workflows for this topic", "Create code examples"]
+                elif ([.results[].type] | unique | length) < 3 then
+                    ["Limited coverage - expand to more content types", "Add more examples and patterns"]
+                else
+                    ["Good coverage - consider adding advanced patterns", "Document edge cases"]
+                end
+            )
+        },
+        timestamp: now | strftime("%Y-%m-%dT%H:%M:%SZ")
+    }'
 }
 
 #######################################
@@ -415,7 +463,9 @@ qdrant::search::report() {
     local query="$1"
     local format="${2:-text}"
     
+    # Silent operation for JSON output
     local results=$(qdrant::search::all_apps "$query" "all" "20" "0.4")
+    # Debug: Report received results
     
     case "$format" in
         json)
@@ -433,16 +483,33 @@ qdrant::search::report() {
             echo "Timestamp: $(date -Iseconds)"
             echo
             echo "Summary:"
-            echo "  Total Results: $(echo "$results" | jq -r '.total_results')"
-            echo "  Apps Searched: $(echo "$results" | jq -r '.apps_searched')"
-            echo "  Apps with Results: $(echo "$results" | jq -r '.apps_with_results')"
-            echo "  Search Time: $(echo "$results" | jq -r '.search_time_ms')ms"
+            # Safely extract values with fallbacks
+            local total_results=$(echo "$results" | jq -r '.total_results // "0"' 2>/dev/null || echo "0")
+            local apps_searched=$(echo "$results" | jq -r '.apps_searched // "0"' 2>/dev/null || echo "0")
+            local apps_with_results=$(echo "$results" | jq -r '.apps_with_results // "0"' 2>/dev/null || echo "0")
+            local search_time=$(echo "$results" | jq -r '.search_time_ms // "0"' 2>/dev/null || echo "0")
+            
+            echo "  Total Results: $total_results"
+            echo "  Apps Searched: $apps_searched"
+            echo "  Apps with Results: $apps_with_results"
+            echo "  Search Time: ${search_time}ms"
             echo
             echo "Top Results:"
-            echo "$results" | jq -r '.results[0:5][] | 
-                "\n#\(input_line_number). [\(.score|tostring[0:4])] \(.type) from \(.app_id)" +
-                "\n   \(.content | split("\n")[0] | .[0:150])" +
-                (if .metadata.source_file then "\n   File: \(.metadata.source_file)" else "" end)'
+            
+            # Check if we have valid results before trying to display them
+            if [[ -n "$results" ]] && echo "$results" | jq -e '.results' >/dev/null 2>&1; then
+                local result_count=$(echo "$results" | jq -r '.results | length' 2>/dev/null || echo "0")
+                if [[ "$result_count" -gt 0 ]]; then
+                    echo "$results" | jq -r '.results[0:5][] | 
+                        "\n#\(1 + (input_line_number - 1)). [\(.score|tostring[0:4])] \(.type) from \(.app_id)" +
+                        "\n   \(.content | split("\n")[0] | .[0:150])" +
+                        (if .metadata.source_file then "\n   File: \(.metadata.source_file)" else "" end)' 2>/dev/null || echo "  (No results to display)"
+                else
+                    echo "  No results found"
+                fi
+            else
+                echo "  No results found"
+            fi
             ;;
     esac
 }

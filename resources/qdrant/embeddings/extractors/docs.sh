@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
 
 # Define paths from APP_ROOT
 EMBEDDINGS_DIR="${APP_ROOT}/resources/qdrant/embeddings"
@@ -16,6 +16,9 @@ source "${var_LIB_UTILS_DIR}/log.sh"
 
 # Source unified embedding service
 source "${EMBEDDINGS_DIR}/lib/embedding-service.sh"
+
+# Source markdown parser for reliable extraction
+source "${EMBEDDINGS_DIR}/lib/markdown-parser.sh"
 
 # Temporary directory for extracted content
 EXTRACT_TEMP_DIR="/tmp/qdrant-docs-extract-$$"
@@ -31,37 +34,8 @@ STANDARD_DOCS=(
     "PATTERNS.md"
 )
 
-#######################################
-# Extract content between embedding markers
-# Arguments:
-#   $1 - File path
-#   $2 - Start marker pattern (optional)
-#   $3 - End marker pattern (optional)
-# Returns: Extracted sections
-#######################################
-qdrant::extract::marked_sections() {
-    local file="$1"
-    local start_pattern="${2:-<!-- EMBED:.*:START -->}"
-    local end_pattern="${3:-<!-- EMBED:.*:END -->}"
-    
-    if [[ ! -f "$file" ]]; then
-        return 1
-    fi
-    
-    # Extract all marked sections
-    awk "
-        /$start_pattern/ { capture = 1; section = \"\"; next }
-        /$end_pattern/ { 
-            if (capture && section != \"\") {
-                print section
-                print \"---SECTION---\"
-            }
-            capture = 0
-            next
-        }
-        capture { section = section \$0 \"\\n\" }
-    " "$file"
-}
+# Note: marked sections extraction is now handled by markdown-parser.sh
+# The function markdown::extract_marked_sections provides proper JSON output
 
 #######################################
 # Extract content from ARCHITECTURE.md
@@ -80,50 +54,68 @@ qdrant::extract::architecture() {
     local doc_name="Architecture Documentation"
     local file_path="$file"
     
-    # Extract marked sections
-    local sections=$(qdrant::extract::marked_sections "$file")
+    # Extract marked sections first
+    local marked_sections=$(markdown::extract_marked_sections "$file")
+    local marked_count=$(echo "$marked_sections" | jq 'length')
     
-    if [[ -z "$sections" ]]; then
-        # Fallback: Extract major sections by headers
-        log::debug "No marked sections found, extracting by headers"
-        
-        # Extract Design Decisions section
-        local design_decisions=$(awk '/^## Design Decisions/,/^##[^#]/' "$file" 2>/dev/null | head -n -1)
-        if [[ -n "$design_decisions" ]]; then
-            echo "Architecture: Design Decisions
-File: $file
-Content: $design_decisions
----SECTION---"
-        fi
-        
-        # Extract Patterns section
-        local patterns=$(awk '/^## Patterns/,/^##[^#]/' "$file" 2>/dev/null | head -n -1)
-        if [[ -n "$patterns" ]]; then
-            echo "Architecture: Patterns
-File: $file
-Content: $patterns
----SECTION---"
-        fi
-        
-        # Extract Trade-offs section
-        local tradeoffs=$(awk '/^## Trade-offs/,/^##[^#]/' "$file" 2>/dev/null | head -n -1)
-        if [[ -n "$tradeoffs" ]]; then
-            echo "Architecture: Trade-offs
-File: $file
-Content: $tradeoffs
----SECTION---"
-        fi
-    else
+    if [[ $marked_count -gt 0 ]]; then
         # Process marked sections
-        while IFS= read -r section; do
-            if [[ "$section" != "---SECTION---" ]] && [[ -n "$section" ]]; then
-                echo "Architecture Documentation
-File: $file
-Content: $section"
-            elif [[ "$section" == "---SECTION---" ]]; then
-                echo "---SECTION---"
-            fi
-        done <<< "$sections"
+        echo "$marked_sections" | jq -c '.[]' | while read -r section; do
+            local title=$(echo "$section" | jq -r '.title // empty')
+            local content=$(echo "$section" | jq -r '.content')
+            
+            [[ -z "$content" || "$content" == "null" ]] && continue
+            
+            local content_summary="Architecture Documentation"
+            [[ -n "$title" ]] && content_summary="$content_summary - Section: $title"
+            content_summary="$content_summary. Content: $content"
+            
+            jq -n \
+                --arg content "$content_summary" \
+                --arg source_file "$file" \
+                --arg filename "$(basename "$file")" \
+                --arg doc_type "Architecture Documentation" \
+                --arg section "$title" \
+                '{
+                    content: $content,
+                    metadata: {
+                        source_file: $source_file,
+                        filename: $filename,
+                        doc_type: $doc_type,
+                        section: $section,
+                        content_type: "documentation"
+                    }
+                }' | jq -c
+        done
+    else
+        # No marked sections, use hierarchical extraction
+        local sections=$(markdown::extract_hierarchical_sections "$file")
+        
+        echo "$sections" | jq -c '.[]' | while read -r section; do
+            local title=$(echo "$section" | jq -r '.title // empty')
+            local content=$(echo "$section" | jq -r '.content')
+            
+            [[ -z "$content" || "$content" == "null" || ${#content} -lt 50 ]] && continue
+            
+            local content_summary="Architecture: $title. Content: $content"
+            
+            jq -n \
+                --arg content "$content_summary" \
+                --arg source_file "$file" \
+                --arg filename "$(basename "$file")" \
+                --arg doc_type "Architecture Documentation" \
+                --arg section "$title" \
+                '{
+                    content: $content,
+                    metadata: {
+                        source_file: $source_file,
+                        filename: $filename,
+                        doc_type: $doc_type,
+                        section: $section,
+                        content_type: "documentation"
+                    }
+                }' | jq -c
+        done
     fi
 }
 
@@ -141,45 +133,68 @@ qdrant::extract::security() {
         return 1
     fi
     
-    # Extract marked sections
-    local sections=$(qdrant::extract::marked_sections "$file")
+    # Extract marked sections first
+    local marked_sections=$(markdown::extract_marked_sections "$file")
+    local marked_count=$(echo "$marked_sections" | jq 'length')
     
-    if [[ -z "$sections" ]]; then
-        # Fallback: Extract key security sections
-        local principles=$(awk '/^## Security Principles/,/^##[^#]/' "$file" 2>/dev/null | head -n -1)
-        if [[ -n "$principles" ]]; then
-            echo "Security: Principles
-File: $file
-Content: $principles
----SECTION---"
-        fi
-        
-        local vulnerabilities=$(awk '/^## Known Vulnerabilities/,/^##[^#]/' "$file" 2>/dev/null | head -n -1)
-        if [[ -n "$vulnerabilities" ]]; then
-            echo "Security: Known Vulnerabilities
-File: $file
-Content: $vulnerabilities
----SECTION---"
-        fi
-        
-        local mitigations=$(awk '/^## Mitigation Strategies/,/^##[^#]/' "$file" 2>/dev/null | head -n -1)
-        if [[ -n "$mitigations" ]]; then
-            echo "Security: Mitigation Strategies
-File: $file
-Content: $mitigations
----SECTION---"
-        fi
-    else
+    if [[ $marked_count -gt 0 ]]; then
         # Process marked sections
-        while IFS= read -r section; do
-            if [[ "$section" != "---SECTION---" ]] && [[ -n "$section" ]]; then
-                echo "Security Documentation
-File: $file
-Content: $section"
-            elif [[ "$section" == "---SECTION---" ]]; then
-                echo "---SECTION---"
-            fi
-        done <<< "$sections"
+        echo "$marked_sections" | jq -c '.[]' | while read -r section; do
+            local title=$(echo "$section" | jq -r '.title // empty')
+            local content=$(echo "$section" | jq -r '.content')
+            
+            [[ -z "$content" || "$content" == "null" ]] && continue
+            
+            local content_summary="Security Documentation"
+            [[ -n "$title" ]] && content_summary="$content_summary - Section: $title"
+            content_summary="$content_summary. Content: $content"
+            
+            jq -n \
+                --arg content "$content_summary" \
+                --arg source_file "$file" \
+                --arg filename "$(basename "$file")" \
+                --arg doc_type "Security Documentation" \
+                --arg section "$title" \
+                '{
+                    content: $content,
+                    metadata: {
+                        source_file: $source_file,
+                        filename: $filename,
+                        doc_type: $doc_type,
+                        section: $section,
+                        content_type: "documentation"
+                    }
+                }' | jq -c
+        done
+    else
+        # No marked sections, use hierarchical extraction
+        local sections=$(markdown::extract_hierarchical_sections "$file")
+        
+        echo "$sections" | jq -c '.[]' | while read -r section; do
+            local title=$(echo "$section" | jq -r '.title // empty')
+            local content=$(echo "$section" | jq -r '.content')
+            
+            [[ -z "$content" || "$content" == "null" || ${#content} -lt 50 ]] && continue
+            
+            local content_summary="Security: $title. Content: $content"
+            
+            jq -n \
+                --arg content "$content_summary" \
+                --arg source_file "$file" \
+                --arg filename "$(basename "$file")" \
+                --arg doc_type "Security Documentation" \
+                --arg section "$title" \
+                '{
+                    content: $content,
+                    metadata: {
+                        source_file: $source_file,
+                        filename: $filename,
+                        doc_type: $doc_type,
+                        section: $section,
+                        content_type: "documentation"
+                    }
+                }' | jq -c
+        done
     fi
 }
 
@@ -197,37 +212,68 @@ qdrant::extract::lessons() {
         return 1
     fi
     
-    # Extract marked sections
-    local sections=$(qdrant::extract::marked_sections "$file")
+    # Extract marked sections first
+    local marked_sections=$(markdown::extract_marked_sections "$file")
+    local marked_count=$(echo "$marked_sections" | jq 'length')
     
-    if [[ -z "$sections" ]]; then
-        # Fallback: Extract What Worked and What Failed
-        local worked=$(awk '/^## What Worked/,/^##[^#]/' "$file" 2>/dev/null | head -n -1)
-        if [[ -n "$worked" ]]; then
-            echo "Lessons Learned: What Worked
-File: $file
-Content: $worked
----SECTION---"
-        fi
-        
-        local failed=$(awk '/^## What Failed/,/^##[^#]/' "$file" 2>/dev/null | head -n -1)
-        if [[ -n "$failed" ]]; then
-            echo "Lessons Learned: What Failed
-File: $file
-Content: $failed
----SECTION---"
-        fi
-    else
+    if [[ $marked_count -gt 0 ]]; then
         # Process marked sections
-        while IFS= read -r section; do
-            if [[ "$section" != "---SECTION---" ]] && [[ -n "$section" ]]; then
-                echo "Lessons Learned
-File: $file
-Content: $section"
-            elif [[ "$section" == "---SECTION---" ]]; then
-                echo "---SECTION---"
-            fi
-        done <<< "$sections"
+        echo "$marked_sections" | jq -c '.[]' | while read -r section; do
+            local title=$(echo "$section" | jq -r '.title // empty')
+            local content=$(echo "$section" | jq -r '.content')
+            
+            [[ -z "$content" || "$content" == "null" ]] && continue
+            
+            local content_summary="Lessons Learned"
+            [[ -n "$title" ]] && content_summary="$content_summary - Section: $title"
+            content_summary="$content_summary. Content: $content"
+            
+            jq -n \
+                --arg content "$content_summary" \
+                --arg source_file "$file" \
+                --arg filename "$(basename "$file")" \
+                --arg doc_type "Lessons Learned" \
+                --arg section "$title" \
+                '{
+                    content: $content,
+                    metadata: {
+                        source_file: $source_file,
+                        filename: $filename,
+                        doc_type: $doc_type,
+                        section: $section,
+                        content_type: "documentation"
+                    }
+                }' | jq -c
+        done
+    else
+        # No marked sections, use hierarchical extraction
+        local sections=$(markdown::extract_hierarchical_sections "$file")
+        
+        echo "$sections" | jq -c '.[]' | while read -r section; do
+            local title=$(echo "$section" | jq -r '.title // empty')
+            local content=$(echo "$section" | jq -r '.content')
+            
+            [[ -z "$content" || "$content" == "null" || ${#content} -lt 50 ]] && continue
+            
+            local content_summary="Lessons Learned: $title. Content: $content"
+            
+            jq -n \
+                --arg content "$content_summary" \
+                --arg source_file "$file" \
+                --arg filename "$(basename "$file")" \
+                --arg doc_type "Lessons Learned" \
+                --arg section "$title" \
+                '{
+                    content: $content,
+                    metadata: {
+                        source_file: $source_file,
+                        filename: $filename,
+                        doc_type: $doc_type,
+                        section: $section,
+                        content_type: "documentation"
+                    }
+                }' | jq -c
+        done
     fi
 }
 
@@ -277,26 +323,117 @@ qdrant::extract::generic_doc() {
         return 1
     fi
     
-    # Try to extract marked sections first
-    local sections=$(qdrant::extract::marked_sections "$file")
+    # Get file stats
+    local file_size=$(wc -c < "$file" 2>/dev/null || echo "0")
+    local line_count=$(wc -l < "$file" 2>/dev/null || echo "0")
     
-    if [[ -n "$sections" ]]; then
+    # Try to extract marked sections first
+    local marked_sections=$(markdown::extract_marked_sections "$file")
+    local marked_count=$(echo "$marked_sections" | jq 'length')
+    
+    if [[ $marked_count -gt 0 ]]; then
         # Process marked sections
-        while IFS= read -r section; do
-            if [[ "$section" != "---SECTION---" ]] && [[ -n "$section" ]]; then
-                echo "$doc_type Documentation
-File: $file
-Content: $section"
-            elif [[ "$section" == "---SECTION---" ]]; then
-                echo "---SECTION---"
-            fi
-        done <<< "$sections"
+        echo "$marked_sections" | jq -c '.[]' | while read -r section; do
+            local title=$(echo "$section" | jq -r '.title // empty')
+            local content=$(echo "$section" | jq -r '.content')
+            
+            [[ -z "$content" || "$content" == "null" ]] && continue
+            
+            local content_summary="This is $doc_type documentation"
+            [[ -n "$title" ]] && content_summary="$content_summary - Section: $title"
+            content_summary="$content_summary. Content: $content"
+            
+            jq -n \
+                --arg content "$content_summary" \
+                --arg file "$file" \
+                --arg filename "$filename" \
+                --arg doc_type "$doc_type" \
+                --arg section "$title" \
+                --arg file_size "$file_size" \
+                --arg line_count "$line_count" \
+                '{
+                    content: $content,
+                    metadata: {
+                        source_file: $file,
+                        filename: $filename,
+                        doc_type: $doc_type,
+                        section: $section,
+                        file_size: ($file_size | tonumber),
+                        line_count: ($line_count | tonumber),
+                        content_type: "documentation"
+                    }
+                }' | jq -c
+        done
     else
-        # Fallback: Extract all content
-        local content=$(cat "$file")
-        echo "$doc_type Documentation
-File: $file
-Content: $content"
+        # No marked sections, use hierarchical extraction
+        local sections=$(markdown::extract_hierarchical_sections "$file")
+        local section_count=$(echo "$sections" | jq 'length')
+        
+        if [[ $section_count -gt 0 ]]; then
+            echo "$sections" | jq -c '.[]' | while read -r section; do
+                local title=$(echo "$section" | jq -r '.title // empty')
+                local content=$(echo "$section" | jq -r '.content')
+                
+                # Skip very short content
+                [[ -z "$content" || "$content" == "null" || ${#content} -lt 50 ]] && continue
+                
+                local content_summary="This is $doc_type documentation"
+                [[ -n "$title" ]] && content_summary="$content_summary - Section: $title"
+                content_summary="$content_summary. Content: $content"
+                
+                jq -n \
+                    --arg content "$content_summary" \
+                    --arg file "$file" \
+                    --arg filename "$filename" \
+                    --arg doc_type "$doc_type" \
+                    --arg section "$title" \
+                    --arg file_size "$file_size" \
+                    --arg line_count "$line_count" \
+                    '{
+                        content: $content,
+                        metadata: {
+                            source_file: $file,
+                            filename: $filename,
+                            doc_type: $doc_type,
+                            section: $section,
+                            file_size: ($file_size | tonumber),
+                            line_count: ($line_count | tonumber),
+                            content_type: "documentation"
+                        }
+                    }' | jq -c
+            done
+        else
+            # Fallback: Extract full document overview
+            local sections=$(markdown::parse_sections "$file" 500)
+            local doc_section=$(echo "$sections" | jq -r '.[0] // empty')
+            
+            if [[ -n "$doc_section" ]]; then
+                local content=$(echo "$doc_section" | jq -r '.content // empty')
+                
+                if [[ -n "$content" && "$content" != "null" ]]; then
+                    local content_summary="This is $doc_type documentation. Content: $content"
+                    
+                    jq -n \
+                        --arg content "$content_summary" \
+                        --arg file "$file" \
+                        --arg filename "$filename" \
+                        --arg doc_type "$doc_type" \
+                        --arg file_size "$file_size" \
+                        --arg line_count "$line_count" \
+                        '{
+                            content: $content,
+                            metadata: {
+                                source_file: $file,
+                                filename: $filename,
+                                doc_type: $doc_type,
+                                file_size: ($file_size | tonumber),
+                                line_count: ($line_count | tonumber),
+                                content_type: "documentation"
+                            }
+                        }' | jq -c
+                fi
+            fi
+        fi
     fi
 }
 
@@ -308,9 +445,10 @@ Content: $content"
 #######################################
 qdrant::extract::docs_batch() {
     local dir="${1:-.}"
-    local output_file="${2:-${EXTRACT_TEMP_DIR}/docs.txt}"
+    local output_file="${2:-${EXTRACT_TEMP_DIR}/docs.jsonl}"
     
     mkdir -p "${output_file%/*}"
+    > "$output_file"
     
     # Find all standard documentation files
     local doc_files=()
@@ -333,15 +471,12 @@ qdrant::extract::docs_batch() {
     
     log::info "Extracting content from ${#doc_files[@]} documentation files"
     
-    # Extract content from each file
+    # Extract content from each file as JSON lines
     local count=0
     for file in "${doc_files[@]}"; do
-        local content=$(qdrant::extract::standard_doc "$file")
-        if [[ -n "$content" ]]; then
-            echo "$content" >> "$output_file"
-            echo "---SEPARATOR---" >> "$output_file"
-            ((count++))
-        fi
+        # Output JSON directly (one or more lines per doc)
+        qdrant::extract::standard_doc "$file" >> "$output_file"
+        ((count++))
     done
     
     log::success "Extracted content from $count documentation files"
@@ -377,15 +512,24 @@ qdrant::extract::doc_metadata() {
     # Check last update date from content (if present)
     local last_entry=$(grep -E "^\[20[0-9]{2}-[0-9]{2}-[0-9]{2}\]" "$file" 2>/dev/null | tail -1 | grep -oE "20[0-9]{2}-[0-9]{2}-[0-9]{2}" || echo "")
     
-    # Build metadata JSON
+    # Build metadata JSON - ensure numeric fields have valid defaults
+    local safe_section_count="${section_count:-0}"
+    local safe_marked_sections="${marked_sections:-0}"
+    local safe_file_size="${file_size:-0}"
+    
+    # Ensure numeric fields are not empty
+    [[ -z "$safe_section_count" || "$safe_section_count" == " " ]] && safe_section_count="0"
+    [[ -z "$safe_marked_sections" || "$safe_marked_sections" == " " ]] && safe_marked_sections="0"
+    [[ -z "$safe_file_size" || "$safe_file_size" == " " ]] && safe_file_size="0"
+    
     jq -n \
         --arg filename "$filename" \
         --arg doc_type "$doc_type" \
         --arg file "$file" \
         --arg doc_path "$doc_path" \
-        --arg section_count "$section_count" \
-        --arg marked_sections "$marked_sections" \
-        --arg file_size "$file_size" \
+        --arg section_count "$safe_section_count" \
+        --arg marked_sections "$safe_marked_sections" \
+        --arg file_size "$safe_file_size" \
         --arg modified "$modified" \
         --arg last_entry "$last_entry" \
         --arg type "documentation" \
@@ -540,7 +684,7 @@ qdrant::embeddings::process_documentation() {
     local count=0
     
     # Extract documentation to temp file
-    local output_file="$TEMP_DIR/docs.txt"
+    local output_file="$TEMP_DIR/docs.jsonl"
     qdrant::extract::docs_batch "." "$output_file" >&2
     
     if [[ ! -f "$output_file" ]] || [[ ! -s "$output_file" ]]; then
@@ -549,44 +693,22 @@ qdrant::embeddings::process_documentation() {
         return 0
     fi
     
-    # Process each documentation section through unified embedding service
-    local content=""
-    local processing_doc=false
-    
-    while IFS= read -r line; do
-        if [[ "$line" == *" Documentation" ]]; then
-            # Start of new documentation content
-            processing_doc=true
-            content="$line"
-        elif [[ "$line" == "---SEPARATOR---" ]] && [[ "$processing_doc" == true ]]; then
-            # End of documentation section, process it
+    # Process each JSON line through unified embedding service
+    while IFS= read -r json_line; do
+        if [[ -n "$json_line" ]]; then
+            # Parse JSON to extract content and metadata
+            local content
+            content=$(echo "$json_line" | jq -r '.content // empty' 2>/dev/null)
+            
+            local metadata
+            metadata=$(echo "$json_line" | jq -c '.metadata // {}' 2>/dev/null)
+            
             if [[ -n "$content" ]]; then
-                # Extract documentation metadata from content
-                local metadata
-                metadata=$(qdrant::extract::docs_metadata_from_content "$content")
-                
-                # Process through unified embedding service
+                # Process through unified embedding service with structured metadata
                 if qdrant::embedding::process_item "$content" "documentation" "$collection" "$app_id" "$metadata"; then
                     ((count++))
                 fi
             fi
-            processing_doc=false
-            content=""
-        elif [[ "$line" == "---SECTION---" ]] && [[ "$processing_doc" == true ]]; then
-            # Section break within a document - process current section and start new one
-            if [[ -n "$content" ]]; then
-                local metadata
-                metadata=$(qdrant::extract::docs_metadata_from_content "$content")
-                
-                if qdrant::embedding::process_item "$content" "documentation" "$collection" "$app_id" "$metadata"; then
-                    ((count++))
-                fi
-            fi
-            # Start accumulating next section
-            content=""
-        elif [[ "$processing_doc" == true ]]; then
-            # Continue accumulating documentation content
-            content="${content}"$'\n'"${line}"
         fi
     done < "$output_file"
     
@@ -640,15 +762,22 @@ qdrant::extract::docs_metadata_from_content() {
         "Patterns") category="technical" ;;
     esac
     
-    # Build metadata JSON
+    # Build metadata JSON - ensure numeric fields have valid defaults
+    local safe_content_length="${content_length:-0}"
+    local safe_line_count="${line_count:-0}"
+    
+    # Ensure numeric fields are not empty
+    [[ -z "$safe_content_length" || "$safe_content_length" == " " ]] && safe_content_length="0"
+    [[ -z "$safe_line_count" || "$safe_line_count" == " " ]] && safe_line_count="0"
+    
     jq -n \
         --arg doc_type "$doc_type" \
         --arg filename "${filename:-Unknown}" \
         --arg file_path "${file_path:-}" \
         --arg category "$category" \
         --arg has_marked_sections "$has_marked_sections" \
-        --arg content_length "$content_length" \
-        --arg line_count "$line_count" \
+        --arg content_length "$safe_content_length" \
+        --arg line_count "$safe_line_count" \
         '{
             doc_type: $doc_type,
             filename: $filename,

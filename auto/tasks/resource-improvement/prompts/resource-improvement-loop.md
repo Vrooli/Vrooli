@@ -142,201 +142,128 @@ Keep file under 1000 lines; prune periodically.
 
 ---
 
-### 🧱 Core resources — ranked by importance
-Use this ranked list to decide what to fix first and how resources fit together. In general, fix upstream dependencies before dependents, and ensure each service starts and remains running (Whisper is the only exception after tests).
+### 🧱 Resource Hierarchy & Dependencies
 
-1) **Vault (secrets)**
-- What it does: Central, secure storage for API keys, credentials, and tokens used across providers (e.g., OpenRouter keys) and services.
-- Use when: Any resource needs credentials; initialize/seal-unseal before others. Start first.
-- Depends on: OS/filesystem, network.
-- Commands: `vrooli resource vault status`, `resource-vault status`
-- Signals to prioritize: Auth failures on dependent services (401/403), missing env secrets, provider API errors across multiple tools.
+**Command Pattern (applies to ALL properly installed resources):**
+- Status: `resource-{name} status` or `vrooli resource {name} status`
+- Lifecycle: `resource-{name} manage {install|start|stop}`
+- Testing: `resource-{name} test {smoke|integration|all}`
+- Content: `resource-{name} content {add|list|get|remove|execute}`
 
-2) **PostgreSQL (database)**
-- What it does: Primary relational datastore for services, workflows, and app state.
-- Use when: Scenarios or workflows need persistence; almost always-on.
-- Depends on: Disk I/O, network, Vault (if credentials are read from Vault).
-- Commands: `vrooli resource postgres status`, `resource-postgres status`
-- Signals: Connection refused/timeouts, migration errors, missing tables, app boot failures.
+**Dependency Chain (fix in order):**
+```
+Vault → Ollama → Qdrant → Browserless → PostgreSQL/Redis/MinIO → QuestDB → Huginn/n8n → AI Routers (OpenRouter/Cloudflare AI Gateway) → the rest
+```
 
-3) **Redis (cache/queue)**
-- What it does: Caching, queues, rate-limiting, pub/sub for background work.
-- Use when: Workflows require fast ephemeral state, task queues, or locks.
-- Depends on: Network.
-- Commands: `vrooli resource redis status`, `resource-redis status`
-- Signals: Slow workflows, timeouts, rate-limit anomalies, queue backlogs.
+### 📦 EXISTING Resources
 
-4) **Object storage (S3/MinIO)**
-- What it does: Stores artifacts (logs, files, screenshots, model assets).
-- Use when: Any scenario needs durable files beyond the DB.
-- Depends on: Network, credentials (often from Vault).
-- Commands: `vrooli resource minio status`, `resource-minio status`
-- Signals: Upload/download errors, 403 from bucket, missing artifacts.
 
-5) **QuestDB (time-series)**
-- What it does: High-ingest time-series database for metrics, logs, and telemetry that drive automations and reliability loops.
-- Use when: You need durable, queryable time-series for monitoring, analytics, and scenario feedback.
-- Depends on: Disk throughput, network; credentials via Vault if configured.
-- Commands: `vrooli resource questdb status`, `resource-questdb status`
-- Signals: Ingest lag, slow queries, disk saturation, missing telemetry for downstream decisions.
+#### Infrastructure (Always Running)
+| Resource | Purpose | Key Dependencies | Critical Signals |
+|----------|---------|------------------|------------------|
+| **vault** | Secrets management | OS/filesystem | Auth failures (401/403) |
+| **postgres** | Primary database | Disk I/O, Vault | Connection refused, missing tables |
+| **redis** | Cache/queue | Network | Slow workflows, queue backlogs |
+| **minio** | Object storage | Network, Vault | Upload errors, missing artifacts |
+| **questdb** | Time-series data | Disk throughput | Ingest lag, missing telemetry |
 
-6) **Huginn (event automation)**
-- What it does: Agent-based event automation (webhooks, scrapers, watchers) for resilient, decoupled workflows.
-- Use when: You need reliable event pipelines, triggers, and long-lived watchers; prefer as a backbone for event-first flows.
-- Depends on: PostgreSQL (typical), Redis (optional), Browserless for headless flows, credentials via Vault.
-- Commands: `vrooli resource huginn status`, `resource-huginn status`
-- Signals: Agent failures, delayed jobs, webhook misses, credential errors.
+#### Automation (Core Capability)
+| Resource | Purpose | Key Dependencies | Critical Signals |
+|----------|---------|------------------|------------------|
+| **huginn** | Event automation | PostgreSQL, Redis | Agent failures, webhook misses |
+| **n8n** | Visual workflows | PostgreSQL, Redis | Workflow activation failures |
+| **node-red** | Flow automation | PostgreSQL | Node errors, flow failures |
+| **windmill** | Script workflows | PostgreSQL | Execution failures |
+| **browserless** | Headless browser | CPU/memory | Screenshot failures, timeouts |
 
-7) **n8n (workflow engine) and alternates (node-red, windmill)**
-- What it does: Orchestrates shared and scenario-specific automations; complements Huginn for visual/scheduled workflows.
-- Use when: Cross-resource automations, scheduled jobs, integration glue; choose the engine suited to the scenario's nodes.
-- Depends on: PostgreSQL, Redis (if configured), Browserless (for fallback-driven flows), resource CLIs.
-- Commands: `vrooli resource n8n status`, `resource-n8n status`
-- Signals: Webhook/API instability, workflow activation failures, node credential errors.
+#### AI/ML (Intelligence Layer)
+| Resource | Purpose | Special Notes |
+|----------|---------|---------------|
+| **ollama** | Local LLMs | Pull baseline models early |
+| **openrouter** | AI provider hub | Monitor rate limits |
+| **litellm** | LLM proxy | Fallback configuration |
+| **cloudflare-ai-gateway** | AI resilience | Caching, retries |
+| **whisper** | Speech-to-text | May stop post-test (resource heavy) |
+| **comfyui** | Image generation | Model assets on fast storage |
+| **musicgen** | Music generation | May stop post-test |
 
-8) **Browserless (headless browser)**
-- What it does: Reliable headless Chrome for UI validation, scraping, and API fallbacks when webhooks misbehave.
-- Use when: Validating UIs/screenshots, replacing brittle third-party webhooks.
-- Depends on: Network, sufficient CPU/memory.
-- Commands: `vrooli resource browserless status`, `resource-browserless status`
-- Signals: Screenshot failures, navigation timeouts, high memory pressure.
+#### Agents & Development
+| Resource | Purpose | Special Notes |
+|----------|---------|---------------|
+| **cline** | VS Code agent | IDE integration |
+| **claude-code** | Claude coding | Alternative to Cline |
+| **agent-s2** | Browser agent | May cause network issues |
+| **opencode** | VS Code alt | Check availability |
+| **autogpt** | Autonomous agent | Monitor for loops |
+| **codex** | Code generation | Monitor API costs |
 
-9) **OpenRouter (AI provider hub)**
-- What it does: Unified API to many model providers; used for breadth, availability, and cost routing.
-- Use when: You need external models beyond local capabilities or for redundancy.
-- Depends on: Vault (API key), network egress, optionally Cloudflare AI Gateway.
-- Commands: `vrooli resource openrouter status` (when available)
-- Signals: Auth errors, rate limits, provider unavailability across models.
+#### Data & Search
+**Available:** qdrant, neo4j, searxng, unstructured-io, haystack, pandas-ai
 
-10) **Ollama (local models)**
-- What it does: Runs local LLMs/VLMs for low-latency and private workloads.
-- Use when: On-box inference is preferred, cost control, or offline/low-latency needs.
-- Depends on: CPU/GPU, disk for models; optional workflows (Huginn/n8n) invoking it.
-- Commands: `vrooli resource ollama status`, `resource-ollama status`, `resource-ollama content list`
-- Signals: Model not found, OOM, slow generation; pull baseline models early.
+#### Business & Productivity  
+**Available:** erpnext, odoo, keycloak, wikijs, btcpay
 
-11) **Cline (IDE agent)**
-- What it does: IDE-based coding agent leveraging local (Ollama) and/or external (OpenRouter) models; helps automate development within the editor.
-- Use when: Automating dev tasks in VS Code; prefer once OpenRouter and/or Ollama are healthy.
-- Depends on: OpenRouter and/or Ollama; Vault for keys; optional Cloudflare AI Gateway.
-- Commands: `vrooli resource cline status` (when available)
-- Signals: Tool auth failures, stalled tasks, missing model endpoints.
+#### Development Tools
+**Available:** judge0, k6, geth, simpy, sagemath
 
-12) **Cloudflare AI Gateway (resilience/cost)**
-- What it does: Proxy layer for AI traffic providing caching, rate limiting, analytics, retries, and model fallbacks.
-- Use when: You need resilience, cost control, and observability across AI calls.
-- Depends on: Network; configured providers (e.g., OpenRouter).
-- Commands: `vrooli resource cloudflare-ai status` (when available)
-- Signals: Elevated error rates, request spikes, provider flakiness.
+#### Media & Creative
+**Available:** ffmpeg, obs-studio, blender, openscad, kicad, vocr
 
-13) **Whisper (speech-to-text)**
-- What it does: Heavy STT workloads (local or via resource integration); often memory/compute intensive.
-- Use when: Audio transcription is required by scenarios.
-- Depends on: CPU/GPU, disk for model assets.
-- Commands: `vrooli resource whisper status`, `resource-whisper status`
-- Special note: May be stopped post-test due to resource usage; otherwise keep running like others.
-
-14) **Additional core resources (start when needed and keep running if scenarios rely on them)**
-- **Document parsing**: unstructured-io — robust text extraction from diverse file types; use before RAG/indexing steps; depends on CPU/disk and often object storage. Commands: `vrooli resource unstructured-io status`, `resource-unstructured-io status`
-- **Image pipelines**: comfyui — image generation/processing workflows; GPU/CPU intensive; ensure model assets on fast storage. Commands: `vrooli resource comfyui status`, `resource-comfyui status`
-- **Vector DB**: qdrant — vector search for embeddings/RAG; depends on disk/memory; use once ingestion is ready; watch for memory pressure and recall. Commands: `vrooli resource qdrant status`, `resource-qdrant status`
-- **Search meta-engine**: searxng — privacy-preserving metasearch across engines; network dependent; use for research/fallback discovery. Commands: `vrooli resource searxng status`, `resource-searxng status`
-- **Code execution**: judge0 — sandboxed code run; CPU/network heavy; ensure resource limits and isolation. Commands: `vrooli resource judge0 status`, `resource-judge0 status`
-- **Agent runners**: agent-s2, claude-code — coding/automation agents alternative to or complementing Cline; depend on OpenRouter/Ollama credentials and editor/runtime integrations. Commands: `vrooli resource agent-s2 status`, `resource-agent-s2 status`, `vrooli resource claude-code status`, `resource-claude-code status`
-
-Priorities and order of operations
-- Start/fix in this order: Vault → PostgreSQL/Redis/Object storage → QuestDB → Huginn → n8n (or alternate engine) → Browserless → OpenRouter/Ollama → Cline/agents → additional core resources.
-- If a dependent is unhealthy, fix its upstreams first (e.g., fix Vault before OpenRouter; fix OpenRouter/Ollama before Cline).
+#### Infrastructure Extensions
+**Available:** postgis, home-assistant, twilio, pushover, mail-in-a-box
 
 ---
 
-### 📎 When to add a new resource (curated list)
-Only consider adding a new resource if at least 75% of existing ones are healthy and validated. Favor small, reversible steps and ensure the new resource starts and remains running by default (exception: Whisper as noted).
+### 📎 NEW Resources to Add
+*Only add new resources when 75%+ of existing ones are healthy and validated*
 
-- **OpenCode (VS Code agent alt)**
-  - Alternative IDE agent similar to Cline. Validate availability; if unavailable, use Cline/Codea as a substitute.
-  - Notes: Same operational guidance as Cline.
-- **Geth (Ethereum client)**
-  - Production-grade Ethereum execution client for on-chain tasks, local devnets, or crypto experiments.
-  - Notes: Prefer snap/pruned sync modes for resource limits; expose JSON-RPC cautiously.
-- **SageMath (math engine)**
-  - Open-source system for symbolic/numeric math (calculus, algebra, number theory) supporting research-heavy scenarios.
-  - Notes: Heavy; run on-demand but keep service resident if scenarios repeatedly call it.
-- **BTCPay Server (payments)**
-  - Self-hosted, non-custodial Bitcoin payment gateway (Lightning optional) for accepting crypto in apps.
-  - Notes: Prefer Docker deploy with pruning if limited; ensure wallet/xpub flows avoid private key exposure.
-- **OpenRouter (AI provider hub)**
-  - Unified API to many model providers; good for breadth and cost routing.
-  - Notes: Store keys securely; respect model/endpoint quotas.
-- **Cloudflare AI Gateway (resiliency/cost)**
-  - Proxy for AI traffic with caching, rate limiting, analytics, and model fallbacks; use as a resilient layer behind OpenRouter or direct providers.
-  - Notes: Configure authenticated gateway; define fallbacks and retries.
-- **Matrix Synapse (communications)**
-  - Self-hosted Matrix homeserver for federated chat/rooms/bots across scenarios.
-  - Notes: Use Postgres; set up well-known, TLS, and TURN for calls.
-- **Home Assistant (home automation)**
-  - Local-first automation hub with 3000+ integrations; useful for IoT, presence, energy, dashboards.
-  - Notes: Prefer supervised/container installs; keep add-ons minimal.
-- **Neo4j (graph database)**
-  - Native property graph DB for knowledge graphs, recommendations, dependency and impact analysis.
-  - Notes: Use Community/Enterprise appropriately; secure Bolt/HTTP; plan memory for graph size.
-- **Codex (OpenAI Codex)**
-  - AI-powered code completion and generation via OpenAI's Codex API; provides intelligent code suggestions and completions for multiple programming languages.
-  - Notes: Requires OpenAI API key via Vault; prefer for code generation scenarios and IDE integrations; monitor API usage and costs.
-- **SimPy**
-  - Discrete event simulation framework for modeling complex systems, workflows, and processes; useful for scenario planning and optimization.
-  - Notes: Python-based; lightweight; perfect for modeling automation workflows and resource utilization; keep running for simulation scenarios.
-- **MusicGen**
-  - Meta's AI music generation model for creating original music and audio content; supports various styles and instruments.
-  - Notes: GPU-intensive; use for creative scenarios and multimedia content generation; may be stopped post-test due to resource usage like Whisper.
-- **AutoGPT**
-  - Autonomous AI agent framework for task automation and goal-oriented workflows; enables self-directed AI agents for complex multi-step tasks.
-  - Notes: Resource-intensive; requires careful prompt engineering; use for autonomous task execution scenarios; monitor for infinite loops and resource usage.
-- **VOCR (Vision OCR)**
-  - Advanced screen recognition and accessibility tool with AI-powered image analysis; enables Vrooli to "see" and interact with any screen content, not just web pages.
-  - Notes: Works with VoiceOver, supports real-time OCR, and can ask AI questions about images; requires OS permissions for accessibility and screen capture; keep running for vision-based scenarios.
-- **Haystack**
-  - End-to-end framework for question answering and search; provides sophisticated question-answering capabilities over documents and data.
-  - Notes: Python-based; works with existing document processing and vector search; excellent for RAG and knowledge base scenarios; keep running for Q&A workflows.
-- **FFmpeg**
-  - Universal media processing framework for video/audio transcoding, streaming, filtering, and format conversion; the Swiss army knife of multimedia.
-  - Notes: Command-line based; handles virtually any media format; excellent for video automation, podcast production, streaming scenarios; keep running for media workflows.
-- **OpenSCAD**
-  - Programmatic 3D CAD modeler using script-based solid modeling; creates precise parametric 3D models through code rather than interactive modeling.
-  - Notes: Script-based using its own language; excellent for mass customization, parametric design, 3D printing scenarios; outputs STL/OFF formats; keep running for CAD automation.
-- **Blender**
-  - Professional 3D creation suite with Python API; supports modeling, animation, rendering, compositing, motion tracking, and game creation.
-  - Notes: Python scriptable; GPU-intensive for rendering; excellent for 3D visualization, product renders, animation scenarios; extensive add-on ecosystem; keep running for 3D workflows.
-- **KiCad**
-  - Electronic design automation suite for schematic capture and PCB layout; enables circuit design and board manufacturing automation.
-  - Notes: Python scriptable; includes schematic editor, PCB layout, 3D viewer, and manufacturing file generation; excellent for hardware design scenarios; keep running for electronics workflows.
-- **PostGIS**
-  - Spatial database extension for PostgreSQL; adds geographic objects and functions for location-based queries and geospatial analysis.
-  - Notes: SQL-accessible; works with existing PostgreSQL instance; enables radius searches, routing, geocoding; essential for location-based scenarios; installed as PostgreSQL extension.
-- **Keycloak**
-  - Enterprise identity and access management with SSO, OIDC, SAML, and social login support; provides centralized authentication and authorization.
-  - Notes: Java-based; comprehensive REST APIs; integrates with existing databases; excellent for multi-tenant scenarios and B2B applications.
-- **ERPNext**
-  - Complete open-source ERP with accounting, inventory, HR, CRM, and project management; full business automation suite.
-  - Notes: Python/Frappe framework; extensive REST APIs; includes invoicing, purchasing, manufacturing modules; excellent for business automation scenarios.
-- **OBS Studio**
-  - Professional streaming and recording software with programmatic control via obs-websocket plugin; enables automated content production.
-  - Notes: Requires obs-websocket plugin for API access; WebSocket control for scenes, sources, recording; excellent for streaming automation.
-- **OWASP ZAP**
-  - Web application security scanner with automated vulnerability detection; provides security testing automation and compliance checking.
-  - Notes: Java-based; REST API for daemon mode; supports authentication, spidering, active/passive scanning; excellent for security automation; keep running for security workflows.
-- **Wiki.js**
-  - Modern wiki platform with Git storage backend; provides structured knowledge management with version control and search.
-  - Notes: Node.js-based; GraphQL/REST APIs; supports markdown, authentication, search; excellent for documentation scenarios.
-- **K6**
-  - Modern load testing tool with JavaScript scripting; enables performance testing and synthetic monitoring at scale.
-  - Notes: Go-based with JavaScript API; outputs metrics to various backends; cloud execution optional; excellent for performance scenarios.
-- **Odoo Community**
-  - Integrated business management suite with e-commerce, inventory, and CRM; provides modular business applications.
-  - Notes: Python-based; XML-RPC/JSON-RPC APIs; extensive app ecosystem; excellent for e-commerce and inventory scenarios.
-- **ROS2**
-  - Robot Operating System for robotics middleware; enables robot control, sensor integration, and autonomous navigation.
-  - Notes: DDS-based communication; supports simulation mode; Python/C++ APIs; excellent for robotics and IoT scenarios.
+#### **Matrix Synapse** (Communications)
+- **What it does:** Self-hosted Matrix homeserver for federated chat/rooms/bots across scenarios. Enables secure, decentralized communication with E2E encryption, bridging to other platforms (Slack, Discord, IRC), and bot integration for automation.
+- **Use when:** Scenarios need real-time communication, team collaboration, notification channels, or chatbot interfaces. Essential for multi-user scenarios and customer support applications.
+- **Technical requirements:** 
+  - Use PostgreSQL backend (not SQLite) for production
+  - Configure well-known delegation for federation
+  - Set up TURN server for voice/video calls
+  - TLS certificates required for federation
+  - Consider Dendrite as lighter alternative for resource-constrained environments
+- **Integration points:** Can trigger n8n/Huginn workflows via webhooks, integrate with authentication systems via SSO, bridge to external chat platforms
+- **Resource usage:** Medium-heavy; scales with user count and federation traffic
+
+#### **OWASP ZAP** (Security)
+- **What it does:** Web application security scanner with automated vulnerability detection, providing security testing automation and compliance checking. Includes active/passive scanning, authentication handling, and API testing capabilities.
+- **Use when:** Need automated security testing for generated apps, compliance validation, or continuous security monitoring. Critical for scenarios handling sensitive data or requiring security certifications.
+- **Technical requirements:**
+  - Java-based; runs in daemon mode for API access
+  - REST API for integration with CI/CD pipelines
+  - Supports authentication (forms, OAuth, SAML)
+  - Can spider and scan single-page applications
+  - Configurable scan policies and alert thresholds
+- **Integration points:** Output to various formats (JSON, XML, HTML), webhook notifications for findings, integration with bug trackers
+- **Best practices:** Start with passive scanning in production, use active scanning in test environments, maintain baseline scans for comparison
+- **Resource usage:** CPU-intensive during scans; memory scales with target complexity
+
+#### **ROS2** (Robotics)
+- **What it does:** Robot Operating System 2 - middleware for robotics applications enabling robot control, sensor integration, navigation, and distributed computing across robot components.
+- **Use when:** Building robotics scenarios, IoT device orchestration, sensor data processing pipelines, or simulation of physical systems. Enables hardware abstraction and modular robot software.
+- **Technical requirements:**
+  - DDS-based communication (Fast-DDS or CycloneDX)
+  - Supports simulation mode with Gazebo
+  - Python and C++ client libraries
+  - Real-time capable with proper kernel configuration
+  - ROS2 domain isolation for multi-robot setups
+- **Key packages to include:** 
+  - Navigation2 for autonomous navigation
+  - MoveIt2 for manipulation planning
+  - ros2_control for hardware interfaces
+  - Lifecycle nodes for deterministic startup/shutdown
+- **Integration points:** Can publish/subscribe to MQTT, integrate with computer vision (OpenCV), machine learning inference, and cloud services
+- **Resource usage:** Varies greatly; simulation is CPU/GPU intensive, real robot control can be lightweight
+
+### 💡 Selection Priority
+1. Fix non-running enabled resources
+2. Add baseline content (Ollama models, n8n workflows)
+3. Fix misconfigured connections
+4. Add new resources only when 75%+ healthy
 
 ---
 

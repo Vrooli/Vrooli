@@ -8,10 +8,10 @@ This comprehensive guide helps diagnose and resolve common issues with the Qdran
 
 ```bash
 # Check overall system health
-vrooli resource-qdrant embeddings status
+resource-qdrant embeddings status
 
 # Validate setup and configuration
-vrooli resource-qdrant embeddings validate
+resource-qdrant embeddings validate
 
 # Test Qdrant connectivity
 curl -s http://localhost:6333/health | jq
@@ -27,7 +27,7 @@ ls -la .vrooli/app-identity.json
 
 ```bash
 # Reset and refresh embeddings (safe operation)
-vrooli resource-qdrant embeddings refresh --force
+resource-qdrant embeddings refresh --force
 
 # Clear cache and restart
 redis-cli FLUSHDB
@@ -35,7 +35,7 @@ vrooli develop --restart
 
 # Rebuild app identity
 rm .vrooli/app-identity.json
-vrooli resource-qdrant embeddings init
+resource-qdrant embeddings init
 ```
 
 ## 🔧 Installation and Setup Issues
@@ -44,7 +44,7 @@ vrooli resource-qdrant embeddings init
 
 **Symptoms:**
 ```bash
-$ vrooli resource-qdrant
+$ resource-qdrant
 Error: resource-qdrant command not found
 ```
 
@@ -54,7 +54,7 @@ Error: resource-qdrant command not found
 cat .vrooli/service.json | jq '.resources.qdrant'
 
 # Check Qdrant resource installation
-ls -la scripts/resources/storage/qdrant/
+ls -la resources/qdrant/
 ```
 
 **Solutions:**
@@ -71,10 +71,10 @@ vrooli develop --setup
 2. **Manual Qdrant installation:**
 ```bash
 # Install Qdrant resource
-./scripts/main/setup.sh --resources qdrant --yes yes
+./scripts/manage.sh setup --resources qdrant --yes yes
 
 # Verify installation
-vrooli resource-qdrant help
+resource-qdrant help
 ```
 
 ### Issue: Qdrant Server Not Running
@@ -133,7 +133,7 @@ sudo lsof -i :6333
 
 **Symptoms:**
 ```bash
-$ vrooli resource-qdrant embeddings init
+$ resource-qdrant embeddings init
 Permission denied: cannot create .vrooli/app-identity.json
 ```
 
@@ -141,7 +141,7 @@ Permission denied: cannot create .vrooli/app-identity.json
 ```bash
 # Check directory permissions
 ls -la .vrooli/
-ls -la scripts/resources/storage/qdrant/
+ls -la resources/qdrant/
 
 # Check file ownership
 stat .vrooli/
@@ -159,8 +159,8 @@ sudo chown -R $USER:$USER .vrooli/
 chmod 755 .vrooli/
 
 # Fix script permissions
-chmod +x scripts/resources/storage/qdrant/cli.sh
-chmod +x scripts/resources/storage/qdrant/embeddings/manage.sh
+chmod +x resources/qdrant/cli.sh
+chmod +x resources/qdrant/embeddings/manage.sh
 ```
 
 2. **SELinux issues (if applicable):**
@@ -178,14 +178,14 @@ setsebool -P httpd_can_network_connect on
 
 **Symptoms:**
 ```bash
-$ vrooli resource-qdrant search "email notification"
+$ resource-qdrant search "email notification"
 No results found
 ```
 
 **Diagnosis:**
 ```bash
 # Check if embeddings exist
-vrooli resource-qdrant embeddings status
+resource-qdrant embeddings status
 
 # Check collections in Qdrant
 curl -s http://localhost:6333/collections | jq '.result[] | {name: .name, vectors: .vectors_count}'
@@ -199,10 +199,10 @@ cat .vrooli/app-identity.json | jq
 1. **Initialize and refresh embeddings:**
 ```bash
 # Initialize if not done
-vrooli resource-qdrant embeddings init
+resource-qdrant embeddings init
 
 # Refresh embeddings
-vrooli resource-qdrant embeddings refresh
+resource-qdrant embeddings refresh
 
 # Verify collections created
 curl -s http://localhost:6333/collections | jq '.result[].name'
@@ -211,10 +211,10 @@ curl -s http://localhost:6333/collections | jq '.result[].name'
 2. **Check content extraction:**
 ```bash
 # Validate what content is being found
-vrooli resource-qdrant embeddings validate
+resource-qdrant embeddings validate
 
 # Test specific extractors
-source scripts/resources/storage/qdrant/embeddings/manage.sh
+source resources/qdrant/embeddings/manage.sh
 qdrant::extract::find_workflows "."
 qdrant::extract::find_docs "."
 ```
@@ -222,7 +222,7 @@ qdrant::extract::find_docs "."
 3. **Lower search threshold:**
 ```bash
 # Try with lower similarity threshold
-vrooli resource-qdrant search "email notification" workflows 10 0.5
+resource-qdrant search "email notification" workflows 10 0.5
 ```
 
 ### Issue: Search Results Not Relevant
@@ -234,11 +234,11 @@ vrooli resource-qdrant search "email notification" workflows 10 0.5
 **Diagnosis:**
 ```bash
 # Check search parameters
-vrooli resource-qdrant search "test query" workflows 5 0.8 --verbose
+resource-qdrant search "test query" workflows 5 0.8 --verbose
 
 # Test with different content types
-vrooli resource-qdrant search "test query" code
-vrooli resource-qdrant search "test query" knowledge
+resource-qdrant search "test query" code
+resource-qdrant search "test query" knowledge
 ```
 
 **Solutions:**
@@ -246,18 +246,18 @@ vrooli resource-qdrant search "test query" knowledge
 1. **Adjust search parameters:**
 ```bash
 # Try broader search
-vrooli resource-qdrant search "email" # Search all types
-vrooli resource-qdrant search "email notification" workflows 20 0.6
+resource-qdrant search "email" # Search all types
+resource-qdrant search "email notification" workflows 20 0.6
 
 # Use different query phrasing
-vrooli resource-qdrant search "send automated emails"
-vrooli resource-qdrant search "email delivery system"
+resource-qdrant search "send automated emails"
+resource-qdrant search "email delivery system"
 ```
 
 2. **Check embedding model:**
 ```bash
 # Verify embedding model in use
-grep "DEFAULT_MODEL" scripts/resources/storage/qdrant/embeddings/manage.sh
+grep "DEFAULT_MODEL" resources/qdrant/embeddings/manage.sh
 
 # Consider switching models (edit manage.sh)
 # DEFAULT_MODEL="nomic-embed-text"  # More semantic
@@ -267,10 +267,10 @@ grep "DEFAULT_MODEL" scripts/resources/storage/qdrant/embeddings/manage.sh
 3. **Refresh embeddings with different model:**
 ```bash
 # Edit manage.sh to change model
-sed -i 's/DEFAULT_MODEL=".*"/DEFAULT_MODEL="nomic-embed-text"/' scripts/resources/storage/qdrant/embeddings/manage.sh
+sed -i 's/DEFAULT_MODEL=".*"/DEFAULT_MODEL="nomic-embed-text"/' resources/qdrant/embeddings/manage.sh
 
 # Force refresh with new model
-vrooli resource-qdrant embeddings refresh --force
+resource-qdrant embeddings refresh --force
 ```
 
 ### Issue: Search Too Slow
@@ -282,8 +282,8 @@ vrooli resource-qdrant embeddings refresh --force
 **Diagnosis:**
 ```bash
 # Time search operations
-time vrooli resource-qdrant search "test query"
-time vrooli resource-qdrant search-all "test query"
+time resource-qdrant search "test query"
+time resource-qdrant search-all "test query"
 
 # Check system resources
 top -p $(pgrep qdrant)
@@ -295,10 +295,10 @@ free -h
 1. **Optimize search parameters:**
 ```bash
 # Use smaller result limits
-vrooli resource-qdrant search "query" workflows 5
+resource-qdrant search "query" workflows 5
 
 # Search specific types instead of all
-vrooli resource-qdrant search "query" code
+resource-qdrant search "query" code
 ```
 
 2. **Check Qdrant configuration:**
@@ -324,7 +324,7 @@ redis-cli keys "search:*"
 
 **Symptoms:**
 ```bash
-$ vrooli resource-qdrant embeddings validate
+$ resource-qdrant embeddings validate
 No workflows found
 No scenarios found
 ```
@@ -337,7 +337,7 @@ find . -name "PRD.md" -path "*/scenarios/*" | head -5
 find . -name "*.md" -path "*/docs/*" | head -5
 
 # Test extractors manually
-source scripts/resources/storage/qdrant/embeddings/manage.sh
+source resources/qdrant/embeddings/manage.sh
 qdrant::extract::find_workflows "."
 ```
 
@@ -370,7 +370,7 @@ mv README.md docs/ARCHITECTURE.md
 3. **Test individual extractors:**
 ```bash
 # Test each extractor individually
-source scripts/resources/storage/qdrant/embeddings/manage.sh
+source resources/qdrant/embeddings/manage.sh
 
 # Test workflows extractor
 qdrant::extract::workflows_batch "." "/tmp/test_workflows.txt"
@@ -385,7 +385,7 @@ cat /tmp/test_docs.txt
 
 **Symptoms:**
 ```bash
-$ vrooli resource-qdrant embeddings refresh
+$ resource-qdrant embeddings refresh
 Error: Failed to extract workflows
 Error: jq: parse error: Invalid JSON
 ```
@@ -429,8 +429,8 @@ sudo chmod +x /usr/local/bin/yq
 3. **Check extractor script syntax:**
 ```bash
 # Validate extractor scripts
-bash -n scripts/resources/storage/qdrant/embeddings/extractors/workflows.sh
-bash -n scripts/resources/storage/qdrant/embeddings/extractors/scenarios.sh
+bash -n resources/qdrant/embeddings/extractors/workflows.sh
+bash -n resources/qdrant/embeddings/extractors/scenarios.sh
 ```
 
 ## 🗄️ Database and Storage Issues
@@ -439,7 +439,7 @@ bash -n scripts/resources/storage/qdrant/embeddings/extractors/scenarios.sh
 
 **Symptoms:**
 ```bash
-$ vrooli resource-qdrant search "test"
+$ resource-qdrant search "test"
 Error: Failed to connect to Qdrant
 curl: (7) Failed to connect to localhost port 6333
 ```
@@ -501,7 +501,7 @@ sudo ufw allow 6333
 
 **Symptoms:**
 ```bash
-$ vrooli resource-qdrant embeddings init
+$ resource-qdrant embeddings init
 Error: Failed to create collection app-workflows
 HTTP 400: Collection already exists
 ```
@@ -527,14 +527,14 @@ curl -s http://localhost:6333/collections | jq -r ".result[] | select(.name | st
 curl -X DELETE "http://localhost:6333/collections/app-workflows"
 
 # Or use garbage collection
-vrooli resource-qdrant embeddings gc --force
+resource-qdrant embeddings gc --force
 ```
 
 2. **Force recreation:**
 ```bash
 # Remove app identity and reinitialize
 rm .vrooli/app-identity.json
-vrooli resource-qdrant embeddings init
+resource-qdrant embeddings init
 ```
 
 3. **Check vector dimensions mismatch:**
@@ -544,14 +544,14 @@ curl -s http://localhost:6333/collections/app-workflows | jq '.result.config.par
 
 # If dimensions changed, recreate collection
 curl -X DELETE "http://localhost:6333/collections/app-workflows"
-vrooli resource-qdrant embeddings init
+resource-qdrant embeddings init
 ```
 
 ### Issue: Disk Space Problems
 
 **Symptoms:**
 ```bash
-$ vrooli resource-qdrant embeddings refresh
+$ resource-qdrant embeddings refresh
 Error: No space left on device
 df: /qdrant/storage: No space left on device
 ```
@@ -571,7 +571,7 @@ docker inspect qdrant | jq '.[0].Mounts'
 1. **Clean up old data:**
 ```bash
 # Remove old collections
-vrooli resource-qdrant embeddings gc --force
+resource-qdrant embeddings gc --force
 
 # Vacuum Qdrant database
 curl -X POST "http://localhost:6333/collections/app-workflows/index" \
@@ -644,7 +644,7 @@ if ! grep -q "refresh_embeddings_on_changes" scripts/manage.sh; then
 fi
 
 # Test manual refresh
-source scripts/resources/storage/qdrant/embeddings/manage.sh
+source resources/qdrant/embeddings/manage.sh
 qdrant::identity::needs_reindex
 ```
 
@@ -695,7 +695,7 @@ cat .vrooli/app-identity.json | jq '.index_commit'
 2. **Manual refresh when needed:**
 ```bash
 # Force refresh when you know changes exist
-vrooli resource-qdrant embeddings refresh --force
+resource-qdrant embeddings refresh --force
 ```
 
 ## 🚀 Performance Issues
@@ -713,10 +713,10 @@ top -p $(pgrep ollama)
 iostat -x 1
 
 # Check embedding model
-grep "DEFAULT_MODEL" scripts/resources/storage/qdrant/embeddings/manage.sh
+grep "DEFAULT_MODEL" resources/qdrant/embeddings/manage.sh
 
 # Time individual operations
-time vrooli resource-qdrant embeddings refresh
+time resource-qdrant embeddings refresh
 ```
 
 **Solutions:**
@@ -724,10 +724,10 @@ time vrooli resource-qdrant embeddings refresh
 1. **Use faster embedding model:**
 ```bash
 # Edit manage.sh to use faster model
-sed -i 's/DEFAULT_MODEL=".*"/DEFAULT_MODEL="all-minilm"/' scripts/resources/storage/qdrant/embeddings/manage.sh
+sed -i 's/DEFAULT_MODEL=".*"/DEFAULT_MODEL="all-minilm"/' resources/qdrant/embeddings/manage.sh
 
 # Refresh with new model
-vrooli resource-qdrant embeddings refresh --force
+resource-qdrant embeddings refresh --force
 ```
 
 2. **Optimize batch processing:**
@@ -781,7 +781,7 @@ curl -X PATCH "http://localhost:6333/collections/app-workflows" \
 redis-cli FLUSHDB
 
 # Garbage collect old collections
-vrooli resource-qdrant embeddings gc --force
+resource-qdrant embeddings gc --force
 
 # Restart services
 docker restart qdrant ollama
@@ -804,7 +804,7 @@ cp .vrooli/app-identity.json .vrooli/app-identity.json.backup
 
 # Regenerate identity
 rm .vrooli/app-identity.json
-vrooli resource-qdrant embeddings init
+resource-qdrant embeddings init
 
 # If you need to preserve specific settings
 jq --arg app_id "my-app-v2" '.app_id = $app_id' .vrooli/app-identity.json > tmp.json && mv tmp.json .vrooli/app-identity.json
@@ -830,10 +830,10 @@ curl -s "http://localhost:6333/collections/app-workflows" | jq '.result.status'
 **Solutions:**
 ```bash
 # Rebuild collections from scratch
-vrooli resource-qdrant embeddings gc --force
+resource-qdrant embeddings gc --force
 rm .vrooli/app-identity.json
-vrooli resource-qdrant embeddings init
-vrooli resource-qdrant embeddings refresh --force
+resource-qdrant embeddings init
+resource-qdrant embeddings refresh --force
 
 # Optimize collections
 curl -X POST "http://localhost:6333/collections/app-workflows/index" \
@@ -845,7 +845,7 @@ curl -X POST "http://localhost:6333/collections/app-workflows/index" \
 
 **Symptoms:**
 ```bash
-$ vrooli resource-qdrant
+$ resource-qdrant
 Error: Unknown command 'resource-qdrant'
 ```
 
@@ -855,11 +855,11 @@ Error: Unknown command 'resource-qdrant'
 vrooli help
 
 # Verify resource-qdrant script exists
-ls -la scripts/resources/storage/qdrant/cli.sh
+ls -la resources/qdrant/cli.sh
 
 # Check PATH and permissions
 echo $PATH
-chmod +x scripts/resources/storage/qdrant/cli.sh
+chmod +x resources/qdrant/cli.sh
 
 # Source Vrooli environment
 source ~/.bashrc
@@ -874,7 +874,7 @@ source ~/.zshrc
 - [ ] Check if Qdrant is running: `curl http://localhost:6333/health`
 - [ ] Verify collections exist: `curl -s http://localhost:6333/collections | jq '.result[].name'`
 - [ ] Check app identity: `cat .vrooli/app-identity.json`
-- [ ] Validate content extraction: `vrooli resource-qdrant embeddings validate`
+- [ ] Validate content extraction: `resource-qdrant embeddings validate`
 - [ ] Try broader search terms
 - [ ] Lower similarity threshold
 - [ ] Force refresh embeddings
@@ -952,14 +952,14 @@ sleep 10
 
 # 6. Reinitialize
 echo "Reinitializing embedding system..."
-vrooli resource-qdrant embeddings init
+resource-qdrant embeddings init
 
 # 7. Fresh refresh
 echo "Performing fresh embedding refresh..."
-vrooli resource-qdrant embeddings refresh --force
+resource-qdrant embeddings refresh --force
 
 echo "=== RESET COMPLETE ==="
-echo "Check status with: vrooli resource-qdrant embeddings status"
+echo "Check status with: resource-qdrant embeddings status"
 ```
 
 ### Gradual Recovery
@@ -973,18 +973,18 @@ docker restart qdrant
 sleep 10
 
 # Step 3: Clean collections
-vrooli resource-qdrant embeddings gc --force
+resource-qdrant embeddings gc --force
 
 # Step 4: Reinitialize app
 rm .vrooli/app-identity.json
-vrooli resource-qdrant embeddings init
+resource-qdrant embeddings init
 
 # Step 5: Selective refresh
-vrooli resource-qdrant embeddings refresh --force
+resource-qdrant embeddings refresh --force
 
 # Step 6: Validate results
-vrooli resource-qdrant embeddings validate
-vrooli resource-qdrant search "test query"
+resource-qdrant embeddings validate
+resource-qdrant search "test query"
 ```
 
 ## 📞 Getting Help
@@ -1024,10 +1024,10 @@ docker logs qdrant 2>&1 | tail -20
 |---------------|-------------|-----------|
 | `Connection refused` | Qdrant not running | `docker restart qdrant` |
 | `Permission denied` | File permissions | `chmod 755 .vrooli/` |
-| `No space left` | Disk full | `vrooli resource-qdrant embeddings gc` |
+| `No space left` | Disk full | `resource-qdrant embeddings gc` |
 | `Invalid JSON` | Malformed workflow files | Validate and fix JSON syntax |
 | `Collection exists` | Stale collections | `rm .vrooli/app-identity.json && init` |
-| `No results found` | No embeddings | `vrooli resource-qdrant embeddings refresh` |
+| `No results found` | No embeddings | `resource-qdrant embeddings refresh` |
 
 ---
 

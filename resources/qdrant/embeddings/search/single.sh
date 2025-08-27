@@ -251,14 +251,28 @@ qdrant::search::generate_embedding() {
     local text="$1"
     local model="${2:-$DEFAULT_MODEL}"
     
-    # Generate embedding using Ollama
-    local embedding=$(ollama embeddings "$model" "$text" 2>/dev/null | jq -c '.embedding // empty')
+    # Generate embedding using Ollama API directly (ollama embeddings command doesn't exist)
+    local request_body
+    request_body=$(jq -n --arg model "$model" --arg prompt "$text" '{model: $model, prompt: $prompt}')
     
-    if [[ -z "$embedding" ]]; then
-        # Fallback to alternative method
-        embedding=$(curl -s -X POST http://localhost:11434/api/embeddings \
-            -d "{\"model\": \"$model\", \"prompt\": \"$text\"}" 2>/dev/null | \
-            jq -c '.embedding // empty')
+    local embedding
+    embedding=$(curl -s -X POST http://localhost:11434/api/embeddings \
+        -H "Content-Type: application/json" \
+        -d "$request_body" 2>/dev/null | \
+        jq -c '.embedding // empty' 2>/dev/null)
+    
+    # Additional validation to ensure we got a valid embedding array
+    if [[ -n "$embedding" ]] && [[ "$embedding" != "null" ]] && [[ "$embedding" != "empty" ]]; then
+        # Check if it's actually an array with numeric values
+        local is_valid
+        is_valid=$(echo "$embedding" | jq -e 'type == "array" and length > 0 and all(type == "number")' 2>/dev/null || echo "false")
+        
+        if [[ "$is_valid" != "true" ]]; then
+            log::debug "Invalid embedding format received, clearing result"
+            embedding=""
+        fi
+    else
+        embedding=""
     fi
     
     echo "$embedding"
@@ -303,7 +317,8 @@ qdrant::search::explain() {
     echo
     
     local results=$(qdrant::search::single_app "$query" "$app_id" "$type")
-    local count=$(echo "$results" | jq -r '.result_count')
+    local count
+    count=$(echo "$results" | jq -r '.result_count // 0' 2>/dev/null || echo "0")
     
     if [[ "$count" -eq 0 ]]; then
         echo "No results found."

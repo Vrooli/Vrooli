@@ -16,13 +16,13 @@ This guide shows how to integrate the Qdrant Semantic Knowledge System into your
 cd /path/to/your/vrooli/app
 
 # 2. Initialize semantic knowledge system
-vrooli resource-qdrant embeddings init
+resource-qdrant embeddings init
 
 # 3. Index your existing content
-vrooli resource-qdrant embeddings refresh
+resource-qdrant embeddings refresh
 
 # 4. Verify setup worked
-vrooli resource-qdrant embeddings status
+resource-qdrant embeddings status
 ```
 
 ## 🔧 CLI Integration
@@ -33,22 +33,22 @@ The system integrates seamlessly with the Vrooli CLI:
 
 ```bash
 # Initialize embeddings for current app
-vrooli resource-qdrant embeddings init
+resource-qdrant embeddings init
 
 # Refresh embeddings (detects changes automatically)
-vrooli resource-qdrant embeddings refresh
+resource-qdrant embeddings refresh
 
 # Search your app
-vrooli resource-qdrant search "send email notifications"
+resource-qdrant search "send email notifications"
 
 # Search across all apps  
-vrooli resource-qdrant search-all "authentication patterns"
+resource-qdrant search-all "authentication patterns"
 
 # Validate your knowledge structure
-vrooli resource-qdrant embeddings validate
+resource-qdrant embeddings validate
 
 # View status of all apps
-vrooli resource-qdrant embeddings status
+resource-qdrant embeddings status
 ```
 
 ### Direct Shell Integration
@@ -57,7 +57,7 @@ For advanced usage, source the management script directly:
 
 ```bash
 # Load functions into current shell
-source scripts/resources/storage/qdrant/embeddings/manage.sh
+source resources/qdrant/embeddings/manage.sh
 
 # Now use functions directly
 qdrant::embeddings::init "my-app-v2"
@@ -71,15 +71,15 @@ qdrant::search::discover_patterns "error handling"
 
 ```bash
 # Morning routine - check what knowledge exists
-vrooli resource-qdrant search "today's feature requirements"
-vrooli resource-qdrant search-all "similar implementations"
+resource-qdrant search "today's feature requirements"
+resource-qdrant search-all "similar implementations"
 
 # Before implementing - find existing solutions
-vrooli resource-qdrant search-all "email validation" code
-vrooli resource-qdrant search-all "user authentication" workflows
+resource-qdrant search-all "email validation" code
+resource-qdrant search-all "user authentication" workflows
 
 # After implementing - refresh knowledge  
-vrooli resource-qdrant embeddings refresh
+resource-qdrant embeddings refresh
 ```
 
 ### 2. Git Integration (Automatic)
@@ -97,13 +97,13 @@ The system automatically detects git changes and refreshes embeddings:
 
 ```bash
 # Start with discovery
-vrooli resource-qdrant search-all "payment processing" workflows
+resource-qdrant search-all "payment processing" workflows
 
 # Find patterns
-vrooli resource-qdrant search "webhook validation" code
+resource-qdrant search "webhook validation" code
 
 # Check for gaps
-vrooli resource-qdrant search "error handling" docs
+resource-qdrant search "error handling" docs
 
 # Document as you go (will be auto-indexed)
 echo "<!-- EMBED:PATTERN:START -->" >> docs/PATTERNS.md
@@ -205,41 +205,41 @@ A lightweight email management assistant that uses AI-powered categorization...
 
 ```bash
 # Step 1: Find similar problems
-vrooli resource-qdrant search-all "user onboarding flow" scenarios
+resource-qdrant search-all "user onboarding flow" scenarios
 
 # Step 2: Find implementation patterns  
-vrooli resource-qdrant search-all "email verification" workflows
+resource-qdrant search-all "email verification" workflows
 
 # Step 3: Find code examples
-vrooli resource-qdrant search-all "JWT token validation" code
+resource-qdrant search-all "JWT token validation" code
 
 # Step 4: Check for lessons learned
-vrooli resource-qdrant search-all "onboarding mistakes" knowledge
+resource-qdrant search-all "onboarding mistakes" knowledge
 ```
 
 ### 2. Cross-App Pattern Discovery
 
 ```bash
 # Find authentication patterns across all apps
-vrooli resource-qdrant search-all "OAuth integration" workflows
+resource-qdrant search-all "OAuth integration" workflows
 
 # Discover error handling approaches
-vrooli resource-qdrant search-all "retry logic" code
+resource-qdrant search-all "retry logic" code
 
 # Find monitoring patterns
-vrooli resource-qdrant search-all "health checks" resources
+resource-qdrant search-all "health checks" resources
 ```
 
 ### 3. Gap Analysis and Planning
 
 ```bash
 # Before starting new feature
-vrooli resource-qdrant search-all "notification system" scenarios
-vrooli resource-qdrant search-all "push notifications" workflows
-vrooli resource-qdrant search-all "FCM integration" code
+resource-qdrant search-all "notification system" scenarios
+resource-qdrant search-all "push notifications" workflows
+resource-qdrant search-all "FCM integration" code
 
 # If gaps found, check other apps
-vrooli resource-qdrant search-all "mobile notifications" 
+resource-qdrant search-all "mobile notifications" 
 ```
 
 ## 🤖 AI Agent Integration
@@ -254,13 +254,13 @@ function agent_discover_solutions() {
     echo "🔍 Searching for existing solutions..."
     
     # Search workflows first
-    local workflows=$(vrooli resource-qdrant search-all "$task_description" workflows)
+    local workflows=$(resource-qdrant search-all "$task_description" workflows)
     
     # Then search code patterns
-    local code_patterns=$(vrooli resource-qdrant search-all "$task_description" code)
+    local code_patterns=$(resource-qdrant search-all "$task_description" code)
     
     # Check documentation
-    local knowledge=$(vrooli resource-qdrant search-all "$task_description" knowledge)
+    local knowledge=$(resource-qdrant search-all "$task_description" knowledge)
     
     # Present findings
     echo "Found solutions:"
@@ -291,7 +291,7 @@ function agent_document_learnings() {
 EOF
     
     # Refresh embeddings to capture new knowledge
-    vrooli resource-qdrant embeddings refresh
+    resource-qdrant embeddings refresh
 }
 ```
 
@@ -303,13 +303,13 @@ function agent_analyze_patterns() {
     local domain="$1"
     
     # Discover existing patterns
-    local patterns=$(vrooli resource-qdrant search-all "$domain" | grep -E "(Pattern|pattern)")
+    local patterns=$(resource-qdrant search-all "$domain" | grep -E "(Pattern|pattern)")
     
     # Find related implementations
-    local implementations=$(vrooli resource-qdrant search-all "$domain" code)
+    local implementations=$(resource-qdrant search-all "$domain" code)
     
     # Check for anti-patterns or failures
-    local lessons=$(vrooli resource-qdrant search-all "$domain failure" knowledge)
+    local lessons=$(resource-qdrant search-all "$domain failure" knowledge)
     
     echo "Pattern Analysis for $domain:"
     echo "Existing patterns: $patterns"
@@ -359,14 +359,14 @@ EOF
 
 ```bash
 # Use type filters for faster searches
-vrooli resource-qdrant search "authentication" workflows  # Faster
-vrooli resource-qdrant search "authentication"            # Slower
+resource-qdrant search "authentication" workflows  # Faster
+resource-qdrant search "authentication"            # Slower
 
 # Use specific apps when known
-vrooli resource-qdrant search "user-portal-v1" "login flow"  # Faster
+resource-qdrant search "user-portal-v1" "login flow"  # Faster
 
 # Limit results for exploration
-vrooli resource-qdrant search "database" code 5  # Top 5 results only
+resource-qdrant search "database" code 5  # Top 5 results only
 ```
 
 ### 2. Batch Operations
@@ -374,7 +374,7 @@ vrooli resource-qdrant search "database" code 5  # Top 5 results only
 ```bash
 # Refresh multiple apps efficiently
 for app in app1 app2 app3; do
-    vrooli resource-qdrant embeddings refresh "$app" &
+    resource-qdrant embeddings refresh "$app" &
 done
 wait  # Parallel refresh
 ```
@@ -383,10 +383,10 @@ wait  # Parallel refresh
 
 ```bash
 # Check embedding statistics
-vrooli resource-qdrant embeddings status
+resource-qdrant embeddings status
 
 # Monitor search performance
-time vrooli resource-qdrant search-all "complex query"
+time resource-qdrant search-all "complex query"
 
 # Check collection sizes
 curl -s http://localhost:6333/collections | jq '.result[].vectors_count'
@@ -447,7 +447,7 @@ if [[ -n "$new_functions" ]]; then
             func_name=$(echo "$line" | sed -E 's/.*function\s+([a-zA-Z_][a-zA-Z0-9_]*).*/\1/')
             if [[ -n "$func_name" ]]; then
                 echo "Searching for similar to: $func_name"
-                vrooli resource-qdrant search-all "$func_name" code 3
+                resource-qdrant search-all "$func_name" code 3
             fi
         done
     done
@@ -477,11 +477,11 @@ jobs:
           
       - name: Validate Knowledge Structure  
         run: |
-          vrooli resource-qdrant embeddings validate
+          resource-qdrant embeddings validate
           
       - name: Check for Missing Documentation
         run: |
-          vrooli resource-qdrant embeddings validate --strict
+          resource-qdrant embeddings validate --strict
 ```
 
 ## 🔧 Troubleshooting Development Issues
@@ -498,17 +498,17 @@ ls -la .git/hooks/post-commit
 grep -n "refresh_embeddings_on_changes" scripts/manage.sh
 
 # Manual refresh
-vrooli resource-qdrant embeddings refresh --force
+resource-qdrant embeddings refresh --force
 ```
 
 **2. Search returning no results:**
 
 ```bash
 # Check if embeddings exist
-vrooli resource-qdrant embeddings status
+resource-qdrant embeddings status
 
 # Validate content extraction
-vrooli resource-qdrant embeddings validate
+resource-qdrant embeddings validate
 
 # Check Qdrant connection
 curl http://localhost:6333/collections
@@ -518,10 +518,10 @@ curl http://localhost:6333/collections
 
 ```bash
 # Check what's being processed
-vrooli resource-qdrant embeddings refresh --verbose
+resource-qdrant embeddings refresh --verbose
 
 # Consider selective refresh
-vrooli resource-qdrant embeddings refresh --type workflows
+resource-qdrant embeddings refresh --type workflows
 
 # Monitor resource usage
 top -p $(pgrep qdrant)

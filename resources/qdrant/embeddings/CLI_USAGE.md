@@ -316,7 +316,7 @@ This document provides concrete examples of how the Qdrant Semantic Knowledge Sy
 ### Step 1: Discovery Phase
 
 ```bash
-$ vrooli resource-qdrant search-all "email notification system" workflows
+$ resource-qdrant search-all "email notification system" workflows
 
 🔍 Searching across all apps for: email notification system
 Type: workflows
@@ -357,7 +357,7 @@ Results (3 found):
 ### Step 2: Code Pattern Discovery
 
 ```bash
-$ vrooli resource-qdrant search-all "email validation and sending" code
+$ resource-qdrant search-all "email validation and sending" code
 
 🔍 Searching across all apps for: email validation and sending
 Type: code
@@ -401,7 +401,7 @@ Results (4 found):
 ### Step 3: Documentation Patterns
 
 ```bash
-$ vrooli resource-qdrant search-all "email integration patterns" knowledge
+$ resource-qdrant search-all "email integration patterns" knowledge
 
 🔍 Searching across all apps for: email integration patterns
 Type: knowledge
@@ -462,7 +462,7 @@ Implementation Plan:
 ### Step 1: Security Pattern Discovery
 
 ```bash
-$ vrooli resource-qdrant search-all "authentication security patterns" knowledge
+$ resource-qdrant search-all "authentication security patterns" knowledge
 
 🔍 Searching across all apps for: authentication security patterns
 Type: knowledge
@@ -512,7 +512,7 @@ Results (3 found):
 ### Step 2: Implementation Examples
 
 ```bash
-$ vrooli resource-qdrant search-all "JWT token validation implementation" code
+$ resource-qdrant search-all "JWT token validation implementation" code
 
 🔍 Searching across all apps for: JWT token validation implementation
 Type: code
@@ -558,7 +558,7 @@ Results (4 found):
 ### Step 3: Security Lessons Learned
 
 ```bash
-$ vrooli resource-qdrant search-all "authentication security mistakes" knowledge
+$ resource-qdrant search-all "authentication security mistakes" knowledge
 
 🔍 Searching across all apps for: authentication security mistakes
 Type: knowledge
@@ -631,7 +631,7 @@ Based on semantic search across existing Vrooli apps:
 ### Step 1: Webhook Pattern Discovery
 
 ```bash
-$ vrooli resource-qdrant search-all "webhook processing patterns" workflows
+$ resource-qdrant search-all "webhook processing patterns" workflows
 
 🔍 Searching across all apps for: webhook processing patterns
 Type: workflows
@@ -674,7 +674,7 @@ Results (5 found):
 ### Step 2: Implementation Code Analysis
 
 ```bash
-$ vrooli resource-qdrant search-all "webhook signature verification" code
+$ resource-qdrant search-all "webhook signature verification" code
 
 🔍 Searching across all apps for: webhook signature verification
 Type: code
@@ -720,7 +720,7 @@ Results (3 found):
 ### Step 3: Architecture Patterns
 
 ```bash
-$ vrooli resource-qdrant search-all "webhook architecture patterns" knowledge
+$ resource-qdrant search-all "webhook architecture patterns" knowledge
 
 🔍 Searching across all apps for: webhook architecture patterns
 Type: knowledge
@@ -811,7 +811,7 @@ webhook::verify_signature() {
 ### Database Performance Search
 
 ```bash
-$ vrooli resource-qdrant search-all "database query optimization" knowledge
+$ resource-qdrant search-all "database query optimization" knowledge
 
 🔍 Searching across all apps for: database query optimization
 Type: knowledge
@@ -863,7 +863,7 @@ Results (4 found):
 ### Code Implementation Examples
 
 ```bash
-$ vrooli resource-qdrant search-all "efficient database queries" code
+$ resource-qdrant search-all "efficient database queries" code
 
 🔍 Searching across all apps for: efficient database queries
 Type: code
@@ -913,7 +913,7 @@ Results (3 found):
 ### Error Handling Pattern Search
 
 ```bash
-$ vrooli resource-qdrant search-all "error handling retry patterns" code
+$ resource-qdrant search-all "error handling retry patterns" code
 
 🔍 Searching across all apps for: error handling retry patterns
 Type: code
@@ -958,7 +958,7 @@ Results (4 found):
 ### Error Handling Documentation
 
 ```bash
-$ vrooli resource-qdrant search-all "error handling best practices" knowledge
+$ resource-qdrant search-all "error handling best practices" knowledge
 
 🔍 Searching across all apps for: error handling best practices
 Type: knowledge

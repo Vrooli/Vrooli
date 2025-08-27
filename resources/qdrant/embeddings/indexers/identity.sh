@@ -266,25 +266,46 @@ qdrant::identity::list_all() {
     echo
     
     local count=0
+    local seen_apps=()  # Track seen app_ids to prevent showing duplicates
     
-    # Search for app-identity.json files
+    # Search for app-identity.json files from current directory
+    # Use SEARCH_BASE environment variable to override if needed
+    local search_base="${SEARCH_BASE:-$(pwd)}"
+    
     while IFS= read -r identity_file; do
         if [[ -f "$identity_file" ]]; then
             local app_id=$(jq -r '.app_id' "$identity_file" 2>/dev/null)
-            local app_type=$(jq -r '.type' "$identity_file" 2>/dev/null)
-            local last_indexed=$(jq -r '.last_indexed // "Never"' "$identity_file" 2>/dev/null)
-            local embeddings=$(jq -r '.stats.total_embeddings' "$identity_file" 2>/dev/null)
-            local app_dir=$(dirname "${identity_file%/*}")
             
-            echo "📱 $app_id ($app_type)"
-            echo "   Path: $app_dir"
-            echo "   Last Indexed: $last_indexed"
-            echo "   Embeddings: $embeddings"
-            echo
+            # Check if we've already seen this app_id
+            local already_seen=false
+            for seen_id in "${seen_apps[@]}"; do
+                if [[ "$seen_id" == "$app_id" ]]; then
+                    already_seen=true
+                    break
+                fi
+            done
             
-            ((count++))
+            if [[ "$already_seen" == "false" ]]; then
+                seen_apps+=("$app_id")
+                
+                local app_type=$(jq -r '.type' "$identity_file" 2>/dev/null)
+                local last_indexed=$(jq -r '.last_indexed // "Never"' "$identity_file" 2>/dev/null)
+                local embeddings=$(jq -r '.stats.total_embeddings' "$identity_file" 2>/dev/null)
+                local app_dir=$(dirname "${identity_file%/*}")
+                
+                echo "📱 $app_id ($app_type)"
+                echo "   Path: $app_dir"
+                echo "   Last Indexed: $last_indexed"
+                echo "   Embeddings: $embeddings"
+                echo
+                
+                ((count++))
+            fi
         fi
-    done < <(find "${HOME}" -name "app-identity.json" -type f 2>/dev/null | grep -E "/.vrooli/app-identity.json$")
+    done < <(find "$search_base" -path "*/.vrooli/app-identity.json" -type f 2>/dev/null \
+        | grep -v "/test/" \
+        | grep -v "/backup/" \
+        | grep -v "/.git/")
     
     if [[ $count -eq 0 ]]; then
         echo "No apps found with identity files"
@@ -294,6 +315,88 @@ qdrant::identity::list_all() {
         echo "Total: $count apps"
     fi
     echo
+}
+
+#######################################
+# Sync identity file with actual collection state
+# This fixes cases where embeddings exist but identity tracking is outdated
+# Returns: 0 on success
+#######################################
+qdrant::identity::sync_with_collections() {
+    if [[ ! -f "$APP_IDENTITY_FILE" ]]; then
+        log::error "App identity file not found"
+        return 1
+    fi
+    
+    # Source collections library to get count functions
+    source "${APP_ROOT}/resources/qdrant/lib/collections.sh"
+    
+    # Get collections for this app
+    local collections
+    collections=$(qdrant::identity::get_collections)
+    
+    if [[ -z "$collections" ]]; then
+        log::debug "No collections found for app"
+        return 0
+    fi
+    
+    # Calculate actual embedding counts
+    local total_embeddings=0
+    local collection_counts=""
+    
+    log::debug "Syncing identity with actual collection state..."
+    
+    for collection in $collections; do
+        local count
+        count=$(qdrant::collections::get_vector_count "$collection" 2>/dev/null || echo "0")
+        
+        if [[ "$count" =~ ^[0-9]+$ ]]; then
+            total_embeddings=$((total_embeddings + count))
+            log::debug "Collection $collection: $count embeddings"
+        else
+            log::debug "Collection $collection: not accessible or empty"
+            count="0"
+        fi
+        
+        collection_counts="${collection_counts}${collection}:${count} "
+    done
+    
+    log::debug "Total embeddings found: $total_embeddings"
+    
+    # If we found embeddings but identity shows none, update the identity
+    local current_total
+    current_total=$(jq -r '.stats.total_embeddings // 0' "$APP_IDENTITY_FILE" 2>/dev/null || echo "0")
+    
+    if [[ "$total_embeddings" -gt 0 && "$current_total" -ne "$total_embeddings" ]]; then
+        log::info "Syncing identity file with actual collection state ($total_embeddings embeddings found)"
+        
+        # Get current git commit if available
+        local current_commit=""
+        if [[ -d .git ]]; then
+            current_commit=$(git rev-parse HEAD 2>/dev/null || echo "")
+        fi
+        
+        # Update identity file with actual state
+        local synced_date=$(date -Iseconds)
+        local temp_file=$(mktemp)
+        
+        jq --arg synced "$synced_date" \
+           --arg commit "$current_commit" \
+           --arg embeddings "$total_embeddings" \
+           '.last_indexed = $synced |
+            .index_commit = (if $commit == "" then null else $commit end) |
+            .stats.total_embeddings = ($embeddings | tonumber) |
+            .metadata.last_sync = $synced' \
+           "$APP_IDENTITY_FILE" > "$temp_file"
+        
+        mv "$temp_file" "$APP_IDENTITY_FILE"
+        
+        log::success "Identity file synced: $total_embeddings total embeddings"
+        return 0
+    else
+        log::debug "Identity file already in sync with collections"
+        return 0
+    fi
 }
 
 #######################################

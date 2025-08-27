@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
 
 # Define paths from APP_ROOT
 EMBEDDINGS_DIR="${APP_ROOT}/resources/qdrant/embeddings"
@@ -17,7 +17,7 @@ source "${var_LIB_UTILS_DIR}/log.sh"
 # Source unified embedding service
 source "${EMBEDDINGS_DIR}/lib/embedding-service.sh"
 
-# Extract FILE-LEVEL summary for better performance
+# Extract FILE-LEVEL summary with structured metadata
 qdrant::extract::code() {
     local file="$1"
     
@@ -74,30 +74,67 @@ qdrant::extract::code() {
         is_test="yes"
     fi
     
-    # Build natural language summary (optimized for semantic search)
-    echo "This is a $language code file named '$filename' located in $dir."
+    # Build clean content summary (optimized for semantic search)
+    local content_summary="This is a $language code file named '$filename' located in $dir."
     
     if [[ -n "$purpose" ]]; then
-        echo "Purpose: $purpose"
+        content_summary="$content_summary Purpose: $purpose"
     fi
     
     if [[ "$is_test" == "yes" ]]; then
-        echo "This is a test file containing test cases and specifications."
+        content_summary="$content_summary This is a test file containing test cases and specifications."
     fi
     
-    echo "The file contains $line_count lines of code with:"
-    [[ $function_count -gt 0 ]] && echo "- $function_count functions/methods"
-    [[ $class_count -gt 0 ]] && echo "- $class_count classes/interfaces/types"
-    [[ $import_count -gt 0 ]] && echo "- $import_count imports/dependencies"
+    content_summary="$content_summary The file contains $line_count lines of code"
+    if [[ $function_count -gt 0 ]]; then
+        content_summary="$content_summary with $function_count functions/methods"
+    fi
+    if [[ $class_count -gt 0 ]]; then
+        content_summary="$content_summary, $class_count classes/interfaces/types"
+    fi
+    if [[ $import_count -gt 0 ]]; then
+        content_summary="$content_summary, $import_count imports"
+    fi
+    content_summary="${content_summary}."
     
     if [[ -n "$exports" ]]; then
-        echo "Main exports/API: $exports"
+        content_summary="$content_summary Main exports/API: $exports"
     fi
     
-    # Add searchable metadata
-    echo "File: $file"
-    echo "Language: $language ($file_ext)"
-    echo "Size: $file_size bytes"
+    # Output JSON with clean separation of content and metadata
+    jq -n \
+        --arg content "$content_summary" \
+        --arg file "$file" \
+        --arg filename "$filename" \
+        --arg directory "$dir" \
+        --arg language "$language" \
+        --arg language_ext "$file_ext" \
+        --arg size "$file_size" \
+        --arg lines "$line_count" \
+        --arg functions "$function_count" \
+        --arg classes "$class_count" \
+        --arg imports "$import_count" \
+        --arg exports "$exports" \
+        --arg is_test "$is_test" \
+        --arg purpose "$purpose" \
+        '{
+            content: $content,
+            metadata: {
+                file: $file,
+                filename: $filename,
+                directory: $directory,
+                language: $language,
+                language_ext: $language_ext,
+                size: ($size | tonumber),
+                lines: ($lines | tonumber),
+                functions: ($functions | tonumber),
+                classes: ($classes | tonumber),
+                imports: ($imports | tonumber),
+                exports: $exports,
+                is_test: ($is_test == "yes"),
+                purpose: $purpose
+            }
+        }' | jq -c
 }
 
 # Find code files (excluding common non-code directories)
@@ -141,11 +178,8 @@ qdrant::extract::code_batch() {
     log::info "Extracting content from $total_files code files"
     
     while IFS= read -r file; do
-        {
-            # Each file gets ONE embedding entry (not one per function)
-            qdrant::extract::code "$file"
-            echo "---SEPARATOR---"
-        } >> "$output_file"
+        # Each file gets ONE embedding entry (output JSON)
+        qdrant::extract::code "$file" >> "$output_file"
         ((count++))
         
         # Progress indicator every 50 files
@@ -171,7 +205,7 @@ qdrant::embeddings::process_code() {
     local count=0
     
     # Extract code to temp file
-    local output_file="$TEMP_DIR/code.txt"
+    local output_file="$TEMP_DIR/code.jsonl"
     qdrant::extract::code_batch "." "$output_file" >&2
     
     if [[ ! -f "$output_file" ]] || [[ ! -s "$output_file" ]]; then
@@ -180,32 +214,22 @@ qdrant::embeddings::process_code() {
         return 0
     fi
     
-    # Process each code file through unified embedding service
-    local content=""
-    local processing_code=false
-    
-    while IFS= read -r line; do
-        if [[ "$line" == "File: "* ]]; then
-            # Start of new code file content
-            processing_code=true
-            content="$line"
-        elif [[ "$line" == "---SEPARATOR---" ]] && [[ "$processing_code" == true ]]; then
-            # End of code file, process it
+    # Process each JSON line through unified embedding service
+    while IFS= read -r json_line; do
+        if [[ -n "$json_line" ]]; then
+            # Parse JSON to extract content and metadata
+            local content
+            content=$(echo "$json_line" | jq -r '.content // empty' 2>/dev/null)
+            
+            local metadata
+            metadata=$(echo "$json_line" | jq -c '.metadata // {}' 2>/dev/null)
+            
             if [[ -n "$content" ]]; then
-                # Extract code metadata from content
-                local metadata
-                metadata=$(qdrant::extract::code_metadata_from_content "$content")
-                
-                # Process through unified embedding service
+                # Process through unified embedding service with structured metadata
                 if qdrant::embedding::process_item "$content" "code" "$collection" "$app_id" "$metadata"; then
                     ((count++))
                 fi
             fi
-            processing_code=false
-            content=""
-        elif [[ "$processing_code" == true ]]; then
-            # Continue accumulating code content
-            content="${content}"$'\n'"${line}"
         fi
     done < "$output_file"
     
@@ -286,16 +310,25 @@ qdrant::extract::code_metadata_from_content() {
         category="configuration"
     fi
     
-    # Build metadata JSON
+    # Build metadata JSON - ensure numeric fields have valid defaults
+    local safe_file_size="${file_size:-0}"
+    local safe_content_length="${content_length:-0}"
+    local safe_line_count="${line_count:-0}"
+    
+    # Ensure numeric fields are not empty
+    [[ -z "$safe_file_size" || "$safe_file_size" == " " ]] && safe_file_size="0"
+    [[ -z "$safe_content_length" || "$safe_content_length" == " " ]] && safe_content_length="0"
+    [[ -z "$safe_line_count" || "$safe_line_count" == " " ]] && safe_line_count="0"
+    
     jq -n \
         --arg filename "${filename:-Unknown}" \
         --arg file_path "${file_path:-}" \
         --arg file_ext "${file_ext:-}" \
         --arg language "${language:-unknown}" \
         --arg category "$category" \
-        --arg file_size "${file_size:-0}" \
-        --arg content_length "$content_length" \
-        --arg line_count "$line_count" \
+        --arg file_size "$safe_file_size" \
+        --arg content_length "$safe_content_length" \
+        --arg line_count "$safe_line_count" \
         '{
             filename: $filename,
             source_file: $file_path,

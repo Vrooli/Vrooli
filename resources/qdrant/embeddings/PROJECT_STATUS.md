@@ -341,7 +341,7 @@ Build a comprehensive embedding system that indexes project knowledge (workflows
 
 ### 1.1 Directory Structure
 ```bash
-scripts/resources/storage/qdrant/embeddings/
+resources/qdrant/embeddings/
 ├── manage.sh                 # Main orchestrator
 ├── extractors/              # Content extraction modules
 │   ├── workflows.sh         # N8n workflow extraction
@@ -418,7 +418,7 @@ Create `.vrooli/app-identity.json` for each app:
 **Goal**: Create templates for structured knowledge capture
 
 ### 2.1 Document Templates Location
-`scripts/resources/storage/qdrant/embeddings/config/templates/`
+`resources/qdrant/embeddings/config/templates/`
 
 Each template includes:
 - Required sections with examples

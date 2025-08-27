@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
 
 # Define paths from APP_ROOT
 EMBEDDINGS_DIR="${APP_ROOT}/resources/qdrant/embeddings"
@@ -48,8 +48,8 @@ qdrant::embedding::process_item() {
     
     # Generate embedding
     local embedding
-    embedding=$(qdrant::embeddings::generate "$content" "$DEFAULT_MODEL" 2>/dev/null)
-    if [[ -z "$embedding" ]]; then
+    embedding=$(qdrant::embeddings::generate "$content" "$DEFAULT_MODEL" 2>/dev/null | jq -c .)
+    if [[ -z "$embedding" || "$embedding" == "null" ]]; then
         log::warn "Failed to generate embedding for $content_type content"
         return 1
     fi
@@ -62,12 +62,35 @@ qdrant::embedding::process_item() {
     local payload
     payload=$(qdrant::embedding::build_payload "$content" "$content_type" "$app_id" "$extra_metadata")
     
-    # Store in collection
-    if qdrant::collections::upsert_point "$collection" "$item_id" "$embedding" "$payload"; then
+    # Store in collection using direct API with proper JSON construction
+    local points_data
+    points_data=$(jq -n \
+        --arg id "$item_id" \
+        --argjson vector "$embedding" \
+        --argjson payload "$payload" \
+        '{
+            points: [
+                {
+                    id: $id,
+                    vector: $vector,
+                    payload: $payload
+                }
+            ]
+        }')
+    
+    local api_response
+    api_response=$(curl -s -X PUT "http://localhost:6333/collections/${collection}/points" \
+        -H "Content-Type: application/json" \
+        -d "$points_data")
+    
+    local status
+    status=$(echo "$api_response" | jq -r '.status // "unknown"')
+    
+    if [[ "$status" == "ok" ]]; then
         log::debug "Successfully processed $content_type item (ID: ${item_id:0:8}...)"
         return 0
     else
-        log::error "Failed to store $content_type embedding in collection $collection"
+        log::error "Failed to store $content_type embedding in collection $collection: $api_response"
         return 1
     fi
 }
@@ -84,7 +107,12 @@ qdrant::embedding::generate_id() {
     local content_type="$2"
     
     # Include content type in hash for uniqueness across types
-    echo -n "${content_type}:${content}" | sha256sum | cut -d' ' -f1
+    local hash=$(echo -n "${content_type}:${content}" | sha256sum | cut -d' ' -f1)
+    
+    # Convert hash to UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+    # Take first 32 characters and format as UUID
+    local uuid="${hash:0:8}-${hash:8:4}-${hash:12:4}-${hash:16:4}-${hash:20:12}"
+    echo "$uuid"
 }
 
 #######################################
@@ -100,12 +128,21 @@ qdrant::embedding::build_payload() {
     local content="$1"
     local content_type="$2" 
     local app_id="$3"
-    local extra_metadata="${4:-{}}"
+    local extra_metadata
+    if [[ -n "${4:-}" ]]; then
+        extra_metadata="$4"
+    else
+        extra_metadata="{}"
+    fi
+    
+    # Sanitize content to prevent JSON issues
+    local safe_content
+    safe_content=$(echo "$content" | tr '\n\r\t' ' ' | sed 's/"/\\"/g' | head -c 8000)
     
     # Base payload with standard fields
     local base_payload
     base_payload=$(jq -n \
-        --arg content "$content" \
+        --arg content "$safe_content" \
         --arg type "$content_type" \
         --arg app_id "$app_id" \
         --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
@@ -118,13 +155,21 @@ qdrant::embedding::build_payload() {
             content_length: ($length | tonumber)
         }')
     
-    # Merge with extra metadata if provided
+    # Merge with extra metadata if provided - SIMPLIFIED & SAFE
     if [[ "$extra_metadata" != "{}" ]] && [[ -n "$extra_metadata" ]]; then
-        # Validate that extra_metadata is valid JSON before using it
-        if echo "$extra_metadata" | jq . >/dev/null 2>&1; then
-            echo "$base_payload" | jq --argjson extra "$extra_metadata" '. + $extra'
+        # Only process if metadata is reasonably sized and valid
+        local metadata_size=${#extra_metadata}
+        if [[ $metadata_size -lt 2000 ]] && echo "$extra_metadata" | jq -e . >/dev/null 2>&1; then
+            # Safe to merge - using jq -e for strict validation  
+            local merged_payload
+            if merged_payload=$(echo "$base_payload" | jq --argjson extra "$extra_metadata" '. + $extra' 2>/dev/null); then
+                echo "$merged_payload"
+            else
+                log::debug "JSON merge failed, using base payload only"
+                echo "$base_payload"
+            fi
         else
-            log::warn "Invalid JSON in extra_metadata, using base payload only"
+            log::debug "Metadata invalid or too large (${metadata_size} chars), using base payload only"
             echo "$base_payload"
         fi
     else
