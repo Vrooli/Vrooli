@@ -6,13 +6,13 @@
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 COMFYUI_STATUS_DIR="${APP_ROOT}/resources/comfyui/lib"
 # shellcheck disable=SC1091
-source "${COMFYUI_STATUS_DIR}/../../../../lib/utils/format.sh"
+source "${APP_ROOT}/scripts/lib/utils/format.sh"
 # shellcheck disable=SC1091
-source "${COMFYUI_STATUS_DIR}/../../../lib/status-args.sh"
+source "${APP_ROOT}/scripts/resources/lib/status-args.sh"
 # shellcheck disable=SC1091
-source "${COMFYUI_STATUS_DIR}/../config/defaults.sh" 2>/dev/null || true
+source "${APP_ROOT}/resources/comfyui/config/defaults.sh"
 # shellcheck disable=SC1091
-source "${COMFYUI_STATUS_DIR}/common.sh" 2>/dev/null || true
+source "${COMFYUI_STATUS_DIR}/common.sh"
 
 #######################################
 # Collect ComfyUI status data in format-agnostic structure
@@ -204,7 +204,7 @@ comfyui::status::display_text() {
         log::error "   ❌ Installed: No"
         echo
         log::info "💡 Installation Required:"
-        log::info "   To install ComfyUI, run: ./manage.sh --action install"
+        log::info "   To install ComfyUI, run: resource-comfyui manage install"
         return
     fi
     

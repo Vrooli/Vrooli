@@ -17,8 +17,8 @@ APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin
 ORCHESTRATOR_DIR="${APP_ROOT}/scripts/scenarios/tools/orchestrator"
 VENV_DIR="${ORCHESTRATOR_DIR}/venv"
 
-# Use the orchestrator with fork bomb prevention
-PYTHON_SCRIPT="${ORCHESTRATOR_DIR}/app_orchestrator.py"
+# Use the enhanced orchestrator with fork bomb prevention
+PYTHON_SCRIPT="${ORCHESTRATOR_DIR}/enhanced_orchestrator.py"
 
 # Verify orchestrator exists
 if [[ ! -f "$PYTHON_SCRIPT" ]]; then

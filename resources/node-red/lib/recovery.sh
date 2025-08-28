@@ -160,7 +160,7 @@ node_red::restore_backup() {
     rm -rf "$temp_dir"
     
     log::success "Node-RED restore completed successfully"
-    log::info "You may now start Node-RED: ./manage.sh --action start"
+    log::info "You may now start Node-RED: resource-node-red manage start"
     
     return 0
 }

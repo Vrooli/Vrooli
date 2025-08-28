@@ -16,9 +16,9 @@ source "${APP_ROOT}/scripts/resources/lib/status-args.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_SERVICE_DIR}/secrets.sh"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/resources/minio/config/defaults.sh" 2>/dev/null || true
+source "${APP_ROOT}/resources/minio/config/defaults.sh"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/resources/minio/config/messages.sh" 2>/dev/null || true
+source "${APP_ROOT}/resources/minio/config/messages.sh"
 
 # Ensure configuration is exported
 if command -v minio::export_config &>/dev/null; then
@@ -27,7 +27,7 @@ fi
 
 # Source common functions after config is initialized
 # shellcheck disable=SC1091
-source "${MINIO_STATUS_DIR}/common.sh" 2>/dev/null || true
+source "${MINIO_STATUS_DIR}/common.sh"
 
 #######################################
 # Collect MinIO status data in format-agnostic structure
@@ -214,7 +214,7 @@ minio::status::display_text() {
         log::error "   ❌ Installed: No"
         echo
         log::info "💡 Installation Required:"
-        log::info "   To install MinIO, run: ./manage.sh --action install"
+        log::info "   To install MinIO, run: resource-minio manage install"
         return
     fi
     
@@ -699,7 +699,7 @@ minio::status::display_text() {
         log::error "   ❌ Installed: No"
         echo
         log::info "💡 Installation Required:"
-        log::info "   To install MinIO, run: ./manage.sh --action install"
+        log::info "   To install MinIO, run: resource-minio manage install"
         return
     fi
     

@@ -7,22 +7,29 @@
     "displayName": "Audio Intelligence Platform",
     "description": "AI-powered audio intelligence platform for transcription, analysis, semantic search, and knowledge extraction",
     "version": "1.0.0",
-    "type": "business-application",
-    "category": "business",
     "tags": [
+      "business-application",
+      "business",
       "audio-processing",
       "content-automation",
       "transcription",
       "windmill-ui",
       "media-production",
       "audio-intelligence",
-      "content-generation"
+      "content-generation",
+      "go-api",
+      "n8n-workflows",
+      "windmill-apps",
+      "postgres-storage",
+      "qdrant-vectors",
+      "minio-storage",
+      "ollama-ai"
     ]
   },
   "ports": {
     "api": {
       "env_var": "SERVICE_PORT",
-      "range": "8090-8999",
+      "range": "22000-22249",
       "fallback": "auto",
       "description": "Audio intelligence API port"
     }

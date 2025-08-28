@@ -7,13 +7,13 @@ TARS_LIB_DIR="${APP_ROOT}/resources/tars-desktop/lib"
 TARS_RESOURCE_DIR="${APP_ROOT}/resources/tars-desktop"
 
 # Source shared utilities
-source "$TARS_RESOURCE_DIR/../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 # Configuration
 export TARS_DESKTOP_NAME="${TARS_DESKTOP_NAME:-tars-desktop}"
 export TARS_DESKTOP_PORT="${TARS_DESKTOP_PORT:-11570}"
 export TARS_DESKTOP_VERSION="${TARS_DESKTOP_VERSION:-latest}"
-export TARS_DESKTOP_DATA_DIR="${var_DATA_DIR:-/home/matthalloran8/Vrooli/data}/resources/tars-desktop"
+export TARS_DESKTOP_DATA_DIR="${var_DATA_DIR:-${VROOLI_ROOT:-${HOME}/Vrooli}/data}/resources/tars-desktop"
 export TARS_DESKTOP_SCRIPTS_DIR="${TARS_DESKTOP_DATA_DIR}/scripts"
 export TARS_DESKTOP_VENV_DIR="${TARS_DESKTOP_DATA_DIR}/venv"
 export TARS_DESKTOP_LOG_FILE="${TARS_DESKTOP_DATA_DIR}/tars-desktop.log"

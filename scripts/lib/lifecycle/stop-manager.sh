@@ -531,6 +531,7 @@ stop::processes() {
     stop::log verbose "Checking for bash scenario processes..."
     local bash_patterns=(
         "scenario-to-app.sh"
+        "enhanced_orchestrator.py"
         "app_orchestrator.py"
         "simple-multi-app-starter"
     )

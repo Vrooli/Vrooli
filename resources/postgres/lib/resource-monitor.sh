@@ -8,7 +8,7 @@ DESCRIPTION="Monitor resource usage for PostgreSQL instances"
 
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 POSTGRES_LIB_DIR="${APP_ROOT}/resources/postgres/lib"
-source "${POSTGRES_LIB_DIR}/../config/defaults.sh"
+source "${APP_ROOT}/resources/postgres/config/defaults.sh"
 
 # Configuration
 MONITOR_INTERVAL=5

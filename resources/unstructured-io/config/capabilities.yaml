@@ -192,7 +192,7 @@ spec:
   
   # Testing and validation
   testing:
-    test_file: "scripts/resources/ai/unstructured-io/test/integration-test.sh"
+    test_file: "resources/unstructured-io/test/integration-test.sh"
     test_coverage:
       - service_health
       - document_processing
@@ -210,11 +210,11 @@ spec:
   
   # Documentation and examples
   documentation:
-    readme: "scripts/resources/ai/unstructured-io/README.md"
-    api_reference: "scripts/resources/ai/unstructured-io/docs/API.md"
-    examples_dir: "scripts/resources/ai/unstructured-io/examples/"
-    configuration: "scripts/resources/ai/unstructured-io/docs/CONFIGURATION.md"
-    troubleshooting: "scripts/resources/ai/unstructured-io/docs/TROUBLESHOOTING.md"
+    readme: "resources/unstructured-io/README.md"
+    api_reference: "resources/unstructured-io/docs/API.md"
+    examples_dir: "resources/unstructured-io/examples/"
+    configuration: "resources/unstructured-io/docs/CONFIGURATION.md"
+    troubleshooting: "resources/unstructured-io/docs/TROUBLESHOOTING.md"
   
   # Version and compatibility
   version_info:

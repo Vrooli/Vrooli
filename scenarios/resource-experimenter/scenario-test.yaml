@@ -70,7 +70,7 @@ tests:
         
   - name: Claude Code Health Check
     type: command
-    command: bash ${VROOLI_ROOT:-$(pwd)/..}/resources/claude-code/manage.sh --action health-check --check-type basic
+    command: resource-claude-code test smoke
     expected:
       exit_code: 0
       

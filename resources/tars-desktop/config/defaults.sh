@@ -7,8 +7,8 @@ export TARS_DESKTOP_CATEGORY="execution"
 
 # Installation settings
 export TARS_DESKTOP_REPO="https://github.com/cccc-icu/UI-TARS-desktop"
-export TARS_DESKTOP_INSTALL_DIR="${var_DATA_DIR:-/home/matthalloran8/Vrooli/data}/tars-desktop"
-export TARS_DESKTOP_CACHE_DIR="${var_CACHE_DIR:-/home/matthalloran8/Vrooli/.cache}/tars-desktop"
+export TARS_DESKTOP_INSTALL_DIR="${var_DATA_DIR:-${VROOLI_ROOT:-${HOME}/Vrooli}/data}/tars-desktop"
+export TARS_DESKTOP_CACHE_DIR="${var_CACHE_DIR:-${VROOLI_ROOT:-${HOME}/Vrooli}/.cache}/tars-desktop"
 
 # Python environment
 export TARS_DESKTOP_PYTHON_VERSION="3.11"
@@ -35,7 +35,4 @@ export TARS_DESKTOP_HEALTH_CHECK_INTERVAL="30"
 export TARS_DESKTOP_HEALTH_CHECK_TIMEOUT="10"
 export TARS_DESKTOP_HEALTH_CHECK_RETRIES="3"
 
-# Export all variables
-export -p | grep "^export TARS_DESKTOP_" | cut -d' ' -f3- | while IFS='=' read -r key value; do
-    export "$key"
-done
+# All variables are already exported above

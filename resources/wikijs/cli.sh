@@ -1,11 +1,17 @@
-#!/bin/bash
-
-# Wiki.js Resource CLI
+#!/usr/bin/env bash
+################################################################################
+# Wiki.js Resource CLI - v2.0 Universal Contract Compliant
+# 
 # Modern wiki platform with Git storage backend
+#
+# Usage:
+#   resource-wikijs <command> [options]
+#   resource-wikijs <group> <subcommand> [options]
+#
+################################################################################
 
 set -euo pipefail
 
-# Get script directory (resolve symlinks)
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
 # Handle symlinks for installed CLI
 if [[ -L "${BASH_SOURCE[0]}" ]]; then
@@ -13,137 +19,60 @@ if [[ -L "${BASH_SOURCE[0]}" ]]; then
     # Recalculate APP_ROOT from resolved symlink location
     APP_ROOT="$(builtin cd "${WIKIJS_CLI_SCRIPT%/*}/../.." && builtin pwd)"
 fi
+WIKIJS_CLI_DIR="${APP_ROOT}/resources/wikijs"
 
-WIKIJS_DIR="${APP_ROOT}/resources/wikijs"
-
-# Source dependencies
+# shellcheck disable=SC1091
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
-source "${APP_ROOT}/scripts/lib/utils/format.sh"
-source "$WIKIJS_DIR/lib/common.sh"
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}"
+# shellcheck disable=SC1091
+source "${var_RESOURCES_COMMON_FILE}"
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 
-# Display help
-show_help() {
-    cat << EOF
-Wiki.js Resource Manager
+# Source Wiki.js libraries
+for lib in common install uninstall lifecycle status logs test api search backup git; do
+    lib_file="${WIKIJS_CLI_DIR}/lib/${lib}.sh"
+    if [[ -f "$lib_file" ]]; then
+        # shellcheck disable=SC1090
+        source "$lib_file" 2>/dev/null || true
+    fi
+done
 
-Usage: $(basename "$0") <command> [options]
+# Initialize CLI framework in v2.0 mode (auto-creates manage/test/content groups)
+cli::init "wikijs" "Wiki.js platform management" "v2"
 
-Commands:
-  install          Install Wiki.js
-  uninstall        Uninstall Wiki.js (requires --force)
-  start            Start Wiki.js
-  stop             Stop Wiki.js
-  restart          Restart Wiki.js
-  status           Show Wiki.js status
-  logs             Show Wiki.js logs
-  test             Run integration tests
-  inject           Inject content into Wiki.js
-  api              Direct API access
-  search           Search wiki content
-  backup           Backup Wiki.js data
-  restore          Restore Wiki.js backup
-  git-sync         Sync with Git repository
-  rebuild-search   Rebuild search index
-  help             Show this help message
+# Override default handlers to point directly to wikijs implementations
+CLI_COMMAND_HANDLERS["manage::install"]="install_wikijs"
+CLI_COMMAND_HANDLERS["manage::uninstall"]="uninstall_wikijs"
+CLI_COMMAND_HANDLERS["manage::start"]="start_wikijs"  
+CLI_COMMAND_HANDLERS["manage::stop"]="stop_wikijs"
+CLI_COMMAND_HANDLERS["manage::restart"]="restart_wikijs"
 
-Options:
-  --dry-run        Show what would be done without making changes
-  --force          Force operation (required for destructive actions)
-  --json           Output in JSON format (for status)
-  --verbose        Show detailed output
+# Test handlers - health checks only
+CLI_COMMAND_HANDLERS["test::smoke"]="status_wikijs"
+CLI_COMMAND_HANDLERS["test::integration"]="run_tests"
+CLI_COMMAND_HANDLERS["test::all"]="run_tests"
 
-Examples:
-  $(basename "$0") install
-  $(basename "$0") status --json
-  $(basename "$0") test
-  $(basename "$0") api create-page --title "New Page" --content "Content here"
-  $(basename "$0") search "query term"
+# Content handlers for Wiki.js business functionality
+CLI_COMMAND_HANDLERS["content::add"]="inject_content"
+CLI_COMMAND_HANDLERS["content::list"]="search_content"
+CLI_COMMAND_HANDLERS["content::get"]="api_command"
+CLI_COMMAND_HANDLERS["content::remove"]="api_command"
 
-For more information, see: resources/wikijs/README.md
-EOF
-}
+# Additional information commands
+cli::register_command "status" "Show detailed resource status" "status_wikijs"
+cli::register_command "logs" "Show Wiki.js logs" "show_logs"
 
-# Main command handler
-main() {
-    local cmd="${1:-}"
-    shift || true
+# Add Wiki.js-specific content subcommands
+cli::register_subcommand "content" "api" "Direct API access to Wiki.js" "api_command"
+cli::register_subcommand "content" "search" "Search wiki content" "search_content"
+cli::register_subcommand "content" "backup" "Create Wiki.js backup" "backup_wikijs"
+cli::register_subcommand "content" "restore" "Restore Wiki.js backup" "restore_wikijs"
+cli::register_subcommand "content" "git-sync" "Sync with Git repository" "sync_git"
+cli::register_subcommand "content" "rebuild-search" "Rebuild search index" "rebuild_search_index"
 
-    case "$cmd" in
-        install)
-            source "$WIKIJS_DIR/lib/install.sh"
-            install_wikijs "$@"
-            ;;
-        uninstall)
-            source "$WIKIJS_DIR/lib/uninstall.sh"
-            uninstall_wikijs "$@"
-            ;;
-        start)
-            source "$WIKIJS_DIR/lib/lifecycle.sh"
-            start_wikijs "$@"
-            ;;
-        stop)
-            source "$WIKIJS_DIR/lib/lifecycle.sh"
-            stop_wikijs "$@"
-            ;;
-        restart)
-            source "$WIKIJS_DIR/lib/lifecycle.sh"
-            restart_wikijs "$@"
-            ;;
-        status)
-            source "$WIKIJS_DIR/lib/status.sh"
-            status_wikijs "$@"
-            ;;
-        logs)
-            source "$WIKIJS_DIR/lib/logs.sh"
-            show_logs "$@"
-            ;;
-        test)
-            source "$WIKIJS_DIR/lib/test.sh"
-            run_tests "$@"
-            ;;
-        inject)
-            source "$WIKIJS_DIR/lib/inject.sh"
-            inject_content "$@"
-            ;;
-        api)
-            source "$WIKIJS_DIR/lib/api.sh"
-            api_command "$@"
-            ;;
-        search)
-            source "$WIKIJS_DIR/lib/search.sh"
-            search_content "$@"
-            ;;
-        backup)
-            source "$WIKIJS_DIR/lib/backup.sh"
-            backup_wikijs "$@"
-            ;;
-        restore)
-            source "$WIKIJS_DIR/lib/backup.sh"
-            restore_wikijs "$@"
-            ;;
-        git-sync)
-            source "$WIKIJS_DIR/lib/git.sh"
-            sync_git "$@"
-            ;;
-        rebuild-search)
-            source "$WIKIJS_DIR/lib/search.sh"
-            rebuild_search_index "$@"
-            ;;
-        help|--help|-h)
-            show_help
-            ;;
-        "")
-            echo "Error: No command specified"
-            show_help
-            exit 1
-            ;;
-        *)
-            echo "Error: Unknown command: $cmd"
-            show_help
-            exit 1
-            ;;
-    esac
-}
-
-# Run main function
-main "$@"
+# Only execute if script is run directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    cli::dispatch "$@"
+fi

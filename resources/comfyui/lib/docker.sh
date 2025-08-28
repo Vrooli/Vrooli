@@ -6,7 +6,7 @@
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 _COMFYUI_DOCKER_DIR="${APP_ROOT}/resources/comfyui/lib"
 # shellcheck disable=SC1091
-source "${_COMFYUI_DOCKER_DIR}/../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 # Source shared libraries
 # shellcheck disable=SC1091

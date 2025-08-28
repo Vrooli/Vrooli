@@ -197,7 +197,7 @@ spec:
   
   # Testing and validation
   testing:
-    test_file: "scripts/resources/automation/windmill/test/integration-test.sh"
+    test_file: "resources/windmill/test/integration-test.sh"
     test_coverage:
       - service_health
       - workflow_execution
@@ -215,12 +215,12 @@ spec:
   
   # Documentation and examples
   documentation:
-    readme: "scripts/resources/automation/windmill/README.md"
-    api_reference: "scripts/resources/automation/windmill/docs/API.md"
-    examples_dir: "scripts/resources/automation/windmill/examples/"
-    configuration: "scripts/resources/automation/windmill/docs/CONFIGURATION.md"
-    architecture: "scripts/resources/automation/windmill/docs/ARCHITECTURE.md"
-    installation: "scripts/resources/automation/windmill/docs/INSTALLATION.md"
+    readme: "resources/windmill/README.md"
+    api_reference: "resources/windmill/docs/API.md"
+    examples_dir: "resources/windmill/examples/"
+    configuration: "resources/windmill/docs/CONFIGURATION.md"
+    architecture: "resources/windmill/docs/ARCHITECTURE.md"
+    installation: "resources/windmill/docs/INSTALLATION.md"
   
   # Version and compatibility
   version_info:

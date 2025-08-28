@@ -300,7 +300,7 @@ Analyze system for anomalies and provide findings.`,
 	}
 
 	// Execute Claude Code investigation with timeout
-	cmd := exec.Command("bash", "-c", fmt.Sprintf(`cd /home/matthalloran8/Vrooli && echo %q | timeout 300 vrooli resource claude-code`, prompt))
+	cmd := exec.Command("bash", "-c", fmt.Sprintf(`cd ${VROOLI_ROOT:-${HOME}/Vrooli} && echo %q | timeout 300 vrooli resource claude-code`, prompt))
 	output, err := cmd.Output()
 
 	if err != nil {
@@ -328,11 +328,30 @@ Analyze system for anomalies and provide findings.`,
 }
 
 func loadAndProcessPromptWithInvestigation(cpuUsage, memoryUsage float64, tcpConnections int, timestamp string, investigationID string) (string, error) {
+	// Get environment variables with defaults
+	vrooliRoot := os.Getenv("VROOLI_ROOT")
+	if vrooliRoot == "" {
+		homeDir := os.Getenv("HOME")
+		if homeDir == "" {
+			homeDir = "/root" // fallback for containers
+		}
+		vrooliRoot = homeDir + "/Vrooli"
+	}
+	
+	generatedAppsRoot := os.Getenv("GENERATED_APPS_ROOT")
+	if generatedAppsRoot == "" {
+		homeDir := os.Getenv("HOME")
+		if homeDir == "" {
+			homeDir = "/root" // fallback for containers
+		}
+		generatedAppsRoot = homeDir + "/generated-apps"
+	}
+
 	// Construct path to prompt file
 	// Try both the local scenario path and the generated app path
 	promptPaths := []string{
-		"/home/matthalloran8/Vrooli/scenarios/system-monitor/initialization/claude-code/anomaly-check.md",
-		"/home/matthalloran8/generated-apps/system-monitor/initialization/claude-code/anomaly-check.md",
+		vrooliRoot + "/scenarios/system-monitor/initialization/claude-code/anomaly-check.md",
+		generatedAppsRoot + "/system-monitor/initialization/claude-code/anomaly-check.md",
 		"initialization/claude-code/anomaly-check.md", // Relative path as fallback
 	}
 

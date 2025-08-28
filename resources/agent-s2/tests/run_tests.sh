@@ -17,7 +17,7 @@ source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
 
 # Source trash system for safe removal
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+source "${var_TRASH_FILE}"
 
 AGENT_S2_DIR="${AGENT_S2_TESTS_DIR}/.."
 PYTHON_VENV=""
@@ -406,7 +406,7 @@ check_agent_health() {
         return 0
     else
         print_warning "Agent S2 is not running - integration tests may fail"
-        print_status "Start Agent S2 with: ${AGENT_S2_DIR}/manage.sh --action start"
+        print_status "Start Agent S2 with: resource-agent-s2 manage start"
         return 1
     fi
 }

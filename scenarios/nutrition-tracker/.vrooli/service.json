@@ -1,113 +1,199 @@
 {
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
   "service": {
+    "parent": "vrooli",
     "name": "nutrition-tracker",
+    "displayName": "Nutrition Tracker",
     "description": "Smart nutrition tracking with calorie counting, macro tracking, and AI-powered meal suggestions",
     "version": "1.0.0",
-    "category": "saas-applications",
-    "enabled": true,
-    "ui": true,
+    "tags": [
+      "saas-applications",
+      "health",
+      "nutrition",
+      "calorie-tracking",
+      "macro-tracking",
+      "meal-planning",
+      "ai-suggestions",
+      "fitness",
+      "go-api",
+      "nodejs-ui",
+      "n8n-workflows",
+      "postgres-storage",
+      "redis-cache",
+      "qdrant-vectors",
+      "ollama-ai"
+    ]
+  },
+  "ports": {
     "api": {
-      "type": "go",
-      "port": "${PORT}",
-      "command": "./nutrition-tracker-api"
+      "env_var": "SERVICE_PORT",
+      "range": "26000-26249",
+      "fallback": "auto",
+      "description": "Nutrition tracker API port"
     },
-    "cli": {
-      "enabled": true,
-      "command": "./cli/nutrition-tracker"
-    },
-    "ui_config": {
-      "type": "javascript",
-      "port": "${UI_PORT}",
-      "start_command": "node server.js"
-    },
-    "resources": {
-      "automation": {
-        "n8n": {
-          "required": true
-        }
-      },
-      "databases": {
-        "postgres": {
-          "required": true
-        },
-        "redis": {
-          "required": true
-        },
-        "qdrant": {
-          "required": true
-        }
-      },
-      "ai": {
-        "ollama": {
-          "required": true,
-          "models": ["llama3.2"]
-        }
+    "ui": {
+      "env_var": "UI_PORT",
+      "range": "33250-33499",
+      "fallback": "auto",
+      "description": "Nutrition tracker UI port"
+    }
+  },
+  "resources": {
+    "automation": {
+      "n8n": {
+        "type": "n8n",
+        "enabled": true,
+        "required": true,
+        "initialization": [
+          {
+            "file": "initialization/n8n/calorie-calculator.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/macro-tracker.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/meal-suggester.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/nutrition-analyzer.json",
+            "type": "workflow"
+          }
+        ]
       }
     },
-    "initialization": {
-      "n8n": [
+    "storage": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store user profiles, food entries, meals, and nutrition data",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "script"
+          },
+          {
+            "file": "initialization/postgres/seed.sql",
+            "type": "script"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": true,
+        "purpose": "Cache nutrition data and user session management"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "purpose": "Vector search for similar foods and meal suggestions"
+      }
+    },
+    "ai": {
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "models": [
+          "llama3.2"
+        ]
+      }
+    }
+  },
+  "lifecycle": {
+    "version": "1.0.0",
+    "setup": {
+      "description": "Initialize Nutrition Tracker",
+      "steps": [
         {
-          "source": "initialization/n8n/calorie-calculator.json",
-          "active": true
+          "name": "base-setup",
+          "run": "bash scripts/lib/setup.sh",
+          "description": "Execute generic setup"
         },
         {
-          "source": "initialization/n8n/macro-tracker.json",
-          "active": true
+          "name": "add-data",
+          "run": "scripts/resources/populate/populate.sh .",
+          "description": "Add app data to resources"
         },
         {
-          "source": "initialization/n8n/meal-suggester.json",
-          "active": true
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o nutrition-tracker-api main.go",
+          "description": "Build Go API binary"
         },
         {
-          "source": "initialization/n8n/nutrition-analyzer.json",
-          "active": true
-        }
-      ],
-      "postgres": [
-        {
-          "source": "initialization/postgres/schema.sql",
-          "type": "schema"
+          "name": "install-cli",
+          "run": "chmod +x cli/nutrition-tracker",
+          "description": "Make CLI executable"
         },
         {
-          "source": "initialization/postgres/seed.sql",
-          "type": "seed"
+          "name": "setup-ui",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo 'Nutrition Tracker initialized - UI: http://localhost:${UI_PORT} - API: http://localhost:${SERVICE_PORT}'",
+          "description": "Display service URLs"
         }
       ]
     },
-    "lifecycle": {
-      "setup": [
-        "cd api && go build -o nutrition-tracker-api main.go",
-        "chmod +x cli/nutrition-tracker",
-        "cd ui && npm install"
-      ],
-      "develop": [
-        "cd api && ./nutrition-tracker-api &",
-        "cd ui && node server.js &"
-      ],
-      "test": [
-        "./test/validate.sh"
-      ],
-      "stop": [
-        "pkill -f nutrition-tracker-api",
-        "pkill -f 'node server.js'"
+    "develop": {
+      "description": "Start Nutrition Tracker services",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && PORT=$SERVICE_PORT ./nutrition-tracker-api &",
+          "description": "Start API server",
+          "background": true
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && PORT=$UI_PORT API_URL=http://localhost:$SERVICE_PORT node server.js &",
+          "description": "Start UI server",
+          "background": true
+        },
+        {
+          "name": "wait-for-services",
+          "run": "sleep 3",
+          "description": "Wait for services to start"
+        },
+        {
+          "name": "show-running",
+          "run": "echo 'Services running - UI: http://localhost:${UI_PORT} - API: http://localhost:${SERVICE_PORT}'",
+          "description": "Display running services"
+        }
       ]
     },
-    "environment": {
-      "API_PORT": "${PORT:-8090}",
-      "UI_PORT": "${UI_PORT:-3090}",
-      "POSTGRES_HOST": "${POSTGRES_HOST:-localhost}",
-      "POSTGRES_PORT": "${POSTGRES_PORT:-5432}",
-      "POSTGRES_DB": "nutrition_tracker",
-      "POSTGRES_USER": "${POSTGRES_USER:-postgres}",
-      "POSTGRES_PASSWORD": "${POSTGRES_PASSWORD}",
-      "REDIS_HOST": "${REDIS_HOST:-localhost}",
-      "REDIS_PORT": "${REDIS_PORT:-6379}",
-      "QDRANT_HOST": "${QDRANT_HOST:-localhost}",
-      "QDRANT_PORT": "${QDRANT_PORT:-6333}",
-      "OLLAMA_HOST": "${OLLAMA_HOST:-localhost}",
-      "OLLAMA_PORT": "${OLLAMA_PORT:-11434}",
-      "N8N_HOST": "${N8N_HOST:-localhost}",
-      "N8N_PORT": "${N8N_PORT:-5678}"
+    "test": {
+      "description": "Test Nutrition Tracker",
+      "steps": [
+        {
+          "name": "validate",
+          "run": "./test/validate.sh",
+          "description": "Run validation tests"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop Nutrition Tracker services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f nutrition-tracker-api || true",
+          "description": "Stop API server"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f 'node server.js' || true",
+          "description": "Stop UI server"
+        }
+      ]
     }
   }
 }

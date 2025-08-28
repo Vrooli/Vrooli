@@ -7,9 +7,9 @@
     "displayName": "AI Research Assistant",
     "description": "Enterprise-grade AI research platform with DeepSearch-quality reports, chatbot interface, and automated scheduling",
     "version": "1.0.0",
-    "type": "business-application",
-    "category": "ai-research",
     "tags": [
+      "business-application",
+      "ai-research",
       "research-automation",
       "competitive-intelligence",
       "knowledge-management",
@@ -18,7 +18,14 @@
       "market-analysis",
       "content-synthesis",
       "searxng-integration",
-      "rag-system"
+      "rag-system",
+      "go-api",
+      "n8n-workflows",
+      "windmill-apps",
+      "postgres-storage",
+      "qdrant-vectors",
+      "minio-storage",
+      "ollama-ai"
     ]
   },
   "resources": {
@@ -120,7 +127,7 @@
   "ports": {
     "api": {
       "env_var": "SERVICE_PORT",
-      "range": "8090-8999",
+      "range": "27750-27999",
       "fallback": "auto",
       "description": "Research assistant API port"
     }

@@ -9,7 +9,7 @@ WIKIJS_CONTAINER="wikijs"
 WIKIJS_IMAGE="requarks/wiki:2"
 WIKIJS_DB_NAME="wikijs"
 WIKIJS_DB_USER="wikijs"
-WIKIJS_DATA_DIR="${var_DATA_DIR:-/var/lib/vrooli}/wikijs"
+WIKIJS_DATA_DIR="${var_DATA_DIR:-/var/lib/vrooli}/resources/wikijs"
 WIKIJS_CONFIG_FILE="$WIKIJS_DATA_DIR/config.yml"
 
 # Get Wiki.js port from registry

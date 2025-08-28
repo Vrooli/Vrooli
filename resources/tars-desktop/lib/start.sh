@@ -33,7 +33,7 @@ tars_desktop::start() {
     log::info "Starting TARS-desktop server on port $TARS_DESKTOP_PORT..."
     
     # Create log directory
-    local log_dir="${var_LOG_DIR:-/home/matthalloran8/Vrooli/logs}/tars-desktop"
+    local log_dir="${var_LOG_DIR:-${VROOLI_ROOT:-${HOME}/Vrooli}/logs}/tars-desktop"
     mkdir -p "$log_dir"
     
     # Start server in background
@@ -151,10 +151,24 @@ tars_desktop::restart() {
     tars_desktop::start "$verbose"
 }
 
+# Show TARS-desktop logs
+tars_desktop::logs() {
+    local lines="${1:-50}"
+    local log_dir="${var_LOG_DIR:-${VROOLI_ROOT:-${HOME}/Vrooli}/logs}/tars-desktop"
+    local log_file="${log_dir}/server.log"
+    
+    if [[ -f "$log_file" ]]; then
+        tail -n "$lines" "$log_file"
+    else
+        echo "No log file found at $log_file"
+    fi
+}
+
 # Export functions
 export -f tars_desktop::start
 export -f tars_desktop::stop
 export -f tars_desktop::restart
+export -f tars_desktop::logs
 
 # Wrapper functions for compatibility
 tars_desktop_start() {

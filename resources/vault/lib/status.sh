@@ -10,7 +10,7 @@ source "${APP_ROOT}/scripts/lib/utils/format.sh"
 # shellcheck disable=SC1091
 source "${APP_ROOT}/scripts/resources/lib/status-args.sh"
 # shellcheck disable=SC1091
-source "${VAULT_STATUS_DIR}/../config/defaults.sh" 2>/dev/null || true
+source "${APP_ROOT}/resources/vault/config/defaults.sh"
 
 # Ensure configuration is exported
 if command -v vault::export_config &>/dev/null; then

@@ -31,7 +31,10 @@ except ImportError:
     sys.exit(1)
 
 # Import shared utilities
-from orchestrator_utils import ForkBombDetector, MAX_APPS, ORCHESTRATOR_LOCK_FILE
+from orchestrator_utils import (
+    ForkBombDetector, MAX_APPS, ORCHESTRATOR_LOCK_FILE, 
+    ORCHESTRATOR_PID_FILE
+)
 
 # API Configuration
 API_PORT = int(os.environ.get('ORCHESTRATOR_PORT', '9500'))  # Use environment variable with fallback
@@ -270,6 +273,61 @@ class EnhancedAppOrchestrator:
         except OSError:
             return False
     
+    def _export_resource_ports(self, env: dict, app_name: str):
+        """Load RESOURCE_PORTS from port_registry.sh and export as environment variables"""
+        port_registry_path = self.vrooli_root / "scripts" / "resources" / "port_registry.sh"
+        
+        if not port_registry_path.exists():
+            self.logger.warning(f"port_registry.sh not found, resources will use default ports")
+            return
+        
+        try:
+            # Parse the bash associative array from port_registry.sh
+            cmd = f"""
+                source "{port_registry_path}" 2>/dev/null
+                for key in "${{!RESOURCE_PORTS[@]}}"; do
+                    echo "$key=${{RESOURCE_PORTS[$key]}}"
+                done
+            """
+            
+            result = subprocess.run(
+                ["bash", "-c", cmd],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            
+            if result.returncode == 0 and result.stdout:
+                for line in result.stdout.strip().split('\n'):
+                    if '=' in line:
+                        resource_name, port = line.split('=', 1)
+                        
+                        # Convert to environment variable name: postgres -> POSTGRES_PORT
+                        port_var = resource_name.upper().replace('-', '_') + '_PORT'
+                        env[port_var] = port
+                        
+                        # Generate URL based on resource type
+                        url_var = resource_name.upper().replace('-', '_') + '_URL'
+                        
+                        # Generate appropriate URL format based on resource
+                        if resource_name == 'postgres':
+                            db_name = app_name.replace('-', '_')
+                            env[url_var] = f"postgres://postgres:postgres@localhost:{port}/{db_name}?sslmode=disable"
+                        elif resource_name == 'redis':
+                            env[url_var] = f"redis://localhost:{port}"
+                        elif resource_name in ['neo4j-bolt']:
+                            env[url_var] = f"bolt://localhost:{port}"
+                        else:
+                            # Default to HTTP for most services
+                            env[url_var] = f"http://localhost:{port}"
+                
+                self.logger.debug(f"Exported {len([k for k in env if k.endswith('_PORT')])} resource ports for {app_name}")
+            else:
+                self.logger.warning("Failed to parse port_registry.sh")
+                
+        except Exception as e:
+            self.logger.error(f"Error loading resource ports: {e}")
+    
     async def start_app(self, app_name: str) -> bool:
         """Start a specific app"""
         if app_name not in self.apps:
@@ -340,6 +398,9 @@ class EnhancedAppOrchestrator:
             env['VROOLI_APP_NAME'] = app_name
             env['VROOLI_TRACKED'] = '1'
             env['VROOLI_SAFE'] = '1'
+            
+            # Load and export RESOURCE_PORTS from port_registry.sh
+            self._export_resource_ports(env, app_name)
             
             # Set port environment variables
             for port_type, port_num in app.allocated_ports.items():
@@ -656,6 +717,62 @@ class EnhancedAppOrchestrator:
         self.logger.info("Orchestrator shutdown complete")
 
 
+def check_existing_orchestrator():
+    """Check if another orchestrator instance is already running"""
+    # Check PID file
+    if os.path.exists(ORCHESTRATOR_PID_FILE):
+        try:
+            with open(ORCHESTRATOR_PID_FILE, 'r') as f:
+                pid = int(f.read().strip())
+            
+            # Check if process is actually running
+            try:
+                process = psutil.Process(pid)
+                if process.is_running():
+                    # Double-check it's actually an orchestrator process
+                    cmdline = ' '.join(process.cmdline())
+                    if 'orchestrator' in cmdline.lower():
+                        return pid
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                # Process doesn't exist, clean up PID file
+                os.remove(ORCHESTRATOR_PID_FILE)
+        except (ValueError, IOError):
+            # Invalid PID file, remove it
+            os.remove(ORCHESTRATOR_PID_FILE)
+    
+    # Also check if port is in use
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        sock.bind((API_HOST, API_PORT))
+        sock.close()
+        return None
+    except OSError:
+        # Port in use, try to find the process
+        for proc in psutil.process_iter(['pid', 'cmdline']):
+            try:
+                cmdline = ' '.join(proc.info['cmdline'] or [])
+                if 'orchestrator' in cmdline.lower():
+                    return proc.info['pid']
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
+        return -1  # Port in use but can't find orchestrator
+
+def write_pid_file():
+    """Write current process PID to file"""
+    with open(ORCHESTRATOR_PID_FILE, 'w') as f:
+        f.write(str(os.getpid()))
+
+def cleanup_pid_file():
+    """Remove PID file on exit"""
+    try:
+        if os.path.exists(ORCHESTRATOR_PID_FILE):
+            with open(ORCHESTRATOR_PID_FILE, 'r') as f:
+                saved_pid = int(f.read().strip())
+            if saved_pid == os.getpid():
+                os.remove(ORCHESTRATOR_PID_FILE)
+    except (ValueError, IOError):
+        pass
+
 async def main():
     """Main entry point for enhanced orchestrator"""
     import argparse
@@ -665,8 +782,43 @@ async def main():
     parser.add_argument("--fast", action="store_true", help="Enable fast mode")
     parser.add_argument("--background", action="store_true", help="Run in background")
     parser.add_argument("--start-all", action="store_true", help="Start all enabled apps")
+    parser.add_argument("--force", action="store_true", help="Force start even if another instance exists")
     
     args = parser.parse_args()
+    
+    # Check for existing instance (unless forced)
+    if not args.force:
+        existing_pid = check_existing_orchestrator()
+        if existing_pid:
+            if existing_pid == -1:
+                print(f"ERROR: Port {API_PORT} is already in use by another process", file=sys.stderr)
+                print(f"Use --force to override or kill the existing process first", file=sys.stderr)
+            else:
+                print(f"ERROR: Another orchestrator instance is already running (PID: {existing_pid})", file=sys.stderr)
+                print(f"Stop it first with: kill {existing_pid}", file=sys.stderr)
+                print(f"Or use --force to override", file=sys.stderr)
+            sys.exit(1)
+    else:
+        # Force mode: kill existing instance if found
+        existing_pid = check_existing_orchestrator()
+        if existing_pid and existing_pid != -1:
+            print(f"Killing existing orchestrator (PID: {existing_pid})...")
+            try:
+                os.kill(existing_pid, signal.SIGTERM)
+                time.sleep(2)
+            except ProcessLookupError:
+                pass
+    
+    # Write PID file
+    write_pid_file()
+    
+    # Register cleanup handler
+    def cleanup_handler(signum, frame):
+        cleanup_pid_file()
+        sys.exit(0)
+    
+    signal.signal(signal.SIGTERM, cleanup_handler)
+    signal.signal(signal.SIGINT, cleanup_handler)
     
     # Setup
     vrooli_root = Path.cwd()
@@ -710,11 +862,15 @@ async def main():
         
     except KeyboardInterrupt:
         await orchestrator.shutdown()
+        cleanup_pid_file()
         sys.exit(130)
     except Exception as e:
         orchestrator.logger.error(f"Fatal error: {e}")
         await orchestrator.shutdown()
+        cleanup_pid_file()
         sys.exit(1)
+    finally:
+        cleanup_pid_file()
 
 
 if __name__ == "__main__":

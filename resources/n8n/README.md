@@ -21,43 +21,43 @@ n8n is a powerful workflow automation platform that connects various services an
 ### Installation
 ```bash
 # Install with custom image (recommended for host access)
-./manage.sh --action install --build-image yes
+resource-n8n manage install --build-image yes
 
 # Install with standard n8n image
-./manage.sh --action install --build-image no
+resource-n8n manage install --build-image no
 
 # Install with PostgreSQL database
-./manage.sh --action install --database postgres --build-image yes
+resource-n8n manage install --database postgres --build-image yes
 
 # Force reinstall with custom settings
-./manage.sh --action install --build-image yes --basic-auth yes --username admin --password mypass --force yes
+resource-n8n manage install --build-image yes --basic-auth yes --username admin --password mypass --force yes
 ```
 
 ### Basic Usage
 ```bash
 # Check service status with comprehensive information  
-./manage.sh --action status
+resource-n8n
 
 # Test all functionality
-./manage.sh --action test
+resource-n8n test smoke
 
 # Execute workflow by ID (recommended method)
-./manage.sh --action execute --workflow-id WORKFLOW_ID
+resource-n8n content execute --workflow-id WORKFLOW_ID
 
 # List all workflows
-./manage.sh --action list-workflows
+resource-n8n content list
 
 # View service logs
-./manage.sh --action logs
+resource-n8n logs
 ```
 
 ### Verify Installation
 ```bash
 # Check service health and functionality
-./manage.sh --action status
+resource-n8n
 
 # Test workflow management
-./manage.sh --action list-workflows
+resource-n8n content list
 
 # Access web interface: http://localhost:5678
 # API base URL: http://localhost:5678/api/v1/
@@ -101,33 +101,33 @@ n8n is a powerful workflow automation platform that connects various services an
 ### Workflow Management
 ```bash
 # Export workflows for backup (recommended)
-./manage.sh --action export-workflows --output backup.json
+resource-n8n content export --output backup.json
 
 # Import workflows from file
-./manage.sh --action import-workflows --input backup.json
+resource-n8n content add --file backup.json
 
 # Activate/deactivate workflows
-./manage.sh --action activate-workflow --workflow-id WORKFLOW_ID
-./manage.sh --action deactivate-workflow --workflow-id WORKFLOW_ID
+resource-n8n content activate --workflow-id WORKFLOW_ID
+resource-n8n content deactivate --workflow-id WORKFLOW_ID
 
 # Database operations
-./manage.sh --action backup-database --output db-backup.sql
-./manage.sh --action restore-database --input db-backup.sql
+resource-n8n manage backup --output db-backup.sql
+resource-n8n manage restore --input db-backup.sql
 ```
 
 ### API Setup (Required for CLI Execution)
 ```bash
 # Get API setup instructions (recommended)
-./manage.sh --action api-setup
+resource-n8n content configure
 
 # Save API key to configuration (persists across sessions)
-./manage.sh --action save-api-key --api-key YOUR_API_KEY
+resource-n8n content configure --api-key YOUR_API_KEY
 
 # Execute workflows with saved API key
-./manage.sh --action execute --workflow-id WORKFLOW_ID
+resource-n8n content execute --workflow-id WORKFLOW_ID
 ```
 
-**⚠️ Important**: The n8n CLI command `n8n execute` is broken in versions 1.93.0+ (GitHub issue #15567). Use `./manage.sh --action execute` with API authentication instead.
+**⚠️ Important**: The n8n CLI command `n8n execute` is broken in versions 1.93.0+ (GitHub issue #15567). Use `resource-n8n content execute` with API authentication instead.
 
 ### With Other Vrooli Resources
 ```javascript

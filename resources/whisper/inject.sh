@@ -7,12 +7,12 @@ set -euo pipefail
 
 DESCRIPTION="Inject models and configurations into Whisper speech-to-text service"
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
 SCRIPT_DIR="${APP_ROOT}/resources/whisper"
 
 # Source var.sh first to get directory variables
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 # Source common utilities using var.sh variables
 # shellcheck disable=SC1091
@@ -20,14 +20,14 @@ source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/system_commands.sh"
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/trash.sh"
+source "${var_TRASH_FILE}"
 # shellcheck disable=SC1091
 source "${var_RESOURCES_COMMON_FILE}"
 
 # Source Whisper configuration if available
 if [[ -f "${SCRIPT_DIR}/config/defaults.sh" ]]; then
     # shellcheck disable=SC1091
-    source "${SCRIPT_DIR}/config/defaults.sh" 2>/dev/null || true
+    source "${SCRIPT_DIR}/config/defaults.sh"
 fi
 
 # Default Whisper settings
@@ -117,7 +117,7 @@ inject::check_accessibility() {
         return 0
     else
         log::error "Whisper is not accessible at $WHISPER_HOST"
-        log::info "Ensure Whisper is running: ./scripts/resources/ai/whisper/manage.sh --action start"
+        log::info "Ensure Whisper is running: resource-whisper manage start"
         return 1
     fi
 }

@@ -209,7 +209,7 @@ EOF
 ./scripts/manage.sh your-phase --dry-run
 
 # Test with actual scenarios
-./scripts/scenarios/framework/scenario-test-runner.sh test-scenario
+./scripts/scenarios/validation/scenario-test-runner.sh test-scenario
 ```
 
 ### 3. System Testing
@@ -331,7 +331,7 @@ get_config() {
 - **Lifecycle Management**: `scripts/manage.sh`
 - **Shared Libraries**: `scripts/lib/`
 - **Configuration Schema**: `.vrooli/schemas/service.schema.json`
-- **Testing Framework**: `scripts/__test/`
+- **Testing Framework**: `__test/`
 
 ## Advanced Development
 

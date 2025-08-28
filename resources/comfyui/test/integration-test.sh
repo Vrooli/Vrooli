@@ -6,7 +6,7 @@
 set -euo pipefail
 
 # Source enhanced integration test library with fixture support
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 SCRIPT_DIR="$APP_ROOT/resources/comfyui/test"
 # shellcheck disable=SC1091
 source "$APP_ROOT/tests/lib/enhanced-integration-test-lib.sh"

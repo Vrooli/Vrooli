@@ -9,7 +9,7 @@ source "$(builtin cd "${SCRIPT_DIR%/*/*/*/*/*}" && builtin pwd)/lib/utils/var.sh
 
 # Load Vrooli test infrastructure using var_ variables
 # shellcheck disable=SC1091
-source "${var_SCRIPTS_TEST_DIR}/fixtures/setup.bash"
+source "${var_TEST_DIR}/fixtures/setup.bash"
 
 # Expensive setup operations run once per file
 setup_file() {

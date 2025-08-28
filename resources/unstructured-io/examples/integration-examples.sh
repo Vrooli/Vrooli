@@ -5,7 +5,7 @@
 set -euo pipefail
 
 # Get the directory where this script is located
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
 SCRIPT_DIR="$APP_ROOT/resources/unstructured-io/examples"
 MANAGE_SCRIPT="$APP_ROOT/resources/unstructured-io/manage.sh"
 

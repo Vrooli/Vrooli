@@ -274,8 +274,8 @@ vault::storage::repair_permissions() {
     if [[ ${failed} -gt 0 ]]; then
         log::error "Some directories need elevated permissions to repair"
         log::info "Run the following command with sudo:"
-        log::info "  sudo chown -R $(sudo::get_actual_user 2>/dev/null || echo '$USER'):$(sudo::get_actual_group 2>/dev/null || echo '$USER') ${VAULT_DATA_DIR%/*"
-        log::info "  sudo chmod -R 755 ${VAULT_DATA_DIR%/*"
+        log::info "  sudo chown -R $(sudo::get_actual_user 2>/dev/null || echo '$USER'):$(sudo::get_actual_group 2>/dev/null || echo '$USER') ${VAULT_DATA_DIR%/*}"
+        log::info "  sudo chmod -R 755 ${VAULT_DATA_DIR%/*}"
         return 1
     fi
     

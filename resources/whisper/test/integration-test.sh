@@ -7,17 +7,17 @@
 set -euo pipefail
 
 # Source shared integration test library
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 SCRIPT_DIR="${APP_ROOT}/resources/whisper/test"
 
 # Source var.sh for directory variables
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 # Source integration test libraries using var.sh
 # shellcheck disable=SC1091
-if [[ -f "${var_SCRIPTS_TEST_DIR}/integration/health-check.sh" ]]; then
-    source "${var_SCRIPTS_TEST_DIR}/integration/health-check.sh"
+if [[ -f "${var_TEST_DIR}/integration/health-check.sh" ]]; then
+    source "${var_TEST_DIR}/integration/health-check.sh"
 else
     # Define basic functions if library not found
     log_test_result() {
@@ -51,8 +51,8 @@ if [[ -f "${var_RESOURCES_COMMON_FILE}" ]]; then
 fi
 
 # shellcheck disable=SC1091
-if [[ -f "$SCRIPT_DIR/../config/defaults.sh" ]]; then
-    source "$SCRIPT_DIR/../config/defaults.sh"
+if [[ -f "${APP_ROOT}/resources/whisper/config/defaults.sh" ]]; then
+    source "${APP_ROOT}/resources/whisper/config/defaults.sh"
     # Check if function exists before calling
     if declare -f defaults::export_config >/dev/null 2>&1; then
         defaults::export_config
@@ -71,7 +71,7 @@ SERVICE_METADATA=(
 )
 
 # Test configuration
-readonly TEST_AUDIO_DIR="${var_SCRIPTS_TEST_DIR}/fixtures/data/audio"
+readonly TEST_AUDIO_DIR="${var_TEST_DIR}/fixtures/data/audio"
 readonly API_BASE=""
 
 #######################################

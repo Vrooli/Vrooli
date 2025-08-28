@@ -183,11 +183,11 @@ main() {
             fi
         done
         
-        # Check for resource injection usage
-        if jq -e '.lifecycle.setup.steps[] | select(.run | contains("scripts/resources/injection/engine.sh"))' "$SCENARIO_DIR/.vrooli/service.json" >/dev/null 2>&1; then
-            log_success "Uses resource injection engine"
+        # Check for resource populate system usage
+        if jq -e '.lifecycle.setup.steps[] | select(.run | contains("scripts/resources/populate/populate.sh"))' "$SCENARIO_DIR/.vrooli/service.json" >/dev/null 2>&1; then
+            log_success "Uses resource populate system"
         else
-            log_error "Does not use resource injection engine"
+            log_error "Does not use resource populate system"
             ((MIGRATION_ERRORS++))
         fi
         

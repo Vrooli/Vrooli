@@ -3,12 +3,12 @@
 # Windmill requires Docker Compose for multi-service orchestration
 
 # Source required utilities
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 WINDMILL_LIB_DIR="${APP_ROOT}/resources/windmill/lib"
 # shellcheck disable=SC1091
-source "${WINDMILL_LIB_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+source "${var_TRASH_FILE}"
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_LIB_DIR}/docker-resource-utils.sh"
 
@@ -263,7 +263,9 @@ windmill::cleanup() {
         log::info "Removing Windmill images..."
         local images
         images=$(docker images --filter "reference=ghcr.io/windmill-labs/windmill" --format "{{.ID}}" 2>/dev/null || true)
-        [[ -n "$images" ]] && docker rmi $images 2>/dev/null || true
+        if [[ -n "$images" ]]; then
+            docker rmi $images 2>/dev/null || true
+        fi
     fi
     
     log::success "Windmill cleanup completed"

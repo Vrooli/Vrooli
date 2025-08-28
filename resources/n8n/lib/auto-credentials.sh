@@ -13,9 +13,9 @@ APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pw
 N8N_AUTO_CREDS_DIR="${APP_ROOT}/resources/n8n/lib"
 
 # shellcheck disable=SC1091
-source "${N8N_AUTO_CREDS_DIR}/../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "${var_LOG_FILE:-${N8N_AUTO_CREDS_DIR}/../../../../lib/utils/log.sh}"
+source "${var_LOG_FILE:-${N8N_AUTO_CREDS_DIR}/${APP_ROOT}/scripts/lib/utils/log.sh}"
 # shellcheck disable=SC1091
 source "${N8N_AUTO_CREDS_DIR}/credential-registry.sh"
 

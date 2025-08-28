@@ -7,6 +7,18 @@ POSTGRES_STATUS_DIR="${APP_ROOT}/resources/postgres/lib"
 # shellcheck disable=SC1091
 source "${APP_ROOT}/scripts/resources/lib/status-args.sh"
 
+# Source required dependencies
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/lib/system/flow.sh" 2>/dev/null || true
+
+# Source common functions for postgres::common::list_instances
+# shellcheck disable=SC1091
+source "${POSTGRES_STATUS_DIR}/common.sh"
+
 #######################################
 # Get comprehensive PostgreSQL resource status
 # Arguments:
@@ -195,7 +207,7 @@ postgres::status::show_instance() {
         
     else
         log::warn "Container: Stopped"
-        log::info "Use 'manage.sh --action start --instance $instance_name' to start"
+        log::info "Use 'resource-postgres manage start --instance $instance_name' to start"
     fi
     
     return 0
@@ -343,14 +355,34 @@ postgres::status::custom_sections() {
     local status_config="$1"
     
     log::info "💾 PostgreSQL Instances:"
-    log::info "   ✅ main: running (port 5433)"
-    log::info "   ❌ scenario-generator-v1: stopped (port 5434)"
+    local instances=($(postgres::common::list_instances))
+    local running_count=0
+    local healthy_count=0
+    
+    if [[ ${#instances[@]} -eq 0 ]]; then
+        log::info "   ❌ No instances configured"
+    else
+        for instance in "${instances[@]}"; do
+            local port=$(postgres::common::get_instance_config "$instance" "port" 2>/dev/null || echo "unknown")
+            if postgres::common::is_running "$instance"; then
+                ((running_count++))
+                if postgres::common::health_check "$instance" >/dev/null 2>&1; then
+                    ((healthy_count++))
+                    log::info "   ✅ $instance: running (port $port)"
+                else
+                    log::info "   ⚠️  $instance: running but unhealthy (port $port)"
+                fi
+            else
+                log::info "   ❌ $instance: stopped (port $port)"
+            fi
+        done
+    fi
     
     echo
     log::info "📊 Instance Summary:"
-    log::info "   Running: 1/2"
-    log::info "   Healthy: 1/2"
-    log::info "   Available ports: 5433-5499"
+    log::info "   Running: $running_count/${#instances[@]}"
+    log::info "   Healthy: $healthy_count/${#instances[@]}"
+    log::info "   Available ports: ${POSTGRES_INSTANCE_PORT_RANGE_START}-${POSTGRES_INSTANCE_PORT_RANGE_END}"
     
     echo
     log::info "🔗 Connection Information:"
@@ -430,7 +462,7 @@ postgres::status::collect_data() {
     status_data+=("description" "PostgreSQL database with multi-instance support")
     
     # Check installation and running status
-    local instances_dir="/home/matthalloran8/Vrooli/resources/postgres/instances"
+    local instances_dir="${VROOLI_ROOT:-${HOME}/Vrooli}/resources/postgres/instances"
     local installed="false"
     local running="false"
     local healthy="false"
@@ -556,7 +588,7 @@ postgres::status::diagnose() {
     log::info "2. Checking resource installation..."
     if [[ ${#instances[@]} -eq 0 ]]; then
         log::warn "   No PostgreSQL instances found"
-        log::info "   Run 'manage.sh --action install' to install the resource"
+        log::info "   Run 'resource-postgres manage install' to install the resource"
     else
         log::success "   Resource installed with ${#instances[@]} instance(s)"
     fi

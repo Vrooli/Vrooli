@@ -9,17 +9,17 @@ windmill::usage() {
     args::usage "$DESCRIPTION"
     echo
     echo "Examples:"
-    echo "  $0 --action install                              # Install Windmill with default settings"
-    echo "  $0 --action install --workers 5                 # Install with 5 worker containers"
-    echo "  $0 --action install --external-db yes           # Use external PostgreSQL database"
-    echo "  $0 --action install --no-lsp                    # Install without Language Server Protocol"
-    echo "  $0 --action status                               # Check Windmill service status"
-    echo "  $0 --action logs                                 # View service logs"
-    echo "  $0 --action scale-workers 10                    # Scale to 10 worker containers"
-    echo "  $0 --action restart-workers                     # Restart all worker containers"
-    echo "  $0 --action list-apps                            # List available app examples"
-    echo "  $0 --action prepare-app --app-name admin-dashboard  # Prepare app for import"
-    echo "  $0 --action uninstall                           # Remove Windmill completely"
+    echo "  resource-windmill manage install                 # Install Windmill with default settings"
+    echo "  resource-windmill manage install --workers 5    # Install with 5 worker containers"
+    echo "  resource-windmill manage install --external-db yes  # Use external PostgreSQL database"
+    echo "  resource-windmill manage install --no-lsp       # Install without Language Server Protocol"
+    echo "  resource-windmill status                         # Check Windmill service status"
+    echo "  resource-windmill logs                           # View service logs"
+    echo "  resource-windmill manage scale-workers 10       # Scale to 10 worker containers"
+    echo "  resource-windmill manage restart-workers        # Restart all worker containers"
+    echo "  resource-windmill content list                   # List available app examples"
+    echo "  resource-windmill content add --name admin-dashboard  # Prepare app for import"
+    echo "  resource-windmill manage uninstall              # Remove Windmill completely"
 }
 
 #######################################
@@ -51,9 +51,9 @@ windmill::show_success_message() {
     echo "  4. Deploy scripts as workflows with triggers"
     echo
     echo "🛠️  Management Commands:"
-    echo "  Status: $0 --action status"
-    echo "  Logs: $0 --action logs"
-    echo "  Scale workers: $0 --action scale-workers <count>"
+    echo "  Status: resource-windmill status"
+    echo "  Logs: resource-windmill logs"
+    echo "  Scale workers: resource-windmill manage scale-workers <count>"
 }
 
 #######################################
@@ -178,7 +178,7 @@ windmill::show_port_error() {
     echo
     echo "Solutions:"
     echo "  1. Stop the service using port $port"
-    echo "  2. Use custom port: WINDMILL_CUSTOM_PORT=5682 $0 --action install"
+    echo "  2. Use custom port: WINDMILL_CUSTOM_PORT=5682 resource-windmill manage install"
     echo "  3. Check port usage: sudo lsof -i :$port"
 }
 
@@ -205,7 +205,7 @@ windmill::show_database_error() {
     echo "Error: Database connection failed."
     echo
     echo "Troubleshooting:"
-    echo "  1. Check database logs: $0 --action logs db"
+    echo "  1. Check database logs: resource-windmill logs --filter db"
     echo "  2. Verify database URL: echo \$WINDMILL_DB_URL"
     echo "  3. Test connection: docker exec windmill-db pg_isready"
     echo "  4. Check network: docker network ls"
@@ -215,7 +215,7 @@ windmill::show_health_check_error() {
     echo "Error: Windmill services failed to start properly."
     echo
     echo "Debugging steps:"
-    echo "  1. Check all logs: $0 --action logs"
+    echo "  1. Check all logs: resource-windmill logs"
     echo "  2. Verify containers: docker ps -a"
     echo "  3. Check resources: docker stats"
     echo "  4. Inspect networks: docker network inspect windmill-network"
