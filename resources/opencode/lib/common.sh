@@ -7,15 +7,9 @@ set -euo pipefail
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 OPENCODE_LIB_DIR="${APP_ROOT}/resources/opencode/lib"
 OPENCODE_DIR="${APP_ROOT}/resources/opencode"
-OPENCODE_ROOT="${APP_ROOT}"
 
-# Source shared utilities
-source "${OPENCODE_ROOT}/scripts/lib/utils/var.sh"
-source "${OPENCODE_ROOT}/scripts/lib/utils/format.sh"
-source "${OPENCODE_ROOT}/scripts/lib/utils/validation.sh"
-
-# Configuration
-OPENCODE_DATA_DIR="${var_data_dir}/opencode"
+# Configuration (use standard var_DATA_DIR which is already set by the main CLI)
+OPENCODE_DATA_DIR="${var_DATA_DIR:-${APP_ROOT}/data}/opencode"
 OPENCODE_CONFIG_FILE="${OPENCODE_DATA_DIR}/config.json"
 OPENCODE_EXTENSION_ID="rjmacarthy.twinny"
 OPENCODE_EXTENSION_NAME="Twinny - AI Code Completion"

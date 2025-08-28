@@ -9,6 +9,11 @@ source "${LITELLM_INSTALL_DIR}/core.sh"
 source "${LITELLM_INSTALL_DIR}/docker.sh"
 source "${APP_ROOT}/scripts/lib/resources/install-resource-cli.sh"
 
+# Install LiteLLM resource - wrapper for CLI v2.0 contract
+litellm::install::execute() {
+    litellm::install "$@"
+}
+
 # Install LiteLLM resource
 litellm::install() {
     local verbose="${1:-false}"
@@ -69,6 +74,11 @@ litellm::install() {
     fi
 }
 
+# Uninstall LiteLLM resource - wrapper for CLI v2.0 contract  
+litellm::install::uninstall() {
+    litellm::uninstall "$@"
+}
+
 # Uninstall LiteLLM resource
 litellm::uninstall() {
     local verbose="${1:-false}"
@@ -107,7 +117,7 @@ litellm::register_port() {
     [[ "$verbose" == "true" ]] && log::info "Registering LiteLLM port in registry"
     
     # Check if port registry exists
-    local port_registry="${LITELLM_RESOURCE_DIR}/../../../resources/port_registry.sh"
+    local port_registry="${APP_ROOT}/port_registry.sh"
     
     if [[ ! -f "$port_registry" ]]; then
         log::warn "Port registry not found"

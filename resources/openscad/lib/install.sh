@@ -24,8 +24,8 @@ openscad::install() {
     if docker pull "${OPENSCAD_IMAGE}"; then
         # Register CLI with vrooli
         local resource_dir="${OPENSCAD_INSTALL_DIR}/.."
-        if [[ -f "${resource_dir}/../../../lib/resources/install-resource-cli.sh" ]]; then
-            "${resource_dir}/../../../lib/resources/install-resource-cli.sh" "${resource_dir}" 2>/dev/null || true
+        if [[ -f "${APP_ROOT}/scripts/resources/lib/install-resource-cli.sh" ]]; then
+            "${APP_ROOT}/scripts/resources/lib/install-resource-cli.sh" "${resource_dir}" 2>/dev/null || true
         fi
         
         log::success "OpenSCAD installed successfully"

@@ -1,98 +1,80 @@
-#!/bin/bash
+#!/usr/bin/env bash
+################################################################################
+# Mail-in-a-Box Resource CLI - v2.0 Universal Contract Compliant
+# Open source email & groupware server with easy setup
+################################################################################
 
-# CLI interface for Mail-in-a-Box resource
+set -euo pipefail
 
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+# Handle symlinks for installed CLI
+if [[ -L "${BASH_SOURCE[0]}" ]]; then
+    MAILINABOX_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
+    APP_ROOT="$(builtin cd "${MAILINABOX_CLI_SCRIPT%/*}/../.." && builtin pwd)"
+fi
 MAILINABOX_CLI_DIR="${APP_ROOT}/resources/mail-in-a-box"
-MAILINABOX_LIB_DIR="${APP_ROOT}/resources/mail-in-a-box/lib"
 
-# Source all library functions
-source "$MAILINABOX_LIB_DIR/core.sh"
-source "$MAILINABOX_LIB_DIR/install.sh"
-source "$MAILINABOX_LIB_DIR/start.sh"
-source "$MAILINABOX_LIB_DIR/stop.sh"
-source "$MAILINABOX_LIB_DIR/status.sh"
-source "$MAILINABOX_LIB_DIR/inject.sh"
+# Source core dependencies
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}"
+# shellcheck disable=SC1091
+source "${var_RESOURCES_COMMON_FILE}"
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 
-# Main CLI handler
-main() {
-    local command="${1:-help}"
-    shift
-    
-    case "$command" in
-        install)
-            mailinabox_install "$@"
-            ;;
-        uninstall)
-            mailinabox_uninstall "$@"
-            ;;
-        start)
-            mailinabox_start "$@"
-            ;;
-        stop)
-            mailinabox_stop "$@"
-            ;;
-        restart)
-            mailinabox_stop && mailinabox_start "$@"
-            ;;
-        status)
-            mailinabox_status "$@"
-            ;;
-        add-account|add-user)
-            mailinabox_add_account "$@"
-            ;;
-        add-alias)
-            mailinabox_add_alias "$@"
-            ;;
-        add-domain)
-            mailinabox_add_domain "$@"
-            ;;
-        inject)
-            mailinabox_inject_file "$@"
-            ;;
-        health)
-            mailinabox_get_health
-            ;;
-        version)
-            mailinabox_get_version
-            ;;
-        help)
-            cat <<EOF
-Mail-in-a-Box Resource CLI
+# Source config and libraries
+[[ -f "${MAILINABOX_CLI_DIR}/config/defaults.sh" ]] && source "${MAILINABOX_CLI_DIR}/config/defaults.sh"
+for lib in core install start stop status inject; do
+    lib_file="${MAILINABOX_CLI_DIR}/lib/${lib}.sh"
+    [[ -f "$lib_file" ]] && source "$lib_file" 2>/dev/null || true
+done
 
-Usage: $(basename "$0") [command] [options]
+# Initialize CLI framework in v2.0 mode
+cli::init "mail-in-a-box" "Mail-in-a-Box email server management" "v2"
 
-Commands:
-  install              Install Mail-in-a-Box
-  uninstall            Uninstall Mail-in-a-Box
-  start                Start Mail-in-a-Box service
-  stop                 Stop Mail-in-a-Box service
-  restart              Restart Mail-in-a-Box service
-  status [--json]      Show Mail-in-a-Box status
-  add-account EMAIL PASSWORD   Add email account
-  add-alias ALIAS TARGET       Add email alias
-  add-domain DOMAIN           Add custom domain
-  inject FILE                 Import email configuration from file
-  health               Check service health
-  version              Show version
-  help                 Show this help message
+# Manage handlers (REQUIRED)
+CLI_COMMAND_HANDLERS["manage::install"]="mailinabox_install"
+CLI_COMMAND_HANDLERS["manage::uninstall"]="mailinabox_uninstall"
+CLI_COMMAND_HANDLERS["manage::start"]="mailinabox_start"
+CLI_COMMAND_HANDLERS["manage::stop"]="mailinabox_stop"
+CLI_COMMAND_HANDLERS["manage::restart"]="{ mailinabox_stop; mailinabox_start; }"
 
-Examples:
-  $(basename "$0") install
-  $(basename "$0") start
-  $(basename "$0") add-account user@example.com SecurePass123
-  $(basename "$0") add-alias info@example.com user@example.com
-  $(basename "$0") status --json
-  $(basename "$0") inject accounts.csv
-EOF
-            ;;
-        *)
-            format_error "Unknown command: $command"
-            echo "Run '$(basename "$0") help' for usage information"
-            return 1
-            ;;
-    esac
+# Test handlers (REQUIRED) - health checks only
+CLI_COMMAND_HANDLERS["test::smoke"]="mailinabox_get_health"
+
+# Content handlers (REQUIRED) - business functionality
+CLI_COMMAND_HANDLERS["content::add"]="mailinabox_add_account"
+CLI_COMMAND_HANDLERS["content::list"]="mailinabox_get_status_details"
+CLI_COMMAND_HANDLERS["content::get"]="mailinabox_get_urls"
+CLI_COMMAND_HANDLERS["content::remove"]="echo 'Remove operation not supported for mail accounts'"
+
+# Custom content subcommands for email management
+cli::register_subcommand "content" "add-alias" "Add email alias" "mailinabox_add_alias"
+cli::register_subcommand "content" "add-domain" "Add custom domain" "mailinabox_add_domain"
+cli::register_subcommand "content" "import" "Import email configuration from file" "mailinabox_inject_file"
+
+# Information commands (REQUIRED)
+cli::register_command "status" "Show detailed resource status" "mailinabox_simple_status"
+cli::register_command "logs" "Show Mail-in-a-Box logs" "mailinabox_show_logs"
+cli::register_command "version" "Show Mail-in-a-Box version" "mailinabox_get_version"
+
+# Simple status wrapper
+mailinabox_simple_status() {
+    echo -e "📧 Mail-in-a-Box Status\n"
+    mailinabox_is_installed && echo "✅ Installed: Yes" || echo "❌ Installed: No"
+    mailinabox_is_running && echo "✅ Running: Yes" || echo "⚠️  Running: No"
+    [[ "$(mailinabox_get_health)" == "healthy" ]] && echo "✅ Health: Healthy" || echo "⚠️  Health: Unhealthy"
+    echo -e "\nVersion: $(mailinabox_get_version)\nDetails: $(mailinabox_get_status_details)"
 }
 
-# Run main function
-main "$@"
+# Simple logs function
+mailinabox_show_logs() {
+    mailinabox_is_running && docker logs "$MAILINABOX_CONTAINER_NAME" --tail 50 || echo "Mail-in-a-Box is not running"
+}
+
+# Execute if run directly
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    cli::dispatch "$@"
+fi

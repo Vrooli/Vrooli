@@ -65,7 +65,7 @@ resource-pandas-ai analyze --file data.csv --query "Show me the top 5 products b
 - `visualize --file <data> --type <chart>` - Generate visualizations
 
 ## Configuration
-Service configuration is stored in `/home/matthalloran8/.pandas-ai/config.yaml`:
+Service configuration is stored in `${HOME}/.pandas-ai/config.yaml`:
 ```yaml
 port: 8095
 host: 0.0.0.0

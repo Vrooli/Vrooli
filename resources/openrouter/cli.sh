@@ -1,5 +1,16 @@
-#!/bin/bash
-# OpenRouter CLI interface
+#!/usr/bin/env bash
+################################################################################
+# OpenRouter Resource CLI - v2.0 Universal Contract Compliant
+# 
+# Unified API to many AI model providers with intelligent routing
+#
+# Usage:
+#   resource-openrouter <command> [options]
+#   resource-openrouter <group> <subcommand> [options]
+#
+################################################################################
+
+set -euo pipefail
 
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
 # Handle symlinks for installed CLI
@@ -10,144 +21,75 @@ if [[ -L "${BASH_SOURCE[0]}" ]]; then
 fi
 OPENROUTER_CLI_DIR="${APP_ROOT}/resources/openrouter"
 
-# Source dependencies
-source "${OPENROUTER_CLI_DIR}/lib/core.sh"
-source "${OPENROUTER_CLI_DIR}/lib/status.sh"
-source "${OPENROUTER_CLI_DIR}/lib/install.sh"
-source "${OPENROUTER_CLI_DIR}/lib/inject.sh"
-source "${OPENROUTER_CLI_DIR}/lib/configure.sh"
-source "${OPENROUTER_CLI_DIR}/lib/content.sh"
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}"
+# shellcheck disable=SC1091
+source "${var_RESOURCES_COMMON_FILE}"
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
+# shellcheck disable=SC1091
+source "${OPENROUTER_CLI_DIR}/config/defaults.sh"
 
-# Main CLI handler
-openrouter::cli() {
-    local command="${1:-help}"
-    shift
-    
-    case "$command" in
-        status)
-            # Pass all arguments directly to status function
-            openrouter::status "$@"
-            ;;
-        install)
-            openrouter::install "$@"
-            ;;
-        uninstall)
-            openrouter::uninstall "$@"
-            ;;
-        start)
-            # OpenRouter is an API service, always "running"
-            echo "OpenRouter is an API service (no start needed)"
-            return 0
-            ;;
-        stop)
-            # OpenRouter is an API service, can't be stopped
-            echo "OpenRouter is an API service (cannot be stopped)"
-            return 0
-            ;;
-        test|test-connection)
-            if openrouter::test_connection; then
-                echo "✓ OpenRouter API is accessible"
-                return 0
-            else
-                echo "✗ Failed to connect to OpenRouter API"
-                return 1
-            fi
-            ;;
-        list-models)
-            openrouter::list_models
-            ;;
-        usage|credits)
-            openrouter::get_usage | jq '.' 2>/dev/null || openrouter::get_usage
-            ;;
-        inject)
-            openrouter::inject "$@"
-            ;;
-        configure)
-            openrouter::configure "$@"
-            ;;
-        show-config)
-            openrouter::show_config
-            ;;
-        content)
-            openrouter::content "$@"
-            ;;
-        run-tests)
-            # Run integration tests and save results
-            local test_dir="${OPENROUTER_CLI_DIR}/test"
-            local result_dir="${var_ROOT_DIR}/data/test-results"
-            mkdir -p "$result_dir"
-            
-            if [[ -f "${test_dir}/integration.bats" ]]; then
-                echo "Running OpenRouter integration tests..."
-                local timestamp=$(date -Iseconds)
-                local test_output
-                test_output=$(timeout 30 bats "${test_dir}/integration.bats" 2>&1)
-                local exit_code=$?
-                
-                # Parse test results
-                local test_status="failed"
-                if [[ $exit_code -eq 0 ]]; then
-                    test_status="passed"
-                fi
-                
-                # Save results
-                cat > "${result_dir}/openrouter-test.json" <<EOF
-{
-    "resource": "openrouter",
-    "status": "$test_status",
-    "timestamp": "$timestamp",
-    "exit_code": $exit_code,
-    "tests_run": $(echo "$test_output" | grep -E '^1\.\.[0-9]+$' | cut -d. -f3 || echo "0"),
-    "output": $(echo "$test_output" | jq -Rs . 2>/dev/null || echo '""')
-}
-EOF
-                echo "$test_output"
-                return $exit_code
-            else
-                echo "No tests found for OpenRouter"
-                return 1
-            fi
-            ;;
-        help|--help|-h)
-            cat <<EOF
-OpenRouter Resource CLI
+# Source OpenRouter libraries
+for lib in core status install configure content; do
+    lib_file="${OPENROUTER_CLI_DIR}/lib/${lib}.sh"
+    if [[ -f "$lib_file" ]]; then
+        # shellcheck disable=SC1090
+        source "$lib_file" 2>/dev/null || true
+    fi
+done
 
-Usage: $0 <command> [options]
+# Initialize CLI framework in v2.0 mode (auto-creates manage/test/content groups)
+cli::init "openrouter" "OpenRouter unified API to many AI model providers" "v2"
 
-Commands:
-  status [--verbose] [--format json|text]  Check OpenRouter status
-  install [--verbose]                      Install/configure OpenRouter
-  uninstall [--verbose]                    Remove OpenRouter configuration
-  configure [--api-key KEY] [--vault|--file] Set up API key
-  show-config                               Show current configuration
-  start                                     No-op (API service)
-  stop                                      No-op (API service)
-  test|test-connection                     Test API connectivity
-  list-models                               List available models
-  usage|credits                             Show usage and credits
-  inject <target> [data]                   Inject config to other resources
-  content <add|list|get|remove|execute>    Manage prompts and configurations
-  run-tests                                 Run integration tests
-  help                                      Show this help message
+# ==============================================================================
+# REQUIRED HANDLERS - These MUST be mapped for v2.0 compliance
+# ==============================================================================
+CLI_COMMAND_HANDLERS["manage::install"]="openrouter::install"
+CLI_COMMAND_HANDLERS["manage::uninstall"]="openrouter::uninstall"
 
-Examples:
-  $0 status
-  $0 install --verbose
-  $0 list-models
-  $0 content add --file prompt.txt --type prompt --name my-prompt
-  $0 inject n8n
-EOF
-            ;;
-        *)
-            echo "Unknown command: $command"
-            echo "Run '$0 help' for usage information"
-            return 1
-            ;;
-    esac
-}
+# OpenRouter is an API service - no docker containers to manage
+CLI_COMMAND_HANDLERS["manage::start"]="openrouter::service::noop_start"
+CLI_COMMAND_HANDLERS["manage::stop"]="openrouter::service::noop_stop"
+CLI_COMMAND_HANDLERS["manage::restart"]="openrouter::service::noop_restart"
 
-# Run if executed directly
+CLI_COMMAND_HANDLERS["test::smoke"]="openrouter::test_connection"
+
+# Content handlers
+CLI_COMMAND_HANDLERS["content::add"]="openrouter::content::add"
+CLI_COMMAND_HANDLERS["content::list"]="openrouter::content::list"
+CLI_COMMAND_HANDLERS["content::get"]="openrouter::content::get"
+CLI_COMMAND_HANDLERS["content::remove"]="openrouter::content::remove"
+CLI_COMMAND_HANDLERS["content::execute"]="openrouter::content::execute"
+
+# ==============================================================================
+# REQUIRED INFORMATION COMMANDS
+# ==============================================================================
+cli::register_command "status" "Show detailed resource status" "openrouter::status"
+
+# OpenRouter is API service - no logs to show
+cli::register_command "logs" "Show OpenRouter logs (API service - no logs)" "openrouter::service::noop_logs"
+
+# ==============================================================================
+# OPTIONAL RESOURCE-SPECIFIC COMMANDS
+# ==============================================================================
+# Add custom top-level commands for OpenRouter functionality
+cli::register_command "configure" "Configure OpenRouter API key" "openrouter::configure"
+cli::register_command "show-config" "Show current configuration" "openrouter::show_config"
+
+# Add custom content subcommands for OpenRouter-specific operations
+cli::register_subcommand "content" "models" "List available models" "openrouter::list_models"
+cli::register_subcommand "content" "usage" "Show usage and credits" "openrouter::get_usage"
+
+# API service helper functions for manage group (compact)
+openrouter::service::noop_start() { echo "OpenRouter is an API service (no start needed)"; }
+openrouter::service::noop_stop() { echo "OpenRouter is an API service (cannot be stopped)"; }
+openrouter::service::noop_restart() { echo "OpenRouter is an API service (no restart needed)"; }
+openrouter::service::noop_logs() { echo "OpenRouter is an API service (no logs available)"; echo "Check status with: resource-openrouter status"; }
+
+# Only execute if script is run directly (not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    set +e  # Disable strict error handling for CLI
-    openrouter::cli "$@"
+    cli::dispatch "$@"
 fi

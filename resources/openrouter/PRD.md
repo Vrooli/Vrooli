@@ -106,7 +106,7 @@ standard_interfaces:
     - logging: Configuration and API call logs
     
   data_persistence:
-    - volumes: [/home/matthalloran8/Vrooli/data/openrouter]
+    - volumes: [${VROOLI_ROOT}/data/openrouter]
     - backup_strategy: API key backup via Vault
     - migration_support: Configuration versioning
 
@@ -290,7 +290,7 @@ networking:
     
 data_management:
   persistence:
-    - volume: /home/matthalloran8/Vrooli/data/openrouter
+    - volume: ${VROOLI_ROOT}/data/openrouter
       mount: /data
       purpose: Configuration, templates, usage logs
       

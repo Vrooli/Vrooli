@@ -8,7 +8,7 @@ setup() {
     CLI_PATH="${TEST_DIR}/../cli.sh"
     
     # Source test fixtures path
-    FIXTURES_DIR="${TEST_DIR}/../../../../__test/fixtures/data"
+    FIXTURES_DIR="${TEST_DIR}/../../../../__test/fixtures"
     
     # Create test data directory
     TEST_DATA_DIR="/tmp/kicad_test_$$"

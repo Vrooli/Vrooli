@@ -7,6 +7,23 @@ LITELLM_DOCKER_DIR="${APP_ROOT}/resources/litellm/lib"
 # Source dependencies
 source "${LITELLM_DOCKER_DIR}/core.sh"
 
+# Docker function wrappers for CLI v2.0 contract
+litellm::docker::start() {
+    litellm::start "$@"
+}
+
+litellm::docker::stop() {
+    litellm::stop "$@"
+}
+
+litellm::docker::restart() {
+    litellm::restart "$@"
+}
+
+litellm::docker::logs() {
+    litellm::logs "$@"
+}
+
 # Start LiteLLM proxy server
 litellm::start() {
     local verbose="${1:-false}"

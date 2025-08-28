@@ -6,8 +6,8 @@ APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pw
 OPENSCAD_STATUS_DIR="${APP_ROOT}/resources/openscad/lib"
 
 # Source dependencies
-source "${OPENSCAD_STATUS_DIR}/../../../../lib/utils/format.sh"
-source "${OPENSCAD_STATUS_DIR}/../../../lib/status-args.sh"
+source "${APP_ROOT}/scripts/lib/utils/format.sh"
+source "${APP_ROOT}/scripts/resources/lib/status-args.sh"
 
 # Collect OpenSCAD status data in format-agnostic structure
 openscad::status::collect_data() {

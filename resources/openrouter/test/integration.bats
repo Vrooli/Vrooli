@@ -143,7 +143,7 @@ source "${OPENROUTER_DIR}/cli.sh"
 
 @test "OpenRouter: Test results are saved to correct location" {
     # Run tests and check if results file is created
-    local result_file="${var_ROOT_DIR:-/home/matthalloran8/Vrooli}/data/test-results/openrouter-test.json"
+    local result_file="${var_ROOT_DIR:-${VROOLI_ROOT:-${HOME}/Vrooli}}/data/test-results/openrouter-test.json"
     
     # Run the tests (this will run recursively but with timeout)
     timeout 10 bash "${OPENROUTER_DIR}/cli.sh" run-tests >/dev/null 2>&1 || true

@@ -178,5 +178,7 @@ main() {
     esac
 }
 
-# Run main
-main "$@"
+# Only execute if script is run directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+fi

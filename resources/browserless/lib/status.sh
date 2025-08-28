@@ -76,9 +76,10 @@ function status() {
     "base": "http://localhost:${BROWSERLESS_PORT}",
     "docs": "http://localhost:${BROWSERLESS_PORT}/docs",
     "pressure": "http://localhost:${BROWSERLESS_PORT}/pressure",
-    "screenshot": "http://localhost:${BROWSERLESS_PORT}/screenshot",
-    "pdf": "http://localhost:${BROWSERLESS_PORT}/pdf",
-    "content": "http://localhost:${BROWSERLESS_PORT}/content"
+    "screenshot": "http://localhost:${BROWSERLESS_PORT}/chrome/screenshot",
+    "pdf": "http://localhost:${BROWSERLESS_PORT}/chrome/pdf",
+    "content": "http://localhost:${BROWSERLESS_PORT}/chrome/content",
+    "function": "http://localhost:${BROWSERLESS_PORT}/chrome/function"
   },
   "configuration": {
     "port": ${BROWSERLESS_PORT},

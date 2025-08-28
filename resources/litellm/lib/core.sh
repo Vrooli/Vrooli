@@ -343,3 +343,23 @@ litellm::container_status() {
         echo "not_created"
     fi
 }
+
+# Show credentials for integration
+litellm::core::credentials() {
+    echo "🔑 LiteLLM Credentials & Integration Info"
+    echo "======================================="
+    echo "API Base URL: ${LITELLM_API_BASE:-$LITELLM_URL}"
+    echo "Master Key: ${LITELLM_MASTER_KEY:-$(litellm::get_master_key 2>/dev/null || echo 'Not configured')}"
+    echo "Container: ${LITELLM_CONTAINER_NAME:-vrooli-litellm}"
+    echo "Port: ${LITELLM_PORT:-11435}"
+    echo ""
+    echo "Usage with Claude Code:"
+    echo "  export ANTHROPIC_BASE_URL=\"${LITELLM_API_BASE:-$LITELLM_URL}\""
+    echo "  export ANTHROPIC_AUTH_TOKEN=\"${LITELLM_MASTER_KEY:-$(litellm::get_master_key 2>/dev/null || echo 'your-master-key')}\""
+    echo ""
+    echo "Usage with curl:"
+    echo "  curl -H \"Authorization: Bearer \${LITELLM_MASTER_KEY}\" \\"
+    echo "       -H \"Content-Type: application/json\" \\"
+    echo "       -d '{\"model\": \"gpt-3.5-turbo\", \"messages\": [...]}' \\"
+    echo "       \"${LITELLM_API_BASE:-$LITELLM_URL}/chat/completions\""
+}

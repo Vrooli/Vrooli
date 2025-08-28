@@ -214,7 +214,7 @@ browserless::execute_n8n_workflow() {
             \"code\": \"$(cat "$workflow_dir/wrapper.js" | sed 's/"/\\"/g' | tr '\n' ' ')\",
             \"context\": {}
         }" \
-        "http://localhost:${BROWSERLESS_PORT}/function")
+        "http://localhost:${BROWSERLESS_PORT}/chrome/function")
     
     if [[ $? -ne 0 ]]; then
         log::error "Failed to execute workflow"

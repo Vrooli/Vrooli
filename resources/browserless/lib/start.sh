@@ -6,12 +6,21 @@ set -euo pipefail
 
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 BROWSERLESS_LIB_DIR="${APP_ROOT}/resources/browserless/lib"
-source "${APP_ROOT}/scripts/lib/utils/log.sh"
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/lib/utils/var.sh" || { echo "FATAL: Failed to load variable definitions" >&2; exit 1; }
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}" || { echo "FATAL: Failed to load logging library" >&2; exit 1; }
 # Source browserless common.sh using explicit path to avoid conflicts
 source "${BROWSERLESS_LIB_DIR}/common.sh"
 
 function start_browserless() {
     log::header "🚀 Starting Browserless"
+    
+    # Check Docker daemon is running
+    if ! docker info >/dev/null 2>&1; then
+        log::error "Docker daemon is not running. Please start Docker first."
+        return 1
+    fi
     
     # Check if already running
     if is_running; then

@@ -54,7 +54,7 @@ teardown() {
 }
 
 @test "ffmpeg: enhanced inject shows detailed help" {
-    run resource-ffmpeg inject
+    run resource-ffmpeg content add
     assert_success
     assert_output --partial "thumbnail"
     assert_output --partial "detailed"
@@ -72,7 +72,7 @@ teardown() {
         -c:v libx264 -pix_fmt yuv420p -y "$input_file" 2>/dev/null
     
     # Test thumbnail generation via inject
-    run resource-ffmpeg inject "$input_file" thumbnail
+    run resource-ffmpeg content add "$input_file" thumbnail
     assert_success
     
     # Verify thumbnail was created (should be in output directory)
@@ -140,7 +140,7 @@ teardown() {
     done
     
     # Test that batch processing recognizes directory (just check setup, don't run full batch)
-    run timeout 5 resource-ffmpeg inject "$TEST_MEDIA_DIR"
+    run timeout 5 resource-ffmpeg content add "$TEST_MEDIA_DIR"
     
     # Should show batch processing output (may timeout but that's ok)
     local exit_code=$?

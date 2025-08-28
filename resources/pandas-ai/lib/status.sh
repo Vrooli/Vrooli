@@ -7,9 +7,9 @@ PANDAS_AI_LIB_DIR="${APP_ROOT}/resources/pandas-ai/lib"
 
 # Source dependencies
 source "${PANDAS_AI_LIB_DIR}/common.sh"
-source "${PANDAS_AI_LIB_DIR}/../../../../lib/utils/log.sh"
-source "${PANDAS_AI_LIB_DIR}/../../../../lib/utils/format.sh"
-source "${PANDAS_AI_LIB_DIR}/../../../lib/status-args.sh"
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
+source "${APP_ROOT}/scripts/lib/utils/format.sh"
+source "${APP_ROOT}/scripts/resources/lib/status-args.sh"
 
 # Check if Pandas AI is installed
 pandas_ai::is_installed() {

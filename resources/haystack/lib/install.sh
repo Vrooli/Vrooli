@@ -40,7 +40,7 @@ haystack::install() {
         log::info "Created virtual environment using venv"
     elif command -v virtualenv &>/dev/null; then
         log::info "Using virtualenv as fallback"
-        virtualenv -p python3 "${HAYSTACK_VENV_DIR}"
+        virtualenv -p python3 "${HAYSTACK_VENV_DIR}" &>/dev/null
     else
         # Install virtualenv using pipx or with break-system-packages flag
         log::info "Installing virtualenv..."
@@ -50,27 +50,33 @@ haystack::install() {
             python3 -m pip install --user --break-system-packages virtualenv
         fi
         export PATH="${HOME}/.local/bin:${PATH}"
-        virtualenv -p python3 "${HAYSTACK_VENV_DIR}"
+        virtualenv -p python3 "${HAYSTACK_VENV_DIR}" &>/dev/null
     fi
     
     # Upgrade pip
-    "${HAYSTACK_VENV_DIR}/bin/pip" install --upgrade pip setuptools wheel
+    "${HAYSTACK_VENV_DIR}/bin/pip" install --upgrade pip setuptools wheel -q
     
     # Install Haystack with common components (using newer haystack-ai)
     log::info "Installing Haystack framework..."
-    "${HAYSTACK_VENV_DIR}/bin/pip" install \
+    "${HAYSTACK_VENV_DIR}/bin/pip" install -q \
         "haystack-ai>=2.0.0" \
         "fastapi>=0.100.0" \
         "uvicorn[standard]>=0.23.0" \
         "python-multipart>=0.0.6" \
         "pydantic>=2.0.0" \
-        "sentence-transformers>=2.2.0"
+        "sentence-transformers>=2.2.0" > /dev/null 2>&1 || {
+        log::error "Failed to install core Haystack dependencies"
+        return 1
+    }
     
     # Install additional useful components
     log::info "Installing additional components..."
-    "${HAYSTACK_VENV_DIR}/bin/pip" install \
+    "${HAYSTACK_VENV_DIR}/bin/pip" install -q \
         "transformers>=4.30.0" \
-        "torch>=2.0.0"
+        "torch>=2.0.0" > /dev/null 2>&1 || {
+        log::error "Failed to install additional Haystack components"
+        return 1
+    }
     
     # Create the server script
     cat > "${HAYSTACK_SCRIPTS_DIR}/server.py" << 'EOF'

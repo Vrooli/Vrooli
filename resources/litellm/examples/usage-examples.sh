@@ -9,7 +9,7 @@ echo
 
 # Configuration
 LITELLM_URL="http://localhost:11435"
-MASTER_KEY_FILE="/home/matthalloran8/Vrooli/data/litellm/config/.env"
+MASTER_KEY_FILE="${VROOLI_ROOT:-${HOME}/Vrooli}/data/litellm/config/.env"
 
 # Get master key
 if [[ -f "$MASTER_KEY_FILE" ]]; then

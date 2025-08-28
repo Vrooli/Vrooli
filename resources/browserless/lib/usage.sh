@@ -291,7 +291,7 @@ browserless::screenshot() {
     local output="${2:-/tmp/screenshot.png}"
     
     curl -s -X POST \
-        "http://localhost:$BROWSERLESS_PORT/screenshot" \
+        "http://localhost:$BROWSERLESS_PORT/chrome/screenshot" \
         -H "Content-Type: application/json" \
         -d "{\"url\":\"$url\"}" \
         -o "$output"

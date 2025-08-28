@@ -18,10 +18,10 @@ openrouter::install() {
     # OpenRouter is an API service, no local installation needed
     # Just ensure configuration is set up
     
-    # Register CLI
+    # Register CLI (v2.0 contract)
     local cli_installer="${APP_ROOT}/scripts/lib/resources/install-resource-cli.sh"
     if [[ -f "$cli_installer" ]]; then
-        "$cli_installer" --name openrouter --cli-path "${OPENROUTER_INSTALL_DIR}/../cli.sh" 2>/dev/null || true
+        "$cli_installer" "${APP_ROOT}/resources/openrouter"
     fi
     
     # Try to get API key from user if not already configured

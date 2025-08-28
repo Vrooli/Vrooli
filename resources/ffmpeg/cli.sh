@@ -1,120 +1,89 @@
-#!/bin/bash
+#!/usr/bin/env bash
+################################################################################
+# FFmpeg Resource CLI - v2.0 Universal Contract Compliant
+# 
+# Universal media processing framework for video and audio manipulation
+#
+# Usage:
+#   resource-ffmpeg <command> [options]
+#   resource-ffmpeg <group> <subcommand> [options]
+#
+################################################################################
+
+set -euo pipefail
 
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
 # Handle symlinks for installed CLI
 if [[ -L "${BASH_SOURCE[0]}" ]]; then
     FFMPEG_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
-    # Recalculate APP_ROOT from resolved symlink location
     APP_ROOT="$(builtin cd "${FFMPEG_CLI_SCRIPT%/*}/../.." && builtin pwd)"
 fi
 FFMPEG_CLI_DIR="${APP_ROOT}/resources/ffmpeg"
 
-# Source required utilities first
-source "${APP_ROOT}/scripts/lib/utils/log.sh"
-source "${APP_ROOT}/scripts/lib/utils/format.sh"
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}"
+# shellcheck disable=SC1091
+source "${var_RESOURCES_COMMON_FILE}"
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
+# shellcheck disable=SC1091
+source "${FFMPEG_CLI_DIR}/config/defaults.sh"
 
-# Source all lib functions directly
-for lib in install status start stop uninstall inject; do
-    source "${FFMPEG_CLI_DIR}/lib/${lib}.sh"
+# Source FFmpeg libraries
+for lib in core hardware install status inject start stop uninstall content test; do
+    lib_file="${FFMPEG_CLI_DIR}/lib/${lib}.sh"
+    if [[ -f "$lib_file" ]]; then
+        # shellcheck disable=SC1090
+        source "$lib_file" 2>/dev/null || true
+    fi
 done
 
-# Help function
-show_help() {
-    cat << HELP
-Usage: resource-ffmpeg <command> [options]
+# Initialize CLI framework in v2.0 mode (auto-creates manage/test/content groups)
+cli::init "ffmpeg" "FFmpeg universal media processing framework" "v2"
 
-FFmpeg universal media processing framework
+# ==============================================================================
+# REQUIRED HANDLERS - Direct mapping to ffmpeg implementations
+# ==============================================================================
+CLI_COMMAND_HANDLERS["manage::install"]="ffmpeg_install"
+CLI_COMMAND_HANDLERS["manage::uninstall"]="ffmpeg_uninstall"
+CLI_COMMAND_HANDLERS["manage::start"]="ffmpeg_start"  
+CLI_COMMAND_HANDLERS["manage::stop"]="ffmpeg_stop"
+CLI_COMMAND_HANDLERS["manage::restart"]="ffmpeg_start"  # Restart = start for CLI tools
 
-Commands:
-  help         Show this help message
-  install      Install FFmpeg [modifies system]
-  uninstall    Uninstall FFmpeg (requires --force) [modifies system]
-  start        Verify FFmpeg is available
-  stop         No-op for CLI tool
-  status       Show installation status with JSON support
-  test         Run integration tests
-  inject       Process media files [modifies system]
-  info         Get media file information
-  transcode    Convert media to different format [modifies system]
-  extract      Extract audio/video/frames [modifies system]
+# Test handlers - resource health validation
+CLI_COMMAND_HANDLERS["test::smoke"]="ffmpeg::test::smoke"
+CLI_COMMAND_HANDLERS["test::integration"]="ffmpeg::test::integration"
+CLI_COMMAND_HANDLERS["test::unit"]="ffmpeg::test::unit"
+CLI_COMMAND_HANDLERS["test::all"]="ffmpeg::test::all"
 
-Examples:
-  resource-ffmpeg install
-  resource-ffmpeg status --format json
-  resource-ffmpeg inject video.mp4 info
-  resource-ffmpeg inject input.avi transcode
-  resource-ffmpeg inject video.mp4 extract
+# Content handlers - media processing functionality
+CLI_COMMAND_HANDLERS["content::add"]="ffmpeg::content::add"
+CLI_COMMAND_HANDLERS["content::list"]="ffmpeg::content::list" 
+CLI_COMMAND_HANDLERS["content::get"]="ffmpeg::content::get"
+CLI_COMMAND_HANDLERS["content::remove"]="ffmpeg::content::remove"
+CLI_COMMAND_HANDLERS["content::execute"]="ffmpeg::inject::process_single"
 
-Media Processing Examples:
-  # Get media info
-  resource-ffmpeg info video.mp4
-  
-  # Convert video format
-  resource-ffmpeg transcode input.avi
-  
-  # Extract audio from video
-  resource-ffmpeg extract video.mp4
-  
-  # Process with default settings
-  resource-ffmpeg inject video.mp4 process
+# ==============================================================================
+# REQUIRED INFORMATION COMMANDS
+# ==============================================================================
+cli::register_command "status" "Show detailed resource status" "ffmpeg::status"
+cli::register_command "logs" "Show FFmpeg logs" "ffmpeg::logs"
 
-HELP
-}
+# ==============================================================================
+# FFMPEG-SPECIFIC CUSTOM COMMANDS
+# ==============================================================================
+# Custom top-level commands for media processing shortcuts
+cli::register_command "info" "Get media file information" "ffmpeg::info"
+cli::register_command "transcode" "Convert media format" "ffmpeg::transcode"
+cli::register_command "extract" "Extract audio/video/frames" "ffmpeg::extract"
 
-# Route commands
-main() {
-    local cmd="${1:-help}"
-    shift
-    
-    case "$cmd" in
-        help|--help|-h)
-            show_help
-            ;;
-        install)
-            ffmpeg_install "$@"
-            ;;
-        uninstall)
-            ffmpeg_uninstall "$@"
-            ;;
-        start)
-            ffmpeg_start "$@"
-            ;;
-        stop)
-            ffmpeg_stop "$@"
-            ;;
-        status)
-            ffmpeg_status "$@"
-            ;;
-        test)
-            # Run integration tests
-            if command -v bats &> /dev/null; then
-                cd "${FFMPEG_CLI_DIR}" && bats test/integration.bats | tee test/.test_results
-            else
-                echo "Error: bats is not installed. Install with: sudo apt install bats"
-                return 1
-            fi
-            ;;
-        inject)
-            ffmpeg_inject "$@"
-            ;;
-        info)
-            # Shortcut for inject <file> info
-            ffmpeg_inject "$1" "info"
-            ;;
-        transcode)
-            # Shortcut for inject <file> transcode
-            ffmpeg_inject "$1" "transcode"
-            ;;
-        extract)
-            # Shortcut for inject <file> extract
-            ffmpeg_inject "$1" "extract"
-            ;;
-        *)
-            echo "Unknown command: $cmd"
-            echo "Run 'resource-ffmpeg help' for usage"
-            return 1
-            ;;
-    esac
-}
+# Custom content subcommands for advanced media operations
+cli::register_subcommand "content" "process" "Process media with custom options" "ffmpeg::inject::batch_process" "modifies-system"
+cli::register_subcommand "content" "benchmark" "Benchmark encoding performance" "ffmpeg::hardware::benchmark"
 
-main "$@"
+# Only execute if script is run directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    cli::dispatch "$@"
+fi

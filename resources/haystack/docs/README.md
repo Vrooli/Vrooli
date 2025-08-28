@@ -33,13 +33,13 @@ vrooli resource haystack status --format json
 ### Index documents
 ```bash
 # Index JSON documents
-resource-haystack inject documents.json
+resource-haystack content add documents.json
 
 # Upload and index a text file
-resource-haystack inject article.txt
+resource-haystack content add article.txt
 
 # Execute a Python script
-resource-haystack inject process_data.py
+resource-haystack content add process_data.py
 ```
 
 ### Query documents

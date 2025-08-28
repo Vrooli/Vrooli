@@ -172,8 +172,7 @@ jobs:
         
       - name: AI Code Review
         run: |
-          ./resources/claude-code/manage.sh \
-            --action run \
+          resource-claude-code content run \
             --prompt "Review this PR for security and best practices" \
             --allowed-tools "Read,Grep,WebSearch" \
             --max-turns 10 \
@@ -203,7 +202,7 @@ jobs:
 set -euo pipefail
 
 # Configuration
-CLAUDE_SCRIPT="./resources/claude-code/manage.sh"
+CLAUDE_COMMAND="resource-claude-code"
 LOG_DIR="logs/maintenance/$(date +%Y-%m-%d)"
 mkdir -p "$LOG_DIR"
 

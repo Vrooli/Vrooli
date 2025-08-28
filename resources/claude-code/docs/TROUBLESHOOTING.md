@@ -221,11 +221,11 @@ pwd
 
 **Solution**:
 ```bash
-# Make script executable
-chmod +x ./manage.sh
+# Use the resource CLI command
+resource-claude-code status
 
-# Or run with bash
-bash ./manage.sh --action status
+# Or through the Vrooli CLI  
+vrooli resource claude-code status
 ```
 
 ### Invalid Arguments

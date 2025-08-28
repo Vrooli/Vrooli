@@ -69,8 +69,8 @@ EOF
         echo "  Path: $backup_path"
         echo "  Size: $(du -sh "$backup_path" | cut -f1)"
         echo
-        echo "To list backups: ./manage.sh --action list-backups"
-        echo "To recover: ./manage.sh --action recover"
+        echo "To list backups: resource-browserless manage backup list"
+        echo "To recover: resource-browserless manage recover"
         
         return 0
     else

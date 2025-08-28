@@ -6,13 +6,13 @@
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 LANGCHAIN_INSTALL_DIR="${APP_ROOT}/resources/langchain/lib"
 # shellcheck disable=SC1091
-source "${LANGCHAIN_INSTALL_DIR}/../../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "${LANGCHAIN_INSTALL_DIR}/../../../../lib/utils/log.sh"
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
 # shellcheck disable=SC1091
-source "${LANGCHAIN_INSTALL_DIR}/../config/defaults.sh" 2>/dev/null || true
+source "${APP_ROOT}/resources/langchain/config/defaults.sh"
 # shellcheck disable=SC1091
-source "${LANGCHAIN_INSTALL_DIR}/core.sh" 2>/dev/null || true
+source "${LANGCHAIN_INSTALL_DIR}/core.sh"
 
 # Ensure configuration is exported
 if command -v langchain::export_config &>/dev/null; then
@@ -300,8 +300,39 @@ langchain::stop() {
     return 0
 }
 
+langchain::restart() {
+    log::info "Restarting LangChain..."
+    
+    if langchain::is_running; then
+        langchain::stop
+        sleep 2
+    fi
+    
+    langchain::start
+}
+
+langchain::logs() {
+    log::info "LangChain is a framework library - no persistent logs"
+    log::info "Check system logs for Python processes:"
+    log::info "  journalctl -f | grep langchain"
+    log::info "  tail -f /var/log/syslog | grep langchain"
+    
+    # Show recent processes if any
+    local processes
+    processes=$(pgrep -af "langchain" 2>/dev/null || echo "")
+    
+    if [[ -n "$processes" ]]; then
+        log::info "Active LangChain processes:"
+        echo "$processes"
+    else
+        log::info "No active LangChain processes found"
+    fi
+}
+
 # Export functions
 export -f langchain::install
 export -f langchain::uninstall
 export -f langchain::start
 export -f langchain::stop
+export -f langchain::restart
+export -f langchain::logs

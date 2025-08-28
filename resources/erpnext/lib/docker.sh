@@ -68,6 +68,30 @@ erpnext::docker::remove() {
     return 0
 }
 
+# Show Docker logs
+erpnext::docker::logs() {
+    local compose_file="$ERPNEXT_RESOURCE_DIR/docker/docker-compose.yml"
+    local service="${1:-erpnext-app}"
+    local follow_flag=""
+    
+    # Check for follow flag
+    if [[ "${*}" == *"--follow"* ]] || [[ "${*}" == *"-f"* ]]; then
+        follow_flag="-f"
+    fi
+    
+    if [ ! -f "$compose_file" ]; then
+        log::error "Docker compose file not found"
+        return 1
+    fi
+    
+    docker-compose -f "$compose_file" logs $follow_flag "$service"
+}
+
+# Restart Docker containers
+erpnext::docker::restart() {
+    erpnext::docker::stop && erpnext::docker::start
+}
+
 # Create docker-compose.yml
 erpnext::docker::create_compose() {
     local compose_file="$ERPNEXT_RESOURCE_DIR/docker/docker-compose.yml"

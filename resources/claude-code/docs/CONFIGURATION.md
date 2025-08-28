@@ -28,11 +28,11 @@ This guide covers installation, configuration, and optimization of Claude Code f
 ### Resource Manager Installation (Recommended)
 
 ```bash
-# Using the resource manager
-./scripts/resources/index.sh --action install --resources claude-code
+# Using the resource CLI command
+resource-claude-code manage install
 
-# Or directly with the manage script
-./resources/claude-code/manage.sh --action install
+# Or through the Vrooli CLI
+vrooli resource claude-code manage install
 ```
 
 ### Manual Installation

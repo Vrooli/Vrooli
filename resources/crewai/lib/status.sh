@@ -9,11 +9,11 @@ STATUS_LIB_DIR="${APP_ROOT}/resources/crewai/lib"
 source "${STATUS_LIB_DIR}/core.sh"
 
 # Source utilities
-source "/home/matthalloran8/Vrooli/scripts/lib/utils/format.sh"
-source "/home/matthalloran8/Vrooli/scripts/lib/utils/log.sh"
+source "${APP_ROOT:-${VROOLI_ROOT:-${HOME}/Vrooli}}/scripts/lib/utils/format.sh"
+source "${APP_ROOT:-${VROOLI_ROOT:-${HOME}/Vrooli}}/scripts/lib/utils/log.sh"
 
 # Source status-args library
-source "${STATUS_LIB_DIR}/../../../lib/status-args.sh"
+source "${APP_ROOT}/scripts/resources/lib/status-args.sh"
 
 # Check installation
 check_installation() {

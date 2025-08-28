@@ -8,7 +8,7 @@ LITELLM_STATUS_DIR="${APP_ROOT}/resources/litellm/lib"
 source "${LITELLM_STATUS_DIR}/core.sh"
 source "${LITELLM_STATUS_DIR}/docker.sh"
 # shellcheck disable=SC1091
-source "${LITELLM_STATUS_DIR}/../../lib/status-args.sh"
+source "${APP_ROOT}/scripts/resources/lib/status-args.sh"
 
 #######################################
 # Collect LiteLLM status data

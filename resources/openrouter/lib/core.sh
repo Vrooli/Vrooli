@@ -118,3 +118,11 @@ openrouter::get_usage() {
         -H "Authorization: Bearer $OPENROUTER_API_KEY" \
         "https://openrouter.ai/api/v1/auth/key" 2>/dev/null
 }
+
+# Get API key (helper function for content scripts)
+openrouter::get_api_key() {
+    if [[ -z "$OPENROUTER_API_KEY" ]]; then
+        openrouter::init >/dev/null 2>&1 || return 1
+    fi
+    echo "$OPENROUTER_API_KEY"
+}
