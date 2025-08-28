@@ -6,13 +6,20 @@
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 _MINIO_DOCKER_DIR="${APP_ROOT}/resources/minio/lib"
 # shellcheck disable=SC1091
-source "${_MINIO_DOCKER_DIR}/../../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+
+# Source configuration and ensure it's exported
+# shellcheck disable=SC1091
+source "${APP_ROOT}/resources/minio/config/defaults.sh"
+minio::export_config 2>/dev/null || true
 
 # Source shared libraries
 # shellcheck disable=SC1091
 source "${var_LIB_SERVICE_DIR}/secrets.sh"
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_LIB_DIR}/docker-resource-utils.sh"
+# shellcheck disable=SC1091
+source "${_MINIO_DOCKER_DIR}/common.sh"
 
 
 # Execute command in MinIO container
@@ -98,13 +105,17 @@ minio::docker::start() {
     log::info "Starting MinIO container..."
     
     if docker::start_container "$MINIO_CONTAINER_NAME"; then
-        # Wait for container to be ready
-        if minio::common::wait_for_ready; then
-            log::success "${MSG_START_SUCCESS}"
-            log::info "${MSG_CONSOLE_AVAILABLE}: ${MINIO_CONSOLE_URL}"
+        # Simple wait for container to be ready
+        log::info "Waiting for MinIO to be ready..."
+        sleep 5
+        
+        # Check if container is still running
+        if docker ps --format "{{.Names}}" | grep -q "^${MINIO_CONTAINER_NAME}$"; then
+            log::success "${MSG_START_SUCCESS:-MinIO started successfully}"
+            log::info "${MSG_CONSOLE_AVAILABLE:-Console available}: ${MINIO_CONSOLE_URL:-http://localhost:9001}"
             return 0
         else
-            log::error "${MSG_START_FAILED}"
+            log::error "${MSG_START_FAILED:-Failed to start MinIO}"
             return 1
         fi
     else

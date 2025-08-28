@@ -56,6 +56,14 @@
       "executable": true
     },
     {
+      "name": "populate-lib",
+      "source": "scripts/resources/populate/lib",
+      "destination": "scripts/resources/populate/lib",
+      "type": "directory",
+      "from": "vrooli",
+      "required": true
+    },
+    {
       "name": "port-registry",
       "source": "scripts/resources/port_registry.sh",
       "destination": "scripts/resources/port_registry.sh",

@@ -233,7 +233,7 @@ scenario_to_app::shared_initialization() {
     [[ "$VERBOSE" == "true" ]] && log::info "Shared initialization completed in ${init_time}ms" || true
 }
 
-# Validate scenario structure with comprehensive schema validation
+# Validate scenario structure with proper JSON schema validation
 scenario_to_app::validate_scenario() {
     local scenario_name="$1"
     local -n scenario_data_ref="$2"  # nameref for returning data
@@ -244,9 +244,9 @@ scenario_to_app::validate_scenario() {
         log::error "Scenario directory not found: $scenario_path"
         return 1
     fi
-    
+
     [[ "$VERBOSE" == "true" ]] && log::success "Scenario directory found: $scenario_path" || true
-    
+
     # Check for service.json (first in .vrooli/, then root for backwards compatibility)
     local service_json_path="${scenario_path}/.vrooli/service.json"
     if [[ ! -f "$service_json_path" ]]; then
@@ -257,265 +257,264 @@ scenario_to_app::validate_scenario() {
             return 1
         fi
     fi
-    
-    # Load JSON content
+
+    # Load and validate JSON syntax
     local service_json
     if ! service_json=$(cat "$service_json_path" 2>/dev/null); then
         log::error "Failed to read service.json"
         return 1
     fi
-    
+
     # Clean up common JSON issues (trailing commas) before validation
-    # This uses a more lenient approach to handle real-world JSON files
-    # Handles commas before closing braces/brackets, even across lines
     local service_json_cleaned
     service_json_cleaned=$(echo "$service_json" | perl -0pe 's/,(\s*[}\]])/$1/g' 2>/dev/null || echo "$service_json")
-    
+
     # Basic JSON syntax validation
     if ! echo "$service_json_cleaned" | jq empty 2>/dev/null; then
-        log::error "Invalid JSON in service.json for scenario: $scenario_name"
-        log::error "Common issues to check:"
-        log::error "  - Missing quotes around strings"
-        log::error "  - Unmatched brackets or braces"
-        log::error "  - Invalid escape sequences"
+        log::error "❌ Invalid JSON syntax in service.json for scenario: $scenario_name"
+        log::error "💡 Common fixes:"
+        log::error "   • Check for missing quotes around strings"
+        log::error "   • Remove trailing commas before closing braces/brackets"
+        log::error "   • Ensure all brackets and braces are properly matched"
         return 1
     fi
-    
+
     # Use the cleaned JSON for validation
     service_json="$service_json_cleaned"
+
+    log::info "🔍 Validating against JSON schema..."
     
-    log::info "Loading robust schema validator..."
+    # Perform proper JSON schema validation
+    local schema_path="${var_ROOT_DIR}/.vrooli/schemas/service.schema.json"
+    if [[ ! -f "$schema_path" ]]; then
+        log::error "❌ JSON schema not found: $schema_path"
+        log::error "💡 Schema validation failed - generated app may not work properly"
+        log::error "💡 Please restore the schema file or fix the validation system"
+        return 1
+    fi
+
+    # Use Python jsonschema for proper validation
+    local validation_result
+    local temp_service_file="/tmp/service_${scenario_name}_$$.json"
+    local temp_schema_file="/tmp/schema_$$.json"
     
-    # Enhanced validation with timeout and proper error handling
-    local validation_success=false
-    local validation_error=""
-    local resource_count=0
-    local service_name=""
+    # Setup cleanup trap
+    trap "rm -f '$temp_service_file' '$temp_schema_file' 2>/dev/null || true" EXIT ERR INT TERM
     
-    # Try Python validation first with robust error handling
-    if command -v python3 >/dev/null 2>&1 && [[ -f "$var_SERVICE_JSON_FILE" ]]; then
-        [[ "$VERBOSE" == "true" ]] && log::info "Attempting Python-based schema validation..." || true
-        
-        # Write JSON to temp file with proper cleanup trap
-        local temp_json_file="/tmp/service_json_validation_${scenario_name}_$$.json"
-        
-        # Set up cleanup trap that works even if process is killed
-        trap "rm -f '$temp_json_file' 2>/dev/null || true" EXIT ERR INT TERM
-        
-        # Write JSON to temp file with error handling
-        if ! echo "$service_json" > "$temp_json_file" 2>/dev/null; then
-            log::warning "Failed to write temp validation file, falling back to basic validation"
-        else
-            # Run Python validation with timeout and proper error handling
-            local validation_result=""
-            local python_exit_code=0
-            
-            # Use timeout command to prevent hanging (10 second timeout)
-            if command -v timeout >/dev/null 2>&1; then
-                validation_result=$(timeout 10 python3 -c "
+    # Write files for validation
+    echo "$service_json" > "$temp_service_file" || {
+        log::error "❌ Failed to write temporary service file"
+        return 1
+    }
+    
+    cp "$schema_path" "$temp_schema_file" || {
+        log::error "❌ Failed to copy schema file"
+        return 1
+    }
+
+    # Perform schema validation
+    if ! validation_result=$(python3 -c "
 import json
 import sys
-import signal
-
-def timeout_handler(signum, frame):
-    print('ERROR: Validation timeout - malformed JSON may be causing infinite processing')
-    sys.exit(124)
-
-signal.signal(signal.SIGALRM, timeout_handler)
-signal.alarm(8)  # Internal 8s timeout as backup
+import os
 
 try:
-    # Read JSON from temp file to avoid shell escaping issues
-    with open('$temp_json_file', 'r') as f:
-        content = f.read().strip()
-        if not content:
-            print('ERROR: Empty service.json file')
-            sys.exit(1)
-        service_json = json.loads(content)
+    import jsonschema
+except ImportError:
+    print('ERROR: jsonschema library not available')
+    print('HELP: Install with: pip install jsonschema')
+    sys.exit(1)
+
+try:
+    # Load service.json
+    with open('$temp_service_file', 'r') as f:
+        service_content = json.load(f)
     
-    signal.alarm(0)  # Cancel timeout
+    # Load the main schema file
+    with open('$temp_schema_file', 'r') as f:
+        main_schema = json.load(f)
     
-    # Check required fields with fallbacks for different schema formats
-    if 'service' in service_json:
-        # New schema format
-        service_obj = service_json['service']
-        if 'name' not in service_obj:
-            print('ERROR: Missing required field: service.name')
-            sys.exit(1)
-    elif 'name' in service_json:
-        # Legacy schema format (direct name field)
-        service_obj = service_json
-    else:
-        print('ERROR: Missing required field: service.name or name')
-        sys.exit(1)
+    # Set up schema resolver to handle references
+    schema_dir = '${var_ROOT_DIR}/.vrooli/schemas/'
+    store = {}
+    
+    # Load all referenced schema files
+    schema_files = ['common.schema.json', 'lifecycle.schema.json', 'resources.schema.json', 'deployment.schema.json']
+    for schema_file in schema_files:
+        schema_path = os.path.join(schema_dir, schema_file)
+        if os.path.exists(schema_path):
+            with open(schema_path, 'r') as f:
+                schema_data = json.load(f)
+                # Use the schema's \$id if available, otherwise construct one
+                schema_id = schema_data.get('\$id', f'file://{schema_path}')
+                store[schema_id] = schema_data
+                # Also store by filename for relative references
+                store[schema_file] = schema_data
+    
+    # Create resolver
+    resolver = jsonschema.RefResolver(
+        base_uri=main_schema.get('\$id', 'file://' + '$temp_schema_file'),
+        referrer=main_schema,
+        store=store
+    )
+    
+    # Validate against the actual schema
+    try:
+        jsonschema.validate(service_content, main_schema, resolver=resolver)
+        # Schema validation passed
+    except jsonschema.ValidationError as e:
+        # Convert validation error to helpful user message
+        errors = []
         
-    # Count enabled resources (handle multiple schema formats)
-    resource_count = 0
-    if 'resources' in service_json:
-        resources = service_json['resources']
-        for key, value in resources.items():
-            if isinstance(value, dict):
-                # Check if it's a flat structure (direct resource config)
-                if 'enabled' in value:
-                    if value.get('enabled', False):
-                        resource_count += 1
-                else:
-                    # Nested structure: check sub-resources
-                    for name, config in value.items():
+        # Parse the validation error
+        path = ' -> '.join(str(p) for p in e.absolute_path) if e.absolute_path else 'root'
+        error_msg = e.message
+        
+        # Add specific helpful suggestions based on common errors
+        if 'is a required property' in error_msg:
+            missing_prop = error_msg.split(\"'\")[1] if \"'\" in error_msg else 'unknown'
+            if missing_prop == 'version':
+                errors.append(f'{path}: Missing required property \"version\" (add: \"version\": \"1.0.0\")')
+            elif missing_prop == 'service':
+                errors.append(f'{path}: Missing required property \"service\" (add service metadata object with name and version)')
+            elif missing_prop == 'ports':
+                errors.append(f'{path}: Missing required property \"ports\" (add: \"ports\": {{\"api\": {{\"env_var\": \"SERVICE_PORT\", \"range\": \"8080-8099\"}}}})')
+            elif missing_prop == 'lifecycle':
+                errors.append(f'{path}: Missing required property \"lifecycle\" (add: \"lifecycle\": {{\"develop\": {{\"steps\": []}}}})')
+            elif missing_prop == 'name' and 'service' in path:
+                errors.append(f'{path}: Missing required property \"name\" (add: \"name\": \"your-app-name\")')
+            elif missing_prop == 'api' and 'ports' in path:
+                errors.append(f'{path}: Missing required \"api\" port (add: \"api\": {{\"env_var\": \"SERVICE_PORT\", \"range\": \"8080-8099\"}})')
+            elif missing_prop == 'develop' and 'lifecycle' in path:
+                errors.append(f'{path}: Missing required \"develop\" phase (add: \"develop\": {{\"steps\": []}})')
+            elif missing_prop == 'env_var':
+                errors.append(f'{path}: Missing required \"env_var\" (add: \"env_var\": \"SERVICE_PORT\")')
+            else:
+                errors.append(f'{path}: Missing required property \"{missing_prop}\"')
+        elif 'does not match' in error_msg and 'pattern' in error_msg:
+            if 'service' in path and 'name' in path:
+                errors.append(f'{path}: Service name must be lowercase with hyphens (e.g. \"my-app-name\")')
+            elif 'env_var' in path:
+                errors.append(f'{path}: Environment variable must be UPPERCASE with underscores (e.g. \"SERVICE_PORT\")')
+            else:
+                errors.append(f'{path}: {error_msg}')
+        elif 'is not one of' in error_msg:
+            if 'oneOf' in str(e.validator):
+                errors.append(f'{path}: Must have either \"range\" (e.g. \"8080-8099\") or \"fixed\" (e.g. 8080) property')
+            else:
+                valid_values = str(e.validator_value) if hasattr(e, 'validator_value') else 'valid values'
+                errors.append(f'{path}: Invalid value. Expected one of: {valid_values}')
+        else:
+            errors.append(f'{path}: {error_msg}')
+        
+        if errors:
+            print('SCHEMA_ERRORS:')
+            for error in errors[:5]:  # Limit to first 5 errors
+                print(f'  • {error}')
+            if len(errors) > 5:
+                print(f'  • ... and {len(errors) - 5} more errors')
+            sys.exit(1)
+    except jsonschema.SchemaError as e:
+        print(f'SCHEMA_FILE_ERROR: Invalid schema file: {str(e)}')
+        sys.exit(1)
+    else:
+        # Extract service info for return data
+        service_name = service_content.get('service', {}).get('name', 'unknown')
+        resource_count = 0
+        
+        # Count enabled resources
+        if 'resources' in service_content:
+            resources = service_content['resources']
+            for category, items in resources.items():
+                if isinstance(items, dict):
+                    for name, config in items.items():
                         if isinstance(config, dict) and config.get('enabled', False):
                             resource_count += 1
                         elif isinstance(config, dict) and config.get('required', False):
                             resource_count += 1
-            elif isinstance(value, bool) and value:
-                # Simple boolean: resources.n8n: true
-                resource_count += 1
-    
-    # Extract service name for summary
-    service_name = ''
-    if 'service' in service_json and 'name' in service_json['service']:
-        service_name = service_json['service']['name']
-    elif 'name' in service_json:
-        service_name = service_json['name']
-    
-    print(f'VALID:{resource_count}:{service_name}')
+        
+        print(f'SCHEMA_VALID:{resource_count}:{service_name}')
     
 except json.JSONDecodeError as e:
-    print(f'ERROR: Invalid JSON syntax - {str(e)[:100]}...' if len(str(e)) > 100 else f'ERROR: Invalid JSON syntax - {e}')
-    sys.exit(1)
-except FileNotFoundError:
-    print('ERROR: Temporary validation file not found')
+    print(f'JSON_ERROR: {str(e)}')
     sys.exit(1)
 except Exception as e:
-    print(f'ERROR: Validation error - {str(e)[:100]}...' if len(str(e)) > 100 else f'ERROR: Validation error - {e}')
+    print(f'VALIDATION_ERROR: {str(e)}')
     sys.exit(1)
-" 2>&1) 
-                python_exit_code=$?
-            else
-                # Fallback without timeout command
-                validation_result=$(python3 -c "
-import json
-import sys
-
-try:
-    with open('$temp_json_file', 'r') as f:
-        service_json = json.load(f)
-    print('VALID:0')
-except json.JSONDecodeError as e:
-    print(f'ERROR: Invalid JSON - {e}')
-    sys.exit(1)
-except Exception as e:
-    print(f'ERROR: {e}')
-    sys.exit(1)
-" 2>&1)
-                python_exit_code=$?
-            fi
-            
-            # Clean up temp file immediately
-            rm -f "$temp_json_file" 2>/dev/null || true
-            trap - EXIT ERR INT TERM  # Remove trap
-            
-            # Process validation results
-            if [[ $python_exit_code -eq 124 ]]; then
-                log::warning "⚠️  Python validation timed out (likely malformed JSON)"
-                validation_error="Python validation timeout"
-            elif [[ "$validation_result" =~ ^VALID:([0-9]+):(.*)$ ]]; then
-                resource_count="${BASH_REMATCH[1]}"
-                service_name="${BASH_REMATCH[2]}"
-                validation_success=true
-                [[ "$VERBOSE" == "true" ]] && log::success "✅ Python schema validation passed"
-            elif [[ "$validation_result" =~ ^ERROR: ]]; then
-                validation_error="$validation_result"
-                log::warning "⚠️  Python validation failed: ${validation_result#ERROR: }"
-            else
-                validation_error="Python validation produced unexpected output: $validation_result"
-                log::warning "⚠️  $validation_error"
-            fi
-        fi
-    fi
-    
-    # Fallback to basic validation if Python validation failed or unavailable
-    if [[ "$validation_success" != "true" ]]; then
-        [[ "$VERBOSE" == "true" ]] && log::info "Using fallback basic validation..."
-        
-        # Enhanced basic validation with better error handling
-        local basic_validation_failed=false
-        
-        # Try to extract service name with error handling
-        if service_name=$(echo "$service_json" | jq -r '.service.name // .name // empty' 2>/dev/null) && [[ -n "$service_name" ]]; then
-            validation_success=true
-            [[ "$VERBOSE" == "true" ]] && log::success "✅ Basic validation passed"
-        elif service_name=$(echo "$service_json" | jq -r '.name // empty' 2>/dev/null) && [[ -n "$service_name" ]]; then
-            validation_success=true
-            [[ "$VERBOSE" == "true" ]] && log::success "✅ Basic validation passed (legacy format)"
+" 2>&1); then
+        # Schema validation failed
+        if echo "$validation_result" | grep -q "SCHEMA_ERRORS:"; then
+            log::error "❌ Schema validation FAILED for scenario: $scenario_name"
+            log::error ""
+            echo "$validation_result" | sed 's/^/[ERROR]   /'
+            log::error ""
+            log::error "💡 Fix these issues in: $service_json_path"
+            log::error ""
+            log::error "🔧 Complete example of required structure:"
+            log::error "{"
+            log::error "  \"version\": \"1.0.0\","
+            log::error "  \"service\": {"
+            log::error "    \"name\": \"your-scenario-name\","
+            log::error "    \"displayName\": \"Your App Name\","
+            log::error "    \"description\": \"Brief description\","
+            log::error "    \"version\": \"1.0.0\""
+            log::error "  },"
+            log::error "  \"ports\": {"
+            log::error "    \"api\": {"
+            log::error "      \"env_var\": \"SERVICE_PORT\","
+            log::error "      \"range\": \"8080-8099\","
+            log::error "      \"fallback\": \"8083\""
+            log::error "    }"
+            log::error "  },"
+            log::error "  \"lifecycle\": {"
+            log::error "    \"develop\": {"
+            log::error "      \"description\": \"Start your app\","
+            log::error "      \"steps\": [{"
+            log::error "        \"name\": \"start-app\","
+            log::error "        \"run\": \"echo 'Starting app...'\""
+            log::error "      }]"
+            log::error "    }"
+            log::error "  },"
+            log::error "  \"resources\": {}"
+            log::error "}"
+        elif echo "$validation_result" | grep -q "ERROR:"; then
+            log::error "❌ Validation system error for scenario: $scenario_name"
+            echo "$validation_result" | sed 's/^ERROR: /[ERROR]   /'
+            log::error "💡 Generated app may not work properly due to validation failure"
         else
-            basic_validation_failed=true
-            validation_error="Missing required field: service.name or name"
+            log::error "❌ Validation failed with unexpected error:"
+            echo "$validation_result" | sed 's/^/[ERROR]   /'
         fi
-        
-        # If basic validation also failed, provide helpful guidance but don't fail completely in batch mode
-        if [[ "$basic_validation_failed" == "true" ]]; then
-            log::error "❌ JSON validation failed completely for scenario: $scenario_name"
-            log::error "Error: $validation_error"
-            log::error "💡 Common fixes:"
-            log::error "   • Ensure JSON syntax is valid (use 'jq empty < service.json' to test)"
-            log::error "   • Add a 'service.name' field to your .vrooli/service.json file"
-            log::error "   • Remove any non-JSON content from the file"
-            log::error "   • Check for trailing commas or unmatched brackets"
-            
-            # In batch processing mode, warn but continue (don't exit)
-            # Individual processing will still return failure
-            if [[ "${#SCENARIO_NAMES[@]}" -gt 1 ]]; then
-                log::warning "Continuing batch processing - this scenario will be skipped"
-                return 1
-            else
-                return 1
-            fi
-        fi
-    fi
-    
-    # Show validation summary
-    if [[ "$validation_success" == "true" ]]; then
-        if [[ "$VERBOSE" == "true" ]]; then
-            log::info "📋 Validation Summary:"
-            if [[ -n "$service_name" ]]; then
-                log::info "   • Service name: ✅ Present ($service_name)"
-            fi
-            log::info "   • JSON syntax: ✅ Valid"
-            if [[ $resource_count -gt 0 ]]; then
-                log::info "   • Resource configuration: ✅ Valid ($resource_count resources enabled)"
-            fi
-            log::info "   • Schema compliance: ✅ Passed"
-        fi
-    else
-        log::warning "⚠️  Validation completed with warnings"
-        [[ "$VERBOSE" == "true" ]] && [[ -n "$validation_error" ]] && log::info "   Details: $validation_error"
-    fi
-    
-    # Validate initialization file paths
-    [[ "$VERBOSE" == "true" ]] && log::info "Validating initialization file paths for $scenario_name..."
-    if ! scenario_to_app::validate_initialization_paths "$scenario_path" "$service_json"; then
         return 1
     fi
-    
-    # Display service information
-    if [[ "$VERBOSE" == "true" ]]; then
-        local service_name service_display_name
-        service_name=$(echo "$service_json" | jq -r '.service.name // empty' 2>/dev/null)
-        service_display_name=$(echo "$service_json" | jq -r '.service.displayName // empty' 2>/dev/null)
+
+    # Parse successful validation result
+    if [[ "$validation_result" =~ ^SCHEMA_VALID:([0-9]+):(.*)$ ]]; then
+        local resource_count="${BASH_REMATCH[1]}"
+        local service_name="${BASH_REMATCH[2]}"
         
-        log::info "Service name: $service_name"
-        if [[ -n "$service_display_name" ]]; then
-            log::info "Display name: $service_display_name"
+        log::success "✅ Schema validation passed for scenario: $scenario_name"
+        [[ "$VERBOSE" == "true" ]] && log::info "   Service: $service_name, Resources: $resource_count"
+        
+        # Validate initialization file paths
+        [[ "$VERBOSE" == "true" ]] && log::info "Validating initialization file paths for $scenario_name..."
+        if ! scenario_to_app::validate_initialization_paths "$scenario_path" "$service_json"; then
+            return 1
         fi
+        
+        # Set return data
+        scenario_data_ref[name]="$scenario_name"
+        scenario_data_ref[path]="$scenario_path"
+        scenario_data_ref[service_json]="$service_json"
+        scenario_data_ref[service_name]="$service_name"
+        scenario_data_ref[resource_count]="$resource_count"
+        scenario_data_ref[service_json_path]="$service_json_path"
+        
+        return 0
+    else
+        log::error "❌ Validation produced unexpected result: $validation_result"
+        return 1
     fi
-    
-    # Return scenario data via nameref
-    scenario_data_ref[name]="$scenario_name"
-    scenario_data_ref[path]="$scenario_path"
-    scenario_data_ref[service_json]="$service_json"
-    scenario_data_ref[service_json_path]="$service_json_path"
-    
-    return 0
 }
 
 # Get all enabled resources from service.json (supports both flat and nested structures)
@@ -2184,10 +2183,9 @@ main() {
     echo ""
     
     # Process scenarios using batch processing
-    local exit_code=0
-    if ! scenario_to_app::process_batch "${SCENARIO_NAMES[@]}"; then
-        exit_code=$?
-    fi
+    local exit_code
+    scenario_to_app::process_batch "${SCENARIO_NAMES[@]}"
+    exit_code=$?
     
     # Final summary
     if [[ ${#SCENARIO_NAMES[@]} -eq 1 ]]; then

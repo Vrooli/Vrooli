@@ -322,6 +322,15 @@ if [[ ${#scenarios_to_convert[@]} -gt 0 ]]; then
                         fi
                         # Store output content for later use
                         chunk_output=$(cat "$chunk_output_file" 2>/dev/null || echo "No output captured")
+                        
+                        # Always show validation errors from chunk failures
+                        if echo "$chunk_output" | grep -q "SCHEMA_ERRORS:\|Schema validation FAILED"; then
+                            log::error "Schema validation errors found in chunk:"
+                            echo "$chunk_output" | grep -A 20 "SCHEMA_ERRORS:\|Schema validation FAILED" | head -25
+                        elif [[ "$VERBOSE" == "true" ]] && [[ -n "$chunk_output" ]]; then
+                            log::info "Last 10 lines of chunk output:"
+                            echo "$chunk_output" | tail -10
+                        fi
                     fi
                     rm -f "$chunk_output_file"
                 fi
@@ -339,6 +348,15 @@ if [[ ${#scenarios_to_convert[@]} -gt 0 ]]; then
                     else
                         # Store output content for later use
                         chunk_output=$(cat "$chunk_output_file" 2>/dev/null || echo "No output captured")
+                        
+                        # Always show validation errors from chunk failures
+                        if echo "$chunk_output" | grep -q "SCHEMA_ERRORS:\|Schema validation FAILED"; then
+                            log::error "Schema validation errors found in chunk:"
+                            echo "$chunk_output" | grep -A 20 "SCHEMA_ERRORS:\|Schema validation FAILED" | head -25
+                        elif [[ "$VERBOSE" == "true" ]] && [[ -n "$chunk_output" ]]; then
+                            log::info "Last 10 lines of chunk output:"
+                            echo "$chunk_output" | tail -10
+                        fi
                     fi
                     rm -f "$chunk_output_file"
                 fi
@@ -378,8 +396,16 @@ if [[ ${#scenarios_to_convert[@]} -gt 0 ]]; then
                             else
                                 log::error "✗ $scenario (exit code: $individual_exit_code)"
                             fi
-                            if [[ "$VERBOSE" == "true" ]]; then
-                                tail -5 "$individual_output_file" 2>/dev/null || echo "No output to display"
+                            # Always show validation errors and app-exists errors, show more output in verbose mode
+                            individual_output=$(cat "$individual_output_file" 2>/dev/null || echo "No output captured")
+                            if echo "$individual_output" | grep -q "SCHEMA_ERRORS:\|Schema validation FAILED"; then
+                                log::error "Schema validation errors:"
+                                echo "$individual_output" | grep -A 20 "SCHEMA_ERRORS:\|Schema validation FAILED" | head -25
+                            elif echo "$individual_output" | grep -q "already exists\|Use --force to overwrite"; then
+                                log::warning "App already exists - use --force to regenerate: $scenario"
+                            elif [[ "$VERBOSE" == "true" ]] && [[ -n "$individual_output" ]]; then
+                                log::info "Last 10 lines of output:"
+                                echo "$individual_output" | tail -10
                             fi
                             failed=$((failed + 1))
                         fi
@@ -392,8 +418,16 @@ if [[ ${#scenarios_to_convert[@]} -gt 0 ]]; then
                             converted=$((converted + 1))
                         else
                             log::error "✗ $scenario"
-                            if [[ "$VERBOSE" == "true" ]]; then
-                                tail -5 "$individual_output_file" 2>/dev/null || echo "No output to display"
+                            # Always show validation errors and app-exists errors, show more output in verbose mode
+                            individual_output=$(cat "$individual_output_file" 2>/dev/null || echo "No output captured")
+                            if echo "$individual_output" | grep -q "SCHEMA_ERRORS:\|Schema validation FAILED"; then
+                                log::error "Schema validation errors:"
+                                echo "$individual_output" | grep -A 20 "SCHEMA_ERRORS:\|Schema validation FAILED" | head -25
+                            elif echo "$individual_output" | grep -q "already exists\|Use --force to overwrite"; then
+                                log::warning "App already exists - use --force to regenerate: $scenario"
+                            elif [[ "$VERBOSE" == "true" ]] && [[ -n "$individual_output" ]]; then
+                                log::info "Last 10 lines of output:"
+                                echo "$individual_output" | tail -10
                             fi
                             failed=$((failed + 1))
                         fi

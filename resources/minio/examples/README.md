@@ -30,13 +30,13 @@ Before running examples, ensure MinIO is installed and running:
 
 ```bash
 # Check installation
-./manage.sh --action status
+resource-minio status
 
 # If not installed
-./manage.sh --action install
+resource-minio manage install
 
 # Get credentials for examples
-./manage.sh --action show-credentials
+resource-minio credentials
 ```
 
 ## 🔧 Basic Setup for Examples

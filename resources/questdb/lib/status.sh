@@ -222,7 +222,7 @@ questdb::status::display_text() {
         log::error "   ❌ Installed: No"
         echo
         log::info "💡 Installation Required:"
-        log::info "   To install QuestDB, run: ./manage.sh --action install"
+        log::info "   To install QuestDB, run: resource-questdb manage install"
         return
     fi
     

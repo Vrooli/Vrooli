@@ -164,10 +164,10 @@ questdb::install::show_success() {
     echo "${QUESTDB_INFO_MESSAGES["performance"]}"
     echo ""
     echo "📚 Quick Start:"
-    echo "  - View status:    ./manage.sh --action status"
-    echo "  - Open console:   ./manage.sh --action console"
-    echo "  - Execute query:  ./manage.sh --action query --query 'SELECT * FROM tables()'"
-    echo "  - View logs:      ./manage.sh --action logs"
+    echo "  - View status:    resource-questdb status"
+    echo "  - Open console:   resource-questdb content execute --console"
+    echo "  - Execute query:  resource-questdb content execute 'SELECT * FROM tables()'"
+    echo "  - View logs:      resource-questdb logs"
     echo ""
 }
 
@@ -230,6 +230,47 @@ questdb::install::upgrade() {
 }
 
 #######################################
+# Uninstall QuestDB completely
+# Returns:
+#   0 on success, 1 on failure
+#######################################
+questdb::install::uninstall() {
+    log::header "Uninstalling QuestDB"
+    
+    if ! flow::confirm "Are you sure you want to uninstall QuestDB? This will remove all data."; then
+        log::info "Uninstall cancelled"
+        return 0
+    fi
+    
+    # Stop container if running
+    questdb::docker::stop || true
+    
+    # Remove container
+    if docker ps -a --format '{{.Names}}' | grep -q "^${QUESTDB_CONTAINER_NAME}$"; then
+        log::info "Removing QuestDB container..."
+        docker rm -f "${QUESTDB_CONTAINER_NAME}" || true
+    fi
+    
+    # Remove network if it exists
+    if docker network ls --format '{{.Name}}' | grep -q "^${QUESTDB_NETWORK_NAME}$"; then
+        log::info "Removing Docker network..."
+        docker network rm "${QUESTDB_NETWORK_NAME}" || true
+    fi
+    
+    # Remove data directories
+    if flow::confirm "Remove all QuestDB data directories?"; then
+        log::info "Removing data directories..."
+        trash::safe_remove "${QUESTDB_DATA_DIR}" --no-confirm 2>/dev/null || true
+        trash::safe_remove "${QUESTDB_CONFIG_DIR}" --no-confirm 2>/dev/null || true
+        trash::safe_remove "${QUESTDB_LOG_DIR}" --no-confirm 2>/dev/null || true
+        trash::safe_remove "${HOME}/.questdb" --no-confirm 2>/dev/null || true
+    fi
+    
+    log::success "QuestDB uninstalled successfully"
+    return 0
+}
+
+#######################################
 # Export install functions
 #######################################
 export -f questdb::install::run
@@ -238,3 +279,4 @@ export -f questdb::install::pull_image
 export -f questdb::install::init_tables
 export -f questdb::install::show_success
 export -f questdb::install::upgrade
+export -f questdb::install::uninstall

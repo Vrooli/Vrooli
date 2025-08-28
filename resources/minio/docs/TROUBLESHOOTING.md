@@ -22,13 +22,13 @@ netstat -tlnp | grep -E "(9000|9001)"
 ```bash
 # Use custom ports
 MINIO_CUSTOM_PORT=9100 MINIO_CUSTOM_CONSOLE_PORT=9101 \
-  ./manage.sh --action install
+  resource-minio manage install
 
 # Stop conflicting services if identified
 sudo systemctl stop conflicting-service
 
 # Verify ports are available
-./manage.sh --action status
+resource-minio status
 ```
 
 ### Container Won't Start
@@ -41,7 +41,7 @@ sudo systemctl stop conflicting-service
 docker ps -a | grep minio
 
 # View startup logs
-./manage.sh --action logs --lines 100
+resource-minio logs --lines 100
 
 # Check Docker daemon
 sudo systemctl status docker
@@ -72,9 +72,9 @@ sudo systemctl status docker
 3. **Corrupted Configuration**:
    ```bash
    # Reset configuration
-   ./manage.sh --action stop
+   resource-minio manage stop
    rm -rf ~/.minio/config/
-   ./manage.sh --action install
+   resource-minio manage install
    ```
 
 ### Docker Issues
@@ -111,19 +111,19 @@ docker ps | grep minio
 curl -I http://localhost:9001
 
 # Check network connectivity
-./manage.sh --action status
+resource-minio status
 ```
 
 **Solutions**:
 ```bash
 # Verify correct credentials
-./manage.sh --action show-credentials
+resource-minio credentials
 
 # Check if console is disabled
 docker exec minio printenv | grep MINIO_BROWSER
 
 # Restart container
-./manage.sh --action restart
+resource-minio manage restart
 
 # Access via different address
 curl -I http://127.0.0.1:9001
@@ -136,10 +136,10 @@ curl -I http://127.0.0.1:9001
 **Solutions**:
 ```bash
 # Show current credentials
-./manage.sh --action show-credentials
+resource-minio credentials
 
 # Reset credentials if needed
-./manage.sh --action reset-credentials
+resource-minio content execute --name reset-credentials
 
 # Verify credentials file
 cat ~/.minio/config/credentials
@@ -159,7 +159,7 @@ curl -u username:password http://localhost:9000/
 curl -I http://localhost:9000/
 
 # Check credentials format
-./manage.sh --action show-credentials
+resource-minio credentials
 
 # Test with AWS CLI
 aws s3 ls --endpoint-url http://localhost:9000 --no-verify-ssl
@@ -168,7 +168,7 @@ aws s3 ls --endpoint-url http://localhost:9000 --no-verify-ssl
 **Solutions**:
 ```bash
 # Configure AWS CLI correctly
-CREDS=$(./manage.sh --action show-credentials)
+CREDS=$(resource-minio credentials)
 ACCESS_KEY=$(echo "$CREDS" | grep Username | cut -d' ' -f2)
 SECRET_KEY=$(echo "$CREDS" | grep Password | cut -d' ' -f2)
 
@@ -189,7 +189,7 @@ aws s3 ls --endpoint-url http://localhost:9000
 **Diagnosis**:
 ```bash
 # List existing buckets
-./manage.sh --action list-buckets
+resource-minio content list
 
 # Check bucket permissions
 docker exec minio mc ls local/
@@ -201,13 +201,13 @@ docker exec minio mc policy list local/bucket-name
 **Solutions**:
 ```bash
 # Create bucket with proper policy
-./manage.sh --action create-bucket --bucket test-bucket --policy none
+resource-minio content execute --name create-bucket --bucket test-bucket --policy none
 
 # Fix bucket permissions
 docker exec minio mc policy set download local/public-bucket
 
 # Remove problematic bucket
-./manage.sh --action remove-bucket --bucket problem-bucket --force yes
+resource-minio content execute --name remove-bucket --bucket problem-bucket --force yes
 ```
 
 ### File Upload/Download Failures
@@ -217,7 +217,7 @@ docker exec minio mc policy set download local/public-bucket
 **Diagnosis**:
 ```bash
 # Test basic upload/download
-./manage.sh --action test-upload
+resource-minio test smoke
 
 # Check available space
 df -h ~/.minio/data/
@@ -259,9 +259,9 @@ dmesg | grep -i error
 **Solutions**:
 ```bash
 # Restore from backup
-./manage.sh --action stop
+resource-minio manage stop
 tar -xzf minio-backup-date.tar.gz -C ~/
-./manage.sh --action start
+resource-minio manage start
 
 # Run file system check
 sudo fsck ~/.minio/data/
@@ -292,7 +292,7 @@ docker port minio
 **Solutions**:
 ```bash
 # Restart networking
-./manage.sh --action restart
+resource-minio manage restart
 
 # Check firewall rules
 sudo ufw status
@@ -330,7 +330,7 @@ time curl -o /dev/null http://localhost:9000/bucket/large-file
 # Check mount options: noatime,nodiratime
 
 # Increase API limits
-MINIO_API_REQUESTS_MAX=2000 ./manage.sh --action restart
+MINIO_API_REQUESTS_MAX=2000 resource-minio manage restart
 
 # Check for competing processes
 top -p $(pgrep -f minio)
@@ -340,7 +340,7 @@ top -p $(pgrep -f minio)
 
 ### Service Won't Stop
 
-**Symptoms**: manage.sh --action stop doesn't work
+**Symptoms**: resource-minio manage stop doesn't work
 
 **Solutions**:
 ```bash
@@ -355,7 +355,7 @@ docker ps -a | grep minio
 docker rm -f minio
 
 # Clean restart
-./manage.sh --action install
+resource-minio manage install
 ```
 
 ### Logs Not Available
@@ -377,7 +377,7 @@ docker exec minio ls -la /root/.minio/
 
 # Enable debug logging
 export MINIO_ROOT_LOG_LEVEL=DEBUG
-./manage.sh --action restart
+resource-minio manage restart
 ```
 
 ### Health Check Failures
@@ -391,7 +391,7 @@ curl http://localhost:9000/minio/health/live
 curl http://localhost:9000/minio/health/ready
 
 # Run diagnostics
-./manage.sh --action diagnose
+resource-minio content execute --name diagnose
 
 # Check container health
 docker inspect minio | grep -A 10 Health
@@ -400,14 +400,14 @@ docker inspect minio | grep -A 10 Health
 **Solutions**:
 ```bash
 # Restart service
-./manage.sh --action restart
+resource-minio manage restart
 
 # Check resource availability
 free -h
 df -h ~/.minio/
 
 # Verify configuration
-./manage.sh --action status --verbose
+resource-minio status --verbose
 ```
 
 ## 📊 Performance and Resource Issues
@@ -434,9 +434,9 @@ free -h
 # Edit lib/docker.sh to add: --memory="2g"
 
 # Restart with limits
-./manage.sh --action stop
+resource-minio manage stop
 # Modify docker run command in lib/docker.sh
-./manage.sh --action start
+resource-minio manage start
 
 # Clear caches
 docker exec minio sync
@@ -480,14 +480,14 @@ docker exec minio mc ilm add local/large-bucket --expire-days 30
 docker exec minio mc mirror local/important-bucket /backup/important-bucket/
 
 # 2. Complete uninstall
-./manage.sh --action uninstall --remove-data yes
+resource-minio manage uninstall --remove-data yes
 
 # 3. Clean up any remaining files
 docker system prune -f
 rm -rf ~/.minio/
 
 # 4. Fresh installation
-./manage.sh --action install
+resource-minio manage install
 
 # 5. Restore critical data
 docker exec minio mc mirror /backup/important-bucket local/important-bucket/
@@ -497,7 +497,7 @@ docker exec minio mc mirror /backup/important-bucket local/important-bucket/
 
 ```bash
 # Stop MinIO service
-./manage.sh --action stop
+resource-minio manage stop
 
 # Backup current state (just in case)
 mv ~/.minio/data ~/.minio/data.backup.$(date +%s)
@@ -511,10 +511,10 @@ chmod -R 755 ~/.minio/data
 chmod 600 ~/.minio/config/credentials
 
 # Start service
-./manage.sh --action start
+resource-minio manage start
 
 # Verify restoration
-./manage.sh --action list-buckets
+resource-minio content list
 ```
 
 ## 🔍 Diagnostic Commands
@@ -525,7 +525,7 @@ chmod 600 ~/.minio/config/credentials
 # Full diagnostic report
 {
   echo "=== MinIO Status ==="
-  ./manage.sh --action status
+  resource-minio status
   echo "=== Container Info ==="
   docker inspect minio
   echo "=== Resource Usage ==="
@@ -569,8 +569,8 @@ docker --version
 df -h ~/.minio/
 
 # MinIO status
-./manage.sh --action status
-./manage.sh --action show-credentials
+resource-minio status
+resource-minio credentials
 
 # Container details
 docker ps | grep minio
@@ -586,12 +586,12 @@ cat ~/.vrooli/service.json | jq '.services.storage.minio'
 | Problem | Quick Fix |
 |---------|-----------|
 | Port conflicts | Use `MINIO_CUSTOM_PORT=9100` |
-| Container won't start | Check `./manage.sh --action logs` |
-| Can't access console | Verify `./manage.sh --action show-credentials` |
-| Authentication failed | Run `./manage.sh --action reset-credentials` |
-| Bucket operations fail | Check `./manage.sh --action list-buckets` |
+| Container won't start | Check `resource-minio logs` |
+| Can't access console | Verify `resource-minio credentials` |
+| Authentication failed | Run `resource-minio content execute --name reset-credentials` |
+| Bucket operations fail | Check `resource-minio content list` |
 | Out of disk space | Clean temp files with `docker exec minio find /data/.minio.sys/tmp -delete` |
 | Slow performance | Monitor with `docker stats minio` |
-| Complete failure | Run `./manage.sh --action diagnose` |
+| Complete failure | Run `resource-minio content execute --name diagnose` |
 
-Most issues can be resolved by checking logs with `./manage.sh --action logs` and running diagnostics with `./manage.sh --action diagnose`.
+Most issues can be resolved by checking logs with `resource-minio logs` and running diagnostics with `resource-minio content execute --name diagnose`.

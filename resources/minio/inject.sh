@@ -127,7 +127,7 @@ minio_inject::check_accessibility() {
         return 0
     else
         log::error "MinIO is not accessible at $MINIO_ENDPOINT"
-        log::info "Ensure MinIO is running: ./resources/minio/manage.sh --action start"
+        log::info "Ensure MinIO is running: resource-minio manage start"
         return 1
     fi
 }

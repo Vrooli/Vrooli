@@ -8,7 +8,7 @@ This guide covers installation, configuration, and optimization of MinIO for obj
 
 ```bash
 # Install with default settings
-./resources/minio/manage.sh --action install
+./resources/minio/cli.sh manage install
 
 # Default configuration:
 # - API Port: 9000
@@ -23,7 +23,7 @@ This guide covers installation, configuration, and optimization of MinIO for obj
 ```bash
 # Avoid port conflicts
 MINIO_CUSTOM_PORT=9100 MINIO_CUSTOM_CONSOLE_PORT=9101 \
-  ./manage.sh --action install
+  resource-minio manage install
 
 # Verify custom ports
 curl -I http://localhost:9100  # API
@@ -35,11 +35,11 @@ curl -I http://localhost:9101  # Console
 # Set before installation
 export MINIO_CUSTOM_ROOT_USER="admin"
 export MINIO_CUSTOM_ROOT_PASSWORD="supersecurepassword123"
-./manage.sh --action install
+resource-minio manage install
 
 # Or inline
 MINIO_CUSTOM_ROOT_USER=admin MINIO_CUSTOM_ROOT_PASSWORD=secretpass \
-  ./manage.sh --action install
+  resource-minio manage install
 ```
 
 #### Advanced Installation
@@ -50,7 +50,7 @@ MINIO_CUSTOM_CONSOLE_PORT=9101 \
 MINIO_CUSTOM_ROOT_USER="vrooli-admin" \
 MINIO_CUSTOM_ROOT_PASSWORD="secure-pass-2024" \
 MINIO_REGION="us-west-1" \
-  ./manage.sh --action install
+  resource-minio manage install
 ```
 
 ## 🏗️ Architecture Configuration
@@ -117,7 +117,7 @@ MinIO automatically creates four buckets for Vrooli:
 
 ```bash
 # Create bucket with specific policy
-./manage.sh --action create-bucket --bucket my-data --policy none
+resource-minio content execute --name create-bucket --bucket my-data --policy none
 
 # Available policies:
 # - none: Private (default)
@@ -158,13 +158,13 @@ docker exec minio mc ilm add local/uploads-bucket \
 #### Secure Credential Generation
 ```bash
 # Automatic secure generation (default)
-./manage.sh --action install  # Generates 16-character secure password
+resource-minio manage install  # Generates 16-character secure password
 
 # View current credentials
-./manage.sh --action show-credentials
+resource-minio credentials
 
 # Reset to new secure credentials
-./manage.sh --action reset-credentials
+resource-minio content execute --name reset-credentials
 ```
 
 #### Manual Credential Setting
@@ -172,7 +172,7 @@ docker exec minio mc ilm add local/uploads-bucket \
 # Set specific credentials (ensure they're secure)
 export MINIO_CUSTOM_ROOT_USER="admin-$(date +%s)"
 export MINIO_CUSTOM_ROOT_PASSWORD="$(openssl rand -base64 32)"
-./manage.sh --action install
+resource-minio manage install
 ```
 
 ### File Permissions
@@ -275,15 +275,15 @@ docker stats minio
 
 ```bash
 # Increase connection limits
-MINIO_API_REQUESTS_MAX=2000 ./manage.sh --action install
+MINIO_API_REQUESTS_MAX=2000 resource-minio manage install
 
 # Set request deadline
 export MINIO_API_REQUESTS_DEADLINE=30s
-./manage.sh --action restart
+resource-minio manage restart
 
 # Enable compression for better bandwidth usage
 export MINIO_COMPRESS="on"
-./manage.sh --action restart
+resource-minio manage restart
 ```
 
 ### Storage Optimization
@@ -423,7 +423,7 @@ if [ -z "$BACKUP_FILE" ]; then
 fi
 
 # Stop MinIO
-./manage.sh --action stop
+resource-minio manage stop
 
 # Backup current data
 mv ~/.minio/data ~/.minio/data.backup.$(date +%s)
@@ -433,7 +433,7 @@ mkdir -p ~/.minio/data
 tar -xzf "$BACKUP_FILE" -C ~/.minio/
 
 # Start MinIO
-./manage.sh --action start
+resource-minio manage start
 EOF
 chmod +x ~/.minio/restore.sh
 ```
@@ -445,7 +445,7 @@ chmod +x ~/.minio/restore.sh
 ```bash
 # Configure health check intervals
 export MINIO_HEALTH_CHECK_INTERVAL=30s
-./manage.sh --action restart
+resource-minio manage restart
 
 # Custom health check endpoint
 curl -f http://localhost:9000/minio/health/live || exit 1
@@ -456,14 +456,14 @@ curl -f http://localhost:9000/minio/health/live || exit 1
 ```bash
 # Enable Prometheus metrics
 export MINIO_PROMETHEUS_AUTH_TYPE="public"
-./manage.sh --action restart
+resource-minio manage restart
 
 # Access metrics
 curl http://localhost:9000/minio/v2/metrics/cluster
 
 # Configure log levels
 export MINIO_ROOT_LOG_LEVEL="INFO"  # DEBUG, INFO, WARN, ERROR
-./manage.sh --action restart
+resource-minio manage restart
 ```
 
 ### Alerting Configuration

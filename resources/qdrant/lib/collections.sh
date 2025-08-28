@@ -359,7 +359,7 @@ qdrant::collections::get_vector_count() {
     
     # Check if request was successful
     if [[ $? -eq 0 ]]; then
-        echo "$response" | jq -r '.result.vectors_count // 0' 2>/dev/null || echo "0"
+        echo "$response" | jq -r '.result.points_count // 0' 2>/dev/null || echo "0"
     else
         return 1
     fi
@@ -991,18 +991,29 @@ qdrant::collections::upsert_point() {
         formatted_id="\"${hash:0:8}-${hash:8:4}-${hash:12:4}-${hash:16:4}-${hash:20:12}\""
     fi
     
+    # Validate JSON inputs
+    if ! echo "$vector" | jq -e . >/dev/null 2>&1; then
+        log::error "Invalid vector JSON: $vector"
+        return 1
+    fi
+    
+    if ! echo "$payload" | jq -e . >/dev/null 2>&1; then
+        log::error "Invalid payload JSON: $payload"
+        return 1
+    fi
+    
     # Construct the points data for the API
     local points_data
     if [[ "$formatted_id" =~ ^[0-9]+$ ]]; then
-        # Numeric ID
+        # Numeric ID - use as number
         points_data=$(jq -n \
-            --argjson id "$formatted_id" \
+            --arg id "$formatted_id" \
             --argjson vector "$vector" \
             --argjson payload "$payload" \
             '{
                 points: [
                     {
-                        id: $id,
+                        id: ($id | tonumber),
                         vector: $vector,
                         payload: $payload
                     }
@@ -1010,21 +1021,40 @@ qdrant::collections::upsert_point() {
             }'
         )
     else
-        # UUID string ID
-        points_data=$(jq -n \
-            --argjson id "$formatted_id" \
-            --argjson vector "$vector" \
-            --argjson payload "$payload" \
-            '{
-                points: [
-                    {
-                        id: $id,
-                        vector: $vector,
-                        payload: $payload
-                    }
-                ]
-            }'
-        )
+        # UUID string ID - already quoted
+        if [[ "$formatted_id" =~ ^\" ]]; then
+            # Already quoted, use as-is
+            points_data=$(jq -n \
+                --arg id "${formatted_id//\"/}" \
+                --argjson vector "$vector" \
+                --argjson payload "$payload" \
+                '{
+                    points: [
+                        {
+                            id: $id,
+                            vector: $vector,
+                            payload: $payload
+                        }
+                    ]
+                }'
+            )
+        else
+            # Not quoted, use as string
+            points_data=$(jq -n \
+                --arg id "$formatted_id" \
+                --argjson vector "$vector" \
+                --argjson payload "$payload" \
+                '{
+                    points: [
+                        {
+                            id: $id,
+                            vector: $vector,
+                            payload: $payload
+                        }
+                    ]
+                }'
+            )
+        fi
     fi
     
     # Make the API request using direct curl

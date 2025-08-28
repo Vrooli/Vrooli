@@ -43,10 +43,10 @@ source "${QDRANT_DIR}/lib/models.sh"
 # Source embedding components
 source "${EMBEDDINGS_DIR}/indexers/identity.sh"
 source "${EMBEDDINGS_DIR}/extractors/workflows.sh"
-source "${EMBEDDINGS_DIR}/extractors/scenarios.sh"
+source "${EMBEDDINGS_DIR}/extractors/scenarios/main.sh"
 source "${EMBEDDINGS_DIR}/extractors/docs.sh"
 source "${EMBEDDINGS_DIR}/extractors/code.sh"
-source "${EMBEDDINGS_DIR}/extractors/resources.sh"
+source "${EMBEDDINGS_DIR}/extractors/resources/main.sh"
 source "${EMBEDDINGS_DIR}/search/single.sh"
 source "${EMBEDDINGS_DIR}/search/multi.sh"
 

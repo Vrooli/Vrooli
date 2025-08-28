@@ -6,7 +6,7 @@
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 QUESTDB_LIB_DIR="${APP_ROOT}/resources/questdb/lib"
 # shellcheck disable=SC1091
-source "${QUESTDB_LIB_DIR}/../../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 # Source shared libraries
 # shellcheck disable=SC1091
@@ -326,4 +326,18 @@ questdb::docker::destroy_client_instance() {
     
     log::success "QuestDB client instance destroyed successfully"
     return 0
+}
+
+# Show QuestDB container logs
+questdb::docker::logs() {
+    local lines="${1:-50}"
+    local follow="${2:-false}"
+    
+    if ! docker::container_exists "$QUESTDB_CONTAINER_NAME"; then
+        log::error "QuestDB container does not exist"
+        return 1
+    fi
+    
+    log::info "Showing QuestDB logs..."
+    docker_resource::show_logs_with_follow "$QUESTDB_CONTAINER_NAME" "$lines" "$follow"
 }

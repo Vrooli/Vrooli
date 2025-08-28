@@ -175,7 +175,7 @@ qdrant::parallel::process_scenario_chunk() {
     
     # Source unified embedding service and scenario extractor for metadata
     source "${EMBEDDINGS_DIR}/lib/embedding-service.sh"
-    source "${EMBEDDINGS_DIR}/extractors/scenarios.sh"
+    source "${EMBEDDINGS_DIR}/extractors/scenarios/main.sh"
     
     # Process scenarios using modern content format
     local content=""

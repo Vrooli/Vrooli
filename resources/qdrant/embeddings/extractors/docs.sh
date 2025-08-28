@@ -18,7 +18,7 @@ source "${var_LIB_UTILS_DIR}/log.sh"
 source "${EMBEDDINGS_DIR}/lib/embedding-service.sh"
 
 # Source markdown parser for reliable extraction
-source "${EMBEDDINGS_DIR}/lib/markdown-parser.sh"
+source "${EMBEDDINGS_DIR}/parsers/markdown.sh"
 
 # Temporary directory for extracted content
 EXTRACT_TEMP_DIR="/tmp/qdrant-docs-extract-$$"
@@ -34,7 +34,7 @@ STANDARD_DOCS=(
     "PATTERNS.md"
 )
 
-# Note: marked sections extraction is now handled by markdown-parser.sh
+# Note: marked sections extraction is now handled by parsers/markdown.sh
 # The function markdown::extract_marked_sections provides proper JSON output
 
 #######################################

@@ -16,11 +16,11 @@ source "${var_LIB_UTILS_DIR}/flow.sh"
 #######################################
 questdb::tables::list() {
     if ! questdb::docker::is_running; then
-        log::error "${QUESTDB_STATUS_MESSAGES["not_running"]}"
+        log::error "QuestDB is not running"
         return 1
     fi
     
-    echo_header "QuestDB Tables"
+    log::header "QuestDB Tables"
     
     # Get table list with row counts
     local query="
@@ -75,7 +75,7 @@ questdb::tables::create_from_file() {
         return 1
     fi
     
-    log::info "${QUESTDB_API_MESSAGES["creating_table"]} $table_name"
+    log::info "Creating table: $table_name"
     
     # Read schema
     local sql
@@ -83,7 +83,7 @@ questdb::tables::create_from_file() {
     
     # Execute create table statement
     if questdb::api::query "$sql" 1; then
-        log::success "${QUESTDB_API_MESSAGES["table_created"]}"
+        log::success "Table created successfully"
         return 0
     else
         return 1
@@ -96,7 +96,7 @@ questdb::tables::create_from_file() {
 #   0 on success, 1 on failure
 #######################################
 questdb::tables::create_defaults() {
-    echo_header "Creating Default Tables"
+    log::header "Creating Default Tables"
     
     # System metrics table
     local system_metrics_sql="
@@ -230,7 +230,7 @@ questdb::tables::info() {
         return 1
     fi
     
-    echo_header "Table Information: $table"
+    log::header "Table Information: $table"
     
     # Get schema
     echo ""

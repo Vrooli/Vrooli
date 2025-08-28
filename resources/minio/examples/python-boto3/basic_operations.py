@@ -9,7 +9,7 @@ This example demonstrates fundamental MinIO operations using the boto3 library:
 - Error handling
 
 Prerequisites:
-- MinIO running locally (./manage.sh --action install)
+- MinIO running locally (resource-minio manage install)
 - Python 3.6+
 - boto3 installed (pip install boto3)
 """
@@ -46,11 +46,11 @@ def create_minio_client():
     
     except NoCredentialsError:
         print("❌ Error: Invalid credentials")
-        print("Run './manage.sh --action show-credentials' to get correct credentials")
+        print("Run 'resource-minio credentials' to get correct credentials")
         return None
     except Exception as e:
         print(f"❌ Error connecting to MinIO: {e}")
-        print("Make sure MinIO is running: ./manage.sh --action status")
+        print("Make sure MinIO is running: resource-minio status")
         return None
 
 

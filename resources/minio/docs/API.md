@@ -15,7 +15,7 @@ After installation:
 
 ```bash
 # Get current credentials
-./manage.sh --action show-credentials
+resource-minio credentials
 
 # Example output:
 # Username: minioadmin
@@ -72,21 +72,21 @@ aws s3 sync ./local-dir s3://bucket-name/remote-dir/ --endpoint-url $ENDPOINT_UR
 
 ```bash
 # Check status
-./manage.sh --action status
+resource-minio status
 
 # Start/stop/restart service
-./manage.sh --action start
-./manage.sh --action stop
-./manage.sh --action restart
+resource-minio manage start
+resource-minio manage stop
+resource-minio manage restart
 
 # View logs
-./manage.sh --action logs --lines 100
+resource-minio logs --tail 100
 
 # Monitor health with interval
-./manage.sh --action monitor --interval 5
+resource-minio content execute --name monitor --interval 5
 
 # Run diagnostics
-./manage.sh --action diagnose
+resource-minio content execute --name diagnose
 ```
 
 #### Status Response Format
@@ -96,23 +96,23 @@ aws s3 sync ./local-dir s3://bucket-name/remote-dir/ --endpoint-url $ENDPOINT_UR
 📊 API Endpoint: http://localhost:9000
 🖥️  Console: http://localhost:9001
 📦 Buckets: 4 configured
-🔐 Credentials: Set (use --action show-credentials to view)
+🔐 Credentials: Set (use 'resource-minio credentials' to view)
 ```
 
 ### Bucket Management
 
 ```bash
 # List all buckets with statistics
-./manage.sh --action list-buckets
+resource-minio content list
 
 # Create a new bucket
-./manage.sh --action create-bucket --bucket my-bucket --policy download
+resource-minio content execute --name create-bucket --bucket my-bucket --policy download
 
 # Remove a bucket (must be empty)
-./manage.sh --action remove-bucket --bucket my-bucket
+resource-minio content execute --name remove-bucket --bucket my-bucket
 
 # Force remove non-empty bucket
-./manage.sh --action remove-bucket --bucket my-bucket --force yes
+resource-minio content execute --name remove-bucket --bucket my-bucket --force yes
 ```
 
 #### Bucket Policies
@@ -137,10 +137,10 @@ aws s3 sync ./local-dir s3://bucket-name/remote-dir/ --endpoint-url $ENDPOINT_UR
 
 ```bash
 # Show current credentials
-./manage.sh --action show-credentials
+resource-minio credentials
 
 # Reset credentials (generates new secure ones)
-./manage.sh --action reset-credentials
+resource-minio content execute --name reset-credentials
 ```
 
 #### Credentials Format
@@ -157,10 +157,10 @@ Console: http://localhost:9001
 
 ```bash
 # Test file upload/download functionality
-./manage.sh --action test-upload
+resource-minio test smoke
 
 # Run comprehensive diagnostics
-./manage.sh --action diagnose
+resource-minio content execute --name diagnose
 ```
 
 #### Test Upload Process
@@ -190,7 +190,7 @@ docker exec minio mc mirror /source/dir local/bucket-name/target/
 docker exec minio mc policy set download local/bucket-name
 
 # Create alias for external mc client
-CREDS=$(./manage.sh --action show-credentials)
+CREDS=$(resource-minio credentials)
 USERNAME=$(echo "$CREDS" | grep Username | cut -d' ' -f2)
 PASSWORD=$(echo "$CREDS" | grep Password | cut -d' ' -f2)
 mc alias set vrooli http://localhost:9000 $USERNAME $PASSWORD
@@ -334,7 +334,7 @@ stream.on('error', err => console.error(err));
 # Configuration
 ENDPOINT="http://localhost:9000"
 BUCKET="my-bucket"
-CREDS=$(./manage.sh --action show-credentials)
+CREDS=$(resource-minio credentials)
 ACCESS_KEY=$(echo "$CREDS" | grep Username | cut -d' ' -f2)
 SECRET_KEY=$(echo "$CREDS" | grep Password | cut -d' ' -f2)
 
@@ -401,7 +401,7 @@ MINIO_API_REQUESTS_MAX=1000 ./manage.sh --action install
 
 # Configure concurrent connections
 export MINIO_API_REQUESTS_DEADLINE=10s
-./manage.sh --action restart
+resource-minio manage restart
 ```
 
 ### Batch Operations

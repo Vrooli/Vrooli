@@ -521,6 +521,53 @@ qdrant::models::clear_cache() {
 }
 
 #######################################
+# Check if a specific model is available in Ollama
+# Arguments:
+#   $1 - Model name
+# Returns: 0 if available, 1 if not
+#######################################
+qdrant::models::is_available() {
+    local model_name="$1"
+    
+    if [[ -z "$model_name" ]]; then
+        log::error "Model name is required"
+        return 1
+    fi
+    
+    # First check if Ollama is running
+    if ! qdrant::models::check_ollama; then
+        log::debug "Ollama not available"
+        return 1
+    fi
+    
+    # Get list of available models
+    local models_response
+    models_response=$(http::request "GET" "${OLLAMA_BASE_URL:-http://localhost:11434}/api/tags" "" "" 2>/dev/null)
+    
+    if [[ -z "$models_response" ]]; then
+        log::debug "Failed to get models list from Ollama"
+        return 1
+    fi
+    
+    # Check if the model exists (handle both with and without :latest suffix)
+    local model_found
+    model_found=$(echo "$models_response" | jq -r "
+        .models[]? | select(
+            .name == \"$model_name\" or 
+            .name == \"${model_name}:latest\" or
+            (.name | split(\":\")[0]) == \"$model_name\"
+        ) | .name" 2>/dev/null | head -1)
+    
+    if [[ -n "$model_found" ]]; then
+        log::debug "Model '$model_name' is available (found as: $model_found)"
+        return 0
+    else
+        log::debug "Model '$model_name' not found in Ollama"
+        return 1
+    fi
+}
+
+#######################################
 # Install recommended embedding model if none available
 # Returns: 0 on success, 1 on failure
 #######################################

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Resource Documentation Extractor
-# Extracts and processes markdown documentation from resource directories
+# Scenario Documentation Extractor
+# Extracts and processes markdown documentation from scenario directories
 #
-# This simplified extractor uses the markdown parser for reliable extraction
-# and outputs structured JSON lines with rich metadata.
+# Handles README.md, PRD.md, and docs/ folder contents using the reliable
+# markdown parser for smart section extraction.
 
 set -euo pipefail
 
@@ -17,7 +17,7 @@ source "${var_LIB_UTILS_DIR}/log.sh"
 source "${APP_ROOT}/resources/qdrant/embeddings/parsers/markdown.sh"
 
 #######################################
-# Extract documentation from a resource directory
+# Extract documentation from a scenario directory
 # 
 # Automatically discovers and processes all markdown files using:
 # 1. Marked sections (<!-- EMBED:NAME:START/END -->) when present
@@ -25,36 +25,44 @@ source "${APP_ROOT}/resources/qdrant/embeddings/parsers/markdown.sh"
 # 3. Document overview as fallback
 #
 # Arguments:
-#   $1 - Path to resource directory
+#   $1 - Path to scenario directory
 # Returns: JSON lines of extracted content with metadata
 #######################################
-qdrant::extract::resource_documentation() {
+qdrant::extract::scenario_documentation() {
     local dir="$1"
     
     if [[ ! -d "$dir" ]]; then
-        log::error "Directory not found: $dir" >&2
+        log::error "Scenario directory not found: $dir" >&2
         return 1
     fi
     
-    local resource_name=$(basename "$dir")
-    log::info "Extracting documentation for resource: $resource_name" >&2
+    local scenario_name=$(basename "$dir")
+    log::info "Extracting documentation for scenario: $scenario_name" >&2
     
-    # Find all markdown files in the resource directory and docs subdirectory
+    # Find all markdown files with prioritized order
     local markdown_files=()
     
-    # First check for README.md in root (highest priority)
-    [[ -f "$dir/README.md" ]] && markdown_files+=("$dir/README.md")
-    
-    # Then check for PRD.md (Product Requirements Document - high priority)
+    # First priority: PRD.md (Product Requirements Document)
     [[ -f "$dir/PRD.md" ]] && markdown_files+=("$dir/PRD.md")
     
-    # Then find all other markdown files
+    # Second priority: README.md (Overview documentation)
+    [[ -f "$dir/README.md" ]] && markdown_files+=("$dir/README.md")
+    
+    # Third priority: docs/ folder contents
+    if [[ -d "$dir/docs" ]]; then
+        while IFS= read -r file; do
+            markdown_files+=("$file")
+        done < <(find "$dir/docs" -type f -name "*.md" 2>/dev/null | sort)
+    fi
+    
+    # Fourth priority: any other markdown files in root
     while IFS= read -r file; do
-        # Skip if already added (avoid duplicates)
-        [[ "$file" == "$dir/README.md" ]] && continue
+        # Skip if already added
         [[ "$file" == "$dir/PRD.md" ]] && continue
+        [[ "$file" == "$dir/README.md" ]] && continue
+        [[ "$file" == "$dir"/*"/docs/"* ]] && continue
         markdown_files+=("$file")
-    done < <(find "$dir" -type f -name "*.md" 2>/dev/null | sort)
+    done < <(find "$dir" -maxdepth 1 -type f -name "*.md" 2>/dev/null | sort)
     
     if [[ ${#markdown_files[@]} -eq 0 ]]; then
         log::warn "No markdown files found in $dir" >&2
@@ -70,6 +78,11 @@ qdrant::extract::resource_documentation() {
         local filename=$(basename "$file")
         local relative_path="${file#$dir/}"
         local doc_type="${filename%.md}"
+        
+        # Special handling for PRD files
+        if [[ "$filename" == "PRD.md" ]]; then
+            doc_type="prd"
+        fi
         
         log::debug "Processing: $relative_path" >&2
         
@@ -89,15 +102,15 @@ qdrant::extract::resource_documentation() {
                 [[ -z "$content" || "$content" == "null" ]] && continue
                 
                 # Build enriched content with context
-                local enriched_content="Resource: $resource_name"
+                local enriched_content="Scenario: $scenario_name"
                 enriched_content="$enriched_content | Document: $doc_type"
                 [[ -n "$title" ]] && enriched_content="$enriched_content | Section: $title"
                 enriched_content="$enriched_content | Content: $content"
                 
-                # Output as JSON line with full metadata
+                # Output as JSON line with scenario-specific metadata
                 jq -n \
                     --arg content "$enriched_content" \
-                    --arg resource "$resource_name" \
+                    --arg scenario "$scenario_name" \
                     --arg source_file "$file" \
                     --arg relative_path "$relative_path" \
                     --arg filename "$filename" \
@@ -107,14 +120,15 @@ qdrant::extract::resource_documentation() {
                     '{
                         content: $content,
                         metadata: {
-                            resource: $resource,
+                            scenario: $scenario,
                             source_file: $source_file,
                             relative_path: $relative_path,
                             filename: $filename,
                             doc_type: $doc_type,
                             section: $section,
+                            component_type: "documentation",
                             extraction_method: $extraction_method,
-                            content_type: "resource_documentation"
+                            content_type: "scenario_documentation"
                         }
                     }' | jq -c
                 
@@ -137,7 +151,7 @@ qdrant::extract::resource_documentation() {
                     [[ -z "$content" || "$content" == "null" || ${#content} -lt 100 ]] && continue
                     
                     # Build enriched content
-                    local enriched_content="Resource: $resource_name"
+                    local enriched_content="Scenario: $scenario_name"
                     enriched_content="$enriched_content | Document: $doc_type"
                     [[ -n "$title" ]] && enriched_content="$enriched_content | Section: $title"
                     enriched_content="$enriched_content | Content: $content"
@@ -145,7 +159,7 @@ qdrant::extract::resource_documentation() {
                     # Output as JSON line
                     jq -n \
                         --arg content "$enriched_content" \
-                        --arg resource "$resource_name" \
+                        --arg scenario "$scenario_name" \
                         --arg source_file "$file" \
                         --arg relative_path "$relative_path" \
                         --arg filename "$filename" \
@@ -155,14 +169,15 @@ qdrant::extract::resource_documentation() {
                         '{
                             content: $content,
                             metadata: {
-                                resource: $resource,
+                                scenario: $scenario,
                                 source_file: $source_file,
                                 relative_path: $relative_path,
                                 filename: $filename,
                                 doc_type: $doc_type,
                                 section: $section,
+                                component_type: "documentation",
                                 extraction_method: $extraction_method,
-                                content_type: "resource_documentation"
+                                content_type: "scenario_documentation"
                             }
                         }' | jq -c
                     
@@ -181,14 +196,14 @@ qdrant::extract::resource_documentation() {
                     [[ -z "$content" || "$content" == "null" || ${#content} -lt 50 ]] && continue
                     
                     # Build enriched content for overview
-                    local enriched_content="Resource: $resource_name"
+                    local enriched_content="Scenario: $scenario_name"
                     enriched_content="$enriched_content | Document: $doc_type (Overview)"
                     enriched_content="$enriched_content | Content: $content"
                     
                     # Output as JSON line
                     jq -n \
                         --arg content "$enriched_content" \
-                        --arg resource "$resource_name" \
+                        --arg scenario "$scenario_name" \
                         --arg source_file "$file" \
                         --arg relative_path "$relative_path" \
                         --arg filename "$filename" \
@@ -197,13 +212,14 @@ qdrant::extract::resource_documentation() {
                         '{
                             content: $content,
                             metadata: {
-                                resource: $resource,
+                                scenario: $scenario,
                                 source_file: $source_file,
                                 relative_path: $relative_path,
                                 filename: $filename,
                                 doc_type: $doc_type,
+                                component_type: "documentation",
                                 extraction_method: $extraction_method,
-                                content_type: "resource_documentation"
+                                content_type: "scenario_documentation"
                             }
                         }' | jq -c
                     
@@ -216,5 +232,5 @@ qdrant::extract::resource_documentation() {
     log::success "Extracted $total_sections sections from ${#markdown_files[@]} files" >&2
 }
 
-# Export for use by resources.sh
-export -f qdrant::extract::resource_documentation
+# Export for use by main.sh
+export -f qdrant::extract::scenario_documentation

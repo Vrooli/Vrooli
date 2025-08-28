@@ -21,16 +21,16 @@ MinIO is a high-performance, S3-compatible object storage server that provides l
 
 ```bash
 # Install MinIO with defaults
-./manage.sh --action install
+resource-minio manage install
 
 # Check status
-./manage.sh --action status
+resource-minio status
 
 # View credentials
-./manage.sh --action show-credentials
+resource-minio credentials
 
 # Test functionality
-./manage.sh --action test-upload
+resource-minio test smoke
 ```
 
 ## Access Points
@@ -62,27 +62,27 @@ MinIO automatically creates four buckets for Vrooli:
 
 ```bash
 # Installation and setup
-./manage.sh --action install
-./manage.sh --action status
+resource-minio manage install
+resource-minio status
 
 # Service control
-./manage.sh --action start
-./manage.sh --action stop
-./manage.sh --action restart
+resource-minio manage start
+resource-minio manage stop
+resource-minio manage restart
 
 # Monitoring and maintenance
-./manage.sh --action logs --lines 100
-./manage.sh --action monitor --interval 5
-./manage.sh --action diagnose
+resource-minio logs --tail 100
+resource-minio content execute --name monitor --interval 5
+resource-minio content execute --name diagnose
 
 # Bucket management
-./manage.sh --action list-buckets
-./manage.sh --action create-bucket --bucket my-bucket --policy download
-./manage.sh --action remove-bucket --bucket my-bucket
+resource-minio content list
+resource-minio content execute --name create-bucket --bucket my-bucket --policy download
+resource-minio content execute --name remove-bucket --bucket my-bucket
 
 # Credentials
-./manage.sh --action show-credentials
-./manage.sh --action reset-credentials
+resource-minio credentials
+resource-minio content execute --name reset-credentials
 ```
 
 ## Custom Installation
@@ -90,15 +90,15 @@ MinIO automatically creates four buckets for Vrooli:
 ```bash
 # Custom ports (avoid conflicts)
 MINIO_CUSTOM_PORT=9100 MINIO_CUSTOM_CONSOLE_PORT=9101 \
-  ./manage.sh --action install
+  resource-minio manage install
 
 # Custom credentials  
 MINIO_CUSTOM_ROOT_USER=admin MINIO_CUSTOM_ROOT_PASSWORD=secretpass \
-  ./manage.sh --action install
+  resource-minio manage install
 
 # Performance tuning
 MINIO_API_REQUESTS_MAX=1000 MINIO_REGION=us-west-1 \
-  ./manage.sh --action install
+  resource-minio manage install
 ```
 
 ## Integration Examples
