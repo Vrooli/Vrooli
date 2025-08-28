@@ -54,6 +54,16 @@ lifecycle::develop_with_auto_setup() {
             log::info "Running setup..."
         fi
         
+        # Set managed resources for generated apps to skip Vrooli's resources
+        if [[ -n "${VROOLI_ROOT:-}" ]] && [[ "$VROOLI_ROOT" != "$PWD" ]]; then
+            local main_service_json="${VROOLI_ROOT}/.vrooli/service.json"
+            if [[ -f "$main_service_json" ]]; then
+                VROOLI_MANAGED_RESOURCES=$(jq -r '.resources | to_entries[] | .value | to_entries[] | select(.value | if type == "boolean" then . elif type == "object" then .enabled // false else false end) | .key' "$main_service_json" | paste -sd,)
+                export VROOLI_MANAGED_RESOURCES
+                log::debug "Set VROOLI_MANAGED_RESOURCES for generated app: $(echo "$VROOLI_MANAGED_RESOURCES" | tr ',' ' ' | wc -w) resources"
+            fi
+        fi
+        
         # Run setup phase with original arguments
         lifecycle::execute_phase "setup" "$@" || {
             log::error "Setup failed, cannot start develop mode"

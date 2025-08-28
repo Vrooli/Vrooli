@@ -17,10 +17,10 @@ set -euo pipefail
 embeddings::refresh_on_changes() {
     local scripts_dir="${1:-${var_SCRIPTS_DIR}}"
     
-    # Check if embeddings system is available
-    local embeddings_manage="${scripts_dir}/resources/storage/qdrant/embeddings/manage.sh"
+    # Check if embeddings system is available (v2.0 CLI)
+    local embeddings_cli="${scripts_dir}/resources/qdrant/embeddings/cli.sh"
     
-    if [[ ! -f "$embeddings_manage" ]]; then
+    if [[ ! -f "$embeddings_cli" ]]; then
         log::debug "Embeddings system not available, skipping auto-refresh"
         return 0
     fi
@@ -31,9 +31,10 @@ embeddings::refresh_on_changes() {
         return 0
     fi
     
-    # Source embeddings system (safely)
-    if ! source "$embeddings_manage" 2>/dev/null; then
-        log::debug "Failed to source embeddings system, skipping auto-refresh"
+    # Source embeddings system (v2.0 CLI approach - source components directly)
+    local embeddings_dir="${scripts_dir}/resources/qdrant/embeddings"
+    if ! source "${embeddings_dir}/indexers/identity.sh" 2>/dev/null; then
+        log::debug "Failed to source identity system, skipping auto-refresh"
         return 0
     fi
     
@@ -53,9 +54,9 @@ embeddings::refresh_on_changes() {
     if qdrant::identity::needs_reindex 2>/dev/null; then
         log::info "🔄 Git changes detected, auto-refreshing semantic knowledge..."
         
-        # Run refresh in background to not slow down development
+        # Run refresh in background using v2.0 CLI
         {
-            if qdrant::embeddings::refresh "$app_id" "yes" >/dev/null 2>&1; then
+            if "$embeddings_cli" refresh --force yes >/dev/null 2>&1; then
                 log::success "✅ Semantic knowledge updated for: $app_id"
             else
                 log::warn "⚠️  Semantic knowledge refresh failed for: $app_id"

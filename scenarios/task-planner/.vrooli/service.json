@@ -7,25 +7,34 @@
     "displayName": "Task Planner",
     "description": "General task planner and scheduler with AI-powered task refinement and implementation",
     "version": "1.0.0",
-    "type": "business-application",
-    "category": "saas-applications",
     "tags": [
+      "business-application",
+      "saas-applications",
       "task-management",
       "planning",
       "scheduling",
-      "ai"
+      "ai",
+      "nodejs-ui",
+      "windmill-ui",
+      "go-api",
+      "n8n-workflows",
+      "windmill-apps",
+      "postgres-storage",
+      "redis-cache",
+      "qdrant-vectors",
+      "ollama-ai"
     ]
   },
   "ports": {
     "api": {
       "env_var": "SERVICE_PORT",
-      "range": "8090-8999",
+      "range": "30750-30999",
       "fallback": "auto",
       "description": "Task planner API port"
     },
     "ui": {
       "env_var": "UI_PORT",
-      "range": "3000-3999",
+      "range": "37250-37499",
       "fallback": "auto",
       "description": "Task dashboard UI port"
     }
