@@ -7,26 +7,32 @@
     "displayName": "Circle of Care - Personal Relationship Manager",
     "description": "Thoughtful relationship management system that helps nurture connections with birthday reminders, gift suggestions, and meaningful interaction tracking",
     "version": "1.0.0",
-    "type": "business-application",
-    "category": "lifestyle",
     "tags": [
+      "business-application",
+      "lifestyle",
       "relationships",
       "personal-crm",
       "gift-ideas",
       "birthday-reminders",
-      "social"
+      "social",
+      "nodejs-ui",
+      "go-api",
+      "n8n-workflows",
+      "postgres-storage",
+      "redis-cache",
+      "ollama-ai"
     ]
   },
   "ports": {
     "api": {
       "env_var": "SERVICE_PORT",
-      "range": "39001",
+      "range": "26750-26999",
       "fallback": "auto",
       "description": "Main API port"
     },
     "ui": {
       "env_var": "UI_PORT",
-      "range": "39002",
+      "range": "34000-34249",
       "fallback": "auto",
       "description": "UI server port"
     }

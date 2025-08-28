@@ -17,7 +17,7 @@ def search_searxng(query, **kwargs):
         **kwargs
     }
     
-    response = requests.get('http://localhost:9200/search', params=params)
+    response = requests.get('http://localhost:8280/search', params=params)
     return response.json()
 
 # Example usage
@@ -40,7 +40,7 @@ async function searchSearXNG(query, options = {}) {
         ...options
     };
     
-    const response = await axios.get('http://localhost:9200/search', { params });
+    const response = await axios.get('http://localhost:8280/search', { params });
     return response.data;
 }
 
@@ -63,7 +63,7 @@ searchSearXNG('climate change', { categories: 'news', language: 'en' })
 # Function to search and format results
 search_web() {
     local query="$1"
-    local results=$(curl -s "http://localhost:9200/search?q=${query// /+}&format=json")
+    local results=$(curl -s "http://localhost:8280/search?q=${query// /+}&format=json")
     
     echo "$results" | jq -r '.results[:5] | .[] | "📰 \(.title)\n   🔗 \(.url)\n   📝 \(.content[:100])...\n"'
 }
@@ -81,7 +81,7 @@ search_web "renewable energy innovations"
 # Daily news aggregation
 get_daily_news() {
     local topic="$1"
-    ./manage.sh --action headlines --topic "$topic" > "news_${topic}_$(date +%Y%m%d).txt"
+    resource-searxng content execute --name headlines --topic "$topic" > "news_${topic}_$(date +%Y%m%d).txt"
 }
 
 # Research assistant
@@ -89,13 +89,13 @@ research_topic() {
     local topic="$1"
     
     # Get overview
-    ./manage.sh --action search --query "$topic overview" --limit 5 --output-format compact
+    resource-searxng content execute --name search --query "$topic overview" --limit 5 --output-format compact
     
     # Get recent developments
-    ./manage.sh --action search --query "$topic" --time-range month --category news --limit 3
+    resource-searxng content execute --name search --query "$topic" --time-range month --category news --limit 3
     
     # Get official documentation
-    local docs_url=$(./manage.sh --action lucky --query "$topic official documentation")
+    local docs_url=$(resource-searxng content execute --name lucky --query "$topic official documentation")
     echo "Official docs: $docs_url"
 }
 
@@ -108,10 +108,10 @@ research_topic "machine learning"
 ```bash
 # Add to crontab: crontab -e
 # Daily news collection at 8 AM
-0 8 * * * /path/to/searxng/manage.sh --action headlines --topic "tech" --save ~/daily-tech-news.json
+0 8 * * * resource-searxng content execute --name headlines --topic "tech" --save ~/daily-tech-news.json
 
 # Hourly monitoring of specific keywords
-0 * * * * /path/to/searxng/manage.sh --action search --query "security breach" --time-range hour --append ~/security-alerts.jsonl
+0 * * * * resource-searxng content execute --name search --query "security breach" --time-range hour --append ~/security-alerts.jsonl
 ```
 
 ## 🤖 n8n Integration
@@ -121,7 +121,7 @@ SearXNG can be easily integrated with n8n workflows:
 
 1. **HTTP Request Node Configuration**:
    - Method: GET
-   - URL: `http://localhost:9200/search`
+   - URL: `http://localhost:8280/search`
    - Query Parameters:
      - q: `{{ $json.searchQuery }}`
      - format: `json`
@@ -136,7 +136,7 @@ SearXNG can be easily integrated with n8n workflows:
       "name": "Get Headlines",
       "type": "n8n-nodes-base.executeCommand",
       "parameters": {
-        "command": "./manage.sh",
+        "command": "resource-searxng",
         "arguments": "--action headlines --topic {{ $json.topic }} --output-format json"
       }
     },
@@ -160,7 +160,7 @@ SearXNG can be easily integrated with n8n workflows:
       "name": "Search Web",
       "type": "n8n-nodes-base.httpRequest",
       "parameters": {
-        "url": "http://localhost:9200/search",
+        "url": "http://localhost:8280/search",
         "qs": {
           "q": "={{ $json.topic }}",
           "format": "json",
@@ -282,7 +282,7 @@ class SearXNGService:
 # Search and analyze pipeline
 
 # 1. Search for information
-SEARCH_RESULTS=$(./manage.sh --action search --query "$1" --output-format json --limit 5)
+SEARCH_RESULTS=$(resource-searxng content execute --name search --query "$1" --output-format json --limit 5)
 
 # 2. Extract summaries
 SUMMARIES=$(echo "$SEARCH_RESULTS" | jq -r '.results[] | .content' | head -5)
@@ -348,7 +348,7 @@ async def parallel_search(queries):
         tasks = []
         for query in queries:
             task = session.get(
-                'http://localhost:9200/search',
+                'http://localhost:8280/search',
                 params={'q': query, 'format': 'json'}
             )
             tasks.append(task)
@@ -422,7 +422,7 @@ def track_search_metrics(query, results, response_time):
 
 while true; do
     # Test basic functionality
-    RESPONSE=$(curl -s -w "%{http_code}" "http://localhost:9200/search?q=test&format=json")
+    RESPONSE=$(curl -s -w "%{http_code}" "http://localhost:8280/search?q=test&format=json")
     HTTP_CODE="${RESPONSE: -3}"
     
     if [ "$HTTP_CODE" != "200" ]; then

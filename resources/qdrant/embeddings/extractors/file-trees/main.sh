@@ -34,14 +34,21 @@ source "${EMBEDDINGS_DIR}/lib/embedding-service.sh"
 EXTRACT_TEMP_DIR="/tmp/qdrant-filetrees-extract-$$"
 trap "rm -rf $EXTRACT_TEMP_DIR" EXIT
 
-# Semantic directory patterns we recognize
+# Semantic directory patterns we recognize (ordered by priority)
 SEMANTIC_PATTERNS=(
+    "resources|resource"   # System resources (high priority)
+    "embeddings|embedding" # AI/ML embeddings (high priority)  
+    "qdrant"              # Vector database (high priority)
+    "extractors|extractor" # Data extractors (high priority)
+    "parsers|parser"       # Data parsers (high priority)
+    "indexers|indexer"     # Data indexers (high priority)
+    "scripts|script"       # Scripts and automation (high priority)
+    "lib|libs|library"     # Core libraries (high priority)
     "components|component"  # UI components
     "services|service"      # Business logic services
     "utils|util"           # Utility functions
     "types|typing"         # Type definitions
     "hooks|hook"           # React/framework hooks
-    "lib|libs|library"     # Core libraries
     "api|apis"             # API endpoints/clients
     "models|model"         # Data models
     "views|view"           # UI views/pages
@@ -66,16 +73,23 @@ qdrant::extract::analyze_directory_purpose() {
     local purpose="general"
     local category="source"
     
-    # Check against semantic patterns
+    # Check against semantic patterns (ordered by priority)
     for pattern in "${SEMANTIC_PATTERNS[@]}"; do
         if [[ "$dir_name" =~ ^($pattern)s?$ ]]; then
             case "$pattern" in
+                "resources|resource") purpose="system resources and infrastructure"; category="system" ;;
+                "embeddings|embedding") purpose="AI embeddings and vector processing"; category="system" ;;
+                "qdrant") purpose="vector database and search infrastructure"; category="system" ;;
+                "extractors|extractor") purpose="data extraction and processing pipelines"; category="system" ;;
+                "parsers|parser") purpose="data parsing and transformation logic"; category="system" ;;
+                "indexers|indexer") purpose="data indexing and search optimization"; category="system" ;;
+                "scripts|script") purpose="automation scripts and system utilities"; category="system" ;;
+                "lib|libs|library") purpose="core libraries and foundational code"; category="core" ;;
                 "components|component") purpose="UI components and presentation layer"; category="frontend" ;;
                 "services|service") purpose="business logic and application services"; category="backend" ;;
                 "utils|util") purpose="shared utility functions and helpers"; category="shared" ;;
                 "types|typing") purpose="type definitions and interfaces"; category="types" ;;
                 "hooks|hook") purpose="custom hooks and reactive logic"; category="frontend" ;;
-                "lib|libs|library") purpose="core libraries and foundational code"; category="core" ;;
                 "api|apis") purpose="API endpoints, routes, and external interfaces"; category="api" ;;
                 "models|model") purpose="data models and entity definitions"; category="data" ;;
                 "views|view") purpose="UI views, pages, and screens"; category="frontend" ;;
@@ -91,21 +105,56 @@ qdrant::extract::analyze_directory_purpose() {
         fi
     done
     
-    # Additional heuristics based on file contents
+    # Path-aware classification for unmatched directories
+    if [[ "$purpose" == "general" ]]; then
+        local dir_path="$dir"
+        
+        # Check if we're within known system paths  
+        if [[ "$dir_path" == *"/resources/"* ]] || [[ "$dir_path" == *"/scripts/"* ]]; then
+            purpose="system module component"
+            category="system"
+        elif [[ "$dir_path" == *"/qdrant/"* ]] || [[ "$dir_path" == *"/embeddings/"* ]]; then
+            purpose="AI/vector processing component"
+            category="system"
+        elif [[ "$dir_path" == *"/lib/"* ]] || [[ "$dir_path" == *"/libraries/"* ]]; then
+            purpose="library and utility functions"
+            category="core"
+        elif [[ "$dir_path" == *"/src/"* ]] && [[ "$dir_path" == *"/components/"* ]]; then
+            purpose="application components"
+            category="frontend"
+        elif [[ "$dir_path" == *"/src/"* ]] && [[ "$dir_path" == *"/services/"* ]]; then
+            purpose="application business logic"
+            category="backend"
+        elif [[ "$dir_path" == *"/docs/"* ]] || [[ "$dir_path" == *"/documentation/"* ]]; then
+            purpose="documentation and guides"
+            category="docs"
+        elif [[ "$dir_path" == *"/test/"* ]] || [[ "$dir_path" == *"/tests/"* ]]; then
+            purpose="testing infrastructure"
+            category="test"
+        fi
+    fi
+    
+    # Additional heuristics based on file contents (only if not already classified)
     if [[ "$purpose" == "general" ]]; then
         local has_components=$(find "$dir" -maxdepth 1 -name "*.tsx" -o -name "*.jsx" 2>/dev/null | wc -l)
         local has_tests=$(find "$dir" -maxdepth 1 -name "*test*" -o -name "*spec*" 2>/dev/null | wc -l)
         local has_configs=$(find "$dir" -maxdepth 1 -name "*.json" -o -name "*.yaml" -o -name "*.yml" -o -name "*.toml" 2>/dev/null | wc -l)
+        local has_shell_scripts=$(find "$dir" -maxdepth 1 -name "*.sh" 2>/dev/null | wc -l)
         
+        # Prioritize by significance and file counts
         if [[ $has_components -gt 0 ]]; then
             purpose="React/UI components"
             category="frontend"
-        elif [[ $has_tests -gt 0 ]]; then
-            purpose="test files and testing logic"
-            category="test"
+        elif [[ $has_shell_scripts -gt 2 ]]; then
+            purpose="automation scripts and utilities"
+            category="scripts"
         elif [[ $has_configs -gt 2 ]]; then
             purpose="configuration and settings"
             category="config"
+        elif [[ $has_tests -gt 0 ]] && [[ $has_tests -gt $(($(find "$dir" -maxdepth 1 -type f 2>/dev/null | wc -l) / 2)) ]]; then
+            # Only classify as test if tests make up more than half the files
+            purpose="test files and testing logic"
+            category="test"
         else
             purpose="application logic and implementation"
             category="source"
@@ -393,6 +442,12 @@ qdrant::embeddings::process_file_trees() {
     local collection="${app_id}-knowledge"
     local count=0
     
+    # Ensure TEMP_DIR is set (fallback to script-local temp dir)
+    if [[ -z "${TEMP_DIR:-}" ]]; then
+        TEMP_DIR="$EXTRACT_TEMP_DIR"
+        log::debug "TEMP_DIR not set, using local temp dir: $TEMP_DIR"
+    fi
+    
     # Extract file tree summaries to temp file
     local output_file="$TEMP_DIR/file_trees.jsonl"
     qdrant::extract::file_trees_batch "." "$output_file" >&2
@@ -505,7 +560,7 @@ qdrant::extract::filetrees_metadata_from_content() {
         }'
 }
 
-# Export processing function for manage.sh
+# Export processing function for cli.sh
 export -f qdrant::embeddings::process_file_trees
 
 # Export additional functions for testing

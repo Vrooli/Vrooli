@@ -95,7 +95,7 @@ qdrant::status::collect_data() {
     status_data+=("api_url" "$QDRANT_BASE_URL")
     status_data+=("dashboard_url" "$QDRANT_BASE_URL/dashboard")
     status_data+=("metrics_url" "$QDRANT_BASE_URL/metrics")
-    status_data+=("health_url" "$QDRANT_BASE_URL/health")
+    status_data+=("health_url" "$QDRANT_BASE_URL/")
     
     # Configuration details
     status_data+=("image" "$QDRANT_IMAGE")

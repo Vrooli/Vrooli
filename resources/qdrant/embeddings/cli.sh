@@ -48,6 +48,10 @@ source "${QDRANT_DIR}/lib/embeddings.sh"
 # shellcheck disable=SC1091
 source "${QDRANT_DIR}/lib/models.sh"
 
+# Source manage.sh for core embedding functions
+# shellcheck disable=SC1091
+source "${EMBEDDINGS_DIR}/manage.sh"
+
 # Source embedding components
 # NOTE: Workflows are now processed via resources stream (initialization system)
 for component in identity scenarios docs code resources file-trees; do
@@ -67,6 +71,8 @@ done
 source "${EMBEDDINGS_DIR}/search/single.sh"
 # shellcheck disable=SC1091
 source "${EMBEDDINGS_DIR}/search/multi.sh"
+# shellcheck disable=SC1091
+source "${EMBEDDINGS_DIR}/lib/performance-logger.sh"
 
 # Initialize CLI framework
 cli::init "qdrant-embeddings" "Advanced embedding management for AI intelligence"
@@ -124,6 +130,8 @@ cli::register_command "explore" "Interactive exploration mode" "embeddings_explo
 # Performance Operations
 cli::register_command "optimize" "Optimize embedding indices" "embeddings_optimize" "modifies-system"
 cli::register_command "stats" "Show embedding statistics" "embeddings_stats"
+cli::register_command "performance" "Show performance metrics and summary" "embeddings_performance"
+cli::register_command "efficiency" "Show parallel processing efficiency analysis" "embeddings_efficiency"
 
 ################################################################################
 # Command Implementations
@@ -173,6 +181,8 @@ Advanced AI Commands:
   
   optimize             Optimize indices
   stats                Show statistics
+  performance          Show performance metrics
+  efficiency           Analyze parallel processing efficiency
 
 Examples:
   # Initialize embeddings for current app
@@ -440,7 +450,15 @@ embeddings_search() {
         return 1
     fi
     
-    qdrant::embeddings::search "$query"
+    # Get app identity and call correct search function
+    local app_id=$(qdrant::identity::get_app_id)
+    if [[ -z "$app_id" ]]; then
+        echo '{"error": "No app identity found. Run embeddings init first"}'
+        return 1
+    fi
+    
+    # Use same implementation as working manage.sh
+    qdrant::search::single_app "$query" "$app_id" "all"
 }
 
 embeddings_search_all() {
@@ -451,7 +469,8 @@ embeddings_search_all() {
         return 1
     fi
     
-    qdrant::embeddings::search_all "$query"
+    # Use same implementation as working manage.sh
+    qdrant::search::report "$query" "json"
 }
 
 embeddings_patterns() {
@@ -478,6 +497,46 @@ embeddings_optimize() {
 
 embeddings_stats() {
     qdrant::embeddings::show_statistics
+}
+
+embeddings_performance() {
+    echo "=== Embedding Performance Metrics ==="
+    echo
+    
+    # Generate and display performance summary
+    local summary=$(perf::generate_summary 2>/dev/null)
+    if [[ $? -eq 0 ]] && [[ "$summary" != *"error"* ]]; then
+        echo "📊 Performance Summary:"
+        echo "$summary" | jq -r '
+            "  Total Entries: " + (.summary.total_entries | tostring) + "\n" +
+            "  Operations: " + (.summary.operations | join(", ")) + "\n" +
+            "  Avg Embedding Duration: " + ((.summary.avg_embedding_duration // 0) | tostring) + "ms\n" +
+            "  Avg Throughput: " + ((.summary.avg_throughput // 0) | tostring) + " items/sec\n" +
+            "  Parallel Efficiency: " + ((.summary.parallel_efficiency // 0) | tostring) + "%"
+        '
+        echo
+        echo "🔧 Recent Metrics:"
+        echo "$summary" | jq -r '.recent_metrics[] | "  " + .timestamp + " | " + .operation + "." + .metric + " = " + (.value | tostring)'
+    else
+        echo "⚠️  No performance data available"
+        echo "   Performance logging may be disabled or no operations have been logged yet."
+        echo "   Run an embedding refresh to generate performance data."
+    fi
+    
+    echo
+    echo "⚙️  Performance Configuration:"
+    echo "  Logging Enabled: ${EMBEDDING_PERF_LOG_ENABLED:-true}"
+    echo "  Log Level: ${EMBEDDING_PERF_LOG_LEVEL:-info}"
+    echo "  Log Format: ${EMBEDDING_PERF_LOG_FORMAT:-json}"
+    if [[ -n "${EMBEDDING_PERF_LOG_FILE:-}" ]]; then
+        echo "  Log File: ${EMBEDDING_PERF_LOG_FILE}"
+    else
+        echo "  Log File: (debug output only)"
+    fi
+}
+
+embeddings_efficiency() {
+    perf::generate_efficiency_report
 }
 
 ################################################################################

@@ -113,11 +113,11 @@ extractor::lib::cpp::extract_functions() {
                 local check_line=$((line_num - 1))
                 while [[ $check_line -gt 0 ]]; do
                     local line_content=$(sed -n "${check_line}p" "$file")
-                    if [[ "$line_content" =~ ^[[:space:]]*(class|struct)\s+([a-zA-Z_][a-zA-Z0-9_]*) ]]; then
+                    if [[ "$line_content" =~ ^[[:space:]]*(class|struct)[[:space:]]+([a-zA-Z_][a-zA-Z0-9_]*) ]]; then
                         is_method="true"
                         class_name="${BASH_REMATCH[2]}"
                         break
-                    elif [[ "$line_content" =~ ^[[:space:]]*}[[:space:]]*;?\s*$ ]]; then
+                    elif [[ "$line_content" =~ ^[[:space:]]*\}[[:space:]]*$ ]] || [[ "$line_content" =~ ^[[:space:]]*\}[[:space:]]*\;[[:space:]]*$ ]]; then
                         break
                     fi
                     ((check_line--))

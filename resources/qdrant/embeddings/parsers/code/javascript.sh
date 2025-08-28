@@ -44,14 +44,14 @@ extractor::lib::javascript::extract_functions() {
     
     # Arrow functions: const name = () => { }
     while IFS= read -r line; do
-        if [[ "$line" =~ ^[[:space:]]*const[[:space:]]+([a-zA-Z_][a-zA-Z0-9_]*)[[:space:]]*=[[:space:]]*(\([^)]*\))?[[:space:]]*=\> ]]; then
+        if [[ "$line" =~ ^[[:space:]]*const[[:space:]]+([a-zA-Z_][a-zA-Z0-9_]*)[[:space:]]*=[[:space:]]*.*=\> ]]; then
             functions_found+=("${BASH_REMATCH[1]}:arrow")
         fi
     done < "$file"
     
     # Method definitions: methodName() { } or async methodName() { }
     while IFS= read -r line; do
-        if [[ "$line" =~ ^[[:space:]]*(async[[:space:]]+)?([a-zA-Z_][a-zA-Z0-9_]*)[[:space:]]*\([^)]*\)[[:space:]]*\{ ]]; then
+        if [[ "$line" =~ ^[[:space:]]*(async[[:space:]]+)?([a-zA-Z_][a-zA-Z0-9_]*)[[:space:]]*\(.*\)[[:space:]]*\{ ]]; then
             functions_found+=("${BASH_REMATCH[2]}:method")
         fi
     done < "$file"

@@ -24,6 +24,9 @@ SCENARIOS_EXTRACTOR_DIR="${EXTRACTOR_DIR}/scenarios"
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${var_LIB_UTILS_DIR}/log.sh"
 
+# Source unified embedding service
+source "${EMBEDDINGS_DIR}/lib/embedding-service.sh"
+
 # Source modular extractors
 source "${SCENARIOS_EXTRACTOR_DIR}/documentation.sh"
 source "${SCENARIOS_EXTRACTOR_DIR}/config.sh"
@@ -107,7 +110,7 @@ qdrant::extract::scenarios_batch_json() {
     while IFS= read -r scenario_dir; do
         # A valid scenario has at least PRD.md or service.json/.vrooli/service.json
         if [[ -f "$scenario_dir/PRD.md" ]] || [[ -f "$scenario_dir/service.json" ]] || [[ -f "$scenario_dir/.vrooli/service.json" ]]; then
-            scenario_dirs+=(("$scenario_dir"))
+            scenario_dirs+=("$scenario_dir")
         fi
     done < <(find "$parent_dir" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort)
     
@@ -377,5 +380,50 @@ qdrant::extract::find_scenarios() {
         done | sort -u
 }
 
+#######################################
+# Process scenarios using unified embedding service
+# Arguments:
+#   $1 - App ID
+# Returns: Number of scenarios processed
+#######################################
+qdrant::embeddings::process_scenarios() {
+    local app_id="$1"
+    local collection="${app_id}-scenarios"
+    local count=0
+    
+    # Extract scenarios to temp file
+    local output_file="$TEMP_DIR/scenarios.jsonl"
+    qdrant::extract::scenarios_batch_json "." "$output_file" >&2
+    
+    if [[ ! -f "$output_file" ]] || [[ ! -s "$output_file" ]]; then
+        log::debug "No scenarios found for processing"
+        echo "0"
+        return 0
+    fi
+    
+    # Process each JSON line through unified embedding service
+    while IFS= read -r json_line; do
+        if [[ -n "$json_line" ]]; then
+            # Parse JSON to extract content and metadata
+            local content
+            content=$(echo "$json_line" | jq -r '.content // empty' 2>/dev/null)
+            
+            local metadata
+            metadata=$(echo "$json_line" | jq -c '.metadata // {}' 2>/dev/null)
+            
+            if [[ -n "$content" ]]; then
+                # Process through unified embedding service with structured metadata
+                if qdrant::embedding::process_item "$content" "scenario" "$collection" "$app_id" "$metadata"; then
+                    ((count++))
+                fi
+            fi
+        fi
+    done < "$output_file"
+    
+    log::debug "Created $count scenario embeddings"
+    echo "$count"
+}
+
 export -f qdrant::extract::scenarios_batch
 export -f qdrant::extract::find_scenarios
+export -f qdrant::embeddings::process_scenarios

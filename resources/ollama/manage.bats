@@ -10,7 +10,7 @@ source "${MANAGE_BATS_DIR}/../../../lib/utils/var.sh"
 
 # Load Vrooli test infrastructure using var_ variables
 # shellcheck disable=SC1091
-source "${var_SCRIPTS_TEST_DIR}/fixtures/setup.bash"
+source "${var_TEST_DIR}/fixtures/setup.bash"
 # Load fixture helpers for accessing test data
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_DIR}/tests/lib/fixture-helpers.sh" 2>/dev/null || true

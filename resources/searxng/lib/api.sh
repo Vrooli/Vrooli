@@ -3,6 +3,202 @@
 # Direct interaction with SearXNG search and management APIs
 
 #######################################
+# Execute search command with named argument parsing
+# Supports both positional and named arguments
+# Named arguments: --query, --format, --category, --language, etc.
+# Positional arguments: query format category language ...
+#######################################
+searxng::execute_search() {
+    local query=""
+    local format="json"
+    local category="general"
+    local language="$SEARXNG_DEFAULT_LANG"
+    local pageno="1"
+    local safesearch="1"
+    local time_range=""
+    local output_format="json"
+    local limit=""
+    local save_file=""
+    local append_file=""
+    
+    # Parse named arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --name)
+                # Skip --name argument (used by CLI framework)
+                shift 2
+                ;;
+            --query)
+                query="$2"
+                shift 2
+                ;;
+            --format)
+                format="$2"
+                shift 2
+                ;;
+            --category)
+                category="$2"
+                shift 2
+                ;;
+            --language)
+                language="$2"
+                shift 2
+                ;;
+            --page)
+                pageno="$2"
+                shift 2
+                ;;
+            --safesearch)
+                safesearch="$2"
+                shift 2
+                ;;
+            --time-range)
+                time_range="$2"
+                shift 2
+                ;;
+            --output)
+                output_format="$2"
+                shift 2
+                ;;
+            --limit)
+                limit="$2"
+                shift 2
+                ;;
+            --save)
+                save_file="$2"
+                shift 2
+                ;;
+            --append)
+                append_file="$2"
+                shift 2
+                ;;
+            -*)
+                log::warn "Unknown argument: $1"
+                shift
+                ;;
+            *)
+                # First positional argument is the query if not set
+                if [[ -z "$query" ]]; then
+                    query="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
+    
+    # Call the actual search function with positional arguments
+    searxng::search "$query" "$format" "$category" "$language" "$pageno" "$safesearch" "$time_range" "$output_format" "$limit" "$save_file" "$append_file"
+}
+
+#######################################
+# Execute lucky search with named argument parsing
+# Named arguments: --query
+#######################################
+searxng::execute_lucky() {
+    local query=""
+    
+    # Parse named arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --name)
+                # Skip --name argument (used by CLI framework)
+                shift 2
+                ;;
+            --query)
+                query="$2"
+                shift 2
+                ;;
+            -*)
+                log::warn "Unknown argument: $1"
+                shift
+                ;;
+            *)
+                # First positional argument is the query if not set
+                if [[ -z "$query" ]]; then
+                    query="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
+    
+    # Call the actual lucky function
+    searxng::lucky "$query"
+}
+
+#######################################
+# Execute headlines search with named argument parsing
+# Named arguments: --topic
+#######################################
+searxng::execute_headlines() {
+    local topic=""
+    
+    # Parse named arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --name)
+                # Skip --name argument (used by CLI framework)
+                shift 2
+                ;;
+            --topic)
+                topic="$2"
+                shift 2
+                ;;
+            -*)
+                log::warn "Unknown argument: $1"
+                shift
+                ;;
+            *)
+                # First positional argument is the topic if not set
+                if [[ -z "$topic" ]]; then
+                    topic="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
+    
+    # Call the actual headlines function
+    searxng::headlines "$topic"
+}
+
+#######################################
+# Execute batch search with named argument parsing
+# Named arguments: --file
+#######################################
+searxng::execute_batch() {
+    local file=""
+    
+    # Parse named arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --name)
+                # Skip --name argument (used by CLI framework)
+                shift 2
+                ;;
+            --file)
+                file="$2"
+                shift 2
+                ;;
+            -*)
+                log::warn "Unknown argument: $1"
+                shift
+                ;;
+            *)
+                # First positional argument is the file if not set
+                if [[ -z "$file" ]]; then
+                    file="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
+    
+    # Call the actual batch search function
+    searxng::batch_search_file "$file"
+}
+
+#######################################
 # Perform a search via SearXNG API
 # Arguments:
 #   $1 - search query
@@ -73,6 +269,28 @@ searxng::search() {
     # Perform search with timeout
     local search_result
     if search_result=$(curl -sf --max-time "$SEARXNG_API_TIMEOUT" "$search_url"); then
+        # Check for suspended engines and provide helpful messaging
+        if command -v jq >/dev/null 2>&1 && echo "$search_result" | jq . >/dev/null 2>&1; then
+            local suspended_engines
+            suspended_engines=$(echo "$search_result" | jq -r '.unresponsive_engines[]? | select(.[1] | contains("Suspended")) | .[0]' 2>/dev/null | tr '\n' ',' | sed 's/,$//')
+            
+            if [[ -n "$suspended_engines" ]]; then
+                log::warn "Some search engines are temporarily suspended: $suspended_engines"
+                log::info "This may be due to rate limiting. Results may be limited."
+            fi
+            
+            # Check if we have any results
+            local result_count
+            result_count=$(echo "$search_result" | jq '.results | length' 2>/dev/null || echo "0")
+            if [[ "$result_count" == "0" ]]; then
+                log::warn "No search results found. This could be due to:"
+                log::info "  • Query too specific or no matching content"
+                log::info "  • Search engines being rate-limited or suspended"
+                log::info "  • Network connectivity issues"
+                log::info "Try a simpler query or wait a moment before searching again"
+            fi
+        fi
+        
         # Process results based on output format and options
         local processed_result
         processed_result=$(searxng::format_output "$search_result" "$output_format" "$limit")
@@ -88,7 +306,12 @@ searxng::search() {
         elif [[ -n "$append_file" ]]; then
             local timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
             local jsonl_entry
-            jsonl_entry=$(echo "$search_result" | jq -c --arg ts "$timestamp" --arg q "$query" '{timestamp: $ts, query: $q, results: .}')
+            if command -v jq >/dev/null 2>&1; then
+                jsonl_entry=$(echo "$search_result" | jq -c --arg ts "$timestamp" --arg q "$query" '{timestamp: $ts, query: $q, results: .}')
+            else
+                # Fallback without jq
+                jsonl_entry="{\"timestamp\":\"$timestamp\",\"query\":\"$query\",\"results\":$search_result}"
+            fi
             
             if echo "$jsonl_entry" >> "$append_file"; then
                 log::success "Results appended to: $append_file"
@@ -105,7 +328,27 @@ searxng::search() {
         
         return 0
     else
-        log::error "Search request failed"
+        # Enhanced error handling for failed requests
+        local http_code
+        http_code=$(curl -sf --max-time "$SEARXNG_API_TIMEOUT" -w "%{http_code}" -o /dev/null "$search_url" 2>/dev/null || echo "000")
+        
+        case "$http_code" in
+            "429")
+                log::error "Search request failed: Rate limited (too many requests)"
+                log::info "Please wait a moment before trying again"
+                ;;
+            "500"|"502"|"503"|"504")
+                log::error "Search request failed: SearXNG server error (HTTP $http_code)"
+                log::info "The search service may be temporarily unavailable"
+                ;;
+            "000")
+                log::error "Search request failed: Network timeout or connection error"
+                log::info "Check network connectivity and SearXNG service status"
+                ;;
+            *)
+                log::error "Search request failed: HTTP $http_code"
+                ;;
+        esac
         return 1
     fi
 }
@@ -456,9 +699,9 @@ searxng::show_api_examples() {
     echo
     
     echo "Script Usage:"
-    echo "  ./manage.sh --action search --query 'your search term'"
-    echo "  ./manage.sh --action api-test"
-    echo "  ./manage.sh --action benchmark"
+    echo "  resource-searxng content execute --name search --query 'your search term'"
+    echo "  resource-searxng test integration"
+    echo "  resource-searxng content execute --name benchmark"
 }
 
 #######################################

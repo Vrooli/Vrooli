@@ -407,7 +407,7 @@ EOF
         
         case "$status" in
             "not_installed")
-                echo "• Install Vault: ./manage.sh --action install"
+                echo "• Install Vault: resource-vault manage install"
                 echo "• Check Docker is installed and running"
                 ;;
         esac

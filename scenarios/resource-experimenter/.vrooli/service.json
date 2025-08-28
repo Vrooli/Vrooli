@@ -7,19 +7,21 @@
     "displayName": "Resource Experimenter",
     "description": "Ultra-simple resource experimentation platform using Claude Code to copy and modify existing scenarios with new resources",
     "version": "1.0.0",
-    "type": "business-application",
-    "category": "ai-development",
     "tags": [
+      "business-application",
+      "ai-development",
       "resource-experimentation",
       "claude-code",
       "scenario-modification",
-      "ai-development"
+      "nodejs-ui",
+      "go-api",
+      "postgres-storage"
     ]
   },
   "ports": {
     "api": {
       "env_var": "SERVICE_PORT",
-      "range": "8090-8999",
+      "range": "28000-28249",
       "fallback": "auto",
       "description": "Resource experimenter API port"
     }

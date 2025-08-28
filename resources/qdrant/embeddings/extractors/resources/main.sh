@@ -22,6 +22,9 @@ RESOURCES_EXTRACTOR_DIR="${EXTRACTOR_DIR}/resources"
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${var_LIB_UTILS_DIR}/log.sh"
 
+# Source unified embedding service
+source "${EMBEDDINGS_DIR}/lib/embedding-service.sh"
+
 # Source modular extractors
 source "${RESOURCES_EXTRACTOR_DIR}/cli.sh"
 source "${RESOURCES_EXTRACTOR_DIR}/config.sh"
@@ -299,7 +302,52 @@ qdrant::extract::resource_integrations_json() {
     qdrant::extract::resource_adapters_all "$@"
 }
 
+#######################################
+# Process resources using unified embedding service
+# Arguments:
+#   $1 - App ID
+# Returns: Number of resources processed
+#######################################
+qdrant::embeddings::process_resources() {
+    local app_id="$1"
+    local collection="${app_id}-resources"
+    local count=0
+    
+    # Extract resources to temp file
+    local output_file="$TEMP_DIR/resources.jsonl"
+    qdrant::extract::resources_batch_json "." "$output_file" >&2
+    
+    if [[ ! -f "$output_file" ]] || [[ ! -s "$output_file" ]]; then
+        log::debug "No resources found for processing"
+        echo "0"
+        return 0
+    fi
+    
+    # Process each JSON line through unified embedding service
+    while IFS= read -r json_line; do
+        if [[ -n "$json_line" ]]; then
+            # Parse JSON to extract content and metadata
+            local content
+            content=$(echo "$json_line" | jq -r '.content // empty' 2>/dev/null)
+            
+            local metadata
+            metadata=$(echo "$json_line" | jq -c '.metadata // {}' 2>/dev/null)
+            
+            if [[ -n "$content" ]]; then
+                # Process through unified embedding service with structured metadata
+                if qdrant::embedding::process_item "$content" "resource" "$collection" "$app_id" "$metadata"; then
+                    ((count++))
+                fi
+            fi
+        fi
+    done < "$output_file"
+    
+    log::debug "Created $count resource embeddings"
+    echo "$count"
+}
+
 export -f qdrant::extract::resource_cli_json
 export -f qdrant::extract::resource_config_json
 export -f qdrant::extract::resource_dependencies_json
 export -f qdrant::extract::resource_integrations_json
+export -f qdrant::embeddings::process_resources

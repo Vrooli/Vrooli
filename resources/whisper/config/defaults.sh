@@ -26,6 +26,9 @@ defaults::export_config() {
     if [[ -z "${WHISPER_UPLOADS_DIR:-}" ]]; then
         readonly WHISPER_UPLOADS_DIR="${WHISPER_DATA_DIR}/uploads"
     fi
+    if [[ -z "${WHISPER_API_TIMEOUT:-}" ]]; then
+        readonly WHISPER_API_TIMEOUT="10"
+    fi
 
     # Docker image configuration (only set if not already defined)
     if [[ -z "${WHISPER_IMAGE:-}" ]]; then

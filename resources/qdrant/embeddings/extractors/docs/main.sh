@@ -804,7 +804,7 @@ qdrant::extract::docs_metadata_from_content() {
         }'
 }
 
-# Export processing function for manage.sh
+# Export processing function for cli.sh
 export -f qdrant::embeddings::process_documentation
 
 # Export additional functions for testing

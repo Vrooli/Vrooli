@@ -213,7 +213,7 @@ qdrant::parallel::process_scenario_chunk() {
 export -f qdrant::parallel::process_scenario_chunk
 
 #######################################
-# Enable parallel processing in manage.sh
+# Enable parallel processing in cli.sh
 # This function replaces sequential processing
 #######################################
 qdrant::parallel::enable() {

@@ -89,7 +89,7 @@ extractor::lib::swift::extract_functions() {
             
             # Extract return type
             local return_type=""
-            if [[ "$func_line" =~ ->[[:space:]]*([A-Za-z_][A-Za-z0-9_<>?!]*) ]]; then
+            if [[ "$func_line" =~ -\>[[:space:]]*([A-Za-z_][A-Za-z0-9_]*) ]]; then
                 return_type="${BASH_REMATCH[1]}"
             fi
             

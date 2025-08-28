@@ -45,7 +45,7 @@ server:
 ```yaml
 server:
   bind_address: "127.0.0.1"   # Local access only
-  port: 9200                  # Default port
+  port: 8280                  # Default port
   secret_key: "auto-generated" # Session security
   limiter: false              # Disable for local use
 
@@ -150,7 +150,7 @@ Rate limiting configuration (typically not needed for local usage).
 ### View Current Configuration
 ```bash
 # Check current settings
-./manage.sh --action config-check
+resource-searxng content execute --name config
 
 # View specific setting
 cat ~/.searxng/settings.yml | grep -A 5 "search:"
@@ -162,7 +162,7 @@ cat ~/.searxng/settings.yml | grep -A 5 "search:"
 nano ~/.searxng/settings.yml
 
 # Restart to apply changes
-./manage.sh --action restart
+resource-searxng manage restart
 ```
 
 ### Reset to Defaults
@@ -171,7 +171,7 @@ nano ~/.searxng/settings.yml
 cp ~/.searxng/settings.yml ~/.searxng/settings.yml.backup
 
 # Reset to template
-./manage.sh --action reset-config
+resource-searxng content execute --name reset
 ```
 
 ## 🔗 Integration Settings

@@ -348,56 +348,6 @@ qdrant::extract::scenario_test_implementation() {
     
     # Use unified code extractor with auto strategy (handles single and multi-language)
     qdrant::lib::extract_code "$test_dir" "tests" "$scenario_name" "auto"
-        javascript)
-            extractor::lib::javascript::extract_all "$test_dir" "tests" "$scenario_name" 2>/dev/null || true
-            ;;
-        go)
-            extractor::lib::go::extract_all "$test_dir" "tests" "$scenario_name" 2>/dev/null || true
-            ;;
-        python)
-            extractor::lib::python::extract_all "$test_dir" "tests" "$scenario_name" 2>/dev/null || true
-            ;;
-        rust)
-            extractor::lib::rust::extract_all "$test_dir" "tests" "$scenario_name" 2>/dev/null || true
-            ;;
-        java)
-            extractor::lib::java::extract_all "$test_dir" "tests" "$scenario_name" 2>/dev/null || true
-            ;;
-        kotlin)
-            extractor::lib::kotlin::extract_all "$test_dir" "tests" "$scenario_name" 2>/dev/null || true
-            ;;
-        csharp)
-            extractor::lib::csharp::extract_all "$test_dir" "tests" "$scenario_name" 2>/dev/null || true
-            ;;
-        php)
-            extractor::lib::php::extract_all "$test_dir" "tests" "$scenario_name" 2>/dev/null || true
-            ;;
-        swift)
-            extractor::lib::swift::extract_all "$test_dir" "tests" "$scenario_name" 2>/dev/null || true
-            ;;
-        cpp)
-            extractor::lib::cpp::extract_all "$test_dir" "tests" "$scenario_name" 2>/dev/null || true
-            ;;
-        ruby)
-            extractor::lib::ruby::extract_all "$test_dir" "tests" "$scenario_name" 2>/dev/null || true
-            ;;
-        shell)
-            extractor::lib::shell::extract_all "$test_dir" "tests" "$scenario_name" 2>/dev/null || true
-            ;;
-        *)
-            log::debug "Unknown test language, attempting multi-language extraction" >&2
-            # Try all extractors for mixed test implementations
-            extractor::lib::shell::extract_all "$test_dir" "tests" "$scenario_name" 2>/dev/null || true
-            extractor::lib::javascript::extract_all "$test_dir" "tests" "$scenario_name" 2>/dev/null || true
-            extractor::lib::go::extract_all "$test_dir" "tests" "$scenario_name" 2>/dev/null || true
-            extractor::lib::python::extract_all "$test_dir" "tests" "$scenario_name" 2>/dev/null || true
-            extractor::lib::rust::extract_all "$test_dir" "tests" "$scenario_name" 2>/dev/null || true
-            extractor::lib::java::extract_all "$test_dir" "tests" "$scenario_name" 2>/dev/null || true
-            extractor::lib::kotlin::extract_all "$test_dir" "tests" "$scenario_name" 2>/dev/null || true
-            extractor::lib::csharp::extract_all "$test_dir" "tests" "$scenario_name" 2>/dev/null || true
-            extractor::lib::php::extract_all "$test_dir" "tests" "$scenario_name" 2>/dev/null || true
-            extractor::lib::swift::extract_all "$test_dir" "tests" "$scenario_name" 2>/dev/null || true
-            extractor::lib::cpp::extract_all "$test_dir" "tests" "$scenario_name" 2>/dev/null || true
 }
 
 #######################################

@@ -4,9 +4,9 @@
 
 # Source var.sh to get proper directory variables
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-_WHISPER_DOCKER_DIR="${APP_ROOT}/resources/whisper/lib"
 # shellcheck disable=SC1091
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
+_WHISPER_DOCKER_DIR="${var_RESOURCES_DIR}/whisper/lib"
 
 # Source shared libraries
 # shellcheck disable=SC1091
@@ -14,7 +14,7 @@ source "${var_LIB_SERVICE_DIR}/secrets.sh"
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_LIB_DIR}/docker-resource-utils.sh"
 # shellcheck disable=SC1091
-source "${_WHISPER_DOCKER_DIR}/../config/defaults.sh"
+source "${var_RESOURCES_DIR}/whisper/config/defaults.sh"
 
 # Export configuration
 defaults::export_config

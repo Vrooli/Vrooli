@@ -6,15 +6,15 @@
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 SEARXNG_STATUS_DIR="${APP_ROOT}/resources/searxng/lib"
 # shellcheck disable=SC1091
-source "${SEARXNG_STATUS_DIR}/../../../lib/status-args.sh"
+source "${APP_ROOT}/scripts/resources/lib/status-args.sh"
 # shellcheck disable=SC1091
-source "${SEARXNG_STATUS_DIR}/../../../../lib/utils/format.sh"
+source "${APP_ROOT}/scripts/lib/utils/format.sh"
 # shellcheck disable=SC1091
-source "${SEARXNG_STATUS_DIR}/../config/defaults.sh" 2>/dev/null || true
+source "${APP_ROOT}/resources/searxng/config/defaults.sh"
 # shellcheck disable=SC1091
-source "${SEARXNG_STATUS_DIR}/../config/messages.sh" 2>/dev/null || true
+source "${APP_ROOT}/resources/searxng/config/messages.sh"
 # shellcheck disable=SC1091
-source "${SEARXNG_STATUS_DIR}/common.sh" 2>/dev/null || true
+source "${SEARXNG_STATUS_DIR}/common.sh"
 
 # Ensure configuration is exported
 if command -v searxng::export_config &>/dev/null; then
@@ -110,9 +110,9 @@ searxng::status::collect_data() {
             stats_data=$(timeout 2s curl -sf --max-time 2 "${SEARXNG_BASE_URL}/stats" 2>/dev/null || echo "{}")
             
             if [[ -n "$stats_data" ]] && [[ "$stats_data" != "{}" ]]; then
-                # Extract engine count from stats page (simple approach)
+                # Extract engine count from HTML stats page by counting engine rows
                 local engine_count
-                engine_count=$(echo "$stats_data" | grep -o "'[^']*'" | wc -l 2>/dev/null || echo "unknown")
+                engine_count=$(echo "$stats_data" | grep -c 'class="engine-name"' 2>/dev/null || echo "0")
                 status_data+=("active_engines" "$engine_count")
             fi
             
@@ -229,8 +229,14 @@ searxng::status::display_text() {
     for ((i=1; i<=$#; i+=2)); do
         local key="${!i}"
         local value_idx=$((i+1))
-        local value="${!value_idx}"
-        data["$key"]="$value"
+        # Check bounds before accessing the value
+        if [[ $value_idx -le $# ]]; then
+            local value="${!value_idx}"
+            data["$key"]="$value"
+        else
+            # Handle case where we have an odd number of arguments
+            data["$key"]=""
+        fi
     done
     
     # Header
@@ -245,7 +251,7 @@ searxng::status::display_text() {
         log::error "   ❌ Installed: No"
         echo
         log::info "💡 Installation Required:"
-        log::info "   To install SearXNG, run: ./manage.sh --action install"
+        log::info "   To install SearXNG, run: resource-searxng manage install"
         return
     fi
     
@@ -307,8 +313,8 @@ searxng::status::display_text() {
         log::info "   🌐 Access UI: ${data[ui_url]:-http://localhost:9200}"
         log::info "   🔍 Search: ${data[api_url]:-http://localhost:9200/search}?q=test"
         log::info "   📊 View Stats: ${data[stats_url]:-http://localhost:9200/stats}"
-        log::info "   📄 View logs: ./manage.sh --action logs"
-        log::info "   🛑 Stop service: ./manage.sh --action stop"
+        log::info "   📄 View logs: resource-searxng logs"
+        log::info "   🛑 Stop service: resource-searxng manage stop"
     fi
 }
 
@@ -520,18 +526,18 @@ searxng::show_troubleshooting() {
     
     case "$status" in
         "not_installed")
-            echo "• Install SearXNG: ./manage.sh --action install"
+            echo "• Install SearXNG: resource-searxng manage install"
             echo "• Check Docker is installed and running"
             ;;
         "stopped")
-            echo "• Start SearXNG: ./manage.sh --action start"
-            searxng::message "info" "MSG_SEARXNG_TROUBLESHOOT_LOGS"
+            echo "• Start SearXNG: resource-searxng manage start"
+            log::info "Check logs: resource-searxng logs"
             ;;
         "unhealthy")
-            echo "• Check logs: ./manage.sh --action logs"
-            echo "• Restart service: ./manage.sh --action restart"
-            searxng::message "info" "MSG_SEARXNG_TROUBLESHOOT_PORT"
-            searxng::message "info" "MSG_SEARXNG_TROUBLESHOOT_CONFIG"
+            echo "• Check logs: resource-searxng logs"
+            echo "• Restart service: resource-searxng manage restart"
+            log::info "Check port conflicts: lsof -i :8280"
+            log::info "Reset config: resource-searxng config reset"
             ;;
     esac
     
@@ -546,7 +552,7 @@ searxng::show_troubleshooting() {
         
         if [[ -n "$incorrect_files" ]]; then
             echo "• Fix file permissions: sudo chown -R \$(whoami):\$(whoami) $SEARXNG_DATA_DIR"
-            echo "• Or try: ./manage.sh --action reset-config"
+            echo "• Or try: resource-searxng config reset"
         fi
     fi
     
@@ -558,17 +564,17 @@ searxng::show_troubleshooting() {
     
     echo
     echo "General troubleshooting:"
-    searxng::message "info" "MSG_SEARXNG_TROUBLESHOOT_LOGS"
-    searxng::message "info" "MSG_SEARXNG_TROUBLESHOOT_CONFIG"
-    searxng::message "info" "MSG_SEARXNG_TROUBLESHOOT_PORT"
-    searxng::message "info" "MSG_SEARXNG_TROUBLESHOOT_RESTART"
+    log::info "• Check logs: resource-searxng logs"
+    log::info "• Reset config: resource-searxng config reset"
+    log::info "• Check port conflicts: lsof -i :8280"
+    log::info "• Restart service: resource-searxng manage restart"
     
     echo
     echo "Permission troubleshooting:"
     echo "• If container fails to start with permission errors:"
     echo "  - Check data directory ownership: ls -la $SEARXNG_DATA_DIR"
-    echo "  - Fix permissions: ./manage.sh --action reset-config"
-    echo "  - Clean install: ./manage.sh --action uninstall && ./manage.sh --action install"
+    echo "  - Fix permissions: resource-searxng config reset"
+    echo "  - Clean install: resource-searxng manage uninstall && resource-searxng manage install"
 }
 
 #######################################

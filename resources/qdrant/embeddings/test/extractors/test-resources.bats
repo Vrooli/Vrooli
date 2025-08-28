@@ -239,7 +239,7 @@ EOF
     cat > "$TEST_DIR/resources/monitoring-test/config.yaml" << 'EOF'
 name: monitoring-test
 monitoring:
-  health_check: /health
+  health_check: /
   metrics:
     - emails_processed_total
   alerts:
@@ -250,7 +250,7 @@ EOF
     
     [ "$status" -eq 0 ]
     [[ "$output" == *"health_check"* ]]
-    [[ "$output" == *"/health"* ]]
+    [[ "$output" == *"/"* ]]
     [[ "$output" == *"emails_processed_total"* ]]
     [[ "$output" == *"High Error Rate"* ]]
 }

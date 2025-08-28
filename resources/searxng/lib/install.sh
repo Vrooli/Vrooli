@@ -9,11 +9,11 @@ YES="${YES:-no}"
 # Source required utilities
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 SEARXNG_INSTALL_DIR="${APP_ROOT}/resources/searxng/lib"
-source "${SEARXNG_INSTALL_DIR}/../../../../lib/utils/log.sh" 2>/dev/null || true
-source "${SEARXNG_INSTALL_DIR}/../../../../lib/docker-utils.sh" 2>/dev/null || true
-source "${SEARXNG_INSTALL_DIR}/common.sh" 2>/dev/null || true
-source "${SEARXNG_INSTALL_DIR}/config.sh" 2>/dev/null || true
-source "${SEARXNG_INSTALL_DIR}/docker.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
+source "${APP_ROOT}/scripts/lib/utils/docker-utils.sh"
+source "${SEARXNG_INSTALL_DIR}/common.sh"
+source "${SEARXNG_INSTALL_DIR}/config.sh"
+source "${SEARXNG_INSTALL_DIR}/docker.sh"
 
 #######################################
 # Check installation prerequisites

@@ -6,9 +6,9 @@
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 SEARXNG_LIB_DIR="${APP_ROOT}/resources/searxng/lib"
 # shellcheck disable=SC1091
-source "${SEARXNG_LIB_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+source "${var_TRASH_FILE}"
 
 #######################################
 # Generate SearXNG settings.yml from template

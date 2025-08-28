@@ -7,7 +7,7 @@ setup() {
     source "${BATS_TEST_DIRNAME}/../../../../lib/utils/var.sh"
     
     # Load Vrooli test infrastructure
-    source "${var_SCRIPTS_TEST_DIR}/fixtures/setup.bash"
+    source "${var_TEST_DIR}/fixtures/setup.bash"
     
     # Setup standard mocks
     vrooli_auto_setup

@@ -5,8 +5,6 @@
 
 set -euo pipefail
 
-LOOP_TASK="scenario-improvement"
-
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 TASK_DIR="${APP_ROOT}/auto/tasks/scenario-improvement"
 TASK_PROMPTS_DIR="$TASK_DIR/prompts"

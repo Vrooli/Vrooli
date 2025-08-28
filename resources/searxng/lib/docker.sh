@@ -7,11 +7,11 @@ SEARXNG_LIB_DIR="${APP_ROOT}/resources/searxng/lib"
 
 # Source shared libraries  
 # shellcheck disable=SC1091
-source "${SEARXNG_LIB_DIR}/../../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "${SEARXNG_LIB_DIR}/../../../../lib/service/secrets.sh"
+source "${APP_ROOT}/scripts/lib/service/secrets.sh"
 # shellcheck disable=SC1091
-source "${SEARXNG_LIB_DIR}/../../../lib/docker-resource-utils.sh"
+source "${APP_ROOT}/scripts/resources/lib/docker-resource-utils.sh"
 
 #######################################
 # Start SearXNG container using shared utilities
@@ -20,6 +20,20 @@ searxng::start_container() {
     if searxng::is_running; then
         log::warn "SearXNG is already running"
         return 0
+    fi
+    
+    # Check if container exists but is stopped, try to start it first
+    if docker ps -a --format "{{.Names}}" | grep -q "^${SEARXNG_CONTAINER_NAME}$"; then
+        log::info "Found existing SearXNG container, attempting to start it..."
+        if docker start "$SEARXNG_CONTAINER_NAME" >/dev/null 2>&1; then
+            if searxng::wait_for_health; then
+                log::success "Existing SearXNG container started successfully"
+                return 0
+            fi
+        fi
+        # If starting the existing container failed, remove it and create a new one
+        log::info "Removing existing container to create a fresh one..."
+        docker rm -f "$SEARXNG_CONTAINER_NAME" >/dev/null 2>&1 || true
     fi
     
     log::info "Starting SearXNG container..."
@@ -133,6 +147,7 @@ searxng::compose_up() {
     # Enable Redis profile if configured
     if [[ "$SEARXNG_ENABLE_REDIS" == "yes" ]]; then
         redis_profile="--profile redis"
+        log::info "Redis caching enabled - starting Redis container"
     fi
     
     log::info "Starting SearXNG with Docker Compose..."
@@ -225,3 +240,121 @@ searxng::remove_network() {
 }
 
 # Removed: searxng::build_docker_command - replaced by docker_resource::create_service_with_command
+
+#######################################
+# Enable Redis caching for SearXNG
+#######################################
+searxng::enable_redis() {
+    log::info "Enabling Redis caching for SearXNG..."
+    
+    # Check if Redis container exists
+    if docker ps -a --format "{{.Names}}" | grep -q "searxng-redis"; then
+        log::info "Redis container already exists"
+        # Start it if not running
+        if ! docker ps --format "{{.Names}}" | grep -q "searxng-redis"; then
+            if docker start searxng-redis; then
+                log::success "Redis container started"
+            else
+                log::error "Failed to start Redis container"
+                return 1
+            fi
+        else
+            log::info "Redis container is already running"
+        fi
+    else
+        # Create and start Redis using docker-compose
+        local compose_file="$SEARXNG_LIB_DIR/../docker/docker-compose.yml"
+        
+        log::info "Creating and starting Redis container..."
+        if docker-compose -f "$compose_file" --profile redis up -d redis; then
+            log::success "Redis container created and started"
+        else
+            log::error "Failed to create Redis container"
+            return 1
+        fi
+    fi
+    
+    # Wait for Redis to be healthy
+    log::info "Waiting for Redis to become healthy..."
+    local attempts=0
+    local max_attempts=30
+    
+    while [[ $attempts -lt $max_attempts ]]; do
+        if docker exec searxng-redis redis-cli ping >/dev/null 2>&1; then
+            log::success "✅ Redis is healthy and ready"
+            break
+        fi
+        ((attempts++))
+        sleep 1
+    done
+    
+    if [[ $attempts -eq $max_attempts ]]; then
+        log::warn "Redis may not be fully ready yet, but container is running"
+    fi
+    
+    # Update environment variable
+    export SEARXNG_ENABLE_REDIS="yes"
+    
+    log::info "Redis caching enabled. Restart SearXNG to use caching:"
+    log::info "  resource-searxng manage restart"
+    
+    return 0
+}
+
+#######################################
+# Disable Redis caching for SearXNG
+#######################################
+searxng::disable_redis() {
+    log::info "Disabling Redis caching for SearXNG..."
+    
+    # Stop Redis container if running
+    if docker ps --format "{{.Names}}" | grep -q "searxng-redis"; then
+        if docker stop searxng-redis; then
+            log::success "Redis container stopped"
+        else
+            log::warn "Failed to stop Redis container"
+        fi
+    fi
+    
+    # Update environment variable
+    export SEARXNG_ENABLE_REDIS="no"
+    
+    log::info "Redis caching disabled. Restart SearXNG to apply changes:"
+    log::info "  resource-searxng manage restart"
+    
+    return 0
+}
+
+#######################################
+# Check Redis status and show caching information
+#######################################
+searxng::redis_status() {
+    log::info "Redis Caching Status:"
+    
+    if [[ "$SEARXNG_ENABLE_REDIS" == "yes" ]]; then
+        echo "  Configuration: Enabled"
+        
+        # Check if Redis container exists and is running
+        if docker ps --format "{{.Names}}" | grep -q "searxng-redis"; then
+            echo "  Container: Running"
+            
+            # Test Redis connection
+            if docker exec searxng-redis redis-cli ping >/dev/null 2>&1; then
+                echo "  Health: Healthy"
+                
+                # Get Redis info
+                local redis_info
+                redis_info=$(docker exec searxng-redis redis-cli info keyspace 2>/dev/null | grep "^db" || echo "No cached data")
+                echo "  Cache Status: $redis_info"
+            else
+                echo "  Health: Unhealthy"
+            fi
+        else
+            echo "  Container: Not running"
+        fi
+    else
+        echo "  Configuration: Disabled"
+        echo "  Performance: Using in-memory caching only"
+        echo "  Enable with: resource-searxng content execute --name enable-redis"
+    fi
+}

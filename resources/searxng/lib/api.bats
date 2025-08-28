@@ -12,7 +12,7 @@ source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
 # Load test infrastructure
-source "${var_SCRIPTS_TEST_DIR}/fixtures/setup.bash"
+source "${var_TEST_DIR}/fixtures/setup.bash"
 
 # Setup for each test
 setup() {

@@ -9,6 +9,7 @@ export _N8N_CORE_SOURCED=1
 # Source shared libraries
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 N8N_LIB_DIR="${APP_ROOT}/resources/n8n/lib"
+N8N_SCRIPT_DIR="${APP_ROOT}/resources/n8n"
 
 # shellcheck disable=SC1091
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
@@ -267,7 +268,7 @@ n8n::get_status_config() {
         "health_tiers": {
             "healthy": "All systems operational",
             "degraded": "API key missing - Configure at '$N8N_BASE_URL' → Settings",
-            "unhealthy": "Service not responding - Try: ./manage.sh --action restart"
+            "unhealthy": "Service not responding - Try: resource-n8n manage restart"
         },
         "auth": {
             "type": "api-key",
@@ -438,8 +439,8 @@ n8n::display_workflow_info() {
     local api_key
     api_key=$(n8n::resolve_api_key)
     if [[ -n "$api_key" ]]; then
-        log::info "   📋 List workflows: ./manage.sh --action list-workflows"
-        log::info "   ▶️  Execute: ./manage.sh --action execute --workflow-id ID"
+        log::info "   📋 List workflows: resource-n8n content workflows"
+        log::info "   ▶️  Execute: resource-n8n content execute ID"
         
         # Display auto-credential status
         log::info ""
@@ -448,9 +449,9 @@ n8n::display_workflow_info() {
         # Show credential management commands
         log::info ""
         log::info "🔐 Credential Management:"
-        log::info "   🤖 Auto-create: ./manage.sh --action auto-credentials"
-        log::info "   🔄 Refresh all: ./manage.sh --action refresh-credentials"
-        log::info "   🔍 List resources: ./manage.sh --action list-discoverable"
+        log::info "   🤖 Auto-create: resource-n8n content auto-credentials"
+        log::info "   🔄 Refresh all: resource-n8n content auto-credentials"
+        log::info "   🔍 List resources: resource-n8n content list-discoverable"
     else
         log::info "   Configure API key to manage workflows and credentials"
     fi

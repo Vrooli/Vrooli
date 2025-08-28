@@ -31,7 +31,7 @@ docker ps -a | grep searxng
 
 **Common Causes & Solutions**:
 - **Invalid config syntax**: Verify YAML syntax in `~/.searxng/settings.yml`
-- **Port conflicts**: Check if port 9200 is already in use with `lsof -i :9200`
+- **Port conflicts**: Check if port 8280 is already in use with `lsof -i :8280`
 - **Memory issues**: Ensure sufficient Docker memory allocation
 
 ### 3. 403 Forbidden on API Calls
@@ -52,7 +52,7 @@ echo 'search:
     - csv' >> ~/.searxng/settings.yml
 
 # Restart service
-./manage.sh --action restart
+resource-searxng manage restart
 ```
 
 ### 4. No Results Returned
@@ -61,13 +61,13 @@ echo 'search:
 **Diagnosis Steps**:
 ```bash
 # Test basic connectivity
-curl -s "http://localhost:9200/search?q=test&format=json" | jq -r '.query'
+curl -s "http://localhost:8280/search?q=test&format=json" | jq -r '.query'
 
 # Check if SearXNG is accessible
-curl -s http://localhost:9200/stats | jq .
+curl -s http://localhost:8280/stats | jq .
 
 # Test specific search engines
-curl -s "http://localhost:9200/search?q=test&format=json&engines=google"
+curl -s "http://localhost:8280/search?q=test&format=json&engines=google"
 ```
 
 **Common Solutions**:
@@ -95,7 +95,7 @@ outgoing:
 **Solutions**:
 ```bash
 # Restart container to clear cache
-./manage.sh --action restart
+resource-searxng manage restart
 
 # Limit Docker memory if needed
 docker update --memory="512m" searxng
@@ -109,22 +109,22 @@ docker logs searxng | grep -i memory
 ### Health Checks
 ```bash
 # Basic health check
-./manage.sh --action status
+resource-searxng status
 
 # Comprehensive diagnostics
-./manage.sh --action diagnose
+resource-searxng content execute --name diagnose
 
 # API functionality test
-./manage.sh --action api-test
+resource-searxng test integration
 
 # Performance benchmark
-./manage.sh --action benchmark --count 5
+resource-searxng content execute --name benchmark --count 5
 ```
 
 ### Log Analysis
 ```bash
 # View recent logs
-./manage.sh --action logs
+resource-searxng logs
 
 # Follow logs in real-time
 docker logs -f searxng
@@ -142,7 +142,7 @@ docker logs searxng 2>&1 | head -50
 python3 -c "import yaml; yaml.safe_load(open('~/.searxng/settings.yml'))" 2>/dev/null && echo "Config OK" || echo "Config Error"
 
 # View current configuration
-./manage.sh --action config-show
+resource-searxng content execute --name config-show
 
 # Compare with template
 diff ~/.searxng/settings.yml config/settings.yml.template
@@ -153,27 +153,27 @@ diff ~/.searxng/settings.yml config/settings.yml.template
 ### Soft Reset
 ```bash
 # Restart service
-./manage.sh --action restart
+resource-searxng manage restart
 
 # Clear Docker cache
 docker system prune -f
 
 # Reset to default config (backup current first)
 cp ~/.searxng/settings.yml ~/.searxng/settings.yml.backup
-./manage.sh --action reset-config
+resource-searxng content execute --name reset-config
 ```
 
 ### Complete Reset
 ```bash
 # Stop and remove container
-./manage.sh --action stop
+resource-searxng manage stop
 docker rm -f searxng
 
 # Remove configuration (backup first!)
 mv ~/.searxng ~/.searxng.backup.$(date +%Y%m%d_%H%M%S)
 
 # Reinstall from scratch
-./manage.sh --action install
+resource-searxng manage install
 ```
 
 ### Data Recovery
@@ -182,7 +182,7 @@ mv ~/.searxng ~/.searxng.backup.$(date +%Y%m%d_%H%M%S)
 cp ~/.searxng.backup.*/settings.yml ~/.searxng/
 
 # Restore specific configuration
-./manage.sh --action install --restore-config ~/.searxng.backup.*/
+resource-searxng manage install --restore-config ~/.searxng.backup.*/
 ```
 
 ## 🐛 Debugging Mode
@@ -200,10 +200,10 @@ logging:
 ### Debug API Calls
 ```bash
 # Test with verbose output
-curl -v "http://localhost:9200/search?q=test&format=json"
+curl -v "http://localhost:8280/search?q=test&format=json"
 
 # Time API responses
-time curl -s "http://localhost:9200/search?q=performance+test&format=json" > /dev/null
+time curl -s "http://localhost:8280/search?q=performance+test&format=json" > /dev/null
 
 # Monitor network activity
 docker exec searxng netstat -tuln
@@ -217,13 +217,13 @@ docker exec searxng netstat -tuln
 ./scripts/resources/index.sh --action discover | grep searxng
 
 # Specific SearXNG status
-./manage.sh --action status --verbose
+resource-searxng status --verbose
 ```
 
 ### Log Collection
 ```bash
 # Collect diagnostic information
-./manage.sh --action collect-logs > searxng-diagnostics.txt
+resource-searxng content execute --name collect-logs > searxng-diagnostics.txt
 
 # Include system information
 echo "=== System Info ===" >> searxng-diagnostics.txt

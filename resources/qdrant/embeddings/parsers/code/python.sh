@@ -200,8 +200,8 @@ extractor::lib::python::extract_classes() {
             # Get inheritance info
             local inheritance=""
             local class_line=$(grep "^class $class_name" "$file" | head -1)
-            if [[ "$class_line" =~ class[[:space:]]+$class_name\(([^)]+)\) ]]; then
-                inheritance="${BASH_REMATCH[1]}"
+            if [[ "$class_line" =~ class[[:space:]]+$class_name\(.*\) ]]; then
+                inheritance="inheritance"
             fi
             
             # Build content

@@ -16,7 +16,7 @@ source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
 # Load Vrooli test infrastructure using var_ variables
 # shellcheck disable=SC1091
-source "${var_SCRIPTS_TEST_DIR}/fixtures/setup.bash"
+source "${var_TEST_DIR}/fixtures/setup.bash"
 
 # Expensive setup operations (run once per file)
 setup_file() {

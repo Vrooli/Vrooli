@@ -55,6 +55,23 @@ cline::start() {
     return 0
 }
 
+#######################################
+# Restart Cline (stop then start)
+# Returns:
+#   0 on success, 1 on failure
+#######################################
+cline::restart() {
+    log::info "Restarting Cline configuration..."
+    
+    if ! cline::stop; then
+        log::warn "Failed to stop Cline, continuing with start"
+    fi
+    
+    sleep 1
+    
+    cline::start "$@"
+}
+
 # Main - only run if called directly
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     cline::start "$@"

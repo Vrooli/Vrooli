@@ -3,7 +3,6 @@
     "name": "product-manager-agent",
     "displayName": "Product Manager Agent",
     "description": "Strategic AI assistant for product management",
-    "type": "app",
     "version": "1.0.0",
     "resources": {
       "n8n": {
@@ -21,15 +20,22 @@
       },
       "ollama": {
         "enabled": true,
-        "models": ["llama3.2:3b", "nomic-embed-text"]
+        "models": [
+          "llama3.2:3b",
+          "nomic-embed-text"
+        ]
       },
       "postgres": {
         "enabled": true,
-        "schemas": ["initialization/postgres/schema.sql"]
+        "schemas": [
+          "initialization/postgres/schema.sql"
+        ]
       },
       "qdrant": {
         "enabled": true,
-        "collections": ["initialization/qdrant/collections.json"]
+        "collections": [
+          "initialization/qdrant/collections.json"
+        ]
       }
     },
     "services": {
@@ -39,6 +45,10 @@
       "ui": {
         "port": 3800
       }
-    }
+    },
+    "tags": [
+      "app",
+      "go-api"
+    ]
   }
 }

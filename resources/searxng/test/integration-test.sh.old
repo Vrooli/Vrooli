@@ -9,7 +9,7 @@ set -euo pipefail
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 SEARXNG_TEST_DIR="${APP_ROOT}/resources/searxng/test"
 # shellcheck disable=SC1091
-source "${SEARXNG_TEST_DIR}/../../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 # Source shared integration test library
 # shellcheck disable=SC1091
@@ -23,7 +23,7 @@ source "${var_SCRIPTS_RESOURCES_DIR}/tests/lib/enhanced-integration-test-lib.sh"
 # shellcheck disable=SC1091
 source "${var_RESOURCES_COMMON_FILE}"
 # shellcheck disable=SC1091
-source "$SEARXNG_TEST_DIR/../config/defaults.sh"
+source "${APP_ROOT}/resources/searxng/config/defaults.sh"
 searxng::export_config
 
 # Override library defaults with SearXNG-specific settings
@@ -298,7 +298,7 @@ show_verbose_info() {
 # TEST REGISTRATION AND EXECUTION
 #######################################
 
-# Register standard interface tests first (manage.sh validation, config checks, etc.)
+# Register standard interface tests first (CLI validation, config checks, etc.)
 register_standard_interface_tests
 
 # Register SearXNG-specific tests

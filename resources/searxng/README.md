@@ -4,7 +4,7 @@ SearXNG is a privacy-respecting metasearch engine that aggregates results from m
 
 ## Quick Reference
 - **Category**: Search
-- **Port**: 9200
+- **Port**: 8280 (defined in port_registry.sh)
 - **Container**: searxng
 - **API Docs**: [Complete API Reference](docs/API.md)
 - **Status**: Production Ready
@@ -21,28 +21,28 @@ SearXNG is a privacy-respecting metasearch engine that aggregates results from m
 
 ```bash
 # Install SearXNG
-./manage.sh --action install
+resource-searxng manage install
 
 # Check status
-./manage.sh --action status
+resource-searxng status
 
 # View logs
-./manage.sh --action logs
+resource-searxng logs
 
 # Enhanced search capabilities
-./manage.sh --action search --query "AI" --limit 5 --output-format title-only
-./manage.sh --action headlines --topic "tech"
-./manage.sh --action lucky --query "Python documentation"
+resource-searxng content execute --name search --query "AI" --limit 5 --output-format title-only
+resource-searxng content execute --name headlines --topic "tech"
+resource-searxng content execute --name lucky --query "Python documentation"
 ```
 
 ## Basic API Usage
 
 ```bash
 # Simple search
-curl "http://localhost:9200/search?q=artificial+intelligence&format=json"
+curl "http://localhost:8280/search?q=artificial+intelligence&format=json"
 
 # Search with specific parameters
-curl "http://localhost:9200/search?q=tech+news&format=json&categories=general&language=en"
+curl "http://localhost:8280/search?q=tech+news&format=json&categories=general&language=en"
 ```
 
 ## 📚 Documentation
@@ -56,42 +56,42 @@ curl "http://localhost:9200/search?q=tech+news&format=json&categories=general&la
 
 ```bash
 # Install and setup
-./manage.sh --action install
+resource-searxng manage install
 
 # Start/stop/restart
-./manage.sh --action start
-./manage.sh --action stop
-./manage.sh --action restart
+resource-searxng manage start
+resource-searxng manage stop
+resource-searxng manage restart
 
 # Status and health
-./manage.sh --action status
-./manage.sh --action logs
+resource-searxng status
+resource-searxng logs
 
 # Advanced operations
-./manage.sh --action api-test
-./manage.sh --action benchmark
-./manage.sh --action diagnose
+resource-searxng test integration
+resource-searxng content execute --name benchmark
+resource-searxng content execute --name diagnose
 ```
 
 ## Access Points
 
 After installation:
-- **Web Interface**: http://localhost:9200 (search interface)
-- **API Endpoint**: http://localhost:9200/search (JSON API)
-- **Stats/Health**: http://localhost:9200/stats (service statistics)
+- **Web Interface**: http://localhost:8280 (search interface)
+- **API Endpoint**: http://localhost:8280/search (JSON API)
+- **Stats/Health**: http://localhost:8280/stats (service statistics)
 
 ## Integration Examples
 
 ### With AI (Ollama)
 ```bash
 # Search and analyze pipeline
-RESULTS=$(./manage.sh --action search --query "AI trends" --output-format json)
+RESULTS=$(resource-searxng content execute --name search --query "AI trends" --output-format json)
 echo "$RESULTS" | curl -X POST http://localhost:11434/api/generate -d @-
 ```
 
 ### With n8n Workflows
 ```bash
-# HTTP Request Node URL: http://localhost:9200/search
+# HTTP Request Node URL: http://localhost:8280/search
 # Parameters: q={{ $json.query }}, format=json
 ```
 

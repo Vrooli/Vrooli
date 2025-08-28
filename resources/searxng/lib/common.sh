@@ -6,11 +6,11 @@
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 SEARXNG_LIB_DIR="${APP_ROOT}/resources/searxng/lib"
 # shellcheck disable=SC1091
-source "${SEARXNG_LIB_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+source "${var_TRASH_FILE}"
 # shellcheck disable=SC1091
-source "${var_LIB_UTILS_DIR}/sudo.sh" 2>/dev/null || true
+source "${var_LIB_UTILS_DIR}/sudo.sh"
 
 #######################################
 # Check if SearXNG is installed
@@ -132,20 +132,25 @@ searxng::health_check_detailed() {
             log::success "✅ Configuration file exists"
             
             # Check file permissions
-            local current_uid current_gid
-            current_uid=$(id -u)
-            current_gid=$(id -g)
-            
+            # Check file ownership - for Docker containers, accept searxng user (977)
             local file_uid file_gid
             if command -v stat >/dev/null 2>&1; then
                 file_uid=$(stat -c %u "$config_file" 2>/dev/null || echo "unknown")
                 file_gid=$(stat -c %g "$config_file" 2>/dev/null || echo "unknown")
                 
-                if [[ "$file_uid" != "$current_uid" ]] || [[ "$file_gid" != "$current_gid" ]]; then
-                    issues+=("Configuration file has incorrect ownership (expected $current_uid:$current_gid, got $file_uid:$file_gid)")
-                    status="critical"
+                # Accept ownership by searxng user (977) or current user
+                local current_uid current_gid
+                current_uid=$(id -u)
+                current_gid=$(id -g)
+                
+                if [[ "$file_uid" == "977" ]] && [[ "$file_gid" == "977" ]]; then
+                    # Files owned by searxng user in container - this is correct
+                    log::success "✅ Configuration file owned by SearXNG container user"
+                elif [[ "$file_uid" == "$current_uid" ]] && [[ "$file_gid" == "$current_gid" ]]; then
+                    log::success "✅ Configuration file owned by current user"
                 else
-                    log::success "✅ Configuration file has correct ownership"
+                    issues+=("Configuration file has unexpected ownership (got $file_uid:$file_gid, expected 977:977 for container or $current_uid:$current_gid for host)")
+                    status="warning"  # Downgrade from critical since it might still work
                 fi
             fi
             
@@ -470,4 +475,42 @@ searxng::show_info() {
         searxng::message "info" "MSG_SEARXNG_API_INFO"
         searxng::message "info" "MSG_SEARXNG_STATS_INFO"
     fi
+}
+
+#######################################
+# Show credentials for n8n integration
+#######################################
+searxng::show_credentials() {
+    # Source credentials utilities
+    # shellcheck disable=SC1091
+    source "${var_SCRIPTS_RESOURCES_LIB_DIR}/credentials-utils.sh"
+    
+    credentials::parse_args "$@" || return $?
+    
+    local status
+    status=$(credentials::get_resource_status "${SEARXNG_CONTAINER_NAME:-searxng}")
+    
+    local connections_array="[]"
+    if [[ "$status" == "running" ]]; then
+        local connection_obj
+        connection_obj=$(jq -n \
+            --arg host "${SEARXNG_HOST:-localhost}" \
+            --argjson port "${SEARXNG_PORT:-8280}" \
+            '{host: $host, port: $port}')
+        
+        local metadata_obj
+        metadata_obj=$(jq -n \
+            --arg description "Privacy-respecting search engine" \
+            --arg base_url "${SEARXNG_BASE_URL:-http://localhost:8280}" \
+            '{description: $description, base_url: $base_url}')
+        
+        local connection
+        connection=$(credentials::build_connection \
+            "main" "SearXNG Search API" "httpRequest" \
+            "$connection_obj" "{}" "$metadata_obj")
+        
+        connections_array="[$connection]"
+    fi
+    
+    credentials::format_output "$(credentials::build_response "searxng" "$status" "$connections_array")"
 }

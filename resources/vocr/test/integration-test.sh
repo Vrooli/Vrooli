@@ -4,12 +4,12 @@
 set -euo pipefail
 
 # Get script directory
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 TEST_DIR="${APP_ROOT}/resources/vocr/test"
 VOCR_DIR="${APP_ROOT}/resources/vocr"
 
 # Source utilities
-source "${VOCR_DIR}/../../../lib/utils/log.sh"
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
 
 # Test results
 TESTS_PASSED=0
@@ -71,7 +71,7 @@ main() {
         test_status="partial"
     fi
     
-    cat > "/home/matthalloran8/Vrooli/data/vocr/test-results.json" << JSON
+    cat > "${VROOLI_ROOT:-${HOME}/Vrooli}/data/vocr/test-results.json" << JSON
 {
     "status": "$test_status",
     "passed": $TESTS_PASSED,

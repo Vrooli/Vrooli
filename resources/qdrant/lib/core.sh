@@ -94,7 +94,7 @@ qdrant::get_init_config() {
         "volumes": '$volumes_array',
         "networks": ["'$QDRANT_NETWORK_NAME'"],
         "healthcheck": {
-            "test": ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:'$QDRANT_PORT'/health"],
+            "test": ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:'$QDRANT_PORT'/"],
             "interval": "30s",
             "timeout": "10s",
             "retries": 3,

@@ -105,7 +105,7 @@ spec:
   
   # Technical specifications
   technical:
-    ports: [9200]
+    ports: [8280]
     protocols: [http, https]
     data_formats: [json, html, csv, rss]
     resource_requirements:

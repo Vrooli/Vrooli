@@ -6,7 +6,7 @@ setup() {
     source "${BATS_TEST_DIRNAME}/../../../../lib/utils/var.sh"
     
     # Load Vrooli test infrastructure
-    source "${var_SCRIPTS_TEST_DIR}/fixtures/setup.bash"
+    source "${var_TEST_DIR}/fixtures/setup.bash"
     
     # Setup SearXNG test environment
     vrooli_setup_service_test "searxng"
@@ -215,7 +215,7 @@ setup() {
     [[ "$output" =~ "Status: not_installed" ]]
     [[ "$output" =~ "INFO:" ]]
     [[ "$output" =~ "not installed" ]]
-    [[ "$output" =~ "./manage.sh --action install" ]]
+    [[ "$output" =~ "resource-searxng manage install" ]]
 }
 
 @test "searxng::show_status displays stopped status" {
@@ -226,7 +226,7 @@ setup() {
     [[ "$output" =~ "Status: stopped" ]]
     [[ "$output" =~ "WARNING:" ]]
     [[ "$output" =~ "not running" ]]
-    [[ "$output" =~ "./manage.sh --action start" ]]
+    [[ "$output" =~ "resource-searxng manage start" ]]
 }
 
 @test "searxng::show_status displays unhealthy status" {
@@ -430,7 +430,7 @@ setup() {
     
     run searxng::show_troubleshooting
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "Install SearXNG: ./manage.sh --action install" ]]
+    [[ "$output" =~ "Install SearXNG: resource-searxng manage install" ]]
     [[ "$output" =~ "Check Docker is installed" ]]
 }
 
@@ -439,7 +439,7 @@ setup() {
     
     run searxng::show_troubleshooting
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "Start SearXNG: ./manage.sh --action start" ]]
+    [[ "$output" =~ "Start SearXNG: resource-searxng manage start" ]]
 }
 
 @test "searxng::show_troubleshooting handles unhealthy status" {
@@ -447,8 +447,8 @@ setup() {
     
     run searxng::show_troubleshooting
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "Check logs: ./manage.sh --action logs" ]]
-    [[ "$output" =~ "Restart service: ./manage.sh --action restart" ]]
+    [[ "$output" =~ "Check logs: resource-searxng logs" ]]
+    [[ "$output" =~ "Restart service: resource-searxng manage restart" ]]
 }
 
 @test "searxng::show_troubleshooting includes general guidance" {

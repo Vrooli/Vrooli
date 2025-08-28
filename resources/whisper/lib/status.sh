@@ -4,17 +4,19 @@
 
 # Source format utilities and config
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-WHISPER_STATUS_DIR="${APP_ROOT}/resources/whisper/lib"
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+WHISPER_STATUS_DIR="${var_RESOURCES_DIR}/whisper/lib"
 # shellcheck disable=SC1091
 source "${APP_ROOT}/scripts/lib/utils/format.sh"
 # shellcheck disable=SC1091
 source "${APP_ROOT}/scripts/resources/lib/status-args.sh"
 # shellcheck disable=SC1091
-source "${WHISPER_STATUS_DIR}/../config/defaults.sh" 2>/dev/null || true
+source "${var_RESOURCES_DIR}/whisper/config/defaults.sh"
 # shellcheck disable=SC1091
-source "${WHISPER_STATUS_DIR}/../config/messages.sh" 2>/dev/null || true
+source "${var_RESOURCES_DIR}/whisper/config/messages.sh"
 # shellcheck disable=SC1091
-source "${WHISPER_STATUS_DIR}/common.sh" 2>/dev/null || true
+source "${WHISPER_STATUS_DIR}/common.sh"
 
 # Ensure configuration is exported
 if command -v defaults::export_config &>/dev/null; then

@@ -259,7 +259,7 @@
   
   "monitoring": {
     "health_check": {
-      "endpoint": "/health",
+      "endpoint": "/",
       "interval": "30s",
       "timeout": "5s"
     },

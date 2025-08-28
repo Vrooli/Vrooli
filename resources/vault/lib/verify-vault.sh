@@ -6,9 +6,9 @@ set -euo pipefail
 # Source var.sh for directory variables
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+source "${var_TRASH_FILE}"
 
 # Colors for output
 RED='\033[0;31m'
@@ -45,7 +45,7 @@ VERIFICATION_PASSED=true
 
 # 1. Check if Vault is installed
 echo "1. Checking Vault installation..."
-if ./manage.sh --action status >/dev/null 2>&1; then
+if resource-vault status >/dev/null 2>&1; then
     STATUS=$(./manage.sh --action status 2>&1 | grep -oP 'Status: \K\w+' || echo "unknown")
     if [[ "$STATUS" == "healthy" ]]; then
         print_status 0 "Vault is installed and healthy"
@@ -55,7 +55,7 @@ if ./manage.sh --action status >/dev/null 2>&1; then
     fi
 else
     print_status 1 "Vault is not installed"
-    print_info "Run: ./manage.sh --action install && ./manage.sh --action init-dev"
+    print_info "Run: resource-vault manage install && resource-vault content init-dev"
     exit 1
 fi
 echo
@@ -108,7 +108,7 @@ TEST_VALUE="test-value-$(date +%s)"
 
 # Store a secret
 echo -n "   Storing test secret... "
-if ./manage.sh --action put-secret --path "$TEST_PATH" --value "$TEST_VALUE" >/dev/null 2>&1; then
+if resource-vault content add --path "$TEST_PATH" --value "$TEST_VALUE" >/dev/null 2>&1; then
     echo -e "${GREEN}✓${NC}"
 else
     echo -e "${RED}✗${NC}"
@@ -129,7 +129,7 @@ fi
 
 # List secrets
 echo -n "   Listing secrets... "
-if ./manage.sh --action list-secrets --path "test/" 2>&1 | grep -q "verification"; then
+if resource-vault content list --path "test/" 2>&1 | grep -q "verification"; then
     echo -e "${GREEN}✓${NC}"
 else
     echo -e "${RED}✗${NC}"
@@ -138,7 +138,7 @@ fi
 
 # Delete the secret
 echo -n "   Deleting test secret... "
-if ./manage.sh --action delete-secret --path "$TEST_PATH" >/dev/null 2>&1; then
+if resource-vault content remove --path "$TEST_PATH" >/dev/null 2>&1; then
     echo -e "${GREEN}✓${NC}"
 else
     echo -e "${RED}✗${NC}"
@@ -147,7 +147,7 @@ fi
 
 # Verify deletion
 echo -n "   Verifying deletion... "
-if ! ./manage.sh --action get-secret --path "$TEST_PATH" >/dev/null 2>&1; then
+if ! resource-vault content get --path "$TEST_PATH" >/dev/null 2>&1; then
     echo -e "${GREEN}✓${NC}"
 else
     echo -e "${RED}✗${NC}"
@@ -174,7 +174,7 @@ BULK_JSON='{"key1": "value1", "key2": "value2", "key3": "value3"}'
 echo "$BULK_JSON" > /tmp/vault-test-bulk.json
 
 echo -n "   Bulk storing secrets... "
-if ./manage.sh --action bulk-put --json-file /tmp/vault-test-bulk.json --base-path "test/bulk" >/dev/null 2>&1; then
+if resource-vault content add --json-file /tmp/vault-test-bulk.json --base-path "test/bulk" >/dev/null 2>&1; then
     echo -e "${GREEN}✓${NC}"
     
     # Verify each key
@@ -220,9 +220,9 @@ else
     echo -e "${RED}Some verification tests failed!${NC}"
     echo
     echo "Troubleshooting steps:"
-    echo "  1. Check logs: ./manage.sh --action logs --lines 50"
-    echo "  2. Run diagnostics: ./manage.sh --action diagnose"
-    echo "  3. Restart Vault: ./manage.sh --action restart"
-    echo "  4. Reinstall if needed: ./manage.sh --action uninstall && ./manage.sh --action install"
+    echo "  1. Check logs: resource-vault logs --tail 50"
+    echo "  2. Run diagnostics: resource-vault test integration"
+    echo "  3. Restart Vault: resource-vault manage restart"
+    echo "  4. Reinstall if needed: resource-vault manage uninstall && resource-vault manage install"
     exit 1
 fi

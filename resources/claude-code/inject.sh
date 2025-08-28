@@ -140,7 +140,7 @@ claude_code_inject::check_accessibility() {
             return 0
         else
             log::warn "Claude Code CLI not found and data directory doesn't exist"
-            log::info "Install Claude Code: ./resources/claude-code/manage.sh --action install"
+            log::info "Install Claude Code: resource-claude-code manage install"
             return 1
         fi
     fi

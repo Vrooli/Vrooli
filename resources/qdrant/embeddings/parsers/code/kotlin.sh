@@ -77,7 +77,7 @@ extractor::lib::kotlin::extract_functions() {
                 is_tailrec="true"
             fi
             # Check if it's an extension function (has receiver type)
-            if [[ "$func_line" =~ fun[[:space:]]+[A-Za-z_<>?]+\.[A-Za-z_] ]]; then
+            if [[ "$func_line" =~ fun[[:space:]]+[A-Za-z_]+\.[A-Za-z_] ]]; then
                 is_extension="true"
             fi
             

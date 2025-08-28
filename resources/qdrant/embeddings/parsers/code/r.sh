@@ -314,7 +314,7 @@ extractor::lib::r::extract_rmarkdown() {
     fi
     
     # Count code chunks
-    local chunk_count=$(grep -c "^```{r" "$file" 2>/dev/null || echo "0")
+    local chunk_count=$(grep -c '^```{r' "$file" 2>/dev/null || echo "0")
     
     # Check for YAML header
     local has_yaml="false"

@@ -125,8 +125,8 @@ extractor::lib::go::extract_functions() {
             # Get method signature and receiver
             local signature=$(grep -E "^func[[:space:]]+\([^)]+\)[[:space:]]+$method_name" "$file" 2>/dev/null | head -1 || echo "")
             local receiver=""
-            if [[ "$signature" =~ func[[:space:]]+\(([^)]+)\) ]]; then
-                receiver="${BASH_REMATCH[1]}"
+            if [[ "$signature" =~ func[[:space:]]+\(.*\) ]]; then
+                receiver="receiver"
             fi
             
             # Build content

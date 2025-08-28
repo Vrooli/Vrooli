@@ -20,13 +20,13 @@ VROOLI_ROOT="$APP_ROOT"
 # shellcheck disable=SC1091
 source "${VROOLI_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "${var_LOG_FILE:-${CLI_DIR}/../../scripts/lib/utils/log.sh}"
+source "${var_LOG_FILE:-${APP_ROOT}/scripts/lib/utils/log.sh}"
 # shellcheck disable=SC1091
 source "${VROOLI_ROOT}/scripts/lib/utils/format.sh"
 # shellcheck disable=SC1091
-source "${CLI_DIR}/../lib/arg-parser.sh"
+source "${APP_ROOT}/cli/lib/arg-parser.sh"
 # shellcheck disable=SC1091
-source "${CLI_DIR}/../lib/output-formatter.sh"
+source "${APP_ROOT}/cli/lib/output-formatter.sh"
 
 # Configuration paths
 RESOURCES_CONFIG="${var_ROOT_DIR}/.vrooli/service.json"
@@ -85,7 +85,11 @@ get_resource_status() {
     if [[ "$use_fast" == "true" ]]; then
         fast_flag="--fast"
     fi
-    if status_output=$("$cli_command" status --format json $fast_flag 2>/dev/null); then
+    # Get status output regardless of exit code, as resources may return non-zero for stopped services
+    # Resources may output JSON to stderr, so capture both stdout and stderr
+    status_output=$("$cli_command" status --format json $fast_flag 2>&1)
+    # Check if we have valid JSON output (regardless of exit code)
+    if [[ -n "$status_output" ]] && echo "$status_output" | jq -e '.' >/dev/null 2>&1; then
         # Parse JSON to get running and healthy status
         # Some resources use 'healthy', others use 'health' 
         local running healthy health
@@ -144,7 +148,9 @@ collect_resource_data() {
     
     # Cleanup function
     cleanup_temp() {
-        [[ -n "${temp_dir:-}" ]] && rm -rf "$temp_dir" 2>/dev/null || true
+        if [[ -n "${temp_dir:-}" ]]; then
+            rm -rf "$temp_dir" 2>/dev/null
+        fi
     }
     trap cleanup_temp EXIT
     
@@ -273,22 +279,86 @@ get_resource_data() {
 }
 
 
-# Collect app data (format-agnostic)
+# Collect app data (format-agnostic) - Using Unified API
 collect_app_data() {
     local verbose="${1:-false}"
     
-    # Check if API is available
+    # Check if unified API is available
     if ! check_api; then
-        echo "error:API not available"
+        echo "error:Unified API unavailable"
         return
     fi
     
-    # Get app list from API
+    # Get app status from unified API (which includes orchestrator data)
+    local response
+    response=$(curl -s --connect-timeout 2 --max-time 5 "${API_BASE}/apps" 2>/dev/null || echo '{"success": false}')
+    
+    if ! echo "$response" | jq -e '.success' >/dev/null 2>&1 || [[ "$(echo "$response" | jq -r '.success')" != "true" ]]; then
+        echo "error:Failed to get app list from unified API"
+        return
+    fi
+    
+    # Extract apps from unified API response
+    local apps_data
+    apps_data=$(echo "$response" | jq -r '.data')
+    
+    if ! echo "$apps_data" | jq -e '. | length' >/dev/null 2>&1; then
+        echo "error:Invalid app data from unified API"
+        return
+    fi
+    
+    local total_apps=0
+    local running_apps=0
+    local -A app_statuses  # For detailed output
+    
+    # Process each app from unified API response
+    while IFS= read -r app_json; do
+        # Skip empty lines
+        [[ -z "$app_json" ]] && continue
+        
+        # Extract app data from unified API response
+        local name status
+        name=$(echo "$app_json" | jq -r '.name' 2>/dev/null)
+        status=$(echo "$app_json" | jq -r '.runtime_status // "unknown"' 2>/dev/null)
+        
+        [[ -z "$name" || "$name" == "null" ]] && continue
+        
+        total_apps=$((total_apps + 1))
+        
+        # Count running apps based on runtime status
+        if [[ "$status" == "running" || "$status" == "starting" ]]; then
+            running_apps=$((running_apps + 1))
+            app_statuses["$name"]="running"
+        elif [[ "$status" == "error" ]]; then
+            app_statuses["$name"]="error"
+        else
+            app_statuses["$name"]="stopped"
+        fi
+        
+    done < <(echo "$apps_data" | jq -c '.[]' 2>/dev/null)
+    
+    # Output summary
+    echo "total:${total_apps}"
+    echo "running:${running_apps}"
+    
+    # Output details if verbose
+    if [[ "$verbose" == "true" && "$total_apps" -gt 0 ]]; then
+        for name in "${!app_statuses[@]}"; do
+            echo "app:${name}:${app_statuses[$name]}"
+        done
+    fi
+}
+
+# Legacy collect_app_data for fallback
+collect_app_data_legacy() {
+    local verbose="${1:-false}"
+    
+    # Get app list from legacy API
     local response
     response=$(curl -s --connect-timeout 2 --max-time 5 "${API_BASE}/apps" 2>/dev/null || echo '{"success": false}')
     
     if ! echo "$response" | jq -e '.success' >/dev/null 2>&1; then
-        echo "error:Failed to get app list"
+        echo "error:Failed to get app list from legacy API"
         return
     fi
     
@@ -303,7 +373,7 @@ collect_app_data() {
     local running_apps=0
     local -A app_statuses  # For detailed output
     
-    # Process each app and check runtime status
+    # Process each app and check runtime status via process manager
     while IFS= read -r app_json; do
         # Skip empty lines
         [[ -z "$app_json" ]] && continue
@@ -315,39 +385,23 @@ collect_app_data() {
         
         total_apps=$((total_apps + 1))
         
-        # Check if app is running using same logic as app list
+        # Check if app is running via legacy orchestrator detection
         local is_running=false
-        local app_path="${GENERATED_APPS_DIR:-$HOME/generated-apps}/$name"
         
-        if type -t pm::list >/dev/null 2>&1; then
-            while IFS= read -r process; do
-                local check_process=false
-                
-                # Direct match for app name
-                if [[ "$process" == "vrooli.develop.$name" ]] || \
-                   [[ "$process" == "vrooli."*".$name" ]] || \
-                   [[ "$process" == "vrooli.$name."* ]]; then
-                    check_process=true
-                elif [[ "$process" == "vrooli.develop."* ]]; then
-                    # For any develop process, check if it belongs to this app
-                    local info_file="$HOME/.vrooli/processes/$process/info"
-                    if [[ -f "$info_file" ]]; then
-                        local working_dir
-                        working_dir=$(grep '^working_dir=' "$info_file" 2>/dev/null | cut -d= -f2- || echo "")
-                        if [[ "$working_dir" == "$app_path" ]] || [[ "$working_dir" == *"/$name" ]]; then
-                            check_process=true
-                        fi
-                    fi
-                fi
-                
-                # Check if this process is actually running
-                if [[ "$check_process" == "true" ]]; then
-                    if pm::is_running "$process" 2>/dev/null; then
-                        is_running=true
-                        break
-                    fi
-                fi
-            done < <(pm::list 2>/dev/null)
+        # Check if the app orchestrator is running
+        local orchestrator_running=false
+        if type -t pm::is_running >/dev/null 2>&1; then
+            if pm::is_running "vrooli.develop.start-generated-apps" 2>/dev/null; then
+                orchestrator_running=true
+            fi
+        fi
+        
+        # Legacy: assume all apps are running if orchestrator is running
+        if [[ "$orchestrator_running" == "true" ]]; then
+            local app_path="${GENERATED_APPS_DIR:-$HOME/generated-apps}/$name"
+            if [[ -d "$app_path" ]]; then
+                is_running=true
+            fi
         fi
         
         # Update counts and store status
@@ -622,6 +676,9 @@ format_component_data() {
                     format::table "$format" "Resource" "Duration" "Status" -- "${timing_rows[@]}"
                 fi
             fi
+        else
+            # When not in verbose mode, show hint about --verbose flag
+            echo "(Use --verbose to see individual ${component})"
         fi
     fi
 }
@@ -801,11 +858,6 @@ show_status() {
         fi
         
         cli::format_status text "$health_status" "$health_message"
-        
-        if [[ "$verbose" == "false" ]]; then
-            echo ""
-            echo "Use 'vrooli status --verbose' for detailed information"
-        fi
     fi
 }
 
