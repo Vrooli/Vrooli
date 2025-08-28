@@ -1,6 +1,19 @@
 #!/usr/bin/env bash
 # Documentation Content Extractor for Qdrant Embeddings
-# Extracts embeddable content from structured markdown documentation
+# 
+# SCOPE: Processes ARCHITECTURAL DOCUMENTATION outside of:
+# - scenarios/ folder documentation (handled by scenarios stream)
+# - resources/ folder documentation (handled by resources stream) 
+# - initialization/ folder documentation (handled by resources/initialization stream)
+#
+# PROCESSING: Extracts embeddable content from structured markdown documentation
+# - Uses embedding markers: <!-- embed: start --> ... <!-- embed: end -->
+# - Processes standard docs: ARCHITECTURE.md, SECURITY.md, LESSONS_LEARNED.md
+# - Extracts: architectural decisions, security principles, performance patterns
+# - Output: Section-level embeddings for knowledge discovery
+#
+# COVERAGE: Processes documentation files throughout the application
+# for architectural understanding, design patterns, and lessons learned
 
 set -euo pipefail
 

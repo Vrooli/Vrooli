@@ -17,19 +17,22 @@ source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${var_LIB_UTILS_DIR}/log.sh"
 
 # Source ALL language parsers once
-source "${APP_ROOT}/resources/qdrant/embeddings/parsers/shell.sh"
-source "${APP_ROOT}/resources/qdrant/embeddings/parsers/javascript.sh"
-source "${APP_ROOT}/resources/qdrant/embeddings/parsers/go.sh"
-source "${APP_ROOT}/resources/qdrant/embeddings/parsers/python.sh"
-source "${APP_ROOT}/resources/qdrant/embeddings/parsers/rust.sh"
-source "${APP_ROOT}/resources/qdrant/embeddings/parsers/java.sh"
-source "${APP_ROOT}/resources/qdrant/embeddings/parsers/csharp.sh"
-source "${APP_ROOT}/resources/qdrant/embeddings/parsers/ruby.sh"
-source "${APP_ROOT}/resources/qdrant/embeddings/parsers/php.sh"
-source "${APP_ROOT}/resources/qdrant/embeddings/parsers/swift.sh"
-source "${APP_ROOT}/resources/qdrant/embeddings/parsers/kotlin.sh"
-source "${APP_ROOT}/resources/qdrant/embeddings/parsers/cpp.sh"
-source "${APP_ROOT}/resources/qdrant/embeddings/parsers/sql.sh"
+source "${APP_ROOT}/resources/qdrant/embeddings/parsers/code/shell.sh"
+source "${APP_ROOT}/resources/qdrant/embeddings/parsers/code/javascript.sh"
+source "${APP_ROOT}/resources/qdrant/embeddings/parsers/code/go.sh"
+source "${APP_ROOT}/resources/qdrant/embeddings/parsers/code/python.sh"
+source "${APP_ROOT}/resources/qdrant/embeddings/parsers/code/rust.sh"
+source "${APP_ROOT}/resources/qdrant/embeddings/parsers/code/java.sh"
+source "${APP_ROOT}/resources/qdrant/embeddings/parsers/code/csharp.sh"
+source "${APP_ROOT}/resources/qdrant/embeddings/parsers/code/ruby.sh"
+source "${APP_ROOT}/resources/qdrant/embeddings/parsers/code/php.sh"
+source "${APP_ROOT}/resources/qdrant/embeddings/parsers/code/swift.sh"
+source "${APP_ROOT}/resources/qdrant/embeddings/parsers/code/kotlin.sh"
+source "${APP_ROOT}/resources/qdrant/embeddings/parsers/code/cpp.sh"
+source "${APP_ROOT}/resources/qdrant/embeddings/parsers/code/sql.sh"
+source "${APP_ROOT}/resources/qdrant/embeddings/parsers/code/css.sh"
+source "${APP_ROOT}/resources/qdrant/embeddings/parsers/code/matlab.sh"
+source "${APP_ROOT}/resources/qdrant/embeddings/parsers/code/r.sh"
 
 #######################################
 # Detect primary language(s) in a directory
@@ -94,7 +97,7 @@ qdrant::lib::detect_languages() {
         # Count files by extension
         local js_count=$(find "$dir" -type f \( -name "*.js" -o -name "*.ts" -o -name "*.jsx" -o -name "*.tsx" \) 2>/dev/null | wc -l)
         local go_count=$(find "$dir" -type f -name "*.go" 2>/dev/null | wc -l)
-        local py_count=$(find "$dir" -type f -name "*.py" 2>/dev/null | wc -l)
+        local py_count=$(find "$dir" -type f \( -name "*.py" -o -name "*.ipynb" \) 2>/dev/null | wc -l)
         local rust_count=$(find "$dir" -type f -name "*.rs" 2>/dev/null | wc -l)
         local java_count=$(find "$dir" -type f -name "*.java" 2>/dev/null | wc -l)
         local cs_count=$(find "$dir" -type f -name "*.cs" 2>/dev/null | wc -l)
@@ -105,6 +108,9 @@ qdrant::lib::detect_languages() {
         local cpp_count=$(find "$dir" -type f \( -name "*.cpp" -o -name "*.cc" -o -name "*.cxx" -o -name "*.h" -o -name "*.hpp" \) 2>/dev/null | wc -l)
         local shell_count=$(find "$dir" -type f \( -name "*.sh" -o -name "*.bash" \) 2>/dev/null | wc -l)
         local sql_count=$(find "$dir" -type f \( -name "*.sql" -o -name "*.ddl" -o -name "*.dml" \) 2>/dev/null | wc -l)
+        local css_count=$(find "$dir" -type f \( -name "*.css" -o -name "*.scss" -o -name "*.sass" -o -name "*.less" \) 2>/dev/null | wc -l)
+        local matlab_count=$(find "$dir" -type f \( -name "*.m" -o -name "*.mlx" \) 2>/dev/null | wc -l)
+        local r_count=$(find "$dir" -type f \( -name "*.R" -o -name "*.r" -o -name "*.Rmd" -o -name "*.rmd" \) 2>/dev/null | wc -l)
         
         # Add languages with significant file counts (>0)
         [[ $js_count -gt 0 ]] && languages+=("javascript")
@@ -120,6 +126,9 @@ qdrant::lib::detect_languages() {
         [[ $cpp_count -gt 0 ]] && languages+=("cpp")
         [[ $shell_count -gt 0 ]] && languages+=("shell")
         [[ $sql_count -gt 0 ]] && languages+=("sql")
+        [[ $css_count -gt 0 ]] && languages+=("css")
+        [[ $matlab_count -gt 0 ]] && languages+=("matlab")
+        [[ $r_count -gt 0 ]] && languages+=("r")
     fi
     
     # Return result
@@ -173,7 +182,7 @@ qdrant::lib::detect_primary_language() {
     local go_count=$(find "$dir" -type f -name "*.go" 2>/dev/null | wc -l)
     [[ $go_count -gt $max_count ]] && max_count=$go_count && primary_lang="go"
     
-    local py_count=$(find "$dir" -type f -name "*.py" 2>/dev/null | wc -l)
+    local py_count=$(find "$dir" -type f \( -name "*.py" -o -name "*.ipynb" \) 2>/dev/null | wc -l)
     [[ $py_count -gt $max_count ]] && max_count=$py_count && primary_lang="python"
     
     local rust_count=$(find "$dir" -type f -name "*.rs" 2>/dev/null | wc -l)
@@ -205,6 +214,15 @@ qdrant::lib::detect_primary_language() {
     
     local sql_count=$(find "$dir" -type f \( -name "*.sql" -o -name "*.ddl" -o -name "*.dml" \) 2>/dev/null | wc -l)
     [[ $sql_count -gt $max_count ]] && max_count=$sql_count && primary_lang="sql"
+    
+    local css_count=$(find "$dir" -type f \( -name "*.css" -o -name "*.scss" -o -name "*.sass" -o -name "*.less" \) 2>/dev/null | wc -l)
+    [[ $css_count -gt $max_count ]] && max_count=$css_count && primary_lang="css"
+    
+    local matlab_count=$(find "$dir" -type f \( -name "*.m" -o -name "*.mlx" \) 2>/dev/null | wc -l)
+    [[ $matlab_count -gt $max_count ]] && max_count=$matlab_count && primary_lang="matlab"
+    
+    local r_count=$(find "$dir" -type f \( -name "*.R" -o -name "*.r" -o -name "*.Rmd" -o -name "*.rmd" \) 2>/dev/null | wc -l)
+    [[ $r_count -gt $max_count ]] && max_count=$r_count && primary_lang="r"
     
     echo "$primary_lang"
 }
@@ -345,6 +363,15 @@ qdrant::lib::extract_with_language() {
         sql)
             extractor::lib::sql::extract_all "$dir" "$component_type" "$scenario_name" 2>/dev/null || true
             ;;
+        css)
+            extractor::lib::css::extract_all "$dir" "$component_type" "$scenario_name" 2>/dev/null || true
+            ;;
+        matlab)
+            extractor::lib::matlab::extract_all "$dir" "$component_type" "$scenario_name" 2>/dev/null || true
+            ;;
+        r)
+            extractor::lib::r::extract_all "$dir" "$component_type" "$scenario_name" 2>/dev/null || true
+            ;;
         *)
             log::debug "Unknown language for extraction: $language" >&2
             return 1
@@ -382,6 +409,9 @@ qdrant::lib::extract_all_languages() {
     extractor::lib::cpp::extract_all "$dir" "$component_type" "$scenario_name" 2>/dev/null || true
     extractor::lib::shell::extract_all "$dir" "$component_type" "$scenario_name" 2>/dev/null || true
     extractor::lib::sql::extract_all "$dir" "$component_type" "$scenario_name" 2>/dev/null || true
+    extractor::lib::css::extract_all "$dir" "$component_type" "$scenario_name" 2>/dev/null || true
+    extractor::lib::matlab::extract_all "$dir" "$component_type" "$scenario_name" 2>/dev/null || true
+    extractor::lib::r::extract_all "$dir" "$component_type" "$scenario_name" 2>/dev/null || true
 }
 
 # Export all functions

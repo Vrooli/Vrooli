@@ -229,12 +229,86 @@ lifecycle::execute_phase() {
             echo "  • $process"
         done
         echo ""
-        log::info "Use 'vrooli app stop <name>' to stop services"
-        log::info "Use 'vrooli app logs <name>' to view logs"
+        
+        # Show next steps with app status
+        show_develop_next_steps
     fi
     
     log::success "Phase '$phase' completed successfully"
     return 0
+}
+
+#######################################
+# Show next steps after starting develop phase
+# Displays app status and useful commands
+#######################################
+show_develop_next_steps() {
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    log::header "🎯 NEXT STEPS"
+    echo ""
+    
+    # Brief wait for services to initialize
+    sleep 2
+    
+    # Get app status from API if available
+    local api_available=false
+    local app_count=0
+    local running_count=0
+    
+    if command -v curl >/dev/null 2>&1 && curl -s --connect-timeout 1 --max-time 2 "http://localhost:${VROOLI_API_PORT:-8092}/health" >/dev/null 2>&1; then
+        api_available=true
+        local response
+        response=$(curl -s --connect-timeout 2 --max-time 3 "http://localhost:${VROOLI_API_PORT:-8092}/apps" 2>/dev/null || echo '{"success": false}')
+        
+        if echo "$response" | jq -e '.success' >/dev/null 2>&1 2>/dev/null; then
+            local apps_data
+            apps_data=$(echo "$response" | jq -r '.data' 2>/dev/null)
+            if [[ -n "$apps_data" ]]; then
+                app_count=$(echo "$apps_data" | jq 'length' 2>/dev/null || echo "0")
+                running_count=$(echo "$apps_data" | jq '[.[] | select(.runtime_status == "running")] | length' 2>/dev/null || echo "0")
+            fi
+        fi
+    fi
+    
+    # Show app status
+    if [[ "$api_available" == "true" ]] && [[ "$app_count" -gt 0 ]]; then
+        log::info "📦 App Status: $running_count/$app_count apps running"
+        echo ""
+        
+        if [[ "$running_count" -gt 0 ]]; then
+            echo "🟢 Running apps can be accessed via their individual URLs"
+            echo "   Run 'vrooli app list' to see all URLs and ports"
+        else
+            echo "🔴 Apps are starting up (may take 30-60 seconds)"
+            echo "   Run 'vrooli app list' to check their status"
+        fi
+    else
+        echo "📦 Apps are starting up in the background..."
+    fi
+    
+    echo ""
+    log::info "🔍 Useful Commands:"
+    echo "  • 'vrooli status'           - Check system health and app status"
+    echo "  • 'vrooli app list'         - List all apps with URLs and status"
+    echo "  • 'vrooli app logs <name>'  - View logs for a specific app"
+    echo "  • 'vrooli app start <name>' - Start a specific app"
+    echo "  • 'vrooli app stop-all'     - Stop all apps"
+    
+    echo ""
+    log::info "🌐 Main Services:"
+    echo "  • Unified API: http://localhost:${VROOLI_API_PORT:-8092}"
+    if [[ -n "${WEBAPP_PORT:-}" ]]; then
+        echo "  • Web UI: http://localhost:${WEBAPP_PORT}"
+    fi
+    
+    echo ""
+    log::info "💡 Troubleshooting:"
+    echo "  • If apps show as 'stopped': Check logs with 'vrooli app logs <name>'"
+    echo "  • If setup fails: Try 'vrooli app start <name>' to restart individual apps"
+    echo "  • For system issues: Run 'vrooli status --verbose' for detailed health check"
+    
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 }
 
 #######################################
@@ -248,6 +322,30 @@ lifecycle::allocate_service_ports() {
     ports_config=$(json::get_value '.ports // {}' '{}')
     
     [[ "$ports_config" == '{}' ]] && return 0
+    
+    # Source port registry if available for conflict prevention
+    local port_registry="${var_SCRIPTS_RESOURCES_DIR:-${var_ROOT_DIR}/scripts/resources}/port_registry.sh"
+    if [[ -f "$port_registry" ]]; then
+        # shellcheck disable=SC1090
+        source "$port_registry" 2>/dev/null || log::warning "Could not load port registry"
+    fi
+    
+    # Build list of reserved ports from project-level service.json if available
+    local -a reserved_ports=()
+    local project_service_json="${var_ROOT_DIR}/.vrooli/service.json"
+    if [[ -f "$project_service_json" ]]; then
+        # Extract fixed ports from project service.json
+        while IFS= read -r port; do
+            [[ -n "$port" ]] && reserved_ports+=("$port")
+        done < <(jq -r '.ports | to_entries[] | select(.value.fixed != null) | .value.fixed' "$project_service_json" 2>/dev/null)
+    fi
+    
+    # Add resource ports from port registry to reserved list
+    if declare -p RESOURCE_PORTS &>/dev/null 2>&1; then
+        for port in "${RESOURCE_PORTS[@]}"; do
+            reserved_ports+=("$port")
+        done
+    fi
     
     log::info "Allocating service ports..."
     
@@ -287,8 +385,22 @@ lifecycle::allocate_service_ports() {
             if command -v ports::find_available_in_range &>/dev/null; then
                 allocated_port=$(ports::find_available_in_range "$start_port" "$end_port")
             else
-                # Fallback to simple allocation if port registry not available
+                # Enhanced allocation checking against reserved ports
                 for ((port=start_port; port<=end_port; port++)); do
+                    # Check if port is in reserved list
+                    local is_reserved=false
+                    for reserved in "${reserved_ports[@]}"; do
+                        if [[ "$port" == "$reserved" ]]; then
+                            is_reserved=true
+                            break
+                        fi
+                    done
+                    
+                    # Skip if reserved or already in use
+                    if [[ "$is_reserved" == "true" ]]; then
+                        continue
+                    fi
+                    
                     if ! nc -z localhost "$port" 2>/dev/null; then
                         allocated_port="$port"
                         break

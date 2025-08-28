@@ -91,7 +91,7 @@ Perform exactly these steps:
    - Start: `vrooli app start <name>` (stop with Ctrl+C from same terminal)
    - Verify:
      - API/CLI outputs match expectations, and/or
-     - Browserless screenshot (e.g. `vrooli resource browserless screenshot http://localhost:3200 --output /tmp/picker-wheel-test.png`) shows the expected UI state. Please READ the screenshot
+     - Browserless screenshot (e.g. `resource-browserless screenshot http://localhost:3200 --output /tmp/picker-wheel-test.png`) shows the expected UI state. Please READ the screenshot
      - PRD success metrics are met
 
 4) If a gate fails twice
@@ -122,10 +122,10 @@ If n8n webhooks/api are unreliable, run via Browserless instead of using n8n API
 ```bash
 export N8N_EMAIL="$N8N_EMAIL"
 export N8N_PASSWORD="$N8N_PASSWORD"
-vrooli resource browserless for n8n execute-workflow "<workflowId>" '{"text":"test"}'
+resource-browserless for n8n execute-workflow "<workflowId>" '{"text":"test"}'
 ```
 
-**NOTE:** You cannot run a workflow unless it is injected and activated by n8n, which happens automatically (at least it should) by running `vrooli scenario convert <scenario-name> --force`, followed by `vrooli app start <scenario-name>`. You must then use the n8n resource (see `vrooli resource n8n help`) to list workflows and find the workflow ID, which is needed for the browserless execute-workflow command.
+**NOTE:** You cannot run a workflow unless it is injected and activated by n8n, which happens automatically (at least it should) by running `vrooli scenario convert <scenario-name> --force`, followed by `vrooli app start <scenario-name>`. You must then use the n8n resource (see `resource-n8n help`) to list workflows and find the workflow ID, which is needed for the browserless execute-workflow command.
 
 NOTE 2: Prefer calling the shared `ollama.json` workflow over direct Ollama API calls. Prefer calling resources using bash (see `ollama.json`'s implementation for reference) over API calls, as this is known from experience to be a better approach.
 
@@ -198,7 +198,7 @@ This appendix preserves important specifics from the original prompt while keepi
   - Do not turn off resources unless excessive memory usage demands it (applies notably to Whisper).
 
 ### n8n workflows — reliability, activation, and quality
-- If n8n webhooks/API are unreliable, use the Browserless workaround instead of calling n8n API directly like `vrooli resource browserless for n8n execute-workflow "<workflowId>" '{"text":"test"}'`
+- If n8n webhooks/API are unreliable, use the Browserless workaround instead of calling n8n API directly like `resource-browserless for n8n execute-workflow "<workflowId>" '{"text":"test"}'`
 - Shared workflows must be defined in the project-level `.vrooli/service.json`, then run `vrooli setup` to upsert and set active.
 - Scenario-level workflows should be injected when running `vrooli app start <scenario_name>` (after conversion). If that fails:
   - Fallback: run the generated app’s `./scripts/manage.sh setup`, or call the injection engine directly.

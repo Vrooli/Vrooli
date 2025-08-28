@@ -12,7 +12,7 @@ source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+source "${var_TRASH_FILE}"
 
 #######################################
 # CORE CONFIGURATION FRAMEWORK
@@ -595,7 +595,8 @@ test_readme_exists() {
     
     if [[ -f "$readme_file" ]]; then
         # Check if README has minimum content
-        local line_count=$(wc -l < "$readme_file")
+        local line_count
+        line_count=$(wc -l < "$readme_file")
         if [[ $line_count -gt 10 ]]; then
             log_test_result "$test_name" "PASS"
             return 0
@@ -655,7 +656,8 @@ test_port_registration() {
     local resource_dir="${RESOURCE_DIR:-$(dirname "$SCRIPT_DIR")}"
     
     # Get resource name from path
-    local resource_name=$(basename "$resource_dir")
+    local resource_name
+    resource_name=$(basename "$resource_dir")
     
     # Check if resource has a port in port_registry.sh
     local port_registry="$var_PORT_REGISTRY_FILE"

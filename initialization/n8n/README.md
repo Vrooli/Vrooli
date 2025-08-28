@@ -140,7 +140,7 @@ Universal Redis caching system with multi-database support and advanced features
 **Setup Requirements**:
 ```bash
 # 1. Setup Redis multi-database credentials (creates vrooli-redis-0 through vrooli-redis-15)
-./resources/n8n/manage.sh --action setup-redis-databases
+resource-n8n setup-redis-databases
 
 # 2. Import workflow into n8n (done automatically during n8n initialization)
 ```

@@ -15,14 +15,14 @@ _postgres_defaults_detect_project_root() {
             echo "$current_dir"
             return 0
         fi
-        current_dir="${current_dir%/*"
+        current_dir="${current_dir%/*}"
     done
     
     # Fallback: use standard scripts directory structure
     local script_dir="$APP_ROOT/resources/postgres/config"
-    local postgres_dir="${script_dir%/*"
-    local scripts_dir="${postgres_dir%/*/*%/*}"
-    local project_root="${scripts_dir%/*"
+    local postgres_dir="${script_dir%/*}"
+    local scripts_dir="${postgres_dir%/*/*}"
+    local project_root="${scripts_dir%/*}"
     echo "$project_root"
 }
 
@@ -61,10 +61,10 @@ readonly POSTGRES_BACKUP_DIR="${POSTGRES_PROJECT_ROOT}/.vrooli/backups/postgres"
 readonly POSTGRES_BACKUP_RETENTION_DAYS=7
 
 # Template directory
-readonly POSTGRES_TEMPLATE_DIR="${BASH_SOURCE[0]}%/*/../templates"
+readonly POSTGRES_TEMPLATE_DIR="${APP_ROOT}/resources/postgres/templates"
 
 # Instance data directory
-readonly POSTGRES_INSTANCES_DIR="${BASH_SOURCE[0]}%/*/../instances"
+readonly POSTGRES_INSTANCES_DIR="${APP_ROOT}/resources/postgres/instances"
 
 # Configuration directory (using project root)
 readonly POSTGRES_CONFIG_DIR="${POSTGRES_PROJECT_ROOT}/.vrooli/postgres"
@@ -106,3 +106,6 @@ postgres::export_config() {
     export POSTGRES_GUI_IMAGE POSTGRES_GUI_CONTAINER_PREFIX POSTGRES_GUI_DEFAULT_PORT
     export POSTGRES_GUI_PORT_RANGE_START POSTGRES_GUI_PORT_RANGE_END POSTGRES_GUI_MAX_INSTANCES
 }
+
+# Call the export function to make variables available
+postgres::export_config

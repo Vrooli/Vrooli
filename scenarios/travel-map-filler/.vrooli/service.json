@@ -7,26 +7,29 @@
     "displayName": "Travel Map Filler",
     "description": "Interactive world map for tracking and visualizing travel history with achievements",
     "version": "1.0.0",
-    "type": "lifestyle",
-    "category": "lifestyle",
     "tags": [
+      "lifestyle",
       "travel",
       "mapping",
       "visualization",
       "achievements",
-      "semantic-search"
+      "semantic-search",
+      "go-api",
+      "n8n-workflows",
+      "postgres-storage",
+      "qdrant-vectors"
     ]
   },
   "ports": {
     "api": {
       "env_var": "SERVICE_PORT_API",
-      "range": "8760-8770",
+      "range": "31000-31249",
       "fallback": "auto",
       "description": "Main API port"
     },
     "ui": {
       "env_var": "SERVICE_PORT_UI",
-      "range": "8761-8771",
+      "range": "37500-37749",
       "fallback": "auto",
       "description": "UI server port"
     }

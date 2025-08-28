@@ -12,7 +12,7 @@ SCRIPT_DIR="${APP_ROOT}/resources/postgres"
 
 # Source var.sh first for directory variables
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 # Source common utilities using var_ variables
 # shellcheck disable=SC1091
@@ -21,7 +21,7 @@ source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
 # Source PostgreSQL configuration if available
 if [[ -f "${SCRIPT_DIR}/config/defaults.sh" ]]; then
     # shellcheck disable=SC1091
-    source "${SCRIPT_DIR}/config/defaults.sh" 2>/dev/null || true
+    source "${SCRIPT_DIR}/config/defaults.sh"
 fi
 
 # Default PostgreSQL connection settings

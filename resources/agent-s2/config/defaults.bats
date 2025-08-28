@@ -8,7 +8,7 @@ setup_file() {
     # shellcheck disable=SC1091
     source "${BATS_TEST_DIRNAME}/../../../../lib/utils/var.sh"
     # shellcheck disable=SC1091
-    source "${var_SCRIPTS_TEST_DIR}/fixtures/setup.bash"
+    source "${var_TEST_DIR}/fixtures/setup.bash"
     # Setup standard mocks once
     vrooli_auto_setup
     

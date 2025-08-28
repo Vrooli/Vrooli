@@ -7,9 +7,9 @@
     "displayName": "SEO Optimizer",
     "description": "Comprehensive SEO analysis and optimization platform for improving search rankings",
     "version": "1.0.0",
-    "type": "business-application",
-    "category": "marketing",
     "tags": [
+      "business-application",
+      "marketing-tools",
       "seo",
       "search-optimization",
       "keyword-research",
@@ -17,19 +17,26 @@
       "technical-seo",
       "rank-tracking",
       "competitor-analysis",
-      "javascript-ui"
+      "javascript-ui",
+      "nodejs-ui",
+      "go-api",
+      "n8n-workflows",
+      "postgres-storage",
+      "redis-cache",
+      "qdrant-vectors",
+      "ollama-ai"
     ]
   },
   "ports": {
     "api": {
       "env_var": "SERVICE_PORT",
-      "range": "9220-9229",
+      "range": "29500-29749",
       "fallback": "auto",
       "description": "SEO Optimizer API port"
     },
     "ui": {
       "env_var": "UI_PORT",
-      "range": "4220-4229",
+      "range": "36000-36249",
       "fallback": "auto",
       "description": "SEO Optimizer UI port"
     }
@@ -102,7 +109,10 @@
         "type": "ollama",
         "enabled": true,
         "required": true,
-        "models": ["llama3.2:3b", "nomic-embed-text"]
+        "models": [
+          "llama3.2:3b",
+          "nomic-embed-text"
+        ]
       }
     },
     "agents": {

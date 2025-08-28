@@ -12,7 +12,7 @@ POSTGIS_STATUS_LIB_DIR="${APP_ROOT}/resources/postgis/lib"
 # Source dependencies
 source "${POSTGIS_STATUS_LIB_DIR}/common.sh"
 # shellcheck disable=SC1091
-source "${POSTGIS_STATUS_LIB_DIR}/../../../scripts/resources/lib/status-args.sh"
+source "${APP_ROOT}/scripts/resources/lib/status-args.sh"
 
 #######################################
 # Collect PostGIS status data in format-agnostic structure

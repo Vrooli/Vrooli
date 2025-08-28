@@ -4,10 +4,12 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"strings"
 	"time"
@@ -22,7 +24,21 @@ type Response struct {
 	Data    interface{} `json:"data,omitempty"`
 }
 
-var vrooliRoot = getVrooliRoot()
+// === Orchestrator Management ===
+var (
+	vrooliRoot           = getVrooliRoot()
+	orchestratorProcess  *exec.Cmd
+	orchestratorURL      = "http://localhost:9000"
+	orchestratorHealthy  = false
+	orchestratorStarting = false
+)
+
+type OrchestratorConfig struct {
+	Enabled  bool   `json:"enabled"`
+	URL      string `json:"url"`
+	Healthy  bool   `json:"healthy"`
+	StartCmd string `json:"start_cmd"`
+}
 
 func getVrooliRoot() string {
 	if root := os.Getenv("VROOLI_ROOT"); root != "" {
@@ -36,14 +52,176 @@ func getVrooliRoot() string {
 	return filepath.Dir(filepath.Dir(ex))
 }
 
+// === Orchestrator Management Functions ===
+
+// Start the orchestrator subprocess
+func startOrchestrator() error {
+	if orchestratorStarting || (orchestratorProcess != nil && orchestratorProcess.Process != nil) {
+		return fmt.Errorf("orchestrator already starting/running")
+	}
+
+	orchestratorStarting = true
+	defer func() { orchestratorStarting = false }()
+
+	log.Println("🚀 Starting orchestrator subprocess...")
+	
+	orchestratorScript := filepath.Join(vrooliRoot, "scripts/scenarios/tools/orchestrator/enhanced_orchestrator.py")
+	
+	// Check if orchestrator script exists
+	if _, err := os.Stat(orchestratorScript); os.IsNotExist(err) {
+		return fmt.Errorf("orchestrator script not found: %s", orchestratorScript)
+	}
+
+	// Start orchestrator with proper arguments
+	orchestratorProcess = exec.Command("python3", orchestratorScript, "--verbose", "--fast")
+	orchestratorProcess.Dir = vrooliRoot
+	orchestratorProcess.Env = os.Environ()
+
+	// Start process
+	if err := orchestratorProcess.Start(); err != nil {
+		orchestratorProcess = nil
+		return fmt.Errorf("failed to start orchestrator: %v", err)
+	}
+
+	log.Printf("✓ Orchestrator started with PID %d", orchestratorProcess.Process.Pid)
+
+	// Wait for orchestrator to become healthy
+	for i := 0; i < 10; i++ {
+		time.Sleep(time.Second)
+		if checkOrchestratorHealth() {
+			orchestratorHealthy = true
+			log.Println("✓ Orchestrator is healthy and ready")
+			
+			// Start health monitoring in background
+			go monitorOrchestratorHealth()
+			return nil
+		}
+	}
+
+	// If we get here, orchestrator failed to become healthy
+	stopOrchestrator()
+	return fmt.Errorf("orchestrator failed to become healthy after 10 seconds")
+}
+
+// Check if orchestrator is healthy
+func checkOrchestratorHealth() bool {
+	client := &http.Client{Timeout: 2 * time.Second}
+	resp, err := client.Get(orchestratorURL + "/health")
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+	
+	if resp.StatusCode != http.StatusOK {
+		return false
+	}
+	
+	var healthResp map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&healthResp); err != nil {
+		return false
+	}
+	
+	status, ok := healthResp["status"].(string)
+	return ok && status == "healthy"
+}
+
+// Stop orchestrator gracefully
+func stopOrchestrator() error {
+	if orchestratorProcess == nil || orchestratorProcess.Process == nil {
+		return nil
+	}
+
+	log.Println("🛑 Stopping orchestrator...")
+	
+	// Send SIGTERM for graceful shutdown
+	if err := orchestratorProcess.Process.Signal(os.Interrupt); err != nil {
+		log.Printf("⚠️  Failed to send interrupt signal: %v", err)
+	}
+
+	// Wait for graceful shutdown with timeout
+	done := make(chan error, 1)
+	go func() {
+		done <- orchestratorProcess.Wait()
+	}()
+
+	select {
+	case err := <-done:
+		if err != nil {
+			log.Printf("⚠️  Orchestrator exited with error: %v", err)
+		} else {
+			log.Println("✓ Orchestrator stopped gracefully")
+		}
+	case <-time.After(5 * time.Second):
+		// Force kill if graceful shutdown times out
+		log.Println("⚠️  Force killing orchestrator after timeout")
+		orchestratorProcess.Process.Kill()
+		orchestratorProcess.Wait()
+	}
+
+	orchestratorProcess = nil
+	orchestratorHealthy = false
+	return nil
+}
+
+// Monitor orchestrator health in background
+func monitorOrchestratorHealth() {
+	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		if orchestratorProcess == nil {
+			return // Stop monitoring if process is nil
+		}
+
+		healthy := checkOrchestratorHealth()
+		if healthy != orchestratorHealthy {
+			orchestratorHealthy = healthy
+			if healthy {
+				log.Println("✓ Orchestrator health restored")
+			} else {
+				log.Println("⚠️  Orchestrator health check failed")
+				
+				// Restart orchestrator if it's unhealthy
+				go func() {
+					stopOrchestrator()
+					time.Sleep(2 * time.Second)
+					if err := startOrchestrator(); err != nil {
+						log.Printf("❌ Failed to restart orchestrator: %v", err)
+					}
+				}()
+				return
+			}
+		}
+	}
+}
+
+// HTTP client for orchestrator requests
+func proxyToOrchestrator(method, path string, body io.Reader) (*http.Response, error) {
+	if !orchestratorHealthy {
+		return nil, fmt.Errorf("orchestrator not healthy")
+	}
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	req, err := http.NewRequest(method, orchestratorURL+path, body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	return client.Do(req)
+}
+
 // === App Management ===
 type App struct {
-	Name       string    `json:"name"`
-	Path       string    `json:"path"`
-	Protected  bool      `json:"protected"`
-	HasGit     bool      `json:"has_git"`
-	Customized bool      `json:"customized"`
-	Modified   time.Time `json:"modified"`
+	Name          string    `json:"name"`
+	Path          string    `json:"path"`
+	Protected     bool      `json:"protected"`
+	HasGit        bool      `json:"has_git"`
+	Customized    bool      `json:"customized"`
+	Modified      time.Time `json:"modified"`
+	RuntimeStatus string    `json:"runtime_status,omitempty"` // From orchestrator
+	Ports         map[string]interface{} `json:"ports,omitempty"`   // From orchestrator
+	PID           *int      `json:"pid,omitempty"`             // From orchestrator
 }
 
 var appsDir = getAppsDir()
@@ -92,12 +270,35 @@ func listApps(w http.ResponseWriter, r *http.Request) {
 	}
 
 	apps := []App{}
+	
+	// Get runtime status from orchestrator if available
+	var orchestratorApps map[string]interface{}
+	if orchestratorHealthy {
+		if resp, err := proxyToOrchestrator("GET", "/apps", nil); err == nil {
+			defer resp.Body.Close()
+			var orchestratorData map[string]interface{}
+			if json.NewDecoder(resp.Body).Decode(&orchestratorData) == nil {
+				if appsList, ok := orchestratorData["apps"].([]interface{}); ok {
+					orchestratorApps = make(map[string]interface{})
+					for _, appData := range appsList {
+						if appMap, ok := appData.(map[string]interface{}); ok {
+							if name, ok := appMap["name"].(string); ok {
+								orchestratorApps[name] = appMap
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
 	for _, entry := range entries {
 		if !entry.IsDir() || entry.Name() == ".backups" {
 			continue
 		}
 		appPath := filepath.Join(appsDir, entry.Name())
 		info, _ := entry.Info()
+		
 		app := App{
 			Name:       entry.Name(),
 			Path:       appPath,
@@ -106,6 +307,28 @@ func listApps(w http.ResponseWriter, r *http.Request) {
 			Customized: isCustomized(appPath),
 			Modified:   info.ModTime(),
 		}
+
+		// Enhance with orchestrator data if available
+		if orchestratorApps != nil {
+			if orchData, ok := orchestratorApps[entry.Name()].(map[string]interface{}); ok {
+				if status, ok := orchData["status"].(string); ok {
+					app.RuntimeStatus = status
+				}
+				if ports, ok := orchData["allocated_ports"].(map[string]interface{}); ok {
+					app.Ports = ports
+				}
+				if pid, ok := orchData["pid"]; ok && pid != nil {
+					if pidFloat, ok := pid.(float64); ok {
+						pidInt := int(pidFloat)
+						app.PID = &pidInt
+					}
+				}
+			}
+		} else {
+			// Fallback: basic status without orchestrator
+			app.RuntimeStatus = "unknown"
+		}
+
 		apps = append(apps, app)
 	}
 	json.NewEncoder(w).Encode(Response{Success: true, Data: apps})
@@ -129,7 +352,7 @@ func protectApp(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(Response{Success: true})
 }
 
-// Start an app via its manage.sh develop phase
+// Start an app via orchestrator or fallback to process manager
 func startApp(w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
 	appPath := filepath.Join(appsDir, name)
@@ -139,6 +362,38 @@ func startApp(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(Response{Error: "App not found"})
 		return
 	}
+	
+	// Try orchestrator first if healthy
+	if orchestratorHealthy {
+		resp, err := proxyToOrchestrator("POST", fmt.Sprintf("/apps/%s/start", name), nil)
+		if err == nil {
+			defer resp.Body.Close()
+			
+			if resp.StatusCode == http.StatusOK {
+				// Success response from orchestrator
+				var result map[string]interface{}
+				if json.NewDecoder(resp.Body).Decode(&result) == nil {
+					json.NewEncoder(w).Encode(Response{
+						Success: true,
+						Data: result,
+					})
+					return
+				}
+			} else {
+				// Error response from orchestrator
+				var errorResp map[string]interface{}
+				if json.NewDecoder(resp.Body).Decode(&errorResp) == nil {
+					if detail, ok := errorResp["detail"].(string); ok {
+						json.NewEncoder(w).Encode(Response{Error: detail})
+						return
+					}
+				}
+			}
+		}
+	}
+	
+	// Fallback to legacy process manager method
+	log.Printf("Using fallback process manager to start %s", name)
 	
 	// Check for manage.sh
 	manageScript := filepath.Join(appPath, "scripts/manage.sh")
@@ -170,15 +425,47 @@ func startApp(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(Response{
 		Success: true,
 		Data: map[string]string{
-			"message": fmt.Sprintf("App %s started successfully", name),
+			"message": fmt.Sprintf("App %s started successfully (legacy mode)", name),
 			"output": string(output),
 		},
 	})
 }
 
-// Stop an app
+// Stop an app via orchestrator or fallback to process manager
 func stopApp(w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
+	
+	// Try orchestrator first if healthy
+	if orchestratorHealthy {
+		resp, err := proxyToOrchestrator("POST", fmt.Sprintf("/apps/%s/stop", name), nil)
+		if err == nil {
+			defer resp.Body.Close()
+			
+			if resp.StatusCode == http.StatusOK {
+				// Success response from orchestrator
+				var result map[string]interface{}
+				if json.NewDecoder(resp.Body).Decode(&result) == nil {
+					json.NewEncoder(w).Encode(Response{
+						Success: true,
+						Data: result,
+					})
+					return
+				}
+			} else {
+				// Error response from orchestrator
+				var errorResp map[string]interface{}
+				if json.NewDecoder(resp.Body).Decode(&errorResp) == nil {
+					if detail, ok := errorResp["detail"].(string); ok {
+						json.NewEncoder(w).Encode(Response{Error: detail})
+						return
+					}
+				}
+			}
+		}
+	}
+	
+	// Fallback to legacy process manager method
+	log.Printf("Using fallback process manager to stop %s", name)
 	
 	// Stop using process manager
 	stopCmd := exec.Command("bash", "-c",
@@ -206,7 +493,7 @@ func stopApp(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(Response{
 		Success: true,
 		Data: map[string]string{
-			"message": fmt.Sprintf("App %s stopped successfully", name),
+			"message": fmt.Sprintf("App %s stopped successfully (legacy mode)", name),
 		},
 	})
 }
@@ -519,24 +806,183 @@ func healthCheck(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// === Orchestrator-Specific Endpoints ===
+
+// Get running apps from orchestrator
+func getRunningApps(w http.ResponseWriter, r *http.Request) {
+	if !orchestratorHealthy {
+		json.NewEncoder(w).Encode(Response{Error: "Orchestrator not available"})
+		return
+	}
+
+	resp, err := proxyToOrchestrator("GET", "/apps/running", nil)
+	if err != nil {
+		json.NewEncoder(w).Encode(Response{Error: "Failed to get running apps"})
+		return
+	}
+	defer resp.Body.Close()
+
+	var result map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		json.NewEncoder(w).Encode(Response{Error: "Invalid response from orchestrator"})
+		return
+	}
+
+	json.NewEncoder(w).Encode(Response{Success: true, Data: result})
+}
+
+// Start all enabled apps
+func startAllApps(w http.ResponseWriter, r *http.Request) {
+	if !orchestratorHealthy {
+		json.NewEncoder(w).Encode(Response{Error: "Orchestrator not available"})
+		return
+	}
+
+	resp, err := proxyToOrchestrator("POST", "/apps/start-all", nil)
+	if err != nil {
+		json.NewEncoder(w).Encode(Response{Error: "Failed to start all apps"})
+		return
+	}
+	defer resp.Body.Close()
+
+	var result map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		json.NewEncoder(w).Encode(Response{Error: "Invalid response from orchestrator"})
+		return
+	}
+
+	json.NewEncoder(w).Encode(Response{Success: true, Data: result})
+}
+
+// Stop all running apps
+func stopAllApps(w http.ResponseWriter, r *http.Request) {
+	if !orchestratorHealthy {
+		json.NewEncoder(w).Encode(Response{Error: "Orchestrator not available"})
+		return
+	}
+
+	resp, err := proxyToOrchestrator("POST", "/apps/stop-all", nil)
+	if err != nil {
+		json.NewEncoder(w).Encode(Response{Error: "Failed to stop all apps"})
+		return
+	}
+	defer resp.Body.Close()
+
+	var result map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		json.NewEncoder(w).Encode(Response{Error: "Invalid response from orchestrator"})
+		return
+	}
+
+	json.NewEncoder(w).Encode(Response{Success: true, Data: result})
+}
+
+// Get detailed app status from orchestrator
+func getDetailedAppStatus(w http.ResponseWriter, r *http.Request) {
+	name := mux.Vars(r)["name"]
+	
+	if !orchestratorHealthy {
+		json.NewEncoder(w).Encode(Response{Error: "Orchestrator not available"})
+		return
+	}
+
+	resp, err := proxyToOrchestrator("GET", fmt.Sprintf("/apps/%s/status", name), nil)
+	if err != nil {
+		json.NewEncoder(w).Encode(Response{Error: "Failed to get app status"})
+		return
+	}
+	defer resp.Body.Close()
+
+	var result map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		json.NewEncoder(w).Encode(Response{Error: "Invalid response from orchestrator"})
+		return
+	}
+
+	json.NewEncoder(w).Encode(Response{Success: true, Data: result})
+}
+
+// Get orchestrator status
+func getOrchestratorStatus(w http.ResponseWriter, r *http.Request) {
+	status := OrchestratorConfig{
+		Enabled: true,
+		URL:     orchestratorURL,
+		Healthy: orchestratorHealthy,
+		StartCmd: "python3 scripts/scenarios/tools/orchestrator/enhanced_orchestrator.py --verbose --fast",
+	}
+
+	if orchestratorHealthy {
+		resp, err := proxyToOrchestrator("GET", "/status", nil)
+		if err == nil {
+			defer resp.Body.Close()
+			var orchStatus map[string]interface{}
+			if json.NewDecoder(resp.Body).Decode(&orchStatus) == nil {
+				json.NewEncoder(w).Encode(Response{
+					Success: true,
+					Data: map[string]interface{}{
+						"orchestrator": status,
+						"system": orchStatus,
+					},
+				})
+				return
+			}
+		}
+	}
+
+	json.NewEncoder(w).Encode(Response{
+		Success: true,
+		Data: map[string]interface{}{
+			"orchestrator": status,
+		},
+	})
+}
+
 func main() {
 	port := os.Getenv("VROOLI_API_PORT")
 	if port == "" {
 		port = "8092"
 	}
 
+	// Start orchestrator
+	log.Println("🎛️  Starting orchestrator...")
+	if err := startOrchestrator(); err != nil {
+		log.Printf("⚠️  Failed to start orchestrator: %v", err)
+		log.Println("   Continuing without orchestrator (fallback mode)")
+	}
+
+	// Handle shutdown signals
+	go func() {
+		// Wait for interrupt signal
+		ch := make(chan os.Signal, 1)
+		signal.Notify(ch, os.Interrupt, os.Kill)
+		<-ch
+		
+		log.Println("🛑 Shutting down gracefully...")
+		if err := stopOrchestrator(); err != nil {
+			log.Printf("⚠️  Error stopping orchestrator: %v", err)
+		}
+		os.Exit(0)
+	}()
+
 	r := mux.NewRouter()
 	
 	// Health
 	r.HandleFunc("/health", healthCheck).Methods("GET")
 	
-	// Apps API
+	// Apps API - Enhanced with orchestrator
 	r.HandleFunc("/apps", listApps).Methods("GET")
+	r.HandleFunc("/apps/running", getRunningApps).Methods("GET")
+	r.HandleFunc("/apps/start-all", startAllApps).Methods("POST")
+	r.HandleFunc("/apps/stop-all", stopAllApps).Methods("POST")
 	r.HandleFunc("/apps/{name}/protect", protectApp).Methods("POST")
 	r.HandleFunc("/apps/{name}/start", startApp).Methods("POST")
 	r.HandleFunc("/apps/{name}/stop", stopApp).Methods("POST")
 	r.HandleFunc("/apps/{name}/restart", restartApp).Methods("POST")
 	r.HandleFunc("/apps/{name}/logs", getAppLogs).Methods("GET")
+	r.HandleFunc("/apps/{name}/status", getDetailedAppStatus).Methods("GET")
+	
+	// Orchestrator API
+	r.HandleFunc("/orchestrator/status", getOrchestratorStatus).Methods("GET")
 	
 	// Scenarios API
 	r.HandleFunc("/scenarios", listScenarios).Methods("GET")
@@ -551,5 +997,6 @@ func main() {
 	r.HandleFunc("/lifecycle/{action}", handleLifecycle).Methods("POST")
 
 	log.Printf("🚀 Vrooli Unified API running on port %s", port)
+	log.Printf("   Orchestrator: %s", map[bool]string{true: "✅ healthy", false: "❌ unavailable"}[orchestratorHealthy])
 	log.Fatal(http.ListenAndServe(":"+port, r))
 }

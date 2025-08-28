@@ -7,23 +7,30 @@
     "displayName": "Web Scraper Manager",
     "description": "Unified dashboard for managing web scraping across multiple platforms (Huginn, Browserless, Agent-S2) with orchestrated workflows and data export",
     "version": "1.0.0",
-    "type": "business-application",
-    "category": "data-collection",
     "tags": [
-      "web-scraping",
+      "business-application",
       "data-collection",
+      "web-scraping",
       "automation",
       "multi-platform",
       "windmill-ui",
       "orchestration",
       "export",
-      "monitoring"
+      "monitoring",
+      "go-api",
+      "n8n-workflows",
+      "windmill-apps",
+      "postgres-storage",
+      "redis-cache",
+      "qdrant-vectors",
+      "minio-storage",
+      "ollama-ai"
     ]
   },
   "ports": {
     "api": {
       "env_var": "SERVICE_PORT",
-      "range": "8090-8999",
+      "range": "31750-31999",
       "fallback": "auto",
       "description": "Web scraper manager coordination API port"
     }
@@ -117,7 +124,7 @@
         "health_endpoint": "/agents"
       },
       "browserless": {
-        "type": "external-service", 
+        "type": "external-service",
         "enabled": false,
         "required": false,
         "purpose": "JavaScript-heavy sites, screenshots, PDF generation",

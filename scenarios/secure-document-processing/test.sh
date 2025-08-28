@@ -11,7 +11,7 @@ SCENARIO_DIR="${APP_ROOT}/scenarios/secure-document-processing"
 # shellcheck disable=SC1091
 source "${APP_ROOT}/lib/utils/var.sh"
 
-FRAMEWORK_DIR="${APP_ROOT}/scenarios/framework"
+FRAMEWORK_DIR="${APP_ROOT}/scripts/scenarios/validation"
 
 echo "🚀 Testing Secure Document Processing Business Scenario"
 echo "📁 Scenario: $(basename "$SCENARIO_DIR")"

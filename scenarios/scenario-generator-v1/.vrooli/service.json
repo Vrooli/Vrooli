@@ -7,20 +7,25 @@
     "displayName": "Scenario Generator V1",
     "description": "A simplified meta-scenario that generates Vrooli scenarios using Claude Code AI",
     "version": "1.0.0",
-    "type": "business-application",
-    "category": "ai-development",
     "tags": [
+      "business-application",
+      "ai-development",
       "meta-scenario",
       "code-generation",
-      "ai-development",
       "claude-code",
-      "scenario-builder"
+      "scenario-builder",
+      "nodejs-ui",
+      "go-api",
+      "n8n-workflows",
+      "postgres-storage",
+      "redis-cache",
+      "ollama-ai"
     ]
   },
   "ports": {
     "api": {
       "env_var": "SERVICE_PORT",
-      "range": "8090-8999",
+      "range": "29000-29249",
       "fallback": "auto",
       "description": "Scenario generator API port"
     }
@@ -104,7 +109,7 @@
         },
         {
           "name": "check-claude-code",
-          "run": "resource-claude-code status >/dev/null 2>&1 || echo 'Claude Code not available - generation features will be limited'",
+          "run": "resource-claude-code test smoke >/dev/null 2>&1 || echo 'Claude Code not available - generation features will be limited'",
           "description": "Verify Claude Code availability for AI generation"
         },
         {

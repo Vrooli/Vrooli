@@ -131,7 +131,7 @@ Create reusable notification templates in `~/.vrooli/pushover/templates/`:
 You can inject custom templates from any location:
 ```bash
 # Inject a template file
-resource-pushover inject /path/to/template.json
+resource-pushover content add /path/to/template.json
 
 # Example: Create and inject a custom template
 cat > /tmp/alert.json <<EOF
@@ -142,7 +142,7 @@ cat > /tmp/alert.json <<EOF
   "sound": "siren"
 }
 EOF
-resource-pushover inject /tmp/alert.json
+resource-pushover content add /tmp/alert.json
 ```
 
 ### Using Templates

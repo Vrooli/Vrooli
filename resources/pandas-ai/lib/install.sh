@@ -7,7 +7,7 @@ PANDAS_AI_LIB_DIR="${APP_ROOT}/resources/pandas-ai/lib"
 
 # Source dependencies
 source "${PANDAS_AI_LIB_DIR}/common.sh"
-source "${PANDAS_AI_LIB_DIR}/../../../../lib/utils/log.sh"
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
 
 # Install Pandas AI
 pandas_ai::install() {
@@ -161,10 +161,37 @@ EOF
     
     # Register the CLI
     local resource_dir="${APP_ROOT}/resources/pandas-ai"
-    "${PANDAS_AI_LIB_DIR}/../../../../lib/resources/install-resource-cli.sh" "${resource_dir}" 2>/dev/null || true
+    "${APP_ROOT}/scripts/resources/lib/install-resource-cli.sh" "${resource_dir}" 2>/dev/null || true
     
     log::success "Pandas AI installed successfully"
 }
 
+# Uninstall Pandas AI
+pandas_ai::install::uninstall() {
+    log::header "Uninstalling Pandas AI"
+    
+    # Stop service if running
+    if pandas_ai::is_running; then
+        log::info "Stopping Pandas AI service..."
+        pandas_ai::stop
+    fi
+    
+    # Remove data directory
+    if [[ -d "${PANDAS_AI_DATA_DIR}" ]]; then
+        log::info "Removing Pandas AI data directory..."
+        rm -rf "${PANDAS_AI_DATA_DIR}"
+    fi
+    
+    log::success "Pandas AI uninstalled successfully"
+    return 0
+}
+
+# Create convenience alias
+pandas_ai::install::execute() {
+    pandas_ai::install "$@"
+}
+
 # Export functions for use by CLI
 export -f pandas_ai::install
+export -f pandas_ai::install::execute
+export -f pandas_ai::install::uninstall

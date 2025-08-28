@@ -1843,7 +1843,13 @@ scenario_to_app::generate_app() {
                 cd - >/dev/null || true
             }
             
-            if git init --quiet 2>/dev/null; then
+            # Temporarily disable pipefail for git section to isolate issue
+            set +e
+            git init --quiet 2>/dev/null
+            local git_init_result=$?
+            set -e
+            
+            if [[ $git_init_result -eq 0 ]]; then
                 # Configure git for generated apps
                 git config user.name "Vrooli App Generator" 2>/dev/null || true
                 git config user.email "apps@vrooli.local" 2>/dev/null || true
@@ -2048,11 +2054,13 @@ scenario_to_app::process_batch() {
                             local completed_scenario="${pid_scenarios[$pid]}"
                             
                             if [[ $exit_code -eq 0 ]]; then
-                                ((succeeded++))
+                                # Using arithmetic expansion instead of ((var++)) to avoid set -e exit when var=0
+                                succeeded=$((succeeded + 1))
                                 scenario_status["$completed_scenario"]="success"
                                 log::success "✅ $completed_scenario completed"
                             else
-                                ((failed++))
+                                # Using arithmetic expansion instead of ((var++)) to avoid set -e exit when var=0
+                                failed=$((failed + 1))
                                 scenario_status["$completed_scenario"]="failed"
                                 log::error "❌ $completed_scenario failed"
                             fi
@@ -2090,11 +2098,13 @@ scenario_to_app::process_batch() {
                 local completed_scenario="${pid_scenarios[$pid]}"
                 
                 if [[ $exit_code -eq 0 ]]; then
-                    ((succeeded++))
+                    # Using arithmetic expansion instead of ((var++)) to avoid set -e exit when var=0
+                    succeeded=$((succeeded + 1))
                     scenario_status["$completed_scenario"]="success"
                     log::success "✅ $completed_scenario completed"
                 else
-                    ((failed++))
+                    # Using arithmetic expansion instead of ((var++)) to avoid set -e exit when var=0
+                    failed=$((failed + 1))
                     scenario_status["$completed_scenario"]="failed"
                     log::error "❌ $completed_scenario failed"
                 fi
@@ -2118,14 +2128,16 @@ scenario_to_app::process_batch() {
             
             # Process single scenario with isolated state
             if scenario_to_app::process_single_scenario "$scenario_name"; then
-                ((succeeded++))
+                # Using arithmetic expansion instead of ((var++)) to avoid set -e exit when var=0
+                succeeded=$((succeeded + 1))
                 if [[ $total -gt 1 ]]; then
                     log::success "[$progress] ✅ $scenario_name completed"
                 else
                     log::success "✅ $scenario_name completed"
                 fi
             else
-                ((failed++))
+                # Using arithmetic expansion instead of ((var++)) to avoid set -e exit when var=0
+                failed=$((failed + 1))
                 if [[ $total -gt 1 ]]; then
                     log::error "[$progress] ❌ $scenario_name failed"
                     # Continue with other scenarios unless critical failure

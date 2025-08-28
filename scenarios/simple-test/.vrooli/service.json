@@ -7,18 +7,20 @@
     "displayName": "Simple Test App",
     "description": "Minimal test app for lifecycle validation",
     "version": "1.0.0",
-    "type": "application",
-    "category": "testing",
     "tags": [
+      "application",
+      "testing",
       "test",
       "minimal",
-      "framework-validation"
+      "framework-validation",
+      "nodejs-ui",
+      "postgres-storage"
     ]
   },
   "ports": {
     "app": {
       "env_var": "SERVICE_PORT",
-      "range": "3000-3999",
+      "range": "36250-36499",
       "fallback": "auto",
       "description": "Main application port"
     }

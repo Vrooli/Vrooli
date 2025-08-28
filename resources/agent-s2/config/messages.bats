@@ -8,7 +8,7 @@ setup_file() {
     # shellcheck disable=SC1091
     source "${BATS_TEST_DIRNAME}/../../../lib/utils/var.sh"
     # shellcheck disable=SC1091
-    source "${var_SCRIPTS_TEST_DIR}/fixtures/setup.bash"
+    source "${var_TEST_DIR}/fixtures/setup.bash"
     
     # Get resource directory path
     AGENTS2_DIR="$(dirname "${BATS_TEST_DIRNAME}")"

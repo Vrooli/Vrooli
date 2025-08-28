@@ -106,7 +106,7 @@ fi
 
 # Safety check 6: Verify orchestrator exists
 ORCHESTRATOR_DIR="$SCRIPT_DIR"
-ORCHESTRATOR="${ORCHESTRATOR_DIR}/app_orchestrator.py"
+ORCHESTRATOR="${ORCHESTRATOR_DIR}/enhanced_orchestrator.py"
 
 if [[ ! -f "$ORCHESTRATOR" ]]; then
     echo -e "${RED}ERROR: Orchestrator not found at $ORCHESTRATOR${NC}"
@@ -139,5 +139,20 @@ if ! python3 -c "import psutil" 2>/dev/null; then
     }
 fi
 
+# Set orchestrator port from project service.json or fallback
+export ORCHESTRATOR_PORT="${ORCHESTRATOR_PORT:-9500}"
+
 # Pass all arguments to the orchestrator
-exec python3 "$ORCHESTRATOR" "$@"
+# Check if we should run in background (when called from vrooli develop)
+if [[ "${VROOLI_DEVELOP_MODE:-}" == "1" ]] || [[ "$*" == *"--background"* ]]; then
+    echo "Starting orchestrator in background mode on port $ORCHESTRATOR_PORT..."
+    ORCHESTRATOR_PORT=$ORCHESTRATOR_PORT python3 "$ORCHESTRATOR" "$@" > /tmp/vrooli-orchestrator.log 2>&1 &
+    ORCHESTRATOR_PID=$!
+    echo "$ORCHESTRATOR_PID" > /tmp/vrooli-orchestrator.pid
+    echo -e "${GREEN}✓ Orchestrator started in background (PID: $ORCHESTRATOR_PID)${NC}"
+    echo "Logs available at: /tmp/vrooli-orchestrator.log"
+else
+    # Run in foreground (for debugging or direct calls)
+    echo "Starting orchestrator in foreground mode on port $ORCHESTRATOR_PORT..."
+    exec env ORCHESTRATOR_PORT=$ORCHESTRATOR_PORT python3 "$ORCHESTRATOR" "$@"
+fi

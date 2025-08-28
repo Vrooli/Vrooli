@@ -1,141 +1,84 @@
-#!/bin/bash
-# PostGIS Resource CLI
+#!/usr/bin/env bash
+################################################################################
+# PostGIS Resource CLI - v2.0 Universal Contract Compliant
+# 
+# Spatial database extension for PostgreSQL with GIS capabilities
+#
+# Usage:
+#   resource-postgis <command> [options]
+#   resource-postgis <group> <subcommand> [options]
+#
+################################################################################
 
 set -euo pipefail
 
-# Get the real script location (resolving symlinks)
-SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+# Handle symlinks for installed CLI
+if [[ -L "${BASH_SOURCE[0]}" ]]; then
+    POSTGIS_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
+    APP_ROOT="$(builtin cd "${POSTGIS_CLI_SCRIPT%/*}/../.." && builtin pwd)"
+fi
 POSTGIS_CLI_DIR="${APP_ROOT}/resources/postgis"
 
-# Source libraries
-source "${POSTGIS_CLI_DIR}/lib/common.sh"
-source "${POSTGIS_CLI_DIR}/lib/status.sh"
-source "${POSTGIS_CLI_DIR}/lib/install.sh"
-source "${POSTGIS_CLI_DIR}/lib/inject.sh"
-source "${POSTGIS_CLI_DIR}/lib/test.sh"
+# Source standard variables
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
-# CLI usage
-usage() {
-    cat <<EOF
-PostGIS Resource CLI
+# Source utilities
+source "${var_LOG_FILE}"
+source "${var_RESOURCES_COMMON_FILE}"
 
-Usage: resource-postgis [COMMAND] [OPTIONS]
+# Source v2.0 CLI Command Framework
+source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 
-Commands:
-    status                    Show PostGIS status
-    install                   Install and enable PostGIS
-    uninstall                Disable PostGIS in databases
-    start                     Enable PostGIS (alias for install)
-    stop                      Disable PostGIS (alias for uninstall)
-    test                      Run integration tests
-    enable-database DB        Enable PostGIS in specific database
-    disable-database DB       Disable PostGIS in specific database
-    inject FILE [DB]          Execute SQL file with PostGIS functions
-    import-shapefile FILE     Import shapefile to PostGIS
-    export-shapefile TABLE    Export PostGIS table to shapefile
-    examples                  Show example spatial queries
-    help                      Show this help message
+# Source resource configuration
+source "${POSTGIS_CLI_DIR}/config/defaults.sh"
 
-Examples:
-    resource-postgis status
-    resource-postgis enable-database myapp_db
-    resource-postgis inject /path/to/spatial_queries.sql
-    resource-postgis import-shapefile /data/cities.shp
-    
-EOF
-}
+# Source resource libraries (only what exists)
+for lib in core common install status test inject; do
+    lib_file="${POSTGIS_CLI_DIR}/lib/${lib}.sh"
+    [[ -f "$lib_file" ]] && source "$lib_file" 2>/dev/null || true
+done
 
-# Show example queries
-show_examples() {
-    log::header "PostGIS Example Queries"
-    
-    cat <<'EOF'
+# Initialize CLI framework in v2.0 mode (auto-creates manage/test/content groups)
+cli::init "postgis" "Spatial database extension for PostgreSQL" "v2"
 
-# Find all locations within 10km of a point:
-SELECT name, ST_Distance(location, ST_MakePoint(-74.006, 40.7128)) AS distance
-FROM locations
-WHERE ST_DWithin(location, ST_MakePoint(-74.006, 40.7128), 10000)
-ORDER BY distance;
+# ==============================================================================
+# REQUIRED HANDLERS - These MUST be mapped for v2.0 compliance
+# ==============================================================================
+CLI_COMMAND_HANDLERS["manage::install"]="postgis::install::execute"
+CLI_COMMAND_HANDLERS["manage::uninstall"]="postgis::install::uninstall"
+CLI_COMMAND_HANDLERS["manage::start"]="postgis::docker::start"
+CLI_COMMAND_HANDLERS["manage::stop"]="postgis::docker::stop"
+CLI_COMMAND_HANDLERS["manage::restart"]="postgis::docker::restart"
+CLI_COMMAND_HANDLERS["test::smoke"]="postgis::status::check"
+CLI_COMMAND_HANDLERS["test::integration"]="postgis::test::integration"
 
-# Calculate area of a polygon:
-SELECT ST_Area(ST_GeomFromText('POLYGON((0 0, 0 1, 1 1, 1 0, 0 0))'));
+# Content handlers for spatial data management
+CLI_COMMAND_HANDLERS["content::add"]="postgis::content::add"
+CLI_COMMAND_HANDLERS["content::list"]="postgis::content::list"
+CLI_COMMAND_HANDLERS["content::get"]="postgis::content::get"
+CLI_COMMAND_HANDLERS["content::remove"]="postgis::content::remove"
+CLI_COMMAND_HANDLERS["content::execute"]="postgis::content::execute"
 
-# Find nearest neighbor:
-SELECT name, location <-> ST_MakePoint(-74.006, 40.7128) AS distance
-FROM locations
-ORDER BY location <-> ST_MakePoint(-74.006, 40.7128)
-LIMIT 5;
+# ==============================================================================
+# REQUIRED INFORMATION COMMANDS
+# ==============================================================================
+cli::register_command "status" "Show detailed PostGIS status" "postgis::status"
+cli::register_command "logs" "Show PostGIS container logs" "postgis::docker::logs"
 
-# Create a buffer around a point:
-SELECT ST_Buffer(ST_MakePoint(-74.006, 40.7128)::geography, 1000);
+# ==============================================================================
+# OPTIONAL RESOURCE-SPECIFIC COMMANDS FOR SPATIAL DATA
+# ==============================================================================
+# Add spatial-specific content subcommands
+cli::register_subcommand "content" "import-shapefile" "Import shapefile to PostGIS" "postgis_import_shapefile" "modifies-system"
+cli::register_subcommand "content" "export-shapefile" "Export PostGIS table to shapefile" "postgis_export_shapefile" "modifies-system"
+cli::register_subcommand "content" "enable-database" "Enable PostGIS in specific database" "postgis_enable_database" "modifies-system"
+cli::register_subcommand "content" "disable-database" "Disable PostGIS in specific database" "postgis_disable_database" "modifies-system"
 
-# Check if point is within polygon:
-SELECT ST_Within(
-    ST_MakePoint(-74.006, 40.7128),
-    ST_GeomFromText('POLYGON((-75 40, -75 41, -73 41, -73 40, -75 40))')
-);
+# Add spatial query examples command
+cli::register_command "examples" "Show example spatial queries" "postgis_show_examples"
 
-# Calculate length of a line:
-SELECT ST_Length(ST_GeomFromText('LINESTRING(0 0, 1 1, 2 1)'));
-
-# Union multiple geometries:
-SELECT ST_Union(geom) FROM boundaries GROUP BY region;
-
-# Simplify geometry (reduce points):
-SELECT ST_Simplify(geom, 0.001) FROM complex_shapes;
-
-EOF
-    
-    log::info "To run these examples, use: resource-postgis inject <sql_file>"
-}
-
-# Main command handler
-main() {
-    local command="${1:-help}"
-    shift || true
-    
-    case "$command" in
-        status)
-            postgis_status "$@"
-            ;;
-        install|start)
-            postgis_install
-            ;;
-        uninstall|stop)
-            postgis_uninstall
-            ;;
-        enable-database)
-            postgis_enable_database "$@"
-            ;;
-        disable-database)
-            postgis_disable_database "$@"
-            ;;
-        inject)
-            postgis_execute_sql "$@"
-            ;;
-        import-shapefile)
-            postgis_import_shapefile "$@"
-            ;;
-        export-shapefile)
-            postgis_export_shapefile "$@"
-            ;;
-        test)
-            postgis_run_tests
-            ;;
-        examples)
-            show_examples
-            ;;
-        help|--help|-h)
-            usage
-            ;;
-        *)
-            log::error "Unknown command: $command"
-            usage
-            exit 1
-            ;;
-    esac
-}
-
-# Run main function
-main "$@"
+# Only execute if script is run directly
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    cli::dispatch "$@"
+fi

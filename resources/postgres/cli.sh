@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 ################################################################################
-# PostgreSQL Resource CLI
+# PostgreSQL Resource CLI - v2.0 Universal Contract Compliant
 # 
-# Lightweight CLI interface for PostgreSQL using the CLI Command Framework
+# PostgreSQL relational database with multi-instance support
 #
 # Usage:
 #   resource-postgres <command> [options]
+#   resource-postgres <group> <subcommand> [options]
 #
 ################################################################################
 
@@ -20,30 +21,19 @@ if [[ -L "${BASH_SOURCE[0]}" ]]; then
 fi
 POSTGRES_CLI_DIR="${APP_ROOT}/resources/postgres"
 
-# Source standard variables
 # shellcheck disable=SC1091
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
-
-# Source utilities using var_ variables
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
 source "${var_RESOURCES_COMMON_FILE}"
-
-# Source the CLI Command Framework
 # shellcheck disable=SC1091
-source "${var_SCRIPTS_RESOURCES_LIB_DIR}/cli-command-framework.sh"
-
-# Source PostgreSQL configuration
+source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 # shellcheck disable=SC1091
-source "${POSTGRES_CLI_DIR}/config/defaults.sh" 2>/dev/null || true
-# shellcheck disable=SC1091
-source "${POSTGRES_CLI_DIR}/config/messages.sh" 2>/dev/null || true
-postgres::export_config 2>/dev/null || true
-postgres::messages::init 2>/dev/null || true
+source "${POSTGRES_CLI_DIR}/config/defaults.sh"
 
 # Source PostgreSQL libraries
-for lib in common docker status database instance backup; do
+for lib in common docker install status backup database instance multi_instance migration; do
     lib_file="${POSTGRES_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -51,47 +41,81 @@ for lib in common docker status database instance backup; do
     fi
 done
 
-# Initialize CLI framework
-cli::init "postgres" "PostgreSQL relational database management"
+# Initialize CLI framework in v2.0 mode (auto-creates manage/test/content groups)
+cli::init "postgres" "PostgreSQL database with multi-instance support" "v2"
 
-# Override help to provide PostgreSQL-specific examples
-cli::register_command "help" "Show this help message with PostgreSQL examples" "postgres_show_help"
+# ==============================================================================
+# REQUIRED HANDLERS - These MUST be mapped for v2.0 compliance
+# ==============================================================================
+CLI_COMMAND_HANDLERS["manage::install"]="postgres::install"
+CLI_COMMAND_HANDLERS["manage::uninstall"]="postgres::uninstall"
+CLI_COMMAND_HANDLERS["manage::start"]="postgres::docker::start"  
+CLI_COMMAND_HANDLERS["manage::stop"]="postgres::docker::stop"
+CLI_COMMAND_HANDLERS["manage::restart"]="postgres::docker::restart"
+CLI_COMMAND_HANDLERS["test::smoke"]="postgres::status::check"
 
-# Override status to use standardized format support
-cli::register_command "status" "Show PostgreSQL status" "postgres::status::show"
+# Content handlers for database functionality
+CLI_COMMAND_HANDLERS["content::add"]="postgres::content::add"
+CLI_COMMAND_HANDLERS["content::list"]="postgres::content::list" 
+CLI_COMMAND_HANDLERS["content::get"]="postgres::content::get"
+CLI_COMMAND_HANDLERS["content::remove"]="postgres::content::remove"
+CLI_COMMAND_HANDLERS["content::execute"]="postgres::content::execute"
 
-# Register additional PostgreSQL-specific commands
-cli::register_command "inject" "Inject SQL/config into PostgreSQL" "postgres_inject" "modifies-system"
-cli::register_command "list-instances" "List all PostgreSQL instances" "postgres_list_instances"
-cli::register_command "create-instance" "Create new instance" "postgres_create_instance" "modifies-system"
-cli::register_command "list-databases" "List databases in instance" "postgres_list_databases"
-cli::register_command "create-database" "Create new database" "postgres_create_database" "modifies-system"
-cli::register_command "execute-sql" "Execute SQL command" "postgres_execute_sql"
-cli::register_command "create-backup" "Create database backup" "postgres_create_backup" "modifies-system"
-cli::register_command "credentials" "Show n8n credentials for PostgreSQL" "postgres_credentials"
-cli::register_command "uninstall" "Uninstall PostgreSQL (requires --force)" "postgres_uninstall" "modifies-system"
+# ==============================================================================
+# REQUIRED INFORMATION COMMANDS
+# ==============================================================================
+cli::register_command "status" "Show detailed PostgreSQL status" "postgres::status::show"
+cli::register_command "logs" "Show PostgreSQL logs" "postgres::docker::logs"
 
-################################################################################
-# Resource-specific command implementations
-################################################################################
+# ==============================================================================
+# POSTGRES-SPECIFIC COMMANDS
+# ==============================================================================
+# Database management commands for PostgreSQL
+cli::register_command "credentials" "Show PostgreSQL credentials for integration" "postgres::credentials"
 
-# Inject SQL or configuration into PostgreSQL
-postgres_inject() {
+# Custom content subcommands for PostgreSQL-specific operations
+cli::register_subcommand "content" "backup" "Create database backup" "postgres::backup::create" "modifies-system"
+cli::register_subcommand "content" "restore" "Restore from backup" "postgres::backup::restore" "modifies-system"
+cli::register_subcommand "content" "migrate" "Run database migrations" "postgres::migration::run" "modifies-system"
+
+# Custom content subcommands for database operations
+cli::register_subcommand "content" "create-database" "Create new database" "postgres::database::create" "modifies-system"
+cli::register_subcommand "content" "create-instance" "Create new instance" "postgres::instance::create" "modifies-system"
+cli::register_subcommand "content" "list-instances" "List all instances" "postgres::instance::list"
+
+# Custom test subcommands for PostgreSQL health validation
+cli::register_subcommand "test" "performance" "Run performance tests on PostgreSQL" "postgres::test::performance"
+
+# PostgreSQL-specific wrapper functions for content operations
+postgres::content::add() {
     local file="${1:-}"
+    shift || true
+    
+    # Parse options
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --file)
+                file="$2"
+                shift 2
+                ;;
+            *)
+                if [[ -z "$file" ]]; then
+                    file="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
     
     if [[ -z "$file" ]]; then
-        log::error "File path required for injection"
-        echo "Usage: resource-postgres inject <file.sql>"
-        echo ""
-        echo "Examples:"
-        echo "  resource-postgres inject schema.sql"
-        echo "  resource-postgres inject shared:initialization/storage/postgres/init.sql"
+        log::error "File path required"
+        echo "Usage: resource-postgres content add --file <sql-file>"
         return 1
     fi
     
     # Handle shared: prefix
     if [[ "$file" == shared:* ]]; then
-        file="${var_ROOT_DIR}/${file#shared:}"
+        file="${APP_ROOT}/${file#shared:}"
     fi
     
     if [[ ! -f "$file" ]]; then
@@ -99,119 +123,104 @@ postgres_inject() {
         return 1
     fi
     
-    postgres::inject_file "$file"
+    postgres::database::execute_file "main" "$file"
 }
 
-# Uninstall PostgreSQL
-postgres_uninstall() {
-    FORCE="${FORCE:-false}"
-    
-    if [[ "$FORCE" != "true" ]]; then
-        echo "⚠️  This will remove PostgreSQL and all its data. Use --force to confirm."
-        return 1
-    fi
-    
-    postgres::uninstall
-}
-
-# List instances
-postgres_list_instances() {
-    # Ensure messages are initialized
-    postgres::messages::init 2>/dev/null || true
-    
+postgres::content::list() {
+    echo "PostgreSQL Databases and Instances:"
     postgres::instance::list
 }
 
-# Create database
-postgres_create_database() {
-    local database_name="${1:-}"
-    local instance_name="${2:-main}"
-    
-    if [[ -z "$database_name" ]]; then
-        log::error "Database name required"
-        echo "Usage: resource-postgres create-database <name> [instance]"
-        echo ""
-        echo "Examples:"
-        echo "  resource-postgres create-database myapp"
-        echo "  resource-postgres create-database testdb main"
+postgres::content::get() {
+    local name="${1:-}"
+    if [[ -z "$name" ]]; then
+        log::error "Database or instance name required"
+        echo "Usage: resource-postgres content get <instance-or-database>"
         return 1
     fi
     
-    postgres::database::create "$instance_name" "$database_name"
+    # Try as instance first, then as database
+    if postgres::common::container_exists "$name"; then
+        postgres::status::show_instance "$name"
+    else
+        postgres::database::list "main" | grep -i "$name" || {
+            log::error "Instance or database not found: $name"
+            return 1
+        }
+    fi
 }
 
-# Execute SQL
-postgres_execute_sql() {
-    local sql_command="${1:-}"
-    local instance_name="${2:-main}"
-    local database="${3:-${POSTGRES_DEFAULT_DB:-postgres}}"
-    
-    # Ensure messages are initialized
-    postgres::messages::init 2>/dev/null || true
-    
-    if [[ -z "$sql_command" ]]; then
-        log::error "SQL command required"
-        echo "Usage: resource-postgres execute-sql '<command>' [instance] [database]"
-        echo ""
-        echo "Examples:"
-        echo "  resource-postgres execute-sql 'SELECT version();'"
-        echo "  resource-postgres execute-sql '\\l' main postgres"
-        echo "  resource-postgres execute-sql 'SELECT * FROM users LIMIT 10;' main myapp"
+postgres::content::remove() {
+    local name="${1:-}"
+    if [[ -z "$name" ]]; then
+        log::error "Database or instance name required"
+        echo "Usage: resource-postgres content remove <instance-or-database>"
         return 1
     fi
     
-    postgres::database::execute "$instance_name" "$sql_command" "$database"
-}
-
-# List databases
-postgres_list_databases() {
-    local instance_name="${1:-main}"
-    
-    postgres::database::list "$instance_name"
-}
-
-# Create backup
-postgres_create_backup() {
-    local database_name="${1:-}"
-    local instance_name="${2:-main}"
-    local backup_file="${3:-}"
-    
-    if [[ -z "$database_name" ]]; then
-        log::error "Database name required"
-        echo "Usage: resource-postgres create-backup <database> [instance] [backup-file]"
-        echo ""
-        echo "Examples:"
-        echo "  resource-postgres create-backup myapp"
-        echo "  resource-postgres create-backup myapp main /backups/myapp.sql"
+    log::warn "This will permanently remove PostgreSQL content: $name"
+    if ! flow::confirm "Are you sure?"; then
         return 1
     fi
     
-    postgres::backup::create "$instance_name" "$database_name" "$backup_file"
+    # Try as instance first, then as database
+    if postgres::common::container_exists "$name"; then
+        postgres::instance::destroy "$name"
+    else
+        postgres::database::drop "main" "$name"
+    fi
 }
 
-# Create instance
-postgres_create_instance() {
-    local instance_name="${1:-}"
-    local template="${2:-development}"
+postgres::content::execute() {
+    local sql="${1:-}"
+    local instance="${2:-main}"
     
-    if [[ -z "$instance_name" ]]; then
-        log::error "Instance name required"
-        echo "Usage: resource-postgres create-instance <name> [template]"
-        echo ""
-        echo "Examples:"
-        echo "  resource-postgres create-instance testing"
-        echo "  resource-postgres create-instance prod production"
-        echo ""
-        echo "Templates: development, testing, production"
+    if [[ -z "$sql" ]]; then
+        log::error "SQL query required"
+        echo "Usage: resource-postgres content execute '<sql-query>' [instance]"
         return 1
     fi
     
-    # Pass empty string for port to let it auto-assign
-    postgres::instance::create "$instance_name" "" "$template"
+    postgres::database::execute "$instance" "$sql"
 }
 
-# Show credentials for n8n integration
-postgres_credentials() {
+# Performance test for PostgreSQL - validates the resource itself, not business use
+postgres::test::performance() {
+    log::info "Running PostgreSQL performance validation tests..."
+    
+    local instances=($(postgres::common::list_instances))
+    if [[ ${#instances[@]} -eq 0 ]]; then
+        log::error "No PostgreSQL instances found for performance testing"
+        return 1
+    fi
+    
+    local test_instance="${instances[0]}"
+    log::info "Testing performance of instance: $test_instance"
+    
+    # Test basic connection performance
+    local start_time=$(date +%s%3N)
+    if postgres::common::health_check "$test_instance"; then
+        local end_time=$(date +%s%3N)
+        local duration=$((end_time - start_time))
+        log::info "Connection test: ${duration}ms"
+        
+        if [[ $duration -lt 1000 ]]; then
+            log::success "Performance test passed: Connection under 1s"
+            return 0
+        else
+            log::warn "Performance test warning: Connection took ${duration}ms"
+            return 1
+        fi
+    else
+        log::error "Performance test failed: Could not connect to PostgreSQL"
+        return 1
+    fi
+}
+
+# Credentials function using existing implementation
+postgres::credentials() {
+    # Delegate to existing implementation from backup CLI
+    # shellcheck disable=SC1091
     source "${var_SCRIPTS_RESOURCES_LIB_DIR}/credentials-utils.sh"
     
     if ! credentials::parse_args "$@"; then
@@ -305,48 +314,18 @@ postgres_credentials() {
     credentials::format_output "$response"
 }
 
-# Custom help function with PostgreSQL-specific examples
-postgres_show_help() {
-    # Show standard framework help first
-    cli::_handle_help
+# Docker logs wrapper
+postgres::docker::logs() {
+    local instance="${1:-main}"
+    local container_name="${POSTGRES_CONTAINER_PREFIX:-vrooli-postgres}-${instance}"
     
-    # Add PostgreSQL-specific examples
-    echo ""
-    echo "🐘 PostgreSQL Database Examples:"
-    echo ""
-    echo "Instance Management:"
-    echo "  resource-postgres list-instances               # List all instances"
-    echo "  resource-postgres create-instance testing     # Create test instance"
-    echo "  resource-postgres create-instance prod production  # Create production instance"
-    echo ""
-    echo "Database Operations:"
-    echo "  resource-postgres list-databases main          # List databases"
-    echo "  resource-postgres create-database myapp        # Create database"
-    echo "  resource-postgres execute-sql 'SELECT version();'  # Run SQL query"
-    echo "  resource-postgres execute-sql '\\l' main postgres  # List databases via SQL"
-    echo ""
-    echo "Data Management:"
-    echo "  resource-postgres inject schema.sql            # Import SQL schema"
-    echo "  resource-postgres inject shared:init/postgres/data.sql  # Import shared data"
-    echo "  resource-postgres create-backup myapp main /backups/myapp.sql  # Backup database"
-    echo ""
-    echo "Integration:"
-    echo "  resource-postgres credentials --format pretty  # Show credentials"
-    echo "  resource-postgres status                       # Check all instances"
-    echo ""
-    echo "SQL Features:"
-    echo "  • ACID transactions and full SQL compliance"
-    echo "  • Multi-instance support for development/staging/production"
-    echo "  • Advanced indexing and query optimization"
-    echo "  • JSON/JSONB support for document storage"
-    echo ""
-    echo "Default Port: 5432"
-    echo "Templates: development, testing, production"
+    if ! docker ps -a --format "{{.Names}}" | grep -q "^${container_name}$"; then
+        log::error "PostgreSQL instance not found: $instance"
+        return 1
+    fi
+    
+    docker logs "$container_name" "${@:2}"
 }
-
-################################################################################
-# Main execution - dispatch to framework
-################################################################################
 
 # Only execute if script is run directly (not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then

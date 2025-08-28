@@ -296,6 +296,87 @@ extractor::lib::python::extract_requirements() {
 }
 
 #######################################
+# Extract information from Jupyter notebook
+# 
+# Processes .ipynb files to extract code cells and markdown
+#
+# Arguments:
+#   $1 - Path to .ipynb file
+#   $2 - Context (component type)
+#   $3 - Parent name
+# Returns: JSON lines with notebook information
+#######################################
+extractor::lib::python::extract_notebook() {
+    local file="$1"
+    local context="${2:-notebook}"
+    local parent_name="${3:-unknown}"
+    
+    if [[ ! -f "$file" ]]; then
+        return 1
+    fi
+    
+    # Check if file is valid JSON (Jupyter notebooks are JSON)
+    if ! jq empty "$file" 2>/dev/null; then
+        log::debug "Invalid Jupyter notebook format: $file" >&2
+        return 1
+    fi
+    
+    # Extract metadata
+    local kernel=$(jq -r '.metadata.kernelspec.name // "python3"' "$file" 2>/dev/null)
+    local language=$(jq -r '.metadata.kernelspec.language // "python"' "$file" 2>/dev/null)
+    
+    # Count cells
+    local code_cells=$(jq '[.cells[] | select(.cell_type == "code")] | length' "$file" 2>/dev/null || echo "0")
+    local markdown_cells=$(jq '[.cells[] | select(.cell_type == "markdown")] | length' "$file" 2>/dev/null || echo "0")
+    local total_cells=$((code_cells + markdown_cells))
+    
+    # Extract code cell content for analysis
+    local functions_found=0
+    local classes_found=0
+    
+    # Process code cells
+    jq -r '.cells[] | select(.cell_type == "code") | .source | if type == "array" then join("") else . end' "$file" 2>/dev/null | while IFS= read -r cell_content; do
+        # Count functions and classes in this cell
+        local cell_funcs=$(echo "$cell_content" | grep -c "^def " 2>/dev/null || echo "0")
+        local cell_classes=$(echo "$cell_content" | grep -c "^class " 2>/dev/null || echo "0")
+        functions_found=$((functions_found + cell_funcs))
+        classes_found=$((classes_found + cell_classes))
+    done
+    
+    # Build content
+    local content="Notebook: $(basename "$file") | Context: $context | Parent: $parent_name"
+    content="$content | Code cells: $code_cells | Markdown cells: $markdown_cells"
+    content="$content | Kernel: $kernel | Language: $language"
+    
+    # Output as JSON line
+    jq -n \
+        --arg content "$content" \
+        --arg parent "$parent_name" \
+        --arg source_file "$file" \
+        --arg context "$context" \
+        --arg kernel "$kernel" \
+        --arg language "$language" \
+        --arg code_cells "$code_cells" \
+        --arg markdown_cells "$markdown_cells" \
+        --arg total_cells "$total_cells" \
+        '{
+            content: $content,
+            metadata: {
+                parent: $parent,
+                source_file: $source_file,
+                component_type: $context,
+                language: $language,
+                kernel: $kernel,
+                code_cells: ($code_cells | tonumber),
+                markdown_cells: ($markdown_cells | tonumber),
+                total_cells: ($total_cells | tonumber),
+                content_type: "jupyter_notebook",
+                extraction_method: "notebook_parser"
+            }
+        }' | jq -c
+}
+
+#######################################
 # Extract all information from Python files
 # 
 # Main entry point that extracts functions, classes, and requirements
@@ -318,6 +399,9 @@ extractor::lib::python::extract_all() {
                 extractor::lib::python::extract_functions "$path" "$context" "$parent_name" 2>/dev/null || true
                 extractor::lib::python::extract_classes "$path" "$context" "$parent_name" 2>/dev/null || true
                 ;;
+            *.ipynb)
+                extractor::lib::python::extract_notebook "$path" "$context" "$parent_name" 2>/dev/null || true
+                ;;
             requirements*.txt)
                 extractor::lib::python::extract_requirements "$path" "$context" "$parent_name" 2>/dev/null || true
                 ;;
@@ -326,7 +410,7 @@ extractor::lib::python::extract_all() {
         # Directory - find relevant files
         while IFS= read -r file; do
             extractor::lib::python::extract_all "$file" "$context" "$parent_name"
-        done < <(find "$path" -type f \( -name "*.py" -o -name "requirements*.txt" \) 2>/dev/null)
+        done < <(find "$path" -type f \( -name "*.py" -o -name "*.ipynb" -o -name "requirements*.txt" \) 2>/dev/null)
     fi
 }
 
@@ -334,4 +418,5 @@ extractor::lib::python::extract_all() {
 export -f extractor::lib::python::extract_functions
 export -f extractor::lib::python::extract_classes
 export -f extractor::lib::python::extract_requirements
+export -f extractor::lib::python::extract_notebook
 export -f extractor::lib::python::extract_all

@@ -1,6 +1,19 @@
 #!/usr/bin/env bash
 # Code File Content Extractor for Qdrant Embeddings
-# Extracts FILE-LEVEL summaries instead of individual functions
+# 
+# SCOPE: Processes APPLICATION SOURCE CODE files outside of:
+# - initialization/ folder (handled by resources/initialization stream)
+# - scenarios/ folder (handled by scenarios stream) 
+# - resources/ folder configuration files (handled by resources stream)
+#
+# PROCESSING: Provides FILE-LEVEL summaries with deep language-specific analysis
+# - Uses unified code-extractor.sh for 16 language detection and parsing
+# - Creates semantic summaries at file level (not individual functions)
+# - Extracts: language, functions, classes, imports, dependencies, test indicators
+# - Output: High-level file descriptions for semantic search
+#
+# COVERAGE: Processes source code files (.js, .py, .sh, .ts, .rs, .go, etc.)
+# throughout the application codebase for architectural understanding
 
 set -euo pipefail
 
@@ -14,10 +27,20 @@ EXTRACTOR_DIR="${EMBEDDINGS_DIR}/extractors"
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${var_LIB_UTILS_DIR}/log.sh"
 
-# Source unified embedding service
+# Source unified embedding service and code extractor
 source "${EMBEDDINGS_DIR}/lib/embedding-service.sh"
+source "${EMBEDDINGS_DIR}/lib/code-extractor.sh"
 
-# Extract FILE-LEVEL summary with structured metadata
+#######################################
+# Extract FILE-LEVEL summary with deep language analysis
+# 
+# Uses unified code-extractor for language detection and parsing,
+# then aggregates results to file level
+#
+# Arguments:
+#   $1 - Path to code file
+# Returns: JSON line with file-level summary and metadata
+#######################################
 qdrant::extract::code() {
     local file="$1"
     
@@ -25,89 +48,166 @@ qdrant::extract::code() {
         return 1
     fi
     
-    local file_ext="${file##*.}"
     local filename=$(basename "$file")
     local dir=${file%/*}
     local file_size=$(wc -c < "$file" 2>/dev/null || echo "0")
     local line_count=$(wc -l < "$file" 2>/dev/null || echo "0")
+    local file_ext="${filename##*.}"
     
-    # Determine language/type
+    # Use unified system for primary language detection
+    local detected_lang=$(qdrant::lib::detect_primary_language "$(dirname "$file")")
+    
+    # If directory detection fails, detect from single file
+    if [[ "$detected_lang" == "unknown" ]]; then
+        # Create temp directory with just this file for detection
+        local temp_detect_dir=$(mktemp -d)
+        cp "$file" "$temp_detect_dir/"
+        detected_lang=$(qdrant::lib::detect_primary_language "$temp_detect_dir")
+        rm -rf "$temp_detect_dir"
+    fi
+    
+    # Map internal language names to display names
     local language=""
-    case "$file_ext" in
-        js|jsx) language="JavaScript" ;;
-        ts|tsx) language="TypeScript" ;;
-        py) language="Python" ;;
-        sh|bash) language="Shell/Bash" ;;
+    case "$detected_lang" in
+        javascript) language="JavaScript" ;;
+        python) language="Python" ;;
         go) language="Go" ;;
+        rust) language="Rust" ;;
         java) language="Java" ;;
-        cpp|cc|c) language="C/C++" ;;
-        h|hpp) language="C/C++ Header" ;;
-        rb) language="Ruby" ;;
-        rs) language="Rust" ;;
+        kotlin) language="Kotlin" ;;
+        csharp) language="C#" ;;
+        ruby) language="Ruby" ;;
         php) language="PHP" ;;
         swift) language="Swift" ;;
-        kt) language="Kotlin" ;;
-        *) language="${file_ext^^}" ;;
+        cpp) language="C++" ;;
+        shell) language="Shell/Bash" ;;
+        sql) language="SQL" ;;
+        css) language="CSS" ;;
+        matlab) language="MATLAB" ;;
+        r) language="R" ;;
+        *) 
+            # Fallback to extension-based detection
+            case "$file_ext" in
+                js|jsx) language="JavaScript" ;;
+                ts|tsx) language="TypeScript" ;;
+                py|ipynb) language="Python" ;;
+                sh|bash) language="Shell/Bash" ;;
+                go) language="Go" ;;
+                java) language="Java" ;;
+                cpp|cc|c) language="C/C++" ;;
+                h|hpp) language="C/C++ Header" ;;
+                rb) language="Ruby" ;;
+                rs) language="Rust" ;;
+                php) language="PHP" ;;
+                swift) language="Swift" ;;
+                kt) language="Kotlin" ;;
+                cs) language="C#" ;;
+                sql) language="SQL" ;;
+                css|scss|sass|less) language="CSS" ;;
+                m|mlx) language="MATLAB" ;;
+                R|r|Rmd|rmd) language="R" ;;
+                *) language="${file_ext^^}" ;;
+            esac
+            ;;
     esac
     
-    # Extract main purpose from header comments (first 10 lines)
+    # Extract purpose from header comments (first 10 lines)
     local purpose=$(head -10 "$file" 2>/dev/null | grep -E "^[[:space:]]*(//|#|\*|/\*)" | head -3 | sed 's/^[[:space:]]*[/#*]*//' | tr '\n' ' ' | sed 's/  */ /g' | cut -c1-200)
     
-    # Count key elements for summary (ensure single line output)
-    local function_count=$(grep -c -E "^[[:space:]]*(function|def |func |const.*=.*=>|export.*function)" "$file" 2>/dev/null | tr -d '\n' || echo "0")
-    local class_count=$(grep -c -E "^[[:space:]]*(class |interface |struct |type )" "$file" 2>/dev/null | tr -d '\n' || echo "0")
-    local import_count=$(grep -c -E "^(import |require\(|from |use )" "$file" 2>/dev/null | tr -d '\n' || echo "0")
-    
-    # Extract main exports/public API (for better searchability)
+    # Use unified extractor to get deep language-specific analysis
+    local extraction_output=""
+    local function_count=0
+    local class_count=0
+    local import_count=0
     local exports=""
-    if [[ "$file_ext" == "ts" || "$file_ext" == "js" || "$file_ext" == "tsx" || "$file_ext" == "jsx" ]]; then
-        exports=$(grep -E "^export (function|class|const|interface|type) [a-zA-Z_]+" "$file" 2>/dev/null | head -5 | sed 's/export //' | sed 's/[({].*//' | tr '\n' ',' | sed 's/,$//')
-    elif [[ "$file_ext" == "py" ]]; then
-        exports=$(grep -E "^(def |class )[a-zA-Z_]+[^_]" "$file" 2>/dev/null | head -5 | sed 's/def //' | sed 's/class //' | sed 's/[(:].*//' | tr '\n' ',' | sed 's/,$//')
-    elif [[ "$file_ext" == "sh" || "$file_ext" == "bash" ]]; then
-        exports=$(grep -E "^[a-zA-Z_][a-zA-Z0-9_:]*\(\)" "$file" 2>/dev/null | head -5 | sed 's/().*//' | tr '\n' ',' | sed 's/,$//')
+    local has_tests="no"
+    
+    # Create temp directory with just this file for extraction
+    local temp_extract_dir=$(mktemp -d)
+    cp "$file" "$temp_extract_dir/"
+    
+    # Extract using unified system (suppress stderr)
+    extraction_output=$(qdrant::lib::extract_code "$temp_extract_dir" "code" "file-analysis" "primary" 2>/dev/null || echo "")
+    
+    if [[ -n "$extraction_output" ]]; then
+        # Parse extraction output to get counts and details
+        function_count=$(echo "$extraction_output" | jq -s '[.[] | .metadata.functions // [] | length] | add // 0' 2>/dev/null || echo "0")
+        class_count=$(echo "$extraction_output" | jq -s '[.[] | .metadata.classes // [] | length] | add // 0' 2>/dev/null || echo "0")
+        
+        # Get function names for exports (limit to 5)
+        local func_names=$(echo "$extraction_output" | jq -r '[.metadata.functions // [] | .[] // empty] | unique | .[0:5] | join(",")' 2>/dev/null || echo "")
+        if [[ -n "$func_names" ]]; then
+            exports="$func_names"
+        fi
+        
+        # Check for test indicators in metadata
+        if echo "$extraction_output" | jq -e '.metadata | select(.is_test == true)' >/dev/null 2>/dev/null; then
+            has_tests="yes"
+        fi
+    else
+        # Fallback to basic grep-based counting if extraction fails
+        function_count=$(grep -c -E "^[[:space:]]*(function|def |func |const.*=.*=>|export.*function)" "$file" 2>/dev/null | tr -d '\n' || echo "0")
+        class_count=$(grep -c -E "^[[:space:]]*(class |interface |struct |type )" "$file" 2>/dev/null | tr -d '\n' || echo "0")
     fi
     
-    # Check for test file
-    local is_test="no"
+    # Count imports (still use grep as it's simple and effective)
+    import_count=$(grep -c -E "^(import |require\(|from |use |include |#include)" "$file" 2>/dev/null | tr -d '\n' || echo "0")
+    
+    # Clean up temp directory
+    rm -rf "$temp_extract_dir"
+    
+    # Check for test file indicators
     if [[ "$filename" == *test* ]] || [[ "$filename" == *spec* ]] || [[ "$dir" == *test* ]] || [[ "$dir" == *__test__* ]]; then
-        is_test="yes"
+        has_tests="yes"
     fi
     
-    # Build clean content summary (optimized for semantic search)
-    local content_summary="This is a $language code file named '$filename' located in $dir."
+    # Build comprehensive content summary
+    local content_summary="$language file: $filename in $dir"
     
     if [[ -n "$purpose" ]]; then
-        content_summary="$content_summary Purpose: $purpose"
+        content_summary="$content_summary | Purpose: $purpose"
     fi
     
-    if [[ "$is_test" == "yes" ]]; then
-        content_summary="$content_summary This is a test file containing test cases and specifications."
+    if [[ "$has_tests" == "yes" ]]; then
+        content_summary="$content_summary | Contains test cases"
     fi
     
-    content_summary="$content_summary The file contains $line_count lines of code"
+    content_summary="$content_summary | $line_count lines"
+    
     if [[ $function_count -gt 0 ]]; then
-        content_summary="$content_summary with $function_count functions/methods"
+        content_summary="$content_summary | $function_count functions"
     fi
     if [[ $class_count -gt 0 ]]; then
-        content_summary="$content_summary, $class_count classes/interfaces/types"
+        content_summary="$content_summary | $class_count classes"
     fi
     if [[ $import_count -gt 0 ]]; then
-        content_summary="$content_summary, $import_count imports"
+        content_summary="$content_summary | $import_count imports"
     fi
-    content_summary="${content_summary}."
     
     if [[ -n "$exports" ]]; then
-        content_summary="$content_summary Main exports/API: $exports"
+        content_summary="$content_summary | Exports: $exports"
     fi
     
-    # Output JSON with clean separation of content and metadata
+    # Determine content category
+    local category="source"
+    if [[ "$has_tests" == "yes" ]]; then
+        category="test"
+    elif [[ "$file_ext" == "h" ]] || [[ "$file_ext" == "hpp" ]]; then
+        category="header"
+    elif [[ "$detected_lang" == "shell" ]]; then
+        category="script"
+    elif [[ "$filename" == *"config"* ]] || [[ "$filename" == *"setup"* ]]; then
+        category="configuration"
+    fi
+    
+    # Output JSON with comprehensive metadata
     jq -n \
         --arg content "$content_summary" \
         --arg file "$file" \
         --arg filename "$filename" \
         --arg directory "$dir" \
         --arg language "$language" \
+        --arg detected_lang "$detected_lang" \
         --arg language_ext "$file_ext" \
         --arg size "$file_size" \
         --arg lines "$line_count" \
@@ -115,8 +215,9 @@ qdrant::extract::code() {
         --arg classes "$class_count" \
         --arg imports "$import_count" \
         --arg exports "$exports" \
-        --arg is_test "$is_test" \
+        --arg is_test "$has_tests" \
         --arg purpose "$purpose" \
+        --arg category "$category" \
         '{
             content: $content,
             metadata: {
@@ -124,6 +225,7 @@ qdrant::extract::code() {
                 filename: $filename,
                 directory: $directory,
                 language: $language,
+                detected_language: $detected_lang,
                 language_ext: $language_ext,
                 size: ($size | tonumber),
                 lines: ($lines | tonumber),
@@ -132,7 +234,10 @@ qdrant::extract::code() {
                 imports: ($imports | tonumber),
                 exports: $exports,
                 is_test: ($is_test == "yes"),
-                purpose: $purpose
+                purpose: $purpose,
+                category: $category,
+                content_type: "code_file",
+                extraction_method: "unified_code_extractor"
             }
         }' | jq -c
 }
@@ -143,10 +248,13 @@ qdrant::extract::find_code() {
     
     find "$directory" -type f \( \
         -name "*.js" -o -name "*.ts" -o -name "*.jsx" -o -name "*.tsx" -o \
-        -name "*.py" -o -name "*.go" -o -name "*.sh" -o -name "*.bash" -o \
+        -name "*.py" -o -name "*.ipynb" -o -name "*.go" -o -name "*.sh" -o -name "*.bash" -o \
         -name "*.java" -o -name "*.cpp" -o -name "*.c" -o -name "*.h" -o \
         -name "*.rb" -o -name "*.rs" -o -name "*.php" -o -name "*.swift" -o \
-        -name "*.kt" -o -name "*.scala" -o -name "*.r" -o -name "*.m" \
+        -name "*.kt" -o -name "*.scala" -o -name "*.r" -o -name "*.R" -o \
+        -name "*.Rmd" -o -name "*.rmd" -o -name "*.m" -o -name "*.mlx" -o \
+        -name "*.cs" -o -name "*.css" -o -name "*.scss" -o -name "*.sass" -o \
+        -name "*.less" -o -name "*.sql" -o -name "*.ddl" -o -name "*.dml" \
     \) \
     ! -path "*/node_modules/*" \
     ! -path "*/.git/*" \
@@ -155,6 +263,8 @@ qdrant::extract::find_code() {
     ! -path "*/vendor/*" \
     ! -path "*/.venv/*" \
     ! -path "*/venv/*" \
+    ! -path "*/target/*" \
+    ! -path "*/__pycache__/*" \
     2>/dev/null
 }
 
@@ -175,12 +285,13 @@ qdrant::extract::code_batch() {
     local count=0
     local total_files=$(qdrant::extract::find_code "$directory" | wc -l)
     
-    log::info "Extracting content from $total_files code files"
+    log::info "Extracting content from $total_files code files using unified extractor"
     
     while IFS= read -r file; do
-        # Each file gets ONE embedding entry (output JSON)
-        qdrant::extract::code "$file" >> "$output_file"
-        ((count++))
+        # Each file gets ONE embedding entry with deep analysis
+        if qdrant::extract::code "$file" >> "$output_file"; then
+            ((count++))
+        fi
         
         # Progress indicator every 50 files
         if [[ $((count % 50)) -eq 0 ]]; then
@@ -188,7 +299,7 @@ qdrant::extract::code_batch() {
         fi
     done < <(qdrant::extract::find_code "$directory")
     
-    log::success "Extracted content from $count code files"
+    log::success "Extracted content from $count code files with unified analysis"
     echo "$output_file"
     return 0
 }
@@ -257,11 +368,11 @@ qdrant::extract::code_metadata_from_content() {
         filename=$(basename "$file_path")
         file_ext="${filename##*.}"
         
-        # Determine language from file extension
+        # Use language mapping consistent with main extraction
         case "$file_ext" in
             js|jsx) language="javascript" ;;
             ts|tsx) language="typescript" ;;
-            py) language="python" ;;
+            py|ipynb) language="python" ;;
             sh|bash) language="shell" ;;
             go) language="go" ;;
             rs) language="rust" ;;
@@ -273,9 +384,12 @@ qdrant::extract::code_metadata_from_content() {
             php) language="php" ;;
             swift) language="swift" ;;
             kt) language="kotlin" ;;
+            cs) language="csharp" ;;
+            sql|ddl|dml) language="sql" ;;
+            css|scss|sass|less) language="css" ;;
+            m|mlx) language="matlab" ;;
+            R|r|Rmd|rmd) language="r" ;;
             scala) language="scala" ;;
-            r) language="r" ;;
-            m) language="matlab" ;;
             *) language="unknown" ;;
         esac
     fi
@@ -339,7 +453,7 @@ qdrant::extract::code_metadata_from_content() {
             content_length: ($content_length | tonumber),
             line_count: ($line_count | tonumber),
             content_type: "code",
-            extractor: "code"
+            extractor: "code_unified"
         }'
 }
 
@@ -348,3 +462,4 @@ export -f qdrant::extract::code
 export -f qdrant::extract::find_code
 export -f qdrant::extract::code_batch
 export -f qdrant::embeddings::process_code
+export -f qdrant::extract::code_metadata_from_content

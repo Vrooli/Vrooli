@@ -1,56 +1,196 @@
 {
-  "name": "stream-of-consciousness-analyzer",
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
-  "description": "Transform unstructured text/voice into organized notes with AI-powered insights",
-  "category": "saas-applications",
-  "resources": {
-    "n8n": {
-      "enabled": true,
-      "workflows": [
-        "process-stream",
-        "organize-thoughts",
-        "extract-insights",
-        "campaign-context-builder",
-        "autonomous-thought-processor"
-      ]
-    },
-    "postgres": {
-      "enabled": true,
-      "schema": "schema.sql"
-    },
-    "redis": {
-      "enabled": true
-    },
-    "qdrant": {
-      "enabled": true,
-      "collections": ["thoughts", "insights", "campaigns"]
-    },
-    "ollama": {
-      "enabled": true,
-      "models": ["llama3.2:3b", "nomic-embed-text"]
-    }
+  "service": {
+    "parent": "vrooli",
+    "name": "stream-of-consciousness-analyzer",
+    "displayName": "Stream of Consciousness Analyzer",
+    "description": "Transform unstructured text/voice into organized notes with AI-powered insights",
+    "version": "1.0.0",
+    "tags": [
+      "saas-applications",
+      "productivity",
+      "ai-tools",
+      "note-taking",
+      "voice-processing",
+      "text-analysis",
+      "insight-extraction",
+      "campaign-management",
+      "thought-organization",
+      "n8n-workflows",
+      "postgres-storage",
+      "redis-cache",
+      "qdrant-vectors",
+      "ollama-ai"
+    ]
   },
   "ports": {
-    "ui": {
-      "range": [8800, 8899]
-    },
     "api": {
-      "range": [3800, 3899]
+      "env_var": "SERVICE_PORT",
+      "range": "30000-30249",
+      "fallback": "auto",
+      "description": "Stream analyzer API port"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "range": "36500-36749",
+      "fallback": "auto",
+      "description": "Stream analyzer UI port"
+    }
+  },
+  "resources": {
+    "automation": {
+      "n8n": {
+        "type": "n8n",
+        "enabled": true,
+        "required": true,
+        "shared_workflows": [
+          "chain-of-thought-orchestrator",
+          "embedding-generator",
+          "ollama",
+          "rate-limiter"
+        ],
+        "initialization": [
+          {
+            "file": "initialization/n8n/process-stream.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/organize-thoughts.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/extract-insights.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/campaign-context-builder.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/autonomous-thought-processor.json",
+            "type": "workflow"
+          }
+        ]
+      }
+    },
+    "storage": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store organized thoughts, insights, and campaigns",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "script"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": true,
+        "purpose": "Cache for real-time processing and session management"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "purpose": "Vector storage for semantic search across thoughts and insights",
+        "initialization": [
+          {
+            "file": "initialization/qdrant/collections.json",
+            "type": "collections"
+          }
+        ]
+      }
+    },
+    "ai": {
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "models": [
+          "llama3.2:3b",
+          "nomic-embed-text"
+        ]
+      }
     }
   },
   "lifecycle": {
-    "start": ["ui", "api"],
-    "health_check": {
-      "enabled": true,
-      "interval": 30
+    "version": "1.0.0",
+    "setup": {
+      "description": "Initialize Stream of Consciousness Analyzer",
+      "steps": [
+        {
+          "name": "base-setup",
+          "run": "bash scripts/lib/setup.sh",
+          "description": "Execute generic setup"
+        },
+        {
+          "name": "add-data",
+          "run": "scripts/resources/populate/populate.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "install-deps",
+          "run": "cd ui && npm install && cd ../api && npm install",
+          "description": "Install dependencies"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo 'Stream Analyzer initialized - UI: http://localhost:${UI_PORT} - API: http://localhost:${SERVICE_PORT}'",
+          "description": "Display service URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start Stream of Consciousness Analyzer services",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && PORT=$SERVICE_PORT npm start &",
+          "description": "Start API server",
+          "background": true
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && PORT=$UI_PORT npm start &",
+          "description": "Start UI server",
+          "background": true
+        },
+        {
+          "name": "wait-for-services",
+          "run": "sleep 3",
+          "description": "Wait for services to start"
+        },
+        {
+          "name": "show-running",
+          "run": "echo 'Services running - UI: http://localhost:${UI_PORT} - API: http://localhost:${SERVICE_PORT}'",
+          "description": "Display running services"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test Stream Analyzer",
+      "steps": [
+        {
+          "name": "test-api",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/health",
+          "description": "Test API health"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop Stream Analyzer services",
+      "steps": [
+        {
+          "name": "stop-services",
+          "run": "pkill -f 'npm.*start' || true",
+          "description": "Stop all services"
+        }
+      ]
     }
-  },
-  "dependencies": {
-    "shared_workflows": [
-      "chain-of-thought-orchestrator",
-      "embedding-generator",
-      "ollama",
-      "rate-limiter"
-    ]
   }
 }

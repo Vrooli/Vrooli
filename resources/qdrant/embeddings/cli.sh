@@ -49,11 +49,12 @@ source "${QDRANT_DIR}/lib/embeddings.sh"
 source "${QDRANT_DIR}/lib/models.sh"
 
 # Source embedding components
-for component in identity workflows scenarios docs code resources; do
+# NOTE: Workflows are now processed via resources stream (initialization system)
+for component in identity scenarios docs code resources file-trees; do
     if [[ "$component" == "identity" ]]; then
         component_file="${EMBEDDINGS_DIR}/indexers/${component}.sh"
     else
-        component_file="${EMBEDDINGS_DIR}/extractors/${component}.sh"
+        component_file="${EMBEDDINGS_DIR}/extractors/${component}/main.sh"
     fi
     if [[ -f "$component_file" ]]; then
         # shellcheck disable=SC1090
@@ -340,7 +341,7 @@ embeddings_content_add() {
     case "$type" in
         code) qdrant::embeddings::process_code "$file" ;;
         docs) qdrant::embeddings::process_docs "$file" ;;
-        workflows) qdrant::embeddings::process_workflows "$file" ;;
+        workflows) log::warn "Workflows are now processed automatically via resources stream - no manual processing needed" ;;
         *) log::error "Unknown type: $type" ; return 1 ;;
     esac
     

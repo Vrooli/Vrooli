@@ -13,16 +13,8 @@ POSTGIS_CONTAINER="${POSTGIS_CONTAINER:-postgis-main}"
 source "${POSTGIS_ROOT_DIR}/config/defaults.sh"
 
 # Source shared utilities
-SCRIPTS_DIR="${POSTGIS_ROOT_DIR%/*/*%/*}"
-if [ -f "${SCRIPTS_DIR}/lib/utils/format.sh" ]; then
-    source "${SCRIPTS_DIR}/lib/utils/format.sh"
-fi
-if [ -f "${SCRIPTS_DIR}/lib/utils/var.sh" ]; then
-    source "${SCRIPTS_DIR}/lib/utils/var.sh"
-fi
-if [ -f "${SCRIPTS_DIR}/lib/utils/log.sh" ]; then
-    source "${SCRIPTS_DIR}/lib/utils/log.sh"
-fi
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${var_LOG_FILE}" 2>/dev/null || true
 
 # Helper function to execute PostgreSQL commands via Docker
 postgis_exec_sql() {

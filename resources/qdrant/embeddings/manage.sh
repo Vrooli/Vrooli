@@ -42,11 +42,12 @@ source "${QDRANT_DIR}/lib/models.sh"
 
 # Source embedding components
 source "${EMBEDDINGS_DIR}/indexers/identity.sh"
-source "${EMBEDDINGS_DIR}/extractors/workflows.sh"
+# workflows.sh REMOVED - now processed via resources stream (initialization system)
 source "${EMBEDDINGS_DIR}/extractors/scenarios/main.sh"
-source "${EMBEDDINGS_DIR}/extractors/docs.sh"
-source "${EMBEDDINGS_DIR}/extractors/code.sh"
+source "${EMBEDDINGS_DIR}/extractors/docs/main.sh"
+source "${EMBEDDINGS_DIR}/extractors/code/main.sh"
 source "${EMBEDDINGS_DIR}/extractors/resources/main.sh"
+source "${EMBEDDINGS_DIR}/extractors/file-trees/main.sh"
 source "${EMBEDDINGS_DIR}/search/single.sh"
 source "${EMBEDDINGS_DIR}/search/multi.sh"
 
@@ -185,19 +186,14 @@ qdrant::embeddings::refresh() {
         log::info "Processing all content types in parallel with ${EMBEDDING_MAX_WORKERS:-16} workers..."
     
     # Create background jobs for each content type
-    local workflow_count_file="$TEMP_DIR/workflow_count"
+    # NOTE: Workflows are now processed by resources stream via initialization system
     local scenario_count_file="$TEMP_DIR/scenario_count"
     local doc_count_file="$TEMP_DIR/doc_count"
     local code_count_file="$TEMP_DIR/code_count"
     local resource_count_file="$TEMP_DIR/resource_count"
+    local filetrees_count_file="$TEMP_DIR/filetrees_count"
     
     # Start all content type processing in parallel
-    {
-        log::info "Processing workflows..."
-        workflow_count=$(qdrant::embeddings::process_workflows "$app_id")
-        echo "$workflow_count" > "$workflow_count_file"
-    } &
-    local workflow_pid=$!
     
     {
         log::info "Processing scenarios..."
@@ -227,12 +223,19 @@ qdrant::embeddings::refresh() {
     } &
     local resource_pid=$!
     
+    {
+        log::info "Processing file trees..."
+        filetrees_count=$(qdrant::embeddings::process_file_trees "$app_id")
+        echo "$filetrees_count" > "$filetrees_count_file"
+    } &
+    local filetrees_pid=$!
+    
     # Wait for all background jobs to complete with monitoring
     log::info "Waiting for all content type processing to complete..."
     
     # Monitor memory usage during parallel processing
     {
-        while kill -0 $workflow_pid $scenario_pid $doc_pid $code_pid $resource_pid 2>/dev/null; do
+        while kill -0 $scenario_pid $doc_pid $code_pid $resource_pid $filetrees_pid 2>/dev/null; do
             local mem_usage
             mem_usage=$(free | awk '/Mem:/ {printf "%.0f", $3/$2 * 100}')
             if [[ $mem_usage -gt 85 ]]; then
@@ -245,8 +248,8 @@ qdrant::embeddings::refresh() {
     
     # Wait for all jobs with timeout and error handling
     local failed_jobs=0
-    local job_names=("workflows" "scenarios" "documentation" "code" "resources")
-    local job_pids=($workflow_pid $scenario_pid $doc_pid $code_pid $resource_pid)
+    local job_names=("scenarios" "documentation" "code" "resources" "file-trees")
+    local job_pids=($scenario_pid $doc_pid $code_pid $resource_pid $filetrees_pid)
     
     for i in "${!job_pids[@]}"; do
         local pid="${job_pids[$i]}"
@@ -271,14 +274,15 @@ qdrant::embeddings::refresh() {
     fi
     
     # Read results from temporary files
-    local workflow_count=$(cat "$workflow_count_file" 2>/dev/null || echo "0")
+    # NOTE: Workflow embeddings are now included in resource_count via initialization system
     local scenario_count=$(cat "$scenario_count_file" 2>/dev/null || echo "0")
     local doc_count=$(cat "$doc_count_file" 2>/dev/null || echo "0")
     local code_count=$(cat "$code_count_file" 2>/dev/null || echo "0")
     local resource_count=$(cat "$resource_count_file" 2>/dev/null || echo "0")
+    local filetrees_count=$(cat "$filetrees_count_file" 2>/dev/null || echo "0")
     
     # Calculate total
-    total_embeddings=$((workflow_count + scenario_count + doc_count + code_count + resource_count))
+    total_embeddings=$((scenario_count + doc_count + code_count + resource_count + filetrees_count))
     
     fi # End of parallel processing branch
     
@@ -391,19 +395,19 @@ qdrant::embeddings::refresh_sequential() {
 }
 
 # REMOVED: qdrant::embeddings::process_workflows() function
-# This function is now provided by extractors/workflows.sh which is sourced above
+# This function is DEPRECATED - workflows now processed by resources/main.sh via initialization system
 
 # REMOVED: qdrant::embeddings::process_scenarios() function
-# This function is now provided by extractors/scenarios.sh which is sourced above
+# This function is now provided by extractors/scenarios/main.sh which is sourced above
 
 # REMOVED: qdrant::embeddings::process_documentation() function
-# This function is now provided by extractors/docs.sh which is sourced above
+# This function is now provided by extractors/docs/main.sh which is sourced above
 
 # REMOVED: qdrant::embeddings::process_code() function
-# This function is now provided by extractors/code.sh which is sourced above
+# This function is now provided by extractors/code/main.sh which is sourced above
 
 # REMOVED: qdrant::embeddings::process_resources() function
-# This function is now provided by extractors/resources.sh which is sourced above
+# This function is now provided by extractors/resources/main.sh which is sourced above
 
 #######################################
 # Generate embedding for text

@@ -7,7 +7,7 @@ PANDAS_AI_LIB_DIR="${APP_ROOT}/resources/pandas-ai/lib"
 
 # Source dependencies
 source "${PANDAS_AI_LIB_DIR}/common.sh"
-source "${PANDAS_AI_LIB_DIR}/../../../../lib/utils/log.sh"
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
 source "${PANDAS_AI_LIB_DIR}/status.sh"
 source "${PANDAS_AI_LIB_DIR}/install.sh"
 

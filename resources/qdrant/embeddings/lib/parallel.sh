@@ -119,7 +119,7 @@ qdrant::parallel::process_workflow_chunk() {
     
     # Source unified embedding service and workflow extractor for metadata
     source "${EMBEDDINGS_DIR}/lib/embedding-service.sh"
-    source "${EMBEDDINGS_DIR}/extractors/workflows.sh"
+    # workflows.sh REMOVED - now processed via resources stream
     
     # Process each workflow in chunk using modern content format
     local content=""

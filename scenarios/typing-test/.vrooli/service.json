@@ -7,27 +7,31 @@
     "displayName": "Typing Test",
     "description": "Interactive typing speed and accuracy test with AI-powered personalized coaching",
     "version": "1.0.0",
-    "type": "skill-training",
-    "category": "productivity",
     "tags": [
+      "skill-training",
+      "productivity",
       "typing",
       "skill-assessment",
       "gamification",
       "ai-coaching",
-      "productivity",
-      "leaderboard"
+      "leaderboard",
+      "nodejs-ui",
+      "go-api",
+      "n8n-workflows",
+      "postgres-storage",
+      "ollama-ai"
     ]
   },
   "ports": {
     "api": {
       "env_var": "SERVICE_PORT",
-      "range": "8200-8299",
+      "range": "31250-31499",
       "fallback": "auto",
       "description": "Main API port for typing test service"
     },
     "ui": {
       "env_var": "UI_PORT",
-      "range": "3200-3299",
+      "range": "37750-37999",
       "fallback": "auto",
       "description": "UI server port"
     }

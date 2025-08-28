@@ -99,7 +99,8 @@ else
 fi
 
 # Make orchestrator executable
-chmod +x "${ORCHESTRATOR_DIR}/app_orchestrator.py"
+chmod +x "${ORCHESTRATOR_DIR}/enhanced_orchestrator.py"
+chmod +x "${ORCHESTRATOR_DIR}/orchestrator_utils.py"
 chmod +x "${ORCHESTRATOR_DIR}/run.sh"
 
 echo -e "${GREEN}✅ Python App Orchestrator setup complete!${NC}"

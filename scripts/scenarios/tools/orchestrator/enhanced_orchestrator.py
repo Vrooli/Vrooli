@@ -34,7 +34,7 @@ except ImportError:
 from orchestrator_utils import ForkBombDetector, MAX_APPS, ORCHESTRATOR_LOCK_FILE
 
 # API Configuration
-API_PORT = 9000  # Orchestrator management API port
+API_PORT = int(os.environ.get('ORCHESTRATOR_PORT', '9500'))  # Use environment variable with fallback
 API_HOST = "0.0.0.0"
 
 @dataclass 

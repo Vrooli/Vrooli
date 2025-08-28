@@ -7,9 +7,9 @@
     "displayName": "Smart File Photo Manager",
     "description": "AI-powered semantic file organization and management system with intelligent photo categorization, document processing, and duplicate detection",
     "version": "1.0.0",
-    "type": "business-application",
-    "category": "productivity",
     "tags": [
+      "business-application",
+      "productivity",
       "file-management",
       "photo-organization",
       "ai-tagging",
@@ -17,13 +17,21 @@
       "duplicate-detection",
       "document-processing",
       "windmill-ui",
-      "automation"
+      "automation",
+      "go-api",
+      "n8n-workflows",
+      "windmill-apps",
+      "postgres-storage",
+      "redis-cache",
+      "qdrant-vectors",
+      "minio-storage",
+      "ollama-ai"
     ]
   },
   "ports": {
     "api": {
       "env_var": "SERVICE_PORT",
-      "range": "8090-8999",
+      "range": "29750-29999",
       "fallback": "auto",
       "description": "Smart file manager coordination API port"
     }

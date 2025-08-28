@@ -7,22 +7,26 @@
     "displayName": "Workflow Scheduler",
     "description": "Enterprise-grade cron scheduling platform for orchestrating Vrooli workflows with centralized management, execution tracking, and intelligent retry handling",
     "version": "1.0.0",
-    "type": "infrastructure",
-    "category": "automation-tools",
     "tags": [
+      "infrastructure",
+      "automation-tools",
       "scheduling",
       "cron",
       "automation",
       "workflow-orchestration",
       "time-based-triggers",
       "job-scheduler",
-      "task-automation"
+      "task-automation",
+      "go-api",
+      "n8n-workflows",
+      "postgres-storage",
+      "redis-cache"
     ]
   },
   "ports": {
     "api": {
       "env_var": "SERVICE_PORT",
-      "range": "8090-8999",
+      "range": "32000-32249",
       "fallback": "auto",
       "description": "Workflow Scheduler REST API port"
     }
