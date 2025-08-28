@@ -3,18 +3,18 @@
 # Functions for managing and preparing Windmill app definitions
 
 # Source trash module for safe cleanup
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 WINDMILL_LIB_DIR="${APP_ROOT}/resources/windmill/lib"
 # shellcheck disable=SC1091
-source "${WINDMILL_LIB_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+source "${var_TRASH_FILE}"
 
 #######################################
 # List available app examples
 #######################################
 windmill::list_apps() {
-    log::header "📱 Available Windmill App Examples"
+    log::header "Available Windmill App Examples"
     
     # Get script directory dynamically if WINDMILL_LIB_DIR is not set
     local script_dir="${WINDMILL_LIB_DIR:-$(builtin cd "${BASH_SOURCE[0]%/*/.." && builtin pwd)}"
@@ -98,7 +98,7 @@ windmill::prepare_app() {
         return 1
     fi
     
-    log::header "📦 Preparing Windmill App: $app_name"
+    log::header "Preparing Windmill App: $app_name"
     
     # Create output directory
     mkdir -p "$output_dir"
@@ -110,7 +110,7 @@ windmill::prepare_app() {
     # Extract required scripts
     local scripts_file="${output_dir}/${app_name}-required-scripts.txt"
     if command -v jq >/dev/null 2>&1; then
-        jq -r '.required_scripts[]? | "Path: \(.path)\nDescription: \(.description // "No description")\nLanguage: \(.language // "typescript")\n"' \
+        jq -r '.required_scripts[]? | "Path: " + (.path // "") + "\nDescription: " + (.description // "No description") + "\nLanguage: " + (.language // "typescript") + "\n"' \
             "$app_file" > "$scripts_file" 2>/dev/null || true
     fi
     
@@ -120,7 +120,7 @@ windmill::prepare_app() {
 # Windmill App Import Instructions: $app_name
 
 ## Overview
-This directory contains the prepared files for importing the "$app_name" app into Windmill.
+This directory contains the prepared files for importing the \"$app_name\" app into Windmill.
 
 ## Files
 - **${app_name}.json**: The app definition file
@@ -132,7 +132,7 @@ This directory contains the prepared files for importing the "$app_name" app int
 ### Step 1: Create Required Scripts
 Before importing the app, create the following scripts in Windmill:
 
-$(if [[ -f "$scripts_file" ]]; then cat "$scripts_file"; else echo "No required scripts listed"; fi)
+$(if [[ -f \"$scripts_file\" ]]; then cat \"$scripts_file\"; else echo \"No required scripts listed\"; fi)
 
 ### Step 2: Import the App
 
@@ -147,7 +147,7 @@ $(if [[ -f "$scripts_file" ]]; then cat "$scripts_file"; else echo "No required 
 
 #### Option B: Check for Import Feature
 1. Check if Windmill has added an import feature since this was written
-2. Look for "Import App" or similar option in the Apps section
+2. Look for \"Import App\" or similar option in the Apps section
 3. If available, upload the JSON file directly
 
 ### Step 3: Configure the App
@@ -316,9 +316,9 @@ windmill::deploy_app() {
 # Create app deployment script (future)
 #######################################
 windmill::create_app_deployer() {
-    local output_file="${OUTPUT_DIR}/windmill-app-deployer.js"
+    local output_file="${OUTPUT_DIR:-/tmp}/windmill-app-deployer.js"
     
-    log::header "🔧 Creating App Deployment Helper Script"
+    log::header "Creating App Deployment Helper Script"
     
     cat > "$output_file" << 'EOF'
 #!/usr/bin/env node
@@ -349,7 +349,7 @@ class WindmillAppDeployer {
         console.log('Workspace:', workspace);
         console.log('');
         console.log('Future API endpoint might be:');
-        console.log(`POST ${this.apiUrl}/api/w/${workspace}/apps/create`);
+        console.log('POST ' + this.apiUrl + '/api/w/' + workspace + '/apps/create');
         console.log('');
         console.log('Check for updates at:');
         console.log('https://docs.windmill.dev/docs/core_concepts/apps_and_scripts#apps');
@@ -392,7 +392,7 @@ EOF
 
     chmod +x "$output_file"
     
-    log::success "✅ App deployment helper script created"
+    log::success "App deployment helper script created"
     echo
     echo "Location: $output_file"
     echo

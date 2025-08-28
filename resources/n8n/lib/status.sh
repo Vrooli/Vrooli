@@ -174,7 +174,7 @@ n8n::status::display_text() {
         log::error "   ❌ Installed: No"
         echo
         log::info "💡 Installation Required:"
-        log::info "   To install n8n, run: ./manage.sh --action install"
+        log::info "   To install n8n, run: resource-n8n manage install"
         return
     fi
     
@@ -227,8 +227,8 @@ n8n::status::display_text() {
         # Quick access info
         log::info "🎯 Quick Actions:"
         log::info "   🌐 Access n8n: ${data[ui_url]:-http://localhost:5678}"
-        log::info "   📄 View logs: ./manage.sh --action logs"
-        log::info "   🛑 Stop service: ./manage.sh --action stop"
+        log::info "   📄 View logs: resource-n8n logs"
+        log::info "   🛑 Stop service: resource-n8n manage stop"
     fi
 }
 
@@ -270,7 +270,7 @@ n8n::version() {
     # Check if container exists and is running
     if ! docker::is_running "$N8N_CONTAINER_NAME"; then
         log::warn "n8n container is not running"
-        log::info "Try: ./manage.sh --action start"
+        log::info "Try: resource-n8n manage start"
         return 1
     fi
     

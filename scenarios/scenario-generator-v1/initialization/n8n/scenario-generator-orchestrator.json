@@ -213,7 +213,7 @@
         },
         "sendBody": true,
         "bodyContentType": "json",
-        "jsonBody": "={\n  \"base_path\": \"/home/matthalloran8/Vrooli/scenarios/{{ $json.config.scenario_name }}\",\n  \"files\": {{ JSON.stringify($json.file_structure) }},\n  \"create_directories\": true,\n  \"overwrite\": false\n}",
+        "jsonBody": "={\n  \"base_path\": \"${VROOLI_ROOT:-${HOME}/Vrooli}/scenarios/{{ $json.config.scenario_name }}\",\n  \"files\": {{ JSON.stringify($json.file_structure) }},\n  \"create_directories\": true,\n  \"overwrite\": false\n}",
         "options": {
           "timeout": 60000
         }

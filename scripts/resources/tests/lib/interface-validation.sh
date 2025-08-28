@@ -106,26 +106,26 @@ declare -A AGENT_OPTIONAL_FUNCTIONS=(
 )
 
 #######################################
-# Validate manage.sh exists and is executable
+# Validate cli.sh exists and is executable
 #######################################
 
 interface_validation::validate_manage_script() {
     local resource_path="$1"
-    local manage_script="$resource_path/manage.sh"
+    local manage_script="$resource_path/cli.sh"
     
-    # Check if manage.sh exists
+    # Check if cli.sh exists
     if [[ ! -f "$manage_script" ]]; then
-        echo "FAIL: manage.sh not found at $manage_script"
+        echo "FAIL: cli.sh not found at $manage_script"
         return 1
     fi
     
     # Check if executable
     if [[ ! -x "$manage_script" ]]; then
-        echo "FAIL: manage.sh not executable at $manage_script"
+        echo "FAIL: cli.sh not executable at $manage_script"
         return 1
     fi
     
-    echo "PASS: manage.sh exists and is executable"
+    echo "PASS: cli.sh exists and is executable"
     return 0
 }
 

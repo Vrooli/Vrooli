@@ -11,11 +11,11 @@ AUTOGEN_LIB_DIR="${APP_ROOT}/resources/autogen-studio/lib"
 AUTOGEN_DIR="${APP_ROOT}/resources/autogen-studio"
 
 # Source required utilities
-source "${AUTOGEN_DIR}/../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${var_LOG_FILE}"
-source "${AUTOGEN_DIR}/../../lib/docker-utils.sh"
-source "${AUTOGEN_DIR}/../../lib/wait-utils.sh"
-source "${AUTOGEN_DIR}/../../../lib/utils/format.sh"
+source "${APP_ROOT}/scripts/lib/utils/docker-utils.sh"
+source "${APP_ROOT}/scripts/lib/utils/wait-utils.sh"
+source "${APP_ROOT}/scripts/lib/utils/format.sh"
 
 # Helper function for formatting status
 format_status() {
@@ -462,3 +462,229 @@ EOF
 }
 
 export -f autogen_inject
+
+# ==============================================================================
+# v2.0 Universal Contract Wrapper Functions
+# ==============================================================================
+
+# Install/Uninstall handlers
+autogen::install::execute() {
+    autogen_install "$@"
+}
+
+autogen::install::uninstall() {
+    log::header "Uninstalling AutoGen Studio"
+    
+    # Stop if running
+    if docker ps --format "{{.Names}}" | grep -q "^${AUTOGEN_NAME}$"; then
+        autogen_stop
+    fi
+    
+    # Remove Docker images
+    docker rmi "${AUTOGEN_IMAGE}" "${AUTOGEN_FALLBACK_IMAGE}" 2>/dev/null || true
+    
+    # Remove data directory (with confirmation)
+    if [[ -d "${AUTOGEN_DATA_DIR}" ]]; then
+        log::warning "Remove data directory ${AUTOGEN_DATA_DIR}? [y/N]"
+        read -r response
+        if [[ "${response,,}" == "y" ]]; then
+            rm -rf "${AUTOGEN_DATA_DIR}"
+            log::success "Data directory removed"
+        fi
+    fi
+    
+    log::success "AutoGen Studio uninstalled"
+}
+
+# Docker lifecycle handlers  
+autogen::docker::start() {
+    autogen_start "$@"
+}
+
+autogen::docker::stop() {
+    autogen_stop "$@"
+}
+
+autogen::docker::restart() {
+    autogen_stop "$@" && autogen_start "$@"
+}
+
+autogen::docker::logs() {
+    if docker ps --format "{{.Names}}" | grep -q "^${AUTOGEN_NAME}$"; then
+        docker logs "${AUTOGEN_NAME}" "$@"
+    else
+        log::error "AutoGen Studio container is not running"
+        return 1
+    fi
+}
+
+# Status and test handlers
+autogen::status() {
+    autogen_status "$@"
+}
+
+autogen::status::check() {
+    # Smoke test - basic health check
+    log::header "AutoGen Studio Smoke Test"
+    
+    # Check if installed
+    if ! docker images --format "{{.Repository}}:{{.Tag}}" | grep -qE "(autogen-studio|microsoft/autogen)"; then
+        log::error "AutoGen Studio is not installed"
+        return 1
+    fi
+    
+    # Check if running
+    if ! docker ps --format "{{.Names}}" | grep -q "^${AUTOGEN_NAME}$"; then
+        log::warning "AutoGen Studio is not running"
+        return 0  # Not an error for smoke test
+    fi
+    
+    # Check if responding
+    if curl -s -f "http://localhost:${AUTOGEN_PORT}" > /dev/null 2>&1; then
+        log::success "AutoGen Studio is healthy"
+        return 0
+    else
+        log::error "AutoGen Studio is not responding"
+        return 1
+    fi
+}
+
+# Content handlers for business functionality
+autogen::content::add() {
+    local type="${1:-agent}"
+    local name="${2:-}"
+    
+    case "${type}" in
+        agent)
+            if [[ -z "${name}" ]]; then
+                log::error "Agent name is required. Usage: content add agent <name> [type] [message]"
+                return 1
+            fi
+            autogen_create_agent "${name}" "${3:-assistant}" "${4:-You are a helpful AI assistant.}"
+            ;;
+        skill)
+            if [[ -z "${name}" ]]; then
+                log::error "Skill name is required. Usage: content add skill <name> [code]"
+                return 1
+            fi
+            autogen_create_skill "${name}" "${3:-}"
+            ;;
+        *)
+            log::error "Invalid type. Use 'agent' or 'skill'"
+            return 1
+            ;;
+    esac
+}
+
+autogen::content::list() {
+    local type="${1:-all}"
+    
+    case "${type}" in
+        agent|agents)
+            autogen_list_agents
+            ;;
+        skill|skills)
+            autogen_list_skills
+            ;;
+        all|*)
+            autogen_list_agents
+            echo ""
+            autogen_list_skills
+            ;;
+    esac
+}
+
+autogen::content::get() {
+    local type="${1}"
+    local name="${2}"
+    
+    if [[ -z "${type}" || -z "${name}" ]]; then
+        log::error "Usage: content get <agent|skill> <name>"
+        return 1
+    fi
+    
+    case "${type}" in
+        agent)
+            local agent_file="${AUTOGEN_AGENTS_DIR}/${name}.json"
+            if [[ -f "${agent_file}" ]]; then
+                cat "${agent_file}"
+            else
+                log::error "Agent '${name}' not found"
+                return 1
+            fi
+            ;;
+        skill)
+            local skill_file="${AUTOGEN_SKILLS_DIR}/${name}.py"
+            if [[ -f "${skill_file}" ]]; then
+                cat "${skill_file}"
+            else
+                log::error "Skill '${name}' not found"
+                return 1
+            fi
+            ;;
+        *)
+            log::error "Invalid type. Use 'agent' or 'skill'"
+            return 1
+            ;;
+    esac
+}
+
+autogen::content::remove() {
+    local type="${1}"
+    local name="${2}"
+    
+    if [[ -z "${type}" || -z "${name}" ]]; then
+        log::error "Usage: content remove <agent|skill> <name>"
+        return 1
+    fi
+    
+    case "${type}" in
+        agent)
+            local agent_file="${AUTOGEN_AGENTS_DIR}/${name}.json"
+            if [[ -f "${agent_file}" ]]; then
+                rm "${agent_file}"
+                log::success "Agent '${name}' removed"
+            else
+                log::error "Agent '${name}' not found"
+                return 1
+            fi
+            ;;
+        skill)
+            local skill_file="${AUTOGEN_SKILLS_DIR}/${name}.py"
+            if [[ -f "${skill_file}" ]]; then
+                rm "${skill_file}"
+                log::success "Skill '${name}' removed"
+            else
+                log::error "Skill '${name}' not found"
+                return 1
+            fi
+            ;;
+        *)
+            log::error "Invalid type. Use 'agent' or 'skill'"
+            return 1
+            ;;
+    esac
+}
+
+autogen::content::execute() {
+    # Business functionality - execute agents/workflows
+    log::error "Content execution not yet implemented for AutoGen Studio"
+    log::info "Use the web UI at http://localhost:${AUTOGEN_PORT} to run agent conversations"
+    return 1
+}
+
+# Export all v2.0 wrapper functions
+export -f autogen::install::execute
+export -f autogen::install::uninstall
+export -f autogen::docker::start
+export -f autogen::docker::stop
+export -f autogen::docker::restart
+export -f autogen::docker::logs
+export -f autogen::status
+export -f autogen::status::check
+export -f autogen::content::add
+export -f autogen::content::list
+export -f autogen::content::get
+export -f autogen::content::remove
+export -f autogen::content::execute
+EOF < /dev/null

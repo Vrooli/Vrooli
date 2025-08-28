@@ -7,9 +7,9 @@
     "displayName": "Enterprise Image Generation Pipeline",
     "description": "Enterprise-grade AI image generation platform with voice briefings, multi-brand management, and quality control",
     "version": "1.0.0",
-    "type": "business-application",
-    "category": "creative-tools",
     "tags": [
+      "business-application",
+      "creative-tools",
       "visual-generation",
       "voice-enabled",
       "enterprise-ready",
@@ -18,13 +18,20 @@
       "high-revenue-potential",
       "brand-management",
       "quality-control",
-      "comfyui-workflows"
+      "comfyui-workflows",
+      "go-api",
+      "n8n-workflows",
+      "windmill-apps",
+      "postgres-storage",
+      "qdrant-vectors",
+      "minio-storage",
+      "ollama-ai"
     ]
   },
   "ports": {
     "api": {
       "env_var": "SERVICE_PORT",
-      "range": "8090-8999",
+      "range": "24000-24249",
       "fallback": "auto",
       "description": "Image generation API port"
     }
@@ -41,7 +48,10 @@
             "type": "workflow"
           }
         ],
-        "sharedWorkflows": ["ollama", "embedding-generator"]
+        "sharedWorkflows": [
+          "ollama",
+          "embedding-generator"
+        ]
       },
       "windmill": {
         "type": "windmill",

@@ -45,7 +45,7 @@ EOF
     
     # Port registry is optional - skip if causes issues
     if [[ -f "${APP_ROOT}/scripts/resources/port_registry.sh" ]]; then
-        source "${APP_ROOT}/scripts/resources/port_registry.sh" 2>/dev/null || true
+        source "${APP_ROOT}/scripts/resources/port_registry.sh"
         
         # Register our port if not already registered
         if type port_registry::is_registered &>/dev/null; then
@@ -306,11 +306,52 @@ blender::list_scripts() {
     return 0
 }
 
+# Uninstall Blender
+blender::uninstall() {
+    echo "[INFO] Uninstalling Blender..."
+    
+    # Stop if running
+    if blender::is_running; then
+        blender::stop
+    fi
+    
+    # Remove Docker resources if using Docker
+    if docker inspect "$BLENDER_CONTAINER_NAME" &>/dev/null; then
+        echo "[INFO] Removing Docker container and image..."
+        docker rm -f "$BLENDER_CONTAINER_NAME" 2>/dev/null || true
+        docker rmi "vrooli/blender:latest" 2>/dev/null || true
+    fi
+    
+    # Remove data directory (but preserve user scripts in backup)
+    if [[ -d "$BLENDER_DATA_DIR" ]]; then
+        echo "[INFO] Backing up user scripts..."
+        local backup_dir="${BLENDER_DATA_DIR}_backup_$(date +%Y%m%d_%H%M%S)"
+        if [[ -d "${BLENDER_DATA_DIR}/scripts" ]]; then
+            mkdir -p "$backup_dir"
+            cp -r "${BLENDER_DATA_DIR}/scripts" "$backup_dir/" || true
+            echo "[INFO] Scripts backed up to: $backup_dir"
+        fi
+        
+        echo "[INFO] Removing Blender data directory..."
+        rm -rf "$BLENDER_DATA_DIR"
+    fi
+    
+    # Remove native installation if it exists (optional, user may want to keep)
+    if command -v blender &>/dev/null; then
+        echo "[INFO] Native Blender installation detected but preserved"
+        echo "[INFO] To remove: sudo apt-get remove blender (Ubuntu/Debian)"
+    fi
+    
+    echo "[SUCCESS] Blender uninstalled successfully"
+    return 0
+}
+
 # Export functions
 export -f blender::init
 export -f blender::is_installed
 export -f blender::is_running
 export -f blender::install
+export -f blender::uninstall
 export -f blender::start
 export -f blender::stop
 export -f blender::run_script

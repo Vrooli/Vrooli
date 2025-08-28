@@ -67,7 +67,7 @@ The scenario now properly uses environment variables for all services:
 
 ### Setup Phase
 1. Base system setup
-2. Resource data injection via `scripts/resources/injection/engine.sh`
+2. Resource data population via `scripts/resources/populate/populate.sh`
 3. CLI installation
 4. Go API binary compilation
 5. Service URL display

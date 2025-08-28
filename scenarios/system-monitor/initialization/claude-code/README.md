@@ -8,7 +8,7 @@ The prompt file (`anomaly-check.md`) is **hot-reloadable**, meaning you can edit
 
 ## File Location
 - **Source**: `scenarios/system-monitor/initialization/claude-code/anomaly-check.md`
-- **Generated App**: `/home/matthalloran8/generated-apps/system-monitor/initialization/claude-code/anomaly-check.md`
+- **Generated App**: `${HOME}/generated-apps/system-monitor/initialization/claude-code/anomaly-check.md`
 
 Both locations are checked by the API, so you can edit either file.
 

@@ -1,110 +1,74 @@
-#\!/bin/bash
+#!/usr/bin/env bash
+################################################################################
+# AutoGPT Resource CLI - v2.0 Universal Contract Compliant
+# Autonomous AI agent framework for task automation
+################################################################################
 
 set -euo pipefail
 
-# Get script directory (resolving symlinks for installed CLI)
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+# Handle symlinks for installed CLI
 if [[ -L "${BASH_SOURCE[0]}" ]]; then
     AUTOGPT_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
-else
-    AUTOGPT_CLI_SCRIPT="${BASH_SOURCE[0]}"
+    APP_ROOT="$(builtin cd "${AUTOGPT_CLI_SCRIPT%/*}/../.." && builtin pwd)"
 fi
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
-SCRIPT_DIR="${APP_ROOT}/resources/autogpt"
+AUTOGPT_CLI_DIR="${APP_ROOT}/resources/autogpt"
 
-# Source the var utility first for consistent variable access
-source "$SCRIPT_DIR/../../../lib/utils/var.sh"
+# Source required components
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${var_LOG_FILE}"
+source "${var_RESOURCES_COMMON_FILE}"
+source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 
-# Source library functions
-source "$SCRIPT_DIR/lib/common.sh"
-source "$SCRIPT_DIR/lib/install.sh"
-source "$SCRIPT_DIR/lib/start.sh"
-source "$SCRIPT_DIR/lib/stop.sh"
-source "$SCRIPT_DIR/lib/status.sh"
-source "$SCRIPT_DIR/lib/inject.sh"
+# Source AutoGPT libraries
+for lib in common install start stop status inject; do
+    [[ -f "${AUTOGPT_CLI_DIR}/lib/${lib}.sh" ]] && source "${AUTOGPT_CLI_DIR}/lib/${lib}.sh"
+done
 
-# CLI framework is in resources/lib not scripts/lib
-source "$SCRIPT_DIR/../../lib/cli-command-framework.sh"
+# Initialize CLI framework in v2.0 mode
+cli::init "autogpt" "Autonomous AI agent framework for task automation" "v2"
 
-# Define commands for the CLI framework
-declare -A COMMANDS=(
-    ["install"]="autogpt_install"
-    ["uninstall"]="autogpt_uninstall"
-    ["start"]="autogpt_start"
-    ["stop"]="autogpt_stop"
-    ["restart"]="autogpt_restart"
-    ["status"]="autogpt_status"
-    ["inject"]="autogpt_inject"
-    ["create-agent"]="autogpt_create_agent"
-    ["list-agents"]="autogpt_list_agents"
-    ["run-agent"]="autogpt_run_agent"
-    ["test"]="autogpt_test"
-    ["help"]="autogpt_help"
-)
+# Required manage handlers
+CLI_COMMAND_HANDLERS["manage::install"]="autogpt_install"
+CLI_COMMAND_HANDLERS["manage::uninstall"]="autogpt_uninstall"
+CLI_COMMAND_HANDLERS["manage::start"]="autogpt_start"
+CLI_COMMAND_HANDLERS["manage::stop"]="autogpt_stop"
+CLI_COMMAND_HANDLERS["manage::restart"]="cli::framework::restart"
 
-# Help function
-autogpt_help() {
-    cat << 'HELP_EOF'
-AutoGPT Resource CLI
-
-Usage: resource-autogpt [command] [options]
-
-Commands:
-  install              Install AutoGPT
-  uninstall            Uninstall AutoGPT
-  start                Start AutoGPT service
-  stop                 Stop AutoGPT service
-  restart              Restart AutoGPT service
-  status               Show AutoGPT status
-  inject [file]        Inject an agent config or tool
-  create-agent         Create a new agent
-  list-agents          List available agents
-  run-agent [name]     Run a specific agent
-  test                 Run resource tests
-  help                 Show this help message
-
-Options:
-  --format json        Output in JSON format (for status)
-  --verbose            Verbose output
-
-Examples:
-  resource-autogpt install
-  resource-autogpt status --format json
-  resource-autogpt create-agent "researcher" "Research AI trends"
-  resource-autogpt run-agent researcher
-  resource-autogpt inject agents/market-analyst.yaml
-
-HELP_EOF
+# Test handlers - smoke test checks health
+autogpt::test::smoke() {
+    autogpt_container_running && curl -s "http://localhost:${AUTOGPT_PORT_API}/health" >/dev/null 2>&1
 }
+CLI_COMMAND_HANDLERS["test::smoke"]="autogpt::test::smoke"
 
-# Restart function
-autogpt_restart() {
-    autogpt_stop
-    autogpt_start
+# Content handlers - agent management functionality
+CLI_COMMAND_HANDLERS["content::add"]="autogpt_inject"
+CLI_COMMAND_HANDLERS["content::list"]="autogpt_list_agents"
+CLI_COMMAND_HANDLERS["content::execute"]="autogpt_run_agent"
+
+# Get agent details
+autogpt::content::get() {
+    [[ -n "${1:-}" ]] && [[ -f "$AUTOGPT_AGENTS_DIR/${1}.yaml" ]] && cat "$AUTOGPT_AGENTS_DIR/${1}.yaml"
 }
+CLI_COMMAND_HANDLERS["content::get"]="autogpt::content::get"
 
-# Test function (placeholder for now)
-autogpt_test() {
-    echo "[INFO]    Running AutoGPT tests..."
-    
-    # Create test timestamp
-    touch "$AUTOGPT_LOGS_DIR/.last_test" 2>/dev/null || true
-    
-    echo "[SUCCESS] Tests completed"
-    return 0
+# Remove agent
+autogpt::content::remove() {
+    [[ -n "${1:-}" ]] && rm -f "$AUTOGPT_AGENTS_DIR/${1}.yaml"
 }
+CLI_COMMAND_HANDLERS["content::remove"]="autogpt::content::remove"
 
-# Main execution
-main() {
-    local command="${1:-help}"
-    shift || true
-    
-    if [[ -n "${COMMANDS[$command]:-}" ]]; then
-        "${COMMANDS[$command]}" "$@"
-    else
-        echo "Unknown command: $command" >&2
-        autogpt_help
-        exit 1
-    fi
+# Required information commands
+cli::register_command "status" "Show detailed resource status" "autogpt_status"
+
+# Logs handler
+autogpt::logs() {
+    autogpt_container_exists && docker logs "${1:---tail=100}" "$AUTOGPT_CONTAINER_NAME"
 }
+cli::register_command "logs" "Show AutoGPT logs" "autogpt::logs"
 
-main "$@"
+# AutoGPT-specific agent management
+cli::register_subcommand "content" "create-agent" "Create a new AI agent" "autogpt_create_agent" "modifies-system"
+
+# Dispatch if run directly
+[[ "${BASH_SOURCE[0]}" == "${0}" ]] && cli::dispatch "$@"

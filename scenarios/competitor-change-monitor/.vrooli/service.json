@@ -7,29 +7,34 @@
     "displayName": "Competitor Change Monitor",
     "description": "Track competitor websites and repositories for relevant changes with AI-powered analysis and alerting",
     "version": "1.0.0",
-    "type": "monitoring-application",
-    "category": "business-intelligence",
     "tags": [
+      "monitoring-application",
+      "business-intelligence",
       "monitoring",
       "competitor-analysis",
       "change-detection",
       "web-scraping",
       "github-tracking",
-      "business-intelligence",
       "alerts",
-      "javascript-ui"
+      "javascript-ui",
+      "nodejs-ui",
+      "go-api",
+      "n8n-workflows",
+      "postgres-storage",
+      "redis-cache",
+      "ollama-ai"
     ]
   },
   "ports": {
     "api": {
       "env_var": "SERVICE_PORT",
-      "range": "8140-8149",
+      "range": "23000-23249",
       "fallback": "auto",
       "description": "Competitor Monitor API port"
     },
     "ui": {
       "env_var": "UI_PORT",
-      "range": "5240-5249",
+      "range": "31000-31249",
       "fallback": "auto",
       "description": "Competitor Monitor UI port"
     }

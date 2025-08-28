@@ -7,28 +7,35 @@
     "displayName": "Mind Maps",
     "description": "AI-enabled mind mapping tool for visual organization and semantic search of ideas and knowledge",
     "version": "1.0.0",
-    "type": "foundation",
-    "category": "knowledge-management",
     "tags": [
+      "foundation",
+      "knowledge-management",
       "mind-maps",
       "knowledge-graph",
       "semantic-search",
       "visual-organization",
       "ai-organization",
       "data-structuring",
-      "cross-scenario-tool"
+      "cross-scenario-tool",
+      "nodejs-ui",
+      "go-api",
+      "n8n-workflows",
+      "postgres-storage",
+      "redis-cache",
+      "qdrant-vectors",
+      "ollama-ai"
     ]
   },
   "ports": {
     "api": {
       "env_var": "SERVICE_PORT",
-      "range": "8100-8199",
+      "range": "25000-25249",
       "fallback": "auto",
       "description": "Main API port for mind maps service"
     },
     "ui": {
-      "env_var": "UI_PORT", 
-      "range": "3100-3199",
+      "env_var": "UI_PORT",
+      "range": "32250-32499",
       "fallback": "auto",
       "description": "UI server port"
     }

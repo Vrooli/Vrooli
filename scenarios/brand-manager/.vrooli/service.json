@@ -7,9 +7,9 @@
     "displayName": "Brand Manager",
     "description": "AI-powered brand generation and automated app integration platform",
     "version": "2.0.0",
-    "type": "business-application",
-    "category": "marketing-tools",
     "tags": [
+      "business-application",
+      "marketing-tools",
       "branding",
       "ai-generation",
       "logo-design",
@@ -18,13 +18,19 @@
       "automation",
       "windmill-ui",
       "comfyui",
-      "claude-code"
+      "claude-code",
+      "go-api",
+      "n8n-workflows",
+      "windmill-apps",
+      "postgres-storage",
+      "minio-storage",
+      "ollama-ai"
     ]
   },
   "ports": {
     "api": {
       "env_var": "SERVICE_PORT",
-      "range": "8090-8999",
+      "range": "22250-22499",
       "fallback": "auto",
       "description": "Brand Manager coordination API port"
     }
@@ -130,7 +136,7 @@
         "purpose": "Asset storage for logos, icons, exports, and backups",
         "buckets": [
           "brand-logos",
-          "brand-icons", 
+          "brand-icons",
           "brand-exports",
           "brand-templates",
           "app-backups"

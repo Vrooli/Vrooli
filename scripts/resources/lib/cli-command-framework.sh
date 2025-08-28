@@ -163,7 +163,7 @@ cli::_handle_help() {
     local commands=($(printf '%s\n' "${!CLI_COMMANDS[@]}" | sort))
     
     for cmd in "${commands[@]}"; do
-        local desc="${CLI_COMMAND_DESCRIPTIONS[$cmd]}"
+        local desc="${CLI_COMMAND_DESCRIPTIONS[$cmd]:-No description available}"
         local flags="${CLI_COMMAND_FLAGS[$cmd]:-}"
         
         printf "  %-12s %s" "$cmd" "$desc"

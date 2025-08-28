@@ -86,7 +86,7 @@ n8n::check_health() {
         return 0
     else
         log::error "n8n is not accessible for data injection"
-        log::info "Ensure n8n is running: ./resources/n8n/manage.sh --action start"
+        log::info "Ensure n8n is running: resource-n8n manage start"
         return 1
     fi
 }
@@ -258,7 +258,7 @@ n8n::create_credential() {
     if [[ -z "$api_key" ]]; then
         log::error "N8N_API_KEY required for credential creation"
         log::info "Create an API key in n8n and save it with:"
-        log::info "  ./manage.sh --action save-api-key --api-key YOUR_KEY"
+        log::info "  resource-n8n manage save-api-key --api-key YOUR_KEY"
         return 1
     fi
     

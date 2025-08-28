@@ -5,7 +5,7 @@ set -euo pipefail
 # Source framework utilities if available
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
 SCRIPT_DIR="${APP_ROOT}/scenarios/scenario-generator-v1"
-FRAMEWORK_DIR="${APP_ROOT}/scenarios/framework"
+FRAMEWORK_DIR="${APP_ROOT}/scripts/scenarios/validation"
 
 # Source custom handler for print functions
 if [[ -f "$FRAMEWORK_DIR/handlers/custom.sh" ]]; then

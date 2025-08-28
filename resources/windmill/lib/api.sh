@@ -169,7 +169,7 @@ windmill::list_workspaces() {
     if [[ -z "$token" ]]; then
         log::error "API token is required"
         log::info "Get a token from: $WINDMILL_BASE_URL (User Settings → Tokens)"
-        log::info "Or save it with: $0 --action save-api-key --api-key YOUR_TOKEN"
+        log::info "Or save it with: resource-windmill content add --type api-key --value YOUR_TOKEN"
         return 1
     fi
     
@@ -206,7 +206,7 @@ windmill::get_workers_api() {
     
     if [[ -z "$token" ]]; then
         log::warn "API token not provided, skipping worker API check"
-        log::info "Save token with: $0 --action save-api-key --api-key YOUR_TOKEN"
+        log::info "Save token with: resource-windmill content add --type api-key --value YOUR_TOKEN"
         return 1
     fi
     
@@ -458,7 +458,7 @@ windmill::api_status() {
         else
             echo
             log::info "💡 To test authenticated endpoints:"
-            log::info "Save token with: $0 --action save-api-key --api-key YOUR_TOKEN"
+            log::info "Save token with: resource-windmill content add --type api-key --value YOUR_TOKEN"
             echo
             windmill::create_api_token_instructions
         fi

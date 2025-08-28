@@ -14,7 +14,7 @@ source "${var_TRASH_FILE}"
 source "${_ENHANCED_TEST_LIB_DIR}/integration-test-lib.sh"
 
 # Load fixture loader for optional fixture testing
-FIXTURE_LOADER_PATH="$var_SCRIPTS_TEST_DIR/fixtures/fixture-loader.bash"
+FIXTURE_LOADER_PATH="$var_TEST_DIR/fixtures/fixture-loader.bash"
 if [[ -f "$FIXTURE_LOADER_PATH" ]]; then
     # shellcheck disable=SC1091
     source "$FIXTURE_LOADER_PATH"

@@ -7,21 +7,28 @@
     "displayName": "Campaign Content Studio",
     "description": "AI-powered content studio for automated campaign creation, content generation, and multi-channel marketing",
     "version": "1.0.0",
-    "type": "business-application",
-    "category": "business",
     "tags": [
+      "business-application",
+      "business",
       "content-generation",
       "campaign-management",
       "marketing-automation",
       "document-processing",
       "windmill-ui",
-      "ai-content"
+      "ai-content",
+      "go-api",
+      "n8n-workflows",
+      "windmill-apps",
+      "postgres-storage",
+      "qdrant-vectors",
+      "minio-storage",
+      "ollama-ai"
     ]
   },
   "ports": {
     "api": {
       "env_var": "SERVICE_PORT",
-      "range": "8090-8999",
+      "range": "22500-22749",
       "fallback": "auto",
       "description": "Campaign content studio API port"
     }

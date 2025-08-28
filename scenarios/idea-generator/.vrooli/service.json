@@ -7,9 +7,9 @@
     "displayName": "Idea Generator",
     "description": "AI-powered idea generation platform with document processing, semantic search, and agent refinement",
     "version": "1.0.0",
-    "type": "business-application",
-    "category": "business-applications",
     "tags": [
+      "business-application",
+      "business-applications",
       "ideation",
       "brainstorming",
       "ai",
@@ -18,13 +18,21 @@
       "document-processing",
       "semantic-search",
       "windmill-ui",
-      "multi-agent"
+      "multi-agent",
+      "go-api",
+      "n8n-workflows",
+      "windmill-apps",
+      "postgres-storage",
+      "redis-cache",
+      "qdrant-vectors",
+      "minio-storage",
+      "ollama-ai"
     ]
   },
   "ports": {
     "api": {
       "env_var": "SERVICE_PORT",
-      "range": "8090-8999",
+      "range": "23750-23999",
       "fallback": "auto",
       "description": "Idea generator coordination API port"
     }

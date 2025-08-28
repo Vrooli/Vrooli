@@ -48,6 +48,6 @@ minio::messages::init() {
     
     # Help messages
     [[ -z "${MSG_HELP_ACCESS:-}" ]] && readonly MSG_HELP_ACCESS="Access MinIO Console at ${MINIO_CONSOLE_URL:-http://localhost:9001}"
-    [[ -z "${MSG_HELP_CREDENTIALS:-}" ]] && readonly MSG_HELP_CREDENTIALS="Use 'manage.sh --action show-credentials' to view access credentials"
+    [[ -z "${MSG_HELP_CREDENTIALS:-}" ]] && readonly MSG_HELP_CREDENTIALS="Use 'resource-minio credentials' to view access credentials"
     [[ -z "${MSG_HELP_PORT_CONFLICT:-}" ]] && readonly MSG_HELP_PORT_CONFLICT="To use a different port, set MINIO_CUSTOM_PORT environment variable"
 }

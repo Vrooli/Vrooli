@@ -446,7 +446,7 @@ func (bm *BrandManagerService) GetServiceURLs(w http.ResponseWriter, r *http.Req
 // getResourcePort queries the port registry for a resource's port
 func getResourcePort(resourceName string) string {
 	cmd := exec.Command("bash", "-c", fmt.Sprintf(
-		"source /home/matthalloran8/Vrooli/scripts/resources/port-registry.sh && resources::get_default_port %s",
+		"source ${VROOLI_ROOT:-${HOME}/Vrooli}/scripts/resources/port-registry.sh && resources::get_default_port %s",
 		resourceName,
 	))
 	output, err := cmd.Output()

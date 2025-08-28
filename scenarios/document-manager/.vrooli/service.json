@@ -7,22 +7,29 @@
     "displayName": "Document Manager",
     "description": "AI-powered documentation management SaaS platform with comprehensive analysis, improvement suggestions, and automated quality maintenance",
     "version": "2.0.0",
-    "type": "business-application",
-    "category": "productivity",
     "tags": [
+      "business-application",
+      "productivity",
       "documentation",
       "ai",
       "automation",
       "saas",
       "quality-assurance",
       "content-analysis",
-      "windmill-ui"
+      "windmill-ui",
+      "go-api",
+      "n8n-workflows",
+      "windmill-apps",
+      "postgres-storage",
+      "redis-cache",
+      "qdrant-vectors",
+      "ollama-ai"
     ]
   },
   "ports": {
     "api": {
       "env_var": "SERVICE_PORT",
-      "range": "8090-8999",
+      "range": "23250-23499",
       "fallback": "auto",
       "description": "Document manager coordination API port"
     }

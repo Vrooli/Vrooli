@@ -85,7 +85,7 @@ windmill::check_system_requirements() {
 #######################################
 windmill::generate_env_file() {
     local env_file="${1:-$WINDMILL_ENV_FILE}"
-    local template_file="${var_SCRIPTS_RESOURCES_DIR}/automation/windmill/docker/.env.template"
+    local template_file="${var_RESOURCES_DIR}/windmill/docker/.env.template"
     
     log::info "Generating environment file: $env_file"
     
@@ -311,7 +311,7 @@ windmill::create_directories() {
     local dirs=(
         "$WINDMILL_DATA_DIR"
         "$WINDMILL_BACKUP_DIR"
-        "${WINDMILL_ENV_FILE%/*"
+        "${WINDMILL_ENV_FILE%/*}"
     )
     
     for dir in "${dirs[@]}"; do

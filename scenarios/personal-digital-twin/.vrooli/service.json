@@ -7,28 +7,33 @@
     "displayName": "Personal Digital Twin",
     "description": "AI-powered personal assistant that learns your communication style, preferences, and knowledge to act as your digital representative",
     "version": "1.0.0",
-    "type": "personal-assistant",
-    "category": "ai-assistants",
     "tags": [
-      "digital-twin",
       "personal-assistant",
+      "ai-assistants",
+      "digital-twin",
       "ai-persona",
       "machine-learning",
       "chat-interface",
       "voice-cloning",
-      "knowledge-base"
+      "knowledge-base",
+      "nodejs-ui",
+      "go-api",
+      "n8n-workflows",
+      "postgres-storage",
+      "qdrant-vectors",
+      "ollama-ai"
     ]
   },
   "ports": {
     "api": {
       "env_var": "SERVICE_PORT",
-      "range": "8200-8299",
+      "range": "26500-26749",
       "fallback": "auto",
       "description": "Main API port for digital twin service"
     },
     "ui": {
       "env_var": "UI_PORT",
-      "range": "3200-3299",
+      "range": "33750-33999",
       "fallback": "auto",
       "description": "Web UI port"
     }

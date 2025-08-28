@@ -1,110 +1,72 @@
-#!/bin/bash
-
-# AutoGen Studio CLI
+#!/usr/bin/env bash
+################################################################################
+# AutoGen Studio Resource CLI - v2.0 Universal Contract Compliant
+# 
 # Multi-agent conversation framework for complex task orchestration
+#
+# Usage:
+#   resource-autogen-studio <command> [options]
+#   resource-autogen-studio <group> <subcommand> [options]
+#
+################################################################################
 
 set -euo pipefail
 
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
 # Handle symlinks for installed CLI
 if [[ -L "${BASH_SOURCE[0]}" ]]; then
-    RESOURCE_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
-    APP_ROOT="$(builtin cd "${RESOURCE_CLI_SCRIPT%/*}/../.." && builtin pwd)"
-else
-    APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+    AUTOGEN_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
+    # Recalculate APP_ROOT from resolved symlink location
+    APP_ROOT="$(builtin cd "${AUTOGEN_CLI_SCRIPT%/*}/../.." && builtin pwd)"
 fi
-SCRIPT_DIR="${APP_ROOT}/resources/autogen-studio"
+AUTOGEN_CLI_DIR="${APP_ROOT}/resources/autogen-studio"
 
-# Source core functions
-source "${SCRIPT_DIR}/lib/core.sh"
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}"
+# shellcheck disable=SC1091
+source "${var_RESOURCES_COMMON_FILE}"
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
+# shellcheck disable=SC1091
+source "${AUTOGEN_CLI_DIR}/config/defaults.sh"
 
-# Main CLI handler
-main() {
-    local command="${1:-}"
-    shift || true
-    
-    case "${command}" in
-        install)
-            autogen_install "$@"
-            ;;
-        start)
-            autogen_start "$@"
-            ;;
-        stop)
-            autogen_stop "$@"
-            ;;
-        restart)
-            autogen_stop "$@" && autogen_start "$@"
-            ;;
-        status)
-            # Parse format flag
-            local format="text"
-            while [[ $# -gt 0 ]]; do
-                case "$1" in
-                    --format)
-                        format="${2:-text}"
-                        shift 2
-                        ;;
-                    *)
-                        shift
-                        ;;
-                esac
-            done
-            autogen_status "${format}"
-            ;;
-        create-agent)
-            autogen_create_agent "$@"
-            ;;
-        create-skill)
-            autogen_create_skill "$@"
-            ;;
-        list-agents)
-            autogen_list_agents "$@"
-            ;;
-        list-skills)
-            autogen_list_skills "$@"
-            ;;
-        inject)
-            autogen_inject "$@"
-            ;;
-        help|--help|-h)
-            cat << EOF
-AutoGen Studio Resource CLI
+# Source AutoGen Studio libraries
+for lib in core docker install status content test; do
+    lib_file="${AUTOGEN_CLI_DIR}/lib/${lib}.sh"
+    if [[ -f "$lib_file" ]]; then
+        # shellcheck disable=SC1090
+        source "$lib_file" 2>/dev/null || true
+    fi
+done
 
-Usage: $(basename "$0") [COMMAND] [OPTIONS]
+# Initialize CLI framework in v2.0 mode (auto-creates manage/test/content groups)
+cli::init "autogen-studio" "AutoGen Studio multi-agent conversation framework" "v2"
 
-Commands:
-    install              Install AutoGen Studio
-    start                Start AutoGen Studio service
-    stop                 Stop AutoGen Studio service
-    restart              Restart AutoGen Studio service
-    status [--format]    Show service status (text/json)
-    create-agent NAME    Create a new agent
-    create-skill NAME    Create a new skill
-    list-agents          List available agents
-    list-skills          List available skills
-    inject FILE          Inject agent or skill from file
-    help                 Show this help message
+# Override default handlers to point directly to autogen implementations
+CLI_COMMAND_HANDLERS["manage::install"]="autogen::install::execute"
+CLI_COMMAND_HANDLERS["manage::uninstall"]="autogen::install::uninstall"
+CLI_COMMAND_HANDLERS["manage::start"]="autogen::docker::start"  
+CLI_COMMAND_HANDLERS["manage::stop"]="autogen::docker::stop"
+CLI_COMMAND_HANDLERS["manage::restart"]="autogen::docker::restart"
+CLI_COMMAND_HANDLERS["test::smoke"]="autogen::status::check"
 
-Examples:
-    $(basename "$0") install
-    $(basename "$0") start
-    $(basename "$0") status --format json
-    $(basename "$0") create-agent researcher assistant "You are a research assistant"
-    $(basename "$0") create-skill data_processor
+# Override content handlers for AutoGen-specific functionality
+CLI_COMMAND_HANDLERS["content::add"]="autogen::content::add"
+CLI_COMMAND_HANDLERS["content::list"]="autogen::content::list" 
+CLI_COMMAND_HANDLERS["content::get"]="autogen::content::get"
+CLI_COMMAND_HANDLERS["content::remove"]="autogen::content::remove"
+CLI_COMMAND_HANDLERS["content::execute"]="autogen::content::execute"
 
-AutoGen Studio UI will be available at: http://localhost:8085
-EOF
-            ;;
-        *)
-            if [[ -z "${command}" ]]; then
-                echo "ERROR:" "No command provided. Use 'help' for usage information."
-            else
-                echo "ERROR:" "Unknown command: ${command}"
-            fi
-            exit 1
-            ;;
-    esac
-}
+# AutoGen-specific functionality is handled through standard content commands
+# (inject functionality has been moved to content::add for v2.0 compliance)
 
-# Run main function
-main "$@"
+# Additional information commands
+cli::register_command "status" "Show detailed resource status" "autogen::status"
+cli::register_command "logs" "Show AutoGen Studio logs" "autogen::docker::logs"
+
+# Only execute if script is run directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    cli::dispatch "$@"
+fi

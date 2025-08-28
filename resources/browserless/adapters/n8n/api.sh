@@ -24,8 +24,8 @@ source "${ADAPTERS_DIR}/common.sh"
 
 # Source n8n-specific implementations
 source "${N8N_ADAPTER_DIR}/workflows.sh"
-source "${N8N_ADAPTER_DIR}/credentials.sh" 2>/dev/null || true  # Optional, will create later
-source "${N8N_ADAPTER_DIR}/selectors.sh" 2>/dev/null || true   # Optional, will create later
+source "${N8N_ADAPTER_DIR}/credentials.sh"  # Optional, will create later
+source "${N8N_ADAPTER_DIR}/selectors.sh"   # Optional, will create later
 
 # Export adapter name for context
 export BROWSERLESS_ADAPTER_NAME="n8n"

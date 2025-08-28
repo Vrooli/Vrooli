@@ -11,7 +11,7 @@ AUTOGPT_PORT_API="${AUTOGPT_PORT_API:-8501}"
 AUTOGPT_PORT_UI="${AUTOGPT_PORT_UI:-8502}"
 
 # Data directories
-AUTOGPT_DATA_DIR="${var_DATA_DIR:-/home/matthalloran8/Vrooli/data}/resources/autogpt"
+AUTOGPT_DATA_DIR="${var_DATA_DIR:-${VROOLI_ROOT:-${HOME}/Vrooli}/data}/resources/autogpt"
 AUTOGPT_AGENTS_DIR="$AUTOGPT_DATA_DIR/agents"
 AUTOGPT_TOOLS_DIR="$AUTOGPT_DATA_DIR/tools"
 AUTOGPT_WORKSPACE_DIR="$AUTOGPT_DATA_DIR/workspace"
