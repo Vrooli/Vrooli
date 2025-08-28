@@ -7,9 +7,18 @@
     "displayName": "Agent Dashboard",
     "description": "Dashboard for managing and monitoring all active agents",
     "version": "1.0.0",
-    "type": "vrooli-helper",
-    "category": "system-management",
-    "tags": ["agents", "monitoring", "orchestration", "dashboard"],
+    "tags": [
+      "vrooli-helper",
+      "system-management",
+      "agents",
+      "monitoring",
+      "orchestration",
+      "dashboard",
+      "nodejs-ui",
+      "go-api",
+      "n8n-workflows",
+      "postgres-storage"
+    ],
     "license": "MIT"
   },
   "resources": {
@@ -65,20 +74,22 @@
         "type": "ollama",
         "enabled": true,
         "required": false,
-        "models": ["llama3.2:3b"]
+        "models": [
+          "llama3.2:3b"
+        ]
       }
     }
   },
   "ports": {
     "ui": {
       "env_var": "UI_PORT",
-      "range": "3004-3019",
+      "range": "30000-30249",
       "fallback": "auto",
       "description": "Agent Dashboard UI port"
     },
     "api": {
       "env_var": "SERVICE_PORT",
-      "range": "3005-3019",
+      "range": "20000-20249",
       "fallback": "auto",
       "description": "Agent Dashboard API port"
     }

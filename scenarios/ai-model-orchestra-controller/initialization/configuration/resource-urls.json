@@ -59,7 +59,7 @@
     }
   },
   "port_registry_info": {
-    "source": "/home/matthalloran8/Vrooli/scripts/resources/port_registry.sh",
+    "source": "${VROOLI_ROOT:-${HOME}/Vrooli}/scripts/resources/port_registry.sh",
     "note": "Ports are managed centrally via port registry to avoid conflicts"
   }
 }

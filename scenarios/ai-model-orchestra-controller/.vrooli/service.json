@@ -7,28 +7,32 @@
     "displayName": "AI Model Orchestra Controller",
     "description": "Intelligent AI model routing and resource management system for optimal performance and cost efficiency",
     "version": "1.0.0",
-    "type": "vrooli-enhancement",
-    "category": "ai-infrastructure",
     "tags": [
+      "vrooli-enhancement",
+      "ai-infrastructure",
       "ai",
-      "orchestration", 
+      "orchestration",
       "load-balancing",
       "resource-management",
       "model-routing",
       "failover-handling",
-      "cost-optimization"
+      "cost-optimization",
+      "api-only",
+      "node-red-flows",
+      "ollama-models",
+      "postgres-storage"
     ]
   },
   "ports": {
     "api": {
       "env_var": "SERVICE_PORT",
-      "range": "8080-8099",
+      "range": "20500-20749",
       "fallback": "auto",
       "description": "Main AI orchestration API port"
     },
     "monitoring": {
-      "env_var": "MONITORING_PORT", 
-      "range": "8100-8199",
+      "env_var": "MONITORING_PORT",
+      "range": "20750-20999",
       "fallback": "auto",
       "description": "Monitoring and metrics endpoint port"
     }
@@ -45,7 +49,7 @@
             "type": "flow"
           },
           {
-            "file": "initialization/workflows/resource-monitor.json", 
+            "file": "initialization/workflows/resource-monitor.json",
             "type": "flow"
           }
         ]
@@ -58,7 +62,7 @@
         "required": true,
         "models": [
           "llama3.2:1b",
-          "llama3.2:3b", 
+          "llama3.2:3b",
           "llama3.2:8b",
           "codellama:7b",
           "nomic-embed-text"
@@ -98,19 +102,37 @@
   "capabilities": {
     "model_selection": {
       "description": "Intelligent model selection based on task requirements and system resources",
-      "features": ["capability-based-routing", "resource-awareness", "performance-optimization"]
+      "features": [
+        "capability-based-routing",
+        "resource-awareness",
+        "performance-optimization"
+      ]
     },
     "load_balancing": {
       "description": "Dynamic load balancing across available AI models",
-      "features": ["round-robin", "least-connections", "resource-based", "failover"]
+      "features": [
+        "round-robin",
+        "least-connections",
+        "resource-based",
+        "failover"
+      ]
     },
     "resource_monitoring": {
       "description": "Real-time monitoring of system resources and model performance",
-      "features": ["memory-tracking", "cpu-monitoring", "response-time-analysis", "health-checks"]
+      "features": [
+        "memory-tracking",
+        "cpu-monitoring",
+        "response-time-analysis",
+        "health-checks"
+      ]
     },
     "cost_optimization": {
       "description": "Automatic cost optimization through intelligent model routing",
-      "features": ["cost-aware-routing", "efficiency-metrics", "usage-analytics"]
+      "features": [
+        "cost-aware-routing",
+        "efficiency-metrics",
+        "usage-analytics"
+      ]
     }
   },
   "environment": {
@@ -131,7 +153,7 @@
       "retries": 3
     },
     {
-      "name": "model_availability", 
+      "name": "model_availability",
       "url": "http://localhost:${SERVICE_PORT}/api/ai/models/status",
       "interval": 60,
       "timeout": 15,
@@ -278,7 +300,7 @@
   "monitoring": {
     "metrics": [
       "requests_per_second",
-      "average_response_time", 
+      "average_response_time",
       "model_selection_accuracy",
       "resource_utilization",
       "failover_rate",
@@ -328,7 +350,7 @@
     ],
     "use_cases": [
       "High-volume AI inference workloads",
-      "Multi-model AI applications", 
+      "Multi-model AI applications",
       "Cost-sensitive AI deployments",
       "Mission-critical AI services",
       "Resource-constrained environments"

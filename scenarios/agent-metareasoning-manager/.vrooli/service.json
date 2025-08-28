@@ -7,22 +7,26 @@
     "displayName": "Agent Metareasoning Manager",
     "description": "Dashboard for managing metareasoning tools (prompts, workflows) that enhance agent decision-making",
     "version": "1.0.0",
-    "type": "vrooli-enhancement",
-    "category": "vrooli-helpers",
     "tags": [
+      "vrooli-enhancement",
+      "vrooli-helpers",
       "metareasoning",
       "decision-support",
       "ai-enhancement",
       "reasoning-patterns",
       "windmill-ui",
       "prompt-management",
-      "workflow-orchestration"
+      "workflow-orchestration",
+      "go-api",
+      "n8n-workflows",
+      "postgres-storage",
+      "qdrant-vectors"
     ]
   },
   "ports": {
     "api": {
       "env_var": "SERVICE_PORT",
-      "range": "8090-8999",
+      "range": "20250-20499",
       "fallback": "auto",
       "description": "Main coordination API port"
     }

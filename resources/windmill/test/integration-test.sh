@@ -13,9 +13,9 @@ APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 # Source shared integration test library (if it exists)
-if [[ -f "${var_SCRIPTS_TEST_DIR}/lib/integration-test-lib.sh" ]]; then
+if [[ -f "${var_TEST_DIR}/lib/integration-test-lib.sh" ]]; then
     # shellcheck disable=SC1091
-    source "${var_SCRIPTS_TEST_DIR}/lib/integration-test-lib.sh"
+    source "${var_TEST_DIR}/lib/integration-test-lib.sh"
 else
     # Simple fallback implementation for basic functions if library doesn't exist
     log_test_result() {

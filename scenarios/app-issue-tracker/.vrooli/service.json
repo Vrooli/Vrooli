@@ -7,22 +7,25 @@
     "displayName": "App Issue Tracker",
     "description": "Comprehensive issue tracking system with AI-powered investigation and automated fix attempts using Claude Code",
     "version": "1.0.0",
-    "type": "business-application",
-    "category": "productivity-tools",
     "tags": [
+      "business-application",
+      "productivity-tools",
       "issue-tracking",
       "ai-investigation",
       "automated-fixes",
       "semantic-search",
       "claude-code-integration",
       "windmill-ui",
-      "vector-search"
+      "vector-search",
+      "go-api",
+      "postgres-storage",
+      "qdrant-vectors"
     ]
   },
   "ports": {
     "api": {
       "env_var": "SERVICE_PORT",
-      "range": "8090-8999",
+      "range": "21250-21499",
       "fallback": "auto",
       "description": "Issue tracker coordination API port"
     }

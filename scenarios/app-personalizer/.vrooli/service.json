@@ -7,14 +7,19 @@
     "displayName": "App Personalizer",
     "description": "Customize generated apps using prompts or digital twins for personalized experiences",
     "version": "1.0.0",
-    "type": "business-application",
-    "category": "business",
     "tags": [
+      "business-application",
+      "business",
       "personalization",
       "customization",
       "app-modification",
       "digital-twin",
-      "branding"
+      "branding",
+      "go-api",
+      "n8n-workflows",
+      "postgres-storage",
+      "minio-storage",
+      "ollama-ai"
     ]
   },
   "resources": {
@@ -78,7 +83,7 @@
   "ports": {
     "api": {
       "env_var": "SERVICE_PORT",
-      "range": "8090-8999",
+      "range": "21750-21999",
       "fallback": "auto",
       "description": "Personalization API port"
     }

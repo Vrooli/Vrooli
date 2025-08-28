@@ -7,28 +7,35 @@
     "displayName": "App Monitor",
     "description": "Dashboard to monitor and control all running generated applications with real-time health checks and performance metrics",
     "version": "1.0.0",
-    "type": "business-application",
-    "category": "monitoring",
     "tags": [
+      "business-application",
       "monitoring",
       "dashboard",
       "docker",
       "health-check",
       "app-management",
       "metrics",
-      "automation"
+      "automation",
+      "nodejs-ui",
+      "go-api",
+      "n8n-workflows",
+      "node-red-flows",
+      "windmill-apps",
+      "postgres-storage",
+      "redis-cache",
+      "ollama-ai"
     ]
   },
   "ports": {
     "api": {
       "env_var": "SERVICE_PORT",
-      "range": "8090-8999",
+      "range": "21500-21749",
       "fallback": "auto",
       "description": "App monitoring coordination API port"
     },
     "ui": {
       "env_var": "UI_PORT",
-      "fixed": "3000",
+      "fixed": 3000,
       "fallback": "auto",
       "description": "Web UI dashboard port"
     }
