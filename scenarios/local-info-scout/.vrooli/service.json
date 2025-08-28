@@ -121,5 +121,29 @@
     "level": "info",
     "format": "json",
     "output": "stdout"
+  },
+  "lifecycle": {
+    "setup": {
+      "description": null,
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/local-info-scout-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "local-info-scout"
+          },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
+      "steps": null
+    }
   }
 }

@@ -122,11 +122,29 @@
     "version": "1.0.0",
     "setup": {
       "description": "Initialize Agent Metareasoning Manager",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/agent-metareasoning-manager-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "agent-metareasoning-manager"
+          },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
       "steps": [
         {
-          "name": "base-setup",
-          "run": "bash scripts/lib/setup.sh",
-          "description": "Execute generic setup (e.g. network, system, git)"
+          "name": "generate-embeddings",
+          "run": "vrooli resource qdrant embeddings refresh --force || echo \"Embeddings generation skipped (not critical)\"",
+          "description": "Generate code embeddings for AI assistance"
         },
         {
           "name": "add-data",

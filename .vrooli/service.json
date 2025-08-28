@@ -684,6 +684,14 @@
     "version": "2.0.2",
     "setup": {
       "description": "Initialize system for scenario development",
+      "condition": {
+        "checks": [
+          {
+            "type": "data",
+            "path": "data"
+          }
+        ]
+      },
       "steps": [
         {
           "name": "base-setup",
@@ -723,7 +731,7 @@
         },
         {
           "name": "start-generated-apps",
-          "run": "./scripts/scenarios/tools/orchestrator/start-apps-safely.sh --verbose --fast --background",
+          "run": "ORCHESTRATOR_PORT=${ORCHESTRATOR_PORT:-9500} ./scripts/scenarios/tools/orchestrator/start-apps-safely.sh --verbose --fast --background",
           "description": "Start all generated apps using SAFE orchestrator with fork bomb prevention",
           "background": true
         }

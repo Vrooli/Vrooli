@@ -50,5 +50,35 @@
       "app",
       "go-api"
     ]
+  },
+  "lifecycle": {
+    "setup": {
+      "description": null,
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/product-manager-agent-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "product-manager-agent"
+          },
+          {
+            "type": "dependencies",
+            "paths": [
+              "ui/package.json"
+            ]
+          },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
+      "steps": null
+    }
   }
 }

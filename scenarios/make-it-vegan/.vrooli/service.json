@@ -83,11 +83,35 @@
     "version": "1.0.0",
     "setup": {
       "description": "Initialize Make It Vegan app",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/make-it-vegan-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "make-it-vegan"
+          },
+          {
+            "type": "dependencies",
+            "paths": [
+              "ui/package.json"
+            ]
+          },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
       "steps": [
         {
-          "name": "base-setup",
-          "run": "bash scripts/lib/setup.sh",
-          "description": "Execute generic setup"
+          "name": "generate-embeddings",
+          "run": "vrooli resource qdrant embeddings refresh --force || echo \"Embeddings generation skipped (not critical)\"",
+          "description": "Generate code embeddings for AI assistance"
         },
         {
           "name": "add-data",

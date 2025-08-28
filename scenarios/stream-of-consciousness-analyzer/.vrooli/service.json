@@ -122,11 +122,29 @@
     "version": "1.0.0",
     "setup": {
       "description": "Initialize Stream of Consciousness Analyzer",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/stream-of-consciousness-analyzer-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "stream-of-consciousness-analyzer"
+          },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
       "steps": [
         {
-          "name": "base-setup",
-          "run": "bash scripts/lib/setup.sh",
-          "description": "Execute generic setup"
+          "name": "generate-embeddings",
+          "run": "vrooli resource qdrant embeddings refresh --force || echo \"Embeddings generation skipped (not critical)\"",
+          "description": "Generate code embeddings for AI assistance"
         },
         {
           "name": "add-data",

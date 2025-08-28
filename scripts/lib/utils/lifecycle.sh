@@ -73,9 +73,6 @@ lifecycle::develop_with_auto_setup() {
         # Mark setup as complete
         setup::mark_complete
         log::success "Setup completed, proceeding with develop"
-        
-        # Auto-refresh embeddings on git changes
-        embeddings::refresh_on_changes
     else
         log::info "✓ Setup is current, proceeding directly to develop"
     fi

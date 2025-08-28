@@ -122,5 +122,35 @@
     "level": "info",
     "format": "json",
     "output": "stdout"
+  },
+  "lifecycle": {
+    "setup": {
+      "description": null,
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/video-downloader-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "video-downloader"
+          },
+          {
+            "type": "dependencies",
+            "paths": [
+              "ui/package.json"
+            ]
+          },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
+      "steps": null
+    }
   }
 }

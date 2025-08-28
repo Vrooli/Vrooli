@@ -91,11 +91,29 @@
     "version": "1.0.0",
     "setup": {
       "description": "Initialize Typing Test service",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/typing-test-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "typing-test"
+          },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
       "steps": [
         {
-          "name": "base-setup",
-          "run": "bash scripts/lib/setup.sh",
-          "description": "Execute generic setup (e.g. network, system, git)"
+          "name": "generate-embeddings",
+          "run": "vrooli resource qdrant embeddings refresh --force || echo \"Embeddings generation skipped (not critical)\"",
+          "description": "Generate code embeddings for AI assistance"
         },
         {
           "name": "add-data",

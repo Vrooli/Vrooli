@@ -277,11 +277,22 @@ setup::generic_main() {
         log::debug "No service.json found - skipping resource installation"
     fi
     
-    # Step 8: Complete generic setup
+    # Step 8: Generate embeddings for the codebase
+    log::header "🧠 Generating Code Embeddings"
+    log::info "Initializing and generating embeddings for the codebase..."
+    
+    # Use vrooli resource command for clean, reliable embeddings generation
+    vrooli resource qdrant embeddings refresh --force 2>/dev/null || {
+        log::warning "Failed to generate embeddings (not critical - may not be available yet)"
+    }
+    
+    log::success "✅ Code embeddings generation attempted"
+    
+    # Step 9: Complete generic setup
     log::info "Generic setup tasks completed"
     log::info "App-specific setup will be handled by service.json configuration"
     
-    # Step 9: Complete phase
+    # Step 10: Complete phase
     phase::complete
     
     # Export key variables for next phases

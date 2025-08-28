@@ -145,6 +145,24 @@
     "version": "1.0.0",
     "setup": {
       "description": "Initialize Web Scraper Manager",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/web-scraper-manager-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "web-scraper-manager"
+          },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
       "steps": [
         {
           "name": "base-setup",

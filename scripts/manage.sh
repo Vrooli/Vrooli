@@ -34,8 +34,6 @@ source "$MAIN_SCRIPT_DIR/lib/utils/setup.sh"
 # shellcheck disable=SC1091
 source "$MAIN_SCRIPT_DIR/lib/utils/lifecycle.sh"
 # shellcheck disable=SC1091
-source "$MAIN_SCRIPT_DIR/lib/service/embeddings.sh"
-# shellcheck disable=SC1091
 source "$MAIN_SCRIPT_DIR/lib/utils/help.sh"
 
 #######################################
@@ -48,13 +46,6 @@ source "$MAIN_SCRIPT_DIR/lib/utils/help.sh"
 #######################################
 manage::get_git_commit() {
     git::get_commit
-}
-
-#######################################
-# Auto-refresh embeddings when git changes are detected (thin wrapper)
-#######################################
-manage::refresh_embeddings_on_changes() {
-    embeddings::refresh_on_changes "$MAIN_SCRIPT_DIR"
 }
 
 

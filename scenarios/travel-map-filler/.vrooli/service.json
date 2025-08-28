@@ -127,5 +127,35 @@
         "path": "test/scenario-test.yaml"
       }
     ]
+  },
+  "lifecycle": {
+    "setup": {
+      "description": null,
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/travel-map-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "travel-map"
+          },
+          {
+            "type": "dependencies",
+            "paths": [
+              "ui/package.json"
+            ]
+          },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
+      "steps": null
+    }
   }
 }
