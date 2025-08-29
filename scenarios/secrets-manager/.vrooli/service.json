@@ -1,0 +1,238 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "parent": "vrooli",
+    "name": "secrets-manager",
+    "displayName": "Secrets Manager",
+    "description": "Dark chrome security dashboard for discovering, validating, and provisioning secrets required by Vrooli resources",
+    "version": "1.0.0",
+    "tags": [
+      "security-tool",
+      "secrets-management",
+      "resource-validation",
+      "development-utility",
+      "vault-integration",
+      "cyberpunk-ui",
+      "dark-chrome",
+      "configuration-scanner",
+      "credential-validation",
+      "go-api",
+      "n8n-workflows",
+      "postgres-storage",
+      "vault-storage"
+    ]
+  },
+  "resources": {
+    "vault": {
+      "type": "vault",
+      "enabled": true,
+      "required": true,
+      "purpose": "secure secret storage and retrieval"
+    },
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "metadata tracking and secret requirement persistence"
+    },
+    "n8n": {
+      "type": "n8n",
+      "enabled": true,
+      "required": true,
+      "initialization": [
+        {
+          "file": "initialization/automation/n8n/resource-scanner.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/automation/n8n/secret-validator.json",
+          "type": "workflow"
+        }
+      ]
+    },
+    "redis": {
+      "type": "redis",
+      "enabled": false,
+      "required": false,
+      "purpose": "caching scan results between runs"
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "SERVICE_PORT",
+      "range": "28000-28249",
+      "fallback": "auto",
+      "description": "Secrets Manager API port"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "range": "28250-28499",
+      "fallback": "auto",
+      "description": "Dark chrome security dashboard port"
+    }
+  },
+  "lifecycle": {
+    "version": "1.0.0",
+    "setup": {
+      "description": "Initialize Secrets Manager",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/secrets-manager-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "secrets-manager"
+          },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o secrets-manager-api main.go",
+          "description": "Build Go secrets manager API binary"
+        },
+        {
+          "name": "initialize-database",
+          "run": "PGPASSWORD=${POSTGRES_PASSWORD:-postgres} psql -h localhost -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-vrooli} -f initialization/storage/postgres/schema.sql",
+          "description": "Initialize database schema for secret tracking"
+        },
+        {
+          "name": "seed-database",
+          "run": "PGPASSWORD=${POSTGRES_PASSWORD:-postgres} psql -h localhost -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-vrooli} -f initialization/storage/postgres/seed.sql",
+          "description": "Seed database with initial secret definitions"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🔐 Secrets Manager initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${SERVICE_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: secrets-manager --help'",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start secrets manager with API server and dark chrome UI",
+      "steps": [
+        {
+          "name": "start-api-server",
+          "run": "cd api && PORT=$SERVICE_PORT ./secrets-manager-api &",
+          "description": "Start Go secrets manager API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/secrets-manager-api"
+          }
+        },
+        {
+          "name": "start-ui-server",
+          "run": "cd ui && PORT=$UI_PORT node server.js &",
+          "description": "Start dark chrome dashboard UI server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/server.js"
+          }
+        },
+        {
+          "name": "wait-for-api",
+          "run": "sleep 2 && curl -sf http://localhost:$SERVICE_PORT/health > /dev/null",
+          "description": "Wait for API server to be ready",
+          "retry": {
+            "max_attempts": 15,
+            "delay": 1
+          }
+        },
+        {
+          "name": "wait-for-ui",
+          "run": "sleep 1 && curl -sf http://localhost:$UI_PORT > /dev/null",
+          "description": "Wait for UI server to be ready",
+          "retry": {
+            "max_attempts": 10,
+            "delay": 1
+          }
+        },
+        {
+          "name": "run-initial-scan",
+          "run": "sleep 3 && ./cli/secrets-manager scan || echo \"Initial scan failed - run manually: secrets-manager scan\"",
+          "description": "Perform initial resource secret discovery scan"
+        },
+        {
+          "name": "show-running-services",
+          "run": "echo '🔐 Secrets Manager running:\\n  🌐 Dashboard: http://localhost:${UI_PORT}\\n  🔌 API: http://localhost:$SERVICE_PORT\\n  ⚙️  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  🔧 CLI: secrets-manager --help'",
+          "description": "Display all running service URLs"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test secrets manager API, UI, and CLI",
+      "steps": [
+        {
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build main.go && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-secrets-scan-endpoint",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/api/v1/secrets/scan",
+          "description": "Test secrets scan API endpoint"
+        },
+        {
+          "name": "test-secrets-validate-endpoint",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/api/v1/secrets/validate",
+          "description": "Test secrets validation API endpoint"
+        },
+        {
+          "name": "test-ui-loads",
+          "run": "curl -sf http://localhost:$UI_PORT | grep -q 'Secrets Manager'",
+          "description": "Test dark chrome UI loads correctly"
+        },
+        {
+          "name": "run-integration-tests",
+          "run": "./test.sh",
+          "description": "Execute integration test suite",
+          "condition": {
+            "file_exists": "test.sh"
+          }
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop secrets manager services",
+      "steps": [
+        {
+          "name": "stop-api-server",
+          "run": "pkill -f 'secrets-manager-api' || true",
+          "description": "Stop Go API server processes"
+        },
+        {
+          "name": "stop-ui-server",
+          "run": "pkill -f 'ui/server.js' || true",
+          "description": "Stop UI server processes"
+        },
+        {
+          "name": "confirm-stop",
+          "run": "echo '🛑 Secrets Manager services stopped'",
+          "description": "Confirm services stopped"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,198 @@
+{
+  "name": "Resource Scanner - Secret Discovery Pipeline",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "resource-scan",
+        "httpMethod": "POST",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Resource Scan Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "resource-scan"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process resource scan request\nconst body = $input.item.json.body || {};\n\n// Set defaults and validate parameters\nconst request = {\n  scan_id: crypto.randomUUID(),\n  scan_type: body.scan_type || 'full',\n  resources: body.resources || [], // Empty array means scan all\n  timestamp: new Date().toISOString(),\n  processing_start: Date.now()\n};\n\n// Configure scan parameters based on type\nconst scanConfig = {\n  quick: { \n    max_resources: 5,\n    scan_depth: 'shallow',\n    file_extensions: ['.sh', '.yml', '.yaml', '.env']\n  },\n  full: { \n    max_resources: 50,\n    scan_depth: 'deep', \n    file_extensions: ['.sh', '.bash', '.yml', '.yaml', '.json', '.env', '.conf', '.config', '.go', '.js', '.py']\n  },\n  targeted: {\n    max_resources: 10,\n    scan_depth: 'medium',\n    file_extensions: ['.sh', '.yml', '.yaml', '.env', '.json']\n  }\n};\n\nrequest.scan_config = scanConfig[request.scan_type] || scanConfig.full;\n\n// Define patterns for secret detection\nrequest.secret_patterns = [\n  // Environment variables\n  { pattern: '\\\\$\\\\{([A-Z_]+[A-Z0-9_]*)\\\\}', type: 'env_var', description: 'Environment variable reference ${VAR}' },\n  { pattern: '\\\\$([A-Z_]+[A-Z0-9_]*)', type: 'env_var', description: 'Environment variable reference $VAR' },\n  { pattern: '([A-Z_]+[A-Z0-9_]*)=', type: 'env_var', description: 'Environment variable assignment' },\n  \n  // Function calls\n  { pattern: 'getenv\\\\(\"([A-Z_]+[A-Z0-9_]*)\"\\\\)', type: 'env_var', description: 'getenv() call' },\n  { pattern: 'os\\\\.Getenv\\\\(\"([A-Z_]+[A-Z0-9_]*)\"\\\\)', type: 'env_var', description: 'Go os.Getenv() call' },\n  { pattern: 'process\\\\.env\\\\.([A-Z_]+[A-Z0-9_]*)', type: 'env_var', description: 'Node.js process.env access' },\n  \n  // Configuration file patterns\n  { pattern: 'env\\\\s*:\\\\s*([A-Z_]+[A-Z0-9_]*)', type: 'env_var', description: 'YAML env field' },\n  { pattern: '\"([A-Z_]+[A-Z0-9_]*)\"\\\\s*:', type: 'env_var', description: 'JSON environment key' }\n];\n\n// Keywords that indicate secrets\nrequest.secret_keywords = [\n  'PASSWORD', 'PASS', 'PWD', 'SECRET', 'KEY', 'TOKEN', 'AUTH', 'API', \n  'CREDENTIAL', 'CERT', 'TLS', 'SSL', 'PRIVATE', 'HOST', 'PORT', \n  'URL', 'ADDR', 'DATABASE', 'DB', 'USER', 'NAMESPACE'\n];\n\nreturn request;"
+      },
+      "id": "process-scan-request",
+      "name": "Process Scan Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "command": "find ${APP_ROOT}/resources -type f \\( -name '*.sh' -o -name '*.bash' -o -name '*.yml' -o -name '*.yaml' -o -name '*.json' -o -name '*.env' -o -name '*.conf' \\) | head -100",
+        "options": {}
+      },
+      "id": "scan-resource-files",
+      "name": "Scan Resource Files",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process scanned files for secret patterns\nconst scanRequest = $('Process Scan Request').item.json;\nconst filePaths = $input.item.json.stdout.split('\\n').filter(path => path.trim());\n\nconst discoveredSecrets = [];\nconst fs = require('fs');\nconst path = require('path');\n\n// Process each file\nfilePaths.forEach(filePath => {\n  if (!filePath.trim()) return;\n  \n  try {\n    // Extract resource name from path\n    const pathParts = filePath.split('/');\n    const resourceIndex = pathParts.indexOf('resources');\n    const resourceName = resourceIndex >= 0 && resourceIndex + 1 < pathParts.length \n      ? pathParts[resourceIndex + 1] \n      : 'unknown';\n    \n    // Skip if filtering by specific resources\n    if (scanRequest.resources.length > 0 && !scanRequest.resources.includes(resourceName)) {\n      return;\n    }\n    \n    // Read file content (limit size for safety)\n    let content;\n    try {\n      content = fs.readFileSync(filePath, 'utf8');\n      if (content.length > 100000) { // 100KB limit\n        content = content.substring(0, 100000);\n      }\n    } catch (err) {\n      return; // Skip files we can't read\n    }\n    \n    // Search for secret patterns\n    scanRequest.secret_patterns.forEach(patternDef => {\n      const regex = new RegExp(patternDef.pattern, 'gi');\n      let match;\n      \n      while ((match = regex.exec(content)) !== null) {\n        const secretKey = match[1] || match[0];\n        if (!secretKey) continue;\n        \n        // Check if this looks like a secret based on keywords\n        const upperKey = secretKey.toUpperCase();\n        const isSecret = scanRequest.secret_keywords.some(keyword => \n          upperKey.includes(keyword)\n        );\n        \n        if (isSecret) {\n          // Determine secret type\n          let secretType = 'env_var';\n          if (upperKey.includes('PASSWORD') || upperKey.includes('PASS') || upperKey.includes('PWD')) {\n            secretType = 'password';\n          } else if (upperKey.includes('TOKEN')) {\n            secretType = 'token';\n          } else if (upperKey.includes('KEY') && (upperKey.includes('API') || upperKey.includes('ACCESS'))) {\n            secretType = 'api_key';\n          } else if (upperKey.includes('SECRET') || upperKey.includes('CREDENTIAL')) {\n            secretType = 'credential';\n          } else if (upperKey.includes('CERT') || upperKey.includes('TLS') || upperKey.includes('SSL')) {\n            secretType = 'certificate';\n          }\n          \n          // Determine if likely required\n          const isRequired = ['PASSWORD', 'SECRET', 'TOKEN', 'KEY', 'DATABASE', 'DB', 'HOST']\n            .some(keyword => upperKey.includes(keyword));\n          \n          // Check for duplicates\n          const existing = discoveredSecrets.find(s => \n            s.resource_name === resourceName && s.secret_key === secretKey\n          );\n          \n          if (!existing) {\n            discoveredSecrets.push({\n              id: crypto.randomUUID(),\n              resource_name: resourceName,\n              secret_key: secretKey,\n              secret_type: secretType,\n              required: isRequired,\n              description: `Found in ${path.basename(filePath)} - ${patternDef.description}`,\n              validation_pattern: null,\n              documentation_url: null,\n              source_file: path.basename(filePath),\n              discovered_at: new Date().toISOString()\n            });\n          }\n        }\n      }\n    });\n    \n  } catch (error) {\n    console.warn(`Failed to process file ${filePath}:`, error.message);\n  }\n});\n\n// Return scan results\nreturn {\n  scan_id: scanRequest.scan_id,\n  scan_type: scanRequest.scan_type,\n  discovered_secrets: discoveredSecrets,\n  files_scanned: filePaths.length,\n  resources_scanned: [...new Set(discoveredSecrets.map(s => s.resource_name))],\n  scan_duration_ms: Date.now() - scanRequest.processing_start,\n  scan_timestamp: new Date().toISOString()\n};"
+      },
+      "id": "extract-secrets",
+      "name": "Extract Secrets from Files",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": "public",
+        "table": "resource_secrets",
+        "columns": "id, resource_name, secret_key, secret_type, required, description, created_at, updated_at",
+        "additionalFields": {
+          "mode": "independently"
+        }
+      },
+      "id": "store-discovered-secrets",
+      "name": "Store Discovered Secrets",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [1120, 200],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-secrets",
+          "name": "Secrets Manager DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": "public", 
+        "table": "secret_scans",
+        "columns": "id, scan_type, resources_scanned, secrets_discovered, scan_duration_ms, scan_timestamp, scan_status",
+        "additionalFields": {
+          "mode": "independently"
+        }
+      },
+      "id": "store-scan-record",
+      "name": "Store Scan Record", 
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [1120, 400],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-secrets",
+          "name": "Secrets Manager DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Format final response\nconst results = $('Extract Secrets from Files').item.json;\n\nreturn {\n  success: true,\n  scan_id: results.scan_id,\n  discovered_secrets: results.discovered_secrets.length,\n  resources_scanned: results.resources_scanned,\n  files_processed: results.files_scanned,\n  scan_duration_ms: results.scan_duration_ms,\n  message: `Resource scan completed: ${results.discovered_secrets.length} secrets discovered across ${results.resources_scanned.length} resources`,\n  timestamp: results.scan_timestamp\n};"
+      },
+      "id": "format-response",
+      "name": "Format Scan Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      },
+      "id": "send-response",
+      "name": "Send Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1560, 300]
+    }
+  ],
+  "connections": {
+    "webhook-trigger": {
+      "main": [
+        [
+          {
+            "node": "process-scan-request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "process-scan-request": {
+      "main": [
+        [
+          {
+            "node": "scan-resource-files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "scan-resource-files": {
+      "main": [
+        [
+          {
+            "node": "extract-secrets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "extract-secrets": {
+      "main": [
+        [
+          {
+            "node": "store-discovered-secrets",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "store-scan-record",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "format-response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "format-response": {
+      "main": [
+        [
+          {
+            "node": "send-response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "saveManualExecutions": true,
+    "saveExecutionProgress": true,
+    "saveDataSuccessExecution": "all",
+    "saveDataErrorExecution": "all"
+  },
+  "staticData": {},
+  "tags": ["secrets-manager", "resource-scanning", "security"],
+  "meta": {
+    "description": "Discovers and catalogs secrets required by Vrooli resources through file system scanning and pattern matching",
+    "version": "1.0.0"
+  }
+}

@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔐 SECRETS MANAGER - Security Vault Terminal</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    <meta name="description" content="Dark Chrome Security Dashboard for Vrooli Resource Secret Management">
+</head>
+<body>
+    <!-- Background Matrix Animation -->
+    <div id="matrix-bg"></div>
+    
+    <!-- Main Terminal Interface -->
+    <div class="terminal-container">
+        <!-- Header Terminal Bar -->
+        <header class="terminal-header">
+            <div class="terminal-title">
+                <span class="chrome-text">SECURITY VAULT ACCESS TERMINAL</span>
+                <span class="version">v1.0.0</span>
+            </div>
+            <div class="terminal-controls">
+                <div class="control-btn minimize"></div>
+                <div class="control-btn maximize"></div>
+                <div class="control-btn close"></div>
+            </div>
+        </header>
+
+        <!-- Main Dashboard Grid -->
+        <main class="dashboard-grid">
+            <!-- System Status Panel -->
+            <section class="panel status-panel" id="status-panel">
+                <div class="panel-header">
+                    <h2><span class="matrix-green">●</span> SYSTEM STATUS</h2>
+                    <div class="status-indicator" id="api-status">
+                        <span class="pulse-dot"></span>
+                        <span>CONNECTING...</span>
+                    </div>
+                </div>
+                <div class="panel-content">
+                    <div class="status-grid">
+                        <div class="status-item">
+                            <span class="label">API TERMINAL</span>
+                            <span class="value" id="api-endpoint">Initializing...</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="label">VAULT STATUS</span>
+                            <span class="value" id="vault-status">Checking...</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="label">DATABASE</span>
+                            <span class="value" id="db-status">Connecting...</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="label">LAST SCAN</span>
+                            <span class="value" id="last-scan">Never</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Secret Health Overview -->
+            <section class="panel health-panel" id="health-panel">
+                <div class="panel-header">
+                    <h2><span class="matrix-green">●</span> SECRET HEALTH MATRIX</h2>
+                    <button class="chrome-btn scan-btn" id="scan-all-btn">
+                        <span class="btn-glow"></span>
+                        FULL SCAN
+                    </button>
+                </div>
+                <div class="panel-content">
+                    <div class="health-stats">
+                        <div class="stat-card valid">
+                            <div class="stat-value" id="valid-secrets">0</div>
+                            <div class="stat-label">VALID</div>
+                        </div>
+                        <div class="stat-card missing">
+                            <div class="stat-value" id="missing-secrets">0</div>
+                            <div class="stat-label">MISSING</div>
+                        </div>
+                        <div class="stat-card invalid">
+                            <div class="stat-value" id="invalid-secrets">0</div>
+                            <div class="stat-label">INVALID</div>
+                        </div>
+                        <div class="stat-card total">
+                            <div class="stat-value" id="total-secrets">0</div>
+                            <div class="stat-label">TOTAL</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Resource Secrets Table -->
+            <section class="panel secrets-panel" id="secrets-panel">
+                <div class="panel-header">
+                    <h2><span class="matrix-green">●</span> RESOURCE SECRETS</h2>
+                    <div class="panel-controls">
+                        <button class="chrome-btn" id="validate-btn">VALIDATE ALL</button>
+                        <select class="chrome-select" id="resource-filter">
+                            <option value="">ALL RESOURCES</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="panel-content">
+                    <div class="secrets-table-container">
+                        <table class="secrets-table" id="secrets-table">
+                            <thead>
+                                <tr>
+                                    <th>RESOURCE</th>
+                                    <th>SECRET KEY</th>
+                                    <th>TYPE</th>
+                                    <th>STATUS</th>
+                                    <th>ACTIONS</th>
+                                </tr>
+                            </thead>
+                            <tbody id="secrets-table-body">
+                                <tr class="loading-row">
+                                    <td colspan="5">
+                                        <div class="loading-animation">
+                                            <span>SCANNING SECURITY MATRIX</span>
+                                            <div class="loading-dots">
+                                                <span>.</span><span>.</span><span>.</span>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Security Alerts -->
+            <section class="panel alerts-panel" id="alerts-panel">
+                <div class="panel-header">
+                    <h2><span class="matrix-green">●</span> SECURITY ALERTS</h2>
+                    <div class="alert-count" id="alert-count">0</div>
+                </div>
+                <div class="panel-content">
+                    <div class="alerts-container" id="alerts-container">
+                        <div class="no-alerts">
+                            <span class="chrome-text">NO ACTIVE SECURITY THREATS</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Terminal Footer -->
+        <footer class="terminal-footer">
+            <div class="footer-left">
+                <span class="chrome-text">VROOLI SECURITY FRAMEWORK</span>
+                <span class="separator">|</span>
+                <span>SECRET DISCOVERY & VALIDATION</span>
+            </div>
+            <div class="footer-right">
+                <span id="current-time"></span>
+                <span class="separator">|</span>
+                <span class="status-text" id="connection-status">SECURE CONNECTION ESTABLISHED</span>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Secret Provisioning Modal -->
+    <div class="modal-overlay" id="provision-modal">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h3>🔐 SECURE PROVISIONING TERMINAL</h3>
+                <button class="modal-close" id="modal-close">&times;</button>
+            </div>
+            <div class="modal-content">
+                <form id="provision-form">
+                    <div class="form-group">
+                        <label for="secret-key">SECRET KEY</label>
+                        <input type="text" id="secret-key" class="chrome-input" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label for="secret-value">SECRET VALUE</label>
+                        <input type="password" id="secret-value" class="chrome-input" placeholder="Enter secure value...">
+                    </div>
+                    <div class="form-group">
+                        <label for="storage-method">STORAGE METHOD</label>
+                        <select id="storage-method" class="chrome-select">
+                            <option value="vault">HashiCorp Vault (Recommended)</option>
+                            <option value="env">Environment Variable</option>
+                        </select>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="chrome-btn cancel-btn" id="cancel-provision">CANCEL</button>
+                        <button type="submit" class="chrome-btn primary-btn">
+                            <span class="btn-glow"></span>
+                            PROVISION SECRET
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification System -->
+    <div class="notifications" id="notifications"></div>
+
+    <!-- Scripts -->
+    <script src="script.js"></script>
+</body>
+</html>
