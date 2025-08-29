@@ -1,0 +1,24 @@
+id: task-example-002
+title: "Create invoice-generator scenario"
+description: |
+  Build a SaaS application for generating and managing professional invoices.
+  Should include PDF export, email capabilities, payment tracking, and client management.
+  Target market: Small businesses and freelancers.
+  Estimated value: $30K-50K
+type: scenario
+target: scenario-generator-v1
+priority_estimates:
+  impact: 8
+  urgency: "medium"
+  success_prob: 0.85
+  resource_cost: "heavy"
+priority_score: null
+dependencies: []
+blockers: []
+created_at: 2024-01-15T11:00:00Z
+created_by: human
+analyzed_at: null
+started_at: null
+completed_at: null
+attempts: []
+notes: "High-value business application with broad market appeal"

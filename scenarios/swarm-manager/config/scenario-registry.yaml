@@ -1,0 +1,143 @@
+# Scenario Registry - Maps scenarios to their capabilities and CLIs
+
+scenarios:
+  scenario-generator-v1:
+    cli: scenario-generator-v1
+    capabilities:
+      - create_scenario
+      - generate_ui
+      - generate_workflows
+      - validate_requirements
+    best_for:
+      - New scenario creation
+      - Business application generation
+      - SaaS product development
+    resource_usage: heavy
+    typical_duration: 30-60 minutes
+    
+  resource-experimenter:
+    cli: resource-experimenter
+    capabilities:
+      - test_resource_combinations
+      - validate_integrations
+      - generate_variants
+      - measure_performance
+    best_for:
+      - Testing new resource integrations
+      - Creating scenario variants
+      - Performance optimization
+    resource_usage: moderate
+    typical_duration: 15-30 minutes
+    
+  app-debugger:
+    cli: app-debugger
+    capabilities:
+      - analyze_errors
+      - suggest_fixes
+      - profile_performance
+      - trace_execution
+    best_for:
+      - Fixing broken applications
+      - Performance debugging
+      - Error analysis
+    resource_usage: moderate
+    typical_duration: 10-20 minutes
+    
+  app-issue-tracker:
+    cli: app-issue-tracker
+    capabilities:
+      - track_issues
+      - investigate_problems
+      - generate_fixes
+      - create_pull_requests
+    best_for:
+      - Managing reported issues
+      - Systematic bug fixing
+      - Issue prioritization
+    resource_usage: moderate
+    typical_duration: 15-30 minutes
+    
+  system-monitor:
+    cli: system-monitor
+    capabilities:
+      - monitor_health
+      - detect_anomalies
+      - investigate_issues
+      - generate_reports
+    best_for:
+      - System health monitoring
+      - Anomaly detection
+      - Performance tracking
+    resource_usage: minimal
+    typical_duration: 5-10 minutes
+    
+  task-planner:
+    cli: task-planner
+    capabilities:
+      - parse_requirements
+      - create_plans
+      - research_solutions
+      - coordinate_execution
+    best_for:
+      - Complex multi-step tasks
+      - Requirement analysis
+      - Task decomposition
+    resource_usage: moderate
+    typical_duration: 20-40 minutes
+    
+  workflow-scheduler:
+    cli: workflow-scheduler
+    capabilities:
+      - schedule_tasks
+      - manage_cron_jobs
+      - coordinate_timing
+      - handle_retries
+    best_for:
+      - Recurring task scheduling
+      - Workflow orchestration
+      - Time-based automation
+    resource_usage: minimal
+    typical_duration: 5-10 minutes
+    
+  agent-metareasoning-manager:
+    cli: agent-metareasoning
+    capabilities:
+      - enhance_reasoning
+      - coordinate_agents
+      - manage_patterns
+      - track_decisions
+    best_for:
+      - Agent coordination
+      - Decision optimization
+      - Pattern management
+    resource_usage: moderate
+    typical_duration: 10-20 minutes
+
+# Fallback scenario for unmatched tasks
+default_scenario: claude-code
+
+# Scenario selection rules
+selection_rules:
+  - if_contains: ["create", "generate", "build", "new scenario"]
+    use: scenario-generator-v1
+    
+  - if_contains: ["test", "experiment", "try", "variant"]
+    use: resource-experimenter
+    
+  - if_contains: ["debug", "fix", "broken", "error", "crash"]
+    use: app-debugger
+    
+  - if_contains: ["issue", "bug", "problem", "report"]
+    use: app-issue-tracker
+    
+  - if_contains: ["monitor", "health", "performance", "anomaly"]
+    use: system-monitor
+    
+  - if_contains: ["plan", "organize", "coordinate", "research"]
+    use: task-planner
+    
+  - if_contains: ["schedule", "cron", "recurring", "timing"]
+    use: workflow-scheduler
+    
+  - if_contains: ["reasoning", "decision", "pattern", "coordinate agents"]
+    use: agent-metareasoning-manager

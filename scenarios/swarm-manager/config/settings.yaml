@@ -1,0 +1,82 @@
+# Swarm Manager Configuration Settings
+
+# System Limits
+max_concurrent_tasks: 5          # Maximum tasks running simultaneously
+min_backlog_size: 10            # Generate new tasks when backlog drops below this
+task_scan_interval: 300          # Seconds between task folder scans
+
+# YOLO Mode - Auto-approve AI-generated tasks
+yolo_mode: false                 # Set to true for full autonomy
+
+# Resource Limits
+max_cpu_percent: 70              # Maximum CPU usage percentage
+max_memory_percent: 70           # Maximum memory usage percentage
+max_claude_calls_per_hour: 100  # Rate limit for Claude API calls
+
+# Claude Code Configuration
+claude_config:
+  max_turns: 30                  # Maximum conversation turns
+  timeout: 1800                  # Timeout in seconds (30 minutes)
+  ultra_think: true              # Use ultra-think prefix for prompts
+  
+# Scenario Registry - Available scenarios and their CLIs
+available_scenarios:
+  - name: scenario-generator-v1
+    cli: scenario-generator-v1
+    purpose: "Create new scenarios from requirements"
+    
+  - name: resource-experimenter
+    cli: resource-experimenter
+    purpose: "Test resource combinations on scenarios"
+    
+  - name: app-debugger
+    cli: app-debugger
+    purpose: "Debug and fix broken applications"
+    
+  - name: app-issue-tracker
+    cli: app-issue-tracker
+    purpose: "Track and resolve reported issues"
+    
+  - name: system-monitor
+    cli: system-monitor
+    purpose: "Monitor system health and investigate anomalies"
+    
+  - name: task-planner
+    cli: task-planner
+    purpose: "Plan and implement complex multi-step tasks"
+    
+  - name: claude-code
+    cli: resource-claude-code
+    purpose: "General development and coding tasks"
+
+# Problem Scanning Configuration
+problem_scanning:
+  enabled: true                    # Enable automatic problem scanning
+  scan_interval: 300               # Seconds between problem scans (5 minutes)
+  auto_create_tasks: true          # Auto-create tasks for high/critical problems
+  scan_paths:                      # Default paths to scan for problem files
+    - /home/matthalloran8/Vrooli/PROBLEMS.md           # Global issues
+    - /home/matthalloran8/Vrooli/resources/*/PROBLEMS.md  # Resource issues
+    - /home/matthalloran8/Vrooli/scenarios/*/PROBLEMS.md  # Scenario issues
+    - /home/matthalloran8/Vrooli/resources/*/TROUBLESHOOTING.md  # Resource troubleshooting
+    - /home/matthalloran8/Vrooli/scenarios/*/TROUBLESHOOTING.md  # Scenario troubleshooting
+  severity_thresholds:
+    auto_task_creation: high       # Minimum severity for auto task creation
+    alert_notification: critical   # Minimum severity for alerts
+  max_scan_depth: 3               # Maximum directory depth for scanning
+  max_files_per_scan: 50          # Limit files to prevent excessive scanning
+
+# Task Type Mappings
+task_type_scenarios:
+  scenario: scenario-generator-v1
+  experiment: resource-experimenter
+  bug-fix: app-debugger
+  issue: app-issue-tracker
+  monitoring: system-monitor
+  planning: task-planner
+  feature: claude-code
+  optimization: claude-code
+  integration: claude-code
+  documentation: claude-code
+  testing: claude-code
+  problem-resolution: app-debugger  # Added for problem-generated tasks

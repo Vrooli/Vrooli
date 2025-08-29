@@ -1,0 +1,244 @@
+{
+  "name": "swarm-orchestrator",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      },
+      "id": "trigger",
+      "name": "Every 5 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "path": "/home/matthalloran8/Vrooli/scenarios/swarm-manager/tasks",
+        "recursive": true,
+        "options": {}
+      },
+      "id": "scan-tasks",
+      "name": "Scan Task Folders",
+      "type": "n8n-nodes-base.readDirectory",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Count tasks in each folder\nconst taskCounts = {\n  active: 0,\n  staged: 0,\n  backlog_manual: 0,\n  backlog_generated: 0,\n  completed: 0,\n  failed: 0\n};\n\n// Parse file paths to categorize tasks\nfor (const item of $input.all()) {\n  const path = item.json.path;\n  if (path.includes('/active/') && path.endsWith('.yaml')) taskCounts.active++;\n  if (path.includes('/staged/') && path.endsWith('.yaml')) taskCounts.staged++;\n  if (path.includes('/backlog/manual/') && path.endsWith('.yaml')) taskCounts.backlog_manual++;\n  if (path.includes('/backlog/generated/') && path.endsWith('.yaml')) taskCounts.backlog_generated++;\n  if (path.includes('/completed/') && path.endsWith('.yaml')) taskCounts.completed++;\n  if (path.includes('/failed/') && path.endsWith('.yaml')) taskCounts.failed++;\n}\n\n// Determine capacity\nconst MAX_CONCURRENT = 5;\nconst availableSlots = MAX_CONCURRENT - taskCounts.active;\n\n// Check if backlog needs replenishment\nconst MIN_BACKLOG = 10;\nconst totalBacklog = taskCounts.backlog_manual + taskCounts.backlog_generated;\nconst needsBacklogGeneration = totalBacklog < MIN_BACKLOG;\n\nreturn [\n  {\n    json: {\n      taskCounts,\n      availableSlots,\n      needsBacklogGeneration,\n      timestamp: new Date().toISOString()\n    }\n  }\n];"
+      },
+      "id": "analyze-capacity",
+      "name": "Analyze Capacity",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:8095/api/problems/scan",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "scan_path",
+              "value": "/home/matthalloran8/Vrooli"
+            },
+            {
+              "name": "force",
+              "value": "false"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "scan-problems",
+      "name": "Scan for Problems",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [850, 180]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{$json.availableSlots}}",
+              "operation": "larger",
+              "value2": 0
+            }
+          ]
+        }
+      },
+      "id": "check-capacity",
+      "name": "Has Capacity?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "path": "/home/matthalloran8/Vrooli/scenarios/swarm-manager/tasks/staged",
+        "options": {}
+      },
+      "id": "get-staged-tasks",
+      "name": "Get Staged Tasks",
+      "type": "n8n-nodes-base.readDirectory",
+      "typeVersion": 1,
+      "position": [1250, 200]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Sort staged tasks by priority score\nconst tasks = [];\n\nfor (const item of $input.all()) {\n  if (item.json.path.endsWith('.yaml')) {\n    // Read task file (in real implementation)\n    // For now, use filename as proxy\n    tasks.push({\n      path: item.json.path,\n      filename: item.json.name,\n      // Priority would be read from file\n      priority: Math.random() * 1000 // Placeholder\n    });\n  }\n}\n\n// Sort by priority descending\ntasks.sort((a, b) => b.priority - a.priority);\n\n// Return highest priority task\nif (tasks.length > 0) {\n  return [{ json: { selectedTask: tasks[0] } }];\n}\n\nreturn [{ json: { selectedTask: null } }];"
+      },
+      "id": "select-task",
+      "name": "Select Highest Priority",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1450, 200]
+    },
+    {
+      "parameters": {
+        "command": "swarm-manager",
+        "arguments": "execute {{$json.selectedTask.path}}"
+      },
+      "id": "execute-task",
+      "name": "Execute Task",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1650, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$node[\"analyze-capacity\"].json.needsBacklogGeneration}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "check-backlog",
+      "name": "Need Backlog?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1050, 500]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:5678/webhook/claude-code-executor",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "prompt",
+              "value": "=Generate new backlog tasks using /home/matthalloran8/Vrooli/scenarios/swarm-manager/prompts/backlog-generator.md"
+            },
+            {
+              "name": "max_turns",
+              "value": "10"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "generate-backlog",
+      "name": "Generate Backlog Tasks",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1250, 500]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Log the orchestration run\nconst logEntry = {\n  timestamp: $node[\"analyze-capacity\"].json.timestamp,\n  taskCounts: $node[\"analyze-capacity\"].json.taskCounts,\n  actionsToken: [],\n  success: true\n};\n\nif ($node[\"execute-task\"].json) {\n  logEntry.actionsToken.push('Executed task');\n}\n\nif ($node[\"generate-backlog\"].json) {\n  logEntry.actionsToken.push('Generated backlog');\n}\n\nreturn [{ json: logEntry }];"
+      },
+      "id": "log-results",
+      "name": "Log Results",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1850, 350]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "/home/matthalloran8/Vrooli/scenarios/swarm-manager/logs/decisions/orchestration.log",
+          "mode": "string"
+        },
+        "text": "={{JSON.stringify($json)}}\n"
+      },
+      "id": "write-log",
+      "name": "Write Log",
+      "type": "n8n-nodes-base.writeBinaryFile",
+      "typeVersion": 1,
+      "position": [1850, 350]
+    }
+  ],
+  "connections": {
+    "trigger": {
+      "main": [[{"node": "scan-tasks", "type": "main", "index": 0}]]
+    },
+    "scan-tasks": {
+      "main": [[{"node": "analyze-capacity", "type": "main", "index": 0}]]
+    },
+    "analyze-capacity": {
+      "main": [[{"node": "scan-problems", "type": "main", "index": 0}]]
+    },
+    "scan-problems": {
+      "main": [[
+        {"node": "check-capacity", "type": "main", "index": 0},
+        {"node": "check-backlog", "type": "main", "index": 0}
+      ]]
+    },
+    "check-capacity": {
+      "main": [
+        [{"node": "get-staged-tasks", "type": "main", "index": 0}],
+        [{"node": "log-results", "type": "main", "index": 0}]
+      ]
+    },
+    "get-staged-tasks": {
+      "main": [[{"node": "select-task", "type": "main", "index": 0}]]
+    },
+    "select-task": {
+      "main": [[{"node": "execute-task", "type": "main", "index": 0}]]
+    },
+    "execute-task": {
+      "main": [[{"node": "log-results", "type": "main", "index": 0}]]
+    },
+    "check-backlog": {
+      "main": [
+        [{"node": "generate-backlog", "type": "main", "index": 0}],
+        [{"node": "log-results", "type": "main", "index": 0}]
+      ]
+    },
+    "generate-backlog": {
+      "main": [[{"node": "log-results", "type": "main", "index": 0}]]
+    },
+    "log-results": {
+      "main": [[{"node": "write-log", "type": "main", "index": 0}]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "saveDataSuccessExecution": "all",
+    "saveExecutionProgress": true,
+    "saveManualExecutions": true,
+    "executionTimeout": 900
+  },
+  "versionId": "1.0.0",
+  "id": "swarm-orchestrator",
+  "meta": {
+    "instanceId": "swarm-manager"
+  },
+  "tags": []
+}

@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Swarm Manager - Task Orchestration Dashboard</title>
+    <link rel="stylesheet" href="src/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-left">
+                <h1><i class="fas fa-robot"></i> Swarm Manager</h1>
+                <span class="subtitle">Autonomous Task Orchestration</span>
+            </div>
+            <div class="header-right">
+                <div class="status-indicators">
+                    <div class="indicator" id="system-status">
+                        <i class="fas fa-circle"></i>
+                        <span>System Active</span>
+                    </div>
+                    <div class="indicator" id="agent-count">
+                        <i class="fas fa-users"></i>
+                        <span>0 Agents</span>
+                    </div>
+                    <div class="indicator" id="task-rate">
+                        <i class="fas fa-tachometer-alt"></i>
+                        <span>0/hr</span>
+                    </div>
+                </div>
+                <button class="btn btn-settings" onclick="toggleSettings()">
+                    <i class="fas fa-cog"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Task Board -->
+            <div class="task-board">
+                <!-- Backlog Column -->
+                <div class="task-column" data-status="backlog">
+                    <div class="column-header">
+                        <h3>
+                            <i class="fas fa-inbox"></i>
+                            Backlog
+                            <span class="task-count">0</span>
+                        </h3>
+                        <button class="btn btn-add" onclick="showAddTaskModal()">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                    <div class="task-list" id="backlog-list">
+                        <div class="task-section">
+                            <h4>Manual Tasks</h4>
+                            <div class="task-container" id="backlog-manual"></div>
+                        </div>
+                        <div class="task-section">
+                            <h4>AI Generated <span class="badge">Requires Approval</span></h4>
+                            <div class="task-container" id="backlog-generated"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Staged Column -->
+                <div class="task-column" data-status="staged">
+                    <div class="column-header">
+                        <h3>
+                            <i class="fas fa-clock"></i>
+                            Staged
+                            <span class="task-count">0</span>
+                        </h3>
+                    </div>
+                    <div class="task-list task-container" id="staged-list"></div>
+                </div>
+
+                <!-- Active Column -->
+                <div class="task-column" data-status="active">
+                    <div class="column-header">
+                        <h3>
+                            <i class="fas fa-spinner fa-pulse"></i>
+                            Active
+                            <span class="task-count">0</span>
+                        </h3>
+                    </div>
+                    <div class="task-list task-container" id="active-list"></div>
+                </div>
+
+                <!-- Completed Column -->
+                <div class="task-column" data-status="completed">
+                    <div class="column-header">
+                        <h3>
+                            <i class="fas fa-check-circle"></i>
+                            Completed
+                            <span class="task-count">0</span>
+                        </h3>
+                    </div>
+                    <div class="task-list task-container" id="completed-list"></div>
+                </div>
+
+                <!-- Failed Column -->
+                <div class="task-column" data-status="failed">
+                    <div class="column-header">
+                        <h3>
+                            <i class="fas fa-exclamation-triangle"></i>
+                            Failed
+                            <span class="task-count">0</span>
+                        </h3>
+                    </div>
+                    <div class="task-list task-container" id="failed-list"></div>
+                </div>
+            </div>
+
+            <!-- Agent Monitor Panel -->
+            <div class="agent-panel">
+                <h3><i class="fas fa-robot"></i> Active Agents</h3>
+                <div id="agent-list" class="agent-list">
+                    <!-- Agents will be dynamically added here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Panel (Hidden by default) -->
+        <div class="settings-panel" id="settings-panel">
+            <div class="settings-header">
+                <h3>Settings</h3>
+                <button class="btn-close" onclick="toggleSettings()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="settings-content">
+                <!-- Priority Weights -->
+                <div class="settings-section">
+                    <h4>Priority Weights</h4>
+                    <div class="weight-control">
+                        <label>Impact</label>
+                        <input type="range" id="weight-impact" min="0" max="2" step="0.1" value="1.0">
+                        <span class="weight-value">1.0</span>
+                    </div>
+                    <div class="weight-control">
+                        <label>Urgency</label>
+                        <input type="range" id="weight-urgency" min="0" max="2" step="0.1" value="0.8">
+                        <span class="weight-value">0.8</span>
+                    </div>
+                    <div class="weight-control">
+                        <label>Success Probability</label>
+                        <input type="range" id="weight-success" min="0" max="2" step="0.1" value="0.6">
+                        <span class="weight-value">0.6</span>
+                    </div>
+                    <div class="weight-control">
+                        <label>Resource Cost</label>
+                        <input type="range" id="weight-cost" min="0" max="2" step="0.1" value="0.5">
+                        <span class="weight-value">0.5</span>
+                    </div>
+                </div>
+
+                <!-- System Settings -->
+                <div class="settings-section">
+                    <h4>System Configuration</h4>
+                    <div class="setting-control">
+                        <label>
+                            <input type="checkbox" id="yolo-mode">
+                            YOLO Mode (Auto-approve AI tasks)
+                        </label>
+                    </div>
+                    <div class="setting-control">
+                        <label>Max Concurrent Tasks</label>
+                        <input type="number" id="max-concurrent" min="1" max="10" value="5">
+                    </div>
+                    <div class="setting-control">
+                        <label>Min Backlog Size</label>
+                        <input type="number" id="min-backlog" min="5" max="50" value="10">
+                    </div>
+                </div>
+
+                <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+            </div>
+        </div>
+
+        <!-- Add Task Modal -->
+        <div class="modal" id="add-task-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Add New Task</h3>
+                    <button class="btn-close" onclick="hideAddTaskModal()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Title</label>
+                        <input type="text" id="task-title" placeholder="Task title...">
+                    </div>
+                    <div class="form-group">
+                        <label>Description</label>
+                        <textarea id="task-description" rows="4" placeholder="Task description..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Type</label>
+                        <select id="task-type">
+                            <option value="bug-fix">Bug Fix</option>
+                            <option value="feature">Feature</option>
+                            <option value="optimization">Optimization</option>
+                            <option value="integration">Integration</option>
+                            <option value="documentation">Documentation</option>
+                            <option value="testing">Testing</option>
+                            <option value="experiment">Experiment</option>
+                            <option value="scenario">New Scenario</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Target</label>
+                        <input type="text" id="task-target" placeholder="Scenario or resource name...">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="hideAddTaskModal()">Cancel</button>
+                    <button class="btn btn-primary" onclick="createTask()">Create Task</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Task Details Modal -->
+        <div class="modal" id="task-details-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="task-details-title">Task Details</h3>
+                    <button class="btn-close" onclick="hideTaskDetails()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body" id="task-details-content">
+                    <!-- Task details will be dynamically added here -->
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-danger" onclick="deleteCurrentTask()">Delete</button>
+                    <button class="btn btn-warning" onclick="analyzeCurrentTask()">Analyze</button>
+                    <button class="btn btn-primary" onclick="executeCurrentTask()">Execute</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="src/app.js"></script>
+</body>
+</html>

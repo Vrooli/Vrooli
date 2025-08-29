@@ -1,0 +1,120 @@
+{
+  "name": "swarm-manager",
+  "version": "1.0.0",
+  "description": "Autonomous task orchestrator that coordinates work across all Vrooli scenarios",
+  "category": "vrooli-core",
+  "enabled": true,
+  "port_required": true,
+  "ports": {
+    "ui": 4000,
+    "api": 8095
+  },
+  "resources": {
+    "required": [
+      {
+        "name": "postgres",
+        "purpose": "Task metadata, execution history, and configuration storage",
+        "schema": "swarm_manager"
+      },
+      {
+        "name": "redis",
+        "purpose": "Task locks, real-time updates, and pub/sub messaging"
+      },
+      {
+        "name": "qdrant",
+        "purpose": "Task embeddings, pattern recognition, and learning system"
+      },
+      {
+        "name": "n8n",
+        "purpose": "Orchestration workflows and task execution pipelines"
+      },
+      {
+        "name": "claude-code",
+        "purpose": "Task analysis, priority estimation, and work execution"
+      }
+    ],
+    "optional": [
+      {
+        "name": "windmill",
+        "purpose": "Alternative UI dashboard for task management"
+      },
+      {
+        "name": "ollama",
+        "purpose": "Local LLM for lightweight task analysis"
+      }
+    ]
+  },
+  "interfaces": {
+    "api": {
+      "type": "rest",
+      "framework": "go-fiber",
+      "endpoints": [
+        "GET /api/tasks",
+        "POST /api/tasks",
+        "PUT /api/tasks/:id",
+        "DELETE /api/tasks/:id",
+        "POST /api/tasks/:id/execute",
+        "GET /api/agents",
+        "GET /api/metrics",
+        "GET /api/config",
+        "PUT /api/config"
+      ]
+    },
+    "cli": {
+      "commands": [
+        "start",
+        "stop",
+        "status",
+        "add-task",
+        "list-tasks",
+        "execute",
+        "agents",
+        "config",
+        "logs"
+      ]
+    },
+    "ui": {
+      "framework": "javascript",
+      "style": "modern-dark-professional",
+      "features": [
+        "kanban-board",
+        "agent-monitor",
+        "priority-queue",
+        "settings-panel",
+        "metrics-dashboard"
+      ]
+    }
+  },
+  "configuration": {
+    "max_concurrent_tasks": 5,
+    "min_backlog_size": 10,
+    "task_scan_interval": 300,
+    "yolo_mode": false,
+    "priority_weights": {
+      "impact": 1.0,
+      "urgency": 0.8,
+      "success": 0.6,
+      "cost": 0.5
+    },
+    "resource_limits": {
+      "max_cpu_percent": 70,
+      "max_memory_percent": 70,
+      "max_claude_calls_per_hour": 100
+    }
+  },
+  "lifecycle": {
+    "startup": [
+      "Initialize task folders",
+      "Load configuration",
+      "Connect to databases",
+      "Start orchestration workflows",
+      "Begin task scanning"
+    ],
+    "shutdown": [
+      "Complete active tasks",
+      "Save task states",
+      "Close database connections",
+      "Stop workflows"
+    ]
+  }
+}

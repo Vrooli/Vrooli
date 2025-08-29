@@ -838,7 +838,7 @@ scenario_to_app::create_default_service_json() {
       "ports": {
         "database": 5432,
         "server": 8080,
-        "ui": 3456
+        "ui": 3000
       },
       "containers": [
         "app[-_]*",
