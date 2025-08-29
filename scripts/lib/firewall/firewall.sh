@@ -114,10 +114,10 @@ firewall::get_enabled_services() {
         return
     fi
     
-    # Extract enabled services from all categories
-    # The structure is: .resources.ai.ollama, .resources.storage.postgres, etc.
-    # We need the key names (service names), not the type values
-    jq -r '.resources | to_entries[] | .value | to_entries[] | select(.value.enabled == true) | .key' "$service_file" 2>/dev/null || true
+    # Extract enabled services from flattened resources structure
+    # The structure is now: .resources.ollama, .resources.postgres, etc.
+    # We get the key names (service names) directly
+    jq -r '.resources | to_entries[] | select(.value.enabled == true) | .key' "$service_file" 2>/dev/null || true
 }
 
 #######################################

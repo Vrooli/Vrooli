@@ -44,16 +44,19 @@ OPTIONS:
     --json              Output in JSON format (alias for --format json)
     --format <type>     Output format: text, json
     --verbose, -v       Show detailed information
+    --fast              Use fast mode for resource checks (default)
+    --no-fast           Use detailed mode for resource checks (slower but more accurate)
     --resources         Show only resource status
     --apps              Show only app status
     --help, -h          Show this help message
 
 EXAMPLES:
-    vrooli status                  # Show full system status
+    vrooli status                  # Show full system status (fast mode)
     vrooli status --json           # Output as JSON
     vrooli status --resources      # Show only resource status
     vrooli status --apps           # Show only app status
     vrooli status --verbose        # Show detailed status
+    vrooli status --no-fast        # Use detailed health checks (slower)
 
 EOF
 }
@@ -116,13 +119,14 @@ get_resource_status() {
 check_resource_with_timing() {
     local name="$1"
     local result_file="$2"
+    local use_fast="${3:-true}"  # Default to fast mode for backward compatibility
     
     local start_time end_time duration_ms
     start_time=$(date +%s%3N)  # milliseconds
     
-    # Get resource status with --fast flag for parallel execution
+    # Get resource status with configurable fast flag
     local resource_status
-    resource_status=$(get_resource_status "${name}" "true")
+    resource_status=$(get_resource_status "${name}" "$use_fast")
     
     end_time=$(date +%s%3N)
     duration_ms=$((end_time - start_time))
@@ -134,6 +138,7 @@ check_resource_with_timing() {
 # Collect resource data (format-agnostic) - PARALLEL VERSION
 collect_resource_data() {
     local verbose="${1:-false}"
+    local use_fast="${2:-true}"  # Default to fast mode for performance
     
     # Check if config file exists
     if [[ ! -f "$RESOURCES_CONFIG" ]]; then
@@ -157,7 +162,6 @@ collect_resource_data() {
     # Parse resources from config and launch parallel checks
     local jq_query='
         .resources | to_entries[] | 
-        .value | to_entries[] | 
         select(.value.enabled == true) | 
         "\(.key)"
     '
@@ -172,7 +176,7 @@ collect_resource_data() {
             ((enabled_count++))
             
             # Launch background process
-            check_resource_with_timing "$name" "$result_file" &
+            check_resource_with_timing "$name" "$result_file" "$use_fast" &
             pids+=($!)
         fi
     done < <(jq -r "$jq_query" "$RESOURCES_CONFIG" 2>/dev/null || true)
@@ -238,9 +242,10 @@ collect_resource_data() {
 # Get structured resource data (format-agnostic)
 get_resource_data() {
     local verbose="${1:-false}"
+    local use_fast="${2:-true}"  # Default to fast mode
     
     local raw_data
-    raw_data=$(collect_resource_data "$verbose")
+    raw_data=$(collect_resource_data "$verbose" "$use_fast")
     
     # Check for errors
     if echo "$raw_data" | grep -q "^error:"; then
@@ -716,6 +721,8 @@ show_status() {
     local args_array
     mapfile -t args_array < <(args_to_array "$remaining_args")
     
+    local use_fast="true"  # Default to fast mode for performance
+    
     for arg in "${args_array[@]}"; do
         case "$arg" in
             --resources)
@@ -725,6 +732,12 @@ show_status() {
             --apps)
                 show_resources="false"
                 show_system="false"
+                ;;
+            --fast)
+                use_fast="true"
+                ;;
+            --no-fast|--detailed)
+                use_fast="false"
                 ;;
             *)
                 cli::format_error "$output_format" "Unknown option: $arg"
@@ -744,7 +757,7 @@ show_status() {
     fi
     
     if [[ "$show_resources" == "true" ]]; then
-        resource_data=$(get_resource_data "$verbose")
+        resource_data=$(get_resource_data "$verbose" "$use_fast")
     fi
     
     if [[ "$show_apps" == "true" ]]; then

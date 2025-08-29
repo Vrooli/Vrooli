@@ -351,10 +351,6 @@ class EnhancedAppOrchestrator:
             if not self.fork_bomb_detector.record_start():
                 raise Exception("Fork bomb protection triggered")
             
-            # Build app if needed
-            if not await self.ensure_app_built(app):
-                raise Exception("Failed to build app")
-            
             # Start the app process using manage.sh develop
             app_path = self.generated_apps_dir / app_name
             manage_script = app_path / "scripts" / "manage.sh"
@@ -498,41 +494,6 @@ class EnhancedAppOrchestrator:
             self.logger.error(f"Error stopping {app_name}: {e}")
             return False
     
-    async def ensure_app_built(self, app: EnhancedApp) -> bool:
-        """Ensure app is built and ready to run"""
-        app_path = self.generated_apps_dir / app.name
-        
-        # Check for Go API binary
-        api_source = app_path / "api" / "main.go" 
-        if api_source.exists():
-            cache_dir = Path.home() / ".vrooli" / "build-cache"
-            cache_dir.mkdir(parents=True, exist_ok=True)
-            
-            cached_binary = cache_dir / f"{app.name}-api"
-            target_binary = app_path / "api" / f"{app.name}-api"
-            
-            # Check if we need to rebuild
-            need_rebuild = True
-            if cached_binary.exists() and target_binary.exists():
-                source_mtime = api_source.stat().st_mtime
-                cache_mtime = cached_binary.stat().st_mtime
-                if cache_mtime >= source_mtime:
-                    need_rebuild = False
-            
-            if need_rebuild:
-                self.logger.info(f"Building {app.name} binary")
-                build_cmd = f"cd {app_path}/api && go build -o {cached_binary} main.go"
-                result = os.system(build_cmd)
-                if result != 0:
-                    return False
-            
-            # Copy to target location
-            if cached_binary.exists():
-                import shutil
-                shutil.copy2(cached_binary, target_binary)
-                os.chmod(target_binary, 0o755)
-        
-        return True
     
     def get_app_status(self, app_name: str) -> Dict[str, Any]:
         """Get detailed status of a specific app"""

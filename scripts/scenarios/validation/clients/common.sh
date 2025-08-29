@@ -48,47 +48,11 @@ print_debug() {
     fi
 }
 
-# Map resource names to service.json paths
+# Map resource names to service.json paths (flattened structure)
 get_service_path() {
     local resource_name="$1"
-    case "$resource_name" in
-        # AI resources
-        ollama) echo "resources.ai.ollama" ;;
-        whisper) echo "resources.ai.whisper" ;;
-        comfyui) echo "resources.ai.comfyui" ;;
-        unstructured-io) echo "resources.ai.unstructured-io" ;;
-        openrouter) echo "resources.ai.openrouter" ;;
-        
-        # Storage resources
-        postgres|postgresql) echo "resources.storage.postgres" ;;
-        redis) echo "resources.storage.redis" ;;
-        minio) echo "resources.storage.minio" ;;
-        qdrant) echo "resources.storage.qdrant" ;;
-        
-        # Automation resources
-        n8n) echo "resources.automation.n8n" ;;
-        windmill) echo "resources.automation.windmill" ;;
-        node-red) echo "resources.automation.node-red" ;;
-        huginn) echo "resources.automation.huginn" ;;
-        
-        # Agent resources
-        agent-s2) echo "resources.agents.agent-s2" ;;
-        claude-code) echo "resources.agents.claude-code" ;;
-        browserless) echo "resources.agents.browserless" ;;
-        
-        # Execution resources
-        judge0) echo "resources.execution.judge0" ;;
-        bullmq) echo "resources.execution.bullmq" ;;
-        
-        # Search resources
-        searxng) echo "resources.search.searxng" ;;
-        
-        # Security resources
-        vault) echo "resources.security.vault" ;;
-        
-        # Default: assume it's already a path or return as-is
-        *) echo "$resource_name" ;;
-    esac
+    # In the new flattened structure, all resources are directly under resources
+    echo "resources.$resource_name"
 }
 
 # Check if resource is enabled in service.json

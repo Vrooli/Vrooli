@@ -280,13 +280,29 @@ setup::generic_main() {
     # Step 8: Generate embeddings for the codebase
     log::header "🧠 Generating Code Embeddings"
     log::info "Initializing and generating embeddings for the codebase..."
+    log::info "⏳ This process may take 5-15 minutes depending on codebase size..."
+    log::info "💡 You can skip this step and run 'vrooli resource qdrant embeddings refresh' later if needed"
     
-    # Use vrooli resource command for clean, reliable embeddings generation
-    vrooli resource qdrant embeddings refresh --force 2>/dev/null || {
-        log::warning "Failed to generate embeddings (not critical - may not be available yet)"
-    }
+    # Check if we should skip embeddings generation in certain contexts
+    if [[ "${VROOLI_SKIP_EMBEDDINGS:-false}" == "true" ]]; then
+        log::info "🔄 Skipping embeddings generation (VROOLI_SKIP_EMBEDDINGS=true)"
+    else
+        # Show progress feedback
+        log::info "📊 Starting embeddings generation process..."
+        
+        # Use vrooli resource command for clean, reliable embeddings generation with timeout
+        timeout 900 vrooli resource qdrant embeddings refresh --force 2>/dev/null || {
+            local exit_code=$?
+            if [[ $exit_code -eq 124 ]]; then
+                log::warning "⏰ Embeddings generation timed out after 15 minutes"
+                log::info "💡 You can complete this later with: vrooli resource qdrant embeddings refresh"
+            else
+                log::warning "Failed to generate embeddings (not critical - may not be available yet)"
+            fi
+        }
+    fi
     
-    log::success "✅ Code embeddings generation attempted"
+    log::success "✅ Code embeddings generation step completed"
     
     # Step 9: Complete generic setup
     log::info "Generic setup tasks completed"

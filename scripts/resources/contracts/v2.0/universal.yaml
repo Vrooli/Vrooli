@@ -339,6 +339,7 @@ file_structure:
       description: "Configuration directory"
       required_files:
         - "defaults.sh"  # Default configuration
+        - "schema.json"  # Resource configuration schema
   
   optional:
     lib/:
@@ -362,7 +363,8 @@ file_structure:
         - PATTERNS.md         # How is this typically used?
         - INTEGRATION.md      # How does this connect to other resources?
         - ARCHITECTURE.md     # How does this work internally?
-        - TROUBLESHOOTING.md  # What goes wrong and solutions?
+        - PROBLEMS.md         # Active issues and unresolved problems (for task generation)
+        - TROUBLESHOOTING.md  # Known issues with proven solutions
         - LESSONS_LEARNED.md  # What have we learned over time?
         
         # Implementation guidance
@@ -390,6 +392,7 @@ file_structure:
           - CAPABILITIES.md
           - PATTERNS.md
           - INTEGRATION.md
+          - PROBLEMS.md
         deep_understanding:
           - ARCHITECTURE.md
           - TROUBLESHOOTING.md

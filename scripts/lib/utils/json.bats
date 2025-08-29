@@ -52,26 +52,22 @@ create_test_configs() {
     "version": "1.0.0"
   },
   "resources": {
-    "storage": {
-      "postgres": {
-        "enabled": true,
-        "required": true,
-        "host": "localhost",
-        "port": 5432
-      },
-      "redis": {
-        "enabled": false,
-        "required": false,
-        "host": "localhost",
-        "port": 6379
-      }
+    "postgres": {
+      "enabled": true,
+      "required": true,
+      "host": "localhost",
+      "port": 5432
     },
-    "ai": {
-      "ollama": {
-        "enabled": true,
-        "required": false,
-        "baseUrl": "http://localhost:11434"
-      }
+    "redis": {
+      "enabled": false,
+      "required": false,
+      "host": "localhost",
+      "port": 6379
+    },
+    "ollama": {
+      "enabled": true,
+      "required": false,
+      "baseUrl": "http://localhost:11434"
     }
   },
   "lifecycle": {
@@ -111,62 +107,56 @@ EOF
     ]
   },
   "resources": {
-    "storage": {
-      "postgres": {
-        "enabled": true,
-        "required": true,
-        "version": "16",
-        "host": "localhost",
+    "postgres": {
+      "enabled": true,
+      "required": true,
+      "version": "16",
+      "host": "localhost",
+      "port": 5432,
+      "database": "testdb",
+      "healthCheck": {
+        "type": "tcp",
         "port": 5432,
-        "database": "testdb",
-        "healthCheck": {
-          "type": "tcp",
-          "port": 5432,
-          "intervalMs": 30000
-        }
-      },
-      "redis": {
-        "enabled": true,
-        "required": true,
-        "version": "7",
-        "host": "localhost",
-        "port": 6379,
-        "healthCheck": {
-          "type": "tcp", 
-          "port": 6379
-        }
-      },
-      "minio": {
-        "enabled": false,
-        "required": false,
-        "endpoint": "localhost:9000"
+        "intervalMs": 30000
       }
     },
-    "ai": {
-      "ollama": {
-        "enabled": true,
-        "required": false,
-        "baseUrl": "http://localhost:11434",
-        "expectedModels": ["llama3.1:8b"]
-      },
-      "openrouter": {
-        "enabled": false,
-        "required": false,
-        "baseUrl": "https://openrouter.ai/api/v1"
+    "redis": {
+      "enabled": true,
+      "required": true,
+      "version": "7",
+      "host": "localhost",
+      "port": 6379,
+      "healthCheck": {
+        "type": "tcp", 
+        "port": 6379
       }
     },
-    "automation": {
-      "n8n": {
-        "enabled": true,
-        "required": true,
-        "baseUrl": "http://localhost:5678",
-        "capabilities": ["workflow", "webhook"]
-      },
-      "windmill": {
-        "enabled": false,
-        "required": false,
-        "baseUrl": "http://localhost:5681"
-      }
+    "minio": {
+      "enabled": false,
+      "required": false,
+      "endpoint": "localhost:9000"
+    },
+    "ollama": {
+      "enabled": true,
+      "required": false,
+      "baseUrl": "http://localhost:11434",
+      "expectedModels": ["llama3.1:8b"]
+    },
+    "openrouter": {
+      "enabled": false,
+      "required": false,
+      "baseUrl": "https://openrouter.ai/api/v1"
+    },
+    "n8n": {
+      "enabled": true,
+      "required": true,
+      "baseUrl": "http://localhost:5678",
+      "capabilities": ["workflow", "webhook"]
+    },
+    "windmill": {
+      "enabled": false,
+      "required": false,
+      "baseUrl": "http://localhost:5681"
     }
   },
   "lifecycle": {
@@ -352,7 +342,7 @@ EOF
 }
 
 @test "json::get_value extracts nested values" {
-    run json::get_value '.resources.storage.postgres.enabled' '' "$TEST_DIR/minimal.json"
+    run json::get_value '.resources.postgres.enabled' '' "$TEST_DIR/minimal.json"
     [ "$status" -eq 0 ]
     [[ "$output" == "true" ]]
 }
@@ -400,28 +390,29 @@ EOF
     [[ "$output" == *"n8n"* ]]
 }
 
-@test "json::get_enabled_resources filters by category" {
+@test "json::get_enabled_resources filters by pattern" {
     json::load_service_config "$TEST_DIR/complex.json"
     
-    run json::get_enabled_resources 'storage'
+    run json::get_enabled_resources 'postgres'
     [ "$status" -eq 0 ]
     [[ "$output" == *"postgres"* ]]
-    [[ "$output" == *"redis"* ]]
+    [[ "$output" != *"redis"* ]]
     [[ "$output" != *"ollama"* ]]
 }
 
 @test "json::get_required_resources returns only required resources" {
     json::load_service_config "$TEST_DIR/complex.json"
     
-    run json::get_required_resources 'storage'
+    run json::get_required_resources
     [ "$status" -eq 0 ]
     [[ "$output" == *"postgres"* ]]
     [[ "$output" == *"redis"* ]]
+    [[ "$output" == *"n8n"* ]]
     [[ "$output" != *"minio"* ]]  # minio is not required
 }
 
 @test "json::get_resource_config returns resource configuration" {
-    run json::get_resource_config 'storage' 'postgres' "$TEST_DIR/complex.json"
+    run json::get_resource_config 'postgres' "$TEST_DIR/complex.json"
     [ "$status" -eq 0 ]
     [[ "$output" == *"localhost"* ]]
     [[ "$output" == *"5432"* ]]
@@ -429,7 +420,7 @@ EOF
 }
 
 @test "json::get_resource_config handles non-existent resources" {
-    run json::get_resource_config 'storage' 'nonexistent' "$TEST_DIR/minimal.json"
+    run json::get_resource_config 'nonexistent' "$TEST_DIR/minimal.json"
     [ "$status" -eq 0 ]
     [[ "$output" == "{}" ]]
 }
@@ -616,8 +607,8 @@ EOF
     json::load_service_config "$TEST_DIR/complex.json"
     
     # Extract health check configuration
-    postgres_health=$(json::get_value '.resources.storage.postgres.healthCheck.type')
-    health_port=$(json::get_value '.resources.storage.postgres.healthCheck.port')
+    postgres_health=$(json::get_value '.resources.postgres.healthCheck.type')
+    health_port=$(json::get_value '.resources.postgres.healthCheck.port')
     
     [[ "$postgres_health" == "tcp" ]]
     [[ "$health_port" == "5432" ]]

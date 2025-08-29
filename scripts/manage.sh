@@ -118,6 +118,16 @@ manage::list_phases() {
 manage::main() {
     local phase="${1:-}"
     
+    # Check for help flags ANYWHERE in arguments
+    for arg in "$@"; do
+        case "$arg" in
+            --help|-h)
+                manage::show_help
+                exit 0
+                ;;
+        esac
+    done
+    
     # Check for --dry-run early
     local dry_run_flag="false"
     for arg in "$@"; do
@@ -130,7 +140,7 @@ manage::main() {
     
     # Handle special flags
     case "$phase" in
-        --help|-h|"")
+        "")
             manage::show_help
             exit 0
             ;;

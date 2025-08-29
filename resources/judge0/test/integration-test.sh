@@ -10,7 +10,7 @@ JUDGE0_TEST_DIR="${APP_ROOT}/resources/judge0/test"
 
 # Source var.sh first to get directory variables
 # shellcheck disable=SC1091
-source "${JUDGE0_TEST_DIR}/../../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 # Source shared integration test library
 # shellcheck disable=SC1091
@@ -24,7 +24,7 @@ source "${var_SCRIPTS_RESOURCES_DIR}/tests/lib/integration-test-lib.sh"
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
 # shellcheck disable=SC1091
-source "${JUDGE0_TEST_DIR}/../config/defaults.sh"
+source "${APP_ROOT}/resources/judge0/config/defaults.sh"
 judge0::export_config
 
 # Override library defaults with Judge0-specific settings

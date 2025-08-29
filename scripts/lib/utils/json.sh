@@ -224,14 +224,14 @@ json::path_exists() {
 ################################################################################
 
 #######################################
-# Get enabled resources by category with filtering
+# Get enabled resources with optional filtering
 # Arguments:
-#   $1 - Category (optional, e.g., 'storage', 'ai', 'automation')
+#   $1 - Filter pattern (optional, e.g., 'ollama', 'postgres')
 #   $2 - Config path (optional)
 # Returns: Space-separated list of enabled resource names
 #######################################
 json::get_enabled_resources() {
-    local category="${1:-}"
+    local filter="${1:-}"
     local config_path="${2:-}"
     
     if [[ -n "$config_path" ]] || [[ -z "$JSON_CONFIG_CACHE" ]]; then
@@ -241,26 +241,26 @@ json::get_enabled_resources() {
     fi
     
     local jq_filter
-    if [[ -n "$category" ]]; then
-        # Get enabled resources from specific category
-        jq_filter=".resources.${category} | to_entries[] | select(.value.enabled == true) | .key"
+    if [[ -n "$filter" ]]; then
+        # Get enabled resources matching the filter pattern
+        jq_filter=".resources | to_entries[] | select(.value.enabled == true and .key | contains(\"$filter\")) | .key"
     else
-        # Get all enabled resources across all categories
-        jq_filter='.resources | to_entries[] | .value | to_entries[] | select(.value.enabled == true) | .key'
+        # Get all enabled resources in flattened structure
+        jq_filter='.resources | to_entries[] | select(.value.enabled == true) | .key'
     fi
     
     echo "$JSON_CONFIG_CACHE" | jq -r "$jq_filter" 2>/dev/null | tr '\n' ' ' | xargs
 }
 
 #######################################
-# Get required resources by category
+# Get required resources with optional filtering
 # Arguments:
-#   $1 - Category (optional)
+#   $1 - Filter pattern (optional, e.g., 'ollama', 'postgres')
 #   $2 - Config path (optional)
 # Returns: Space-separated list of required resource names
 #######################################
 json::get_required_resources() {
-    local category="${1:-}"
+    local filter="${1:-}"
     local config_path="${2:-}"
     
     if [[ -n "$config_path" ]] || [[ -z "$JSON_CONFIG_CACHE" ]]; then
@@ -270,12 +270,12 @@ json::get_required_resources() {
     fi
     
     local jq_filter
-    if [[ -n "$category" ]]; then
-        # Get required resources from specific category
-        jq_filter=".resources.${category} | to_entries[] | select(.value.required == true) | .key"
+    if [[ -n "$filter" ]]; then
+        # Get required resources matching the filter pattern
+        jq_filter=".resources | to_entries[] | select(.value.required == true and .key | contains(\"$filter\")) | .key"
     else
-        # Get all required resources across all categories  
-        jq_filter='.resources | to_entries[] | .value | to_entries[] | select(.value.required == true) | .key'
+        # Get all required resources in flattened structure
+        jq_filter='.resources | to_entries[] | select(.value.required == true) | .key'
     fi
     
     echo "$JSON_CONFIG_CACHE" | jq -r "$jq_filter" 2>/dev/null | tr '\n' ' ' | xargs
@@ -284,18 +284,16 @@ json::get_required_resources() {
 #######################################
 # Get resource configuration
 # Arguments:
-#   $1 - Resource category (e.g., 'storage', 'ai')
-#   $2 - Resource name (e.g., 'postgres', 'ollama')  
-#   $3 - Config path (optional)
+#   $1 - Resource name (e.g., 'postgres', 'ollama')  
+#   $2 - Config path (optional)
 # Returns: JSON configuration object for the resource
 #######################################
 json::get_resource_config() {
-    local category="${1:-}"
-    local resource_name="${2:-}"
-    local config_path="${3:-}"
+    local resource_name="${1:-}"
+    local config_path="${2:-}"
     
-    if [[ -z "$category" || -z "$resource_name" ]]; then
-        log::error "Both category and resource name required for json::get_resource_config"
+    if [[ -z "$resource_name" ]]; then
+        log::error "Resource name required for json::get_resource_config"
         return 1
     fi
     
@@ -305,7 +303,7 @@ json::get_resource_config() {
         fi
     fi
     
-    echo "$JSON_CONFIG_CACHE" | jq -c ".resources.${category}.${resource_name} // {}" 2>/dev/null
+    echo "$JSON_CONFIG_CACHE" | jq -c ".resources.${resource_name} // {}" 2>/dev/null
 }
 
 ################################################################################

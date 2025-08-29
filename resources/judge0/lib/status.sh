@@ -6,9 +6,9 @@
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 JUDGE0_STATUS_DIR="${APP_ROOT}/resources/judge0/lib"
 # shellcheck disable=SC1091
-source "${JUDGE0_STATUS_DIR}/../../../../lib/utils/format.sh"
+source "${APP_ROOT}/scripts/lib/utils/format.sh"
 # shellcheck disable=SC1091
-source "${JUDGE0_STATUS_DIR}/../../../lib/status-args.sh"
+source "${APP_ROOT}/scripts/resources/lib/status-args.sh"
 
 # Load dependencies if not already loaded
 if [[ -z "${JUDGE0_WORKERS_COUNT:-}" ]]; then
@@ -600,7 +600,7 @@ judge0::status::functional_test() {
     echo
     
     # Get auth token from docker-compose config
-    local auth_token=$(grep "JUDGE0_AUTHENTICATION_TOKEN=" /home/matthalloran8/.vrooli/resources/judge0/config/docker-compose.yml | head -1 | cut -d'=' -f2)
+    local auth_token=$(grep "JUDGE0_AUTHENTICATION_TOKEN=" "${HOME}/.vrooli/resources/judge0/config/docker-compose.yml" | head -1 | cut -d'=' -f2)
     
     # Test 1: Simple echo test (should always work)
     echo "1. Testing basic API connectivity..."

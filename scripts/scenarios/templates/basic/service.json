@@ -14,34 +14,30 @@
     ]
   },
   "resources": {
-    "storage": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "initialization": [
-          {
-            "file": "initialization/database/schema.sql",
-            "type": "script"
-          },
-          {
-            "file": "initialization/database/seed.sql",
-            "type": "script"
-          }
-        ]
-      },
-      "redis": {
-        "type": "redis",
-        "enabled": true,
-        "required": false
-      }
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "initialization": [
+        {
+          "file": "initialization/database/schema.sql",
+          "type": "script"
+        },
+        {
+          "file": "initialization/database/seed.sql",
+          "type": "script"
+        }
+      ]
     },
-    "automation": {
-      "n8n": {
-        "type": "n8n",
-        "enabled": false,
-        "required": false
-      }
+    "redis": {
+      "type": "redis",
+      "enabled": true,
+      "required": false
+    },
+    "n8n": {
+      "type": "n8n",
+      "enabled": false,
+      "required": false
     }
   },
   "lifecycle": {

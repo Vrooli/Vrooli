@@ -304,9 +304,6 @@ show_develop_next_steps() {
     echo ""
     log::info "🌐 Main Services:"
     echo "  • Unified API: http://localhost:${VROOLI_API_PORT:-8092}"
-    if [[ -n "${WEBAPP_PORT:-}" ]]; then
-        echo "  • Web UI: http://localhost:${WEBAPP_PORT}"
-    fi
     
     echo ""
     log::info "💡 Troubleshooting:"

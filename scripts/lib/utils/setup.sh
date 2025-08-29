@@ -1,128 +1,155 @@
 #!/usr/bin/env bash
 #######################################
 # Setup State Management Library
-# Provides setup state tracking and validation for the Vrooli platform
+# Provides setup state tracking and condition checking for Vrooli platform
 #######################################
 
 set -euo pipefail
 
-# Global variables for setup artifacts and reasons
-SETUP_MISSING_ARTIFACTS=()
+# Global variables for setup reasons
 SETUP_REASONS=()
 
 #######################################
-# Check if setup artifacts exist and are valid
-# Sets SETUP_MISSING_ARTIFACTS global variable with list of missing items
-# Returns:
-#   0 if all artifacts exist
-#   1 if any artifacts are missing
-#######################################
-setup::verify_artifacts() {
-    # Reset global variable
-    SETUP_MISSING_ARTIFACTS=()
-    
-    # Check for common build artifacts based on project structure
-    local artifacts_missing=false
-    
-    # Check Go binary if Go project exists
-    if [[ -f "api/go.mod" ]]; then
-        local binary_name
-        binary_name=$(basename "$PWD")
-        # Check for common binary naming patterns
-        if [[ ! -f "api/${binary_name}-api" ]] && [[ ! -f "api/${binary_name}" ]] && [[ ! -f "api/api-server" ]]; then
-            log::debug "Go binary missing for ${binary_name} (checked: ${binary_name}-api, ${binary_name}, api-server)"
-            SETUP_MISSING_ARTIFACTS+=("Go binary (api/${binary_name}-api, api/${binary_name}, or api/api-server)")
-            artifacts_missing=true
-        fi
-    fi
-    
-    # Check Node.js dependencies if package.json exists
-    if [[ -f "ui/package.json" ]] && [[ ! -d "ui/node_modules" ]]; then
-        log::debug "Node.js dependencies missing in ui/"
-        SETUP_MISSING_ARTIFACTS+=("Node.js dependencies (ui/node_modules)")
-        artifacts_missing=true
-    fi
-    
-    # Return false if any artifacts missing
-    if [[ "$artifacts_missing" == "true" ]]; then
-        return 1
-    fi
-    
-    return 0
-}
-
-#######################################
-# Check if app needs setup based on git commit only
+# Check if app needs setup based on service.json conditions
 # Sets SETUP_REASONS global array with specific reasons
 #
-# Simplified logic: Only runs setup when:
-# - First run (no state file)
-# - Git commit changed
-# - Critical artifacts are missing
-#
-# Local changes don't trigger setup since developers
-# know when they need to re-run setup
+# Logic: Runs checks defined in service.json lifecycle.setup.condition.checks
 # Returns:
 #   0 if setup is needed
 #   1 if setup is not needed
 #######################################
 setup::is_needed() {
-    local state_file="data/.setup-state"
-    
     # Reset global array for setup reasons
     SETUP_REASONS=()
     
-    # Ensure data directory exists
-    mkdir -p "${state_file%/*}"
+    # Get service.json path
+    local service_json="${SERVICE_JSON:-${APP_ROOT}/.vrooli/service.json}"
     
-    # No state file = needs setup
-    if [[ ! -f "$state_file" ]]; then
-        log::debug "No setup state file found, setup needed"
-        SETUP_REASONS+=("First run - no previous setup state found")
-        return 0
+    if [[ ! -f "$service_json" ]]; then
+        log::debug "No service.json found, assuming setup not needed"
+        return 1
     fi
     
-    # Validate state file is proper JSON
-    if ! jq empty "$state_file" 2>/dev/null; then
-        log::debug "Corrupted setup state file, setup needed"
-        SETUP_REASONS+=("Corrupted setup state file - needs regeneration")
-        rm -f "$state_file"
-        return 0
+    # Check if setup has a condition defined
+    local has_condition
+    has_condition=$(jq -r '.lifecycle.setup.condition // empty' "$service_json" 2>/dev/null)
+    
+    if [[ -z "$has_condition" ]]; then
+        log::debug "No setup condition defined, setup not needed"
+        return 1
     fi
     
-    # Get current git commit
-    local current_commit
-    current_commit=$(git::get_commit)
+    # Check for checks array
+    local checks
+    checks=$(jq -c '.lifecycle.setup.condition.checks // []' "$service_json" 2>/dev/null)
     
-    # Get recorded commit
-    local recorded_commit
-    recorded_commit=$(jq -r '.git_commit // empty' "$state_file" 2>/dev/null || echo "")
-    
-    # If git commit changed, needs setup
-    if [[ "$current_commit" != "$recorded_commit" ]]; then
-        log::debug "Git commit changed (${recorded_commit} -> ${current_commit}), setup needed"
-        local short_old="${recorded_commit:0:8}"
-        local short_new="${current_commit:0:8}"
-        SETUP_REASONS+=("Git commit changed: ${short_old} → ${short_new}")
-        return 0
+    if [[ "$checks" == "[]" ]]; then
+        log::debug "No setup checks defined, setup not needed"
+        return 1
     fi
     
-    # Verify critical artifacts still exist
-    if ! setup::verify_artifacts; then
-        log::debug "Setup artifacts missing or invalid, setup needed"
-        # Add specific missing artifacts to reasons
-        if [[ ${#SETUP_MISSING_ARTIFACTS[@]} -gt 0 ]]; then
-            for artifact in "${SETUP_MISSING_ARTIFACTS[@]}"; do
-                SETUP_REASONS+=("Missing: $artifact")
-            done
-        else
-            SETUP_REASONS+=("Build artifacts missing or invalid")
+    # Run each check
+    local setup_needed=false
+    local check_count=0
+    
+    while IFS= read -r check; do
+        ((check_count++))
+        
+        local check_type
+        check_type=$(echo "$check" | jq -r '.type // empty')
+        
+        if [[ -z "$check_type" ]]; then
+            log::warn "Check #$check_count has no type, skipping"
+            continue
         fi
-        return 0
-    fi
+        
+        # Map check types to checker scripts
+        local checker_script=""
+        case "$check_type" in
+            binaries)
+                checker_script="scripts/lib/setup-conditions/binaries-check.sh"
+                ;;
+            cli)
+                checker_script="scripts/lib/setup-conditions/cli-check.sh"
+                ;;
+            resources)
+                checker_script="scripts/lib/setup-conditions/resources-check.sh"
+                ;;
+            dependencies)
+                checker_script="scripts/lib/setup-conditions/dependencies-check.sh"
+                ;;
+            data)
+                checker_script="scripts/lib/setup-conditions/data-check.sh"
+                ;;
+            files)
+                checker_script="scripts/lib/setup-conditions/files-check.sh"
+                ;;
+            *)
+                # Try custom check script
+                checker_script="scripts/lib/setup-conditions/${check_type}-check.sh"
+                if [[ ! -f "$checker_script" ]]; then
+                    log::warn "Unknown check type: $check_type"
+                    continue
+                fi
+                ;;
+        esac
+        
+        # Resolve checker script path
+        if [[ ! "$checker_script" =~ ^/ ]]; then
+            checker_script="${APP_ROOT}/$checker_script"
+        fi
+        
+        if [[ ! -f "$checker_script" ]]; then
+            log::warn "Checker script not found: $checker_script"
+            continue
+        fi
+        
+        # Run the check (returns 0 if setup needed, 1 if not)
+        if "$checker_script" "$check" 2>/dev/null; then
+            log::debug "Check '$check_type' indicates setup is needed"
+            
+            # Add descriptive reason based on check type
+            case "$check_type" in
+                binaries)
+                    local targets
+                    targets=$(echo "$check" | jq -r '.targets[]?' 2>/dev/null | head -3 | paste -sd, -)
+                    SETUP_REASONS+=("Missing binaries: $targets")
+                    ;;
+                cli)
+                    local cmd
+                    cmd=$(echo "$check" | jq -r '.command // "unknown"')
+                    SETUP_REASONS+=("CLI not installed: $cmd")
+                    ;;
+                resources)
+                    SETUP_REASONS+=("Resources not populated")
+                    ;;
+                dependencies)
+                    SETUP_REASONS+=("Dependencies not installed")
+                    ;;
+                data)
+                    SETUP_REASONS+=("Data directory missing")
+                    ;;
+                files)
+                    SETUP_REASONS+=("Required files missing")
+                    ;;
+                *)
+                    SETUP_REASONS+=("Check failed: $check_type")
+                    ;;
+            esac
+            
+            setup_needed=true
+        else
+            log::debug "Check '$check_type' passed"
+        fi
+    done <<< "$(echo "$checks" | jq -c '.[]' 2>/dev/null)"
     
-    log::debug "Setup state is current"
-    return 1  # No setup needed
+    if [[ "$setup_needed" == "true" ]]; then
+        log::debug "Setup needed based on condition checks"
+        return 0
+    else
+        log::debug "All setup checks passed, no setup needed"
+        return 1
+    fi
 }
 
 #######################################
@@ -143,24 +170,30 @@ setup::get_steps_list() {
 }
 
 #######################################
-# Mark setup as complete with current git state
+# Mark setup as complete with markers for resource population
+# This helps the condition checks know setup has been run
 #######################################
 setup::mark_complete() {
-    local state_file="data/.setup-state"
-    mkdir -p "${state_file%/*}"
+    local data_dir="${APP_ROOT}/data"
+    mkdir -p "$data_dir"
     
-    local current_commit setup_steps
-    current_commit=$(git::get_commit)
+    # Create a general setup completion marker
+    local setup_steps
     setup_steps=$(setup::get_steps_list)
     
-    cat > "$state_file" << EOF
+    cat > "$data_dir/.setup-complete" << EOF
 {
-  "setup_version": "1.0.0",
-  "git_commit": "$current_commit",
-  "setup_completed_at": "$(date -Iseconds)",
-  "setup_steps_completed": $setup_steps
+  "setup_version": "2.0.0",
+  "completed_at": "$(date -Iseconds)",
+  "steps_completed": $setup_steps
 }
 EOF
     
-    log::debug "Setup state marked as complete"
+    # Also create resource population marker if resources were populated
+    # This is checked by the resources-check.sh condition
+    if jq -e '.lifecycle.setup.steps[] | select(.name == "populate-resources" or .name == "add-data")' "${SERVICE_JSON:-${APP_ROOT}/.vrooli/service.json}" >/dev/null 2>&1; then
+        touch "$data_dir/.resources-populated"
+    fi
+    
+    log::debug "Setup marked as complete"
 }

@@ -339,7 +339,7 @@ try:
     store = {}
     
     # Load all referenced schema files
-    schema_files = ['common.schema.json', 'lifecycle.schema.json', 'resources.schema.json', 'deployment.schema.json']
+    schema_files = ['common.schema.json', 'lifecycle.schema.json', 'resources.schema.json', 'deployment.schema.json', 'resource-definitions.json']
     for schema_file in schema_files:
         schema_path = os.path.join(schema_dir, schema_file)
         if os.path.exists(schema_path):
@@ -350,6 +350,16 @@ try:
                 store[schema_id] = schema_data
                 # Also store by filename for relative references
                 store[schema_file] = schema_data
+    
+    # CRITICAL FIX: Handle relative path resolution issue in resource-definitions.json
+    # The resource-definitions.json references '../resources.schema.json' which resolves
+    # incorrectly from base URI 'https://vrooli.com/schemas/resource-definitions.json'  
+    # to 'https://vrooli.com/resources.schema.json' instead of the correct
+    # 'https://vrooli.com/schemas/resources.schema.json'
+    if 'https://vrooli.com/schemas/resources.schema.json' in store:
+        resources_schema = store['https://vrooli.com/schemas/resources.schema.json']
+        # Map the incorrect resolved URI to the correct schema data
+        store['https://vrooli.com/resources.schema.json'] = resources_schema
     
     # Create resolver
     resolver = jsonschema.RefResolver(
@@ -422,16 +432,15 @@ try:
         service_name = service_content.get('service', {}).get('name', 'unknown')
         resource_count = 0
         
-        # Count enabled resources
+        # Count enabled resources (flattened structure)
         if 'resources' in service_content:
             resources = service_content['resources']
-            for category, items in resources.items():
-                if isinstance(items, dict):
-                    for name, config in items.items():
-                        if isinstance(config, dict) and config.get('enabled', False):
-                            resource_count += 1
-                        elif isinstance(config, dict) and config.get('required', False):
-                            resource_count += 1
+            if isinstance(resources, dict):
+                for name, config in resources.items():
+                    if isinstance(config, dict) and config.get('enabled', False):
+                        resource_count += 1
+                    elif isinstance(config, dict) and config.get('required', False):
+                        resource_count += 1
         
         print(f'SCHEMA_VALID:{resource_count}:{service_name}')
     
@@ -829,7 +838,7 @@ scenario_to_app::create_default_service_json() {
       "ports": {
         "database": 5432,
         "server": 8080,
-        "ui": 3000
+        "ui": 3456
       },
       "containers": [
         "app[-_]*",

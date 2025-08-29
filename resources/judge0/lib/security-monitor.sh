@@ -9,7 +9,7 @@ JUDGE0_LIB_DIR="${APP_ROOT}/resources/judge0/lib"
 
 # Source var.sh first to get directory variables
 # shellcheck disable=SC1091
-source "${JUDGE0_LIB_DIR}/../../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 # Source logging functions
 # shellcheck disable=SC1091
@@ -20,7 +20,7 @@ source "${var_SCRIPTS_RESOURCES_DIR}/common/logging.sh" || {
 
 # Load Judge0 config for proper data directory
 # shellcheck disable=SC1091
-source "${JUDGE0_LIB_DIR}/../config/defaults.sh"
+source "${APP_ROOT}/resources/judge0/config/defaults.sh"
 
 # Configuration using proper variables instead of hardcoded paths
 ALERT_LOG="${JUDGE0_LOGS_DIR}/security-alerts.log"

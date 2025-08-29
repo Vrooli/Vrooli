@@ -18,7 +18,10 @@ SCRIPT_DIR="${APP_ROOT}/resources/browserless/examples"
 BROWSERLESS_DIR="${APP_ROOT}/resources/browserless"
 
 # Source log utilities first
-source "${APP_ROOT}/scripts/lib/utils/log.sh"
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/lib/utils/var.sh" || { echo "FATAL: Failed to load variable definitions" >&2; exit 1; }
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}" || { echo "FATAL: Failed to load logging library" >&2; exit 1; }
 
 # Source required libraries
 source "${BROWSERLESS_DIR}/lib/common.sh"
@@ -76,7 +79,7 @@ execute_n8n_workflow_atomic() {
         
         # Fill email
         log::debug "Filling email field"
-        browser::fill 'input[type="email"], #email' "${N8N_EMAIL:-matthalloran8@gmail.com}" "$session_id"
+        browser::fill 'input[type="email"], #email' "${N8N_EMAIL:-user@example.com}" "$session_id"
         
         # Fill password
         log::debug "Filling password field"

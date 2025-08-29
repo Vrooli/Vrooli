@@ -34,6 +34,7 @@ source "${var_LOG_FILE:-${APP_ROOT}/scripts/lib/utils/log.sh}" 2>/dev/null || tr
 # Configuration with defaults (avoid readonly for CLI compatibility)
 STOP_TIMEOUT="${STOP_TIMEOUT:-30}"
 FORCE_STOP="${FORCE_STOP:-false}"
+CONFIRM_CRITICAL="${CONFIRM_CRITICAL:-false}"
 DRY_RUN="${DRY_RUN:-false}"
 VERBOSE="${VERBOSE:-false}"
 PARALLEL="${PARALLEL:-true}"
@@ -52,6 +53,89 @@ declare -g TOTAL_STOPPED=0
 declare -g STOP_ERRORS=0
 declare -ga STOPPED_ITEMS=()
 declare -ga FAILED_ITEMS=()
+declare -ga PROTECTED_ITEMS=()
+declare -ga CRITICAL_ITEMS=()
+
+################################################################################
+# Runtime Protection Functions
+################################################################################
+
+# Check if an app or scenario has runtime protection
+stop::check_runtime_protection() {
+    local item_name="$1"
+    local item_type="${2:-app}"  # app or scenario
+    
+    local service_json=""
+    
+    if [[ "$item_type" == "app" ]]; then
+        # Check generated app's service.json
+        service_json="${GENERATED_APPS_DIR}/${item_name}/service.json"
+    else
+        # Check scenario's service.json
+        service_json="${APP_ROOT}/scenarios/${item_name}/service.json"
+    fi
+    
+    # If service.json doesn't exist, not protected
+    [[ ! -f "$service_json" ]] && echo "none" && return 0
+    
+    # Check for runtime protection settings
+    local protection_level="none"
+    
+    # Check for protection field
+    if command -v jq >/dev/null 2>&1; then
+        # Try new protection format first
+        protection_level=$(jq -r '.runtime.protection // "none"' "$service_json" 2>/dev/null || echo "none")
+        
+        # If none, check for boolean protected field
+        if [[ "$protection_level" == "none" ]] || [[ "$protection_level" == "null" ]]; then
+            local is_protected
+            is_protected=$(jq -r '.runtime.protected // false' "$service_json" 2>/dev/null || echo "false")
+            if [[ "$is_protected" == "true" ]]; then
+                protection_level="important"
+            fi
+        fi
+    else
+        # Fallback to grep if jq not available
+        if grep -q '"protected"[[:space:]]*:[[:space:]]*true' "$service_json" 2>/dev/null; then
+            protection_level="important"
+        elif grep -q '"protection"[[:space:]]*:[[:space:]]*"critical"' "$service_json" 2>/dev/null; then
+            protection_level="critical"
+        fi
+    fi
+    
+    echo "$protection_level"
+}
+
+# Check if we should skip an item based on protection
+stop::should_skip() {
+    local item_name="$1"
+    local protection_level="$2"
+    
+    # No protection, don't skip
+    [[ "$protection_level" == "none" ]] && return 1
+    
+    # Critical protection
+    if [[ "$protection_level" == "critical" ]]; then
+        if [[ "$FORCE_STOP" == "true" ]] && [[ "$CONFIRM_CRITICAL" == "true" ]]; then
+            return 1  # Don't skip - user confirmed
+        else
+            CRITICAL_ITEMS+=("$item_name")
+            return 0  # Skip
+        fi
+    fi
+    
+    # Important protection  
+    if [[ "$protection_level" == "important" ]]; then
+        if [[ "$FORCE_STOP" == "true" ]]; then
+            return 1  # Don't skip - force flag provided
+        else
+            PROTECTED_ITEMS+=("$item_name")
+            return 0  # Skip
+        fi
+    fi
+    
+    return 1  # Don't skip by default
+}
 
 ################################################################################
 # Utility Functions
@@ -282,10 +366,15 @@ stop::all() {
 stop::apps() {
     stop::log info "Stopping generated apps..."
     local count=0
+    local skipped_count=0
     
-    # 1. Stop Python orchestrator
+    # 1. Stop Python orchestrator (check if it's a critical system component)
     stop::log verbose "Checking for orchestrator process..."
-    if stop::execute "pkill -$(stop::get_signal) -f 'app_orchestrator' 2>/dev/null"; then
+    local orchestrator_protection="critical"  # Orchestrator is always critical
+    if stop::should_skip "app_orchestrator" "$orchestrator_protection"; then
+        stop::log warning "  Skipping app orchestrator (critical system component)"
+        ((skipped_count++)) || true
+    elif stop::execute "pkill -$(stop::get_signal) -f 'app_orchestrator' 2>/dev/null"; then
         ((count++)) || true
         ((TOTAL_STOPPED++)) || true || true
         STOPPED_ITEMS+=("app_orchestrator")
@@ -324,6 +413,25 @@ stop::apps() {
                 local app_name
                 app_name=$(basename "$app_dir")
                 
+                # Check runtime protection for this app
+                local protection_level
+                protection_level=$(stop::check_runtime_protection "$app_name" "app")
+                
+                if stop::should_skip "$app_name" "$protection_level"; then
+                    local protection_msg=""
+                    case "$protection_level" in
+                        critical)
+                            protection_msg="critical - requires --force --confirm"
+                            ;;
+                        important)
+                            protection_msg="protected - requires --force"
+                            ;;
+                    esac
+                    stop::log warning "  Skipping $app_name ($protection_msg)"
+                    ((skipped_count++)) || true
+                    continue
+                fi
+                
                 # Stop Go API servers
                 if stop::execute "pkill -$(stop::get_signal) -f '${app_name}-api' 2>/dev/null"; then
                     ((count++)) || true || true
@@ -355,6 +463,25 @@ stop::apps() {
         stop::log success "Stopped $count app processes"
     else
         stop::log info "No app processes were running"
+    fi
+    
+    # Report protected/skipped apps
+    if [[ $skipped_count -gt 0 ]]; then
+        stop::log warning "Skipped $skipped_count protected apps"
+        
+        if [[ ${#PROTECTED_ITEMS[@]} -gt 0 ]]; then
+            stop::log warning "Protected apps (use --force to stop):"
+            for item in "${PROTECTED_ITEMS[@]}"; do
+                stop::log warning "  - $item"
+            done
+        fi
+        
+        if [[ ${#CRITICAL_ITEMS[@]} -gt 0 ]]; then
+            stop::log warning "Critical components (use --force --confirm to stop):"
+            for item in "${CRITICAL_ITEMS[@]}"; do
+                stop::log warning "  - $item"
+            done
+        fi
     fi
 }
 

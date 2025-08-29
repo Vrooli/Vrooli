@@ -10,7 +10,7 @@ APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pw
 SCRIPT_DIR="${APP_ROOT}/resources/huginn/test"
 
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../../lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_DIR}/resources/tests/lib/integration-test-lib.sh"
 
@@ -22,7 +22,7 @@ source "${var_SCRIPTS_DIR}/resources/tests/lib/integration-test-lib.sh"
 # shellcheck disable=SC1091
 source "${var_RESOURCES_COMMON_FILE}"
 # shellcheck disable=SC1091
-source "$SCRIPT_DIR/../config/defaults.sh"
+source "${APP_ROOT}/resources/huginn/config/defaults.sh"
 huginn::export_config
 
 # Override library defaults with Huginn-specific settings

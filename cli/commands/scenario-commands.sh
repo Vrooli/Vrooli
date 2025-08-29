@@ -300,19 +300,53 @@ scenario_validate() {
 
 # Convert a scenario to an app
 scenario_convert() {
-	local scenario_name="${1:-}"
-	shift || true
-	[[ -z "$scenario_name" ]] && { log::error "Scenario name required"; return 1; }
+	# Check for help FIRST before processing any arguments
+	for arg in "$@"; do
+		case "$arg" in
+			--help|-h)
+				show_scenario_help
+				return 0
+				;;
+		esac
+	done
+	
+	# Filter shell artifacts from arguments
+	local clean_args=()
+	for arg in "$@"; do
+		case "$arg" in
+			# Skip shell redirection operators
+			"2>&1"|"1>&2"|"&>"|">&"|"2>"|"1>"|">"|">>"|"<"|"<<")
+				continue
+				;;
+			# Skip suspicious single digits
+			[0-9])
+				# If this looks like a shell artifact, skip it
+				if [[ ${#clean_args[@]} -gt 0 ]]; then
+					local prev="${clean_args[-1]:-}"
+					case "$prev" in
+						convert|scenario) continue ;;
+					esac
+				fi
+				;;
+		esac
+		clean_args+=("$arg")
+	done
+	
+	local scenario_name="${clean_args[0]:-}"
+	[[ -z "$scenario_name" ]] && { 
+		log::error "Scenario name required"
+		log::info "Usage: vrooli scenario convert <scenario-name> [--force]"
+		return 1
+	}
 	
 	check_api || return 1
 	
 	local force=false
-	while [[ $# -gt 0 ]]; do
-		case "$1" in
+	for arg in "${clean_args[@]:1}"; do
+		case "$arg" in
 			--force) force=true ;;
-			*) log::error "Unknown option: $1"; return 1 ;;
+			*) log::error "Unknown option: $arg"; return 1 ;;
 		esac
-		shift
 	done
 	
 	log::info "Converting scenario to app: $scenario_name"

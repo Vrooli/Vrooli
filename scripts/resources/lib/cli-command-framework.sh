@@ -77,9 +77,22 @@ cli::register_command() {
 #######################################
 cli::dispatch() {
     local cmd
-    if [[ $# -gt 0 ]]; then
+    
+    # Handle help flags first, before processing other arguments
+    if [[ $# -gt 0 && ("${1:-}" == "--help" || "${1:-}" == "-h") ]]; then
+        cmd="help"
+    elif [[ $# -gt 0 ]]; then
         cmd="$1"
         shift
+        
+        # Check for multi-word commands (e.g., "test all", "content add")
+        if [[ $# -gt 0 ]] && [[ "${1:-}" != "--"* ]]; then
+            local potential_multi_cmd="$cmd $1"
+            if [[ -n "${CLI_COMMANDS[$potential_multi_cmd]:-}" ]]; then
+                cmd="$potential_multi_cmd"
+                shift
+            fi
+        fi
     else
         cmd="help"
     fi
@@ -159,19 +172,56 @@ cli::_handle_help() {
     echo
     echo "Commands:"
     
-    # Sort commands for consistent display
-    local commands=($(printf '%s\n' "${!CLI_COMMANDS[@]}" | sort))
+    # Separate single-word and multi-word commands
+    local single_commands=()
+    local multi_commands=()
     
-    for cmd in "${commands[@]}"; do
+    for cmd in "${!CLI_COMMANDS[@]}"; do
+        if [[ "$cmd" == *" "* ]]; then
+            multi_commands+=("$cmd")
+        else
+            single_commands+=("$cmd")
+        fi
+    done
+    
+    # Sort commands
+    IFS=$'\n' single_commands=($(sort <<<"${single_commands[*]}"))
+    IFS=$'\n' multi_commands=($(sort <<<"${multi_commands[*]}"))
+    
+    # Display single-word commands first
+    for cmd in "${single_commands[@]}"; do
         local desc="${CLI_COMMAND_DESCRIPTIONS[$cmd]:-No description available}"
         local flags="${CLI_COMMAND_FLAGS[$cmd]:-}"
         
-        printf "  %-12s %s" "$cmd" "$desc"
+        printf "  %-20s %s" "$cmd" "$desc"
         if [[ "$flags" == *"modifies-system"* ]]; then
             printf " [modifies system]"
         fi
         echo
     done
+    
+    # Display multi-word commands grouped by prefix
+    if [[ ${#multi_commands[@]} -gt 0 ]]; then
+        local last_prefix=""
+        for cmd in "${multi_commands[@]}"; do
+            local prefix="${cmd%% *}"
+            local subcommand="${cmd#* }"
+            local desc="${CLI_COMMAND_DESCRIPTIONS[$cmd]:-No description available}"
+            local flags="${CLI_COMMAND_FLAGS[$cmd]:-}"
+            
+            if [[ "$prefix" != "$last_prefix" ]] && [[ -n "$last_prefix" ]]; then
+                echo  # Add spacing between groups
+            fi
+            
+            printf "  %-20s %s" "$cmd" "$desc"
+            if [[ "$flags" == *"modifies-system"* ]]; then
+                printf " [modifies system]"
+            fi
+            echo
+            
+            last_prefix="$prefix"
+        done
+    fi
     
     echo
     echo "Global Options:"

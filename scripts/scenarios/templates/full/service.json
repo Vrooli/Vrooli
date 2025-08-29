@@ -44,78 +44,74 @@
     }
   },
   "resources": {
-    "storage": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "purpose": "PRIMARY_DATABASE_PURPOSE_PLACEHOLDER",
-        "initialization": [
-          {
-            "file": "initialization/storage/postgres/schema.sql",
-            "type": "script"
-          },
-          {
-            "file": "initialization/storage/postgres/seed.sql",
-            "type": "script"
-          }
-        ]
-      },
-      "redis": {
-        "type": "redis",
-        "enabled": true,
-        "required": true,
-        "purpose": "Cache and event bus"
-      },
-      "minio": {
-        "type": "minio",
-        "enabled": false,
-        "required": false,
-        "purpose": "Object storage for files and artifacts"
-      },
-      "qdrant": {
-        "type": "qdrant",
-        "enabled": false,
-        "required": false,
-        "purpose": "Vector database for semantic search"
-      }
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "PRIMARY_DATABASE_PURPOSE_PLACEHOLDER",
+      "initialization": [
+        {
+          "file": "initialization/storage/postgres/schema.sql",
+          "type": "script"
+        },
+        {
+          "file": "initialization/storage/postgres/seed.sql",
+          "type": "script"
+        }
+      ]
     },
-    "automation": {
-      "n8n": {
-        "type": "n8n",
-        "enabled": true,
-        "required": true,
-        "initialization": [
-          {
-            "file": "initialization/automation/n8n/main-workflow.json",
-            "type": "workflow"
-          }
-        ]
-      },
-      "windmill": {
-        "type": "windmill",
-        "enabled": true,
-        "required": false,
-        "initialization": [
-          {
-            "file": "initialization/automation/windmill/windmill-app.json",
-            "type": "app"
-          }
-        ]
-      },
-      "node-red": {
-        "type": "node-red",
-        "enabled": false,
-        "required": false
-      }
+    "redis": {
+      "type": "redis",
+      "enabled": true,
+      "required": true,
+      "purpose": "Cache and event bus"
     },
-    "ai": {
-      "ollama": {
-        "type": "ollama",
-        "enabled": false,
-        "required": false,
-        "models": ["AI_MODEL_PLACEHOLDER"]
-      }
+    "minio": {
+      "type": "minio",
+      "enabled": false,
+      "required": false,
+      "purpose": "Object storage for files and artifacts"
+    },
+    "qdrant": {
+      "type": "qdrant",
+      "enabled": false,
+      "required": false,
+      "purpose": "Vector database for semantic search"
+    },
+    "n8n": {
+      "type": "n8n",
+      "enabled": true,
+      "required": true,
+      "initialization": [
+        {
+          "file": "initialization/automation/n8n/main-workflow.json",
+          "type": "workflow"
+        }
+      ]
+    },
+    "windmill": {
+      "type": "windmill",
+      "enabled": true,
+      "required": false,
+      "initialization": [
+        {
+          "file": "initialization/automation/windmill/windmill-app.json",
+          "type": "app"
+        }
+      ]
+    },
+    "node-red": {
+      "type": "node-red",
+      "enabled": false,
+      "required": false
+    },
+    "ollama": {
+      "type": "ollama",
+      "enabled": false,
+      "required": false,
+      "models": [
+        "AI_MODEL_PLACEHOLDER"
+      ]
     }
   },
   "lifecycle": {
@@ -513,7 +509,10 @@
         },
         "notifications": {
           "enabled": true,
-          "channels": ["email", "webhook"]
+          "channels": [
+            "email",
+            "webhook"
+          ]
         },
         "analytics": {
           "enabled": true,

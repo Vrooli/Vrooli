@@ -11,7 +11,7 @@ _HERE="${APP_ROOT}/scripts/resources/tests/lib"
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 # Fixture data base path
-FIXTURE_BASE="${FIXTURE_BASE:-${var_SCRIPTS_TEST_DIR}/fixtures}"
+FIXTURE_BASE="${FIXTURE_BASE:-${var_TEST_DIR}/fixtures}"
 
 #######################################
 # FIXTURE PATH HELPERS
@@ -77,7 +77,8 @@ fixture_helpers::get_speech_audio_fixture() {
 # Get expected transcription for validation
 fixture_helpers::get_expected_transcription() {
     local audio_file="$1"
-    local filename=$(basename "$audio_file")
+    local filename
+    filename=$(basename "$audio_file")
     
     # Known transcriptions for test files
     case "$filename" in
