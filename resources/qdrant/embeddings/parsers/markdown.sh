@@ -62,7 +62,7 @@ markdown::extract_marked_sections() {
     fi
     
     # Use a temporary file to collect sections
-    local temp_sections="/tmp/marked_sections_$$.txt"
+    local temp_sections=$(mktemp /tmp/marked_sections_XXXXXX.txt)
     > "$temp_sections"
     
     local in_section=false

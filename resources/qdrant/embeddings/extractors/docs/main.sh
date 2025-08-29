@@ -17,7 +17,7 @@
 
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../../.." && builtin pwd)}"
 
 # Define paths from APP_ROOT
 EMBEDDINGS_DIR="${APP_ROOT}/resources/qdrant/embeddings"
@@ -693,7 +693,7 @@ qdrant::extract::docs_coverage() {
 #######################################
 qdrant::embeddings::process_documentation() {
     local app_id="$1"
-    local collection="${app_id}-knowledge"
+    local collection="${app_id}-docs"
     local count=0
     
     # Extract documentation to temp file
@@ -706,26 +706,10 @@ qdrant::embeddings::process_documentation() {
         return 0
     fi
     
-    # Process each JSON line through unified embedding service
-    while IFS= read -r json_line; do
-        if [[ -n "$json_line" ]]; then
-            # Parse JSON to extract content and metadata
-            local content
-            content=$(echo "$json_line" | jq -r '.content // empty' 2>/dev/null)
-            
-            local metadata
-            metadata=$(echo "$json_line" | jq -c '.metadata // {}' 2>/dev/null)
-            
-            if [[ -n "$content" ]]; then
-                # Process through unified embedding service with structured metadata
-                if qdrant::embedding::process_item "$content" "documentation" "$collection" "$app_id" "$metadata"; then
-                    ((count++))
-                fi
-            fi
-        fi
-    done < "$output_file"
+    # Use the new batch processing function for massive speedup!
+    count=$(qdrant::embedding::process_jsonl_file "$output_file" "documentation" "$collection" "$app_id")
     
-    log::debug "Created $count documentation embeddings"
+    log::debug "Created $count documentation embeddings using real batch processing"
     echo "$count"
 }
 

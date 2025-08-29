@@ -13,7 +13,7 @@ source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/log.sh"
 # shellcheck disable=SC1091
-source "${var_SCRIPTS_RESOURCES_LIB_DIR}/http-utils.sh"
+# http-utils.sh not found, using curl directly instead
 
 # Source configuration
 # shellcheck disable=SC1091
@@ -53,7 +53,7 @@ declare -A KNOWN_MODEL_DIMENSIONS=(
 qdrant::models::check_ollama() {
     local ollama_url="${OLLAMA_BASE_URL:-http://localhost:11434}"
     
-    if ! http::request "GET" "${ollama_url}/api/tags" "" "" 2>/dev/null | jq -e '.models' >/dev/null 2>&1; then
+    if ! curl -s "${ollama_url}/api/tags" 2>/dev/null | jq -e '.models' >/dev/null 2>&1; then
         log::debug "Ollama not available at ${ollama_url}"
         return 1
     fi
@@ -93,7 +93,7 @@ qdrant::models::discover_ollama() {
     
     # Get all models from Ollama
     local models_response
-    models_response=$(http::request "GET" "${ollama_url}/api/tags" "" "" 2>/dev/null)
+    models_response=$(curl -s "${ollama_url}/api/tags" 2>/dev/null)
     
     if [[ -z "$models_response" ]]; then
         log::error "Failed to retrieve models from Ollama"
@@ -542,7 +542,7 @@ qdrant::models::is_available() {
     
     # Get list of available models
     local models_response
-    models_response=$(http::request "GET" "${OLLAMA_BASE_URL:-http://localhost:11434}/api/tags" "" "" 2>/dev/null)
+    models_response=$(curl -s "${OLLAMA_BASE_URL:-http://localhost:11434}/api/tags" 2>/dev/null)
     
     if [[ -z "$models_response" ]]; then
         log::debug "Failed to get models list from Ollama"

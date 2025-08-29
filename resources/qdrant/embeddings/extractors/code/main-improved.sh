@@ -18,13 +18,11 @@ source "${var_LIB_UTILS_DIR}/log.sh"
 source "${EMBEDDINGS_DIR}/lib/embedding-service.sh"
 source "${EMBEDDINGS_DIR}/lib/code-extractor.sh"
 
-# Configuration (check if already defined to avoid readonly errors)
-if [[ -z "${CODE_EXTRACT_TIMEOUT:-}" ]]; then
-    readonly CODE_EXTRACT_TIMEOUT=2  # Timeout per file in seconds (reduced from 5)
-    readonly MAX_FILES_PER_BATCH=300  # Process in chunks to prevent memory issues (increased for better performance)
-    readonly MAX_RETRIES=1  # Retry failed files this many times (reduced from 2)
-    readonly SKIP_LARGE_FILES_MB=5  # Skip files larger than this (in MB) (reduced from 10)
-fi
+# Configuration
+readonly CODE_EXTRACT_TIMEOUT=5  # Timeout per file in seconds
+readonly MAX_FILES_PER_BATCH=100  # Process in chunks to prevent memory issues
+readonly MAX_RETRIES=2  # Retry failed files this many times
+readonly SKIP_LARGE_FILES_MB=10  # Skip files larger than this (in MB)
 
 #######################################
 # Extract code with timeout and error handling
@@ -55,7 +53,7 @@ qdrant::extract::code_safe() {
     # Run extraction with timeout
     if timeout "$timeout_sec" bash -c "
         export APP_ROOT='$APP_ROOT'
-        source '${EMBEDDINGS_DIR}/extractors/code/main-original.sh'
+        source '${EMBEDDINGS_DIR}/extractors/code/main.sh'
         qdrant::extract::code '$file'
     " > "$temp_output" 2>/dev/null; then
         # Success - output the result
@@ -97,20 +95,9 @@ qdrant::extract::code_batch_improved() {
     local processed_files=$(mktemp)
     trap "rm -f $failed_files $processed_files" RETURN
     
-    # Get list of files to process with prioritization
+    # Get list of files to process
     local file_list=$(mktemp)
-    local prioritized_list=$(mktemp)
     qdrant::extract::find_code "$directory" > "$file_list"
-    
-    # Prioritize files: main/index files first, then core files, then others
-    {
-        grep -E "(main\.|index\.|app\.|server\.|client\.|init\.)" "$file_list" || true
-        grep -E "(lib/|src/|core/)" "$file_list" | grep -v -E "(test|spec)" || true
-        grep -v -E "(main\.|index\.|app\.|server\.|client\.|init\.|lib/|src/|core/)" "$file_list" | grep -v -E "(test|spec|node_modules)" || true
-        grep -E "(test|spec)" "$file_list" || true
-    } > "$prioritized_list"
-    
-    mv "$prioritized_list" "$file_list"
     local total_files=$(wc -l < "$file_list")
     
     if [[ $total_files -eq 0 ]]; then
@@ -120,29 +107,14 @@ qdrant::extract::code_batch_improved() {
     
     log::info "Starting extraction of $total_files code files (batch size: $MAX_FILES_PER_BATCH)"
     
-    # Limit total files to process to prevent endless runs (configurable via environment)
-    local max_total_files=${CODE_MAX_FILES:-1500}
-    if [[ $total_files -gt $max_total_files ]]; then
-        log::warn "Limiting extraction to first $max_total_files files (out of $total_files)"
-        log::info "Increase CODE_MAX_FILES environment variable to process more files"
-        total_files=$max_total_files
-    fi
-    
     local count=0
     local failed_count=0
     local skipped_count=0
     local batch_num=1
     local files_in_batch=0
-    local files_processed=0
     
     # Process files with batch limits
     while IFS= read -r file; do
-        # Stop if we've reached the max files limit
-        if [[ $files_processed -ge $max_total_files ]]; then
-            log::info "Reached maximum file limit ($max_total_files). Stopping extraction."
-            break
-        fi
-        ((files_processed++))
         # Check if we've reached batch limit
         if [[ $files_in_batch -ge $MAX_FILES_PER_BATCH ]]; then
             log::info "Completed batch $batch_num ($files_in_batch files processed)"
@@ -246,7 +218,7 @@ qdrant::embeddings::process_code() {
     fi
     
     # Process with smaller batch sizes for stability
-    count=$(qdrant::embedding::process_jsonl_file "$output_file" "code" "$collection" "$app_id" 3)
+    count=$(qdrant::embedding::process_jsonl_file "$output_file" "code" "$collection" "$app_id" 20)
     
     log::debug "Created $count code embeddings"
     echo "$count"
@@ -278,77 +250,8 @@ qdrant::extract::find_code() {
     2>/dev/null
 }
 
-#######################################
-# Extract metadata from code content text
-# Arguments:
-#   $1 - Code content text
-# Returns: JSON metadata object
-#######################################
-# Wrapper for backward compatibility
-qdrant::extract::code_batch() {
-    qdrant::extract::code_batch_improved "$@"
-}
-
-qdrant::extract::code_metadata_from_content() {
-    local content="$1"
-    
-    # Extract file information from content
-    local file_path
-    file_path=$(echo "$content" | grep "^File: " | cut -d: -f2- | sed 's/^ *//')
-    
-    local filename=""
-    local file_ext=""
-    local language=""
-    if [[ -n "$file_path" ]]; then
-        filename=$(basename "$file_path")
-        file_ext="${filename##*.}"
-        
-        # Use language mapping consistent with main extraction
-        case "$file_ext" in
-            js|jsx) language="javascript" ;;
-            ts|tsx) language="typescript" ;;
-            py|ipynb) language="python" ;;
-            sh|bash) language="shell" ;;
-            go) language="go" ;;
-            rs) language="rust" ;;
-            java) language="java" ;;
-            cpp|cc|cxx) language="cpp" ;;
-            c) language="c" ;;
-            h|hpp) language="header" ;;
-            rb) language="ruby" ;;
-            php) language="php" ;;
-            swift) language="swift" ;;
-            kt) language="kotlin" ;;
-            cs) language="csharp" ;;
-            sql|ddl|dml) language="sql" ;;
-            css|scss|sass|less) language="css" ;;
-            m|mlx) language="matlab" ;;
-            R|r|Rmd|rmd) language="r" ;;
-            scala) language="scala" ;;
-            *) language="unknown" ;;
-        esac
-    fi
-    
-    # Build metadata JSON
-    jq -n \
-        --arg filename "${filename:-Unknown}" \
-        --arg file_path "${file_path:-}" \
-        --arg file_ext "${file_ext:-}" \
-        --arg language "${language:-unknown}" \
-        '{
-            filename: $filename,
-            source_file: $file_path,
-            file_extension: $file_ext,
-            language: $language,
-            content_type: "code",
-            extractor: "code_improved"
-        }'
-}
-
 # Export functions
 export -f qdrant::extract::code_safe
-export -f qdrant::extract::code_batch
 export -f qdrant::extract::code_batch_improved
 export -f qdrant::embeddings::process_code
 export -f qdrant::extract::find_code
-export -f qdrant::extract::code_metadata_from_content

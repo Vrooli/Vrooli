@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
 
 # Define paths from APP_ROOT
 QDRANT_DIR="${APP_ROOT}/resources/qdrant"
@@ -29,7 +29,7 @@ QDRANT_URL="${QDRANT_URL:-http://localhost:6333}"
 # Arguments:
 #   $1 - Query text
 #   $2 - App ID
-#   $3 - Type filter (optional: all|workflows|scenarios|knowledge|code|resources)
+#   $3 - Type filter (optional: all|workflows|scenarios|docs|code|resources)
 #   $4 - Limit (optional, default: 10)
 #   $5 - Min score (optional, default: 0.5)
 # Returns: JSON results
@@ -62,7 +62,7 @@ qdrant::search::single_app() {
             collections=(
                 "${app_id}-workflows"
                 "${app_id}-scenarios"
-                "${app_id}-knowledge"
+                "${app_id}-docs"
                 "${app_id}-code"
                 "${app_id}-resources"
             )
@@ -74,7 +74,7 @@ qdrant::search::single_app() {
             collections=("${app_id}-scenarios")
             ;;
         knowledge|docs|documentation)
-            collections=("${app_id}-knowledge")
+            collections=("${app_id}-docs")
             ;;
         code)
             collections=("${app_id}-code")
@@ -411,7 +411,7 @@ qdrant::search::analytics() {
     local collections=(
         "${app_id}-workflows"
         "${app_id}-scenarios"
-        "${app_id}-knowledge"
+        "${app_id}-docs"
         "${app_id}-code"
         "${app_id}-resources"
     )

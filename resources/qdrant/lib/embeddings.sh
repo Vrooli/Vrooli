@@ -205,10 +205,14 @@ qdrant::embeddings::generate() {
     while [[ $attempt -le $max_retries ]]; do
         log::debug "Embedding generation attempt $attempt/$max_retries"
         
-        response=$(http::request "POST" "${ollama_url}/api/embeddings" "$request_body" "Content-Type: application/json")
+        # Use curl directly with timeout instead of non-existent http::request
+        local timeout="${EMBEDDING_PROCESSING_TIMEOUT:-300}"
+        response=$(timeout "$timeout" curl -s -X POST "${ollama_url}/api/embeddings" \
+            -H "Content-Type: application/json" \
+            -d "$request_body" 2>/dev/null)
         local http_exit_code=$?
         
-        log::debug "HTTP response: $response"
+        log::debug "HTTP response: ${response:0:200}..."  # Only log first 200 chars
         log::debug "HTTP exit code: $http_exit_code"
         
         if [[ -n "$response" ]]; then
@@ -277,13 +281,8 @@ qdrant::embeddings::batch() {
     if echo "$texts" | jq -e 'type == "array"' >/dev/null 2>&1; then
         text_array="$texts"
     else
-        # Convert newline-separated text to JSON array
-        text_array="[]"
-        while IFS= read -r line; do
-            if [[ -n "$line" ]]; then
-                text_array=$(echo "$text_array" | jq --arg text "$line" '. += [$text]')
-            fi
-        done <<< "$texts"
+        # Convert newline-separated text to JSON array efficiently
+        text_array=$(echo "$texts" | jq -Rs 'split("\n") | map(select(. != ""))')
     fi
     
     local count
@@ -301,43 +300,44 @@ qdrant::embeddings::batch() {
         log::info "Using model: $model for batch embedding"
     fi
     
-    log::info "Generating embeddings for $count texts..."
+    log::info "Processing $count texts in batches using real batch API..." >&2
     
     local embeddings="[]"
     local processed=0
     local failed=0
     
-    # Process in batches
+    # Process in REAL batches using Ollama's batch endpoint
     for ((i=0; i<count; i+=QDRANT_EMBEDDING_BATCH_SIZE)); do
         local batch_end=$((i + QDRANT_EMBEDDING_BATCH_SIZE))
         if [[ $batch_end -gt $count ]]; then
             batch_end=$count
         fi
         
-        # Process batch
-        for ((j=i; j<batch_end; j++)); do
-            local text
-            text=$(echo "$text_array" | jq -r ".[$j]")
-            
-            if [[ "$show_progress" == "true" ]]; then
-                echo -ne "\rProcessing: $((j+1))/$count"
-            fi
-            
-            local embedding
-            embedding=$(qdrant::embeddings::generate "$text" "$model" "true" 2>/dev/null)
-            
-            if [[ -n "$embedding" ]] && [[ "$embedding" != "null" ]]; then
-                embeddings=$(echo "$embeddings" | jq ". += [$embedding]")
-                ((processed++))
-            else
-                log::debug "Failed to generate embedding for text $((j+1))"
-                # Add null for failed embeddings to maintain index alignment
-                embeddings=$(echo "$embeddings" | jq '. += [null]')
-                ((failed++))
-            fi
-        done
+        # Extract batch of texts
+        local batch
+        batch=$(echo "$text_array" | jq ".[$i:$batch_end]")
+        local batch_count
+        batch_count=$(echo "$batch" | jq 'length')
         
-        # Brief pause between batches to avoid overwhelming Ollama
+        if [[ "$show_progress" == "true" ]]; then
+            echo -ne "\rProcessing batch: items $((i+1))-$batch_end..."
+        fi
+        
+        # Generate embeddings for entire batch in ONE API call
+        local batch_embeddings
+        if batch_embeddings=$(qdrant::embeddings::generate_batch "$batch" "$model"); then
+            embeddings=$(echo "$embeddings" | jq --argjson new "$batch_embeddings" '. + $new')
+            processed=$((processed + batch_count))
+        else
+            log::error "Failed to process batch $((i+1))-$batch_end"
+            # Add nulls for failed batch
+            for ((j=0; j<batch_count; j++)); do
+                embeddings=$(echo "$embeddings" | jq '. + [null]')
+            done
+            ((failed += batch_count))
+        fi
+        
+        # Brief pause between batches
         if [[ $batch_end -lt $count ]]; then
             sleep 0.1
         fi
@@ -351,7 +351,74 @@ qdrant::embeddings::batch() {
         log::warn "Failed to generate $failed out of $count embeddings"
     fi
     
-    log::success "Generated $processed embeddings successfully"
+    log::success "Generated $processed embeddings using real batch processing" >&2
+    
+    echo "$embeddings"
+    return 0
+}
+
+#######################################
+# Generate embeddings for multiple texts in ONE API call
+# Uses Ollama's batch endpoint /api/embed (not /api/embeddings)
+# Arguments:
+#   $1 - JSON array of texts
+#   $2 - Model name (optional, defaults to mxbai-embed-large)
+# Outputs: JSON array of embedding vectors
+# Returns: 0 on success, 1 on failure
+#######################################
+qdrant::embeddings::generate_batch() {
+    local texts_json="$1"
+    local model="${2:-mxbai-embed-large}"
+    
+    # Validate input
+    if ! echo "$texts_json" | jq -e 'type == "array"' >/dev/null 2>&1; then
+        log::error "Input must be a JSON array of texts"
+        return 1
+    fi
+    
+    local text_count
+    text_count=$(echo "$texts_json" | jq 'length')
+    
+    if [[ "$text_count" -eq 0 ]]; then
+        echo "[]"
+        return 0
+    fi
+    
+    log::debug "Generating batch embeddings for $text_count texts with model: $model"
+    
+    # Build request body for /api/embed endpoint (NOT /api/embeddings)
+    local request_body
+    request_body=$(jq -n \
+        --arg model "$model" \
+        --argjson input "$texts_json" \
+        '{model: $model, input: $input}')
+    
+    # Make single API call for entire batch
+    local response
+    local timeout="${EMBEDDING_PROCESSING_TIMEOUT:-300}"
+    response=$(curl -s -X POST "http://localhost:11434/api/embed" \
+        -H "Content-Type: application/json" \
+        -d "$request_body" \
+        --max-time "$timeout" 2>/dev/null) || {
+        log::error "Batch embedding API call failed (timeout: ${timeout}s)"
+        return 1
+    }
+    
+    # Extract embeddings from response
+    local embeddings
+    embeddings=$(echo "$response" | jq '.embeddings' 2>/dev/null)
+    
+    if [[ -z "$embeddings" ]] || [[ "$embeddings" == "null" ]]; then
+        log::error "Failed to extract embeddings from response"
+        return 1
+    fi
+    
+    local embedding_count
+    embedding_count=$(echo "$embeddings" | jq 'length')
+    
+    if [[ "$embedding_count" -ne "$text_count" ]]; then
+        log::warn "Expected $text_count embeddings, got $embedding_count"
+    fi
     
     echo "$embeddings"
     return 0

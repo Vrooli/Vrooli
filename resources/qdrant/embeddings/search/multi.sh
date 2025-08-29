@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
 
 # Define paths from APP_ROOT
 QDRANT_DIR="${APP_ROOT}/resources/qdrant"
@@ -27,7 +27,7 @@ DEFAULT_MIN_SCORE=0.5
 # Search across all apps
 # Arguments:
 #   $1 - Query text
-#   $2 - Type filter (optional: all|workflows|scenarios|knowledge|code|resources)
+#   $2 - Type filter (optional: all|workflows|scenarios|docs|code|resources)
 #   $3 - Limit per app (optional, default: 5)
 #   $4 - Min score (optional, default: 0.5)
 # Returns: Aggregated JSON results
@@ -217,7 +217,7 @@ qdrant::search::discover_apps() {
         # Remove the suffix to get app ID
         local app_id="${collection%-workflows}"
         app_id="${app_id%-scenarios}"
-        app_id="${app_id%-knowledge}"
+        app_id="${app_id%-docs}"
         app_id="${app_id%-code}"
         app_id="${app_id%-resources}"
         
@@ -436,7 +436,7 @@ qdrant::search::find_gaps() {
             }
         },
         gaps: {
-            missing_types: (["workflows", "scenarios", "knowledge", "code", "resources"] - ([.results[].type] | unique)),
+            missing_types: (["workflows", "scenarios", "documentation", "code", "resources"] - ([.results[].type] | unique)),
             has_all_types: (([.results[].type] | unique | length) == 5),
             recommendations: (
                 if .total_results == 0 then
@@ -530,7 +530,7 @@ qdrant::search::explore() {
         case "$cmd" in
             search)
                 read -p "Query: " query
-                read -p "Type (all/workflows/scenarios/knowledge/code/resources): " type
+                read -p "Type (all/workflows/scenarios/docs/code/resources): " type
                 type="${type:-all}"
                 qdrant::search::all_apps "$query" "$type" "5" | jq -r '
                     "Found \(.total_results) results across \(.apps_with_results) apps\n" +

@@ -1057,9 +1057,10 @@ qdrant::collections::upsert_point() {
         fi
     fi
     
-    # Make the API request using direct curl
+    # Make the API request using direct curl with timeout
     local response
-    response=$(curl -s -X PUT \
+    local timeout="${EMBEDDING_PROCESSING_TIMEOUT:-300}"
+    response=$(timeout "$timeout" curl -s -X PUT \
         -H "Content-Type: application/json" \
         -d "$points_data" \
         "${QDRANT_BASE_URL}/collections/${collection_name}/points" 2>/dev/null)
@@ -1095,35 +1096,119 @@ qdrant::collections::upsert_point() {
 qdrant::collections::batch_upsert() {
     local collection_name="$1"
     local points_json="$2"
+    local max_batch_size="${3:-100}"  # Maximum points per batch to prevent system overload
     
     if [[ -z "$collection_name" || -z "$points_json" ]]; then
         log::error "Collection name and points array are required"
         return 1
     fi
     
-    # Validate points array format
-    if ! echo "$points_json" | jq -e 'type == "array"' >/dev/null 2>&1; then
+    # Create temporary files to avoid argument length limits
+    local temp_points=$(mktemp)
+    local temp_payload=$(mktemp)
+    trap "rm -f $temp_points $temp_payload" RETURN
+    
+    # Write points to temporary file for safe processing
+    echo "$points_json" > "$temp_points"
+    
+    # Validate points array format using file input
+    if ! jq -e 'type == "array"' "$temp_points" >/dev/null 2>&1; then
         log::error "Points must be a valid JSON array"
         return 1
     fi
     
-    # Prepare the batch upsert payload
-    local payload
-    payload=$(jq -n --argjson points "$points_json" '{
-        "points": $points
-    }')
+    # Get total point count
+    local total_points
+    total_points=$(jq 'length' "$temp_points")
     
-    log::debug "Batch upserting $(echo "$points_json" | jq 'length') points to collection: $collection_name"
+    if [[ $total_points -eq 0 ]]; then
+        log::debug "No points to upsert"
+        return 0
+    fi
     
-    # Send batch upsert request
+    log::debug "Processing $total_points points for collection: $collection_name"
+    
+    # If batch is small enough, process directly
+    if [[ $total_points -le $max_batch_size ]]; then
+        qdrant::collections::batch_upsert_chunk "$collection_name" "$temp_points"
+        return $?
+    fi
+    
+    # For large batches, process in chunks to prevent system overload
+    log::info "Large batch detected ($total_points points). Processing in chunks of $max_batch_size..."
+    
+    local processed=0
+    local failed=0
+    local chunk_start=0
+    
+    while [[ $chunk_start -lt $total_points ]]; do
+        local chunk_end=$((chunk_start + max_batch_size))
+        [[ $chunk_end -gt $total_points ]] && chunk_end=$total_points
+        
+        local chunk_size=$((chunk_end - chunk_start))
+        
+        # Create chunk using jq slice
+        local temp_chunk=$(mktemp)
+        jq ".[${chunk_start}:${chunk_end}]" "$temp_points" > "$temp_chunk"
+        
+        # Process chunk
+        if qdrant::collections::batch_upsert_chunk "$collection_name" "$temp_chunk"; then
+            ((processed += chunk_size))
+            log::debug "Processed chunk $((processed - chunk_size + 1))-$processed of $total_points points"
+        else
+            ((failed += chunk_size))
+            log::error "Failed to process chunk $((chunk_start + 1))-$chunk_end"
+        fi
+        
+        rm -f "$temp_chunk"
+        chunk_start=$chunk_end
+        
+        # Add small delay between chunks to prevent overwhelming the system
+        [[ $chunk_start -lt $total_points ]] && sleep 0.1
+    done
+    
+    if [[ $failed -eq 0 ]]; then
+        log::success "Successfully processed all $processed points in chunks"
+        return 0
+    else
+        log::error "Batch processing completed with errors: $processed successful, $failed failed"
+        return 1
+    fi
+}
+
+#######################################
+# Process a single chunk of points (internal function)
+# Arguments:
+#   $1 - collection name
+#   $2 - path to temporary file containing points JSON array
+# Returns: 0 on success, 1 on failure
+#######################################
+qdrant::collections::batch_upsert_chunk() {
+    local collection_name="$1"
+    local points_file="$2"
+    
+    # Create payload using file-based jq processing to avoid argument limits
+    local temp_payload=$(mktemp)
+    trap "rm -f $temp_payload" RETURN
+    
+    # Build payload using file input instead of command-line arguments
+    jq '{"points": .}' "$points_file" > "$temp_payload"
+    
+    if [[ $? -ne 0 ]]; then
+        log::error "Failed to create payload from points file"
+        return 1
+    fi
+    
+    # Send batch upsert request using file input with timeout
     local response
-    response=$(curl -s -X PUT \
+    local timeout="${EMBEDDING_PROCESSING_TIMEOUT:-300}"
+    response=$(timeout "$timeout" curl -s -X PUT \
         -H "Content-Type: application/json" \
-        -d "$payload" \
+        -d @"$temp_payload" \
         "${QDRANT_BASE_URL}/collections/${collection_name}/points" 2>/dev/null)
     
     if [[ $? -ne 0 || -z "$response" ]]; then
-        log::error "Failed to batch upsert points"
+        log::error "Failed to send batch upsert request"
         return 1
     fi
     
@@ -1132,7 +1217,6 @@ qdrant::collections::batch_upsert() {
     status=$(echo "$response" | jq -r '.status // "error"' 2>/dev/null)
     
     if [[ "$status" == "ok" ]]; then
-        log::debug "Successfully batch upserted points"
         return 0
     else
         local error_msg

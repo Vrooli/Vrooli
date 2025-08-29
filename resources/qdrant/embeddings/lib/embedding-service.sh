@@ -78,21 +78,39 @@ qdrant::embedding::process_item() {
             ]
         }')
     
+    # Store in Qdrant with retry logic
     local api_response
-    api_response=$(curl -s -X PUT "http://localhost:6333/collections/${collection}/points" \
-        -H "Content-Type: application/json" \
-        -d "$points_data")
-    
     local status
-    status=$(echo "$api_response" | jq -r '.status // "unknown"')
+    local max_retries=3
+    local retry_delay=1
+    local attempt=1
     
-    if [[ "$status" == "ok" ]]; then
-        log::debug "Successfully processed $content_type item (ID: ${item_id:0:8}...)"
-        return 0
-    else
-        log::error "Failed to store $content_type embedding in collection $collection: $api_response"
-        return 1
-    fi
+    while [[ $attempt -le $max_retries ]]; do
+        log::debug "Qdrant storage attempt $attempt/$max_retries for $content_type"
+        
+        api_response=$(curl -s --max-time 30 -X PUT "http://localhost:6333/collections/${collection}/points" \
+            -H "Content-Type: application/json" \
+            -d "$points_data" 2>/dev/null)
+        
+        if [[ -n "$api_response" ]]; then
+            status=$(echo "$api_response" | jq -r '.status // "unknown"' 2>/dev/null)
+            
+            if [[ "$status" == "ok" ]]; then
+                log::debug "Successfully processed $content_type item (ID: ${item_id:0:8}...) on attempt $attempt"
+                return 0
+            fi
+        fi
+        
+        if [[ $attempt -eq $max_retries ]]; then
+            log::error "Failed to store $content_type embedding in collection $collection after $max_retries attempts: $api_response"
+            return 1
+        fi
+        
+        log::warn "Qdrant storage attempt $attempt failed, retrying in ${retry_delay}s..."
+        sleep $retry_delay
+        retry_delay=$((retry_delay * 2))  # Exponential backoff
+        ((attempt++))
+    done
 }
 
 #######################################
@@ -178,7 +196,7 @@ qdrant::embedding::build_payload() {
 }
 
 #######################################
-# Batch processing with automatic optimization
+# Batch processing with REAL batch embeddings
 # Arguments:
 #   $1 - Content array (JSON array of content items)
 #   $2 - Content type
@@ -197,70 +215,101 @@ qdrant::embedding::process_batch() {
         return 0
     fi
     
-    local processed_count=0
-    local batch_points="[]"
-    local batch_size="$DEFAULT_BATCH_SIZE"
+    local item_count
+    item_count=$(echo "$content_array" | jq 'length')
+    log::info "Processing batch of $item_count items for $content_type"
     
-    # Process each item
-    echo "$content_array" | jq -c '.[]' | while read -r content_item; do
-        local content
-        content=$(echo "$content_item" | jq -r '.content // empty')
-        if [[ -z "$content" ]]; then
-            continue
+    local batch_size="${DEFAULT_BATCH_SIZE:-20}"
+    local processed_count=0
+    
+    # Accumulate items for batch processing
+    local text_batch="[]"
+    local metadata_batch="[]"
+    local batch_points="[]"
+    
+    # Process in chunks
+    for ((i=0; i<item_count; i+=batch_size)); do
+        local batch_end=$((i + batch_size))
+        if [[ $batch_end -gt $item_count ]]; then
+            batch_end=$item_count
         fi
         
-        local extra_metadata
-        extra_metadata=$(echo "$content_item" | jq -r '.metadata // {}')
+        # Extract batch of items
+        local batch_items
+        batch_items=$(echo "$content_array" | jq ".[$i:$batch_end]")
+        local current_batch_size
+        current_batch_size=$(echo "$batch_items" | jq 'length')
         
-        # Generate embedding and build point
-        local embedding
-        embedding=$(qdrant::embeddings::generate "$content" "$DEFAULT_MODEL" 2>/dev/null)
+        # Extract texts and metadata for this batch
+        text_batch="[]"
+        metadata_batch="[]"
         
-        if [[ -n "$embedding" ]]; then
-            local item_id
-            item_id=$(qdrant::embedding::generate_id "$content" "$content_type")
+        echo "$batch_items" | jq -c '.[]' | while IFS= read -r item; do
+            local content
+            content=$(echo "$item" | jq -r '.content // empty')
+            if [[ -n "$content" ]]; then
+                text_batch=$(echo "$text_batch" | jq --arg t "$content" '. + [$t]')
+                local meta
+                meta=$(echo "$item" | jq '.metadata // {}')
+                metadata_batch=$(echo "$metadata_batch" | jq --argjson m "$meta" '. + [$m]')
+            fi
+        done
+        
+        # Generate embeddings for entire batch in ONE API call
+        log::debug "Generating embeddings for batch of $current_batch_size items..."
+        local embeddings
+        embeddings=$(qdrant::embeddings::generate_batch "$text_batch" "$DEFAULT_MODEL")
+        
+        if [[ -n "$embeddings" ]] && [[ "$embeddings" != "[]" ]]; then
+            # Build points for Qdrant
+            batch_points="[]"
             
-            local payload
-            payload=$(qdrant::embedding::build_payload "$content" "$content_type" "$app_id" "$extra_metadata")
+            for ((j=0; j<current_batch_size; j++)); do
+                local text
+                text=$(echo "$text_batch" | jq -r ".[$j]")
+                local embedding
+                embedding=$(echo "$embeddings" | jq ".[$j]")
+                local extra_metadata
+                extra_metadata=$(echo "$metadata_batch" | jq ".[$j]")
+                
+                if [[ -n "$embedding" ]] && [[ "$embedding" != "null" ]]; then
+                    local item_id
+                    item_id=$(qdrant::embedding::generate_id "$text" "$content_type")
+                    
+                    local payload
+                    payload=$(qdrant::embedding::build_payload "$text" "$content_type" "$app_id" "$extra_metadata")
+                    
+                    # Add to batch
+                    local point
+                    point=$(jq -n \
+                        --arg id "$item_id" \
+                        --argjson vector "$embedding" \
+                        --argjson payload "$payload" \
+                        '{
+                            id: $id,
+                            vector: $vector,
+                            payload: $payload
+                        }')
+                    
+                    batch_points=$(echo "$batch_points" | jq ". += [$point]")
+                    ((processed_count++))
+                fi
+            done
             
-            # Add to batch
-            local point
-            point=$(jq -n \
-                --arg id "$item_id" \
-                --argjson vector "$embedding" \
-                --argjson payload "$payload" \
-                '{
-                    id: $id,
-                    vector: $vector,
-                    payload: $payload
-                }')
-            
-            batch_points=$(echo "$batch_points" | jq ". += [$point]")
-            ((processed_count++))
-            
-            # Flush batch when threshold reached
-            if [[ $((processed_count % batch_size)) -eq 0 ]]; then
+            # Upsert entire batch to Qdrant
+            if [[ $(echo "$batch_points" | jq 'length') -gt 0 ]]; then
                 if qdrant::collections::batch_upsert "$collection" "$batch_points"; then
-                    log::debug "Batch upserted $batch_size items to $collection"
-                    batch_points="[]"
+                    log::debug "Upserted batch of $(echo "$batch_points" | jq 'length') items to $collection"
                 else
                     log::error "Failed to batch upsert to $collection"
                 fi
             fi
+        else
+            log::error "Failed to generate embeddings for batch"
         fi
     done
     
-    # Flush remaining items
-    local remaining_count
-    remaining_count=$(echo "$batch_points" | jq 'length')
-    if [[ "$remaining_count" -gt 0 ]]; then
-        if qdrant::collections::batch_upsert "$collection" "$batch_points"; then
-            log::debug "Final batch upserted $remaining_count items to $collection"
-        else
-            log::error "Failed to upsert final batch to $collection"
-        fi
-    fi
-    
+    log::success "Processed $processed_count items using real batch embeddings"
     echo "$processed_count"
 }
 
@@ -335,10 +384,184 @@ qdrant::embedding::health_check() {
     return 0
 }
 
+#######################################
+# Process content from file using real batch embeddings
+# Optimized for extractors to use directly
+# Arguments:
+#   $1 - JSONL file path with extracted content
+#   $2 - Content type
+#   $3 - Collection name
+#   $4 - App ID
+#   $5 - Batch size (optional, default: 50)
+# Returns: Number of items processed
+#######################################
+qdrant::embedding::process_jsonl_file() {
+    local jsonl_file="$1"
+    local content_type="$2"
+    local collection="$3"
+    local app_id="$4"
+    local batch_size="${5:-20}"  # Optimal batch size for performance
+    
+    if [[ ! -f "$jsonl_file" ]] || [[ ! -s "$jsonl_file" ]]; then
+        log::debug "No content in file: $jsonl_file"
+        echo "0"
+        return 0
+    fi
+    
+    local total_lines=$(wc -l < "$jsonl_file")
+    log::info "Processing $total_lines items from $jsonl_file using optimized batch embeddings (batch_size=$batch_size)"
+    
+    local processed_count=0
+    local batch_count=0
+    
+    # Use temporary files to avoid O(n²) JSON array building
+    local temp_texts=$(mktemp)
+    local temp_metadata=$(mktemp)
+    trap "rm -f $temp_texts $temp_metadata" RETURN
+    
+    # Process file line by line, accumulating batches
+    while IFS= read -r json_line; do
+        if [[ -z "$json_line" ]]; then
+            continue
+        fi
+        
+        # Extract content and metadata
+        local content
+        content=$(echo "$json_line" | jq -r '.content // empty' 2>/dev/null)
+        
+        if [[ -n "$content" ]]; then
+            # Store in temp files instead of building JSON arrays incrementally
+            echo "$content" >> "$temp_texts"
+            echo "$json_line" | jq -c '.metadata // {}' >> "$temp_metadata"
+            ((batch_count++))
+            
+            # Process batch when it reaches the size limit
+            if [[ $batch_count -ge $batch_size ]]; then
+                local batch_num=$((processed_count / batch_size + 1))
+                log::info "Processing batch $batch_num (items $((processed_count+1))-$((processed_count+batch_count)) of $total_lines)..."
+                
+                # Build text array from temp file
+                local text_batch
+                text_batch=$(jq -Rs 'split("\n") | map(select(. != ""))' "$temp_texts")
+                
+                # Generate embeddings for entire batch in ONE call
+                local embeddings
+                embeddings=$(qdrant::embeddings::generate_batch "$text_batch" "$DEFAULT_MODEL")
+                
+                if [[ -n "$embeddings" ]] && [[ "$embeddings" != "[]" ]]; then
+                    # Build metadata array from temp file
+                    local metadata_batch
+                    metadata_batch=$(jq -s '.' "$temp_metadata")
+                    
+                    # Build points array efficiently using jq streaming
+                    local points_json=$(mktemp)
+                    echo "[]" > "$points_json"
+                    
+                    for ((j=0; j<batch_count; j++)); do
+                        local text
+                        text=$(sed -n "$((j+1))p" "$temp_texts")
+                        local embedding
+                        embedding=$(echo "$embeddings" | jq ".[$j]")
+                        local meta
+                        meta=$(echo "$metadata_batch" | jq ".[$j]")
+                        
+                        if [[ "$embedding" != "null" ]] && [[ -n "$text" ]]; then
+                            local item_id
+                            item_id=$(qdrant::embedding::generate_id "$text" "$content_type")
+                            local payload
+                            payload=$(qdrant::embedding::build_payload "$text" "$content_type" "$app_id" "$meta")
+                            
+                            # Append to points file efficiently
+                            jq --arg id "$item_id" \
+                                --argjson vector "$embedding" \
+                                --argjson payload "$payload" \
+                                '. += [{id: $id, vector: $vector, payload: $payload}]' \
+                                "$points_json" > "${points_json}.tmp" && mv "${points_json}.tmp" "$points_json"
+                            ((processed_count++))
+                        fi
+                    done
+                    
+                    local points=$(cat "$points_json")
+                    rm -f "$points_json"
+                    
+                    # Store batch in Qdrant
+                    if [[ $(echo "$points" | jq 'length') -gt 0 ]]; then
+                        qdrant::collections::batch_upsert "$collection" "$points" || \
+                            log::error "Failed to upsert batch to $collection"
+                    fi
+                fi
+                
+                # Reset for next batch
+                > "$temp_texts"
+                > "$temp_metadata"
+                batch_count=0
+            fi
+        fi
+    done < "$jsonl_file"
+    
+    # Process remaining items
+    if [[ $batch_count -gt 0 ]]; then
+        log::debug "Processing final batch of $batch_count items..."
+        
+        # Build text array from temp file
+        local text_batch
+        text_batch=$(jq -Rs 'split("\n") | map(select(. != ""))' "$temp_texts")
+        
+        local embeddings
+        embeddings=$(qdrant::embeddings::generate_batch "$text_batch" "$DEFAULT_MODEL")
+        
+        if [[ -n "$embeddings" ]] && [[ "$embeddings" != "[]" ]]; then
+            # Build metadata array from temp file
+            local metadata_batch
+            metadata_batch=$(jq -s '.' "$temp_metadata")
+            
+            # Build points array efficiently
+            local points_json=$(mktemp)
+            echo "[]" > "$points_json"
+            
+            for ((j=0; j<batch_count; j++)); do
+                local text
+                text=$(sed -n "$((j+1))p" "$temp_texts")
+                local embedding
+                embedding=$(echo "$embeddings" | jq ".[$j]")
+                local meta
+                meta=$(echo "$metadata_batch" | jq ".[$j]")
+                
+                if [[ "$embedding" != "null" ]] && [[ -n "$text" ]]; then
+                    local item_id
+                    item_id=$(qdrant::embedding::generate_id "$text" "$content_type")
+                    local payload
+                    payload=$(qdrant::embedding::build_payload "$text" "$content_type" "$app_id" "$meta")
+                    
+                    # Append to points file efficiently
+                    jq --arg id "$item_id" \
+                        --argjson vector "$embedding" \
+                        --argjson payload "$payload" \
+                        '. += [{id: $id, vector: $vector, payload: $payload}]' \
+                        "$points_json" > "${points_json}.tmp" && mv "${points_json}.tmp" "$points_json"
+                    ((processed_count++))
+                fi
+            done
+            
+            local points=$(cat "$points_json")
+            rm -f "$points_json"
+            
+            if [[ $(echo "$points" | jq 'length') -gt 0 ]]; then
+                qdrant::collections::batch_upsert "$collection" "$points" || \
+                    log::error "Failed to upsert final batch to $collection"
+            fi
+        fi
+    fi
+    
+    log::success "Processed $processed_count/$total_lines items using real batch embeddings"
+    echo "$processed_count"
+}
+
 # Export functions for use by extractors
 export -f qdrant::embedding::process_item
 export -f qdrant::embedding::process_item_with_retry
 export -f qdrant::embedding::process_batch
+export -f qdrant::embedding::process_jsonl_file
 export -f qdrant::embedding::generate_id
 export -f qdrant::embedding::build_payload
 export -f qdrant::embedding::health_check

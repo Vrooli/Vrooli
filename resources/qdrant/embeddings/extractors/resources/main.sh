@@ -11,7 +11,7 @@
 
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../../.." && builtin pwd)}"
 
 # Define paths
 EMBEDDINGS_DIR="${APP_ROOT}/resources/qdrant/embeddings"
@@ -323,26 +323,10 @@ qdrant::embeddings::process_resources() {
         return 0
     fi
     
-    # Process each JSON line through unified embedding service
-    while IFS= read -r json_line; do
-        if [[ -n "$json_line" ]]; then
-            # Parse JSON to extract content and metadata
-            local content
-            content=$(echo "$json_line" | jq -r '.content // empty' 2>/dev/null)
-            
-            local metadata
-            metadata=$(echo "$json_line" | jq -c '.metadata // {}' 2>/dev/null)
-            
-            if [[ -n "$content" ]]; then
-                # Process through unified embedding service with structured metadata
-                if qdrant::embedding::process_item "$content" "resource" "$collection" "$app_id" "$metadata"; then
-                    ((count++))
-                fi
-            fi
-        fi
-    done < "$output_file"
+    # Use the new batch processing function for massive speedup!
+    count=$(qdrant::embedding::process_jsonl_file "$output_file" "resource" "$collection" "$app_id")
     
-    log::debug "Created $count resource embeddings"
+    log::debug "Created $count resource embeddings using real batch processing"
     echo "$count"
 }
 

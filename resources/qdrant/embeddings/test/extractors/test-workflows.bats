@@ -9,7 +9,7 @@ setup() {
     mkdir -p "$TEST_DIR"
     
     # Source the extractor
-    source "$EMBEDDING_ROOT/extractors/workflows.sh"
+    source "$EMBEDDING_ROOT/extractors/initialization/main.sh"
     
     # Create test fixtures
     setup_workflow_fixtures

@@ -17,7 +17,7 @@
 
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../../.." && builtin pwd)}"
 
 # Define paths from APP_ROOT
 EMBEDDINGS_DIR="${APP_ROOT}/resources/qdrant/embeddings"
@@ -243,7 +243,7 @@ qdrant::extract::get_key_files() {
 #######################################
 qdrant::extract::directory_summary() {
     local dir="$1"
-    local rel_path="$2"
+    local rel_path="${2:-.}"
     
     if [[ ! -d "$dir" ]]; then
         return 1
@@ -413,7 +413,7 @@ qdrant::extract::file_trees_batch() {
     log::info "Extracting file tree summaries from $dir_count semantic directories"
     
     local count=0
-    echo "$directories" | while IFS= read -r directory; do
+    while IFS= read -r directory; do
         if [[ -n "$directory" ]]; then
             # Calculate relative path
             local rel_path=${directory#$abs_root}
@@ -425,60 +425,10 @@ qdrant::extract::file_trees_batch() {
                 ((count++))
             fi
         fi
-    done
+    done <<< "$directories"
     
     log::success "Extracted file tree summaries from $count directories"
     echo "$output_file"
-}
-
-#######################################
-# Process file trees using unified embedding service
-# Arguments:
-#   $1 - App ID
-# Returns: Number of directory summaries processed
-#######################################
-qdrant::embeddings::process_file_trees() {
-    local app_id="$1"
-    local collection="${app_id}-knowledge"
-    local count=0
-    
-    # Ensure TEMP_DIR is set (fallback to script-local temp dir)
-    if [[ -z "${TEMP_DIR:-}" ]]; then
-        TEMP_DIR="$EXTRACT_TEMP_DIR"
-        log::debug "TEMP_DIR not set, using local temp dir: $TEMP_DIR"
-    fi
-    
-    # Extract file tree summaries to temp file
-    local output_file="$TEMP_DIR/file_trees.jsonl"
-    qdrant::extract::file_trees_batch "." "$output_file" >&2
-    
-    if [[ ! -f "$output_file" ]] || [[ ! -s "$output_file" ]]; then
-        log::debug "No file tree summaries found for processing"
-        echo "0"
-        return 0
-    fi
-    
-    # Process each JSON line through unified embedding service
-    while IFS= read -r json_line; do
-        if [[ -n "$json_line" ]]; then
-            # Parse JSON to extract content and metadata
-            local content
-            content=$(echo "$json_line" | jq -r '.content // empty' 2>/dev/null)
-            
-            local metadata
-            metadata=$(echo "$json_line" | jq -c '.metadata // {}' 2>/dev/null)
-            
-            if [[ -n "$content" ]]; then
-                # Process through unified embedding service with structured metadata
-                if qdrant::embedding::process_item "$content" "file_tree" "$collection" "$app_id" "$metadata"; then
-                    ((count++))
-                fi
-            fi
-        fi
-    done < "$output_file"
-    
-    log::debug "Created $count file tree embeddings"
-    echo "$count"
 }
 
 #######################################
@@ -558,6 +508,34 @@ qdrant::extract::filetrees_metadata_from_content() {
             content_type: "file_tree",
             extractor: "file_trees"
         }'
+}
+
+#######################################
+# Process file tree embeddings
+# Arguments:
+#   $1 - App ID
+# Returns: Number of file trees processed
+#######################################
+qdrant::embeddings::process_file_trees() {
+    local app_id="$1"
+    local collection="${app_id}-filetrees"
+    local count=0
+    
+    # Extract file trees to temp file
+    local output_file="$TEMP_DIR/file_trees.jsonl"
+    qdrant::extract::file_trees_batch "." "$output_file" >&2
+    
+    if [[ ! -f "$output_file" ]] || [[ ! -s "$output_file" ]]; then
+        log::debug "No file trees found for processing"
+        echo "0"
+        return 0
+    fi
+    
+    # Use the new batch processing function for massive speedup!
+    count=$(qdrant::embedding::process_jsonl_file "$output_file" "file_tree" "$collection" "$app_id")
+    
+    log::debug "Created $count file tree embeddings using real batch processing"
+    echo "$count"
 }
 
 # Export processing function for cli.sh

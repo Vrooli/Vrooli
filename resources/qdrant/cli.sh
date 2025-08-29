@@ -283,94 +283,20 @@ qdrant_backup_dispatch() {
     esac
 }
 
-# Embeddings knowledge system dispatcher
+# Embeddings knowledge system dispatcher (v2.0 compliant)
 qdrant_embeddings_dispatch() {
     local subcommand="${1:-help}"
     shift || true
     
-    # Check if embeddings system is available
-    local embeddings_manage="${QDRANT_CLI_DIR}/embeddings/manage.sh"
-    if [[ ! -f "${embeddings_manage}" ]]; then
+    # Check if embeddings CLI is available
+    local embeddings_cli="${QDRANT_CLI_DIR}/embeddings/cli.sh"
+    if [[ ! -f "${embeddings_cli}" ]]; then
         log::error "Embeddings knowledge system not available"
         return 1
     fi
     
-    # Source embeddings system in a subshell to avoid conflicts
-    (
-        # Source the embeddings management system
-        source "${embeddings_manage}"
-        
-        # Call the embeddings dispatcher directly
-        # Note: We call the function from manage.sh, not embeddings::main to avoid recursion
-        if command -v qdrant::embeddings::init &>/dev/null; then
-            # The manage.sh has loaded successfully, call its dispatcher
-            case "$subcommand" in
-                init) qdrant::embeddings::init "$@" ;;
-                refresh) qdrant::embeddings::refresh "$@" ;;
-                validate) qdrant::embeddings::validate "$@" ;;
-                status) qdrant::embeddings::status "$@" ;;
-                gc|garbage-collect) qdrant::embeddings::garbage_collect "$@" ;;
-                sync) qdrant::identity::sync_with_collections "$@" ;;
-                search) 
-                    local query="$1"
-                    shift || true
-                    
-                    # Parse --type flag
-                    local type="all"
-                    local remaining_args=()
-                    while [[ $# -gt 0 ]]; do
-                        case $1 in
-                            --type)
-                                type="$2"
-                                shift 2
-                                ;;
-                            *)
-                                remaining_args+=("$1")
-                                shift
-                                ;;
-                        esac
-                    done
-                    
-                    local app_id
-                    app_id=$(qdrant::identity::get_app_id 2>/dev/null) || app_id=""
-                    if [[ -z "$app_id" ]]; then
-                        echo '{"error": "No app identity found. Run embeddings init first"}'
-                        return 1
-                    fi
-                    # Return raw JSON instead of formatted text
-                    qdrant::search::single_app "$query" "$app_id" "$type" "${remaining_args[@]}"
-                    ;;
-                search-all)
-                    local query="$1"
-                    shift || true
-                    # Return raw JSON instead of formatted text
-                    qdrant::search::all_apps "$query" "$@"
-                    ;;
-                patterns)
-                    local query="$1"
-                    qdrant::search::discover_patterns "$query"
-                    ;;
-                solutions)
-                    local problem="$1"
-                    qdrant::search::find_solutions "$problem"
-                    ;;
-                gaps)
-                    local topic="$1"
-                    qdrant::search::find_gaps "$topic"
-                    ;;
-                explore) qdrant::search::explore ;;
-                help|--help|-h) qdrant::embeddings::show_help ;;
-                *)
-                    log::error "Unknown command: $subcommand"
-                    qdrant::embeddings::show_help
-                    return 1
-                    ;;
-            esac
-        else
-            log::error "Failed to load embeddings management system"
-            return 1
-        fi
-    )
+    # Delegate directly to the v2.0 compliant embeddings CLI
+    "${embeddings_cli}" "$subcommand" "$@"
 }
 
 # Deprecated inject command with warning

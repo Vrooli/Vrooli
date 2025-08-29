@@ -4,7 +4,7 @@
   "source_scenario": null,
   "git_origin": "",
   "created": "2025-08-27T16:35:10-04:00",
-  "last_indexed": null,
+  "last_indexed": "2025-08-28T01:38:09-04:00",
   "index_commit": null,
   "embedding_config": {
     "model": "mxbai-embed-large",
@@ -27,6 +27,7 @@
     "version": "1.0.0",
     "schema_version": "1.0.0",
     "auto_index": true,
-    "index_on_commit": true
+    "index_on_commit": true,
+    "last_sync": "2025-08-28T01:38:09-04:00"
   }
 }

@@ -45,8 +45,64 @@ source "${EMBEDDINGS_DIR}/config/unified.sh"
 # Export TEMP_DIR so background jobs can access it
 export TEMP_DIR="/tmp/qdrant-embeddings-$$"
 
-# Cleanup on exit
-trap "rm -rf $TEMP_DIR" EXIT
+# Track background jobs for cleanup
+declare -a BACKGROUND_JOBS=()
+
+# Cleanup function
+cleanup_embeddings() {
+    local exit_code="${1:-0}"
+    
+    # Kill all background jobs if they exist
+    if [[ ${#BACKGROUND_JOBS[@]} -gt 0 ]]; then
+        if [[ "$exit_code" != "0" ]]; then
+            echo "" # New line after ^C characters
+            log::warn "Interrupt received - cleaning up ${#BACKGROUND_JOBS[@]} background jobs..."
+        else
+            log::debug "Cleaning up ${#BACKGROUND_JOBS[@]} background jobs..."
+        fi
+        
+        for pid in "${BACKGROUND_JOBS[@]}"; do
+            if kill -0 "$pid" 2>/dev/null; then
+                # Try to kill the process group first (more effective)
+                kill -TERM "-$pid" 2>/dev/null || kill -TERM "$pid" 2>/dev/null || true
+            fi
+        done
+        
+        # Give processes time to terminate gracefully
+        if [[ "$exit_code" != "0" ]]; then
+            log::info "Waiting for jobs to terminate gracefully..."
+        fi
+        sleep 1
+        
+        # Force kill any remaining processes
+        for pid in "${BACKGROUND_JOBS[@]}"; do
+            if kill -0 "$pid" 2>/dev/null; then
+                kill -KILL "-$pid" 2>/dev/null || kill -KILL "$pid" 2>/dev/null || true
+            fi
+        done
+        
+        # Clear the array
+        BACKGROUND_JOBS=()
+    fi
+    
+    # Clean up temp directory
+    if [[ -n "${TEMP_DIR:-}" ]] && [[ -d "$TEMP_DIR" ]]; then
+        rm -rf "$TEMP_DIR"
+    fi
+    
+    if [[ "$exit_code" == "130" ]]; then
+        log::warn "Embeddings generation cancelled by user"
+    elif [[ "$exit_code" != "0" ]]; then
+        log::error "Process exited with error code $exit_code"
+    fi
+    
+    exit "$exit_code"
+}
+
+# Signal handlers
+trap 'cleanup_embeddings 130' SIGINT   # Ctrl+C
+trap 'cleanup_embeddings 143' SIGTERM  # Termination
+trap 'cleanup_embeddings 0' EXIT       # Normal exit
 
 # Source qdrant libraries
 # shellcheck disable=SC1091
@@ -61,7 +117,7 @@ source "${QDRANT_DIR}/lib/models.sh"
 # manage.sh has been deprecated and replaced with this self-contained CLI
 
 # Source embedding components
-for component in identity initialization scenarios docs code resources file-trees; do
+for component in identity initialization scenarios docs code resources filetrees; do
     if [[ "$component" == "identity" ]]; then
         component_file="${EMBEDDINGS_DIR}/indexers/${component}.sh"
     else
@@ -126,7 +182,7 @@ cli::register_command "logs" "View embedding logs" "embeddings_logs"
 
 # Initialization and Management
 cli::register_command "init" "Initialize embeddings for current app" "embeddings_init" "modifies-system"
-cli::register_command "refresh" "Refresh all embedding collections" "embeddings_refresh" "modifies-system"
+cli::register_command "refresh" "Refresh all embedding collections (supports --sequential, --workers)" "embeddings_refresh" "modifies-system"
 # Override default validate with embeddings-specific validation
 cli::register_command "validate" "Validate embedding integrity" "embeddings_validate"
 
@@ -201,8 +257,14 @@ Examples:
   # Initialize embeddings for current app
   resource-qdrant-embeddings init
   
-  # Refresh all embeddings
-  resource-qdrant-embeddings refresh
+  # Refresh all embeddings (parallel processing - faster but uses more resources)
+  resource-qdrant-embeddings refresh --force
+  
+  # Refresh with sequential processing (safer but slower)
+  resource-qdrant-embeddings refresh --sequential --force
+  
+  # Refresh with custom worker count
+  resource-qdrant-embeddings refresh --workers 2 --force
   
   # Search across all collections
   resource-qdrant-embeddings search-all "authentication flow"
@@ -215,7 +277,7 @@ Examples:
 
 Default Configuration:
   • Port: 6333 (Qdrant)
-  • Collections: code, docs, workflows, scenarios, resources
+  • Collections: code, docs, workflows, scenarios, resources, filetrees
   • Model: text-embedding-3-small
   • Parallel Processing: 4 workers
   • Cache: Enabled
@@ -337,9 +399,9 @@ embeddings_test_unit() {
 embeddings_test_smoke() {
     log::info "Running smoke test..."
     
-    # Quick validation
-    if ! qdrant::is_running 2>/dev/null; then
-        log::error "Qdrant is not running"
+    # Quick validation - check if Qdrant API is responding
+    if ! curl -s "http://localhost:6333/collections" | jq -e '.status == "ok"' >/dev/null 2>&1; then
+        log::error "Qdrant is not running or not responding"
         return 1
     fi
     
@@ -594,6 +656,25 @@ embeddings_init_impl() {
     
     log::info "Initializing embeddings for project..."
     
+    # Pre-flight service health checks
+    log::info "Performing service health checks..."
+    
+    # Check Qdrant availability
+    if ! curl -s --max-time 10 "http://localhost:6333/health" >/dev/null 2>&1; then
+        log::error "Qdrant service is not available"
+        log::error "Please ensure Qdrant is running: resource-qdrant start"
+        return 1
+    fi
+    log::success "Qdrant service is healthy"
+    
+    # Check Ollama availability
+    if ! curl -s --max-time 10 "http://localhost:11434/api/tags" >/dev/null 2>&1; then
+        log::error "Ollama service is not available"
+        log::error "Please ensure Ollama is running with embedding models"
+        return 1
+    fi
+    log::success "Ollama service is healthy"
+    
     # Initialize app identity
     qdrant::identity::init "$app_id"
     
@@ -678,6 +759,68 @@ embeddings_refresh_impl() {
     fi
     
     log::info "Refreshing embeddings for app: $app_id"
+    
+    # Pre-flight service health checks with retries
+    log::info "Performing service health checks..."
+    
+    # Check Qdrant availability
+    local max_retries=5
+    local retry_delay=2
+    local qdrant_ready=false
+    
+    for attempt in $(seq 1 $max_retries); do
+        if curl -s --max-time 10 "http://localhost:6333/health" >/dev/null 2>&1; then
+            log::success "Qdrant service is healthy"
+            qdrant_ready=true
+            break
+        fi
+        
+        if [[ $attempt -lt $max_retries ]]; then
+            log::warn "Qdrant not ready (attempt $attempt/$max_retries), retrying in ${retry_delay}s..."
+            sleep $retry_delay
+        fi
+    done
+    
+    if [[ "$qdrant_ready" != "true" ]]; then
+        log::error "Qdrant service is not available after $max_retries attempts"
+        log::error "Please ensure Qdrant is running: resource-qdrant start"
+        return 1
+    fi
+    
+    # Check Ollama availability and model
+    local ollama_ready=false
+    local model="${QDRANT_EMBEDDING_MODEL:-mxbai-embed-large}"
+    
+    for attempt in $(seq 1 $max_retries); do
+        if curl -s --max-time 10 "http://localhost:11434/api/tags" >/dev/null 2>&1; then
+            log::success "Ollama service is healthy"
+            
+            # Verify embedding model is available
+            if curl -s --max-time 10 "http://localhost:11434/api/tags" | jq -e --arg model "$model" '.models[] | select(.name | startswith($model))' >/dev/null 2>&1; then
+                log::success "Embedding model '$model' is available"
+                ollama_ready=true
+                break
+            else
+                log::error "Embedding model '$model' is not available"
+                log::info "Available models:"
+                curl -s "http://localhost:11434/api/tags" | jq -r '.models[]?.name // empty' | sed 's/^/  - /' || echo "  (Unable to retrieve model list)"
+                return 1
+            fi
+        fi
+        
+        if [[ $attempt -lt $max_retries ]]; then
+            log::warn "Ollama not ready (attempt $attempt/$max_retries), retrying in ${retry_delay}s..."
+            sleep $retry_delay
+        fi
+    done
+    
+    if [[ "$ollama_ready" != "true" ]]; then
+        log::error "Ollama service is not available after $max_retries attempts"
+        log::error "Please ensure Ollama is running with embedding model: $model"
+        return 1
+    fi
+    
+    log::success "All service dependencies are healthy ✅"
     local start_time=$(date +%s)
     
     # Create temporary directory for extracted content
@@ -719,85 +862,199 @@ embeddings_refresh_impl() {
     local resource_count_file="$TEMP_DIR/resource_count"
     local filetrees_count_file="$TEMP_DIR/filetrees_count"
     
-    # Start all content type processing in parallel
+    # Start all content type processing in parallel with process groups for better signal handling
     
+    # Process workflows
     {
-        log::info "Processing workflows..."
-        workflow_count=$(qdrant::embeddings::process_initialization "$app_id")
-        echo "$workflow_count" > "$workflow_count_file"
+        # Create new process group and set up signal handling
+        set -m  # Enable job control
+        exec setsid bash -c '
+            trap "echo \"Workflows job interrupted\"; exit 130" SIGINT SIGTERM
+            log::info "Processing workflows..."
+            source "'$EMBEDDINGS_DIR'/extractors/initialization/main.sh"
+            workflow_count=$(qdrant::embeddings::process_initialization "'$app_id'" 2>&1 | tail -1)
+            echo "${workflow_count:-0}" > "'$workflow_count_file'"
+            log::info "Workflows complete: ${workflow_count:-0} items"
+        '
     } &
     local workflow_pid=$!
+    BACKGROUND_JOBS+=("$workflow_pid")
     
+    # Process scenarios
     {
-        log::info "Processing scenarios..."
-        scenario_count=$(qdrant::embeddings::process_scenarios "$app_id")
-        echo "$scenario_count" > "$scenario_count_file"
+        set -m
+        exec setsid bash -c '
+            trap "echo \"Scenarios job interrupted\"; exit 130" SIGINT SIGTERM
+            log::info "Processing scenarios..."
+            source "'$EMBEDDINGS_DIR'/extractors/scenarios/main.sh"
+            scenario_count=$(qdrant::embeddings::process_scenarios "'$app_id'" 2>&1 | tail -1)
+            echo "${scenario_count:-0}" > "'$scenario_count_file'"
+            log::info "Scenarios complete: ${scenario_count:-0} items"
+        '
     } &
     local scenario_pid=$!
+    BACKGROUND_JOBS+=("$scenario_pid")
     
+    # Process documentation
     {
-        log::info "Processing documentation..."
-        doc_count=$(qdrant::embeddings::process_documentation "$app_id")
-        echo "$doc_count" > "$doc_count_file"
+        set -m
+        exec setsid bash -c '
+            trap "echo \"Documentation job interrupted\"; exit 130" SIGINT SIGTERM
+            log::info "Processing documentation..."
+            source "'$EMBEDDINGS_DIR'/extractors/docs/main.sh"
+            doc_count=$(qdrant::embeddings::process_documentation "'$app_id'" 2>&1 | tail -1)
+            echo "${doc_count:-0}" > "'$doc_count_file'"
+            log::info "Documentation complete: ${doc_count:-0} items"
+        '
     } &
     local doc_pid=$!
+    BACKGROUND_JOBS+=("$doc_pid")
     
+    # Process code
     {
-        log::info "Processing code..."
-        code_count=$(qdrant::embeddings::process_code "$app_id")
-        echo "$code_count" > "$code_count_file"
+        set -m
+        exec setsid bash -c '
+            trap "echo \"Code job interrupted\"; exit 130" SIGINT SIGTERM
+            log::info "Processing code..."
+            source "'$EMBEDDINGS_DIR'/extractors/code/main.sh"
+            code_count=$(qdrant::embeddings::process_code "'$app_id'" 2>&1 | tail -1)
+            echo "${code_count:-0}" > "'$code_count_file'"
+            log::info "Code complete: ${code_count:-0} items"
+        '
     } &
     local code_pid=$!
+    BACKGROUND_JOBS+=("$code_pid")
     
+    # Process resources
     {
-        log::info "Processing resources..."
-        resource_count=$(qdrant::embeddings::process_resources "$app_id")
-        echo "$resource_count" > "$resource_count_file"
+        set -m
+        exec setsid bash -c '
+            trap "echo \"Resources job interrupted\"; exit 130" SIGINT SIGTERM
+            log::info "Processing resources..."
+            source "'$EMBEDDINGS_DIR'/extractors/resources/main.sh"
+            resource_count=$(qdrant::embeddings::process_resources "'$app_id'" 2>&1 | tail -1)
+            echo "${resource_count:-0}" > "'$resource_count_file'"
+            log::info "Resources complete: ${resource_count:-0} items"
+        '
     } &
     local resource_pid=$!
+    BACKGROUND_JOBS+=("$resource_pid")
     
+    # Process file trees
     {
-        log::info "Processing file trees..."
-        filetrees_count=$(qdrant::embeddings::process_file_trees "$app_id")
-        echo "$filetrees_count" > "$filetrees_count_file"
+        set -m
+        exec setsid bash -c '
+            trap "echo \"File trees job interrupted\"; exit 130" SIGINT SIGTERM
+            log::info "Processing file trees..."
+            source "'$EMBEDDINGS_DIR'/extractors/filetrees/main.sh"
+            filetrees_count=$(qdrant::embeddings::process_file_trees "'$app_id'" 2>&1 | tail -1)
+            echo "${filetrees_count:-0}" > "'$filetrees_count_file'"
+            log::info "File trees complete: ${filetrees_count:-0} items"
+        '
     } &
     local filetrees_pid=$!
+    BACKGROUND_JOBS+=("$filetrees_pid")
     
     # Wait for all background jobs to complete with monitoring
     log::info "Waiting for all content type processing to complete..."
     
     # Monitor memory usage during parallel processing
     {
-        while kill -0 $workflow_pid $scenario_pid $doc_pid $code_pid $resource_pid $filetrees_pid 2>/dev/null; do
-            local mem_usage
-            mem_usage=$(free | awk '/Mem:/ {printf "%.0f", $3/$2 * 100}')
-            if [[ $mem_usage -gt 85 ]]; then
-                log::warn "High memory usage detected: ${mem_usage}% - Consider reducing parallel workers"
-            fi
-            sleep 2
-        done
+        set -m
+        exec setsid bash -c '
+            trap "echo \"Memory monitor interrupted\"; exit 130" SIGINT SIGTERM
+            while kill -0 '$workflow_pid' '$scenario_pid' '$doc_pid' '$code_pid' '$resource_pid' '$filetrees_pid' 2>/dev/null; do
+                mem_usage=$(free 2>/dev/null | awk "/Mem:/ {printf \"%.0f\", \$3/\$2 * 100}" 2>/dev/null || echo "0")
+                if [[ $mem_usage -gt 85 ]]; then
+                    echo "[WARN] High memory usage: ${mem_usage}%"
+                fi
+                sleep 2 || exit 130
+            done
+        '
     } &
     local monitor_pid=$!
+    BACKGROUND_JOBS+=("$monitor_pid")
     
-    # Wait for all jobs with timeout and error handling
+    # Use a polling-based wait mechanism that's more responsive to signals
     local failed_jobs=0
-    local job_names=("workflows" "scenarios" "documentation" "code" "resources" "file-trees")
+    local completed_jobs=0
+    local job_names=("workflows" "scenarios" "documentation" "code" "resources" "filetrees")
     local job_pids=($workflow_pid $scenario_pid $doc_pid $code_pid $resource_pid $filetrees_pid)
+    local job_status=(0 0 0 0 0 0)  # 0=running, 1=completed, 2=failed
     
-    for i in "${!job_pids[@]}"; do
-        local pid="${job_pids[$i]}"
-        local job_name="${job_names[$i]}"
+    log::info "Monitoring ${#job_pids[@]} background jobs (press Ctrl+C to cancel)..."
+    
+    # Polling loop - much more responsive to signals than wait
+    while [[ $completed_jobs -lt ${#job_pids[@]} ]]; do
+        # Check each job
+        for i in "${!job_pids[@]}"; do
+            local pid="${job_pids[$i]}"
+            local job_name="${job_names[$i]}"
+            
+            # Skip if already processed
+            [[ ${job_status[$i]} -ne 0 ]] && continue
+            
+            # Check if process is still running
+            if ! kill -0 "$pid" 2>/dev/null; then
+                # Process has finished, check exit status
+                if wait "$pid" 2>/dev/null; then
+                    log::info "✅ ${job_name} processing completed successfully"
+                    job_status[$i]=1
+                else
+                    log::error "❌ ${job_name} processing failed"
+                    job_status[$i]=2
+                    ((failed_jobs++))
+                fi
+                ((completed_jobs++))
+            fi
+        done
         
-        if wait "$pid"; then
-            log::info "✅ ${job_name} processing completed successfully"
-        else
-            log::error "❌ ${job_name} processing failed"
-            ((failed_jobs++))
-        fi
+        # Short sleep to avoid busy waiting - this is where Ctrl+C can interrupt
+        sleep 0.5 || {
+            # Sleep was interrupted by signal - kill all remaining jobs
+            log::warn "Interrupt signal received - terminating all background jobs..."
+            
+            for pid in "${job_pids[@]}"; do
+                if kill -0 "$pid" 2>/dev/null; then
+                    log::debug "Killing process group for PID $pid"
+                    # Kill the entire process group (negative PID)
+                    kill -TERM "-$pid" 2>/dev/null || kill -TERM "$pid" 2>/dev/null || true
+                fi
+            done
+            
+            # Kill monitor as well
+            if kill -0 "$monitor_pid" 2>/dev/null; then
+                kill -TERM "-$monitor_pid" 2>/dev/null || kill -TERM "$monitor_pid" 2>/dev/null || true
+            fi
+            
+            # Give jobs 2 seconds to terminate gracefully
+            sleep 2 || true
+            
+            # Force kill any remaining jobs and their process groups
+            for pid in "${job_pids[@]}"; do
+                if kill -0 "$pid" 2>/dev/null; then
+                    log::debug "Force killing process group for PID $pid"
+                    kill -KILL "-$pid" 2>/dev/null || kill -KILL "$pid" 2>/dev/null || true
+                fi
+            done
+            
+            # Force kill monitor
+            if kill -0 "$monitor_pid" 2>/dev/null; then
+                kill -KILL "-$monitor_pid" 2>/dev/null || kill -KILL "$monitor_pid" 2>/dev/null || true
+            fi
+            
+            # Stop memory monitor
+            kill -KILL $monitor_pid 2>/dev/null || true
+            
+            log::warn "All background jobs terminated - exiting..."
+            cleanup_embeddings 130
+        }
     done
     
     # Stop memory monitor
-    kill $monitor_pid 2>/dev/null || true
+    if kill -0 "$monitor_pid" 2>/dev/null; then
+        kill -TERM "-$monitor_pid" 2>/dev/null || kill -TERM "$monitor_pid" 2>/dev/null || true
+    fi
     
     # Report parallel processing results
     if [[ $failed_jobs -eq 0 ]]; then
@@ -805,6 +1062,9 @@ embeddings_refresh_impl() {
     else
         log::warn "$failed_jobs out of ${#job_names[@]} content type jobs failed"
     fi
+    
+    # Clear background jobs from array since they've completed
+    BACKGROUND_JOBS=()
     
     # Read results from temporary files
     local workflow_count=$(cat "$workflow_count_file" 2>/dev/null || echo "0")

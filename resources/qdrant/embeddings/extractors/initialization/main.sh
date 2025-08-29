@@ -57,28 +57,23 @@ qdrant::init::read_service_config() {
         return 1
     fi
     
-    # Extract all initialization arrays from resources
-    # This handles both nested (category.resource) and flat (resource) structures
+    # Extract all initialization arrays from resources  
+    # This handles nested category.resource.initialization structure
     local init_items=$(jq -r '
         .resources | 
         to_entries | 
         map(
-            # Check if value has initialization directly (flat structure)
-            if .value.initialization then
-                {
-                    resource: .key,
-                    category: null,
-                    items: .value.initialization
-                }
-            # Check if value has nested resources (categorized structure)
-            elif .value | type == "object" then
-                .value | to_entries | map(
-                    if .value.initialization then
-                        {
-                            resource: .key,
-                            category: .key,
-                            items: .value.initialization
-                        }
+            .key as $category |
+            .value | 
+            if type == "object" then
+                to_entries | 
+                map(
+                    select(.value | type == "object") |
+                    .key as $resource |
+                    .value |
+                    if (has("initialization")) and ((.initialization | type) == "array") then
+                        .initialization[] | 
+                        . + {resource: $resource, category: $category, path: .file}
                     else
                         empty
                     end
@@ -88,8 +83,7 @@ qdrant::init::read_service_config() {
             end
         ) | 
         flatten | 
-        map(.items[] + {resource: .resource, category: .category}) |
-        map(select(.path != null))
+        map(select(has("file") or has("path")))
     ' "$service_file" 2>/dev/null || echo "[]")
     
     echo "$init_items"
@@ -270,7 +264,8 @@ qdrant::init::process_all() {
         fi
         
         # Add metadata to extraction
-        local extraction=$(qdrant::init::dispatch_to_parser "$path" "$type" "$purpose" "$resource")
+        # Use resource as the parser type (e.g., n8n), not the item type (e.g., workflow)
+        local extraction=$(qdrant::init::dispatch_to_parser "$path" "$resource" "$purpose" "$type")
         
         if [[ -n "$extraction" ]]; then
             # Enhance extracted data with initialization metadata
@@ -312,7 +307,7 @@ qdrant::init::process_all() {
 #######################################
 qdrant::embeddings::process_initialization() {
     local app_id="$1"
-    local collection="${app_id}-initialization"
+    local collection="${app_id}-workflows"
     local count=0
     
     # Extract initialization data to temp file

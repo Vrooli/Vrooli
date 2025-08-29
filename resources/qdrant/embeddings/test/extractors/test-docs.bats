@@ -9,7 +9,7 @@ setup() {
     mkdir -p "$TEST_DIR"
     
     # Source the extractor
-    source "$EMBEDDING_ROOT/extractors/docs.sh"
+    source "$EMBEDDING_ROOT/extractors/docs/main.sh"
     
     # Create test fixtures
     setup_docs_fixtures

@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
 
 # Define paths from APP_ROOT
 EMBEDDINGS_DIR="${APP_ROOT}/resources/qdrant/embeddings"
@@ -70,9 +70,10 @@ qdrant::identity::init() {
         .embedding_config.collections = {
           workflows: ($app_id + "-workflows"),
           scenarios: ($app_id + "-scenarios"),
-          knowledge: ($app_id + "-knowledge"),
+          docs: ($app_id + "-docs"),
           code: ($app_id + "-code"),
-          resources: ($app_id + "-resources")
+          resources: ($app_id + "-resources"),
+          filetrees: ($app_id + "-filetrees")
         }' "$APP_IDENTITY_FILE" > "$temp_file"
     
     mv "$temp_file" "$APP_IDENTITY_FILE"
@@ -148,7 +149,32 @@ qdrant::identity::update_after_index() {
         current_commit=$(git rev-parse HEAD 2>/dev/null || echo "")
     fi
     
-    # Update identity file
+    # Calculate actual collection count from Qdrant
+    local app_id=$(jq -r '.app_id' "$APP_IDENTITY_FILE")
+    local collections_count=0
+    local total_size_mb=0
+    
+    if [[ -n "$app_id" ]]; then
+        # Count collections that actually exist in Qdrant
+        for collection in $(jq -r '.embedding_config.collections | to_entries[] | .value' "$APP_IDENTITY_FILE" 2>/dev/null); do
+            if curl -s "http://localhost:6333/collections/$collection" | jq -e '.result' >/dev/null 2>&1; then
+                ((collections_count++))
+                
+                # Get collection info for size calculation
+                local collection_info=$(curl -s "http://localhost:6333/collections/$collection")
+                # Use points_count since vectors_count might be null
+                local points_count=$(echo "$collection_info" | jq -r '.result.points_count // 0')
+                local vector_size=$(echo "$collection_info" | jq -r '.result.config.params.vectors.size // 1024')
+                
+                # Rough estimate: each point has vector of vector_size * 4 bytes (float32) + metadata overhead
+                local collection_size_bytes=$((points_count * vector_size * 4 + points_count * 500))  # 500 bytes metadata per point estimate
+                local collection_size_mb=$((collection_size_bytes / 1024 / 1024))
+                total_size_mb=$((total_size_mb + collection_size_mb))
+            fi
+        done
+    fi
+    
+    # Update identity file with all stats
     local indexed_date=$(date -Iseconds)
     local temp_file=$(mktemp)
     
@@ -156,15 +182,123 @@ qdrant::identity::update_after_index() {
        --arg commit "$current_commit" \
        --arg embeddings "$embeddings_count" \
        --arg duration "$duration" \
+       --arg collections "$collections_count" \
+       --arg size_mb "$total_size_mb" \
        '.last_indexed = $indexed |
         .index_commit = (if $commit == "" then null else $commit end) |
         .stats.total_embeddings = ($embeddings | tonumber) |
-        .stats.last_refresh_duration_seconds = ($duration | tonumber)' \
+        .stats.last_refresh_duration_seconds = ($duration | tonumber) |
+        .stats.collections_count = ($collections | tonumber) |
+        .stats.index_size_mb = ($size_mb | tonumber)' \
        "$APP_IDENTITY_FILE" > "$temp_file"
     
     mv "$temp_file" "$APP_IDENTITY_FILE"
     
-    log::debug "Updated app identity after indexing"
+    log::debug "Updated app identity after indexing with full stats"
+    return 0
+}
+
+#######################################
+# Update progress in real-time during indexing
+# Arguments:
+#   $1 - Collection name
+#   $2 - Items processed so far
+#   $3 - Total items expected (optional)
+# Returns: 0 on success
+#######################################
+qdrant::identity::update_progress() {
+    local collection="${1:-}"
+    local processed="${2:-0}"
+    local total="${3:-}"
+    
+    if [[ ! -f "$APP_IDENTITY_FILE" ]]; then
+        return 1
+    fi
+    
+    # Extract collection type from name (e.g., "vrooli-main-docs" -> "docs")
+    local collection_type="${collection##*-}"
+    
+    # Update progress in identity file
+    local temp_file=$(mktemp)
+    local timestamp=$(date -Iseconds)
+    
+    if [[ -n "$total" ]]; then
+        jq --arg type "$collection_type" \
+           --arg processed "$processed" \
+           --arg total "$total" \
+           --arg timestamp "$timestamp" \
+           '.metadata.indexing_progress[$type] = {
+              processed: ($processed | tonumber),
+              total: ($total | tonumber),
+              last_update: $timestamp
+           }' "$APP_IDENTITY_FILE" > "$temp_file"
+    else
+        jq --arg type "$collection_type" \
+           --arg processed "$processed" \
+           --arg timestamp "$timestamp" \
+           '.metadata.indexing_progress[$type] = {
+              processed: ($processed | tonumber),
+              last_update: $timestamp
+           }' "$APP_IDENTITY_FILE" > "$temp_file"
+    fi
+    
+    mv "$temp_file" "$APP_IDENTITY_FILE"
+    return 0
+}
+
+#######################################
+# Update only stats without changing timestamps
+# Used for sync operations
+# Returns: 0 on success
+#######################################
+qdrant::identity::update_stats_only() {
+    if [[ ! -f "$APP_IDENTITY_FILE" ]]; then
+        log::error "App identity file not found"
+        return 1
+    fi
+    
+    local app_id=$(jq -r '.app_id' "$APP_IDENTITY_FILE")
+    local collections_count=0
+    local total_embeddings=0
+    local total_size_mb=0
+    
+    if [[ -n "$app_id" ]]; then
+        # Count collections and embeddings that actually exist in Qdrant
+        for collection in $(jq -r '.embedding_config.collections | to_entries[] | .value' "$APP_IDENTITY_FILE" 2>/dev/null); do
+            local collection_info=$(curl -s "http://localhost:6333/collections/$collection")
+            
+            if echo "$collection_info" | jq -e '.result' >/dev/null 2>&1; then
+                ((collections_count++))
+                
+                # Get actual point count and size
+                local points_count=$(echo "$collection_info" | jq -r '.result.points_count // 0')
+                total_embeddings=$((total_embeddings + points_count))
+                
+                # Use points_count since vectors_count might be null
+                local vector_size=$(echo "$collection_info" | jq -r '.result.config.params.vectors.size // 1024')
+                
+                # Rough estimate: each point has vector of vector_size * 4 bytes (float32) + metadata overhead
+                local collection_size_bytes=$((points_count * vector_size * 4 + points_count * 500))
+                local collection_size_mb=$((collection_size_bytes / 1024 / 1024))
+                total_size_mb=$((total_size_mb + collection_size_mb))
+            fi
+        done
+    fi
+    
+    # Update only stats in identity file
+    local temp_file=$(mktemp)
+    
+    jq --arg embeddings "$total_embeddings" \
+       --arg collections "$collections_count" \
+       --arg size_mb "$total_size_mb" \
+       '.stats.total_embeddings = ($embeddings | tonumber) |
+        .stats.collections_count = ($collections | tonumber) |
+        .stats.index_size_mb = ($size_mb | tonumber)' \
+       "$APP_IDENTITY_FILE" > "$temp_file"
+    
+    mv "$temp_file" "$APP_IDENTITY_FILE"
+    
+    log::debug "Updated stats: $collections_count collections, $total_embeddings embeddings, ${total_size_mb}MB"
     return 0
 }
 
@@ -247,9 +381,10 @@ qdrant::identity::show() {
         "\n\nCollections:" +
         "\n  Workflows: " + (.embedding_config.collections.workflows // "Not configured") +
         "\n  Scenarios: " + (.embedding_config.collections.scenarios // "Not configured") +
-        "\n  Knowledge: " + (.embedding_config.collections.knowledge // "Not configured") +
+        "\n  Documentation: " + (.embedding_config.collections.docs // "Not configured") +
         "\n  Code: " + (.embedding_config.collections.code // "Not configured") +
         "\n  Resources: " + (.embedding_config.collections.resources // "Not configured") +
+        "\n  FileTrees: " + (.embedding_config.collections.filetrees // "Not configured") +
         "\n\nStatistics:" +
         "\n  Total Embeddings: " + (.stats.total_embeddings | tostring) +
         "\n  Last Refresh Duration: " + (if .stats.last_refresh_duration_seconds then (.stats.last_refresh_duration_seconds | tostring) + " seconds" else "N/A" end)
@@ -370,31 +505,25 @@ qdrant::identity::sync_with_collections() {
     if [[ "$total_embeddings" -gt 0 && "$current_total" -ne "$total_embeddings" ]]; then
         log::info "Syncing identity file with actual collection state ($total_embeddings embeddings found)"
         
-        # Get current git commit if available
-        local current_commit=""
-        if [[ -d .git ]]; then
-            current_commit=$(git rev-parse HEAD 2>/dev/null || echo "")
-        fi
+        # Use the new update_stats_only function to also update collections_count and index_size_mb
+        qdrant::identity::update_stats_only
         
-        # Update identity file with actual state
+        # Add last_sync timestamp
         local synced_date=$(date -Iseconds)
         local temp_file=$(mktemp)
         
         jq --arg synced "$synced_date" \
-           --arg commit "$current_commit" \
-           --arg embeddings "$total_embeddings" \
-           '.last_indexed = $synced |
-            .index_commit = (if $commit == "" then null else $commit end) |
-            .stats.total_embeddings = ($embeddings | tonumber) |
-            .metadata.last_sync = $synced' \
+           '.metadata.last_sync = $synced' \
            "$APP_IDENTITY_FILE" > "$temp_file"
         
         mv "$temp_file" "$APP_IDENTITY_FILE"
         
-        log::success "Identity file synced: $total_embeddings total embeddings"
+        log::success "Identity file synced with full stats"
         return 0
     else
         log::debug "Identity file already in sync with collections"
+        # Even if counts match, update other stats that might be out of date
+        qdrant::identity::update_stats_only
         return 0
     fi
 }

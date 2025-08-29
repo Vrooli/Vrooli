@@ -43,12 +43,14 @@ qdrant::embeddings::export_config() {
     # Maximum parallel workers for embeddings (inherits from main qdrant config if set)
     if [[ -z "${EMBEDDING_MAX_WORKERS:-}" ]]; then
         # Inherit from main qdrant config if available, otherwise use embedding-specific default
-        EMBEDDING_MAX_WORKERS="${EMBEDDING_MAX_WORKERS_OVERRIDE:-${QDRANT_MAX_WORKERS:-16}}"
+        # Reduced from 16 to 4 for better stability and resource management
+        EMBEDDING_MAX_WORKERS="${EMBEDDING_MAX_WORKERS_OVERRIDE:-${QDRANT_MAX_WORKERS:-4}}"
     fi
     
     # Batch size for embedding generation
     if [[ -z "${EMBEDDING_BATCH_SIZE:-}" ]]; then
-        EMBEDDING_BATCH_SIZE="${EMBEDDING_BATCH_SIZE_OVERRIDE:-50}"
+        # Reduced from 50 to 20 for better memory management
+        EMBEDDING_BATCH_SIZE="${EMBEDDING_BATCH_SIZE_OVERRIDE:-20}"
     fi
     
     # Memory usage threshold (percentage) for embeddings
@@ -107,8 +109,8 @@ qdrant::embeddings::export_config() {
         EMBEDDING_SCENARIOS_COLLECTION_SUFFIX="${EMBEDDING_SCENARIOS_COLLECTION_SUFFIX_OVERRIDE:-scenarios}"
     fi
     
-    if [[ -z "${EMBEDDING_KNOWLEDGE_COLLECTION_SUFFIX:-}" ]]; then
-        EMBEDDING_KNOWLEDGE_COLLECTION_SUFFIX="${EMBEDDING_KNOWLEDGE_COLLECTION_SUFFIX_OVERRIDE:-knowledge}"
+    if [[ -z "${EMBEDDING_DOCS_COLLECTION_SUFFIX:-}" ]]; then
+        EMBEDDING_DOCS_COLLECTION_SUFFIX="${EMBEDDING_DOCS_COLLECTION_SUFFIX_OVERRIDE:-docs}"
     fi
     
     if [[ -z "${EMBEDDING_CODE_COLLECTION_SUFFIX:-}" ]]; then
@@ -131,6 +133,11 @@ qdrant::embeddings::export_config() {
     # Maximum content length before truncation
     if [[ -z "${EMBEDDING_MAX_CONTENT_LENGTH:-}" ]]; then
         EMBEDDING_MAX_CONTENT_LENGTH="${EMBEDDING_MAX_CONTENT_LENGTH_OVERRIDE:-8192}"
+    fi
+    
+    # Code processing limits
+    if [[ -z "${CODE_MAX_FILES:-}" ]]; then
+        CODE_MAX_FILES="${CODE_MAX_FILES_OVERRIDE:-1500}"
     fi
     
     # Progress reporting interval (number of items)
@@ -204,8 +211,9 @@ qdrant::embeddings::export_config() {
     export EMBEDDING_CACHE_TTL EMBEDDING_CACHE_ENABLED EMBEDDING_CACHE_DIR
     export EMBEDDING_PROCESSING_TIMEOUT EMBEDDING_MAX_RETRIES EMBEDDING_RETRY_DELAY
     export EMBEDDING_WORKFLOWS_COLLECTION_SUFFIX EMBEDDING_SCENARIOS_COLLECTION_SUFFIX
-    export EMBEDDING_KNOWLEDGE_COLLECTION_SUFFIX EMBEDDING_CODE_COLLECTION_SUFFIX EMBEDDING_RESOURCES_COLLECTION_SUFFIX
+    export EMBEDDING_DOCS_COLLECTION_SUFFIX EMBEDDING_CODE_COLLECTION_SUFFIX EMBEDDING_RESOURCES_COLLECTION_SUFFIX
     export EMBEDDING_MIN_CONTENT_LENGTH EMBEDDING_MAX_CONTENT_LENGTH EMBEDDING_PROGRESS_INTERVAL
+    export CODE_MAX_FILES
     
     # Export compatibility aliases
     export DEFAULT_MODEL DEFAULT_BATCH_SIZE BATCH_SIZE MAX_WORKERS CACHE_TTL
@@ -240,11 +248,13 @@ qdrant::embeddings::show_config() {
     echo "📏 Content Limits:"
     echo "  Min Content Length: $EMBEDDING_MIN_CONTENT_LENGTH chars"
     echo "  Max Content Length: $EMBEDDING_MAX_CONTENT_LENGTH chars"
+    echo "  Max Code Files: $CODE_MAX_FILES"
     echo
     echo "🔧 Override via environment variables:"
     echo "  export QDRANT_EMBEDDING_MODEL_OVERRIDE=\"nomic-embed-text\""
     echo "  export EMBEDDING_MAX_WORKERS_OVERRIDE=8"
     echo "  export EMBEDDING_MEMORY_LIMIT_OVERRIDE=70"
+    echo "  export CODE_MAX_FILES_OVERRIDE=2000"
 }
 
 #######################################

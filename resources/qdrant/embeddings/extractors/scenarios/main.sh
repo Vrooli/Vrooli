@@ -401,26 +401,10 @@ qdrant::embeddings::process_scenarios() {
         return 0
     fi
     
-    # Process each JSON line through unified embedding service
-    while IFS= read -r json_line; do
-        if [[ -n "$json_line" ]]; then
-            # Parse JSON to extract content and metadata
-            local content
-            content=$(echo "$json_line" | jq -r '.content // empty' 2>/dev/null)
-            
-            local metadata
-            metadata=$(echo "$json_line" | jq -c '.metadata // {}' 2>/dev/null)
-            
-            if [[ -n "$content" ]]; then
-                # Process through unified embedding service with structured metadata
-                if qdrant::embedding::process_item "$content" "scenario" "$collection" "$app_id" "$metadata"; then
-                    ((count++))
-                fi
-            fi
-        fi
-    done < "$output_file"
+    # Use the new batch processing function for massive speedup!
+    count=$(qdrant::embedding::process_jsonl_file "$output_file" "scenario" "$collection" "$app_id")
     
-    log::debug "Created $count scenario embeddings"
+    log::debug "Created $count scenario embeddings using real batch processing"
     echo "$count"
 }
 

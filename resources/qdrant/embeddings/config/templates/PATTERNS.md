@@ -400,7 +400,7 @@ class SecureHandler {
 deployment:
   strategy: blue-green
   health_check:
-    endpoint: /health
+    endpoint: /
     timeout: 30s
   rollback:
     automatic: true
