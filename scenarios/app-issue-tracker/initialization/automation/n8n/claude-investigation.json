@@ -37,30 +37,20 @@
     },
     {
       "parameters": {
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "claudeApi",
-        "model": "claude-3-opus-20240229",
-        "messages": {
-          "values": [
-            {
-              "content": "={{ $json.prompt }}"
-            }
-          ]
-        },
+        "command": "/home/matthalloran8/Vrooli/scenarios/app-issue-tracker/scripts/claude-investigator.sh investigate '{{ $json.issue_id }}' '{{ $json.agent_id }}' '{{ $json.project_path }}' '{{ $json.prompt_template }}'",
         "options": {
-          "maxTokensToSample": 4096,
-          "temperature": 0.2
+          "timeout": 300
         }
       },
       "id": "claude_investigation",
-      "name": "Claude Investigation",
-      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "name": "Claude Code Investigation",
+      "type": "n8n-nodes-base.executeCommand",
       "typeVersion": 1,
       "position": [850, 300]
     },
     {
       "parameters": {
-        "functionCode": "const response = items[0].json;\nconst issue_id = items[0].json.issue_id;\n\n// Parse Claude's response to extract structured data\nconst investigation_report = response.text || response.content || '';\n\n// Extract root cause (look for patterns in response)\nlet root_cause = '';\nconst rootCauseMatch = investigation_report.match(/root cause[:\\s]+([^\\n]+)/i);\nif (rootCauseMatch) {\n  root_cause = rootCauseMatch[1].trim();\n}\n\n// Extract suggested fix\nlet suggested_fix = '';\nconst fixMatch = investigation_report.match(/suggested fix[:\\s]+([^\\n]+)/i);\nif (fixMatch) {\n  suggested_fix = fixMatch[1].trim();\n}\n\n// Extract affected files\nconst affectedFiles = [];\nconst filesMatch = investigation_report.match(/affected files[:\\s]+([^\\n]+)/i);\nif (filesMatch) {\n  affectedFiles.push(...filesMatch[1].split(',').map(f => f.trim()));\n}\n\nreturn [{json: {\n  issue_id,\n  investigation_report,\n  root_cause,\n  suggested_fix,\n  affected_files: affectedFiles,\n  timestamp: new Date().toISOString()\n}}];"
+        "functionCode": "// Parse output from claude-investigator.sh script\nconst commandOutput = items[0].json.stdout || items[0].json.output || '';\n\nlet investigationData;\ntry {\n  // The script outputs JSON, so parse it directly\n  investigationData = JSON.parse(commandOutput);\n} catch (e) {\n  // Fallback: treat as plain text if JSON parsing fails\n  console.log('Failed to parse JSON output, treating as text:', e);\n  investigationData = {\n    issue_id: 'unknown',\n    investigation_report: commandOutput,\n    root_cause: 'Parse error - see investigation report',\n    suggested_fix: 'Manual review required',\n    confidence_score: 3,\n    affected_files: [],\n    status: 'completed'\n  };\n}\n\n// Ensure all required fields are present\nconst result = {\n  issue_id: investigationData.issue_id || 'unknown',\n  investigation_report: investigationData.investigation_report || 'No report generated',\n  root_cause: investigationData.root_cause || 'Unable to determine root cause',\n  suggested_fix: investigationData.suggested_fix || 'No specific fix identified',\n  confidence_score: investigationData.confidence_score || 5,\n  affected_files: investigationData.affected_files || [],\n  timestamp: investigationData.investigation_completed_at || new Date().toISOString(),\n  status: investigationData.status || 'completed'\n};\n\nreturn [{json: result}];"
       },
       "id": "parse_response",
       "name": "Parse Response",

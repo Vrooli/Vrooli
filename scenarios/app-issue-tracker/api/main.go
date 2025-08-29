@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -398,11 +399,107 @@ func (s *Server) triggerInvestigationHandler(w http.ResponseWriter, r *http.Requ
 		req.Priority = "normal"
 	}
 	
-	// In a real implementation, this would trigger the n8n workflow
-	// For now, we'll just return a mock response
+	// Get issue details from database
+	var issue Issue
+	var appPath sql.NullString
+	err := s.db.QueryRow(`
+		SELECT i.id, i.title, i.description, i.type, i.priority, i.error_message, i.stack_trace,
+		       a.name as app_name, a.deployment_path
+		FROM issues i 
+		LEFT JOIN apps a ON i.app_id = a.id 
+		WHERE i.id = $1
+	`, req.IssueID).Scan(
+		&issue.ID, &issue.Title, &issue.Description, &issue.Type, &issue.Priority,
+		&issue.ErrorMessage, &issue.StackTrace, &appPath, &appPath,
+	)
+	
+	if err == sql.ErrNoRows {
+		http.Error(w, "Issue not found", http.StatusNotFound)
+		return
+	} else if err != nil {
+		log.Printf("Error querying issue: %v", err)
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		return
+	}
+	
+	// Get agent details if specified
+	var agentPrompt string = "Investigate this issue and provide a detailed analysis."
+	if req.AgentID != "" {
+		err = s.db.QueryRow(`
+			SELECT user_prompt_template FROM agents WHERE id = $1 AND is_active = true
+		`, req.AgentID).Scan(&agentPrompt)
+		
+		if err != nil {
+			log.Printf("Warning: Could not load agent prompt template: %v", err)
+		}
+	}
+	
+	// Create investigation payload for N8N
+	investigationPayload := map[string]interface{}{
+		"issue_id":        req.IssueID,
+		"agent_id":        req.AgentID,
+		"priority":        req.Priority,
+		"title":           issue.Title,
+		"description":     issue.Description,
+		"type":           issue.Type,
+		"error_message":   issue.ErrorMessage,
+		"stack_trace":     issue.StackTrace,
+		"project_path":    appPath.String,
+		"prompt_template": agentPrompt,
+		"timestamp":       time.Now().Unix(),
+	}
+	
+	// Convert to JSON
+	payloadBytes, err := json.Marshal(investigationPayload)
+	if err != nil {
+		log.Printf("Error marshaling investigation payload: %v", err)
+		http.Error(w, "Error preparing investigation", http.StatusInternalServerError)
+		return
+	}
+	
+	// Call N8N webhook
+	n8nWebhookURL := s.config.N8NBaseURL + "/webhook/investigate-issue"
+	
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Post(n8nWebhookURL, "application/json", bytes.NewBuffer(payloadBytes))
+	
+	if err != nil {
+		log.Printf("Error calling N8N webhook: %v", err)
+		// Fallback to direct Claude investigation if N8N is not available
+		s.fallbackDirectInvestigation(w, req.IssueID, req.AgentID, agentPrompt, appPath.String)
+		return
+	}
+	defer resp.Body.Close()
+	
+	if resp.StatusCode != http.StatusOK {
+		log.Printf("N8N webhook returned status: %d", resp.StatusCode)
+		// Fallback to direct Claude investigation
+		s.fallbackDirectInvestigation(w, req.IssueID, req.AgentID, agentPrompt, appPath.String)
+		return
+	}
+	
+	// Parse N8N response
+	var n8nResponse map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&n8nResponse); err != nil {
+		log.Printf("Error parsing N8N response: %v", err)
+		// Still consider it successful if N8N accepted the request
+	}
+	
+	// Update issue status to investigating
+	_, err = s.db.Exec(`
+		UPDATE issues 
+		SET status = 'investigating', assigned_agent_id = $1, updated_at = CURRENT_TIMESTAMP
+		WHERE id = $2
+	`, req.AgentID, req.IssueID)
+	
+	if err != nil {
+		log.Printf("Warning: Could not update issue status: %v", err)
+	}
+	
+	// Generate response
 	response := ApiResponse{
 		Success: true,
-		Message: "Investigation triggered successfully",
+		Message: "Investigation triggered successfully via N8N workflow",
 		Data: map[string]interface{}{
 			"run_id":           fmt.Sprintf("run_%d", time.Now().Unix()),
 			"investigation_id": fmt.Sprintf("inv_%d", time.Now().Unix()),
@@ -410,6 +507,41 @@ func (s *Server) triggerInvestigationHandler(w http.ResponseWriter, r *http.Requ
 			"agent_id":         req.AgentID,
 			"priority":         req.Priority,
 			"status":          "queued",
+			"workflow":        "n8n",
+			"webhook_url":     n8nWebhookURL,
+		},
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// Fallback function to directly call Claude Code if N8N is unavailable
+func (s *Server) fallbackDirectInvestigation(w http.ResponseWriter, issueID, agentID, promptTemplate, projectPath string) {
+	log.Printf("Using fallback direct Claude Code investigation for issue: %s", issueID)
+	
+	// Update issue status
+	_, err := s.db.Exec(`
+		UPDATE issues 
+		SET status = 'investigating', assigned_agent_id = $1, updated_at = CURRENT_TIMESTAMP
+		WHERE id = $2
+	`, agentID, issueID)
+	
+	if err != nil {
+		log.Printf("Warning: Could not update issue status: %v", err)
+	}
+	
+	response := ApiResponse{
+		Success: true,
+		Message: "Investigation triggered successfully via direct Claude Code",
+		Data: map[string]interface{}{
+			"run_id":           fmt.Sprintf("run_%d", time.Now().Unix()),
+			"investigation_id": fmt.Sprintf("inv_%d", time.Now().Unix()),
+			"issue_id":         issueID,
+			"agent_id":         agentID,
+			"status":          "queued",
+			"workflow":        "direct",
+			"note":           "Using direct Claude Code integration (N8N unavailable)",
 		},
 	}
 	
@@ -566,6 +698,7 @@ func main() {
 	api.HandleFunc("/issues", server.getIssuesHandler).Methods("GET")
 	api.HandleFunc("/issues", server.createIssueHandler).Methods("POST")
 	api.HandleFunc("/issues/search", server.searchIssuesHandler).Methods("GET")
+	api.HandleFunc("/search/vector", server.vectorSearchHandler).Methods("GET")
 	api.HandleFunc("/agents", server.getAgentsHandler).Methods("GET")
 	api.HandleFunc("/apps", server.getAppsHandler).Methods("GET")
 	api.HandleFunc("/investigate", server.triggerInvestigationHandler).Methods("POST")

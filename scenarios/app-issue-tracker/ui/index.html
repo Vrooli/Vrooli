@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>App Issue Tracker - Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="app">
+        <!-- Navigation -->
+        <nav class="navbar">
+            <div class="nav-brand">
+                <i class="fas fa-bug"></i>
+                <h1>Issue Tracker</h1>
+            </div>
+            <div class="nav-links">
+                <a href="#dashboard" class="nav-link active" data-page="dashboard">
+                    <i class="fas fa-tachometer-alt"></i> Dashboard
+                </a>
+                <a href="#issues" class="nav-link" data-page="issues">
+                    <i class="fas fa-list"></i> Issues
+                </a>
+                <a href="#agents" class="nav-link" data-page="agents">
+                    <i class="fas fa-robot"></i> Agents
+                </a>
+                <a href="#apps" class="nav-link" data-page="apps">
+                    <i class="fas fa-desktop"></i> Applications
+                </a>
+                <a href="#search" class="nav-link" data-page="search">
+                    <i class="fas fa-search"></i> Search
+                </a>
+            </div>
+            <div class="nav-actions">
+                <button class="btn btn-primary" id="newIssueBtn">
+                    <i class="fas fa-plus"></i> New Issue
+                </button>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Dashboard Page -->
+            <div id="dashboard" class="page active">
+                <div class="page-header">
+                    <h2>Dashboard Overview</h2>
+                    <div class="refresh-controls">
+                        <span class="last-update">Last updated: <span id="lastUpdate">Never</span></span>
+                        <button class="btn btn-secondary" id="refreshBtn">
+                            <i class="fas fa-sync"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Stats Cards -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 id="totalIssues">--</h3>
+                            <p>Total Issues</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 id="openIssues">--</h3>
+                            <p>Open Issues</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-cogs"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 id="inProgress">--</h3>
+                            <p>In Progress</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 id="fixedToday">--</h3>
+                            <p>Fixed Today</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Row -->
+                <div class="charts-row">
+                    <div class="chart-container">
+                        <h3>Issues by Status</h3>
+                        <canvas id="statusChart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <h3>Issues by Priority</h3>
+                        <canvas id="priorityChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Recent Issues -->
+                <div class="recent-issues">
+                    <h3>Recent Issues</h3>
+                    <div class="table-container">
+                        <table class="issue-table" id="recentIssuesTable">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Title</th>
+                                    <th>Status</th>
+                                    <th>Priority</th>
+                                    <th>Type</th>
+                                    <th>Created</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Issues will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Issues Page -->
+            <div id="issues" class="page">
+                <div class="page-header">
+                    <h2>All Issues</h2>
+                    <div class="filters">
+                        <select id="statusFilter">
+                            <option value="">All Statuses</option>
+                            <option value="open">Open</option>
+                            <option value="investigating">Investigating</option>
+                            <option value="in_progress">In Progress</option>
+                            <option value="fixed">Fixed</option>
+                            <option value="closed">Closed</option>
+                        </select>
+                        <select id="priorityFilter">
+                            <option value="">All Priorities</option>
+                            <option value="critical">Critical</option>
+                            <option value="high">High</option>
+                            <option value="medium">Medium</option>
+                            <option value="low">Low</option>
+                        </select>
+                        <select id="typeFilter">
+                            <option value="">All Types</option>
+                            <option value="bug">Bug</option>
+                            <option value="feature">Feature</option>
+                            <option value="performance">Performance</option>
+                            <option value="security">Security</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table class="issue-table" id="allIssuesTable">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Title</th>
+                                <th>Status</th>
+                                <th>Priority</th>
+                                <th>Type</th>
+                                <th>Application</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Issues will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Agents Page -->
+            <div id="agents" class="page">
+                <div class="page-header">
+                    <h2>AI Agents</h2>
+                    <p>Manage and monitor AI agents for issue investigation</p>
+                </div>
+
+                <div class="agents-grid" id="agentsGrid">
+                    <!-- Agents will be loaded here -->
+                </div>
+            </div>
+
+            <!-- Apps Page -->
+            <div id="apps" class="page">
+                <div class="page-header">
+                    <h2>Applications</h2>
+                    <p>Monitored applications and their issue status</p>
+                </div>
+
+                <div class="apps-grid" id="appsGrid">
+                    <!-- Apps will be loaded here -->
+                </div>
+            </div>
+
+            <!-- Search Page -->
+            <div id="search" class="page">
+                <div class="page-header">
+                    <h2>Search Issues</h2>
+                    <p>Find issues using text or semantic search</p>
+                </div>
+
+                <div class="search-container">
+                    <div class="search-bar">
+                        <input type="text" id="searchInput" placeholder="Search for issues...">
+                        <div class="search-options">
+                            <label>
+                                <input type="radio" name="searchType" value="text" checked> Text Search
+                            </label>
+                            <label>
+                                <input type="radio" name="searchType" value="vector"> Semantic Search
+                            </label>
+                        </div>
+                        <button class="btn btn-primary" id="searchBtn">
+                            <i class="fas fa-search"></i> Search
+                        </button>
+                    </div>
+
+                    <div class="search-results" id="searchResults">
+                        <!-- Search results will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- New Issue Modal -->
+    <div id="newIssueModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Create New Issue</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <form id="newIssueForm">
+                <div class="form-group">
+                    <label for="issueTitle">Title *</label>
+                    <input type="text" id="issueTitle" required>
+                </div>
+                <div class="form-group">
+                    <label for="issueDescription">Description</label>
+                    <textarea id="issueDescription" rows="4"></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="issueType">Type</label>
+                        <select id="issueType">
+                            <option value="bug">Bug</option>
+                            <option value="feature">Feature Request</option>
+                            <option value="performance">Performance</option>
+                            <option value="security">Security</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="issuePriority">Priority</label>
+                        <select id="issuePriority">
+                            <option value="low">Low</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="high">High</option>
+                            <option value="critical">Critical</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="errorMessage">Error Message</label>
+                    <textarea id="errorMessage" rows="2"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="stackTrace">Stack Trace</label>
+                    <textarea id="stackTrace" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="issueTags">Tags (comma-separated)</label>
+                    <input type="text" id="issueTags" placeholder="e.g. frontend, login, critical">
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" id="cancelBtn">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Issue</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Issue Detail Modal -->
+    <div id="issueModal" class="modal">
+        <div class="modal-content large">
+            <div class="modal-header">
+                <h3 id="issueModalTitle">Issue Details</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body" id="issueModalBody">
+                <!-- Issue details will be loaded here -->
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-primary" id="investigateBtn">
+                    <i class="fas fa-search"></i> Start Investigation
+                </button>
+                <button class="btn btn-secondary" id="closeIssueModal">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="spinner"></div>
+        <p>Loading...</p>
+    </div>
+
+    <!-- Notification system -->
+    <div id="notifications"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>
