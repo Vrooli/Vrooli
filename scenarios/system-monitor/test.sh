@@ -7,7 +7,7 @@ APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}
 SCRIPT_DIR="${APP_ROOT}/scenarios/system-monitor"
 
 # shellcheck disable=SC1091
-source "${APP_ROOT}/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "$var_LOG_FILE"
 
@@ -38,11 +38,11 @@ run_test() {
 # Test required files exist
 test_required_files() {
     local required_files=(
-        "initialization/storage/postgres/schema.sql"
-        "initialization/automation/n8n/scheduled-reports.json"
-        "initialization/automation/n8n/threshold-monitor.json"
-        "initialization/automation/node-red/anomaly-detector.json"
-        "initialization/automation/node-red/metric-collector.json"
+        "initialization/postgres/schema.sql"
+        "initialization/n8n/scheduled-reports.json"
+        "initialization/n8n/threshold-monitor.json"
+        "initialization/node-red/anomaly-detector.json"
+        "initialization/node-red/metric-collector.json"
         "initialization/configuration/monitoring-config.json"
         "scenario-test.yaml"
         "deployment/startup.sh"
@@ -61,10 +61,10 @@ test_required_files() {
 # Test JSON files are valid
 test_json_validity() {
     local json_files=(
-        "initialization/automation/n8n/scheduled-reports.json"
-        "initialization/automation/n8n/threshold-monitor.json"
-        "initialization/automation/node-red/anomaly-detector.json"
-        "initialization/automation/node-red/metric-collector.json"
+        "initialization/n8n/scheduled-reports.json"
+        "initialization/n8n/threshold-monitor.json"
+        "initialization/node-red/anomaly-detector.json"
+        "initialization/node-red/metric-collector.json"
         "initialization/configuration/monitoring-config.json"
     )
     

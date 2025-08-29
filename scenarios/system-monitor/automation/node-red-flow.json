@@ -1,0 +1,201 @@
+[
+    {
+        "id": "system-monitor-flow",
+        "type": "tab",
+        "label": "System Monitor Integration",
+        "disabled": false,
+        "info": "Automated system monitoring and alerting flow"
+    },
+    {
+        "id": "timer-node",
+        "type": "inject",
+        "z": "system-monitor-flow",
+        "name": "Every 2 Minutes",
+        "props": [
+            {
+                "p": "payload",
+                "v": "",
+                "vt": "date"
+            }
+        ],
+        "repeat": "120",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "x": 130,
+        "y": 200,
+        "wires": [
+            ["metrics-request"]
+        ]
+    },
+    {
+        "id": "metrics-request",
+        "type": "http request",
+        "z": "system-monitor-flow",
+        "name": "Get System Metrics",
+        "method": "GET",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "http://localhost:8080/api/metrics/current",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "authType": "",
+        "senderr": false,
+        "x": 350,
+        "y": 200,
+        "wires": [
+            ["threshold-check"]
+        ]
+    },
+    {
+        "id": "threshold-check",
+        "type": "function",
+        "z": "system-monitor-flow",
+        "name": "Check Thresholds",
+        "func": "const metrics = msg.payload;\nconst alerts = [];\n\n// Check CPU threshold\nif (metrics.cpu_usage > 80) {\n    alerts.push({\n        type: 'HIGH_CPU',\n        value: metrics.cpu_usage,\n        threshold: 80,\n        severity: 'critical'\n    });\n}\n\n// Check Memory threshold\nif (metrics.memory_usage > 85) {\n    alerts.push({\n        type: 'HIGH_MEMORY',\n        value: metrics.memory_usage,\n        threshold: 85,\n        severity: 'critical'\n    });\n}\n\n// Check TCP connections\nif (metrics.tcp_connections > 200) {\n    alerts.push({\n        type: 'HIGH_CONNECTIONS',\n        value: metrics.tcp_connections,\n        threshold: 200,\n        severity: 'warning'\n    });\n}\n\nif (alerts.length > 0) {\n    msg.payload = {\n        timestamp: new Date().toISOString(),\n        metrics: metrics,\n        alerts: alerts\n    };\n    return msg;\n}\n\nreturn null;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 580,
+        "y": 200,
+        "wires": [
+            ["trigger-investigation", "log-alert"]
+        ]
+    },
+    {
+        "id": "trigger-investigation",
+        "type": "http request",
+        "z": "system-monitor-flow",
+        "name": "Trigger Investigation",
+        "method": "POST",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "http://localhost:8080/api/investigations/trigger",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "authType": "",
+        "senderr": false,
+        "headers": [
+            {
+                "keyType": "Content-Type",
+                "keyValue": "",
+                "valueType": "application/json",
+                "valueValue": ""
+            }
+        ],
+        "x": 800,
+        "y": 160,
+        "wires": [
+            ["investigation-response"]
+        ]
+    },
+    {
+        "id": "log-alert",
+        "type": "debug",
+        "z": "system-monitor-flow",
+        "name": "Alert Log",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 780,
+        "y": 240,
+        "wires": []
+    },
+    {
+        "id": "investigation-response",
+        "type": "debug",
+        "z": "system-monitor-flow",
+        "name": "Investigation Started",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1030,
+        "y": 160,
+        "wires": []
+    },
+    {
+        "id": "daily-report-timer",
+        "type": "inject",
+        "z": "system-monitor-flow",
+        "name": "Daily at 9 AM",
+        "props": [
+            {
+                "p": "payload",
+                "v": "daily",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "00 09 * * *",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "x": 130,
+        "y": 360,
+        "wires": [
+            ["generate-report"]
+        ]
+    },
+    {
+        "id": "generate-report",
+        "type": "http request",
+        "z": "system-monitor-flow",
+        "name": "Generate Daily Report",
+        "method": "POST",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "http://localhost:8080/api/reports/generate",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "authType": "",
+        "senderr": false,
+        "headers": [
+            {
+                "keyType": "Content-Type",
+                "keyValue": "",
+                "valueType": "application/json",
+                "valueValue": ""
+            }
+        ],
+        "payload": "{\"type\":\"daily\"}",
+        "payloadType": "str",
+        "x": 370,
+        "y": 360,
+        "wires": [
+            ["report-response"]
+        ]
+    },
+    {
+        "id": "report-response",
+        "type": "debug",
+        "z": "system-monitor-flow",
+        "name": "Report Generated",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 600,
+        "y": 360,
+        "wires": []
+    }
+]

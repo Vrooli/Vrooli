@@ -1,0 +1,178 @@
+[
+    {
+        "id": "metric-collector-flow",
+        "label": "System Monitor - Metric Collector",
+        "nodes": [
+            {
+                "id": "collect-timer",
+                "type": "inject",
+                "z": "metric-collector-flow",
+                "name": "Collect Every 30s",
+                "props": [
+                    {
+                        "p": "payload"
+                    },
+                    {
+                        "p": "topic",
+                        "vt": "str"
+                    }
+                ],
+                "repeat": "30",
+                "crontab": "",
+                "once": true,
+                "onceDelay": 0.1,
+                "topic": "metric-collection",
+                "payload": "",
+                "payloadType": "date",
+                "x": 160,
+                "y": 120,
+                "wires": [
+                    ["collect-system-metrics"]
+                ]
+            },
+            {
+                "id": "collect-system-metrics",
+                "type": "function",
+                "z": "metric-collector-flow",
+                "name": "Collect All Metrics",
+                "func": "// Comprehensive system metrics collection\nconst { exec } = require('child_process');\nconst util = require('util');\nconst os = require('os');\nconst execAsync = util.promisify(exec);\n\n// Function to get CPU usage\nasync function getCPUUsage() {\n    try {\n        const { stdout } = await execAsync(\"grep 'cpu ' /proc/stat | awk '{usage=($2+$4)*100/($2+$3+$4+$5)} END {print usage}'\");\n        return parseFloat(stdout.trim()) || 0;\n    } catch (error) {\n        return 0;\n    }\n}\n\n// Function to get Memory usage\nasync function getMemoryInfo() {\n    try {\n        const { stdout } = await execAsync(\"free -b | grep Mem\");\n        const memInfo = stdout.trim().split(/\\s+/);\n        const total = parseInt(memInfo[1]) || 0;\n        const used = parseInt(memInfo[2]) || 0;\n        const usage = total > 0 ? (used / total) * 100 : 0;\n        \n        return {\n            total: total,\n            used: used,\n            usage: usage\n        };\n    } catch (error) {\n        return { total: 0, used: 0, usage: 0 };\n    }\n}\n\n// Function to get disk usage\nasync function getDiskInfo() {\n    try {\n        const { stdout } = await execAsync(\"df -B1 / | grep -vE '^Filesystem'\");\n        const diskInfo = stdout.trim().split(/\\s+/);\n        const total = parseInt(diskInfo[1]) || 0;\n        const used = parseInt(diskInfo[2]) || 0;\n        const usage = total > 0 ? (used / total) * 100 : 0;\n        \n        return {\n            total: total,\n            used: used,\n            usage: usage\n        };\n    } catch (error) {\n        return { total: 0, used: 0, usage: 0 };\n    }\n}\n\n// Function to get network statistics\nasync function getNetworkStats() {\n    try {\n        const { stdout } = await execAsync(\"cat /proc/net/dev | grep -E '(eth|wlan|ens|enp)' | head -1\");\n        if (stdout.trim()) {\n            const netInfo = stdout.trim().split(/\\s+/);\n            return {\n                rx_bytes: parseInt(netInfo[1]) || 0,\n                tx_bytes: parseInt(netInfo[9]) || 0\n            };\n        }\n        return { rx_bytes: 0, tx_bytes: 0 };\n    } catch (error) {\n        return { rx_bytes: 0, tx_bytes: 0 };\n    }\n}\n\n// Function to get TCP connections\nasync function getTCPConnections() {\n    try {\n        const { stdout } = await execAsync(\"netstat -tn 2>/dev/null | grep ESTABLISHED | wc -l\");\n        return parseInt(stdout.trim()) || 0;\n    } catch (error) {\n        return 0;\n    }\n}\n\n// Function to get process count\nasync function getProcessCount() {\n    try {\n        const { stdout } = await execAsync(\"ps aux | wc -l\");\n        return parseInt(stdout.trim()) - 1 || 0; // Subtract header line\n    } catch (error) {\n        return 0;\n    }\n}\n\n// Function to get load average\nfunction getLoadAverage() {\n    const loadavg = os.loadavg();\n    return {\n        load_1min: loadavg[0],\n        load_5min: loadavg[1],\n        load_15min: loadavg[2]\n    };\n}\n\n// Collect all metrics\nasync function collectAllMetrics() {\n    try {\n        const [\n            cpu,\n            memInfo,\n            diskInfo,\n            networkStats,\n            tcpConnections,\n            processCount\n        ] = await Promise.all([\n            getCPUUsage(),\n            getMemoryInfo(),\n            getDiskInfo(),\n            getNetworkStats(),\n            getTCPConnections(),\n            getProcessCount()\n        ]);\n        \n        const loadInfo = getLoadAverage();\n        \n        return {\n            // Basic metrics\n            cpu_usage: cpu,\n            memory_usage: memInfo.usage,\n            memory_total: memInfo.total,\n            disk_usage: diskInfo.usage,\n            disk_total: diskInfo.total,\n            network_rx_bytes: networkStats.rx_bytes,\n            network_tx_bytes: networkStats.tx_bytes,\n            tcp_connections: tcpConnections,\n            process_count: processCount,\n            \n            // Load average array for PostgreSQL\n            load_average: [loadInfo.load_1min, loadInfo.load_5min, loadInfo.load_15min],\n            \n            // Metadata\n            timestamp: new Date().toISOString(),\n            host: os.hostname(),\n            platform: os.platform(),\n            arch: os.arch(),\n            uptime: os.uptime()\n        };\n    } catch (error) {\n        throw error;\n    }\n}\n\n// Execute collection\ncollectAllMetrics().then(metrics => {\n    msg.payload = metrics;\n    node.send(msg);\n}).catch(error => {\n    node.error('Failed to collect metrics: ' + error.message);\n    msg.payload = { \n        error: error.message, \n        timestamp: new Date().toISOString(),\n        host: os.hostname()\n    };\n    node.send(msg);\n});",
+                "outputs": 1,
+                "noerr": 0,
+                "initialize": "",
+                "finalize": "",
+                "libs": [],
+                "x": 380,
+                "y": 120,
+                "wires": [
+                    ["store-in-postgres", "store-in-questdb", "debug-metrics"]
+                ]
+            },
+            {
+                "id": "store-in-postgres",
+                "type": "function",
+                "z": "metric-collector-flow",
+                "name": "Store in PostgreSQL",
+                "func": "const metrics = msg.payload;\n\nif (metrics.error) {\n    // Skip database storage if there was an error collecting metrics\n    node.warn('Skipping PostgreSQL storage due to collection error: ' + metrics.error);\n    return null;\n}\n\n// Prepare SQL query for system_health table\nconst query = `\n    INSERT INTO system_health (\n        cpu_usage, \n        memory_usage, \n        memory_total, \n        disk_usage, \n        disk_total, \n        network_rx_bytes, \n        network_tx_bytes, \n        tcp_connections, \n        process_count, \n        load_average,\n        timestamp\n    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)\n`;\n\nconst params = [\n    metrics.cpu_usage,\n    metrics.memory_usage,\n    metrics.memory_total,\n    metrics.disk_usage,\n    metrics.disk_total,\n    metrics.network_rx_bytes,\n    metrics.network_tx_bytes,\n    metrics.tcp_connections,\n    metrics.process_count,\n    metrics.load_average,\n    metrics.timestamp\n];\n\n// Also store individual metrics for detailed analysis\nconst metricQueries = [\n    {\n        query: \"INSERT INTO metrics (metric_name, value, unit, source, timestamp) VALUES ($1, $2, $3, $4, $5)\",\n        params: ['cpu_usage', metrics.cpu_usage, '%', metrics.host, metrics.timestamp]\n    },\n    {\n        query: \"INSERT INTO metrics (metric_name, value, unit, source, timestamp) VALUES ($1, $2, $3, $4, $5)\",\n        params: ['memory_usage', metrics.memory_usage, '%', metrics.host, metrics.timestamp]\n    },\n    {\n        query: \"INSERT INTO metrics (metric_name, value, unit, source, timestamp) VALUES ($1, $2, $3, $4, $5)\",\n        params: ['disk_usage', metrics.disk_usage, '%', metrics.host, metrics.timestamp]\n    },\n    {\n        query: \"INSERT INTO metrics (metric_name, value, unit, source, timestamp) VALUES ($1, $2, $3, $4, $5)\",\n        params: ['tcp_connections', metrics.tcp_connections, 'count', metrics.host, metrics.timestamp]\n    }\n];\n\n// Prepare message for PostgreSQL node\nmsg.topic = 'system-health-insert';\nmsg.payload = {\n    query: query,\n    params: params,\n    additionalQueries: metricQueries\n};\n\nreturn msg;",
+                "outputs": 1,
+                "noerr": 0,
+                "initialize": "",
+                "finalize": "",
+                "libs": [],
+                "x": 650,
+                "y": 80,
+                "wires": [
+                    ["postgres-node"]
+                ]
+            },
+            {
+                "id": "store-in-questdb",
+                "type": "function",
+                "z": "metric-collector-flow",
+                "name": "Store in QuestDB",
+                "func": "const metrics = msg.payload;\n\nif (metrics.error) {\n    // Skip QuestDB storage if there was an error collecting metrics\n    node.warn('Skipping QuestDB storage due to collection error: ' + metrics.error);\n    return null;\n}\n\n// Prepare InfluxDB Line Protocol format for QuestDB\nconst timestamp = new Date(metrics.timestamp).getTime() * 1000000; // Convert to nanoseconds\nconst host = metrics.host;\n\n// Create line protocol entries\nconst lines = [\n    `system_metrics,host=${host} cpu_usage=${metrics.cpu_usage},memory_usage=${metrics.memory_usage},disk_usage=${metrics.disk_usage} ${timestamp}`,\n    `network_metrics,host=${host} rx_bytes=${metrics.network_rx_bytes},tx_bytes=${metrics.network_tx_bytes} ${timestamp}`,\n    `connection_metrics,host=${host} tcp_connections=${metrics.tcp_connections},process_count=${metrics.process_count} ${timestamp}`,\n    `load_metrics,host=${host} load_1min=${metrics.load_average[0]},load_5min=${metrics.load_average[1]},load_15min=${metrics.load_average[2]} ${timestamp}`\n];\n\n// Prepare message for QuestDB ILP ingestion\nmsg.topic = 'questdb-ingest';\nmsg.payload = {\n    protocol: 'ilp',\n    lines: lines,\n    timestamp: metrics.timestamp\n};\n\nreturn msg;",
+                "outputs": 1,
+                "noerr": 0,
+                "initialize": "",
+                "finalize": "",
+                "libs": [],
+                "x": 650,
+                "y": 120,
+                "wires": [
+                    ["questdb-tcp"]
+                ]
+            },
+            {
+                "id": "debug-metrics",
+                "type": "debug",
+                "z": "metric-collector-flow",
+                "name": "Metrics Debug",
+                "active": false,
+                "tosidebar": true,
+                "console": false,
+                "tostatus": false,
+                "complete": "payload",
+                "targetType": "msg",
+                "statusVal": "",
+                "statusType": "auto",
+                "x": 650,
+                "y": 180,
+                "wires": []
+            },
+            {
+                "id": "postgres-node",
+                "type": "postgres",
+                "z": "metric-collector-flow",
+                "name": "Store System Health",
+                "query": "",
+                "postgreSQLConfig": "postgres-config",
+                "split": false,
+                "rowsPerMsg": 1,
+                "outputs": 1,
+                "x": 880,
+                "y": 80,
+                "wires": [
+                    ["storage-success"]
+                ]
+            },
+            {
+                "id": "questdb-tcp",
+                "type": "tcp out",
+                "z": "metric-collector-flow",
+                "name": "QuestDB ILP",
+                "host": "localhost",
+                "port": "9009",
+                "beserver": "reply",
+                "base64": false,
+                "end": true,
+                "tls": "",
+                "x": 860,
+                "y": 120,
+                "wires": []
+            },
+            {
+                "id": "storage-success",
+                "type": "function",
+                "z": "metric-collector-flow",
+                "name": "Log Success",
+                "func": "// Log successful metric storage\nconst timestamp = new Date().toISOString();\nnode.log(`Metrics successfully stored at ${timestamp}`);\n\n// Optionally publish success status\nmsg.topic = 'system-monitor/status';\nmsg.payload = {\n    status: 'metrics_stored',\n    timestamp: timestamp,\n    message: 'System metrics successfully collected and stored'\n};\n\nreturn msg;",
+                "outputs": 1,
+                "noerr": 0,
+                "initialize": "",
+                "finalize": "",
+                "libs": [],
+                "x": 1080,
+                "y": 80,
+                "wires": [
+                    []
+                ]
+            }
+        ],
+        "configs": [
+            {
+                "id": "postgres-config",
+                "type": "postgres-config",
+                "name": "System Monitor DB",
+                "host": "localhost",
+                "hostFieldType": "str",
+                "port": "5432",
+                "portFieldType": "num",
+                "database": "system_monitor",
+                "databaseFieldType": "str",
+                "ssl": "false",
+                "sslFieldType": "bool",
+                "applicationName": "",
+                "applicationNameType": "str",
+                "max": "10",
+                "maxFieldType": "num",
+                "idle": "1000",
+                "idleFieldType": "num",
+                "connectionTimeout": "10000",
+                "connectionTimeoutFieldType": "num",
+                "user": "postgres",
+                "userFieldType": "str",
+                "password": "",
+                "passwordFieldType": "str"
+            }
+        ]
+    }
+]

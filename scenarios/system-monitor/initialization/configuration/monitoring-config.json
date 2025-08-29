@@ -1,0 +1,278 @@
+{
+    "version": "1.0.0",
+    "system_monitor": {
+        "name": "Vrooli System Monitor",
+        "description": "AI-powered infrastructure monitoring with anomaly detection",
+        "enabled": true
+    },
+    "collection": {
+        "interval_seconds": 30,
+        "metrics_retention_days": 30,
+        "batch_size": 100,
+        "timeout_ms": 5000
+    },
+    "thresholds": {
+        "cpu_usage": {
+            "warning": 70.0,
+            "critical": 90.0,
+            "unit": "percent",
+            "description": "CPU utilization percentage"
+        },
+        "memory_usage": {
+            "warning": 80.0,
+            "critical": 95.0,
+            "unit": "percent",
+            "description": "Memory utilization percentage"
+        },
+        "disk_usage": {
+            "warning": 85.0,
+            "critical": 95.0,
+            "unit": "percent",
+            "description": "Disk space utilization percentage"
+        },
+        "tcp_connections": {
+            "warning": 500,
+            "critical": 1000,
+            "unit": "count",
+            "description": "Number of active TCP connections"
+        },
+        "process_count": {
+            "warning": 300,
+            "critical": 500,
+            "unit": "count",
+            "description": "Number of running processes"
+        },
+        "load_average": {
+            "warning": 2.0,
+            "critical": 4.0,
+            "unit": "ratio",
+            "description": "System load average (1 minute)"
+        }
+    },
+    "alerting": {
+        "enabled": true,
+        "channels": [
+            {
+                "type": "log",
+                "name": "system_log",
+                "enabled": true,
+                "config": {
+                    "log_level": "warn",
+                    "include_metrics": true
+                }
+            },
+            {
+                "type": "mqtt",
+                "name": "mqtt_alerts",
+                "enabled": true,
+                "config": {
+                    "broker": "localhost",
+                    "port": 1883,
+                    "topic": "system-monitor/alerts",
+                    "qos": 1,
+                    "retain": false
+                }
+            },
+            {
+                "type": "redis",
+                "name": "redis_pubsub",
+                "enabled": true,
+                "config": {
+                    "host": "localhost",
+                    "port": 6379,
+                    "channel": "system-monitor:alerts",
+                    "db": 0
+                }
+            }
+        ],
+        "escalation": {
+            "repeat_interval_minutes": 15,
+            "max_repeats": 3,
+            "escalate_after_repeats": 2
+        }
+    },
+    "anomaly_detection": {
+        "enabled": true,
+        "ai_investigation": {
+            "enabled": true,
+            "trigger_on_severity": ["warning", "critical"],
+            "model": "llama3.2:3b",
+            "timeout_seconds": 300,
+            "max_concurrent": 2
+        },
+        "pattern_detection": {
+            "enabled": true,
+            "lookback_minutes": 60,
+            "sensitivity": "medium",
+            "min_data_points": 10
+        }
+    },
+    "storage": {
+        "postgres": {
+            "enabled": true,
+            "host": "localhost",
+            "port": 5432,
+            "database": "system_monitor",
+            "user": "postgres",
+            "connection_pool_size": 10,
+            "query_timeout_ms": 30000
+        },
+        "questdb": {
+            "enabled": true,
+            "host": "localhost",
+            "ilp_port": 9009,
+            "http_port": 9000,
+            "retention_policy": "30d",
+            "batch_size": 1000
+        },
+        "redis": {
+            "enabled": true,
+            "host": "localhost",
+            "port": 6379,
+            "db": 0,
+            "key_prefix": "system-monitor:",
+            "ttl_seconds": 3600
+        }
+    },
+    "reporting": {
+        "enabled": true,
+        "schedules": [
+            {
+                "name": "daily_summary",
+                "type": "summary",
+                "cron": "0 9 * * *",
+                "format": "html",
+                "enabled": true,
+                "config": {
+                    "include_trends": true,
+                    "include_anomalies": true,
+                    "lookback_hours": 24
+                }
+            },
+            {
+                "name": "weekly_detailed",
+                "type": "detailed",
+                "cron": "0 9 * * 1",
+                "format": "pdf",
+                "enabled": true,
+                "config": {
+                    "include_charts": true,
+                    "include_recommendations": true,
+                    "lookback_days": 7
+                }
+            }
+        ],
+        "delivery": {
+            "methods": ["local_storage", "email"],
+            "local_path": "/var/log/system-monitor/reports/",
+            "email": {
+                "enabled": false,
+                "smtp_host": "localhost",
+                "smtp_port": 587,
+                "from": "system-monitor@localhost",
+                "to": ["admin@localhost"]
+            }
+        }
+    },
+    "ui": {
+        "theme": "matrix",
+        "refresh_interval_ms": 1000,
+        "chart_history_minutes": 60,
+        "auto_scale": true,
+        "show_debug": false,
+        "features": {
+            "real_time_metrics": true,
+            "historical_charts": true,
+            "anomaly_timeline": true,
+            "investigation_panel": true,
+            "alert_notifications": true
+        }
+    },
+    "api": {
+        "port": 8083,
+        "cors_enabled": true,
+        "rate_limiting": {
+            "enabled": true,
+            "requests_per_minute": 100,
+            "burst_size": 20
+        },
+        "authentication": {
+            "enabled": false,
+            "type": "api_key",
+            "api_keys": []
+        },
+        "endpoints": {
+            "health": "/health",
+            "metrics": "/api/v1/metrics",
+            "investigations": "/api/v1/investigations",
+            "reports": "/api/v1/reports",
+            "thresholds": "/api/v1/thresholds"
+        }
+    },
+    "integrations": {
+        "n8n": {
+            "enabled": true,
+            "workflows": [
+                "threshold-monitor",
+                "scheduled-reports",
+                "anomaly-investigator"
+            ]
+        },
+        "node_red": {
+            "enabled": true,
+            "flows": [
+                "anomaly-detector",
+                "metric-collector"
+            ]
+        },
+        "ollama": {
+            "enabled": true,
+            "base_url": "http://localhost:11434",
+            "model": "llama3.2:3b",
+            "timeout_seconds": 300
+        },
+        "claude_code": {
+            "enabled": true,
+            "investigation_templates": [
+                "initialization/claude-code/anomaly-check.md"
+            ]
+        },
+        "grafana": {
+            "enabled": false,
+            "url": "http://localhost:3004",
+            "dashboards": [
+                "system-overview",
+                "anomaly-analysis"
+            ]
+        }
+    },
+    "security": {
+        "encrypt_sensitive_data": true,
+        "log_queries": false,
+        "mask_sensitive_fields": true,
+        "audit_trail": {
+            "enabled": true,
+            "retain_days": 90
+        }
+    },
+    "performance": {
+        "max_concurrent_investigations": 2,
+        "metric_cache_ttl_seconds": 60,
+        "query_result_cache_ttl_seconds": 300,
+        "cleanup_old_data_cron": "0 2 * * *"
+    },
+    "logging": {
+        "level": "info",
+        "format": "json",
+        "output": "stdout",
+        "include_metrics": false,
+        "include_queries": false
+    },
+    "metadata": {
+        "created_at": "2025-08-29T00:00:00Z",
+        "created_by": "system-monitor-setup",
+        "last_modified": "2025-08-29T00:00:00Z",
+        "config_version": "1.0.0",
+        "schema_version": "1.0.0"
+    }
+}

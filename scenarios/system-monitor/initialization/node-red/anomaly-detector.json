@@ -1,0 +1,148 @@
+[
+    {
+        "id": "anomaly-detector-flow",
+        "label": "System Monitor - Anomaly Detector",
+        "nodes": [
+            {
+                "id": "inject-timer",
+                "type": "inject",
+                "z": "anomaly-detector-flow",
+                "name": "Check Every Minute",
+                "props": [
+                    {
+                        "p": "payload"
+                    },
+                    {
+                        "p": "topic",
+                        "vt": "str"
+                    }
+                ],
+                "repeat": "60",
+                "crontab": "",
+                "once": true,
+                "onceDelay": 0.1,
+                "topic": "anomaly-check",
+                "payload": "",
+                "payloadType": "date",
+                "x": 160,
+                "y": 120,
+                "wires": [
+                    ["fetch-system-metrics"]
+                ]
+            },
+            {
+                "id": "fetch-system-metrics",
+                "type": "function",
+                "z": "anomaly-detector-flow",
+                "name": "Fetch System Metrics",
+                "func": "// Collect current system metrics\nconst { exec } = require('child_process');\nconst util = require('util');\nconst execAsync = util.promisify(exec);\n\n// Function to get CPU usage\nasync function getCPUUsage() {\n    try {\n        const { stdout } = await execAsync(\"grep 'cpu ' /proc/stat | awk '{usage=($2+$4)*100/($2+$3+$4+$5)} END {print usage}'\");\n        return parseFloat(stdout.trim()) || 0;\n    } catch (error) {\n        return 0;\n    }\n}\n\n// Function to get Memory usage\nasync function getMemoryUsage() {\n    try {\n        const { stdout } = await execAsync(\"free | grep Mem | awk '{print ($3/$2) * 100.0}'\");\n        return parseFloat(stdout.trim()) || 0;\n    } catch (error) {\n        return 0;\n    }\n}\n\n// Function to get TCP connections\nasync function getTCPConnections() {\n    try {\n        const { stdout } = await execAsync(\"netstat -tn 2>/dev/null | grep ESTABLISHED | wc -l\");\n        return parseInt(stdout.trim()) || 0;\n    } catch (error) {\n        return 0;\n    }\n}\n\n// Function to get disk usage\nasync function getDiskUsage() {\n    try {\n        const { stdout } = await execAsync(\"df / | grep -vE '^Filesystem' | awk '{print $5}' | sed 's/%//'\");\n        return parseFloat(stdout.trim()) || 0;\n    } catch (error) {\n        return 0;\n    }\n}\n\n// Collect all metrics\nasync function collectMetrics() {\n    const [cpu, memory, tcp, disk] = await Promise.all([\n        getCPUUsage(),\n        getMemoryUsage(),\n        getTCPConnections(),\n        getDiskUsage()\n    ]);\n    \n    return {\n        cpu_usage: cpu,\n        memory_usage: memory,\n        tcp_connections: tcp,\n        disk_usage: disk,\n        timestamp: new Date().toISOString(),\n        host: require('os').hostname()\n    };\n}\n\n// Execute collection\ncollectMetrics().then(metrics => {\n    msg.payload = metrics;\n    node.send(msg);\n}).catch(error => {\n    node.error('Failed to collect metrics: ' + error.message);\n    msg.payload = { error: error.message, timestamp: new Date().toISOString() };\n    node.send(msg);\n});",
+                "outputs": 1,
+                "noerr": 0,
+                "initialize": "",
+                "finalize": "",
+                "libs": [],
+                "x": 380,
+                "y": 120,
+                "wires": [
+                    ["check-thresholds"]
+                ]
+            },
+            {
+                "id": "check-thresholds",
+                "type": "function",
+                "z": "anomaly-detector-flow",
+                "name": "Check Thresholds",
+                "func": "// Default thresholds (should come from config in production)\nconst thresholds = {\n    cpu_usage: { warning: 70, critical: 90 },\n    memory_usage: { warning: 80, critical: 95 },\n    disk_usage: { warning: 85, critical: 95 },\n    tcp_connections: { warning: 500, critical: 1000 }\n};\n\nconst metrics = msg.payload;\nconst violations = [];\n\nif (metrics.error) {\n    // If there was an error collecting metrics, report it\n    violations.push({\n        metric: 'system',\n        severity: 'critical',\n        message: 'Failed to collect system metrics: ' + metrics.error,\n        timestamp: metrics.timestamp\n    });\n} else {\n    // Check each metric against thresholds\n    Object.keys(thresholds).forEach(metricName => {\n        const currentValue = metrics[metricName];\n        const threshold = thresholds[metricName];\n        \n        if (currentValue !== undefined) {\n            if (currentValue >= threshold.critical) {\n                violations.push({\n                    metric: metricName,\n                    severity: 'critical',\n                    current_value: currentValue,\n                    threshold_value: threshold.critical,\n                    message: `${metricName} is ${currentValue}% (critical threshold: ${threshold.critical}%)`,\n                    timestamp: metrics.timestamp,\n                    host: metrics.host\n                });\n            } else if (currentValue >= threshold.warning) {\n                violations.push({\n                    metric: metricName,\n                    severity: 'warning',\n                    current_value: currentValue,\n                    threshold_value: threshold.warning,\n                    message: `${metricName} is ${currentValue}% (warning threshold: ${threshold.warning}%)`,\n                    timestamp: metrics.timestamp,\n                    host: metrics.host\n                });\n            }\n        }\n    });\n}\n\n// Prepare result\nconst result = {\n    violations: violations,\n    critical_count: violations.filter(v => v.severity === 'critical').length,\n    warning_count: violations.filter(v => v.severity === 'warning').length,\n    status: violations.some(v => v.severity === 'critical') ? 'critical' : \n           (violations.some(v => v.severity === 'warning') ? 'warning' : 'healthy'),\n    metrics: metrics,\n    checked_at: new Date().toISOString()\n};\n\nmsg.payload = result;\n\n// Only send to alert handlers if there are violations\nif (violations.length > 0) {\n    return [msg, msg]; // Send to both alert and log outputs\n} else {\n    return [null, msg]; // Only send to log output for healthy status\n}",
+                "outputs": 2,
+                "noerr": 0,
+                "initialize": "",
+                "finalize": "",
+                "libs": [],
+                "x": 610,
+                "y": 120,
+                "wires": [
+                    ["alert-handler"],
+                    ["debug-log"]
+                ]
+            },
+            {
+                "id": "alert-handler",
+                "type": "function",
+                "z": "anomaly-detector-flow",
+                "name": "Handle Alerts",
+                "func": "const result = msg.payload;\n\n// Log critical and warning violations\nif (result.critical_count > 0) {\n    node.warn(`CRITICAL: ${result.critical_count} critical violations detected`);\n    result.violations.filter(v => v.severity === 'critical').forEach(violation => {\n        node.warn(`CRITICAL: ${violation.message}`);\n    });\n}\n\nif (result.warning_count > 0) {\n    node.log(`WARNING: ${result.warning_count} warning violations detected`);\n    result.violations.filter(v => v.severity === 'warning').forEach(violation => {\n        node.log(`WARNING: ${violation.message}`);\n    });\n}\n\n// Prepare alert message for external systems\nmsg.topic = 'system-anomaly';\nmsg.payload = {\n    alert_type: 'anomaly_detected',\n    severity: result.status,\n    violations: result.violations,\n    summary: `${result.critical_count} critical, ${result.warning_count} warning violations`,\n    timestamp: result.checked_at,\n    host: result.metrics.host\n};\n\nreturn msg;",
+                "outputs": 1,
+                "noerr": 0,
+                "initialize": "",
+                "finalize": "",
+                "libs": [],
+                "x": 830,
+                "y": 80,
+                "wires": [
+                    ["mqtt-publish"]
+                ]
+            },
+            {
+                "id": "debug-log",
+                "type": "debug",
+                "z": "anomaly-detector-flow",
+                "name": "Anomaly Check Log",
+                "active": true,
+                "tosidebar": true,
+                "console": false,
+                "tostatus": false,
+                "complete": "payload",
+                "targetType": "msg",
+                "statusVal": "",
+                "statusType": "auto",
+                "x": 860,
+                "y": 160,
+                "wires": []
+            },
+            {
+                "id": "mqtt-publish",
+                "type": "mqtt out",
+                "z": "anomaly-detector-flow",
+                "name": "Publish Alert",
+                "topic": "system-monitor/alerts",
+                "qos": "1",
+                "retain": false,
+                "respTopic": "",
+                "contentType": "",
+                "userProps": "",
+                "correl": "",
+                "expiry": "",
+                "broker": "mqtt-broker",
+                "x": 1040,
+                "y": 80,
+                "wires": []
+            }
+        ],
+        "configs": [
+            {
+                "id": "mqtt-broker",
+                "type": "mqtt-broker",
+                "name": "System Monitor MQTT",
+                "broker": "localhost",
+                "port": "1883",
+                "clientid": "",
+                "usetls": false,
+                "protocolVersion": "4",
+                "keepalive": "60",
+                "cleansession": true,
+                "birthTopic": "system-monitor/status",
+                "birthQos": "0",
+                "birthPayload": "online",
+                "birthMsg": {},
+                "closeTopic": "system-monitor/status",
+                "closePayload": "offline",
+                "closeMsg": {},
+                "willTopic": "system-monitor/status",
+                "willQos": "0",
+                "willPayload": "offline",
+                "willMsg": {},
+                "sessionExpiry": ""
+            }
+        ]
+    }
+]

@@ -1,9 +1,8 @@
 // System Monitor Dashboard JavaScript
 class SystemMonitor {
     constructor() {
-        // This gets replaced by server.js at runtime with actual port
-        this.apiPort = '8080';
-        this.baseUrl = `http://${window.location.hostname}:${this.apiPort}`;
+        // Use same-origin URLs - all API calls go through the UI server proxy
+        this.baseUrl = `${window.location.protocol}//${window.location.host}`;
         
         this.isOnline = false;
         this.metrics = {
