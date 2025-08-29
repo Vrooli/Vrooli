@@ -30,7 +30,7 @@ Categorize each issue by type:
 - **Configuration Errors**: Wrong endpoints, missing settings, invalid parameters
 - **Resource Integration Errors**: Failed connections between resources
 - **Database Errors**: Schema issues, constraint violations, data problems
-- **Workflow Errors**: n8n/windmill/node-red execution failures
+- **Workflow Errors**: n8n//node-red execution failures
 - **Permission Errors**: File access, execution permissions, security restrictions
 - **Dependency Errors**: Missing packages, incompatible versions, circular dependencies
 
@@ -100,13 +100,13 @@ Solutions:
 ```
 Common Problems:
 - n8n workflow node connection failures
-- Windmill app compilation or execution errors
+-  app compilation or execution errors
 - Node-RED flow deployment issues
 - Data transformation or passing errors
 
 Solutions:
 - Verify node connections and data flow
-- Fix TypeScript compilation issues in Windmill
+- Fix TypeScript compilation issues in 
 - Ensure proper Node-RED node configurations
 - Add data validation and transformation
 ```

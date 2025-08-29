@@ -249,13 +249,6 @@ health_monitoring_loop() {
                         ((health_checks_failed++))
                     fi
                     ;;
-                "windmill")
-                    if check_service_health "Windmill" "http://localhost:5681/api/version"; then
-                        ((health_checks_passed++))
-                    else
-                        ((health_checks_failed++))
-                    fi
-                    ;;
                 "whisper")
                     if check_service_health "Whisper" "http://localhost:8090/"; then
                         ((health_checks_passed++))

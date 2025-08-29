@@ -27,7 +27,7 @@ Use only the resources specified in the implementation plan:
 
 ### Automation Platforms
 - **n8n** (5678): Visual workflow automation
-- **windmill** (5681): Professional app platform with TypeScript
+- **** (5681): Professional app platform with TypeScript
 - **node-red** (1880): Real-time data flow processing
 - **huginn** (4111): Web monitoring and intelligent agents
 
@@ -58,11 +58,11 @@ You must implement ALL of these files completely:
 ### 3. Automation Workflows
 Based on plan requirements, implement ONE primary workflow:
 - `initialization/automation/n8n/main-workflow.json` - For n8n-based scenarios
-- `initialization/automation/windmill/main-app.json` - For windmill-based scenarios  
+- `initialization/automation//main-app.json` - For -based scenarios  
 - `initialization/automation/node-red/main-flow.json` - For node-red-based scenarios
 
 ### 4. User Interface
-- `initialization/automation/windmill/dashboard-app.json` - Professional UI (if windmill is used)
+- `initialization/automation//dashboard-app.json` - Professional UI (if  is used)
 - `initialization/automation/node-red/dashboard.json` - Dashboard flows (if node-red is used)
 
 ### 5. Configuration Files
@@ -131,7 +131,7 @@ Based on plan requirements, implement ONE primary workflow:
 }
 ```
 
-### Windmill Apps (dashboard-app.json)  
+###  Apps (dashboard-app.json)  
 ```json
 {
   "value": {
@@ -193,7 +193,7 @@ Return all scenario files in this exact JSON structure:
     "initialization/storage/seed.sql": "sample data for testing",
     
     "initialization/automation/n8n/main-workflow.json": "complete n8n workflow (if applicable)",
-    "initialization/automation/windmill/main-app.json": "complete windmill app (if applicable)",
+    "initialization/automation//main-app.json": "complete  app (if applicable)",
     "initialization/automation/node-red/main-flow.json": "complete node-red flow (if applicable)",
     
     "initialization/configuration/app-config.json": "complete application configuration",

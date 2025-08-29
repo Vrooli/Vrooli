@@ -31,7 +31,7 @@ You should choose from these proven resources based on the scenario requirements
 
 #### 🔄 Automation Resources
 - **n8n** (port 5678): Visual workflow automation - API integrations, business processes
-- **windmill** (port 5681): Code-first automation - developer tools, UI generation
+- **** (port 5681): Code-first automation - developer tools, UI generation
 - **node-red** (port 1880): Real-time data flows - IoT, live dashboards
 - **huginn** (port 4111): Web monitoring - data aggregation, intelligent agents
 
@@ -57,9 +57,9 @@ You should choose from these proven resources based on the scenario requirements
 1. **Start Simple**: Use 2-4 resources for most scenarios
 2. **Proven Patterns**: 
    - Customer service: postgres + ollama + n8n
-   - Document processing: postgres + unstructured-io + minio + windmill
+   - Document processing: postgres + unstructured-io + minio + 
    - Content generation: postgres + ollama + comfyui + n8n
-   - Analytics platform: postgres + questdb + windmill + node-red
+   - Analytics platform: postgres + questdb +  + node-red
    - Web automation: postgres + agent-s2 + browserless + n8n
 3. **Business Value**: Focus on solving real problems that generate revenue
 4. **Integration**: Ensure resources work together smoothly
@@ -149,15 +149,15 @@ Study these successful patterns:
 - Add created_at/updated_at timestamps
 - Include appropriate constraints and indexes
 
-#### 3. Main Workflow (initialization/automation/n8n/main-workflow.json OR windmill flow)
+#### 3. Main Workflow (initialization/automation/n8n/main-workflow.json OR  flow)
 Choose based on needs:
 - **n8n**: Visual workflows, API integrations, scheduled tasks
-- **windmill**: Code-heavy automation, complex business logic
+- ****: Code-heavy automation, complex business logic
 - **node-red**: Real-time processing, live dashboards
 
 #### 4. User Interface
 Choose the most appropriate:
-- **Windmill App**: For business applications with forms, dashboards
+- ** App**: For business applications with forms, dashboards
 - **Node-RED Dashboard**: For real-time monitoring, IoT interfaces
 - **Custom UI**: Only if absolutely necessary
 
@@ -209,7 +209,7 @@ scenario-name/
 │   ├── automation/
 │   │   ├── n8n/
 │   │   │   └── main-workflow.json   # Primary automation
-│   │   └── windmill/
+│   │   └── /
 │   │       └── app.json             # UI application (if applicable)
 │   └── configuration/
 │       ├── config.json              # Runtime configuration
@@ -256,8 +256,8 @@ scenario-name/
 ### Step 2: Resource Integration
 1. Configure service.json with selected resources
 2. Design database schema for data persistence
-3. Create automation workflows (n8n/windmill/node-red)
-4. Set up user interface (Windmill app or dashboard)
+3. Create automation workflows (n8n//node-red)
+4. Set up user interface ( app or dashboard)
 5. Configure resource connections and APIs
 
 ### Step 3: Implementation
@@ -277,7 +277,7 @@ scenario-name/
 ## Common Scenario Patterns
 
 ### Business Dashboard
-- **Resources**: postgres + windmill + questdb (optional)
+- **Resources**: postgres +  + questdb (optional)
 - **Use Cases**: KPI tracking, business intelligence, team management
 - **Revenue**: $15K-$30K
 
@@ -297,7 +297,7 @@ scenario-name/
 - **Revenue**: $20K-$45K
 
 ### Process Automation
-- **Resources**: postgres + n8n + windmill + browserless
+- **Resources**: postgres + n8n +  + browserless
 - **Use Cases**: Workflow automation, data processing, integration
 - **Revenue**: $15K-$30K
 
@@ -334,9 +334,9 @@ Provide complete files for the scenario in this structure:
 [Complete n8n workflow OR other automation]
 ```
 
-### initialization/automation/windmill/app.json (if applicable)
+### initialization/automation//app.json (if applicable)
 ```json
-[Complete Windmill application]
+[Complete  application]
 ```
 
 ### initialization/configuration/config.json

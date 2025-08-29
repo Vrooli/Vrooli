@@ -6,7 +6,6 @@ This scenario creates an autonomous scenario development pipeline that uses Clau
 ## Core Architecture
 
 ### Resources Required
-- **windmill** (5681): Campaign dashboard UI with scenario management
 - **n8n** (5678): Orchestrate the entire generation pipeline 
 - **postgres** (5433): Store campaigns, scenarios, generation logs, and improvement analytics
 - **minio** (9000): Store generated scenario files, plans, and artifacts
@@ -25,12 +24,6 @@ scenario-generator-v1/
 │   │   │   ├── planning-workflow.json       # Plan generation & refinement
 │   │   │   ├── building-workflow.json       # Scenario implementation
 │   │   │   └── validation-workflow.json     # Testing & deployment
-│   │   └── windmill/
-│   │       ├── scenario-dashboard-app.json  # Campaign/scenario management UI
-│   │       └── scripts/
-│   │           ├── claude-integration.ts    # Claude Code API wrapper
-│   │           ├── scenario-builder.ts      # Scenario file generation
-│   │           └── validation-runner.ts     # Test execution helper
 │   ├── configuration/
 │   │   ├── app-config.json           # UI settings, generation parameters
 │   │   ├── claude-prompts.json       # All prompt templates
@@ -64,7 +57,7 @@ scenario-generator-v1/
 - [ ] Build validation workflow (dry-run + deployment)
 
 ### Phase 3: User Interface
-- [ ] Design Windmill dashboard with campaign tabs
+- [ ] Complete React UI with scenario management
 - [ ] Create scenario management cards and controls
 - [ ] Implement real-time progress tracking
 - [ ] Add configuration panels for iteration counts
@@ -86,7 +79,7 @@ scenario-generator-v1/
 ### 1. Scenario Generation Pipeline
 
 **Step 1: Initial Planning**
-- User enters scenario request in Windmill UI
+- User enters scenario request in React web interface
 - n8n triggers Claude Code with comprehensive planning prompt
 - Generated plan stored in MinIO with version control
 - Plan metadata stored in PostgreSQL
@@ -217,7 +210,7 @@ Use this checklist to track implementation progress:
 - [ ] Validation workflow with deployment
 
 ### UI (Phase 3)
-- [ ] Campaign dashboard with tab navigation
+- [ ] React application with tab navigation
 - [ ] Scenario cards with status indicators
 - [ ] Configuration panels functional
 - [ ] Real-time progress updates working

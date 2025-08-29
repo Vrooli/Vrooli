@@ -12,8 +12,6 @@ structure:
     - initialization/automation/n8n/main-workflow.json
     - initialization/automation/n8n/planning-workflow.json
     - initialization/automation/triggers.yaml
-    - initialization/automation/windmill/n8n-scenario-generator.json
-    - initialization/automation/windmill/windmill-app.json
     - initialization/configuration/app-config.json
     - initialization/configuration/config.json
     - initialization/configuration/feature-flags.json
@@ -27,25 +25,21 @@ structure:
     - prompts/plan-refinement-prompt.md
     - prompts/implementation-prompt.md
     - prompts/validation-prompt.md
-    - ui/windmill/idea-input.tsx
-    - ui/windmill/scenario-list.tsx
   
   required_dirs:
     - .vrooli
     - initialization/storage
     - initialization/automation
     - initialization/automation/n8n
-    - initialization/automation/windmill
     - initialization/configuration
     - deployment
     - prompts
     - ui
     - ui/scripts
-    - ui/windmill
 
 # Resource requirements
 resources:
-  required: [postgres, windmill, n8n, minio, claude-code]
+  required: [postgres, n8n, minio, claude-code]
   optional: [redis, ollama]
   health_timeout: 60
 
@@ -61,13 +55,6 @@ tests:
       body:
         type: json
 
-  - name: "Windmill Platform Ready"
-    type: http
-    service: windmill
-    endpoint: /api/version
-    method: GET
-    expect:
-      status: 200
 
   - name: "N8N Workflow Engine Ready"
     type: http

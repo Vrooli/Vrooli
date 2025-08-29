@@ -66,8 +66,6 @@ export POSTGRES_USER="postgres"
 export POSTGRES_PASSWORD="your_password"
 export N8N_HOST="localhost"
 export N8N_PORT="5678"
-export WINDMILL_HOST="localhost" 
-export WINDMILL_PORT="5681"
 export MINIO_HOST="localhost"
 export MINIO_PORT="9000"
 export REDIS_HOST="localhost"
@@ -148,7 +146,7 @@ If workflows fail with credential errors:
 Once deployed successfully:
 
 1. **Access the Dashboard**: 
-   - Open Windmill at `http://localhost:5681`
+   - Open React UI at `http://localhost:3000`
    - Navigate to the Scenario Generator app
 
 2. **Generate a Scenario**:

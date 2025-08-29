@@ -1,0 +1,266 @@
+{
+  "$schema": "../../../../.vrooli/schemas/config.schema.json",
+  "environment": "development",
+  "version": "1.0.0",
+  
+  "services": {
+    "api": {
+      "host": "localhost",
+      "port": "${SERVICE_PORT}",
+      "protocol": "http",
+      "base_path": "/api",
+      "cors": {
+        "enabled": true,
+        "origins": ["http://localhost:3000", "http://localhost:5681"],
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "headers": ["Content-Type", "Authorization"]
+      },
+      "rate_limiting": {
+        "enabled": true,
+        "window_ms": 60000,
+        "max_requests": 100
+      }
+    },
+    
+    "ui": {
+      "development": {
+        "host": "localhost", 
+        "port": 3000,
+        "protocol": "http"
+      },
+      "production": {
+        "host": "localhost",
+        "port": 8080, 
+        "protocol": "http",
+        "static_path": "/dist"
+      }
+    }
+  },
+
+  "database": {
+    "postgres": {
+      "host": "localhost",
+      "port": "${POSTGRES_PORT}",
+      "database": "postgres",
+      "username": "postgres",
+      "password": "${POSTGRES_PASSWORD}",
+      "ssl": false,
+      "pool": {
+        "min": 2,
+        "max": 10,
+        "idle_timeout": 30000
+      },
+      "migrations": {
+        "enabled": true,
+        "path": "initialization/storage"
+      }
+    }
+  },
+
+  "external_services": {
+    "n8n": {
+      "host": "localhost",
+      "port": "${N8N_PORT}",
+      "protocol": "http", 
+      "base_url": "http://localhost:${N8N_PORT}",
+      "webhook_base": "/webhook",
+      "api_base": "/api/v1",
+      "endpoints": {
+        "generate_scenario": "/webhook/generate-scenario",
+        "main_pipeline": "/webhook/main-pipeline",
+        "planning_workflow": "/webhook/planning-workflow",
+        "implementation_workflow": "/webhook/implementation-workflow",
+        "validation_workflow": "/webhook/validation-workflow"
+      }
+    },
+
+    "minio": {
+      "host": "localhost",
+      "port": "${MINIO_PORT}",
+      "protocol": "http",
+      "access_key": "${MINIO_ACCESS_KEY}",
+      "secret_key": "${MINIO_SECRET_KEY}",
+      "bucket": "scenario-generator",
+      "region": "us-east-1"
+    },
+
+    "redis": {
+      "host": "localhost", 
+      "port": "${REDIS_PORT}",
+      "database": 0,
+      "password": "${REDIS_PASSWORD}",
+      "ttl": 3600,
+      "prefix": "scenario-gen:"
+    },
+
+    "ollama": {
+      "host": "localhost",
+      "port": "${OLLAMA_PORT}",
+      "protocol": "http",
+      "base_url": "http://localhost:${OLLAMA_PORT}",
+      "models": [
+        "phi3.5:3.8b",
+        "llama3.2",
+        "mistral"
+      ],
+      "default_model": "phi3.5:3.8b"
+    },
+
+    "claude_code": {
+      "cli_command": "claude",
+      "available": "${CLAUDE_CODE_AVAILABLE}",
+      "timeout_ms": 120000,
+      "retry_attempts": 3,
+      "rate_limit": {
+        "requests_per_minute": 20,
+        "requests_per_hour": 200
+      }
+    }
+  },
+
+  "generation": {
+    "pipeline": {
+      "phases": ["planning", "implementation", "validation"],
+      "parallel_processing": false,
+      "max_concurrent": 3,
+      "timeout_per_phase_ms": 300000,
+      "total_timeout_ms": 900000
+    },
+    
+    "planning": {
+      "max_iterations": 3,
+      "quality_threshold": 75,
+      "required_sections": [
+        "architecture",
+        "resources", 
+        "implementation_phases",
+        "file_structure"
+      ]
+    },
+
+    "implementation": {
+      "max_iterations": 2,
+      "validation_enabled": true,
+      "auto_fix_attempts": 3,
+      "required_files": [
+        "service.json",
+        "README.md",
+        "initialization/postgres/schema.sql"
+      ]
+    },
+
+    "validation": {
+      "max_iterations": 5,
+      "deployment_test": true,
+      "schema_validation": true,
+      "file_structure_check": true,
+      "syntax_validation": true
+    }
+  },
+
+  "storage": {
+    "paths": {
+      "temp": "/tmp/scenario-generator",
+      "output": "/generated-scenarios",
+      "logs": "/var/log/scenario-generator",
+      "cache": "/tmp/cache/scenario-generator"
+    },
+    "cleanup": {
+      "temp_files_ttl_hours": 24,
+      "log_retention_days": 30,
+      "cache_ttl_hours": 6
+    }
+  },
+
+  "logging": {
+    "level": "info",
+    "format": "json", 
+    "outputs": [
+      {
+        "type": "console",
+        "level": "info"
+      },
+      {
+        "type": "file",
+        "level": "debug",
+        "path": "/var/log/scenario-generator/app.log",
+        "rotation": {
+          "max_size": "10MB",
+          "max_files": 10
+        }
+      }
+    ],
+    "structured": {
+      "enabled": true,
+      "include_timestamp": true,
+      "include_level": true,
+      "include_caller": true
+    }
+  },
+
+  "monitoring": {
+    "health_checks": {
+      "enabled": true,
+      "interval_ms": 30000,
+      "endpoints": [
+        "/health",
+        "/health/database",
+        "/health/external-services"
+      ]
+    },
+    "metrics": {
+      "enabled": true,
+      "prometheus_endpoint": "/metrics",
+      "custom_metrics": [
+        "scenario_generation_total",
+        "scenario_generation_duration",
+        "scenario_generation_errors",
+        "template_usage_total",
+        "resource_utilization"
+      ]
+    }
+  },
+
+  "security": {
+    "authentication": {
+      "enabled": false,
+      "method": "none"
+    },
+    "authorization": {
+      "enabled": false
+    },
+    "input_validation": {
+      "max_payload_size": "10MB",
+      "sanitize_html": true,
+      "validate_json": true
+    },
+    "headers": {
+      "x_frame_options": "DENY",
+      "x_content_type_options": "nosniff",
+      "x_xss_protection": "1; mode=block"
+    }
+  },
+
+  "features": {
+    "template_system": {
+      "enabled": true,
+      "auto_suggest": true,
+      "usage_analytics": true
+    },
+    "real_time_updates": {
+      "enabled": true,
+      "websocket": false,
+      "polling_interval_ms": 30000
+    },
+    "batch_processing": {
+      "enabled": true,
+      "max_batch_size": 5,
+      "concurrent_batches": 1
+    },
+    "caching": {
+      "enabled": true,
+      "strategy": "redis",
+      "ttl_seconds": 3600
+    }
+  }
+}

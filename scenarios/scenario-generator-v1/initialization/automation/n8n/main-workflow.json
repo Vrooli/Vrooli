@@ -1,0 +1,246 @@
+{
+  "name": "Main Scenario Generation Pipeline",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "main-pipeline",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_main",
+      "name": "Main Pipeline Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Extract and validate scenario request\nconst input = $json.body || $json;\n\n// Ensure required fields exist\nif (!input.scenario_name || !input.description) {\n  throw new Error('Missing required fields: scenario_name and description');\n}\n\n// Set generation defaults and metadata\nreturn {\n  ...input,\n  generation_id: input.generation_id || $binary.generateId(),\n  created_at: new Date().toISOString(),\n  status: 'planning',\n  complexity: input.complexity || 'intermediate',\n  category: input.category || 'business-automation',\n  iteration_limits: {\n    planning: input.planning_iterations || 3,\n    implementation: input.implementation_iterations || 2,\n    validation: input.validation_iterations || 5\n  },\n  current_iteration: {\n    planning: 0,\n    implementation: 0,\n    validation: 0\n  },\n  business_value: {\n    min_revenue: input.min_revenue || 15000,\n    max_revenue: input.max_revenue || 35000,\n    market_size: input.market_size || 'medium',\n    difficulty_score: input.complexity === 'simple' ? 3 : (input.complexity === 'advanced' ? 8 : 5)\n  }\n};"
+      },
+      "id": "validate_input",
+      "name": "Validate Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [400, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:5678/webhook/planning-workflow",
+        "sendQuery": false,
+        "sendHeaders": false,
+        "sendBody": true,
+        "contentType": "json",
+        "bodyContentType": "json"
+      },
+      "id": "trigger_planning",
+      "name": "Start Planning Phase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [600, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Check if planning phase succeeded\nconst planningResult = $json;\n\nif (planningResult.status !== 'planning_complete') {\n  throw new Error(`Planning phase failed: ${planningResult.error || 'Unknown error'}`);\n}\n\n// Prepare implementation phase input\nreturn {\n  ...planningResult,\n  status: 'implementing',\n  phase: 'implementation',\n  plan_data: planningResult.plan_output,\n  resources_identified: planningResult.resources || [],\n  architecture: planningResult.architecture || {}\n};"
+      },
+      "id": "prepare_implementation",
+      "name": "Prepare Implementation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [800, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:5678/webhook/implementation-workflow",
+        "sendQuery": false,
+        "sendHeaders": false,
+        "sendBody": true,
+        "contentType": "json",
+        "bodyContentType": "json"
+      },
+      "id": "trigger_implementation",
+      "name": "Start Implementation Phase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [1000, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Check if implementation phase succeeded\nconst implResult = $json;\n\nif (implResult.status !== 'implementation_complete') {\n  throw new Error(`Implementation phase failed: ${implResult.error || 'Unknown error'}`);\n}\n\n// Prepare validation phase input\nreturn {\n  ...implResult,\n  status: 'validating',\n  phase: 'validation',\n  generated_files: implResult.files || {},\n  scenario_structure: implResult.structure || {}\n};"
+      },
+      "id": "prepare_validation",
+      "name": "Prepare Validation", 
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1200, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:5678/webhook/validation-workflow",
+        "sendQuery": false,
+        "sendHeaders": false,
+        "sendBody": true,
+        "contentType": "json",
+        "bodyContentType": "json"
+      },
+      "id": "trigger_validation",
+      "name": "Start Validation Phase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [1400, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Finalize successful generation\nconst validationResult = $json;\n\nif (validationResult.status !== 'validation_complete') {\n  throw new Error(`Validation phase failed: ${validationResult.error || 'Unknown error'}`);\n}\n\n// Calculate total generation time and metrics\nconst startTime = new Date($json.created_at);\nconst endTime = new Date();\nconst totalTime = endTime - startTime;\n\n// Prepare final success response\nreturn {\n  success: true,\n  generation_id: $json.generation_id,\n  scenario_name: $json.scenario_name,\n  status: 'completed',\n  completed_at: endTime.toISOString(),\n  total_generation_time_ms: totalTime,\n  phases_completed: ['planning', 'implementation', 'validation'],\n  files_generated: validationResult.files || {},\n  resources_used: validationResult.resources || [],\n  business_metrics: {\n    estimated_revenue: {\n      min: $json.business_value?.min_revenue || 15000,\n      max: $json.business_value?.max_revenue || 35000\n    },\n    complexity: $json.complexity,\n    category: $json.category,\n    difficulty_score: $json.business_value?.difficulty_score || 5\n  },\n  validation_results: validationResult.validation_summary || {},\n  deployment_ready: validationResult.deployment_ready === true,\n  next_steps: [\n    'Deploy scenario using scenario-to-app.sh',\n    'Run integration tests',\n    'Configure production environment',\n    'Monitor performance metrics'\n  ]\n};"
+      },
+      "id": "finalize_success",
+      "name": "Finalize Success",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1600, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      },
+      "id": "response_success",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1800, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Handle any pipeline failures\nconst error = $json.error || $json.message || 'Unknown error occurred';\nconst generation_id = $json.generation_id || 'unknown';\nconst scenario_name = $json.scenario_name || 'unknown';\n\n// Log detailed error information\nconsole.error(`Generation failed for ${scenario_name} (${generation_id}):`, error);\n\n// Prepare error response\nreturn {\n  success: false,\n  generation_id: generation_id,\n  scenario_name: scenario_name,\n  status: 'failed',\n  error: error,\n  failed_at: new Date().toISOString(),\n  phase: $json.phase || 'unknown',\n  troubleshooting_tips: [\n    'Check Claude Code authentication and availability',\n    'Verify all required resources are running',\n    'Review scenario requirements for completeness',\n    'Check system logs for detailed error information',\n    'Ensure sufficient disk space and system resources'\n  ]\n};"
+      },
+      "id": "handle_error",
+      "name": "Handle Error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1000, 500]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "responseCode": 500
+      },
+      "id": "response_error",
+      "name": "Error Response", 
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1200, 500]
+    }
+  ],
+  "connections": {
+    "webhook_main": {
+      "main": [
+        [
+          {
+            "node": "validate_input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "validate_input": {
+      "main": [
+        [
+          {
+            "node": "trigger_planning",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "trigger_planning": {
+      "main": [
+        [
+          {
+            "node": "prepare_implementation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "prepare_implementation": {
+      "main": [
+        [
+          {
+            "node": "trigger_implementation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "trigger_implementation": {
+      "main": [
+        [
+          {
+            "node": "prepare_validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "prepare_validation": {
+      "main": [
+        [
+          {
+            "node": "trigger_validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "trigger_validation": {
+      "main": [
+        [
+          {
+            "node": "finalize_success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "finalize_success": {
+      "main": [
+        [
+          {
+            "node": "response_success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2024-08-28T12:00:00.000Z",
+      "updatedAt": "2024-08-28T12:00:00.000Z",
+      "id": "scenario-generation",
+      "name": "scenario-generation"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2024-08-28T12:00:00.000Z",
+  "versionId": "1"
+}

@@ -1,0 +1,72 @@
+# AI-Powered Customer Support Chatbot
+# Priority: MEDIUM
+# Estimated Value: $20,000 - $30,000
+
+id: ai-customer-support-bot
+name: "AI Customer Support Assistant"
+description: "Intelligent chatbot system for automated customer service"
+prompt: |
+  Build an AI-powered customer support chatbot platform that can be integrated
+  into any business website or application.
+  
+  Core Features:
+  - Natural language understanding using Ollama/LLMs
+  - Multi-channel support (web, email, SMS, social media)
+  - Ticket creation and routing system
+  - Knowledge base integration
+  - Sentiment analysis and escalation triggers
+  - Multi-language support
+  - Analytics and conversation insights
+  - Human handoff capabilities
+  - Custom training on company data
+  - Integration with popular CRM systems
+  
+  Technical Stack:
+  - Ollama for LLM inference
+  - Qdrant for vector embeddings
+  - PostgreSQL for conversation history
+  - Redis for session management
+  - WebSocket for real-time chat
+  
+  Business Value:
+  - Reduce support costs by 60%
+  - 24/7 availability
+  - Instant response times
+  - Scalable to handle thousands of conversations
+
+complexity: intermediate
+category: ai-automation
+priority: medium
+estimated_revenue: 25000
+
+tags:
+  - ai
+  - chatbot
+  - customer-service
+  - automation
+  - llm
+  - support
+
+metadata:
+  requested_by: "Sales Team"
+  requested_date: "2024-01-20"
+  deadline: "2024-03-01"
+  market_opportunity: "Growing demand for AI customer service solutions"
+  
+resources_required:
+  - ollama
+  - qdrant
+  - postgres
+  - redis
+  - n8n
+
+validation_criteria:
+  - "Chatbot responds accurately to common queries"
+  - "Ticket creation system functional"
+  - "Human handoff working"
+  - "Analytics dashboard operational"
+  - "Multi-language support verified"
+
+notes: |
+  Focus on making the bot easy to train and customize. Should be able to
+  learn from existing support tickets and documentation.

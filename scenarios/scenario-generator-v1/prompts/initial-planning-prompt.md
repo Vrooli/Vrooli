@@ -18,7 +18,7 @@ Analyze the provided customer requirements and create a detailed implementation 
 
 ### Automation Platforms  
 - **n8n** (5678): Visual workflow builder - API integrations, scheduled tasks, business processes
-- **windmill** (5681): Code-first automation platform - professional UIs, TypeScript scripts, app deployment
+- **** (5681): Code-first automation platform - professional UIs, TypeScript scripts, app deployment
 - **node-red** (1880): Real-time data flows - IoT integration, live dashboards, streaming data
 - **huginn** (4111): Web monitoring and intelligent agents - data aggregation, event-driven automation
 
@@ -78,8 +78,8 @@ For each selected resource, provide:
 ### 4. Implementation Strategy
 Detailed plan covering:
 - **Database Schema**: Tables, relationships, indexes, sample data
-- **Workflow Design**: n8n/windmill/node-red process flows  
-- **UI Architecture**: Windmill app structure and components
+- **Workflow Design**: n8n//node-red process flows  
+- **UI Architecture**:  app structure and components
 - **API Design**: Endpoints, data formats, authentication
 - **File Structure**: Complete scenario directory layout
 - **Configuration Management**: Settings, feature flags, environment variables
@@ -146,7 +146,7 @@ Return a structured JSON response with this exact format:
       "integrationPattern": "How resources integrate"
     },
     "userExperience": {
-      "primaryInterface": "windmill|node-red|api",
+      "primaryInterface": "|node-red|api",
       "interactionPattern": "Description of user workflow",
       "responseTypes": ["types", "of", "system", "responses"]  
     }
@@ -168,13 +168,13 @@ Return a structured JSON response with this exact format:
       "indexingStrategy": "Performance optimization approach"
     },
     "workflowDesign": {
-      "primaryWorkflow": "n8n|windmill|node-red",
+      "primaryWorkflow": "n8n||node-red",
       "workflowSteps": ["step1", "step2", "step3"],
       "errorHandling": "How errors are managed",
       "monitoring": "How to track workflow health"
     },
     "uiArchitecture": {
-      "appStructure": "Windmill app organization",
+      "appStructure": " app organization",
       "componentList": ["main", "ui", "components"],
       "stateManagement": "How data flows in UI",
       "realTimeUpdates": "Live update strategy"

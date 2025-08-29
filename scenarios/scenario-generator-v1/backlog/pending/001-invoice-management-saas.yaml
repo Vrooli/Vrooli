@@ -1,0 +1,74 @@
+# Freelance Invoice Management SaaS Platform
+# Priority: HIGH
+# Estimated Value: $25,000 - $35,000
+
+id: invoice-management-saas
+name: "Freelance Invoice Management SaaS"
+description: "Complete invoicing and payment platform for freelancers and small businesses"
+prompt: |
+  Create a comprehensive SaaS business for managing freelance invoices and payments.
+  
+  Core Features:
+  - Professional invoice creation with customizable templates
+  - Client management system with contact details and history
+  - Project and time tracking integration
+  - Automated payment reminders and follow-ups
+  - Multiple payment gateway integrations (Stripe, PayPal, Square)
+  - Financial reporting and analytics dashboard
+  - Tax calculation and reporting features
+  - Multi-currency support
+  - Recurring invoice automation
+  - Mobile-responsive design
+  
+  Technical Requirements:
+  - PostgreSQL for data storage
+  - Redis for caching and session management
+  - n8n for workflow automation
+  - React frontend with modern UI/UX
+  - RESTful API design
+  - PDF generation for invoices
+  - Email integration for notifications
+  
+  Target Users:
+  - Freelancers (designers, developers, consultants)
+  - Small service businesses
+  - Independent contractors
+
+complexity: intermediate
+category: business-tool
+priority: high
+estimated_revenue: 30000
+
+tags:
+  - saas
+  - invoicing
+  - payments
+  - freelance
+  - financial
+  - automation
+
+metadata:
+  requested_by: "Product Team"
+  requested_date: "2024-01-15"
+  deadline: "2024-02-15"
+  business_value: "High demand in freelance market, recurring revenue model"
+  competitive_advantage: "AI-powered payment prediction and cash flow analysis"
+  
+resources_required:
+  - postgres
+  - redis
+  - n8n
+  - claude-code
+  - minio
+
+validation_criteria:
+  - "Invoice creation and management functional"
+  - "Payment gateway integration working"
+  - "Automated reminders configured"
+  - "Reporting dashboard operational"
+  - "Mobile-responsive UI verified"
+
+notes: |
+  This is a high-priority item for Q1 2024. The freelance economy is growing
+  rapidly and there's strong demand for integrated invoicing solutions.
+  Focus on user experience and automation features to differentiate from competitors.

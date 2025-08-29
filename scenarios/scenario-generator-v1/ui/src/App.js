@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
+import BacklogTab from './BacklogTab';
 import { 
   Search, 
   Play, 
@@ -218,6 +219,7 @@ function App() {
         {/* Navigation Tabs */}
         <div className="flex space-x-1 mb-8 bg-gray-800/50 p-1 rounded-lg">
           {[
+            { id: 'backlog', name: 'Backlog', icon: Clock },
             { id: 'browse', name: 'Browse Scenarios', icon: Eye },
             { id: 'generate', name: 'Generate New', icon: Plus },
             { id: 'templates', name: 'Templates', icon: FileText }
@@ -239,6 +241,11 @@ function App() {
             );
           })}
         </div>
+
+        {/* Backlog Tab */}
+        {activeTab === 'backlog' && (
+          <BacklogTab />
+        )}
 
         {/* Browse Tab */}
         {activeTab === 'browse' && (

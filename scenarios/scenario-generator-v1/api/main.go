@@ -155,10 +155,25 @@ func main() {
 	
 	// Logs endpoints
 	api.HandleFunc("/scenarios/{id}/logs", server.getScenarioLogs).Methods("GET")
+	
+	// Backlog endpoints
+	api.HandleFunc("/backlog", server.handleGetBacklog).Methods("GET")
+	api.HandleFunc("/backlog", server.handleCreateBacklogItem).Methods("POST")
+	api.HandleFunc("/backlog/{id}", server.handleGetBacklogItem).Methods("GET")
+	api.HandleFunc("/backlog/{id}", server.handleUpdateBacklogItem).Methods("PUT")
+	api.HandleFunc("/backlog/{id}", server.handleDeleteBacklogItem).Methods("DELETE")
+	api.HandleFunc("/backlog/{id}/generate", server.handleGenerateFromBacklog).Methods("POST")
+	api.HandleFunc("/backlog/{id}/move", server.handleMoveBacklogItem).Methods("POST")
+
+	// Start backlog file watcher
+	watcher := NewBacklogWatcher(server)
+	watcher.Start()
+	defer watcher.Stop()
 
 	log.Printf("🚀 Scenario Generator API starting on port %s", port)
 	log.Printf("🗄️  Database: %s", postgresURL)
 	log.Printf("🤖 Claude Code: %v", claudeAvailable)
+	log.Printf("📁 Backlog watcher: Active")
 
 	handler := corsHandler(router)
 	log.Fatal(http.ListenAndServe(":"+port, handler))

@@ -1,0 +1,69 @@
+# Content Marketing Automation Platform
+# Priority: LOW
+# Estimated Value: $15,000 - $25,000
+
+id: content-marketing-platform
+name: "Content Marketing Automation Suite"
+description: "All-in-one platform for content creation, scheduling, and analytics"
+prompt: |
+  Create a comprehensive content marketing platform that helps businesses
+  manage their entire content lifecycle.
+  
+  Key Features:
+  - AI-powered content generation and suggestions
+  - Editorial calendar with drag-drop scheduling
+  - Multi-platform publishing (blog, social media, email)
+  - SEO optimization tools
+  - Content performance analytics
+  - Team collaboration features
+  - Asset management library
+  - A/B testing capabilities
+  - Competitor content analysis
+  - Content repurposing suggestions
+  
+  Integrations:
+  - WordPress, Medium, LinkedIn, Twitter, Facebook
+  - Google Analytics and Search Console
+  - Email marketing platforms
+  - Slack/Teams notifications
+  
+  Target Market:
+  - Marketing agencies
+  - Content creators
+  - Small to medium businesses
+
+complexity: simple
+category: content-marketing
+priority: low
+estimated_revenue: 20000
+
+tags:
+  - marketing
+  - content
+  - automation
+  - social-media
+  - analytics
+  - seo
+
+metadata:
+  requested_by: "Marketing Team"
+  requested_date: "2024-01-25"
+  deadline: "2024-04-01"
+  market_size: "Large and growing content marketing industry"
+  
+resources_required:
+  - postgres
+  - redis
+  - n8n
+  - ollama
+  - minio
+
+validation_criteria:
+  - "Content creation workflow operational"
+  - "Publishing to multiple platforms working"
+  - "Analytics dashboard functional"
+  - "Team collaboration features verified"
+
+notes: |
+  This could be a good starter project for exploring content automation.
+  Consider starting with basic features and expanding based on user feedback.

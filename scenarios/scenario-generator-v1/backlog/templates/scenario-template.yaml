@@ -1,0 +1,84 @@
+# Scenario Template - Copy this file to pending/ folder and customize
+# Naming Convention: XXX-descriptive-name.yaml (XXX = priority number)
+# Priority: HIGH | MEDIUM | LOW
+# Estimated Value: $X,000 - $Y,000
+
+id: unique-scenario-id  # Use kebab-case, no spaces
+name: "Human Readable Scenario Name"
+description: "Brief one-line description of what this scenario does"
+prompt: |
+  Detailed prompt for the AI to generate this scenario.
+  
+  Be specific about:
+  - Core features and functionality
+  - Technical requirements and stack
+  - User interface expectations
+  - Integration requirements
+  - Business logic and workflows
+  - Data models and storage needs
+  
+  Target Users:
+  - Who will use this?
+  - What problems does it solve?
+  
+  Success Metrics:
+  - How will we measure success?
+  - What are the key performance indicators?
+
+# Complexity: simple | intermediate | advanced
+complexity: intermediate
+
+# Category: business-tool | ai-automation | content-marketing | customer-service
+#          | e-commerce | analytics | document-processing | financial | healthcare
+#          | education | productivity | social-media | project-management
+category: business-tool
+
+# Priority: high | medium | low
+priority: medium
+
+# Estimated revenue in USD (no commas)
+estimated_revenue: 25000
+
+# Tags for search and categorization
+tags:
+  - tag1
+  - tag2
+  - tag3
+
+# Metadata for tracking and planning
+metadata:
+  requested_by: "Team/Person Name"
+  requested_date: "YYYY-MM-DD"
+  deadline: "YYYY-MM-DD"  # Optional
+  business_value: "Why is this valuable?"
+  market_opportunity: "What market need does this address?"
+  competitive_advantage: "What makes this unique?"
+  
+# Resources required from Vrooli ecosystem
+resources_required:
+  - postgres    # Database
+  - redis       # Cache/Queue
+  - n8n         # Workflow automation
+  - ollama      # Local LLM
+  - claude-code # AI code generation
+  - qdrant      # Vector database
+  - minio       # Object storage
+  # Add others as needed
+
+# Validation criteria - what must work for this to be considered complete?
+validation_criteria:
+  - "Core feature X is functional"
+  - "Integration Y is working"
+  - "UI component Z is responsive"
+  - "API endpoints are documented"
+  - "Tests are passing"
+
+# Additional notes, context, or requirements
+notes: |
+  Any additional context, special requirements, or implementation notes.
+  This is a good place for:
+  - Links to competitor products
+  - Specific design preferences
+  - Technical constraints
+  - Business rules or regulations
+  - Future expansion ideas

@@ -1,0 +1,199 @@
+{
+  "$schema": "../../../../.vrooli/schemas/resource-urls.schema.json",
+  "version": "1.0.0",
+  "environment": "development",
+  "base_config": {
+    "protocol": "http",
+    "host": "localhost"
+  },
+
+  "resources": {
+    "postgres": {
+      "host": "localhost",
+      "port": "${POSTGRES_PORT}",
+      "protocol": "postgresql",
+      "database": "postgres",
+      "username": "postgres", 
+      "password": "${POSTGRES_PASSWORD}",
+      "connection_string": "postgresql://postgres:${POSTGRES_PASSWORD}@localhost:${POSTGRES_PORT}/postgres",
+      "admin_url": "http://localhost:5050",
+      "health_check": {
+        "type": "tcp",
+        "endpoint": "localhost:${POSTGRES_PORT}",
+        "timeout_ms": 5000
+      }
+    },
+
+    "n8n": {
+      "host": "localhost",
+      "port": "${N8N_PORT}",
+      "protocol": "http",
+      "base_url": "http://localhost:${N8N_PORT}",
+      "admin_url": "http://localhost:${N8N_PORT}",
+      "api": {
+        "base": "/api/v1",
+        "endpoints": {
+          "workflows": "/api/v1/workflows",
+          "executions": "/api/v1/executions", 
+          "credentials": "/api/v1/credentials"
+        }
+      },
+      "webhooks": {
+        "base": "/webhook",
+        "endpoints": {
+          "generate_scenario": "/webhook/generate-scenario",
+          "main_pipeline": "/webhook/main-pipeline",
+          "planning_workflow": "/webhook/planning-workflow",
+          "implementation_workflow": "/webhook/implementation-workflow",
+          "validation_workflow": "/webhook/validation-workflow"
+        }
+      },
+      "health_check": {
+        "type": "http",
+        "endpoint": "http://localhost:${N8N_PORT}/healthz",
+        "timeout_ms": 5000
+      }
+    },
+
+
+    "claude_code": {
+      "type": "cli",
+      "command": "claude",
+      "available": "${CLAUDE_CODE_AVAILABLE}",
+      "version_command": "claude --version",
+      "test_command": "claude chat --help",
+      "rate_limits": {
+        "requests_per_minute": 20,
+        "requests_per_hour": 200,
+        "burst_allowance": 5
+      },
+      "health_check": {
+        "type": "command",
+        "command": "claude --version",
+        "timeout_ms": 10000,
+        "success_pattern": "claude"
+      }
+    },
+
+    "ollama": {
+      "host": "localhost", 
+      "port": "${OLLAMA_PORT}",
+      "protocol": "http",
+      "base_url": "http://localhost:${OLLAMA_PORT}",
+      "api": {
+        "base": "/api",
+        "endpoints": {
+          "generate": "/api/generate",
+          "chat": "/api/chat",
+          "embeddings": "/api/embeddings",
+          "models": "/api/tags"
+        }
+      },
+      "models": {
+        "default": "phi3.5:3.8b",
+        "available": [
+          "phi3.5:3.8b",
+          "llama3.2",
+          "mistral"
+        ]
+      },
+      "health_check": {
+        "type": "http",
+        "endpoint": "http://localhost:${OLLAMA_PORT}/api/tags",
+        "timeout_ms": 10000
+      }
+    },
+
+    "redis": {
+      "host": "localhost",
+      "port": "${REDIS_PORT}",
+      "protocol": "redis",
+      "database": 0,
+      "password": "${REDIS_PASSWORD}",
+      "connection_string": "redis://:${REDIS_PASSWORD}@localhost:${REDIS_PORT}/0",
+      "admin_url": null,
+      "config": {
+        "key_prefix": "scenario-gen:",
+        "default_ttl": 3600,
+        "max_connections": 10
+      },
+      "health_check": {
+        "type": "redis",
+        "command": "PING",
+        "timeout_ms": 5000
+      }
+    },
+
+    "minio": {
+      "host": "localhost",
+      "port": "${MINIO_PORT}",
+      "protocol": "http",
+      "base_url": "http://localhost:${MINIO_PORT}",
+      "admin_url": "http://localhost:${MINIO_CONSOLE_PORT}",
+      "api": {
+        "base": "/",
+        "endpoints": {
+          "bucket_ops": "/",
+          "object_ops": "/"
+        }
+      },
+      "credentials": {
+        "access_key": "${MINIO_ACCESS_KEY}",
+        "secret_key": "${MINIO_SECRET_KEY}"
+      },
+      "buckets": {
+        "generated_scenarios": "scenario-generator",
+        "templates": "scenario-templates",
+        "cache": "scenario-cache"
+      },
+      "health_check": {
+        "type": "http",
+        "endpoint": "http://localhost:${MINIO_PORT}/minio/health/ready",
+        "timeout_ms": 5000
+      }
+    }
+  },
+
+  "service_dependencies": {
+    "scenario_generation": {
+      "required": ["postgres", "n8n", "claude_code"],
+      "optional": ["redis", "ollama", "minio"]
+    },
+    "template_system": {
+      "required": ["postgres"],
+      "optional": ["redis"]
+    },
+    "dashboard": {
+      "required": ["postgres"],
+      "optional": ["redis"]
+    },
+    "analytics": {
+      "required": ["postgres"],
+      "optional": ["redis"]
+    }
+  },
+
+  "health_monitoring": {
+    "check_interval_ms": 30000,
+    "timeout_ms": 10000,
+    "retry_attempts": 3,
+    "alert_thresholds": {
+      "response_time_ms": 5000,
+      "failure_rate_percent": 10,
+      "consecutive_failures": 3
+    }
+  },
+
+  "load_balancing": {
+    "enabled": false,
+    "strategy": "round_robin",
+    "health_check_path": "/health"
+  },
+
+  "circuit_breaker": {
+    "enabled": true,
+    "failure_threshold": 5,
+    "recovery_timeout_ms": 60000,
+    "half_open_max_calls": 3
+  }
+}
