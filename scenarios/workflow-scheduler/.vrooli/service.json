@@ -32,59 +32,55 @@
     }
   },
   "resources": {
-    "storage": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "purpose": "Store schedule definitions, execution history, metrics, and configuration",
-        "initialization": [
-          {
-            "file": "initialization/storage/postgres/schema.sql",
-            "type": "script"
-          },
-          {
-            "file": "initialization/storage/postgres/seed.sql",
-            "type": "script"
-          }
-        ]
-      },
-      "redis": {
-        "type": "redis",
-        "enabled": true,
-        "required": true,
-        "purpose": "Execution locks, distributed caching, pub/sub for real-time updates"
-      }
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Store schedule definitions, execution history, metrics, and configuration",
+      "initialization": [
+        {
+          "file": "initialization/storage/postgres/schema.sql",
+          "type": "script"
+        },
+        {
+          "file": "initialization/storage/postgres/seed.sql",
+          "type": "script"
+        }
+      ]
     },
-    "automation": {
-      "n8n": {
-        "type": "n8n",
-        "enabled": true,
-        "required": true,
-        "purpose": "Core scheduling engine, workflow execution, retry handling",
-        "initialization": [
-          {
-            "file": "initialization/automation/n8n/schedule-executor.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/automation/n8n/missed-handler.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/automation/n8n/retry-handler.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/automation/n8n/monitor.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/automation/n8n/notification-router.json",
-            "type": "workflow"
-          }
-        ]
-      }
+    "redis": {
+      "type": "redis",
+      "enabled": true,
+      "required": true,
+      "purpose": "Execution locks, distributed caching, pub/sub for real-time updates"
+    },
+    "n8n": {
+      "type": "n8n",
+      "enabled": true,
+      "required": true,
+      "purpose": "Core scheduling engine, workflow execution, retry handling",
+      "initialization": [
+        {
+          "file": "initialization/automation/n8n/schedule-executor.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/automation/n8n/missed-handler.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/automation/n8n/retry-handler.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/automation/n8n/monitor.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/automation/n8n/notification-router.json",
+          "type": "workflow"
+        }
+      ]
     }
   },
   "lifecycle": {

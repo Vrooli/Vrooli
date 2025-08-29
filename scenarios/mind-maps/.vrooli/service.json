@@ -41,98 +41,92 @@
     }
   },
   "resources": {
-    "automation": {
-      "n8n": {
-        "type": "n8n",
-        "enabled": true,
-        "required": true,
-        "initialization": [
-          {
-            "file": "initialization/n8n/auto-organize.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/auto-organize-enhanced.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/auto-organize-advanced.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/semantic-search.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/create-mindmap.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/update-mindmap.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/export-mindmap.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/document-to-mindmap.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/collaborative-sharing.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/intelligent-mindmap-builder.json",
-            "type": "workflow"
-          }
-        ]
-      }
+    "n8n": {
+      "type": "n8n",
+      "enabled": true,
+      "required": true,
+      "initialization": [
+        {
+          "file": "initialization/n8n/auto-organize.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/auto-organize-enhanced.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/auto-organize-advanced.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/semantic-search.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/create-mindmap.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/update-mindmap.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/export-mindmap.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/document-to-mindmap.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/collaborative-sharing.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/intelligent-mindmap-builder.json",
+          "type": "workflow"
+        }
+      ]
     },
-    "ai": {
-      "ollama": {
-        "type": "ollama",
-        "enabled": true,
-        "required": true,
-        "models": [
-          "llama3.2",
-          "phi3.5:3.8b",
-          "nomic-embed-text"
-        ]
-      }
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": true,
+      "models": [
+        "llama3.2",
+        "phi3.5:3.8b",
+        "nomic-embed-text"
+      ]
     },
-    "storage": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "purpose": "Persistent storage of mind maps and metadata",
-        "initialization": [
-          {
-            "file": "initialization/postgres/schema.sql",
-            "type": "script"
-          }
-        ]
-      },
-      "qdrant": {
-        "type": "qdrant",
-        "enabled": true,
-        "required": true,
-        "purpose": "Vector database for semantic search across mind map nodes",
-        "initialization": [
-          {
-            "file": "initialization/qdrant/collections.json",
-            "type": "collections"
-          }
-        ]
-      },
-      "redis": {
-        "type": "redis",
-        "enabled": true,
-        "required": false,
-        "purpose": "Real-time collaboration support and caching"
-      }
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Persistent storage of mind maps and metadata",
+      "initialization": [
+        {
+          "file": "initialization/postgres/schema.sql",
+          "type": "script"
+        }
+      ]
+    },
+    "qdrant": {
+      "type": "qdrant",
+      "enabled": true,
+      "required": true,
+      "purpose": "Vector database for semantic search across mind map nodes",
+      "initialization": [
+        {
+          "file": "initialization/qdrant/collections.json",
+          "type": "collections"
+        }
+      ]
+    },
+    "redis": {
+      "type": "redis",
+      "enabled": true,
+      "required": false,
+      "purpose": "Real-time collaboration support and caching"
     }
   },
   "shared_workflows": [

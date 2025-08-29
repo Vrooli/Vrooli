@@ -36,109 +36,101 @@
     }
   },
   "resources": {
-    "automation": {
-      "n8n": {
-        "type": "n8n",
-        "enabled": true,
-        "required": true,
-        "purpose": "Workflow orchestration for coordinated scraping across platforms",
-        "initialization": [
-          {
-            "file": "initialization/automation/n8n/scraper-orchestrator.json",
-            "type": "workflow"
-          }
-        ]
-      },
-      "windmill": {
-        "type": "windmill",
-        "enabled": true,
-        "required": true,
-        "purpose": "UI dashboard for scraper management and monitoring",
-        "initialization": [
-          {
-            "file": "initialization/automation/windmill/agents-manager.json",
-            "type": "app"
-          },
-          {
-            "file": "initialization/automation/windmill/analytics-panel.json",
-            "type": "app"
-          },
-          {
-            "file": "initialization/automation/windmill/dashboard-app.json",
-            "type": "app"
-          }
-        ]
-      }
+    "n8n": {
+      "type": "n8n",
+      "enabled": true,
+      "required": true,
+      "purpose": "Workflow orchestration for coordinated scraping across platforms",
+      "initialization": [
+        {
+          "file": "initialization/automation/n8n/scraper-orchestrator.json",
+          "type": "workflow"
+        }
+      ]
     },
-    "storage": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "purpose": "Store scraping agent configurations, results, metrics, and orchestration metadata",
-        "initialization": [
-          {
-            "file": "initialization/storage/postgres/schema.sql",
-            "type": "script"
-          }
-        ]
-      },
-      "minio": {
-        "type": "minio",
-        "enabled": true,
-        "required": true,
-        "purpose": "Store scraped assets, screenshots, and exported data files"
-      },
-      "qdrant": {
-        "type": "qdrant",
-        "enabled": true,
-        "required": false,
-        "purpose": "Vector database for content similarity detection and duplicate removal"
-      },
-      "redis": {
-        "type": "redis",
-        "enabled": true,
-        "required": true,
-        "purpose": "Job queues and caching for scraping orchestration"
-      }
+    "windmill": {
+      "type": "windmill",
+      "enabled": true,
+      "required": true,
+      "purpose": "UI dashboard for scraper management and monitoring",
+      "initialization": [
+        {
+          "file": "initialization/automation/windmill/agents-manager.json",
+          "type": "app"
+        },
+        {
+          "file": "initialization/automation/windmill/analytics-panel.json",
+          "type": "app"
+        },
+        {
+          "file": "initialization/automation/windmill/dashboard-app.json",
+          "type": "app"
+        }
+      ]
     },
-    "ai": {
-      "ollama": {
-        "type": "ollama",
-        "enabled": true,
-        "required": false,
-        "purpose": "AI models for intelligent content extraction and analysis",
-        "models": [
-          "llama3.2",
-          "nomic-embed-text"
-        ]
-      }
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Store scraping agent configurations, results, metrics, and orchestration metadata",
+      "initialization": [
+        {
+          "file": "initialization/storage/postgres/schema.sql",
+          "type": "script"
+        }
+      ]
     },
-    "external": {
-      "huginn": {
-        "type": "external-service",
-        "enabled": false,
-        "required": false,
-        "purpose": "RSS/social media monitoring and scheduled scraping",
-        "default_port": 4111,
-        "health_endpoint": "/agents"
-      },
-      "browserless": {
-        "type": "external-service",
-        "enabled": false,
-        "required": false,
-        "purpose": "JavaScript-heavy sites, screenshots, PDF generation",
-        "default_port": 4110,
-        "health_endpoint": "/stats"
-      },
-      "agent-s2": {
-        "type": "external-service",
-        "enabled": false,
-        "required": false,
-        "purpose": "AI-powered web interaction and complex scraping",
-        "default_port": 4113,
-        "health_endpoint": "/health"
-      }
+    "minio": {
+      "type": "minio",
+      "enabled": true,
+      "required": true,
+      "purpose": "Store scraped assets, screenshots, and exported data files"
+    },
+    "qdrant": {
+      "type": "qdrant",
+      "enabled": true,
+      "required": false,
+      "purpose": "Vector database for content similarity detection and duplicate removal"
+    },
+    "redis": {
+      "type": "redis",
+      "enabled": true,
+      "required": true,
+      "purpose": "Job queues and caching for scraping orchestration"
+    },
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": false,
+      "purpose": "AI models for intelligent content extraction and analysis",
+      "models": [
+        "llama3.2",
+        "nomic-embed-text"
+      ]
+    },
+    "huginn": {
+      "type": "external-service",
+      "enabled": false,
+      "required": false,
+      "purpose": "RSS/social media monitoring and scheduled scraping",
+      "default_port": 4111,
+      "health_endpoint": "/agents"
+    },
+    "browserless": {
+      "type": "external-service",
+      "enabled": false,
+      "required": false,
+      "purpose": "JavaScript-heavy sites, screenshots, PDF generation",
+      "default_port": 4110,
+      "health_endpoint": "/stats"
+    },
+    "agent-s2": {
+      "type": "external-service",
+      "enabled": false,
+      "required": false,
+      "purpose": "AI-powered web interaction and complex scraping",
+      "default_port": 4113,
+      "health_endpoint": "/health"
     }
   },
   "lifecycle": {

@@ -207,7 +207,7 @@ vault::health_check_comprehensive() {
     else
         checks+=('{"check": "container", "status": "fail", "details": "Container is not running"}')
         overall_status="error"
-        issues+=("Container not running - start with: ./manage.sh --action start")
+        issues+=("Container not running - start with: resource-vault manage start")
     fi
     
     # Network check
@@ -238,7 +238,7 @@ vault::health_check_comprehensive() {
         if [[ "$overall_status" == "healthy" ]]; then
             overall_status="degraded"
         fi
-        issues+=("Vault not initialized - run: ./manage.sh --action init-dev")
+        issues+=("Vault not initialized - run: resource-vault manage init-dev")
     fi
     
     if ! vault::is_sealed; then
@@ -248,7 +248,7 @@ vault::health_check_comprehensive() {
         if [[ "$overall_status" == "healthy" ]]; then
             overall_status="degraded"
         fi
-        issues+=("Vault is sealed - unseal with: ./manage.sh --action unseal")
+        issues+=("Vault is sealed - unseal with: resource-vault manage unseal")
     fi
     
     # Build comprehensive response

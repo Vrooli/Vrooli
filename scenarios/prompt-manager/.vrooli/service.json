@@ -38,41 +38,37 @@
     }
   },
   "resources": {
-    "storage": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "purpose": "Primary data storage for campaigns, prompts, tags, and metadata",
-        "initialization": [
-          {
-            "file": "initialization/postgres/schema.sql",
-            "type": "script"
-          },
-          {
-            "file": "initialization/postgres/seed.sql",
-            "type": "script"
-          }
-        ]
-      },
-      "qdrant": {
-        "type": "qdrant",
-        "enabled": true,
-        "required": false,
-        "purpose": "Vector database for semantic search of prompts"
-      }
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Primary data storage for campaigns, prompts, tags, and metadata",
+      "initialization": [
+        {
+          "file": "initialization/postgres/schema.sql",
+          "type": "script"
+        },
+        {
+          "file": "initialization/postgres/seed.sql",
+          "type": "script"
+        }
+      ]
     },
-    "ai": {
-      "ollama": {
-        "type": "ollama",
-        "enabled": false,
-        "required": false,
-        "purpose": "Local LLM for prompt testing and enhancement suggestions",
-        "models": [
-          "nomic-embed-text",
-          "llama3.2"
-        ]
-      }
+    "qdrant": {
+      "type": "qdrant",
+      "enabled": true,
+      "required": false,
+      "purpose": "Vector database for semantic search of prompts"
+    },
+    "ollama": {
+      "type": "ollama",
+      "enabled": false,
+      "required": false,
+      "purpose": "Local LLM for prompt testing and enhancement suggestions",
+      "models": [
+        "nomic-embed-text",
+        "llama3.2"
+      ]
     }
   },
   "lifecycle": {

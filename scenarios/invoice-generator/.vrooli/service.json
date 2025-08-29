@@ -40,63 +40,57 @@
     }
   },
   "resources": {
-    "automation": {
-      "n8n": {
-        "type": "n8n",
-        "enabled": true,
-        "required": true,
-        "shared_workflows": [
-          "ollama",
-          "document-converter-validator",
-          "structured-data-extractor"
-        ],
-        "initialization": [
-          {
-            "file": "initialization/n8n/invoice-processor.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/invoice-processor-ai.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/payment-tracker.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/recurring-invoice-handler.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/invoice-pdf-generator.json",
-            "type": "workflow"
-          }
-        ]
-      }
+    "n8n": {
+      "type": "n8n",
+      "enabled": true,
+      "required": true,
+      "shared_workflows": [
+        "ollama",
+        "document-converter-validator",
+        "structured-data-extractor"
+      ],
+      "initialization": [
+        {
+          "file": "initialization/n8n/invoice-processor.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/invoice-processor-ai.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/payment-tracker.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/recurring-invoice-handler.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/invoice-pdf-generator.json",
+          "type": "workflow"
+        }
+      ]
     },
-    "ai": {
-      "ollama": {
-        "type": "ollama",
-        "enabled": true,
-        "required": false,
-        "models": [
-          "llama3.2"
-        ]
-      }
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": false,
+      "models": [
+        "llama3.2"
+      ]
     },
-    "storage": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "purpose": "invoice data, client information, payment tracking",
-        "initialization": [
-          {
-            "file": "initialization/postgres/schema.sql",
-            "type": "script"
-          }
-        ]
-      }
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "invoice data, client information, payment tracking",
+      "initialization": [
+        {
+          "file": "initialization/postgres/schema.sql",
+          "type": "script"
+        }
+      ]
     }
   },
   "lifecycle": {

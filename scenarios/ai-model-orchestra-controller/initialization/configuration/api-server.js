@@ -60,19 +60,19 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 // Database connection
 const pool = new Pool({
-  connectionString: resourceUrls.resources.storage.postgres.url,
-  max: resourceUrls.resources.storage.postgres.maxConnections
+  connectionString: resourceUrls.resources.postgres.url,
+  max: resourceUrls.resources.postgres.maxConnections
 });
 
 // Redis connection
 const redis = Redis.createClient({
-  url: resourceUrls.resources.storage.redis.url,
+  url: resourceUrls.resources.redis.url,
   retry_strategy: (times) => Math.min(times * 50, 2000)
 });
 
 // Docker connection
 const docker = new Docker({
-  socketPath: resourceUrls.resources.docker.api.socketPath
+  socketPath: resourceUrls.resources.docker.socketPath
 });
 
 // Global state for model metrics and system resources
@@ -207,7 +207,7 @@ async function getCurrentResources() {
 // Check health of all available models
 async function checkModelHealth() {
   try {
-    const response = await fetch(`${resourceUrls.resources.ai.ollama.api_base}/tags`);
+    const response = await fetch(`${resourceUrls.resources.ollama.api_base}/tags`);
     const data = await response.json();
     
     if (data.models) {
@@ -458,7 +458,7 @@ app.post('/api/ai/route-request', async (req, res) => {
     }
     
     // Route to Ollama with selected model
-    const ollamaResponse = await fetch(`${resourceUrls.resources.ai.ollama.api_base}/generate`, {
+    const ollamaResponse = await fetch(`${resourceUrls.resources.ollama.api_base}/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

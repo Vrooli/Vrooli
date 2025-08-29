@@ -40,68 +40,62 @@
     }
   },
   "resources": {
-    "automation": {
-      "n8n": {
-        "type": "n8n",
-        "enabled": true,
-        "required": true,
-        "shared_workflows": [
-          "ollama",
-          "web-scraper",
-          "change-detector",
-          "notification-dispatcher"
-        ],
-        "initialization": [
-          {
-            "file": "initialization/n8n/website-monitor.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/github-monitor.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/change-analyzer.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/alert-manager.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/scheduled-scanner.json",
-            "type": "workflow"
-          }
-        ]
-      }
+    "n8n": {
+      "type": "n8n",
+      "enabled": true,
+      "required": true,
+      "shared_workflows": [
+        "ollama",
+        "web-scraper",
+        "change-detector",
+        "notification-dispatcher"
+      ],
+      "initialization": [
+        {
+          "file": "initialization/n8n/website-monitor.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/github-monitor.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/change-analyzer.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/alert-manager.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/scheduled-scanner.json",
+          "type": "workflow"
+        }
+      ]
     },
-    "storage": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "purpose": "Store competitors, monitoring targets, change history, and alerts",
-        "initialization": [
-          {
-            "file": "initialization/postgres/schema.sql",
-            "type": "schema"
-          }
-        ]
-      },
-      "redis": {
-        "type": "redis",
-        "enabled": true,
-        "required": false,
-        "purpose": "Cache scraped content and real-time monitoring state"
-      }
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Store competitors, monitoring targets, change history, and alerts",
+      "initialization": [
+        {
+          "file": "initialization/postgres/schema.sql",
+          "type": "schema"
+        }
+      ]
     },
-    "ai": {
-      "ollama": {
-        "type": "ollama",
-        "enabled": true,
-        "required": true,
-        "purpose": "Analyze changes for relevance and generate insights"
-      }
+    "redis": {
+      "type": "redis",
+      "enabled": true,
+      "required": false,
+      "purpose": "Cache scraped content and real-time monitoring state"
+    },
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": true,
+      "purpose": "Analyze changes for relevance and generate insights"
     }
   },
   "lifecycle": {

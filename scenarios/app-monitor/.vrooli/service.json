@@ -41,98 +41,92 @@
     }
   },
   "resources": {
-    "storage": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "purpose": "Store app metadata, monitoring data, status logs, and metrics",
-        "initialization": [
-          {
-            "file": "initialization/storage/postgres/schema.sql",
-            "type": "script"
-          },
-          {
-            "file": "initialization/storage/postgres/seed.sql",
-            "type": "script"
-          }
-        ]
-      },
-      "redis": {
-        "type": "redis",
-        "enabled": true,
-        "required": true,
-        "purpose": "Real-time event streaming, caching, and app notifications"
-      }
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Store app metadata, monitoring data, status logs, and metrics",
+      "initialization": [
+        {
+          "file": "initialization/storage/postgres/schema.sql",
+          "type": "script"
+        },
+        {
+          "file": "initialization/storage/postgres/seed.sql",
+          "type": "script"
+        }
+      ]
     },
-    "ai": {
-      "ollama": {
-        "type": "ollama",
-        "enabled": true,
-        "required": false,
-        "models": [
-          "phi3.5:3.8b",
-          "llama3.2"
-        ],
-        "purpose": "AI-powered analysis for unhealthy apps and performance optimization recommendations"
-      }
+    "redis": {
+      "type": "redis",
+      "enabled": true,
+      "required": true,
+      "purpose": "Real-time event streaming, caching, and app notifications"
     },
-    "automation": {
-      "n8n": {
-        "type": "n8n",
-        "enabled": true,
-        "required": true,
-        "initialization": [
-          {
-            "file": "initialization/n8n/app-health-monitor.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/app-performance-analyzer.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/auto-restart.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/resource-monitor.json",
-            "type": "workflow"
-          }
-        ],
-        "shared_workflows": [
-          "ollama.json",
-          "cache-manager.json",
-          "rate-limiter.json",
-          "n8n-workflow-executor.json"
-        ]
-      },
-      "node-red": {
-        "type": "node-red",
-        "enabled": true,
-        "required": true,
-        "initialization": [
-          {
-            "file": "initialization/automation/node-red/docker-monitor.json",
-            "type": "flow"
-          }
-        ]
-      },
-      "windmill": {
-        "type": "windmill",
-        "enabled": true,
-        "required": true,
-        "initialization": [
-          {
-            "file": "initialization/automation/windmill/app-monitor-dashboard.json",
-            "type": "app"
-          },
-          {
-            "file": "initialization/automation/windmill/app-control-panel.json",
-            "type": "app"
-          }
-        ]
-      }
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": false,
+      "models": [
+        "phi3.5:3.8b",
+        "llama3.2"
+      ],
+      "purpose": "AI-powered analysis for unhealthy apps and performance optimization recommendations"
+    },
+    "n8n": {
+      "type": "n8n",
+      "enabled": true,
+      "required": true,
+      "initialization": [
+        {
+          "file": "initialization/n8n/app-health-monitor.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/app-performance-analyzer.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/auto-restart.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/resource-monitor.json",
+          "type": "workflow"
+        }
+      ],
+      "shared_workflows": [
+        "ollama.json",
+        "cache-manager.json",
+        "rate-limiter.json",
+        "n8n-workflow-executor.json"
+      ]
+    },
+    "node-red": {
+      "type": "node-red",
+      "enabled": true,
+      "required": true,
+      "initialization": [
+        {
+          "file": "initialization/automation/node-red/docker-monitor.json",
+          "type": "flow"
+        }
+      ]
+    },
+    "windmill": {
+      "type": "windmill",
+      "enabled": true,
+      "required": true,
+      "initialization": [
+        {
+          "file": "initialization/automation/windmill/app-monitor-dashboard.json",
+          "type": "app"
+        },
+        {
+          "file": "initialization/automation/windmill/app-control-panel.json",
+          "type": "app"
+        }
+      ]
     }
   },
   "lifecycle": {
@@ -143,7 +137,9 @@
         "checks": [
           {
             "type": "binaries",
-            "targets": ["api/app-monitor-api"]
+            "targets": [
+              "api/app-monitor-api"
+            ]
           },
           {
             "type": "cli",
@@ -151,7 +147,9 @@
           },
           {
             "type": "dependencies",
-            "paths": ["ui/package.json"]
+            "paths": [
+              "ui/package.json"
+            ]
           },
           {
             "type": "resources",

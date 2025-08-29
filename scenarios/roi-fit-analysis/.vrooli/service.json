@@ -43,76 +43,68 @@
     }
   },
   "resources": {
-    "automation": {
-      "n8n": {
-        "type": "n8n",
-        "enabled": true,
-        "required": true,
-        "initialization": [
-          {
-            "file": "initialization/n8n/roi-analyzer.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/market-researcher.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/financial-calculator.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/competitive-landscape-analyzer.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/enhanced-market-researcher.json",
-            "type": "workflow"
-          }
-        ]
-      }
+    "n8n": {
+      "type": "n8n",
+      "enabled": true,
+      "required": true,
+      "initialization": [
+        {
+          "file": "initialization/n8n/roi-analyzer.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/market-researcher.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/financial-calculator.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/competitive-landscape-analyzer.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/enhanced-market-researcher.json",
+          "type": "workflow"
+        }
+      ]
     },
-    "storage": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "purpose": "Store analysis data, research results, and investment metrics",
-        "initialization": [
-          {
-            "file": "initialization/postgres/schema.sql",
-            "type": "script"
-          }
-        ]
-      },
-      "redis": {
-        "type": "redis",
-        "enabled": true,
-        "required": true,
-        "purpose": "Cache research data and session storage"
-      },
-      "qdrant": {
-        "type": "qdrant",
-        "enabled": true,
-        "required": false,
-        "purpose": "Vector storage for market research and investment opportunity matching"
-      }
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Store analysis data, research results, and investment metrics",
+      "initialization": [
+        {
+          "file": "initialization/postgres/schema.sql",
+          "type": "script"
+        }
+      ]
     },
-    "ai": {
-      "ollama": {
-        "type": "ollama",
-        "enabled": true,
-        "required": true,
-        "purpose": "Local LLM for financial analysis and market research"
-      }
+    "redis": {
+      "type": "redis",
+      "enabled": true,
+      "required": true,
+      "purpose": "Cache research data and session storage"
     },
-    "agents": {
-      "browserless": {
-        "type": "browserless",
-        "enabled": true,
-        "required": true,
-        "purpose": "Web scraping for financial data and market research"
-      }
+    "qdrant": {
+      "type": "qdrant",
+      "enabled": true,
+      "required": false,
+      "purpose": "Vector storage for market research and investment opportunity matching"
+    },
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": true,
+      "purpose": "Local LLM for financial analysis and market research"
+    },
+    "browserless": {
+      "type": "browserless",
+      "enabled": true,
+      "required": true,
+      "purpose": "Web scraping for financial data and market research"
     }
   },
   "lifecycle": {

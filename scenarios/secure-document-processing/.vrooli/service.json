@@ -42,99 +42,93 @@
     }
   },
   "resources": {
-    "automation": {
-      "n8n": {
-        "type": "n8n",
-        "enabled": true,
-        "required": true,
-        "initialization": [
-          {
-            "file": "initialization/automation/n8n/document-intake.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/automation/n8n/process-orchestrator.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/automation/n8n/prompt-processor.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/automation/n8n/workflow-executor.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/automation/n8n/semantic-indexer.json",
-            "type": "workflow"
-          }
-        ]
-      },
-      "windmill": {
-        "type": "windmill",
-        "enabled": true,
-        "required": true,
-        "initialization": [
-          {
-            "file": "initialization/automation/windmill/document-portal.json",
-            "type": "app"
-          }
-        ]
-      }
+    "n8n": {
+      "type": "n8n",
+      "enabled": true,
+      "required": true,
+      "initialization": [
+        {
+          "file": "initialization/automation/n8n/document-intake.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/automation/n8n/process-orchestrator.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/automation/n8n/prompt-processor.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/automation/n8n/workflow-executor.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/automation/n8n/semantic-indexer.json",
+          "type": "workflow"
+        }
+      ]
     },
-    "ai": {
-      "ollama": {
-        "type": "ollama",
-        "enabled": true,
-        "required": true,
-        "models": [
-          "llama3.2",
-          "mistral",
-          "nomic-embed-text"
-        ]
-      },
-      "unstructured-io": {
-        "type": "unstructured-io",
-        "enabled": true,
-        "required": true,
-        "purpose": "Document parsing and content extraction from various formats (PDF, DOCX, images, etc.)"
-      }
+    "windmill": {
+      "type": "windmill",
+      "enabled": true,
+      "required": true,
+      "initialization": [
+        {
+          "file": "initialization/automation/windmill/document-portal.json",
+          "type": "app"
+        }
+      ]
     },
-    "storage": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "purpose": "Document metadata, processing jobs, workflows, and audit trails",
-        "initialization": [
-          {
-            "file": "initialization/storage/postgres/schema.sql",
-            "type": "script"
-          },
-          {
-            "file": "initialization/storage/postgres/seed.sql",
-            "type": "script"
-          }
-        ]
-      },
-      "minio": {
-        "type": "minio",
-        "enabled": true,
-        "required": true,
-        "purpose": "Encrypted document storage with job-based organization and versioning"
-      },
-      "qdrant": {
-        "type": "qdrant",
-        "enabled": true,
-        "required": false,
-        "purpose": "Vector database for semantic search of document content and metadata"
-      },
-      "vault": {
-        "type": "vault",
-        "enabled": true,
-        "required": true,
-        "purpose": "Encryption key management, access control, and audit trail for document security"
-      }
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": true,
+      "models": [
+        "llama3.2",
+        "mistral",
+        "nomic-embed-text"
+      ]
+    },
+    "unstructured-io": {
+      "type": "unstructured-io",
+      "enabled": true,
+      "required": true,
+      "purpose": "Document parsing and content extraction from various formats (PDF, DOCX, images, etc.)"
+    },
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Document metadata, processing jobs, workflows, and audit trails",
+      "initialization": [
+        {
+          "file": "initialization/storage/postgres/schema.sql",
+          "type": "script"
+        },
+        {
+          "file": "initialization/storage/postgres/seed.sql",
+          "type": "script"
+        }
+      ]
+    },
+    "minio": {
+      "type": "minio",
+      "enabled": true,
+      "required": true,
+      "purpose": "Encrypted document storage with job-based organization and versioning"
+    },
+    "qdrant": {
+      "type": "qdrant",
+      "enabled": true,
+      "required": false,
+      "purpose": "Vector database for semantic search of document content and metadata"
+    },
+    "vault": {
+      "type": "vault",
+      "enabled": true,
+      "required": true,
+      "purpose": "Encryption key management, access control, and audit trail for document security"
     }
   },
   "lifecycle": {

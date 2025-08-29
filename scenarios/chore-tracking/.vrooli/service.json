@@ -41,57 +41,53 @@
     }
   },
   "resources": {
-    "automation": {
-      "n8n": {
-        "type": "n8n",
-        "enabled": true,
-        "required": true,
-        "shared_workflows": [
-          "ollama"
-        ],
-        "initialization": [
-          {
-            "file": "initialization/n8n/chore-scheduler.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/points-calculator.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/achievement-tracker.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/reward-manager.json",
-            "type": "workflow"
-          }
-        ]
-      }
+    "n8n": {
+      "type": "n8n",
+      "enabled": true,
+      "required": true,
+      "shared_workflows": [
+        "ollama"
+      ],
+      "initialization": [
+        {
+          "file": "initialization/n8n/chore-scheduler.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/points-calculator.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/achievement-tracker.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/reward-manager.json",
+          "type": "workflow"
+        }
+      ]
     },
-    "storage": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "purpose": "Store users, chores, points, achievements, rewards, and schedules",
-        "initialization": [
-          {
-            "file": "initialization/postgres/schema.sql",
-            "type": "schema"
-          },
-          {
-            "file": "initialization/postgres/seed.sql",
-            "type": "seed"
-          }
-        ]
-      },
-      "redis": {
-        "type": "redis",
-        "enabled": true,
-        "required": false,
-        "purpose": "Cache leaderboard, active sessions, and real-time point updates"
-      }
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Store users, chores, points, achievements, rewards, and schedules",
+      "initialization": [
+        {
+          "file": "initialization/postgres/schema.sql",
+          "type": "schema"
+        },
+        {
+          "file": "initialization/postgres/seed.sql",
+          "type": "seed"
+        }
+      ]
+    },
+    "redis": {
+      "type": "redis",
+      "enabled": true,
+      "required": false,
+      "purpose": "Cache leaderboard, active sessions, and real-time point updates"
     }
   },
   "lifecycle": {

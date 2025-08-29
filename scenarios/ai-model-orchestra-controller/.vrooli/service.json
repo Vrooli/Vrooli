@@ -38,56 +38,50 @@
     }
   },
   "resources": {
-    "automation": {
-      "node_red": {
-        "type": "node_red",
-        "enabled": true,
-        "required": true,
-        "initialization": [
-          {
-            "file": "initialization/workflows/orchestrator-main.json",
-            "type": "flow"
-          },
-          {
-            "file": "initialization/workflows/resource-monitor.json",
-            "type": "flow"
-          }
-        ]
-      }
+    "node_red": {
+      "type": "node_red",
+      "enabled": true,
+      "required": true,
+      "initialization": [
+        {
+          "file": "initialization/workflows/orchestrator-main.json",
+          "type": "flow"
+        },
+        {
+          "file": "initialization/workflows/resource-monitor.json",
+          "type": "flow"
+        }
+      ]
     },
-    "ai": {
-      "ollama": {
-        "type": "ollama",
-        "enabled": true,
-        "required": true,
-        "models": [
-          "llama3.2:1b",
-          "llama3.2:3b",
-          "llama3.2:8b",
-          "codellama:7b",
-          "nomic-embed-text"
-        ]
-      }
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": true,
+      "models": [
+        "llama3.2:1b",
+        "llama3.2:3b",
+        "llama3.2:8b",
+        "codellama:7b",
+        "nomic-embed-text"
+      ]
     },
-    "storage": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "purpose": "orchestration metrics and model performance data",
-        "initialization": [
-          {
-            "file": "initialization/scripts/setup.sh",
-            "type": "script"
-          }
-        ]
-      },
-      "redis": {
-        "type": "redis",
-        "enabled": true,
-        "required": true,
-        "purpose": "real-time orchestration events and caching"
-      }
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "orchestration metrics and model performance data",
+      "initialization": [
+        {
+          "file": "initialization/scripts/setup.sh",
+          "type": "script"
+        }
+      ]
+    },
+    "redis": {
+      "type": "redis",
+      "enabled": true,
+      "required": true,
+      "purpose": "real-time orchestration events and caching"
     }
   },
   "endpoints": {

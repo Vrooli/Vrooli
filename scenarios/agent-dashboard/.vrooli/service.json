@@ -22,62 +22,56 @@
     "license": "MIT"
   },
   "resources": {
-    "automation": {
-      "n8n": {
-        "type": "n8n",
-        "enabled": true,
-        "required": true,
-        "initialization": [
-          {
-            "file": "initialization/n8n/agent-status-monitor.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/agent-health-checker.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/agent-orchestrator.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/multi-agent-coordinator.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/agent-realtime-monitor.json",
-            "type": "workflow"
-          }
-        ]
-      }
+    "n8n": {
+      "type": "n8n",
+      "enabled": true,
+      "required": true,
+      "initialization": [
+        {
+          "file": "initialization/n8n/agent-status-monitor.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/agent-health-checker.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/agent-orchestrator.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/multi-agent-coordinator.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/agent-realtime-monitor.json",
+          "type": "workflow"
+        }
+      ]
     },
-    "storage": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "initialization": [
-          {
-            "file": "initialization/postgres/schema.sql",
-            "type": "schema"
-          }
-        ]
-      },
-      "redis": {
-        "type": "redis",
-        "enabled": true,
-        "required": true
-      }
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "initialization": [
+        {
+          "file": "initialization/postgres/schema.sql",
+          "type": "schema"
+        }
+      ]
     },
-    "ai": {
-      "ollama": {
-        "type": "ollama",
-        "enabled": true,
-        "required": false,
-        "models": [
-          "llama3.2:3b"
-        ]
-      }
+    "redis": {
+      "type": "redis",
+      "enabled": true,
+      "required": true
+    },
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": false,
+      "models": [
+        "llama3.2:3b"
+      ]
     }
   },
   "ports": {

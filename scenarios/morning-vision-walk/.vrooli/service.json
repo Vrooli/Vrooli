@@ -41,67 +41,63 @@
     }
   },
   "resources": {
-    "automation": {
-      "n8n": {
-        "type": "n8n",
-        "enabled": true,
-        "required": true,
-        "shared_workflows": [
-          "ollama",
-          "chain-of-thought-orchestrator",
-          "stream-of-consciousness",
-          "embedding-generator",
-          "universal-rag-pipeline"
-        ],
-        "initialization": [
-          {
-            "file": "initialization/n8n/vision-conversation.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/context-gatherer.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/daily-planning.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/task-prioritizer.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/insight-generator.json",
-            "type": "workflow"
-          }
-        ]
-      }
+    "n8n": {
+      "type": "n8n",
+      "enabled": true,
+      "required": true,
+      "shared_workflows": [
+        "ollama",
+        "chain-of-thought-orchestrator",
+        "stream-of-consciousness",
+        "embedding-generator",
+        "universal-rag-pipeline"
+      ],
+      "initialization": [
+        {
+          "file": "initialization/n8n/vision-conversation.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/context-gatherer.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/daily-planning.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/task-prioritizer.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/insight-generator.json",
+          "type": "workflow"
+        }
+      ]
     },
-    "storage": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "purpose": "Store conversations, insights, plans, and progress tracking",
-        "initialization": [
-          {
-            "file": "initialization/postgres/schema.sql",
-            "type": "schema"
-          }
-        ]
-      },
-      "redis": {
-        "type": "redis",
-        "enabled": true,
-        "required": false,
-        "purpose": "Cache current conversation state and real-time audio streaming"
-      },
-      "qdrant": {
-        "type": "qdrant",
-        "enabled": true,
-        "required": true,
-        "purpose": "Store embeddings of past conversations and insights for context retrieval"
-      }
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Store conversations, insights, plans, and progress tracking",
+      "initialization": [
+        {
+          "file": "initialization/postgres/schema.sql",
+          "type": "schema"
+        }
+      ]
+    },
+    "redis": {
+      "type": "redis",
+      "enabled": true,
+      "required": false,
+      "purpose": "Cache current conversation state and real-time audio streaming"
+    },
+    "qdrant": {
+      "type": "qdrant",
+      "enabled": true,
+      "required": true,
+      "purpose": "Store embeddings of past conversations and insights for context retrieval"
     }
   },
   "lifecycle": {

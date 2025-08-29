@@ -27,21 +27,17 @@
     }
   },
   "resources": {
-    "agents": {
-      "claude-code": {
-        "type": "claude-code",
-        "enabled": true,
-        "required": true,
-        "purpose": "AI-powered scenario copying and resource integration"
-      }
+    "claude-code": {
+      "type": "claude-code",
+      "enabled": true,
+      "required": true,
+      "purpose": "AI-powered scenario copying and resource integration"
     },
-    "storage": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "purpose": "experiment tracking and results storage"
-      }
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "experiment tracking and results storage"
     }
   },
   "lifecycle": {

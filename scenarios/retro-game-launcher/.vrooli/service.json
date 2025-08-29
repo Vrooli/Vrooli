@@ -35,47 +35,41 @@
     }
   },
   "resources": {
-    "storage": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "purpose": "Store game metadata, user progress, and settings",
-        "initialization": [
-          {
-            "file": "initialization/storage/postgres/schema.sql",
-            "type": "script"
-          },
-          {
-            "file": "initialization/storage/postgres/seed.sql",
-            "type": "script"
-          }
-        ]
-      }
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Store game metadata, user progress, and settings",
+      "initialization": [
+        {
+          "file": "initialization/storage/postgres/schema.sql",
+          "type": "script"
+        },
+        {
+          "file": "initialization/storage/postgres/seed.sql",
+          "type": "script"
+        }
+      ]
     },
-    "automation": {
-      "n8n": {
-        "type": "n8n",
-        "enabled": true,
-        "required": true,
-        "initialization": [
-          {
-            "file": "initialization/automation/n8n/game-generation-workflow.json",
-            "type": "workflow"
-          }
-        ]
-      }
+    "n8n": {
+      "type": "n8n",
+      "enabled": true,
+      "required": true,
+      "initialization": [
+        {
+          "file": "initialization/automation/n8n/game-generation-workflow.json",
+          "type": "workflow"
+        }
+      ]
     },
-    "ai": {
-      "ollama": {
-        "type": "ollama",
-        "enabled": true,
-        "required": true,
-        "models": [
-          "llama3.2",
-          "codellama"
-        ]
-      }
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": true,
+      "models": [
+        "llama3.2",
+        "codellama"
+      ]
     }
   },
   "sharedWorkflows": {

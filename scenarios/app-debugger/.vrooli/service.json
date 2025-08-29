@@ -39,64 +39,60 @@
     }
   },
   "resources": {
-    "automation": {
-      "n8n": {
-        "type": "n8n",
-        "enabled": true,
-        "required": true,
-        "shared_workflows": [
-          "ollama",
-          "rate-limiter"
-        ],
-        "initialization": [
-          {
-            "file": "initialization/n8n/error-analyzer.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/fix-suggester.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/log-monitor.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/performance-profiler.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/debug-orchestrator.json",
-            "type": "workflow"
-          }
-        ]
-      }
+    "n8n": {
+      "type": "n8n",
+      "enabled": true,
+      "required": true,
+      "shared_workflows": [
+        "ollama",
+        "rate-limiter"
+      ],
+      "initialization": [
+        {
+          "file": "initialization/n8n/error-analyzer.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/fix-suggester.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/log-monitor.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/performance-profiler.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/debug-orchestrator.json",
+          "type": "workflow"
+        }
+      ]
     },
-    "storage": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "purpose": "Store debug sessions, error logs, performance metrics, and fix history",
-        "initialization": [
-          {
-            "file": "initialization/postgres/schema.sql",
-            "type": "schema"
-          }
-        ]
-      },
-      "redis": {
-        "type": "redis",
-        "enabled": true,
-        "required": true,
-        "purpose": "Cache real-time debugging data, performance metrics, and active session state"
-      },
-      "questdb": {
-        "type": "questdb",
-        "enabled": true,
-        "required": false,
-        "purpose": "Time-series storage for performance metrics and error frequency analysis"
-      }
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Store debug sessions, error logs, performance metrics, and fix history",
+      "initialization": [
+        {
+          "file": "initialization/postgres/schema.sql",
+          "type": "schema"
+        }
+      ]
+    },
+    "redis": {
+      "type": "redis",
+      "enabled": true,
+      "required": true,
+      "purpose": "Cache real-time debugging data, performance metrics, and active session state"
+    },
+    "questdb": {
+      "type": "questdb",
+      "enabled": true,
+      "required": false,
+      "purpose": "Time-series storage for performance metrics and error frequency analysis"
     }
   },
   "lifecycle": {
@@ -107,7 +103,9 @@
         "checks": [
           {
             "type": "binaries",
-            "targets": ["api/app-debugger"]
+            "targets": [
+              "api/app-debugger"
+            ]
           },
           {
             "type": "cli",
@@ -115,7 +113,9 @@
           },
           {
             "type": "dependencies",
-            "paths": ["ui/package.json"]
+            "paths": [
+              "ui/package.json"
+            ]
           },
           {
             "type": "resources",

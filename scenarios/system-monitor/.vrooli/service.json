@@ -61,65 +61,55 @@
     }
   },
   "resources": {
-    "storage": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "purpose": "store metrics, thresholds, investigations, and reports"
-      },
-      "questdb": {
-        "type": "questdb",
-        "enabled": true,
-        "required": true,
-        "purpose": "time series data for metrics and performance analytics"
-      },
-      "redis": {
-        "type": "redis",
-        "enabled": true,
-        "required": true,
-        "purpose": "real-time alerts and caching"
-      }
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "store metrics, thresholds, investigations, and reports"
     },
-    "automation": {
-      "n8n": {
-        "type": "n8n",
-        "enabled": true,
-        "required": true
-      },
-      "node-red": {
-        "type": "node-red",
-        "enabled": true,
-        "required": true,
-        "purpose": "anomaly detection flows"
-      }
+    "questdb": {
+      "type": "questdb",
+      "enabled": true,
+      "required": true,
+      "purpose": "time series data for metrics and performance analytics"
     },
-    "ai": {
-      "ollama": {
-        "type": "ollama",
-        "enabled": true,
-        "required": true,
-        "models": [
-          "llama3.2:3b"
-        ],
-        "purpose": "anomaly investigation and analysis"
-      }
+    "redis": {
+      "type": "redis",
+      "enabled": true,
+      "required": true,
+      "purpose": "real-time alerts and caching"
     },
-    "agents": {
-      "claude-code": {
-        "type": "claude-code",
-        "enabled": true,
-        "required": false,
-        "purpose": "deep system investigation"
-      }
+    "n8n": {
+      "type": "n8n",
+      "enabled": true,
+      "required": true
     },
-    "visualization": {
-      "grafana": {
-        "type": "grafana",
-        "enabled": true,
-        "required": false,
-        "purpose": "advanced metrics visualization"
-      }
+    "node-red": {
+      "type": "node-red",
+      "enabled": true,
+      "required": true,
+      "purpose": "anomaly detection flows"
+    },
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": true,
+      "models": [
+        "llama3.2:3b"
+      ],
+      "purpose": "anomaly investigation and analysis"
+    },
+    "claude-code": {
+      "type": "claude-code",
+      "enabled": true,
+      "required": false,
+      "purpose": "deep system investigation"
+    },
+    "grafana": {
+      "type": "grafana",
+      "enabled": true,
+      "required": false,
+      "purpose": "advanced metrics visualization"
     }
   },
   "initialization": {

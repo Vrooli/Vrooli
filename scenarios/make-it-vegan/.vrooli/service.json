@@ -39,44 +39,38 @@
     }
   },
   "resources": {
-    "automation": {
-      "n8n": {
-        "type": "n8n",
-        "enabled": true,
-        "required": true,
-        "initialization": [
-          {
-            "file": "initialization/n8n/vegan-checker.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/alternative-finder.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/recipe-veganizer.json",
-            "type": "workflow"
-          }
-        ]
-      }
+    "n8n": {
+      "type": "n8n",
+      "enabled": true,
+      "required": true,
+      "initialization": [
+        {
+          "file": "initialization/n8n/vegan-checker.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/alternative-finder.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/recipe-veganizer.json",
+          "type": "workflow"
+        }
+      ]
     },
-    "ai": {
-      "ollama": {
-        "type": "ollama",
-        "enabled": true,
-        "required": true,
-        "models": [
-          "llama3.2:3b"
-        ]
-      }
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": true,
+      "models": [
+        "llama3.2:3b"
+      ]
     },
-    "storage": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": false,
-        "purpose": "Store vegan food database and user preferences"
-      }
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": false,
+      "purpose": "Store vegan food database and user preferences"
     }
   },
   "lifecycle": {

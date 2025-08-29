@@ -37,103 +37,97 @@
     }
   },
   "resources": {
-    "automation": {
-      "n8n": {
-        "type": "n8n",
-        "enabled": true,
-        "required": true,
-        "initialization": [
-          {
-            "file": "initialization/automation/n8n/main-workflow.json",
-            "type": "workflow"
-          }
-        ],
-        "sharedWorkflows": [
-          "ollama",
-          "embedding-generator"
-        ]
-      },
-      "windmill": {
-        "type": "windmill",
-        "enabled": true,
-        "required": true,
-        "initialization": [
-          {
-            "file": "initialization/automation/windmill/windmill-app.json",
-            "type": "app"
-          }
-        ]
-      },
-      "comfyui": {
-        "type": "comfyui",
-        "enabled": true,
-        "required": true,
-        "purpose": "AI image generation workflows",
-        "initialization": [
-          {
-            "file": "initialization/workflows/comfyui/brand-workflow.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/workflows/comfyui/qc-workflow.json",
-            "type": "workflow"
-          }
-        ]
-      }
+    "n8n": {
+      "type": "n8n",
+      "enabled": true,
+      "required": true,
+      "initialization": [
+        {
+          "file": "initialization/automation/n8n/main-workflow.json",
+          "type": "workflow"
+        }
+      ],
+      "sharedWorkflows": [
+        "ollama",
+        "embedding-generator"
+      ]
     },
-    "ai": {
-      "ollama": {
-        "type": "ollama",
-        "enabled": true,
-        "required": true,
-        "models": [
-          "llama3.1:8b",
-          "nomic-embed-text",
-          "llava:13b"
-        ]
-      },
-      "whisper": {
-        "type": "whisper",
-        "enabled": true,
-        "required": true,
-        "purpose": "voice-to-text for image briefings"
-      }
+    "windmill": {
+      "type": "windmill",
+      "enabled": true,
+      "required": true,
+      "initialization": [
+        {
+          "file": "initialization/automation/windmill/windmill-app.json",
+          "type": "app"
+        }
+      ]
     },
-    "storage": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "purpose": "campaign and brand data",
-        "initialization": [
-          {
-            "file": "initialization/storage/postgres/schema.sql",
-            "type": "script"
-          },
-          {
-            "file": "initialization/storage/postgres/seed.sql",
-            "type": "script"
-          }
-        ]
-      },
-      "qdrant": {
-        "type": "qdrant",
-        "enabled": true,
-        "required": false,
-        "purpose": "style and brand vector embeddings"
-      },
-      "minio": {
-        "type": "minio",
-        "enabled": true,
-        "required": true,
-        "purpose": "generated images and brand assets storage"
-      },
-      "vault": {
-        "type": "vault",
-        "enabled": false,
-        "required": false,
-        "purpose": "API keys and secrets management"
-      }
+    "comfyui": {
+      "type": "comfyui",
+      "enabled": true,
+      "required": true,
+      "purpose": "AI image generation workflows",
+      "initialization": [
+        {
+          "file": "initialization/workflows/comfyui/brand-workflow.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/workflows/comfyui/qc-workflow.json",
+          "type": "workflow"
+        }
+      ]
+    },
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": true,
+      "models": [
+        "llama3.1:8b",
+        "nomic-embed-text",
+        "llava:13b"
+      ]
+    },
+    "whisper": {
+      "type": "whisper",
+      "enabled": true,
+      "required": true,
+      "purpose": "voice-to-text for image briefings"
+    },
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "campaign and brand data",
+      "initialization": [
+        {
+          "file": "initialization/storage/postgres/schema.sql",
+          "type": "script"
+        },
+        {
+          "file": "initialization/storage/postgres/seed.sql",
+          "type": "script"
+        }
+      ]
+    },
+    "qdrant": {
+      "type": "qdrant",
+      "enabled": true,
+      "required": false,
+      "purpose": "style and brand vector embeddings"
+    },
+    "minio": {
+      "type": "minio",
+      "enabled": true,
+      "required": true,
+      "purpose": "generated images and brand assets storage"
+    },
+    "vault": {
+      "type": "vault",
+      "enabled": false,
+      "required": false,
+      "purpose": "API keys and secrets management"
     }
   },
   "lifecycle": {

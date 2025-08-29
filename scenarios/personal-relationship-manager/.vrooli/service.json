@@ -38,62 +38,56 @@
     }
   },
   "resources": {
-    "automation": {
-      "n8n": {
-        "type": "n8n",
-        "enabled": true,
-        "required": true,
-        "initialization": [
-          {
-            "file": "initialization/n8n/birthday-reminder.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/gift-suggester.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/relationship-insights.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/contact-enricher.json",
-            "type": "workflow"
-          }
-        ]
-      }
+    "n8n": {
+      "type": "n8n",
+      "enabled": true,
+      "required": true,
+      "initialization": [
+        {
+          "file": "initialization/n8n/birthday-reminder.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/gift-suggester.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/relationship-insights.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/contact-enricher.json",
+          "type": "workflow"
+        }
+      ]
     },
-    "storage": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "purpose": "Store relationship data, contacts, and interaction history",
-        "initialization": [
-          {
-            "file": "initialization/postgres/schema.sql",
-            "type": "script"
-          },
-          {
-            "file": "initialization/postgres/seed.sql",
-            "type": "script"
-          }
-        ]
-      },
-      "redis": {
-        "type": "redis",
-        "enabled": true,
-        "required": false,
-        "purpose": "Cache session data and reminders"
-      }
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Store relationship data, contacts, and interaction history",
+      "initialization": [
+        {
+          "file": "initialization/postgres/schema.sql",
+          "type": "script"
+        },
+        {
+          "file": "initialization/postgres/seed.sql",
+          "type": "script"
+        }
+      ]
     },
-    "ai": {
-      "ollama": {
-        "type": "ollama",
-        "enabled": true,
-        "required": true,
-        "purpose": "AI-powered gift suggestions and relationship insights"
-      }
+    "redis": {
+      "type": "redis",
+      "enabled": true,
+      "required": false,
+      "purpose": "Cache session data and reminders"
+    },
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": true,
+      "purpose": "AI-powered gift suggestions and relationship insights"
     }
   },
   "lifecycle": {

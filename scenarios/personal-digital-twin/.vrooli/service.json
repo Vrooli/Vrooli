@@ -39,68 +39,62 @@
     }
   },
   "resources": {
-    "automation": {
-      "n8n": {
-        "type": "n8n",
-        "enabled": true,
-        "required": true,
-        "initialization": [
-          {
-            "file": "initialization/n8n/data-ingestion.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/model-training.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/persona-chat.json",
-            "type": "workflow"
-          }
-        ]
-      }
+    "n8n": {
+      "type": "n8n",
+      "enabled": true,
+      "required": true,
+      "initialization": [
+        {
+          "file": "initialization/n8n/data-ingestion.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/model-training.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/persona-chat.json",
+          "type": "workflow"
+        }
+      ]
     },
-    "ai": {
-      "ollama": {
-        "type": "ollama",
-        "enabled": true,
-        "required": true,
-        "models": [
-          "llama3.2",
-          "mistral",
-          "nomic-embed-text"
-        ]
-      }
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": true,
+      "models": [
+        "llama3.2",
+        "mistral",
+        "nomic-embed-text"
+      ]
     },
-    "storage": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "purpose": "Store user data, conversation history, and persona configuration",
-        "initialization": [
-          {
-            "file": "initialization/postgres/schema.sql",
-            "type": "script"
-          },
-          {
-            "file": "initialization/postgres/seed.sql",
-            "type": "script"
-          }
-        ]
-      },
-      "qdrant": {
-        "type": "qdrant",
-        "enabled": true,
-        "required": true,
-        "purpose": "Vector database for semantic search of personal knowledge base, conversation patterns, and style embeddings",
-        "initialization": [
-          {
-            "file": "initialization/qdrant/collections.json",
-            "type": "config"
-          }
-        ]
-      }
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Store user data, conversation history, and persona configuration",
+      "initialization": [
+        {
+          "file": "initialization/postgres/schema.sql",
+          "type": "script"
+        },
+        {
+          "file": "initialization/postgres/seed.sql",
+          "type": "script"
+        }
+      ]
+    },
+    "qdrant": {
+      "type": "qdrant",
+      "enabled": true,
+      "required": true,
+      "purpose": "Vector database for semantic search of personal knowledge base, conversation patterns, and style embeddings",
+      "initialization": [
+        {
+          "file": "initialization/qdrant/collections.json",
+          "type": "config"
+        }
+      ]
     }
   },
   "lifecycle": {

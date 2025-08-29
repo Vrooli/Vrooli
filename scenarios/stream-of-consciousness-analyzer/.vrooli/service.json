@@ -39,83 +39,77 @@
     }
   },
   "resources": {
-    "automation": {
-      "n8n": {
-        "type": "n8n",
-        "enabled": true,
-        "required": true,
-        "shared_workflows": [
-          "chain-of-thought-orchestrator",
-          "embedding-generator",
-          "ollama",
-          "rate-limiter"
-        ],
-        "initialization": [
-          {
-            "file": "initialization/n8n/process-stream.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/organize-thoughts.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/extract-insights.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/campaign-context-builder.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/autonomous-thought-processor.json",
-            "type": "workflow"
-          }
-        ]
-      }
+    "n8n": {
+      "type": "n8n",
+      "enabled": true,
+      "required": true,
+      "shared_workflows": [
+        "chain-of-thought-orchestrator",
+        "embedding-generator",
+        "ollama",
+        "rate-limiter"
+      ],
+      "initialization": [
+        {
+          "file": "initialization/n8n/process-stream.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/organize-thoughts.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/extract-insights.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/campaign-context-builder.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/autonomous-thought-processor.json",
+          "type": "workflow"
+        }
+      ]
     },
-    "storage": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "purpose": "Store organized thoughts, insights, and campaigns",
-        "initialization": [
-          {
-            "file": "initialization/postgres/schema.sql",
-            "type": "script"
-          }
-        ]
-      },
-      "redis": {
-        "type": "redis",
-        "enabled": true,
-        "required": true,
-        "purpose": "Cache for real-time processing and session management"
-      },
-      "qdrant": {
-        "type": "qdrant",
-        "enabled": true,
-        "required": true,
-        "purpose": "Vector storage for semantic search across thoughts and insights",
-        "initialization": [
-          {
-            "file": "initialization/qdrant/collections.json",
-            "type": "collections"
-          }
-        ]
-      }
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Store organized thoughts, insights, and campaigns",
+      "initialization": [
+        {
+          "file": "initialization/postgres/schema.sql",
+          "type": "script"
+        }
+      ]
     },
-    "ai": {
-      "ollama": {
-        "type": "ollama",
-        "enabled": true,
-        "required": true,
-        "models": [
-          "llama3.2:3b",
-          "nomic-embed-text"
-        ]
-      }
+    "redis": {
+      "type": "redis",
+      "enabled": true,
+      "required": true,
+      "purpose": "Cache for real-time processing and session management"
+    },
+    "qdrant": {
+      "type": "qdrant",
+      "enabled": true,
+      "required": true,
+      "purpose": "Vector storage for semantic search across thoughts and insights",
+      "initialization": [
+        {
+          "file": "initialization/qdrant/collections.json",
+          "type": "collections"
+        }
+      ]
+    },
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": true,
+      "models": [
+        "llama3.2:3b",
+        "nomic-embed-text"
+      ]
     }
   },
   "lifecycle": {

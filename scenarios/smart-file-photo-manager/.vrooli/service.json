@@ -37,119 +37,113 @@
     }
   },
   "resources": {
-    "storage": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "purpose": "Store file metadata, processing history, and AI-generated suggestions",
-        "initialization": [
-          {
-            "file": "initialization/storage/postgres/schema.sql",
-            "type": "script"
-          },
-          {
-            "file": "initialization/storage/postgres/seed.sql",
-            "type": "script"
-          }
-        ]
-      },
-      "qdrant": {
-        "type": "qdrant",
-        "enabled": true,
-        "required": true,
-        "purpose": "Vector database for semantic file search, image similarity matching, and content embeddings",
-        "initialization": [
-          {
-            "file": "initialization/storage/qdrant/collections.json",
-            "type": "collection"
-          }
-        ]
-      },
-      "minio": {
-        "type": "minio",
-        "enabled": true,
-        "required": true,
-        "purpose": "Object storage for original files, processed versions, and thumbnails",
-        "initialization": [
-          {
-            "file": "initialization/storage/minio/buckets.json",
-            "type": "bucket"
-          }
-        ]
-      },
-      "redis": {
-        "type": "redis",
-        "enabled": true,
-        "required": true,
-        "purpose": "Caching file metadata and processing job queue management"
-      }
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Store file metadata, processing history, and AI-generated suggestions",
+      "initialization": [
+        {
+          "file": "initialization/storage/postgres/schema.sql",
+          "type": "script"
+        },
+        {
+          "file": "initialization/storage/postgres/seed.sql",
+          "type": "script"
+        }
+      ]
     },
-    "ai": {
-      "ollama": {
-        "type": "ollama",
-        "enabled": true,
-        "required": true,
-        "models": [
-          "llava:13b",
-          "llama3.2",
-          "nomic-embed-text"
-        ]
-      },
-      "unstructured-io": {
-        "type": "unstructured-io",
-        "enabled": true,
-        "required": true,
-        "purpose": "Document text extraction and content parsing"
-      }
+    "qdrant": {
+      "type": "qdrant",
+      "enabled": true,
+      "required": true,
+      "purpose": "Vector database for semantic file search, image similarity matching, and content embeddings",
+      "initialization": [
+        {
+          "file": "initialization/storage/qdrant/collections.json",
+          "type": "collection"
+        }
+      ]
     },
-    "automation": {
-      "n8n": {
-        "type": "n8n",
-        "enabled": true,
-        "required": true,
-        "initialization": [
-          {
-            "file": "initialization/n8n/file-embedding-generator.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/smart-image-analyzer.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/file-semantic-search.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/file-processor.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/document-processor.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/duplicate-detector.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/batch-processor.json",
-            "type": "workflow"
-          }
-        ]
-      },
-      "windmill": {
-        "type": "windmill",
-        "enabled": true,
-        "required": true,
-        "initialization": [
-          {
-            "file": "initialization/automation/windmill/apps/file-manager-ui.json",
-            "type": "app"
-          }
-        ]
-      }
+    "minio": {
+      "type": "minio",
+      "enabled": true,
+      "required": true,
+      "purpose": "Object storage for original files, processed versions, and thumbnails",
+      "initialization": [
+        {
+          "file": "initialization/storage/minio/buckets.json",
+          "type": "bucket"
+        }
+      ]
+    },
+    "redis": {
+      "type": "redis",
+      "enabled": true,
+      "required": true,
+      "purpose": "Caching file metadata and processing job queue management"
+    },
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": true,
+      "models": [
+        "llava:13b",
+        "llama3.2",
+        "nomic-embed-text"
+      ]
+    },
+    "unstructured-io": {
+      "type": "unstructured-io",
+      "enabled": true,
+      "required": true,
+      "purpose": "Document text extraction and content parsing"
+    },
+    "n8n": {
+      "type": "n8n",
+      "enabled": true,
+      "required": true,
+      "initialization": [
+        {
+          "file": "initialization/n8n/file-embedding-generator.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/smart-image-analyzer.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/file-semantic-search.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/file-processor.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/document-processor.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/duplicate-detector.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/batch-processor.json",
+          "type": "workflow"
+        }
+      ]
+    },
+    "windmill": {
+      "type": "windmill",
+      "enabled": true,
+      "required": true,
+      "initialization": [
+        {
+          "file": "initialization/automation/windmill/apps/file-manager-ui.json",
+          "type": "app"
+        }
+      ]
     }
   },
   "sharedWorkflows": [

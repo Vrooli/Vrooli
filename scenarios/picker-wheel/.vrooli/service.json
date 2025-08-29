@@ -38,55 +38,49 @@
     }
   },
   "resources": {
-    "automation": {
-      "n8n": {
-        "type": "n8n",
-        "enabled": true,
-        "required": true,
-        "initialization": [
-          {
-            "file": "initialization/n8n/wheel-spinner.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/wheel-manager.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/history-tracker.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/option-suggester.json",
-            "type": "workflow"
-          }
-        ]
-      }
+    "n8n": {
+      "type": "n8n",
+      "enabled": true,
+      "required": true,
+      "initialization": [
+        {
+          "file": "initialization/n8n/wheel-spinner.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/wheel-manager.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/history-tracker.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/option-suggester.json",
+          "type": "workflow"
+        }
+      ]
     },
-    "ai": {
-      "ollama": {
-        "type": "ollama",
-        "enabled": true,
-        "required": false,
-        "purpose": "Intelligent option suggestions via shared ollama workflow",
-        "models": [
-          "phi3.5:3.8b"
-        ]
-      }
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": false,
+      "purpose": "Intelligent option suggestions via shared ollama workflow",
+      "models": [
+        "phi3.5:3.8b"
+      ]
     },
-    "storage": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "purpose": "Store wheels, options, and spin history",
-        "initialization": [
-          {
-            "file": "initialization/postgres/schema.sql",
-            "type": "script"
-          }
-        ]
-      }
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Store wheels, options, and spin history",
+      "initialization": [
+        {
+          "file": "initialization/postgres/schema.sql",
+          "type": "script"
+        }
+      ]
     }
   },
   "lifecycle": {

@@ -37,54 +37,48 @@
     }
   },
   "resources": {
-    "automation": {
-      "n8n": {
-        "type": "n8n",
-        "enabled": true,
-        "required": true,
-        "initialization": [
-          {
-            "file": "initialization/n8n/typing-coach.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/typing-stats-processor.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/adaptive-text-generator.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/leaderboard-manager.json",
-            "type": "workflow"
-          }
-        ]
-      }
+    "n8n": {
+      "type": "n8n",
+      "enabled": true,
+      "required": true,
+      "initialization": [
+        {
+          "file": "initialization/n8n/typing-coach.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/typing-stats-processor.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/adaptive-text-generator.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/leaderboard-manager.json",
+          "type": "workflow"
+        }
+      ]
     },
-    "ai": {
-      "ollama": {
-        "type": "ollama",
-        "enabled": true,
-        "required": false,
-        "models": [
-          "llama3.2"
-        ]
-      }
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": false,
+      "models": [
+        "llama3.2"
+      ]
     },
-    "storage": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "purpose": "Store user progress, typing history, and leaderboard data",
-        "initialization": [
-          {
-            "file": "initialization/postgres/schema.sql",
-            "type": "script"
-          }
-        ]
-      }
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Store user progress, typing history, and leaderboard data",
+      "initialization": [
+        {
+          "file": "initialization/postgres/schema.sql",
+          "type": "script"
+        }
+      ]
     }
   },
   "lifecycle": {

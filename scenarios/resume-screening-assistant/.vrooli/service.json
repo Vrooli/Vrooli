@@ -41,61 +41,55 @@
     }
   },
   "resources": {
-    "automation": {
-      "n8n": {
-        "type": "n8n",
-        "enabled": true,
-        "required": true,
-        "initialization": [
-          {
-            "file": "initialization/n8n/job-management-workflow.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/resume-processing-pipeline.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/semantic-search-workflow.json",
-            "type": "workflow"
-          }
-        ]
-      }
+    "n8n": {
+      "type": "n8n",
+      "enabled": true,
+      "required": true,
+      "initialization": [
+        {
+          "file": "initialization/n8n/job-management-workflow.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/resume-processing-pipeline.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/semantic-search-workflow.json",
+          "type": "workflow"
+        }
+      ]
     },
-    "ai": {
-      "ollama": {
-        "type": "ollama",
-        "enabled": true,
-        "required": true,
-        "models": [
-          "llama3.2",
-          "nomic-embed-text"
-        ]
-      }
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": true,
+      "models": [
+        "llama3.2",
+        "nomic-embed-text"
+      ]
     },
-    "storage": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "purpose": "resume data, job listings, and assessment results",
-        "initialization": [
-          {
-            "file": "initialization/postgres/schema.sql",
-            "type": "script"
-          },
-          {
-            "file": "initialization/postgres/seed.sql",
-            "type": "script"
-          }
-        ]
-      },
-      "qdrant": {
-        "type": "qdrant",
-        "enabled": true,
-        "required": true,
-        "purpose": "semantic search and candidate-job matching"
-      }
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "resume data, job listings, and assessment results",
+      "initialization": [
+        {
+          "file": "initialization/postgres/schema.sql",
+          "type": "script"
+        },
+        {
+          "file": "initialization/postgres/seed.sql",
+          "type": "script"
+        }
+      ]
+    },
+    "qdrant": {
+      "type": "qdrant",
+      "enabled": true,
+      "required": true,
+      "purpose": "semantic search and candidate-job matching"
     }
   },
   "lifecycle": {

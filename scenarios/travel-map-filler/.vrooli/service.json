@@ -35,50 +35,46 @@
     }
   },
   "resources": {
-    "automation": {
-      "n8n": {
-        "type": "n8n",
-        "enabled": true,
-        "required": true,
-        "initialization": [
-          {
-            "file": "initialization/n8n/travel-tracker.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/travel-search.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/travel-list.json",
-            "type": "workflow"
-          }
-        ]
-      }
+    "n8n": {
+      "type": "n8n",
+      "enabled": true,
+      "required": true,
+      "initialization": [
+        {
+          "file": "initialization/n8n/travel-tracker.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/travel-search.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/travel-list.json",
+          "type": "workflow"
+        }
+      ]
     },
-    "storage": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "initialization": [
-          {
-            "file": "initialization/postgres/schema.sql",
-            "type": "schema"
-          }
-        ]
-      },
-      "qdrant": {
-        "type": "qdrant",
-        "enabled": true,
-        "required": true,
-        "initialization": [
-          {
-            "file": "initialization/qdrant/collections.json",
-            "type": "collection"
-          }
-        ]
-      }
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "initialization": [
+        {
+          "file": "initialization/postgres/schema.sql",
+          "type": "schema"
+        }
+      ]
+    },
+    "qdrant": {
+      "type": "qdrant",
+      "enabled": true,
+      "required": true,
+      "initialization": [
+        {
+          "file": "initialization/qdrant/collections.json",
+          "type": "collection"
+        }
+      ]
     }
   },
   "ui": {

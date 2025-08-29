@@ -31,65 +31,57 @@
     }
   },
   "resources": {
-    "automation": {
-      "n8n": {
-        "type": "n8n",
-        "enabled": true,
-        "required": true,
-        "shared_workflows": [
-          "ollama",
-          "claude-code-executor",
-          "workflow-creator-fixer",
-          "file-list-writer"
-        ],
-        "initialization": [
-          {
-            "file": "initialization/n8n/scenario-generator-orchestrator.json",
-            "type": "workflow",
-            "description": "Main orchestration workflow for scenario generation"
-          }
-        ]
-      }
+    "n8n": {
+      "type": "n8n",
+      "enabled": true,
+      "required": true,
+      "shared_workflows": [
+        "ollama",
+        "claude-code-executor",
+        "workflow-creator-fixer",
+        "file-list-writer"
+      ],
+      "initialization": [
+        {
+          "file": "initialization/n8n/scenario-generator-orchestrator.json",
+          "type": "workflow",
+          "description": "Main orchestration workflow for scenario generation"
+        }
+      ]
     },
-    "agents": {
-      "claude-code": {
-        "type": "claude-code",
-        "enabled": true,
-        "required": true,
-        "purpose": "AI-powered scenario generation and code creation"
-      }
+    "claude-code": {
+      "type": "claude-code",
+      "enabled": true,
+      "required": true,
+      "purpose": "AI-powered scenario generation and code creation"
     },
-    "ai": {
-      "ollama": {
-        "type": "ollama",
-        "enabled": true,
-        "required": true,
-        "models": [
-          "phi3.5:3.8b",
-          "llama3.2",
-          "mistral"
-        ]
-      }
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": true,
+      "models": [
+        "phi3.5:3.8b",
+        "llama3.2",
+        "mistral"
+      ]
     },
-    "storage": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "purpose": "scenario metadata and generation tracking",
-        "initialization": [
-          {
-            "file": "initialization/postgres/schema.sql",
-            "type": "script"
-          }
-        ]
-      },
-      "redis": {
-        "type": "redis",
-        "enabled": true,
-        "required": false,
-        "purpose": "Cache generation state and temporary workflow data"
-      }
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "scenario metadata and generation tracking",
+      "initialization": [
+        {
+          "file": "initialization/postgres/schema.sql",
+          "type": "script"
+        }
+      ]
+    },
+    "redis": {
+      "type": "redis",
+      "enabled": true,
+      "required": false,
+      "purpose": "Cache generation state and temporary workflow data"
     }
   },
   "lifecycle": {

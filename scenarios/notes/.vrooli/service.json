@@ -42,95 +42,89 @@
     }
   },
   "resources": {
-    "automation": {
-      "n8n": {
-        "type": "n8n",
-        "enabled": true,
-        "required": true,
-        "shared_workflows": [
-          "ollama",
-          "embedding-generator",
-          "semantic-search",
-          "structured-data-extractor",
-          "chain-of-thought-orchestrator",
-          "react-loop-engine",
-          "smart-semantic-search"
-        ],
-        "initialization": [
-          {
-            "file": "initialization/n8n/note-processor.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/smart-tagging.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/note-search.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/daily-summary.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/smart-suggestions.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/intelligent-note-analyzer.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/intelligent-note-linker.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/note-to-mindmap.json",
-            "type": "workflow"
-          }
-        ]
-      }
+    "n8n": {
+      "type": "n8n",
+      "enabled": true,
+      "required": true,
+      "shared_workflows": [
+        "ollama",
+        "embedding-generator",
+        "semantic-search",
+        "structured-data-extractor",
+        "chain-of-thought-orchestrator",
+        "react-loop-engine",
+        "smart-semantic-search"
+      ],
+      "initialization": [
+        {
+          "file": "initialization/n8n/note-processor.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/smart-tagging.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/note-search.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/daily-summary.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/smart-suggestions.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/intelligent-note-analyzer.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/intelligent-note-linker.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/note-to-mindmap.json",
+          "type": "workflow"
+        }
+      ]
     },
-    "storage": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "purpose": "Store notes, folders, tags, and user preferences",
-        "initialization": [
-          {
-            "file": "initialization/postgres/schema.sql",
-            "type": "schema"
-          }
-        ]
-      },
-      "qdrant": {
-        "type": "qdrant",
-        "enabled": true,
-        "required": true,
-        "purpose": "Vector storage for semantic search across notes",
-        "initialization": [
-          {
-            "file": "initialization/qdrant/collections.json",
-            "type": "collection"
-          }
-        ]
-      },
-      "redis": {
-        "type": "redis",
-        "enabled": true,
-        "required": false,
-        "purpose": "Cache recent notes and real-time collaboration"
-      }
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Store notes, folders, tags, and user preferences",
+      "initialization": [
+        {
+          "file": "initialization/postgres/schema.sql",
+          "type": "schema"
+        }
+      ]
     },
-    "ai": {
-      "ollama": {
-        "type": "ollama",
-        "enabled": true,
-        "required": true,
-        "purpose": "AI-powered note suggestions and summarization"
-      }
+    "qdrant": {
+      "type": "qdrant",
+      "enabled": true,
+      "required": true,
+      "purpose": "Vector storage for semantic search across notes",
+      "initialization": [
+        {
+          "file": "initialization/qdrant/collections.json",
+          "type": "collection"
+        }
+      ]
+    },
+    "redis": {
+      "type": "redis",
+      "enabled": true,
+      "required": false,
+      "purpose": "Cache recent notes and real-time collaboration"
+    },
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": true,
+      "purpose": "AI-powered note suggestions and summarization"
     }
   },
   "lifecycle": {
@@ -141,7 +135,9 @@
         "checks": [
           {
             "type": "binaries",
-            "targets": ["api/notes-api"]
+            "targets": [
+              "api/notes-api"
+            ]
           },
           {
             "type": "cli",
@@ -149,7 +145,9 @@
           },
           {
             "type": "dependencies",
-            "paths": ["ui/package.json"]
+            "paths": [
+              "ui/package.json"
+            ]
           },
           {
             "type": "resources",

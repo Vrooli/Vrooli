@@ -23,61 +23,53 @@
     ]
   },
   "resources": {
-    "automation": {
-      "n8n": {
-        "type": "n8n",
-        "enabled": true,
-        "required": true,
-        "initialization": [
-          {
-            "file": "initialization/automation/n8n/personalization-pipeline.json",
-            "type": "workflow"
-          }
-        ]
-      }
+    "n8n": {
+      "type": "n8n",
+      "enabled": true,
+      "required": true,
+      "initialization": [
+        {
+          "file": "initialization/automation/n8n/personalization-pipeline.json",
+          "type": "workflow"
+        }
+      ]
     },
-    "ai": {
-      "ollama": {
-        "type": "ollama",
-        "enabled": true,
-        "required": true,
-        "models": [
-          "llama3.2",
-          "codellama"
-        ]
-      }
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": true,
+      "models": [
+        "llama3.2",
+        "codellama"
+      ]
     },
-    "agents": {
-      "claude-code": {
-        "type": "claude-code",
-        "enabled": true,
-        "required": false,
-        "purpose": "modify app code based on personalization requirements"
-      }
+    "claude-code": {
+      "type": "claude-code",
+      "enabled": true,
+      "required": false,
+      "purpose": "modify app code based on personalization requirements"
     },
-    "storage": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "purpose": "app personalization metadata and configurations",
-        "initialization": [
-          {
-            "file": "initialization/storage/postgres/schema.sql",
-            "type": "script"
-          },
-          {
-            "file": "initialization/storage/postgres/seed.sql",
-            "type": "script"
-          }
-        ]
-      },
-      "minio": {
-        "type": "minio",
-        "enabled": true,
-        "required": false,
-        "purpose": "app versions and modification history storage"
-      }
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "app personalization metadata and configurations",
+      "initialization": [
+        {
+          "file": "initialization/storage/postgres/schema.sql",
+          "type": "script"
+        },
+        {
+          "file": "initialization/storage/postgres/seed.sql",
+          "type": "script"
+        }
+      ]
+    },
+    "minio": {
+      "type": "minio",
+      "enabled": true,
+      "required": false,
+      "purpose": "app versions and modification history storage"
     }
   },
   "ports": {

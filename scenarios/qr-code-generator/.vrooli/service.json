@@ -36,44 +36,40 @@
     }
   },
   "resources": {
-    "automation": {
-      "n8n": {
-        "type": "n8n",
-        "enabled": true,
-        "required": true,
-        "shared_workflows": [
-          "file-list-writer",
-          "ollama",
-          "intelligent-text-classifier",
-          "cache-manager"
-        ],
-        "initialization": [
-          {
-            "file": "initialization/n8n/qr-generator-workflow.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/batch-qr-processor.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/qr-art-generator.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/qr-puzzle-generator.json",
-            "type": "workflow"
-          }
-        ]
-      }
+    "n8n": {
+      "type": "n8n",
+      "enabled": true,
+      "required": true,
+      "shared_workflows": [
+        "file-list-writer",
+        "ollama",
+        "intelligent-text-classifier",
+        "cache-manager"
+      ],
+      "initialization": [
+        {
+          "file": "initialization/n8n/qr-generator-workflow.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/batch-qr-processor.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/qr-art-generator.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/qr-puzzle-generator.json",
+          "type": "workflow"
+        }
+      ]
     },
-    "storage": {
-      "redis": {
-        "type": "redis",
-        "enabled": true,
-        "required": true,
-        "purpose": "Cache generated QR codes and track batch jobs"
-      }
+    "redis": {
+      "type": "redis",
+      "enabled": true,
+      "required": true,
+      "purpose": "Cache generated QR codes and track batch jobs"
     }
   },
   "lifecycle": {

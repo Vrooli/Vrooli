@@ -42,86 +42,78 @@
     }
   },
   "resources": {
-    "automation": {
-      "n8n": {
-        "type": "n8n",
-        "enabled": true,
-        "required": true,
-        "shared_workflows": [
-          "ollama",
-          "embedding-generator",
-          "structured-data-extractor"
-        ],
-        "initialization": [
-          {
-            "file": "initialization/n8n/seo-audit.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/keyword-researcher.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/content-optimizer.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/competitor-analyzer.json",
-            "type": "workflow"
-          }
-        ]
-      }
+    "n8n": {
+      "type": "n8n",
+      "enabled": true,
+      "required": true,
+      "shared_workflows": [
+        "ollama",
+        "embedding-generator",
+        "structured-data-extractor"
+      ],
+      "initialization": [
+        {
+          "file": "initialization/n8n/seo-audit.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/keyword-researcher.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/content-optimizer.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/competitor-analyzer.json",
+          "type": "workflow"
+        }
+      ]
     },
-    "storage": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "purpose": "Store SEO audits, keyword data, rankings, and competitor analysis",
-        "initialization": [
-          {
-            "file": "initialization/postgres/schema.sql",
-            "type": "schema"
-          }
-        ]
-      },
-      "redis": {
-        "type": "redis",
-        "enabled": true,
-        "required": true,
-        "purpose": "Cache SEO analysis results and API responses"
-      },
-      "qdrant": {
-        "type": "qdrant",
-        "enabled": true,
-        "required": false,
-        "purpose": "Store content embeddings for semantic SEO analysis",
-        "initialization": [
-          {
-            "file": "initialization/qdrant/collections.json",
-            "type": "collection"
-          }
-        ]
-      }
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Store SEO audits, keyword data, rankings, and competitor analysis",
+      "initialization": [
+        {
+          "file": "initialization/postgres/schema.sql",
+          "type": "schema"
+        }
+      ]
     },
-    "ai": {
-      "ollama": {
-        "type": "ollama",
-        "enabled": true,
-        "required": true,
-        "models": [
-          "llama3.2:3b",
-          "nomic-embed-text"
-        ]
-      }
+    "redis": {
+      "type": "redis",
+      "enabled": true,
+      "required": true,
+      "purpose": "Cache SEO analysis results and API responses"
     },
-    "agents": {
-      "browserless": {
-        "type": "browserless",
-        "enabled": true,
-        "required": true,
-        "purpose": "Web crawling for SEO audits and competitor analysis"
-      }
+    "qdrant": {
+      "type": "qdrant",
+      "enabled": true,
+      "required": false,
+      "purpose": "Store content embeddings for semantic SEO analysis",
+      "initialization": [
+        {
+          "file": "initialization/qdrant/collections.json",
+          "type": "collection"
+        }
+      ]
+    },
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": true,
+      "models": [
+        "llama3.2:3b",
+        "nomic-embed-text"
+      ]
+    },
+    "browserless": {
+      "type": "browserless",
+      "enabled": true,
+      "required": true,
+      "purpose": "Web crawling for SEO audits and competitor analysis"
     }
   },
   "lifecycle": {

@@ -26,13 +26,11 @@
     }
   },
   "resources": {
-    "storage": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "purpose": "test data storage"
-      }
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "test data storage"
     }
   },
   "lifecycle": {
@@ -43,7 +41,9 @@
         "checks": [
           {
             "type": "dependencies",
-            "paths": ["package.json"]
+            "paths": [
+              "package.json"
+            ]
           },
           {
             "type": "resources",

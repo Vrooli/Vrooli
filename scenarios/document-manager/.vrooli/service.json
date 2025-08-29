@@ -35,110 +35,102 @@
     }
   },
   "resources": {
-    "storage": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "purpose": "Store application metadata, agent configurations, improvement queue, and audit logs",
-        "database": "document_manager",
-        "initialization": [
-          {
-            "file": "initialization/storage/postgres/schema.sql",
-            "type": "script"
-          },
-          {
-            "file": "initialization/storage/postgres/seed.sql",
-            "type": "script"
-          }
-        ]
-      },
-      "qdrant": {
-        "type": "qdrant",
-        "enabled": true,
-        "required": true,
-        "purpose": "Vector database for documentation embeddings, agent memory, and similarity pattern analysis",
-        "initialization": [
-          {
-            "file": "initialization/storage/qdrant/collections.json",
-            "type": "collections"
-          }
-        ]
-      },
-      "redis": {
-        "type": "redis",
-        "enabled": true,
-        "required": true,
-        "purpose": "Real-time messaging, notification channels, and caching"
-      }
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Store application metadata, agent configurations, improvement queue, and audit logs",
+      "database": "document_manager",
+      "initialization": [
+        {
+          "file": "initialization/storage/postgres/schema.sql",
+          "type": "script"
+        },
+        {
+          "file": "initialization/storage/postgres/seed.sql",
+          "type": "script"
+        }
+      ]
     },
-    "automation": {
-      "windmill": {
-        "type": "windmill",
-        "enabled": true,
-        "required": true,
-        "workspace": "document_manager",
-        "initialization": [
-          {
-            "file": "initialization/automation/windmill/app.json",
-            "type": "app"
-          },
-          {
-            "file": "initialization/automation/windmill/flows/agent-manager.py",
-            "type": "script",
-            "path": "f/agent_manager"
-          },
-          {
-            "file": "initialization/automation/windmill/flows/app-manager.py",
-            "type": "script",
-            "path": "f/app_manager"
-          },
-          {
-            "file": "initialization/automation/windmill/flows/queue-processor.py",
-            "type": "script",
-            "path": "f/queue_processor"
-          }
-        ]
-      },
-      "n8n": {
-        "type": "n8n",
-        "enabled": true,
-        "required": true,
-        "initialization": [
-          {
-            "file": "initialization/automation/n8n/doc-monitor-workflow.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/automation/n8n/improvement-processor.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/automation/n8n/notification-router.json",
-            "type": "workflow"
-          }
-        ]
-      }
+    "qdrant": {
+      "type": "qdrant",
+      "enabled": true,
+      "required": true,
+      "purpose": "Vector database for documentation embeddings, agent memory, and similarity pattern analysis",
+      "initialization": [
+        {
+          "file": "initialization/storage/qdrant/collections.json",
+          "type": "collections"
+        }
+      ]
     },
-    "ai": {
-      "ollama": {
-        "type": "ollama",
-        "enabled": true,
-        "required": true,
-        "models": [
-          "llama3.2",
-          "nomic-embed-text",
-          "codellama"
-        ]
-      }
+    "redis": {
+      "type": "redis",
+      "enabled": true,
+      "required": true,
+      "purpose": "Real-time messaging, notification channels, and caching"
     },
-    "processing": {
-      "unstructured_io": {
-        "type": "unstructured_io",
-        "enabled": true,
-        "required": false,
-        "purpose": "Advanced document parsing and content extraction"
-      }
+    "windmill": {
+      "type": "windmill",
+      "enabled": true,
+      "required": true,
+      "workspace": "document_manager",
+      "initialization": [
+        {
+          "file": "initialization/automation/windmill/app.json",
+          "type": "app"
+        },
+        {
+          "file": "initialization/automation/windmill/flows/agent-manager.py",
+          "type": "script",
+          "path": "f/agent_manager"
+        },
+        {
+          "file": "initialization/automation/windmill/flows/app-manager.py",
+          "type": "script",
+          "path": "f/app_manager"
+        },
+        {
+          "file": "initialization/automation/windmill/flows/queue-processor.py",
+          "type": "script",
+          "path": "f/queue_processor"
+        }
+      ]
+    },
+    "n8n": {
+      "type": "n8n",
+      "enabled": true,
+      "required": true,
+      "initialization": [
+        {
+          "file": "initialization/automation/n8n/doc-monitor-workflow.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/automation/n8n/improvement-processor.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/automation/n8n/notification-router.json",
+          "type": "workflow"
+        }
+      ]
+    },
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": true,
+      "models": [
+        "llama3.2",
+        "nomic-embed-text",
+        "codellama"
+      ]
+    },
+    "unstructured_io": {
+      "type": "unstructured_io",
+      "enabled": true,
+      "required": false,
+      "purpose": "Advanced document parsing and content extraction"
     }
   },
   "business_model": {
