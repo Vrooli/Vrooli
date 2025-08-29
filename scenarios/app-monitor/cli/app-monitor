@@ -306,4 +306,3 @@ main() {
 }
 
 main "$@"
-EOF < /dev/null

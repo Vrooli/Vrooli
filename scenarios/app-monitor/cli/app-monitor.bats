@@ -73,4 +73,3 @@ setup() {
     [ "$status" -eq 1 ]
     [[ "$output" == *"App ID required"* ]]
 }
-EOF < /dev/null

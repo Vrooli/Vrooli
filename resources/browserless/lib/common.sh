@@ -4,15 +4,15 @@
 
 set -euo pipefail
 
-# Configuration
-export BROWSERLESS_PORT="${BROWSERLESS_PORT:-4110}"
-export BROWSERLESS_CONTAINER_NAME="${BROWSERLESS_CONTAINER_NAME:-browserless}"
-export BROWSERLESS_IMAGE="${BROWSERLESS_IMAGE:-browserless/chrome:latest}"
-export BROWSERLESS_DATA_DIR="${BROWSERLESS_DATA_DIR:-$HOME/.vrooli/browserless}"
-export BROWSERLESS_MAX_CONCURRENT_SESSIONS="${BROWSERLESS_MAX_CONCURRENT_SESSIONS:-10}"
-export BROWSERLESS_TOKEN="${BROWSERLESS_TOKEN:-}"
-export BROWSERLESS_WORKSPACE_DIR="${BROWSERLESS_WORKSPACE_DIR:-$BROWSERLESS_DATA_DIR/workspace}"
-export BROWSERLESS_BASE_URL="http://localhost:${BROWSERLESS_PORT}"
+# Configuration - only set if not already defined by defaults.sh
+[[ -z "${BROWSERLESS_PORT:-}" ]] && export BROWSERLESS_PORT="4110"
+[[ -z "${BROWSERLESS_CONTAINER_NAME:-}" ]] && export BROWSERLESS_CONTAINER_NAME="vrooli-browserless"
+[[ -z "${BROWSERLESS_IMAGE:-}" ]] && export BROWSERLESS_IMAGE="ghcr.io/browserless/chrome:latest"
+[[ -z "${BROWSERLESS_DATA_DIR:-}" ]] && export BROWSERLESS_DATA_DIR="$HOME/.vrooli/browserless"
+[[ -z "${BROWSERLESS_MAX_CONCURRENT_SESSIONS:-}" ]] && export BROWSERLESS_MAX_CONCURRENT_SESSIONS="10"
+[[ -z "${BROWSERLESS_TOKEN:-}" ]] && export BROWSERLESS_TOKEN=""
+[[ -z "${BROWSERLESS_WORKSPACE_DIR:-}" ]] && export BROWSERLESS_WORKSPACE_DIR="${BROWSERLESS_DATA_DIR}/workspace"
+[[ -z "${BROWSERLESS_BASE_URL:-}" ]] && export BROWSERLESS_BASE_URL="http://localhost:${BROWSERLESS_PORT}"
 
 # Create data directories
 function ensure_directories() {

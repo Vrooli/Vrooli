@@ -8,7 +8,7 @@ High-performance headless Chrome automation service for web scraping, screenshot
 |-----------|---------|
 | **Port** | 4110 |
 | **Container** | vrooli-browserless |
-| **Status** | `./manage.sh --action status` |
+| **Status** | `./cli.sh status` |
 | **Health Check** | http://localhost:4110/pressure |
 | **Dashboard** | http://localhost:4110 |
 
@@ -23,13 +23,13 @@ High-performance headless Chrome automation service for web scraping, screenshot
 
 ```bash
 # Install with default settings
-./manage.sh --action install
+./cli.sh install
 
 # Install with custom configuration
-./manage.sh --action install --max-browsers 10 --timeout 60000
+./cli.sh install --max-browsers 10 --timeout 60000
 
 # Install with non-headless mode (for debugging)
-./manage.sh --action install --headless no
+./cli.sh install --headless no
 ```
 
 ## Core Features
@@ -218,16 +218,16 @@ Client Request → Load Balancer → Browser Pool → Chrome Instance
 ### Memory Optimization
 ```bash
 # Increase shared memory for heavy workloads
-./manage.sh --action install --max-browsers 20
+./cli.sh install --max-browsers 20
 
 # Monitor memory usage
-./manage.sh --action status
+./cli.sh status
 ```
 
 ### Timeout Configuration
 ```bash
 # Increase timeout for slow pages
-./manage.sh --action install --timeout 60000
+./cli.sh install --timeout 60000
 
 # Per-request timeout override
 curl -X POST http://localhost:4110/screenshot \
@@ -253,24 +253,24 @@ curl http://localhost:4110/pressure
 
 ### Basic Health Check
 ```bash
-./manage.sh --action test
+./cli.sh test
 ```
 
 ### Run All Examples
 ```bash
-./manage.sh --action usage --usage-type all
+./cli.sh usage --usage-type all
 ```
 
 ### Specific Examples
 ```bash
 # Screenshot example
-./manage.sh --action screenshot --url https://google.com
+./cli.sh screenshot --url https://google.com
 
 # PDF generation
-./manage.sh --action pdf --url https://example.com --output document.pdf
+./cli.sh pdf --url https://example.com --output document.pdf
 
 # Web scraping
-./manage.sh --action scrape --url https://news.ycombinator.com --selector ".storylink"
+./cli.sh scrape --url https://news.ycombinator.com --selector ".storylink"
 ```
 
 ### Test Output Files
@@ -289,7 +289,7 @@ When running usage examples, output files are managed automatically:
 ### Create Backup
 ```bash
 # Manual backup
-./manage.sh --action create-backup --label "before_upgrade"
+./cli.sh create-backup --label "before_upgrade"
 
 # Automatic backups are created before risky operations
 ```
@@ -297,10 +297,10 @@ When running usage examples, output files are managed automatically:
 ### Restore from Backup
 ```bash
 # List available backups
-./manage.sh --action list-backups
+./cli.sh list-backups
 
 # Recover from latest backup
-./manage.sh --action recover
+./cli.sh recover
 ```
 
 ## Troubleshooting
@@ -308,21 +308,21 @@ When running usage examples, output files are managed automatically:
 ### Container Won't Start
 ```bash
 # Check Docker logs
-./manage.sh --action logs --lines 100
+./cli.sh logs --lines 100
 
 # Verify port availability
 sudo lsof -i :4110
 
 # Reset and reinstall
-./manage.sh --action uninstall --force yes
-./manage.sh --action install
+./cli.sh uninstall --force yes
+./cli.sh install
 ```
 
 ### High Memory Usage
 ```bash
 # Reduce concurrent browsers
-./manage.sh --action uninstall
-./manage.sh --action install --max-browsers 3
+./cli.sh uninstall
+./cli.sh install --max-browsers 3
 
 # Monitor pressure
 watch curl -s http://localhost:4110/pressure
@@ -332,7 +332,7 @@ watch curl -s http://localhost:4110/pressure
 ```bash
 # Increase timeout
 export TIMEOUT=60000
-./manage.sh --action restart
+./cli.sh restart
 
 # Check network connectivity
 docker exec vrooli-browserless ping -c 1 google.com
@@ -368,13 +368,13 @@ docker exec vrooli-browserless ping -c 1 google.com
 curl http://localhost:4110/metrics
 
 # Monitor continuously
-./manage.sh --action monitor
+./cli.sh monitor
 ```
 
 ### Logging
 ```bash
 # View recent logs
-./manage.sh --action logs
+./cli.sh logs
 
 # Follow logs
 docker logs -f vrooli-browserless
@@ -404,7 +404,7 @@ WORKSPACE_EXPIRE_DAYS=7    # Cleanup after 7 days
 ```bash
 # Use custom network
 docker network create custom-network
-./manage.sh --action install --network custom-network
+./cli.sh install --network custom-network
 
 # Connect to existing services
 docker network connect vrooli-network other-container
@@ -414,29 +414,29 @@ docker network connect vrooli-network other-container
 ```bash
 # Custom workspace directory
 mkdir -p /data/browserless
-./manage.sh --action install --data-dir /data/browserless
+./cli.sh install --data-dir /data/browserless
 ```
 
 ## Management Commands
 
 | Command | Description |
 |---------|-------------|
-| `./manage.sh --action install` | Install Browserless service |
-| `./manage.sh --action uninstall` | Remove service completely |
-| `./manage.sh --action start` | Start the container |
-| `./manage.sh --action stop` | Stop the container |
-| `./manage.sh --action restart` | Restart the container |
-| `./manage.sh --action status` | Check service health |
-| `./manage.sh --action logs` | View service logs |
-| `./manage.sh --action info` | Show service information |
-| `./manage.sh --action version` | Display version |
-| `./manage.sh --action test` | Run functionality tests |
-| `./manage.sh --action usage` | Show usage examples menu |
-| `./manage.sh --action screenshot` | Take a screenshot |
-| `./manage.sh --action pdf` | Generate PDF |
-| `./manage.sh --action scrape` | Scrape content |
-| `./manage.sh --action create-backup` | Create backup |
-| `./manage.sh --action recover` | Restore from backup |
+| `./cli.sh install` | Install Browserless service |
+| `./cli.sh uninstall` | Remove service completely |
+| `./cli.sh start` | Start the container |
+| `./cli.sh stop` | Stop the container |
+| `./cli.sh restart` | Restart the container |
+| `./cli.sh status` | Check service health |
+| `./cli.sh logs` | View service logs |
+| `./cli.sh info` | Show service information |
+| `./cli.sh version` | Display version |
+| `./cli.sh test` | Run functionality tests |
+| `./cli.sh usage` | Show usage examples menu |
+| `./cli.sh screenshot` | Take a screenshot |
+| `./cli.sh pdf` | Generate PDF |
+| `./cli.sh scrape` | Scrape content |
+| `./cli.sh create-backup` | Create backup |
+| `./cli.sh recover` | Restore from backup |
 
 ## 📚 Documentation
 

@@ -23,8 +23,8 @@ log_error() {
 
 # Test configuration
 API_BASE_URL="${SERVICE_PORT:-8090}"
-N8N_BASE_URL="${RESOURCE_PORTS[n8n]:-5678}"
-NODE_RED_BASE_URL="${RESOURCE_PORTS[node-red]:-1880}"
+N8N_BASE_URL="${N8N_PORT:-5678}"
+NODE_RED_BASE_URL="${NODE_RED_PORT:-1880}"
 
 test_api_connectivity() {
     log_info "Testing API connectivity..."
@@ -113,4 +113,3 @@ main() {
 }
 
 main "$@"
-EOF < /dev/null

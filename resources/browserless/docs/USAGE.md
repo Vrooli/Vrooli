@@ -20,36 +20,36 @@ This guide covers common workflows and best practices for using Browserless in t
 
 ```bash
 # Check service status
-./manage.sh --action status
+./cli.sh status
 
 # Start service (if stopped)
-./manage.sh --action start
+./cli.sh start
 
 # Stop service
-./manage.sh --action stop
+./cli.sh stop
 
 # Restart service
-./manage.sh --action restart
+./cli.sh restart
 
 # View real-time logs
-./manage.sh --action logs
+./cli.sh logs
 
 # Get service information
-./manage.sh --action info
+./cli.sh info
 ```
 
 ### Service Lifecycle
 
 ```bash
 # Install or reinstall
-./manage.sh --action install
+./cli.sh install
 
 # Completely remove service
-./manage.sh --action uninstall
+./cli.sh uninstall
 
 # Update to latest version
 docker pull ghcr.io/browserless/chrome:latest
-./manage.sh --action restart
+./cli.sh restart
 ```
 
 ## Usage Examples
@@ -60,7 +60,7 @@ The management script includes built-in examples to test Browserless functionali
 
 ```bash
 # Show all available usage examples
-./manage.sh --action usage
+./cli.sh usage
 ```
 
 This displays an interactive menu with all available examples.
@@ -69,40 +69,40 @@ This displays an interactive menu with all available examples.
 
 ```bash
 # Basic screenshot
-./manage.sh --action usage --usage-type screenshot
+./cli.sh usage --usage-type screenshot
 
 # Screenshot specific URL
-./manage.sh --action usage --usage-type screenshot --url https://github.com --output github.png
+./cli.sh usage --usage-type screenshot --url https://github.com --output github.png
 
 # Screenshot with validation (recommended for automation)
-./manage.sh --action usage --usage-type screenshot --url https://localhost:8080 --output dashboard.png
+./cli.sh usage --usage-type screenshot --url https://localhost:8080 --output dashboard.png
 ```
 
 ### PDF Generation
 
 ```bash
 # Basic PDF generation
-./manage.sh --action usage --usage-type pdf
+./cli.sh usage --usage-type pdf
 
 # Convert specific page to PDF
-./manage.sh --action usage --usage-type pdf --url https://wikipedia.org --output wiki.pdf
+./cli.sh usage --usage-type pdf --url https://wikipedia.org --output wiki.pdf
 ```
 
 ### Web Scraping
 
 ```bash
 # Basic scraping example
-./manage.sh --action usage --usage-type scrape
+./cli.sh usage --usage-type scrape
 
 # Scrape specific site
-./manage.sh --action usage --usage-type scrape --url https://news.ycombinator.com
+./cli.sh usage --usage-type scrape --url https://news.ycombinator.com
 ```
 
 ### System Monitoring
 
 ```bash
 # Check browser pool status
-./manage.sh --action usage --usage-type pressure
+./cli.sh usage --usage-type pressure
 
 # Returns JSON with system load info
 {
@@ -117,10 +117,10 @@ This displays an interactive menu with all available examples.
 
 ```bash
 # Test all features at once
-./manage.sh --action usage --usage-type all
+./cli.sh usage --usage-type all
 
 # Test all features with custom URL
-./manage.sh --action usage --usage-type all --url https://example.com
+./cli.sh usage --usage-type all --url https://example.com
 ```
 
 ## Common Workflows
@@ -133,14 +133,14 @@ BEFORE_URL="http://localhost:3000/old-version"
 AFTER_URL="http://localhost:3000/new-version"
 
 # Capture baseline
-./manage.sh --action usage --usage-type screenshot \
+./cli.sh usage --usage-type screenshot \
   --url "$BEFORE_URL" \
   --output before.png
 
 # Deploy changes...
 
 # Capture new version
-./manage.sh --action usage --usage-type screenshot \
+./cli.sh usage --usage-type screenshot \
   --url "$AFTER_URL" \
   --output after.png
 
@@ -158,12 +158,12 @@ OUTPUT_DIR="/reports/$(date +%Y-%m-%d)"
 mkdir -p "$OUTPUT_DIR"
 
 # Screenshot dashboard
-./manage.sh --action usage --usage-type screenshot \
+./cli.sh usage --usage-type screenshot \
   --url "$DASHBOARD_URL" \
   --output "$OUTPUT_DIR/dashboard.png"
 
 # Generate PDF report
-./manage.sh --action usage --usage-type pdf \
+./cli.sh usage --usage-type pdf \
   --url "$DASHBOARD_URL" \
   --output "$OUTPUT_DIR/report.pdf"
 ```
@@ -238,7 +238,7 @@ Combine with Ollama for visual analysis:
 
 ```bash
 # Capture screenshot
-./manage.sh --action usage --usage-type screenshot \
+./cli.sh usage --usage-type screenshot \
   --url https://example.com \
   --output site.png
 

@@ -1,0 +1,40 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "resource:postgres",
+  "title": "PostgreSQL Resource Configuration",
+  "description": "PostgreSQL relational database with ACID compliance, complex queries, and transactional support",
+  "type": "object",
+  "extends": "baseResource",
+  "properties": {
+  },
+  "examples": [
+    {
+      "title": "Minimal",
+      "config": {
+        "enabled": true
+      }
+    },
+    {
+      "title": "Development",
+      "config": {
+        "enabled": true,
+        "purpose": "Development database"
+      }
+    },
+    {
+      "title": "Production",
+      "config": {
+        "enabled": true,
+        "required": true,
+        "purpose": "Primary application database"
+      }
+    },
+    {
+      "title": "Vector Database",
+      "config": {
+        "enabled": true,
+        "purpose": "Vector similarity search for embeddings"
+      }
+    }
+  ]
+}
