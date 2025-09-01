@@ -206,7 +206,8 @@ embeddings_refresh_impl() {
         log::info "Processing content types SEQUENTIALLY (timeout: ${EXTRACTOR_TIMEOUT}s per extractor)..."
         return $(embeddings_refresh_sequential "$app_id" "$EXTRACTOR_TIMEOUT" "$start_time")
     else
-        EXTRACTOR_TIMEOUT="${EMBEDDING_PROCESSING_TIMEOUT:-300}"
+        # Increase timeout for parallel processing to handle large files
+        EXTRACTOR_TIMEOUT="${EMBEDDING_PROCESSING_TIMEOUT:-600}"
         log::info "Processing content types in PARALLEL (timeout: ${EXTRACTOR_TIMEOUT}s per extractor)..."
     fi
     
@@ -235,7 +236,11 @@ embeddings_refresh_impl() {
     # Process documentation
     {
         log::info "Processing documentation..."
-        qdrant::embeddings::process_documentation "$app_id" > "$TEMP_DIR/doc_count" 2>&1
+        (
+            # Source markdown parser for docs extractor
+            source "${EMBEDDINGS_DIR}/parsers/markdown.sh"
+            qdrant::embeddings::process_documentation "$app_id"
+        ) > "$TEMP_DIR/doc_count" 2>&1
     } &
     pids+=($!)
     job_names+=("documentation")

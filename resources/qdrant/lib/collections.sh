@@ -15,11 +15,22 @@ source "${var_LIB_UTILS_DIR}/log.sh"
 
 # Source configuration and messages
 # shellcheck disable=SC1091
-source "${APP_ROOT}/resources/qdrant/config/defaults.sh"
+source "${APP_ROOT}/resources/qdrant/config/defaults.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
-source "${APP_ROOT}/resources/qdrant/config/messages.sh"
-# shellcheck disable=SC1091
-source "${QDRANT_COLLECTIONS_DIR}/api-client.sh"
+source "${APP_ROOT}/resources/qdrant/config/messages.sh" 2>/dev/null || true
+
+#######################################
+# Load API client on demand
+#######################################
+qdrant::collections::ensure_api_client() {
+    if ! type -t qdrant::client::get_collection_info > /dev/null 2>&1; then
+        # shellcheck disable=SC1091
+        source "${APP_ROOT}/resources/qdrant/lib/api-client.sh" 2>/dev/null || {
+            log::error "Failed to load Qdrant API client"
+            return 1
+        }
+    fi
+}
 
 # Initialize Qdrant base URL if not set
 if [[ -z "${QDRANT_BASE_URL:-}" ]]; then
@@ -273,6 +284,9 @@ qdrant::collections::list_simple() {
 # Returns: 0 on success, 1 on failure
 #######################################
 qdrant::collections::info() {
+    qdrant::collections::verify_init || return 1
+    qdrant::collections::ensure_api_client || return 1
+    
     local collection_name="$1"
     
     if [[ -z "$collection_name" ]]; then

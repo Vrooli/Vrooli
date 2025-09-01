@@ -58,31 +58,21 @@ qdrant::init::read_service_config() {
     fi
     
     # Extract all initialization arrays from resources  
-    # This handles nested category.resource.initialization structure
+    # This handles flat resource.initialization structure (actual service.json format)
     local init_items=$(jq -r '
         .resources | 
         to_entries | 
         map(
-            .key as $category |
-            .value | 
-            if type == "object" then
-                to_entries | 
-                map(
-                    select(.value | type == "object") |
-                    .key as $resource |
-                    .value |
-                    if (has("initialization")) and ((.initialization | type) == "array") then
-                        .initialization[] | 
-                        . + {resource: $resource, category: $category, path: .file}
-                    else
-                        empty
-                    end
-                )
+            select(.value | type == "object" and has("initialization")) |
+            .key as $resource |
+            .value.initialization |
+            if (type == "array") then
+                .[] | 
+                . + {resource: $resource, path: .file}
             else
                 empty
             end
         ) | 
-        flatten | 
         map(select(has("file") or has("path")))
     ' "$service_file" 2>/dev/null || echo "[]")
     

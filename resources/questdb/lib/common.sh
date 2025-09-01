@@ -69,7 +69,7 @@ questdb::create_dirs() {
 questdb::check_disk_space() {
     local required_gb="${1:-5}"
     local data_dir_parent
-    data_dir_parent=${QUESTDB_DATA_DIR}%/*
+    data_dir_parent=${QUESTDB_DATA_DIR%/*}
     
     # Get available space in GB
     local available_gb

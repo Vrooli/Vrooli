@@ -29,7 +29,7 @@ questdb::docker::is_running() {
 # Create and start QuestDB container
 questdb::docker::create_container() {
     # Ensure directories exist
-    questdb::common::create_dirs || return 1
+    questdb::create_dirs || return 1
     
     # Pull image if needed
     log::info "Pulling QuestDB image..."

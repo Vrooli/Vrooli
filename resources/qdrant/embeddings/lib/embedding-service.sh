@@ -20,6 +20,8 @@ source "${EMBEDDINGS_DIR}/config/unified.sh"
 # Source embedding and collection libraries
 source "${APP_ROOT}/resources/qdrant/lib/embeddings.sh"
 source "${APP_ROOT}/resources/qdrant/lib/collections.sh"
+source "${APP_ROOT}/resources/qdrant/lib/http-client-improved.sh"
+source "${APP_ROOT}/resources/qdrant/lib/error-handler.sh"
 
 # Configuration loaded from unified.sh - backward compatible aliases available
 
@@ -46,11 +48,12 @@ qdrant::embedding::process_item() {
         return 1
     fi
     
-    # Generate embedding
+    # Generate embedding with error handling
     local embedding
-    embedding=$(qdrant::embeddings::generate "$content" "$DEFAULT_MODEL" 2>/dev/null | jq -c .)
-    if [[ -z "$embedding" || "$embedding" == "null" ]]; then
-        log::warn "Failed to generate embedding for $content_type content"
+    if ! embedding=$(error_handler::execute_with_retry "embedding" "generate embedding for $content_type" \
+        "qdrant::embeddings::generate '$content' '$DEFAULT_MODEL' 2>/dev/null | jq -c ." \
+        '\[.*\]'); then
+        error_handler::log_error "embedding" "Failed to generate embedding" "$content_type" "{\"content_length\": ${#content}}"
         return 1
     fi
     
@@ -88,21 +91,42 @@ qdrant::embedding::process_item() {
     while [[ $attempt -le $max_retries ]]; do
         log::debug "Qdrant storage attempt $attempt/$max_retries for $content_type"
         
-        api_response=$(curl -s --max-time 30 -X PUT "http://localhost:6333/collections/${collection}/points" \
-            -H "Content-Type: application/json" \
-            -d "$points_data" 2>/dev/null)
+        # Use improved HTTP client with retry logic and connection pooling
+        api_response=$(http_client::put "/collections/${collection}/points" "$points_data" "store embedding")
         
         if [[ -n "$api_response" ]]; then
             status=$(echo "$api_response" | jq -r '.status // "unknown"' 2>/dev/null)
             
             if [[ "$status" == "ok" ]]; then
-                log::debug "Successfully processed $content_type item (ID: ${item_id:0:8}...) on attempt $attempt"
-                return 0
+                # Verify the point was actually stored
+                local verify_response=$(curl -s -X POST "http://localhost:6333/collections/${collection}/points/count" \
+                    -H "Content-Type: application/json" -d '{"exact": false}' 2>/dev/null)
+                local current_count=$(echo "$verify_response" | jq -r '.result.count // 0' 2>/dev/null)
+                
+                if [[ "$current_count" -gt 0 ]]; then
+                    log::debug "Successfully stored $content_type item (ID: ${item_id:0:8}...) - Collection now has $current_count vectors"
+                    return 0
+                else
+                    log::warn "Qdrant reported success but collection still empty - possible ID format issue"
+                fi
+            else
+                # Extract and log the actual error message
+                local error_msg=$(echo "$api_response" | jq -r '.status.error // "No error message"' 2>/dev/null)
+                log::warn "Qdrant storage failed: $error_msg"
+                
+                # Check if it's an ID format error and regenerate if needed
+                if echo "$error_msg" | grep -q "not a valid point ID"; then
+                    log::error "Invalid ID format detected - UUID generation may have failed"
+                    return 1
+                fi
             fi
+        else
+            log::warn "No response from Qdrant API - service may be down"
         fi
         
         if [[ $attempt -eq $max_retries ]]; then
-            log::error "Failed to store $content_type embedding in collection $collection after $max_retries attempts: $api_response"
+            log::error "Failed to store $content_type embedding in collection $collection after $max_retries attempts"
+            log::error "Last response: ${api_response:-No response}"
             return 1
         fi
         
@@ -127,10 +151,32 @@ qdrant::embedding::generate_id() {
     # Include content type in hash for uniqueness across types
     local hash=$(echo -n "${content_type}:${content}" | sha256sum | cut -d' ' -f1)
     
-    # Convert hash to UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-    # Take first 32 characters and format as UUID
-    local uuid="${hash:0:8}-${hash:8:4}-${hash:12:4}-${hash:16:4}-${hash:20:12}"
-    echo "$uuid"
+    # Generate a proper UUID v4 that's deterministic based on content
+    # We use Python to ensure valid UUID format that Qdrant will accept
+    # The UUID is seeded from the hash for determinism
+    local uuid=$(python3 -c "
+import uuid
+import hashlib
+
+# Use the first 16 bytes of the hash as seed for UUID
+hash_bytes = bytes.fromhex('${hash}'[:32])
+# Create a UUID from the hash bytes (namespace UUID method)
+# Set version and variant bits to make it a valid UUID v4
+uuid_int = int.from_bytes(hash_bytes, 'big')
+# Ensure it fits in UUID range and set proper version/variant
+uuid_obj = uuid.UUID(int=(uuid_int & 0xffffffffffff0fff3fffffffffffffff) | 0x0000000000004000c000000000000000)
+print(str(uuid_obj))
+" 2>/dev/null)
+    
+    # Fallback to numeric ID if Python fails
+    if [[ -z "$uuid" ]]; then
+        # Use first 16 hex chars as a large positive integer
+        # This ensures uniqueness and Qdrant compatibility
+        local numeric_id=$(echo "ibase=16; ${hash:0:16}" | bc 2>/dev/null || echo "0")
+        echo "$numeric_id"
+    else
+        echo "$uuid"
+    fi
 }
 
 #######################################

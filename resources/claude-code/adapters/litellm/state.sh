@@ -13,7 +13,7 @@ LITELLM_CONFIG_FILE="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/litellm_config.json"
 #######################################
 litellm::init_state() {
     local state_dir
-    state_dir=${LITELLM_STATE_FILE%/*
+    state_dir=${LITELLM_STATE_FILE%/*}
     
     # Create directory if it doesn't exist
     mkdir -p "$state_dir"
@@ -113,6 +113,7 @@ litellm::set_connected() {
         local auto_disconnect
         auto_disconnect=$(date -u -d "+${auto_hours} hours" +%Y-%m-%dT%H:%M:%SZ)
         
+        # Update connection state (avoiding complex jq syntax that causes bash parsing issues)
         jq --arg time "$current_time" \
            --arg disconnect "$auto_disconnect" \
            --arg reason "$reason" \
@@ -123,13 +124,24 @@ litellm::set_connected() {
             .fallback_triggered_at = $time |
             .requests_handled = 0 |
             .requests_failed = 0 |
-            .last_error = null |
-            .connection_history = ([{
-                "connected_at": $time,
-                "reason": $reason,
-                "auto_disconnect_at": $disconnect
-            }] + .connection_history)[0:50]' \
-           "$LITELLM_STATE_FILE" > "$temp_file" && mv "$temp_file" "$LITELLM_STATE_FILE"
+            .last_error = null' \
+           "$LITELLM_STATE_FILE" > "$temp_file"
+        
+        # Add new connection record to history (step by step to avoid bash parsing issues)
+        # First create the new record
+        echo "{\"connected_at\":\"$current_time\",\"reason\":\"$reason\",\"auto_disconnect_at\":\"$auto_disconnect\"}" > "${temp_file}.record"
+        
+        # Add it to the front of existing history
+        jq --slurpfile new_record "${temp_file}.record" \
+           '.connection_history = $new_record + (.connection_history // [])' \
+           "$temp_file" > "${temp_file}.2"
+        
+        # Keep only last 50 records
+        jq '.connection_history = .connection_history[0:50]' "${temp_file}.2" > "$LITELLM_STATE_FILE"
+        
+        rm -f "${temp_file}.record" "${temp_file}.2"
+        
+        rm -f "$temp_file"
     else
         # Record disconnection
         jq --arg time "$current_time" \

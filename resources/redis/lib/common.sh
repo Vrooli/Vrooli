@@ -137,7 +137,8 @@ tcp-keepalive ${REDIS_TCP_KEEPALIVE}
 # General Configuration
 daemonize no
 supervised no
-pidfile /var/run/redis_6379.pid
+# PID file disabled - not needed in Docker container
+pidfile ""
 loglevel ${REDIS_LOGLEVEL}
 # logfile disabled - Redis will log to stdout for Docker
 databases ${REDIS_DATABASES}
@@ -248,13 +249,12 @@ EOF
 # Returns: Redis info output
 #######################################
 redis::common::get_info() {
-    local cmd=(docker exec "${REDIS_CONTAINER_NAME}" redis-cli info)
-    
+    # Use simple docker exec command for better reliability
     if [[ -n "$REDIS_PASSWORD" ]]; then
-        cmd=(docker exec "${REDIS_CONTAINER_NAME}" redis-cli -a "$REDIS_PASSWORD" info)
+        docker exec "${REDIS_CONTAINER_NAME}" redis-cli -a "$REDIS_PASSWORD" INFO 2>/dev/null
+    else
+        docker exec "${REDIS_CONTAINER_NAME}" redis-cli INFO 2>/dev/null
     fi
-    
-    "${cmd[@]}" 2>/dev/null
 }
 
 #######################################

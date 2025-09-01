@@ -8,7 +8,10 @@ set -euo pipefail
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 BROWSERLESS_INJECT_DIR="${APP_ROOT}/resources/browserless/lib"
 source "$BROWSERLESS_INJECT_DIR/common.sh"
-source "${APP_ROOT}/scripts/lib/utils/log.sh"
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/lib/utils/var.sh" || { echo "FATAL: Failed to load variable definitions" >&2; exit 1; }
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}" || { echo "FATAL: Failed to load logging library" >&2; exit 1; }
 source "${APP_ROOT}/scripts/resources/lib/http-utils.sh"
 
 #######################################  
@@ -44,7 +47,7 @@ browserless::inject() {
     
     # Create minimal test script
     cat > "$test_dir/validation.js" << 'EOF'
-module.exports = async ({ page }) => {
+export default async ({ page }) => {
     await page.goto('https://httpbin.org/html');
     const title = await page.title();
     return { 
@@ -58,7 +61,7 @@ EOF
     
     # Create simple screenshot test
     cat > "$test_dir/screenshot-test.js" << 'EOF'
-module.exports = async ({ page }) => {
+export default async ({ page }) => {
     await page.goto('https://httpbin.org/html');
     await page.screenshot({ path: '/workspace/screenshots/validation-test.png' });
     return { success: true, message: 'Screenshot saved to validation-test.png' };
@@ -134,11 +137,11 @@ browserless::injection_status() {
             log::success "✅ Injection is healthy and validated"
         else
             log::warn "⚠️  Injection exists but validation failed"  
-            log::info "Try: ./manage.sh --action inject (to recreate)"
+            log::info "Try: resource-browserless content inject (to recreate)"
         fi
     else
         log::info "❌ No test data found"
-        log::info "Run: ./manage.sh --action inject"
+        log::info "Run: resource-browserless content inject"
     fi
 }
 
@@ -152,9 +155,9 @@ browserless::show_injection_info() {
     echo "  Files created: validation.js, screenshot-test.js"
     echo
     echo "Next steps:"
-    echo "  ./manage.sh --action usage --usage-type screenshot  # Test screenshot API"
-    echo "  ./manage.sh --action usage --usage-type all         # Test all APIs"
-    echo "  ./manage.sh --action injection-status              # Check injection status"
+    echo "  resource-browserless screenshot <url>              # Test screenshot API"
+    echo "  resource-browserless test api                      # Test all APIs"
+    echo "  resource-browserless status                        # Check injection status"
 }
 
 #######################################

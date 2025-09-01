@@ -20,9 +20,12 @@ INTERPRETER_DIR="${APP_ROOT}/resources/browserless/lib/workflow"
 BROWSERLESS_LIB_DIR="${APP_ROOT}/resources/browserless/lib"
 
 # Source required libraries
-source "${APP_ROOT}/scripts/lib/utils/log.sh"
-source "${BROWSERLESS_LIB_DIR}/browser-ops.sh"
-source "${BROWSERLESS_LIB_DIR}/session-manager.sh"
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/lib/utils/var.sh" || { echo "FATAL: Failed to load variable definitions from var.sh" >&2; exit 1; }
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}" || { echo "FATAL: Failed to load logging library from ${var_LOG_FILE}" >&2; exit 1; }
+source "${BROWSERLESS_LIB_DIR}/browser-ops.sh" || { echo "FATAL: Failed to load browser operations library" >&2; exit 1; }
+source "${BROWSERLESS_LIB_DIR}/session-manager.sh" || { echo "FATAL: Failed to load session manager library" >&2; exit 1; }
 
 # Source stateful browser operations if available
 # TEMPORARILY DISABLED for testing combined workflow
@@ -187,7 +190,7 @@ workflow::execute_step() {
             if [[ -n "$output_path" ]]; then
                 local resolved_path
                 resolved_path=$(workflow::substitute_variables "$output_path")
-                mkdir -p "${resolved_path%/*"
+                mkdir -p "${resolved_path%/*}"
                 
                 # ALWAYS remove any base64 data from final output - humans don't want to see this
                 local clean_result
@@ -257,7 +260,7 @@ workflow::execute_step() {
             if [[ -n "$output_path" ]]; then
                 local resolved_path
                 resolved_path=$(workflow::substitute_variables "$output_path")
-                mkdir -p "${resolved_path%/*"
+                mkdir -p "${resolved_path%/*}"
                 echo "$result" > "$resolved_path"
                 log::debug "Saved result to: $resolved_path"
             fi
@@ -454,7 +457,7 @@ workflow::execute_step() {
             if [[ -n "$output_path" ]]; then
                 local resolved_path
                 resolved_path=$(workflow::substitute_variables "$output_path")
-                mkdir -p "${resolved_path%/*"
+                mkdir -p "${resolved_path%/*}"
                 echo "$result" > "$resolved_path"
                 log::debug "Saved result to: $resolved_path"
             fi

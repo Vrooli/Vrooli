@@ -223,7 +223,7 @@ workflow:
         - name: "fill-email"
           action: "type"
           selector: "input[name='email'], #email, input[type='email']"
-          text: "matthalloran8@gmail.com"
+          text: "${N8N_EMAIL:-user@example.com}"
           clear_first: true
           
         - name: "fill-password"

@@ -2,6 +2,10 @@
 # Claude Code Configuration and Defaults
 # This file contains all constants and default values
 
+# Source guard to prevent multiple sourcing
+[[ -n "${_CLAUDE_CODE_DEFAULTS_SOURCED:-}" ]] && return 0
+_CLAUDE_CODE_DEFAULTS_SOURCED=1
+
 # Helper function to detect test environment
 claude_code::is_test_environment() {
     [[ -n "${BATS_TEST_DIRNAME:-}" ]] || [[ "${TEST_MODE:-}" == "true" ]]

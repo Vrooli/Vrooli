@@ -80,12 +80,14 @@ redis::content::set() {
         return 1
     fi
     
-    redis::docker::exec_cli "SET '$key' '$value'"
+    # Execute SET command directly via docker exec to avoid quoting issues
+    docker exec "${REDIS_CONTAINER_NAME}" redis-cli SET "$key" "$value"
 }
 
 redis::content::keys() {
     local pattern="${1:-*}"
-    redis::docker::exec_cli "KEYS '$pattern'"
+    # Execute KEYS command directly via docker exec
+    docker exec "${REDIS_CONTAINER_NAME}" redis-cli KEYS "$pattern"
 }
 
 redis::content::get() {
@@ -96,7 +98,8 @@ redis::content::get() {
         return 1
     fi
     
-    redis::docker::exec_cli "GET '$key'"
+    # Execute GET command directly via docker exec
+    docker exec "${REDIS_CONTAINER_NAME}" redis-cli GET "$key"
 }
 
 redis::content::delete() {
@@ -107,18 +110,19 @@ redis::content::delete() {
         return 1
     fi
     
-    redis::docker::exec_cli "DEL '$key'"
+    # Execute DEL command directly via docker exec
+    docker exec "${REDIS_CONTAINER_NAME}" redis-cli DEL "$key"
 }
 
 redis::content::execute() {
-    local command="${1:-}"
-    
-    if [[ -z "$command" ]]; then
-        log::error "Usage: content execute '<redis-command>'"
+    # Pass all arguments directly to redis-cli
+    if [[ $# -eq 0 ]]; then
+        log::error "Usage: content execute <redis-command> [args...]"
         return 1
     fi
     
-    redis::docker::exec_cli "$command"
+    # Execute command directly via docker exec with all arguments
+    docker exec "${REDIS_CONTAINER_NAME}" redis-cli "$@"
 }
 
 redis::content::flush() {
@@ -130,7 +134,8 @@ redis::content::flush() {
     fi
     
     log::warning "Flushing all Redis data..."
-    redis::docker::exec_cli "FLUSHALL"
+    # Execute FLUSHALL directly via docker exec
+    docker exec "${REDIS_CONTAINER_NAME}" redis-cli FLUSHALL
 }
 
 # Docker logs function if not exists in lib/docker.sh

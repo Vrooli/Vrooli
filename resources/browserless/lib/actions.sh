@@ -14,9 +14,12 @@ APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pw
 ACTIONS_DIR="${APP_ROOT}/resources/browserless/lib"
 
 # Source required libraries
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/lib/utils/var.sh" || { echo "FATAL: Failed to load variable definitions" >&2; exit 1; }
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}" || { echo "FATAL: Failed to load logging library" >&2; exit 1; }
 source "$ACTIONS_DIR/browser-ops.sh"
 source "$ACTIONS_DIR/session-manager.sh"
-source "${APP_ROOT}/scripts/lib/utils/log.sh"
 
 # Global variables for universal options
 OUTPUT_PATH=""
@@ -40,6 +43,8 @@ actions::parse_universal_options() {
     FULL_PAGE="false"
     VIEWPORT_WIDTH="1920"
     VIEWPORT_HEIGHT="1080"
+    
+    local remaining_args=()
     
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -69,14 +74,15 @@ actions::parse_universal_options() {
                 shift
                 ;;
             *)
-                # Return remaining arguments
-                echo "$@"
-                return 0
+                # Collect non-option arguments
+                remaining_args+=("$1")
+                shift
                 ;;
         esac
     done
     
-    echo ""
+    # Return the remaining arguments
+    echo "${remaining_args[@]}"
 }
 
 #######################################
@@ -108,14 +114,97 @@ actions::cleanup_temp_session() {
 # Usage: browserless screenshot <url> [options]
 #######################################
 actions::screenshot() {
-    local remaining_args
-    remaining_args=$(actions::parse_universal_options "$@")
-    read -ra args <<< "$remaining_args"
+    # Parse options first (this sets global variables)
+    local remaining_args_array=()
+    local url_param=""
     
-    local url="${args[0]:-}"
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --url)
+                url_param="$2"
+                shift 2
+                ;;
+            --output)
+                OUTPUT_PATH="$2"
+                shift 2
+                ;;
+            --timeout)
+                TIMEOUT_MS="$2"
+                shift 2
+                ;;
+            --wait-ms)
+                WAIT_MS="$2"
+                shift 2
+                ;;
+            --session)
+                SESSION_NAME="$2"
+                shift 2
+                ;;
+            --fullpage)
+                FULL_PAGE="true"
+                shift
+                ;;
+            --mobile)
+                VIEWPORT_WIDTH="390"
+                VIEWPORT_HEIGHT="844"
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: browserless screenshot [URL] [OPTIONS]"
+                echo ""
+                echo "Arguments:"
+                echo "  URL                    Target URL to screenshot (can also use --url)"
+                echo ""
+                echo "Options:"
+                echo "  --url URL              Target URL (alternative to positional argument)"
+                echo "  --output FILE          Output file path (default: screenshot-TIMESTAMP.png)"
+                echo "  --fullpage             Capture full page instead of viewport"
+                echo "  --mobile               Use mobile viewport (390x844)"
+                echo "  --timeout MS           Timeout in milliseconds (default: 30000)"
+                echo "  --wait-ms MS           Wait time after load (default: 2000)"
+                echo "  --session NAME         Use persistent session"
+                echo "  --help, -h             Show this help message"
+                echo ""
+                echo "Examples:"
+                echo "  browserless screenshot https://example.com"
+                echo "  browserless screenshot --url https://example.com --output page.png"
+                echo "  browserless screenshot https://example.com --fullpage --mobile"
+                return 0
+                ;;
+            *)
+                remaining_args_array+=("$1")
+                shift
+                ;;
+        esac
+    done
+    
+    # Determine URL from either --url flag or positional argument
+    local url=""
+    if [[ -n "$url_param" ]]; then
+        url="$url_param"
+    elif [[ ${#remaining_args_array[@]} -gt 0 ]]; then
+        url="${remaining_args_array[0]}"
+    fi
+    
+    # Validate URL is provided
     if [[ -z "$url" ]]; then
         echo "Error: URL required" >&2
-        echo "Usage: browserless screenshot <url> [--output screenshot.png] [--fullpage] [--wait-ms 3000]" >&2
+        echo "" >&2
+        echo "Usage: browserless screenshot [URL] [OPTIONS]" >&2
+        echo "   or: browserless screenshot --url URL [OPTIONS]" >&2
+        echo "" >&2
+        echo "Examples:" >&2
+        echo "  browserless screenshot https://example.com --output page.png" >&2
+        echo "  browserless screenshot --url https://example.com --fullpage" >&2
+        echo "" >&2
+        echo "Use --help for full documentation" >&2
+        return 1
+    fi
+    
+    # Validate URL format
+    if [[ ! "$url" =~ ^https?:// ]]; then
+        echo "Error: Invalid URL format: $url" >&2
+        echo "URL must start with http:// or https://" >&2
         return 1
     fi
     
@@ -124,37 +213,53 @@ actions::screenshot() {
         OUTPUT_PATH="screenshot-$(date +%s).png"
     fi
     
-    # Ensure output directory exists
-    mkdir -p "${OUTPUT_PATH%/*}"
-    
-    local session_id
-    session_id=$(actions::create_temp_session)
+    # Ensure output directory exists (only if path contains a directory)
+    if [[ "$OUTPUT_PATH" == */* ]]; then
+        mkdir -p "${OUTPUT_PATH%/*}"
+    fi
     
     log::info "📸 Taking screenshot of $url"
     
-    # Use combined navigate and screenshot for consistent context
-    local result
-    if result=$(browser::navigate_and_screenshot "$url" "$OUTPUT_PATH" "$session_id" "networkidle2" "$FULL_PAGE" "$WAIT_MS"); then
-        local success=$(echo "$result" | jq -r '.success // false')
-        if [[ "$success" == "true" ]]; then
-            local title=$(echo "$result" | jq -r '.title // "Unknown"')
-            echo "Screenshot saved: $OUTPUT_PATH"
-            echo "Page title: $title"
-            echo "URL: $(echo "$result" | jq -r '.url')"
-        else
-            local error=$(echo "$result" | jq -r '.error // "Unknown error"')
-            echo "Error: $error" >&2
-            actions::cleanup_temp_session "$session_id"
-            return 1
-        fi
-    else
-        echo "Error: Failed to take screenshot" >&2
-        actions::cleanup_temp_session "$session_id"
-        return 1
+    # Use the browserless screenshot API directly
+    local browserless_port="${BROWSERLESS_PORT:-4110}"
+    
+    # Build JSON payload using more reliable method
+    local json_payload
+    json_payload=$(cat <<EOF
+{
+    "url": "$url"
+}
+EOF
+    )
+    
+    # Add fullPage option if specified
+    if [[ "$FULL_PAGE" == "true" ]]; then
+        json_payload=$(echo "$json_payload" | jq '. + {"options": {"fullPage": true}}')
     fi
     
-    actions::cleanup_temp_session "$session_id"
-    return 0
+    # Add viewport at root level if non-default viewport is specified
+    if [[ -n "$VIEWPORT_WIDTH" ]] && [[ -n "$VIEWPORT_HEIGHT" ]] && [[ "$VIEWPORT_WIDTH" != "1920" || "$VIEWPORT_HEIGHT" != "1080" ]]; then
+        json_payload=$(echo "$json_payload" | jq --argjson width "$VIEWPORT_WIDTH" --argjson height "$VIEWPORT_HEIGHT" \
+            '. + {"viewport": {"width": $width, "height": $height}}')
+    fi
+    
+    # Make the API call
+    local http_status
+    http_status=$(curl -s -X POST \
+        "http://localhost:${browserless_port}/chrome/screenshot" \
+        -H "Content-Type: application/json" \
+        -d "$json_payload" \
+        -o "$OUTPUT_PATH" \
+        -w "%{http_code}" 2>/dev/null)
+    
+    if [[ "$http_status" == "200" ]]; then
+        echo "Screenshot saved: $OUTPUT_PATH"
+        echo "URL: $url"
+        return 0
+    else
+        echo "Error: Failed to take screenshot (HTTP $http_status)" >&2
+        return 1
+    fi
 }
 
 #######################################
@@ -162,11 +267,52 @@ actions::screenshot() {
 # Usage: browserless navigate <url> [options]
 #######################################
 actions::navigate() {
-    local remaining_args
-    remaining_args=$(actions::parse_universal_options "$@")
-    read -ra args <<< "$remaining_args"
+    # Reset defaults
+    OUTPUT_PATH=""
+    TIMEOUT_MS="30000"
+    WAIT_MS="2000"
+    SESSION_NAME=""
+    FULL_PAGE="false"
+    VIEWPORT_WIDTH="1920"
+    VIEWPORT_HEIGHT="1080"
     
-    local url="${args[0]:-}"
+    # Parse options directly
+    local remaining_args_array=()
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --output)
+                OUTPUT_PATH="$2"
+                shift 2
+                ;;
+            --timeout)
+                TIMEOUT_MS="$2"
+                shift 2
+                ;;
+            --wait-ms)
+                WAIT_MS="$2"
+                shift 2
+                ;;
+            --session)
+                SESSION_NAME="$2"
+                shift 2
+                ;;
+            --fullpage)
+                FULL_PAGE="true"
+                shift
+                ;;
+            --mobile)
+                VIEWPORT_WIDTH="390"
+                VIEWPORT_HEIGHT="844"
+                shift
+                ;;
+            *)
+                remaining_args_array+=("$1")
+                shift
+                ;;
+        esac
+    done
+    
+    local url="${remaining_args_array[0]:-}"
     if [[ -z "$url" ]]; then
         echo "Error: URL required" >&2
         echo "Usage: browserless navigate <url> [--output result.json] [--wait-ms 2000]" >&2
@@ -222,12 +368,53 @@ actions::navigate() {
 # Usage: browserless health-check <url> [options]
 #######################################
 actions::health_check() {
-    local remaining_args
-    remaining_args=$(actions::parse_universal_options "$@")
-    read -ra args <<< "$remaining_args"
+    # Reset defaults
+    OUTPUT_PATH=""
+    TIMEOUT_MS="30000"
+    WAIT_MS="2000"
+    SESSION_NAME=""
+    FULL_PAGE="false"
+    VIEWPORT_WIDTH="1920"
+    VIEWPORT_HEIGHT="1080"
     
-    local url="${args[0]:-}"
-    local expected_text="${args[1]:-}"
+    # Parse options directly
+    local remaining_args_array=()
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --output)
+                OUTPUT_PATH="$2"
+                shift 2
+                ;;
+            --timeout)
+                TIMEOUT_MS="$2"
+                shift 2
+                ;;
+            --wait-ms)
+                WAIT_MS="$2"
+                shift 2
+                ;;
+            --session)
+                SESSION_NAME="$2"
+                shift 2
+                ;;
+            --fullpage)
+                FULL_PAGE="true"
+                shift
+                ;;
+            --mobile)
+                VIEWPORT_WIDTH="390"
+                VIEWPORT_HEIGHT="844"
+                shift
+                ;;
+            *)
+                remaining_args_array+=("$1")
+                shift
+                ;;
+        esac
+    done
+    
+    local url="${remaining_args_array[0]:-}"
+    local expected_text="${remaining_args_array[1]:-}"
     
     if [[ -z "$url" ]]; then
         echo "Error: URL required" >&2
@@ -315,26 +502,58 @@ actions::health_check() {
 # Usage: browserless element-exists <url> --selector "button.login" [options]
 #######################################
 actions::element_exists() {
-    local remaining_args
-    remaining_args=$(actions::parse_universal_options "$@")
-    read -ra args <<< "$remaining_args"
+    # Reset defaults
+    OUTPUT_PATH=""
+    TIMEOUT_MS="30000"
+    WAIT_MS="2000"
+    SESSION_NAME=""
+    FULL_PAGE="false"
+    VIEWPORT_WIDTH="1920"
+    VIEWPORT_HEIGHT="1080"
     
-    local url="${args[0]:-}"
     local selector=""
+    local remaining_args_array=()
     
-    # Parse selector from remaining args
-    local i=1
-    while [[ $i -lt ${#args[@]} ]]; do
-        case "${args[$i]}" in
+    # Parse options directly
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
             --selector)
-                selector="${args[$((i+1))]}"
-                i=$((i+2))
+                selector="$2"
+                shift 2
+                ;;
+            --output)
+                OUTPUT_PATH="$2"
+                shift 2
+                ;;
+            --timeout)
+                TIMEOUT_MS="$2"
+                shift 2
+                ;;
+            --wait-ms)
+                WAIT_MS="$2"
+                shift 2
+                ;;
+            --session)
+                SESSION_NAME="$2"
+                shift 2
+                ;;
+            --fullpage)
+                FULL_PAGE="true"
+                shift
+                ;;
+            --mobile)
+                VIEWPORT_WIDTH="390"
+                VIEWPORT_HEIGHT="844"
+                shift
                 ;;
             *)
-                i=$((i+1))
+                remaining_args_array+=("$1")
+                shift
                 ;;
         esac
     done
+    
+    local url="${remaining_args_array[0]:-}"
     
     if [[ -z "$url" ]] || [[ -z "$selector" ]]; then
         echo "Error: URL and selector required" >&2
@@ -390,26 +609,58 @@ actions::element_exists() {
 # Usage: browserless extract-text <url> --selector "h1" [options]
 #######################################
 actions::extract_text() {
-    local remaining_args
-    remaining_args=$(actions::parse_universal_options "$@")
-    read -ra args <<< "$remaining_args"
+    # Reset defaults
+    OUTPUT_PATH=""
+    TIMEOUT_MS="30000"
+    WAIT_MS="2000"
+    SESSION_NAME=""
+    FULL_PAGE="false"
+    VIEWPORT_WIDTH="1920"
+    VIEWPORT_HEIGHT="1080"
     
-    local url="${args[0]:-}"
     local selector=""
+    local remaining_args_array=()
     
-    # Parse selector from remaining args
-    local i=1
-    while [[ $i -lt ${#args[@]} ]]; do
-        case "${args[$i]}" in
+    # Parse options directly
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
             --selector)
-                selector="${args[$((i+1))]}"
-                i=$((i+2))
+                selector="$2"
+                shift 2
+                ;;
+            --output)
+                OUTPUT_PATH="$2"
+                shift 2
+                ;;
+            --timeout)
+                TIMEOUT_MS="$2"
+                shift 2
+                ;;
+            --wait-ms)
+                WAIT_MS="$2"
+                shift 2
+                ;;
+            --session)
+                SESSION_NAME="$2"
+                shift 2
+                ;;
+            --fullpage)
+                FULL_PAGE="true"
+                shift
+                ;;
+            --mobile)
+                VIEWPORT_WIDTH="390"
+                VIEWPORT_HEIGHT="844"
+                shift
                 ;;
             *)
-                i=$((i+1))
+                remaining_args_array+=("$1")
+                shift
                 ;;
         esac
     done
+    
+    local url="${remaining_args_array[0]:-}"
     
     if [[ -z "$url" ]] || [[ -z "$selector" ]]; then
         echo "Error: URL and selector required" >&2
@@ -465,26 +716,58 @@ actions::extract_text() {
 # Usage: browserless extract <url> --script "return {title: document.title}" [options]
 #######################################
 actions::extract() {
-    local remaining_args
-    remaining_args=$(actions::parse_universal_options "$@")
-    read -ra args <<< "$remaining_args"
+    # Reset defaults
+    OUTPUT_PATH=""
+    TIMEOUT_MS="30000"
+    WAIT_MS="2000"
+    SESSION_NAME=""
+    FULL_PAGE="false"
+    VIEWPORT_WIDTH="1920"
+    VIEWPORT_HEIGHT="1080"
     
-    local url="${args[0]:-}"
     local script=""
+    local remaining_args_array=()
     
-    # Parse script from remaining args
-    local i=1
-    while [[ $i -lt ${#args[@]} ]]; do
-        case "${args[$i]}" in
+    # Parse options directly
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
             --script)
-                script="${args[$((i+1))]}"
-                i=$((i+2))
+                script="$2"
+                shift 2
+                ;;
+            --output)
+                OUTPUT_PATH="$2"
+                shift 2
+                ;;
+            --timeout)
+                TIMEOUT_MS="$2"
+                shift 2
+                ;;
+            --wait-ms)
+                WAIT_MS="$2"
+                shift 2
+                ;;
+            --session)
+                SESSION_NAME="$2"
+                shift 2
+                ;;
+            --fullpage)
+                FULL_PAGE="true"
+                shift
+                ;;
+            --mobile)
+                VIEWPORT_WIDTH="390"
+                VIEWPORT_HEIGHT="844"
+                shift
                 ;;
             *)
-                i=$((i+1))
+                remaining_args_array+=("$1")
+                shift
                 ;;
         esac
     done
+    
+    local url="${remaining_args_array[0]:-}"
     
     if [[ -z "$url" ]] || [[ -z "$script" ]]; then
         echo "Error: URL and script required" >&2
@@ -551,40 +834,72 @@ actions::extract() {
 # Usage: browserless interact <url> --fill "input[name=email]:admin@example.com" --click "button[type=submit]" [options]
 #######################################
 actions::interact() {
-    local remaining_args
-    remaining_args=$(actions::parse_universal_options "$@")
-    read -ra args <<< "$remaining_args"
+    # Reset defaults
+    OUTPUT_PATH=""
+    TIMEOUT_MS="30000"
+    WAIT_MS="2000"
+    SESSION_NAME=""
+    FULL_PAGE="false"
+    VIEWPORT_WIDTH="1920"
+    VIEWPORT_HEIGHT="1080"
     
-    local url="${args[0]:-}"
     local interactions=()
+    local remaining_args_array=()
+    
+    # Parse options directly
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --fill)
+                interactions+=("fill:$2")
+                shift 2
+                ;;
+            --click)
+                interactions+=("click:$2")
+                shift 2
+                ;;
+            --wait-for)
+                interactions+=("wait-for:$2")
+                shift 2
+                ;;
+            --output)
+                OUTPUT_PATH="$2"
+                shift 2
+                ;;
+            --timeout)
+                TIMEOUT_MS="$2"
+                shift 2
+                ;;
+            --wait-ms)
+                WAIT_MS="$2"
+                shift 2
+                ;;
+            --session)
+                SESSION_NAME="$2"
+                shift 2
+                ;;
+            --fullpage)
+                FULL_PAGE="true"
+                shift
+                ;;
+            --mobile)
+                VIEWPORT_WIDTH="390"
+                VIEWPORT_HEIGHT="844"
+                shift
+                ;;
+            *)
+                remaining_args_array+=("$1")
+                shift
+                ;;
+        esac
+    done
+    
+    local url="${remaining_args_array[0]:-}"
     
     if [[ -z "$url" ]]; then
         echo "Error: URL required" >&2
         echo "Usage: browserless interact <url> --fill \"input[name=email]:value\" --click \"button[type=submit]\" [--screenshot result.png]" >&2
         return 1
     fi
-    
-    # Parse interactions from remaining args
-    local i=1
-    while [[ $i -lt ${#args[@]} ]]; do
-        case "${args[$i]}" in
-            --fill)
-                interactions+=("fill:${args[$((i+1))]}")
-                i=$((i+2))
-                ;;
-            --click)
-                interactions+=("click:${args[$((i+1))]}")
-                i=$((i+2))
-                ;;
-            --wait-for)
-                interactions+=("wait-for:${args[$((i+1))]}")
-                i=$((i+2))
-                ;;
-            *)
-                i=$((i+1))
-                ;;
-        esac
-    done
     
     if [[ ${#interactions[@]} -eq 0 ]]; then
         echo "Error: At least one interaction required" >&2
@@ -675,26 +990,58 @@ actions::interact() {
 # Usage: browserless console <url> [--filter error] [options]
 #######################################
 actions::console() {
-    local remaining_args
-    remaining_args=$(actions::parse_universal_options "$@")
-    read -ra args <<< "$remaining_args"
+    # Reset defaults
+    OUTPUT_PATH=""
+    TIMEOUT_MS="30000"
+    WAIT_MS="2000"
+    SESSION_NAME=""
+    FULL_PAGE="false"
+    VIEWPORT_WIDTH="1920"
+    VIEWPORT_HEIGHT="1080"
     
-    local url="${args[0]:-}"
     local filter=""
+    local remaining_args_array=()
     
-    # Parse filter from remaining args
-    local i=1
-    while [[ $i -lt ${#args[@]} ]]; do
-        case "${args[$i]}" in
+    # Parse options directly
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
             --filter)
-                filter="${args[$((i+1))]}"
-                i=$((i+2))
+                filter="$2"
+                shift 2
+                ;;
+            --output)
+                OUTPUT_PATH="$2"
+                shift 2
+                ;;
+            --timeout)
+                TIMEOUT_MS="$2"
+                shift 2
+                ;;
+            --wait-ms)
+                WAIT_MS="$2"
+                shift 2
+                ;;
+            --session)
+                SESSION_NAME="$2"
+                shift 2
+                ;;
+            --fullpage)
+                FULL_PAGE="true"
+                shift
+                ;;
+            --mobile)
+                VIEWPORT_WIDTH="390"
+                VIEWPORT_HEIGHT="844"
+                shift
                 ;;
             *)
-                i=$((i+1))
+                remaining_args_array+=("$1")
+                shift
                 ;;
         esac
     done
+    
+    local url="${remaining_args_array[0]:-}"
     
     if [[ -z "$url" ]]; then
         echo "Error: URL required" >&2
@@ -797,11 +1144,52 @@ actions::console() {
 # Usage: browserless performance <url> [options]
 #######################################
 actions::performance() {
-    local remaining_args
-    remaining_args=$(actions::parse_universal_options "$@")
-    read -ra args <<< "$remaining_args"
+    # Reset defaults
+    OUTPUT_PATH=""
+    TIMEOUT_MS="30000"
+    WAIT_MS="2000"
+    SESSION_NAME=""
+    FULL_PAGE="false"
+    VIEWPORT_WIDTH="1920"
+    VIEWPORT_HEIGHT="1080"
     
-    local url="${args[0]:-}"
+    # Parse options directly
+    local remaining_args_array=()
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --output)
+                OUTPUT_PATH="$2"
+                shift 2
+                ;;
+            --timeout)
+                TIMEOUT_MS="$2"
+                shift 2
+                ;;
+            --wait-ms)
+                WAIT_MS="$2"
+                shift 2
+                ;;
+            --session)
+                SESSION_NAME="$2"
+                shift 2
+                ;;
+            --fullpage)
+                FULL_PAGE="true"
+                shift
+                ;;
+            --mobile)
+                VIEWPORT_WIDTH="390"
+                VIEWPORT_HEIGHT="844"
+                shift
+                ;;
+            *)
+                remaining_args_array+=("$1")
+                shift
+                ;;
+        esac
+    done
+    
+    local url="${remaining_args_array[0]:-}"
     if [[ -z "$url" ]]; then
         echo "Error: URL required" >&2
         echo "Usage: browserless performance <url> [--output metrics.json]" >&2
@@ -917,11 +1305,52 @@ actions::performance() {
 # Usage: browserless extract-forms <url> [options]
 #######################################
 actions::extract_forms() {
-    local remaining_args
-    remaining_args=$(actions::parse_universal_options "$@")
-    read -ra args <<< "$remaining_args"
+    # Reset defaults
+    OUTPUT_PATH=""
+    TIMEOUT_MS="30000"
+    WAIT_MS="2000"
+    SESSION_NAME=""
+    FULL_PAGE="false"
+    VIEWPORT_WIDTH="1920"
+    VIEWPORT_HEIGHT="1080"
     
-    local url="${args[0]:-}"
+    # Parse options directly
+    local remaining_args_array=()
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --output)
+                OUTPUT_PATH="$2"
+                shift 2
+                ;;
+            --timeout)
+                TIMEOUT_MS="$2"
+                shift 2
+                ;;
+            --wait-ms)
+                WAIT_MS="$2"
+                shift 2
+                ;;
+            --session)
+                SESSION_NAME="$2"
+                shift 2
+                ;;
+            --fullpage)
+                FULL_PAGE="true"
+                shift
+                ;;
+            --mobile)
+                VIEWPORT_WIDTH="390"
+                VIEWPORT_HEIGHT="844"
+                shift
+                ;;
+            *)
+                remaining_args_array+=("$1")
+                shift
+                ;;
+        esac
+    done
+    
+    local url="${remaining_args_array[0]:-}"
     if [[ -z "$url" ]]; then
         echo "Error: URL required" >&2
         echo "Usage: browserless extract-forms <url> [--output forms.json]" >&2

@@ -11,6 +11,8 @@ source "${var_TRASH_FILE}"
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/flow.sh"
 # shellcheck disable=SC1091
+source "${APP_ROOT}/resources/questdb/config/messages.sh"
+# shellcheck disable=SC1091
 source "${QUESTDB_LIB_DIR}/docker.sh"
 
 #######################################
@@ -20,6 +22,9 @@ source "${QUESTDB_LIB_DIR}/docker.sh"
 #######################################
 questdb::install::run() {
     log::header "Installing QuestDB Time-Series Database"
+    
+    # Initialize messages
+    questdb::messages::init
     
     # Check prerequisites
     if ! questdb::install::check_prerequisites; then
@@ -36,8 +41,8 @@ questdb::install::run() {
         return 1
     fi
     
-    # Start QuestDB
-    if ! questdb::docker::start; then
+    # Create and start QuestDB container
+    if ! questdb::docker::create_container; then
         return 1
     fi
     
