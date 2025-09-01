@@ -107,7 +107,8 @@ redis::status::collect_data() {
             status_data+=("active_databases" "N/A")
         else
             local redis_info
-            redis_info=$(timeout 3s redis::common::get_info 2>/dev/null)
+            # Direct call without timeout wrapper for better reliability
+            redis_info=$(redis::common::get_info)
         
         if [[ -n "$redis_info" ]]; then
             # Memory usage

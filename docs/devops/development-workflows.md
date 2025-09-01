@@ -25,18 +25,11 @@ The workflow scripts are located in `/scripts/` and provide a **unified interfac
 ### Initial Setup
 
 ```bash
-# 1. Initial project setup (choose your target)
-./scripts/main/setup.sh --target docker
-
-# Available targets:
-# --target docker      # Docker Compose (recommended for development)
-# --target k8s          # Kubernetes cluster
-# --target native-linux # Native Linux/Ubuntu
-# --target native-mac   # Native macOS
-# --target native-win   # Native Windows
+# 1. Initial project setup
+vrooli setup
 
 # 2. Start development environment
-./scripts/main/develop.sh --target docker --detached no
+vrooli develop
 
 # 3. Open in browser: http://localhost:3000
 ```
@@ -49,9 +42,9 @@ curl http://localhost:5555/health
 curl http://localhost:3000
 
 # Check logs
-./scripts/main/develop.sh --target docker --detached yes
-docker logs vrooli-server-1
-docker logs vrooli-ui-1
+vrooli status
+vrooli app logs server
+vrooli app logs ui
 ```
 
 > 📖 **Setup Guide**: See [Prerequisites](../setup/prerequisites.md) for detailed setup requirements
@@ -92,7 +85,7 @@ pnpm build
 
 ```bash
 # Start all services with auto-restart
-./scripts/main/develop.sh --target docker --detached no
+vrooli develop
 
 # This starts:
 # - PostgreSQL (port 5432)
@@ -118,8 +111,8 @@ pnpm build
 
 ```bash
 # Setup and start
-./scripts/main/setup.sh --target docker
-./scripts/main/develop.sh --target docker --detached no
+vrooli setup
+vrooli develop
 
 # Environment:
 # - PostgreSQL + Redis in containers
@@ -139,9 +132,9 @@ pnpm build
 **Best for**: Production testing, advanced development, CI/CD
 
 ```bash
-# Setup cluster and deploy
-./scripts/main/setup.sh --target k8s
-./scripts/main/develop.sh --target k8s --detached yes
+# Setup and deploy
+vrooli setup
+vrooli develop
 
 # Environment:
 # - Full Kubernetes deployment
@@ -162,7 +155,7 @@ pnpm build
 
 ```bash
 # Setup native dependencies
-./scripts/main/setup.sh --target native-linux
+vrooli setup
 
 # Manual service management
 # Start PostgreSQL: sudo systemctl start postgresql
@@ -184,7 +177,7 @@ pnpm build
 
 ```bash
 # Start your day
-./scripts/main/develop.sh --target docker --detached no
+vrooli develop
 
 # Code changes automatically trigger:
 # - TypeScript compilation
@@ -229,9 +222,9 @@ cd packages/ui && pnpm test-watch
 cd packages/shared && pnpm test
 
 # Integration testing with Docker
-./scripts/main/develop.sh --target docker --detached yes
+vrooli develop
 # Run your integration tests
-./scripts/main/develop.sh --target docker --detached no  # Switch back to logs
+vrooli test
 
 # E2E testing
 cd packages/ui && pnpm test:e2e
@@ -241,7 +234,7 @@ cd packages/ui && pnpm test:e2e
 
 ```bash
 # Start with performance monitoring
-./scripts/main/develop.sh --target docker --detached no
+vrooli develop
 
 # Monitor resources
 docker stats
@@ -261,7 +254,7 @@ cd packages/server && pnpm test -- --coverage
 docker logs -f vrooli-server-1
 
 # Debug UI issues
-./scripts/main/develop.sh --target docker --detached no
+vrooli develop
 # Check browser console and network tab
 
 # Debug database queries
@@ -279,15 +272,15 @@ docker exec -it vrooli-redis-1 redis-cli monitor
 
 ```bash
 # Development (automatic)
-ENVIRONMENT=development ./scripts/main/develop.sh --target docker
+vrooli develop
 
-# Production testing
-ENVIRONMENT=production ./scripts/main/develop.sh --target docker
+# Production testing (use appropriate config)
+vrooli develop
 
 # Custom environment
 cp .env-example .env
 # Edit .env with your configuration
-./scripts/main/develop.sh --target docker
+vrooli develop
 ```
 
 ### Environment Variables by Service
@@ -303,13 +296,11 @@ cp .env-example .env
 
 ```bash
 # Development environment
-./scripts/main/develop.sh --target docker --environment development
+vrooli develop
 
-# Staging environment  
-./scripts/main/develop.sh --target k8s --environment staging
-
-# Production testing
-./scripts/main/develop.sh --target k8s --environment production
+# For different environments, configure your .env files appropriately
+# then run:
+vrooli develop
 ```
 
 ---
@@ -322,7 +313,7 @@ cp .env-example .env
 # Start with test watching
 cd packages/server && pnpm test-watch &
 cd packages/ui && pnpm test-watch &
-./scripts/main/develop.sh --target docker --detached no
+vrooli develop
 
 # Write failing tests first
 # Implement features to make tests pass
@@ -333,9 +324,10 @@ cd packages/ui && pnpm test-watch &
 
 ```bash
 # Simulate CI pipeline locally
-./scripts/main/setup.sh --target docker --clean yes
-./scripts/main/build.sh --target docker
-./scripts/main/deploy.sh --target docker --environment staging
+vrooli clean
+vrooli setup
+vrooli build
+vrooli deploy
 
 # Run full test suite
 pnpm test:ci
@@ -345,7 +337,7 @@ pnpm test:ci
 
 ```bash
 # Start performance monitoring
-./scripts/main/develop.sh --target docker --detached yes
+vrooli develop
 
 # Load testing
 cd packages/server && npm run test:load
@@ -363,23 +355,23 @@ cd packages/server && npm run test:memory
 
 | Issue | Symptoms | Solution |
 |-------|----------|----------|
-| **Port Conflicts** | "Port already in use" | `./scripts/main/develop.sh --target docker --clean yes` |
-| **Database Connection** | "Connection refused" | Check PostgreSQL container: `docker ps` |
+| **Port Conflicts** | "Port already in use" | `vrooli stop && vrooli clean && vrooli develop` |
+| **Database Connection** | "Connection refused" | `vrooli resource status` |
 | **Module Not Found** | Import errors | `pnpm install && pnpm build` |
-| **Hot Reload Broken** | Changes not reflecting | Restart: `Ctrl+C` then restart develop script |
-| **Container Issues** | Services not starting | `docker system prune && ./scripts/main/setup.sh --clean yes` |
+| **Hot Reload Broken** | Changes not reflecting | `vrooli stop && vrooli develop` |
+| **Container Issues** | Services not starting | `vrooli clean && vrooli setup` |
 
 ### Debug Mode
 
 ```bash
 # Enable verbose logging
-DEBUG=vrooli:* ./scripts/main/develop.sh --target docker --detached no
+DEBUG=vrooli:* vrooli develop
 
 # Database query debugging
-DEBUG=prisma:query ./scripts/main/develop.sh --target docker --detached no
+DEBUG=prisma:query vrooli develop
 
 # Network debugging
-DEBUG=socket.io:* ./scripts/main/develop.sh --target docker --detached no
+DEBUG=socket.io:* vrooli develop
 ```
 
 ### Health Checks
@@ -456,10 +448,10 @@ cd packages/server && pnpm prisma studio
 
 ```bash
 # Test locally first
-./scripts/main/develop.sh --target docker --environment production
+vrooli develop
 
 # Deploy to staging
-./scripts/main/deploy.sh --target k8s --environment staging
+vrooli deploy
 
 # Verify deployment
 kubectl get pods -n vrooli-staging
@@ -470,10 +462,10 @@ kubectl logs -f deployment/vrooli-server -n vrooli-staging
 
 ```bash
 # Build production images
-./scripts/main/build.sh --target docker --environment production
+vrooli build
 
 # Deploy with zero downtime
-./scripts/main/deploy.sh --target k8s --environment production
+vrooli deploy
 
 # Monitor deployment
 kubectl rollout status deployment/vrooli-server -n vrooli-production
@@ -481,16 +473,16 @@ kubectl rollout status deployment/vrooli-server -n vrooli-production
 
 ---
 
-## 📚 Script Reference
+## 📚 CLI Reference
 
-### Main Scripts
+### Main Commands
 
-| Script | Purpose | Common Usage |
+| Command | Purpose | Common Usage |
 |--------|---------|--------------|
-| **setup.sh** | Initial environment setup | `./scripts/main/setup.sh --target docker` |
-| **develop.sh** | Start development environment | `./scripts/main/develop.sh --target docker --detached no` |
-| **build.sh** | Build production artifacts | `./scripts/main/build.sh --target docker` |
-| **deploy.sh** | Deploy to environments | `./scripts/main/deploy.sh --target k8s --environment staging` |
+| **vrooli setup** | Initial environment setup | `vrooli setup` |
+| **vrooli develop** | Start development environment | `vrooli develop` |
+| **vrooli build** | Build production artifacts | `vrooli build` |
+| **vrooli deploy** | Deploy to environments | `vrooli deploy` |
 
 ### Helper Scripts
 

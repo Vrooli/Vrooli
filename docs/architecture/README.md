@@ -135,13 +135,13 @@ style External fill:#f1f8e9
 
 ## Data Flow
 
-### AI Execution Flow
-1. User interacts with swarm through chat interface
-2. SwarmStateMachine coordinates agent team assembly
-3. RunStateMachine orchestrates routine execution
-4. UnifiedExecutor performs strategy-aware step execution
-5. Results flow back through tiers with context updates
-6. Event bus notifies monitoring agents of execution events
+### Scenario Deployment Flow
+1. User specifies business requirements or selects existing scenario
+2. Scenario validation proves resource integration and deployment readiness
+3. Resource orchestration starts only required services based on scenario configuration
+4. Application components (database, workflows, UI, monitoring) deploy automatically
+5. Business application becomes live with complete functionality
+6. Meta-scenarios monitor, debug, and optimize deployed applications
 
 ### Authentication Flow
 1. User initiates authentication
@@ -149,11 +149,11 @@ style External fill:#f1f8e9
 3. Token validates access to teams, swarms, and routines
 4. Session management with automatic renewal
 
-### Resource Management Flow
-1. Credit allocation at team/swarm level
-2. Hierarchical resource inheritance
-3. Real-time usage tracking across execution tiers
-4. Automatic limit enforcement and graceful degradation
+### Resource Orchestration Flow
+1. Scenario configuration specifies required resources (databases, AI models, automation platforms)
+2. Intelligent resource discovery and automatic service startup
+3. Resource integration validation through scenario testing framework
+4. Dynamic scaling based on deployed scenario requirements
 
 ### Notification Flow
 1. Events trigger notification requirements
@@ -211,10 +211,10 @@ style External fill:#f1f8e9
 - Cost-aware model selection
 
 ### Horizontal Scaling
-- Swarm distribution across geographic regions
-- Process sharding for routine execution
-- Executor clustering for parallel processing
-- Model farming for AI service distribution
+- Scenario deployment across multiple servers
+- Resource distribution for load balancing
+- Local service clustering for high availability
+- Automated failover and recovery mechanisms
 
 ## Architecture Documentation Index
 
@@ -227,8 +227,8 @@ This directory contains detailed documentation for each layer of the high-level 
 - **[API Gateway Layer](api-gateway/)** - Communication protocols and interfaces  
   - REST API, WebSocket API, MCP Server
 
-- **[Execution Layer](execution/)** - Three-tier AI execution framework
-  - Tier 1: Coordination Intelligence, Tier 2: Process Intelligence, Tier 3: Execution Intelligence
+- **[Resource Orchestration Layer](resource-orchestration/)** - Local service coordination and scenario execution
+  - Scenario Management, Resource Integration, Application Generation
 
 - **[Core Services](core-services/)** - Essential infrastructure services
   - Authentication, Background Jobs, Event Bus, AI Models, Notifications, Sandbox, Secrets
@@ -249,11 +249,11 @@ This directory contains detailed documentation for each layer of the high-level 
 
 When contributing to Vrooli's architecture:
 
-1. **Follow the Three-Tier Pattern**: Ensure new features align with the coordination/process/execution intelligence model
-2. **Maintain Event-Driven Design**: Use the event bus for component communication
-3. **Consider AI-Specific Requirements**: Account for strategy evolution, context management, and recursive improvement
-4. **Document Security Implications**: Address AI-specific threats and privacy concerns
-5. **Plan for Scale**: Design components for horizontal scaling and multi-region deployment
+1. **Scenario-First Design**: Build capabilities as deployable scenarios rather than platform features
+2. **Local Resource Integration**: Use existing automation tools (n8n, Node-RED) rather than custom solutions
+3. **Business Application Focus**: Every scenario should generate revenue-ready applications
+4. **Resource Composition**: Enable scenarios to combine multiple local services for complex applications
+5. **Deployment Simplicity**: Maintain simple scenario deployment and customization processes
 
 ## References
 

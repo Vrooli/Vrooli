@@ -16,11 +16,11 @@ source "${var_SCRIPTS_RESOURCES_LIB_DIR}/docker-resource-utils.sh"
 
 # Create and start Redis container
 redis::docker::create_container() {
+    # Ensure volumes exist first (creates temp config dir)
+    redis::common::create_volumes || return 1
+    
     # Ensure configuration is generated
     redis::common::generate_config || return 1
-    
-    # Ensure volumes exist
-    redis::common::create_volumes || return 1
     
     # Pull image if needed
     log::info "${MSG_PULLING_IMAGE}"
@@ -28,16 +28,32 @@ redis::docker::create_container() {
     
     log::info "${MSG_STARTING_CONTAINER}"
     
-    # Create Redis service with ultra-simple API (data + config volumes, logs to stdout)
-    if docker_resource::create_service_with_command \
-        "$REDIS_CONTAINER_NAME" \
-        "$REDIS_IMAGE" \
-        "$REDIS_PORT" \
-        "$REDIS_INTERNAL_PORT" \
-        "$REDIS_NETWORK_NAME" \
-        "$REDIS_VOLUME_NAME:/data $REDIS_TEMP_CONFIG_DIR:/usr/local/etc/redis:ro" \
-        "redis-cli ping || exit 1" \
-        "redis-server" "/usr/local/etc/redis/redis.conf" ${REDIS_PASSWORD:+--requirepass "$REDIS_PASSWORD"}; then
+    # Create Redis container directly with proper configuration
+    log::debug "Creating Redis container with config"
+    
+    # Create network first
+    docker::create_network "$REDIS_NETWORK_NAME"
+    
+    # Build and run docker command
+    local docker_cmd=(
+        "docker" "run" "-d"
+        "--name" "$REDIS_CONTAINER_NAME"
+        "--network" "$REDIS_NETWORK_NAME"
+        "--restart" "unless-stopped"
+        "-p" "${REDIS_PORT}:${REDIS_INTERNAL_PORT}"
+        "-v" "${REDIS_VOLUME_NAME}:/data"
+        "-v" "${REDIS_TEMP_CONFIG_DIR}:/usr/local/etc/redis:ro"
+        "--health-cmd" "redis-cli ping || exit 1"
+        "--health-interval" "30s"
+        "--health-timeout" "5s"
+        "--health-retries" "3"
+        "$REDIS_IMAGE"
+        "redis-server" "/usr/local/etc/redis/redis.conf"
+    )
+    
+    log::debug "Executing: ${docker_cmd[*]}"
+    
+    if "${docker_cmd[@]}"; then
         
         # Wait a moment for container to initialize
         sleep "${REDIS_INITIALIZATION_WAIT:-2}"

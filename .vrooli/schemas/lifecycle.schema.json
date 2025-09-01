@@ -6,6 +6,7 @@
   "definitions": {
     "lifecycle": {
       "type": "object",
+      "required": ["develop"],
       "properties": {
         "version": {
           "type": "string",

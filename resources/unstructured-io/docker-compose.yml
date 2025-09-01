@@ -45,5 +45,5 @@ services:
 
 networks:
   vrooli-resources:
-    driver: bridge
+    external: true
     name: vrooli-resources

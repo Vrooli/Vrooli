@@ -36,23 +36,31 @@ NODE_ENV=production
 ### local-services
 **Definition**: Development target running services directly on the host machine.
 **Usage**: Native Node.js, local PostgreSQL/Redis
-**Command**: `bash scripts/main/develop.sh --target local-services`
+**Command**: `vrooli develop --target local-services`
 
 ### docker-daemon
 **Definition**: Development target using Docker containers for all services.
 **Usage**: Docker Compose orchestration, containerized services
-**Command**: `bash scripts/main/develop.sh --target docker-daemon`
+**Command**: `vrooli develop --target docker-daemon`
 
 ### k8s-cluster
 **Definition**: Development target using Kubernetes (typically Minikube).
 **Usage**: Helm charts, Kubernetes resources, container orchestration
-**Command**: `bash scripts/main/develop.sh --target k8s-cluster`
+**Command**: `vrooli develop --target k8s-cluster`
 
 ## Script Invocation Standards
 
 ### Standard Format
-**Correct**: `bash scripts/main/script.sh`
-**Incorrect**: `./scripts/main/script.sh` or `scripts/main/script.sh`
+**Correct**: `./scripts/manage.sh <phase>` or `vrooli <command>`
+**Incorrect**: Using deprecated `scripts/main/` paths
+
+**Migration Reference:**
+- `scripts/main/setup.sh` → `./scripts/manage.sh setup` or `vrooli setup`
+- `scripts/main/develop.sh` → `vrooli develop`  
+- `scripts/main/build.sh` → `./scripts/manage.sh build`
+- `scripts/main/deploy.sh` → `./scripts/manage.sh deploy`
+
+**Note**: The `scripts/main/` directory was removed in Phase 5 of the migration to unified script management. All functionality has been moved to the universal entry points listed above.
 
 ### Argument Format
 **Correct**: `--environment development` (long form)
@@ -83,7 +91,8 @@ image: ${DOCKERHUB_USERNAME}/server:development
 ### Script Paths
 **Standard**: Always reference from repository root
 ```bash
-bash scripts/main/develop.sh
+vrooli develop
+./scripts/manage.sh setup
 bash scripts/helpers/utils/log.sh
 ```
 
@@ -283,11 +292,11 @@ bash scripts/helpers/utils/log.sh
 
 ### Script Execution
 ```bash
-# Always use full bash invocation
-bash scripts/main/develop.sh --target local-services
+# Use vrooli CLI for common operations
+vrooli develop --target local-services
 
-# Use long-form arguments
-bash scripts/main/build.sh --environment development --artifacts docker
+# Use manage.sh for lifecycle operations
+./scripts/manage.sh build --environment development --artifacts docker
 
 # Use consistent quoting
 export ENVIRONMENT="development"

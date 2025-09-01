@@ -90,7 +90,7 @@ cat ~/.ssh/vrooli_staging_deploy.pub
 
 ```bash
 # Using the provided authorize_key.sh script
-ssh user@server-ip 'bash -s' < scripts/main/authorize_key.sh
+ssh user@server-ip 'bash -s' < scripts/lib/network/authorize_key.sh
 # Then paste the public key content and press Ctrl+D
 ```
 

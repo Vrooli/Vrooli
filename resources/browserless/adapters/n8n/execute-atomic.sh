@@ -17,7 +17,10 @@ N8N_ADAPTER_DIR="$SCRIPT_DIR"
 BROWSERLESS_DIR="${APP_ROOT}/resources/browserless"
 
 # Source required libraries
-source "${APP_ROOT}/scripts/lib/utils/log.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/lib/utils/var.sh" || { echo "FATAL: Failed to load variable definitions" >&2; exit 1; }
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}" || { echo "FATAL: Failed to load logging library" >&2; exit 1; }
 source "${BROWSERLESS_DIR}/lib/browser-ops.sh"
 source "${BROWSERLESS_DIR}/lib/session-manager.sh"
 

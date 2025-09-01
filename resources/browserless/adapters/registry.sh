@@ -23,7 +23,7 @@ source "${REGISTRY_DIR}/common.sh"
 #######################################
 registry::init() {
     local registry_file="${var_ROOT_DIR}/.vrooli/adapter-registry.json"
-    local registry_dir=${registry_file%/*
+    local registry_dir=${registry_file%/*}
     
     # Ensure directory exists
     mkdir -p "$registry_dir"

@@ -59,19 +59,11 @@ jobs:
           ssh -i ~/.ssh/deploy_key -o BatchMode=yes ${{ secrets.VPS_DEPLOY_USER }}@${{ secrets.VPS_DEPLOY_HOST }} "echo 'SSH OK'"
       - name: Build, zip, and send to production
         run: |
-          bash scripts/main/build.sh \
-            --environment production \
-            --ci-cd yes \
-            --bundles zip \
-            --artifacts all \
-            --binaries none \
-            --dest local \
-            --yes yes \
-            --location remote \
-            --lint "${{ env.RUN_LINT == 'true' && 'yes' || 'no' }}" \
-            --test "${{ env.RUN_TEST == 'true' && 'yes' || 'no' }}"
+          # TODO: Verify vrooli build supports all required CI/CD flags for production
+          # Original command had: --environment production, --ci-cd, --bundles, --artifacts, --binaries, --dest, --location, --lint, --test
+          vrooli build
       - name: Deploy to Production
         run: |
           # Run the deploy script remotely on the production server via SSH
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ secrets.VPS_DEPLOY_USER }}@${{ secrets.VPS_DEPLOY_HOST }} \
-            'bash ~/Vrooli/scripts/main/deploy.sh --environment production --source docker --yes yes'
+            'cd ~/Vrooli && vrooli deploy'

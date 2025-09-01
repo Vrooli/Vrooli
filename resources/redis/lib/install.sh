@@ -12,6 +12,20 @@ source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${var_LIB_SERVICE_DIR}/secrets.sh"
 # shellcheck disable=SC1091
 source "${var_TRASH_FILE}"
+# shellcheck disable=SC1091
+source "${var_SCRIPTS_RESOURCES_LIB_DIR}/docker-resource-utils.sh"
+# shellcheck disable=SC1091
+source "${_REDIS_INSTALL_DIR}/common.sh"
+# shellcheck disable=SC1091
+source "${_REDIS_INSTALL_DIR}/docker.sh"
+# shellcheck disable=SC1091
+source "${APP_ROOT}/resources/redis/config/defaults.sh"
+# shellcheck disable=SC1091
+source "${APP_ROOT}/resources/redis/config/messages.sh"
+# shellcheck disable=SC1091
+source "${_REDIS_INSTALL_DIR}/status.sh"
+# shellcheck disable=SC1091
+source "${_REDIS_INSTALL_DIR}/backup.sh"
 
 #######################################
 # Install Redis resource
@@ -47,7 +61,8 @@ redis::install::main() {
     fi
     
     # Pull image
-    if ! redis::docker::pull_image; then
+    log::info "Pulling Redis image..."
+    if ! docker::pull_image "$REDIS_IMAGE"; then
         return 1
     fi
     
@@ -109,6 +124,21 @@ redis::install::check_prerequisites() {
     available_memory=$(free -m | awk 'NR==2{print $7}')
     if [[ "$available_memory" -lt 2048 ]]; then
         log::warn "Low available memory: ${available_memory}MB. Redis may perform poorly."
+    fi
+    
+    # Check memory overcommit setting (Redis requirement)
+    local overcommit_value
+    overcommit_value=$(cat /proc/sys/vm/overcommit_memory 2>/dev/null || echo "0")
+    if [[ "$overcommit_value" != "1" ]]; then
+        log::warn "⚠️  Memory overcommit is not enabled (current value: $overcommit_value)"
+        log::info "   Redis recommends setting vm.overcommit_memory=1 for background saves"
+        log::info "   To fix temporarily (until reboot):"
+        log::info "     sudo sysctl vm.overcommit_memory=1"
+        log::info "   To fix permanently:"
+        log::info "     echo 'vm.overcommit_memory = 1' | sudo tee -a /etc/sysctl.conf"
+        log::info "     sudo sysctl -p"
+        log::info "   Redis will still work but may have issues with background saves."
+        # Don't fail installation, just warn
     fi
     
     return 0
@@ -298,7 +328,8 @@ redis::install::upgrade() {
     fi
     
     # Pull latest image
-    if ! redis::docker::pull_image; then
+    log::info "Pulling latest Redis image..."
+    if ! docker::pull_image "$REDIS_IMAGE"; then
         return 1
     fi
     
