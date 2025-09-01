@@ -34,7 +34,7 @@
     "editor.defaultFormatter": "vscode.typescript-language-features"
   },
   "yaml.schemas": {
-    "https://raw.githubusercontent.com/compose-spec/compose-spec/master/schema/compose-spec.json": "file:///home/matthalloran8/Vrooli/docker-compose-prod.yml"
+    "https://raw.githubusercontent.com/compose-spec/compose-spec/master/schema/compose-spec.json": "docker-compose-prod.yml"
   },
   "eslint.lintTask.enable": true,
   "typescript.tsdk": "node_modules/typescript/lib"

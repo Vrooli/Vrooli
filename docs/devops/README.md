@@ -2,28 +2,25 @@
 
 This directory contains scripts for automating various development, build, deployment, and maintenance tasks for the Vrooli project.
 
-## Directory Structure
+## System Architecture
+
+Vrooli now uses a unified CLI tool (`vrooli`) that replaces the previous complex script system. The architecture centers around:
 
 ```
-scripts/
-├── main/                   # Main executable scripts
-│   ├── setup.sh            # Prepares the project environment
-│   ├── develop.sh          # Starts the development environment
-│   ├── build.sh            # Builds project artifacts
-│   ├── deploy.sh           # Deploys project artifacts
-│   ├── backup.sh           # Manages backups
-│   ├── manageLocalVault.sh # Manages a local Vault instance for development
-│   └── authorize_key.sh    # Adds an SSH public key to authorized_keys
-│
-├── helpers/                # Helper functions and modules used by main scripts
-│   ├── utils/              # Common utility functions (logging, args, env, etc.)
-│   ├── setup/              # Helpers specific to the setup process
-│   ├── develop/            # Helpers specific to the development process
-│   ├── build/              # Helpers specific to the build process
-│   ├── deploy/             # Helpers specific to the deployment process
-│   └── ...                 # Potentially other specialized helper categories
-│
-└── README.md               # This file
+cli/                        # Vrooli CLI implementation
+├── vrooli                  # Main CLI executable
+└── commands/               # CLI command implementations
+
+scripts/                    # Backend automation scripts
+├── manage.sh               # Core system management
+├── lib/                    # Shared libraries and utilities
+├── resources/              # Resource management system
+└── scenarios/              # Scenario and app management
+
+.vrooli/                    # Configuration and runtime data
+├── service.json            # Service configuration
+├── app-identity.json       # Application identity
+└── running-resources.json  # Runtime status tracking
 ```
 
 ## Key Documentation
@@ -45,73 +42,102 @@ scripts/
 
 Whether you're setting up a local development environment, deploying to a production server, or implementing a CI/CD pipeline, you'll find the necessary information here.
 
-## Main Scripts (`scripts/main/`)
+## Vrooli CLI Commands
 
-Detailed descriptions of the primary scripts:
+The `vrooli` CLI provides a unified interface for all development operations:
 
-*   **`setup.sh`**:
-    *   **Purpose**: Initializes and configures the project environment. This is often the first script run and is called by other main scripts like `develop.sh`, `build.sh`, and `deploy.sh`.
-    *   **Key Functions**: System preparation (updates, dependencies), tool installation (Docker, BATS, ShellCheck), environment variable loading, JWT generation, Docker setup, target-specific setup (e.g., for Docker, K8s, local machine), Vault integration, Stripe CLI setup. Can also trigger backups in production.
-    *   **Usage**: `bash scripts/main/setup.sh [options]`
-    *   **Important Targets**: 
-        - `local-services` - Local development with services running directly
-        - `k8s-cluster` - Kubernetes cluster development (Minikube)
-        - `docker-daemon` - Docker-based development
+### **🔄 Lifecycle Commands**
 
-*   **`develop.sh`**:
-    *   **Purpose**: Starts the local development environment for a specified target (e.g., local services, Kubernetes cluster).
-    *   **Key Functions**: Parses arguments, runs `setup.sh` to prepare the environment, sets up reverse proxies (if remote), and then executes target-specific development scripts.
-    *   **Usage**: `bash scripts/main/develop.sh --target <target_name> [options]`
-    *   **Common Examples**:
-        - `bash scripts/main/develop.sh --target local-services` - Start local development
-        - `bash scripts/main/develop.sh --target k8s-cluster` - Start K8s development
+*   **`vrooli setup`**:
+    *   **Purpose**: Initialize the development environment with all necessary dependencies and configurations
+    *   **Key Functions**: System preparation, dependency installation, resource setup, environment configuration
+    *   **Usage**: `vrooli setup`
+    *   **Features**: Automatic dependency detection, resource installation, network diagnostics
 
-*   **`build.sh`**:
-    *   **Purpose**: Builds various project artifacts, including Docker images, Kubernetes Helm charts, ZIP bundles, and platform-specific binaries.
-    *   **Key Functions**: Parses arguments (version, bundles, artifacts, binaries), runs `setup.sh`, cleans previous builds, runs tests/linting (optional), updates project version, builds Electron scripts, packages artifacts (Docker images, Helm charts, Helm values files), and optionally copies bundles to a remote server.
-    *   **Usage**: `bash scripts/main/build.sh [options]`
-    *   **Key Options**:
-        - `--version <ver>` - Specify version (mandatory for production)
-        - `--bundles <all|zip|cli>` - Bundle types to generate
-        - `--artifacts <all|docker|k8s>` - Container artifacts to include
-        - `--binaries <all|windows|mac|linux|android|ios>` - Platform binaries
-        - `--dest <local|remote>` - Where to save bundles
+*   **`vrooli develop`**:
+    *   **Purpose**: Start the development environment with hot reloading and live updates
+    *   **Key Functions**: Starts all necessary services, enables development mode, provides real-time feedback
+    *   **Usage**: `vrooli develop`
+    *   **Features**: Auto-restart, live reloading, integrated logging
 
-*   **`deploy.sh`**:
-    *   **Purpose**: Deploys built artifacts to a target environment. This script is typically run on the server where the deployment occurs (e.g., production server).
-    *   **Key Functions**: Parses arguments (source type, version), runs `setup.sh`, loads build artifacts from bundles, and executes deployment logic based on the source type (e.g., Docker deployment, Kubernetes Helm upgrade).
-    *   **Usage**: `bash scripts/main/deploy.sh --source <docker|k8s> --version <version> [options]`
-    *   **Examples**:
-        - `bash scripts/main/deploy.sh -s docker -v 1.0.0 -e prod`
-        - `bash scripts/main/deploy.sh -s k8s -v 1.0.0 -e staging`
+*   **`vrooli build`**:
+    *   **Purpose**: Build production-ready artifacts and deployments
+    *   **Key Functions**: Compiles code, creates containers, packages applications
+    *   **Usage**: `vrooli build`
+    *   **Features**: Multi-platform support, optimization, artifact generation
 
-*   **`backup.sh`**:
-    *   **Purpose**: Performs backups of critical data (e.g., database, specific directories) from a remote server to a local backup directory. Can also schedule daily backups via cron.
-    *   **Key Functions**: Connects to remote server via SSH, fetches project version, creates a versioned backup archive, and prunes old backups.
-    *   **Usage**: `bash scripts/main/backup.sh` (schedules and runs initial), `bash scripts/main/backup.sh run_backup` (runs on-demand for cron)
-    *   **What it backs up**: PostgreSQL data, JWT files, environment files
+*   **`vrooli deploy`**:
+    *   **Purpose**: Deploy applications to production or staging environments
+    *   **Key Functions**: Handles deployment orchestration, environment-specific configurations
+    *   **Usage**: `vrooli deploy`
+    *   **Features**: Environment management, rollback capabilities, health checks
 
-*   **`manageLocalVault.sh`**:
-    *   **Purpose**: Manages a local HashiCorp Vault instance specifically for development purposes. **Not for production use.**
-    *   **Key Functions**: Starts/stops a dev Vault server, checks status, sets up AppRole authentication, and seeds secrets from `.env-dev` into Vault for local development testing.
-    *   **Usage**: `bash scripts/main/manageLocalVault.sh [--start-dev|--stop|--status]`
-    *   **Features**: AppRole setup, secret seeding from .env-dev, policy management
+*   **`vrooli clean`**:
+    *   **Purpose**: Clean build artifacts and reset environment state
+    *   **Key Functions**: Removes build files, resets containers, clears caches
+    *   **Usage**: `vrooli clean`
 
-*   **`authorize_key.sh`**:
-    *   **Purpose**: A utility script to append an SSH public key to the `~/.ssh/authorized_keys` file on a server.
-    *   **Key Functions**: Ensures `.ssh` directory exists with correct permissions, appends key from stdin, and sets `authorized_keys` permissions.
-    *   **Usage**: `bash scripts/main/authorize_key.sh` (then paste key and Ctrl-D)
+*   **`vrooli status`**:
+    *   **Purpose**: Show comprehensive system health and component status
+    *   **Key Functions**: Resource status, service health, system diagnostics
+    *   **Usage**: `vrooli status`
 
-## Helper Script Categories (`scripts/helpers/`)
+*   **`vrooli stop`**:
+    *   **Purpose**: Stop all or specific components (apps, resources, containers)
+    *   **Key Functions**: Graceful shutdown, selective stopping, status reporting
+    *   **Usage**: `vrooli stop [component]`
 
-These directories contain bash functions and modules that are sourced by the main scripts to provide shared functionality and keep the main scripts organized.
+### **📱 Application Management**
 
-*   **`utils/`**: Contains common utilities for argument parsing, logging, environment variable management, Docker interactions, system checks, version handling, flow control, JWT operations, proxy management, and more.
-    *   Key modules: `args.sh`, `log.sh`, `env.sh`, `docker.sh`, `flow.sh`, `jwt.sh`, `proxy.sh`, `var.sh`, `version.sh`
-*   **`setup/`**: Contains helpers specifically for the `setup.sh` script, often including target-specific setup logic (e.g., `setup/target/docker_daemon.sh`, `setup/target/k8s_cluster.sh`, `setup/target/local_services.sh`).
-*   **`develop/`**: Contains helpers for `develop.sh`, including logic for different development targets (e.g., `develop/target/local_services.sh`, `develop/target/k8s_cluster.sh`).
-*   **`build/`**: Contains helpers for `build.sh`, such as functions for packaging different types of artifacts (e.g., `build/binaries/`, `build/docker.sh`).
-*   **`deploy/`**: Contains helpers for `deploy.sh`, including deployment strategies for different platforms (e.g., `deploy/docker.sh`, `deploy/k8s.sh`).
+*   **App Commands**: `vrooli app list`, `vrooli app start <name>`, `vrooli app stop <name>`, `vrooli app logs <name>`
+*   **Purpose**: Manage generated applications created from scenarios
+*   **Features**: Runtime status tracking, log aggregation, lifecycle management
+
+### **🎯 Scenario Management**  
+
+*   **Scenario Commands**: `vrooli scenario list`, `vrooli scenario generate`, `vrooli scenario validate`
+*   **Purpose**: Manage templates that define how to generate applications
+*   **Features**: Template validation, app generation, configuration management
+
+### **🔧 Resource Management**
+
+*   **Resource Commands**: `vrooli resource list`, `vrooli resource start`, `vrooli resource stop`, `vrooli resource status`
+*   **Purpose**: Manage external services and dependencies (databases, APIs, etc.)
+*   **Features**: Dependency tracking, health monitoring, automated setup
+
+### **🧪 Testing Commands**
+
+*   **Test Commands**: `vrooli test`, `vrooli test static`, `vrooli test resources`, `vrooli test scenarios`
+*   **Purpose**: Comprehensive testing framework with scenario-first approach
+*   **Features**: Static analysis, resource validation, integration testing
+
+## Backend System Architecture
+
+The Vrooli CLI is supported by a sophisticated backend system organized into several key areas:
+
+### **🔧 Core Systems (`scripts/lib/`)**
+*   **System Management**: Clock synchronization, dependency checks, kernel configuration
+*   **Network Utilities**: Firewall management, SSH setup, port management, connectivity diagnostics
+*   **Runtime Support**: Docker, Node.js, Python, Go, Helm integration and management
+*   **Process Management**: Service lifecycle, process tracking, graceful shutdown handling
+*   **Security & Auth**: Permission management, key authentication, secure communications
+
+### **📦 Resource Framework (`scripts/resources/`)**
+*   **Resource Lifecycle**: Installation, configuration, health monitoring, backup management
+*   **Contract System**: Universal contracts for resource compatibility and validation
+*   **Integration Framework**: Docker utilities, HTTP clients, credential management
+*   **Testing Infrastructure**: Smoke tests, integration tests, performance validation
+
+### **🎯 Scenario System (`scripts/scenarios/`)**
+*   **App Generation**: Template-based application creation from scenario definitions
+*   **Validation Framework**: Structure validation, dependency checking, configuration verification  
+*   **Orchestration**: Multi-app coordination, resource allocation, lifecycle management
+*   **Testing Integration**: Scenario-specific testing, end-to-end validation
+
+### **⚙️ Configuration Management (`.vrooli/`)**
+*   **Service Configuration**: `service.json` for resource and app definitions
+*   **Runtime Tracking**: Dynamic status monitoring, resource registry, process coordination
+*   **Identity Management**: Application identity, authentication tokens, secure configurations
 
 ## Key Features & Integrations
 
@@ -294,77 +320,83 @@ graph TD
     class DevTarget,BuildArtifacts,DeployArtifacts,SetupTarget,E_cond internal;
 ```
 
-### 4. Main Scripts and Helper Category Usage
+### 4. Vrooli CLI System Architecture
 
-This diagram illustrates which categories of helper scripts are primarily used by each main script.
+This diagram shows how the unified CLI interfaces with the backend systems:
 
 ```mermaid
-graph LR
-    subgraph "Main Scripts (scripts/main/)"
-        Setup["setup.sh"]
-        Develop["develop.sh"]
-        Build["build.sh"]
-        Deploy["deploy.sh"]
-        Backup["backup.sh"]
-        ManageVault["manageLocalVault.sh"]
-        AuthorizeKey["authorize_key.sh"]
+graph TB
+    subgraph "Vrooli CLI Interface"
+        CLI[vrooli CLI]
+        LifecycleCommands["🔄 Lifecycle Commands<br>setup, develop, build, deploy<br>clean, status, stop"]
+        AppCommands["📱 App Management<br>app list, start, stop<br>logs, status, protect"]
+        ScenarioCommands["🎯 Scenario Management<br>scenario list, generate<br>validate"]
+        ResourceCommands["🔧 Resource Management<br>resource list, start, stop<br>status, install"]
+        TestCommands["🧪 Testing Framework<br>test, test static<br>test resources, scenarios"]
     end
 
-    subgraph "Helper Categories (scripts/helpers/)"
-        Utils["utils/*<br>args, log, env, docker,<br>flow, jwt, proxy, etc."]
-        HSetup["setup/*<br>target-specific setup<br>k8s_cluster, local_services"]
-        HDevelop["develop/*<br>target-specific development<br>k8s_cluster, local_services"]
-        HBuild["build/*<br>docker, binaries,<br>artifacts packaging"]
-        HDeploy["deploy/*<br>docker, k8s<br>deployment strategies"]
+    subgraph "Backend Systems"
+        CoreSystems["🔧 Core Systems<br>scripts/lib/<br>System, Network, Runtime<br>Process, Security"]
+        ResourceFramework["📦 Resource Framework<br>scripts/resources/<br>Lifecycle, Contracts<br>Integration, Testing"]
+        ScenarioSystem["🎯 Scenario System<br>scripts/scenarios/<br>Generation, Validation<br>Orchestration"]
+        ConfigManagement["⚙️ Configuration<br>.vrooli/<br>Service Config, Runtime<br>Identity Management"]
     end
 
-    Setup --> Utils
-    Setup --> HSetup
+    CLI --> LifecycleCommands
+    CLI --> AppCommands  
+    CLI --> ScenarioCommands
+    CLI --> ResourceCommands
+    CLI --> TestCommands
 
-    Develop --> Utils
-    Develop --> HDevelop
-    Develop -->|Implicitly via calling setup.sh| Setup
+    LifecycleCommands --> CoreSystems
+    AppCommands --> ScenarioSystem
+    ScenarioCommands --> ScenarioSystem
+    ResourceCommands --> ResourceFramework
+    TestCommands --> ResourceFramework
+    TestCommands --> ScenarioSystem
 
-    Build --> Utils
-    Build --> HBuild
-    Build -->|Implicitly via calling setup.sh| Setup
+    CoreSystems --> ConfigManagement
+    ResourceFramework --> ConfigManagement
+    ScenarioSystem --> ConfigManagement
 
-    Deploy --> Utils
-    Deploy --> HDeploy
-    Deploy -->|Implicitly via calling setup.sh| Setup
-
-    Backup --> Utils
-    ManageVault --> Utils
-    AuthorizeKey --> Utils
-
-    classDef main fill:#cde4ff,stroke:#333,stroke-width:2px;
-    classDef helpercat fill:#d4ffcd,stroke:#333,stroke-width:2px;
-    class Setup,Develop,Build,Deploy,Backup,ManageVault,AuthorizeKey main;
-    class Utils,HSetup,HDevelop,HBuild,HDeploy helpercat;
+    classDef cli fill:#cde4ff,stroke:#333,stroke-width:2px;
+    classDef backend fill:#d4ffcd,stroke:#333,stroke-width:2px;
+    classDef commands fill:#ffe4b5,stroke:#333,stroke-width:1px;
+    
+    class CLI cli;
+    class CoreSystems,ResourceFramework,ScenarioSystem,ConfigManagement backend;
+    class LifecycleCommands,AppCommands,ScenarioCommands,ResourceCommands,TestCommands commands;
 ```
 
-### 5. Core Workflow: Setup -> Build -> Deploy
+### 5. Core Workflow: Setup -> Develop -> Build -> Deploy
 
-This diagram highlights the typical lifecycle for a production release.
+This diagram shows the streamlined development-to-production workflow:
 
 ```mermaid
 graph TD
-    Start((Start: Code Ready)) --> BuildSH["build.sh --version &lt;ver&gt; -e prod"]
-    BuildSH --> SetupSH1["setup.sh (called by build.sh)"]
-    SetupSH1 --> BuildArtifacts["Artifact Creation (Docker images, Helm package, etc.)"]
-    BuildArtifacts --> ArtifactsStored["Artifacts Stored (e.g., local filesystem or remote like Docker Hub)"]
-    
-    ArtifactsStored --> DeploySH["deploy.sh -s &lt;k8s|docker&gt; -v &lt;ver&gt; -e prod<br>(on target server)"]
-    DeploySH --> SetupSH2["setup.sh (called by deploy.sh on target server)"]
-    SetupSH2 --> DeploymentLogic["Execute Deployment<br>(e.g., helm upgrade, docker-compose up)"]
-    DeploymentLogic --> Live["Application Live (v &lt;ver&gt;)"]
+    Start((Start: Development)) --> Setup[vrooli setup]
+    Setup --> Develop[vrooli develop]
+    Develop --> Test[vrooli test]
+    Test --> Build[vrooli build]
+    Build --> Deploy[vrooli deploy]
+    Deploy --> Live[Application Live]
 
-    classDef entry fill:#cde4ff,stroke:#333,stroke-width:2px;
-    classDef internal fill:#f0f0f0,stroke:#555,stroke-width:1px;
+    Setup --> ResourceSetup["Resource Installation<br>• Dependency management<br>• System configuration<br>• Environment preparation"]
+    
+    Develop --> DevEnvironment["Development Environment<br>• Hot reloading<br>• Service orchestration<br>• Real-time monitoring"]
+    
+    Test --> TestSuite["Test Execution<br>• Static analysis<br>• Resource validation<br>• Scenario testing"]
+    
+    Build --> BuildArtifacts["Build Process<br>• Code compilation<br>• Artifact generation<br>• Container building"]
+    
+    Deploy --> DeployProcess["Deployment<br>• Environment-specific config<br>• Service orchestration<br>• Health verification"]
+
+    classDef command fill:#cde4ff,stroke:#333,stroke-width:2px;
+    classDef process fill:#f0f0f0,stroke:#555,stroke-width:1px;
     classDef final fill:#d4ffcd,stroke:#333,stroke-width:2px;
     
-    class BuildSH,DeploySH entry;
-    class SetupSH1,SetupSH2,BuildArtifacts,ArtifactsStored,DeploymentLogic internal;
+    class Setup,Develop,Test,Build,Deploy command;
+    class ResourceSetup,DevEnvironment,TestSuite,BuildArtifacts,DeployProcess process;
     class Live final;
 ```
 
@@ -372,47 +404,85 @@ graph TD
 
 ### Development Workflows
 ```bash
-# Start local development with direct services
-bash scripts/main/develop.sh --target local-services
+# Initialize development environment
+vrooli setup
 
-# Start Kubernetes development
-bash scripts/main/develop.sh --target k8s-cluster
+# Start development environment
+vrooli develop
 
-# Start with Docker containers
-bash scripts/main/develop.sh --target docker-daemon
+# Check system status
+vrooli status
+
+# Run tests during development
+vrooli test
 ```
 
 ### Build Workflows
 ```bash
-# Build for development
-bash scripts/main/build.sh --bundles zip --artifacts docker
+# Build project artifacts
+vrooli build
 
-# Build for production with specific version
-bash scripts/main/build.sh --version 1.2.0 --environment production --artifacts all --bundles all
+# Clean and rebuild
+vrooli clean
+vrooli build
 
-# Build desktop apps for multiple platforms
-bash scripts/main/build.sh --binaries windows,mac,linux
+# Run comprehensive tests before build
+vrooli test
+vrooli build
 ```
 
 ### Deployment Workflows
 ```bash
-# Deploy Docker containers to production
-bash scripts/main/deploy.sh --source docker --version 1.2.0 --environment production
+# Deploy to production
+vrooli deploy
 
-# Deploy to Kubernetes
-bash scripts/main/deploy.sh --source k8s --version 1.2.0 --environment staging
+# Check deployment status
+vrooli status
+
+# View application logs
+vrooli app logs <app-name>
 ```
 
-### Vault Management (Development)
+### Resource Management
 ```bash
-# Start local Vault for development
-bash scripts/main/manageLocalVault.sh --start-dev
+# List available resources
+vrooli resource list
 
-# Check Vault status
-bash scripts/main/manageLocalVault.sh --status
+# Start specific resources
+vrooli resource start <resource-name>
 
-# Stop local Vault
-bash scripts/main/manageLocalVault.sh --stop
+# Check resource status
+vrooli resource status
+
+# Stop all resources
+vrooli resource stop-all
 ```
 
-This documentation should provide a comprehensive overview of your scripting system and help both current and future team members understand the powerful automation infrastructure you've built! 
+### Application Management
+```bash
+# List all generated applications
+vrooli app list
+
+# Start specific application
+vrooli app start <app-name>
+
+# View application logs
+vrooli app logs <app-name>
+
+# Stop application
+vrooli app stop <app-name>
+```
+
+### Scenario Management
+```bash
+# List available scenarios
+vrooli scenario list
+
+# Generate app from scenario
+vrooli scenario generate
+
+# Validate scenario configuration
+vrooli scenario validate
+```
+
+This documentation provides a comprehensive overview of Vrooli's unified CLI system and the powerful automation infrastructure that enables rapid development and deployment of AI-driven applications. 

@@ -11,15 +11,15 @@ echo "Pattern 1: AI Provider API Keys"
 echo "--------------------------------"
 cat << 'EOF'
 # Store OpenRouter API key
-resource-vault inject openrouter_api_key "sk-or-v1-xxxxx"
+resource-vault content add --path "openrouter_api_key" --value "sk-or-v1-xxxxx"
 
 # Store multiple AI provider keys
-resource-vault inject ai/openai_key "sk-xxxxx"
-resource-vault inject ai/anthropic_key "sk-ant-xxxxx"
-resource-vault inject ai/gemini_key "AIzaxxxxx"
+resource-vault content add --path "ai/openai_key" --value "sk-xxxxx"
+resource-vault content add --path "ai/anthropic_key" --value "sk-ant-xxxxx"
+resource-vault content add --path "ai/gemini_key" --value "AIzaxxxxx"
 
 # Retrieve for use in scripts
-OPENROUTER_KEY=$(resource-vault get-secret openrouter_api_key)
+OPENROUTER_KEY=$(resource-vault content get --path "openrouter_api_key")
 export OPENROUTER_API_KEY="$OPENROUTER_KEY"
 EOF
 echo
@@ -29,7 +29,7 @@ echo "Pattern 2: Database Connection Strings"
 echo "--------------------------------------"
 cat << 'EOF'
 # Store PostgreSQL connection details
-resource-vault inject postgres/connection '{
+resource-vault content add --path "postgres/connection" --value '{
   "host": "localhost",
   "port": 5432,
   "database": "vrooli",
@@ -38,7 +38,7 @@ resource-vault inject postgres/connection '{
 }'
 
 # Retrieve and construct connection string
-DB_INFO=$(resource-vault get-secret postgres/connection)
+DB_INFO=$(resource-vault content get --path "postgres/connection")
 # Parse JSON and build connection string (example with jq)
 # DB_URL="postgresql://$(echo $DB_INFO | jq -r '.user'):$(echo $DB_INFO | jq -r '.password')@$(echo $DB_INFO | jq -r '.host'):$(echo $DB_INFO | jq -r '.port')/$(echo $DB_INFO | jq -r '.database')"
 EOF
@@ -49,13 +49,13 @@ echo "Pattern 3: OAuth Application Credentials"
 echo "----------------------------------------"
 cat << 'EOF'
 # Store OAuth app credentials
-resource-vault inject oauth/github '{
+resource-vault content add --path "oauth/github" --value '{
   "client_id": "Iv1.xxxxx",
   "client_secret": "xxxxx",
   "redirect_uri": "http://localhost:3000/auth/github/callback"
 }'
 
-resource-vault inject oauth/google '{
+resource-vault content add --path "oauth/google" --value '{
   "client_id": "xxxxx.apps.googleusercontent.com",
   "client_secret": "GOCSPX-xxxxx",
   "redirect_uri": "http://localhost:3000/auth/google/callback"
@@ -68,12 +68,12 @@ echo "Pattern 4: Webhook Verification Secrets"
 echo "---------------------------------------"
 cat << 'EOF'
 # Store webhook signing secrets
-resource-vault inject webhooks/stripe_signing "whsec_xxxxx"
-resource-vault inject webhooks/github_webhook "sha256=xxxxx"
-resource-vault inject webhooks/slack_signing "xxxxx"
+resource-vault content add --path "webhooks/stripe_signing" --value "whsec_xxxxx"
+resource-vault content add --path "webhooks/github_webhook" --value "sha256=xxxxx"
+resource-vault content add --path "webhooks/slack_signing" --value "xxxxx"
 
 # Verify webhook signatures in your app
-STRIPE_WEBHOOK_SECRET=$(resource-vault get-secret webhooks/stripe_signing)
+STRIPE_WEBHOOK_SECRET=$(resource-vault content get --path "webhooks/stripe_signing")
 EOF
 echo
 
@@ -82,13 +82,13 @@ echo "Pattern 5: Encryption and JWT Keys"
 echo "----------------------------------"
 cat << 'EOF'
 # Store encryption keys and salts
-resource-vault inject encryption/jwt_secret "your-256-bit-secret"
-resource-vault inject encryption/cookie_secret "cookie-encryption-key"
-resource-vault inject encryption/data_key "AES-256-encryption-key"
+resource-vault content add --path "encryption/jwt_secret" --value "your-256-bit-secret"
+resource-vault content add --path "encryption/cookie_secret" --value "cookie-encryption-key"
+resource-vault content add --path "encryption/data_key" --value "AES-256-encryption-key"
 
 # Generate and store a new key
 NEW_KEY=$(openssl rand -hex 32)
-resource-vault inject encryption/session_key "$NEW_KEY"
+resource-vault content add --path "encryption/session_key" --value "$NEW_KEY"
 EOF
 echo
 
@@ -98,10 +98,10 @@ echo "--------------------------------"
 cat << 'EOF'
 # Store Google service account JSON
 SERVICE_ACCOUNT=$(cat /path/to/service-account.json)
-resource-vault inject gcp/service_account "$SERVICE_ACCOUNT"
+resource-vault content add --path "gcp/service_account" --value "$SERVICE_ACCOUNT"
 
 # Store AWS credentials
-resource-vault inject aws/credentials '{
+resource-vault content add --path "aws/credentials" --value '{
   "access_key_id": "AKIA...",
   "secret_access_key": "xxxxx",
   "region": "us-east-1"
@@ -114,13 +114,13 @@ echo "Pattern 7: Environment Configurations"
 echo "------------------------------------"
 cat << 'EOF'
 # Store environment-specific settings
-resource-vault inject config/dev/redis_url "redis://localhost:6379"
-resource-vault inject config/staging/redis_url "redis://staging.example.com:6379"
-resource-vault inject config/prod/redis_url "redis://prod.example.com:6379"
+resource-vault content add --path "config/dev/redis_url" --value "redis://localhost:6379"
+resource-vault content add --path "config/staging/redis_url" --value "redis://staging.example.com:6379"
+resource-vault content add --path "config/prod/redis_url" --value "redis://prod.example.com:6379"
 
 # Retrieve based on environment
 ENV=${ENV:-dev}
-REDIS_URL=$(resource-vault get-secret "config/$ENV/redis_url")
+REDIS_URL=$(resource-vault content get --path "config/$ENV/redis_url")
 EOF
 echo
 

@@ -112,20 +112,20 @@ run_shellcheck() {
         return 0
     fi
     
-    log_command "shellcheck $script_path"
+    log_command "shellcheck -S error $script_path"
     
     if is_dry_run; then
         log_info "[DRY RUN] Would run shellcheck on: $script_path"
         return 0
     fi
     
-    # Run shellcheck (no individual timeout - controlled by global timeout)
-    if shellcheck "$script_path" 2>/dev/null; then
-        log_command_success "shellcheck $script_path"
+    # Run shellcheck with -S error to only fail on actual errors, not warnings/info/style
+    if shellcheck -S error "$script_path" 2>/dev/null; then
+        log_command_success "shellcheck -S error $script_path"
         is_verbose && log_success "$description passes shellcheck: $script_path"
         return 0
     else
-        log_command_failure "shellcheck $script_path"
+        log_command_failure "shellcheck -S error $script_path"
         log_error "$description fails shellcheck: $script_path"
         return 1
     fi

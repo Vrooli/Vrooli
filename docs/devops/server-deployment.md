@@ -350,12 +350,11 @@ cd ~
 git clone https://github.com/Vrooli/Vrooli.git
 cd Vrooli
 
-# Make scripts executable
-chmod +x scripts/main/*.sh
-chmod +x scripts/helpers/**/*.sh
+# Make management script executable
+chmod +x scripts/manage.sh
 
 # Run server setup
-bash scripts/main/setup.sh --location remote --environment production --target docker-daemon
+./scripts/manage.sh setup --target docker-daemon --environment production
 ```
 
 The setup script will automatically install:
@@ -428,8 +427,8 @@ ssh deploy@server-ip
 cd ~/Vrooli
 
 # Build and deploy
-bash scripts/main/build.sh --environment production --artifacts docker --bundles zip
-bash scripts/main/deploy.sh --source docker --environment production
+./scripts/manage.sh build --environment production --artifacts docker
+./scripts/manage.sh deploy --source docker --environment production
 ```
 
 #### CI/CD Deployment
@@ -535,8 +534,8 @@ sudo chown deploy:deploy ~/.kube/config
 
 ```bash
 # Build and deploy with Kubernetes
-bash scripts/main/build.sh --environment production --artifacts k8s --version 1.0.0
-bash scripts/main/deploy.sh --source k8s --environment production --version 1.0.0
+./scripts/manage.sh build --environment production --artifacts k8s --version 1.0.0
+./scripts/manage.sh deploy --source k8s --environment production --version 1.0.0
 ```
 #### Kubernetes Resources
 

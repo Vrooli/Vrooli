@@ -1,7 +1,7 @@
 // Picker Wheel - Interactive Script
 
-const API_BASE = 'http://localhost:8100/api';
-const N8N_BASE = 'http://localhost:5678/webhook';
+const API_BASE = `${window.location.protocol}//${window.location.host}/api`;
+const N8N_BASE = `${window.location.protocol}//${window.location.host}/webhook`;
 
 class PickerWheel {
     constructor() {

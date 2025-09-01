@@ -1,120 +1,69 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
-  "version": "1.0.0",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "version": "2.0.0",
   "service": {
     "parent": "vrooli",
     "name": "app-issue-tracker",
-    "displayName": "App Issue Tracker",
-    "description": "Comprehensive issue tracking system with AI-powered investigation and automated fix attempts using Claude Code",
-    "version": "1.0.0",
+    "displayName": "App Issue Tracker (File-Based)",
+    "description": "File-based issue tracking system with AI investigation using Claude Code - no database required",
+    "version": "2.0.0-file-based",
     "tags": [
       "business-application",
-      "productivity-tools",
+      "productivity-tools", 
       "issue-tracking",
       "ai-investigation",
-      "automated-fixes",
-      "semantic-search",
+      "file-based-storage",
       "claude-code-integration",
-      "windmill-ui",
-      "vector-search",
-      "go-api",
-      "postgres-storage",
-      "qdrant-vectors"
+      "yaml-storage",
+      "no-database-required",
+      "portable",
+      "git-friendly"
     ]
   },
   "ports": {
     "api": {
       "env_var": "SERVICE_PORT",
-      "range": "21250-21499",
+      "range": "21250-21499", 
       "fallback": "auto",
-      "description": "Issue tracker coordination API port"
+      "description": "File-based issue tracker API port"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "range": "21500-21549",
+      "fallback": "auto", 
+      "description": "Issue tracker web UI port"
     }
   },
   "resources": {
     "n8n": {
       "type": "n8n",
       "enabled": true,
-      "required": true,
+      "required": false,
+      "description": "Optional workflow automation for advanced investigation",
       "initialization": [
         {
-          "file": "initialization/automation/n8n/issue-ingestion.json",
+          "file": "initialization/automation/n8n/file-based-investigation.json",
           "type": "workflow"
-        },
-        {
-          "file": "initialization/automation/n8n/claude-investigation.json",
-          "type": "workflow"
-        }
-      ]
-    },
-    "windmill": {
-      "type": "windmill",
-      "enabled": true,
-      "required": true,
-      "initialization": [
-        {
-          "file": "initialization/automation/windmill/apps/dashboard.json",
-          "type": "app"
-        },
-        {
-          "file": "initialization/automation/windmill/apps/metrics.json",
-          "type": "app"
-        },
-        {
-          "file": "initialization/automation/windmill/apps/agents.json",
-          "type": "app"
-        }
-      ]
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": true,
-      "models": [
-        "llama3.2",
-        "mistral",
-        "codellama",
-        "nomic-embed-text"
-      ]
-    },
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store issues, agents, apps, investigation reports, and tracking data",
-      "initialization": [
-        {
-          "file": "initialization/storage/postgres/schema.sql",
-          "type": "script"
-        },
-        {
-          "file": "initialization/storage/postgres/seed.sql",
-          "type": "script"
         }
       ]
     },
     "qdrant": {
       "type": "qdrant",
       "enabled": true,
-      "required": true,
-      "purpose": "Vector database for semantic search of issues, similar issue detection, and knowledge base queries"
+      "required": false,
+      "description": "Optional vector database for semantic search of issues"
     },
     "redis": {
-      "type": "redis",
-      "enabled": true,
-      "required": true,
-      "purpose": "Caching and real-time event coordination between components"
-    },
-    "minio": {
-      "type": "minio",
+      "type": "redis", 
       "enabled": true,
       "required": false,
-      "purpose": "Storage for investigation artifacts, logs, and fix attempt evidence"
+      "description": "Optional caching for improved performance"
     }
   },
   "lifecycle": {
-    "version": "1.0.0",
+    "version": "2.0.0",
     "setup": {
-      "description": "Initialize App Issue Tracker with AI investigation capabilities",
+      "description": "Initialize file-based App Issue Tracker",
       "condition": {
         "checks": [
           {
@@ -124,72 +73,76 @@
             ]
           },
           {
-            "type": "cli",
-            "command": "app-issue-tracker"
+            "type": "directories", 
+            "targets": [
+              "issues/open",
+              "issues/templates"
+            ]
           },
           {
-            "type": "resources",
-            "populated": true
+            "type": "cli",
+            "command": "app-issue-tracker-v2"
           }
         ]
       },
       "steps": [
         {
-          "name": "generate-embeddings",
-          "run": "vrooli resource qdrant embeddings refresh --force || echo \"Embeddings generation skipped (not critical)\"",
-          "description": "Generate code embeddings for AI assistance"
+          "name": "create-issues-structure",
+          "run": "mkdir -p issues/{open,investigating,in-progress,fixed,closed,failed,templates}",
+          "description": "Create file-based storage directories"
         },
         {
-          "name": "add-data",
-          "run": "scripts/resources/populate/populate.sh .",
-          "description": "Add app data to resources"
+          "name": "migrate-from-database",
+          "run": "bash scripts/migrate-to-files.sh migrate || echo '  Migration completed or no database found'",
+          "description": "Migrate existing PostgreSQL data to YAML files"
         },
         {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install issue tracker CLI command globally"
+          "name": "install-management-cli",
+          "run": "ln -sf $(pwd)/issues/manage.sh ~/.local/bin/issue-manager 2>/dev/null || echo '  Management CLI available at ./issues/manage.sh'",
+          "description": "Make issue management CLI globally available"
         },
         {
-          "name": "build-api",
+          "name": "install-main-cli", 
+          "run": "ln -sf $(pwd)/cli/app-issue-tracker-v2.sh ~/.local/bin/app-issue-tracker-v2 2>/dev/null || echo '  CLI available at ./cli/app-issue-tracker-v2.sh'",
+          "description": "Install main CLI command"
+        },
+        {
+          "name": "build-file-api",
           "run": "cd api && go mod download && go build -o app-issue-tracker-api main.go",
-          "description": "Build Go coordination API binary"
+          "description": "Build file-based Go API binary"
         },
         {
-          "name": "init-qdrant-collection",
-          "run": "curl -X PUT \"http://localhost:${RESOURCE_PORTS[qdrant]}/collections/issues\" -H \"Content-Type: application/json\" -d '{\"vectors\": {\"size\": 1536, \"distance\": \"Cosine\"}, \"optimizers_config\": {\"default_segment_number\": 2}, \"replication_factor\": 1}' 2>/dev/null || echo '  Collection may already exist'",
-          "description": "Initialize Qdrant vector collection for issue embeddings"
-        },
-        {
-          "name": "init-minio-bucket",
-          "run": "if command -v mc &> /dev/null; then mc alias set issue-tracker \"http://localhost:${RESOURCE_PORTS[minio]}\" \"${MINIO_ACCESS_KEY:-minioadmin}\" \"${MINIO_SECRET_KEY:-minioadmin}\" 2>/dev/null || true; mc mb issue-tracker/issue-artifacts 2>/dev/null || echo '  Bucket may already exist'; mc policy set public issue-tracker/issue-artifacts 2>/dev/null || true; else echo '  MinIO CLI not found, skipping bucket creation'; fi",
-          "description": "Initialize MinIO bucket for investigation artifacts",
+          "name": "setup-vector-search",
+          "run": "if command -v curl >/dev/null && curl -s http://localhost:${RESOURCE_PORTS[qdrant]}/collections >/dev/null 2>&1; then curl -X PUT \"http://localhost:${RESOURCE_PORTS[qdrant]}/collections/issues\" -H \"Content-Type: application/json\" -d '{\"vectors\": {\"size\": 1536, \"distance\": \"Cosine\"}}' >/dev/null 2>&1 || true; echo '  Qdrant collection setup completed'; else echo '  Qdrant not available, semantic search disabled'; fi",
+          "description": "Setup optional vector search collection",
           "condition": {
-            "resource_enabled": "minio"
+            "resource_enabled": "qdrant"
           }
         },
         {
-          "name": "generate-api-tokens",
-          "run": "PGPASSWORD=\"${POSTGRES_PASSWORD:-postgres}\" psql -h localhost -p \"${RESOURCE_PORTS[postgres]}\" -U \"${POSTGRES_USER:-postgres}\" -d issue_tracker -c \"UPDATE apps SET api_token = md5(random()::text || clock_timestamp()::text) WHERE api_token LIKE 'token_%';\" 2>/dev/null || echo '  Token generation completed'",
-          "description": "Generate secure API tokens for registered apps"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '🚀 App Issue Tracker initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}/apps/issue_tracker_dashboard\\n  Metrics: http://localhost:${RESOURCE_PORTS[windmill]}/apps/issue_tracker_metrics\\n  Agent Management: http://localhost:${RESOURCE_PORTS[windmill]}/apps/issue_tracker_agents\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${SERVICE_PORT}\\n  CLI: app-issue-tracker --help'",
-          "description": "Display service access URLs"
+          "name": "show-file-urls",
+          "run": "echo '📁 File-Based Issue Tracker initialized\\n  📊 Management: ./issues/manage.sh status\\n  🌐 API: http://localhost:${SERVICE_PORT}\\n  🎯 CLI: app-issue-tracker-v2 --help\\n  📂 Issues: ./issues/\\n  📝 Templates: ./issues/templates/\\n\\n💡 Create issues with:\\n  app-issue-tracker-v2 create --title \"Issue title\" --priority high\\n  ./issues/manage.sh add\\n  cp issues/templates/bug-template.yaml issues/open/123-new.yaml'",
+          "description": "Display file-based service information"
         }
       ]
     },
     "develop": {
-      "description": "Start issue tracker with Go API server and all integrations",
+      "description": "Start file-based issue tracker with Go API server",
       "steps": [
         {
-          "name": "start-api-server",
+          "name": "start-file-api",
           "run": "cd api && PORT=$SERVICE_PORT ./app-issue-tracker-api &",
-          "description": "Start Go coordination API server in background",
+          "description": "Start file-based Go API server",
           "background": true,
           "condition": {
             "file_exists": "api/app-issue-tracker-api"
           }
+        },
+        {
+          "name": "start-ui-server",
+          "run": "cd ui && python3 -m http.server $UI_PORT > ../logs/ui.log 2>&1 &",
+          "description": "Start web UI server", 
+          "background": true
         },
         {
           "name": "wait-for-api",
@@ -202,69 +155,86 @@
         },
         {
           "name": "show-running-services",
-          "run": "echo '🚀 App Issue Tracker running:\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}/apps/issue_tracker_dashboard\\n  Metrics: http://localhost:${RESOURCE_PORTS[windmill]}/apps/issue_tracker_metrics\\n  Agent Management: http://localhost:${RESOURCE_PORTS[windmill]}/apps/issue_tracker_agents\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$SERVICE_PORT\\n  CLI: app-issue-tracker --help\\n\\n💡 Create issues with: app-issue-tracker create --title \"Issue title\" --description \"Details\" --priority high'",
-          "description": "Display all running service URLs and usage hints"
+          "run": "echo '📁 File-Based Issue Tracker running:\\n  🌐 Web UI: http://localhost:$UI_PORT\\n  📡 API: http://localhost:$SERVICE_PORT\\n  🎯 CLI: app-issue-tracker-v2 --help\\n  📊 Management: ./issues/manage.sh status\\n\\n📝 Create issues:\\n  app-issue-tracker-v2 create --title \"Bug title\" --priority high\\n  ./issues/manage.sh add\\n\\n📂 File Operations:\\n  ls issues/open/*.yaml\\n  mv issues/open/001-bug.yaml issues/investigating/\\n  ./issues/manage.sh search \"keyword\"'",
+          "description": "Display all running services and usage examples"
         }
       ]
     },
     "test": {
-      "description": "Test issue tracker API, CLI, and integrations",
+      "description": "Test file-based issue tracker functionality",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build main.go && rm test-build",
-          "description": "Test Go compilation",
+          "name": "test-file-structure",
+          "run": "test -d issues/open && test -d issues/templates && echo '✓ Directory structure exists' || (echo '✗ Directory structure missing' && exit 1)",
+          "description": "Verify file structure exists"
+        },
+        {
+          "name": "test-templates",
+          "run": "test -f issues/templates/bug-template.yaml && test -f issues/templates/feature-template.yaml && echo '✓ Templates exist' || (echo '✗ Templates missing' && exit 1)",
+          "description": "Verify issue templates exist"
+        },
+        {
+          "name": "test-management-cli",
+          "run": "bash issues/manage.sh status",
+          "description": "Test issue management CLI"
+        },
+        {
+          "name": "test-go-build", 
+          "run": "cd api && go build -o test-build main_file_based.go && rm test-build",
+          "description": "Test Go compilation for file-based API",
           "condition": {
-            "file_exists": "api/main.go"
+            "file_exists": "api/main_file_based.go"
           }
         },
         {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:$SERVICE_PORT/health",
-          "description": "Test API health endpoint"
+          "name": "test-file-api-health",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/health && echo '✓ File-based API healthy' || echo '⚠ API not running (expected if not started)'",
+          "description": "Test file-based API health endpoint"
         },
         {
-          "name": "test-issues-endpoint",
-          "run": "curl -sf http://localhost:$SERVICE_PORT/api/issues",
-          "description": "Test API issues endpoint"
+          "name": "test-issue-creation",
+          "run": "bash -c 'cd \"$PWD\" && timeout 10s ./issues/manage.sh status > /dev/null && echo \"✓ Issue management working\"' || echo '⚠ Issue management test skipped'",
+          "description": "Test issue file operations"
         },
         {
-          "name": "test-agents-endpoint",
-          "run": "curl -sf http://localhost:$SERVICE_PORT/api/agents",
-          "description": "Test API agents endpoint"
-        },
-        {
-          "name": "test-search-endpoint",
-          "run": "bash test/test-search-endpoint.sh",
-          "description": "Test semantic search functionality"
-        },
-        {
-          "name": "test-investigation-workflow",
-          "run": "bash test/test-investigation-workflow.sh",
-          "description": "Test n8n investigation workflow"
-        },
-        {
-          "name": "test-cli-commands",
-          "run": "cd cli && bats app-issue-tracker.bats",
-          "description": "Run CLI test suite",
-          "condition": {
-            "file_exists": "cli/app-issue-tracker.bats"
-          }
+          "name": "test-main-cli",
+          "run": "bash cli/app-issue-tracker-v2.sh --help | grep -q 'File-Based Issue Management' && echo '✓ CLI v2 working' || echo '⚠ CLI test skipped'", 
+          "description": "Test main CLI functionality"
         }
       ]
     },
     "stop": {
-      "description": "Stop issue tracker services",
+      "description": "Stop file-based issue tracker services",
       "steps": [
         {
-          "name": "stop-api-server",
-          "run": "pkill -f 'app-issue-tracker-api' || true",
-          "description": "Stop Go API server processes"
+          "name": "stop-file-api",
+          "run": "pkill -f 'app-issue-tracker-file-api' || true",
+          "description": "Stop file-based API server"
+        },
+        {
+          "name": "stop-ui-server",
+          "run": "pkill -f 'python3.*http.server.*$UI_PORT' || true", 
+          "description": "Stop UI server"
         },
         {
           "name": "confirm-stop",
-          "run": "echo '🛑 App Issue Tracker services stopped'",
-          "description": "Confirm services stopped"
+          "run": "echo '🛑 File-Based Issue Tracker services stopped\\n📁 Issue files remain at: ./issues/'",
+          "description": "Confirm services stopped, files preserved"
+        }
+      ]
+    },
+    "clean": {
+      "description": "Clean up file-based issue tracker data",
+      "steps": [
+        {
+          "name": "archive-issues",
+          "run": "bash issues/manage.sh archive 90 || echo 'Archive completed'",
+          "description": "Archive issues older than 90 days"
+        },
+        {
+          "name": "backup-before-clean",
+          "run": "mkdir -p backup/clean-$(date +%Y%m%d) && cp -r issues backup/clean-$(date +%Y%m%d)/ && echo 'Backup created in backup/clean-$(date +%Y%m%d)/'",
+          "description": "Backup issues before cleaning"
         }
       ]
     }

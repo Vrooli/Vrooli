@@ -61,14 +61,26 @@ n8n::get_init_config() {
     local timezone
     timezone=$(timedatectl show -p Timezone --value 2>/dev/null || echo 'UTC')
     
-    # Build volumes list - always include advanced mounts for better functionality
-    local volumes_array="[\"${N8N_DATA_DIR}:/home/node/.n8n\""
+    # Build volumes list - use named volumes for data protection when enabled
+    local volumes_array
+    if [[ "$N8N_USE_NAMED_VOLUME" == "yes" ]]; then
+        # HARDENED: Use named Docker volume for persistent data
+        # This prevents data loss if host directory is deleted
+        volumes_array="[\"${N8N_VOLUME_NAME}:/home/node/.n8n\""
+        log::debug "Using named volume: $N8N_VOLUME_NAME" >&2
+    else
+        # LEGACY: Use host path mount (less secure but preserves old behavior)
+        volumes_array="[\"${N8N_DATA_DIR}:/home/node/.n8n\""
+        log::debug "Using host path mount: $N8N_DATA_DIR" >&2
+    fi
+    
+    # Add other necessary mounts
     volumes_array+=",\"/var/run/docker.sock:/var/run/docker.sock:rw\""
     volumes_array+=",\"${PWD}:/workspace:rw\""
     volumes_array+=",\"/usr/bin:/host/usr/bin:ro\""
     volumes_array+=",\"$HOME:/host/home:rw\""
-    # Mount Vrooli root for CLI access
-    volumes_array+=",\"${VROOLI_ROOT}:/vrooli:ro\""
+    # Mount Vrooli root for CLI access  
+    volumes_array+=",\"${VROOLI_ROOT:-$APP_ROOT}:/vrooli:ro\""
     volumes_array+="]"
     
     # Build init config
@@ -84,7 +96,17 @@ n8n::get_init_config() {
             "N8N_DIAGNOSTICS_ENABLED": "false",
             "N8N_TEMPLATES_ENABLED": "true",
             "N8N_PERSONALIZATION_ENABLED": "false",
-            "N8N_PUBLIC_API_DISABLED": "false"
+            "N8N_PUBLIC_API_DISABLED": "false",
+            "EXECUTIONS_TIMEOUT": "3600",
+            "EXECUTIONS_TIMEOUT_MAX": "3600", 
+            "N8N_PAYLOAD_SIZE_MAX": "16",
+            "WEBHOOK_TIMEOUT": "300",
+            "N8N_DEFAULT_BINARY_DATA_MODE": "filesystem",
+            "N8N_CONCURRENCY_PRODUCTION_LIMIT": "10",
+            "N8N_DISABLE_PRODUCTION_MAIN_PROCESS": "false",
+            "N8N_SECURE_COOKIE": "false",
+            "N8N_SESSION_COOKIE_SAME_SITE": "lax",
+            "N8N_RUNNERS_ENABLED": "true"
         },
         "volumes": '$volumes_array',
         "networks": ["host"],
@@ -109,13 +131,20 @@ n8n::get_init_config() {
         }')
     fi
     
-    # Add authentication if enabled
-    if [[ "$BASIC_AUTH" == "yes" ]] && [[ -n "$auth_password" ]]; then
+    # Add authentication if enabled (TEMPORARILY DISABLED to fix session loop bug)
+    if [[ "${N8N_ENABLE_BASIC_AUTH:-no}" == "yes" ]] && [[ "$BASIC_AUTH" == "yes" ]] && [[ -n "$auth_password" ]]; then
         config=$(echo "$config" | jq '.env_vars += {
             "N8N_BASIC_AUTH_ACTIVE": "true",
             "N8N_BASIC_AUTH_USER": "'$AUTH_USERNAME'",
             "N8N_BASIC_AUTH_PASSWORD": "'$auth_password'"
         }')
+        log::warn "Basic auth is enabled but may cause session loops - monitor for issues"
+    else
+        # Explicitly disable basic auth to prevent session issues
+        config=$(echo "$config" | jq '.env_vars += {
+            "N8N_BASIC_AUTH_ACTIVE": "false"
+        }')
+        log::info "Basic auth disabled (prevents session loop issues)" >&2
     fi
     
     echo "$config"
@@ -143,7 +172,7 @@ n8n::get_health_config() {
 n8n::create_backup() {
     local label="${1:-auto}"
     
-    if ! n8n::is_running; then
+    if ! docker::is_running "$N8N_CONTAINER_NAME"; then
         log::error "n8n must be running to create backup"
         return 1
     fi
@@ -488,7 +517,7 @@ n8n::recover() {
     log::info "Found backup to restore: $backup_id"
     
     # Stop n8n if running
-    if n8n::is_running; then
+    if docker::is_running "$N8N_CONTAINER_NAME"; then
         log::info "Stopping n8n for recovery..."
         n8n::stop
     fi
@@ -539,6 +568,408 @@ n8n::recover() {
     n8n::check_api_key_after_operation "recovery"
 }
 
+#######################################
+# Recover from a specific backup by ID
+# Args: $1 - backup ID
+# Returns: 0 on success, 1 on failure
+#######################################
+n8n::recover_from_specific_backup() {
+    local backup_id="$1"
+    
+    if [[ -z "$backup_id" ]]; then
+        log::error "Backup ID required"
+        return 1
+    fi
+    
+    local backup_path="${HOME}/.vrooli/backups/n8n/${backup_id}"
+    
+    if [[ ! -d "$backup_path" ]]; then
+        log::error "Backup not found: $backup_id"
+        log::info "Available backups:"
+        backup::list "n8n" 2>/dev/null || log::warn "No backups available"
+        return 1
+    fi
+    
+    log::header "🔄 Restoring from specific backup"
+    log::info "Backup: $backup_id"
+    
+    # Stop n8n if running
+    if docker::is_running "$N8N_CONTAINER_NAME"; then
+        log::info "Stopping n8n for restore..."
+        n8n::stop
+    fi
+    
+    # Backup current state 
+    if [[ -d "$N8N_DATA_DIR" ]]; then
+        local emergency_backup="${N8N_DATA_DIR}.emergency-$(date +%Y%m%d_%H%M%S)"
+        log::info "Creating emergency backup of current state..."
+        mv "$N8N_DATA_DIR" "$emergency_backup" || true
+    fi
+    
+    # Create fresh data directory
+    mkdir -p "$N8N_DATA_DIR"
+    
+    # Restore from specific backup
+    log::info "Restoring data from backup..."
+    if cp -r "$backup_path"/* "$N8N_DATA_DIR/" 2>/dev/null; then
+        # Remove backup-specific files
+        rm -f "$N8N_DATA_DIR/api_key_backup.json" 2>/dev/null || true
+        rm -f "$N8N_DATA_DIR/.metadata.json" 2>/dev/null || true
+        
+        # Fix permissions
+        chown -R 1000:1000 "$N8N_DATA_DIR" 2>/dev/null || true
+        
+        log::success "Data restored from backup"
+        
+        # Start n8n
+        log::info "Starting n8n..."
+        if n8n::start; then
+            # Try to recover API key from backup
+            log::info "Attempting API key recovery from backup..."
+            if n8n::recover_api_key_from_backup "$backup_path"; then
+                log::success "✅ Restore completed successfully with API key"
+            else
+                log::success "✅ Restore completed (API key may need manual setup)"
+                n8n::show_api_setup_instructions
+            fi
+        else
+            log::error "Failed to start n8n after restore"
+            return 1
+        fi
+    else
+        log::error "Failed to restore from backup"
+        return 1
+    fi
+}
+
+#######################################
+# Recover API key from specific backup
+# Args: $1 - backup path
+# Returns: 0 on success, 1 on failure
+#######################################
+n8n::recover_api_key_from_backup() {
+    local backup_path="$1"
+    local api_key_file="${backup_path}/api_key_backup.json"
+    
+    if [[ ! -f "$api_key_file" ]]; then
+        log::warn "No API key found in backup"
+        return 1
+    fi
+    
+    local recovered_key
+    recovered_key=$(jq -r '.N8N_API_KEY' "$api_key_file" 2>/dev/null)
+    
+    if [[ -n "$recovered_key" && "$recovered_key" != "null" ]]; then
+        if secrets::save_key "N8N_API_KEY" "$recovered_key"; then
+            log::success "✅ API key recovered from backup"
+            return 0
+        else
+            log::error "Failed to save recovered API key"
+            return 1
+        fi
+    fi
+    
+    return 1
+}
+
+#######################################
+# Migrate from host path to named volume (safe data transition)
+# Returns: 0 on success, 1 on failure
+#######################################
+n8n::migrate_to_named_volume() {
+    log::header "🔄 n8n Volume Migration"
+    
+    # Check if already using named volume
+    if [[ "$N8N_USE_NAMED_VOLUME" != "yes" ]]; then
+        log::info "Named volume disabled, skipping migration"
+        return 0
+    fi
+    
+    # Check if named volume already exists
+    if docker volume inspect "$N8N_VOLUME_NAME" >/dev/null 2>&1; then
+        log::info "Named volume $N8N_VOLUME_NAME already exists"
+        return 0
+    fi
+    
+    # Check if host directory has data to migrate
+    if [[ ! -d "$N8N_DATA_DIR" ]] || [[ -z "$(ls -A "$N8N_DATA_DIR" 2>/dev/null)" ]]; then
+        log::info "No existing host data to migrate, creating empty named volume"
+        docker volume create "$N8N_VOLUME_NAME" >/dev/null
+        return 0
+    fi
+    
+    # Host directory has data - need migration
+    local data_size
+    data_size=$(du -sh "$N8N_DATA_DIR" 2>/dev/null | cut -f1 || echo "unknown")
+    log::warn "Found existing n8n data in host directory ($data_size)"
+    log::info "Migrating from: $N8N_DATA_DIR"
+    log::info "Migrating to: Docker volume $N8N_VOLUME_NAME"
+    
+    # Create backup before migration
+    log::info "Creating pre-migration backup..."
+    if ! n8n::create_backup "pre-volume-migration"; then
+        log::error "Failed to create pre-migration backup"
+        log::error "Migration aborted for safety"
+        return 1
+    fi
+    
+    # Stop n8n if running
+    local was_running=false
+    if docker::is_running "$N8N_CONTAINER_NAME"; then
+        log::info "Stopping n8n for migration..."
+        n8n::stop
+        was_running=true
+    fi
+    
+    # Create named volume
+    log::info "Creating named volume: $N8N_VOLUME_NAME"
+    if ! docker volume create "$N8N_VOLUME_NAME" >/dev/null; then
+        log::error "Failed to create named volume"
+        return 1
+    fi
+    
+    # Create temporary container to copy data
+    log::info "Migrating data to named volume..."
+    local temp_container="n8n-migration-temp"
+    
+    # Use same image that n8n would use
+    local migration_image="$N8N_IMAGE"
+    if docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "^${N8N_CUSTOM_IMAGE}$"; then
+        migration_image="$N8N_CUSTOM_IMAGE"
+    fi
+    
+    if docker run --rm -d \
+        --name "$temp_container" \
+        -v "${N8N_VOLUME_NAME}:/dest" \
+        -v "${N8N_DATA_DIR}:/source:ro" \
+        "$migration_image" \
+        sh -c "cp -r /source/* /dest/ 2>/dev/null || true; chmod -R u+rw /dest; sleep 30" >/dev/null; then
+        
+        # Wait for copy to complete
+        sleep 5
+        docker stop "$temp_container" >/dev/null 2>&1 || true
+        
+        log::success "✅ Data migrated to named volume"
+        log::info "Original data preserved at: $N8N_DATA_DIR.pre-volume-migration"
+        
+        # Move old directory as backup
+        mv "$N8N_DATA_DIR" "${N8N_DATA_DIR}.pre-volume-migration"
+        
+        # Restart n8n if it was running
+        if [[ "$was_running" == "true" ]]; then
+            log::info "Restarting n8n with named volume..."
+            n8n::start
+        fi
+        
+        log::success "✅ Volume migration completed successfully"
+        log::info "n8n now uses persistent Docker volume: $N8N_VOLUME_NAME"
+        return 0
+    else
+        log::error "Failed to migrate data"
+        docker stop "$temp_container" >/dev/null 2>&1 || true
+        docker volume rm "$N8N_VOLUME_NAME" >/dev/null 2>&1 || true
+        return 1
+    fi
+}
+
+n8n::install_with_backup() {
+    log::header "🛡️ Safe n8n Installation"
+    
+    # STEP 1: Volume Migration (if needed)
+    if [[ "$N8N_USE_NAMED_VOLUME" == "yes" ]]; then
+        log::info "Checking if volume migration is needed..."
+        if ! n8n::migrate_to_named_volume; then
+            log::error "Volume migration failed - installation aborted"
+            return 1
+        fi
+    fi
+    
+    # STEP 2: Pre-deployment backup (if existing data)
+    local existing_data_location
+    if [[ "$N8N_USE_NAMED_VOLUME" == "yes" ]]; then
+        # Check if named volume has data
+        if docker volume inspect "$N8N_VOLUME_NAME" >/dev/null 2>&1; then
+            existing_data_location="Docker volume $N8N_VOLUME_NAME"
+        fi
+    else
+        # Check if host directory has data
+        if [[ -f "${N8N_DATA_DIR}/database.sqlite" ]]; then
+            existing_data_location="Host directory $N8N_DATA_DIR"
+        fi
+    fi
+    
+    if [[ -n "$existing_data_location" ]] && docker::is_running "$N8N_CONTAINER_NAME"; then
+        # Try to get database size for host volumes
+        local size_info=""
+        if [[ -f "${N8N_DATA_DIR}/database.sqlite" ]]; then
+            local db_size
+            db_size=$(stat -c%s "${N8N_DATA_DIR}/database.sqlite" 2>/dev/null || echo "0")
+            if [[ "$db_size" -gt 1024 ]]; then
+                size_info=" (${db_size} bytes)"
+            fi
+        fi
+        
+        log::warn "⚠️ Existing n8n data detected in $existing_data_location$size_info"
+        log::warn "Installation may overwrite existing workflows and API keys"
+        
+        # Create pre-deployment backup
+        local backup_id="pre-install-$(date +%Y%m%d_%H%M%S)"
+        log::info "Creating pre-deployment backup: $backup_id"
+        
+        if n8n::create_backup "$backup_id"; then
+            log::success "✅ Pre-deployment backup created"
+            log::info "Backup location: ~/.vrooli/backups/n8n/$backup_id"
+        else
+            log::error "❌ Backup failed - installation aborted"
+            log::info "To force installation without backup: export N8N_SKIP_BACKUP=true"
+            [[ "${N8N_SKIP_BACKUP:-false}" != "true" ]] && return 1
+        fi
+    fi
+    
+    # STEP 3: Call original install function
+    n8n::install "$@"
+}
+
+#######################################
+# Analyze deployment risks and provide safety recommendations
+# Returns: 0 if safe, 1 if risks detected
+#######################################
+n8n::deployment_safety_check() {
+    local issues_found=0
+    local warnings=0
+    
+    log::info "Analyzing n8n deployment safety..."
+    echo ""
+    
+    # Check 1: Data volume strategy
+    echo "📦 Volume Configuration:"
+    if [[ "$N8N_USE_NAMED_VOLUME" == "yes" ]]; then
+        if docker volume inspect "$N8N_VOLUME_NAME" >/dev/null 2>&1; then
+            echo "  ✅ Using named Docker volume: $N8N_VOLUME_NAME"
+            echo "  ✅ Data survives container recreation"
+        else
+            echo "  ⚠️  Named volume configured but doesn't exist yet"
+            echo "  📋 Will be created on first install"
+            warnings=$((warnings + 1))
+        fi
+    else
+        echo "  ❌ Using host path mount: $N8N_DATA_DIR"
+        echo "  ⚠️  RISK: Data lost if directory deleted"
+        echo "  💡 Fix: Set N8N_USE_NAMED_VOLUME=yes"
+        issues_found=$((issues_found + 1))
+    fi
+    
+    echo ""
+    
+    # Check 2: Data existence and backups
+    echo "💾 Data Protection:"
+    local has_data=false
+    local data_location=""
+    local data_size=""
+    
+    if [[ "$N8N_USE_NAMED_VOLUME" == "yes" ]] && docker volume inspect "$N8N_VOLUME_NAME" >/dev/null 2>&1; then
+        has_data=true
+        data_location="named volume"
+        data_size="$(docker run --rm -v "$N8N_VOLUME_NAME:/data" alpine du -sh /data 2>/dev/null | cut -f1 || echo "unknown")"
+    elif [[ -f "${N8N_DATA_DIR}/database.sqlite" ]]; then
+        has_data=true
+        data_location="host directory"
+        data_size=$(du -sh "$N8N_DATA_DIR" 2>/dev/null | cut -f1 || echo "unknown")
+    fi
+    
+    if [[ "$has_data" == "true" ]]; then
+        echo "  📊 Current data: $data_size in $data_location"
+        
+        # Check backup status
+        local backup_count=0
+        if backup::list "n8n" >/dev/null 2>&1; then
+            backup_count=$(backup::list "n8n" 2>/dev/null | wc -l)
+        fi
+        
+        if [[ "$backup_count" -gt 0 ]]; then
+            echo "  ✅ Backups available: $backup_count"
+            local latest_backup
+            latest_backup=$(backup::get_latest "n8n" 2>/dev/null)
+            if [[ -n "$latest_backup" ]]; then
+                local backup_date
+                backup_date=$(stat -c %y "$latest_backup" 2>/dev/null | cut -d' ' -f1 || echo "unknown")
+                echo "  📅 Latest backup: $backup_date"
+            fi
+        else
+            echo "  ❌ No backups found"
+            echo "  ⚠️  RISK: No recovery option if data lost"
+            echo "  💡 Fix: resource-n8n manage create-backup"
+            issues_found=$((issues_found + 1))
+        fi
+    else
+        echo "  ✅ No data yet - fresh installation"
+    fi
+    
+    echo ""
+    
+    # Check 3: API key status
+    echo "🔑 API Key Protection:"
+    local api_key
+    api_key=$(n8n::resolve_api_key 2>/dev/null)
+    
+    if [[ -n "$api_key" ]]; then
+        echo "  ✅ API key configured"
+        if [[ -n "$(secrets::get_key "N8N_API_KEY" 2>/dev/null)" ]]; then
+            echo "  ✅ API key stored in secrets"
+        else
+            echo "  ⚠️  API key only in environment"
+            echo "  💡 Consider: resource-n8n content save-api-key"
+            warnings=$((warnings + 1))
+        fi
+    else
+        echo "  ❌ No API key found"
+        if [[ "$has_data" == "true" ]]; then
+            echo "  ⚠️  RISK: Workflows exist but not accessible via API"
+            issues_found=$((issues_found + 1))
+        else
+            echo "  📋 Normal for fresh installation"
+        fi
+    fi
+    
+    echo ""
+    
+    # Check 4: Container health
+    echo "🐳 Container Status:"
+    if docker::is_running "$N8N_CONTAINER_NAME"; then
+        echo "  ✅ n8n container running"
+        if docker exec "$N8N_CONTAINER_NAME" pgrep -f n8n >/dev/null 2>&1; then
+            echo "  ✅ n8n process healthy"
+        else
+            echo "  ❌ Container running but n8n process not found"
+            issues_found=$((issues_found + 1))
+        fi
+    else
+        echo "  ⚠️  n8n container stopped"
+        warnings=$((warnings + 1))
+    fi
+    
+    echo ""
+    echo "============================================"
+    
+    # Summary
+    if [[ "$issues_found" -eq 0 ]] && [[ "$warnings" -eq 0 ]]; then
+        echo "✅ SAFE: No issues detected"
+        echo "💚 Ready for deployment operations"
+        return 0
+    elif [[ "$issues_found" -eq 0 ]]; then
+        echo "⚠️  CAUTION: $warnings warnings found"
+        echo "💛 Deployment possible but consider addressing warnings"
+        return 0
+    else
+        echo "❌ RISK: $issues_found critical issues found"
+        if [[ "$warnings" -gt 0 ]]; then
+            echo "⚠️  Plus $warnings additional warnings"
+        fi
+        echo "🔴 Address critical issues before deployment"
+        return 1
+    fi
+}
+
 n8n::uninstall() {
     log::warn "Uninstalling n8n..."
     
@@ -562,7 +993,7 @@ n8n::uninstall() {
     if [[ "${REMOVE_DATA:-no}" == "yes" ]]; then
         log::warn "Removing n8n data directory..."
         # Create backup before removal using backup framework
-        if n8n::is_running && [[ -d "$N8N_DATA_DIR" ]]; then
+        if docker::is_running "$N8N_CONTAINER_NAME" && [[ -d "$N8N_DATA_DIR" ]]; then
             log::info "Creating final backup before data removal..."
             n8n::create_backup "pre-uninstall" || log::warn "Backup creation failed"
         fi

@@ -33,7 +33,7 @@ For development environments, use the automated setup:
 export SECRETS_SOURCE=vault
 
 # Full automated setup including all operators and Vault
-bash scripts/main/develop.sh --target k8s-cluster
+vrooli develop --target k8s-cluster
 ```
 
 This automatically installs and configures:
@@ -345,7 +345,7 @@ After setup, verify all dependencies:
 bash scripts/helpers/deploy/k8s-dependencies-check.sh --environment your-env
 
 # Test deployment
-bash scripts/main/deploy.sh --source k8s --environment your-env
+./scripts/manage.sh deploy --source k8s --environment your-env
 ```
 
 ## Troubleshooting

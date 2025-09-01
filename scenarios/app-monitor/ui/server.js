@@ -2,7 +2,6 @@ const express = require('express');
 const path = require('path');
 const WebSocket = require('ws');
 const http = require('http');
-const axios = require('axios');
 require('dotenv').config();
 
 const app = express();
@@ -17,26 +16,49 @@ const API_BASE = process.env.API_BASE || `http://localhost:${API_PORT}`;
 app.use(express.static(__dirname));
 app.use(express.json());
 
-// Proxy API requests to Go backend
-app.use('/api', async (req, res) => {
-    try {
-        const apiUrl = `${API_BASE}${req.url}`;
-        const response = await axios({
-            method: req.method,
-            url: apiUrl,
-            data: req.body,
-            headers: {
-                'Content-Type': 'application/json'
-            }
+// Manual proxy function for API calls
+function proxyToApi(req, res, apiPath) {
+    const options = {
+        hostname: 'localhost',
+        port: API_PORT,
+        path: apiPath || req.url,
+        method: req.method,
+        headers: {
+            ...req.headers,
+            host: `localhost:${API_PORT}`
+        }
+    };
+    
+    console.log(`[PROXY] ${req.method} ${req.url} -> http://localhost:${API_PORT}${options.path}`);
+    
+    const proxyReq = http.request(options, (proxyRes) => {
+        res.status(proxyRes.statusCode);
+        Object.keys(proxyRes.headers).forEach(key => {
+            res.setHeader(key, proxyRes.headers[key]);
         });
-        res.json(response.data);
-    } catch (error) {
-        console.error('API proxy error:', error.message);
-        res.status(error.response?.status || 500).json({
-            error: error.message,
-            details: error.response?.data
+        proxyRes.pipe(res);
+    });
+    
+    proxyReq.on('error', (err) => {
+        console.error('Proxy error:', err.message);
+        res.status(502).json({ 
+            error: 'API server unavailable', 
+            details: err.message,
+            target: `http://localhost:${API_PORT}${options.path}`
         });
+    });
+    
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+        req.pipe(proxyReq);
+    } else {
+        proxyReq.end();
     }
+}
+
+// API endpoints proxy
+app.use('/api', (req, res) => {
+    const fullApiPath = '/api' + (req.url.startsWith('/') ? req.url : '/' + req.url);
+    proxyToApi(req, res, fullApiPath);
 });
 
 // WebSocket handling

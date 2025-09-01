@@ -36,8 +36,11 @@ init_cache() {
     # Clean up old cache files older than max age
     if command -v find >/dev/null 2>&1; then
         find "$CACHE_DIR" -type f -name "*.json" -mtime +1 -delete 2>/dev/null || true
-        # Remove any leftover temp files
-        find "$CACHE_DIR" -type f -name "*.json.tmp.*" -delete 2>/dev/null || true
+        # Remove any leftover temp files and directories
+        find "$CACHE_DIR" -name "*.json.tmp.*" -type f -delete 2>/dev/null || true
+        find "$CACHE_DIR" -name "*.json.tmp.*" -type d -exec rm -rf {} \; 2>/dev/null || true
+        # Remove any orphaned entries_dir directories
+        find "$CACHE_DIR" -name "*.entries_dir" -type d -mtime +0 -exec rm -rf {} \; 2>/dev/null || true
     fi
     
     return 0
@@ -113,7 +116,34 @@ save_cache() {
     fi
     
     local cache_file="$CACHE_DIR/${phase}.json"
+    local lock_file="${cache_file}.lock"
     local temp_file="${cache_file}.tmp.$$"
+    
+    # Acquire exclusive lock for cache file to prevent race conditions
+    local lock_fd
+    exec {lock_fd}>"$lock_file" 2>/dev/null || {
+        log_debug "Failed to create lock file for cache: $lock_file"
+        return 1
+    }
+    
+    if ! flock -n "$lock_fd" 2>/dev/null; then
+        log_debug "Cache file is locked by another process, skipping save: $cache_file"
+        exec {lock_fd}>&- 2>/dev/null || true
+        return 0
+    fi
+    
+    # Ensure cleanup happens even if script is interrupted
+    local cleanup_needed=true
+    cleanup_cache_operation() {
+        if [[ "$cleanup_needed" == "true" ]]; then
+            rm -f "$temp_file" "${temp_file}.entries" "${temp_file}.metadata" 2>/dev/null || true
+            rm -rf "${temp_file}.entries_dir" 2>/dev/null || true
+            flock -u "$lock_fd" 2>/dev/null || true
+            exec {lock_fd}>&- 2>/dev/null || true
+            rm -f "$lock_file" 2>/dev/null || true
+        fi
+    }
+    trap cleanup_cache_operation EXIT INT TERM
     
     # Build JSON structure
     local json_entries="{}"
@@ -205,25 +235,51 @@ save_cache() {
     # Write each file's data to a separate JSON file to avoid large string concatenation
     local file_index=0
     for file in "${!file_results[@]}"; do
-        # Create individual entry file with proper JSON structure
-        jq -n \
-            --arg filepath "$file" \
-            --argjson data "${file_results[$file]}" \
-            '{($filepath): $data}' \
-            > "${entries_dir}/${file_index}.json"
-        ((file_index++))
+        # Validate that file_results contains valid JSON before processing
+        if [[ -n "${file_results[$file]}" ]] && echo "${file_results[$file]}" | jq empty 2>/dev/null; then
+            # Create individual entry file with proper JSON structure
+            if ! jq -n \
+                --arg filepath "$file" \
+                --argjson data "${file_results[$file]}" \
+                '{($filepath): $data}' \
+                > "${entries_dir}/${file_index}.json" 2>/dev/null; then
+                log_debug "Failed to write cache entry for file: $file"
+                continue
+            fi
+            ((file_index++))
+        else
+            log_debug "Skipping invalid cache data for file: $file"
+        fi
     done
     
     # Combine all entry files using jq's efficient file processing
     if [[ $file_index -gt 0 ]]; then
-        # Use jq to merge all JSON files efficiently
-        jq -s 'add' "${entries_dir}"/*.json > "$entries_file"
+        # Validate each JSON file before processing
+        local valid_files=()
+        for json_file in "${entries_dir}"/*.json; do
+            if [[ -f "$json_file" ]] && jq empty < "$json_file" >/dev/null 2>&1; then
+                valid_files+=("$json_file")
+            else
+                log_debug "Removing invalid JSON file: $json_file"
+                rm -f "$json_file" 2>/dev/null || true
+            fi
+        done
+        
+        if [[ ${#valid_files[@]} -gt 0 ]]; then
+            # Use jq to merge only valid JSON files
+            jq -s 'add' "${valid_files[@]}" > "$entries_file" 2>/dev/null || {
+                log_debug "Failed to merge cache entries, using empty object"
+                echo "{}" > "$entries_file"
+            }
+        else
+            echo "{}" > "$entries_file"
+        fi
     else
         echo "{}" > "$entries_file"
     fi
     
     # Clean up individual entry files
-    rm -rf "$entries_dir"
+    rm -rf "$entries_dir" 2>/dev/null || true
     
     # Create metadata in separate file
     jq -n \
@@ -235,22 +291,37 @@ save_cache() {
         > "$metadata_file"
     
     # Combine metadata and entries using file-based approach
-    if jq --slurpfile entries "$entries_file" \
+    if [[ -f "$entries_file" ]] && [[ -f "$metadata_file" ]] && \
+       jq empty < "$entries_file" >/dev/null 2>&1 && \
+       jq empty < "$metadata_file" >/dev/null 2>&1 && \
+       jq --slurpfile entries "$entries_file" \
           '. + {entries: $entries[0]}' \
-          "$metadata_file" > "$temp_file" 2>/dev/null; then
-        mv "$temp_file" "$cache_file"
-        log_debug "Saved cache for phase: $phase"
-        CACHE_MODIFIED=false
+          "$metadata_file" > "$temp_file" 2>/dev/null && \
+       [[ -s "$temp_file" ]] && \
+       jq empty < "$temp_file" >/dev/null 2>&1; then
         
-        # Clean up temporary files
-        rm -f "$entries_file" "$metadata_file"
-        return 0
+        # Atomic move to prevent corruption
+        if mv "$temp_file" "$cache_file" 2>/dev/null; then
+            log_debug "Saved cache for phase: $phase"
+            CACHE_MODIFIED=false
+            
+            # Clean up temporary files
+            rm -f "$entries_file" "$metadata_file" 2>/dev/null || true
+            cleanup_needed=false
+            flock -u "$lock_fd" 2>/dev/null || true
+            exec {lock_fd}>&- 2>/dev/null || true
+            rm -f "$lock_file" 2>/dev/null || true
+            trap - EXIT INT TERM
+            return 0
+        else
+            log_debug "Failed to move cache file into place for phase: $phase"
+        fi
     else
-        log_debug "Failed to save cache for phase: $phase"
-        rm -f "$temp_file" "$entries_file" "$metadata_file" "${entries_file}.tmp"
-        rm -rf "${entries_dir}" 2>/dev/null || true
-        return 1
+        log_debug "Failed to create valid cache file for phase: $phase"
     fi
+    
+    # Cleanup will be handled by trap
+    return 1
 }
 
 # Check if a test result is cached and valid
@@ -353,16 +424,38 @@ clear_cache() {
     
     if [[ -n "$phase" ]]; then
         log_info "Clearing cache for phase: $phase"
-        rm -f "$CACHE_DIR/${phase}.json"
-        rm -f "$CACHE_DIR/${phase}.json.tmp."*
+        
+        # Acquire lock before clearing to prevent race conditions
+        local cache_file="$CACHE_DIR/${phase}.json"
+        local lock_file="${cache_file}.lock"
+        local lock_fd
+        
+        if exec {lock_fd}>"$lock_file" 2>/dev/null && flock -n "$lock_fd" 2>/dev/null; then
+            rm -f "$cache_file" 2>/dev/null || true
+            rm -f "$CACHE_DIR/${phase}.json.tmp."* 2>/dev/null || true
+            rm -rf "$CACHE_DIR/${phase}.json.tmp."*.entries_dir 2>/dev/null || true
+            
+            flock -u "$lock_fd" 2>/dev/null || true
+            exec {lock_fd}>&- 2>/dev/null || true
+            rm -f "$lock_file" 2>/dev/null || true
+        else
+            # Fallback: just remove files without lock (less safe but still functional)
+            rm -f "$cache_file" 2>/dev/null || true
+            rm -f "$CACHE_DIR/${phase}.json.tmp."* 2>/dev/null || true
+            rm -rf "$CACHE_DIR/${phase}.json.tmp."*.entries_dir 2>/dev/null || true
+            exec {lock_fd}>&- 2>/dev/null || true
+        fi
+        
         if [[ "$phase" == "$CACHE_PHASE" ]]; then
             CACHE_DATA=()
             CACHE_MODIFIED=false
         fi
     else
         log_info "Clearing all cache"
-        rm -f "$CACHE_DIR"/*.json
-        rm -f "$CACHE_DIR"/*.json.tmp.*
+        rm -f "$CACHE_DIR"/*.json 2>/dev/null || true
+        rm -f "$CACHE_DIR"/*.json.tmp.* 2>/dev/null || true
+        rm -rf "$CACHE_DIR"/*.entries_dir 2>/dev/null || true
+        rm -f "$CACHE_DIR"/*.lock 2>/dev/null || true
         CACHE_DATA=()
         CACHE_MODIFIED=false
     fi

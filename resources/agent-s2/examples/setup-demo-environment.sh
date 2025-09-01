@@ -17,7 +17,7 @@ source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
 
 # Source Agent-S2 configuration
 # shellcheck disable=SC1091
-source "${AGENT_S2_EXAMPLES_DIR}/../config/defaults.sh" 2>/dev/null || true
+source "${APP_ROOT}/resources/agent-s2/config/defaults.sh"
 
 API_URL="${AGENTS2_BASE_URL:-http://localhost:4113}"
 
@@ -31,7 +31,7 @@ if curl -s -f "$API_URL/health" > /dev/null 2>&1; then
     echo "✅ Healthy"
 else
     echo "❌ Not running"
-    echo "Start Agent S2 with: ./manage.sh --action start"
+    echo "Start Agent S2 with: resource-agent-s2 manage start"
     exit 1
 fi
 

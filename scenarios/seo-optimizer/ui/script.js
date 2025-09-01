@@ -1,7 +1,5 @@
 // SEO Optimizer Frontend JavaScript
-const API_URL = window.location.hostname === 'localhost' 
-    ? 'http://localhost:9220' 
-    : `${window.location.protocol}//${window.location.hostname}:9220`;
+const API_URL = `${window.location.protocol}//${window.location.host}`;
 
 // View Management
 const views = {

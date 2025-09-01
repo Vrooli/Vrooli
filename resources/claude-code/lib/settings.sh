@@ -5,7 +5,7 @@
 # Source var.sh for directory variables if not already sourced
 # shellcheck disable=SC1091
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-source "${APP_ROOT}/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_TRASH_FILE}"
 
@@ -123,10 +123,10 @@ claude_code::settings_set() {
     # Determine which settings file to use
     if [[ "$scope" == "project" ]]; then
         settings_file="$CLAUDE_PROJECT_SETTINGS"
-        mkdir -p "${settings_file%/*"
+        mkdir -p "${settings_file%/*}"
     elif [[ "$scope" == "global" ]]; then
         settings_file="$CLAUDE_SETTINGS_FILE"
-        mkdir -p "${settings_file%/*"
+        mkdir -p "${settings_file%/*}"
     else
         log::error "Invalid scope: $scope (use 'project' or 'global')"
         return 1
@@ -211,4 +211,70 @@ claude_code::settings_reset() {
     esac
     
     return 0
+}
+
+#######################################
+# Set subscription tier and update rate limits
+# Arguments:
+#   $1 - tier (free|pro|max|teams|enterprise)
+# Returns: 0 on success, 1 on failure  
+#######################################
+claude_code::set_subscription_tier() {
+    local tier="$1"
+    
+    if [[ -z "$tier" ]]; then
+        log::error "Subscription tier is required"
+        return 1
+    fi
+    
+    # Validate tier
+    case "$tier" in
+        free|pro|max|teams|enterprise)
+            # Valid tier
+            ;;
+        *)
+            log::error "Invalid subscription tier: $tier"
+            log::info "Valid tiers: free, pro, max, teams, enterprise"
+            return 1
+            ;;
+    esac
+    
+    # Source common functions for usage file management
+    # shellcheck disable=SC1091
+    source "${APP_ROOT}/resources/claude-code/lib/common.sh"
+    
+    # Initialize usage file if it doesn't exist
+    claude_code::init_usage_tracking
+    
+    # Update subscription tier in usage tracking file
+    local temp_file
+    temp_file=$(mktemp)
+    
+    jq --arg tier "$tier" '.subscription_tier = $tier' "$CLAUDE_USAGE_FILE" > "$temp_file"
+    if [[ $? -eq 0 ]]; then
+        mv "$temp_file" "$CLAUDE_USAGE_FILE"
+        log::success "✓ Subscription tier updated to: $tier"
+        
+        # Show updated limits
+        log::info "Updated rate limits based on $tier tier:"
+        local limits_key
+        case "$tier" in
+            max) limits_key="max_100" ;;  # Default to max_100, user can specify max_200 if needed
+            *) limits_key="$tier" ;;
+        esac
+        
+        local limits
+        limits=$(jq -r ".estimated_limits.${limits_key}" "$CLAUDE_USAGE_FILE" 2>/dev/null)
+        if [[ "$limits" != "null" && -n "$limits" ]]; then
+            echo "$limits" | jq -r '"  5-hour: " + (.["5_hour"] | tostring) + " requests"'
+            echo "$limits" | jq -r '"  Daily: " + (.daily | tostring) + " requests"' 
+            echo "$limits" | jq -r '"  Weekly: " + (.weekly | tostring) + " requests"'
+        fi
+        
+        return 0
+    else
+        rm -f "$temp_file"
+        log::error "Failed to update subscription tier"
+        return 1
+    fi
 }

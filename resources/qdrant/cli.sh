@@ -38,12 +38,24 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 source "${QDRANT_CLI_DIR}/config/defaults.sh"
 qdrant::export_config 2>/dev/null || true
 
+# Ensure API client is available before sourcing other libraries
+api_client_file="${QDRANT_CLI_DIR}/lib/api-client.sh"
+if [[ -f "$api_client_file" ]]; then
+    # shellcheck disable=SC1090
+    source "$api_client_file" || {
+        log::error "Failed to load Qdrant API client"
+        exit 1
+    }
+fi
+
 # Source qdrant libraries
 for lib in core health collections backup inject content status models embeddings search credentials; do
     lib_file="${QDRANT_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
-        source "$lib_file" 2>/dev/null || true
+        source "$lib_file" || {
+            log::warn "Failed to load library: $lib"
+        }
     fi
 done
 

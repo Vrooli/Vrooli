@@ -139,13 +139,13 @@ sudo systemctl status docker
 1. **Port conflict:**
    ```bash
    # Install on different port
-   ./manage.sh --action install --port 4111
+   ./cli.sh install --port 4111
    ```
 
 2. **Insufficient shared memory:**
    ```bash
    # Increase shared memory
-   ./manage.sh --action install --shared-memory 4gb
+   ./cli.sh install --shared-memory 4gb
    ```
 
 3. **Docker permissions:**
@@ -190,7 +190,7 @@ docker logs browserless | grep -i crash
 
 2. **Reduce concurrent browsers:**
    ```bash
-   ./manage.sh --action install --max-browsers 3
+   ./cli.sh install --max-browsers 3
    ```
 
 3. **Add swap space (if needed):**
@@ -226,7 +226,7 @@ curl http://localhost:4110/pressure
 
 1. **Increase default timeout:**
    ```bash
-   ./manage.sh --action install --timeout 60000
+   ./cli.sh install --timeout 60000
    ```
 
 2. **Per-request timeout:**
@@ -271,7 +271,7 @@ Not Found
 curl -I https://your-site.com
 
 # Check with verbose output
-./manage.sh --action usage --usage-type screenshot \
+./cli.sh usage --usage-type screenshot \
   --url https://your-site.com \
   --output test.png
 
@@ -294,7 +294,7 @@ docker inspect browserless | jq '.[0].NetworkSettings'
    ip route | grep docker0  # Usually 172.17.0.1
    
    # Use the bridge IP
-   ./manage.sh --action usage --usage-type screenshot \
+   ./cli.sh usage --usage-type screenshot \
      --url http://172.17.0.1:8080 \
      --output screenshot.png
    ```
@@ -331,7 +331,7 @@ nc -zv localhost 4110
 
 1. **Start the service:**
    ```bash
-   ./manage.sh --action start
+   ./cli.sh start
    ```
 
 2. **Check firewall:**
@@ -373,7 +373,7 @@ curl http://localhost:4110/metrics | grep queue
 
 1. **Optimize browser settings:**
    ```bash
-   ./manage.sh --action install \
+   ./cli.sh install \
      --max-browsers 10 \
      --timeout 20000
    ```
@@ -513,13 +513,13 @@ sudo systemctl restart docker
 docker pull ghcr.io/browserless/chrome:latest
 
 # 2. Stop current instance
-./manage.sh --action stop
+./cli.sh stop
 
 # 3. Remove old container
 docker rm browserless
 
 # 4. Start with new image
-./manage.sh --action start
+./cli.sh start
 ```
 
 ## Security Considerations
@@ -563,8 +563,8 @@ docker rm browserless
 **Q: Can I run multiple Browserless instances?**
 A: Yes, use different ports for each instance:
 ```bash
-./manage.sh --action install --port 4110
-./manage.sh --action install --port 4111
+./cli.sh install --port 4110
+./cli.sh install --port 4111
 ```
 
 **Q: How do I access Browserless from other containers?**

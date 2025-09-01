@@ -21,7 +21,7 @@ source "${var_LIB_SERVICE_DIR}/secrets.sh"
 
 # Load n8n configuration and infrastructure
 if command -v inject_framework::load_adapter_config &>/dev/null; then
-    inject_framework::load_adapter_config "n8n" "${N8N_LIB_DIR%/*"
+    inject_framework::load_adapter_config "n8n" "${N8N_LIB_DIR%/*}"
 fi
 
 # Source n8n lib functions (load core, status, and auto-credentials)

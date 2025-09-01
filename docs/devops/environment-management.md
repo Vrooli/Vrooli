@@ -100,7 +100,7 @@ The system automatically detects whether you're running locally or on a remote s
 export LOCATION=local   # or 'remote'
 
 # Or use script arguments
-bash scripts/main/develop.sh --location remote
+vrooli develop --location remote
 ```
 
 ### Environment Classification
@@ -124,12 +124,11 @@ cp .env-example .env-dev
 # 2. Start with file-based secrets (recommended for development)
 echo "SECRETS_SOURCE=file" >> .env-dev
 
-# 3. Or use local Vault for testing
-bash scripts/main/manageLocalVault.sh --start-dev
-# Then update .env-dev with provided Vault credentials
+# 3. Or use local Vault for testing (see current Vault resource setup)
+# Configure Vault as needed for your setup
 
 # 4. Start development environment
-bash scripts/main/develop.sh --target local-services
+vrooli develop --target local-services
 ```
 
 ### Production Deployment with Vault
@@ -150,7 +149,7 @@ VAULT_SECRET_ID=prod-secret-id
 EOF
 
 # 3. Deploy with Vault integration
-bash scripts/main/deploy.sh --source docker --environment production
+./scripts/manage.sh deploy --source docker --environment production
 ```
 
 ### Kubernetes Deployment with Vault
@@ -163,7 +162,7 @@ bash scripts/main/deploy.sh --source docker --environment production
 # 3. Applications consume secrets as environment variables
 
 # Deploy with Kubernetes + Vault integration
-bash scripts/main/deploy.sh --source k8s --environment production
+./scripts/manage.sh deploy --source k8s --environment production
 ```
 
 ## Troubleshooting
@@ -202,7 +201,7 @@ vault login -method=approle role_id=$VAULT_ROLE_ID secret_id=$VAULT_SECRET_ID
 ls -la jwt_*.pem
 
 # Regenerate if missing
-bash scripts/main/setup.sh
+./scripts/manage.sh setup
 
 # Verify keys are loaded
 echo "JWT_PRIV length: ${#JWT_PRIV}"

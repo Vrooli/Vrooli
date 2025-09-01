@@ -6,8 +6,8 @@
 
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../.." && builtin pwd)}"
-VAULT_MANAGE="${APP_ROOT}/resources/vault/manage.sh"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+VAULT_CLI="resource-vault"
 
 # Colors for output
 RED='\033[0;31m'
@@ -43,8 +43,8 @@ OAUTH_GITHUB_CLIENT_ID=dev_github_client_id
 OAUTH_GITHUB_CLIENT_SECRET=dev_github_client_secret
 EOF
 
-    # Migrate to Vault
-    "$VAULT_MANAGE" --action migrate-env \
+    # Migrate to Vault using v2.0 CLI patterns
+    "$VAULT_CLI" content execute migrate-env \
         --env-file /tmp/example.env.development \
         --vault-prefix "environments/development"
     
@@ -69,8 +69,8 @@ WEBHOOK_SECRET=${client_name}_webhook_secret_key
 API_RATE_LIMIT=1000
 EOF
 
-    # Migrate to Vault with client namespace
-    "$VAULT_MANAGE" --action migrate-env \
+    # Migrate to Vault with client namespace using v2.0 CLI patterns
+    "$VAULT_CLI" content execute migrate-env \
         --env-file "/tmp/client-${client_name}.env" \
         --vault-prefix "clients/${client_name}"
     
@@ -99,10 +99,10 @@ migrate_production() {
     
     # Create backup first
     log "Creating Vault backup before migration..."
-    "$VAULT_MANAGE" --action backup
+    "$VAULT_CLI" manage backup
     
-    # Migrate production secrets
-    "$VAULT_MANAGE" --action migrate-env \
+    # Migrate production secrets using v2.0 CLI patterns
+    "$VAULT_CLI" content execute migrate-env \
         --env-file ".env.production" \
         --vault-prefix "environments/production"
     
@@ -123,8 +123,8 @@ MINIO_SECRET_KEY=minio-secret-key
 BROWSERLESS_TOKEN=browserless-token-abcdef
 EOF
 
-    # Migrate to Vault
-    "$VAULT_MANAGE" --action migrate-env \
+    # Migrate to Vault using v2.0 CLI patterns
+    "$VAULT_CLI" content execute migrate-env \
         --env-file /tmp/resource-credentials.env \
         --vault-prefix "resources"
     
@@ -139,28 +139,28 @@ show_migrated_secrets() {
     log "Showing migrated secrets structure..."
     
     echo -e "\n${BLUE}Environments:${NC}"
-    "$VAULT_MANAGE" --action list-secrets --path "environments/" --format list 2>/dev/null || echo "  No environment secrets found"
+    "$VAULT_CLI" content list --path "environments/" --format list 2>/dev/null || echo "  No environment secrets found"
     
     echo -e "\n${BLUE}Clients:${NC}"
-    "$VAULT_MANAGE" --action list-secrets --path "clients/" --format list 2>/dev/null || echo "  No client secrets found"
+    "$VAULT_CLI" content list --path "clients/" --format list 2>/dev/null || echo "  No client secrets found"
     
     echo -e "\n${BLUE}Resources:${NC}"
-    "$VAULT_MANAGE" --action list-secrets --path "resources/" --format list 2>/dev/null || echo "  No resource secrets found"
+    "$VAULT_CLI" content list --path "resources/" --format list 2>/dev/null || echo "  No resource secrets found"
 }
 
 # Example 6: Test secret retrieval
 test_secret_retrieval() {
     log "Testing secret retrieval..."
     
-    # Try to retrieve a development secret
-    if database_url=$("$VAULT_MANAGE" --action get-secret --path "environments/development/database_url" 2>/dev/null); then
+    # Try to retrieve a development secret using v2.0 CLI patterns
+    if database_url=$("$VAULT_CLI" content get --path "environments/development/database_url" 2>/dev/null); then
         log "Successfully retrieved database URL: ${database_url:0:20}..."
     else
         warn "Could not retrieve development database URL"
     fi
     
     # Try to retrieve a client secret
-    if stripe_key=$("$VAULT_MANAGE" --action get-secret --path "clients/acme-corp/stripe_api_key" 2>/dev/null); then
+    if stripe_key=$("$VAULT_CLI" content get --path "clients/acme-corp/stripe_api_key" 2>/dev/null); then
         log "Successfully retrieved client Stripe key: ${stripe_key:0:10}..."
     else
         warn "Could not retrieve client Stripe key"
@@ -173,10 +173,10 @@ main() {
     log "This script demonstrates various migration patterns"
     echo
     
-    # Check if Vault is ready
-    if ! "$VAULT_MANAGE" --action status >/dev/null 2>&1; then
+    # Check if Vault is ready using v2.0 CLI patterns
+    if ! "$VAULT_CLI" status >/dev/null 2>&1; then
         error "Vault is not ready. Please initialize Vault first:"
-        error "  $VAULT_MANAGE --action init-dev"
+        error "  $VAULT_CLI manage init-dev"
         exit 1
     fi
     

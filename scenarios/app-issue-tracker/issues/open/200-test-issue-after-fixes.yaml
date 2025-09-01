@@ -1,0 +1,14 @@
+id: issue-8a505467
+title: Test Issue After Fixes
+description: Testing after fixing path issues
+type: bug
+priority: medium
+app_id: unknown
+status: open
+reporter:
+    name: ""
+    email: ""
+    timestamp: "2025-08-29T14:32:34Z"
+metadata:
+    created_at: "2025-08-29T14:32:34Z"
+    updated_at: "2025-08-29T14:32:34Z"

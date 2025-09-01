@@ -1,23 +1,74 @@
-// App Issue Tracker Dashboard - JavaScript
+// App Issue Tracker Dashboard v2 - File-Based Storage
+// Updated for file-based YAML storage system
 
 class IssueTracker {
     constructor() {
-        this.apiBase = 'http://localhost:8090/api';
+        // Use same-origin URLs for tunnel compatibility
+        this.apiBase = `${window.location.protocol}//${window.location.host}/api`;
+        this.mode = 'unknown';
         this.currentPage = 'dashboard';
         this.statusChart = null;
         this.priorityChart = null;
         this.issues = [];
         this.agents = [];
         this.apps = [];
+        this.lastUpdate = null;
         
         this.init();
     }
 
-    init() {
+    async init() {
+        await this.detectMode();
         this.setupEventListeners();
         this.loadDashboard();
         this.setupCharts();
         this.startAutoRefresh();
+        this.showModeIndicator();
+    }
+
+    async detectMode() {
+        try {
+            const response = await fetch(`${this.apiBase}/../health`);
+            const data = await response.json();
+            
+            if (data.storage === 'file-based-yaml') {
+                this.mode = 'file-based';
+            } else {
+                this.mode = 'database';
+            }
+        } catch (error) {
+            this.mode = 'offline';
+        }
+    }
+
+    showModeIndicator() {
+        // Add mode indicator to navbar
+        const navbar = document.querySelector('.navbar');
+        const existingIndicator = navbar.querySelector('.mode-indicator');
+        if (existingIndicator) {
+            existingIndicator.remove();
+        }
+        
+        const indicator = document.createElement('div');
+        indicator.className = 'mode-indicator';
+        
+        switch (this.mode) {
+            case 'file-based':
+                indicator.innerHTML = '<i class="fas fa-folder"></i> File Mode';
+                indicator.className += ' mode-file';
+                break;
+            case 'database':
+                indicator.innerHTML = '<i class="fas fa-database"></i> DB Mode';
+                indicator.className += ' mode-db';
+                break;
+            case 'offline':
+                indicator.innerHTML = '<i class="fas fa-wifi"></i> Offline';
+                indicator.className += ' mode-offline';
+                break;
+        }
+        
+        const navActions = navbar.querySelector('.nav-actions');
+        navActions.insertBefore(indicator, navActions.firstChild);
     }
 
     setupEventListeners() {
@@ -84,6 +135,11 @@ class IssueTracker {
             this.startInvestigation();
         });
 
+        // Fix generation button
+        document.getElementById('generateFixBtn')?.addEventListener('click', () => {
+            this.generateFix();
+        });
+
         // Close modals on background click
         document.querySelectorAll('.modal').forEach(modal => {
             modal.addEventListener('click', (e) => {
@@ -92,6 +148,26 @@ class IssueTracker {
                 }
             });
         });
+
+        // File mode specific: Direct file operations
+        if (this.mode === 'file-based') {
+            this.setupFileOperations();
+        }
+    }
+
+    setupFileOperations() {
+        // Add file operation buttons if in file mode
+        const toolbar = document.querySelector('.page-header');
+        if (toolbar && !toolbar.querySelector('.file-operations')) {
+            const fileOps = document.createElement('div');
+            fileOps.className = 'file-operations';
+            fileOps.innerHTML = `
+                <button class="btn btn-secondary" onclick="app.showFileOperations()">
+                    <i class="fas fa-folder-open"></i> File Operations
+                </button>
+            `;
+            toolbar.appendChild(fileOps);
+        }
     }
 
     async apiCall(endpoint, options = {}) {
@@ -105,16 +181,21 @@ class IssueTracker {
                 ...options
             });
             
-            const data = await response.json();
-            
             if (!response.ok) {
-                throw new Error(data.message || `API Error: ${response.status}`);
+                throw new Error(`API Error: ${response.status}`);
             }
             
+            const data = await response.json();
             return data;
         } catch (error) {
             console.error('API call failed:', error);
-            this.showNotification(error.message, 'error');
+            
+            // In file mode, show helpful error message
+            if (this.mode === 'file-based') {
+                this.showNotification(`File-based API error: ${error.message}. Try starting the file-based API server.`, 'error');
+            } else {
+                this.showNotification(error.message, 'error');
+            }
             throw error;
         } finally {
             this.hideLoading();
@@ -139,22 +220,26 @@ class IssueTracker {
     }
 
     async loadPageContent(page) {
-        switch (page) {
-            case 'dashboard':
-                await this.loadDashboard();
-                break;
-            case 'issues':
-                await this.loadAllIssues();
-                break;
-            case 'agents':
-                await this.loadAgents();
-                break;
-            case 'apps':
-                await this.loadApps();
-                break;
-            case 'search':
-                // Search page is interactive, no initial load needed
-                break;
+        try {
+            switch (page) {
+                case 'dashboard':
+                    await this.loadDashboard();
+                    break;
+                case 'issues':
+                    await this.loadAllIssues();
+                    break;
+                case 'agents':
+                    await this.loadAgents();
+                    break;
+                case 'apps':
+                    await this.loadApps();
+                    break;
+                case 'search':
+                    // Search page doesn't need preloading
+                    break;
+            }
+        } catch (error) {
+            this.showNotification(`Failed to load ${page}: ${error.message}`, 'error');
         }
     }
 
@@ -162,443 +247,366 @@ class IssueTracker {
         try {
             // Load stats
             const statsResponse = await this.apiCall('/stats');
-            if (statsResponse.success) {
-                this.updateStats(statsResponse.data.stats);
-            }
-
+            const stats = statsResponse.data.stats;
+            
+            // Update stat cards
+            document.getElementById('totalIssues').textContent = stats.total_issues || 0;
+            document.getElementById('openIssues').textContent = stats.open_issues || 0;
+            document.getElementById('inProgress').textContent = stats.in_progress || 0;
+            document.getElementById('fixedToday').textContent = stats.fixed_today || 0;
+            
             // Load recent issues
             const issuesResponse = await this.apiCall('/issues?limit=10');
-            if (issuesResponse.success) {
-                this.displayRecentIssues(issuesResponse.data.issues);
-                this.updateCharts(issuesResponse.data.issues);
-            }
-
-            this.updateLastUpdate();
+            this.issues = issuesResponse.data.issues || [];
+            this.renderRecentIssues();
+            
+            // Update charts
+            this.updateStatusChart();
+            this.updatePriorityChart();
+            
+            // Update timestamp
+            this.lastUpdate = new Date();
+            document.getElementById('lastUpdate').textContent = this.formatTime(this.lastUpdate);
+            
         } catch (error) {
             console.error('Failed to load dashboard:', error);
+            
+            // In file mode, show offline stats
+            if (this.mode === 'file-based') {
+                this.showOfflineStats();
+            }
         }
     }
 
-    updateStats(stats) {
-        document.getElementById('totalIssues').textContent = stats.total_issues || 0;
-        document.getElementById('openIssues').textContent = stats.open_issues || 0;
-        document.getElementById('inProgress').textContent = stats.in_progress || 0;
-        document.getElementById('fixedToday').textContent = stats.fixed_today || 0;
+    showOfflineStats() {
+        // Show file-based statistics when API is not available
+        const offlineNote = document.createElement('div');
+        offlineNote.className = 'offline-notice';
+        offlineNote.innerHTML = `
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i>
+                <strong>File Mode:</strong> API server not available. 
+                <a href="#" onclick="app.openFileManager()">Manage issues directly</a> or 
+                <a href="#" onclick="app.startFileBasedAPI()">start the API server</a>.
+            </div>
+        `;
+        
+        const mainContent = document.querySelector('.main-content');
+        const existingNotice = mainContent.querySelector('.offline-notice');
+        if (existingNotice) {
+            existingNotice.remove();
+        }
+        mainContent.insertBefore(offlineNote, mainContent.firstChild);
     }
 
-    displayRecentIssues(issues) {
+    async createIssue() {
+        const formData = {
+            title: document.getElementById('issueTitle').value,
+            description: document.getElementById('issueDescription').value || '',
+            type: document.getElementById('issueType').value,
+            priority: document.getElementById('issuePriority').value,
+            error_message: document.getElementById('errorMessage').value || '',
+            stack_trace: document.getElementById('stackTrace').value || '',
+            tags: document.getElementById('issueTags').value.split(',').map(t => t.trim()).filter(t => t),
+            reporter_name: 'Dashboard User',
+            reporter_email: 'user@dashboard.local'
+        };
+
+        try {
+            const response = await this.apiCall('/issues', {
+                method: 'POST',
+                body: JSON.stringify(formData)
+            });
+
+            if (response.success) {
+                this.showNotification('Issue created successfully!', 'success');
+                this.closeModal(document.getElementById('newIssueModal'));
+                
+                // Show created file info in file mode
+                if (response.data.filename) {
+                    this.showNotification(`File created: ${response.data.filename}`, 'info');
+                }
+                
+                // Reset form
+                document.getElementById('newIssueForm').reset();
+                
+                // Refresh current page
+                this.refreshCurrentPage();
+            }
+        } catch (error) {
+            this.showNotification('Failed to create issue', 'error');
+        }
+    }
+
+    async renderRecentIssues() {
         const tbody = document.querySelector('#recentIssuesTable tbody');
         if (!tbody) return;
 
         tbody.innerHTML = '';
-        
-        issues.forEach(issue => {
-            const row = this.createIssueRow(issue);
+
+        if (this.issues.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center">No issues found</td></tr>';
+            return;
+        }
+
+        this.issues.slice(0, 10).forEach(issue => {
+            const row = document.createElement('tr');
+            row.className = `priority-${issue.priority}`;
+            
+            const shortId = issue.id.length > 12 ? issue.id.substring(0, 12) + '...' : issue.id;
+            const createdAt = new Date(issue.metadata?.created_at || issue.created_at).toLocaleDateString();
+            
+            row.innerHTML = `
+                <td class="issue-id" title="${issue.id}">${shortId}</td>
+                <td class="issue-title">
+                    <a href="#" onclick="app.showIssueDetails('${issue.id}')">${this.escapeHtml(issue.title)}</a>
+                </td>
+                <td><span class="status-badge status-${issue.status}">${this.formatStatus(issue.status)}</span></td>
+                <td><span class="priority-badge priority-${issue.priority}">${this.formatPriority(issue.priority)}</span></td>
+                <td><span class="type-badge type-${issue.type}">${this.formatType(issue.type)}</span></td>
+                <td>${createdAt}</td>
+                <td class="actions">
+                    <button class="btn btn-sm btn-primary" onclick="app.startInvestigation('${issue.id}')">
+                        <i class="fas fa-search"></i>
+                    </button>
+                    ${this.mode === 'file-based' ? `
+                    <button class="btn btn-sm btn-secondary" onclick="app.openIssueFile('${issue.id}')" title="Open YAML file">
+                        <i class="fas fa-file-alt"></i>
+                    </button>
+                    ` : ''}
+                </td>
+            `;
+            
             tbody.appendChild(row);
         });
     }
 
-    createIssueRow(issue) {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td><code>${this.truncateId(issue.id)}</code></td>
-            <td><strong>${this.escapeHtml(issue.title)}</strong></td>
-            <td><span class="status-badge status-${issue.status}">${issue.status}</span></td>
-            <td><span class="status-badge priority-${issue.priority}">${issue.priority}</span></td>
-            <td>${issue.type}</td>
-            <td>${this.formatDate(issue.created_at)}</td>
-            <td>
-                <button class="btn btn-primary" onclick="tracker.viewIssue('${issue.id}')">
-                    <i class="fas fa-eye"></i>
-                </button>
-                ${issue.status === 'open' ? `
-                    <button class="btn btn-success" onclick="tracker.investigateIssue('${issue.id}')">
-                        <i class="fas fa-search"></i>
-                    </button>
-                ` : ''}
-            </td>
+    // File-mode specific functions
+    openIssueFile(issueId) {
+        // In a real implementation, this could open the file in an editor
+        // For now, show the file path
+        this.showNotification(`Issue file location: issues/*/[0-9][0-9][0-9]-*.yaml (ID: ${issueId})`, 'info');
+    }
+
+    openFileManager() {
+        // Show file operations panel
+        const panel = document.createElement('div');
+        panel.className = 'file-manager-panel';
+        panel.innerHTML = `
+            <div class="panel-header">
+                <h3><i class="fas fa-folder-open"></i> File Operations</h3>
+                <button onclick="this.parentElement.parentElement.remove()">&times;</button>
+            </div>
+            <div class="panel-content">
+                <p>Direct file operations for issue management:</p>
+                <div class="file-commands">
+                    <div class="command-group">
+                        <h4>View Issues</h4>
+                        <code>ls issues/open/*.yaml</code>
+                        <code>cat issues/open/001-critical-bug.yaml</code>
+                    </div>
+                    <div class="command-group">
+                        <h4>Move Issues</h4>
+                        <code>mv issues/open/001-bug.yaml issues/investigating/</code>
+                        <code>./issues/manage.sh move 001-bug.yaml fixed</code>
+                    </div>
+                    <div class="command-group">
+                        <h4>Create Issues</h4>
+                        <code>cp issues/templates/bug-template.yaml issues/open/123-new.yaml</code>
+                        <code>./issues/manage.sh add</code>
+                    </div>
+                    <div class="command-group">
+                        <h4>Search</h4>
+                        <code>grep -r "authentication" issues/</code>
+                        <code>./issues/manage.sh search "timeout"</code>
+                    </div>
+                </div>
+                <div class="file-info">
+                    <p><strong>Issues Directory:</strong> <code>./issues/</code></p>
+                    <p><strong>Management CLI:</strong> <code>./issues/manage.sh</code></p>
+                    <p><strong>Templates:</strong> <code>./issues/templates/</code></p>
+                </div>
+            </div>
         `;
-        return row;
-    }
-
-    async loadAllIssues() {
-        try {
-            const response = await this.apiCall('/issues?limit=100');
-            if (response.success) {
-                this.issues = response.data.issues;
-                this.displayAllIssues(this.issues);
-            }
-        } catch (error) {
-            console.error('Failed to load issues:', error);
-        }
-    }
-
-    displayAllIssues(issues) {
-        const tbody = document.querySelector('#allIssuesTable tbody');
-        if (!tbody) return;
-
-        tbody.innerHTML = '';
         
-        issues.forEach(issue => {
-            const row = this.createDetailedIssueRow(issue);
-            tbody.appendChild(row);
-        });
+        document.body.appendChild(panel);
     }
 
-    createDetailedIssueRow(issue) {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td><code>${this.truncateId(issue.id)}</code></td>
-            <td><strong>${this.escapeHtml(issue.title)}</strong></td>
-            <td><span class="status-badge status-${issue.status}">${issue.status}</span></td>
-            <td><span class="status-badge priority-${issue.priority}">${issue.priority}</span></td>
-            <td>${issue.type}</td>
-            <td>${issue.app_name || 'Unknown'}</td>
-            <td>${this.formatDate(issue.created_at)}</td>
-            <td>
-                <button class="btn btn-primary" onclick="tracker.viewIssue('${issue.id}')">
-                    <i class="fas fa-eye"></i>
-                </button>
-                ${issue.status === 'open' ? `
-                    <button class="btn btn-success" onclick="tracker.investigateIssue('${issue.id}')">
-                        <i class="fas fa-search"></i>
-                    </button>
-                ` : ''}
-            </td>
-        `;
-        return row;
-    }
-
-    filterIssues() {
-        const statusFilter = document.getElementById('statusFilter')?.value;
-        const priorityFilter = document.getElementById('priorityFilter')?.value;
-        const typeFilter = document.getElementById('typeFilter')?.value;
-
-        let filteredIssues = this.issues;
-
-        if (statusFilter) {
-            filteredIssues = filteredIssues.filter(issue => issue.status === statusFilter);
-        }
-        if (priorityFilter) {
-            filteredIssues = filteredIssues.filter(issue => issue.priority === priorityFilter);
-        }
-        if (typeFilter) {
-            filteredIssues = filteredIssues.filter(issue => issue.type === typeFilter);
-        }
-
-        this.displayAllIssues(filteredIssues);
-    }
-
-    async loadAgents() {
-        try {
-            const response = await this.apiCall('/agents');
-            if (response.success) {
-                this.agents = response.data.agents;
-                this.displayAgents(this.agents);
-            }
-        } catch (error) {
-            console.error('Failed to load agents:', error);
-        }
-    }
-
-    displayAgents(agents) {
-        const grid = document.getElementById('agentsGrid');
-        if (!grid) return;
-
-        grid.innerHTML = '';
-
-        agents.forEach(agent => {
-            const card = document.createElement('div');
-            card.className = 'agent-card';
-            card.innerHTML = `
-                <h4>${agent.display_name}</h4>
-                <p>${agent.description || 'No description available'}</p>
-                <div class="agent-stats">
-                    <div class="stat">
-                        <div class="stat-value">${agent.total_runs}</div>
-                        <div class="stat-label">Total Runs</div>
-                    </div>
-                    <div class="stat">
-                        <div class="stat-value">${Math.round(agent.success_rate)}%</div>
-                        <div class="stat-label">Success Rate</div>
-                    </div>
-                    <div class="stat">
-                        <div class="stat-value">${agent.is_active ? 'Active' : 'Inactive'}</div>
-                        <div class="stat-label">Status</div>
-                    </div>
-                </div>
-                <div class="agent-capabilities">
-                    <strong>Capabilities:</strong>
-                    <div style="margin-top: 8px;">
-                        ${agent.capabilities?.map(cap => 
-                            `<span class="status-badge">${cap}</span>`
-                        ).join(' ') || 'No capabilities listed'}
-                    </div>
-                </div>
-            `;
-            grid.appendChild(card);
-        });
-    }
-
-    async loadApps() {
-        try {
-            const response = await this.apiCall('/apps');
-            if (response.success) {
-                this.apps = response.data.apps;
-                this.displayApps(this.apps);
-            }
-        } catch (error) {
-            console.error('Failed to load apps:', error);
-        }
-    }
-
-    displayApps(apps) {
-        const grid = document.getElementById('appsGrid');
-        if (!grid) return;
-
-        grid.innerHTML = '';
-
-        apps.forEach(app => {
-            const card = document.createElement('div');
-            card.className = 'app-card';
-            card.innerHTML = `
-                <h4>${app.display_name}</h4>
-                <p>Type: ${app.type} | Status: <span class="status-badge status-${app.status}">${app.status}</span></p>
-                <div class="app-stats">
-                    <div class="stat">
-                        <div class="stat-value">${app.total_issues}</div>
-                        <div class="stat-label">Total Issues</div>
-                    </div>
-                    <div class="stat">
-                        <div class="stat-value">${app.open_issues}</div>
-                        <div class="stat-label">Open Issues</div>
-                    </div>
-                </div>
-                ${app.scenario_name ? `<p><strong>Scenario:</strong> ${app.scenario_name}</p>` : ''}
-            `;
-            grid.appendChild(card);
-        });
+    startFileBasedAPI() {
+        this.showNotification('Start the file-based API server with: cd api && ./app-issue-tracker-file-api', 'info');
     }
 
     async performSearch() {
-        const query = document.getElementById('searchInput')?.value;
-        const searchType = document.querySelector('input[name="searchType"]:checked')?.value || 'text';
-        
-        if (!query?.trim()) {
+        const query = document.getElementById('searchInput').value.trim();
+        const searchType = document.querySelector('input[name="searchType"]:checked').value;
+
+        if (!query) {
             this.showNotification('Please enter a search query', 'warning');
             return;
         }
 
         try {
-            let endpoint = '/issues/search';
-            if (searchType === 'vector') {
-                endpoint = '/search/vector';
+            let endpoint;
+            if (searchType === 'vector' && this.mode !== 'offline') {
+                endpoint = `/search/vector?q=${encodeURIComponent(query)}&limit=20`;
+            } else {
+                endpoint = `/issues/search?q=${encodeURIComponent(query)}&limit=20`;
             }
-            
-            const response = await this.apiCall(`${endpoint}?q=${encodeURIComponent(query)}&limit=20`);
-            
-            if (response.success) {
-                this.displaySearchResults(response.data.results, searchType);
-            }
+
+            const response = await this.apiCall(endpoint);
+            const results = response.data.results || response.data.issues || [];
+
+            this.renderSearchResults(results, query, searchType);
+
         } catch (error) {
-            console.error('Search failed:', error);
+            this.showNotification('Search failed', 'error');
+            
+            // In file mode, suggest alternative
+            if (this.mode === 'file-based') {
+                this.showNotification('Try: grep -r "' + query + '" issues/', 'info');
+            }
         }
     }
 
-    displaySearchResults(results, searchType) {
+    renderSearchResults(results, query, searchType) {
         const container = document.getElementById('searchResults');
-        if (!container) return;
-
         container.innerHTML = '';
 
-        if (!results || results.length === 0) {
-            container.innerHTML = '<p style="padding: 24px; text-align: center; color: var(--text-secondary);">No results found</p>';
+        if (results.length === 0) {
+            container.innerHTML = `
+                <div class="no-results">
+                    <i class="fas fa-search"></i>
+                    <h3>No results found</h3>
+                    <p>No issues found for "${this.escapeHtml(query)}"</p>
+                    ${this.mode === 'file-based' ? `
+                    <p class="file-hint">
+                        <i class="fas fa-terminal"></i>
+                        Try: <code>./issues/manage.sh search "${this.escapeHtml(query)}"</code>
+                    </p>
+                    ` : ''}
+                </div>
+            `;
             return;
         }
 
-        results.forEach(result => {
-            const resultDiv = document.createElement('div');
-            resultDiv.className = 'search-result';
-            resultDiv.innerHTML = `
-                <div class="result-title">${this.escapeHtml(result.title)}</div>
-                <div class="result-description">${this.escapeHtml(result.description || '')}</div>
-                <div class="result-meta">
-                    <span class="status-badge status-${result.status}">${result.status}</span>
-                    <span class="status-badge priority-${result.priority}">${result.priority}</span>
-                    <span>${result.type}</span>
-                    ${searchType === 'vector' && result.similarity ? 
-                        `<span class="similarity-score">Similarity: ${Math.round(result.similarity * 100)}%</span>` 
-                        : ''
-                    }
-                </div>
-            `;
-            
-            resultDiv.addEventListener('click', () => {
-                this.viewIssue(result.id || result.issue_id);
-            });
-            
-            container.appendChild(resultDiv);
-        });
-    }
-
-    async viewIssue(issueId) {
-        try {
-            // For now, we'll show a simple modal with issue details
-            // In a real implementation, you'd fetch full issue details
-            const issue = this.issues.find(i => i.id === issueId);
-            if (issue) {
-                this.showIssueModal(issue);
-            } else {
-                this.showNotification('Issue not found', 'error');
-            }
-        } catch (error) {
-            console.error('Failed to view issue:', error);
-        }
-    }
-
-    showIssueModal(issue) {
-        const modal = document.getElementById('issueModal');
-        const title = document.getElementById('issueModalTitle');
-        const body = document.getElementById('issueModalBody');
-        
-        title.textContent = `Issue: ${issue.title}`;
-        body.innerHTML = `
-            <div style="margin-bottom: 16px;">
-                <strong>ID:</strong> <code>${issue.id}</code>
-            </div>
-            <div style="margin-bottom: 16px;">
-                <strong>Status:</strong> <span class="status-badge status-${issue.status}">${issue.status}</span>
-                <strong style="margin-left: 16px;">Priority:</strong> <span class="status-badge priority-${issue.priority}">${issue.priority}</span>
-                <strong style="margin-left: 16px;">Type:</strong> ${issue.type}
-            </div>
-            <div style="margin-bottom: 16px;">
-                <strong>Description:</strong><br>
-                <p style="margin-top: 8px; padding: 12px; background: var(--bg-secondary); border-radius: var(--border-radius);">
-                    ${this.escapeHtml(issue.description || 'No description provided')}
-                </p>
-            </div>
-            ${issue.error_message ? `
-                <div style="margin-bottom: 16px;">
-                    <strong>Error Message:</strong><br>
-                    <pre style="margin-top: 8px; padding: 12px; background: var(--bg-secondary); border-radius: var(--border-radius); font-size: 12px; overflow-x: auto;">${this.escapeHtml(issue.error_message)}</pre>
-                </div>
-            ` : ''}
-            ${issue.stack_trace ? `
-                <div style="margin-bottom: 16px;">
-                    <strong>Stack Trace:</strong><br>
-                    <pre style="margin-top: 8px; padding: 12px; background: var(--bg-secondary); border-radius: var(--border-radius); font-size: 11px; overflow-x: auto; max-height: 200px; overflow-y: auto;">${this.escapeHtml(issue.stack_trace)}</pre>
-                </div>
-            ` : ''}
-            ${issue.investigation_report ? `
-                <div style="margin-bottom: 16px;">
-                    <strong>Investigation Report:</strong><br>
-                    <div style="margin-top: 8px; padding: 12px; background: var(--bg-secondary); border-radius: var(--border-radius);">
-                        ${this.escapeHtml(issue.investigation_report)}
+        const resultsHtml = results.map(issue => {
+            const similarity = issue.similarity ? Math.round(issue.similarity * 100) : null;
+            return `
+                <div class="search-result" onclick="app.showIssueDetails('${issue.id}')">
+                    <div class="result-header">
+                        <h4>${this.escapeHtml(issue.title)}</h4>
+                        <div class="result-meta">
+                            <span class="priority-badge priority-${issue.priority}">${this.formatPriority(issue.priority)}</span>
+                            <span class="status-badge status-${issue.status}">${this.formatStatus(issue.status)}</span>
+                            ${similarity ? `<span class="similarity-score">${similarity}% match</span>` : ''}
+                        </div>
+                    </div>
+                    <p class="result-description">${this.escapeHtml(issue.description || '')}</p>
+                    <div class="result-footer">
+                        <span class="app-name">${issue.app_id || 'Unknown App'}</span>
+                        <span class="created-date">${new Date(issue.metadata?.created_at || issue.created_at).toLocaleDateString()}</span>
                     </div>
                 </div>
-            ` : ''}
-            <div style="margin-bottom: 16px;">
-                <strong>Created:</strong> ${this.formatDate(issue.created_at)}
+            `;
+        }).join('');
+
+        container.innerHTML = `
+            <div class="search-summary">
+                <h3>Search Results</h3>
+                <p>Found ${results.length} issues for "${this.escapeHtml(query)}" using ${searchType} search</p>
+                ${this.mode === 'file-based' ? '<p class="mode-note"><i class="fas fa-folder"></i> Results from file-based storage</p>' : ''}
+            </div>
+            <div class="results-grid">
+                ${resultsHtml}
             </div>
         `;
-        
-        // Store the current issue for investigation
-        this.currentIssue = issue;
-        
-        modal.classList.add('active');
     }
 
-    async investigateIssue(issueId) {
+    async startInvestigation(issueId) {
+        if (!issueId && this.selectedIssueId) {
+            issueId = this.selectedIssueId;
+        }
+        
+        if (!issueId) {
+            this.showNotification('Please select an issue first', 'warning');
+            return;
+        }
+
         try {
             const response = await this.apiCall('/investigate', {
                 method: 'POST',
                 body: JSON.stringify({
                     issue_id: issueId,
-                    priority: 'high'
+                    agent_id: 'deep-investigator',
+                    priority: 'normal'
                 })
             });
-            
+
             if (response.success) {
                 this.showNotification('Investigation started successfully!', 'success');
-                // Refresh the current page to show updated status
-                setTimeout(() => {
-                    this.refreshCurrentPage();
-                }, 2000);
+                
+                if (this.mode === 'file-based') {
+                    this.showNotification('Check issues/investigating/ folder for updates', 'info');
+                }
+                
+                // Close modal if open
+                this.closeModal(document.getElementById('issueModal'));
+                
+                // Refresh page
+                setTimeout(() => this.refreshCurrentPage(), 2000);
             }
         } catch (error) {
-            console.error('Failed to start investigation:', error);
+            this.showNotification('Failed to start investigation', 'error');
         }
     }
 
-    async startInvestigation() {
-        if (!this.currentIssue) return;
+    updateStatusChart() {
+        if (!this.statusChart) return;
         
-        await this.investigateIssue(this.currentIssue.id);
-        this.closeModal(document.getElementById('issueModal'));
+        const statusCounts = this.getStatusCounts();
+        
+        this.statusChart.data.datasets[0].data = [
+            statusCounts.open || 0,
+            statusCounts.investigating || 0,
+            statusCounts['in-progress'] || 0,
+            statusCounts.fixed || 0,
+            statusCounts.closed || 0,
+            statusCounts.failed || 0
+        ];
+        
+        this.statusChart.update();
     }
 
-    showNewIssueModal() {
-        document.getElementById('newIssueModal').classList.add('active');
-    }
-
-    async createIssue() {
-        const form = document.getElementById('newIssueForm');
-        const formData = new FormData(form);
-        
-        const issue = {
-            title: document.getElementById('issueTitle').value,
-            description: document.getElementById('issueDescription').value,
-            type: document.getElementById('issueType').value,
-            priority: document.getElementById('issuePriority').value,
-            error_message: document.getElementById('errorMessage').value,
-            stack_trace: document.getElementById('stackTrace').value,
-            tags: document.getElementById('issueTags').value.split(',').map(t => t.trim()).filter(t => t),
-            app_token: 'dashboard-ui'
-        };
-        
-        try {
-            const response = await this.apiCall('/issues', {
-                method: 'POST',
-                body: JSON.stringify(issue)
-            });
-            
-            if (response.success) {
-                this.showNotification('Issue created successfully!', 'success');
-                this.closeModal(document.getElementById('newIssueModal'));
-                form.reset();
-                this.refreshCurrentPage();
-            }
-        } catch (error) {
-            console.error('Failed to create issue:', error);
-        }
-    }
-
-    closeModal(modal) {
-        modal?.classList.remove('active');
+    getStatusCounts() {
+        const counts = {};
+        this.issues.forEach(issue => {
+            counts[issue.status] = (counts[issue.status] || 0) + 1;
+        });
+        return counts;
     }
 
     setupCharts() {
-        // Status chart
+        // Status Chart
         const statusCtx = document.getElementById('statusChart');
         if (statusCtx) {
             this.statusChart = new Chart(statusCtx, {
                 type: 'doughnut',
                 data: {
-                    labels: ['Open', 'Investigating', 'In Progress', 'Fixed', 'Closed'],
+                    labels: ['Open', 'Investigating', 'In Progress', 'Fixed', 'Closed', 'Failed'],
                     datasets: [{
-                        data: [0, 0, 0, 0, 0],
+                        data: [0, 0, 0, 0, 0, 0],
                         backgroundColor: [
-                            '#ef4444',
-                            '#f59e0b',
-                            '#2563eb',
-                            '#10b981',
-                            '#64748b'
+                            '#ff6b6b', // Open - red
+                            '#4ecdc4', // Investigating - teal
+                            '#45b7d1', // In Progress - blue
+                            '#96ceb4', // Fixed - green
+                            '#feca57', // Closed - yellow
+                            '#ff9ff3'  // Failed - pink
                         ]
                     }]
                 },
                 options: {
                     responsive: true,
-                    maintainAspectRatio: false,
                     plugins: {
                         legend: {
                             position: 'bottom'
@@ -608,7 +616,7 @@ class IssueTracker {
             });
         }
 
-        // Priority chart
+        // Priority Chart
         const priorityCtx = document.getElementById('priorityChart');
         if (priorityCtx) {
             this.priorityChart = new Chart(priorityCtx, {
@@ -616,23 +624,13 @@ class IssueTracker {
                 data: {
                     labels: ['Critical', 'High', 'Medium', 'Low'],
                     datasets: [{
+                        label: 'Issues',
                         data: [0, 0, 0, 0],
-                        backgroundColor: [
-                            '#dc2626',
-                            '#f59e0b',
-                            '#2563eb',
-                            '#10b981'
-                        ]
+                        backgroundColor: ['#ff6b6b', '#ffa726', '#42a5f5', '#66bb6a']
                     }]
                 },
                 options: {
                     responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            display: false
-                        }
-                    },
                     scales: {
                         y: {
                             beginAtZero: true
@@ -643,53 +641,74 @@ class IssueTracker {
         }
     }
 
-    updateCharts(issues) {
-        if (!issues || issues.length === 0) return;
+    formatStatus(status) {
+        return status.charAt(0).toUpperCase() + status.slice(1).replace('-', ' ');
+    }
 
-        // Update status chart
-        if (this.statusChart) {
-            const statusCounts = {
-                open: 0,
-                investigating: 0,
-                in_progress: 0,
-                fixed: 0,
-                closed: 0
-            };
-            
-            issues.forEach(issue => {
-                statusCounts[issue.status] = (statusCounts[issue.status] || 0) + 1;
-            });
-            
-            this.statusChart.data.datasets[0].data = [
-                statusCounts.open,
-                statusCounts.investigating,
-                statusCounts.in_progress,
-                statusCounts.fixed,
-                statusCounts.closed
-            ];
-            this.statusChart.update();
+    formatPriority(priority) {
+        return priority.charAt(0).toUpperCase() + priority.slice(1);
+    }
+
+    formatType(type) {
+        return type.charAt(0).toUpperCase() + type.slice(1);
+    }
+
+    formatTime(date) {
+        return date.toLocaleTimeString();
+    }
+
+    escapeHtml(unsafe) {
+        return unsafe
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
+    showLoading() {
+        document.getElementById('loadingOverlay').style.display = 'flex';
+    }
+
+    hideLoading() {
+        document.getElementById('loadingOverlay').style.display = 'none';
+    }
+
+    showNotification(message, type = 'info') {
+        const notification = document.createElement('div');
+        notification.className = `notification notification-${type}`;
+        notification.innerHTML = `
+            <i class="fas fa-${this.getNotificationIcon(type)}"></i>
+            <span>${message}</span>
+            <button onclick="this.parentElement.remove()">&times;</button>
+        `;
+
+        document.getElementById('notifications').appendChild(notification);
+
+        // Auto remove after 5 seconds
+        setTimeout(() => {
+            if (notification.parentElement) {
+                notification.remove();
+            }
+        }, 5000);
+    }
+
+    getNotificationIcon(type) {
+        switch (type) {
+            case 'success': return 'check-circle';
+            case 'error': return 'exclamation-triangle';
+            case 'warning': return 'exclamation-circle';
+            default: return 'info-circle';
         }
+    }
 
-        // Update priority chart
-        if (this.priorityChart) {
-            const priorityCounts = {
-                critical: 0,
-                high: 0,
-                medium: 0,
-                low: 0
-            };
-            
-            issues.forEach(issue => {
-                priorityCounts[issue.priority] = (priorityCounts[issue.priority] || 0) + 1;
-            });
-            
-            this.priorityChart.data.datasets[0].data = [
-                priorityCounts.critical,
-                priorityCounts.high,
-                priorityCounts.medium,
-                priorityCounts.low
-            ];
-            this.priorityChart.update();
+    showNewIssueModal() {
+        document.getElementById('newIssueModal').style.display = 'flex';
+    }
+
+    closeModal(modal) {
+        if (modal) {
+            modal.style.display = 'none';
         }
     }
 
@@ -698,73 +717,131 @@ class IssueTracker {
     }
 
     startAutoRefresh() {
-        // Refresh dashboard every 30 seconds if on dashboard page
-        setInterval(() => {
-            if (this.currentPage === 'dashboard') {
-                this.loadDashboard();
-            }
-        }, 30000);
-    }
-
-    updateLastUpdate() {
-        const now = new Date().toLocaleString();
-        const element = document.getElementById('lastUpdate');
-        if (element) {
-            element.textContent = now;
+        // Auto refresh every 30 seconds if API is available
+        if (this.mode !== 'offline') {
+            setInterval(() => {
+                this.refreshCurrentPage();
+            }, 30000);
         }
     }
 
-    showLoading() {
-        document.getElementById('loadingOverlay')?.classList.add('active');
-    }
-
-    hideLoading() {
-        document.getElementById('loadingOverlay')?.classList.remove('active');
-    }
-
-    showNotification(message, type = 'info') {
-        const container = document.getElementById('notifications');
-        if (!container) return;
-
-        const notification = document.createElement('div');
-        notification.className = `notification ${type}`;
-        notification.innerHTML = `
-            <div>${this.escapeHtml(message)}</div>
-        `;
-
-        container.appendChild(notification);
-
-        // Auto remove after 5 seconds
-        setTimeout(() => {
-            notification.remove();
-        }, 5000);
-    }
-
-    // Utility methods
-    truncateId(id) {
-        return id.length > 8 ? id.substring(0, 8) + '...' : id;
-    }
-
-    formatDate(dateString) {
-        try {
-            return new Date(dateString).toLocaleDateString();
-        } catch {
-            return 'Invalid date';
-        }
-    }
-
-    escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
+    // Additional methods for full functionality would be added here...
+    // Including loadAllIssues(), loadAgents(), loadApps(), etc.
 }
 
-// Initialize the app when DOM is loaded
-let tracker;
+// Initialize app when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    tracker = new IssueTracker();
+    window.app = new IssueTracker();
 });
 
-// Make tracker available globally for onclick handlers
-window.tracker = tracker;
+// Add CSS for file mode indicators
+const style = document.createElement('style');
+style.textContent = `
+.mode-indicator {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    margin-right: 10px;
+}
+
+.mode-file {
+    background: #4ecdc4;
+    color: white;
+}
+
+.mode-db {
+    background: #45b7d1; 
+    color: white;
+}
+
+.mode-offline {
+    background: #ff6b6b;
+    color: white;
+}
+
+.file-manager-panel {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    width: 400px;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 1000;
+}
+
+.panel-header {
+    background: #f8f9fa;
+    padding: 15px;
+    border-bottom: 1px solid #dee2e6;
+    border-radius: 8px 8px 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.panel-content {
+    padding: 15px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.command-group {
+    margin-bottom: 15px;
+}
+
+.command-group h4 {
+    margin: 0 0 8px 0;
+    color: #495057;
+    font-size: 14px;
+}
+
+.command-group code {
+    display: block;
+    background: #f8f9fa;
+    padding: 4px 8px;
+    border-radius: 4px;
+    margin: 4px 0;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    border-left: 3px solid #007bff;
+}
+
+.file-info {
+    background: #e7f3ff;
+    padding: 10px;
+    border-radius: 4px;
+    margin-top: 15px;
+}
+
+.file-info p {
+    margin: 4px 0;
+    font-size: 12px;
+}
+
+.offline-notice {
+    margin: 10px;
+}
+
+.alert {
+    padding: 15px;
+    border-radius: 4px;
+    border-left: 4px solid;
+}
+
+.alert-info {
+    background: #e7f3ff;
+    border-color: #007bff;
+    color: #004085;
+}
+
+.file-hint {
+    background: #f8f9fa;
+    padding: 8px;
+    border-radius: 4px;
+    margin-top: 10px;
+    font-size: 12px;
+}
+`;
+document.head.appendChild(style);

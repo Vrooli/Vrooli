@@ -26,9 +26,9 @@ set -e # Exit immediately if a command exits with a non-zero status.
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 K8S_CHART_TESTS_DIR="${APP_ROOT}/k8s/chart/tests"
 # shellcheck disable=SC1091
-source "${K8S_CHART_TESTS_DIR}/../../../scripts/lib/utils/var.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+source "${var_TRASH_FILE}"
 
 CHART_PATH="."
 GOLDEN_FILES_DIR="./tests/goldenfiles"

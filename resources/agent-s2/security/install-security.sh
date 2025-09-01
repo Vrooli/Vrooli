@@ -17,7 +17,7 @@ source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
 
 # Source trash system for safe removal
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+source "${var_TRASH_FILE}"
 
 SECURITY_DIR="${AGENT_S2_SECURITY_DIR}"
 APPARMOR_PROFILE_DIR="/etc/apparmor.d"

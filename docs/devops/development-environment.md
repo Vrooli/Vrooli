@@ -30,7 +30,7 @@ git clone https://github.com/Vrooli/Vrooli.git
 cd Vrooli
 
 # Run the automated setup and start development
-bash scripts/main/develop.sh --target local-services
+vrooli develop
 ```
 
 This single command will:
@@ -58,7 +58,7 @@ Once setup completes:
 
 ```bash
 # Start local services development
-bash scripts/main/develop.sh --target local-services
+vrooli develop
 ```
 
 **Features:**
@@ -79,7 +79,8 @@ bash scripts/main/develop.sh --target local-services
 
 ```bash
 # Start Docker-based development
-bash scripts/main/develop.sh --target docker-daemon
+vrooli develop
+# Note: Docker configuration is now set in .vrooli/service.json
 ```
 
 **Features:**
@@ -99,8 +100,9 @@ bash scripts/main/develop.sh --target docker-daemon
 **Best for**: Kubernetes-native development
 
 ```bash
-# Start Kubernetes development
-bash scripts/main/develop.sh --target k8s-cluster
+# Start Kubernetes development  
+vrooli develop
+# Note: Kubernetes configuration is now set in .vrooli/service.json
 ```
 
 **Features:**
@@ -343,7 +345,7 @@ kubectl exec -it $(kubectl get pods -l app=server -o name) -- bash -c "cd packag
 echo "CREATE_MOCK_DATA=true" >> .env-dev
 
 # Restart development environment
-bash scripts/main/develop.sh --target local-services
+vrooli develop
 
 # Or manually create mock data
 cd packages/server
@@ -485,13 +487,13 @@ kubectl port-forward svc/ui 3000:3000
 
 ```bash
 # Start local Vault for development
-bash scripts/main/manageLocalVault.sh --start-dev
+vrooli resource start vault
 
 # Update .env-dev to use Vault
 sed -i 's/SECRETS_SOURCE=file/SECRETS_SOURCE=vault/' .env-dev
 
 # Restart development environment
-bash scripts/main/develop.sh --target local-services
+vrooli develop
 ```
 
 ### Hot Reload Configuration
@@ -589,7 +591,7 @@ source .env-dev && echo "DB_HOST: $DB_HOST"
 
 # Regenerate environment file
 rm .env-dev
-bash scripts/main/setup.sh
+vrooli setup
 ```
 
 #### 5. TypeScript Compilation Issues
@@ -612,7 +614,7 @@ If you need a complete reset:
 
 ```bash
 # Stop all services
-bash scripts/main/develop.sh --stop  # If available
+vrooli stop
 # or
 docker-compose down
 pkill -f "node.*server"
@@ -628,7 +630,7 @@ docker system prune -f
 docker volume prune -f
 
 # Start fresh
-bash scripts/main/develop.sh --target local-services
+vrooli develop
 ```
 
 ## Team Development
@@ -686,8 +688,8 @@ cp .env-dev.template .env-dev
 ### Development Speed
 
 ```bash
-# Use local services target for fastest iteration
-bash scripts/main/develop.sh --target local-services
+# Use local services for fastest iteration
+vrooli develop
 
 # Enable TypeScript incremental compilation
 # Already configured in tsconfig.json

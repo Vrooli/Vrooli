@@ -101,9 +101,40 @@ main() {
         return 1
     fi
     
-    # Parse arguments to separate test type from options
+    # First, filter shell artifacts from arguments
+    local clean_args=()
+    for arg in "$@"; do
+        case "$arg" in
+            # Skip shell redirection operators
+            "2>&1"|"1>&2"|"&>"|">&"|"2>"|"1>"|">"|">>"|"<"|"<<")
+                continue
+                ;;
+            # Filter suspicious single digits (likely shell artifacts)
+            [0-9])
+                # If this is a standalone digit at the end, it's likely a shell artifact
+                local next_arg=""
+                local found_next=false
+                for check_arg in "${clean_args[@]}" "$@"; do
+                    if [[ "$found_next" == "true" ]]; then
+                        next_arg="$check_arg"
+                        break
+                    fi
+                    [[ "$check_arg" == "$arg" ]] && found_next=true
+                done
+                # If no next arg or next arg is a shell operator, skip this digit
+                if [[ -z "$next_arg" ]] || [[ "$next_arg" =~ ^[\>\<\&\|] ]]; then
+                    continue
+                fi
+                ;;
+        esac
+        clean_args+=("$arg")
+    done
+    
+    # Parse filtered arguments to separate test type from options
     local test_type="all"
     local args=()
+    
+    set -- "${clean_args[@]}"
     
     while [[ $# -gt 0 ]]; do
         case "$1" in

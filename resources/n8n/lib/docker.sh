@@ -75,6 +75,14 @@ n8n::start() {
         log::success "✅ n8n is ready on port $N8N_PORT"
         log::info "Access n8n at: $N8N_BASE_URL"
         
+        # Start memory monitoring to prevent OOM crashes
+        log::info "Starting memory monitoring..."
+        if n8n::start_memory_monitoring 2>/dev/null; then
+            log::success "✅ Memory monitoring started"
+        else
+            log::warn "⚠️  Memory monitoring failed to start - manual monitoring recommended"
+        fi
+        
         # Optionally update firewall rules for Docker-to-host connectivity
         # This ensures n8n can reach native services like Ollama
         # Only runs if N8N_UPDATE_FIREWALL is explicitly set to "true"
@@ -99,6 +107,12 @@ n8n::start() {
 
 n8n::stop() {
     log::info "Stopping n8n..."
+    
+    # Stop memory monitoring first
+    if declare -f n8n::memory::stop_monitor >/dev/null 2>&1; then
+        n8n::memory::stop_monitor 2>/dev/null
+        log::info "Memory monitoring stopped"
+    fi
     
     if docker::container_exists "$N8N_CONTAINER_NAME"; then
         docker::stop_container "$N8N_CONTAINER_NAME"

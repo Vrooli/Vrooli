@@ -36,6 +36,9 @@ from orchestrator_utils import (
     ORCHESTRATOR_PID_FILE
 )
 
+# Import the new PID manager
+from pid_manager import OrchestrationLockManager
+
 # API Configuration
 API_PORT = int(os.environ.get('ORCHESTRATOR_PORT', '9500'))  # Use environment variable with fallback
 API_HOST = "0.0.0.0"
@@ -401,8 +404,9 @@ class EnhancedAppOrchestrator:
             # Set port environment variables
             for port_type, port_num in app.allocated_ports.items():
                 if port_type == "api":
-                    env['SERVICE_PORT'] = str(port_num)
-                    self.logger.debug(f"Set SERVICE_PORT={port_num} for {app_name}")
+                    env['PORT'] = str(port_num)          # Primary variable for Go APIs
+                    env['SERVICE_PORT'] = str(port_num)   # Compatibility backup
+                    self.logger.debug(f"Set PORT={port_num} (and SERVICE_PORT for compatibility) for {app_name}")
                 elif port_type == "ui":
                     env['UI_PORT'] = str(port_num)
                     self.logger.debug(f"Set UI_PORT={port_num} for {app_name}")
@@ -678,65 +682,27 @@ class EnhancedAppOrchestrator:
         self.logger.info("Orchestrator shutdown complete")
 
 
+# Legacy functions kept for compatibility but now use the new lock manager
 def check_existing_orchestrator():
     """Check if another orchestrator instance is already running"""
-    # Check PID file
-    if os.path.exists(ORCHESTRATOR_PID_FILE):
-        try:
-            with open(ORCHESTRATOR_PID_FILE, 'r') as f:
-                pid = int(f.read().strip())
-            
-            # Check if process is actually running
-            try:
-                process = psutil.Process(pid)
-                if process.is_running():
-                    # Double-check it's actually an orchestrator process
-                    cmdline = ' '.join(process.cmdline())
-                    if 'orchestrator' in cmdline.lower():
-                        return pid
-            except (psutil.NoSuchProcess, psutil.AccessDenied):
-                # Process doesn't exist, clean up PID file
-                os.remove(ORCHESTRATOR_PID_FILE)
-        except (ValueError, IOError):
-            # Invalid PID file, remove it
-            os.remove(ORCHESTRATOR_PID_FILE)
-    
-    # Also check if port is in use
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    try:
-        sock.bind((API_HOST, API_PORT))
-        sock.close()
-        return None
-    except OSError:
-        # Port in use, try to find the process
-        for proc in psutil.process_iter(['pid', 'cmdline']):
-            try:
-                cmdline = ' '.join(proc.info['cmdline'] or [])
-                if 'orchestrator' in cmdline.lower():
-                    return proc.info['pid']
-            except (psutil.NoSuchProcess, psutil.AccessDenied):
-                continue
-        return -1  # Port in use but can't find orchestrator
+    manager = OrchestrationLockManager(port=API_PORT)
+    existing = manager._find_running_orchestrator()
+    if existing:
+        return existing.get('pid', -1)
+    return None
 
 def write_pid_file():
-    """Write current process PID to file"""
-    with open(ORCHESTRATOR_PID_FILE, 'w') as f:
-        f.write(str(os.getpid()))
+    """Compatibility function - actual lock management is handled by OrchestrationLockManager"""
+    pass  # Now handled by lock manager
 
 def cleanup_pid_file():
-    """Remove PID file on exit"""
-    try:
-        if os.path.exists(ORCHESTRATOR_PID_FILE):
-            with open(ORCHESTRATOR_PID_FILE, 'r') as f:
-                saved_pid = int(f.read().strip())
-            if saved_pid == os.getpid():
-                os.remove(ORCHESTRATOR_PID_FILE)
-    except (ValueError, IOError):
-        pass
+    """Compatibility function - cleanup is handled by OrchestrationLockManager"""
+    pass  # Now handled by lock manager
 
 async def main():
     """Main entry point for enhanced orchestrator"""
     import argparse
+    import atexit
     
     parser = argparse.ArgumentParser(description="Enhanced Vrooli App Orchestrator")
     parser.add_argument("--verbose", action="store_true", help="Enable verbose logging")
@@ -747,39 +713,33 @@ async def main():
     
     args = parser.parse_args()
     
-    # Check for existing instance (unless forced)
-    if not args.force:
-        existing_pid = check_existing_orchestrator()
-        if existing_pid:
-            if existing_pid == -1:
-                print(f"ERROR: Port {API_PORT} is already in use by another process", file=sys.stderr)
-                print(f"Use --force to override or kill the existing process first", file=sys.stderr)
-            else:
-                print(f"ERROR: Another orchestrator instance is already running (PID: {existing_pid})", file=sys.stderr)
-                print(f"Stop it first with: kill {existing_pid}", file=sys.stderr)
-                print(f"Or use --force to override", file=sys.stderr)
-            sys.exit(1)
-    else:
-        # Force mode: kill existing instance if found
-        existing_pid = check_existing_orchestrator()
-        if existing_pid and existing_pid != -1:
-            print(f"Killing existing orchestrator (PID: {existing_pid})...")
-            try:
-                os.kill(existing_pid, signal.SIGTERM)
-                time.sleep(2)
-            except ProcessLookupError:
-                pass
+    # Use the new lock manager with robust PID handling
+    lock_manager = OrchestrationLockManager(port=API_PORT)
     
-    # Write PID file
-    write_pid_file()
+    # Try to acquire lock (handles all edge cases internally)
+    if not lock_manager.acquire_lock(force=args.force):
+        # Lock manager already printed appropriate error messages
+        sys.exit(1)
     
-    # Register cleanup handler
-    def cleanup_handler(signum, frame):
-        cleanup_pid_file()
-        sys.exit(0)
+    # Register cleanup on exit - ensures PID files are always cleaned up
+    def cleanup():
+        try:
+            lock_manager.release_lock()
+        except Exception:
+            pass  # Ignore cleanup errors on exit
     
-    signal.signal(signal.SIGTERM, cleanup_handler)
-    signal.signal(signal.SIGINT, cleanup_handler)
+    atexit.register(cleanup)
+    
+    # Register signal handlers for graceful shutdown
+    def signal_handler(signum, frame):
+        cleanup()
+        if signum == signal.SIGINT:
+            sys.exit(130)  # Standard exit code for Ctrl+C
+        else:
+            sys.exit(0)
+    
+    signal.signal(signal.SIGTERM, signal_handler)
+    signal.signal(signal.SIGINT, signal_handler)
     
     # Setup
     vrooli_root = Path.cwd()
@@ -831,7 +791,8 @@ async def main():
         cleanup_pid_file()
         sys.exit(1)
     finally:
-        cleanup_pid_file()
+        # Cleanup is handled by atexit and signal handlers
+        pass
 
 
 if __name__ == "__main__":

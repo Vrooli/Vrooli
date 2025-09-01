@@ -472,7 +472,7 @@ For AI/automation use cases, use the management script's safe screenshot wrapper
 
 ```bash
 # Safe screenshot capture with validation
-./manage.sh --action usage --usage-type screenshot --url https://example.com --output safe.png
+./cli.sh usage --usage-type screenshot --url https://example.com --output safe.png
 ```
 
 ### Why Validation Matters

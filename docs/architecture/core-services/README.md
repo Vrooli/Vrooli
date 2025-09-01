@@ -161,7 +161,7 @@ await taskQueue.email.add('send-welcome', { userId });
 ### **Development Setup**
 ```bash
 # Start all core services
-./scripts/main/develop.sh --target docker
+vrooli develop
 
 # Services available at:
 # - API: http://localhost:3000

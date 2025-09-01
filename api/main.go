@@ -198,10 +198,10 @@ func monitorOrchestratorHealth() {
 // HTTP client for orchestrator requests
 func proxyToOrchestrator(method, path string, body io.Reader) (*http.Response, error) {
 	if !orchestratorHealthy {
-		return nil, fmt.Errorf("orchestrator not healthy")
+		return nil, fmt.Errorf("orchestrator not running or unhealthy - start it with 'python3 %s/scripts/scenarios/tools/orchestrator/enhanced_orchestrator.py'", vrooliRoot)
 	}
 
-	client := &http.Client{Timeout: 30 * time.Second}
+	client := &http.Client{Timeout: 5 * time.Second}
 	req, err := http.NewRequest(method, orchestratorURL+path, body)
 	if err != nil {
 		return nil, err
@@ -274,7 +274,10 @@ func listApps(w http.ResponseWriter, r *http.Request) {
 	// Get runtime status from orchestrator if available
 	var orchestratorApps map[string]interface{}
 	if orchestratorHealthy {
-		if resp, err := proxyToOrchestrator("GET", "/apps", nil); err == nil {
+		resp, err := proxyToOrchestrator("GET", "/apps", nil)
+		if err != nil {
+			log.Printf("Warning: Could not get app runtime status from orchestrator: %v", err)
+		} else {
 			defer resp.Body.Close()
 			var orchestratorData map[string]interface{}
 			if json.NewDecoder(resp.Body).Decode(&orchestratorData) == nil {
@@ -326,7 +329,7 @@ func listApps(w http.ResponseWriter, r *http.Request) {
 			}
 		} else {
 			// Fallback: basic status without orchestrator
-			app.RuntimeStatus = "unknown"
+			app.RuntimeStatus = "orchestrator_offline"
 		}
 
 		apps = append(apps, app)

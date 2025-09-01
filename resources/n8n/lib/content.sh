@@ -193,19 +193,18 @@ n8n::content::list() {
         if [[ -d "$dir" ]]; then
             local content_type="$(basename "$dir" | sed 's/s$//')"
             
-            for file in "$dir"/*.json 2>/dev/null; do
-                if [[ -f "$file" ]]; then
-                    local content_name="$(basename "$file" .json)"
-                    
-                    if [[ "$format" == "json" ]]; then
-                        if [[ "$first" != true ]]; then
-                            echo ","
-                        fi
-                        echo -n "    {\"type\": \"$content_type\", \"name\": \"$content_name\"}"
-                        first=false
-                    else
-                        echo "[INFO]    $content_type: $content_name"
+            for file in "$dir"/*.json; do
+                [[ -f "$file" ]] || continue
+                local content_name="$(basename "$file" .json)"
+                
+                if [[ "$format" == "json" ]]; then
+                    if [[ "$first" != true ]]; then
+                        echo ","
                     fi
+                    echo -n "    {\"type\": \"$content_type\", \"name\": \"$content_name\"}"
+                    first=false
+                else
+                    echo "[INFO]    $content_type: $content_name"
                 fi
             done
         fi

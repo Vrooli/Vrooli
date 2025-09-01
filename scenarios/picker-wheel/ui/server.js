@@ -1,58 +1,93 @@
 const express = require('express');
 const path = require('path');
-const cors = require('cors');
-const fs = require('fs');
+const http = require('http');
 
 const app = express();
 const PORT = process.env.UI_PORT || process.env.PORT || 3100;
 const API_PORT = process.env.API_PORT || process.env.SERVICE_PORT || 8100;
 const N8N_PORT = process.env.RESOURCE_PORTS ? JSON.parse(process.env.RESOURCE_PORTS).n8n : 5678;
 
-// Middleware
-app.use(cors());
-app.use(express.json());
+// Manual proxy function for API calls
+function proxyToApi(req, res, targetPort, apiPath) {
+    const options = {
+        hostname: 'localhost',
+        port: targetPort,
+        path: apiPath || req.url,
+        method: req.method,
+        headers: {
+            ...req.headers,
+            host: `localhost:${targetPort}`
+        }
+    };
+    
+    console.log(`[PROXY] ${req.method} ${req.url} -> http://localhost:${targetPort}${options.path}`);
+    
+    const proxyReq = http.request(options, (proxyRes) => {
+        res.status(proxyRes.statusCode);
+        Object.keys(proxyRes.headers).forEach(key => {
+            res.setHeader(key, proxyRes.headers[key]);
+        });
+        proxyRes.pipe(res);
+    });
+    
+    proxyReq.on('error', (err) => {
+        console.error('Proxy error:', err.message);
+        res.status(502).json({ 
+            error: 'Server unavailable', 
+            details: err.message,
+            target: `http://localhost:${targetPort}${options.path}`
+        });
+    });
+    
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+        req.pipe(proxyReq);
+    } else {
+        proxyReq.end();
+    }
+}
 
-// Serve static files except script.js
+// Health endpoint
+app.get('/health', (req, res) => {
+    res.json({ status: 'healthy', service: 'picker-wheel-ui' });
+});
+
+// API endpoints proxy
+app.use('/api', (req, res) => {
+    const fullApiPath = '/api' + (req.url.startsWith('/') ? req.url : '/' + req.url);
+    proxyToApi(req, res, API_PORT, fullApiPath);
+});
+
+// n8n webhook proxy - critical for picker wheel functionality
+app.use('/webhook', (req, res) => {
+    const webhookPath = '/webhook' + (req.url.startsWith('/') ? req.url : '/' + req.url);
+    proxyToApi(req, res, N8N_PORT, webhookPath);
+});
+
+// Serve static files
 app.use(express.static(__dirname, { 
     index: false,
     setHeaders: (res, path) => {
         if (path.endsWith('.js')) {
+            res.setHeader('Cache-Control', 'no-cache');
             res.setHeader('Content-Type', 'application/javascript');
         }
     }
 }));
 
-// Serve script.js with injected environment variables
-app.get('/script.js', (req, res) => {
-    fs.readFile(path.join(__dirname, 'script.js'), 'utf8', (err, data) => {
-        if (err) {
-            res.status(500).send('Error loading script');
-            return;
-        }
-        
-        // Replace hardcoded values with environment variables
-        const modifiedScript = data
-            .replace("const API_BASE = 'http://localhost:8100/api';", `const API_BASE = 'http://localhost:${API_PORT}/api';`)
-            .replace("const N8N_BASE = 'http://localhost:5678/webhook';", `const N8N_BASE = 'http://localhost:${N8N_PORT}/webhook';`);
-        
-        res.setHeader('Content-Type', 'application/javascript');
-        res.send(modifiedScript);
-    });
-});
-
-// Serve index.html for root route
+// Serve the main page
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-    res.json({ status: 'healthy', service: 'picker-wheel-ui' });
-});
-
-// Start server
 app.listen(PORT, () => {
-    console.log(`🎯 Picker Wheel UI server running on http://localhost:${PORT}`);
-    console.log(`   Theme: Neon Arcade`);
-    console.log(`   Features: Animated wheel, confetti, sound effects`);
+    console.log(`
+╔════════════════════════════════════════════════════════════════════════════╗
+║                           PICKER WHEEL UI                                 ║
+╠════════════════════════════════════════════════════════════════════════════╣
+║  UI Server:     http://localhost:${PORT}                                     ║
+║  API Proxy:     http://localhost:${API_PORT}                                 ║
+║  n8n Webhook:   http://localhost:${N8N_PORT}                                 ║
+║  Status:        READY TO SPIN                                             ║
+╚════════════════════════════════════════════════════════════════════════════╝
+    `);
 });

@@ -20,7 +20,7 @@ source "${APP_ROOT}/scripts/resources/lib/status-args.sh"
 # shellcheck disable=SC1091
 source "${CLAUDE_CODE_SCRIPT_DIR}/config/defaults.sh"
 # shellcheck disable=SC1091
-source "${CLAUDE_CODE_SCRIPT_DIR}/common.sh"
+source "${CLAUDE_CODE_SCRIPT_DIR}/lib/common.sh"
 
 # Ensure configuration is exported
 if command -v claude_code::export_config &>/dev/null; then
@@ -180,10 +180,23 @@ claude_code::status::collect_data() {
             usage_info=$(claude_code::get_usage 2>/dev/null)
             
             if [[ -n "$usage_info" ]]; then
-                local hourly_requests=$(echo "$usage_info" | jq -r '.current_hour_requests // "0"')
-                local daily_requests=$(echo "$usage_info" | jq -r '.current_day_requests // "0"')
-                local weekly_requests=$(echo "$usage_info" | jq -r '.current_week_requests // "0"')
-                local last_5h_requests=$(echo "$usage_info" | jq -r '.last_5_hours // "0"')
+                # Calculate current usage from timestamped data  
+                local current_hour=$(date +%Y%m%d%H)
+                local current_day=$(date +%Y%m%d)
+                local current_week=$(date +%Y%U)
+                
+                local hourly_requests=$(echo "$usage_info" | jq -r ".hourly_requests.\"$current_hour\" // 0")
+                local daily_requests=$(echo "$usage_info" | jq -r ".daily_requests.\"$current_day\" // 0")
+                local weekly_requests=$(echo "$usage_info" | jq -r ".weekly_requests.\"$current_week\" // 0")
+                
+                # Calculate last 5 hours usage
+                local last_5h_requests=0
+                for i in {0..4}; do
+                    local hour_key=$(date -d "-$i hours" +%Y%m%d%H)
+                    local hour_count=$(echo "$usage_info" | jq -r ".hourly_requests.\"$hour_key\" // 0")
+                    last_5h_requests=$((last_5h_requests + hour_count))
+                done
+                
                 local subscription_tier=$(echo "$usage_info" | jq -r '.subscription_tier // "unknown"')
                 
                 # Get last rate limit info
@@ -198,6 +211,11 @@ claude_code::status::collect_data() {
                 # Calculate usage percentages based on tier
                 local tier_key="${subscription_tier:-free}"
                 [[ "$tier_key" == "unknown" ]] && tier_key="free"
+                
+                # Map max subscription to max_100 (default) unless specified otherwise
+                if [[ "$tier_key" == "max" ]]; then
+                    tier_key="max_100"
+                fi
                 
                 local limit_5h=$(echo "$usage_info" | jq -r ".estimated_limits.${tier_key}.\"5_hour\" // 45")
                 local limit_daily=$(echo "$usage_info" | jq -r ".estimated_limits.${tier_key}.daily // 50")
@@ -602,4 +620,156 @@ claude_code::test() {
     
     log::success "✅ Claude Code test completed successfully"
     return 0
+}
+
+#######################################
+# Validate Claude Code installation and configuration
+# Returns: 0 if all validations pass, 1 if any fail
+#######################################
+claude-code::validate() {
+    local verbose="${1:-yes}"
+    local errors=0
+    local warnings=0
+    
+    if [[ "$verbose" == "yes" ]]; then
+        log::info "🔍 Validating Claude Code Installation"
+        echo "========================================"
+    fi
+    
+    # Check Claude CLI installation
+    if [[ "$verbose" == "yes" ]]; then
+        echo -n "Checking Claude CLI installation... "
+    fi
+    if ! claude_code::is_installed; then
+        echo "❌ Claude CLI not found"
+        ((errors++))
+    else
+        local version=$(claude --version 2>/dev/null || echo "unknown")
+        if [[ "$verbose" == "yes" ]]; then
+            echo "✅ OK ($version)"
+        fi
+    fi
+    
+    # Check Node.js requirements
+    if [[ "$verbose" == "yes" ]]; then
+        echo -n "Checking Node.js requirements... "
+    fi
+    if ! claude_code::check_node_version; then
+        echo "❌ Node.js version requirement not met (need v${MIN_NODE_VERSION}+)"
+        ((errors++))
+    else
+        local node_version=$(node --version)
+        if [[ "$verbose" == "yes" ]]; then
+            echo "✅ OK ($node_version)"
+        fi
+    fi
+    
+    # Check authentication status (with timeout)
+    if [[ "$verbose" == "yes" ]]; then
+        echo -n "Checking authentication... "
+    fi
+    local auth_status
+    auth_status=$(timeout 3 claude auth whoami 2>/dev/null | head -1 || echo "not authenticated")
+    if [[ "$auth_status" =~ "not authenticated" ]] || [[ "$auth_status" =~ "error" ]] || [[ -z "$auth_status" ]]; then
+        echo "⚠️  Not authenticated or timeout"
+        ((warnings++))
+        if [[ "$verbose" == "yes" ]]; then
+            echo "    Run 'claude auth login' to authenticate"
+        fi
+    else
+        if [[ "$verbose" == "yes" ]]; then
+            echo "✅ OK"
+        fi
+    fi
+    
+    # Check configuration directory
+    if [[ "$verbose" == "yes" ]]; then
+        echo -n "Checking configuration directory... "
+    fi
+    if [[ ! -d "$CLAUDE_CONFIG_DIR" ]]; then
+        echo "❌ Configuration directory not found"
+        ((errors++))
+    else
+        if [[ "$verbose" == "yes" ]]; then
+            echo "✅ OK ($CLAUDE_CONFIG_DIR)"
+        fi
+    fi
+    
+    # Check usage tracking file
+    if [[ "$verbose" == "yes" ]]; then
+        echo -n "Checking usage tracking... "
+    fi
+    if [[ ! -f "$CLAUDE_USAGE_FILE" ]]; then
+        echo "⚠️  Usage tracking file missing"
+        ((warnings++))
+    else
+        # Test if it's valid JSON
+        if jq . "$CLAUDE_USAGE_FILE" >/dev/null 2>&1; then
+            if [[ "$verbose" == "yes" ]]; then
+                echo "✅ OK"
+            fi
+        else
+            echo "❌ Usage tracking file corrupted"
+            ((errors++))
+        fi
+    fi
+    
+    # Check LiteLLM adapter functionality
+    if [[ "$verbose" == "yes" ]]; then
+        echo -n "Checking LiteLLM adapter... "
+    fi
+    if source "${CLAUDE_CODE_SCRIPT_DIR}/adapters/litellm/state.sh" 2>/dev/null; then
+        if [[ "$verbose" == "yes" ]]; then
+            echo "✅ OK"
+        fi
+    else
+        echo "❌ LiteLLM adapter has issues"
+        ((errors++))
+    fi
+    
+    # Check critical library files
+    if [[ "$verbose" == "yes" ]]; then
+        echo -n "Checking core libraries... "
+    fi
+    local missing_libs=0
+    for lib in common status install session execute; do
+        if [[ ! -f "${CLAUDE_CODE_SCRIPT_DIR}/lib/${lib}.sh" ]]; then
+            ((missing_libs++))
+        fi
+    done
+    
+    if [[ $missing_libs -gt 0 ]]; then
+        echo "❌ Missing $missing_libs core libraries"
+        ((errors++))
+    else
+        if [[ "$verbose" == "yes" ]]; then
+            echo "✅ OK"
+        fi
+    fi
+    
+    # Summary
+    if [[ "$verbose" == "yes" ]]; then
+        echo
+        echo "Validation Summary:"
+        echo "  Errors: $errors"
+        echo "  Warnings: $warnings"
+        echo
+    fi
+    
+    if [[ $errors -gt 0 ]]; then
+        if [[ "$verbose" == "yes" ]]; then
+            echo "❌ Validation failed with $errors error(s)"
+        fi
+        return 1
+    elif [[ $warnings -gt 0 ]]; then
+        if [[ "$verbose" == "yes" ]]; then
+            echo "⚠️  Validation passed with $warnings warning(s)"
+        fi
+        return 0
+    else
+        if [[ "$verbose" == "yes" ]]; then
+            echo "✅ All validations passed"
+        fi
+        return 0
+    fi
 }

@@ -4,9 +4,10 @@ This guide covers deploying Vrooli to Kubernetes using Helm charts.
 
 ## Prerequisites
 
-1. **Install Kubernetes Tools** (auto-installed by our scripts):
+1. **Install Kubernetes Tools**:
    ```bash
-   ./scripts/main/setup.sh --target k8s-cluster
+   vrooli setup
+   # Note: Kubernetes tools configuration in .vrooli/service.json
    ```
    This installs kubectl, helm, and minikube automatically.
 
@@ -25,8 +26,9 @@ This guide covers deploying Vrooli to Kubernetes using Helm charts.
 ### Building Kubernetes Artifacts
 
 ```bash
-# Build k8s artifacts with specific version
-./scripts/main/build.sh --environment development --test no --lint no --bundles zip --artifacts k8s --version 2.0.0
+# Build k8s artifacts
+vrooli build
+# Note: Build configuration is in .vrooli/service.json
 ```
 
 Note: The UI build takes 5-10 minutes due to processing 4400+ modules.
@@ -36,7 +38,8 @@ Note: The UI build takes 5-10 minutes due to processing 4400+ modules.
 ### Option 1: Using Deploy Script (Recommended)
 
 ```bash
-./scripts/main/deploy.sh --source k8s --environment dev --version 2.0.0
+vrooli deploy
+# Note: Deployment settings configured in .vrooli/service.json
 ```
 
 ### Option 2: Direct Helm Deployment

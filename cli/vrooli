@@ -98,7 +98,7 @@ show_main_help() {
 🎯 SCENARIO MANAGEMENT:
     # Scenarios are templates that define how to generate apps
     scenario list       List available scenarios
-    scenario generate   Generate app from scenario
+    scenario convert    Convert scenario to standalone app
     scenario validate   Validate scenario configuration
 
 🔧 RESOURCE MANAGEMENT:
@@ -261,5 +261,59 @@ main() {
 	esac
 }
 
-# Execute main function with all arguments
-main "$@"
+################################################################################
+# Argument Filtering Functions
+################################################################################
+
+# Detect if we're in a shell context where operators might leak through
+is_shell_context() {
+	# Check for indicators that shell operators might be present
+	[[ -p /dev/stdin ]] || [[ -p /dev/stdout ]] || [[ "${BASH_SOURCE[1]:-}" =~ sh$ ]]
+}
+
+# Filter shell redirection operators from arguments
+filter_shell_arguments() {
+	local filtered=()
+	local shell_context=false
+	
+	# Quick scan for shell operator indicators (single digits are suspicious)
+	for arg in "$@"; do
+		case "$arg" in
+			"2"|"1"|"0") 
+				# Single digits often indicate shell operator artifacts
+				shell_context=true 
+				;;
+		esac
+	done
+	
+	# Filter based on detected context and known patterns
+	for arg in "$@"; do
+		case "$arg" in
+			# Always filter obvious shell redirection operators
+			"2>&1"|"1>&2"|"&>"|">&"|"2>"|"1>"|">"|">>"|"<"|"<<") 
+				continue 
+				;;
+			# Filter single digits in shell context (likely file descriptors)
+			[0-9]) 
+				if [[ "$shell_context" == "true" ]]; then
+					# Additional validation: single digits at end are usually FDs
+					continue
+				fi
+				;;
+		esac
+		filtered+=("$arg")
+	done
+	
+	# Only output if we have actual arguments to avoid creating empty string elements
+	if [[ ${#filtered[@]} -gt 0 ]]; then
+		printf '%s\0' "${filtered[@]}"
+	fi
+}
+
+################################################################################
+# Execute main function with filtered arguments
+################################################################################
+
+# Filter arguments to remove shell redirection artifacts
+mapfile -d $'\0' -t clean_args < <(filter_shell_arguments "$@")
+main "${clean_args[@]}"

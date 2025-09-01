@@ -367,11 +367,10 @@ collect_app_data_legacy() {
         return
     fi
     
-    # Source process manager for runtime detection
-    local process_manager="${VROOLI_ROOT}/scripts/lib/process-manager.sh"
-    if [[ -f "$process_manager" ]]; then
-        # shellcheck disable=SC1090
-        source "$process_manager" 2>/dev/null || true
+    # Check if orchestrator is available for app status
+    local orchestrator_available=false
+    if curl -s --connect-timeout 3 "http://localhost:${ORCHESTRATOR_PORT:-9500}/health" >/dev/null 2>&1; then
+        orchestrator_available=true
     fi
     
     local total_apps=0
@@ -390,22 +389,21 @@ collect_app_data_legacy() {
         
         total_apps=$((total_apps + 1))
         
-        # Check if app is running via legacy orchestrator detection
+        # Check if app is running via orchestrator API
         local is_running=false
         
-        # Check if the app orchestrator is running
-        local orchestrator_running=false
-        if type -t pm::is_running >/dev/null 2>&1; then
-            if pm::is_running "vrooli.develop.start-generated-apps" 2>/dev/null; then
-                orchestrator_running=true
-            fi
-        fi
-        
-        # Legacy: assume all apps are running if orchestrator is running
-        if [[ "$orchestrator_running" == "true" ]]; then
-            local app_path="${GENERATED_APPS_DIR:-$HOME/generated-apps}/$name"
-            if [[ -d "$app_path" ]]; then
-                is_running=true
+        if [[ "$orchestrator_available" == "true" ]]; then
+            # Get app status from orchestrator
+            local orchestrator_response
+            orchestrator_response=$(curl -s --connect-timeout 2 "http://localhost:${ORCHESTRATOR_PORT:-9500}/apps" 2>/dev/null)
+            
+            if echo "$orchestrator_response" | jq -e '.apps' >/dev/null 2>&1; then
+                # Check if this specific app is running in orchestrator
+                local app_status
+                app_status=$(echo "$orchestrator_response" | jq -r --arg name "$name" '.apps[] | select(.name == $name) | .status' 2>/dev/null)
+                if [[ "$app_status" == "running" ]]; then
+                    is_running=true
+                fi
             fi
         fi
         

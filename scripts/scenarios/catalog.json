@@ -192,6 +192,15 @@
       "ui": true
     },
     {
+      "name": "swarm-manager",
+      "description": "Autonomous task orchestrator that coordinates work across all Vrooli scenarios",
+      "location": "swarm-manager",
+      "category": "vrooli-helpers",
+      "validated": false,
+      "enabled": true,
+      "ui": true
+    },
+    {
       "name": "resource-experimenter",
       "description": "Experimental resource testing platform for evaluating new services before native Vrooli integration",
       "location": "resource-experimenter",

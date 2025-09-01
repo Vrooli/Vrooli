@@ -30,7 +30,7 @@ This comprehensive troubleshooting guide provides solutions for common issues en
 ### Setup Script Fails
 
 **Symptoms:**
-- `bash scripts/main/develop.sh --target local-services` fails
+- `vrooli develop --target local-services` fails
 - Missing dependencies or permission errors
 - Script exits with error codes
 
@@ -51,21 +51,21 @@ This comprehensive troubleshooting guide provides solutions for common issues en
 2. **Run setup manually:**
    ```bash
    # Run setup first, then develop
-   bash scripts/main/setup.sh --target local-services
-   bash scripts/main/develop.sh --target local-services
+   ./scripts/manage.sh setup --target local-services
+   vrooli develop --target local-services
    ```
 
 3. **Check permissions:**
    ```bash
-   # Ensure scripts are executable
-   chmod +x scripts/main/*.sh
+   # Ensure management script is executable
+   chmod +x scripts/manage.sh
    chmod +x scripts/helpers/**/*.sh
    ```
 
 4. **Enable debug mode:**
    ```bash
    # Run with verbose output
-   DEBUG=1 bash scripts/main/develop.sh --target local-services
+   DEBUG=1 vrooli develop --target local-services
    ```
 
 ### Environment File Not Created
@@ -84,7 +84,7 @@ This comprehensive troubleshooting guide provides solutions for common issues en
    
    # Or regenerate via setup
    rm -f .env-dev
-   bash scripts/main/setup.sh --target local-services
+   ./scripts/manage.sh setup --target local-services
    ```
 
 2. **Check file permissions:**
@@ -155,7 +155,7 @@ This comprehensive troubleshooting guide provides solutions for common issues en
    find scripts/ -name "*.sh" -exec chmod +x {} \;
    
    # Or specific script
-   chmod +x scripts/main/setup.sh
+   chmod +x scripts/manage.sh
    ```
 
 2. **Check shell compatibility:**
@@ -164,7 +164,7 @@ This comprehensive troubleshooting guide provides solutions for common issues en
    echo $SHELL
    
    # Run with explicit bash
-   bash scripts/main/develop.sh --target local-services
+   vrooli develop --target local-services
    ```
 
 ### Helper Scripts Not Found
@@ -185,7 +185,7 @@ This comprehensive troubleshooting guide provides solutions for common issues en
 2. **Check sourcing paths:**
    ```bash
    # Debug script loading
-   bash -x scripts/main/setup.sh 2>&1 | grep "source\|load"
+   bash -x scripts/manage.sh setup 2>&1 | grep "source\|load"
    ```
 
 3. **Reinstall if corrupted:**
@@ -207,16 +207,16 @@ This comprehensive troubleshooting guide provides solutions for common issues en
 1. **Check argument syntax:**
    ```bash
    # Use proper argument format
-   bash scripts/main/develop.sh --target local-services --yes
+   vrooli develop --target local-services --yes
    
-   # Not: bash scripts/main/develop.sh -target local-services
+   # Not: vrooli develop -target local-services
    ```
 
 2. **View available options:**
    ```bash
    # Show help
-   bash scripts/main/develop.sh --help
-   bash scripts/main/build.sh --help
+   vrooli develop --help
+   ./scripts/manage.sh build --help
    ```
 
 3. **Use full argument names:**
@@ -504,7 +504,7 @@ This comprehensive troubleshooting guide provides solutions for common issues en
    
    # Regenerate
    rm .env-dev
-   bash scripts/main/setup.sh --target local-services
+   ./scripts/manage.sh setup --target local-services
    
    # Restore custom values if needed
    diff .env-dev.backup .env-dev
@@ -640,8 +640,8 @@ This comprehensive troubleshooting guide provides solutions for common issues en
    # Check if Vault is running
    vault status
    
-   # Start local Vault for development
-   bash scripts/main/manageLocalVault.sh --start-dev
+   # Start local Vault for development (see current Vault setup documentation)
+   # Configuration may have changed - check current Vault resource setup
    ```
 
 2. **Check authentication:**
@@ -806,7 +806,7 @@ This comprehensive troubleshooting guide provides solutions for common issues en
    act -j build
    
    # Or test build script locally
-   bash scripts/main/build.sh --environment development --ci-cd yes
+   ./scripts/manage.sh build --environment development --ci-cd yes
    ```
 
 ### Build Failures in CI/CD
@@ -863,7 +863,7 @@ This comprehensive troubleshooting guide provides solutions for common issues en
    ssh -o StrictHostKeyChecking=no user@server "echo 'SSH works'"
    
    # Check deployment script on server
-   ssh user@server "bash ~/Vrooli/scripts/main/deploy.sh --help"
+   ssh user@server "cd ~/Vrooli && ./scripts/manage.sh deploy --help"
    ```
 
 2. **Check service status:**
@@ -908,10 +908,10 @@ This comprehensive troubleshooting guide provides solutions for common issues en
 2. **Run build with debug:**
    ```bash
    # Enable debug mode
-   DEBUG=1 bash scripts/main/build.sh --environment development
+   DEBUG=1 ./scripts/manage.sh build --environment development
    
    # Check specific build steps
-   bash scripts/main/build.sh --environment development --artifacts docker --verbose
+   ./scripts/manage.sh build --environment development --artifacts docker --verbose
    ```
 
 3. **Check build artifacts:**

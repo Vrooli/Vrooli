@@ -21,11 +21,13 @@ kubectl cluster-info
 # 3. Check prerequisites (optional but recommended)
 ./scripts/helpers/deploy/k8s-prerequisites.sh --check-only
 
-# 4. Build production artifacts (adjust version as needed)
-./scripts/main/build.sh --environment production --test no --lint no --bundles zip --artifacts k8s --version 2.0.0
+# 4. Build production artifacts
+vrooli build
+# Note: Production settings are configured in .vrooli/service.json
 
 # 5. Deploy to production
-./scripts/main/deploy.sh --source k8s --environment prod --version 2.0.0
+vrooli deploy
+# Note: Deployment configuration is in .vrooli/service.json
 ```
 
 **Notes:**

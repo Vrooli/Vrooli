@@ -13,11 +13,8 @@ class SecretsManager {
     }
     
     getApiUrl() {
-        // Try to get API URL from environment or use default
-        const port = window.location.search.includes('api_port=') 
-            ? new URLSearchParams(window.location.search).get('api_port')
-            : '28000';
-        return `http://localhost:${port}`;
+        // Use same-origin URL for tunnel compatibility
+        return `${window.location.protocol}//${window.location.host}`;
     }
     
     init() {

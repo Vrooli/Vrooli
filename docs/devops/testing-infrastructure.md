@@ -65,7 +65,7 @@ BATS is automatically installed by the setup scripts:
 bash scripts/helpers/setup/bats.sh
 
 # Or as part of full setup
-bash scripts/main/setup.sh
+./scripts/manage.sh setup
 ```
 
 The installation includes:
@@ -352,7 +352,7 @@ Tests require certain tools to be installed:
 
 ```bash
 # Automatically installed during setup
-bash scripts/main/setup.sh
+./scripts/manage.sh setup
 
 # Manual installation of test dependencies
 bash scripts/helpers/setup/bats.sh
@@ -523,7 +523,7 @@ bats --timing scripts/helpers/utils/log.bats
 shellcheck scripts/**/*.sh scripts/**/*.bats
 
 # Automated during development
-bash scripts/main/develop.sh --target local-services
+vrooli develop --target local-services
 ```
 
 ### Test Quality Metrics

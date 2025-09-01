@@ -1,120 +1,156 @@
 {
-  "name": "swarm-manager",
-  "version": "1.0.0",
-  "description": "Autonomous task orchestrator that coordinates work across all Vrooli scenarios",
-  "category": "vrooli-core",
-  "enabled": true,
-  "port_required": true,
-  "ports": {
-    "ui": 4000,
-    "api": 8095
-  },
-  "resources": {
-    "required": [
-      {
-        "name": "postgres",
-        "purpose": "Task metadata, execution history, and configuration storage",
-        "schema": "swarm_manager"
-      },
-      {
-        "name": "redis",
-        "purpose": "Task locks, real-time updates, and pub/sub messaging"
-      },
-      {
-        "name": "qdrant",
-        "purpose": "Task embeddings, pattern recognition, and learning system"
-      },
-      {
-        "name": "n8n",
-        "purpose": "Orchestration workflows and task execution pipelines"
-      },
-      {
-        "name": "claude-code",
-        "purpose": "Task analysis, priority estimation, and work execution"
-      }
-    ],
-    "optional": [
-      {
-        "name": "windmill",
-        "purpose": "Alternative UI dashboard for task management"
-      },
-      {
-        "name": "ollama",
-        "purpose": "Local LLM for lightweight task analysis"
-      }
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "version": "2.0.0",
+  "service": {
+    "parent": "vrooli",
+    "name": "swarm-manager",
+    "displayName": "Swarm Manager",
+    "description": "Autonomous task orchestrator that coordinates work across all Vrooli scenarios",
+    "version": "1.0.0",
+    "tags": [
+      "orchestration",
+      "task-management",
+      "automation",
+      "ai-coordinator",
+      "vrooli-core"
     ]
   },
-  "interfaces": {
+  "ports": {
     "api": {
-      "type": "rest",
-      "framework": "go-fiber",
-      "endpoints": [
-        "GET /api/tasks",
-        "POST /api/tasks",
-        "PUT /api/tasks/:id",
-        "DELETE /api/tasks/:id",
-        "POST /api/tasks/:id/execute",
-        "GET /api/agents",
-        "GET /api/metrics",
-        "GET /api/config",
-        "PUT /api/config"
-      ]
-    },
-    "cli": {
-      "commands": [
-        "start",
-        "stop",
-        "status",
-        "add-task",
-        "list-tasks",
-        "execute",
-        "agents",
-        "config",
-        "logs"
-      ]
+      "env_var": "SERVICE_PORT",
+      "range": "8090-8099",
+      "fallback": "8095",
+      "description": "Swarm Manager API port"
     },
     "ui": {
-      "framework": "javascript",
-      "style": "modern-dark-professional",
-      "features": [
-        "kanban-board",
-        "agent-monitor",
-        "priority-queue",
-        "settings-panel",
-        "metrics-dashboard"
-      ]
+      "env_var": "UI_PORT",
+      "range": "4000-4099",
+      "fallback": "4000",
+      "description": "Swarm Manager dashboard UI port"
     }
   },
-  "configuration": {
-    "max_concurrent_tasks": 5,
-    "min_backlog_size": 10,
-    "task_scan_interval": 300,
-    "yolo_mode": false,
-    "priority_weights": {
-      "impact": 1.0,
-      "urgency": 0.8,
-      "success": 0.6,
-      "cost": 0.5
+  "resources": {
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "description": "Task metadata, execution history, and configuration storage",
+      "schema": "swarm_manager"
     },
-    "resource_limits": {
-      "max_cpu_percent": 70,
-      "max_memory_percent": 70,
-      "max_claude_calls_per_hour": 100
+    "redis": {
+      "type": "redis",
+      "enabled": true,
+      "required": true,
+      "description": "Task locks, real-time updates, and pub/sub messaging"
+    },
+    "qdrant": {
+      "type": "qdrant",
+      "enabled": true,
+      "required": true,
+      "description": "Task embeddings, pattern recognition, and learning system"
+    },
+    "n8n": {
+      "type": "n8n",
+      "enabled": true,
+      "required": true,
+      "description": "Orchestration workflows and task execution pipelines"
+    },
+    "claude-code": {
+      "type": "claude-code",
+      "enabled": true,
+      "required": true,
+      "description": "Task analysis, priority estimation, and work execution"
+    },
+    "windmill": {
+      "type": "windmill",
+      "enabled": false,
+      "required": false,
+      "description": "Alternative UI dashboard for task management"
+    },
+    "ollama": {
+      "type": "ollama",
+      "enabled": false,
+      "required": false,
+      "description": "Local LLM for lightweight task analysis"
     }
   },
   "lifecycle": {
-    "startup": [
-      "Initialize task folders",
-      "Load configuration",
-      "Connect to databases",
-      "Start orchestration workflows",
-      "Begin task scanning"
-    ],
-    "shutdown": [
-      "Complete active tasks",
-      "Save task states",
-      "Close database connections",
-      "Stop workflows"
-    ]
+    "version": "2.0.0",
+    "setup": {
+      "description": "Initialize Swarm Manager",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/swarm-manager-api"
+            ]
+          },
+          {
+            "type": "directories",
+            "targets": [
+              "tasks/todo",
+              "tasks/in_progress",
+              "tasks/completed"
+            ]
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "verify-directories",
+          "run": "ls -la tasks/ | head -5"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go build -o swarm-manager-api src/main.go"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install --prefer-offline --no-audit --no-fund --loglevel error"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start Swarm Manager services",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./swarm-manager-api",
+          "background": true
+        },
+        {
+          "name": "wait-for-api",
+          "run": "timeout 30 bash -c 'until curl -s http://localhost:${SERVICE_PORT:-8095}/health > /dev/null 2>&1; do sleep 1; done' || exit 1"
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "background": true
+        },
+        {
+          "name": "show-status",
+          "run": "echo '✅ Swarm Manager is running at http://localhost:${UI_PORT:-4000}'"
+        }
+      ]
+    },
+    "test": {
+      "description": "Run Swarm Manager tests",
+      "steps": [
+        {
+          "name": "run-tests",
+          "run": "cd api && go test ./..."
+        }
+      ]
+    },
+    "shutdown": {
+      "description": "Stop Swarm Manager services",
+      "steps": [
+        {
+          "name": "stop-services",
+          "run": "pkill -f swarm-manager-api || true; pkill -f 'node server.js' || true"
+        }
+      ]
+    }
   }
 }

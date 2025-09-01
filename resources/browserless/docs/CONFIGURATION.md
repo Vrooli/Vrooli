@@ -30,7 +30,7 @@ These variables control the Browserless Docker container behavior:
 
 During installation:
 ```bash
-./manage.sh --action install \
+./cli.sh install \
   --max-browsers 10 \
   --timeout 60000 \
   --enable-debugger true

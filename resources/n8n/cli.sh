@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 ################################################################################
-# n8n Resource CLI
+# n8n Resource CLI - v2.0 Universal Contract Compliant
 # 
-# Ultra-thin CLI wrapper that delegates directly to library functions
+# Workflow automation platform with visual editor and 400+ integrations
 #
 # Usage:
 #   resource-n8n <command> [options]
+#   resource-n8n <group> <subcommand> [options]
 #
 ################################################################################
 
@@ -15,7 +16,6 @@ APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}
 # Handle symlinks for installed CLI
 if [[ -L "${BASH_SOURCE[0]}" ]]; then
     N8N_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
-    # Recalculate APP_ROOT from resolved symlink location
     APP_ROOT="$(builtin cd "${N8N_CLI_SCRIPT%/*}/../.." && builtin pwd)"
 fi
 N8N_CLI_DIR="${APP_ROOT}/resources/n8n"
@@ -24,73 +24,96 @@ N8N_CLI_DIR="${APP_ROOT}/resources/n8n"
 # shellcheck disable=SC1091
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
-# Source utilities using var_ variables
+# Source utilities
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
 source "${var_RESOURCES_COMMON_FILE}"
 
-# Source the CLI Command Framework
+# Source v2.0 CLI Command Framework
 # shellcheck disable=SC1091
-source "${var_SCRIPTS_RESOURCES_LIB_DIR}/cli-command-framework.sh"
+source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 
 # Source n8n configuration
 # shellcheck disable=SC1091
-source "${N8N_CLI_DIR}/config/defaults.sh" 2>/dev/null || true
+source "${N8N_CLI_DIR}/config/defaults.sh"
 n8n::export_config 2>/dev/null || true
 
-# Source n8n libraries - these contain the actual functionality
-# shellcheck disable=SC1091
-source "${N8N_CLI_DIR}/lib/core.sh" 2>/dev/null || true
-# shellcheck disable=SC1091
-source "${N8N_CLI_DIR}/lib/docker.sh" 2>/dev/null || true
-# shellcheck disable=SC1091
-source "${N8N_CLI_DIR}/lib/health.sh" 2>/dev/null || true
-# shellcheck disable=SC1091
-source "${N8N_CLI_DIR}/lib/status.sh" 2>/dev/null || true
-# shellcheck disable=SC1091
-source "${N8N_CLI_DIR}/lib/api.sh" 2>/dev/null || true
-# shellcheck disable=SC1091
-source "${N8N_CLI_DIR}/lib/inject.sh" 2>/dev/null || true
+# Source n8n libraries (only what exists)
+for lib in core docker status health api inject auto-credentials credential-registry content recovery; do
+    lib_file="${N8N_CLI_DIR}/lib/${lib}.sh"
+    if [[ -f "$lib_file" ]]; then
+        # shellcheck disable=SC1090
+        if ! source "$lib_file" 2>/dev/null; then
+            log::warn "Failed to source ${lib}.sh - some functions may not be available"
+        fi
+    fi
+done
 
-# Initialize CLI framework
-cli::init "n8n" "n8n workflow automation platform"
+# Initialize CLI framework in v2.0 mode (auto-creates manage/test/content groups)
+cli::init "n8n" "n8n workflow automation platform" "v2"
 
-# Override help to provide n8n-specific examples
-cli::register_command "help" "Show this help message with examples" "n8n::show_help"
+# ==============================================================================
+# REQUIRED HANDLERS - These MUST be mapped for v2.0 compliance
+# ==============================================================================
+CLI_COMMAND_HANDLERS["manage::install"]="n8n::install_with_backup"
+CLI_COMMAND_HANDLERS["manage::uninstall"]="n8n::uninstall"
+CLI_COMMAND_HANDLERS["manage::start"]="n8n::start"  
+CLI_COMMAND_HANDLERS["manage::stop"]="n8n::stop"
+CLI_COMMAND_HANDLERS["manage::restart"]="n8n::restart"
+CLI_COMMAND_HANDLERS["test::smoke"]="n8n::status"
 
-# Register core commands - direct library function calls
-cli::register_command "install" "Install n8n" "n8n::install" "modifies-system"
-cli::register_command "uninstall" "Uninstall n8n" "n8n::cli_uninstall" "modifies-system"
-cli::register_command "start" "Start n8n" "n8n::start" "modifies-system"
-cli::register_command "stop" "Stop n8n" "n8n::stop" "modifies-system"
-cli::register_command "restart" "Restart n8n" "n8n::restart" "modifies-system"
+# Content handlers - n8n workflow/credential management
+CLI_COMMAND_HANDLERS["content::add"]="n8n::content::add"
+CLI_COMMAND_HANDLERS["content::list"]="n8n::content::list"
+CLI_COMMAND_HANDLERS["content::get"]="n8n::content::get"
+CLI_COMMAND_HANDLERS["content::remove"]="n8n::content::remove"
+CLI_COMMAND_HANDLERS["content::execute"]="n8n::content::execute"
 
-# Register status and monitoring commands
-cli::register_command "status" "Show service status" "n8n::status"
-cli::register_command "validate" "Validate installation" "n8n::check_health"
+# ==============================================================================
+# REQUIRED INFORMATION COMMANDS
+# ==============================================================================
+cli::register_command "status" "Show detailed n8n status" "n8n::status"
 cli::register_command "logs" "Show n8n logs" "n8n::logs"
 
-# Register workflow management commands
-cli::register_command "inject" "Inject workflow/credentials into n8n" "n8n::cli_inject" "modifies-system"
-cli::register_command "list-workflows" "List all workflows" "n8n::list_workflows"
-cli::register_command "activate-workflow" "Activate a specific workflow" "n8n::cli_activate_workflow" "modifies-system"
-cli::register_command "deactivate-workflow" "Deactivate a specific workflow" "n8n::cli_deactivate_workflow" "modifies-system"
-cli::register_command "activate-all" "Activate all workflows" "n8n::activate_all_workflows" "modifies-system"
-cli::register_command "activate-pattern" "Activate workflows matching pattern" "n8n::cli_activate_pattern" "modifies-system"
-cli::register_command "delete-workflow" "Delete a specific workflow" "n8n::cli_delete_workflow" "modifies-system"
-cli::register_command "delete-all-workflows" "Delete all workflows" "n8n::delete_all_workflows" "modifies-system"
+# ==============================================================================
+# N8N-SPECIFIC COMMANDS - Critical workflow automation functionality
+# ==============================================================================
 
-# Register credential management commands
-cli::register_command "auto-credentials" "Auto-discover and create credentials" "n8n::auto_manage_credentials" "modifies-system"
-cli::register_command "list-credentials" "List existing n8n credentials" "n8n::validate_auto_credentials"
-cli::register_command "list-discoverable" "List discoverable resources" "n8n::list_discoverable_resources"
-cli::register_command "credential-registry" "Show credential registry info" "n8n::cli_credential_registry"
+# Workflow management commands - CRITICAL for n8n
+cli::register_subcommand "content" "inject" "Inject workflow/credentials from file" "n8n::cli_inject" "modifies-system"
+cli::register_subcommand "content" "activate" "Activate workflow by ID" "n8n::cli_activate_workflow" "modifies-system"
+cli::register_subcommand "content" "deactivate" "Deactivate workflow by ID" "n8n::cli_deactivate_workflow" "modifies-system"
+cli::register_subcommand "content" "activate-all" "Activate all workflows" "n8n::activate_all_workflows" "modifies-system"
+cli::register_subcommand "content" "activate-pattern" "Activate workflows by pattern" "n8n::cli_activate_pattern" "modifies-system"
+cli::register_subcommand "content" "delete" "Delete workflow by ID" "n8n::cli_delete_workflow" "modifies-system"
+cli::register_subcommand "content" "delete-all" "Delete all workflows" "n8n::delete_all_workflows" "modifies-system"
+cli::register_subcommand "content" "workflows" "List all workflows" "n8n::list_workflows"
+
+# Credential management commands - CRITICAL for n8n
+cli::register_subcommand "content" "auto-credentials" "Auto-discover and create credentials" "n8n::auto_manage_credentials" "modifies-system"
+cli::register_subcommand "content" "list-credentials" "List existing n8n credentials" "n8n::validate_auto_credentials"
+cli::register_subcommand "content" "list-discoverable" "List discoverable resources" "n8n::list_discoverable_resources"
+cli::register_subcommand "content" "credential-registry" "Show credential registry info" "n8n::cli_credential_registry"
+
+# Information and integration commands
 cli::register_command "credentials" "Show n8n credentials for integration" "n8n::cli_credentials"
 
-################################################################################
-# CLI wrapper functions - minimal wrappers for commands that need argument handling
-################################################################################
+# Memory monitoring commands - CRITICAL for preventing OOM crashes
+cli::register_subcommand "test" "memory" "Check memory health and usage" "n8n::cli_memory_check"
+cli::register_command "memory" "Memory monitoring and alerts" "n8n::cli_memory_status"
+
+# Backup and recovery commands - CRITICAL for data protection
+cli::register_subcommand "manage" "create-backup" "Create n8n backup with API key" "n8n::cli_create_backup" "modifies-system"
+cli::register_subcommand "manage" "restore-backup" "Restore from backup" "n8n::cli_restore_backup" "modifies-system"
+cli::register_subcommand "manage" "safety-check" "Pre-deployment safety analysis" "n8n::cli_safety_check"
+cli::register_subcommand "manage" "migrate-volume" "Migrate to named Docker volume" "n8n::cli_migrate_volume" "modifies-system"
+cli::register_command "memory-start" "Start memory monitoring" "n8n::cli_memory_start"
+cli::register_command "memory-stop" "Stop memory monitoring" "n8n::cli_memory_stop"
+
+# ==============================================================================
+# CLI WRAPPER FUNCTIONS - For commands requiring argument handling
+# ==============================================================================
 
 # Inject workflow or credentials into n8n
 n8n::cli_inject() {
@@ -98,11 +121,11 @@ n8n::cli_inject() {
     
     if [[ -z "$file" ]]; then
         log::error "File path required for injection"
-        echo "Usage: resource-n8n inject <file.json>"
+        echo "Usage: resource-n8n content inject <file.json>"
         echo ""
         echo "Examples:"
-        echo "  resource-n8n inject workflow.json"
-        echo "  resource-n8n inject shared:initialization/automation/n8n/workflow.json"
+        echo "  resource-n8n content inject workflow.json"
+        echo "  resource-n8n content inject shared:initialization/automation/n8n/workflow.json"
         return 1
     fi
     
@@ -127,16 +150,104 @@ n8n::cli_inject() {
     fi
 }
 
-# Uninstall with force confirmation
-n8n::cli_uninstall() {
-    FORCE="${FORCE:-false}"
+# Activate a single workflow
+n8n::cli_activate_workflow() {
+    local workflow_id="${1:-}"
     
-    if [[ "$FORCE" != "true" ]]; then
-        echo "⚠️  This will remove n8n and all its data. Use --force to confirm."
+    if [[ -z "$workflow_id" ]]; then
+        log::error "Workflow ID is required"
+        echo "Usage: resource-n8n content activate <workflow_id>"
+        echo ""
+        echo "To find workflow IDs, run: resource-n8n content workflows"
         return 1
     fi
     
-    n8n::uninstall
+    n8n::activate_workflow "$workflow_id"
+}
+
+# Deactivate a single workflow
+n8n::cli_deactivate_workflow() {
+    local workflow_id="${1:-}"
+    
+    if [[ -z "$workflow_id" ]]; then
+        log::error "Workflow ID is required"
+        echo "Usage: resource-n8n content deactivate <workflow_id>"
+        echo ""
+        echo "To find workflow IDs, run: resource-n8n content workflows"
+        return 1
+    fi
+    
+    n8n::deactivate_workflow "$workflow_id"
+}
+
+# Activate workflows by pattern
+n8n::cli_activate_pattern() {
+    local pattern="${1:-}"
+    
+    if [[ -z "$pattern" ]]; then
+        log::error "Pattern is required"
+        echo "Usage: resource-n8n content activate-pattern <pattern>"
+        echo ""
+        echo "Examples:"
+        echo "  resource-n8n content activate-pattern \"embedding*\""
+        echo "  resource-n8n content activate-pattern \"*generator*\""
+        echo "  resource-n8n content activate-pattern \"reasoning-chain\""
+        return 1
+    fi
+    
+    n8n::activate_workflows_by_pattern "$pattern"
+}
+
+# Delete workflow
+n8n::cli_delete_workflow() {
+    local workflow_id="${1:-}"
+    
+    if [[ -z "$workflow_id" ]]; then
+        log::error "Workflow ID is required"
+        echo "Usage: resource-n8n content delete <workflow_id>"
+        echo ""
+        echo "Examples:"
+        echo "  resource-n8n content delete wbu5QO9dVCD521pe"
+        return 1
+    fi
+    
+    n8n::delete_workflow "$workflow_id"
+}
+
+# Show credential registry statistics
+n8n::cli_credential_registry() {
+    local action="${1:-stats}"
+    
+    # Source the registry library
+    # shellcheck disable=SC1091
+    source "${N8N_CLI_DIR}/lib/credential-registry.sh"
+    
+    case "$action" in
+        stats)
+            credential_registry::stats
+            ;;
+        list)
+            echo "📋 Registered Credentials:"
+            local credentials
+            credentials=$(credential_registry::list)
+            if [[ -n "$credentials" ]]; then
+                echo "$credentials" | jq -r '"  • \(.name) (\(.type)) - \(.resource) - ID: \(.id)"'
+            else
+                echo "  No credentials registered"
+            fi
+            ;;
+        backup)
+            credential_registry::backup
+            ;;
+        file)
+            echo "Registry file: $(credential_registry::get_file_path)"
+            ;;
+        *)
+            log::error "Unknown registry action: $action"
+            echo "Available actions: stats, list, backup, file"
+            return 1
+            ;;
+    esac
 }
 
 # Show credentials for n8n integration
@@ -213,142 +324,195 @@ n8n::cli_credentials() {
     credentials::format_output "$response"
 }
 
-# Activate a single workflow
-n8n::cli_activate_workflow() {
-    local workflow_id="${1:-}"
+# Memory monitoring CLI functions
+n8n::cli_memory_check() {
+    log::header "🧠 n8n Memory Health Check"
     
-    if [[ -z "$workflow_id" ]]; then
-        log::error "Workflow ID is required"
-        echo "Usage: resource-n8n activate-workflow <workflow_id>"
-        echo ""
-        echo "To find workflow IDs, run: resource-n8n list-workflows"
-        return 1
-    fi
-    
-    n8n::activate_workflow "$workflow_id"
-}
-
-# Deactivate a single workflow
-n8n::cli_deactivate_workflow() {
-    local workflow_id="${1:-}"
-    
-    if [[ -z "$workflow_id" ]]; then
-        log::error "Workflow ID is required"
-        echo "Usage: resource-n8n deactivate-workflow <workflow_id>"
-        echo ""
-        echo "To find workflow IDs, run: resource-n8n list-workflows"
-        return 1
-    fi
-    
-    n8n::deactivate_workflow "$workflow_id"
-}
-
-# Activate workflows by pattern
-n8n::cli_activate_pattern() {
-    local pattern="${1:-}"
-    
-    if [[ -z "$pattern" ]]; then
-        log::error "Pattern is required"
-        echo "Usage: resource-n8n activate-pattern <pattern>"
-        echo ""
-        echo "Examples:"
-        echo "  resource-n8n activate-pattern \"embedding*\""
-        echo "  resource-n8n activate-pattern \"*generator*\""
-        echo "  resource-n8n activate-pattern \"reasoning-chain\""
-        return 1
-    fi
-    
-    n8n::activate_workflows_by_pattern "$pattern"
-}
-
-# Delete workflow
-n8n::cli_delete_workflow() {
-    local workflow_id="${1:-}"
-    
-    if [[ -z "$workflow_id" ]]; then
-        log::error "Workflow ID is required"
-        echo "Usage: resource-n8n delete-workflow <workflow_id>"
-        echo ""
-        echo "Examples:"
-        echo "  resource-n8n delete-workflow wbu5QO9dVCD521pe"
-        return 1
-    fi
-    
-    n8n::delete_workflow "$workflow_id"
-}
-
-# Show credential registry statistics
-n8n::cli_credential_registry() {
-    local action="${1:-stats}"
-    
-    # Source the registry library
+    # Source memory monitor
     # shellcheck disable=SC1091
-    source "${N8N_CLI_DIR}/lib/credential-registry.sh"
+    source "${N8N_CLI_DIR}/lib/memory-monitor.sh" 2>/dev/null || {
+        log::error "Memory monitoring not available"
+        return 1
+    }
     
-    case "$action" in
-        stats)
-            credential_registry::stats
+    local detailed_stats
+    detailed_stats=$(n8n::memory::get_detailed_stats)
+    
+    if echo "$detailed_stats" | grep -q '"error"'; then
+        log::error "Failed to get memory stats"
+        echo "$detailed_stats" | jq -r '.error'
+        return 1
+    fi
+    
+    # Parse and display stats
+    local usage_mb limit_mb percent
+    usage_mb=$(echo "$detailed_stats" | jq -r '.usage_mb')
+    limit_mb=$(echo "$detailed_stats" | jq -r '.limit_mb')
+    percent=$(echo "$detailed_stats" | jq -r '.percent')
+    
+    echo ""
+    echo "📊 Current Memory Status:"
+    echo "   Usage: ${usage_mb}MB / ${limit_mb}MB (${percent}%)"
+    echo ""
+    echo "🎯 Thresholds:"
+    echo "   Warning:   $(echo "$detailed_stats" | jq -r '.thresholds.warning')%"
+    echo "   Critical:  $(echo "$detailed_stats" | jq -r '.thresholds.critical')%"
+    echo "   Emergency: $(echo "$detailed_stats" | jq -r '.thresholds.emergency')%"
+    echo ""
+    
+    # Check health
+    local health_code
+    n8n::check_memory_health
+    health_code=$?
+    
+    case $health_code in
+        0)
+            log::success "✅ Memory usage is healthy"
             ;;
-        list)
-            echo "📋 Registered Credentials:"
-            local credentials
-            credentials=$(credential_registry::list)
-            if [[ -n "$credentials" ]]; then
-                echo "$credentials" | jq -r '"  • \(.name) (\(.type)) - \(.resource) - ID: \(.id)"'
-            else
-                echo "  No credentials registered"
-            fi
+        1)
+            log::warn "⚠️  Memory usage is approaching warning threshold"
             ;;
-        backup)
-            credential_registry::backup
+        2)
+            log::error "🔴 Memory usage is critical - consider action soon"
             ;;
-        file)
-            echo "Registry file: $(credential_registry::get_file_path)"
-            ;;
-        *)
-            log::error "Unknown registry action: $action"
-            echo "Available actions: stats, list, backup, file"
-            return 1
+        3)
+            log::error "🚨 EMERGENCY: Memory usage is dangerously high!"
             ;;
     esac
+    
+    return $health_code
 }
 
-# Custom help function with examples
-n8n::show_help() {
-    cli::_handle_help
+n8n::cli_memory_status() {
+    log::header "🧠 n8n Memory Monitor Status"
+    
+    # Source memory monitor
+    # shellcheck disable=SC1091
+    source "${N8N_CLI_DIR}/lib/memory-monitor.sh" 2>/dev/null || {
+        log::error "Memory monitoring not available"
+        return 1
+    }
+    
+    local status
+    status=$(n8n::memory::get_monitor_status)
+    
+    local is_running pid current_usage
+    is_running=$(echo "$status" | jq -r '.monitor_running')
+    pid=$(echo "$status" | jq -r '.monitor_pid // ""')
+    current_usage=$(echo "$status" | jq -r '.current_usage')
     
     echo ""
-    echo "⚡ Examples:"
+    if [[ "$is_running" == "true" ]]; then
+        log::success "✅ Memory monitor is running (PID: $pid)"
+    else
+        log::warn "⚠️  Memory monitor is not running"
+        echo "   Start with: resource-n8n memory-start"
+    fi
+    
     echo ""
-    echo "  # Workflow management"
-    echo "  resource-n8n inject workflow.json"
-    echo "  resource-n8n inject shared:initialization/n8n/workflow.json"
-    echo "  resource-n8n list-workflows"
-    echo "  resource-n8n activate-workflow 1irQ6tCYeRagjPh8"
-    echo "  resource-n8n activate-pattern \"embedding*\""
-    echo ""
-    echo "  # Credential management"
-    echo "  resource-n8n auto-credentials"
-    echo "  resource-n8n list-credentials"
-    echo "  resource-n8n credential-registry stats"
-    echo ""
-    echo "  # Management"
-    echo "  resource-n8n status"
-    echo "  resource-n8n logs"
-    echo "  resource-n8n credentials"
-    echo ""
-    echo "  # Dangerous operations"
-    echo "  resource-n8n delete-workflow wbu5QO9dVCD521pe"
-    echo "  resource-n8n uninstall --force"
-    echo ""
-    echo "Default Port: ${N8N_PORT:-5678}"
-    echo "Web UI: http://localhost:${N8N_PORT:-5678}"
-    echo "Features: 400+ integrations, visual workflows, API automation"
+    echo "📊 Current Usage: ${current_usage}%"
+    
+    # Show recent history
+    local history_count
+    history_count=$(echo "$status" | jq '.history | length')
+    if [[ "$history_count" -gt 0 ]]; then
+        echo ""
+        echo "📈 Recent History:"
+        echo "$status" | jq -r '.history[]' | tail -5 | while read -r usage; do
+            echo "   ${usage}%"
+        done
+    fi
 }
 
-################################################################################
-# Main execution - dispatch to framework
-################################################################################
+n8n::cli_memory_start() {
+    log::header "🚀 Starting n8n Memory Monitor"
+    
+    # Source memory monitor
+    # shellcheck disable=SC1091
+    source "${N8N_CLI_DIR}/lib/memory-monitor.sh" 2>/dev/null || {
+        log::error "Memory monitoring not available"
+        return 1
+    }
+    
+    n8n::start_memory_monitoring
+    local result=$?
+    
+    if [[ $result -eq 0 ]]; then
+        log::success "✅ Memory monitor started successfully"
+        echo ""
+        echo "Monitor will check every ${N8N_MEM_CHECK_INTERVAL:-30} seconds"
+        echo "View status with: resource-n8n memory"
+    else
+        log::error "Failed to start memory monitor"
+    fi
+    
+    return $result
+}
+
+n8n::cli_memory_stop() {
+    log::header "🛑 Stopping n8n Memory Monitor"
+    
+    # Source memory monitor
+    # shellcheck disable=SC1091
+    source "${N8N_CLI_DIR}/lib/memory-monitor.sh" 2>/dev/null || {
+        log::error "Memory monitoring not available"
+        return 1
+    }
+    
+    n8n::memory::stop_monitor
+    log::success "✅ Memory monitor stopped"
+}
+
+# Backup and recovery CLI handlers
+n8n::cli_create_backup() {
+    local label="${1:-manual}"
+    log::header "🛡️ Creating n8n Backup"
+    log::info "Creating n8n backup with label: $label"
+    
+    if backup_path=$(n8n::create_backup "$label"); then
+        log::success "✅ Backup created successfully"
+        log::info "Backup ID: $(basename "$backup_path")"
+        echo "Backup created: $(basename "$backup_path")"
+    else
+        log::error "❌ Backup creation failed"
+        return 1
+    fi
+}
+
+n8n::cli_restore_backup() {
+    local backup_id="${1:-}"
+    if [[ -z "$backup_id" ]]; then
+        log::header "📋 Available n8n Backups"
+        if backup::list "n8n" 2>/dev/null; then
+            echo ""
+            log::error "Usage: resource-n8n manage restore-backup <backup-id>"
+        else
+            log::warn "No backups found. Create one with: resource-n8n manage create-backup"
+        fi
+        return 1
+    fi
+    
+    log::header "🔄 n8n Backup Restore"
+    log::warn "⚠️ This will replace current n8n data with backup: $backup_id"
+    read -p "Continue? (y/N): " -r
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        log::info "Restore cancelled"
+        return 0
+    fi
+    
+    n8n::recover_from_specific_backup "$backup_id"
+}
+
+# Deployment safety CLI handlers
+n8n::cli_safety_check() {
+    log::header "🛡️ n8n Deployment Safety Analysis"
+    n8n::deployment_safety_check
+}
+
+n8n::cli_migrate_volume() {
+    log::header "📦 n8n Volume Migration"
+    n8n::migrate_to_named_volume
+}
 
 # Only execute if script is run directly (not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then

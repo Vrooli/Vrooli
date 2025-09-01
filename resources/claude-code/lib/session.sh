@@ -10,7 +10,7 @@ CLAUDE_CODE_SCRIPT_DIR="${CLAUDE_CODE_SCRIPT_DIR:-${APP_ROOT}/resources/claude-c
 # shellcheck disable=SC1091
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/utils/log.sh"}" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/log.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_TRASH_FILE}"
 

@@ -1,9 +1,7 @@
 // App Monitor Dashboard - Matrix Theme
 // Real-time monitoring and control for Vrooli generated applications
 
-const API_BASE = window.location.hostname === 'localhost' 
-    ? `http://localhost:${window.location.port || 8090}`
-    : '';
+const API_BASE = `${window.location.protocol}//${window.location.host}`;
 
 let ws = null;
 let currentView = 'apps';
@@ -22,7 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // WebSocket connection for real-time updates
 function initializeWebSocket() {
-    const wsUrl = `ws://${window.location.hostname}:${window.location.port || 8090}/ws`;
+    const wsUrl = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`;
     
     try {
         ws = new WebSocket(wsUrl);

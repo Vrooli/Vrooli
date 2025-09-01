@@ -48,6 +48,9 @@ export TEMP_DIR="/tmp/qdrant-embeddings-$$"
 # Track background jobs for cleanup
 declare -a BACKGROUND_JOBS=()
 
+# Flag to prevent cleanup during active operations
+REFRESH_IN_PROGRESS=false
+
 # Cleanup function
 cleanup_embeddings() {
     local exit_code="${1:-0}"
@@ -85,8 +88,8 @@ cleanup_embeddings() {
         BACKGROUND_JOBS=()
     fi
     
-    # Clean up temp directory
-    if [[ -n "${TEMP_DIR:-}" ]] && [[ -d "$TEMP_DIR" ]]; then
+    # Clean up temp directory only if not in middle of refresh
+    if [[ "$REFRESH_IN_PROGRESS" == "false" ]] && [[ -n "${TEMP_DIR:-}" ]] && [[ -d "$TEMP_DIR" ]]; then
         rm -rf "$TEMP_DIR"
     fi
     
@@ -823,7 +826,7 @@ embeddings_refresh_impl() {
     log::success "All service dependencies are healthy ✅"
     local start_time=$(date +%s)
     
-    # Create temporary directory for extracted content
+    # Create temporary directory for extracted content using existing export
     mkdir -p "$TEMP_DIR"
     
     # Get collections for this app
@@ -852,6 +855,9 @@ embeddings_refresh_impl() {
         total_embeddings=$(embeddings_refresh_sequential_impl "$app_id")
     else
         log::info "Processing all content types in parallel with ${EMBEDDING_MAX_WORKERS:-16} workers..."
+        
+        # Set flag to prevent cleanup during refresh
+        REFRESH_IN_PROGRESS=true
     
     # Create background jobs for each content type
     # Process all content types including workflows via initialization
@@ -868,14 +874,24 @@ embeddings_refresh_impl() {
     {
         # Create new process group and set up signal handling
         set -m  # Enable job control
-        exec setsid bash -c '
-            trap "echo \"Workflows job interrupted\"; exit 130" SIGINT SIGTERM
-            log::info "Processing workflows..."
-            source "'$EMBEDDINGS_DIR'/extractors/initialization/main.sh"
-            workflow_count=$(qdrant::embeddings::process_initialization "'$app_id'" 2>&1 | tail -1)
-            echo "${workflow_count:-0}" > "'$workflow_count_file'"
-            log::info "Workflows complete: ${workflow_count:-0} items"
-        '
+        APP_ROOT="$APP_ROOT" EMBEDDINGS_DIR="$EMBEDDINGS_DIR" TEMP_DIR="$TEMP_DIR" \
+        WORKFLOW_COUNT_FILE="$workflow_count_file" APP_ID="$app_id" \
+        exec setsid timeout 600 bash -c '
+            set -euo pipefail
+            trap "echo \"Workflows job interrupted\"; echo \"0\" > \"$WORKFLOW_COUNT_FILE\"; exit 130" SIGINT SIGTERM
+            
+            # Source all required utilities
+            source "$APP_ROOT/scripts/lib/utils/var.sh"
+            source "${var_LIB_UTILS_DIR}/log.sh"
+            source "$EMBEDDINGS_DIR/config/unified.sh"
+            export TEMP_DIR
+            
+            echo "[INFO] Processing workflows..."
+            source "$EMBEDDINGS_DIR/extractors/initialization/main.sh"
+            workflow_count=$(qdrant::embeddings::process_initialization "$APP_ID" 2>&1 | tail -1) || workflow_count=0
+            echo "${workflow_count:-0}" > "$WORKFLOW_COUNT_FILE"
+            echo "[INFO] Workflows complete: ${workflow_count:-0} items"
+        ' || echo "0" > "$workflow_count_file"
     } &
     local workflow_pid=$!
     BACKGROUND_JOBS+=("$workflow_pid")
@@ -883,14 +899,24 @@ embeddings_refresh_impl() {
     # Process scenarios
     {
         set -m
-        exec setsid bash -c '
-            trap "echo \"Scenarios job interrupted\"; exit 130" SIGINT SIGTERM
-            log::info "Processing scenarios..."
-            source "'$EMBEDDINGS_DIR'/extractors/scenarios/main.sh"
-            scenario_count=$(qdrant::embeddings::process_scenarios "'$app_id'" 2>&1 | tail -1)
-            echo "${scenario_count:-0}" > "'$scenario_count_file'"
-            log::info "Scenarios complete: ${scenario_count:-0} items"
-        '
+        APP_ROOT="$APP_ROOT" EMBEDDINGS_DIR="$EMBEDDINGS_DIR" TEMP_DIR="$TEMP_DIR" \
+        SCENARIO_COUNT_FILE="$scenario_count_file" APP_ID="$app_id" \
+        exec setsid timeout 600 bash -c '
+            set -euo pipefail
+            trap "echo \"Scenarios job interrupted\"; echo \"0\" > \"$SCENARIO_COUNT_FILE\"; exit 130" SIGINT SIGTERM
+            
+            # Source all required utilities
+            source "$APP_ROOT/scripts/lib/utils/var.sh"
+            source "${var_LIB_UTILS_DIR}/log.sh"
+            source "$EMBEDDINGS_DIR/config/unified.sh"
+            export TEMP_DIR
+            
+            echo "[INFO] Processing scenarios..."
+            source "$EMBEDDINGS_DIR/extractors/scenarios/main.sh"
+            scenario_count=$(qdrant::embeddings::process_scenarios "$APP_ID" 2>&1 | tail -1) || scenario_count=0
+            echo "${scenario_count:-0}" > "$SCENARIO_COUNT_FILE"
+            echo "[INFO] Scenarios complete: ${scenario_count:-0} items"
+        ' || echo "0" > "$scenario_count_file"
     } &
     local scenario_pid=$!
     BACKGROUND_JOBS+=("$scenario_pid")
@@ -898,14 +924,24 @@ embeddings_refresh_impl() {
     # Process documentation
     {
         set -m
-        exec setsid bash -c '
-            trap "echo \"Documentation job interrupted\"; exit 130" SIGINT SIGTERM
-            log::info "Processing documentation..."
-            source "'$EMBEDDINGS_DIR'/extractors/docs/main.sh"
-            doc_count=$(qdrant::embeddings::process_documentation "'$app_id'" 2>&1 | tail -1)
-            echo "${doc_count:-0}" > "'$doc_count_file'"
-            log::info "Documentation complete: ${doc_count:-0} items"
-        '
+        APP_ROOT="$APP_ROOT" EMBEDDINGS_DIR="$EMBEDDINGS_DIR" TEMP_DIR="$TEMP_DIR" \
+        DOC_COUNT_FILE="$doc_count_file" APP_ID="$app_id" \
+        exec setsid timeout 600 bash -c '
+            set -euo pipefail
+            trap "echo \"Documentation job interrupted\"; echo \"0\" > \"$DOC_COUNT_FILE\"; exit 130" SIGINT SIGTERM
+            
+            # Source all required utilities
+            source "$APP_ROOT/scripts/lib/utils/var.sh"
+            source "${var_LIB_UTILS_DIR}/log.sh"
+            source "$EMBEDDINGS_DIR/config/unified.sh"
+            export TEMP_DIR
+            
+            echo "[INFO] Processing documentation..."
+            source "$EMBEDDINGS_DIR/extractors/docs/main.sh"
+            doc_count=$(qdrant::embeddings::process_documentation "$APP_ID" 2>&1 | tail -1) || doc_count=0
+            echo "${doc_count:-0}" > "$DOC_COUNT_FILE"
+            echo "[INFO] Documentation complete: ${doc_count:-0} items"
+        ' || echo "0" > "$doc_count_file"
     } &
     local doc_pid=$!
     BACKGROUND_JOBS+=("$doc_pid")
@@ -913,14 +949,24 @@ embeddings_refresh_impl() {
     # Process code
     {
         set -m
-        exec setsid bash -c '
-            trap "echo \"Code job interrupted\"; exit 130" SIGINT SIGTERM
-            log::info "Processing code..."
-            source "'$EMBEDDINGS_DIR'/extractors/code/main.sh"
-            code_count=$(qdrant::embeddings::process_code "'$app_id'" 2>&1 | tail -1)
-            echo "${code_count:-0}" > "'$code_count_file'"
-            log::info "Code complete: ${code_count:-0} items"
-        '
+        APP_ROOT="$APP_ROOT" EMBEDDINGS_DIR="$EMBEDDINGS_DIR" TEMP_DIR="$TEMP_DIR" \
+        CODE_COUNT_FILE="$code_count_file" APP_ID="$app_id" CODE_MAX_FILES="500" \
+        exec setsid timeout 1200 bash -c '
+            set -euo pipefail
+            trap "echo \"Code job interrupted\"; echo \"0\" > \"$CODE_COUNT_FILE\"; exit 130" SIGINT SIGTERM
+            
+            # Source all required utilities
+            source "$APP_ROOT/scripts/lib/utils/var.sh"
+            source "${var_LIB_UTILS_DIR}/log.sh"
+            source "$EMBEDDINGS_DIR/config/unified.sh"
+            export TEMP_DIR
+            
+            echo "[INFO] Processing code (limited to $CODE_MAX_FILES files)..."
+            source "$EMBEDDINGS_DIR/extractors/code/main.sh"
+            code_count=$(qdrant::embeddings::process_code "$APP_ID" 2>&1 | tail -1) || code_count=0
+            echo "${code_count:-0}" > "$CODE_COUNT_FILE"
+            echo "[INFO] Code complete: ${code_count:-0} items"
+        ' || echo "0" > "$code_count_file"
     } &
     local code_pid=$!
     BACKGROUND_JOBS+=("$code_pid")
@@ -928,14 +974,24 @@ embeddings_refresh_impl() {
     # Process resources
     {
         set -m
-        exec setsid bash -c '
-            trap "echo \"Resources job interrupted\"; exit 130" SIGINT SIGTERM
-            log::info "Processing resources..."
-            source "'$EMBEDDINGS_DIR'/extractors/resources/main.sh"
-            resource_count=$(qdrant::embeddings::process_resources "'$app_id'" 2>&1 | tail -1)
-            echo "${resource_count:-0}" > "'$resource_count_file'"
-            log::info "Resources complete: ${resource_count:-0} items"
-        '
+        APP_ROOT="$APP_ROOT" EMBEDDINGS_DIR="$EMBEDDINGS_DIR" TEMP_DIR="$TEMP_DIR" \
+        RESOURCE_COUNT_FILE="$resource_count_file" APP_ID="$app_id" \
+        exec setsid timeout 1200 bash -c '
+            set -euo pipefail
+            trap "echo \"Resources job interrupted\"; echo \"0\" > \"$RESOURCE_COUNT_FILE\"; exit 130" SIGINT SIGTERM
+            
+            # Source all required utilities
+            source "$APP_ROOT/scripts/lib/utils/var.sh"
+            source "${var_LIB_UTILS_DIR}/log.sh"
+            source "$EMBEDDINGS_DIR/config/unified.sh"
+            export TEMP_DIR
+            
+            echo "[INFO] Processing resources..."
+            source "$EMBEDDINGS_DIR/extractors/resources/main.sh"
+            resource_count=$(qdrant::embeddings::process_resources "$APP_ID" 2>&1 | tail -1) || resource_count=0
+            echo "${resource_count:-0}" > "$RESOURCE_COUNT_FILE"
+            echo "[INFO] Resources complete: ${resource_count:-0} items"
+        ' || echo "0" > "$resource_count_file"
     } &
     local resource_pid=$!
     BACKGROUND_JOBS+=("$resource_pid")
@@ -943,14 +999,24 @@ embeddings_refresh_impl() {
     # Process file trees
     {
         set -m
-        exec setsid bash -c '
-            trap "echo \"File trees job interrupted\"; exit 130" SIGINT SIGTERM
-            log::info "Processing file trees..."
-            source "'$EMBEDDINGS_DIR'/extractors/filetrees/main.sh"
-            filetrees_count=$(qdrant::embeddings::process_file_trees "'$app_id'" 2>&1 | tail -1)
-            echo "${filetrees_count:-0}" > "'$filetrees_count_file'"
-            log::info "File trees complete: ${filetrees_count:-0} items"
-        '
+        APP_ROOT="$APP_ROOT" EMBEDDINGS_DIR="$EMBEDDINGS_DIR" TEMP_DIR="$TEMP_DIR" \
+        FILETREES_COUNT_FILE="$filetrees_count_file" APP_ID="$app_id" \
+        exec setsid timeout 600 bash -c '
+            set -euo pipefail
+            trap "echo \"File trees job interrupted\"; echo \"0\" > \"$FILETREES_COUNT_FILE\"; exit 130" SIGINT SIGTERM
+            
+            # Source all required utilities
+            source "$APP_ROOT/scripts/lib/utils/var.sh"
+            source "${var_LIB_UTILS_DIR}/log.sh"
+            source "$EMBEDDINGS_DIR/config/unified.sh"
+            export TEMP_DIR
+            
+            echo "[INFO] Processing file trees..."
+            source "$EMBEDDINGS_DIR/extractors/filetrees/main.sh"
+            filetrees_count=$(qdrant::embeddings::process_file_trees "$APP_ID" 2>&1 | tail -1) || filetrees_count=0
+            echo "${filetrees_count:-0}" > "$FILETREES_COUNT_FILE"
+            echo "[INFO] File trees complete: ${filetrees_count:-0} items"
+        ' || echo "0" > "$filetrees_count_file"
     } &
     local filetrees_pid=$!
     BACKGROUND_JOBS+=("$filetrees_pid")
@@ -1076,6 +1142,9 @@ embeddings_refresh_impl() {
     
     # Calculate total
     total_embeddings=$((workflow_count + scenario_count + doc_count + code_count + resource_count + filetrees_count))
+    
+    # Clear flag now that count files have been read
+    REFRESH_IN_PROGRESS=false
     
     fi # End of parallel processing branch
     

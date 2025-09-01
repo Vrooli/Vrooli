@@ -33,16 +33,19 @@ if [[ -f "$PREFLIGHT_CHECK" ]]; then
 fi
 
 # Safety check 1: Check if orchestrator is already running
-if [[ -f /tmp/vrooli-orchestrator.pid ]]; then
-    PID=$(cat /tmp/vrooli-orchestrator.pid 2>/dev/null || echo "unknown")
-    if kill -0 "$PID" 2>/dev/null; then
-        echo -e "${RED}ERROR: Orchestrator is already running (PID: $PID)${NC}"
-        echo "To stop it: kill $PID"
-        exit 1
-    else
-        echo -e "${YELLOW}Cleaning up stale PID file${NC}"
-        rm -f /tmp/vrooli-orchestrator.pid /tmp/vrooli-orchestrator.lock
-    fi
+# Add orchestrator directory to Python path for imports
+export PYTHONPATH="${SCRIPT_DIR}:${PYTHONPATH:-}"
+
+# Use the pid_manager to check for existing orchestrator
+if python3 -c "from pid_manager import OrchestrationLockManager; import sys; m = OrchestrationLockManager(); sys.exit(0 if m._find_running_orchestrator() is None else 1)" 2>/dev/null; then
+    echo -e "${GREEN}No existing orchestrator detected${NC}"
+else
+    # Try to get PID for better error message
+    EXISTING_PID=$(python3 -c "from pid_manager import OrchestrationLockManager; m = OrchestrationLockManager(); r = m._find_running_orchestrator(); print(r.get('pid', 'unknown') if r else '')" 2>/dev/null || echo "unknown")
+    echo -e "${RED}ERROR: Orchestrator is already running (PID: $EXISTING_PID)${NC}"
+    echo "To stop it: kill $EXISTING_PID"
+    echo "Or use --force flag to override"
+    exit 1
 fi
 
 # Safety check 2: Check system process count
@@ -92,6 +95,10 @@ fi
 
 # Safety check 5: Clean up old PID files
 echo "Cleaning up old PID files..."
+# Use the pid_manager for proper cleanup
+python3 -c "from pid_manager import OrchestrationLockManager; m = OrchestrationLockManager(); m._cleanup_stale_files()" 2>/dev/null || true
+
+# Also clean up app-specific PID files
 if [[ -d /tmp/vrooli-apps ]]; then
     for pid_file in /tmp/vrooli-apps/*.pid; do
         if [[ -f "$pid_file" ]]; then
@@ -148,9 +155,19 @@ if [[ "${VROOLI_DEVELOP_MODE:-}" == "1" ]] || [[ "$*" == *"--background"* ]]; th
     echo "Starting orchestrator in background mode on port $ORCHESTRATOR_PORT..."
     ORCHESTRATOR_PORT=$ORCHESTRATOR_PORT python3 "$ORCHESTRATOR" "$@" > /tmp/vrooli-orchestrator.log 2>&1 &
     ORCHESTRATOR_PID=$!
-    echo "$ORCHESTRATOR_PID" > /tmp/vrooli-orchestrator.pid
-    echo -e "${GREEN}✓ Orchestrator started in background (PID: $ORCHESTRATOR_PID)${NC}"
-    echo "Logs available at: /tmp/vrooli-orchestrator.log"
+    
+    # Wait briefly to check if it started successfully
+    sleep 2
+    if kill -0 "$ORCHESTRATOR_PID" 2>/dev/null; then
+        echo -e "${GREEN}✓ Orchestrator started in background (PID: $ORCHESTRATOR_PID)${NC}"
+        echo "Logs available at: /tmp/vrooli-orchestrator.log"
+        # Note: PID file is now written by Python orchestrator itself via pid_manager
+    else
+        echo -e "${RED}✗ Orchestrator failed to start${NC}"
+        echo "Check logs at: /tmp/vrooli-orchestrator.log"
+        tail -n 20 /tmp/vrooli-orchestrator.log 2>/dev/null || true
+        exit 1
+    fi
 else
     # Run in foreground (for debugging or direct calls)
     echo "Starting orchestrator in foreground mode on port $ORCHESTRATOR_PORT..."

@@ -110,7 +110,7 @@ check_vault_status() {
     # Check if Vault is accessible
     if ! curl -s --max-time 5 "$VAULT_BASE_URL/v1/sys/health" >/dev/null 2>&1; then
         print_error "Vault is not accessible at $VAULT_BASE_URL"
-        print_info "Make sure Vault is running: ./manage.sh --action start"
+        print_info "Make sure Vault is running: resource-vault manage start"
         return 1
     fi
     
@@ -125,13 +125,13 @@ check_vault_status() {
     
     if [[ "$initialized" != "true" ]]; then
         print_error "Vault is not initialized"
-        print_info "Initialize Vault: ./manage.sh --action init-dev"
+        print_info "Initialize Vault: resource-vault manage init-dev"
         return 1
     fi
     
     if [[ "$sealed" == "true" ]]; then
         print_error "Vault is sealed"
-        print_info "Unseal Vault: ./manage.sh --action unseal"
+        print_info "Unseal Vault: resource-vault manage unseal"
         return 1
     fi
     
@@ -225,7 +225,7 @@ create_dev_token() {
     
     if [[ -z "$root_token" ]]; then
         print_error "No existing token found"
-        print_info "Initialize Vault first: ./manage.sh --action init-dev"
+        print_info "Initialize Vault first: resource-vault manage init-dev"
         return 1
     fi
     

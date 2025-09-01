@@ -21,7 +21,7 @@ source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
 # Source Agent-S2 configuration if available
 if [[ -f "${AGENT_S2_SCRIPT_DIR}/config/defaults.sh" ]]; then
     # shellcheck disable=SC1091
-    source "${AGENT_S2_SCRIPT_DIR}/config/defaults.sh" 2>/dev/null || true
+    source "${AGENT_S2_SCRIPT_DIR}/config/defaults.sh"
 fi
 
 # Default Agent-S2 settings  

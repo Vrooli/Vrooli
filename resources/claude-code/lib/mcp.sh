@@ -364,7 +364,7 @@ mcp::create_config() {
     
     # Create config directory if it doesn't exist
     local config_dir
-    config_dir=${config_file%/*
+    config_dir=${config_file%/*}
     if [[ "$config_dir" != "." && ! -d "$config_dir" ]]; then
         mkdir -p "$config_dir"
     fi
@@ -710,3 +710,20 @@ claude_code::mcp_test() {
     echo
     log::success "✓ MCP connection test completed"
 }
+
+# Export functions for subshell availability
+export -f mcp::detect_vrooli_server
+export -f mcp::get_api_key
+export -f mcp::check_claude_code_available
+export -f mcp::determine_scope
+export -f mcp::register_server
+export -f mcp::unregister_server
+export -f mcp::get_registration_status
+export -f mcp::validate_connection
+export -f mcp::get_status
+export -f mcp::create_config
+export -f mcp::auto_register
+export -f claude_code::register_mcp
+export -f claude_code::unregister_mcp
+export -f claude_code::mcp_status
+export -f claude_code::mcp_test

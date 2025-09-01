@@ -98,7 +98,7 @@ parse_format_args() {
 }
 
 ################################################################################
-# Parse Combined Arguments (common + format)
+# Parse Combined Arguments (common + format) with Shell Operator Protection
 # Args: "$@"
 # Returns: Parsed options as space-separated values
 ################################################################################
@@ -107,6 +107,36 @@ parse_combined_args() {
     local help_requested="false"
     local format="text"
     local remaining_args=()
+    local filtered_args=()
+    
+    # First pass: filter shell artifacts that might have leaked through
+    for arg in "$@"; do
+        case "$arg" in
+            # Skip obvious shell redirection operators
+            "2>&1"|"1>&2"|"&>"|">&"|"2>"|"1>"|">"|">>"|"<"|"<<")
+                continue
+                ;;
+            # Skip lone numbers that are likely shell artifacts
+            [0-9])
+                # Single digits are suspicious, especially at the end
+                if [[ ${#filtered_args[@]} -eq 0 ]]; then
+                    # Leading single digit is very suspicious
+                    continue
+                fi
+                local prev="${filtered_args[-1]:-}"
+                case "$prev" in
+                    # After these commands, single digits are usually file descriptors
+                    logs|test|status|list|convert) 
+                        continue 
+                        ;;
+                esac
+                ;;
+        esac
+        filtered_args+=("$arg")
+    done
+    
+    # Second pass: normal argument parsing on cleaned args
+    set -- "${filtered_args[@]}"
     
     while [[ $# -gt 0 ]]; do
         case "$1" in

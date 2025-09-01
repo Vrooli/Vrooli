@@ -35,7 +35,7 @@ The simplest way to install Browserless:
 
 ```bash
 # Install with default settings
-./manage.sh --action install
+./cli.sh install
 ```
 
 This will:
@@ -50,7 +50,7 @@ This will:
 Install with specific settings:
 
 ```bash
-./manage.sh --action install \
+./cli.sh install \
   --port 4110 \              # Service port (default: 4110)
   --max-browsers 5 \         # Maximum concurrent sessions (default: 5)
   --timeout 30000 \          # Default timeout in ms (default: 30000)
@@ -73,7 +73,7 @@ Install with specific settings:
 ### 1. Check Service Status
 
 ```bash
-./manage.sh --action status
+./cli.sh status
 ```
 
 Expected output:
@@ -103,10 +103,10 @@ curl http://localhost:4110/pressure
 
 ```bash
 # Test screenshot capture
-./manage.sh --action usage --usage-type screenshot
+./cli.sh usage --usage-type screenshot
 
 # Test PDF generation
-./manage.sh --action usage --usage-type pdf
+./cli.sh usage --usage-type pdf
 ```
 
 ## Installation Troubleshooting
@@ -120,7 +120,7 @@ If port 4110 is already in use:
 sudo lsof -i :4110
 
 # Install on different port
-./manage.sh --action install --port 4111
+./cli.sh install --port 4111
 ```
 
 ### Docker Permission Denied
@@ -147,7 +147,7 @@ free -h
 df -h
 
 # Install with lower resource usage
-./manage.sh --action install --max-browsers 2
+./cli.sh install --max-browsers 2
 ```
 
 ## Updating Browserless
@@ -156,13 +156,13 @@ To update to the latest version:
 
 ```bash
 # Stop current instance
-./manage.sh --action stop
+./cli.sh stop
 
 # Pull latest image
 docker pull ghcr.io/browserless/chrome:latest
 
 # Restart service
-./manage.sh --action restart
+./cli.sh restart
 ```
 
 ## Uninstallation
@@ -171,7 +171,7 @@ To completely remove Browserless:
 
 ```bash
 # Remove service and container
-./manage.sh --action uninstall
+./cli.sh uninstall
 
 # This will:
 # - Stop and remove the container

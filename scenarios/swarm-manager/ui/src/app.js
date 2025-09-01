@@ -1,6 +1,6 @@
 // Swarm Manager - Main Application Logic
 
-const API_BASE = 'http://localhost:8095';
+const API_BASE = `${window.location.protocol}//${window.location.host}`;
 let currentTask = null;
 let draggedElement = null;
 let refreshInterval = null;

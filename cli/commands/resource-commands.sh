@@ -277,12 +277,11 @@ collect_resource_list_data() {
     fi
     
     
-    # Get all resources from config
+    # Get all resources from config (flat structure, not nested categories)
     local all_resources
     all_resources=$(jq -r '
-        .resources | to_entries[] as $category | 
-        $category.value | to_entries[] | 
-        "\($category.key)/\(.key)/\(.value.enabled)"
+        .resources | to_entries[] | 
+        "\(.key)/\(.value.enabled)"
     ' "$RESOURCES_CONFIG" 2>/dev/null)
     
     if [[ -z "$all_resources" ]]; then
@@ -290,14 +289,12 @@ collect_resource_list_data() {
         return
     fi
     
-    # Process each resource  
+    # Process each resource (flat structure)
     while IFS= read -r resource_line; do
         [[ -z "$resource_line" ]] && continue
         
-        local category="${resource_line%%/*}"
-        local rest="${resource_line#*/}"
-        local name="${rest%%/*}"
-        local enabled="${rest##*/}"
+        local name="${resource_line%%/*}"
+        local enabled="${resource_line#*/}"
         
         # Skip disabled resources if only_running is true
         if [[ "$only_running" == "true" && "$enabled" != "true" ]]; then
@@ -311,20 +308,17 @@ collect_resource_list_data() {
             # Check running status using resource CLI
             local is_running="false"
             
+            # Use proper resource status checking with timeout (fixed hanging issue)
             if has_resource_cli "$name"; then
-                local status_json
-                # Capture output regardless of exit code, as some resources return non-zero even when providing valid JSON
-                status_json=$(unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED; "resource-${name}" status --format json 2>&1 || true)
-                
-                # Check if we got valid JSON output
-                if [[ -n "$status_json" ]] && echo "$status_json" | grep -q '^\s*{'; then
-                    if command -v jq >/dev/null 2>&1; then
-                        is_running=$(echo "$status_json" | jq -r '.running // false' 2>/dev/null || echo "false")
-                    else
-                        # Fallback to text parsing if jq is not available
-                        if echo "$status_json" | grep -q '"running":true'; then
-                            is_running="true"
-                        fi
+                local status_output
+                # Use timeout to prevent hangs, capture both stdout and stderr
+                if status_output=$(timeout 10s resource-"$name" status --format json --fast 2>&1); then
+                    # Check if we got valid JSON output
+                    if [[ -n "$status_output" ]] && echo "$status_output" | jq -e '.' >/dev/null 2>&1; then
+                        # Parse JSON to get running status
+                        local json_running
+                        json_running=$(echo "$status_output" | jq -r '.running // false' 2>/dev/null || echo "false")
+                        is_running="$json_running"
                     fi
                 fi
             fi
@@ -349,8 +343,8 @@ collect_resource_list_data() {
                 has_capabilities="true"
             fi
             
-            # Output resource data
-            echo "resource:${name}:${category}:${enabled}:${is_running}:${has_cli}:${has_script}:${has_capabilities}"
+            # Output resource data (no category in flat structure)
+            echo "resource:${name}:${enabled}:${is_running}:${has_cli}:${has_script}:${has_capabilities}"
         fi
     done <<< "$all_resources"
 }
@@ -366,20 +360,17 @@ collect_resource_status_data() {
     
     # Find resource in filesystem
     local resource_dir
-    resource_dir=$(find "$RESOURCES_DIR" -mindepth 2 -maxdepth 2 -type d -name "$resource_name" 2>/dev/null | head -1)
+    resource_dir=$(find "$RESOURCES_DIR" -mindepth 1 -maxdepth 1 -type d -name "$resource_name" 2>/dev/null | head -1)
     
     if [[ -z "$resource_dir" ]]; then
         echo "error:Resource not found: $resource_name"
         return
     fi
     
-    local category
-    category=$(basename "${resource_dir%/*}")
-    
-    # Check if enabled in config
+    # Check if enabled in config (flat structure)
     local enabled="false"
     if [[ -f "$RESOURCES_CONFIG" ]]; then
-        enabled=$(jq -r --arg cat "$category" --arg res "$resource_name" '.resources[$cat][$res].enabled // false' "$RESOURCES_CONFIG" 2>/dev/null || echo "false")
+        enabled=$(jq -r --arg res "$resource_name" '.resources[$res].enabled // false' "$RESOURCES_CONFIG" 2>/dev/null || echo "false")
     fi
     
     # Check running status using resource CLI only
@@ -441,8 +432,8 @@ collect_resource_status_data() {
         has_capabilities="true"
     fi
     
-    # Output structured data
-    echo "resource:${resource_name}:${category}:${enabled}:${is_running}:${status_message}:${has_cli}:${has_script}:${has_capabilities}:${resource_dir}"
+    # Output structured data (no category)
+    echo "resource:${resource_name}:${enabled}:${is_running}:${status_message}:${has_cli}:${has_script}:${has_capabilities}:${resource_dir}"
 }
 
 ################################################################################
@@ -474,16 +465,15 @@ get_resource_list_data() {
     
     # Process each resource
     while IFS= read -r line; do
-        if [[ "$line" =~ ^resource:(.+):(.+):(.+):(.+):(.+):(.+):(.+)$ ]]; then
+        if [[ "$line" =~ ^resource:(.+):(.+):(.+):(.+):(.+):(.+)$ ]]; then
             local name="${BASH_REMATCH[1]}"
-            local category="${BASH_REMATCH[2]}"
-            local enabled="${BASH_REMATCH[3]}"
-            local is_running="${BASH_REMATCH[4]}"
-            local has_cli="${BASH_REMATCH[5]}"
-            local has_script="${BASH_REMATCH[6]}"
-            local has_capabilities="${BASH_REMATCH[7]}"
+            local enabled="${BASH_REMATCH[2]}"
+            local is_running="${BASH_REMATCH[3]}"
+            local has_cli="${BASH_REMATCH[4]}"
+            local has_script="${BASH_REMATCH[5]}"
+            local has_capabilities="${BASH_REMATCH[6]}"
             
-            echo "item:${name}:${category}:${enabled}:${is_running}:${has_cli}:${has_script}:${has_capabilities}"
+            echo "item:${name}:${enabled}:${is_running}:${has_cli}:${has_script}:${has_capabilities}"
             
             ((total_count++))
             [[ "$enabled" == "true" ]] && ((enabled_count++))
@@ -510,20 +500,18 @@ get_resource_status_data() {
         return
     fi
     
-    if [[ "$raw_data" =~ ^resource:(.+):(.+):(.+):(.+):(.+):(.+):(.+):(.+):(.+)$ ]]; then
+    if [[ "$raw_data" =~ ^resource:(.+):(.+):(.+):(.+):(.+):(.+):(.+):(.+)$ ]]; then
         local name="${BASH_REMATCH[1]}"
-        local category="${BASH_REMATCH[2]}"
-        local enabled="${BASH_REMATCH[3]}"
-        local is_running="${BASH_REMATCH[4]}"
-        local status_message="${BASH_REMATCH[5]}"
-        local has_cli="${BASH_REMATCH[6]}"
-        local has_script="${BASH_REMATCH[7]}"
-        local has_capabilities="${BASH_REMATCH[8]}"
-        local resource_dir="${BASH_REMATCH[9]}"
+        local enabled="${BASH_REMATCH[2]}"
+        local is_running="${BASH_REMATCH[3]}"
+        local status_message="${BASH_REMATCH[4]}"
+        local has_cli="${BASH_REMATCH[5]}"
+        local has_script="${BASH_REMATCH[6]}"
+        local has_capabilities="${BASH_REMATCH[7]}"
+        local resource_dir="${BASH_REMATCH[8]}"
         
         echo "type:status"
         echo "name:$name"
-        echo "category:$category"
         echo "enabled:$enabled"
         echo "running:$is_running"
         echo "status:$status_message"
@@ -557,17 +545,16 @@ format_resource_list_data() {
     # Collect table rows
     local table_rows=()
     while IFS= read -r line; do
-        if [[ "$line" =~ ^item:(.+):(.+):(.+):(.+):(.+):(.+):(.+)$ ]]; then
+        if [[ "$line" =~ ^item:(.+):(.+):(.+):(.+):(.+):(.+)$ ]]; then
             local name="${BASH_REMATCH[1]}"
-            local category="${BASH_REMATCH[2]}"
-            local enabled="${BASH_REMATCH[3]}"
-            local running="${BASH_REMATCH[4]}"
-            table_rows+=("${name}:${category}:${enabled}:${running}")
+            local enabled="${BASH_REMATCH[2]}"
+            local running="${BASH_REMATCH[3]}"
+            table_rows+=("${name}:${enabled}:${running}")
         fi
     done <<< "$raw_data"
     
-    # Format as table using format.sh
-    format::output "$format" "table" "Name" "Category" "Enabled" "Running" -- "${table_rows[@]}"
+    # Format as table using format.sh (no category column)
+    format::output "$format" "table" "Name" "Enabled" "Running" -- "${table_rows[@]}"
 }
 
 # Format resource overview data (for resource status with no args)
@@ -592,9 +579,8 @@ format_resource_status_data() {
     fi
     
     # Extract data
-    local name category enabled running status path
+    local name enabled running status path
     name=$(echo "$raw_data" | grep "^name:" | cut -d: -f2)
-    category=$(echo "$raw_data" | grep "^category:" | cut -d: -f2)
     enabled=$(echo "$raw_data" | grep "^enabled:" | cut -d: -f2)
     running=$(echo "$raw_data" | grep "^running:" | cut -d: -f2)
     status=$(echo "$raw_data" | grep "^status:" | cut -d: -f2)
@@ -602,7 +588,6 @@ format_resource_status_data() {
     
     format::output "$format" "kv" \
         "name" "$name" \
-        "category" "$category" \
         "enabled" "$enabled" \
         "running" "$running" \
         "status" "$status" \
@@ -764,10 +749,27 @@ resource_start() {
     
     log::info "Starting resource: $resource_name"
     
-    # Try to route to resource CLI or manage.sh with error handling
+    # Try to route to resource CLI or manage.sh with improved error handling
     local exit_code=0
     if has_resource_cli "$resource_name"; then
-        route_to_resource_cli "$resource_name" start || exit_code=$?
+        # Try v2.0 manage start pattern first (most likely to work)
+        local resource_command="resource-${resource_name}"
+        if command -v "$resource_command" >/dev/null 2>&1; then
+            # Clear source guards before exec to allow proper sourcing
+            if (unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED; 
+                export VROOLI_ROOT="${VROOLI_ROOT:-$(cd "$RESOURCES_DIR/.." && pwd)}";
+                "$resource_command" manage start --force >/dev/null 2>&1); then
+                exit_code=0
+            elif (unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED;
+                  export VROOLI_ROOT="${VROOLI_ROOT:-$(cd "$RESOURCES_DIR/.." && pwd)}";
+                  "$resource_command" start >/dev/null 2>&1); then
+                exit_code=0
+            else
+                exit_code=1
+            fi
+        else
+            route_to_resource_cli "$resource_name" start >/dev/null 2>&1 || exit_code=$?
+        fi
     else
         route_to_manage_sh "$resource_name" start || exit_code=$?
     fi
@@ -816,10 +818,9 @@ resource_start_all() {
     # Parse enabled resources from config
     local enabled_resources
     enabled_resources=$(jq -r '
-        .resources | to_entries[] as $category | 
-        $category.value | to_entries[] | 
+        .resources | to_entries[] | 
         select(.value.enabled == true) | 
-        "\($category.key)/\(.key)"
+        .key
     ' "$RESOURCES_CONFIG" 2>/dev/null)
     
     if [[ -z "$enabled_resources" ]]; then
@@ -830,9 +831,7 @@ resource_start_all() {
     local started_count=0
     local failed_count=0
     
-    while IFS= read -r resource_path; do
-        local category="${resource_path%%/*}"
-        local name="${resource_path#*/}"
+    while IFS= read -r name; do
         
         log::info "Starting: $name"
         
@@ -843,10 +842,12 @@ resource_start_all() {
             continue
         fi
         
-        # Try v2.0 CLI patterns
+        # Try v2.0 CLI patterns (try working pattern first)
         if has_resource_cli "$name"; then
-            # First try direct start command (shortcut)
-            if (unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED; "resource-${name}" start 2>/dev/null); then
+            # First try full v2.0 manage start command (most likely to work)
+            if (unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED; 
+                export VROOLI_ROOT="${VROOLI_ROOT:-$(cd "$RESOURCES_DIR/.." && pwd)}";
+                "resource-${name}" manage start --force >/dev/null 2>&1); then
                 ((started_count++))
                 log::success "✅ Started: $name"
                 
@@ -857,8 +858,10 @@ resource_start_all() {
                 continue
             fi
             
-            # Then try full v2.0 manage start command
-            if (unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED; "resource-${name}" manage start --force 2>/dev/null); then
+            # Then try direct start command as fallback
+            if (unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED; 
+                export VROOLI_ROOT="${VROOLI_ROOT:-$(cd "$RESOURCES_DIR/.." && pwd)}";
+                "resource-${name}" start >/dev/null 2>&1); then
                 ((started_count++))
                 log::success "✅ Started: $name"
                 
@@ -1065,7 +1068,7 @@ main() {
             shift || true
             
             # Check if this looks like a valid resource
-            if find "$RESOURCES_DIR" -mindepth 2 -maxdepth 2 -type d -name "$resource_name" 2>/dev/null | grep -q . || false; then
+            if find "$RESOURCES_DIR" -mindepth 1 -maxdepth 1 -type d -name "$resource_name" 2>/dev/null | grep -q . || false; then
                 route_to_resource_cli "$resource_name" "$@"
             else
                 log::error "Unknown command or resource: $command"
@@ -1080,7 +1083,7 @@ main() {
                         local resource_name_from_path
                         resource_name_from_path=$(basename "$resource_path")
                         available_resources+=("$resource_name_from_path")
-                    done < <(find "$RESOURCES_DIR" -mindepth 2 -maxdepth 2 -type d -print0 2>/dev/null)
+                    done < <(find "$RESOURCES_DIR" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null)
                     
                     if [[ ${#available_resources[@]} -gt 0 ]]; then
                         local suggestions

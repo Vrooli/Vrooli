@@ -19,6 +19,10 @@ if ! readonly -p | grep -q "^declare -[a-z]*r[a-z]* N8N_BASE_URL="; then
     readonly N8N_BASE_URL="http://localhost:${N8N_PORT}"
 fi
 
+# Volume configuration - enables safer Docker volume strategy
+readonly N8N_USE_NAMED_VOLUME="${N8N_USE_NAMED_VOLUME:-yes}"
+readonly N8N_VOLUME_NAME="vrooli_n8n_data"
+
 # Container configuration - check for readonly conflicts
 if ! readonly -p | grep -q "^declare -[a-z]*r[a-z]* N8N_SERVICE_NAME="; then
     readonly N8N_SERVICE_NAME="n8n"
@@ -57,7 +61,8 @@ readonly N8N_HEALTH_CHECK_INTERVAL=5
 readonly N8N_HEALTH_CHECK_MAX_ATTEMPTS=30
 
 # API configuration
-readonly N8N_API_TIMEOUT=30
+# Increased timeout to handle complex workflows and prevent webhook failures
+readonly N8N_API_TIMEOUT=300
 
 # Backup configuration (legacy)
 readonly N8N_BACKUP_DIR="${HOME}/.n8n-backup"
@@ -79,8 +84,14 @@ readonly N8N_DEFAULT_EMAIL="admin@example.com"
 readonly N8N_DEFAULT_FIRSTNAME="Admin"
 readonly N8N_DEFAULT_LASTNAME="User"
 
+# Webhook and execution timeout configuration
+readonly N8N_WEBHOOK_TIMEOUT="${N8N_WEBHOOK_TIMEOUT:-300}"
+readonly N8N_EXECUTION_TIMEOUT="${N8N_EXECUTION_TIMEOUT:-3600}"
+readonly N8N_PAYLOAD_SIZE_MAX="${N8N_PAYLOAD_SIZE_MAX:-16}"
+
 # Feature flags
-readonly N8N_ENABLE_BASIC_AUTH="${N8N_ENABLE_BASIC_AUTH:-yes}"
+# TEMPORARILY DISABLED: Basic auth causing session loop issues
+readonly N8N_ENABLE_BASIC_AUTH="${N8N_ENABLE_BASIC_AUTH:-no}"
 readonly N8N_ENABLE_POSTGRES="${N8N_ENABLE_POSTGRES:-no}"
 
 # Export function to make configuration available
@@ -97,4 +108,5 @@ n8n::export_config() {
     export N8N_PASSWORD_RESET_TIMEOUT
     export N8N_DEFAULT_USERNAME N8N_DEFAULT_EMAIL N8N_DEFAULT_FIRSTNAME N8N_DEFAULT_LASTNAME
     export N8N_ENABLE_BASIC_AUTH N8N_ENABLE_POSTGRES
+    export N8N_WEBHOOK_TIMEOUT N8N_EXECUTION_TIMEOUT N8N_PAYLOAD_SIZE_MAX
 }
