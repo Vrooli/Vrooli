@@ -281,12 +281,12 @@ style_profile:
 ## ✅ Validation Criteria
 
 ### Conversion Success
-- `vrooli scenario convert personal-relationship-manager --force` completes without errors
+- `vrooli scenario run personal-relationship-manager` completes without errors
 - All n8n workflows properly injected
 - Database schema successfully created
 
 ### Runtime Success
-- `vrooli app start personal-relationship-manager` launches all components
+- `vrooli scenario run personal-relationship-manager` launches all components
 - API responds to health checks at configured port
 - UI accessible and displays contact list
 - CLI commands execute successfully

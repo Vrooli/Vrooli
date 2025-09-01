@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -453,31 +454,24 @@ System metrics are %s. %s`,
 }
 
 func loadAndProcessPromptWithInvestigation(cpuUsage, memoryUsage float64, tcpConnections int, timestamp string, investigationID string) (string, error) {
-	// Get environment variables with defaults
+	// Get VROOLI_ROOT with proper fallback
 	vrooliRoot := os.Getenv("VROOLI_ROOT")
 	if vrooliRoot == "" {
 		homeDir := os.Getenv("HOME")
 		if homeDir == "" {
 			homeDir = "/root" // fallback for containers
 		}
-		vrooliRoot = homeDir + "/Vrooli"
+		vrooliRoot = filepath.Join(homeDir, "Vrooli")
 	}
 	
-	generatedAppsRoot := os.Getenv("GENERATED_APPS_ROOT")
-	if generatedAppsRoot == "" {
-		homeDir := os.Getenv("HOME")
-		if homeDir == "" {
-			homeDir = "/root" // fallback for containers
-		}
-		generatedAppsRoot = homeDir + "/generated-apps"
-	}
+	// Construct scenarios directory path
+	scenariosDir := filepath.Join(vrooliRoot, "scenarios")
 
 	// Construct path to prompt file
-	// Try both the local scenario path and the generated app path
+	// Try multiple locations where the prompt file might exist
 	promptPaths := []string{
-		vrooliRoot + "/scenarios/system-monitor/initialization/claude-code/anomaly-check.md",
-		generatedAppsRoot + "/system-monitor/initialization/claude-code/anomaly-check.md",
-		"initialization/claude-code/anomaly-check.md", // Relative path as fallback
+		filepath.Join(scenariosDir, "system-monitor", "initialization", "claude-code", "anomaly-check.md"),
+		filepath.Join("initialization", "claude-code", "anomaly-check.md"), // Relative path as fallback
 	}
 
 	var promptContent []byte

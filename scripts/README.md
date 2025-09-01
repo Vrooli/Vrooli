@@ -49,9 +49,9 @@ scripts/
 │   ├── storage/      # Storage systems (PostgreSQL, Redis, etc.)
 │   └── ...
 │
-├── scenarios/         # Scenario-to-app conversion system
+├── scenarios/         # Direct scenario execution system
 │   └── tools/
-│       └── scenario-to-app.sh
+│       └── orchestrator/  # Scenario orchestration
 │
 └── __test/           # Test infrastructure
 ```

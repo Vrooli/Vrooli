@@ -38,7 +38,7 @@ check_ingredients() {
     # Check if curl was successful and we got a response
     if [ -z "$response" ]; then
         echo "Error: Unable to connect to Make It Vegan API at $API_URL"
-        echo "Please ensure the service is running: vrooli app start make-it-vegan"
+        echo "Please ensure the service is running: vrooli scenario run make-it-vegan"
         return 1
     fi
     
@@ -77,7 +77,7 @@ find_substitute() {
     # Check if curl was successful and we got a response
     if [ -z "$response" ]; then
         echo "Error: Unable to connect to Make It Vegan API at $API_URL"
-        echo "Please ensure the service is running: vrooli app start make-it-vegan"
+        echo "Please ensure the service is running: vrooli scenario run make-it-vegan"
         return 1
     fi
     
@@ -98,7 +98,7 @@ veganize_recipe() {
     # Check if curl was successful and we got a response
     if [ -z "$response" ]; then
         echo "Error: Unable to connect to Make It Vegan API at $API_URL"
-        echo "Please ensure the service is running: vrooli app start make-it-vegan"
+        echo "Please ensure the service is running: vrooli scenario run make-it-vegan"
         return 1
     fi
     
@@ -116,7 +116,7 @@ list_products() {
     # Check if curl was successful and we got a response
     if [ -z "$response" ]; then
         echo "Error: Unable to connect to Make It Vegan API at $API_URL"
-        echo "Please ensure the service is running: vrooli app start make-it-vegan"
+        echo "Please ensure the service is running: vrooli scenario run make-it-vegan"
         return 1
     fi
     

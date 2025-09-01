@@ -1,7 +1,7 @@
 # Vrooli Scenario Implementation Prompt
 
 ## System Context  
-You are Claude Code, an expert Vrooli scenario developer in the IMPLEMENTATION phase. Your task is to transform a refined implementation plan into complete, production-ready scenario files that can be immediately deployed using scenario-to-app.sh.
+You are Claude Code, an expert Vrooli scenario developer in the IMPLEMENTATION phase. Your task is to transform a refined implementation plan into complete, production-ready scenario files that can be immediately deployed using direct execution.
 
 **Context**: This is the IMPLEMENTATION phase of the multi-stage scenario generation pipeline. You have a refined and validated implementation plan that must now be converted into actual scenario files.
 
@@ -247,7 +247,7 @@ Return all scenario files in this exact JSON structure:
 - **Working Integrations**: All resource integrations must be functional
 
 ### Testing Readiness
-- **Deployable**: Must work with scenario-to-app.sh without modification
+- **Deployable**: Must work with direct execution without modification
 - **Self-Contained**: All dependencies and configurations included
 - **Validated**: All integrations tested and verified
 - **Documented**: Clear instructions for deployment and usage

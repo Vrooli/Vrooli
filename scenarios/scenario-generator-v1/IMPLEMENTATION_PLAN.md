@@ -69,7 +69,7 @@ scenario-generator-v1/
 - [ ] Add error handling and retry logic
 
 ### Phase 5: Validation & Analytics
-- [ ] Integrate scenario-to-app.sh validation
+- [ ] Integrate direct scenario execution validation
 - [ ] Build pattern analysis for common issues
 - [ ] Create improvement suggestion system
 - [ ] Add performance monitoring
@@ -97,10 +97,10 @@ scenario-generator-v1/
 - All findings stored in improvement database
 
 **Step 4: Validation Pipeline**
-- scenario-to-app.sh dry-run validation
+- Direct scenario dry-run validation using `vrooli scenario test`
 - Parse validation errors and feed to Claude Code
 - Iterative fixing until validation passes
-- Final deployment via scenario-to-app.sh
+- Final deployment via `vrooli scenario run`
 
 **Step 5: Post-Deployment**
 - Success/failure analytics recorded
@@ -143,7 +143,7 @@ scenario-generator-v1/
 - `generation_logs`: Detailed logs of all generation steps
 - `improvement_patterns`: Analysis of common issues and solutions
 - `claude_interactions`: All Claude Code prompts and responses
-- `validation_results`: scenario-to-app.sh results and fixes
+- `validation_results`: direct execution test results and fixes
 
 ### Analytics Tables
 - `success_metrics`: Success rates by category and complexity
@@ -222,7 +222,7 @@ Use this checklist to track implementation progress:
 - [ ] Structured output parsing working
 
 ### Analytics (Phase 5)
-- [ ] scenario-to-app.sh integration complete
+- [ ] Direct scenario execution validation complete
 - [ ] Pattern analysis system functional
 - [ ] Improvement suggestions generated
 - [ ] Performance monitoring active

@@ -9,7 +9,7 @@
 3) Investigate the current status of the scenario against PRD requirements
 4) Think deeply on how this scenario fits into Vrooli, and what ways it might help other scenarios
 5) Make targeted improvements aligned with PRD priorities (P0→P1→P2)
-6) Validate: convert → start → verify via API/CLI and/or Browserless screenshot
+6) Validate: run → verify via API/CLI and/or Browserless screenshot
 7) If a gate fails twice, stop, capture diagnostics, and defer heavier changes
 8) Append ≤10 lines to `/tmp/vrooli-scenario-improvement.md` (schema below)
 
@@ -20,7 +20,7 @@ Use `auto/tasks/scenario-improvement/prompts/cheatsheet.md` for metrics and jq h
 ### 🎯 Purpose & Context
 
 - Improve AND validate scenarios in `scenarios/` to increase Vrooli's capabilities and reliability.
-- Scenarios must be able to convert into generated apps and pass validation via API/CLI outputs or Browserless screenshots.
+- Scenarios must be able to run directly and pass validation via API/CLI outputs or Browserless screenshots.
 - Prefer shared workflows in `initialization/n8n/` (e.g., `ollama.json`) to reduce per-scenario complexity and increase reuse.
 - See `docs/context.md` for the broader vision and why scenarios are central to Vrooli.
 
@@ -87,8 +87,7 @@ Perform exactly these steps:
    - **Update PRD.md checkboxes** as requirements are completed
 
 3) Validate (all gates must pass)
-   - Convert: `vrooli scenario convert <name> --force`
-   - Start: `vrooli app start <name>` (stop with Ctrl+C from same terminal)
+   - Run: `vrooli scenario run <name>` (stop with Ctrl+C from same terminal)
    - Verify:
      - API/CLI outputs match expectations, and/or
      - Browserless screenshot (e.g. `resource-browserless screenshot http://localhost:3200 --output /tmp/picker-wheel-test.png`) shows the expected UI state. Please READ the screenshot
@@ -125,7 +124,7 @@ export N8N_PASSWORD="$N8N_PASSWORD"
 resource-browserless for n8n execute-workflow "<workflowId>" '{"text":"test"}'
 ```
 
-**NOTE:** You cannot run a workflow unless it is injected and activated by n8n, which happens automatically (at least it should) by running `vrooli scenario convert <scenario-name> --force`, followed by `vrooli app start <scenario-name>`. You must then use the n8n resource (see `resource-n8n help`) to list workflows and find the workflow ID, which is needed for the browserless execute-workflow command.
+**NOTE:** You cannot run a workflow unless it is injected and activated by n8n, which happens automatically (at least it should) by running `vrooli scenario run <scenario-name>`. You must then use the n8n resource (see `resource-n8n help`) to list workflows and find the workflow ID, which is needed for the browserless execute-workflow command.
 
 NOTE 2: Prefer calling the shared `ollama.json` workflow over direct Ollama API calls. Prefer calling resources using bash (see `ollama.json`'s implementation for reference) over API calls, as this is known from experience to be a better approach.
 
@@ -186,11 +185,11 @@ This appendix preserves important specifics from the original prompt while keepi
 
 ### CLI usage and run modes
 - Use `vrooli help` to discover available commands.
-- Converting and running:
-  - Convert: `vrooli scenario convert <scenario-name> --force`
-  - Run: `vrooli app start <scenario-name>` (stop with Ctrl+C in the same terminal)
-- `vrooli setup` converts scenarios into generated apps but *all* of them. Please do not use it.
-- `vrooli develop` runs apps, but *all* of them. Please do not use it.
+- Running scenarios directly:
+  - Run: `vrooli scenario run <scenario-name>` (stop with Ctrl+C in the same terminal)
+  - Test: `vrooli scenario test <scenario-name>`
+- Scenarios now run directly without conversion.
+- `vrooli develop` runs the main Vrooli platform. Use `vrooli scenario run` for individual scenarios.
 
 ### Resource policy and caveats
 - Many resources may be flaky. Do not modify or add resources.
@@ -200,8 +199,8 @@ This appendix preserves important specifics from the original prompt while keepi
 ### n8n workflows — reliability, activation, and quality
 - If n8n webhooks/API are unreliable, use the Browserless workaround instead of calling n8n API directly like `resource-browserless for n8n execute-workflow "<workflowId>" '{"text":"test"}'`
 - Shared workflows must be defined in the project-level `.vrooli/service.json`, then run `vrooli setup` to upsert and set active.
-- Scenario-level workflows should be injected when running `vrooli app start <scenario_name>` (after conversion). If that fails:
-  - Fallback: run the generated app’s `./scripts/manage.sh setup`, or call the injection engine directly.
+- Scenario-level workflows should be injected when running `vrooli scenario run <scenario_name>`. If that fails:
+  - Fallback: run `../../scripts/manage.sh setup` from the scenario directory, or call the injection engine directly.
 - Workflow quality bar:
   - Include both a webhook trigger and a manual trigger.
   - Manual trigger should feed a node that provides defaults (webhook should not go through that defaults node).

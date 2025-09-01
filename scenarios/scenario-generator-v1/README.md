@@ -10,7 +10,7 @@ The Scenario Generator V1 transforms customer requests into fully functional Vro
 2. **Campaign Management**: Organize scenarios by business category (SaaS, AI Assistants, Automation, Analytics)
 3. **Iterative Planning**: Claude Code analyzes requirements and creates detailed implementation plans with configurable refinement loops
 4. **Autonomous Implementation**: Generates complete scenario files, workflows, and configurations
-5. **Validation Pipeline**: Tests scenarios using scenario-to-app.sh with automatic bug fixing
+5. **Validation Pipeline**: Tests scenarios using direct execution with automatic bug fixing
 6. **Pattern Learning**: Stores all interactions and issues in a database for continuous improvement
 
 ### Business Value
@@ -43,7 +43,7 @@ The Scenario Generator V1 transforms customer requests into fully functional Vro
 - All generated files stored in MinIO with version control
 
 #### 3. Validation Phase
-- scenario-to-app.sh performs dry-run validation
+- Direct scenario validation using `vrooli scenario test`
 - Claude Code analyzes any validation errors and provides fixes
 - Iterative debugging (1-10 attempts) until validation passes
 - Successful scenarios are automatically deployed
@@ -241,7 +241,7 @@ The system automatically learns from:
 - **Claude Code Authentication**: Run `claude auth login` to authenticate
 - **Workflow Failures**: Check n8n logs for execution errors
 - **Database Connection**: Verify PostgreSQL credentials and connectivity
-- **Validation Errors**: Review scenario-to-app.sh output for specific issues
+- **Validation Errors**: Review direct scenario test output for specific issues
 
 **Useful Commands:**
 ```bash

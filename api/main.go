@@ -227,11 +227,8 @@ type App struct {
 var appsDir = getAppsDir()
 
 func getAppsDir() string {
-	if dir := os.Getenv("GENERATED_APPS_DIR"); dir != "" {
-		return dir
-	}
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, "generated-apps")
+	// Now using scenarios directory directly
+	return filepath.Join(vrooliRoot, "scenarios")
 }
 
 func isCustomized(path string) bool {
@@ -596,15 +593,8 @@ type Catalog struct {
 
 var (
 	catalogPath     = filepath.Join(vrooliRoot, "scripts/scenarios/catalog.json")
-	converterCmd    = filepath.Join(vrooliRoot, "scripts/scenarios/tools/scenario-to-app.sh")
-	conversionJobs  = make(map[string]*ConversionStatus)
+	// converterCmd removed - scenarios run directly now
 )
-
-type ConversionStatus struct {
-	InProgress bool   `json:"in_progress"`
-	Message    string `json:"message"`
-	StartTime  string `json:"start_time,omitempty"`
-}
 
 func loadCatalog() (*Catalog, error) {
 	data, err := os.ReadFile(catalogPath)
@@ -689,83 +679,25 @@ func validateScenario(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(Response{Success: true, Data: result})
 }
 
-func convertScenario(w http.ResponseWriter, r *http.Request) {
-	name := mux.Vars(r)["name"]
-	
-	// Check for force parameter
-	force := r.URL.Query().Get("force") == "true"
-	
-	if status, exists := conversionJobs[name]; exists && status.InProgress {
-		json.NewEncoder(w).Encode(Response{
-			Success: false,
-			Error:   "Conversion already in progress",
-			Data:    status,
-		})
-		return
-	}
-
-	status := &ConversionStatus{
-		InProgress: true,
-		Message:    "Starting conversion...",
-		StartTime:  time.Now().Format(time.RFC3339),
-	}
-	conversionJobs[name] = status
-
-	go func() {
-		var cmd *exec.Cmd
-		if force {
-			cmd = exec.Command(converterCmd, name, "--force")
-		} else {
-			cmd = exec.Command(converterCmd, name)
-		}
-		output, err := cmd.CombinedOutput()
-		
-		if err != nil {
-			status.InProgress = false
-			status.Message = fmt.Sprintf("Failed: %s", string(output))
-		} else {
-			status.InProgress = false
-			status.Message = "Completed successfully"
-		}
-		
-		time.Sleep(5 * time.Minute)
-		delete(conversionJobs, name)
-	}()
-
-	json.NewEncoder(w).Encode(Response{
-		Success: true,
-		Data: map[string]interface{}{
-			"message": "Conversion started",
-			"status":  status,
-		},
-	})
-}
-
 func getScenarioStatus(w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
 	
-	if status, exists := conversionJobs[name]; exists {
-		json.NewEncoder(w).Encode(Response{Success: true, Data: status})
+	// Check if scenario exists
+	scenarioPath := filepath.Join(vrooliRoot, "scenarios", name)
+	if _, err := os.Stat(scenarioPath); err == nil {
+		json.NewEncoder(w).Encode(Response{
+			Success: true,
+			Data: map[string]interface{}{
+				"exists": true,
+				"message": "Scenario exists and ready to run",
+				"path": scenarioPath,
+			},
+		})
 	} else {
-		// No active conversion job - check if app exists
-		appPath := filepath.Join(appsDir, name)
-		if _, err := os.Stat(appPath); err == nil {
-			json.NewEncoder(w).Encode(Response{
-				Success: true,
-				Data: &ConversionStatus{
-					InProgress: false,
-					Message:    "App exists and ready",
-				},
-			})
-		} else {
-			json.NewEncoder(w).Encode(Response{
-				Success: true,
-				Data: &ConversionStatus{
-					InProgress: false,
-					Message:    "No conversion in progress",
-				},
-			})
-		}
+		json.NewEncoder(w).Encode(Response{
+			Success: false,
+			Error: "Scenario not found",
+		})
 	}
 }
 
@@ -990,7 +922,6 @@ func main() {
 	// Scenarios API
 	r.HandleFunc("/scenarios", listScenarios).Methods("GET")
 	r.HandleFunc("/scenarios/{name}/validate", validateScenario).Methods("POST")
-	r.HandleFunc("/scenarios/{name}/convert", convertScenario).Methods("POST")
 	r.HandleFunc("/scenarios/{name}/status", getScenarioStatus).Methods("GET")
 	
 	// Resources API (placeholder)

@@ -87,11 +87,6 @@ The `vrooli` CLI provides a unified interface for all development operations:
     *   **Key Functions**: Graceful shutdown, selective stopping, status reporting
     *   **Usage**: `vrooli stop [component]`
 
-### **📱 Application Management**
-
-*   **App Commands**: `vrooli app list`, `vrooli app start <name>`, `vrooli app stop <name>`, `vrooli app logs <name>`
-*   **Purpose**: Manage generated applications created from scenarios
-*   **Features**: Runtime status tracking, log aggregation, lifecycle management
 
 ### **🎯 Scenario Management**  
 
@@ -440,7 +435,7 @@ vrooli deploy
 vrooli status
 
 # View application logs
-vrooli app logs <app-name>
+vrooli status <app-name>
 ```
 
 ### Resource Management
@@ -461,16 +456,16 @@ vrooli resource stop-all
 ### Application Management
 ```bash
 # List all generated applications
-vrooli app list
+vrooli scenario list
 
 # Start specific application
-vrooli app start <app-name>
+vrooli scenario run <scenario-name>
 
 # View application logs
-vrooli app logs <app-name>
+vrooli status <app-name>
 
-# Stop application
-vrooli app stop <app-name>
+# Stop scenarios
+vrooli stop scenarios
 ```
 
 ### Scenario Management

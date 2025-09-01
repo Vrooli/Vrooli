@@ -1,6 +1,6 @@
 {
   "summary": "App Monitor Dashboard",
-  "description": "Main dashboard for monitoring and controlling all generated applications",
+  "description": "Main dashboard for monitoring and controlling all scenarios",
   "value": {
     "grid": [
       {

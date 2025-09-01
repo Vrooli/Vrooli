@@ -17,7 +17,7 @@ templates/
 - ✅ Need full deployment orchestration (service.json, deployment/, initialization/)
 - ✅ Building business applications with revenue models
 - ✅ AI agents generating complete scenarios
-- ✅ Want scenario-to-app.sh deployment capability
+- ✅ Want direct scenario execution capability
 
 ### **Use `templates/basic/` when:**
 - ✅ Simple integration testing (just test resource connectivity)
@@ -39,7 +39,7 @@ cd scenarios/my-business-app/
 # - deployment/: Startup, validation, monitoring scripts
 
 # Run as live application
-../../tools/scenario-to-app.sh my-business-app
+vrooli scenario run my-business-app
 ```
 
 ### **Create Simple Integration Test:**
@@ -68,7 +68,7 @@ cd scenarios/my-integration-test/
 - 🎯 **Clear organization**: All templates in one logical location
 - 🚀 **Purpose-driven**: Each template has a clear, distinct use case
 - 🤖 **AI-friendly**: Full template includes AI generation patterns
-- 🔧 **Deployment ready**: Full template works with scenario-to-app.sh
+- 🔧 **Deployment ready**: Full template works with direct execution
 - 📚 **Easy discovery**: Simple structure for developers to navigate
 
 ## 📋 **PRD Integration (Product Requirements Document)**

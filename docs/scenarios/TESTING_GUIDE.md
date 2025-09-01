@@ -4,14 +4,14 @@ This guide explains how to properly test Vrooli scenarios at different stages of
 
 ## Testing Levels
 
-### 1. Static Analysis (Pre-Generation)
-Validates scenario structure without generating an app.
+### 1. Static Analysis
+Validates scenario structure before execution.
 
 **What it checks:**
 - service.json location (must be in `.vrooli/` directory)
 - JSON syntax validity (no trailing commas, proper structure)
 - Schema compliance with `.vrooli/schemas/service.schema.json`
-- File path validation (complex - see below)
+- File path validation
 - Resource configuration validity
 
 **How to run:**
@@ -19,12 +19,12 @@ Validates scenario structure without generating an app.
 # Recommended: Use dedicated validator
 ./scenarios/tools/validate-scenario.sh <scenario-name>
 
-# Alternative: scenario-to-app.sh includes basic validation before generation
-./scenarios/tools/scenario-to-app.sh <scenario-name>
+# Or check with CLI dry-run
+vrooli scenario run <scenario-name> --dry-run
 ```
 
-### 2. Integration Testing (Post-Generation)
-Tests the generated app's functionality.
+### 2. Integration Testing
+Tests the scenario's functionality during direct execution.
 
 **What it tests:**
 - Resource availability and health
@@ -35,11 +35,12 @@ Tests the generated app's functionality.
 
 **How to run:**
 ```bash
-# Using scenario-test-runner (current)
-./scenarios/validation/scenario-test-runner.sh --scenario ./<scenario-name>
+# Run scenario tests directly
+vrooli scenario test <scenario-name>
 
-# Proposed automated approach
-./scenarios/tools/run-integration-test.sh <scenario-name>
+# Or from scenario directory
+cd scenarios/<scenario-name>
+../../scripts/manage.sh test
 ```
 
 ### 3. Lifecycle Testing
@@ -47,9 +48,9 @@ Tests setup, develop, test, and stop lifecycle events.
 
 **Status:** The `test` lifecycle event is untested and may not work.
 
-## File Path Validation Complexity
+## File Path Validation
 
-File paths in service.json are relative to the **generated app's root**, not the scenario directory. This creates validation challenges:
+File paths in service.json are relative to the **scenario's root** directory.
 
 ### Valid Path Patterns
 
@@ -57,17 +58,16 @@ File paths in service.json are relative to the **generated app's root**, not the
    - `initialization/automation/n8n/workflow.json`
    - `deployment/startup.sh`
 
-2. **Vrooli framework files** (copied during generation):
-   - `scripts/lib/setup.sh`
-   - `scripts/resources/populate/populate.sh`
-   - `scripts/manage.sh`
+2. **Vrooli framework files** (accessed via relative paths):
+   - `../../scripts/lib/setup.sh`
+   - `../../scripts/resources/populate/populate.sh`
+   - `../../scripts/manage.sh`
 
 ### Validation Strategy
 
 Check if path exists in:
 1. `<scenario-root>/path` - Direct scenario files
-2. `<vrooli-root>/path` - Framework files that get copied
-3. Known copy patterns from scenario-to-app.sh
+2. `<vrooli-root>/path` - Framework files accessed via relative paths
 
 ## scenario-test.yaml Structure
 
@@ -117,7 +117,7 @@ Create `scripts/scenarios/tools/validate-scenario.sh`:
 
 ### 2. Rename & Enhance Integration Testing
 - Rename `scenario-test.yaml` → `integration-test.yaml`
-- Auto-convert scenario to app (check hash)
+- Run scenario directly (no conversion needed)
 - Run setup, develop, test lifecycle
 - Better error reporting
 
@@ -136,18 +136,20 @@ vrooli test lifecycle <scenario-name>
 ## Quick Testing Commands
 
 ```bash
-# Quick validation (no app generation) - RECOMMENDED
+# Quick validation - RECOMMENDED
 ./scenarios/tools/validate-scenario.sh agent-metareasoning-manager
 
-# Full integration test (generates app, runs lifecycle, tests)
-./scenarios/tools/run-integration-test.sh agent-metareasoning-manager
+# Run scenario directly
+vrooli scenario run agent-metareasoning-manager
 
-# Manual testing of generated app
-./scenarios/tools/scenario-to-app.sh agent-metareasoning-manager
-cd ~/generated-apps/agent-metareasoning-manager
-./scripts/manage.sh setup
-./scripts/manage.sh develop
-./scripts/manage.sh test  # May not work yet
+# Run scenario tests
+vrooli scenario test agent-metareasoning-manager
+
+# Manual testing from scenario directory
+cd scenarios/agent-metareasoning-manager
+../../scripts/manage.sh setup
+../../scripts/manage.sh develop
+../../scripts/manage.sh test
 ```
 
 ## Common Issues & Solutions

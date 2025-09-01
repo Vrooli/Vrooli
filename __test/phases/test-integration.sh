@@ -48,7 +48,7 @@ WHAT THIS PHASE TESTS:
 SCOPING EXAMPLES:
   ./test-integration.sh --resource=ollama         # Test only ollama resource mocks
   ./test-integration.sh --scenario=app-generator  # Test only app-generator integration
-  ./test-integration.sh --path=generated-apps     # Test only generated apps
+  ./test-integration.sh --path=scenarios          # Test only scenarios
   ./test-integration.sh --resource=n8n --verbose  # Detailed testing for n8n only
 
 COMBINED EXAMPLES:
@@ -410,41 +410,35 @@ test_converter_dry_run() {
     return $?
 }
 
-# Test auto-converter integration functionality
-test_auto_converter_integration() {
-    log_info "⚙️ Testing auto-converter integration functionality..."
+# Test direct scenario execution functionality
+test_direct_scenario_execution() {
+    log_info "⚙️ Testing direct scenario execution functionality..."
     
     # Skip if we're scoped to resources only
     if [[ -n "$SCOPE_RESOURCE" && -z "$SCOPE_SCENARIO" && -z "$SCOPE_PATH" ]]; then
-        log_info "⏭️ Skipping auto-converter integration (scoped to resources)"
+        log_info "⏭️ Skipping scenario execution testing (scoped to resources)"
         return 0
     fi
     
-    local auto_converter="$PROJECT_ROOT/scenarios/tools/auto-converter.sh"
+    # Test that simple-test scenario can run directly
+    local test_scenario="$PROJECT_ROOT/scenarios/simple-test"
     
-    if ! should_test_path "$auto_converter"; then
-        log_info "⏭️ Skipping auto-converter integration (outside scope)"
-        return 0
-    fi
-    
-    local relative_path
-    relative_path=$(relative_path "$auto_converter")
-    
-    # Skip if auto-converter doesn't exist (structure phase would have caught this)
-    if [[ ! -f "$auto_converter" ]] || [[ ! -x "$auto_converter" ]]; then
-        log_test_skip "converter-integration: $relative_path" "Auto-converter not available"
+    if [[ ! -d "$test_scenario" ]]; then
+        log_test_skip "direct-execution: simple-test" "Test scenario not available"
         increment_test_counter "skipped"
         return 0
     fi
     
-    # Test auto-converter dry run functionality
+    # Test direct scenario execution
     if is_dry_run; then
-        log_test_skip "converter-dry-run: $relative_path" "In dry run mode"
+        log_test_skip "direct-execution: simple-test" "In dry run mode"
         increment_test_counter "skipped"
     else
-        if run_cached_test "$auto_converter" "integration-dry-run" "test_converter_dry_run '$auto_converter'" "converter-dry-run: $relative_path"; then
+        if (cd "$test_scenario" && timeout 30 "$PROJECT_ROOT/scripts/manage.sh" test --quick &>/dev/null); then
+            log_test_pass "direct-execution: simple-test" "Scenario runs directly"
             increment_test_counter "passed"
         else
+            log_test_fail "direct-execution: simple-test" "Failed to run scenario directly"
             increment_test_counter "failed"
         fi
     fi
@@ -500,94 +494,88 @@ test_app_is_current() {
     return 1
 }
 
-# Test generated app integration
-test_generated_app_integration() {
-    log_info "🏗️ Testing generated app integration (non-outdated apps)..."
+# Test scenario integration (direct execution)
+test_scenario_integration() {
+    log_info "🏗️ Testing scenario integration (direct execution)..."
     
     # Skip if we're scoped to resources only
     if [[ -n "$SCOPE_RESOURCE" && -z "$SCOPE_SCENARIO" && -z "$SCOPE_PATH" ]]; then
-        log_info "⏭️ Skipping app integration (scoped to resources)"
+        log_info "⏭️ Skipping scenario integration (scoped to resources)"
         return 0
     fi
     
-    local generated_apps_dir="$HOME/generated-apps"
+    local scenarios_dir="$PROJECT_ROOT/scenarios"
     
-    if ! should_test_path "$generated_apps_dir"; then
-        log_info "⏭️ Skipping generated apps integration (outside scope)"
+    if ! should_test_path "$scenarios_dir"; then
+        log_info "⏭️ Skipping scenarios integration (outside scope)"
         return 0
     fi
     
-    if [[ ! -d "$generated_apps_dir" ]]; then
-        log_warning "Generated apps directory not found: $generated_apps_dir"
-        log_warning "Run auto-converter first to generate test apps"
+    if [[ ! -d "$scenarios_dir" ]]; then
+        log_warning "Scenarios directory not found: $scenarios_dir"
         return 0
     fi
     
-    # Find generated apps
-    local generated_apps=()
+    # Find scenarios
+    local scenarios=()
     if [[ -n "$SCOPE_SCENARIO" ]]; then
-        # Test specific scenario app
-        local app_dir="$generated_apps_dir/$SCOPE_SCENARIO"
-        if [[ -d "$app_dir" ]]; then
-            generated_apps+=("$app_dir")
+        # Test specific scenario
+        local scenario_dir="$scenarios_dir/$SCOPE_SCENARIO"
+        if [[ -d "$scenario_dir" ]]; then
+            scenarios+=("$scenario_dir")
         fi
     else
-        # Test all generated apps
-        while IFS= read -r -d '' app_dir; do
-            if should_test_path "$app_dir"; then
-                generated_apps+=("$app_dir")
+        # Test all scenarios
+        while IFS= read -r -d '' scenario_dir; do
+            if should_test_path "$scenario_dir"; then
+                scenarios+=("$scenario_dir")
             fi
-        done < <(find "$generated_apps_dir" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null)
+        done < <(find "$scenarios_dir" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null)
     fi
     
-    local total_apps=${#generated_apps[@]}
-    log_info "📋 Found $total_apps generated apps to test integration"
+    local total_scenarios=${#scenarios[@]}
+    log_info "📋 Found $total_scenarios scenarios to test integration"
     
-    if [[ $total_apps -eq 0 ]]; then
+    if [[ $total_scenarios -eq 0 ]]; then
         if [[ -n "$SCOPE_SCENARIO" ]]; then
-            log_warning "No generated app found for scenario: $SCOPE_SCENARIO"
+            log_warning "No scenario found: $SCOPE_SCENARIO"
         else
-            log_warning "No generated apps found"
+            log_warning "No scenarios found"
         fi
         return 0
     fi
     
-    # Test each generated app integration
+    # Test each scenario integration
     local current=0
-    for app_dir in "${generated_apps[@]}"; do
+    for scenario_dir in "${scenarios[@]}"; do
         ((current++))
-        local app_name
-        app_name=$(basename "$app_dir")
+        local scenario_name
+        scenario_name=$(basename "$scenario_dir")
         
-        log_progress "$current" "$total_apps" "Testing app integration"
+        log_progress "$current" "$total_scenarios" "Testing scenario integration"
         
-        # Check if app is outdated using schema hash
-        if test_app_is_current "$app_dir"; then
-            # Run integration test if available
-            local integration_test="$PROJECT_ROOT/scenarios/tools/run-integration-test.sh"
-            if [[ -x "$integration_test" ]]; then
-                if run_cached_test "$app_dir" "integration" "'$integration_test' '$app_dir'" "integration: $app_name"; then
+        # Run integration test if available
+        local integration_test="$PROJECT_ROOT/scenarios/tools/run-integration-test.sh"
+        if [[ -x "$integration_test" ]]; then
+            if run_cached_test "$scenario_dir" "integration" "'$integration_test' '$scenario_name'" "integration: $scenario_name"; then
+                increment_test_counter "passed"
+            else
+                increment_test_counter "failed"
+            fi
+        else
+            # Fallback: test that scenario can be run with manage.sh
+            local service_json="$scenario_dir/.vrooli/service.json"
+            if [[ -f "$service_json" ]]; then
+                # Test that we can at least dry-run the scenario
+                if run_cached_test "$scenario_dir" "manage-dryrun" "(cd '$scenario_dir' && timeout 10 '$PROJECT_ROOT/scripts/manage.sh' develop --dry-run >/dev/null 2>&1)" "manage-dryrun: $scenario_name"; then
                     increment_test_counter "passed"
                 else
                     increment_test_counter "failed"
                 fi
             else
-                # Fallback: test that manage script can show help
-                local manage_script="$app_dir/scripts/manage.sh"
-                if [[ -x "$manage_script" ]]; then
-                    if run_cached_test "$app_dir" "manage-help" "(cd '$app_dir' && timeout 10 '$manage_script' --help >/dev/null 2>&1)" "manage-help: $app_name"; then
-                        increment_test_counter "passed"
-                    else
-                        increment_test_counter "failed"
-                    fi
-                else
-                    log_test_skip "integration: $app_name" "manage script not available"
-                    increment_test_counter "skipped"
-                fi
+                log_test_skip "integration: $scenario_name" "service.json not available"
+                increment_test_counter "skipped"
             fi
-        else
-            log_test_skip "integration: $app_name" "app is outdated - skipping integration test"
-            increment_test_counter "skipped"
         fi
     done
     
@@ -615,11 +603,11 @@ run_integration_testing() {
     # Test 1: Enabled resources with mocks
     test_enabled_resources
     
-    # Test 2: Auto-converter integration functionality
-    test_auto_converter_integration
+    # Test 2: Direct scenario integration functionality
+    test_direct_scenario_execution
     
     # Test 3: Generated app integration testing
-    test_generated_app_integration
+    test_scenario_integration
     
     # Save cache before printing results
     save_cache
@@ -675,8 +663,8 @@ main() {
 # Export functions for testing
 export -f run_integration_testing test_enabled_resources load_resource_mocks
 export -f test_resource_with_conventions test_generic_resource_integration
-export -f test_auto_converter_integration test_converter_dry_run
-export -f test_generated_app_integration test_app_is_current
+export -f test_direct_scenario_execution
+export -f test_scenario_integration test_app_is_current
 export -f should_test_path should_test_resource get_enabled_resources
 
 # Run main function if script is executed directly

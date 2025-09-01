@@ -76,7 +76,7 @@
     },
     {
       "name": "app-monitor",
-      "description": "Dashboard to manage all running generated apps",
+      "description": "Dashboard to monitor and control all running scenarios with real-time health checks and performance metrics",
       "location": "app-monitor",
       "category": "vrooli-helpers",
       "validated": false,
@@ -121,7 +121,7 @@
     },
     {
       "name": "app-personalizer",
-      "description": "Customizes generated apps using prompts or digital twins for personalized experiences",
+      "description": "Customize scenarios using prompts or digital twins for personalized experiences",
       "location": "app-personalizer",
       "category": "saas-applications",
       "validated": false,
@@ -274,7 +274,7 @@
     },
     {
       "name": "app-debugger",
-      "description": "AI-assisted debugging and performance profiling for generated apps",
+      "description": "Professional debugging and error analysis platform for Vrooli applications",
       "location": "app-debugger",
       "category": "vrooli-helpers",
       "validated": false,

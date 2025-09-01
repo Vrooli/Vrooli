@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 ################################################################################
 # Unified Stop Manager for Vrooli
-# Central hub for all stop operations - apps, resources, containers, processes
+# Central hub for all stop operations - scenarios, resources, containers, processes
 # 
 # Usage:
 #   stop::main all                    # Stop everything
-#   stop::main apps                   # Stop generated apps only
+#   stop::main scenarios              # Stop scenarios only
 #   stop::main resources              # Stop resources only
 #   stop::main containers             # Stop Docker containers only
 #   stop::main processes              # Stop system processes only
@@ -42,7 +42,7 @@ QUIET="${QUIET:-false}"
 GLOBAL_TIMEOUT="${GLOBAL_TIMEOUT:-300}"  # 5 minutes max for entire stop operation
 
 # Paths
-GENERATED_APPS_DIR="${GENERATED_APPS_DIR:-$HOME/generated-apps}"
+SCENARIOS_DIR="${SCENARIOS_DIR:-${APP_ROOT}/scenarios}"
 RESOURCES_DIR="${var_RESOURCES_DIR:-${APP_ROOT}/resources}"
 PID_DIR="/tmp/vrooli-apps"
 ORCHESTRATOR_PID="/tmp/vrooli-orchestrator.pid"
@@ -67,12 +67,12 @@ stop::check_runtime_protection() {
     
     local service_json=""
     
-    if [[ "$item_type" == "app" ]]; then
-        # Check generated app's service.json
-        service_json="${GENERATED_APPS_DIR}/${item_name}/service.json"
+    if [[ "$item_type" == "app" ]] || [[ "$item_type" == "scenario" ]]; then
+        # Check scenario's service.json (apps and scenarios now the same)
+        service_json="${APP_ROOT}/scenarios/${item_name}/.vrooli/service.json"
     else
-        # Check scenario's service.json
-        service_json="${APP_ROOT}/scenarios/${item_name}/service.json"
+        # For other types, check in their directory
+        service_json="${APP_ROOT}/scenarios/${item_name}/.vrooli/service.json"
     fi
     
     # If service.json doesn't exist, not protected
@@ -328,8 +328,8 @@ stop::execute_target() {
         all)
             stop::all
             ;;
-        apps|app)
-            stop::apps
+        scenarios|scenario)
+            stop::scenarios
             ;;
         resources|resource)
             stop::resources
@@ -355,16 +355,16 @@ stop::execute_target() {
 stop::all() {
     stop::log info "Stopping all Vrooli components..."
     
-    # Order matters: apps first, then resources, then containers, then processes
-    stop::apps
+    # Order matters: scenarios first, then resources, then containers, then processes
+    stop::scenarios
     stop::resources
     stop::containers
     stop::processes
 }
 
-# Stop generated apps
-stop::apps() {
-    stop::log info "Stopping generated apps..."
+# Stop scenarios
+stop::scenarios() {
+    stop::log info "Stopping scenarios..."
     local count=0
     local skipped_count=0
     
@@ -384,7 +384,7 @@ stop::apps() {
     # 2. Stop manage.sh processes
     stop::log verbose "Checking for manage.sh processes..."
     local pids
-    pids=$(pgrep -f "generated-apps.*manage\.sh" 2>/dev/null || true)
+    pids=$(pgrep -f "scenarios.*manage\.sh" 2>/dev/null || true)
     if [[ -n "$pids" ]]; then
         for pid in $pids; do
             local signal
@@ -405,10 +405,10 @@ stop::apps() {
         done
     fi
     
-    # 3. Stop API and UI servers from generated apps
-    stop::log verbose "Checking for app servers..."
-    if [[ -d "$GENERATED_APPS_DIR" ]]; then
-        for app_dir in "$GENERATED_APPS_DIR"/*/; do
+    # 3. Stop API and UI servers from scenarios
+    stop::log verbose "Checking for scenario servers..."
+    if [[ -d "$SCENARIOS_DIR" ]]; then
+        for app_dir in "$SCENARIOS_DIR"/*/; do
             if [[ -d "$app_dir" ]]; then
                 local app_name
                 app_name=$(basename "$app_dir")
@@ -465,12 +465,12 @@ stop::apps() {
         stop::log info "No app processes were running"
     fi
     
-    # Report protected/skipped apps
+    # Report protected/skipped scenarios
     if [[ $skipped_count -gt 0 ]]; then
-        stop::log warning "Skipped $skipped_count protected apps"
+        stop::log warning "Skipped $skipped_count protected scenarios"
         
         if [[ ${#PROTECTED_ITEMS[@]} -gt 0 ]]; then
-            stop::log warning "Protected apps (use --force to stop):"
+            stop::log warning "Protected scenarios (use --force to stop):"
             for item in "${PROTECTED_ITEMS[@]}"; do
                 stop::log warning "  - $item"
             done
@@ -657,7 +657,6 @@ stop::processes() {
     # Bash processes (Vrooli-specific scripts that can cause infinite loops)
     stop::log verbose "Checking for bash scenario processes..."
     local bash_patterns=(
-        "scenario-to-app.sh"
         "enhanced_orchestrator.py"
         "app_orchestrator.py"
         "simple-multi-app-starter"
@@ -713,18 +712,18 @@ stop::processes() {
         fi
     done
     
-    # Clean up any processes in generated-apps directory
-    stop::log verbose "Checking for processes in generated-apps..."
+    # Clean up any processes in scenarios directory
+    stop::log verbose "Checking for processes in scenarios..."
     for pid_dir in /proc/*/; do
         if [[ -d "$pid_dir" ]]; then
             local pid=$(basename "$pid_dir")
             if [[ "$pid" =~ ^[0-9]+$ ]]; then
                 local cwd=$(readlink "${pid_dir}cwd" 2>/dev/null || true)
-                if [[ "$cwd" == "$GENERATED_APPS_DIR"/* ]]; then
+                if [[ "$cwd" == "$SCENARIOS_DIR"/* ]]; then
                     if stop::execute "kill -$(stop::get_signal) $pid 2>/dev/null"; then
                         ((count++)) || true || true
                         ((TOTAL_STOPPED++)) || true || true || true
-                        stop::log info "  Stopped process in generated-apps (PID: $pid)"
+                        stop::log info "  Stopped process in scenarios (PID: $pid)"
                     fi
                 fi
             fi
@@ -754,8 +753,8 @@ stop::specific() {
         # Try to auto-detect
         local found=false
         
-        # Check if it's an app
-        if [[ -d "$GENERATED_APPS_DIR/$name" ]]; then
+        # Check if it's a scenario
+        if [[ -d "$SCENARIOS_DIR/$name" ]]; then
             stop::specific_app "$name"
             found=true
         fi
@@ -775,7 +774,7 @@ stop::specific() {
 # Stop specific app
 stop::specific_app() {
     local app_name="$1"
-    local app_dir="$GENERATED_APPS_DIR/$app_name"
+    local app_dir="$SCENARIOS_DIR/$app_name"
     
     if [[ ! -d "$app_dir" ]]; then
         stop::log error "App not found: $app_name"
@@ -923,11 +922,11 @@ stop::report_results() {
         fi
     fi
     
-    local remaining_apps
-    remaining_apps=$(pgrep -f "generated-apps" 2>/dev/null | wc -l || echo 0)
-    remaining_apps=${remaining_apps//[[:space:]]/}  # Remove whitespace
-    if [[ $remaining_apps -gt 0 ]]; then
-        stop::log warning "$remaining_apps app processes may still be running"
+    local remaining_scenarios
+    remaining_scenarios=$(pgrep -f "scenarios" 2>/dev/null | wc -l || echo 0)
+    remaining_scenarios=${remaining_scenarios//[[:space:]]/}  # Remove whitespace
+    if [[ $remaining_scenarios -gt 0 ]]; then
+        stop::log warning "$remaining_scenarios scenario processes may still be running"
     fi
 }
 

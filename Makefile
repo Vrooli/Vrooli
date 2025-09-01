@@ -33,7 +33,6 @@ help: ## Show this help message
 	@echo "$(YELLOW)More Commands:$(RESET)"
 	@echo "  $(GREEN)vrooli --help$(RESET)        Show all CLI commands"
 	@echo "  $(GREEN)vrooli scenario list$(RESET) List available scenarios"
-	@echo "  $(GREEN)vrooli app list$(RESET)      List generated apps"
 	@echo ""
 	@echo "$(YELLOW)Documentation:$(RESET)"
 	@echo "  📚 README.md          - Project overview"
@@ -94,11 +93,11 @@ status: ## Show system status and running services
 		echo "$(YELLOW)⚠ Vrooli CLI not installed (run 'make setup')$(RESET)"; \
 	fi
 	@echo ""
-	@if [[ -d "$$HOME/generated-apps" ]]; then \
-		echo "$(YELLOW)Generated Apps:$(RESET)"; \
-		ls -1 "$$HOME/generated-apps" 2>/dev/null | sed 's/^/  📱 /' || echo "  (none)"; \
+	@if [[ -d "scenarios" ]]; then \
+		echo "$(YELLOW)Scenarios:$(RESET)"; \
+		ls -1 "scenarios" 2>/dev/null | head -10 | sed 's/^/  📱 /' || echo "  (none)"; \
 	else \
-		echo "$(YELLOW)No generated apps yet$(RESET)"; \
+		echo "$(YELLOW)No scenarios found$(RESET)"; \
 	fi
 	@echo ""
 	@echo "Run 'vrooli resource status' for detailed resource information"

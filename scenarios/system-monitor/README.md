@@ -39,9 +39,9 @@ Dark green "Matrix" aesthetic with real-time updating metrics, animated backgrou
 
 ## Usage
 ```bash
-# Convert and start the app
-vrooli scenario convert system-monitor --force
-vrooli app start system-monitor
+# Start the app
+vrooli scenario run system-monitor
+
 
 # CLI commands
 system-monitor status

@@ -240,7 +240,7 @@ curl -X POST http://localhost:$SERVICE_PORT/analyze/self-review \
 ### **Comprehensive Scenario Testing**
 ```bash
 # Run the full scenario test suite
-cd ../.. && ./tools/scenario-to-app.sh test agent-metareasoning-manager
+vrooli scenario test agent-metareasoning-manager
 
 # Or use the scenario test YAML directly
 ../../scenarios/tests/runner.sh agent-metareasoning-manager/scenario-test.yaml
@@ -325,7 +325,7 @@ curl -f http://localhost:$SERVICE_PORT/health                  # Go API
 - [Windmill App Creation](../../resources/automation/windmill/)  
 - [Go Runtime Setup](../../lib/runtimes/go.sh)
 - [Scenario Architecture Guide](../../../docs/scenarios/)
-- [Converting Scenarios to Apps](../../tools/scenario-to-app.sh)
+- [Direct Scenario Execution](../../../docs/scenarios/DEPLOYMENT.md)
 
 ---
 

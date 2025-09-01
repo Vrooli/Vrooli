@@ -47,12 +47,7 @@
       "fixed": 8092,
       "description": "Vrooli unified API server for orchestration and resource management"
     },
-    "webapp": {
-      "env_var": "WEBAPP_PORT", 
-      "fixed": 3000,
-      "description": "Main Vrooli web application"
-    },
-    "health": {
+        "health": {
       "env_var": "HEALTH_PORT",
       "fixed": 3001,
       "description": "Health check and monitoring endpoint"
@@ -60,7 +55,7 @@
     "orchestrator": {
       "env_var": "ORCHESTRATOR_PORT",
       "fixed": 9500,
-      "description": "App orchestrator API for managing generated apps"
+      "description": "Scenario orchestrator API for managing running scenarios"
     }
   },
   "resources": {
@@ -245,7 +240,7 @@
         {
           "file": "initialization/n8n/intelligent-web-page-classifier.json",
           "type": "workflow",
-          "description": "Orchestrates visual analysis of web pages and n8n workflows by combining screenshot capture with intelligent image classification. Enables automated quality assurance, workflow health monitoring, and UI evaluation for generated applications. Essential for self-healing and recursive improvement capabilities."
+          "description": "Orchestrates visual analysis of web pages and n8n workflows by combining screenshot capture with intelligent image classification. Enables automated quality assurance, workflow health monitoring, and UI evaluation for scenarios. Essential for self-healing and recursive improvement capabilities."
         },
         {
           "file": "initialization/n8n/url-status-checker.json",
@@ -542,7 +537,8 @@
         {
           "name": "base-setup",
           "run": "VROOLI_SETUP_MODE=true bash scripts/lib/setup.sh",
-          "description": "Execute generic setup (e.g. network, system, git)"
+          "description": "Execute generic setup (e.g. network, system, git)",
+          "timeout": "15m"
         },
         {
           "name": "install-cli",
@@ -553,13 +549,7 @@
           "name": "add-data",
           "run": "echo '[INFO] Skipping resource population during setup - resources are ready for manual population when needed'",
           "description": "Add app data to resources (skipped during setup)"
-        },
-        {
-          "name": "convert-scenarios",
-          "run": "./scripts/scenarios/tools/auto-converter.sh",
-          "description": "Convert enabled scenarios to standalone apps",
-          "timeout": "5m"
-        }
+                }
       ]
     },
     "develop": {
@@ -576,9 +566,9 @@
           "description": "Start the Vrooli unified API server"
         },
         {
-          "name": "start-generated-apps",
-          "run": "ORCHESTRATOR_PORT=${ORCHESTRATOR_PORT:-9500} ./scripts/scenarios/tools/orchestrator/start-apps-safely.sh --verbose --fast --background",
-          "description": "Start all generated apps using SAFE orchestrator with fork bomb prevention",
+          "name": "start-scenarios",
+          "run": "ORCHESTRATOR_PORT=${ORCHESTRATOR_PORT:-9500} ./scripts/scenarios/tools/orchestrator/start-apps-safely.sh --verbose --fast --background --start-all",
+          "description": "Start all scenarios using SAFE orchestrator with fork bomb prevention",
           "background": true
         }
       ]

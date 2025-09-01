@@ -1,7 +1,7 @@
 # App Monitor
 
 ## Purpose
-App Monitor provides a centralized dashboard for monitoring and managing all running Vrooli-generated applications. It acts as a critical infrastructure component that ensures the health, performance, and availability of deployed apps.
+App Monitor provides a centralized dashboard for monitoring and managing all running Vrooli scenarios. It acts as a critical infrastructure component that ensures the health, performance, and availability of deployed scenarios.
 
 ## How It Helps Vrooli
 - **Self-Monitoring**: Enables Vrooli to track its own application ecosystem

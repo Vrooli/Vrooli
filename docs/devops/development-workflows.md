@@ -43,8 +43,6 @@ curl http://localhost:3000
 
 # Check logs
 vrooli status
-vrooli app logs server
-vrooli app logs ui
 ```
 
 > 📖 **Setup Guide**: See [Prerequisites](../setup/prerequisites.md) for detailed setup requirements

@@ -53,7 +53,7 @@
           "conditions": [
             {
               "leftValue": "={{ $json.Names[0] }}",
-              "rightValue": "generated-app",
+              "rightValue": "scenario",
               "operator": {
                 "type": "string",
                 "operation": "contains"

@@ -39,7 +39,6 @@ task-planner implement <task-id>
 vrooli status --verbose
 vrooli resource <name> <command>
 vrooli scenario <command> <args>
-vrooli app <command> <args>
 ```
 
 ## Execution Guidelines

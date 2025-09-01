@@ -69,7 +69,7 @@ personal-digital-twin export --persona-id <id> --output persona-backup.json
 ## Development
 ```bash
 # Convert and start the scenario
-vrooli scenario convert personal-digital-twin --force
+vrooli scenario run personal-digital-twin
 vrooli scenario start personal-digital-twin
 
 # Access services

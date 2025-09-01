@@ -35,9 +35,8 @@ Professional invoice generation and management system with AI-powered data extra
 
 ## 🚀 Getting Started
 ```bash
-# Convert and start the invoice generator
-vrooli scenario convert invoice-generator --force
-vrooli app start invoice-generator
+# Run the invoice generator scenario
+vrooli scenario run invoice-generator
 
 # CLI usage
 invoice-generator create --client "Acme Corp" --amount 5000

@@ -3,7 +3,7 @@
 # Vrooli CLI - Unified Stop Commands
 # 
 # Provides a single, comprehensive interface for stopping all types of Vrooli
-# components: apps, resources, containers, and processes.
+# components: scenarios, resources, containers, and processes.
 #
 # Usage:
 #   vrooli stop [target] [options]
@@ -33,20 +33,20 @@ USAGE:
     vrooli stop [target] [options]
 
 TARGETS:
-    (none)              Stop everything (apps, resources, containers, processes)
+    (none)              Stop everything (scenarios, resources, containers, processes)
     all                 Stop everything (explicit)
-    apps                Stop only generated apps
+    scenarios           Stop only running scenarios
     resources           Stop only resources (Docker containers managed by Vrooli)
     containers          Stop all Docker containers
     processes           Stop system processes (Python, Node, etc.)
-    <name>              Stop specific app or resource by name
+    <name>              Stop specific scenario or resource by name
 
 SPECIFIC TARGETING:
-    app:<name>          Stop specific app (e.g., app:research-assistant)
+    scenario:<name>     Stop specific scenario (e.g., scenario:research-assistant)
     resource:<name>     Stop specific resource (e.g., resource:postgres)
 
 OPTIONS:
-    --force             Stop protected apps/resources (immediate termination)
+    --force             Stop protected scenarios/resources (immediate termination)
     --confirm           Confirm stopping critical system components (use with --force)
     --dry-run, --check  Show what would be stopped without actually stopping
     --verbose, -v       Show detailed progress and debug information
@@ -60,24 +60,23 @@ SAFETY FEATURES:
     • Dry-run mode to preview actions before execution
     • Comprehensive logging of what was stopped and what failed
     • Smart process detection to avoid stopping system-critical processes
-    • Protected apps require --force, critical components require --force --confirm
+    • Protected scenarios require --force, critical components require --force --confirm
 
 EXAMPLES:
     vrooli stop                        # Stop everything
     vrooli stop --dry-run              # Preview what would be stopped
-    vrooli stop apps                   # Stop only generated apps
+    vrooli stop scenarios              # Stop only running scenarios
     vrooli stop resources              # Stop only Vrooli resources
     vrooli stop containers             # Stop all Docker containers
     vrooli stop postgres               # Stop PostgreSQL resource
-    vrooli stop research-assistant     # Stop specific app
-    vrooli stop app:research-assistant # Stop specific app (explicit)
+    vrooli stop research-assistant     # Stop specific scenario
+    vrooli stop scenario:research-assistant # Stop specific scenario (explicit)
     vrooli stop --force --verbose      # Force stop with detailed output
-    vrooli stop --timeout 60 apps      # Stop apps with 60s timeout
+    vrooli stop --timeout 60 scenarios # Stop scenarios with 60s timeout
 
 MIGRATION FROM OLD COMMANDS:
     Old Command                    →    New Command
     ─────────────────────────────────────────────────────
-    vrooli app stop-all            →    vrooli stop apps
     vrooli resource stop-all       →    vrooli stop resources
     (no equivalent)                →    vrooli stop            # Stop everything
     (no equivalent)                →    vrooli stop containers # All containers
@@ -87,7 +86,7 @@ MIGRATION FROM OLD COMMANDS:
 ADVANCED FEATURES (Coming Soon):
     vrooli stop --only postgres,redis      # Selective stopping
     vrooli stop --exclude windmill         # Stop everything except specified
-    vrooli stop "app:*assistant*"          # Pattern matching
+    vrooli stop "scenario:*assistant*"     # Pattern matching
     vrooli stop --with-deps postgres       # Stop with dependencies
     vrooli stop --interactive              # Interactive selection mode
 
@@ -195,18 +194,18 @@ validate_target() {
     local target="$1"
     
     case "$target" in
-        all|apps|app|resources|resource|containers|container|docker|processes|process)
+        all|scenarios|scenario|resources|resource|containers|container|docker|processes|process)
             return 0
             ;;
-        app:*|resource:*)
+        scenario:*|resource:*)
             return 0
             ;;
         *)
-            # Check if it's a valid app or resource name
+            # Check if it's a valid scenario or resource name
             local name="$target"
             
-            # Check for apps
-            if [[ -d "${GENERATED_APPS_DIR:-$HOME/generated-apps}/$name" ]]; then
+            # Check for scenarios
+            if [[ -d "${VROOLI_ROOT:-$HOME/Vrooli}/scenarios/$name" ]]; then
                 return 0
             fi
             
@@ -235,12 +234,8 @@ stop_command() {
         
         # Fallback logic
         case "${1:-all}" in
-            apps|app)
-                if command -v "${APP_ROOT}/cli/commands/app-commands.sh" >/dev/null 2>&1; then
-                    bash "${APP_ROOT}/cli/commands/app-commands.sh" stop-all
-                else
-                    pkill -f "generated-apps" 2>/dev/null || true
-                fi
+            scenarios|scenario)
+                pkill -f "scenarios/" 2>/dev/null || true
                 ;;
             resources|resource)
                 if command -v "${APP_ROOT}/cli/commands/resource-commands.sh" >/dev/null 2>&1; then
@@ -251,7 +246,7 @@ stop_command() {
                 ;;
             *)
                 log::info "Attempting to stop everything with basic commands..."
-                pkill -f "generated-apps" 2>/dev/null || true
+                pkill -f "scenarios/" 2>/dev/null || true
                 docker stop $(docker ps -q) 2>/dev/null || true
                 ;;
         esac
@@ -282,13 +277,13 @@ stop_command() {
     # Validate target
     if ! validate_target "$target"; then
         log::error "Invalid target: '$target'"
-        log::info "Target must be one of: all, apps, resources, containers, processes, or a specific app/resource name"
+        log::info "Target must be one of: all, scenarios, resources, containers, processes, or a specific scenario/resource name"
         log::info ""
-        log::info "Available apps:"
-        if [[ -d "${GENERATED_APPS_DIR:-$HOME/generated-apps}" ]]; then
-            ls "${GENERATED_APPS_DIR:-$HOME/generated-apps}" 2>/dev/null | head -5 | sed 's/^/  /' || echo "  (none found)"
+        log::info "Available scenarios:"
+        if [[ -d "${VROOLI_ROOT:-$HOME/Vrooli}/scenarios" ]]; then
+            ls "${VROOLI_ROOT:-$HOME/Vrooli}/scenarios" 2>/dev/null | head -5 | sed 's/^/  /' || echo "  (none found)"
         else
-            echo "  (no generated-apps directory)"
+            echo "  (no scenarios directory)"
         fi
         log::info ""
         log::info "Available resources:"

@@ -288,10 +288,10 @@ show_develop_next_steps() {
         
         if [[ "$running_count" -gt 0 ]]; then
             echo "🟢 Running apps can be accessed via their individual URLs"
-            echo "   Run 'vrooli app list' to see all URLs and ports"
+            echo "   Run 'vrooli scenario list' to see all scenarios"
         else
             echo "🔴 Apps are starting up (may take 30-60 seconds)"
-            echo "   Run 'vrooli app list' to check their status"
+            echo "   Run 'vrooli status' to check their status"
         fi
     else
         echo "📦 Apps are starting up in the background..."
@@ -299,11 +299,10 @@ show_develop_next_steps() {
     
     echo ""
     log::info "🔍 Useful Commands:"
-    echo "  • 'vrooli status'           - Check system health and app status"
-    echo "  • 'vrooli app list'         - List all apps with URLs and status"
-    echo "  • 'vrooli app logs <name>'  - View logs for a specific app"
-    echo "  • 'vrooli app start <name>' - Start a specific app"
-    echo "  • 'vrooli app stop-all'     - Stop all apps"
+    echo "  • 'vrooli status'           - Check system health and scenario status"
+    echo "  • 'vrooli scenario list'    - List all scenarios"
+    echo "  • 'vrooli scenario run <name>' - Run a specific scenario"
+    echo "  • 'vrooli stop scenarios'   - Stop all scenarios"
     
     echo ""
     log::info "🌐 Main Services:"
@@ -311,8 +310,8 @@ show_develop_next_steps() {
     
     echo ""
     log::info "💡 Troubleshooting:"
-    echo "  • If apps show as 'stopped': Check logs with 'vrooli app logs <name>'"
-    echo "  • If setup fails: Try 'vrooli app start <name>' to restart individual apps"
+    echo "  • If scenarios fail to start: Check logs in ~/.vrooli/logs/scenarios/"
+    echo "  • If setup fails: Try 'vrooli scenario run <name>' to run individual scenarios"
     echo "  • For system issues: Run 'vrooli status --verbose' for detailed health check"
     
     echo ""

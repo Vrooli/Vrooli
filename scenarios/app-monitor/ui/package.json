@@ -1,7 +1,7 @@
 {
   "name": "app-monitor-ui",
   "version": "1.0.0",
-  "description": "Matrix-themed monitoring dashboard for Vrooli generated apps",
+  "description": "Matrix-themed monitoring dashboard for Vrooli scenarios",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

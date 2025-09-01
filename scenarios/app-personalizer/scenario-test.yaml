@@ -47,7 +47,7 @@ tests:
           url: http://localhost:${SERVICE_PORT}/api/apps/register
           body:
             app_name: "TestApp"
-            app_path: "/generated-apps/test-app"
+            app_path: "/scenarios/test-app"
             app_type: "generated"
             framework: "react"
           expected_status: 201
@@ -100,7 +100,7 @@ tests:
           expected_status: 202
       - wait: 45
       - verify_files:
-          path: "/generated-apps/test-app-personalized-${persona_id}"
+          path: "/scenarios/test-app-personalized-${persona_id}"
           exists: true
 
   - name: full_personalization
@@ -110,7 +110,7 @@ tests:
           url: http://localhost:${RESOURCE_PORTS[n8n]}/webhook/personalize
           method: POST
           body:
-            app_path: "/generated-apps/test-app"
+            app_path: "/scenarios/test-app"
             persona_id: "${persona_id}"
             brand_id: "${brand_id}"
             twin_api_token: "${test_token}"
@@ -139,7 +139,7 @@ tests:
           method: POST
           url: http://localhost:${RESOURCE_PORTS[claude-code]}/api/modify
           body:
-            project_path: "/generated-apps/test-app-copy"
+            project_path: "/scenarios/test-app-copy"
             modifications: [
               {
                 "type": "ui_theme",
@@ -176,7 +176,7 @@ tests:
           method: POST
           url: http://localhost:${SERVICE_PORT}/api/validate
           body:
-            app_path: "/generated-apps/test-app-personalized"
+            app_path: "/scenarios/test-app-personalized"
             tests: ["build", "lint"]
           expected_status: 200
           timeout: 180000

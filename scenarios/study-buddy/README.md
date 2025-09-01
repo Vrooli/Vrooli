@@ -57,9 +57,8 @@ A cozy, AI-powered study assistant with flashcards, quizzes, and spaced repetiti
 
 ### Starting the Application
 ```bash
-# Convert and start the scenario
-vrooli scenario convert study-buddy --force
-vrooli scenario start study-buddy
+# Run the study buddy scenario
+vrooli scenario run study-buddy
 ```
 
 ### API Endpoints

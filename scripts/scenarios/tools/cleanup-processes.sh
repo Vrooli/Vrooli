@@ -42,7 +42,7 @@ clean_pid_files() {
     local pid_patterns=(
         "/tmp/vrooli-*.pid"
         "/tmp/*.pid"
-        "/home/matthalloran8/generated-apps/*/.vrooli/*.pid"
+        "${HOME}/.vrooli/processes/scenarios/*/*.pid"
         "/home/matthalloran8/Vrooli/.vrooli/*.pid"
     )
     
@@ -102,11 +102,12 @@ kill_by_pattern "node.*express" "TERM" "Express server"
 
 echo -e "\n${YELLOW}Phase 3: API Binaries${NC}"
 echo "---------------------------------"
-# Kill Go API binaries for all apps
-for app_dir in /home/matthalloran8/generated-apps/*/; do
-    if [[ -d "$app_dir" ]]; then
-        app_name=$(basename "$app_dir")
-        kill_by_pattern "${app_name}-api" "TERM" "$app_name API"
+# Kill Go API binaries for all scenarios
+VROOLI_ROOT="${VROOLI_ROOT:-${HOME}/Vrooli}"
+for scenario_dir in "$VROOLI_ROOT"/scenarios/*/; do
+    if [[ -d "$scenario_dir" ]]; then
+        scenario_name=$(basename "$scenario_dir")
+        kill_by_pattern "${scenario_name}-api" "TERM" "$scenario_name API"
     fi
 done
 
@@ -122,7 +123,7 @@ echo -e "\n${YELLOW}Phase 6: Lock File Cleanup${NC}"
 echo "---------------------------------"
 # Clean lock files
 LOCK_FILES_CLEANED=0
-for lockfile in /tmp/*.lock /home/matthalloran8/generated-apps/*/.vrooli/*.lock; do
+for lockfile in /tmp/*.lock "${HOME}"/.vrooli/processes/scenarios/*/*.lock; do
     if [[ -f "$lockfile" ]]; then
         rm -f "$lockfile"
         echo "  ✓ Removed lock file: $lockfile"

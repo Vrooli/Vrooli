@@ -3,7 +3,7 @@
 # Vrooli CLI - System Status Command
 # 
 # Provides a comprehensive health check and status overview of the Vrooli system.
-# Displays resources, apps, and system diagnostics in a concise format.
+# Displays resources, scenarios, and system diagnostics in a concise format.
 #
 # Usage:
 #   vrooli status [options]
@@ -47,14 +47,14 @@ OPTIONS:
     --fast              Use fast mode for resource checks (default)
     --no-fast           Use detailed mode for resource checks (slower but more accurate)
     --resources         Show only resource status
-    --apps              Show only app status
+    --scenarios        Show only scenario status
     --help, -h          Show this help message
 
 EXAMPLES:
     vrooli status                  # Show full system status (fast mode)
     vrooli status --json           # Output as JSON
     vrooli status --resources      # Show only resource status
-    vrooli status --apps           # Show only app status
+    vrooli status --scenarios      # Show only scenario status
     vrooli status --verbose        # Show detailed status
     vrooli status --no-fast        # Use detailed health checks (slower)
 
@@ -285,85 +285,74 @@ get_resource_data() {
 
 
 # Collect app data (format-agnostic) - Using Unified API
-collect_app_data() {
+collect_scenario_data() {
     local verbose="${1:-false}"
     
-    # Check if unified API is available
-    if ! check_api; then
-        echo "error:Unified API unavailable"
+    # Check scenarios directory directly
+    local scenarios_dir="${VROOLI_ROOT:-$HOME/Vrooli}/scenarios"
+    
+    if [[ ! -d "$scenarios_dir" ]]; then
+        echo "error:Scenarios directory not found"
         return
     fi
     
-    # Get app status from unified API (which includes orchestrator data)
-    local response
-    response=$(curl -s --connect-timeout 2 --max-time 5 "${API_BASE}/apps" 2>/dev/null || echo '{"success": false}')
+    local total_scenarios=0
+    local running_scenarios=0
+    local -A scenario_statuses  # For detailed output
     
-    if ! echo "$response" | jq -e '.success' >/dev/null 2>&1 || [[ "$(echo "$response" | jq -r '.success')" != "true" ]]; then
-        echo "error:Failed to get app list from unified API"
-        return
-    fi
-    
-    # Extract apps from unified API response
-    local apps_data
-    apps_data=$(echo "$response" | jq -r '.data')
-    
-    if ! echo "$apps_data" | jq -e '. | length' >/dev/null 2>&1; then
-        echo "error:Invalid app data from unified API"
-        return
-    fi
-    
-    local total_apps=0
-    local running_apps=0
-    local -A app_statuses  # For detailed output
-    
-    # Process each app from unified API response
-    while IFS= read -r app_json; do
-        # Skip empty lines
-        [[ -z "$app_json" ]] && continue
+    # Count scenarios and check which are running
+    for scenario_path in "$scenarios_dir"/*; do
+        [[ ! -d "$scenario_path" ]] && continue
         
-        # Extract app data from unified API response
-        local name status
-        name=$(echo "$app_json" | jq -r '.name' 2>/dev/null)
-        status=$(echo "$app_json" | jq -r '.runtime_status // "unknown"' 2>/dev/null)
+        local name="$(basename "$scenario_path")"
+        [[ "$name" == "*" ]] && continue  # No scenarios found
         
-        [[ -z "$name" || "$name" == "null" ]] && continue
+        total_scenarios=$((total_scenarios + 1))
         
-        total_apps=$((total_apps + 1))
+        # Check if scenario is running by looking for its processes
+        local is_running=false
         
-        # Count running apps based on runtime status
-        if [[ "$status" == "running" || "$status" == "starting" ]]; then
-            running_apps=$((running_apps + 1))
-            app_statuses["$name"]="running"
-        elif [[ "$status" == "error" ]]; then
-            app_statuses["$name"]="error"
-        else
-            app_statuses["$name"]="stopped"
+        # Check for PM2 processes or other indicators
+        if pgrep -f "scenarios/$name" >/dev/null 2>&1; then
+            is_running=true
+        elif [[ -f "$HOME/.vrooli/processes/scenarios/$name/pm2.pid" ]]; then
+            # Check if PID file exists and process is running
+            local pid=$(cat "$HOME/.vrooli/processes/scenarios/$name/pm2.pid" 2>/dev/null)
+            if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
+                is_running=true
+            fi
         fi
         
-    done < <(echo "$apps_data" | jq -c '.[]' 2>/dev/null)
+        if [[ "$is_running" == "true" ]]; then
+            running_scenarios=$((running_scenarios + 1))
+            scenario_statuses["$name"]="running"
+        else
+            scenario_statuses["$name"]="stopped"
+        fi
+    done
     
     # Output summary
-    echo "total:${total_apps}"
-    echo "running:${running_apps}"
+    echo "total:${total_scenarios}"
+    echo "running:${running_scenarios}"
     
     # Output details if verbose
-    if [[ "$verbose" == "true" && "$total_apps" -gt 0 ]]; then
-        for name in "${!app_statuses[@]}"; do
-            echo "app:${name}:${app_statuses[$name]}"
+    if [[ "$verbose" == "true" && "$total_scenarios" -gt 0 ]]; then
+        for name in "${!scenario_statuses[@]}"; do
+            echo "scenario:${name}:${scenario_statuses[$name]}"
         done
     fi
 }
 
-# Legacy collect_app_data for fallback
-collect_app_data_legacy() {
+# Legacy collect_scenario_data for fallback
+collect_scenario_data_legacy() {
     local verbose="${1:-false}"
     
-    # Get app list from legacy API
+    # Get scenario list from orchestrator if available
     local response
-    response=$(curl -s --connect-timeout 2 --max-time 5 "${API_BASE}/apps" 2>/dev/null || echo '{"success": false}')
+    response=$(curl -s --connect-timeout 2 --max-time 5 "http://localhost:${ORCHESTRATOR_PORT:-9500}/apps" 2>/dev/null || echo '{"success": false}')
     
-    if ! echo "$response" | jq -e '.success' >/dev/null 2>&1; then
-        echo "error:Failed to get app list from legacy API"
+    if ! echo "$response" | jq -e '.apps' >/dev/null 2>&1; then
+        echo "error:Failed to get scenario list from orchestrator"
         return
     fi
     
@@ -373,9 +362,9 @@ collect_app_data_legacy() {
         orchestrator_available=true
     fi
     
-    local total_apps=0
-    local running_apps=0
-    local -A app_statuses  # For detailed output
+    local total_scenarios=0
+    local running_scenarios=0
+    local -A scenario_statuses  # For detailed output
     
     # Process each app and check runtime status via process manager
     while IFS= read -r app_json; do
@@ -387,7 +376,7 @@ collect_app_data_legacy() {
         name=$(echo "$app_json" | jq -r '.name' 2>/dev/null)
         [[ -z "$name" || "$name" == "null" ]] && continue
         
-        total_apps=$((total_apps + 1))
+        total_scenarios=$((total_scenarios + 1))
         
         # Check if app is running via orchestrator API
         local is_running=false
@@ -398,10 +387,10 @@ collect_app_data_legacy() {
             orchestrator_response=$(curl -s --connect-timeout 2 "http://localhost:${ORCHESTRATOR_PORT:-9500}/apps" 2>/dev/null)
             
             if echo "$orchestrator_response" | jq -e '.apps' >/dev/null 2>&1; then
-                # Check if this specific app is running in orchestrator
-                local app_status
-                app_status=$(echo "$orchestrator_response" | jq -r --arg name "$name" '.apps[] | select(.name == $name) | .status' 2>/dev/null)
-                if [[ "$app_status" == "running" ]]; then
+                # Check if this specific scenario is running in orchestrator
+                local scenario_status
+                scenario_status=$(echo "$orchestrator_response" | jq -r --arg name "$name" '.apps[] | select(.name == $name) | .status' 2>/dev/null)
+                if [[ "$scenario_status" == "running" ]]; then
                     is_running=true
                 fi
             fi
@@ -409,32 +398,32 @@ collect_app_data_legacy() {
         
         # Update counts and store status
         if [[ "$is_running" == "true" ]]; then
-            running_apps=$((running_apps + 1))
-            app_statuses["$name"]="running"
+            running_scenarios=$((running_scenarios + 1))
+            scenario_statuses["$name"]="running"
         else
-            app_statuses["$name"]="stopped"
+            scenario_statuses["$name"]="stopped"
         fi
         
     done < <(echo "$response" | jq -c '.data[]' 2>/dev/null)
     
     # Output summary
-    echo "total:${total_apps}"
-    echo "running:${running_apps}"
+    echo "total:${total_scenarios}"
+    echo "running:${running_scenarios}"
     
     # Output details if verbose
-    if [[ "$verbose" == "true" && "$total_apps" -gt 0 ]]; then
-        for name in "${!app_statuses[@]}"; do
-            echo "app:${name}:${app_statuses[$name]}"
+    if [[ "$verbose" == "true" && "$total_scenarios" -gt 0 ]]; then
+        for name in "${!scenario_statuses[@]}"; do
+            echo "scenario:${name}:${scenario_statuses[$name]}"
         done
     fi
 }
 
-# Get structured app data (format-agnostic)
-get_app_data() {
+# Get structured scenario data (format-agnostic)
+get_scenario_data() {
     local verbose="${1:-false}"
     
     local raw_data
-    raw_data=$(collect_app_data "$verbose")
+    raw_data=$(collect_scenario_data "$verbose")
     
     # Check for errors
     if echo "$raw_data" | grep -q "^error:"; then
@@ -446,16 +435,16 @@ get_app_data() {
     fi
     
     # Parse collected data
-    local total_apps running_apps
-    total_apps=$(echo "$raw_data" | grep "^total:" | cut -d: -f2)
-    running_apps=$(echo "$raw_data" | grep "^running:" | cut -d: -f2)
+    local total_scenarios running_scenarios
+    total_scenarios=$(echo "$raw_data" | grep "^total:" | cut -d: -f2)
+    running_scenarios=$(echo "$raw_data" | grep "^running:" | cut -d: -f2)
     
     echo "type:status"
-    echo "total:${total_apps}"
-    echo "running:${running_apps}"
-    echo "summary:${running_apps}/${total_apps} running"
+    echo "total:${total_scenarios}"
+    echo "running:${running_scenarios}"
+    echo "summary:${running_scenarios}/${total_scenarios} running"
     
-    if [[ "$verbose" == "true" && "$total_apps" -gt 0 ]]; then
+    if [[ "$verbose" == "true" && "$total_scenarios" -gt 0 ]]; then
         echo "details:true"
         while IFS= read -r line; do
             if [[ "$line" =~ ^app:(.+):(.+)$ ]]; then
@@ -612,7 +601,7 @@ format_component_data() {
             else
                 format::key_value json enabled "$enabled" running "$running" healthy "$healthy"
             fi
-        else  # apps
+        else  # scenarios
             local total running
             total=$(echo "$raw_data" | grep "^total:" | cut -d: -f2)
             running=$(echo "$raw_data" | grep "^running:" | cut -d: -f2)
@@ -657,7 +646,7 @@ format_component_data() {
             
             if [[ ${#table_rows[@]} -gt 0 ]]; then
                 local header_name="Resource"
-                [[ "$component" == "apps" ]] && header_name="App"
+                [[ "$component" == "scenarios" ]] && header_name="Scenario"
                 format::table "$format" "$header_name" "Status" "" -- "${table_rows[@]}"
             fi
             
@@ -690,7 +679,7 @@ format_component_data() {
 # Main status display
 show_status() {
     local show_resources="true"
-    local show_apps="true"
+    local show_scenarios="true"
     local show_system="true"
     
     # Parse common arguments
@@ -724,10 +713,10 @@ show_status() {
     for arg in "${args_array[@]}"; do
         case "$arg" in
             --resources)
-                show_apps="false"
+                show_scenarios="false"
                 show_system="false"
                 ;;
-            --apps)
+            --scenarios)
                 show_resources="false"
                 show_system="false"
                 ;;
@@ -748,7 +737,7 @@ show_status() {
     # Collect data
     local system_data=""
     local resource_data=""
-    local app_data=""
+    local scenario_data=""
     
     if [[ "$show_system" == "true" ]]; then
         system_data=$(get_system_data)
@@ -758,8 +747,8 @@ show_status() {
         resource_data=$(get_resource_data "$verbose" "$use_fast")
     fi
     
-    if [[ "$show_apps" == "true" ]]; then
-        app_data=$(get_app_data "$verbose")
+    if [[ "$show_scenarios" == "true" ]]; then
+        scenario_data=$(get_scenario_data "$verbose")
     fi
     
     # Format output using standardized format.sh
@@ -809,14 +798,14 @@ show_status() {
             fi
         fi
         
-        if [[ "$show_apps" == "true" ]]; then
+        if [[ "$show_scenarios" == "true" ]]; then
             # Extract app data
             local total running
-            total=$(echo "$app_data" | grep "^total:" | cut -d: -f2)
-            running=$(echo "$app_data" | grep "^running:" | cut -d: -f2)
+            total=$(echo "$scenario_data" | grep "^total:" | cut -d: -f2)
+            running=$(echo "$scenario_data" | grep "^running:" | cut -d: -f2)
             
-            kv_pairs+=("apps_total" "$total")
-            kv_pairs+=("apps_running" "$running")
+            kv_pairs+=("scenarios_total" "$total")
+            kv_pairs+=("scenarios_running" "$running")
         fi
         
         # Add overall health status
@@ -824,7 +813,7 @@ show_status() {
         if ! docker info >/dev/null 2>&1; then
             health_status="warning"
         fi
-        if [[ "$show_apps" == "true" ]] && ! check_api; then
+        if [[ "$show_scenarios" == "true" ]] && [[ -z "$scenario_data" ]]; then
             health_status="warning"
         fi
         
@@ -848,9 +837,9 @@ show_status() {
             echo ""
         fi
         
-        if [[ "$show_apps" == "true" ]]; then
-            cli::format_header text "📦 Applications"
-            format_component_data text apps "$app_data" || true
+        if [[ "$show_scenarios" == "true" ]]; then
+            cli::format_header text "📦 Scenarios"
+            format_component_data text scenarios "$scenario_data" || true
             echo ""
         fi
         
@@ -863,7 +852,7 @@ show_status() {
             health_message="Docker unavailable"
         fi
         
-        if [[ "$show_apps" == "true" ]] && ! check_api; then
+        if [[ "$show_scenarios" == "true" ]] && [[ -z "$scenario_data" ]]; then
             health_status="warning"
             health_message="API offline"
         fi

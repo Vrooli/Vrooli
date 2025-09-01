@@ -96,4 +96,4 @@ else
 fi
 
 echo -e "\n${GREEN}✅ nutrition-tracker scenario is valid!${NC}"
-echo "Ready for conversion with: vrooli scenario convert nutrition-tracker"
+echo "Ready for conversion with: vrooli scenario run nutrition-tracker"

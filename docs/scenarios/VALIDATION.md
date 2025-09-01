@@ -2,7 +2,7 @@
 
 ## 🎯 What Validation Means in Dual-Purpose Scenarios
 
-Traditional validation tests that code works. **Scenario validation proves deployment readiness**. When a scenario passes validation, you can confidently convert it to a customer application.
+Traditional validation tests that code works. **Scenario validation proves deployment readiness**. When a scenario passes validation, you can confidently deploy it directly as a customer application.
 
 This guide covers the complete validation framework that ensures scenarios work both as tests and as deployment blueprints.
 
@@ -350,11 +350,11 @@ Final validation that scenarios can become production applications.
 test_deployment_readiness() {
     echo "Testing deployment readiness..."
     
-    # Simulate app generation
-    ./tools/scenario-to-app.sh "$SCENARIO_NAME" --dry-run
+    # Simulate scenario execution
+    vrooli scenario run "$SCENARIO_NAME" --dry-run
     
-    # Validate generated artifacts
-    validate_generated_config
+    # Validate scenario structure
+    validate_scenario_config
     validate_deployment_scripts
     validate_documentation
     

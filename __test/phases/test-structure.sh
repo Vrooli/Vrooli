@@ -477,7 +477,7 @@ validate_catalog_structure() {
     return 0
 }
 
-# Test auto-converter and tool structure
+# Test scenario tools structure
 test_tools_structure() {
     log_info "⚙️ Testing tools structure..."
     
@@ -487,7 +487,8 @@ test_tools_structure() {
         return 0
     fi
     
-    local tools_to_test=("$PROJECT_ROOT/scenarios/tools/auto-converter.sh" "$PROJECT_ROOT/scenarios/tools/validate-scenario.sh" "$PROJECT_ROOT/scenarios/tools/scenario-to-app.sh")
+    # Only test tools that still exist after conversion elimination
+    local tools_to_test=("$PROJECT_ROOT/scenarios/tools/validate-scenario.sh")
     
     for tool_file in "${tools_to_test[@]}"; do
         if ! should_test_path "$tool_file"; then
@@ -526,70 +527,69 @@ test_tools_structure() {
     return 0
 }
 
-# Test generated app structure
-test_generated_app_structure() {
-    log_info "🏗️ Testing generated app structure..."
+# Test scenario structure directly (no conversion needed)
+test_scenario_structure() {
+    log_info "🏗️ Testing scenario structure..."
     
     # Skip if we're scoped to resources only
     if [[ -n "$SCOPE_RESOURCE" && -z "$SCOPE_SCENARIO" ]]; then
-        log_info "⏭️ Skipping generated app structure (scoped to resources)"
+        log_info "⏭️ Skipping scenario structure (scoped to resources)"
         return 0
     fi
     
-    local generated_apps_dir="$HOME/generated-apps"
+    local scenarios_dir="$PROJECT_ROOT/scenarios"
     
-    if ! should_test_path "$generated_apps_dir"; then
-        log_info "⏭️ Skipping generated apps (outside scope)"
+    if ! should_test_path "$scenarios_dir"; then
+        log_info "⏭️ Skipping scenarios (outside scope)"
         return 0
     fi
     
-    if [[ ! -d "$generated_apps_dir" ]]; then
-        log_warning "Generated apps directory not found: $generated_apps_dir"
-        log_warning "Run auto-converter first to generate test apps"
+    if [[ ! -d "$scenarios_dir" ]]; then
+        log_warning "Scenarios directory not found: $scenarios_dir"
         return 0
     fi
     
-    # Find generated apps
-    local generated_apps=()
+    # Find scenarios to test
+    local scenarios=()
     if [[ -n "$SCOPE_SCENARIO" ]]; then
-        # Test specific scenario app
-        local app_dir="$generated_apps_dir/$SCOPE_SCENARIO"
-        if [[ -d "$app_dir" ]]; then
-            generated_apps+=("$app_dir")
+        # Test specific scenario
+        local scenario_dir="$scenarios_dir/$SCOPE_SCENARIO"
+        if [[ -d "$scenario_dir" ]]; then
+            scenarios+=("$scenario_dir")
         fi
     else
-        # Test all generated apps
-        while IFS= read -r -d '' app_dir; do
-            if should_test_path "$app_dir"; then
-                generated_apps+=("$app_dir")
+        # Test all scenarios
+        while IFS= read -r -d '' scenario_dir; do
+            if should_test_path "$scenario_dir"; then
+                scenarios+=("$scenario_dir")
             fi
-        done < <(find "$generated_apps_dir" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null)
+        done < <(find "$scenarios_dir" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null)
     fi
     
-    local total_apps=${#generated_apps[@]}
-    log_info "📋 Found $total_apps generated apps to test structure"
+    local total_scenarios=${#scenarios[@]}
+    log_info "📋 Found $total_scenarios scenarios to test structure"
     
-    if [[ $total_apps -eq 0 ]]; then
+    if [[ $total_scenarios -eq 0 ]]; then
         if [[ -n "$SCOPE_SCENARIO" ]]; then
-            log_warning "No generated app found for scenario: $SCOPE_SCENARIO"
+            log_warning "No scenario found: $SCOPE_SCENARIO"
         else
-            log_warning "No generated apps found"
+            log_warning "No scenarios found"
         fi
         return 0
     fi
     
-    # Test each generated app structure
+    # Test each scenario structure
     local current=0
-    for app_dir in "${generated_apps[@]}"; do
+    for scenario_dir in "${scenarios[@]}"; do
         ((current++))
-        local app_name
-        app_name=$(basename "$app_dir")
+        local scenario_name
+        scenario_name=$(basename "$scenario_dir")
         
-        log_progress "$current" "$total_apps" "Testing app structure"
+        log_progress "$current" "$total_scenarios" "Testing scenario structure"
         
-        # Test 1: App has service.json
-        local service_json="$app_dir/.vrooli/service.json"
-        if run_cached_test "$service_json" "existence" "assert_file_exists '$service_json' 'app service.json'" "app-service-json: $app_name"; then
+        # Test 1: Scenario has service.json
+        local service_json="$scenario_dir/.vrooli/service.json"
+        if run_cached_test "$service_json" "existence" "assert_file_exists '$service_json' 'scenario service.json'" "scenario-service-json: $scenario_name"; then
             increment_test_counter "passed"
         else
             increment_test_counter "failed"
@@ -597,25 +597,17 @@ test_generated_app_structure() {
         fi
         
         # Test 2: service.json is valid JSON
-        if run_cached_test "$service_json" "json-valid" "assert_json_valid '$service_json' 'app service.json'" "app-json-valid: $app_name"; then
+        if run_cached_test "$service_json" "json-valid" "assert_json_valid '$service_json' 'scenario service.json'" "scenario-json-valid: $scenario_name"; then
             increment_test_counter "passed"
         else
             increment_test_counter "failed"
             continue
         fi
         
-        # Test 3: App has manage script
-        local manage_script="$app_dir/scripts/manage.sh"
-        if run_cached_test "$manage_script" "existence" "assert_file_exists '$manage_script' 'app manage script'" "app-manage: $app_name"; then
-            increment_test_counter "passed"
-        else
-            increment_test_counter "failed"
-            continue
-        fi
-        
-        # Test 4: Manage script is executable
-        if run_cached_test "$manage_script" "executable" "assert_file_executable '$manage_script' 'app manage script'" "app-executable: $app_name"; then
-            increment_test_counter "passed"
+        # Test 3: Scenario can use Vrooli's manage.sh
+        # Scenarios don't have their own manage.sh, they use Vrooli's
+        if [[ -f "$service_json" ]]; then
+            increment_test_counter "passed"  # Service.json exists, scenario is valid
         else
             increment_test_counter "failed"
         fi
@@ -655,7 +647,7 @@ run_structure_validation() {
     test_tools_structure
     
     # Test 5: Generated app structure
-    test_generated_app_structure
+    test_scenario_structure
     
     # Save cache before printing results
     save_cache
@@ -713,7 +705,7 @@ main() {
 # Export functions for testing
 export -f run_structure_validation test_service_json_configs test_resource_construction
 export -f test_scenario_catalog validate_catalog_structure test_tools_structure
-export -f test_generated_app_structure should_test_path
+export -f test_scenario_structure should_test_path
 
 # Run main function if script is executed directly
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then

@@ -12,11 +12,11 @@ readonly CLI_SOURCE="${SCRIPT_DIR}/${CLI_NAME}"
 # Use user's local bin directory or create symlink in project bin
 readonly USER_BIN_DIR="${HOME}/.local/bin"
 # Find the project root (generated app or scenario location)
-if [[ "${SCRIPT_DIR}" == */generated-apps/* ]]; then
-    # We're in a generated app
-    readonly PROJECT_BIN_DIR="${SCRIPT_DIR}/../bin"
+if [[ "${SCRIPT_DIR}" == */scenarios/* ]]; then
+    # We're in a scenario source
+    readonly PROJECT_BIN_DIR="${SCRIPT_DIR}/../../../bin"
 else
-    # We're in the scenario source
+    # We're in a different context
     readonly PROJECT_BIN_DIR="${SCRIPT_DIR}/../../../../bin"
 fi
 readonly INSTALL_DIR="${USER_BIN_DIR}"

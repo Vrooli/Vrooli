@@ -310,12 +310,12 @@ style_references:
 
 ## 🔄 Scenario Lifecycle Integration
 
-### Scenario-to-App Conversion
+### Direct Scenario Deployment
 ```yaml
-# Requirements for scenario-to-app.sh compatibility:
-app_conversion:
-  supported: [true|false]
-  app_structure_compliance:
+# Requirements for direct scenario execution:
+direct_execution:
+  supported: true
+  structure_compliance:
     - service.json with complete metadata
     - All required initialization files
     - Deployment scripts (startup.sh, monitor.sh)

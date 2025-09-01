@@ -97,7 +97,7 @@ class EnhancedAppOrchestrator:
         
         # App management
         self.apps: Dict[str, EnhancedApp] = {}
-        self.generated_apps_dir = Path.home() / "generated-apps"
+        self.scenarios_dir = self.vrooli_root / "scenarios"
         
         # Safety and monitoring
         self.fork_bomb_detector = ForkBombDetector()
@@ -134,16 +134,16 @@ class EnhancedAppOrchestrator:
         self.logger = logging.getLogger('EnhancedOrchestrator')
     
     def discover_apps(self):
-        """Discover all available apps and load their configurations"""
-        if not self.generated_apps_dir.exists():
-            self.logger.warning(f"Generated apps directory not found: {self.generated_apps_dir}")
+        """Discover available scenarios"""
+        if not self.scenarios_dir.exists():
+            self.logger.warning(f"Scenarios directory not found: {self.scenarios_dir}")
             return
         
-        self.logger.info(f"Discovering apps in {self.generated_apps_dir}")
+        self.logger.info(f"Discovering scenarios in {self.scenarios_dir}")
         
-        for app_dir in self.generated_apps_dir.iterdir():
-            if app_dir.is_dir() and not app_dir.name.startswith('.'):
-                config_path = app_dir / ".vrooli" / "service.json"
+        for scenario_dir in self.scenarios_dir.iterdir():
+            if scenario_dir.is_dir() and not scenario_dir.name.startswith('.'):
+                config_path = scenario_dir / ".vrooli" / "service.json"
                 
                 if config_path.exists():
                     try:
@@ -180,7 +180,7 @@ class EnhancedAppOrchestrator:
         detected_count = 0
         
         for app_name, app in self.apps.items():
-            app_dir = self.generated_apps_dir / app_name
+            app_dir = self.scenarios_dir / app_name
             
             # Check for running processes related to this app
             # Method 1: Check if ports are in use
@@ -219,9 +219,9 @@ class EnhancedAppOrchestrator:
                             cwd = proc.info['cwd'] or ''
                             
                             # Check if this process is related to our app
-                            if (f"generated-apps/{app_name}" in cmdline or 
-                                f"generated-apps/{app_name}" in cwd or
-                                (app_name in cwd and "generated-apps" in cwd)):
+                            if (f"scenarios/{app_name}" in cmdline or 
+                                f"scenarios/{app_name}" in cwd or
+                                (app_name in cwd and "scenarios" in cwd)):
                                 
                                 # Found a process for this app
                                 app.pid = proc.info['pid']
@@ -355,8 +355,8 @@ class EnhancedAppOrchestrator:
                 raise Exception("Fork bomb protection triggered")
             
             # Start the app process using manage.sh develop
-            app_path = self.generated_apps_dir / app_name
-            manage_script = app_path / "scripts" / "manage.sh"
+            app_path = self.scenarios_dir / app_name
+            manage_script = self.vrooli_root / "scripts" / "manage.sh"
             
             if not manage_script.exists():
                 self.logger.error(f"manage.sh not found for {app_name}")
@@ -390,7 +390,7 @@ class EnhancedAppOrchestrator:
             
             env['VROOLI_ORCHESTRATOR_RUNNING'] = '1'  # Prevent recursive orchestrator calls
             env['VROOLI_ROOT'] = str(self.vrooli_root)
-            env['GENERATED_APPS_DIR'] = str(self.generated_apps_dir)
+            # Scenarios run directly now, no generated apps dir needed
             env['FAST_MODE'] = 'true'  # Skip heavy setup
             env['PORTS_PREALLOCATED'] = '1'  # Ports are pre-allocated
             env['APP_ROOT'] = str(app_path)

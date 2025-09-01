@@ -60,7 +60,7 @@
     },
     {
       "parameters": {
-        "command": "cd {{ $json.temp_directory }} && ${VROOLI_ROOT:-${HOME}/Vrooli}/scripts/scenarios/tools/scenario-to-app.sh $(basename {{ $json.temp_directory }}) --dry-run --verbose 2>&1",
+        "command": "cd {{ $json.temp_directory }} && ${VROOLI_ROOT:-${HOME}/Vrooli}/scripts/manage.sh test --dry-run --verbose 2>&1",
         "options": {}
       },
       "id": "run_scenario_validation",
@@ -135,7 +135,7 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Finalize validation with final results\nconst request = $json;\n\n// Clean up temp directory\nconst cleanupCommand = `rm -rf ${request.temp_directory}`;\n\n// Prepare final validation summary\nconst validationSummary = {\n  validation_passed: request.validation_passed,\n  validation_score: request.validation_score,\n  total_iterations: request.validation_iteration,\n  errors_fixed: request.bug_fixes_applied?.length || 0,\n  final_file_count: Object.keys(request.generated_files || {}).length,\n  deployment_ready: request.validation_passed && request.validation_score >= 70\n};\n\n// Determine next steps based on validation results\nconst nextSteps = [];\nif (validationSummary.deployment_ready) {\n  nextSteps.push(\n    'Scenario is ready for deployment',\n    'Run scenario-to-app.sh without --dry-run to deploy',\n    'Test all functionality after deployment',\n    'Monitor performance and usage metrics'\n  );\n} else {\n  nextSteps.push(\n    'Manual review recommended before deployment',\n    'Check validation errors and fix remaining issues',\n    'Consider simplifying complexity or reducing scope',\n    'Test individual components before full deployment'\n  );\n}\n\nreturn {\n  ...request,\n  status: 'validation_complete',\n  validation_summary: validationSummary,\n  deployment_ready: validationSummary.deployment_ready,\n  next_steps: nextSteps,\n  cleanup_command: cleanupCommand,\n  completed_at: new Date().toISOString()\n};"
+        "jsCode": "// Finalize validation with final results\nconst request = $json;\n\n// Clean up temp directory\nconst cleanupCommand = `rm -rf ${request.temp_directory}`;\n\n// Prepare final validation summary\nconst validationSummary = {\n  validation_passed: request.validation_passed,\n  validation_score: request.validation_score,\n  total_iterations: request.validation_iteration,\n  errors_fixed: request.bug_fixes_applied?.length || 0,\n  final_file_count: Object.keys(request.generated_files || {}).length,\n  deployment_ready: request.validation_passed && request.validation_score >= 70\n};\n\n// Determine next steps based on validation results\nconst nextSteps = [];\nif (validationSummary.deployment_ready) {\n  nextSteps.push(\n    'Scenario is ready for deployment',\n    'Run vrooli scenario run <name> to deploy directly',\n    'Test all functionality after deployment',\n    'Monitor performance and usage metrics'\n  );\n} else {\n  nextSteps.push(\n    'Manual review recommended before deployment',\n    'Check validation errors and fix remaining issues',\n    'Consider simplifying complexity or reducing scope',\n    'Test individual components before full deployment'\n  );\n}\n\nreturn {\n  ...request,\n  status: 'validation_complete',\n  validation_summary: validationSummary,\n  deployment_ready: validationSummary.deployment_ready,\n  next_steps: nextSteps,\n  cleanup_command: cleanupCommand,\n  completed_at: new Date().toISOString()\n};"
       },
       "id": "finalize_validation",
       "name": "Finalize Validation",

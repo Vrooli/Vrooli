@@ -408,7 +408,6 @@ sudo::fix_created_files() {
             "${HOME}/.cache"
             "${HOME}/.config"
             "${HOME}/.local"
-            "${HOME}/generated-apps"
             "${PWD}/data"
             "${PWD}/node_modules"
             "${PWD}/.next"

@@ -36,10 +36,10 @@ Instead of building every feature into one monolithic platform, Vrooli uses scen
 
 ## 🚀 Major Updates
 
-### Resource-Based Architecture (NEW!)
-The scenario-to-app.sh script now uses **existing resource infrastructure**:
+### Direct Execution Architecture (NEW!)
+Scenarios now run directly from their source location:
 - **Leverages Proven Systems**: Uses existing manage.sh and lib/inject.sh scripts
-- **No Docker Generation**: Orchestrates local resources instead of creating containers
+- **No Conversion Needed**: Runs directly from scenarios/ folder
 - **One-Shot Experience**: Customer requirements → running app in minutes
 - **Battle-Tested**: Built on proven resource management from scripts/resources/
 
@@ -76,17 +76,17 @@ done
 
 ### For App Generation
 ```bash
-# Convert scenario to running application using existing resource infrastructure
-vrooli scenario convert campaign-content-studio
+# Run scenario directly using existing resource infrastructure
+vrooli scenario run campaign-content-studio
 
 # Run with verbose output
-vrooli scenario convert research-assistant --verbose
+vrooli scenario run research-assistant --verbose
 
 # Preview what would be done without executing
-vrooli scenario convert research-assistant --dry-run
+vrooli scenario run research-assistant --dry-run
 
-# Keep resources running after errors for debugging
-vrooli scenario convert secure-document-processing --no-cleanup
+# Test a scenario
+vrooli scenario test secure-document-processing
 ```
 
 ### For Developers
@@ -103,9 +103,9 @@ cd scripts/my-new-scenario/
 # 3. Test your scenario structure
 ./test.sh                                # Run validation tests
 
-# 4. Run as live application using resource infrastructure
-vrooli scenario convert my-new-scenario
-# Starts all required resources and runs the application
+# 4. Run directly using resource infrastructure
+vrooli scenario run my-new-scenario
+# Starts all required resources and runs the scenario
 ```
 
 ## 🔄 **Template Consolidation (COMPLETED)**
@@ -119,9 +119,9 @@ vrooli scenario convert my-new-scenario
 
 **Benefits**:
 - 🎯 **Single source of truth** for all scenario creation
-- 🚀 **Full deployment capability** - every scenario can become an app
+- 🚀 **Full deployment capability** - every scenario runs directly
 - 🤖 **AI-friendly** - retains all optimization patterns for AI consumption
-- 🔧 **Deployment ready** - `scenario-to-app.sh` works with all scenarios
+- 🔧 **Deployment ready** - scenarios execute without conversion
 
 ## 📁 Directory Structure
 
@@ -135,8 +135,8 @@ scenarios/
 ├── templates/                # Templates for creating new scenarios
 │   ├── full/                # Complete application template (use this)
 │   └── basic/               # Simple testing template
-├── tools/                    # Management and conversion tools
-│   └── scenario-to-app.sh   # Convert scenarios to deployable apps
+├── tools/                    # Management and validation tools
+│   └── validate-scenario.sh  # Validate scenario structure
 ├── injection/               # Resource injection system
 │   ├── engine.sh           # Injection orchestrator
 │   ├── schema-validator.sh # Configuration validation
@@ -247,8 +247,8 @@ Scenarios integrate with Vrooli's AI architecture:
 - **Tier 2**: Process Intelligence (resource orchestration)  
 - **Tier 3**: Execution Intelligence (direct resource interaction)
 
-### **Scenario-to-App Conversion (Resource-Based Architecture)**
-The updated `./tools/scenario-to-app.sh` script converts scenarios into running applications using existing resource infrastructure:
+### **Direct Scenario Execution**
+Scenarios run directly from their source location using the Vrooli framework:
 
 **Key Features:**
 - **Leverages Existing Infrastructure**: Uses proven manage.sh and lib/inject.sh scripts
@@ -335,7 +335,7 @@ Scenarios are designed for reliable AI generation:
 | [**full/**](templates/full/) | Complete app blueprint | ⭐⭐ Moderate | Full deployment orchestration | ✅ Optimized |
 | [**basic/**](templates/basic/) | Resource integration testing | ⭐ Simple | Basic structure only | ✅ Yes |
 
-**🎯 Recommended**: Use `templates/full/` for all new scenarios - it includes the complete deployment orchestration layer for seamless scenario-to-app conversion with service.json.
+**🎯 Recommended**: Use `templates/full/` for all new scenarios - it includes the complete deployment orchestration layer for direct execution with service.json.
 
 📋 **Detailed Template Guide**: [docs/template-guide.md](docs/template-guide.md)
 

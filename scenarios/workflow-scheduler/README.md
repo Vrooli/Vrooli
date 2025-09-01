@@ -118,7 +118,7 @@ cd scenarios/workflow-scheduler
 vrooli scenario setup workflow-scheduler
 
 # Or using lifecycle commands
-vrooli scenario generate workflow-scheduler && vrooli app start workflow-scheduler
+vrooli scenario generate workflow-scheduler && 
 ```
 
 ### **Start Services**

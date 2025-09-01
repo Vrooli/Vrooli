@@ -66,4 +66,4 @@ jobs:
         run: |
           # Run the deploy script remotely on the production server via SSH
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ secrets.VPS_DEPLOY_USER }}@${{ secrets.VPS_DEPLOY_HOST }} \
-            'cd ~/Vrooli && vrooli deploy'
+            'cd ${VROOLI_ROOT:-~/Vrooli} && vrooli deploy'

@@ -37,7 +37,7 @@
     },
     {
       "parameters": {
-        "command": "/home/matthalloran8/Vrooli/scenarios/app-issue-tracker/scripts/claude-investigator.sh investigate '{{ $json.issue_id }}' '{{ $json.agent_id }}' '{{ $json.project_path }}' '{{ $json.prompt_template }}'",
+        "command": "${VROOLI_ROOT:-${HOME}/Vrooli}/scenarios/app-issue-tracker/scripts/claude-investigator.sh investigate '{{ $json.issue_id }}' '{{ $json.agent_id }}' '{{ $json.project_path }}' '{{ $json.prompt_template }}'",
         "options": {
           "timeout": 300
         }

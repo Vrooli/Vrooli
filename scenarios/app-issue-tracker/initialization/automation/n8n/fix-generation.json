@@ -37,7 +37,7 @@
     },
     {
       "parameters": {
-        "command": "/home/matthalloran8/Vrooli/scenarios/app-issue-tracker/scripts/claude-fix-generator.sh generate '{{ $json.issue_id }}' '{{ $json.project_path }}' '{{ $json.auto_apply }}' '{{ $json.backup_enabled }}'",
+        "command": "${VROOLI_ROOT:-${HOME}/Vrooli}/scenarios/app-issue-tracker/scripts/claude-fix-generator.sh generate '{{ $json.issue_id }}' '{{ $json.project_path }}' '{{ $json.auto_apply }}' '{{ $json.backup_enabled }}'",
         "options": {
           "timeout": 600
         }

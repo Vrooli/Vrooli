@@ -149,12 +149,12 @@ INSERT INTO integration_requests (id, brand_id, target_app_path, integration_typ
 (
   '950e8400-e29b-41d4-a716-446655440001',
   '650e8400-e29b-41d4-a716-446655440001',
-  '/generated-apps/demo-app',
+  '/scenarios/demo-app',
   'full',
   'completed',
   '{
     "brandId": "650e8400-e29b-41d4-a716-446655440001",
-    "targetAppPath": "/generated-apps/demo-app",
+    "targetAppPath": "/scenarios/demo-app",
     "integrationType": "full",
     "createBackup": true,
     "requestedAt": "2024-01-15T13:00:00Z"
@@ -163,12 +163,12 @@ INSERT INTO integration_requests (id, brand_id, target_app_path, integration_typ
 (
   '950e8400-e29b-41d4-a716-446655440002',
   '650e8400-e29b-41d4-a716-446655440002',
-  '/generated-apps/creative-portfolio',
+  '/scenarios/creative-portfolio',
   'assets-only',
   'processing',
   '{
     "brandId": "650e8400-e29b-41d4-a716-446655440002",
-    "targetAppPath": "/generated-apps/creative-portfolio",
+    "targetAppPath": "/scenarios/creative-portfolio",
     "integrationType": "assets-only",
     "createBackup": true,
     "requestedAt": "2024-01-15T14:00:00Z"
@@ -230,7 +230,7 @@ INSERT INTO activity_log (brand_id, action, message, metadata) VALUES
   '650e8400-e29b-41d4-a716-446655440001',
   'integration_started',
   'Started full integration into demo-app',
-  '{"target_path": "/generated-apps/demo-app", "type": "full"}'
+  '{"target_path": "/scenarios/demo-app", "type": "full"}'
 ),
 (
   '650e8400-e29b-41d4-a716-446655440001',
@@ -248,7 +248,7 @@ INSERT INTO activity_log (brand_id, action, message, metadata) VALUES
   '650e8400-e29b-41d4-a716-446655440002',
   'integration_started',
   'Started assets-only integration into creative-portfolio',
-  '{"target_path": "/generated-apps/creative-portfolio", "type": "assets-only"}'
+  '{"target_path": "/scenarios/creative-portfolio", "type": "assets-only"}'
 );
 
 -- Create indexes for better performance

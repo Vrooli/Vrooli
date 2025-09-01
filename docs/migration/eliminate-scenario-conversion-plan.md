@@ -429,48 +429,6 @@ fi
 # No changes needed - it's just a wrapper
 ```
 
-### 3.3 Create Test Verification Script
-```bash
-#!/usr/bin/env bash
-# scripts/migration/verify-scenario-tests.sh
-set -euo pipefail
-
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
-source "${APP_ROOT}/scripts/lib/utils/log.sh"
-
-FAILED=()
-PASSED=()
-
-log::info "Verifying all scenarios work with direct execution..."
-
-for scenario in "${APP_ROOT}"/scenarios/*/; do
-    name="${scenario%/}"
-    name="${name##*/}"
-    
-    echo -n "Testing $name... "
-    
-    if (cd "$scenario" && "${APP_ROOT}/scripts/manage.sh" test --quick &>/dev/null); then
-        echo "✓"
-        PASSED+=("$name")
-    else
-        echo "✗"
-        FAILED+=("$name")
-    fi
-done
-
-echo ""
-log::success "Passed: ${#PASSED[@]} scenarios"
-if [[ ${#FAILED[@]} -gt 0 ]]; then
-    log::error "Failed: ${#FAILED[@]} scenarios"
-    for scenario in "${FAILED[@]}"; do
-        echo "  - $scenario"
-    done
-    exit 1
-fi
-```
-
----
-
 ## Phase 4: Documentation Updates (Day 4)
 *Goal: Update all documentation to reflect direct execution model*
 
@@ -591,41 +549,7 @@ rm -rf ~/generated-apps
 - Generated app specific code
 ```
 
-### 6.2 Create Cleanup Script for Users
-```bash
-#!/usr/bin/env bash
-# scripts/migration/cleanup-generated-apps.sh
-set -euo pipefail
-
-source "${APP_ROOT}/scripts/lib/utils/log.sh"
-
-log::info "Generated apps are no longer needed - scenarios run directly now!"
-echo ""
-
-# Show disk usage
-if [[ -d ~/generated-apps ]]; then
-    DISK_USAGE=$(du -sh ~/generated-apps | cut -f1)
-    log::info "Current generated-apps size: $DISK_USAGE"
-    log::info "This space can be reclaimed."
-    echo ""
-    
-    read -p "Remove ~/generated-apps directory? (y/N) " -n 1 -r
-    echo ""
-    
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        log::info "Removing generated apps..."
-        rm -rf ~/generated-apps
-        
-        log::success "Generated apps removed. Freed $DISK_USAGE of disk space!"
-    else
-        log::info "Keeping generated apps. You can run this script again later."
-    fi
-else
-    log::info "No generated-apps directory found."
-fi
-```
-
-### 6.3 Remove Generated Apps References
+### 6.2 Remove Generated Apps References
 ```bash
 # No resource management changes needed - scenarios already handle ports correctly
 # Simply remove all references to generated-apps paths in existing code
@@ -873,10 +797,6 @@ If critical issues arise: STOP and alert the user. DO NOT attempt to rollback. T
 □ scripts/lib/scenario/runner.sh
   - Main scenario execution functions
   - scenario::run(), scenario::list(), scenario::test()
-
-□ scripts/migration/cleanup-generated-apps.sh
-  - User-facing cleanup script
-  - Removes ~/generated-apps directory
 
 □ docs/migration/scenario-direct-execution-status.md
   - Migration tracking document

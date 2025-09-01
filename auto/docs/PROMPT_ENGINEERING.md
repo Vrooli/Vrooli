@@ -358,8 +358,8 @@ From `resource-improvement-loop.md`:
 From `scenario-improvement-loop.md`:
 ```markdown
 3) Validate (all gates must pass)
-   - Convert: `vrooli scenario convert <name> --force`
-   - Start: `vrooli app start <name>`
+   - Run: `vrooli scenario run <name>`
+   - Test: `vrooli scenario test <name>`
    - Verify: API/CLI outputs match expectations
 ```
 **Why it works**: Concrete commands, clear success criteria

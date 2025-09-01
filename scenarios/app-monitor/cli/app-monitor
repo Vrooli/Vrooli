@@ -206,7 +206,7 @@ cmd_docker() {
 
 cmd_help() {
     cat << 'HELP'
-App Monitor CLI - Manage and monitor generated applications
+App Monitor CLI - Manage and monitor scenarios
 
 Usage:
     app-monitor <command> [arguments]

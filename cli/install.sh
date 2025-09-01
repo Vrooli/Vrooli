@@ -243,7 +243,7 @@ install_cli() {
 		echo "Try these commands:"
 		echo "  vrooli --help           # Show help"
 		echo "  vrooli --version        # Show version"
-		echo "  vrooli app list         # List generated apps"
+		echo "  vrooli scenario list    # List available scenarios"
 	else
 		print_warning "The 'vrooli' command is not yet available in this session"
 		echo ""

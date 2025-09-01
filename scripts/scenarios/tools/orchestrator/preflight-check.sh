@@ -69,18 +69,19 @@ if command -v free >/dev/null 2>&1; then
     fi
 fi
 
-# Check 3: Count generated apps
-GENERATED_APPS_DIR="${HOME}/generated-apps"
-if [[ -d "$GENERATED_APPS_DIR" ]]; then
-    APP_COUNT=$(find "$GENERATED_APPS_DIR" -maxdepth 1 -type d ! -name ".*" ! -name "generated-apps" | wc -l)
-    echo "Generated apps found: $APP_COUNT"
+# Check 3: Count scenarios
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
+SCENARIOS_DIR="${APP_ROOT}/scenarios"
+if [[ -d "$SCENARIOS_DIR" ]]; then
+    SCENARIO_COUNT=$(find "$SCENARIOS_DIR" -maxdepth 1 -type d ! -name ".*" ! -name "scenarios" | wc -l)
+    echo "Scenarios found: $SCENARIO_COUNT"
     
-    if [[ $APP_COUNT -gt $MAX_APPS_TO_START ]]; then
-        echo -e "${YELLOW}WARNING: Many apps found ($APP_COUNT)${NC}"
-        echo "Only the first $MAX_APPS_TO_START apps will be started to prevent overload."
+    if [[ $SCENARIO_COUNT -gt $MAX_APPS_TO_START ]]; then
+        echo -e "${YELLOW}WARNING: Many scenarios found ($SCENARIO_COUNT)${NC}"
+        echo "Only the first $MAX_APPS_TO_START scenarios will be started to prevent overload."
         
-        # Create a file to limit apps
-        echo "$MAX_APPS_TO_START" > /tmp/vrooli-max-apps-limit
+        # Create a file to limit scenarios
+        echo "$MAX_APPS_TO_START" > /tmp/vrooli-max-scenarios-limit
     fi
 fi
 

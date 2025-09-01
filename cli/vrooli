@@ -75,7 +75,7 @@ show_main_help() {
     deploy              Deploy to production
     clean               Clean build artifacts
     status              Show system health and status overview
-    stop                Stop all or specific components (apps, resources, containers)
+    stop                Stop all or specific components (scenarios, resources, containers)
 
 🧪 TESTING COMMANDS:
     test                Run comprehensive scenario-first test suite
@@ -84,22 +84,11 @@ show_main_help() {
     test scenarios      Run scenario validation and integration tests
     test bats           Run BATS test execution with caching
 
-📱 APP MANAGEMENT:
-    # Apps are generated applications created from scenarios
-    app list            List all apps with runtime status
-    app start <name>    Start a specific app
-    app stop <name>     Stop a specific app
-    app stop-all        Stop all running apps
-    app restart <name>  Restart a specific app
-    app logs <name>     Show logs for an app
-    app status <name>   Show detailed app status
-    app protect <name>  Protect app from regeneration
-
 🎯 SCENARIO MANAGEMENT:
-    # Scenarios are templates that define how to generate apps
+    # Scenarios run directly from their source location
     scenario list       List available scenarios
-    scenario convert    Convert scenario to standalone app
-    scenario validate   Validate scenario configuration
+    scenario run <name> Run a scenario directly
+    scenario test <name> Test a scenario
 
 🔧 RESOURCE MANAGEMENT:
     # Resources are external services and dependencies (databases, APIs, etc.)
@@ -115,17 +104,6 @@ show_main_help() {
 ⚙️ OPTIONS:
     --help, -h          Show help for a command
     --version, -v       Show version information
-
-💡 EXAMPLES:
-    vrooli setup                        # First-time setup
-    vrooli develop                      # Start development environment
-    vrooli test                         # Run all tests
-    vrooli test resources --verbose     # Test resources with details
-    vrooli app list                     # List generated apps
-    vrooli app logs my-app              # Show app logs
-    vrooli stop                         # Stop everything
-    vrooli stop apps                    # Stop only apps
-    vrooli stop --dry-run               # Preview what would be stopped
 
 📖 For more help on a specific command:
     vrooli <command> --help
@@ -168,12 +146,6 @@ main() {
 			exec "${VROOLI_ROOT}/cli/commands/test-commands.sh" "$@"
 			;;
 		
-		# App management commands
-		app)
-			# Clear source guards to allow app-commands.sh to load functions properly
-			unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED
-			exec "${VROOLI_ROOT}/cli/commands/app-commands.sh" "$@"
-			;;
 		
 		# Scenario commands  
 		scenario)
@@ -218,7 +190,7 @@ main() {
 			log::error "Unknown command: $command"
 			
 					# Try to provide fuzzy suggestions
-		local available_commands=("setup" "develop" "build" "deploy" "clean" "backup" "restore" "status" "stop" "test" "app" "scenario" "resource" "doctor" "version" "help")
+		local available_commands=("setup" "develop" "build" "deploy" "clean" "backup" "restore" "status" "stop" "test" "scenario" "resource" "doctor" "version" "help")
 		local suggestions=()
 		
 		# Simple fuzzy matching

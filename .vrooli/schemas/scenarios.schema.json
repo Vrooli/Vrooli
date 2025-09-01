@@ -1,17 +1,17 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://vrooli.com/schemas/scenarios.schema.json",
-  "title": "Scenario Auto-Conversion Configuration",
-  "description": "Configuration for automatic scenario to standalone app conversion",
+  "title": "Scenario Configuration",
+  "description": "Configuration for Vrooli scenarios that run directly from source",
   "type": "object",
   "properties": {
     "version": {
       "type": "string",
       "description": "Configuration version"
     },
-    "auto_convert": {
-      "$ref": "#/definitions/autoConvertConfig",
-      "description": "Auto-conversion settings"
+    "execution": {
+      "$ref": "#/definitions/executionConfig",
+      "description": "Scenario execution settings"
     },
     "scenarios": {
       "type": "array",
@@ -22,35 +22,35 @@
     }
   },
   "definitions": {
-    "autoConvertConfig": {
+    "executionConfig": {
       "type": "object",
       "properties": {
         "enabled": {
           "type": "boolean",
           "default": true,
-          "description": "Enable automatic scenario conversion"
+          "description": "Enable scenario execution"
         },
-        "output_directory": {
+        "scenarios_directory": {
           "type": "string",
-          "default": "../generated-apps",
-          "description": "Directory for generated standalone apps"
+          "default": "${VROOLI_ROOT}/scenarios",
+          "description": "Directory containing scenarios"
         },
         "watch": {
           "type": "boolean",
           "default": false,
-          "description": "Watch for scenario changes and auto-convert"
+          "description": "Watch for scenario changes and auto-reload"
         },
         "filters": {
-          "$ref": "#/definitions/conversionFilters",
-          "description": "Filters for scenario conversion"
+          "$ref": "#/definitions/executionFilters",
+          "description": "Filters for scenario execution"
         },
         "options": {
-          "$ref": "#/definitions/conversionOptions",
-          "description": "Conversion options"
+          "$ref": "#/definitions/executionOptions",
+          "description": "Execution options"
         }
       }
     },
-    "conversionFilters": {
+    "executionFilters": {
       "type": "object",
       "properties": {
         "whitelist": {
@@ -58,14 +58,14 @@
           "items": {
             "type": "string"
           },
-          "description": "Only convert these scenarios (empty = no whitelist)"
+          "description": "Only execute these scenarios (empty = no whitelist)"
         },
         "blacklist": {
           "type": "array",
           "items": {
             "type": "string"
           },
-          "description": "Never convert these scenarios"
+          "description": "Never execute these scenarios"
         },
         "categories": {
           "$ref": "#/definitions/categoryFilter",
@@ -78,7 +78,7 @@
         "validated_only": {
           "type": "boolean",
           "default": false,
-          "description": "Only convert validated scenarios"
+          "description": "Only execute validated scenarios"
         }
       }
     },
@@ -129,33 +129,34 @@
         }
       }
     },
-    "conversionOptions": {
+    "executionOptions": {
       "type": "object",
       "properties": {
-        "preserve_git": {
+        "process_isolation": {
+          "type": "boolean",
+          "default": true,
+          "description": "Run each scenario with isolated PM_HOME and PM_LOG_DIR"
+        },
+        "resource_sharing": {
+          "type": "boolean",
+          "default": true,
+          "description": "Share Vrooli's resources (scripts, libraries) with scenarios"
+        },
+        "auto_restart": {
           "type": "boolean",
           "default": false,
-          "description": "Initialize git repository in generated apps"
-        },
-        "copy_docs": {
-          "type": "boolean",
-          "default": true,
-          "description": "Copy documentation to generated apps"
-        },
-        "generate_readme": {
-          "type": "boolean",
-          "default": true,
-          "description": "Generate README.md for standalone apps"
+          "description": "Automatically restart scenarios on failure"
         },
         "include_tests": {
           "type": "boolean",
           "default": true,
-          "description": "Include test files in generated apps"
+          "description": "Include test files when running scenarios"
         },
-        "minimize": {
-          "type": "boolean",
-          "default": false,
-          "description": "Minimize generated app size (exclude non-essential files)"
+        "log_level": {
+          "type": "string",
+          "enum": ["debug", "info", "warning", "error"],
+          "default": "info",
+          "description": "Logging level for scenario execution"
         }
       }
     },
@@ -174,7 +175,7 @@
         },
         "location": {
           "type": "string",
-          "description": "Path to scenario directory"
+          "description": "Path to scenario directory (relative to scenarios_directory)"
         },
         "category": {
           "type": "string",
@@ -196,7 +197,7 @@
         "enabled": {
           "type": "boolean",
           "default": true,
-          "description": "Whether scenario is enabled for conversion"
+          "description": "Whether scenario is enabled for execution"
         },
         "ui": {
           "type": "boolean",

@@ -19,14 +19,17 @@ SETUP_REASONS=()
 #   1 if setup is not needed
 #######################################
 setup::is_needed() {
+    # Accept optional path parameter for service.json location
+    local check_path="${1:-$APP_ROOT}"
+    
     # Reset global array for setup reasons
     SETUP_REASONS=()
     
     # Get service.json path
-    local service_json="${SERVICE_JSON:-${APP_ROOT}/.vrooli/service.json}"
+    local service_json="${check_path}/.vrooli/service.json"
     
     if [[ ! -f "$service_json" ]]; then
-        log::debug "No service.json found, assuming setup not needed"
+        log::debug "No service.json found at $check_path, assuming setup not needed"
         return 1
     fi
     

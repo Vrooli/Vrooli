@@ -73,12 +73,14 @@ cd ../scenarios/app-monitor && ./test.sh
 cat ../scenarios/catalog.json
 ```
 
-### Generate Apps from Scenarios
+### Run Scenarios Directly
 ```bash
-# Convert any scenario into a deployable app
-./scenarios/tools/scenario-to-app.sh \
-  --scenario research-assistant \
-  --output ~/my-customer-app
+# Run any scenario directly without conversion
+vrooli scenario run research-assistant
+
+# Or from the scenario directory
+cd scenarios/research-assistant
+../../scripts/manage.sh develop
 ```
 
 📖 **Full Scenario Documentation**: [Scenario System](../scenarios/)
@@ -163,7 +165,7 @@ Vrooli uses a **three-layer validation system** for resource quality assurance:
 2. **Test**: Use `__test/resources/single/` for individual resource validation
 3. **Validate**: Run three-layer interface validation during development
 4. **Integrate**: Build complex workflows following scenario patterns
-5. **Deploy**: Convert scenarios to applications using `scenario-to-app.sh`
+5. **Deploy**: Run scenarios directly using `vrooli scenario run`
 
 ---
 

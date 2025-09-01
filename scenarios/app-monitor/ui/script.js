@@ -1,5 +1,5 @@
 // App Monitor Dashboard - Matrix Theme
-// Real-time monitoring and control for Vrooli generated applications
+// Real-time monitoring and control for Vrooli scenarios
 
 const API_BASE = `${window.location.protocol}//${window.location.host}`;
 

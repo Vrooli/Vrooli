@@ -20,7 +20,7 @@
     },
     {
       "parameters": {
-        "path": "/home/matthalloran8/Vrooli/scenarios/swarm-manager/tasks",
+        "path": "${VROOLI_ROOT:-${HOME}/Vrooli}/scenarios/swarm-manager/tasks",
         "recursive": true,
         "options": {}
       },
