@@ -25,35 +25,46 @@ Vrooli is a resource orchestration platform for generating complete business app
 - Meta-scenario self-improvement
 - Privacy-first local execution
 
+## Core Concepts
+
+### Resources vs. Scenarios
+**Resources** are the foundational services that provide capabilities:
+- **Purpose**: Specialized tools (AI models, databases, automation platforms)
+- **Examples**: Ollama (LLM inference), PostgreSQL (database), N8n (workflows)
+- **Management**: Start/stop/configure via `vrooli resource` commands
+- **Location**: `/resources/` directory with individual CLI tools
+
+**Scenarios** are business applications that orchestrate multiple resources:
+- **Purpose**: Complete applications serving specific business needs
+- **Examples**: Research Assistant, Invoice Generator, Make It Vegan
+- **Management**: Run/test via `vrooli scenario` commands
+- **Location**: `/scenarios/` directory with business logic and configurations
+- **Value**: Each scenario represents $10k-50k revenue potential
+
+**Key Relationship**: Scenarios leverage resources to create emergent business capabilities through orchestration.
+
 ## Technology Stack
 
-### Frontend
-- **Framework**: React + TypeScript
-- **UI Library**: Material-UI (MUI)
-- **Build Tool**: Vite
-- **Features**: PWA-enabled, responsive design
-- **State Management**: Custom stores with localStorage persistence
+### Resource Orchestration Platform
+- **Architecture**: Resource + Scenario orchestration system
+- **Resources**: 30+ local services (AI, automation, storage, agents)
+- **Scenarios**: Business applications that orchestrate resources
+- **Management**: Unified CLI and bash automation scripts
+- **Deployment**: Direct scenario execution (no conversion layer)
 
-### Backend
-- **Runtime**: Node.js + TypeScript
-- **Framework**: Express
-- **Database**: PostgreSQL with pgvector extension
-- **ORM**: Prisma
-- **Cache**: Redis
-- **Queue**: Bull (Redis-based)
-
-### AI Integration
-- **Providers**: OpenAI, Anthropic, Mistral, Google
-- **Protocol**: MCP (Model Context Protocol)
-- **Architecture**: Three-tier execution system
-- **Features**: Multi-provider support, rate limiting, cost tracking
+### Core Resources
+- **AI**: Ollama (local LLM), Whisper (speech-to-text), ComfyUI (image generation)
+- **Automation**: N8n (visual workflows), Node-RED (real-time flows), Windmill (code-first)
+- **Storage**: PostgreSQL (relational), Redis (cache), Qdrant (vector), MinIO (object)
+- **Agents**: Agent-S2 (screen automation), Browserless (web automation)
+- **Search**: SearXNG (privacy-respecting metasearch)
 
 ### Infrastructure
-- **Containers**: Docker, Docker Compose
-- **Orchestration**: Kubernetes with Helm charts
-- **Secrets**: HashiCorp Vault
-- **CI/CD**: GitHub Actions
-- **Package Manager**: pnpm with workspaces
+- **Containers**: Docker, Docker Compose for resource isolation
+- **Orchestration**: Kubernetes with Helm charts for production
+- **Secrets**: HashiCorp Vault resource for secret management
+- **CI/CD**: GitHub Actions with scenario-based testing
+- **Management**: Bash scripting with process managers and port allocation
 
 ## Architecture Details
 
@@ -88,44 +99,52 @@ graph TD
 - **State Management**: Distributed state with Redis caching
 - **Security Boundaries**: Isolated execution environments for each tier
 
-### Package Structure
+### System Structure
 ```
-/packages/
-  /ui/            # React frontend application (PWA-enabled)
-  /server/        # Express backend API with AI execution tiers
-  /shared/        # Shared types and utilities
-  /jobs/          # Background job processing (cron schedules)
-  /extension/     # Browser extension
-  /og-worker/     # OpenGraph worker (Cloudflare)
-  /postgres/      # PostgreSQL container configuration
-/scripts/         # Bash automation scripts with comprehensive tooling
-/docs/           # Comprehensive documentation including architecture
-/k8s/            # Kubernetes/Helm configurations for deployment
+/resources/       # 30+ local services (AI, automation, storage, agents)
+  /ollama/        # Local LLM inference
+  /n8n/           # Visual workflow automation
+  /postgres/      # PostgreSQL database
+  /qdrant/        # Vector database
+  /windmill/      # Code-first workflows
+  [... 25+ more]
+/scenarios/       # Business applications that orchestrate resources
+  /research-assistant/     # AI research platform ($15k-30k value)
+  /make-it-vegan/         # Recipe conversion app
+  /invoice-generator/     # Business invoicing system
+  [... 40+ scenarios]
+/scripts/         # Bash automation and management system
+/cli/            # Unified CLI tool for all operations
+/platforms/      # Desktop/extension deployments
+/docs/           # Comprehensive documentation
+/k8s/            # Kubernetes/Helm configurations
 ```
 
 ## Development Guidelines
 
-### Database Operations
-- Use Prisma migrations for schema changes: `cd packages/server && pnpm prisma migrate dev`
-- Access Prisma Studio: `cd packages/server && pnpm prisma studio`
-- Generate Prisma client after schema changes: `cd packages/server && pnpm prisma generate`
+### Resource Operations
+- Start local resources: `vrooli resource start-all`
+- Check resource status: `vrooli resource status`
+- Manage specific resource: `resource-postgres start` (direct resource CLI)
+- Database access: PostgreSQL resource handles schema and migrations
+
+### Scenario Operations
+- List available scenarios: `vrooli scenario list`
+- Run a scenario: `vrooli scenario run <name>`
+- Test a scenario: `vrooli scenario test <name>`
+- Direct execution: `cd scenarios/<name> && ../../scripts/manage.sh develop`
 
 ### Environment Variables
-- Development: `.env` files in package directories
-- Production: Managed via HashiCorp Vault
-- Never commit sensitive data; use Vault for secrets
-
-### Import Requirements
-- **IMPORTANT**: All TypeScript imports MUST include the `.js` extension (e.g., `import { foo } from "./bar.js"`)
-- This is a hard requirement for the testing framework to work correctly
-- Do NOT remove `.js` extensions from imports, even if TypeScript complains
-- The build system is configured to handle `.js` extensions in TypeScript files
+- Development: `.vrooli/service.json` in each scenario/resource
+- Resource configuration: `~/.vrooli/service.json` (global)
+- Production: Managed via HashiCorp Vault resource
+- Never commit sensitive data; use Vault resource for secrets
 
 ### Error Handling
-- Use structured error types from `@vrooli/shared`
-- Implement proper error boundaries in React components
-- Log errors with appropriate severity levels
-- Use circuit breakers for external service calls
+- Use structured logging via resource-specific logs
+- Check resource health: `vrooli resource status`
+- Monitor scenario logs: `~/.vrooli/logs/scenarios/<name>/`
+- Use circuit breakers for resource communication
 
 ### Performance Considerations
 - Implement pagination for list endpoints
@@ -226,57 +245,60 @@ You have no persistent memory between sessions. **After every memory reset, rely
 
 ## Common Tasks
 
-### Adding a New API Endpoint
-1. Define types in `packages/shared/src/api/`
-2. Add validation schema in `packages/shared/src/validation/`
-3. Implement endpoint in `packages/server/src/endpoints/`
-4. Add tests in corresponding `__test` directory
-5. Update API documentation if needed
+### Creating a New Scenario
+1. Use scenario templates: `cp -r scenarios/templates/basic scenarios/my-scenario`
+2. Edit `service.json` to define resource dependencies
+3. Implement business logic using resource orchestration
+4. Add integration tests in `test.sh`
+5. Update scenario documentation
 
 ### Working with AI Services
-1. AI providers configured in `packages/server/src/services/llm/`
-2. Use the LLM service abstraction for provider-agnostic calls
-3. Implement rate limiting and cost tracking
-4. Handle provider-specific errors gracefully
+1. AI resources configured in `resources/ollama/`, `resources/openrouter/`, etc.
+2. Use resource CLI for provider-agnostic calls: `resource-ollama generate`
+3. Configure models and settings in resource-specific configs
+4. Handle resource-specific errors via resource health checks
 
 ### Debugging
-- Server logs: Check Docker container logs or terminal output
-- Frontend debugging: Use React Developer Tools
-- Database queries: Enable Prisma query logging with `DEBUG=prisma:query`
-- Network issues: Check Redis connection and event bus
+- Resource logs: `resource-<name> logs` or `vrooli resource status`
+- Scenario debugging: Check `~/.vrooli/logs/scenarios/<name>/`
+- Database queries: Access via PostgreSQL resource
+- Network issues: Check resource connectivity and port allocations
 
 ### All Available Commands
 
 ```bash
 # Development Environment
-./scripts/manage.sh setup --target docker          # Initial setup
-vrooli develop --target docker --detached yes      # Start detached
-vrooli develop --target docker --detached no       # Start interactive
-vrooli develop --target docker --services "server ui redis postgresql"  # Specific services
+vrooli setup                                    # Initial setup
+vrooli develop                                  # Start development environment
+vrooli build                                    # Build the system
+vrooli status                                   # Show system health
+vrooli stop                                     # Stop all components
+
+# Resource Management
+vrooli resource list                            # List available resources
+vrooli resource status                          # Show resource status
+vrooli resource start-all                      # Start all enabled resources
+vrooli resource stop-all                       # Stop all resources
+resource-<name> start                          # Start specific resource
+resource-<name> logs                           # View resource logs
+
+# Scenario Management
+vrooli scenario list                            # List available scenarios
+vrooli scenario run <name>                     # Run a scenario
+vrooli scenario test <name>                    # Test a scenario
+cd scenarios/<name> && ../../scripts/manage.sh develop  # Direct execution
 
 # Testing
-cd packages/server && pnpm test                   # Run all tests
-cd packages/server && pnpm test -- path/to/test.test.ts  # Specific test
-pnpm run test:coverage                           # All tests with coverage
+vrooli test                                     # Run comprehensive test suite
+vrooli test static                             # Static analysis
+vrooli test resources                          # Resource validation
+vrooli test scenarios                          # Scenario integration tests
+vrooli test bats                               # BATS framework tests
 
-# Building and Type Checking
-pnpm run build                                   # Build all packages
-pnpm run type-check                              # Check types across all packages
-pnpm run lint                                   # Run linter
-pnpm run lint -- --fix                         # Lint with auto-fix
-
-# Database Operations
-cd packages/server && pnpm prisma migrate dev   # Run migrations
-cd packages/server && pnpm prisma studio       # Visual database editor
-cd packages/server && pnpm prisma generate     # Generate client after schema changes
-cd packages/server && pnpm prisma db seed      # Seed database
-
-# Package-specific commands
-cd packages/[package-name] && pnpm dev          # Start dev server
-cd packages/[package-name] && pnpm build        # Build for production
-cd packages/[package-name] && pnpm test         # Run tests
-cd packages/[package-name] && pnpm lint         # Run linter
-cd packages/[package-name] && pnpm type-check   # Run TypeScript type checking
+# Database Operations (via PostgreSQL resource)
+resource-postgres start                        # Start database
+resource-postgres status                       # Check database health
+resource-postgres cli                          # Access database CLI
 ```
 
 ## Emergent Capabilities
@@ -355,11 +377,16 @@ See [architecture/execution/emergent-capabilities/README.md](architecture/execut
 - `writing-tests.md` - Best practices for test writing
 - `defect-reporting.md` - Bug reporting process
 
+### 🚀 **Deployment Documentation** (`/docs/deployment/`)
+- **[Deployment Guide](deployment/README.md)** - Choose the right deployment approach
+- **[Direct Scenario Deployment](scenarios/DEPLOYMENT.md)** - Run scenarios directly (recommended)
+- **[Production Deployment](deployment/production-deployment-guide.md)** - Cloud production setup
+
 ### 🛠️ **DevOps Documentation** (`/docs/devops/`)
-- `server-deployment.md` - Deployment procedures
-- `kubernetes.md` - K8s configuration
 - `ci-cd.md` - CI/CD pipeline details
+- `kubernetes.md` - K8s infrastructure setup
 - `environment-management.md` - Environment configuration
+- `development-environment.md` - Local development setup
 - `troubleshooting.md` - Common issues and solutions
 
 ### ⚙️ **Setup Documentation** (`/docs/setup/`)

@@ -83,10 +83,10 @@ To use shared resources in a scenario, reference them in your `.vrooli/service.j
 
 ## Merge Behavior
 
-When a scenario is converted to an app:
-1. Shared resources are copied only if referenced in service.json
+When a scenario runs directly:
+1. Shared resources are accessible only if referenced in service.json
 2. Scenario-specific resources take precedence over shared ones
-3. Files are merged, not replaced - enabling customization
+3. Resources are accessed in-place, not copied - enabling live updates
 4. Both `shared:` prefix and direct path references are supported
 
 ## Contributing Shared Resources

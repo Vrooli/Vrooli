@@ -17,16 +17,13 @@ scenario::run() {
         return 1
     fi
     
-    # Set context for scenario execution
-    export SCENARIO_NAME="$scenario_name"
-    export SCENARIO_PATH="$scenario_path"
-    # APP_ROOT remains as-is in scenarios (already correct)
+    # Get the phase (default to 'develop' if not specified)
+    local phase="${1:-develop}"
+    shift || true
     
-    # Change to scenario directory
-    cd "$scenario_path" || return 1
-    
-    # Execute manage.sh which will handle the scenario context
-    "${var_ROOT_DIR}/scripts/manage.sh" "$@"
+    # Call lifecycle.sh directly
+    log::info "Running scenario '$scenario_name' with direct lifecycle execution"
+    "${SCRIPT_DIR}/../utils/lifecycle.sh" "$scenario_name" "$phase" "$@"
 }
 
 scenario::list() {

@@ -1,8 +1,12 @@
 # Development Environment Setup
 
-This guide covers setting up a comprehensive development environment for Vrooli using the sophisticated scripting infrastructure, ensuring a clean, isolated, and production-like environment for development and testing.
+> **Complete platform development setup for Vrooli core contributors**
 
-> **Prerequisites**: See [Prerequisites Guide](./getting-started/prerequisites.md) for required tools installation.
+**Prerequisites**: 
+- Complete [Quick Start Guide](../GETTING_STARTED.md) first (15 minutes)
+- See [Prerequisites Guide](./getting-started/prerequisites.md) for required tools installation
+
+**Audience**: Platform developers contributing to Vrooli core, resources, or infrastructure
 > **Environment Management**: For detailed environment configuration, see [Environment Management](./environment-management.md).
 > **Environment Variables**: For complete variable reference, see [Environment Variables Guide](./getting-started/environment-variables.md).
 > **SSH Setup**: For SSH key configuration, see [SSH Setup Guide](./getting-started/ssh-setup.md).

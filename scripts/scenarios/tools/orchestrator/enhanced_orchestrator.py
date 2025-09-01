@@ -276,63 +276,8 @@ class EnhancedAppOrchestrator:
         except OSError:
             return False
     
-    def _export_resource_ports(self, env: dict, app_name: str):
-        """Load RESOURCE_PORTS from port_registry.sh and export as environment variables"""
-        port_registry_path = self.vrooli_root / "scripts" / "resources" / "port_registry.sh"
-        
-        if not port_registry_path.exists():
-            self.logger.warning(f"port_registry.sh not found, resources will use default ports")
-            return
-        
-        try:
-            # Parse the bash associative array from port_registry.sh
-            cmd = f"""
-                source "{port_registry_path}" 2>/dev/null
-                for key in "${{!RESOURCE_PORTS[@]}}"; do
-                    echo "$key=${{RESOURCE_PORTS[$key]}}"
-                done
-            """
-            
-            result = subprocess.run(
-                ["bash", "-c", cmd],
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
-            
-            if result.returncode == 0 and result.stdout:
-                for line in result.stdout.strip().split('\n'):
-                    if '=' in line:
-                        resource_name, port = line.split('=', 1)
-                        
-                        # Convert to environment variable name: postgres -> POSTGRES_PORT
-                        port_var = resource_name.upper().replace('-', '_') + '_PORT'
-                        env[port_var] = port
-                        
-                        # Generate URL based on resource type
-                        url_var = resource_name.upper().replace('-', '_') + '_URL'
-                        
-                        # Generate appropriate URL format based on resource
-                        if resource_name == 'postgres':
-                            db_name = app_name.replace('-', '_')
-                            env[url_var] = f"postgres://postgres:postgres@localhost:{port}/{db_name}?sslmode=disable"
-                        elif resource_name == 'redis':
-                            env[url_var] = f"redis://localhost:{port}"
-                        elif resource_name in ['neo4j-bolt']:
-                            env[url_var] = f"bolt://localhost:{port}"
-                        else:
-                            # Default to HTTP for most services
-                            env[url_var] = f"http://localhost:{port}"
-                
-                self.logger.debug(f"Exported {len([k for k in env if k.endswith('_PORT')])} resource ports for {app_name}")
-            else:
-                self.logger.warning("Failed to parse port_registry.sh")
-                
-        except Exception as e:
-            self.logger.error(f"Error loading resource ports: {e}")
-    
     async def start_app(self, app_name: str) -> bool:
-        """Start a specific app"""
+        """Start a specific app using direct lifecycle execution"""
         if app_name not in self.apps:
             raise HTTPException(status_code=404, detail=f"App '{app_name}' not found")
         
@@ -354,89 +299,97 @@ class EnhancedAppOrchestrator:
             if not self.fork_bomb_detector.record_start():
                 raise Exception("Fork bomb protection triggered")
             
-            # Start the app process using manage.sh develop
+            # Use direct lifecycle execution instead of manage.sh
             app_path = self.scenarios_dir / app_name
-            manage_script = self.vrooli_root / "scripts" / "manage.sh"
             
-            if not manage_script.exists():
-                self.logger.error(f"manage.sh not found for {app_name}")
+            if not app_path.exists():
+                self.logger.error(f"Scenario path not found: {app_path}")
                 return False
             
-            # Create setup markers to skip redundant setup (manage.sh checks these)
+            # Create setup markers for compatibility (some scripts may check these)
             data_dir = app_path / "data"
             data_dir.mkdir(parents=True, exist_ok=True)
             
-            # Create the state file that manage.sh checks for
+            # Create the state file for backward compatibility
             state_file = data_dir / ".setup-state"
             state_data = {
-                "git_commit": "bypass",
+                "git_commit": "direct-execution",
                 "timestamp": time.time(),
                 "setup_complete": True
             }
             state_file.write_text(json.dumps(state_data, indent=2))
             
-            # Prepare environment
+            # Prepare environment with allocated ports
             env = os.environ.copy()
             
-            # Remove any existing port variables to prevent conflicts
+            # Clean existing port variables
             for key in list(env.keys()):
                 if key.endswith('_PORT'):
                     del env[key]
             
-            env['VROOLI_ORCHESTRATOR_RUNNING'] = '1'  # Prevent recursive orchestrator calls
-            env['VROOLI_ROOT'] = str(self.vrooli_root)
-            # Scenarios run directly now, no generated apps dir needed
-            env['FAST_MODE'] = 'true'  # Skip heavy setup
-            env['PORTS_PREALLOCATED'] = '1'  # Ports are pre-allocated
-            env['APP_ROOT'] = str(app_path)
-            env['VROOLI_APP_NAME'] = app_name
-            env['VROOLI_TRACKED'] = '1'
-            env['VROOLI_SAFE'] = '1'
-            
-            # Load and export RESOURCE_PORTS from port_registry.sh
-            self._export_resource_ports(env, app_name)
-            
-            # Set port environment variables
+            # Set allocated ports
             for port_type, port_num in app.allocated_ports.items():
                 if port_type == "api":
-                    env['PORT'] = str(port_num)          # Primary variable for Go APIs
-                    env['SERVICE_PORT'] = str(port_num)   # Compatibility backup
-                    self.logger.debug(f"Set PORT={port_num} (and SERVICE_PORT for compatibility) for {app_name}")
+                    env['SERVICE_PORT'] = str(port_num)
+                    env['PORT'] = str(port_num)
                 elif port_type == "ui":
                     env['UI_PORT'] = str(port_num)
-                    self.logger.debug(f"Set UI_PORT={port_num} for {app_name}")
                 else:
                     env[f"{port_type.upper()}_PORT"] = str(port_num)
+            
+            # Call lifecycle.sh directly via subprocess
+            lifecycle_script = self.vrooli_root / "scripts" / "lib" / "utils" / "lifecycle.sh"
             
             # Ensure log directory exists
             app.log_file.parent.mkdir(parents=True, exist_ok=True)
             
-            # Start using manage.sh develop (reads service.json and executes lifecycle)
+            # Start the lifecycle execution in background
             with open(app.log_file, 'a') as log_f:
                 app.process = await asyncio.create_subprocess_exec(
-                    "bash", str(manage_script), "develop", "--fast",
-                    cwd=str(app_path),
+                    "bash", str(lifecycle_script), app_name, "develop", "--fast",
                     env=env,
                     stdout=log_f,
-                    stderr=log_f
+                    stderr=log_f,
+                    preexec_fn=os.setsid  # Create new process group
                 )
             
             app.pid = app.process.pid
             
-            # Wait a moment and check if process started successfully
-            await asyncio.sleep(1)
+            # Wait a moment for processes to start
+            await asyncio.sleep(3)
             
+            # Check if main process is still running
             if app.process.returncode is None:
-                # Process is still running
-                app.status = "running"
-                self.logger.info(f"✓ {app_name} started successfully (PID: {app.pid})")
+                # Find actual service processes started by lifecycle
+                actual_pids = []
+                for proc in psutil.process_iter(['pid', 'cmdline', 'cwd']):
+                    try:
+                        cmdline = ' '.join(proc.info['cmdline'] or [])
+                        cwd = proc.info['cwd'] or ''
+                        
+                        # Check if this process belongs to our scenario
+                        if (f"scenarios/{app_name}" in cmdline or 
+                            f"scenarios/{app_name}" in cwd):
+                            actual_pids.append(proc.info['pid'])
+                    except (psutil.NoSuchProcess, psutil.AccessDenied):
+                        continue
+                
+                if actual_pids:
+                    # Track the first service process
+                    app.pid = actual_pids[0]
+                    app.status = "running"
+                    self.logger.info(f"✓ {app_name} started successfully ({len(actual_pids)} processes)")
+                else:
+                    app.status = "running"
+                    self.logger.info(f"✓ {app_name} lifecycle executed")
+                
                 return True
             else:
-                # Process exited immediately
+                # Process exited
                 app.status = "error"
                 app.pid = None
                 app.process = None
-                self.logger.error(f"✗ {app_name} failed to start (exited immediately)")
+                self.logger.error(f"✗ {app_name} failed to start")
                 return False
                 
         except Exception as e:
@@ -447,7 +400,7 @@ class EnhancedAppOrchestrator:
             return False
     
     async def stop_app(self, app_name: str, force: bool = False) -> bool:
-        """Stop a specific app"""
+        """Stop a specific app using lifecycle executor"""
         if app_name not in self.apps:
             raise HTTPException(status_code=404, detail=f"App '{app_name}' not found")
         
@@ -463,6 +416,7 @@ class EnhancedAppOrchestrator:
         app.status = "stopping"
         
         try:
+            # Stop processes
             if app.pid:
                 if force:
                     # Force kill

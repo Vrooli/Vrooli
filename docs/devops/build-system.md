@@ -2,25 +2,25 @@
 
 > **Prerequisites**: See [Prerequisites Guide](./getting-started/prerequisites.md) for required tools installation.
 
-This guide covers Vrooli's scenario-based build and deploy system, where AI-generated applications manage their own build and deployment processes.
+This guide covers Vrooli's scenario-based build and deploy system, where scenarios are deployed directly and manage their own build and deployment processes.
 
 ## Architecture Overview
 
-Vrooli operates as an **AI intelligence system** that generates complete applications from scenarios. Unlike traditional platforms that build and deploy themselves, Vrooli's architecture works as follows:
+Vrooli operates as an **AI intelligence system** that runs scenarios directly to create business applications. Unlike traditional platforms that build and deploy themselves, Vrooli's architecture works as follows:
 
-### Current Architecture (Scenario-Based)
+### Current Architecture (Direct Scenario Execution)
 
 ```mermaid
 flowchart TD
-    A[Scenario Definition] --> B[AI Agent Processing]
-    B --> C[Generated Application]
-    C --> D[.vrooli/service.json Config]
-    D --> E[App-Specific Build Process]
-    D --> F[App-Specific Deploy Process]
+    A[Scenario Definition] --> B[Direct Execution]
+    B --> C[Running Scenario]
+    C --> D[scenario/service.json Config]
+    D --> E[Scenario-Specific Build Process]
+    D --> F[Scenario-Specific Deploy Process]
     
-    subgraph "Generated App Lifecycle"
-        G[vrooli build] --> H[Delegate to App's Build Script]
-        I[vrooli deploy] --> J[Delegate to App's Deploy Script]
+    subgraph "Scenario Lifecycle"
+        G[vrooli scenario run] --> H[Execute Scenario's Build Script]
+        I[vrooli scenario deploy] --> J[Execute Scenario's Deploy Script]
     end
     
     E --> G
@@ -42,9 +42,9 @@ flowchart TD
 ### Key Concepts
 
 - **Scenarios**: Define complete business applications (SaaS platforms, AI assistants, mobile apps)
-- **Generated Apps**: Complete applications created by AI agents from scenario definitions
-- **Lifecycle Delegation**: Build/deploy commands delegate to each app's specific configuration
-- **Self-Contained Apps**: Each generated app knows how to build and deploy itself
+- **Direct Execution**: Scenarios run directly without conversion to standalone apps
+- **Lifecycle Delegation**: Build/deploy commands delegate to each scenario's specific configuration
+- **Self-Contained Scenarios**: Each scenario knows how to build and deploy itself
 
 ## Lifecycle Management
 
@@ -68,7 +68,7 @@ vrooli test [test-type]
 
 ### Application Configuration
 
-Each generated application includes a `.vrooli/service.json` file that defines its lifecycle:
+Each scenario includes a `service.json` file that defines its lifecycle:
 
 ```json
 {
@@ -96,7 +96,7 @@ Each generated application includes a `.vrooli/service.json` file that defines i
 
 ## Build Process Flow
 
-### Application-Specific Building
+### Scenario-Specific Building
 
 ```mermaid
 flowchart LR
@@ -120,7 +120,7 @@ flowchart LR
 
 ### Example Build Configurations
 
-Different scenario-generated apps have different build requirements:
+Different scenarios have different build requirements:
 
 #### SaaS Web Application
 ```json
@@ -253,7 +253,7 @@ vrooli test e2e
 
 ## Resource Integration
 
-Generated applications can leverage shared local resources:
+Deployed scenarios can leverage shared local resources:
 
 ### Available Resources
 - **Databases**: PostgreSQL, Redis, Neo4j
@@ -264,7 +264,7 @@ Generated applications can leverage shared local resources:
 
 ### Resource Declaration
 
-Applications declare required resources in their service configuration:
+Scenarios declare required resources in their service configuration:
 
 ```json
 {
@@ -287,27 +287,27 @@ Applications declare required resources in their service configuration:
 ## Benefits of This Architecture
 
 ### For Developers
-- **No Platform Lock-in**: Each app defines its own build/deploy strategy
-- **Technology Freedom**: Apps can use any tech stack
+- **No Platform Lock-in**: Each scenario defines its own build/deploy strategy
+- **Technology Freedom**: Scenarios can use any tech stack
 - **Resource Sharing**: Efficient use of local development resources
 
 ### For the System
-- **Compound Intelligence**: Each built app becomes a permanent capability
-- **Recursive Improvement**: Apps can build better apps
+- **Compound Intelligence**: Each deployed scenario becomes a permanent capability
+- **Recursive Improvement**: Scenarios can enhance other scenarios
 - **Scalable Complexity**: System handles increasingly complex scenarios
 
 ### For Deployment
-- **Flexible Targets**: Apps deploy where they make most sense (app stores, web, cloud)
-- **Optimized Processes**: Each app uses deployment strategy suited to its purpose
-- **Business Value**: Generated apps can generate real revenue
+- **Flexible Targets**: Scenarios deploy where they make most sense (app stores, web, cloud)
+- **Optimized Processes**: Each scenario uses deployment strategy suited to its purpose
+- **Business Value**: Deployed scenarios can generate real revenue
 
 ## Migration from Old System
 
 The previous build system focused on building/deploying Vrooli itself. The new system recognizes that:
 
 1. **Vrooli is the intelligence, not the product**
-2. **Generated apps are the products that get deployed**
-3. **Build/deploy varies by application type and target**
+2. **Deployed scenarios are the products that provide business value**
+3. **Build/deploy varies by scenario type and target**
 4. **The system grows smarter with each scenario**
 
-This architectural shift enables Vrooli to create everything from simple websites to complex SaaS businesses, each with deployment strategies optimized for their specific use case.
+This architectural shift enables Vrooli to run everything from simple websites to complex SaaS businesses, each with deployment strategies optimized for their specific use case.

@@ -1,6 +1,8 @@
 # Getting Started with Vrooli Scenarios
 
-> **Your step-by-step guide to creating, testing, and deploying scenarios**
+> **Complete guide to creating, testing, and deploying business scenarios**
+
+**Prerequisites**: Complete the [Quick Start Guide](../GETTING_STARTED.md) first (15 minutes)
 
 ## 🎯 What You'll Learn
 
@@ -11,6 +13,7 @@ By the end of this guide, you'll be able to:
 - ✅ Prepare scenarios for AI generation
 
 **Time Required**: 30-45 minutes
+**Audience**: Scenario creators building business applications
 
 ---
 

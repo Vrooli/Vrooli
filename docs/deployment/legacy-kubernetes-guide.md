@@ -1,4 +1,7 @@
-# Kubernetes Deployment Guide
+# Legacy Kubernetes Deployment Guide
+
+> **⚠️ DEPRECATED**: This guide has been superseded by the current deployment documentation. 
+> See [Deployment README](README.md) for current deployment approaches.
 
 This guide covers deploying Vrooli to Kubernetes using Helm charts.
 

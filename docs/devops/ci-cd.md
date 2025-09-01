@@ -314,7 +314,7 @@ jobs:
         
       - name: Performance test
         if: github.ref == 'refs/heads/main'
-        run: vrooli test performance
+        run: vrooli scenario test performance
 
   deploy:
     needs: quality-gates
@@ -511,7 +511,7 @@ jobs:
         run: vrooli test integration --environment production
         
       - name: Performance baseline
-        run: vrooli test performance --baseline --environment production
+        run: vrooli scenario test performance --baseline --environment production
         
       - name: Notify success
         if: success()

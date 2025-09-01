@@ -2,6 +2,9 @@
 #######################################
 # Lifecycle Management Library
 # Provides lifecycle phase execution and service orchestration
+# 
+# Can be used as a library or called directly:
+#   lifecycle.sh <scenario_name> <phase> [options]
 #######################################
 
 set -euo pipefail
@@ -432,3 +435,99 @@ lifecycle::allocate_service_ports() {
     
     return 0
 }
+
+#######################################
+# Main entry point for direct execution
+# Usage: lifecycle.sh <scenario_name> <phase> [options]
+#######################################
+lifecycle::main() {
+    # Check if being sourced or executed
+    if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
+        # Being sourced, dont execute main
+        return 0
+    fi
+    
+    # Parse arguments
+    local scenario_name="${1:-}"
+    local phase="${2:-}"
+    shift 2 || true
+    
+    if [[ -z "$scenario_name" ]] || [[ -z "$phase" ]]; then
+        echo "Usage: $0 <scenario_name> <phase> [options]" >&2
+        echo "  scenario_name: Name of scenario in scenarios/ directory" >&2
+        echo "  phase: Lifecycle phase (develop, test, stop, etc.)" >&2
+        echo "  options: --fast, --dry-run, etc." >&2
+        exit 1
+    fi
+    
+    # Source required libraries if not already sourced
+    SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+    
+    # Check if var.sh is already sourced
+    if [[ -z "${var_ROOT_DIR:-}" ]]; then
+        source "${SCRIPT_DIR}/var.sh"
+    fi
+    
+    # Check if other required libs are sourced
+    if ! declare -f log::info &>/dev/null; then
+        source "${SCRIPT_DIR}/log.sh"
+    fi
+    
+    if ! declare -f json::get &>/dev/null; then
+        source "${SCRIPT_DIR}/json.sh"
+    fi
+    
+    if ! declare -f setup::is_needed &>/dev/null; then
+        source "${SCRIPT_DIR}/setup.sh"
+    fi
+    
+    if ! declare -f process_manager::start &>/dev/null; then
+        source "${SCRIPT_DIR}/../process-manager.sh"
+    fi
+    
+    # Source port registry
+    if [[ -f "${var_ROOT_DIR}/scripts/resources/port_registry.sh" ]]; then
+        source "${var_ROOT_DIR}/scripts/resources/port_registry.sh"
+    fi
+    
+    # Set up scenario context
+    local scenario_path="${var_ROOT_DIR}/scenarios/${scenario_name}"
+    
+    if [[ ! -d "$scenario_path" ]]; then
+        log::error "Scenario not found: $scenario_name"
+        exit 1
+    fi
+    
+    # Set service.json path for scenario
+    export SERVICE_JSON_PATH="${scenario_path}/.vrooli/service.json"
+    
+    if [[ ! -f "$SERVICE_JSON_PATH" ]]; then
+        log::error "service.json not found for scenario: $scenario_name"
+        exit 1
+    fi
+    
+    # Set scenario environment
+    export SCENARIO_NAME="$scenario_name"
+    export SCENARIO_PATH="$scenario_path"
+    export SCENARIO_MODE=true
+    
+    # Set PM2 paths for scenario isolation
+    export PM_HOME="${HOME}/.vrooli/processes/scenarios/${scenario_name}"
+    export PM_LOG_DIR="${HOME}/.vrooli/logs/scenarios/${scenario_name}"
+    
+    # Change to scenario directory for execution
+    cd "$scenario_path" || exit 1
+    
+    # Execute the phase
+    log::info "Executing phase '$phase' for scenario '$scenario_name'"
+    
+    # Route to appropriate handler based on phase
+    if [[ "$phase" == "develop" ]]; then
+        lifecycle::develop_with_auto_setup "$phase" "$@"
+    else
+        lifecycle::execute_phase "$phase" "$@"
+    fi
+}
+
+# Execute main if running directly
+lifecycle::main "$@"
