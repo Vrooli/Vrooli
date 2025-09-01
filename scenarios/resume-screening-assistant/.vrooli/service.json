@@ -2,7 +2,6 @@
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
-    "parent": "vrooli",
     "name": "resume-screening-assistant",
     "displayName": "Resume Screening Assistant",
     "description": "AI-powered resume screening and candidate evaluation platform with semantic matching and automated assessment workflows",

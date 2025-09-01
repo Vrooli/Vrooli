@@ -2,14 +2,13 @@
   "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "2.0.0",
   "service": {
-    "parent": "vrooli",
     "name": "app-issue-tracker",
     "displayName": "App Issue Tracker (File-Based)",
     "description": "File-based issue tracking system with AI investigation using Claude Code - no database required",
     "version": "2.0.0-file-based",
     "tags": [
       "business-application",
-      "productivity-tools", 
+      "productivity-tools",
       "issue-tracking",
       "ai-investigation",
       "file-based-storage",
@@ -23,14 +22,14 @@
   "ports": {
     "api": {
       "env_var": "SERVICE_PORT",
-      "range": "21250-21499", 
+      "range": "21250-21499",
       "fallback": "auto",
       "description": "File-based issue tracker API port"
     },
     "ui": {
       "env_var": "UI_PORT",
       "range": "21500-21549",
-      "fallback": "auto", 
+      "fallback": "auto",
       "description": "Issue tracker web UI port"
     }
   },
@@ -54,7 +53,7 @@
       "description": "Optional vector database for semantic search of issues"
     },
     "redis": {
-      "type": "redis", 
+      "type": "redis",
       "enabled": true,
       "required": false,
       "description": "Optional caching for improved performance"
@@ -73,7 +72,7 @@
             ]
           },
           {
-            "type": "directories", 
+            "type": "directories",
             "targets": [
               "issues/open",
               "issues/templates"
@@ -102,7 +101,7 @@
           "description": "Make issue management CLI globally available"
         },
         {
-          "name": "install-main-cli", 
+          "name": "install-main-cli",
           "run": "ln -sf $(pwd)/cli/app-issue-tracker-v2.sh ~/.local/bin/app-issue-tracker-v2 2>/dev/null || echo '  CLI available at ./cli/app-issue-tracker-v2.sh'",
           "description": "Install main CLI command"
         },
@@ -141,7 +140,7 @@
         {
           "name": "start-ui-server",
           "run": "cd ui && python3 -m http.server $UI_PORT > ../logs/ui.log 2>&1 &",
-          "description": "Start web UI server", 
+          "description": "Start web UI server",
           "background": true
         },
         {
@@ -179,7 +178,7 @@
           "description": "Test issue management CLI"
         },
         {
-          "name": "test-go-build", 
+          "name": "test-go-build",
           "run": "cd api && go build -o test-build main_file_based.go && rm test-build",
           "description": "Test Go compilation for file-based API",
           "condition": {
@@ -198,7 +197,7 @@
         },
         {
           "name": "test-main-cli",
-          "run": "bash cli/app-issue-tracker-v2.sh --help | grep -q 'File-Based Issue Management' && echo '✓ CLI v2 working' || echo '⚠ CLI test skipped'", 
+          "run": "bash cli/app-issue-tracker-v2.sh --help | grep -q 'File-Based Issue Management' && echo '✓ CLI v2 working' || echo '⚠ CLI test skipped'",
           "description": "Test main CLI functionality"
         }
       ]
@@ -213,7 +212,7 @@
         },
         {
           "name": "stop-ui-server",
-          "run": "pkill -f 'python3.*http.server.*$UI_PORT' || true", 
+          "run": "pkill -f 'python3.*http.server.*$UI_PORT' || true",
           "description": "Stop UI server"
         },
         {

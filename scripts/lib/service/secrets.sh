@@ -15,8 +15,25 @@ source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 # Detect project root dynamically
 secrets::get_project_root() {
-    local current_dir
-    current_dir="${APP_ROOT}/scripts/lib/service"
+    # For scenarios, use scenario path if available
+    if [[ -n "${SCENARIO_PATH:-}" ]]; then
+        echo "$SCENARIO_PATH"
+        return 0
+    fi
+    
+    # Otherwise use APP_ROOT or var_ROOT_DIR
+    if [[ -n "${APP_ROOT:-}" ]]; then
+        echo "$APP_ROOT"
+        return 0
+    fi
+    
+    if [[ -n "${var_ROOT_DIR:-}" ]]; then
+        echo "$var_ROOT_DIR"
+        return 0
+    fi
+    
+    # Fallback to finding .vrooli directory
+    local current_dir="${PWD}"
     
     # Walk up directory tree looking for .vrooli directory
     while [[ "$current_dir" != "/" && "$current_dir" != "" && "$current_dir" != "." ]]; do
@@ -24,9 +41,8 @@ secrets::get_project_root() {
             echo "$current_dir"
             return 0
         fi
-        new_dir="${current_dir%/*}"
-        [[ -z "$new_dir" ]] && break  # Safety check to prevent infinite loop
-        current_dir="$new_dir"
+        current_dir="${current_dir%/*}"
+        [[ -z "$current_dir" ]] && break  # Safety check to prevent infinite loop
     done
     
     # Fallback: use var_ROOT_DIR if available
@@ -107,7 +123,8 @@ secrets::resolve() {
 
 # Source the port registry directly for service resolution
 secrets::source_port_registry() {
-    local port_registry="${var_SCRIPTS_RESOURCES_DIR:-$(secrets::get_project_root)/scripts/resources}/port_registry.sh"
+    # Use var_ROOT_DIR for port registry, not scenario path
+    local port_registry="${var_ROOT_DIR}/scripts/resources/port_registry.sh"
     
     # Check if RESOURCE_PORTS array is already populated
     # Use declare -p to safely check if array exists
@@ -372,9 +389,16 @@ secrets::process_bash_templates() {
     
     # Process each RESOURCE_PORTS reference
     local processed_command="$command"
+    local previous_command=""
     
     # Find all ${RESOURCE_PORTS[...]} patterns
     while [[ "$processed_command" =~ \$\{RESOURCE_PORTS\[([^]]+)\]\} ]]; do
+        # Break if we're not making progress (infinite loop protection)
+        if [[ "$processed_command" == "$previous_command" ]]; then
+            break
+        fi
+        previous_command="$processed_command"
+        
         local full_match="${BASH_REMATCH[0]}"
         local resource_name="${BASH_REMATCH[1]}"
         

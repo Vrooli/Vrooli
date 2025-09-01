@@ -2,7 +2,6 @@
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
-    "parent": "vrooli",
     "name": "resource-experimenter",
     "displayName": "Resource Experimenter",
     "description": "Ultra-simple resource experimentation platform using Claude Code to copy and modify existing scenarios with new resources",

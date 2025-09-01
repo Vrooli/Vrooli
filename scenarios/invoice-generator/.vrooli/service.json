@@ -2,7 +2,6 @@
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
-    "parent": "vrooli",
     "name": "invoice-generator",
     "displayName": "Invoice Generator Pro",
     "description": "Professional invoice generation system with customizable templates, automated calculations, tax handling, and PDF export capabilities",

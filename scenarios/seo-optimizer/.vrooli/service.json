@@ -2,7 +2,6 @@
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
-    "parent": "vrooli",
     "name": "seo-optimizer",
     "displayName": "SEO Optimizer",
     "description": "Comprehensive SEO analysis and optimization platform for improving search rankings",

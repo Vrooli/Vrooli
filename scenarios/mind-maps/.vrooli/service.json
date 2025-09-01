@@ -2,7 +2,6 @@
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
-    "parent": "vrooli",
     "name": "mind-maps",
     "displayName": "Mind Maps",
     "description": "AI-enabled mind mapping tool for visual organization and semantic search of ideas and knowledge",

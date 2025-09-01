@@ -162,25 +162,27 @@ manage::main() {
         fi
     fi
     
-    # Validate service.json exists
-    if ! json::validate_config; then
-        log::error "No valid service.json found in this directory"
-        echo "Create .vrooli/service.json with lifecycle configuration"
-        exit 1
-    fi
-    
-    # Adjust service.json path for scenarios
+    # Set service.json path BEFORE validation
     if [[ "${SCENARIO_MODE:-false}" == "true" ]]; then
         SERVICE_JSON_PATH="${PWD}/.vrooli/service.json"
+        export SERVICE_JSON_PATH
         
         # Scenario-specific process manager paths
         export PM_HOME="${HOME}/.vrooli/processes/scenarios/${SCENARIO_NAME}"
         export PM_LOG_DIR="${HOME}/.vrooli/logs/scenarios/${SCENARIO_NAME}"
         
         # Source port registry for resource ports
-        source "${var_ROOT_DIR}/scripts/resources/port-registry.sh" 2>/dev/null || true
+        source "${var_ROOT_DIR}/scripts/resources/port_registry.sh" 2>/dev/null || true
     else
         SERVICE_JSON_PATH="${APP_ROOT}/.vrooli/service.json"
+        export SERVICE_JSON_PATH
+    fi
+    
+    # Validate service.json exists - now uses correct path
+    if ! json::validate_config; then
+        log::error "No valid service.json found in this directory"
+        echo "Create .vrooli/service.json with lifecycle configuration"
+        exit 1
     fi
     
     # Validate phase exists

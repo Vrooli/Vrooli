@@ -2,7 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
-    "parent": "vrooli",
     "name": "prompt-manager",
     "displayName": "Personal Prompt Manager",
     "description": "Campaign-based prompt storage and management tool with API access, CLI, and web interface for organizing AI prompts",

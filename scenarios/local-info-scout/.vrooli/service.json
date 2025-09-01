@@ -2,7 +2,6 @@
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
-    "parent": "vrooli",
     "name": "local-info-scout",
     "displayName": "Local Info Scout",
     "description": "Intelligent location-based discovery tool for finding nearby places and services",

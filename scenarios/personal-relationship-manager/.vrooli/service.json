@@ -2,7 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
-    "parent": "vrooli",
     "name": "personal-relationship-manager",
     "displayName": "Circle of Care - Personal Relationship Manager",
     "description": "Thoughtful relationship management system that helps nurture connections with birthday reminders, gift suggestions, and meaningful interaction tracking",

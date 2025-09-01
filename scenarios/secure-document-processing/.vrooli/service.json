@@ -2,7 +2,6 @@
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
-    "parent": "vrooli",
     "name": "secure-document-processing",
     "displayName": "Secure Document Processing",
     "description": "Enterprise-grade secure document processing pipeline with encryption, compliance, and semantic search capabilities",

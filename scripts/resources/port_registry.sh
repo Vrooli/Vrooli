@@ -72,6 +72,9 @@ declare -g -A RESERVED_RANGES=(
     ["system"]="1-1023"               # System ports (require root)
 )
 
+# Export RESOURCE_PORTS for use in subshells and child processes
+export RESOURCE_PORTS
+
 # ============================================================================
 # PostgreSQL Instance Configuration
 # ============================================================================

@@ -2,7 +2,6 @@
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
-    "parent": "vrooli",
     "name": "audio-intelligence-platform",
     "displayName": "Audio Intelligence Platform",
     "description": "AI-powered audio intelligence platform for transcription, analysis, semantic search, and knowledge extraction",

@@ -2,7 +2,6 @@
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
-    "parent": "vrooli",
     "name": "fall-foliage-explorer",
     "displayName": "Fall Foliage Explorer",
     "description": "Interactive map for tracking and forecasting fall foliage peaks across regions with real-time data",

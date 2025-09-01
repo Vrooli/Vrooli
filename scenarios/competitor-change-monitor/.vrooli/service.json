@@ -2,7 +2,6 @@
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
-    "parent": "vrooli",
     "name": "competitor-change-monitor",
     "displayName": "Competitor Change Monitor",
     "description": "Track competitor websites and repositories for relevant changes with AI-powered analysis and alerting",

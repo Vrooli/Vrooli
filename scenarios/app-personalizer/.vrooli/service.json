@@ -2,7 +2,6 @@
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
-    "parent": "vrooli",
     "name": "app-personalizer",
     "displayName": "App Personalizer",
     "description": "Customize generated apps using prompts or digital twins for personalized experiences",

@@ -2,7 +2,6 @@
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
-    "parent": "vrooli",
     "name": "secrets-manager",
     "displayName": "Secrets Manager",
     "description": "Dark chrome security dashboard for discovering, validating, and provisioning secrets required by Vrooli resources",

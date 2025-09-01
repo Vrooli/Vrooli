@@ -2,7 +2,6 @@
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
-    "parent": "vrooli",
     "name": "simple-test",
     "displayName": "Simple Test App",
     "description": "Minimal test app for lifecycle validation",

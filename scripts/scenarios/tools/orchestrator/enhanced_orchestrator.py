@@ -150,7 +150,7 @@ class EnhancedAppOrchestrator:
                         with open(config_path) as f:
                             config = json.load(f)
                         
-                        app_name = app_dir.name
+                        app_name = scenario_dir.name
                         enabled = config.get("enabled", True)  # Default to enabled
                         
                         # Pre-allocate ports from config
@@ -168,9 +168,9 @@ class EnhancedAppOrchestrator:
                         self.logger.debug(f"Discovered app: {app_name} (enabled: {enabled})")
                         
                     except Exception as e:
-                        self.logger.error(f"Error loading config for {app_dir.name}: {e}")
+                        self.logger.error(f"Error loading config for {scenario_dir.name}: {e}")
                 else:
-                    self.logger.debug(f"No config found for {app_dir.name}")
+                    self.logger.debug(f"No config found for {scenario_dir.name}")
         
         self.logger.info(f"Discovered {len(self.apps)} apps ({sum(1 for a in self.apps.values() if a.enabled)} enabled)")
     
@@ -374,11 +374,6 @@ class EnhancedAppOrchestrator:
                 "setup_complete": True
             }
             state_file.write_text(json.dumps(state_data, indent=2))
-            
-            # Also create old marker for compatibility
-            setup_marker = app_path / ".vrooli" / ".setup_complete"
-            setup_marker.parent.mkdir(parents=True, exist_ok=True)
-            setup_marker.touch()
             
             # Prepare environment
             env = os.environ.copy()

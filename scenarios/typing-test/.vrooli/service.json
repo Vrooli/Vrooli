@@ -2,7 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
-    "parent": "vrooli",
     "name": "typing-test",
     "displayName": "Typing Test",
     "description": "Interactive typing speed and accuracy test with AI-powered personalized coaching",

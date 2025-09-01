@@ -197,14 +197,15 @@ lifecycle::execute_phase() {
                 processed_run="${processed_run%&}"
             fi
             
-            # Execute in project root for consistency
+            # Execute in appropriate directory (scenario dir for scenarios, root for main)
             # Export SERVICE_PORT explicitly if it exists
+            local exec_dir="${SCENARIO_PATH:-$var_ROOT_DIR}"
             if [[ "$is_background" == "true" ]]; then
                 # Use process manager for background processes
                 local process_name="vrooli.${phase}.${app_name}.${name}"
                 log::info "[DEBUG] Creating process: phase=$phase app_name=$app_name name=$name -> $process_name"
                 if command -v pm::start >/dev/null 2>&1; then
-                    if pm::start "$process_name" "export SERVICE_PORT='${SERVICE_PORT:-}' && $processed_run" "$var_ROOT_DIR"; then
+                    if pm::start "$process_name" "export SERVICE_PORT='${SERVICE_PORT:-}' && $processed_run" "$exec_dir"; then
                         bg_processes+=("$process_name")
                         log::info "  Started background process: $process_name"
                     else
@@ -214,13 +215,13 @@ lifecycle::execute_phase() {
                     fi
                 else
                     log::warning "Process manager not available, falling back to manual process management"
-                    (cd "$var_ROOT_DIR" && export SERVICE_PORT="${SERVICE_PORT:-}" && exec bash -c "$processed_run") &
+                    (cd "$exec_dir" && export SERVICE_PORT="${SERVICE_PORT:-}" && exec bash -c "$processed_run") &
                     local bg_pid=$!
                     log::info "  Started background process (PID: $bg_pid) - manual management"
                 fi
             else
                 # Run without timeout wrapper to preserve terminal control for sudo
-                (cd "$var_ROOT_DIR" && export SERVICE_PORT="${SERVICE_PORT:-}" && bash -c "$processed_run") || {
+                (cd "$exec_dir" && export SERVICE_PORT="${SERVICE_PORT:-}" && bash -c "$processed_run") || {
                     local exit_code=$?
                     log::error "Step '$name' failed with exit code $exit_code"
                     rm -f "$steps_file"

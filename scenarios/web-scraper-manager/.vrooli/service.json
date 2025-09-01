@@ -2,7 +2,6 @@
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
-    "parent": "vrooli",
     "name": "web-scraper-manager",
     "displayName": "Web Scraper Manager",
     "description": "Unified dashboard for managing web scraping across multiple platforms (Huginn, Browserless, Agent-S2) with orchestrated workflows and data export",

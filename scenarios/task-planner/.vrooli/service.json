@@ -2,7 +2,6 @@
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
-    "parent": "vrooli",
     "name": "task-planner",
     "displayName": "Task Planner",
     "description": "General task planner and scheduler with AI-powered task refinement and implementation",

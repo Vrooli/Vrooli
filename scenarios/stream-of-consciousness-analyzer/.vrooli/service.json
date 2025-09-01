@@ -2,7 +2,6 @@
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
-    "parent": "vrooli",
     "name": "stream-of-consciousness-analyzer",
     "displayName": "Stream of Consciousness Analyzer",
     "description": "Transform unstructured text/voice into organized notes with AI-powered insights",

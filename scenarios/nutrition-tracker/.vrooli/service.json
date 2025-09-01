@@ -2,7 +2,6 @@
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
-    "parent": "vrooli",
     "name": "nutrition-tracker",
     "displayName": "Nutrition Tracker",
     "description": "Smart nutrition tracking with calorie counting, macro tracking, and AI-powered meal suggestions",

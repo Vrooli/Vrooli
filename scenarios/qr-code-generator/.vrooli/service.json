@@ -2,7 +2,6 @@
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
-    "parent": "vrooli",
     "name": "qr-code-generator",
     "displayName": "QR Code Generator",
     "description": "Fun retro-style QR code generator with customization options and batch processing",
@@ -142,13 +141,13 @@
         },
         {
           "name": "start-api-server",
-          "run": "cd api && echo 'Starting API on port ${SERVICE_PORT}...' && PORT=${SERVICE_PORT} N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} REDIS_URL=redis://localhost:${RESOURCE_PORTS[redis]} nohup ./qr-generator-api > api.log 2>&1 &",
+          "run": "cd api && echo 'Starting API on port ${SERVICE_PORT}...' && PORT=${SERVICE_PORT} N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} REDIS_URL=redis://localhost:${RESOURCE_PORTS[redis]} ./qr-generator-api",
           "description": "Start API server",
           "background": true
         },
         {
           "name": "start-ui-server",
-          "run": "cd ui && echo 'Starting UI on port ${UI_PORT}...' && PORT=${UI_PORT} API_URL=http://localhost:${SERVICE_PORT} nohup npm start > ui.log 2>&1 &",
+          "run": "cd ui && echo 'Starting UI on port ${UI_PORT}...' && PORT=${UI_PORT} API_URL=http://localhost:${SERVICE_PORT} npm start",
           "description": "Start UI server",
           "background": true
         },

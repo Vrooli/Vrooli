@@ -2,7 +2,6 @@
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
-    "parent": "vrooli",
     "name": "smart-file-photo-manager",
     "displayName": "Smart File Photo Manager",
     "description": "AI-powered semantic file organization and management system with intelligent photo categorization, document processing, and duplicate detection",

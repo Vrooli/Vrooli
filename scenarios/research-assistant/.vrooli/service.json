@@ -2,7 +2,6 @@
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
-    "parent": "vrooli",
     "name": "research-assistant",
     "displayName": "AI Research Assistant",
     "description": "Enterprise-grade AI research platform with DeepSearch-quality reports, chatbot interface, and automated scheduling",

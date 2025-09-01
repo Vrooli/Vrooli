@@ -2,7 +2,6 @@
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
-    "parent": "vrooli",
     "name": "news-aggregator-bias-analysis",
     "displayName": "News Aggregator & Bias Analysis",
     "description": "Real-time news aggregation with AI-powered bias detection, fact-checking, and perspective analysis",

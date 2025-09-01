@@ -2,7 +2,6 @@
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
-    "parent": "vrooli",
     "name": "personal-digital-twin",
     "displayName": "Personal Digital Twin",
     "description": "AI-powered personal assistant that learns your communication style, preferences, and knowledge to act as your digital representative",

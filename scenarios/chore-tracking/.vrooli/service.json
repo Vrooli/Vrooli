@@ -2,7 +2,6 @@
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
-    "parent": "vrooli",
     "name": "chore-tracking",
     "displayName": "ChoreQuest",
     "description": "Gamified chore tracking with points, achievements, and cute quirky UX for making cleaning fun",
