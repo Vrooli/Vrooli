@@ -37,82 +37,6 @@ source "$MAIN_SCRIPT_DIR/lib/utils/lifecycle.sh"
 source "$MAIN_SCRIPT_DIR/lib/utils/help.sh"
 
 #######################################
-# Setup State Management Infrastructure
-# Provides git-aware setup tracking and fast mode support
-#######################################
-
-#######################################
-# Get current git commit hash (thin wrapper)
-#######################################
-manage::get_git_commit() {
-    git::get_commit
-}
-
-
-#######################################
-# Check if setup artifacts exist and are valid (thin wrapper)
-#######################################
-manage::verify_setup_artifacts() {
-    setup::verify_artifacts
-}
-
-#######################################
-# Check if app needs setup (thin wrapper)
-#######################################
-manage::needs_setup() {
-    setup::is_needed
-}
-
-#######################################
-# Get completed setup steps from service.json (thin wrapper)
-#######################################
-manage::get_setup_steps_list() {
-    setup::get_steps_list
-}
-
-#######################################
-# Mark setup as complete with current git state (thin wrapper)
-#######################################
-manage::mark_setup_complete() {
-    setup::mark_complete
-}
-
-#######################################
-# Enhanced develop lifecycle with conditional setup (thin wrapper)
-#######################################
-manage::develop_with_auto_setup() {
-    lifecycle::develop_with_auto_setup "$@"
-}
-
-#######################################
-# Execute lifecycle phase (thin wrapper)
-#######################################
-manage::execute_phase() {
-    lifecycle::execute_phase "$@"
-}
-
-#######################################
-# Allocate dynamic ports from service.json (thin wrapper)
-#######################################
-manage::allocate_service_ports() {
-    lifecycle::allocate_service_ports
-}
-
-#######################################
-# Display help with dynamic app info (thin wrapper)
-#######################################
-manage::show_help() {
-    help::show_app_help "$0"
-}
-
-#######################################
-# List available phases (thin wrapper)
-#######################################
-manage::list_phases() {
-    help::list_phases
-}
-
-#######################################
 # Main execution
 #######################################
 manage::main() {
@@ -122,7 +46,7 @@ manage::main() {
     for arg in "$@"; do
         case "$arg" in
             --help|-h)
-                manage::show_help
+                help::show_app_help "$0"
                 exit 0
                 ;;
         esac
@@ -141,11 +65,11 @@ manage::main() {
     # Handle special flags
     case "$phase" in
         "")
-            manage::show_help
+            help::show_app_help "$0"
             exit 0
             ;;
         --list-phases|--list)
-            manage::list_phases
+            help::list_phases
             exit 0
             ;;
     esac
@@ -219,9 +143,9 @@ manage::main() {
     
     # Route develop phase through auto-setup logic
     if [[ "$phase" == "develop" ]]; then
-        manage::develop_with_auto_setup "$phase" "$@"
+        lifecycle::develop_with_auto_setup "$phase" "$@"
     else
-        manage::execute_phase "$phase" "$@"
+        lifecycle::execute_phase "$phase" "$@"
     fi
 }
 
