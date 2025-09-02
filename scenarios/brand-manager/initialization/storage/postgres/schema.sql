@@ -1,7 +1,8 @@
 -- Brand Manager Database Schema
 
-CREATE DATABASE IF NOT EXISTS brand_manager;
-\c brand_manager;
+-- Use shared vrooli database for all scenarios
+CREATE DATABASE IF NOT EXISTS vrooli;
+\c vrooli;
 
 -- Brands table
 CREATE TABLE brands (

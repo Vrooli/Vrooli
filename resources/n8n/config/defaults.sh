@@ -47,7 +47,13 @@ readonly N8N_DB_CONTAINER_NAME="vrooli-n8n-postgres"
 readonly N8N_DB_IMAGE="postgres:13-alpine"
 readonly N8N_DB_PORT="5432"
 readonly N8N_DB_POSTGRESDB_HOST="localhost"
-readonly N8N_DB_POSTGRESDB_PORT="5432"
+# Use port registry for postgres port - single source of truth
+if [[ -f "${VROOLI_ROOT:-${HOME}/Vrooli}/scripts/resources/port_registry.sh" ]]; then
+    source "${VROOLI_ROOT:-${HOME}/Vrooli}/scripts/resources/port_registry.sh"
+    readonly N8N_DB_POSTGRESDB_PORT="$(ports::get_resource_port postgres)"
+else
+    readonly N8N_DB_POSTGRESDB_PORT="5433"  # Fallback to registry default
+fi
 readonly N8N_DB_POSTGRESDB_DATABASE="n8n"
 readonly N8N_DB_POSTGRESDB_USER="n8n"
 readonly N8N_DB_POSTGRESDB_PASSWORD="n8n-secure-password"

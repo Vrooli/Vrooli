@@ -75,6 +75,7 @@ cli::register_subcommand "test" "secrets" "Test secret operations" "vault::test_
 cli::register_command "status" "Show detailed vault status" "vault::show_status"
 cli::register_command "logs" "Show Vault logs" "vault::docker::show_logs"
 cli::register_command "credentials" "Show Vault credentials for integration" "vault::show_integration_info"
+
 cli::register_command "monitor" "Monitor Vault status" "vault::monitor"
 cli::register_command "diagnose" "Diagnose Vault issues" "vault::diagnose"
 

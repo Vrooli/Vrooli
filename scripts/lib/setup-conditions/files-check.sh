@@ -41,19 +41,19 @@ while IFS= read -r path; do
         file)
             if [[ ! -f "$path" ]]; then
                 echo "[DEBUG] File missing: $path" >&2
-                ((MISSING_COUNT++))
+                ((++MISSING_COUNT))
             fi
             ;;
         directory|dir)
             if [[ ! -d "$path" ]]; then
                 echo "[DEBUG] Directory missing: $path" >&2
-                ((MISSING_COUNT++))
+                ((++MISSING_COUNT))
             fi
             ;;
         any|*)
             if [[ ! -e "$path" ]]; then
                 echo "[DEBUG] Path missing: $path" >&2
-                ((MISSING_COUNT++))
+                ((++MISSING_COUNT))
             fi
             ;;
     esac

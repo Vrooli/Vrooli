@@ -192,7 +192,15 @@ n8n::build_postgres_credential() {
     
     local host port database user password ssl
     host=$(echo "$connection" | jq -r '.host')
-    port=$(echo "$connection" | jq -r '.port // 5432')
+    
+    # Use port registry for postgres port fallback
+    local postgres_default_port="5433"  # Registry default
+    if [[ -f "${VROOLI_ROOT:-${HOME}/Vrooli}/scripts/resources/port_registry.sh" ]]; then
+        source "${VROOLI_ROOT:-${HOME}/Vrooli}/scripts/resources/port_registry.sh"
+        postgres_default_port="$(ports::get_resource_port postgres)"
+    fi
+    
+    port=$(echo "$connection" | jq -r ".port // $postgres_default_port")
     database=$(echo "$connection" | jq -r '.database // "postgres"')
     ssl=$(echo "$connection" | jq -r '.ssl // false')
     

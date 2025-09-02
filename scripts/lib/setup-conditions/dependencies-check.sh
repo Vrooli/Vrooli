@@ -42,7 +42,7 @@ while IFS= read -r path; do
             DIR=$(dirname "$path")
             if [[ ! -d "$DIR/node_modules" ]]; then
                 echo "[DEBUG] Node modules not installed at $DIR" >&2
-                ((MISSING_COUNT++))
+                ((++MISSING_COUNT))
             fi
             ;;
         */go.mod)
@@ -50,7 +50,7 @@ while IFS= read -r path; do
             DIR=$(dirname "$path")
             if [[ ! -f "$DIR/go.sum" ]] && [[ ! -d "$DIR/vendor" ]]; then
                 echo "[DEBUG] Go dependencies not downloaded at $DIR" >&2
-                ((MISSING_COUNT++))
+                ((++MISSING_COUNT))
             fi
             ;;
         */requirements.txt)
@@ -58,7 +58,7 @@ while IFS= read -r path; do
             DIR=$(dirname "$path")
             if [[ ! -d "$DIR/venv" ]] && [[ ! -d "$DIR/.venv" ]]; then
                 echo "[DEBUG] Python virtual environment not found at $DIR" >&2
-                ((MISSING_COUNT++))
+                ((++MISSING_COUNT))
             fi
             ;;
         */Cargo.toml)
@@ -66,14 +66,14 @@ while IFS= read -r path; do
             DIR=$(dirname "$path")
             if [[ ! -d "$DIR/target" ]]; then
                 echo "[DEBUG] Rust dependencies not built at $DIR" >&2
-                ((MISSING_COUNT++))
+                ((++MISSING_COUNT))
             fi
             ;;
         *)
             # Unknown dependency file - just check it exists
             if [[ ! -f "$path" ]]; then
                 echo "[DEBUG] Dependency file not found: $path" >&2
-                ((MISSING_COUNT++))
+                ((++MISSING_COUNT))
             fi
             ;;
     esac

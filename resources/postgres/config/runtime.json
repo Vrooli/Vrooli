@@ -1,0 +1,8 @@
+{
+  "startup_order": 1000,
+  "startup_timeout": 30,
+  "startup_time_estimate": "5-15s",
+  "dependencies": [],
+  "recovery_attempts": 3,
+  "priority": "critical"
+}

@@ -72,9 +72,14 @@ validate::resource_config() {
     
     log::debug "  Validating $resource configuration..."
     
-    # Check if resource has content array
+    # Check if resource has content or initialization array (support both for transition)
     local content
     content=$(echo "$config" | jq -c '.content[]' 2>/dev/null || echo "")
+    
+    # If no content array, check for initialization array (current format)
+    if [[ -z "$content" ]]; then
+        content=$(echo "$config" | jq -c '.initialization[]' 2>/dev/null || echo "")
+    fi
     
     if [[ -z "$content" ]]; then
         log::debug "    No content defined for $resource"

@@ -102,7 +102,7 @@
         },
         {
           "name": "build-api",
-          "run": "cd api && go build -o swarm-manager-api src/main.go"
+          "run": "cd api && go build -o swarm-manager-api main.go"
         },
         {
           "name": "install-ui-deps",

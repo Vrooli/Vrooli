@@ -2,8 +2,15 @@
 # Test brand generation workflow
 set -euo pipefail
 
+# Source shared resource utilities
+SCRIPT_DIR="$(cd "${BASH_SOURCE[0]%/*}/.." && pwd)"
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/scripts/lib/resource-utils.sh"
+
 # Test configuration
-API_BASE="${BRAND_MANAGER_API_BASE:-http://localhost:${SERVICE_PORT:-8090}}"
+API_PORT="${SERVICE_PORT:-$(get_resource_port "brand-manager")}"
+API_HOST=$(get_resource_hostname "brand-manager")
+API_BASE="${BRAND_MANAGER_API_BASE:-http://$API_HOST:$API_PORT}"
 TEST_BRAND_NAME="TestBrand-$(date +%s)"
 TEST_INDUSTRY="technology"
 

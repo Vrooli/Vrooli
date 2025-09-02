@@ -9,11 +9,9 @@ SCRIPT_DIR="${APP_ROOT}/scenarios/brand-manager"
 SCENARIO_DIR="$SCRIPT_DIR"
 PROJECT_ROOT="$APP_ROOT"
 
-# shellcheck disable=SC1091
+# Source utility libraries
 source "$PROJECT_ROOT/scripts/lib/utils/var.sh"
-# shellcheck disable=SC1091
 source "$PROJECT_ROOT/scripts/lib/utils/log.sh"
-# shellcheck disable=SC1091
 source "$SCENARIO_DIR/scripts/lib/resource-utils.sh"
 
 # Configuration

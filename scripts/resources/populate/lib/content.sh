@@ -34,9 +34,14 @@ content::add_to_resource() {
         return 1
     fi
     
-    # Extract content array from config
+    # Extract content array from config (support both .content and .initialization)
     local content_items
     content_items=$(echo "$config" | jq -c '.content[]' 2>/dev/null || echo "")
+    
+    # If no content array, check for initialization array (current format)
+    if [[ -z "$content_items" ]]; then
+        content_items=$(echo "$config" | jq -c '.initialization[]' 2>/dev/null || echo "")
+    fi
     
     if [[ -z "$content_items" ]]; then
         log::debug "No content defined for $resource"

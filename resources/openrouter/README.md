@@ -74,13 +74,13 @@ OpenRouter supports automatic model selection based on your requirements:
 }
 ```
 
-### With Scenario Generation
+### With AI Scenarios
 ```bash
-# Use specialized model for code generation
-vrooli scenario generate --model "anthropic/claude-3-opus" --type "code-heavy"
+# Use specialized model for AI-powered scenarios
+vrooli scenario run ai-code-generator
 
-# Use cheaper model for simple text
-vrooli scenario generate --model "mistralai/mistral-7b" --type "documentation"
+# Use efficient models for documentation tasks
+vrooli scenario run document-processor
 ```
 
 ## Available Models (Sample)

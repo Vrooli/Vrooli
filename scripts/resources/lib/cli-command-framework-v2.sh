@@ -46,6 +46,9 @@ cli::init() {
     # Always register help command
     cli::register_command "help" "Show this help message" "cli::_handle_help"
     
+    # Always register info command for structured resource information
+    cli::register_command "info" "Show structured resource information" "cli::_handle_info"
+    
     # For v2 mode, register command groups
     if [[ "$CLI_V2_MODE" == "v2" ]] || [[ "$CLI_V2_MODE" == "auto" ]]; then
         # Register v2.0 command groups
@@ -704,6 +707,78 @@ cli::_handle_content_execute() {
     else
         log::info "Content execution not implemented for ${CLI_RESOURCE_NAME}"
         return 2
+    fi
+}
+
+cli::_handle_info() {
+    # Parse arguments for JSON output
+    local output_format="text"
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --json)
+                output_format="json"
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    # Load runtime configuration from config/runtime.json
+    local runtime_json="${APP_ROOT}/resources/${CLI_RESOURCE_NAME}/config/runtime.json"
+    local startup_order=500  # default
+    local startup_time="unknown"
+    local startup_timeout=30
+    local recovery_attempts=2
+    local priority="medium"
+    local dependencies=()
+    
+    if [[ -f "$runtime_json" ]]; then
+        # Extract values from runtime.json
+        startup_order=$(jq -r '.startup_order // 500' "$runtime_json" 2>/dev/null || echo "500")
+        startup_time=$(jq -r '.startup_time_estimate // "unknown"' "$runtime_json" 2>/dev/null || echo "unknown")
+        startup_timeout=$(jq -r '.startup_timeout // 30' "$runtime_json" 2>/dev/null || echo "30")
+        recovery_attempts=$(jq -r '.recovery_attempts // 2' "$runtime_json" 2>/dev/null || echo "2")
+        priority=$(jq -r '.priority // "medium"' "$runtime_json" 2>/dev/null || echo "medium")
+        
+        # Extract dependencies array
+        if [[ -f "$runtime_json" ]] && jq -e '.dependencies' "$runtime_json" >/dev/null 2>&1; then
+            readarray -t dependencies < <(jq -r '.dependencies[]' "$runtime_json" 2>/dev/null)
+        fi
+    else
+        log::debug "No runtime.json found at $runtime_json, using defaults"
+    fi
+    
+    if [[ "$output_format" == "json" ]]; then
+        jq -n \
+            --arg name "$CLI_RESOURCE_NAME" \
+            --arg description "$CLI_RESOURCE_DESCRIPTION" \
+            --argjson startup_order "$startup_order" \
+            --argjson dependencies "$(printf '%s\n' "${dependencies[@]}" | jq -R . | jq -s .)" \
+            --arg startup_time "$startup_time" \
+            --argjson startup_timeout "$startup_timeout" \
+            --argjson recovery_attempts "$recovery_attempts" \
+            --arg priority "$priority" \
+            '{
+                name: $name,
+                description: $description,
+                startup_order: $startup_order,
+                dependencies: $dependencies,
+                startup_time_estimate: $startup_time,
+                startup_timeout: $startup_timeout,
+                recovery_attempts: $recovery_attempts,
+                priority: $priority
+            }'
+    else
+        echo "📋 Resource Information: $CLI_RESOURCE_NAME"
+        echo "   Description: $CLI_RESOURCE_DESCRIPTION"
+        echo "   Startup Order: $startup_order"
+        echo "   Dependencies: ${dependencies[*]:-none}"
+        echo "   Startup Time: $startup_time"
+        echo "   Startup Timeout: ${startup_timeout}s"
+        echo "   Recovery Attempts: $recovery_attempts"
+        echo "   Priority: $priority"
     fi
 }
 

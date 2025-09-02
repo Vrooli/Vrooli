@@ -232,7 +232,7 @@ This appendix preserves important specifics from the original prompt while keepi
 - Project `README.md`
 - `scripts/scenarios/README.md`
 - `scripts/scenarios/catalog.json`
-- `scripts/scenarios/tools/app-structure.json` (describes copying to generated apps; some files come from the project root)
+- `scripts/scenarios/tools/app-structure.json` (describes scenario structure and shared resources from project root)
 - `docs/resources/README.md` (what resources are and how scenarios use them)
 - `initialization/README.md` (project-level shared resource data injected by Vrooli)
 - The add/fix scenario prompt (untested): `scenarios/prompt-manager/initialization/prompts/features/add-fix-scenario.md`
@@ -260,7 +260,7 @@ If all existing scenarios are structurally sound and validated (very unlikely at
 - code-sleuth for tracking down relevant code for tasks, receiving feedback on what was relevant, and learning from that over time
 - test-genie for learning how to test different scenarios (and also vrooli as a whole), as well as learning best practices over time
 - dependabot for scheduled or triggered code scanning of scenarios and Vrooli as a whole
-- app-to-electron for learning how to convert generated apps to Electron so that they can be run as standalone Desktop apps on Windows and such. Note that all of these `app-to-` scenario types should assume that the app distributions will be stored in a platform/ folder, like we've done at the project-level of Vrooli as a demonstration
+- app-to-electron for packaging scenarios as Electron desktop apps for Windows distribution. Note that all of these `app-to-` scenario types should package the scenario directly without conversion, storing distributions in a platform/ folder
 - app-to-ios
 - app-to-android
 - app-onboarding-manager for adding proper and professional onboarding pages and tutorials to apps. Should learn best practices and build templates over time
@@ -298,7 +298,7 @@ If all existing scenarios are structurally sound and validated (very unlikely at
 - recipe-gantt-charts for displaying recipe instructions in an optimal timeline. Should be able to enter a recipe or generate one from prompt. All recipes get a gantt chart, which updates as the recipe is changed.
 - major-monogram - Talk to Major Monogram from Phineas and Ferb. Has a persona you can talk to like a video call
 
-If all of the above are already added, focus on converting to apps, running, and fixing issues that prevent apps from fully starting or showing a valid UI. For quick debugging you may change generated app code, but any solution must be applied back to the source scenario.
+If all of the above are already added, focus on running scenarios directly and fixing issues that prevent scenarios from fully starting or showing a valid UI. For quick debugging you may change scenario code directly.
 
 ### Cross-scenario composition
 - Some scenarios are used to increase Vrooli’s own capabilities. They may call each other’s CLIs (e.g., `morning-vision-walk` relying on `stream-of-consciousness-analyzer`, `product-manager-agent`, etc.).

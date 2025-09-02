@@ -118,10 +118,17 @@ n8n::get_init_config() {
     # Add database configuration
     if [[ "$DATABASE_TYPE" == "postgres" ]]; then
         # Use localhost for host network mode
+        # Source port registry to get correct postgres port
+        local postgres_port="5433"  # Default fallback
+        if [[ -f "${VROOLI_ROOT:-${HOME}/Vrooli}/scripts/resources/port_registry.sh" ]]; then
+            source "${VROOLI_ROOT:-${HOME}/Vrooli}/scripts/resources/port_registry.sh"
+            postgres_port="$(ports::get_resource_port postgres)"
+        fi
+        
         config=$(echo "$config" | jq '.env_vars += {
             "DB_TYPE": "postgresdb",
             "DB_POSTGRESDB_HOST": "localhost",
-            "DB_POSTGRESDB_PORT": "5432",
+            "DB_POSTGRESDB_PORT": "'$postgres_port'",
             "DB_POSTGRESDB_DATABASE": "n8n"
         }')
     else
@@ -1018,9 +1025,16 @@ n8n::install_postgres() {
     init::create_data_dir "$pg_data_dir"
     
     # Create PostgreSQL container with port mapping for host network access
+    # Source port registry to get correct postgres port
+    local postgres_port="5433"  # Default fallback
+    if [[ -f "${VROOLI_ROOT:-${HOME}/Vrooli}/scripts/resources/port_registry.sh" ]]; then
+        source "${VROOLI_ROOT:-${HOME}/Vrooli}/scripts/resources/port_registry.sh"
+        postgres_port="$(ports::get_resource_port postgres)"
+    fi
+    
     docker run -d \
         --name "$N8N_DB_CONTAINER_NAME" \
-        -p 5432:5432 \
+        -p "${postgres_port}:5432" \
         -e POSTGRES_USER=n8n \
         -e POSTGRES_PASSWORD="${N8N_DB_PASSWORD:-n8n_password}" \
         -e POSTGRES_DB=n8n \

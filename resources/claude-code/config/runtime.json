@@ -1,0 +1,8 @@
+{
+  "startup_order": 500,
+  "startup_timeout": 15,
+  "startup_time_estimate": "3-8s",
+  "dependencies": ["litellm"],
+  "recovery_attempts": 2,
+  "priority": "medium"
+}

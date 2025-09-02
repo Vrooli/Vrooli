@@ -78,6 +78,13 @@
           "type": "string",
           "description": "Human-readable description of this resource configuration"
         },
+        "startup_order": {
+          "type": "integer",
+          "default": 500,
+          "minimum": 1,
+          "maximum": 9999,
+          "description": "Startup priority (higher = starts first, like CSS z-index). Core infrastructure: 1000+, platforms: 500-999, optional: 100-499"
+        },
         "initialization": {
           "type": "array",
           "items": {

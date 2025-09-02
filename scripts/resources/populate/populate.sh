@@ -93,15 +93,21 @@ main() {
         # Path-based population (new primary interface)
         ./*|/*|.)
             # This is a path - populate from it
-            populate::add_from_path "$first_arg"
+            local path="$first_arg"
+            shift
+            populate::add_from_path "$path" "$@"
             ;;
         *)
             # Check if it's a valid path or scenario name
             if [[ -d "$first_arg" ]] || [[ -f "$first_arg/.vrooli/service.json" ]]; then
-                populate::add_from_path "$first_arg"
+                local path="$first_arg"
+                shift
+                populate::add_from_path "$path" "$@"
             else
                 # Try as scenario name for backwards compatibility
-                populate::add "$first_arg"
+                local scenario="$first_arg"
+                shift
+                populate::add "$scenario" "$@"
             fi
             ;;
     esac

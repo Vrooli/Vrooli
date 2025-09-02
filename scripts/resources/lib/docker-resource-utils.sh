@@ -769,6 +769,23 @@ docker_resource::create_service_advanced() {
         log::debug "Image already exists locally: $image"
     fi
     
+    # Check container state before creating new container
+    if docker::container_exists "$name"; then
+        if docker::is_running "$name"; then
+            log::info "Container $name is already running"
+            return 0
+        else
+            log::info "Restarting existing stopped container: $name"
+            if docker start "$name" >/dev/null 2>&1; then
+                log::success "Successfully restarted container: $name"
+                return 0
+            else
+                log::warn "Failed to restart container $name, removing and recreating..."
+                docker rm "$name" >/dev/null 2>&1 || true
+            fi
+        fi
+    fi
+    
     # Create network
     docker::create_network "$network"
     
