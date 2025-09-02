@@ -26,7 +26,7 @@
   },
   "ports": {
     "api": {
-      "env_var": "SERVICE_PORT",
+      "env_var": "API_PORT",
       "port": 23000,
       "fallback": "auto",
       "description": "Competitor Monitor API port"
@@ -153,7 +153,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🔍 Competitor Monitor initialized\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${SERVICE_PORT}'",
+          "run": "echo '🔍 Competitor Monitor initialized\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${API_PORT}'",
           "description": "Display service URLs"
         }
       ]
@@ -163,7 +163,7 @@
       "steps": [
         {
           "name": "start-api-server",
-          "run": "cd api && PORT=$SERVICE_PORT ./competitor-monitor-api",
+          "run": "cd api && env PORT=$API_PORT ./competitor-monitor-api",
           "description": "Start API server",
           "background": true,
           "condition": {
@@ -172,7 +172,7 @@
         },
         {
           "name": "start-ui-server",
-          "run": "cd ui && PORT=$UI_PORT API_URL=http://localhost:$SERVICE_PORT npm start",
+          "run": "cd ui && env PORT=$UI_PORT API_URL=http://localhost:$API_PORT npm start",
           "description": "Start UI server",
           "background": true
         },
@@ -183,7 +183,7 @@
         },
         {
           "name": "show-running",
-          "run": "echo '🚀 Competitor Monitor running:\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${SERVICE_PORT}'",
+          "run": "echo '🚀 Competitor Monitor running:\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${API_PORT}'",
           "description": "Display running services"
         }
       ]
@@ -193,12 +193,12 @@
       "steps": [
         {
           "name": "test-api",
-          "run": "curl -sf http://localhost:$SERVICE_PORT/health",
+          "run": "curl -sf http://localhost:$API_PORT/health",
           "description": "Test API health"
         },
         {
           "name": "test-competitors",
-          "run": "curl -sf http://localhost:$SERVICE_PORT/api/competitors",
+          "run": "curl -sf http://localhost:$API_PORT/api/competitors",
           "description": "Test competitors endpoint"
         }
       ]

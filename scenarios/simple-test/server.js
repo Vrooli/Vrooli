@@ -1,6 +1,6 @@
 const http = require('http');
 
-const port = process.env.SERVICE_PORT || 36250;
+const port = process.env.API_PORT || 36250;
 
 const server = http.createServer((req, res) => {
   if (req.url === '/health') {

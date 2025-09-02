@@ -4,7 +4,7 @@ const path = require('path');
 
 const app = express();
 const PORT = process.env.UI_PORT || 3000;
-const API_PORT = process.env.SERVICE_PORT || 8090;
+const API_PORT = process.env.API_PORT || 8090;
 
 // Enable CORS
 app.use(cors());

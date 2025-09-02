@@ -127,7 +127,7 @@ start_service() {
     
     # Build and run
     go build -o swarm-manager-api main.go
-    SERVICE_PORT=8095 nohup ./swarm-manager-api > "${SCRIPT_DIR}/logs/api.log" 2>&1 &
+    API_PORT=8095 nohup ./swarm-manager-api > "${SCRIPT_DIR}/logs/api.log" 2>&1 &
     echo $! > "${SCRIPT_DIR}/api.pid"
     
     # Start UI server

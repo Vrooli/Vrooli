@@ -3,7 +3,7 @@
 ## Overview
 The Metareasoning Manager provides a comprehensive REST API for managing AI reasoning workflows, executing them through n8n or Windmill, and tracking performance metrics.
 
-**Base URL**: `http://localhost:{SERVICE_PORT}`  
+**Base URL**: `http://localhost:{API_PORT}`  
 **Authentication**: Bearer token in Authorization header  
 **Version**: 3.0.0
 
@@ -12,7 +12,7 @@ All endpoints except `/health` require authentication:
 
 ```bash
 curl -H "Authorization: Bearer agent_metareasoning_manager_cli_default_2024" \
-     http://localhost:${SERVICE_PORT}/workflows
+     http://localhost:${API_PORT}/workflows
 ```
 
 ## API Endpoints
@@ -359,7 +359,7 @@ Currently no rate limiting is implemented, but this should be added for producti
 
 ```bash
 # Create workflow
-curl -X POST http://localhost:${SERVICE_PORT}/workflows \
+curl -X POST http://localhost:${API_PORT}/workflows \
   -H "Authorization: Bearer agent_metareasoning_manager_cli_default_2024" \
   -H "Content-Type: application/json" \
   -d '{
@@ -372,7 +372,7 @@ curl -X POST http://localhost:${SERVICE_PORT}/workflows \
   }'
 
 # Execute it
-curl -X POST http://localhost:${SERVICE_PORT}/workflows/{id}/execute \
+curl -X POST http://localhost:${API_PORT}/workflows/{id}/execute \
   -H "Authorization: Bearer agent_metareasoning_manager_cli_default_2024" \
   -H "Content-Type: application/json" \
   -d '{
@@ -384,7 +384,7 @@ curl -X POST http://localhost:${SERVICE_PORT}/workflows/{id}/execute \
 ### Generate Workflow from Prompt
 
 ```bash
-curl -X POST http://localhost:${SERVICE_PORT}/workflows/generate \
+curl -X POST http://localhost:${API_PORT}/workflows/generate \
   -H "Authorization: Bearer agent_metareasoning_manager_cli_default_2024" \
   -H "Content-Type: application/json" \
   -d '{
@@ -397,11 +397,11 @@ curl -X POST http://localhost:${SERVICE_PORT}/workflows/generate \
 
 ```bash
 # Search for workflows
-curl -X GET "http://localhost:${SERVICE_PORT}/workflows/search?q=risk" \
+curl -X GET "http://localhost:${API_PORT}/workflows/search?q=risk" \
   -H "Authorization: Bearer agent_metareasoning_manager_cli_default_2024"
 
 # Clone a workflow
-curl -X POST http://localhost:${SERVICE_PORT}/workflows/{id}/clone \
+curl -X POST http://localhost:${API_PORT}/workflows/{id}/clone \
   -H "Authorization: Bearer agent_metareasoning_manager_cli_default_2024" \
   -H "Content-Type: application/json" \
   -d '{"name": "Risk Assessment v2"}'

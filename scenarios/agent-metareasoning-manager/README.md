@@ -134,13 +134,13 @@ N8N_PORT=$(../../resources/port_registry.sh --action get --service n8n)
 WINDMILL_PORT=$(../../resources/port_registry.sh --action get --service windmill)
 
 # Health check
-curl http://localhost:$SERVICE_PORT/health
+curl http://localhost:$API_PORT/health
 
 # List workflows
-curl http://localhost:$SERVICE_PORT/workflows
+curl http://localhost:$API_PORT/workflows
 
 # Run analysis (requires authentication)
-curl -X POST http://localhost:$SERVICE_PORT/analyze/pros-cons \
+curl -X POST http://localhost:$API_PORT/analyze/pros-cons \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer agent_metareasoning_manager_cli_default_2024" \
   -d '{"input": "Should we migrate to microservices?", "context": "Legacy monolith"}'
@@ -231,7 +231,7 @@ agent-metareasoning-manager analyze swot "Our SaaS product" "competitive market"
 agent-metareasoning-manager analyze risk-assessment "Cloud migration" "Limited budget"
 
 # Test API directly (remember authentication!)
-curl -X POST http://localhost:$SERVICE_PORT/analyze/self-review \
+curl -X POST http://localhost:$API_PORT/analyze/self-review \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer agent_metareasoning_manager_cli_default_2024" \
   -d '{"decision": "Implement microservices", "iterations": 3}'
@@ -268,7 +268,7 @@ CLI configuration is stored in `~/.metareasoning/config.json`:
 
 ```json
 {
-  "api_base": "http://localhost:${SERVICE_PORT}",
+  "api_base": "http://localhost:${API_PORT}",
   "default_format": "table",
   "api_token": "agent_metareasoning_manager_cli_default_2024",
   "created_at": "2024-01-01T00:00:00Z"
@@ -295,7 +295,7 @@ lsof -i :$SERVICE_PORT                 # Should show Go API
 # Check each service independently
 curl -f http://localhost:${RESOURCE_PORTS[n8n]}/healthz       # n8n health
 curl -f http://localhost:${RESOURCE_PORTS[windmill]}/api/version # Windmill
-curl -f http://localhost:$SERVICE_PORT/health                  # Go API
+curl -f http://localhost:$API_PORT/health                  # Go API
 ```
 
 ### **Common Issues**

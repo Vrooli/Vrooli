@@ -155,7 +155,7 @@ main() {
     # Check Go API structure
     log_info "Checking Go API structure..."
     if [[ -f "$SCENARIO_DIR/api/main.go" ]]; then
-        if grep -q "PORT.*SERVICE_PORT" "$SCENARIO_DIR/api/main.go"; then
+        if grep -q "PORT.*API_PORT" "$SCENARIO_DIR/api/main.go"; then
             log_success "API uses environment variables for port configuration"
         else
             log_warning "API may not use environment variables correctly"

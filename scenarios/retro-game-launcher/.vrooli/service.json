@@ -21,7 +21,7 @@
   },
   "ports": {
     "api": {
-      "env_var": "SERVICE_PORT",
+      "env_var": "API_PORT",
       "port": 28500,
       "fallback": "auto",
       "description": "Retro game launcher API port"
@@ -132,7 +132,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Retro Game Launcher initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${SERVICE_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: retro-game-launcher --help'",
+          "run": "echo '🚀 Retro Game Launcher initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: retro-game-launcher --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -147,7 +147,7 @@
         },
         {
           "name": "start-api-server",
-          "run": "cd api && PORT=$SERVICE_PORT ./retro-game-launcher-api",
+          "run": "cd api && env PORT=$API_PORT ./retro-game-launcher-api",
           "description": "Start Go API server in background",
           "background": true,
           "condition": {
@@ -156,7 +156,7 @@
         },
         {
           "name": "wait-for-api",
-          "run": "sleep 2 && curl -sf http://localhost:$SERVICE_PORT/health > /dev/null",
+          "run": "sleep 2 && curl -sf http://localhost:$API_PORT/health > /dev/null",
           "description": "Wait for API server to be ready",
           "retry": {
             "max_attempts": 15,
@@ -165,7 +165,7 @@
         },
         {
           "name": "start-ui",
-          "run": "cd ui && PORT=$UI_PORT REACT_APP_API_URL=http://localhost:$SERVICE_PORT npm start",
+          "run": "cd ui && env PORT=$UI_PORT REACT_APP_API_URL=http://localhost:$API_PORT npm start",
           "description": "Start React UI in background",
           "background": true,
           "condition": {
@@ -183,7 +183,7 @@
         },
         {
           "name": "show-running-services",
-          "run": "echo '🚀 Retro Game Launcher running:\\n  UI: http://localhost:$UI_PORT\\n  API: http://localhost:$SERVICE_PORT\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: retro-game-launcher --help'",
+          "run": "echo '🚀 Retro Game Launcher running:\\n  UI: http://localhost:$UI_PORT\\n  API: http://localhost:$API_PORT\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: retro-game-launcher --help'",
           "description": "Display all running service URLs"
         }
       ]
@@ -201,12 +201,12 @@
         },
         {
           "name": "test-api-health",
-          "run": "curl -sf http://localhost:$SERVICE_PORT/health",
+          "run": "curl -sf http://localhost:$API_PORT/health",
           "description": "Test API health endpoint"
         },
         {
           "name": "test-games-endpoint",
-          "run": "curl -sf http://localhost:$SERVICE_PORT/api/games",
+          "run": "curl -sf http://localhost:$API_PORT/api/games",
           "description": "Test API games endpoint"
         },
         {

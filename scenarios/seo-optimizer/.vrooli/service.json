@@ -28,7 +28,7 @@
   },
   "ports": {
     "api": {
-      "env_var": "SERVICE_PORT",
+      "env_var": "API_PORT",
       "port": 29500,
       "fallback": "auto",
       "description": "SEO Optimizer API port"
@@ -171,7 +171,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🔍 SEO Optimizer initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${SERVICE_PORT}'",
+          "run": "echo '🔍 SEO Optimizer initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
           "description": "Display service URLs"
         }
       ]
@@ -181,7 +181,7 @@
       "steps": [
         {
           "name": "start-api-server",
-          "run": "cd api && PORT=$SERVICE_PORT ./seo-optimizer-api",
+          "run": "cd api && env PORT=$API_PORT ./seo-optimizer-api",
           "description": "Start API server",
           "background": true,
           "condition": {
@@ -190,7 +190,7 @@
         },
         {
           "name": "start-ui-server",
-          "run": "cd ui && PORT=$UI_PORT API_URL=http://localhost:$SERVICE_PORT node server.js",
+          "run": "cd ui && env PORT=$UI_PORT API_URL=http://localhost:$API_PORT node server.js",
           "description": "Start UI server",
           "background": true
         },
@@ -201,7 +201,7 @@
         },
         {
           "name": "show-running",
-          "run": "echo '🚀 SEO Optimizer running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${SERVICE_PORT}'",
+          "run": "echo '🚀 SEO Optimizer running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
           "description": "Display running services"
         }
       ]
@@ -211,12 +211,12 @@
       "steps": [
         {
           "name": "test-api",
-          "run": "curl -sf http://localhost:$SERVICE_PORT/health",
+          "run": "curl -sf http://localhost:$API_PORT/health",
           "description": "Test API health"
         },
         {
           "name": "test-audit",
-          "run": "curl -sf http://localhost:$SERVICE_PORT/api/audit",
+          "run": "curl -sf http://localhost:$API_PORT/api/audit",
           "description": "Test audit endpoint"
         }
       ]

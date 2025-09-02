@@ -90,7 +90,7 @@ See **[ARCHITECTURE_OVERVIEW.md](ARCHITECTURE_OVERVIEW.md)** for complete archit
 - List available scenarios: `vrooli scenario list`
 - Run a scenario: `vrooli scenario run <name>`
 - Test a scenario: `vrooli scenario test <name>`
-- Direct execution: `cd scenarios/<name> && ../../scripts/manage.sh develop`
+- Direct execution: `vrooli scenario run <name>`
 
 ### Environment Variables
 - Development: `.vrooli/service.json` in each scenario/resource
@@ -127,7 +127,7 @@ vrooli scenario test <name>             # Test scenario integration
 # Create new scenarios from templates
 cp -r scenarios/templates/basic scenarios/my-new-app
 cd scenarios/my-new-app
-../../scripts/manage.sh develop        # Start development
+vrooli scenario run <scenario-name>      # Run scenario directly
 ```
 
 ### Working with Resources
@@ -245,7 +245,7 @@ resource-<name> logs                           # View resource logs
 vrooli scenario list                            # List available scenarios
 vrooli scenario run <name>                     # Run a scenario
 vrooli scenario test <name>                    # Test a scenario
-cd scenarios/<name> && ../../scripts/manage.sh develop  # Direct execution
+vrooli scenario run <scenario-name>        # Direct scenario execution
 
 # Testing
 vrooli test                                     # Run comprehensive test suite
@@ -293,7 +293,7 @@ Instead of building these features as code, the system provides:
 - Resource integration handlers (use resource orchestration patterns)
 - Monitoring and optimization systems (deploy System Monitor and App Issue Tracker scenarios)
 
-See [architecture/execution/emergent-capabilities/README.md](architecture/execution/emergent-capabilities/README.md) for comprehensive details.
+See [ARCHITECTURE_OVERVIEW.md](ARCHITECTURE_OVERVIEW.md) for comprehensive architectural details.
 
 ## Documentation Structure
 
@@ -305,11 +305,11 @@ See [architecture/execution/emergent-capabilities/README.md](architecture/execut
 - **[Roadmap](roadmap.md)** - Future development plans
 - **[Tools](tools.md)** - Development tools and commands
 
-### 🏗️ **Architecture Documentation** (`/docs/architecture/`)
-- **[AI Implementation Guide](architecture/ai-implementation-guide.md)** - Practical three-tier architecture implementation
+### 🏗️ **Architecture Documentation**
+- **[Architecture Overview](ARCHITECTURE_OVERVIEW.md)** - Comprehensive three-tier architecture overview
 - System design and architectural decisions
-- Subdirectories: `execution/`, `external-integrations/`, `data/`, `core-services/`, `api-gateway/`, `client/`
-- Key docs: Three-tier architecture, event-driven patterns, emergent capabilities
+- System design and architectural decisions
+- Key concepts: Resource orchestration, direct execution, emergent capabilities
 
 ### 🔒 **Security Documentation** (`/docs/security/`)
 - **[Security Overview](security/README.md)** - Comprehensive security guide
@@ -348,7 +348,7 @@ See [architecture/execution/emergent-capabilities/README.md](architecture/execut
 - `development-environment.md` - Local development setup
 - `troubleshooting.md` - Common issues and solutions
 
-### ⚙️ **Setup Documentation** (`/docs/setup/`)
+### ⚙️ **Setup Documentation**
 - `prerequisites.md` - System requirements
 - `repo_setup.md` - Repository setup
 - `working_with_docker.md` - Docker usage
@@ -425,7 +425,7 @@ The `/scripts/` directory contains comprehensive bash scripts:
 | Error | Cause | Solution |
 |-------|-------|----------|
 | `Module not found: Error: Can't resolve './file'` | Missing .js extension | Add `.js` to import: `'./file.js'` |
-| `Cannot find container vrooli_postgresql_1` | Docker not running | Run `./scripts/manage.sh setup --target docker` |
+| `Cannot find container vrooli_postgresql_1` | Docker not running | Run `vrooli develop` |
 | `Invalid prisma.user invocation` | Schema out of sync | Check PostgreSQL resource schema synchronization |
 | `ECONNREFUSED 127.0.0.1:6379` | Redis not running | Start dev environment with scripts |
 | `Type error in test file` | Wrong import path | Use relative imports with `.js` extension |

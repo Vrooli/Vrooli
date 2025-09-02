@@ -213,14 +213,14 @@ lifecycle::execute_phase() {
             fi
             
             # Execute in appropriate directory (scenario dir for scenarios, root for main)
-            # Export SERVICE_PORT explicitly if it exists
+            # Port variables are already exported by lifecycle::allocate_service_ports
             local exec_dir="${SCENARIO_PATH:-$var_ROOT_DIR}"
             if [[ "$is_background" == "true" ]]; then
                 # Use process manager for background processes
                 local process_name="vrooli.${phase}.${app_name}.${name}"
                 log::info "[DEBUG] Creating process: phase=$phase app_name=$app_name name=$name -> $process_name"
                 if command -v pm::start >/dev/null 2>&1; then
-                    if pm::start "$process_name" "export SERVICE_PORT='${SERVICE_PORT:-}' && $processed_run" "$exec_dir"; then
+                    if pm::start "$process_name" "$processed_run" "$exec_dir"; then
                         bg_processes+=("$process_name")
                         log::info "  Started background process: $process_name"
                     else

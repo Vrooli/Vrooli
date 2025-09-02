@@ -196,7 +196,7 @@ vrooli scenario test my-app      # Test scenario integration
 
 # Direct Execution (alternative)
 cd scenarios/my-app
-../../scripts/manage.sh develop  # Run from scenario directory
+../../scripts/manage.sh develop  # Alternative: Run from scenario directory
 
 # System Management
 vrooli status                    # Overall system health
@@ -619,7 +619,7 @@ If you need a complete reset:
 # Stop all services
 vrooli stop
 # or
-docker-compose down
+docker compose down
 pkill -f "node.*server"
 pkill -f "node.*ui"
 

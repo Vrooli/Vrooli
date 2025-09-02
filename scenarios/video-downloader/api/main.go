@@ -268,7 +268,7 @@ func main() {
 
 	handler := c.Handler(router)
 
-	port := os.Getenv("SERVICE_PORT")
+	port := os.Getenv("API_PORT")
 	if port == "" {
 		port = "8850"
 	}

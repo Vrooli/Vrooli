@@ -8,7 +8,7 @@ tests:
     type: http
     request:
       method: GET
-      url: http://localhost:${SERVICE_PORT}/health
+      url: http://localhost:${API_PORT}/health
     expected:
       status: 200
       body:
@@ -18,7 +18,7 @@ tests:
     type: http
     request:
       method: GET
-      url: http://localhost:${SERVICE_PORT}/api/regions
+      url: http://localhost:${API_PORT}/api/regions
     expected:
       status: 200
       body:
@@ -28,7 +28,7 @@ tests:
     type: http
     request:
       method: GET
-      url: http://localhost:${SERVICE_PORT}/api/foliage?region_id=1
+      url: http://localhost:${API_PORT}/api/foliage?region_id=1
     expected:
       status: 200
       body:

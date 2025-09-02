@@ -6,16 +6,16 @@ A managed PostgreSQL resource that enables isolated database instances for clien
 
 | Task | Command |
 |------|---------|
-| Create new client DB | `./manage.sh --action create --instance client-name` |
-| Start instance | `./manage.sh --action start --instance client-name` |
-| Get connection info | `./manage.sh --action connect --instance client-name` |
-| Open GUI | `./manage.sh --action gui --instance client-name` |
-| Create database | `./manage.sh --action create-db --instance client-name --database db_name` |
-| Backup instance | `./manage.sh --action backup --instance client-name` |
-| List all instances | `./manage.sh --action list` |
-| Check health | `./manage.sh --action status --instance client-name` |
-| View logs | `./manage.sh --action logs --instance client-name` |
-| Stop instance | `./manage.sh --action stop --instance client-name` |
+| Create new client DB | `resource-postgres content create-instance --name client-name` |
+| Start instance | `resource-postgres manage start` |
+| Get connection info | `resource-postgres credentials` |
+| Open GUI | `resource-postgres content gui --instance client-name` |
+| Create database | `resource-postgres content create-database --name db_name` |
+| Backup instance | `resource-postgres content backup --name client-name` |
+| List all instances | `resource-postgres content list-instances` |
+| Check health | `resource-postgres status` |
+| View logs | `resource-postgres logs` |
+| Stop instance | `resource-postgres manage stop` |
 
 ## 🎯 Purpose
 
@@ -34,21 +34,21 @@ Unlike Vrooli's core PostgreSQL infrastructure (which stores platform data), thi
 
 ```bash
 # Install PostgreSQL resource (pulls Docker image, creates directories)
-./manage.sh --action install
+resource-postgres manage install
 ```
 
 ### Create a Client Instance
 
 ```bash
 # Create instance for real estate client
-./manage.sh --action create \
-  --instance real-estate \
+resource-postgres content create-instance \
+  --name real-estate \
   --template production \
   --port 5434
 
 # Create instance with auto-assigned port
-./manage.sh --action create \
-  --instance ecommerce \
+resource-postgres content create-instance \
+  --name ecommerce \
   --template development
 ```
 
@@ -56,39 +56,39 @@ Unlike Vrooli's core PostgreSQL infrastructure (which stores platform data), thi
 
 ```bash
 # List all instances
-./manage.sh --action list
+resource-postgres content list-instances
 
 # Check instance status
-./manage.sh --action status --instance real-estate
+resource-postgres status
 
 # Get connection string
-./manage.sh --action connect --instance real-estate
+resource-postgres credentials
 
 # Start/stop instances
-./manage.sh --action start --instance real-estate
-./manage.sh --action stop --instance real-estate
+resource-postgres manage start
+resource-postgres manage stop
 
 # Start all instances
-./manage.sh --action start --instance all
+resource-postgres manage start --all
 ```
 
 ### GUI Management
 
 ```bash
 # Start web GUI for an instance
-./manage.sh --action gui --instance real-estate
+resource-postgres content gui --instance real-estate
 
 # Start GUI on specific port
-./manage.sh --action gui --instance real-estate --gui-port 8085
+resource-postgres content gui --instance real-estate --gui-port 8085
 
 # Check GUI status
-./manage.sh --action gui-status --instance real-estate
+resource-postgres content gui-status --instance real-estate
 
 # List all running GUIs
-./manage.sh --action gui-list
+resource-postgres content gui-list
 
 # Stop GUI for an instance
-./manage.sh --action gui-stop --instance real-estate
+resource-postgres content gui-stop --instance real-estate
 ```
 
 ## 🏗️ Architecture
@@ -123,7 +123,7 @@ When packaging a Vrooli instance for client deployment:
 1. Export instance configuration:
    ```bash
    # Get connection details for packaging
-   ./manage.sh --action connect --instance real-estate --format json > client-db-config.json
+   resource-postgres credentials --instance real-estate --format json > client-db-config.json
    ```
 
 2. Include in client's resource configuration:
@@ -148,7 +148,7 @@ When packaging a Vrooli instance for client deployment:
 3. Package with client-specific data:
    ```bash
    # Backup client database
-   ./manage.sh --action backup --instance real-estate --backup-name client-data
+   resource-postgres content backup --instance real-estate --backup-name client-data
    
    # Include in deployment package
    cp -r ~/.vrooli/backups/postgres/real-estate/client-data ./package/
@@ -159,56 +159,56 @@ When packaging a Vrooli instance for client deployment:
 ### Scenario: Building AI-Powered Real Estate Lead Generation
 ```bash
 # 1. Create isolated database for real estate client
-./manage.sh --action create --instance real-estate-leads --template production
+resource-postgres content create-instance --name real-estate-leads --template production
 
 # 2. Initialize migration system
-./manage.sh --action migrate-init --instance real-estate-leads
+resource-postgres content migrate-init --instance real-estate-leads
 
 # 3. Create project-specific databases
-./manage.sh --action create-db --instance real-estate-leads --database lead_tracking
-./manage.sh --action create-db --instance real-estate-leads --database property_data
-./manage.sh --action create-db --instance real-estate-leads --database analytics
+resource-postgres content create-database --instance real-estate-leads --database lead_tracking
+resource-postgres content create-database --instance real-estate-leads --database property_data
+resource-postgres content create-database --instance real-estate-leads --database analytics
 
 # 4. Create users with specific permissions
-./manage.sh --action create-user --instance real-estate-leads \
+resource-postgres content create-user --instance real-estate-leads \
   --username lead_api_user --password $(openssl rand -base64 32)
 
-./manage.sh --action create-user --instance real-estate-leads \
+resource-postgres content create-user --instance real-estate-leads \
   --username analytics_user --password $(openssl rand -base64 32)
 
 # 5. Connect to n8n for workflow automation
 # n8n can now access the database at: vrooli-postgres-real-estate-leads:5432
 
 # 6. Start GUI for development
-./manage.sh --action gui --instance real-estate-leads
+resource-postgres content gui --instance real-estate-leads
 
 # 7. Monitor during development
-./manage.sh --action monitor --interval 10
+resource-postgres content monitor --interval 10
 
 # 8. Package for client deployment
-./manage.sh --action backup --instance real-estate-leads --backup-name final-deploy
-./manage.sh --action connect --instance real-estate-leads --format json > db-config.json
+resource-postgres content backup --instance real-estate-leads --backup-name final-deploy
+resource-postgres credentials --instance real-estate-leads --format json > db-config.json
 ```
 
 ### Working on Multiple Clients Simultaneously
 ```bash
 # Client A: Real Estate Automation
-./manage.sh --action create --instance client-a-realestate --template production
+resource-postgres content create-instance --name client-a-realestate --template production
 
 # Client B: E-commerce Analytics  
-./manage.sh --action create --instance client-b-ecommerce --template production
+resource-postgres content create-instance --name client-b-ecommerce --template production
 
 # Client C: Healthcare Dashboard
-./manage.sh --action create --instance client-c-healthcare --template production
+resource-postgres content create-instance --name client-c-healthcare --template production
 
 # Start all client databases
-./manage.sh --action multi-start --instance "client-"
+resource-postgres manage start --all
 
 # Monitor all clients
-./manage.sh --action multi-status --instance "client-"
+resource-postgres status --all
 
 # Backup all client data nightly
-./manage.sh --action multi-backup --instance "client-"
+resource-postgres content backup --all
 ```
 
 ## 🔧 Advanced Usage
@@ -217,23 +217,23 @@ When packaging a Vrooli instance for client deployment:
 ```bash
 # Create instances for multiple clients
 for client in real-estate ecommerce healthcare; do
-  ./manage.sh --action create --instance "client-$client"
+  resource-postgres content create-instance --name "client-$client"
 done
 
 # Start all instances
-./manage.sh --action start --instance all
+resource-postgres manage start --all
 
 # Start only client instances using pattern matching
-./manage.sh --action multi-start --instance "client-*"
+resource-postgres manage start --pattern "client-*"
 
 # Check status of all client instances
-./manage.sh --action multi-status --instance "client-"
+resource-postgres status --pattern "client-*"
 
 # Backup all test instances
-./manage.sh --action multi-backup --instance "*-test"
+resource-postgres content backup --pattern "*-test"
 
 # Stop all development instances
-./manage.sh --action multi-stop --instance "*-dev"
+resource-postgres manage stop --pattern "*-dev"
 ```
 
 #### Pattern Matching Support
@@ -247,12 +247,12 @@ Multi-instance commands support several pattern types:
 ### A/B Testing Schemas
 ```bash
 # Create two instances with different configurations
-./manage.sh --action create --instance design-a --template development
-./manage.sh --action create --instance design-b --template production
+resource-postgres content create-instance --name design-a --template development
+resource-postgres content create-instance --name design-b --template production
 
 # Start GUIs for easy comparison
-./manage.sh --action gui --instance design-a    # Available at http://localhost:8080
-./manage.sh --action gui --instance design-b    # Available at http://localhost:8081
+resource-postgres content gui --instance design-a    # Available at http://localhost:8080
+resource-postgres content gui --instance design-b    # Available at http://localhost:8081
 
 # Compare performance and behavior using both GUI and command line
 ```
@@ -260,13 +260,13 @@ Multi-instance commands support several pattern types:
 ### Monitoring and Diagnostics
 ```bash
 # Monitor all instances continuously
-./manage.sh --action monitor
+resource-postgres content monitor
 
 # Run diagnostic checks
-./manage.sh --action diagnose
+resource-postgres test smoke
 
 # View instance logs
-./manage.sh --action logs --instance real-estate --lines 100
+resource-postgres logs --instance real-estate --lines 100
 ```
 
 ## 📋 Complete Command Reference
@@ -274,52 +274,52 @@ Multi-instance commands support several pattern types:
 ### Resource Management
 ```bash
 # Install/uninstall resource
-./manage.sh --action install
-./manage.sh --action uninstall
+resource-postgres manage install
+resource-postgres manage uninstall
 
-# Upgrade PostgreSQL Docker image
-./manage.sh --action upgrade
+# Restart for upgrades
+resource-postgres manage restart
 ```
 
 ### Instance Lifecycle
 ```bash
 # Create new instance
-./manage.sh --action create --instance <name> [--port <port>] [--template <template>]
+resource-postgres content create-instance --name <name> [--port <port>] [--template <template>]
 
 # Destroy instance (with confirmation)
-./manage.sh --action destroy --instance <name>
+resource-postgres content remove <name>
 
 # Force destroy without confirmation
-./manage.sh --action destroy --instance <name> --force yes
+resource-postgres content remove <name> --force
 ```
 
 ### Instance Operations
 ```bash
 # Start/stop/restart instances
-./manage.sh --action start --instance <name|all>
-./manage.sh --action stop --instance <name|all>
-./manage.sh --action restart --instance <name|all>
+resource-postgres manage start [--instance <name>]
+resource-postgres manage stop [--instance <name>]
+resource-postgres manage restart [--instance <name>]
 ```
 
 ### Information and Monitoring
 ```bash
 # Show resource or instance status
-./manage.sh --action status [--instance <name>]
+resource-postgres status [--instance <name>]
 
 # List all instances
-./manage.sh --action list
+resource-postgres content list-instances
 
 # Get connection details
-./manage.sh --action connect --instance <name>
+resource-postgres credentials [--instance <name>]
 
 # Show container logs
-./manage.sh --action logs --instance <name> [--lines <num>]
+resource-postgres logs [--instance <name>] [--lines <num>]
 
 # Continuous monitoring
-./manage.sh --action monitor [--interval <seconds>]
+resource-postgres content monitor [--interval <seconds>]
 
 # Run diagnostics
-./manage.sh --action diagnose
+resource-postgres test smoke
 ```
 
 ### GUI Management
@@ -340,40 +340,40 @@ Multi-instance commands support several pattern types:
 ### Database Operations
 ```bash
 # Create a new database within an instance
-./manage.sh --action create-db --instance <name> --database <db_name>
+resource-postgres content create-database --instance <name> --database <db_name>
 
-# Drop a database (use --yes yes to skip confirmation)
-./manage.sh --action drop-db --instance <name> --database <db_name> [--yes yes]
+# Drop a database
+resource-postgres content remove-database --instance <name> --database <db_name>
 
 # Create a new user
-./manage.sh --action create-user --instance <name> --username <username> --password <password>
+resource-postgres content create-user --instance <name> --username <username> --password <password>
 
-# Drop a user (use --yes yes to skip confirmation)
-./manage.sh --action drop-user --instance <name> --username <username> [--yes yes]
+# Drop a user
+resource-postgres content remove-user --instance <name> --username <username>
 
 # Show database statistics
-./manage.sh --action db-stats --instance <name> [--database <db_name>]
+resource-postgres content get --instance <name> [--database <db_name>]
 ```
 
 ### Migration Management
 ```bash
 # Initialize migration system for an instance
-./manage.sh --action migrate-init --instance <name>
+resource-postgres content migrate-init --instance <name>
 
 # Run migrations from a directory
-./manage.sh --action migrate --instance <name> --migrations-dir <path>
+resource-postgres content migrate --instance <name> --migrations-dir <path>
 
 # Check migration status and history
-./manage.sh --action migrate-status --instance <name>
+resource-postgres content migrate-status --instance <name>
 
 # Rollback a specific migration
-./manage.sh --action migrate-rollback --instance <name> --migration <version>
+resource-postgres content migrate-rollback --instance <name> --migration <version>
 
 # List available migrations in a directory
-./manage.sh --action migrate-list --migrations-dir <path>
+resource-postgres content migrate-list --migrations-dir <path>
 
 # Seed database with initial data
-./manage.sh --action seed --instance <name> --seed-path <file_or_dir> [--database <db_name>]
+resource-postgres content seed --instance <name> --seed-path <file_or_dir> [--database <db_name>]
 ```
 
 **📚 Migration Examples Available**: See `examples/migrations/` for:
@@ -386,31 +386,31 @@ Multi-instance commands support several pattern types:
 ### Backup and Restore
 ```bash
 # Create a backup (full, schema-only, or data-only)
-./manage.sh --action backup --instance <name> [--backup-name <name>] [--backup-type <full|schema|data>]
+resource-postgres content backup --instance <name> [--backup-name <name>] [--backup-type <full|schema|data>]
 
 # Restore from backup
-./manage.sh --action restore --instance <name> --backup-name <backup_name> [--yes yes]
+resource-postgres content restore --instance <name> --backup-name <backup_name>
 
 # List available backups
-./manage.sh --action list-backups --instance <name>
+resource-postgres content list-backups --instance <name>
 
 # Verify backup integrity
-./manage.sh --action verify-backup --instance <name> --backup-name <backup_name>
+resource-postgres content verify-backup --instance <name> --backup-name <backup_name>
 
 # Delete a specific backup
-./manage.sh --action delete-backup --instance <name> --backup-name <backup_name> [--yes yes]
+resource-postgres content delete-backup --instance <name> --backup-name <backup_name>
 
 # Clean up old backups (default: keep 7 days)
-./manage.sh --action cleanup-backups --instance <name> [--retention-days <days>]
+resource-postgres content cleanup-backups --instance <name> [--retention-days <days>]
 ```
 
 ### Monitoring and Diagnostics
 ```bash
 # Run comprehensive diagnostics
-./manage.sh --action diagnose
+resource-postgres test smoke
 
 # Monitor instances continuously (default: 5-second interval)
-./manage.sh --action monitor [--interval <seconds>]
+resource-postgres content monitor [--interval <seconds>]
 ```
 
 ## 🔌 Connection Examples
@@ -418,7 +418,7 @@ Multi-instance commands support several pattern types:
 ### Using psql
 ```bash
 # Get connection details first
-./manage.sh --action connect --instance real-estate
+resource-postgres credentials --instance real-estate
 
 # Connect using psql
 psql -h localhost -p 5434 -U vrooli -d vrooli_client
@@ -427,7 +427,7 @@ psql -h localhost -p 5434 -U vrooli -d vrooli_client
 ### Using Connection String
 ```bash
 # Get full connection string
-CONN_STRING=$(./manage.sh --action connect --instance real-estate | grep "postgresql://")
+CONN_STRING=$(resource-postgres credentials --instance real-estate --format connection-string)
 
 # Use in your application
 export DATABASE_URL="$CONN_STRING"
@@ -438,20 +438,20 @@ export DATABASE_URL="$CONN_STRING"
 # Extract connection details
 INSTANCE="real-estate"
 DB_HOST="localhost"
-DB_PORT=$(./manage.sh --action connect --instance $INSTANCE | grep "Port:" | cut -d' ' -f2)
+DB_PORT=$(resource-postgres credentials --instance $INSTANCE --format json | jq -r '.connection.port')
 DB_USER="vrooli"
 DB_NAME="vrooli_client"
-DB_PASS=$(./manage.sh --action connect --instance $INSTANCE | grep "Password:" | cut -d' ' -f2)
+DB_PASS=$(resource-postgres credentials --instance $INSTANCE --format json | jq -r '.auth.password')
 ```
 
 ### Using Web GUI
 ```bash
 # Start GUI for easy database management
-./manage.sh --action gui --instance real-estate
+resource-postgres content gui --instance real-estate
 
 # GUI will be available at http://localhost:8080 (or next available port)
 # Check exact URL and port
-./manage.sh --action gui-status --instance real-estate
+resource-postgres content gui-status --instance real-estate
 
 # Access via browser - no additional setup required
 # Web interface provides:
@@ -547,20 +547,20 @@ DB_PASS=$(./manage.sh --action connect --instance $INSTANCE | grep "Password:" |
 ### Command Line Arguments
 - **Format**: Always use `--parameter value` format (not `--parameter=value`)
 - **Boolean Flags**: Use `--yes yes` or `--force yes` (not just `--yes`)
-- **Example**: `./manage.sh --action destroy --instance test --yes yes`
+- **Example**: `resource-postgres content remove test --force`
 
 ## 🔧 Troubleshooting
 
 ### Instance Won't Start
 ```bash
 # Check diagnostics first
-./manage.sh --action diagnose
+resource-postgres test smoke
 
 # Check logs for specific errors
-./manage.sh --action logs --instance <name> --lines 100
+resource-postgres logs --instance <name> --lines 100
 
 # Verify port availability
-./manage.sh --action status --instance <name>
+resource-postgres status --instance <name>
 
 # Common causes:
 # - Port already in use: Choose different port or stop conflicting service
@@ -571,7 +571,7 @@ DB_PASS=$(./manage.sh --action connect --instance $INSTANCE | grep "Password:" |
 ### Port Conflicts
 ```bash
 # List current instances and ports
-./manage.sh --action list
+resource-postgres content list-instances
 
 # Find what's using a port
 sudo lsof -i :5434
@@ -579,19 +579,19 @@ sudo lsof -i :5434
 sudo netstat -tulpn | grep :5434
 
 # Create instance with specific available port
-./manage.sh --action create --instance <name> --port <available_port>
+resource-postgres content create-instance --name <name> --port <available_port>
 
 # Auto-assign port (recommended)
-./manage.sh --action create --instance <name>  # Omit --port
+resource-postgres content create-instance --name <name>  # Omit --port
 ```
 
 ### Resource Issues
 ```bash
 # Check disk space and system health
-./manage.sh --action diagnose
+resource-postgres test smoke
 
 # Monitor resource usage in real-time
-./manage.sh --action monitor --interval 2
+resource-postgres content monitor --interval 2
 
 # Check Docker disk usage
 docker system df
@@ -603,10 +603,10 @@ docker system prune -a  # Use with caution!
 ### Connection Issues
 ```bash
 # Verify instance is running and healthy
-./manage.sh --action status --instance <name>
+resource-postgres status --instance <name>
 
 # Get current connection details
-./manage.sh --action connect --instance <name>
+resource-postgres credentials --instance <name>
 
 # Test connection with Docker (no psql needed)
 docker exec vrooli-postgres-<instance-name> psql -U vrooli -d vrooli_client -c "SELECT version();"
@@ -623,27 +623,27 @@ docker exec n8n ping -c 1 vrooli-postgres-<instance-name>
 ### GUI Issues
 ```bash
 # GUI won't start - check PostgreSQL instance first
-./manage.sh --action status --instance <name>
+resource-postgres status --instance <name>
 
 # GUI shows "connection refused"
 # 1. Ensure PostgreSQL instance is running
-./manage.sh --action restart --instance <name>
+resource-postgres manage restart --instance <name>
 # 2. Wait for PostgreSQL to be ready
 sleep 5
 # 3. Start GUI
-./manage.sh --action gui --instance <name>
+resource-postgres content gui --instance <name>
 
 # GUI port conflicts
-./manage.sh --action gui-list  # Check used ports
-./manage.sh --action gui --instance <name> --gui-port 8085  # Use specific port
+resource-postgres content gui-list  # Check used ports
+resource-postgres content gui --instance <name> --gui-port 8085  # Use specific port
 
 # GUI container issues
 docker logs vrooli-pgweb-<instance-name>  # Check GUI container logs
 
 # Reset GUI completely
-./manage.sh --action gui-stop --instance <name>
+resource-postgres content gui-stop --instance <name>
 docker rm -f vrooli-pgweb-<instance-name> 2>/dev/null  # Force remove if stuck
-./manage.sh --action gui --instance <name>
+resource-postgres content gui --instance <name>
 
 # GUI not showing data
 # - Clear browser cache
@@ -656,11 +656,11 @@ docker rm -f vrooli-pgweb-<instance-name> 2>/dev/null  # Force remove if stuck
 # This means directory exists but container doesn't
 
 # Option 1: Recreate the container
-./manage.sh --action start --instance <name>
+resource-postgres manage start --instance <name>
 
 # Option 2: Clean up and recreate
-./manage.sh --action destroy --instance <name> --yes yes
-./manage.sh --action create --instance <name>
+resource-postgres content remove <name> --force
+resource-postgres content create-instance --name <name>
 
 # Option 3: Manually check and clean
 ls -la instances/<name>/  # Check if directory exists
@@ -679,7 +679,7 @@ docker exec vrooli-postgres-<instance> psql -U vrooli -c "\du"
 
 # Permission denied errors
 # Ensure you're using the correct user
-./manage.sh --action connect --instance <name>  # Check credentials
+resource-postgres credentials --instance <name>  # Check credentials
 ```
 
 ### Integration Issues with Automation Tools
@@ -693,7 +693,7 @@ docker inspect vrooli-postgres-<instance> | grep -A 10 Networks
 # Wrong: localhost:5439
 
 # 3. Get proper connection format
-./manage.sh --action connect --instance <name> --format n8n
+resource-postgres credentials --instance <name> --format n8n
 
 # Node-RED connection issues
 # Install PostgreSQL node first:
@@ -751,14 +751,14 @@ The PostgreSQL resource is designed to support Vrooli's **platform factory** app
 # Example: "Real estate lead generation and CRM automation"
 
 # 2. Create isolated client database
-./manage.sh --action create --instance real-estate-client --template real-estate
+resource-postgres content create-instance --name real-estate-client --template real-estate
 
 # 3. Seed with industry-specific data
-./manage.sh --action seed --instance real-estate-client --seed-path ./examples/seeds/real-estate/
+resource-postgres content seed --instance real-estate-client --seed-path ./examples/seeds/real-estate/
 
 # 4. Verify client setup
-./manage.sh --action status --instance real-estate-client
-./manage.sh --action connect --instance real-estate-client --format n8n
+resource-postgres status --instance real-estate-client
+resource-postgres credentials --instance real-estate-client --format n8n
 
 # 5. Build automation workflows (n8n, Node-RED, etc.)
 # 6. Package for client deployment
@@ -805,10 +805,10 @@ The PostgreSQL resource is designed to support Vrooli's **platform factory** app
 2. **Database Setup**
    ```bash
    # Create isolated instance with industry template
-   ./manage.sh --action create --instance client-name --template industry-type
+   resource-postgres content create-instance --name client-name --template industry-type
    
    # Seed with sample data for testing
-   ./manage.sh --action seed --instance client-name --seed-path ./examples/seeds/industry-type/
+   resource-postgres content seed --instance client-name --seed-path ./examples/seeds/industry-type/
    ```
 
 3. **Development Phase**
@@ -816,13 +816,13 @@ The PostgreSQL resource is designed to support Vrooli's **platform factory** app
    # Build workflows using client-specific database
    # Test with seeded data
    # Develop custom migrations if needed
-   ./manage.sh --action migrate --instance client-name --migrations-dir ./custom-migrations/
+   resource-postgres content migrate --instance client-name --migrations-dir ./custom-migrations/
    ```
 
 4. **Client Delivery**
    ```bash
    # Export client database for deployment
-   ./manage.sh --action backup --instance client-name --backup-name client-deployment
+   resource-postgres content backup --instance client-name --backup-name client-deployment
    
    # Generate deployment package
    ./examples/package-deployment.sh --instance client-name --target production
@@ -854,10 +854,10 @@ This enables **zero-configuration connectivity** between client databases and au
 ### n8n Integration
 ```bash
 # Create instance with n8n network access
-./manage.sh --action create --instance client-project --template development
+resource-postgres content create-instance --name client-project --template development
 
 # Get n8n-formatted credentials
-./manage.sh --action connect --instance client-project --format n8n
+resource-postgres credentials --instance client-project --format n8n
 
 # In n8n PostgreSQL node, use:
 # Host: vrooli-postgres-client-project
@@ -870,7 +870,7 @@ This enables **zero-configuration connectivity** between client databases and au
 ### Node-RED Integration  
 ```bash
 # Get Node-RED formatted connection
-./manage.sh --action connect --instance client-project --format node-red
+resource-postgres credentials --instance client-project --format node-red
 
 # Install node-red-contrib-postgresql in Node-RED
 # Use internal hostname and port 5432
@@ -906,6 +906,6 @@ For more information, see the [Vrooli Resources Documentation](../../README.md).
 ---
 
 **Need Help?**
-- Use `./manage.sh --help` for command-line help
-- Check the diagnostics: `./manage.sh --action diagnose`
-- View instance logs: `./manage.sh --action logs --instance <name>`
+- Use `resource-postgres --help` for command-line help
+- Check the diagnostics: `resource-postgres test smoke`
+- View instance logs: `resource-postgres logs --instance <name>`

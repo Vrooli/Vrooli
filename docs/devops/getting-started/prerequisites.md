@@ -335,9 +335,9 @@ pnpm store prune
 
 After completing prerequisites installation:
 
-1. **Development Setup**: See [Development Environment Setup](../development/environment-setup.md)
-2. **Server Deployment**: See [Server Deployment Guide](../operations/server-deployment.md)
-3. **Build System**: See [Build System Guide](../build-deploy/build-system.md)
+1. **Development Setup**: See [Development Environment Setup](../development-environment.md)
+2. **Server Deployment**: See [Server Deployment Guide](../server-deployment.md)
+3. **Build System**: See [Build System Guide](../build-system.md)
 4. **Troubleshooting**: See [Troubleshooting Guide](../troubleshooting.md)
 
 ## Quick Installation Script

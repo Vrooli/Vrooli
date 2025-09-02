@@ -6,7 +6,7 @@
   "services": {
     "api": {
       "host": "localhost",
-      "port": "${SERVICE_PORT}",
+      "port": "${API_PORT}",
       "protocol": "http",
       "base_path": "/api",
       "cors": {

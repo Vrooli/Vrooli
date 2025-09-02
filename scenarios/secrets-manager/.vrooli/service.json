@@ -59,7 +59,7 @@
   },
   "ports": {
     "api": {
-      "env_var": "SERVICE_PORT",
+      "env_var": "API_PORT",
       "port": 28000,
       "fallback": "auto",
       "description": "Secrets Manager API port"
@@ -116,7 +116,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🔐 Secrets Manager initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${SERVICE_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: secrets-manager --help'",
+          "run": "echo '🔐 Secrets Manager initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: secrets-manager --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -126,7 +126,7 @@
       "steps": [
         {
           "name": "start-api-server",
-          "run": "cd api && PORT=$SERVICE_PORT ./secrets-manager-api",
+          "run": "cd api && env PORT=$API_PORT ./secrets-manager-api",
           "description": "Start Go secrets manager API server in background",
           "background": true,
           "condition": {
@@ -135,7 +135,7 @@
         },
         {
           "name": "start-ui-server",
-          "run": "cd ui && PORT=$UI_PORT node server.js",
+          "run": "cd ui && env PORT=$UI_PORT node server.js",
           "description": "Start dark chrome dashboard UI server in background",
           "background": true,
           "condition": {
@@ -144,7 +144,7 @@
         },
         {
           "name": "wait-for-api",
-          "run": "sleep 2 && curl -sf http://localhost:$SERVICE_PORT/health > /dev/null",
+          "run": "sleep 2 && curl -sf http://localhost:$API_PORT/health > /dev/null",
           "description": "Wait for API server to be ready",
           "retry": {
             "max_attempts": 15,
@@ -167,7 +167,7 @@
         },
         {
           "name": "show-running-services",
-          "run": "echo '🔐 Secrets Manager running:\\n  🌐 Dashboard: http://localhost:${UI_PORT}\\n  🔌 API: http://localhost:$SERVICE_PORT\\n  ⚙️  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  🔧 CLI: secrets-manager --help'",
+          "run": "echo '🔐 Secrets Manager running:\\n  🌐 Dashboard: http://localhost:${UI_PORT}\\n  🔌 API: http://localhost:$API_PORT\\n  ⚙️  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  🔧 CLI: secrets-manager --help'",
           "description": "Display all running service URLs"
         }
       ]
@@ -185,17 +185,17 @@
         },
         {
           "name": "test-api-health",
-          "run": "curl -sf http://localhost:$SERVICE_PORT/health",
+          "run": "curl -sf http://localhost:$API_PORT/health",
           "description": "Test API health endpoint"
         },
         {
           "name": "test-secrets-scan-endpoint",
-          "run": "curl -sf http://localhost:$SERVICE_PORT/api/v1/secrets/scan",
+          "run": "curl -sf http://localhost:$API_PORT/api/v1/secrets/scan",
           "description": "Test secrets scan API endpoint"
         },
         {
           "name": "test-secrets-validate-endpoint",
-          "run": "curl -sf http://localhost:$SERVICE_PORT/api/v1/secrets/validate",
+          "run": "curl -sf http://localhost:$API_PORT/api/v1/secrets/validate",
           "description": "Test secrets validation API endpoint"
         },
         {

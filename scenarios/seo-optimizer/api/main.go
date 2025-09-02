@@ -43,7 +43,7 @@ type HealthResponse struct {
 func main() {
     port := os.Getenv("PORT")
     if port == "" {
-        port = os.Getenv("SERVICE_PORT")
+        port = os.Getenv("API_PORT")
         if port == "" {
             port = "9220"
         }

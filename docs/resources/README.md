@@ -30,13 +30,13 @@ cat ~/.vrooli/service.json | jq '.services'
 ### Installation
 ```bash
 # Install enabled resources (recommended)
-./scripts/manage.sh setup --target native-linux --resources enabled
+vrooli setup
 
 # Install specific resources
-./scripts/manage.sh setup --target native-linux --resources "ollama,n8n,agent-s2"
+vrooli resource install ollama n8n agent-s2
 
 # Install by category
-./scripts/manage.sh setup --target native-linux --resources ai-only
+vrooli resource start-all  # Start all AI resources
 ```
 
 ### Management
@@ -80,7 +80,7 @@ vrooli scenario run research-assistant
 
 # Or from the scenario directory
 cd scenarios/research-assistant
-../../scripts/manage.sh develop
+vrooli scenario run <scenario-name>
 ```
 
 📖 **Full Scenario Documentation**: [Scenario System](../scenarios/)
@@ -196,7 +196,7 @@ echo 'FROM llama3.1:8b
 SYSTEM "You are a professional customer support agent. Always be helpful and follow company policies."' > /tmp/support-agent
 ollama create support-agent -f /tmp/support-agent
 ```
-📖 **Details**: [resources/ai/ollama/README.md](ai/ollama/README.md)
+📖 **Details**: [resources/ai/ollama/README.md](../../resources/ollama/README.md)
 
 ## Whisper - Speech-to-Text
 **OpenAI Whisper for audio transcription and voice interfaces**
@@ -215,7 +215,7 @@ ollama create support-agent -f /tmp/support-agent
 # Transcribe audio file
 curl -X POST http://localhost:8090/transcribe -F "audio=@meeting.wav"
 ```
-📖 **Details**: [resources/ai/whisper/README.md](ai/whisper/README.md)
+📖 **Details**: [resources/ai/whisper/README.md](../../resources/whisper/README.md)
 
 ## Unstructured-IO - Document Processing
 **AI-powered document parsing and content extraction**
@@ -236,7 +236,7 @@ curl -X POST http://localhost:11450/general/v0/general \
   -F "files=@document.pdf" \
   -F "strategy=fast"
 ```
-📖 **Details**: [resources/ai/unstructured-io/README.md](ai/unstructured-io/README.md)
+📖 **Details**: [resources/ai/unstructured-io/README.md](../../resources/unstructured-io/README.md)
 
 ## ComfyUI - AI Image Generation
 **Workflow-based AI image generation and manipulation**
@@ -258,7 +258,7 @@ curl http://localhost:5679/
 # Submit workflow  
 curl -X POST http://localhost:5679/api/prompt -H "Content-Type: application/json" -d @workflow.json
 ```
-📖 **Details**: [resources/ai/comfyui/README.md](automation/comfyui/README.md)
+📖 **Details**: [resources/ai/comfyui/README.md](../../resources/comfyui/README.md)
 
 ---
 
@@ -284,7 +284,7 @@ open http://localhost:5678
 # Execute workflow via API
 curl -X POST http://localhost:5678/webhook/my-workflow
 ```
-📖 **Details**: [resources/automation/n8n/README.md](automation/n8n/README.md)
+📖 **Details**: [resources/automation/n8n/README.md](../../resources/n8n/README.md)
 
 ## Node-RED - Real-time Flow Programming
 **Event-driven automation with IoT focus and real-time processing**
@@ -306,7 +306,7 @@ open http://localhost:1880
 # Check Node-RED flows API
 curl http://localhost:1880/flows | jq .
 ```
-📖 **Details**: [resources/automation/node-red/README.md](automation/node-red/README.md)
+📖 **Details**: [resources/automation/node-red/README.md](../../resources/node-red/README.md)
 
 ## Huginn - Agent-based Event Processing
 **Intelligent web monitoring and data aggregation**
@@ -328,7 +328,7 @@ open http://localhost:4111
 # Create monitoring agent via API
 curl -X POST http://localhost:4111/agents -d @agent_config.json
 ```
-📖 **Details**: [resources/automation/huginn/README.md](agents/huginn/README.md)
+📖 **Details**: [resources/automation/huginn/README.md](../../resources/huginn/README.md)
 
 ## Windmill - Code-first Workflows
 **Developer-focused workflow automation with script orchestration**
@@ -350,7 +350,7 @@ open http://localhost:5681
 # Execute script
 curl -X POST http://localhost:5681/api/jobs/run -d '{"script": "my_script"}'
 ```
-📖 **Details**: [resources/automation/windmill/README.md](automation/windmill/README.md)
+📖 **Details**: [resources/automation/windmill/README.md](../../resources/windmill/README.md)
 
 ---
 
@@ -380,7 +380,7 @@ resource-agent-s2 usage --usage-type screenshot
 curl -X POST http://localhost:4113/mouse/click -d '{"x": 500, "y": 300}'
 curl -X POST http://localhost:4113/keyboard/type -d '{"text": "Hello World"}'
 ```
-📖 **Details**: [resources/agents/agent-s2/README.md](agents/agent-s2/README.md)
+📖 **Details**: [resources/agents/agent-s2/README.md](../../resources/agent-s2/README.md)
 
 ## Browserless - Chrome-as-a-Service
 **Fast, lightweight web automation for trusted environments**
@@ -402,7 +402,7 @@ curl -X POST http://localhost:4110/chrome/screenshot -H "Content-Type: applicati
 # Generate PDF report
 curl -X POST http://localhost:4110/chrome/pdf -H "Content-Type: application/json" -d '{"url": "http://localhost:8080/report"}'
 ```
-📖 **Details**: [resources/agents/browserless/README.md](agents/browserless/README.md)
+📖 **Details**: [resources/agents/browserless/README.md](../../resources/browserless/README.md)
 
 ## Claude Code - AI Development Assistant  
 **Anthropic's CLI for AI-powered development and code analysis**
@@ -424,7 +424,7 @@ claude-code analyze src/
 # Generate documentation
 claude-code document --file src/main.ts
 ```
-📖 **Details**: [resources/agents/claude-code/README.md](agents/claude-code/README.md)
+📖 **Details**: [resources/agents/claude-code/README.md](../../resources/claude-code/README.md)
 
 ---
 
@@ -450,7 +450,7 @@ open http://localhost:9200
 # Search via API  
 curl "http://localhost:9200/search?q=vrooli+ai&format=json"
 ```
-📖 **Details**: [resources/search/searxng/README.md](search/searxng/README.md)
+📖 **Details**: [resources/search/searxng/README.md](../../resources/searxng/README.md)
 
 ---
 
@@ -476,7 +476,7 @@ open http://localhost:9001
 # Upload file via API
 curl -X PUT http://localhost:9000/bucket/file.txt -T ./file.txt
 ```
-📖 **Details**: [resources/storage/minio/README.md](storage/minio/README.md)
+📖 **Details**: [resources/storage/minio/README.md](../../resources/minio/README.md)
 
 ## QuestDB - Ultra-Fast Time-Series Database
 **High-performance time-series database for metrics and analytics**
@@ -498,7 +498,7 @@ curl -G "http://localhost:9010/exec" --data-urlencode "query=SELECT * FROM ai_in
 # Ingest metrics via InfluxDB protocol
 echo "cpu,host=server1 usage=45.2 $(date +%s)000000000" | nc localhost 9011
 ```
-📖 **Details**: [resources/storage/questdb/README.md](storage/questdb/README.md)
+📖 **Details**: [resources/storage/questdb/README.md](../../resources/questdb/README.md)
 
 ## Vault - Secret Management
 **Secure secret storage and dynamic credential management**
@@ -522,7 +522,7 @@ curl -X POST http://localhost:8200/v1/secret/data/myapp \
 # Retrieve secret
 curl -H "X-Vault-Token: your-token" http://localhost:8200/v1/secret/data/myapp
 ```
-📖 **Details**: [resources/storage/vault/README.md](storage/vault/README.md)
+📖 **Details**: [resources/storage/vault/README.md](../../resources/vault/README.md)
 
 ## Qdrant - Vector Database
 **High-performance vector database for AI embeddings and semantic search**
@@ -548,7 +548,7 @@ curl -X POST http://localhost:6333/collections/documents/points/search \
   -H "Content-Type: application/json" \
   -d '{"vector": [0.1, 0.2, 0.3], "limit": 5}'
 ```
-📖 **Details**: [resources/storage/qdrant/README.md](storage/qdrant/README.md)
+📖 **Details**: [resources/storage/qdrant/README.md](../../resources/qdrant/README.md)
 
 ## PostgreSQL - Relational Database
 **Production-ready PostgreSQL database for structured data**
@@ -572,7 +572,7 @@ curl -X POST http://localhost:5433/query \
   -H "Content-Type: application/json" \
   -d '{"query": "SELECT version();"}'
 ```
-📖 **Details**: [resources/storage/postgres/README.md](storage/postgres/README.md)
+📖 **Details**: [resources/storage/postgres/README.md](../../resources/postgres/README.md)
 
 ## Redis - In-Memory Cache
 **High-performance in-memory data store for caching and pub/sub**
@@ -595,7 +595,7 @@ redis-cli -h localhost -p 6380 GET mykey
 # Pub/sub messaging
 redis-cli -h localhost -p 6380 PUBLISH mychannel "Hello World"
 ```
-📖 **Details**: [resources/storage/redis/README.md](storage/redis/README.md)
+📖 **Details**: [resources/storage/redis/README.md](../../resources/redis/README.md)
 
 ---
 
@@ -744,8 +744,8 @@ echo "test_metric value=1" | nc localhost 9011  # InfluxDB line protocol (was 90
 ## Getting Help
 
 - **Individual Resource Issues**: See specific resource README files
-- **General Setup**: [scripts/manage.sh documentation](../README.md)
-- **Integration Questions**: [docs/architecture/ai-resource-integration-plan.md](../../docs/architecture/ai-resource-integration-plan.md)
+- **General Setup**: [Vrooli CLI documentation](../README.md)
+- **Integration Questions**: [Architecture Overview](../ARCHITECTURE_OVERVIEW.md)
 
 ---
 

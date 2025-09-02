@@ -84,7 +84,7 @@ type APIServer struct {
 }
 
 func main() {
-	port := os.Getenv("SERVICE_PORT")
+	port := os.Getenv("API_PORT")
 	if port == "" {
 		port = "8080"
 	}

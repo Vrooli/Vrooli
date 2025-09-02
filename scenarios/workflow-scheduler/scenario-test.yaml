@@ -31,20 +31,20 @@ tests:
 
   - name: API health check
     description: Verify API server is healthy
-    run: curl -sf http://localhost:${SERVICE_PORT}/health
+    run: curl -sf http://localhost:${API_PORT}/health
     expected: success
     timeout: 10
     retry: 5
 
   - name: Database connectivity
     description: Verify database connection works
-    run: curl -sf http://localhost:${SERVICE_PORT}/api/system/db-status
+    run: curl -sf http://localhost:${API_PORT}/api/system/db-status
     expected: success
     timeout: 10
 
   - name: Redis connectivity
     description: Verify Redis connection works  
-    run: curl -sf http://localhost:${SERVICE_PORT}/api/system/redis-status
+    run: curl -sf http://localhost:${API_PORT}/api/system/redis-status
     expected: success
     timeout: 10
 
@@ -52,7 +52,7 @@ tests:
     description: Test create, read, update, delete schedule
     run: |
       # Create schedule
-      SCHEDULE_ID=$(curl -sf -X POST http://localhost:${SERVICE_PORT}/api/schedules \
+      SCHEDULE_ID=$(curl -sf -X POST http://localhost:${API_PORT}/api/schedules \
         -H "Content-Type: application/json" \
         -d '{
           "name": "Test Schedule",
@@ -62,22 +62,22 @@ tests:
         }' | jq -r '.id')
       
       # Read schedule
-      curl -sf http://localhost:${SERVICE_PORT}/api/schedules/${SCHEDULE_ID}
+      curl -sf http://localhost:${API_PORT}/api/schedules/${SCHEDULE_ID}
       
       # Update schedule
-      curl -sf -X PUT http://localhost:${SERVICE_PORT}/api/schedules/${SCHEDULE_ID} \
+      curl -sf -X PUT http://localhost:${API_PORT}/api/schedules/${SCHEDULE_ID} \
         -H "Content-Type: application/json" \
         -d '{"description": "Updated"}'
       
       # Delete schedule
-      curl -sf -X DELETE http://localhost:${SERVICE_PORT}/api/schedules/${SCHEDULE_ID}
+      curl -sf -X DELETE http://localhost:${API_PORT}/api/schedules/${SCHEDULE_ID}
     expected: success
     timeout: 20
 
   - name: Cron validation
     description: Test cron expression validation
     run: |
-      curl -sf "http://localhost:${SERVICE_PORT}/api/cron/validate?expression=0%209%20*%20*%20*" | \
+      curl -sf "http://localhost:${API_PORT}/api/cron/validate?expression=0%209%20*%20*%20*" | \
         jq -e '.valid == true'
     expected: success
     timeout: 10

@@ -16,7 +16,7 @@
   },
   "ports": {
     "api": {
-      "env_var": "SERVICE_PORT",
+      "env_var": "API_PORT",
       "port": 8090,
       "fallback": "8095",
       "description": "Swarm Manager API port"
@@ -120,7 +120,7 @@
         },
         {
           "name": "wait-for-api",
-          "run": "timeout 30 bash -c 'until curl -s http://localhost:${SERVICE_PORT:-8095}/health > /dev/null 2>&1; do sleep 1; done' || exit 1"
+          "run": "timeout 30 bash -c 'until curl -s http://localhost:${API_PORT:-8095}/health > /dev/null 2>&1; do sleep 1; done' || exit 1"
         },
         {
           "name": "start-ui",

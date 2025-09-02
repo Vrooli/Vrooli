@@ -8,7 +8,7 @@ set -euo pipefail
 CLI_VERSION="2.0.0"
 
 # Configuration
-API_BASE="${BRAND_MANAGER_API_BASE:-http://localhost:${SERVICE_PORT:-8090}}"
+API_BASE="${BRAND_MANAGER_API_BASE:-http://localhost:${API_PORT:-8090}}"
 API_TOKEN="${BRAND_MANAGER_TOKEN:-brand_manager_cli_default_2024}"
 
 # API request helper
@@ -151,7 +151,7 @@ case "${1:-help}" in
 		Environment Variables:
 		  BRAND_MANAGER_API_BASE    API base URL (default: http://localhost:8090)
 		  BRAND_MANAGER_TOKEN       API authentication token (default: brand_manager_cli_default_2024)
-		  SERVICE_PORT              Override default API port (8090)
+		  API_PORT              Override default API port (8090)
 		EOF
         ;;
     *) 

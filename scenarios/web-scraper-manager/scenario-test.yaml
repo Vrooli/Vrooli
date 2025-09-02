@@ -3,7 +3,7 @@ description: Test suite for unified web scraper management dashboard using moder
 version: 2.0.0
 
 # Modern test configuration that works with the new lifecycle system
-api_base_url: "http://localhost:${SERVICE_PORT}"
+api_base_url: "http://localhost:${API_PORT}"
 
 prerequisites:
   - name: API Server Running

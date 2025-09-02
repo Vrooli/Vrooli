@@ -335,17 +335,17 @@ networks:
 #### **Deployment Commands**
 ```bash
 # Deploy to production
-docker-compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml up -d
 
 # Scale application
-docker-compose -f docker-compose.prod.yml up -d --scale app=5
+docker compose -f docker-compose.prod.yml up -d --scale app=5
 
 # Update application
-docker-compose -f docker-compose.prod.yml pull
-docker-compose -f docker-compose.prod.yml up -d --no-deps app
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d --no-deps app
 
 # View logs
-docker-compose -f docker-compose.prod.yml logs -f app
+docker compose -f docker-compose.prod.yml logs -f app
 ```
 
 ### **Method 3: Traditional VM Deployment**

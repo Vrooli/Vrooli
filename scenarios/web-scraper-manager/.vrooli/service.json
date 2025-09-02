@@ -28,7 +28,7 @@
   },
   "ports": {
     "api": {
-      "env_var": "SERVICE_PORT",
+      "env_var": "API_PORT",
       "port": 31750,
       "fallback": "auto",
       "description": "Web scraper manager coordination API port"
@@ -195,7 +195,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Web Scraper Manager initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n orchestrator: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${SERVICE_PORT}\\n  CLI: web-scraper-manager --help'",
+          "run": "echo '🚀 Web Scraper Manager initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n orchestrator: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  CLI: web-scraper-manager --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -210,7 +210,7 @@
         },
         {
           "name": "start-api-server",
-          "run": "cd api && PORT=$SERVICE_PORT ./web-scraper-manager-api",
+          "run": "cd api && env PORT=$API_PORT ./web-scraper-manager-api",
           "description": "Start Go coordination API server in background",
           "background": true,
           "condition": {
@@ -219,7 +219,7 @@
         },
         {
           "name": "wait-for-api",
-          "run": "sleep 2 && curl -sf http://localhost:$SERVICE_PORT/health > /dev/null",
+          "run": "sleep 2 && curl -sf http://localhost:$API_PORT/health > /dev/null",
           "description": "Wait for API server to be ready",
           "retry": {
             "max_attempts": 15,
@@ -233,7 +233,7 @@
         },
         {
           "name": "show-running-services",
-          "run": "echo '🚀 Web Scraper Manager running:\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n orchestrator: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$SERVICE_PORT\\n  MinIO: http://localhost:${RESOURCE_PORTS[minio]}\\n  CLI: web-scraper-manager --help'",
+          "run": "echo '🚀 Web Scraper Manager running:\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n orchestrator: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$API_PORT\\n  MinIO: http://localhost:${RESOURCE_PORTS[minio]}\\n  CLI: web-scraper-manager --help'",
           "description": "Display all running service URLs"
         }
       ]
@@ -251,17 +251,17 @@
         },
         {
           "name": "test-api-health",
-          "run": "curl -sf http://localhost:$SERVICE_PORT/health",
+          "run": "curl -sf http://localhost:$API_PORT/health",
           "description": "Test API health endpoint"
         },
         {
           "name": "test-agents-endpoint",
-          "run": "curl -sf http://localhost:$SERVICE_PORT/api/agents",
+          "run": "curl -sf http://localhost:$API_PORT/api/agents",
           "description": "Test API agents endpoint"
         },
         {
           "name": "test-platforms-endpoint",
-          "run": "curl -sf http://localhost:$SERVICE_PORT/api/platforms",
+          "run": "curl -sf http://localhost:$API_PORT/api/platforms",
           "description": "Test API platforms endpoint"
         },
         {

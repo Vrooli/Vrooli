@@ -23,7 +23,7 @@
   },
   "ports": {
     "api": {
-      "env_var": "SERVICE_PORT",
+      "env_var": "API_PORT",
       "port": 29000,
       "fallback": "auto",
       "description": "Scenario generator API port"
@@ -134,7 +134,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Scenario Generator V1 initialized\\n  n8n Workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${SERVICE_PORT}\\n  Database: localhost:${RESOURCE_PORTS[postgres]}\\n  CLI: scenario-generator'",
+          "run": "echo '🚀 Scenario Generator V1 initialized\\n  n8n Workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  Database: localhost:${RESOURCE_PORTS[postgres]}\\n  CLI: scenario-generator'",
           "description": "Display service access information"
         }
       ]
@@ -150,7 +150,7 @@
         },
         {
           "name": "wait-for-api",
-          "run": "sleep 3 && curl -sf http://localhost:${SERVICE_PORT}/health > /dev/null",
+          "run": "sleep 3 && curl -sf http://localhost:${API_PORT}/health > /dev/null",
           "description": "Wait for API to be ready",
           "retry": {
             "max_attempts": 10,
@@ -165,7 +165,7 @@
         },
         {
           "name": "show-running-services",
-          "run": "echo '🚀 Services running:\\n  API: http://localhost:${SERVICE_PORT}\\n  UI: http://localhost:3000\\n  CLI: scenario-generator help'",
+          "run": "echo '🚀 Services running:\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:3000\\n  CLI: scenario-generator help'",
           "description": "Display running service URLs"
         }
       ]
@@ -175,7 +175,7 @@
       "steps": [
         {
           "name": "test-api-health",
-          "run": "curl -sf http://localhost:${SERVICE_PORT}/health",
+          "run": "curl -sf http://localhost:${API_PORT}/health",
           "description": "Test API health endpoint"
         },
         {

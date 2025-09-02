@@ -61,8 +61,8 @@ type ReportRequest struct {
 }
 
 func main() {
-	// Try SERVICE_PORT first (allocated by Vrooli), then PORT, then fallback
-	port := os.Getenv("SERVICE_PORT")
+	// Try API_PORT first (allocated by Vrooli), then PORT, then fallback
+	port := os.Getenv("API_PORT")
 	if port == "" {
 		port = os.Getenv("PORT")
 	}

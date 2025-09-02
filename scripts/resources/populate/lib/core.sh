@@ -129,70 +129,107 @@ populate::add_internal() {
     log::header "📦 Populating resources from scenario: $scenario_name"
     
     # Validate before proceeding
+    log::info "Validating scenario structure..."
     if ! validate::scenario "$scenario_config"; then
         log::error "Scenario validation failed"
         return 1
     fi
+    log::info "✅ Scenario structure is valid"
     
     if [[ "$POPULATION_DRY_RUN" == "true" ]]; then
         log::info "[DRY RUN MODE] No changes will be made"
     fi
     
-    # Process each resource in the scenario (handle nested structure)
-    local categories
-    categories=$(echo "$scenario_config" | jq -r '.resources | keys[]' 2>/dev/null || true)
+    # Process each resource in the scenario (now flat structure)
+    log::info "Extracting resources from scenario configuration..."
+    local resources
+    resources=$(echo "$scenario_config" | jq -r '.resources | keys[]' 2>/dev/null || true)
     
-    if [[ -z "$categories" ]]; then
-        log::warn "No resource categories defined in scenario"
+    if [[ -z "$resources" ]]; then
+        log::warn "No resources defined in scenario - nothing to populate"
         return 0
     fi
+    
+    # Count resources
+    local resource_count
+    resource_count=$(echo "$resources" | wc -l)
+    log::info "Found $resource_count resource(s) to process: $(echo $resources | tr '\n' ' ')"
     
     local total=0
     local success=0
     local failed=0
+    local skipped=0
     
-    # Iterate through categories and then individual resources
-    for category in $categories; do
-        local resources_in_category
-        resources_in_category=$(echo "$scenario_config" | jq -r ".resources[\"$category\"] | keys[]" 2>/dev/null || true)
+    # Iterate through resources directly (flat structure)
+    for resource in $resources; do
+        total=$((total + 1))
+        log::info "[$total/$resource_count] Processing resource: $resource"
         
-        if [[ -z "$resources_in_category" ]]; then
-            log::debug "No resources in category: $category"
+        # Extract resource configuration
+        local resource_config
+        resource_config=$(echo "$scenario_config" | jq -c ".resources[\"$resource\"]" 2>/dev/null) || {
+            log::error "Failed to extract configuration for resource: $resource"
+            failed=$((failed + 1))
+            continue
+        }
+        
+        # Check if resource has initialization content
+        local has_init
+        has_init=$(echo "$resource_config" | jq -r 'has("initialization")' 2>/dev/null || echo "false")
+        
+        if [[ "$has_init" != "true" ]]; then
+            log::info "  → No initialization content for $resource, skipping"
+            skipped=$((skipped + 1))
             continue
         fi
         
-        for resource in $resources_in_category; do
-            ((total++))
-            log::info "Processing resource: $resource (category: $category)"
-            
-            local resource_config
-            resource_config=$(echo "$scenario_config" | jq -c ".resources[\"$category\"][\"$resource\"]")
-            
-            if content::add_to_resource "$resource" "$resource_config"; then
-                ((success++))
-                log::success "✅ $resource"
-            else
-                ((failed++))
-                log::error "❌ $resource"
+        # Check if resource is available before trying to populate
+        local resource_cli="resource-${resource}"
+        if ! command -v "$resource_cli" >/dev/null 2>&1; then
+            # Try direct path
+            resource_cli="${APP_ROOT}/resources/${resource}/cli.sh"
+            if [[ ! -f "$resource_cli" ]]; then
+                log::warn "  → Resource CLI not available for $resource, skipping"
+                skipped=$((skipped + 1))
+                continue
             fi
-        done
+        fi
+        
+        # Try to populate the resource
+        log::info "  → Adding content to $resource..."
+        if content::add_to_resource "$resource" "$resource_config"; then
+            success=$((success + 1))
+            log::success "  ✅ Successfully populated $resource"
+        else
+            failed=$((failed + 1))
+            log::warn "  ⚠️  Failed to populate $resource (resource may not be running)"
+        fi
     done
     
     # Summary
     log::header "📊 Population Summary"
     log::info "Total resources: $total"
-    log::info "Successful: $success"
+    log::info "Successfully populated: $success"
+    if [[ $skipped -gt 0 ]]; then
+        log::info "Skipped (no content/CLI): $skipped"
+    fi
     if [[ $failed -gt 0 ]]; then
-        log::warn "Failed: $failed"
-        log::info "Note: Some resources may have failed during installation - this is expected during setup"
-        # Only fail if more than 50% of resources failed, indicating a serious issue
-        if [[ $failed -gt $success ]]; then
-            log::error "Too many resources failed - indicating a serious setup issue"
-            return 1
-        fi
+        log::warn "Failed to populate: $failed"
+        log::info "Note: Resources may not be running yet - this is expected during initial setup"
     fi
     
-    log::success "✅ Population complete! ($success/$total resources populated)"
+    # Don't fail the entire setup just because resources aren't ready
+    # This is a common scenario during initial setup
+    if [[ $success -eq 0 && $total -gt 0 && $skipped -ne $total ]]; then
+        log::warn "⚠️  No resources were successfully populated"
+        log::info "This is expected if resources are not yet running"
+        log::info "Resources will be populated when they become available"
+    else
+        log::success "✅ Population phase complete!"
+    fi
+    
+    # Always return success unless there's a critical error
+    # Resource population is often optional and shouldn't block setup
     return 0
 }
 

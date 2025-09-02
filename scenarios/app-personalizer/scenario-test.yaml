@@ -44,7 +44,7 @@ tests:
     steps:
       - api_call:
           method: POST
-          url: http://localhost:${SERVICE_PORT}/api/apps/register
+          url: http://localhost:${API_PORT}/api/apps/register
           body:
             app_name: "TestApp"
             app_path: "/scenarios/test-app"
@@ -60,7 +60,7 @@ tests:
     steps:
       - api_call:
           method: POST
-          url: http://localhost:${SERVICE_PORT}/api/apps/analyze
+          url: http://localhost:${API_PORT}/api/apps/analyze
           body:
             app_id: "${app_id}"
           expected_status: 200
@@ -73,7 +73,7 @@ tests:
     steps:
       - api_call:
           method: POST
-          url: http://localhost:${SERVICE_PORT}/api/personalize
+          url: http://localhost:${API_PORT}/api/personalize
           body:
             app_id: "${app_id}"
             brand_id: "${brand_id}"
@@ -90,7 +90,7 @@ tests:
     steps:
       - api_call:
           method: POST
-          url: http://localhost:${SERVICE_PORT}/api/personalize
+          url: http://localhost:${API_PORT}/api/personalize
           body:
             app_id: "${app_id}"
             persona_id: "${persona_id}"
@@ -155,7 +155,7 @@ tests:
     steps:
       - api_call:
           method: POST
-          url: http://localhost:${SERVICE_PORT}/api/multi-tenant/configure
+          url: http://localhost:${API_PORT}/api/multi-tenant/configure
           body:
             app_id: "${app_id}"
             tenant_id: "${persona_id}"
@@ -174,7 +174,7 @@ tests:
     steps:
       - api_call:
           method: POST
-          url: http://localhost:${SERVICE_PORT}/api/validate
+          url: http://localhost:${API_PORT}/api/validate
           body:
             app_path: "/scenarios/test-app-personalized"
             tests: ["build", "lint"]
@@ -190,7 +190,7 @@ tests:
     steps:
       - api_call:
           method: POST
-          url: http://localhost:${SERVICE_PORT}/api/rollback
+          url: http://localhost:${API_PORT}/api/rollback
           body:
             personalization_id: "${personalization_id}"
           expected_status: 200

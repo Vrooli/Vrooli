@@ -26,7 +26,7 @@
   },
   "ports": {
     "api": {
-      "env_var": "SERVICE_PORT",
+      "env_var": "API_PORT",
       "port": 30750,
       "fallback": "auto",
       "description": "Task planner API port"
@@ -195,7 +195,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Task Planner initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${SERVICE_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: task-planner --help'",
+          "run": "echo '🚀 Task Planner initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: task-planner --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -210,7 +210,7 @@
         },
         {
           "name": "start-api-server",
-          "run": "PORT=$SERVICE_PORT ./api/task-planner-api",
+          "run": "cd api && env PORT=$API_PORT ./task-planner-api",
           "description": "Start Go coordination API server in background",
           "background": true,
           "condition": {
@@ -219,7 +219,7 @@
         },
         {
           "name": "start-ui-server",
-          "run": "cd ui && UI_PORT=$UI_PORT SERVICE_PORT=$SERVICE_PORT node server.js",
+          "run": "cd ui && env UI_PORT=$UI_PORT node server.js",
           "description": "Start UI server in background",
           "background": true,
           "condition": {
@@ -228,7 +228,7 @@
         },
         {
           "name": "wait-for-api",
-          "run": "sleep 2 && curl -sf http://localhost:$SERVICE_PORT/health > /dev/null",
+          "run": "sleep 2 && curl -sf http://localhost:$API_PORT/health > /dev/null",
           "description": "Wait for API server to be ready",
           "retry": {
             "max_attempts": 15,
@@ -246,7 +246,7 @@
         },
         {
           "name": "show-running-services",
-          "run": "echo '🚀 Task Planner running:\\n  UI: http://localhost:$UI_PORT\\n  API: http://localhost:$SERVICE_PORT\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: task-planner --help'",
+          "run": "echo '🚀 Task Planner running:\\n  UI: http://localhost:$UI_PORT\\n  API: http://localhost:$API_PORT\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: task-planner --help'",
           "description": "Display all running service URLs"
         }
       ]
@@ -264,17 +264,17 @@
         },
         {
           "name": "test-api-health",
-          "run": "curl -sf http://localhost:$SERVICE_PORT/health",
+          "run": "curl -sf http://localhost:$API_PORT/health",
           "description": "Test API health endpoint"
         },
         {
           "name": "test-apps-endpoint",
-          "run": "curl -sf http://localhost:$SERVICE_PORT/api/apps",
+          "run": "curl -sf http://localhost:$API_PORT/api/apps",
           "description": "Test API apps endpoint"
         },
         {
           "name": "test-tasks-endpoint",
-          "run": "curl -sf http://localhost:$SERVICE_PORT/api/tasks",
+          "run": "curl -sf http://localhost:$API_PORT/api/tasks",
           "description": "Test API tasks endpoint"
         },
         {

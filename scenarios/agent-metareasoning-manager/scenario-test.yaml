@@ -13,7 +13,7 @@ prerequisites:
   environment:
     N8N_BASE_URL: http://localhost:${RESOURCE_PORTS[n8n]}
     WINDMILL_BASE_URL: http://localhost:${RESOURCE_PORTS[windmill]}
-    SERVICE_PORT: ${SERVICE_PORT:-dynamic}
+    API_PORT: ${API_PORT:-dynamic}
 
 tests:
   - name: resource_availability
@@ -39,11 +39,11 @@ tests:
         command: test -f api/agent-metareasoning-manager-api
         expected_status: 0
       - check: api_health
-        command: curl -f http://localhost:${SERVICE_PORT}/health
+        command: curl -f http://localhost:${API_PORT}/health
         expected_status: 200
         contains: "status":"healthy"
       - check: api_workflows_endpoint
-        command: curl -f http://localhost:${SERVICE_PORT}/workflows
+        command: curl -f http://localhost:${API_PORT}/workflows
         expected_status: 200
 
   - name: n8n_workflow_deployment
@@ -72,18 +72,18 @@ tests:
     description: Test simplified Go coordinator API endpoints
     steps:
       - check: health_endpoint
-        command: curl -f http://localhost:${SERVICE_PORT}/health
+        command: curl -f http://localhost:${API_PORT}/health
         expected_status: 200
         contains: "status":"healthy"
       - check: workflows_discovery
-        command: curl -f http://localhost:${SERVICE_PORT}/workflows
+        command: curl -f http://localhost:${API_PORT}/workflows
         expected_status: 200
       - check: workflow_search
-        command: curl -X POST http://localhost:${SERVICE_PORT}/workflows/search -H "Content-Type: application/json" -d '{"query":"risk"}'  
+        command: curl -X POST http://localhost:${API_PORT}/workflows/search -H "Content-Type: application/json" -d '{"query":"risk"}'  
         expected_status: 200
       - check: execute_n8n_workflow
         method: POST
-        url: http://localhost:${SERVICE_PORT}/execute/n8n/pros-cons-analyzer
+        url: http://localhost:${API_PORT}/execute/n8n/pros-cons-analyzer
         headers:
           Content-Type: application/json
         body:
@@ -97,7 +97,7 @@ tests:
     steps:
       - check: pros_cons_execution
         method: POST
-        url: http://localhost:${SERVICE_PORT}/execute/n8n/pros-cons-analyzer
+        url: http://localhost:${API_PORT}/execute/n8n/pros-cons-analyzer
         headers:
           Content-Type: application/json
         body:
@@ -107,7 +107,7 @@ tests:
         timeout: 60
       - check: risk_assessment_execution
         method: POST
-        url: http://localhost:${SERVICE_PORT}/execute/n8n/risk-assessment
+        url: http://localhost:${API_PORT}/execute/n8n/risk-assessment
         headers:
           Content-Type: application/json
         body:

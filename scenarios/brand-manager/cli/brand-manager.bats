@@ -11,7 +11,7 @@ setup() {
     chmod +x "$CLI_SCRIPT"
     
     # Set up test environment
-    export BRAND_MANAGER_API_BASE="http://localhost:${SERVICE_PORT:-8090}"
+    export BRAND_MANAGER_API_BASE="http://localhost:${API_PORT:-8090}"
     export BRAND_MANAGER_TOKEN="test_token"
 }
 

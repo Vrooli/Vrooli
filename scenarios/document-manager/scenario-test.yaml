@@ -40,22 +40,22 @@ tests:
     timeout: 120
     steps:
       - action: http_get
-        url: "http://localhost:${SERVICE_PORT}/health"
+        url: "http://localhost:${API_PORT}/health"
         expected_status: 200
         expected_json: 
           status: "healthy"
       - action: http_get
-        url: "http://localhost:${SERVICE_PORT}/api/system/db-status"
+        url: "http://localhost:${API_PORT}/api/system/db-status"
         expected_status: 200
         expected_json:
           status: "healthy"
       - action: http_get
-        url: "http://localhost:${SERVICE_PORT}/api/system/vector-status"
+        url: "http://localhost:${API_PORT}/api/system/vector-status"
         expected_status: 200
         expected_json:
           status: "healthy"
       - action: http_get
-        url: "http://localhost:${SERVICE_PORT}/api/system/ai-status"
+        url: "http://localhost:${API_PORT}/api/system/ai-status"
         expected_status: 200
         expected_json:
           status: "healthy"
@@ -67,7 +67,7 @@ tests:
     timeout: 120
     steps:
       - action: http_post
-        url: "http://localhost:${SERVICE_PORT}/api/applications"
+        url: "http://localhost:${API_PORT}/api/applications"
         json_data:
           name: "Test Documentation Project"
           repository_url: "https://github.com/test/test-docs"
@@ -75,7 +75,7 @@ tests:
         expected_status: 201
         store_response_as: created_application
       - action: http_get
-        url: "http://localhost:${SERVICE_PORT}/api/applications"
+        url: "http://localhost:${API_PORT}/api/applications"
         expected_status: 200
         assert_json_contains:
           name: "Test Documentation Project"
@@ -88,7 +88,7 @@ tests:
     timeout: 180
     steps:
       - action: http_post
-        url: "http://localhost:${SERVICE_PORT}/api/agents"
+        url: "http://localhost:${API_PORT}/api/agents"
         json_data:
           name: "Test Drift Detector"
           type: "drift_detector"
@@ -98,7 +98,7 @@ tests:
           configuration: "{\"drift_threshold\": 0.25}"
         expected_status: 201
       - action: http_get
-        url: "http://localhost:${SERVICE_PORT}/api/agents"
+        url: "http://localhost:${API_PORT}/api/agents"
         expected_status: 200
         assert_json_contains:
           name: "Test Drift Detector"
@@ -111,7 +111,7 @@ tests:
     timeout: 120
     steps:
       - action: http_post
-        url: "http://localhost:${SERVICE_PORT}/api/queue"
+        url: "http://localhost:${API_PORT}/api/queue"
         json_data:
           agent_id: 1
           application_id: 1
@@ -121,7 +121,7 @@ tests:
           severity: "medium"
         expected_status: 201
       - action: http_get
-        url: "http://localhost:${SERVICE_PORT}/api/queue"
+        url: "http://localhost:${API_PORT}/api/queue"
         expected_status: 200
         assert_json_contains:
           title: "Test queue item"

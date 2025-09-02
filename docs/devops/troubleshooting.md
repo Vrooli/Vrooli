@@ -58,7 +58,7 @@ This comprehensive troubleshooting guide provides solutions for common issues en
 3. **Check permissions:**
    ```bash
    # Ensure management script is executable
-   chmod +x scripts/manage.sh
+   # Scripts are automatically executable via CLI
    chmod +x scripts/helpers/**/*.sh
    ```
 
@@ -155,7 +155,7 @@ This comprehensive troubleshooting guide provides solutions for common issues en
    find scripts/ -name "*.sh" -exec chmod +x {} \;
    
    # Or specific script
-   chmod +x scripts/manage.sh
+   # Scripts are automatically executable via CLI
    ```
 
 2. **Check shell compatibility:**
@@ -216,7 +216,7 @@ This comprehensive troubleshooting guide provides solutions for common issues en
    ```bash
    # Show help
    vrooli develop --help
-   ./scripts/manage.sh build --help
+   vrooli build --help
    ```
 
 3. **Use full argument names:**
@@ -805,7 +805,7 @@ This comprehensive troubleshooting guide provides solutions for common issues en
    act -j build
    
    # Or test build script locally
-   ./scripts/manage.sh build --environment development --ci-cd yes
+   vrooli build
    ```
 
 ### Build Failures in CI/CD
@@ -862,7 +862,7 @@ This comprehensive troubleshooting guide provides solutions for common issues en
    ssh -o StrictHostKeyChecking=no user@server "echo 'SSH works'"
    
    # Check deployment script on server
-   ssh user@server "cd ~/Vrooli && ./scripts/manage.sh deploy --help"
+   ssh user@server "cd ~/Vrooli && vrooli deploy --help"
    ```
 
 2. **Check service status:**
@@ -907,10 +907,10 @@ This comprehensive troubleshooting guide provides solutions for common issues en
 2. **Run build with debug:**
    ```bash
    # Enable debug mode
-   DEBUG=1 ./scripts/manage.sh build --environment development
+   DEBUG=1 vrooli build
    
    # Check specific build steps
-   ./scripts/manage.sh build --environment development --artifacts docker --verbose
+   vrooli build --verbose
    ```
 
 3. **Check build artifacts:**
@@ -1199,27 +1199,27 @@ This comprehensive troubleshooting guide provides solutions for common issues en
 1. **Check compose file:**
    ```bash
    # Validate compose file
-   docker-compose config
+   docker compose config
    
    # Check service dependencies
-   docker-compose ps
+   docker compose ps
    ```
 
 2. **Debug service startup:**
    ```bash
    # Start services individually
-   docker-compose up postgres
-   docker-compose up redis
-   docker-compose up server
+   docker compose up postgres
+   docker compose up redis
+   docker compose up server
    ```
 
 3. **Check service logs:**
    ```bash
    # View all service logs
-   docker-compose logs
+   docker compose logs
    
    # View specific service logs
-   docker-compose logs server
+   docker compose logs server
    ```
 
 ## Kubernetes Issues

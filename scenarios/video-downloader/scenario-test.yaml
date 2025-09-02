@@ -68,7 +68,7 @@ validation:
 
   required_ports:
     - name: api
-      port: "${SERVICE_PORT}"
+      port: "${API_PORT}"
       protocol: tcp
     - name: ui
       port: "${UI_PORT}"

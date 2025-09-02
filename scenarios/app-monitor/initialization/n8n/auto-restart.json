@@ -7,7 +7,10 @@
       "name": "Check for Failed Apps",
       "type": "n8n-nodes-base.cron",
       "typeVersion": 1,
-      "position": [260, 300],
+      "position": [
+        260,
+        300
+      ],
       "credentials": {},
       "cronExpression": "*/5 * * * *",
       "timezone": "UTC"
@@ -30,7 +33,10 @@
       "name": "Get Failed Apps",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [480, 300],
+      "position": [
+        480,
+        300
+      ],
       "credentials": {}
     },
     {
@@ -42,7 +48,10 @@
       "name": "Process Each Failed App",
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
-      "position": [700, 300]
+      "position": [
+        700,
+        300
+      ]
     },
     {
       "parameters": {
@@ -70,11 +79,14 @@
       "name": "Check Auto-Restart Enabled",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [920, 300]
+      "position": [
+        920,
+        300
+      ]
     },
     {
       "parameters": {
-        "url": "=http://localhost:{{ process.env.SERVICE_PORT || 8090 }}/api/apps/{{ $json.id }}/start",
+        "url": "=http://localhost:{{ process.env.API_PORT || 8090 }}/api/apps/{{ $json.id }}/start",
         "options": {
           "timeout": 10000,
           "response": {
@@ -90,7 +102,10 @@
       "name": "Restart App",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1140, 300]
+      "position": [
+        1140,
+        300
+      ]
     },
     {
       "parameters": {
@@ -113,7 +128,10 @@
       "name": "Log Restart Attempt",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [1360, 300],
+      "position": [
+        1360,
+        300
+      ],
       "credentials": {}
     }
   ],

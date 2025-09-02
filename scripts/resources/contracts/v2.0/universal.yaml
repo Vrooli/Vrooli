@@ -42,6 +42,26 @@ commands:
         - "Available commands"
         - "Default configuration"
     
+  info:
+    description: "Show structured resource information from runtime.json"
+    required: true
+    subcommands: []
+    flags:
+      --json:
+        type: "boolean"
+        description: "Output in JSON format"
+    exit_codes:
+      0: "Info displayed successfully"
+    output:
+      must_include:
+        - "startup_order"
+        - "dependencies"
+        - "startup_time_estimate"
+        - "startup_timeout"
+        - "recovery_attempts"
+        - "priority"
+    implementation_note: "Reads from config/runtime.json file"
+    
   # ==================== Management Commands ====================
   manage:
     description: "Resource lifecycle management"
@@ -321,6 +341,58 @@ commands:
       1: "Error retrieving credentials"
       2: "No credentials configured"
 
+# Runtime configuration requirements (v2.0)
+runtime_configuration:
+  description: "Resource runtime behavior and dependencies"
+  file_path: "config/runtime.json"
+  required: true
+  schema:
+    startup_order:
+      type: "integer"
+      required: true
+      range: [0, 1000]
+      description: "Priority for startup sequence (1000=highest)"
+      guidelines:
+        - "1000: Critical foundation (databases, cache)"
+        - "800-999: Core infrastructure (secrets, storage)"
+        - "600-799: Platform services (automation, workflows)"
+        - "400-599: Application services"
+        - "200-399: Optional services"
+        - "0-199: Low-priority/experimental"
+    startup_timeout:
+      type: "integer"
+      required: true
+      unit: "seconds"
+      description: "Maximum time to wait for resource to become healthy"
+    startup_time_estimate:
+      type: "string"
+      required: true
+      format: "{min}-{max}s"
+      description: "Human-readable startup time estimate"
+      examples: ["5-15s", "30-60s"]
+    dependencies:
+      type: "array<string>"
+      required: true
+      description: "Resources that must be running before this one"
+      notes: 
+        - "Empty array [] for foundational resources"
+        - "List direct dependencies only (not transitive)"
+    recovery_attempts:
+      type: "integer"
+      required: true
+      range: [1, 5]
+      description: "Number of recovery attempts before marking as failed"
+    priority:
+      type: "string"
+      required: true
+      enum: ["critical", "high", "medium", "low"]
+      description: "Business priority for monitoring/alerting"
+      guidelines:
+        - "critical: System cannot function without"
+        - "high: Major functionality degraded"
+        - "medium: Some features unavailable"
+        - "low: Nice-to-have services"
+
 # File structure requirements
 file_structure:
   required:
@@ -340,6 +412,7 @@ file_structure:
       required_files:
         - "defaults.sh"  # Default configuration
         - "schema.json"  # Resource configuration schema
+        - "runtime.json" # Runtime behavior and dependencies (v2.0 required)
   
   optional:
     lib/:
@@ -491,6 +564,18 @@ deprecated_patterns:
       description: "Old main function pattern"
       replacement: "CLI framework dispatch"
       detection: "^main\(\)\s*{"
+    "::info::startup_order":
+      description: "Legacy info function for startup order"
+      replacement: "config/runtime.json"
+      detection: "::info::startup_order"
+    "::info::dependencies":
+      description: "Legacy info function for dependencies"
+      replacement: "config/runtime.json"
+      detection: "::info::dependencies"
+    "::info::startup_time":
+      description: "Legacy info function for startup time"
+      replacement: "config/runtime.json"
+      detection: "::info::startup_time"
   
   environment_variables:
     "VROOLI_RESOURCE_*":

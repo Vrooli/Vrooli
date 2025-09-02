@@ -16,7 +16,7 @@ CYAN='\033[1;36m'
 NC='\033[0m'
 
 # Configuration
-API_PORT="${SERVICE_PORT:-8080}"
+API_PORT="${API_PORT:-8080}"
 POSTGRES_PORT="${POSTGRES_PORT:-5432}"
 POSTGRES_URL="${POSTGRES_URL:-postgres://postgres:postgres@localhost:${POSTGRES_PORT}/postgres?sslmode=disable}"
 
@@ -147,7 +147,7 @@ start_api() {
     cd "$PROJECT_DIR/api"
     
     # Set environment variables
-    export SERVICE_PORT="$API_PORT"
+    export API_PORT="$API_PORT"
     export POSTGRES_URL="$POSTGRES_URL"
     export POSTGRES_PORT="$POSTGRES_PORT"
     

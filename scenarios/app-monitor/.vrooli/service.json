@@ -27,7 +27,7 @@
   },
   "ports": {
     "api": {
-      "env_var": "SERVICE_PORT",
+      "env_var": "API_PORT",
       "port": 21600,
       "fallback": "auto",
       "description": "App monitoring coordination API port"
@@ -184,7 +184,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 App Monitor initialized\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  Windmill: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Node-RED flows: http://localhost:${RESOURCE_PORTS[node-red]}\\n  API: http://localhost:${SERVICE_PORT}\\n  CLI: app-monitor --help'",
+          "run": "echo '🚀 App Monitor initialized\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  Windmill: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Node-RED flows: http://localhost:${RESOURCE_PORTS[node-red]}\\n  API: http://localhost:${API_PORT}\\n  CLI: app-monitor --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -199,7 +199,7 @@
         },
         {
           "name": "start-api-server",
-          "run": "cd api && PORT=$SERVICE_PORT ./app-monitor-api",
+          "run": "cd api && env PORT=$API_PORT ./app-monitor-api",
           "description": "Start Go coordination API server in background",
           "background": true,
           "condition": {
@@ -208,7 +208,7 @@
         },
         {
           "name": "wait-for-api",
-          "run": "sleep 2 && curl -sf http://localhost:$SERVICE_PORT/health > /dev/null",
+          "run": "sleep 2 && curl -sf http://localhost:$API_PORT/health > /dev/null",
           "description": "Wait for API server to be ready",
           "retry": {
             "max_attempts": 15,
@@ -217,7 +217,7 @@
         },
         {
           "name": "start-ui-server",
-          "run": "cd ui && node server.js $UI_PORT $SERVICE_PORT",
+          "run": "cd ui && env UI_PORT=$UI_PORT API_PORT=$API_PORT node server.js",
           "description": "Start UI dashboard server in background",
           "background": true,
           "condition": {
@@ -235,7 +235,7 @@
         },
         {
           "name": "show-running-services",
-          "run": "echo '🚀 App Monitor running:\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  Windmill: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Node-RED: http://localhost:${RESOURCE_PORTS[node-red]}\\n  API: http://localhost:$SERVICE_PORT\\n  CLI: app-monitor --help'",
+          "run": "echo '🚀 App Monitor running:\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  Windmill: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Node-RED: http://localhost:${RESOURCE_PORTS[node-red]}\\n  API: http://localhost:$API_PORT\\n  CLI: app-monitor --help'",
           "description": "Display all running service URLs"
         }
       ]
@@ -253,17 +253,17 @@
         },
         {
           "name": "test-api-health",
-          "run": "curl -sf http://localhost:$SERVICE_PORT/health",
+          "run": "curl -sf http://localhost:$API_PORT/health",
           "description": "Test API health endpoint"
         },
         {
           "name": "test-apps-endpoint",
-          "run": "curl -sf http://localhost:$SERVICE_PORT/api/apps",
+          "run": "curl -sf http://localhost:$API_PORT/api/apps",
           "description": "Test API apps endpoint"
         },
         {
           "name": "test-docker-access",
-          "run": "curl -sf http://localhost:$SERVICE_PORT/api/docker/info",
+          "run": "curl -sf http://localhost:$API_PORT/api/docker/info",
           "description": "Test Docker API access through app monitor"
         },
         {

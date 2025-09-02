@@ -8,7 +8,7 @@ set -euo pipefail
 CLI_VERSION="2.0.0"
 
 # Configuration
-API_BASE="${CAMPAIGN_CONTENT_STUDIO_API_BASE:-http://localhost:${SERVICE_PORT:-8090}}"
+API_BASE="${CAMPAIGN_CONTENT_STUDIO_API_BASE:-http://localhost:${API_PORT:-8090}}"
 API_TOKEN="${CAMPAIGN_CONTENT_STUDIO_TOKEN:-campaign_content_studio_cli_default_2024}"
 
 # API request helper

@@ -131,7 +131,7 @@ func main() {
 	setupRoutes(app)
 
 	// Get port from environment or use default
-	port := os.Getenv("SERVICE_PORT")
+	port := os.Getenv("API_PORT")
 	if port == "" {
 		port = "8095"
 	}

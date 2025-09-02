@@ -17,7 +17,7 @@ flowchart TB
     end
     
     subgraph "Coordination Layer"
-        GO_API[Go API Server<br/>Database-Driven<br/>Port: SERVICE_PORT]
+        GO_API[Go API Server<br/>Database-Driven<br/>Port: API_PORT]
     end
     
     subgraph "Scheduling Engine"

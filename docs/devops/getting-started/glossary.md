@@ -39,7 +39,7 @@ NODE_ENV=production
 **Commands**: 
 ```bash
 vrooli scenario run <name>              # Run any scenario
-cd scenarios/<name> && ../../scripts/manage.sh develop
+vrooli scenario run <name>
 ```
 
 ### Resource Management
@@ -124,7 +124,7 @@ vrooli resource start-all       # Resource management
 **Direct Execution**: Scenarios run from their folders
 ```bash
 cd scenarios/my-app
-../../scripts/manage.sh develop  # Run scenario directly
+vrooli scenario run <name>  # Run scenario directly
 ```
 
 ## Service and Component Names
@@ -327,7 +327,7 @@ cd scenarios/my-app
 vrooli develop --target local-services
 
 # Use manage.sh for scenario operations
-./scripts/manage.sh develop  # Start development environment
+vrooli develop  # Start development environment
 vrooli scenario run <name>   # Run scenarios directly
 
 # Use consistent quoting

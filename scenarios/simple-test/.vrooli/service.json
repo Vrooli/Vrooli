@@ -18,7 +18,7 @@
   },
   "ports": {
     "app": {
-      "env_var": "SERVICE_PORT",
+      "env_var": "API_PORT",
       "port": 36250,
       "fallback": "auto",
       "description": "Main application port"
@@ -63,7 +63,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Simple Test App initialized\\n  Application: http://localhost:${SERVICE_PORT}\\n  Health: http://localhost:${SERVICE_PORT}/health'",
+          "run": "echo '🚀 Simple Test App initialized\\n  Application: http://localhost:${API_PORT}\\n  Health: http://localhost:${API_PORT}/health'",
           "description": "Display service access URLs"
         }
       ]
@@ -73,13 +73,13 @@
       "steps": [
         {
           "name": "start-app",
-          "run": "PORT=${SERVICE_PORT} npm start",
+          "run": "PORT=${API_PORT} npm start",
           "description": "Start the application server in background",
           "background": true
         },
         {
           "name": "wait-for-app",
-          "run": "sleep 2 && curl -sf http://localhost:${SERVICE_PORT}/health > /dev/null",
+          "run": "sleep 2 && curl -sf http://localhost:${API_PORT}/health > /dev/null",
           "description": "Wait for application to be ready",
           "retry": {
             "max_attempts": 10,
@@ -88,7 +88,7 @@
         },
         {
           "name": "show-running-services",
-          "run": "echo '🚀 Services running:\\n  Application: http://localhost:${SERVICE_PORT}'",
+          "run": "echo '🚀 Services running:\\n  Application: http://localhost:${API_PORT}'",
           "description": "Display running service URLs"
         }
       ]
@@ -98,7 +98,7 @@
       "steps": [
         {
           "name": "test-app-health",
-          "run": "curl -sf http://localhost:${SERVICE_PORT}/health",
+          "run": "curl -sf http://localhost:${API_PORT}/health",
           "description": "Test application health endpoint"
         },
         {

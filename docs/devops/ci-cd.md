@@ -40,7 +40,7 @@ jobs:
       
       - name: Setup Vrooli Environment
         run: |
-          ./scripts/manage.sh setup --target ci
+          vrooli setup
           
       - name: Start Required Resources
         run: |
@@ -52,7 +52,7 @@ jobs:
           for scenario in scenarios/*/; do
             name=$(basename "$scenario")
             echo "Testing scenario: $name"
-            (cd "$scenario" && ../../scripts/manage.sh test --ci) || exit 1
+            vrooli scenario test "$scenario" || exit 1
           done
           
       - name: Cleanup
@@ -81,7 +81,7 @@ jobs:
       - uses: actions/checkout@v4
       
       - name: Setup Environment
-        run: ./scripts/manage.sh setup --target ci
+        run: vrooli setup
         
       - name: Start Resources
         run: vrooli resource start-all
@@ -97,7 +97,7 @@ jobs:
           for scenario in scenarios/*/; do
             name=$(basename "$scenario")
             echo "Validating $name for deployment readiness"
-            (cd "$scenario" && ../../scripts/manage.sh test --deployment-ready) || exit 1
+            vrooli scenario test "$scenario" || exit 1
           done
 
   deploy-to-production:
@@ -141,7 +141,7 @@ jobs:
       - uses: actions/checkout@v4
       
       - name: Setup Vrooli
-        run: ./scripts/manage.sh setup --target ci
+        run: vrooli setup
         
       - name: Start Core Resources
         run: |
@@ -189,7 +189,7 @@ jobs:
       - uses: actions/checkout@v4
       
       - name: Setup Environment
-        run: ./scripts/manage.sh setup --target ci
+        run: vrooli setup
         
       - name: Start Resources
         run: vrooli resource start-all
@@ -304,7 +304,7 @@ jobs:
       - uses: actions/checkout@v4
       
       - name: Setup Vrooli Environment
-        run: ./scripts/manage.sh setup --target ci
+        run: vrooli setup
         
       - name: Validate Scenario Structure
         run: |

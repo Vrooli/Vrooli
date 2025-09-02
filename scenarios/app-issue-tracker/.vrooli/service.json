@@ -21,7 +21,7 @@
   },
   "ports": {
     "api": {
-      "env_var": "SERVICE_PORT",
+      "env_var": "API_PORT",
       "port": 21250,
       "fallback": "auto",
       "description": "File-based issue tracker API port"
@@ -120,7 +120,7 @@
         },
         {
           "name": "show-file-urls",
-          "run": "echo '📁 File-Based Issue Tracker initialized\\n  📊 Management: ./issues/manage.sh status\\n  🌐 API: http://localhost:${SERVICE_PORT}\\n  🎯 CLI: app-issue-tracker-v2 --help\\n  📂 Issues: ./issues/\\n  📝 Templates: ./issues/templates/\\n\\n💡 Create issues with:\\n  app-issue-tracker-v2 create --title \"Issue title\" --priority high\\n  ./issues/manage.sh add\\n  cp issues/templates/bug-template.yaml issues/open/123-new.yaml'",
+          "run": "echo '📁 File-Based Issue Tracker initialized\\n  📊 Management: ./issues/manage.sh status\\n  🌐 API: http://localhost:${API_PORT}\\n  🎯 CLI: app-issue-tracker-v2 --help\\n  📂 Issues: ./issues/\\n  📝 Templates: ./issues/templates/\\n\\n💡 Create issues with:\\n  app-issue-tracker-v2 create --title \"Issue title\" --priority high\\n  ./issues/manage.sh add\\n  cp issues/templates/bug-template.yaml issues/open/123-new.yaml'",
           "description": "Display file-based service information"
         }
       ]
@@ -130,7 +130,7 @@
       "steps": [
         {
           "name": "start-file-api",
-          "run": "cd api && PORT=$SERVICE_PORT ./app-issue-tracker-api",
+          "run": "cd api && env PORT=$API_PORT ./app-issue-tracker-api",
           "description": "Start file-based Go API server",
           "background": true,
           "condition": {
@@ -139,13 +139,13 @@
         },
         {
           "name": "start-ui-server",
-          "run": "cd ui && python3 -m http.server $UI_PORT > ../logs/ui.log 2>&1",
+          "run": "cd ui && python3 -m http.server $UI_PORT > ../app-issue-tracker-api/ui.log 2>&1",
           "description": "Start web UI server",
           "background": true
         },
         {
           "name": "wait-for-api",
-          "run": "sleep 2 && curl -sf http://localhost:$SERVICE_PORT/health > /dev/null",
+          "run": "sleep 2 && curl -sf http://localhost:$API_PORT/health > /dev/null",
           "description": "Wait for API server to be ready",
           "retry": {
             "max_attempts": 15,
@@ -154,7 +154,7 @@
         },
         {
           "name": "show-running-services",
-          "run": "echo '📁 File-Based Issue Tracker running:\\n  🌐 Web UI: http://localhost:$UI_PORT\\n  📡 API: http://localhost:$SERVICE_PORT\\n  🎯 CLI: app-issue-tracker-v2 --help\\n  📊 Management: ./issues/manage.sh status\\n\\n📝 Create issues:\\n  app-issue-tracker-v2 create --title \"Bug title\" --priority high\\n  ./issues/manage.sh add\\n\\n📂 File Operations:\\n  ls issues/open/*.yaml\\n  mv issues/open/001-bug.yaml issues/investigating/\\n  ./issues/manage.sh search \"keyword\"'",
+          "run": "echo '📁 File-Based Issue Tracker running:\\n  🌐 Web UI: http://localhost:$UI_PORT\\n  📡 API: http://localhost:$API_PORT\\n  🎯 CLI: app-issue-tracker-v2 --help\\n  📊 Management: ./app-issue-tracker-api/manage.sh status\\n\\n📝 Create issues:\\n  app-issue-tracker-v2 create --title \"Bug title\" --priority high\\n  ./app-issue-tracker-api/manage.sh add\\n\\n📂 File Operations:\\n  ls issues/open/*.yaml\\n  mv issues/open/001-bug.yaml issues/investigating/\\n  ./app-issue-tracker-api/manage.sh search \"keyword\"'",
           "description": "Display all running services and usage examples"
         }
       ]
@@ -187,7 +187,7 @@
         },
         {
           "name": "test-file-api-health",
-          "run": "curl -sf http://localhost:$SERVICE_PORT/health && echo '✓ File-based API healthy' || echo '⚠ API not running (expected if not started)'",
+          "run": "curl -sf http://localhost:$API_PORT/health && echo '✓ File-based API healthy' || echo '⚠ API not running (expected if not started)'",
           "description": "Test file-based API health endpoint"
         },
         {

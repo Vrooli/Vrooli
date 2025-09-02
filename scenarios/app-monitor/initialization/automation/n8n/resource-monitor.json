@@ -7,14 +7,17 @@
       "name": "Monitor Resources",
       "type": "n8n-nodes-base.cron",
       "typeVersion": 1,
-      "position": [260, 300],
+      "position": [
+        260,
+        300
+      ],
       "credentials": {},
       "cronExpression": "*/1 * * * *",
       "timezone": "UTC"
     },
     {
       "parameters": {
-        "url": "=http://localhost:{{ process.env.SERVICE_PORT || 8090 }}/api/docker/containers",
+        "url": "=http://localhost:{{ process.env.API_PORT || 8090 }}/api/docker/containers",
         "options": {
           "timeout": 5000,
           "response": {
@@ -29,7 +32,10 @@
       "name": "Get Docker Container Stats",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [480, 300]
+      "position": [
+        480,
+        300
+      ]
     },
     {
       "parameters": {
@@ -40,7 +46,10 @@
       "name": "Process Each Container",
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
-      "position": [700, 300]
+      "position": [
+        700,
+        300
+      ]
     },
     {
       "parameters": {
@@ -68,7 +77,10 @@
       "name": "Filter App Containers",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [920, 300]
+      "position": [
+        920,
+        300
+      ]
     },
     {
       "parameters": {
@@ -92,7 +104,10 @@
       "name": "Record Container Metrics",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [1140, 300],
+      "position": [
+        1140,
+        300
+      ],
       "credentials": {}
     },
     {
@@ -104,7 +119,10 @@
       "name": "Publish Resource Update",
       "type": "n8n-nodes-base.redis",
       "typeVersion": 1,
-      "position": [1360, 300],
+      "position": [
+        1360,
+        300
+      ],
       "credentials": {}
     }
   ],

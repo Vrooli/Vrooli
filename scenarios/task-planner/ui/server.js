@@ -19,5 +19,5 @@ app.get('*', (req, res) => {
 
 app.listen(PORT, () => {
     console.log(`Task Planner UI running on http://localhost:${PORT}`);
-    console.log(`API expected at http://localhost:${process.env.SERVICE_PORT || 8090}`);
+    console.log(`API expected at http://localhost:${process.env.API_PORT || 8090}`);
 });

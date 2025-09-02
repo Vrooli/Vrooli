@@ -6,7 +6,7 @@ setup() {
     CLI_SCRIPT="$BATS_TEST_DIRNAME/web-scraper-manager"
     
     # Mock API URL for testing
-    export WEB_SCRAPER_MANAGER_API_URL="http://localhost:${SERVICE_PORT:-8091}"
+    export WEB_SCRAPER_MANAGER_API_URL="http://localhost:${API_PORT:-8091}"
 }
 
 @test "CLI shows help when no arguments provided" {

@@ -16,7 +16,7 @@ NC='\033[0m' # No Color
 
 # API endpoints
 # Use environment variable if set, otherwise use default from service port range
-API_PORT="${SERVICE_PORT:-${TYPING_TEST_API_PORT:-8200}}"
+API_PORT="${API_PORT:-${TYPING_TEST_API_PORT:-8200}}"
 API_BASE="http://localhost:${API_PORT}/api"
 
 # Show help

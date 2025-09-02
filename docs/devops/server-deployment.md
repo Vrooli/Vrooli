@@ -886,13 +886,13 @@ fi
 echo "Restoring from backup: $BACKUP_FILE"
 
 # Stop application
-docker-compose -f docker-compose.prod.yml down
+docker compose -f docker-compose.prod.yml down
 
 # Restore database
 gunzip -c "$BACKUP_FILE" | docker exec -i postgres psql -U vrooli_prod postgres
 
 # Start application
-docker-compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml up -d
 
 echo "Restore completed"
 ```

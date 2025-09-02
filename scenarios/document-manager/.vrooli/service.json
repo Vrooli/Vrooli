@@ -27,7 +27,7 @@
   },
   "ports": {
     "api": {
-      "env_var": "SERVICE_PORT",
+      "env_var": "API_PORT",
       "port": 23250,
       "fallback": "auto",
       "description": "Document manager coordination API port"
@@ -194,7 +194,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Document Manager initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${SERVICE_PORT}\\n  Database: postgresql://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/document_manager\\n  Vector DB: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  Redis: redis://localhost:${RESOURCE_PORTS[redis]}\\n  CLI: document-manager --help'",
+          "run": "echo '🚀 Document Manager initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  Database: postgresql://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/document_manager\\n  Vector DB: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  Redis: redis://localhost:${RESOURCE_PORTS[redis]}\\n  CLI: document-manager --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -209,7 +209,7 @@
         },
         {
           "name": "start-api-server",
-          "run": "cd api && PORT=$SERVICE_PORT ./document-manager-api",
+          "run": "cd api && env PORT=$API_PORT ./document-manager-api",
           "description": "Start Go coordination API server in background",
           "background": true,
           "condition": {
@@ -218,7 +218,7 @@
         },
         {
           "name": "wait-for-api",
-          "run": "sleep 3 && curl -sf http://localhost:$SERVICE_PORT/health > /dev/null",
+          "run": "sleep 3 && curl -sf http://localhost:$API_PORT/health > /dev/null",
           "description": "Wait for API server to be ready",
           "retry": {
             "max_attempts": 20,
@@ -232,7 +232,7 @@
         },
         {
           "name": "show-running-services",
-          "run": "echo '🚀 Document Manager running:\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Coordination API: http://localhost:$SERVICE_PORT\\n  Vector search: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  CLI: document-manager --help\\n\\nNext steps:\\n  1. Create your first application in the dashboard\\n  2. Configure agents for your documentation\\n  3. Monitor the improvement queue for suggestions'",
+          "run": "echo '🚀 Document Manager running:\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Coordination API: http://localhost:$API_PORT\\n  Vector search: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  CLI: document-manager --help\\n\\nNext steps:\\n  1. Create your first application in the dashboard\\n  2. Configure agents for your documentation\\n  3. Monitor the improvement queue for suggestions'",
           "description": "Display all running service URLs and next steps"
         }
       ]
@@ -250,27 +250,27 @@
         },
         {
           "name": "test-api-health",
-          "run": "curl -sf http://localhost:$SERVICE_PORT/health",
+          "run": "curl -sf http://localhost:$API_PORT/health",
           "description": "Test API health endpoint"
         },
         {
           "name": "test-database-connection",
-          "run": "curl -sf http://localhost:$SERVICE_PORT/api/system/db-status",
+          "run": "curl -sf http://localhost:$API_PORT/api/system/db-status",
           "description": "Test database connectivity"
         },
         {
           "name": "test-vector-db-connection",
-          "run": "curl -sf http://localhost:$SERVICE_PORT/api/system/vector-status",
+          "run": "curl -sf http://localhost:$API_PORT/api/system/vector-status",
           "description": "Test vector database connectivity"
         },
         {
           "name": "test-ai-integration",
-          "run": "curl -sf http://localhost:$SERVICE_PORT/api/system/ai-status",
+          "run": "curl -sf http://localhost:$API_PORT/api/system/ai-status",
           "description": "Test AI model integration"
         },
         {
           "name": "test-application-endpoints",
-          "run": "curl -sf http://localhost:$SERVICE_PORT/api/applications && curl -sf http://localhost:$SERVICE_PORT/api/agents && curl -sf http://localhost:$SERVICE_PORT/api/queue",
+          "run": "curl -sf http://localhost:$API_PORT/api/applications && curl -sf http://localhost:$API_PORT/api/agents && curl -sf http://localhost:$API_PORT/api/queue",
           "description": "Test main API endpoints"
         },
         {

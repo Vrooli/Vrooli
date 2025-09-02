@@ -25,7 +25,7 @@
   },
   "ports": {
     "api": {
-      "env_var": "SERVICE_PORT",
+      "env_var": "API_PORT",
       "port": 30000,
       "fallback": "auto",
       "description": "Stream analyzer API port"
@@ -151,7 +151,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo 'Stream Analyzer initialized - UI: http://localhost:${UI_PORT} - API: http://localhost:${SERVICE_PORT}'",
+          "run": "echo 'Stream Analyzer initialized - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT}'",
           "description": "Display service URLs"
         }
       ]
@@ -161,13 +161,13 @@
       "steps": [
         {
           "name": "start-api",
-          "run": "cd api && PORT=$SERVICE_PORT npm start",
+          "run": "cd api && env PORT=$API_PORT npm start",
           "description": "Start API server",
           "background": true
         },
         {
           "name": "start-ui",
-          "run": "cd ui && PORT=$UI_PORT npm start",
+          "run": "cd ui && env PORT=$UI_PORT npm start",
           "description": "Start UI server",
           "background": true
         },
@@ -178,7 +178,7 @@
         },
         {
           "name": "show-running",
-          "run": "echo 'Services running - UI: http://localhost:${UI_PORT} - API: http://localhost:${SERVICE_PORT}'",
+          "run": "echo 'Services running - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT}'",
           "description": "Display running services"
         }
       ]
@@ -188,7 +188,7 @@
       "steps": [
         {
           "name": "test-api",
-          "run": "curl -sf http://localhost:$SERVICE_PORT/health",
+          "run": "curl -sf http://localhost:$API_PORT/health",
           "description": "Test API health"
         }
       ]

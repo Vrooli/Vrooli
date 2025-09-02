@@ -44,10 +44,10 @@ vrooli scenario test make-it-vegan
 cd scenarios/make-it-vegan
 
 # Run the scenario
-../../scripts/manage.sh develop
+vrooli scenario run <scenario-name>
 
 # Test the scenario
-../../scripts/manage.sh test
+vrooli scenario test <scenario-name>
 ```
 
 ## Process Management
@@ -167,7 +167,7 @@ jobs:
           for scenario in scenarios/*/; do
             name=$(basename "$scenario")
             echo "Testing $name"
-            (cd "$scenario" && ../../scripts/manage.sh test --ci)
+            (cd "$scenario" && vrooli scenario test "$(basename "$scenario")")
           done
 ```
 
@@ -181,7 +181,7 @@ ls scenarios/<name>/.vrooli/service.json
 
 # Verify scenario mode is detected
 cd scenarios/<name>
-../../scripts/manage.sh develop --dry-run
+vrooli scenario run <scenario-name> --dry-run
 ```
 
 ### Port Conflicts
