@@ -156,14 +156,14 @@ describe('Component/Function Name', () => {
 # Run all tests
 pnpm test
 
-# Run specific package tests
-cd packages/server && pnpm test
+# Run scenario tests
+vrooli scenario test <scenario-name>
 
-# Run with coverage
-cd packages/server && pnpm test-coverage
+# Run resource tests
+vrooli test resources
 
-# Watch mode
-cd packages/server && pnpm test-watch
+# Watch mode for development
+vrooli test --watch
 ```
 
 ## Pull Request Process

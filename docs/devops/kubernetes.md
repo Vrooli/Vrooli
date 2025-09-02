@@ -1,6 +1,6 @@
 # Kubernetes Infrastructure Setup
 
-This guide covers setting up Kubernetes infrastructure that can be used by scenario-generated applications for deployment. The focus is on providing the foundation that generated apps can leverage for their own deployment strategies.
+This guide covers setting up Kubernetes infrastructure for Vrooli scenarios and their resource dependencies. The focus is on providing the foundation that scenarios can leverage when running directly in production environments.
 
 ## What is Kubernetes?
 
@@ -25,19 +25,19 @@ Helm is a package manager for Kubernetes that uses "charts" to define, install, 
 
 ### Core Infrastructure Setup
 
-The following components provide a foundation that scenario-generated applications can use:
+The following components provide a foundation that Vrooli scenarios can use when deployed to production:
 
 #### Required Kubernetes Operators
 
 **PostgreSQL Operator (CrunchyData PGO)**
 - Manages PostgreSQL clusters with high availability
 - Provides automated backups and disaster recovery
-- Required for apps that need relational databases
+- Required for scenarios that need relational databases
 
 **Redis Operator (Spotahome)**
 - Manages Redis clusters with failover capabilities
 - Provides caching and session storage
-- Required for apps that need key-value storage
+- Required for scenarios that need key-value storage
 
 **Vault Secrets Operator (VSO)**
 - Integrates HashiCorp Vault with Kubernetes
@@ -93,56 +93,57 @@ vrooli develop --target k8s-cluster
 ./scripts/manage.sh setup --target k8s-cluster
 ```
 
-## Application Deployment Patterns
+## Scenario Deployment Patterns
 
-### Helm Chart Structure for Generated Apps
+### Kubernetes Structure for Scenarios
 
-When scenario-generated applications include Kubernetes deployment capabilities, they typically follow this structure:
+When scenarios are deployed to Kubernetes for production, they leverage Vrooli's shared infrastructure and maintain this structure:
 
 ```
-my-generated-app/
-├── k8s/
-│   └── chart/
-│       ├── Chart.yaml           # Chart metadata
-│       ├── values.yaml          # Default configuration
-│       ├── values-dev.yaml      # Development overrides  
-│       ├── values-prod.yaml     # Production overrides
-│       └── templates/
-│           ├── deployment.yaml  # Application deployment
-│           ├── service.yaml     # Service definitions
-│           ├── ingress.yaml     # External access
-│           └── secrets/         # Secret management
-└── .vrooli/
-    └── service.json             # Deployment configuration
+scenarios/my-scenario/
+├── .vrooli/service.json         # Resource dependencies and configuration
+├── test.sh                      # Integration validation
+├── README.md                    # Business documentation (optional)
+├── initialization/              # Startup data and workflows
+│   ├── database/               # Database schemas and seed data
+│   ├── workflows/              # N8n/Windmill automation definitions
+│   └── configuration/          # Runtime settings
+└── deployment/                 # Production orchestration
+    ├── startup.sh              # Scenario initialization
+    └── monitor.sh              # Health checks and monitoring
 ```
 
 ### Common Deployment Commands
 
-#### Basic Helm Operations
+#### Scenario Deployment
 
 ```bash
-# Lint a generated app's chart
-helm lint k8s/chart/
+# Deploy a scenario to Kubernetes production
+vrooli scenario run research-assistant --target k8s-cluster
 
-# Template a chart for validation (dry run)
-helm template my-app k8s/chart/ -f k8s/chart/values.yaml -f k8s/chart/values-dev.yaml
+# Test scenario integration in Kubernetes
+vrooli scenario test research-assistant --target k8s-cluster
 
-# Install/upgrade an application
-helm upgrade --install my-app k8s/chart/ -f k8s/chart/values-prod.yaml --namespace production --create-namespace
+# Package multiple scenarios for customer deployment
+./scripts/deployment/package-scenario-deployment.sh \
+    "customer-suite" ~/deployments/customer \
+    research-assistant invoice-generator
 
-# Uninstall an application
-helm uninstall my-app --namespace production
+# Deploy packaged scenarios to production cluster
+kubectl apply -f ~/deployments/customer/k8s/
 ```
 
-#### Application Lifecycle Integration
+#### Resource Management in Kubernetes
 
 ```bash
-# Deploy a generated application
-cd my-generated-app/
-vrooli deploy --environment production
+# Start shared Vrooli resources in Kubernetes
+vrooli resource start-all --target k8s-cluster
 
-# This delegates to the app's deployment configuration
-# which might use Helm, kubectl, or other deployment tools
+# Check resource health in cluster
+kubectl get pods -l app.kubernetes.io/part-of=vrooli
+
+# Monitor scenario execution
+kubectl logs -l scenario=research-assistant -f
 ```
 
 ## Resource Management
@@ -150,47 +151,71 @@ vrooli deploy --environment production
 ### Database Resources
 
 **PostgreSQL Clusters**
-Generated apps can request PostgreSQL databases:
+Scenarios can declare PostgreSQL requirements in their service.json:
 
-```yaml
-# In the generated app's values.yaml
-postgresql:
-  enabled: true
-  cluster:
-    name: "my-app-db"
-    instances: 2
-    storage: "10Gi"
+```json
+// In scenarios/my-scenario/.vrooli/service.json
+{
+  "resources": {
+    "storage": {
+      "postgres": {
+        "enabled": true,
+        "required": true,
+        "cluster": {
+          "name": "my-scenario-db",
+          "instances": 2,
+          "storage": "10Gi"
+        }
+      }
+    }
+  }
+}
 ```
 
 **Redis Clusters**  
-Generated apps can request Redis for caching:
+Scenarios can declare Redis requirements for caching:
 
-```yaml
-# In the generated app's values.yaml
-redis:
-  enabled: true
-  cluster:
-    name: "my-app-cache"  
-    replicas: 1
-    storage: "1Gi"
+```json
+// In scenarios/my-scenario/.vrooli/service.json
+{
+  "resources": {
+    "storage": {
+      "redis": {
+        "enabled": true,
+        "required": true,
+        "cluster": {
+          "name": "my-scenario-cache",
+          "replicas": 1,
+          "storage": "1Gi"
+        }
+      }
+    }
+  }
+}
 ```
 
 ### Secrets Management
 
 **Vault Integration**
-Generated apps can integrate with Vault for secrets:
+Scenarios can integrate with Vault for secrets through Vrooli's shared Vault resource:
 
-```yaml
-# In the generated app's templates/
-apiVersion: secrets.hashicorp.com/v1beta1
-kind: VaultSecret
-metadata:
-  name: my-app-secrets
-spec:
-  vaultAuthRef: my-app-auth
-  mount: secret
-  path: my-app/config
-  refreshAfter: 1h
+```json
+// In scenarios/my-scenario/.vrooli/service.json
+{
+  "resources": {
+    "storage": {
+      "vault": {
+        "enabled": true,
+        "required": true,
+        "secrets": {
+          "mount": "secret",
+          "path": "scenarios/my-scenario",
+          "refreshAfter": "1h"
+        }
+      }
+    }
+  }
+}
 ```
 
 ## Troubleshooting Kubernetes Operators
@@ -279,7 +304,7 @@ kubectl logs sentinel-my-cluster-0
 ```bash
 # Check VaultAuth status  
 kubectl get vaultauth
-kubectl describe vaultauth my-app-auth
+kubectl describe vaultauth my-scenario-auth
 
 # Check VaultConnection status
 kubectl get vaultconnection
@@ -287,7 +312,7 @@ kubectl describe vaultconnection vault-connection
 
 # Check VaultSecret status
 kubectl get vaultsecret
-kubectl describe vaultsecret my-app-secrets
+kubectl describe vaultsecret my-scenario-secrets
 
 # Check VSO operator logs
 kubectl logs -n vault-secrets-operator-system deployment/vault-secrets-operator
@@ -304,15 +329,15 @@ kubectl logs -n vault-secrets-operator-system deployment/vault-secrets-operator
 
 ```bash
 # Check if secrets are being created
-kubectl get secrets | grep my-app
+kubectl get secrets | grep my-scenario
 
 # Check secret content (base64 encoded)
-kubectl get secret my-app-secrets -o yaml
+kubectl get secret my-scenario-secrets -o yaml
 
 # Force secret refresh (delete VaultSecret to recreate)
-kubectl delete vaultsecret my-app-secrets
+kubectl delete vaultsecret my-scenario-secrets
 # Wait for operator to recreate it
-kubectl get vaultsecret my-app-secrets
+kubectl get vaultsecret my-scenario-secrets
 ```
 
 ### Quick Diagnosis Script
@@ -328,27 +353,28 @@ kubectl get vaultsecret my-app-secrets
 # - Basic functionality tests
 ```
 
-## Infrastructure for Different App Types
+## Infrastructure for Different Scenario Types
 
-### Web Applications
+### AI-Powered Business Scenarios
+- **GPU Resources**: Node pools with GPU support for Ollama and ComfyUI
+- **Vector Storage**: Persistent volumes for Qdrant collections
+- **Model Storage**: Shared volumes for AI model artifacts
+
+### Automation-Heavy Scenarios
+- **Workflow Orchestration**: N8n and Windmill shared infrastructure
+- **Event Processing**: Node-RED and Redis pub/sub capabilities
+- **External Integration**: Network policies for third-party API access
+
+### Customer-Facing Scenarios
 - **Ingress Controllers**: For external HTTP/HTTPS access
 - **SSL/TLS Management**: Cert-manager for automatic certificate provisioning
 - **CDN Integration**: CloudFlare or similar for static asset delivery
+- **Multi-tenancy**: Namespace isolation for customer data segregation
 
-### AI/ML Applications  
-- **GPU Resources**: Node pools with GPU support for model inference
-- **Model Storage**: Persistent volumes for large model files
-- **Scaling**: HPA for inference workloads based on queue depth
-
-### SaaS Applications
-- **Multi-tenancy**: Namespace isolation or shared infrastructure patterns
-- **Monitoring**: Prometheus and Grafana for application metrics
-- **Backup Solutions**: Automated backup strategies for data persistence
-
-### Mobile Backends
-- **API Gateways**: Kong or similar for API management
-- **Rate Limiting**: Request throttling and quota management
-- **Push Notifications**: Integration with FCM/APNs services
+### Data-Intensive Scenarios
+- **Time-series Infrastructure**: QuestDB for metrics and analytics
+- **Object Storage**: MinIO for file management and artifacts
+- **Backup Solutions**: Automated backup strategies for scenario data
 
 ## Getting Help
 
@@ -356,7 +382,7 @@ For infrastructure issues:
 
 1. **Check Operator Documentation**: Each operator has specific troubleshooting guides
 2. **Community Support**: Kubernetes and operator communities provide extensive help
-3. **Application-Specific Issues**: Contact the generated app's support mechanisms
+3. **Scenario-Specific Issues**: Check scenario test.sh output and logs
 4. **Vrooli Infrastructure**: Use `vrooli help` for Vrooli-specific infrastructure questions
 
-The infrastructure setup provides the foundation for any generated application's deployment needs, while allowing each app to define its own specific deployment patterns and requirements.
+The infrastructure setup provides the foundation for Vrooli scenarios to run in production, with shared resources and isolated execution environments for each scenario deployment.

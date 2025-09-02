@@ -178,7 +178,7 @@ summary = {
 
 ✅ Good: "Fixed PostgreSQL health checks (added /health endpoint).
          Blocked on Redis: port conflicts with existing service.
-         Next: Use port-registry.sh for Redis port allocation."
+         Next: Use port_registry.sh for Redis port allocation."
 ```
 
 ## 🔄 Prompt Evolution Patterns
@@ -187,7 +187,7 @@ summary = {
 
 1. **Repeated Failures** (>3 iterations hitting same issue)
    - Add specific guidance for the issue
-   - Example: "If you see 'port already in use', check port-registry.sh"
+   - Example: "If you see 'port already in use', check port_registry.sh"
 
 2. **Discovered Best Practices**
    - Codify patterns that work

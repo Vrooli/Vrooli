@@ -1,30 +1,30 @@
-# CI/CD for Generated Applications
+# CI/CD for Vrooli Scenarios
 
-This guide covers CI/CD patterns and strategies for applications generated from Vrooli scenarios. Since each generated app has its own deployment requirements, this focuses on common patterns and best practices.
+This guide covers CI/CD patterns for testing and deploying Vrooli scenarios using direct execution. Scenarios run directly from their source locations without conversion to standalone applications.
 
 > **Prerequisites**: See [Prerequisites Guide](./getting-started/prerequisites.md) for required tools installation.
 
 ## Overview
 
-When Vrooli generates applications from scenarios, each app can implement its own CI/CD strategy based on its specific needs:
+Vrooli scenarios use direct execution for both development and production deployment:
 
-### Generated App CI/CD Characteristics
+### Direct Scenario CI/CD Characteristics
 
-- 🎯 **Purpose-Built**: Each app's CI/CD matches its deployment targets (web platforms, app stores, cloud services)
-- 🔄 **Lifecycle Integration**: Uses `vrooli build` and `vrooli deploy` commands defined in `.vrooli/service.json`
-- 📦 **Artifact Variety**: Different apps generate different artifacts (web bundles, mobile packages, container images)
-- 🚀 **Target Flexibility**: Apps can deploy to multiple platforms simultaneously
-- 🛡️ **Security First**: Built-in secret management and secure deployment practices
+- 🎯 **Dual-Purpose**: Scenarios serve as both integration tests AND deployable applications
+- 🔄 **Direct Execution**: No conversion step - scenarios run directly from `scenarios/` directory
+- 📦 **Resource Orchestration**: Scenarios orchestrate local resources to create business capabilities
+- 🚀 **Instant Deployment**: Changes take effect immediately without regeneration
+- 🛡️ **Security First**: Process isolation and resource-based security model
 
 ## Common CI/CD Patterns
 
-### Pattern 1: Web Application (SaaS/Website)
+### Pattern 1: Scenario Integration Testing
 
-For apps that deploy to web platforms like Vercel, Netlify, or custom servers:
+Core pattern for validating scenario functionality and deployment readiness:
 
 ```yaml
-# .github/workflows/deploy.yml for a generated SaaS app
-name: Deploy Web Application
+# .github/workflows/test-scenarios.yml
+name: Test Vrooli Scenarios
 
 on:
   push:
@@ -33,235 +33,239 @@ on:
     branches: [main]
 
 jobs:
-  build-and-deploy:
+  test-scenarios:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'npm'
+      - name: Setup Vrooli Environment
+        run: |
+          ./scripts/manage.sh setup --target ci
           
-      - name: Install dependencies
-        run: npm ci
-        
-      - name: Build application
-        run: vrooli build --environment production
-        
-      - name: Deploy to production
-        if: github.ref == 'refs/heads/main'
-        run: vrooli deploy --target vercel --environment production
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      - name: Start Required Resources
+        run: |
+          vrooli resource start-all
+          vrooli resource status
           
-      - name: Deploy to preview
-        if: github.event_name == 'pull_request'
-        run: vrooli deploy --target vercel --environment preview
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      - name: Test All Scenarios
+        run: |
+          for scenario in scenarios/*/; do
+            name=$(basename "$scenario")
+            echo "Testing scenario: $name"
+            (cd "$scenario" && ../../scripts/manage.sh test --ci) || exit 1
+          done
+          
+      - name: Cleanup
+        if: always()
+        run: vrooli stop
 ```
 
-### Pattern 2: Mobile Application
+### Pattern 2: Scenario Deployment Pipeline
 
-For apps targeting app stores:
+For deploying validated scenarios to production environments:
 
 ```yaml
-# .github/workflows/mobile-deploy.yml for a generated mobile app
-name: Build and Deploy Mobile App
+# .github/workflows/deploy-scenarios.yml
+name: Deploy Validated Scenarios
 
 on:
   push:
     tags: ['v*']
 
 jobs:
-  build-android:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-          
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v2
-        
-      - name: Build Android APK
-        run: vrooli build --platform android
-        
-      - name: Sign and Deploy to Play Store
-        run: vrooli deploy --target play-store
-        env:
-          ANDROID_SIGNING_KEY: ${{ secrets.ANDROID_SIGNING_KEY }}
-          PLAY_STORE_SERVICE_ACCOUNT: ${{ secrets.PLAY_STORE_SERVICE_ACCOUNT }}
-
-  build-ios:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup Xcode
-        uses: actions/setup-xcode@v1
-        with:
-          xcode-version: latest-stable
-          
-      - name: Build iOS IPA
-        run: vrooli build --platform ios
-        
-      - name: Deploy to App Store
-        run: vrooli deploy --target app-store
-        env:
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-```
-
-### Pattern 3: AI/ML Service
-
-For AI applications deploying to cloud platforms:
-
-```yaml
-# .github/workflows/ai-deploy.yml for a generated AI service
-name: Deploy AI Service
-
-on:
-  push:
-    branches: [main]
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-          
-      - name: Install dependencies
-        run: |
-          pip install -r requirements.txt
-          pip install -r requirements-dev.txt
-          
-      - name: Build AI model package
-        run: vrooli build --artifacts model,container
-        
-      - name: Deploy to cloud
-        run: vrooli deploy --target aws --service lambda
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: us-east-1
-```
-
-### Pattern 4: Multi-Platform Deployment
-
-For apps that deploy to multiple platforms:
-
-```yaml
-# .github/workflows/multi-deploy.yml
-name: Multi-Platform Deployment
-
-on:
-  push:
-    branches: [main]
-
-jobs:
-  build:
+  validate-scenarios:
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.version.outputs.version }}
+      scenarios: ${{ steps.list-scenarios.outputs.scenarios }}
     steps:
       - uses: actions/checkout@v4
       
-      - name: Generate version
-        id: version
-        run: echo "version=$(date +%Y%m%d-%H%M%S)" >> $GITHUB_OUTPUT
+      - name: Setup Environment
+        run: ./scripts/manage.sh setup --target ci
         
-      - name: Build all platforms
-        run: vrooli build --platforms web,android,desktop
+      - name: Start Resources
+        run: vrooli resource start-all
         
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: build-artifacts-${{ steps.version.outputs.version }}
-          path: dist/
-
-  deploy-web:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/download-artifact@v3
-        with:
-          name: build-artifacts-${{ needs.build.outputs.version }}
-          path: dist/
+      - name: List Deployable Scenarios
+        id: list-scenarios
+        run: |
+          scenarios=$(find scenarios/ -name 'service.json' -exec dirname {} \; | xargs -I {} basename {} | jq -R . | jq -s . | tr -d '\n')
+          echo "scenarios=$scenarios" >> $GITHUB_OUTPUT
           
-      - name: Deploy web version
-        run: vrooli deploy --target netlify --artifacts dist/web
-        env:
-          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+      - name: Validate All Scenarios
+        run: |
+          for scenario in scenarios/*/; do
+            name=$(basename "$scenario")
+            echo "Validating $name for deployment readiness"
+            (cd "$scenario" && ../../scripts/manage.sh test --deployment-ready) || exit 1
+          done
 
-  deploy-desktop:
-    needs: build
+  deploy-to-production:
+    needs: validate-scenarios
     runs-on: ubuntu-latest
+    environment: production
     steps:
-      - uses: actions/download-artifact@v3
-        with:
-          name: build-artifacts-${{ needs.build.outputs.version }}
-          path: dist/
-          
-      - name: Deploy desktop apps
-        run: vrooli deploy --target github-releases --artifacts dist/desktop
+      - uses: actions/checkout@v4
+      
+      - name: Package Scenario Deployment
+        run: |
+          ./scripts/deployment/package-scenario-deployment.sh \
+            "production-release-$(date +%Y%m%d)" \
+            ./dist \
+            $(echo '${{ needs.validate-scenarios.outputs.scenarios }}' | jq -r '.[]')
+            
+      - name: Deploy to Production Cluster
+        run: |
+          kubectl apply -f ./dist/k8s/
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          KUBECONFIG: ${{ secrets.KUBECONFIG_PROD }}
 ```
 
-## Application Configuration Integration
+### Pattern 3: Resource Health Monitoring
+
+For continuous monitoring of resource availability and health:
+
+```yaml
+# .github/workflows/resource-health.yml
+name: Monitor Resource Health
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'  # Every 6 hours
+  workflow_dispatch:
+
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Vrooli
+        run: ./scripts/manage.sh setup --target ci
+        
+      - name: Start Core Resources
+        run: |
+          vrooli resource start ollama postgres redis
+          sleep 30  # Allow startup time
+          
+      - name: Validate Resource Health
+        run: |
+          vrooli resource status --check-all || {
+            echo "Resource health check failed"
+            vrooli resource logs --all
+            exit 1
+          }
+          
+      - name: Test Resource Integration
+        run: |
+          # Test AI resource
+          curl -f http://localhost:11434/api/tags || exit 1
+          
+          # Test database resource
+          resource-postgres status || exit 1
+          
+          # Test cache resource
+          resource-redis ping || exit 1
+```
+
+### Pattern 4: Multi-Scenario Production Deployment
+
+For deploying multiple scenarios as a cohesive business solution:
+
+```yaml
+# .github/workflows/production-deploy.yml
+name: Deploy Scenario Suite to Production
+
+on:
+  push:
+    tags: ['release-*']
+
+jobs:
+  validate-suite:
+    runs-on: ubuntu-latest
+    outputs:
+      deployment-ready: ${{ steps.validate.outputs.ready }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Environment
+        run: ./scripts/manage.sh setup --target ci
+        
+      - name: Start Resources
+        run: vrooli resource start-all
+        
+      - name: Validate Scenario Suite
+        id: validate
+        run: |
+          # Test core business scenarios
+          vrooli scenario test research-assistant || exit 1
+          vrooli scenario test invoice-generator || exit 1
+          vrooli scenario test customer-portal || exit 1
+          
+          echo "ready=true" >> $GITHUB_OUTPUT
+
+  deploy-production:
+    needs: validate-suite
+    if: needs.validate-suite.outputs.deployment-ready == 'true'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Package Production Deployment
+        run: |
+          ./scripts/deployment/package-scenario-deployment.sh \
+            "prod-$(date +%Y%m%d)" \
+            ./production-package \
+            research-assistant invoice-generator customer-portal
+            
+      - name: Deploy to Kubernetes
+        run: |
+          kubectl apply -f ./production-package/k8s/
+          kubectl rollout status deployment/vrooli-scenarios -n production
+        env:
+          KUBECONFIG: ${{ secrets.KUBECONFIG_PROD }}
+```
+
+## Scenario Configuration Integration
 
 ### Service Configuration
 
-Generated apps define their CI/CD behavior in `.vrooli/service.json`:
+Scenarios define their testing and deployment requirements in `.vrooli/service.json`:
 
 ```json
 {
-  "name": "my-generated-saas",
-  "type": "web-application",
-  "ci-cd": {
-    "triggers": {
-      "build": ["push", "pull_request"],
-      "deploy": ["push:main", "tag:v*"]
-    },
-    "environments": {
-      "development": {
-        "auto-deploy": true,
-        "targets": ["vercel-preview"]
-      },
-      "production": {
-        "auto-deploy": false,
-        "targets": ["vercel", "cloudflare"],
-        "requires-approval": true
-      }
-    },
-    "quality-gates": {
-      "test": "required",
-      "lint": "required", 
-      "security-scan": "optional"
-    }
+  "metadata": {
+    "name": "research-assistant",
+    "displayName": "AI Research Assistant",
+    "description": "Enterprise research automation platform"
   },
-  "deployment": {
-    "targets": {
-      "vercel": {
-        "command": "vercel deploy --prod",
-        "secrets": ["VERCEL_TOKEN"]
-      },
-      "cloudflare": {
-        "command": "wrangler deploy",
-        "secrets": ["CLOUDFLARE_API_TOKEN"]
+  "spec": {
+    "dependencies": {
+      "resources": [
+        {"name": "ollama", "type": "ai", "optional": false},
+        {"name": "qdrant", "type": "vectordb", "optional": false},
+        {"name": "postgres", "type": "database", "optional": false},
+        {"name": "n8n", "type": "automation", "optional": false}
+      ]
+    },
+    "testing": {
+      "timeout": 600,
+      "requiresDisplay": false,
+      "ciEnabled": true,
+      "successCriteria": [
+        "Resource health checks pass",
+        "AI inference responds correctly",
+        "Database integration works",
+        "Workflow automation executes"
+      ]
+    },
+    "deployment": {
+      "productionReady": true,
+      "resourceRequirements": {
+        "cpu": "2 cores",
+        "memory": "4GB",
+        "storage": "20GB"
       }
     }
   }
@@ -270,272 +274,332 @@ Generated apps define their CI/CD behavior in `.vrooli/service.json`:
 
 ### Environment Management
 
-Generated apps can use standardized environment patterns:
+Scenarios use environment variables for different execution contexts:
 
 ```bash
-# Development environment (.env.development)
-NODE_ENV=development
-API_BASE_URL=https://dev-api.myapp.com
-DEBUG_MODE=true
+# Development environment
+SCENARIO_MODE=development
+RESOURCE_PREFIX=http://localhost
+DEBUG_SCENARIO=true
+VROOLI_ENV=development
 
-# Production environment (.env.production)
-NODE_ENV=production
-API_BASE_URL=https://api.myapp.com
-DEBUG_MODE=false
-ANALYTICS_ENABLED=true
+# Production environment
+SCENARIO_MODE=production
+RESOURCE_PREFIX=https://resources.vrooli.com
+DEBUG_SCENARIO=false
+VROOLI_ENV=production
+KUBERNETES_NAMESPACE=vrooli-scenarios
 ```
 
 ## Quality Gates and Testing
 
-### Automated Testing Integration
+### Scenario Validation Pipeline
 
 ```yaml
-# Example quality gate workflow
+# Comprehensive scenario validation workflow
 jobs:
-  quality-gates:
+  scenario-quality-gates:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       
-      - name: Install dependencies
-        run: npm ci
+      - name: Setup Vrooli Environment
+        run: ./scripts/manage.sh setup --target ci
         
-      - name: Run linting
-        run: vrooli test lint
+      - name: Validate Scenario Structure
+        run: |
+          for scenario in scenarios/*/; do
+            echo "Validating structure: $(basename "$scenario")"
+            ./scripts/scenarios/tools/validate-scenario.sh "$(basename "$scenario")" || exit 1
+          done
+          
+      - name: Start Resources for Testing
+        run: vrooli resource start-all
         
-      - name: Run unit tests
-        run: vrooli test unit
-        
-      - name: Run integration tests
-        run: vrooli test integration
-        
-      - name: Security scan
-        run: vrooli test security
-        
-      - name: Performance test
-        if: github.ref == 'refs/heads/main'
-        run: vrooli scenario test performance
+      - name: Run Scenario Integration Tests
+        run: |
+          for scenario in scenarios/*/; do
+            name=$(basename "$scenario")
+            echo "Integration testing: $name"
+            vrooli scenario test "$name" --ci || exit 1
+          done
+          
+      - name: Validate Business Requirements
+        run: |
+          # Check that scenarios meet business criteria
+          ./scripts/scenarios/tools/validate-business-model.sh --all
 
-  deploy:
-    needs: quality-gates
-    if: success()
+  deploy-validated-scenarios:
+    needs: scenario-quality-gates
+    if: success() && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
-      - name: Deploy application
-        run: vrooli deploy --environment production
+      - name: Deploy Scenarios
+        run: |
+          for scenario in scenarios/*/; do
+            name=$(basename "$scenario")
+            echo "Deploying scenario: $name"
+            vrooli scenario run "$name" --environment production
+          done
 ```
 
-### Test Configuration
+### Scenario Test Configuration
 
-Apps define their testing strategy in `.vrooli/service.json`:
+Scenarios define their testing requirements in `.vrooli/service.json`:
 
 ```json
 {
-  "testing": {
-    "lint": {
-      "command": "eslint src/ --ext .ts,.tsx",
-      "required": true
-    },
-    "unit": {
-      "command": "jest --coverage",
-      "coverage-threshold": 80
-    },
-    "integration": {
-      "command": "playwright test",
-      "browser-matrix": ["chromium", "firefox", "webkit"]
-    },
-    "security": {
-      "command": "npm audit && snyk test",
-      "fail-on": "high"
+  "spec": {
+    "testing": {
+      "timeout": 600,
+      "requiresDisplay": false,
+      "ciEnabled": true,
+      "resourceHealth": {
+        "required": ["ollama", "postgres", "redis"],
+        "optional": ["whisper", "comfyui"]
+      },
+      "integrationTests": {
+        "aiInference": "Test AI model responses",
+        "databaseOps": "Validate data persistence",
+        "workflowExecution": "Test automation workflows",
+        "endToEnd": "Complete user journey validation"
+      },
+      "performanceBaseline": {
+        "responseTime": "< 2 seconds",
+        "resourceUsage": "< 2GB RAM",
+        "concurrentUsers": 10
+      }
     }
   }
 }
 ```
 
-## Deployment Strategies by App Type
+## Scenario Deployment Strategies
 
-### SaaS Applications
+### Local Development Deployment
 
-**Common Deployment Targets:**
-- Vercel/Netlify for frontend
-- Railway/Render for backend APIs
-- Planet Scale for databases
-- Cloudflare for CDN and edge functions
+**Target Environment:** Developer machines, local testing
+**Deployment Method:** Direct scenario execution
 
 **Typical Pipeline:**
-1. Build frontend and backend separately
-2. Deploy backend API first
-3. Update frontend environment variables
-4. Deploy frontend with new API endpoints
-5. Run smoke tests against production
+1. Start required resources locally
+2. Run scenario directly from source
+3. Test integration functionality
+4. Validate business logic works
 
-### E-commerce Platforms
+```bash
+# Local development deployment
+vrooli resource start-all
+vrooli scenario run research-assistant
+vrooli scenario test research-assistant
+```
 
-**Common Deployment Targets:**
-- Shopify app store
-- WordPress plugin directory
-- WooCommerce marketplace
-- Custom hosting platforms
+### Production Cloud Deployment
 
-**Typical Pipeline:**
-1. Build platform-specific packages
-2. Run comprehensive testing (payment flows, inventory)
-3. Deploy to staging environment
-4. Manual QA and approval
-5. Deploy to production marketplace
-
-### AI/ML Applications
-
-**Common Deployment Targets:**
-- AWS Lambda/SageMaker
-- Google Cloud Run/Vertex AI
-- Azure Container Instances
-- Hugging Face Spaces
+**Target Environment:** Kubernetes clusters, cloud platforms
+**Deployment Method:** Packaged scenario deployment
 
 **Typical Pipeline:**
-1. Build and package models
-2. Create container images
-3. Run model validation tests
-4. Deploy to inference endpoints
-5. Gradual traffic shifting (canary deployment)
+1. Validate all scenarios pass integration tests
+2. Package required scenarios with Vrooli framework
+3. Deploy resource infrastructure (databases, AI services)
+4. Deploy scenario suite to production cluster
+5. Run post-deployment health checks
 
-### Mobile Applications
+```bash
+# Production deployment
+./scripts/deployment/package-scenario-deployment.sh \
+  "production-suite" ~/deployments/prod \
+  research-assistant invoice-generator customer-portal
+```
 
-**Common Deployment Targets:**
-- Google Play Store
-- Apple App Store
-- Enterprise distribution (TestFlight, Firebase)
-- Progressive Web App (PWA) platforms
+### Customer-Specific Deployment
+
+**Target Environment:** Customer infrastructure, dedicated instances
+**Deployment Method:** Customized scenario configuration
 
 **Typical Pipeline:**
-1. Build platform-specific packages
-2. Run automated UI testing
-3. Upload to internal testing (TestFlight, Internal Testing)
-4. Manual QA approval
-5. Release to production stores
+1. Customize scenario configuration for customer needs
+2. Validate customer-specific resource requirements
+3. Deploy to customer's infrastructure
+4. Perform customer acceptance testing
+5. Hand over operational control
 
-## Secret Management
+```bash
+# Customer deployment
+vrooli scenario customize research-assistant --customer "enterprise-corp"
+vrooli scenario deploy research-assistant --target customer-k8s
+```
 
-### Generated App Secrets
+## Secret Management for Scenarios
 
-Apps define required secrets in their configuration:
+### Scenario Secret Configuration
+
+Scenarios define required secrets for resource access:
 
 ```json
 {
-  "secrets": {
-    "required": [
-      "DATABASE_URL",
-      "JWT_SECRET", 
-      "STRIPE_API_KEY"
-    ],
-    "optional": [
-      "ANALYTICS_API_KEY",
-      "SENTRY_DSN"
-    ],
-    "deployment": {
-      "vercel": ["VERCEL_TOKEN"],
-      "aws": ["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"]
+  "spec": {
+    "secrets": {
+      "required": [
+        "POSTGRES_CONNECTION_STRING",
+        "OLLAMA_API_KEY",
+        "QDRANT_API_KEY"
+      ],
+      "optional": [
+        "OPENAI_API_KEY",
+        "MONITORING_WEBHOOK_URL"
+      ],
+      "resourceSpecific": {
+        "ollama": ["OLLAMA_MODELS_PATH"],
+        "postgres": ["DATABASE_URL", "DATABASE_SSL_CERT"],
+        "vault": ["VAULT_TOKEN", "VAULT_ADDR"]
+      }
     }
   }
 }
 ```
 
-### Security Best Practices
+### Security Best Practices for Scenarios
 
 ```yaml
-# Example secure deployment workflow
+# Secure scenario deployment workflow
 jobs:
-  deploy:
+  secure-deploy:
     runs-on: ubuntu-latest
-    environment: production  # GitHub environment protection
+    environment: production
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         
-      - name: Configure secrets
+      - name: Configure Resource Secrets
         run: |
-          echo "${{ secrets.ENV_FILE }}" > .env.production
-          echo "${{ secrets.SERVICE_ACCOUNT_KEY }}" > service-account.json
-          chmod 600 .env.production service-account.json
+          # Create secure configuration for resources
+          echo "${{ secrets.RESOURCE_CONFIG }}" > .vrooli/resource-secrets.json
+          echo "${{ secrets.VAULT_TOKEN }}" > .vault-token
+          chmod 600 .vrooli/resource-secrets.json .vault-token
           
-      - name: Deploy with secure cleanup
+      - name: Deploy Scenarios Securely
         run: |
-          vrooli deploy --environment production
-        always: |
-          rm -f .env.production service-account.json
+          # Deploy with secure resource configuration
+          export VAULT_TOKEN=$(cat .vault-token)
+          vrooli resource start-all --secure
+          
+          # Deploy scenarios with secret management
+          for scenario in research-assistant invoice-generator; do
+            vrooli scenario run "$scenario" --production --vault-integration
+          done
+          
+      - name: Cleanup Secrets
+        if: always()
+        run: |
+          rm -f .vrooli/resource-secrets.json .vault-token
+          shred -vfz -n 3 /tmp/vrooli-* 2>/dev/null || true
 ```
 
 ## Monitoring and Observability
 
-### Deployment Monitoring
+### Scenario Monitoring Configuration
 
-Generated apps can include monitoring configuration:
+Scenarios include monitoring for both resource health and business metrics:
 
 ```json
 {
-  "monitoring": {
-    "health-checks": {
-      "endpoint": "/health",
-      "timeout": 30,
-      "retries": 3
-    },
-    "metrics": {
-      "provider": "datadog",
-      "custom-metrics": ["user_signups", "api_latency", "error_rate"]
-    },
-    "logging": {
-      "provider": "sentry",
-      "log-level": "info"
-    },
-    "alerts": {
-      "deployment-failure": "slack://deployment-alerts",
-      "high-error-rate": "pagerduty://on-call"
+  "spec": {
+    "monitoring": {
+      "resourceHealth": {
+        "checkInterval": 30,
+        "timeout": 10,
+        "retries": 3,
+        "endpoints": {
+          "ollama": "http://localhost:11434/api/tags",
+          "postgres": "postgresql://localhost:5432/health",
+          "qdrant": "http://localhost:6333/health"
+        }
+      },
+      "businessMetrics": {
+        "provider": "questdb",
+        "metrics": [
+          "scenario_execution_time",
+          "resource_response_time", 
+          "user_interaction_count",
+          "ai_inference_accuracy"
+        ]
+      },
+      "logging": {
+        "level": "info",
+        "location": "~/.vrooli/logs/scenarios/{scenario_name}/",
+        "rotation": "daily"
+      },
+      "alerts": {
+        "resource-failure": "restart-resource",
+        "scenario-timeout": "escalate-to-admin",
+        "business-metric-anomaly": "notify-stakeholders"
+      }
     }
   }
 }
 ```
 
-### Post-Deployment Verification
+### Post-Deployment Scenario Verification
 
 ```yaml
 jobs:
-  verify-deployment:
+  verify-scenario-deployment:
     runs-on: ubuntu-latest
-    needs: deploy
+    needs: deploy-validated-scenarios
     steps:
-      - name: Health check
+      - name: Resource Health Check
         run: |
-          curl -f ${{ env.HEALTH_CHECK_URL }} || exit 1
+          vrooli resource status --check-all || exit 1
           
-      - name: Integration test
-        run: vrooli test integration --environment production
-        
-      - name: Performance baseline
-        run: vrooli scenario test performance --baseline --environment production
-        
-      - name: Notify success
+      - name: Scenario Integration Validation
+        run: |
+          for scenario in research-assistant invoice-generator customer-portal; do
+            echo "Validating deployed scenario: $scenario"
+            vrooli scenario test "$scenario" --production --health-check || exit 1
+          done
+          
+      - name: Business Functionality Verification
+        run: |
+          # Test end-to-end business workflows
+          ./scripts/scenarios/tools/verify-business-functionality.sh --all
+          
+      - name: Performance Baseline Validation
+        run: |
+          for scenario in scenarios/*/; do
+            name=$(basename "$scenario")
+            vrooli scenario test "$name" --performance-baseline
+          done
+          
+      - name: Notify Deployment Success
         if: success()
         run: |
           curl -X POST ${{ secrets.SLACK_WEBHOOK }} \
             -H 'Content-type: application/json' \
-            --data '{"text":"✅ Deployment successful for ${{ github.repository }}"}'
+            --data '{"text":"✅ Scenario suite deployed successfully: $(echo scenarios/*/ | xargs -n1 basename | tr "\n" ", ")"}'
 ```
 
-## Benefits of Generated App CI/CD
+## Benefits of Direct Scenario CI/CD
 
-### Flexibility
-- Each app chooses its optimal deployment strategy
-- No platform lock-in - apps can switch deployment targets
-- Technology-agnostic - works with any tech stack
+### Simplicity
+- No conversion step - scenarios run directly from source
+- Single source of truth for both testing and deployment
+- Immediate feedback without regeneration delays
 
-### Intelligence
-- Apps learn from successful deployment patterns
-- Common patterns become templates for new apps
-- Failed deployments inform better practices
+### Resource Efficiency
+- Scenarios share Vrooli's resource infrastructure
+- No duplication of framework code or configuration
+- Optimal resource utilization across multiple scenarios
 
-### Scaling
-- Apps can start simple and evolve deployment complexity
-- Infrastructure scales with application requirements
-- Deployment knowledge compounds across all generated apps
+### Business Alignment
+- Scenarios represent actual business value ($10K-50K revenue potential)
+- Testing proves deployment readiness and business viability
+- Direct path from customer requirements to deployed solution
 
-This approach enables each generated application to have a CI/CD pipeline perfectly suited to its specific needs, deployment targets, and operational requirements.
+### Continuous Improvement
+- Successful scenarios become permanent platform capabilities
+- Resource orchestration patterns improve over time
+- Business model validation enhances revenue predictability
+
+This approach enables rapid deployment of business-ready applications while maintaining high quality through comprehensive resource integration testing.

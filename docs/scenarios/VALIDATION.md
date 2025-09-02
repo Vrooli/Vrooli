@@ -1,10 +1,19 @@
-# Validation Guide: Testing Scenarios for Deployment Readiness
+# Scenario Validation Guide
 
-## 🎯 What Validation Means in Dual-Purpose Scenarios
+## 📚 Navigation
 
-Traditional validation tests that code works. **Scenario validation proves deployment readiness**. When a scenario passes validation, you can confidently deploy it directly as a customer application.
+- **[CONCEPTS.md](CONCEPTS.md)** - Understanding dual-purpose scenarios and resource orchestration
+- **[getting-started.md](getting-started.md)** - Step-by-step scenario creation tutorial
+- **This Guide** - Testing and validation framework
+- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Running scenarios directly in production
 
-This guide covers the complete validation framework that ensures scenarios work both as tests and as deployment blueprints.
+## 🎯 Validation Overview
+
+Scenario validation proves **deployment readiness** and **business viability**. When a scenario passes validation, it's ready for direct deployment as a customer application.
+
+> **Concept Reference**: For dual-purpose scenario fundamentals, see [CONCEPTS.md](CONCEPTS.md)
+
+This guide covers the practical validation framework and testing procedures.
 
 ## 🏗️ Validation Architecture
 

@@ -5,7 +5,7 @@ Comprehensive development guide for the Vrooli platform. For quick reference, se
 ## Table of Contents
 - [Project Overview](#project-overview)
 - [Technology Stack](#technology-stack)
-- [Architecture Details](#architecture-details)
+- [Architecture Overview](ARCHITECTURE_OVERVIEW.md)
 - [Development Guidelines](#development-guidelines)
 - [Task Management System](#task-management-system)
 - [Memory Management](#memory-management)
@@ -66,59 +66,14 @@ Vrooli is a resource orchestration platform for generating complete business app
 - **CI/CD**: GitHub Actions with scenario-based testing
 - **Management**: Bash scripting with process managers and port allocation
 
-## Architecture Details
+## Architecture Overview
 
-### Three-Tier AI Architecture
-
-```mermaid
-graph TD
-    T1[Tier 1: Coordination Intelligence<br/>🧠 Strategic Planning<br/>📊 Resource Allocation<br/>👥 Swarm Management]
-    T2[Tier 2: Process Intelligence<br/>🔄 Task Decomposition<br/>🗺️ Routine Navigation<br/>📈 Execution Monitoring]
-    T3[Tier 3: Execution Intelligence<br/>⚡ Direct Task Execution<br/>🔧 Tool Integration<br/>📝 Context Management]
-    
-    T1 -->|Orchestrates| T2
-    T2 -->|Executes via| T3
-    T3 -->|Events| EB[Event Bus<br/>📡 Redis-based]
-    EB -->|Feedback| T1
-    
-    classDef tier1 fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
-    classDef tier2 fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
-    classDef tier3 fill:#fff3e0,stroke:#e65100,stroke-width:2px
-    classDef eventbus fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
-    
-    class T1 tier1
-    class T2 tier2
-    class T3 tier3
-    class EB eventbus
-```
-
-### Key Architectural Patterns
-- **Event-Driven Communication**: Redis-based event bus for inter-service communication
-- **Resource Management**: Coordinated resource allocation across tiers
-- **Error Handling**: Structured error propagation with circuit breakers
-- **State Management**: Distributed state with Redis caching
-- **Security Boundaries**: Isolated execution environments for each tier
-
-### System Structure
-```
-/resources/       # 30+ local services (AI, automation, storage, agents)
-  /ollama/        # Local LLM inference
-  /n8n/           # Visual workflow automation
-  /postgres/      # PostgreSQL database
-  /qdrant/        # Vector database
-  /windmill/      # Code-first workflows
-  [... 25+ more]
-/scenarios/       # Business applications that orchestrate resources
-  /research-assistant/     # AI research platform ($15k-30k value)
-  /make-it-vegan/         # Recipe conversion app
-  /invoice-generator/     # Business invoicing system
-  [... 40+ scenarios]
-/scripts/         # Bash automation and management system
-/cli/            # Unified CLI tool for all operations
-/platforms/      # Desktop/extension deployments
-/docs/           # Comprehensive documentation
-/k8s/            # Kubernetes/Helm configurations
-```
+See **[ARCHITECTURE_OVERVIEW.md](ARCHITECTURE_OVERVIEW.md)** for complete architecture documentation including:
+- Resource orchestration platform design
+- Three-tier AI intelligence system  
+- Direct execution model
+- Resource categories and management
+- Security and performance characteristics
 
 ## Development Guidelines
 
@@ -159,7 +114,7 @@ graph TD
 #### **Organize Next Task**
 **Keywords:** _"organize next task," "structure task," "clarify next task," "organize backlog," "prepare next task"_
 
-Process the **first unstructured task** in the [backlog.md](tasks/backlog.md):
+Process unstructured tasks using scenario-based workflows:
 1. **Explore the Codebase** - Search relevant files and analyze existing implementations
 2. **Clarify and Research** - Ask targeted questions if unclear
 3. **Decide on Splitting Tasks** - Split complex tasks into focused subtasks
@@ -204,16 +159,11 @@ You have no persistent memory between sessions. **After every memory reset, rely
 - **[roadmap.md](roadmap.md)** - Project milestones and future vision
 - **[tools.md](tools.md)** - Available commands and tools
 
-### Task Management (`/docs/tasks/` folder):
-- **[active.md](tasks/active.md)** - Tasks currently underway
-- **[backlog.md](tasks/backlog.md)** - Unstructured notes and ideas awaiting research
-- **[staged.md](tasks/staged.md)** - Clarified, researched tasks ready to start
-- **[completed.md](tasks/completed.md)** - Finished tasks with outcomes
-- **[failed.md](tasks/failed.md)** - Abandoned tasks with reasons and lessons
-
-### Temporary Working Files (`/docs/scratch/` folder):
-- Use for temporary notes, research results, or drafts during current task
-- Transfer important information to permanent documentation before completing tasks
+### Scenario Management:
+- **[scenarios/](scenarios/)** - Business application scenarios and templates
+- **[resources/](resources/)** - Resource management and integration guides
+- **[deployment/](deployment/)** - Deployment strategies and production guides
+- **[devops/](devops/)** - Development environment and CI/CD documentation
 
 ### Documentation Guidelines
 
@@ -237,8 +187,8 @@ You have no persistent memory between sessions. **After every memory reset, rely
 - Use descriptive test names following pattern: `should [expected behavior] when [condition]`
 - **IMPORTANT**: Use testcontainers for Redis and PostgreSQL - DO NOT mock these databases
   - More computationally expensive but MUCH more reliable than mocks
-  - See `packages/server/src/__test/setup.ts` for the testcontainer setup
   - Integration tests should use real database connections via testcontainers
+  - See scenario test files for examples of proper resource testing
 - Mock external APIs and services (LLM providers, Stripe, etc.) but not core infrastructure
 - Aim for >80% code coverage
 - Testing framework: Vitest
@@ -414,12 +364,8 @@ See [architecture/execution/emergent-capabilities/README.md](architecture/execut
 - **[Video Scripts](user-guide/video-scripts/)** - Landing page video content
 - **[Legacy Documentation](user-guide/old/)** - Preserved reference materials
 
-### 📋 **Task Management** (`/docs/tasks/`)
-- **[Active Tasks](tasks/active.md)** - Currently in progress
-- **[Backlog](tasks/backlog.md)** - Unstructured tasks awaiting organization
-- **[Staged Tasks](tasks/staged.md)** - Ready-to-start tasks
-- **[Completed Tasks](tasks/completed.md)** - Finished work
-- **[Failed Tasks](tasks/failed.md)** - Abandoned tasks with lessons learned
+### 📋 **Task Management**
+Task management is now handled through scenario-based workflows. See scenario documentation for task orchestration patterns.
 
 ## Security Guidelines
 
@@ -451,7 +397,7 @@ The `/scripts/` directory contains comprehensive bash scripts:
 |-------|-------|----------|
 | `Module not found: Error: Can't resolve './file'` | Missing .js extension | Add `.js` to import: `'./file.js'` |
 | `Cannot find container vrooli_postgresql_1` | Docker not running | Run `./scripts/manage.sh setup --target docker` |
-| `Invalid prisma.user invocation` | Schema out of sync | Run `cd packages/server && pnpm prisma generate` |
+| `Invalid prisma.user invocation` | Schema out of sync | Check PostgreSQL resource schema synchronization |
 | `ECONNREFUSED 127.0.0.1:6379` | Redis not running | Start dev environment with scripts |
 | `Type error in test file` | Wrong import path | Use relative imports with `.js` extension |
 | `Test timeout` | Database container slow | Increase timeout or use `--runInBand` |

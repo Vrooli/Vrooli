@@ -1,5 +1,12 @@
 # Core Concepts: Dual-Purpose Scenarios
 
+## 📚 Navigation
+
+- **This Guide** - Understanding dual-purpose scenarios and resource orchestration
+- **[getting-started.md](getting-started.md)** - Step-by-step scenario creation tutorial
+- **[VALIDATION.md](VALIDATION.md)** - Testing and validation framework
+- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Running scenarios directly in production
+
 ## 🎯 The Revolutionary Design
 
 Vrooli scenarios solve a fundamental problem in software development: **the gap between testing and deployment**. Traditional systems require separate test suites and deployment artifacts, leading to drift, maintenance overhead, and inconsistency.

@@ -1,19 +1,26 @@
 # Getting Started with Vrooli Scenarios
 
-> **Complete guide to creating, testing, and deploying business scenarios**
+> **Practical guide to creating, testing, and deploying business scenarios**
 
 **Prerequisites**: Complete the [Quick Start Guide](../GETTING_STARTED.md) first (15 minutes)
 
+## 📚 Navigation
+
+- **[CONCEPTS.md](CONCEPTS.md)** - Understanding dual-purpose scenarios and resource orchestration
+- **[VALIDATION.md](VALIDATION.md)** - Testing and validation framework
+- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Running scenarios directly in production
+- **This Guide** - Step-by-step scenario creation tutorial
+
 ## 🎯 What You'll Learn
 
-By the end of this guide, you'll be able to:
-- ✅ Create a complete scenario from scratch
+By the end of this tutorial, you'll be able to:
+- ✅ Create a complete scenario from scratch using templates
 - ✅ Test scenario integration with resources  
-- ✅ Understand the business validation process
-- ✅ Prepare scenarios for AI generation
+- ✅ Validate business requirements and revenue potential
+- ✅ Deploy scenarios directly without conversion
 
-**Time Required**: 30-45 minutes
-**Audience**: Scenario creators building business applications
+**Time Required**: 30-45 minutes  
+**Audience**: Business application builders using Vrooli scenarios
 
 ---
 

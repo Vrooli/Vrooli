@@ -1,56 +1,72 @@
-# True Remote Production Deployment Guide
+# Scenario-Based Production Deployment Guide
 
 ## Overview
-This guide walks through deploying Vrooli to a real cloud environment with external access, SSL certificates, and production-grade infrastructure.
+This guide walks through deploying Vrooli scenarios to production environments for customer delivery. Instead of deploying the entire Vrooli platform, you deploy only the minimal set of resources and scenarios needed for specific customer use cases.
 
 ## Quick Deployment (Pre-configured Environment)
 
-If you already have everything set up (Kubernetes cluster, operators installed, DNS configured), use these commands for rapid deployment:
+If you already have everything set up (Kubernetes cluster, operators installed, DNS configured), use these commands for rapid scenario deployment:
 
 ```bash
-# Complete production deployment sequence
-cd /root/Vrooli
+# Scenario-based production deployment sequence
+cd /path/to/Vrooli
 
 # 1. Set production kubeconfig
-export KUBECONFIG=/root/Vrooli/k8s/kubeconfig-vrooli-prod.yaml
+export KUBECONFIG=/path/to/k8s/kubeconfig-production.yaml
 
 # 2. Verify cluster connection
 kubectl config current-context
 kubectl cluster-info
 
-# 3. Check prerequisites (optional but recommended)
-./scripts/helpers/deploy/k8s-prerequisites.sh --check-only
+# 3. Package scenarios for customer deployment
+./scripts/deployment/package-scenario-deployment.sh \
+  "customer-suite" ~/deployments/customer \
+  research-assistant invoice-generator customer-portal
 
-# 4. Build production artifacts
-vrooli build
-# Note: Production settings are configured in .vrooli/service.json
+# 4. Deploy shared resources
+kubectl apply -f ~/deployments/customer/k8s/resources/
 
-# 5. Deploy to production
-vrooli deploy
-# Note: Deployment configuration is in .vrooli/service.json
+# 5. Deploy customer scenarios
+kubectl apply -f ~/deployments/customer/k8s/scenarios/
 ```
 
 **Notes:**
-- Build process can take 20+ minutes
-- Ensure version number matches your release
+- Packaging process takes 2-5 minutes (only builds required scenarios)
+- Deployment only includes resources and scenarios specified in the package
 - Always verify correct cluster connection before deploying
-- The deploy script uses the current kubectl context
+- Each customer deployment is isolated and minimal
 
 ## Prerequisites Checklist
 
-### ✅ Already Available
-- [x] Docker images built and pushed to Docker Hub
-- [x] Domain configured: vrooli.com  
-- [x] Production environment variables in `.env-prod`
-- [x] AWS credentials for S3 storage
-- [x] Existing DigitalOcean infrastructure
+### ✅ For Scenario Deployment
+- [x] Vrooli CLI installed and configured
+- [x] Scenarios tested locally with `vrooli scenario test <name>`
+- [x] Customer requirements mapped to specific scenarios
+- [x] Resource dependencies identified via scenario service.json files
 
 ### 🔧 Required Setup
-- [ ] Cloud Kubernetes cluster
-- [ ] SSL certificates for HTTPS
+- [ ] Cloud Kubernetes cluster (sized for required resources)
+- [ ] SSL certificates for customer domain
 - [ ] External load balancer
-- [ ] Production database (managed)
-- [ ] DNS configuration
+- [ ] Managed databases (only if scenarios require them)
+- [ ] DNS configuration for customer domain
+
+## Scenario-Based Deployment Approach
+
+**Key Difference**: Instead of deploying the entire Vrooli platform, you deploy only:
+1. **Required Resources**: Only the resources that your specific scenarios need (e.g., Ollama + PostgreSQL + N8n)
+2. **Customer Scenarios**: The specific business scenarios that deliver value to your customer
+3. **Minimal Infrastructure**: Only the infrastructure components required by your resource set
+
+**Example**: If deploying a "Research Assistant" for a consulting firm, you only deploy:
+- Ollama (for AI), PostgreSQL (for data), Qdrant (for search), Windmill (for UI)
+- Not the entire 30+ resource ecosystem
+
+This approach provides:
+- ⚡ Faster deployment (5-10 minutes vs 30+ minutes)
+- 💰 Lower costs (smaller infrastructure footprint)
+- 🔒 Better security (minimal attack surface)
+- 🛠️ Easier maintenance (fewer components to manage)
 
 ## Deployment Options
 
@@ -100,23 +116,27 @@ kubectl get svc -n ingress-nginx
 # Get external load balancer IP
 EXTERNAL_IP=$(kubectl get svc -n ingress-nginx ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
 
-echo "Configure DNS A records:"
-echo "vrooli.com -> $EXTERNAL_IP"
-echo "www.vrooli.com -> $EXTERNAL_IP"
-echo "app.vrooli.com -> $EXTERNAL_IP"
+echo "Configure DNS A records for customer domain:"
+echo "client.consulting-firm.com -> $EXTERNAL_IP"
+echo "api.consulting-firm.com -> $EXTERNAL_IP"
+echo "app.consulting-firm.com -> $EXTERNAL_IP"
 ```
 
-#### Step 5: Deploy Application
+#### Step 5: Deploy Customer Scenarios
 ```bash
-# Apply production values
-helm install vrooli ./k8s/chart \
-  --namespace vrooli \
-  --create-namespace \
-  --values k8s/chart/values-prod.yaml \
-  --set image.tag=2.0.0 \
-  --set ingress.enabled=true \
-  --set ingress.className=nginx \
-  --set productionDomain=vrooli.com
+# Package specific scenarios for this customer
+./scripts/deployment/package-scenario-deployment.sh \
+  "consulting-suite" ~/deployments/consulting \
+  research-assistant invoice-generator document-processor
+
+# Deploy the packaged scenarios
+kubectl apply -f ~/deployments/consulting/k8s/ \
+  --namespace consulting-client \
+  --create-namespace
+
+# Configure ingress for customer domain
+kubectl patch ingress consulting-ingress \
+  --patch '{"spec":{"rules":[{"host":"client.consulting-firm.com"}]}}'
 ```
 
 ### Option 2: AWS EKS
@@ -352,24 +372,25 @@ resources:
 
 ### 2. Horizontal Pod Autoscaling
 ```yaml
+# Scale specific resources based on scenario load
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: vrooli-hpa
+  name: ollama-hpa
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: vrooli-server
-  minReplicas: 2
-  maxReplicas: 10
+    name: ollama
+  minReplicas: 1
+  maxReplicas: 5
   metrics:
   - type: Resource
     resource:
       name: cpu
       target:
         type: Utilization
-        averageUtilization: 70
+        averageUtilization: 80
 ```
 
 ## Post-Deployment Checklist

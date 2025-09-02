@@ -90,9 +90,9 @@ The `vrooli` CLI provides a unified interface for all development operations:
 
 ### **🎯 Scenario Management**  
 
-*   **Scenario Commands**: `vrooli scenario list`, `vrooli scenario generate`, `vrooli scenario validate`
-*   **Purpose**: Manage templates that define how to generate applications
-*   **Features**: Template validation, app generation, configuration management
+*   **Scenario Commands**: `vrooli scenario list`, `vrooli scenario run`, `vrooli scenario test`
+*   **Purpose**: Run business application scenarios directly from source
+*   **Features**: Direct execution, integration testing, resource orchestration
 
 ### **🔧 Resource Management**
 
@@ -473,11 +473,11 @@ vrooli stop scenarios
 # List available scenarios
 vrooli scenario list
 
-# Generate app from scenario
-vrooli scenario generate
+# Run scenario directly
+vrooli scenario run <scenario-name>
 
-# Validate scenario configuration
-vrooli scenario validate
+# Test scenario integration
+vrooli scenario test <scenario-name>
 ```
 
 This documentation provides a comprehensive overview of Vrooli's unified CLI system and the powerful automation infrastructure that enables rapid development and deployment of AI-driven applications. 
