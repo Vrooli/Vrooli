@@ -38,7 +38,8 @@ lifecycle::develop_with_auto_setup() {
     log::info "Starting develop lifecycle for $app_name"
     
     # Check if setup is needed
-    if setup::is_needed; then
+    log::debug "Checking if setup is needed (VROOLI_ROOT=${VROOLI_ROOT:-not set}, APP_ROOT=${APP_ROOT:-not set})"
+    if setup::is_needed "$PWD"; then
         # Display specific reasons for setup
         log::info "Setup required for the following reason(s):"
         if [[ ${#SETUP_REASONS[@]} -gt 0 ]]; then

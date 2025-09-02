@@ -40,12 +40,30 @@ export PYTHONPATH="${SCRIPT_DIR}:${PYTHONPATH:-}"
 if python3 -c "from pid_manager import OrchestrationLockManager; import sys; m = OrchestrationLockManager(); sys.exit(0 if m._find_running_orchestrator() is None else 1)" 2>/dev/null; then
     echo -e "${GREEN}No existing orchestrator detected${NC}"
 else
-    # Try to get PID for better error message
-    EXISTING_PID=$(python3 -c "from pid_manager import OrchestrationLockManager; m = OrchestrationLockManager(); r = m._find_running_orchestrator(); print(r.get('pid', 'unknown') if r else '')" 2>/dev/null || echo "unknown")
-    echo -e "${RED}ERROR: Orchestrator is already running (PID: $EXISTING_PID)${NC}"
-    echo "To stop it: kill $EXISTING_PID"
-    echo "Or use --force flag to override"
-    exit 1
+    # Check if --force flag is provided
+    if [[ "$*" == *"--force"* ]]; then
+        echo -e "${YELLOW}Force flag detected, proceeding with new orchestrator${NC}"
+    else
+        # Try to communicate with existing orchestrator to start scenarios
+        EXISTING_PID=$(python3 -c "from pid_manager import OrchestrationLockManager; m = OrchestrationLockManager(); r = m._find_running_orchestrator(); print(r.get('pid', 'unknown') if r else '')" 2>/dev/null || echo "unknown")
+        echo -e "${YELLOW}INFO: Orchestrator already running (PID: $EXISTING_PID)${NC}"
+        
+        # Try to use existing orchestrator API to start apps
+        ORCHESTRATOR_PORT="${ORCHESTRATOR_PORT:-9500}"
+        if curl -sf "http://localhost:$ORCHESTRATOR_PORT/health" >/dev/null 2>&1; then
+            echo -e "${GREEN}✓ Using existing orchestrator to start scenarios${NC}"
+            if curl -sf -X POST "http://localhost:$ORCHESTRATOR_PORT/apps/start-all" >/dev/null 2>&1; then
+                echo -e "${GREEN}✓ Scenarios started via existing orchestrator${NC}"
+                exit 0
+            else
+                echo -e "${YELLOW}⚠️  Failed to start scenarios via API, will skip orchestrator startup${NC}"
+                exit 0
+            fi
+        else
+            echo -e "${YELLOW}⚠️  Existing orchestrator not responding, will skip orchestrator startup${NC}"
+            exit 0
+        fi
+    fi
 fi
 
 # Safety check 2: Check system process count

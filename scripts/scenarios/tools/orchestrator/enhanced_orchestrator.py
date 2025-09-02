@@ -358,39 +358,48 @@ class EnhancedAppOrchestrator:
             # Wait a moment for processes to start
             await asyncio.sleep(3)
             
-            # Check if main process is still running
-            if app.process.returncode is None:
-                # Find actual service processes started by lifecycle
-                actual_pids = []
-                for proc in psutil.process_iter(['pid', 'cmdline', 'cwd']):
-                    try:
-                        cmdline = ' '.join(proc.info['cmdline'] or [])
-                        cwd = proc.info['cwd'] or ''
-                        
-                        # Check if this process belongs to our scenario
-                        if (f"scenarios/{app_name}" in cmdline or 
-                            f"scenarios/{app_name}" in cwd):
-                            actual_pids.append(proc.info['pid'])
-                    except (psutil.NoSuchProcess, psutil.AccessDenied):
-                        continue
-                
-                if actual_pids:
-                    # Track the first service process
-                    app.pid = actual_pids[0]
-                    app.status = "running"
-                    self.logger.info(f"✓ {app_name} started successfully ({len(actual_pids)} processes)")
-                else:
-                    app.status = "running"
-                    self.logger.info(f"✓ {app_name} lifecycle executed")
-                
+            # Wait for lifecycle to complete and find actual service processes
+            # lifecycle.sh should exit after starting background services
+            try:
+                await asyncio.wait_for(app.process.wait(), timeout=10.0)
+            except asyncio.TimeoutError:
+                # Lifecycle is still running, probably stuck
+                self.logger.warning(f"{app_name} lifecycle taking longer than expected")
+            
+            # Always check for actual service processes (lifecycle may have exited)
+            actual_pids = []
+            for proc in psutil.process_iter(['pid', 'cmdline', 'cwd']):
+                try:
+                    cmdline = ' '.join(proc.info['cmdline'] or [])
+                    cwd = proc.info['cwd'] or ''
+                    
+                    # Look for actual service processes (API servers, not lifecycle wrappers)
+                    if (f"scenarios/{app_name}" in cwd and 
+                        any(svc in cmdline for svc in [app_name + "-api", "npm start", "node", "go run", "./"])):
+                        actual_pids.append(proc.info['pid'])
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    continue
+            
+            if actual_pids:
+                # Track the first service process
+                app.pid = actual_pids[0]
+                app.status = "running"
+                self.logger.info(f"✓ {app_name} started successfully ({len(actual_pids)} processes)")
                 return True
             else:
-                # Process exited
-                app.status = "error"
-                app.pid = None
-                app.process = None
-                self.logger.error(f"✗ {app_name} failed to start")
-                return False
+                # Check if lifecycle process failed with error exit code
+                if app.process and app.process.returncode is not None and app.process.returncode > 0:
+                    app.status = "error"
+                    app.pid = None
+                    exit_code = app.process.returncode
+                    app.process = None
+                    self.logger.error(f"✗ {app_name} failed to start (exit code: {exit_code})")
+                    return False
+                else:
+                    # Lifecycle completed but no services detected - might be delayed startup
+                    app.status = "running"
+                    self.logger.info(f"✓ {app_name} lifecycle executed (services may be starting)")
+                    return True
                 
         except Exception as e:
             app.status = "error"

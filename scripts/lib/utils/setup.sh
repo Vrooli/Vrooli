@@ -99,11 +99,12 @@ setup::is_needed() {
         
         # Resolve checker script path
         if [[ ! "$checker_script" =~ ^/ ]]; then
-            checker_script="${APP_ROOT}/$checker_script"
+# Use VROOLI_ROOT for checker scripts since they're part of the CLI
+            checker_script="${VROOLI_ROOT:-$APP_ROOT}/$checker_script"
         fi
         
         if [[ ! -f "$checker_script" ]]; then
-            log::warn "Checker script not found: $checker_script"
+            log::warn "Checker script not found: $checker_script (VROOLI_ROOT=${VROOLI_ROOT:-not set}, APP_ROOT=${APP_ROOT:-not set})"
             continue
         fi
         

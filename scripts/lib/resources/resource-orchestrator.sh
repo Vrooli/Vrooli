@@ -244,6 +244,10 @@ resource_auto::start_resource() {
             resource_registry::register "$resource_name" "running"
             log::success "✅ Resource started: $resource_name"
             return 0
+        else
+            log::error "Failed to start resource using CLI: $resource_name"
+            # Don't fallback, return the error
+            return 1
         fi
     fi
     
@@ -270,10 +274,14 @@ resource_auto::start_resource() {
             resource_registry::register "$resource_name" "running"
             log::success "✅ Resource started: $resource_name"
             return 0
+        else
+            log::error "Failed to start resource via direct CLI: $resource_name"
+            return 1
         fi
     fi
     
-    log::debug "Could not start resource: $resource_name (may not support start action)"
+    log::warning "Resource does not support start action: $resource_name"
+    # Return success for resources that don't need to be started (like static resources)
     return 0
 }
 
