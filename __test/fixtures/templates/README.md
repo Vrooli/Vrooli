@@ -133,8 +133,8 @@ assert_file_exists "$expected_file"
 ### Testing Environment Variables
 ```bash
 @test "service environment is properly configured" {
-    assert_env_set "SERVICE_PORT"
-    assert_env_equals "SERVICE_PORT" "8080"
+    assert_env_set "API_PORT"
+    assert_env_equals "API_PORT" "8080"
 }
 ```
 

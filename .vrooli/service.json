@@ -123,6 +123,7 @@
     },
     "ollama": {
       "enabled": true,
+"required": true,
       "baseUrl": "http://localhost:11434",
       "status": {
         "running": true
@@ -154,7 +155,7 @@
     },
     "n8n": {
       "enabled": true,
-      "required": false,
+      "required": true,
       "description": "Workflow automation platform",
       "initialization": [
         {
@@ -301,6 +302,7 @@
     },
     "windmill": {
       "enabled": true,
+"required": true,
       "baseUrl": "http://localhost:5681",
       "healthCheck": {
         "intervalMs": 60000,
@@ -340,6 +342,7 @@
     },
     "browserless": {
       "enabled": true,
+"required": true,
       "baseUrl": "http://localhost:4110",
       "healthCheck": {
         "intervalMs": 60000,

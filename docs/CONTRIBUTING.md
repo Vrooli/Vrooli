@@ -32,8 +32,8 @@ By participating in this project, you agree to abide by our Code of Conduct:
 Before contributing, ensure you have:
 
 1. Read the [README.md](/README.md) and [CLAUDE.md](/CLAUDE.md)
-2. Set up your development environment following [/docs/setup/README.md](/docs/setup/README.md)
-3. Familiarized yourself with the [architecture documentation](/docs/architecture/README.md)
+2. Set up your development environment following [/docs/GETTING_STARTED.md](/docs/GETTING_STARTED.md)
+3. Familiarized yourself with the [architecture documentation](/docs/ARCHITECTURE_OVERVIEW.md)
 4. Reviewed recent commits and issues to understand current development
 
 ### First-Time Contributors

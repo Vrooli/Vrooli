@@ -26,7 +26,7 @@
   },
   "ports": {
     "api": {
-      "env_var": "SERVICE_PORT",
+      "env_var": "API_PORT",
       "port": 24250,
       "fallback": "auto",
       "description": "Invoice generator API port"
@@ -148,7 +148,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '💼 Invoice Generator Pro initialized\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${SERVICE_PORT}'",
+          "run": "echo '💼 Invoice Generator Pro initialized\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}'",
           "description": "Display service access URLs"
         }
       ]
@@ -163,7 +163,7 @@
         },
         {
           "name": "start-api-server",
-          "run": "cd api && PORT=$SERVICE_PORT ./invoice-generator-api",
+          "run": "cd api && env PORT=$API_PORT ./invoice-generator-api",
           "description": "Start Go API server in background",
           "background": true,
           "condition": {
@@ -172,7 +172,7 @@
         },
         {
           "name": "wait-for-api",
-          "run": "sleep 2 && curl -sf http://localhost:$SERVICE_PORT/health > /dev/null",
+          "run": "sleep 2 && curl -sf http://localhost:$API_PORT/health > /dev/null",
           "description": "Wait for API server to be ready",
           "retry": {
             "max_attempts": 15,
@@ -181,7 +181,7 @@
         },
         {
           "name": "start-ui-server",
-          "run": "cd ui && UI_PORT=$UI_PORT SERVICE_PORT=$SERVICE_PORT npm start",
+          "run": "cd ui && env UI_PORT=$UI_PORT npm start",
           "description": "Start UI server in background",
           "background": true
         },
@@ -196,7 +196,7 @@
         },
         {
           "name": "show-running-services",
-          "run": "echo '💼 Services running:\\n  📄 UI Dashboard: http://localhost:$UI_PORT\\n  📊 n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  ⚙️ API: http://localhost:$SERVICE_PORT'",
+          "run": "echo '💼 Services running:\\n  📄 UI Dashboard: http://localhost:$UI_PORT\\n  📊 n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  ⚙️ API: http://localhost:$API_PORT'",
           "description": "Display all running service URLs"
         }
       ]
@@ -214,7 +214,7 @@
         },
         {
           "name": "test-api-health",
-          "run": "curl -sf http://localhost:$SERVICE_PORT/health",
+          "run": "curl -sf http://localhost:$API_PORT/health",
           "description": "Test API health endpoint"
         }
       ]

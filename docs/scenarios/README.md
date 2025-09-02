@@ -34,7 +34,7 @@ vrooli scenario test <name>
 
 # Direct execution from folder
 cd scenarios/<name>
-../../scripts/manage.sh develop
+vrooli scenario run <scenario-name>
 ```
 
 ### Key Concepts

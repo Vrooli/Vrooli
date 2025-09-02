@@ -105,7 +105,7 @@ test_windmill_connection() {
 }
 
 test_api_connection() {
-    local port="${SERVICE_PORT:-8500}"
+    local port="${API_PORT:-8500}"
     curl -f "http://localhost:$port/health" >/dev/null 2>&1
 }
 
@@ -198,7 +198,7 @@ test_ollama_models() {
 }
 
 test_api_endpoints() {
-    local port="${SERVICE_PORT:-8500}"
+    local port="${API_PORT:-8500}"
     
     # Test health endpoint
     curl -f "http://localhost:$port/health" >/dev/null 2>&1 && \

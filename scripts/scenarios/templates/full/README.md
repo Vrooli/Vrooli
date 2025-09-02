@@ -428,7 +428,7 @@ This template is optimized for AI agents to generate complete scenarios. **Key p
 - `SCENARIO_NAME_PLACEHOLDER` - The scenario's display name
 - `SCENARIO_ID_PLACEHOLDER` - The scenario's ID (lowercase, hyphenated)
 - `CLI_NAME_PLACEHOLDER` - The CLI command name
-- `SERVICE_PORT_PLACEHOLDER` - The API server port (8090-8999 range)
+- `API_PORT_PLACEHOLDER` - The API server port (8090-8999 range)
 - `API_TOKEN_PLACEHOLDER` - Default API authentication token
 - `API_MODULE_NAME_PLACEHOLDER` - Go module name for API
 - `VALUE_PROPOSITION_PLACEHOLDER` - Business value proposition

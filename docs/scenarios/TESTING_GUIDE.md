@@ -16,11 +16,8 @@ Validates scenario structure before execution.
 
 **How to run:**
 ```bash
-# Recommended: Use dedicated validator
-./scenarios/tools/validate-scenario.sh <scenario-name>
-
-# Or check with CLI dry-run
-vrooli scenario run <scenario-name> --dry-run
+# Validate scenario configuration
+vrooli scenario test <scenario-name>
 ```
 
 ### 2. Integration Testing
@@ -82,7 +79,7 @@ prerequisites:
     - n8n
     - postgres
   environment:
-    SERVICE_PORT: ${SERVICE_PORT:-dynamic}
+    API_PORT: ${API_PORT:-dynamic}
     N8N_BASE_URL: http://localhost:${RESOURCE_PORTS[n8n]}
 
 tests:
@@ -90,7 +87,7 @@ tests:
     description: Verify required resources
     steps:
       - check: api_health
-        command: curl -f http://localhost:${SERVICE_PORT}/health
+        command: curl -f http://localhost:${API_PORT}/health
         expected_status: 200
         
   - name: workflow_deployment
@@ -108,12 +105,11 @@ validation:
 
 ## Proposed Improvements
 
-### 1. Enhanced Static Validator
-Create `scripts/scenarios/tools/validate-scenario.sh`:
-- Full JSON schema validation using ajv or Python jsonschema
-- Comprehensive file path checking
-- Resource dependency validation
-- Integration with --dry-run
+### 1. Static Validation
+Use built-in scenario testing:
+- JSON schema validation via `vrooli scenario test`
+- File path and dependency checking
+- Resource configuration validation
 
 ### 2. Rename & Enhance Integration Testing
 - Rename `scenario-test.yaml` → `integration-test.yaml`
@@ -124,20 +120,18 @@ Create `scripts/scenarios/tools/validate-scenario.sh`:
 ### 3. Test Discovery
 Make it easier to find and run tests:
 ```bash
-# List all available tests for a scenario
-vrooli test list <scenario-name>
+# List available scenarios
+vrooli scenario list
 
-# Run specific test type
-vrooli test static <scenario-name>
-vrooli test integration <scenario-name>
-vrooli test lifecycle <scenario-name>
+# Test a scenario
+vrooli scenario test <scenario-name>
 ```
 
 ## Quick Testing Commands
 
 ```bash
 # Quick validation - RECOMMENDED
-./scenarios/tools/validate-scenario.sh agent-metareasoning-manager
+vrooli scenario test agent-metareasoning-manager
 
 # Run scenario directly
 vrooli scenario run agent-metareasoning-manager
@@ -147,9 +141,9 @@ vrooli scenario test agent-metareasoning-manager
 
 # Manual testing from scenario directory
 cd scenarios/agent-metareasoning-manager
-../../scripts/manage.sh setup
-../../scripts/manage.sh develop
-../../scripts/manage.sh test
+vrooli setup
+vrooli scenario run <scenario-name>
+vrooli scenario test <scenario-name>
 ```
 
 ## Common Issues & Solutions

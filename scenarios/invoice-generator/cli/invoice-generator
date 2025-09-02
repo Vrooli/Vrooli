@@ -7,7 +7,7 @@ set -e
 
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 SCRIPT_DIR="${APP_ROOT}/scenarios/invoice-generator/cli"
-API_URL="${API_URL:-http://localhost:${SERVICE_PORT:-8100}}"
+API_URL="${API_URL:-http://localhost:${API_PORT:-8100}}"
 
 show_help() {
     cat << EOF
@@ -32,7 +32,7 @@ Examples:
 
 Environment Variables:
     API_URL         API server URL (default: http://localhost:8100)
-    SERVICE_PORT    API server port (default: 8100)
+    API_PORT    API server port (default: 8100)
 
 EOF
 }

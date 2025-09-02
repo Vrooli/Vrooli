@@ -124,7 +124,7 @@ docker-build: ## Build Docker image
 
 docker-run: ## Run API in Docker container
 	@echo "Running in Docker..."
-	@docker run -p $(SERVICE_PORT):$(SERVICE_PORT) --env-file .env agent-metareasoning-manager-api:latest
+	@docker run -p $(API_PORT):$(API_PORT) --env-file .env agent-metareasoning-manager-api:latest
 
 # Development helpers
 dev: ## Run with hot reload (requires air)
@@ -149,7 +149,7 @@ teardown-test-db: ## Drop test database
 # Performance testing
 load-test: ## Run load tests (requires vegeta)
 	@if command -v vegeta > /dev/null; then \
-		echo "GET http://localhost:$(SERVICE_PORT)/health" | vegeta attack -duration=30s -rate=100 | vegeta report; \
+		echo "GET http://localhost:$(API_PORT)/health" | vegeta attack -duration=30s -rate=100 | vegeta report; \
 	else \
 		echo "Please install vegeta: go install github.com/tsenart/vegeta@latest"; \
 	fi
