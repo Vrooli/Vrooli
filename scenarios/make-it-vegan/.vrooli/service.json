@@ -26,13 +26,13 @@
   "ports": {
     "api": {
       "env_var": "SERVICE_PORT",
-      "range": "24750-24999",
+      "port": 24750,
       "fallback": "auto",
       "description": "Main API port"
     },
     "ui": {
       "env_var": "UI_PORT",
-      "range": "32000-32249",
+      "port": 32250,
       "fallback": "auto",
       "description": "Web UI port"
     }
@@ -108,7 +108,7 @@
         },
         {
           "name": "add-data",
-          "run": "scripts/resources/populate/populate.sh .",
+          "run": "../../scripts/resources/populate/populate.sh .",
           "description": "Add app data to resources"
         },
         {

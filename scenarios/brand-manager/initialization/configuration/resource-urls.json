@@ -29,9 +29,9 @@
     },
     "postgres": {
       "host": "postgres",
-      "port": 5432,
-      "database": "brand_manager",
-      "connection_string": "postgresql://user:password@postgres:5432/brand_manager"
+      "port": "${RESOURCE_PORTS[postgres]:-5432}",
+      "database": "${POSTGRES_DB:-vrooli}",
+      "connection_string": "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:${RESOURCE_PORTS[postgres]:-5432}/${POSTGRES_DB:-vrooli}?sslmode=disable"
     },
     "minio": {
       "base_url": "http://minio:9000",

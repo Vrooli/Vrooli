@@ -31,7 +31,7 @@
   "ports": {
     "api": {
       "env_var": "SERVICE_PORT",
-      "range": "23750-23999",
+      "port": 23750,
       "fallback": "auto",
       "description": "Idea generator coordination API port"
     }
@@ -177,7 +177,7 @@
         },
         {
           "name": "add-data",
-          "run": "scripts/resources/populate/populate.sh .",
+          "run": "../../scripts/resources/populate/populate.sh .",
           "description": "Add app data to resources"
         },
         {

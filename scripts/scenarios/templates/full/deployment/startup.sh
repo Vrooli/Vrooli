@@ -1,6 +1,6 @@
 #!/bin/bash
 # Startup script for {{ scenario.name }}
-# This script converts the scenario into a running application
+# This script initializes and starts the scenario directly
 
 set -euo pipefail
 
@@ -297,7 +297,7 @@ health_checks() {
 
 # Main deployment function
 main() {
-    log_info "Starting deployment of $SCENARIO_NAME ($SCENARIO_ID)..."
+    log_info "Starting initialization of $SCENARIO_NAME ($SCENARIO_ID)..."
     log_info "Log file: $LOG_FILE"
     
     # Clear previous log
@@ -312,7 +312,7 @@ main() {
     health_checks
     
     # Success summary
-    log_success "🎉 $SCENARIO_NAME deployed successfully!"
+    log_success "🎉 $SCENARIO_NAME initialized successfully!"
     log_info "Application endpoints:"
     
     if [[ "$REQUIRED_RESOURCES" =~ "n8n" ]]; then
@@ -331,7 +331,7 @@ main() {
     log_info "  📋 Full Log: $LOG_FILE"
     
     echo ""
-    echo -e "${GREEN}✅ Deployment completed successfully!${NC}"
+    echo -e "${GREEN}✅ Initialization completed successfully!${NC}"
     echo -e "${BLUE}ℹ️  Run the scenario test to validate functionality:${NC}"
     echo "   cd \"$SCENARIO_DIR\" && ./test.sh"
 }
@@ -356,7 +356,7 @@ case "${1:-deploy}" in
         echo "Usage: $0 [command]"
         echo ""
         echo "Commands:"
-        echo "  deploy    - Deploy the scenario as an application (default)"
+        echo "  deploy    - Initialize and start the scenario (default)"
         echo "  validate  - Validate required resources are available"
         echo "  logs      - Follow the deployment logs"
         echo "  help      - Show this help message"

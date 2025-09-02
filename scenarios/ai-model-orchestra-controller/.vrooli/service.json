@@ -25,13 +25,13 @@
   "ports": {
     "api": {
       "env_var": "SERVICE_PORT",
-      "range": "20500-20749",
+      "port": 20500,
       "fallback": "auto",
       "description": "Main AI orchestration API port"
     },
     "monitoring": {
       "env_var": "MONITORING_PORT",
-      "range": "20750-20999",
+      "port": 20750,
       "fallback": "auto",
       "description": "Monitoring and metrics endpoint port"
     }
@@ -180,7 +180,7 @@
         },
         {
           "name": "add-data",
-          "run": "scripts/resources/populate/populate.sh .",
+          "run": "../../scripts/resources/populate/populate.sh .",
           "description": "Add app data to resources"
         },
         {

@@ -116,7 +116,7 @@
   "ports": {
     "api": {
       "env_var": "SERVICE_PORT",
-      "range": "27750-27999",
+      "port": 27750,
       "fallback": "auto",
       "description": "Research assistant API port"
     }
@@ -151,7 +151,7 @@
         },
         {
           "name": "add-data",
-          "run": "scripts/resources/populate/populate.sh .",
+          "run": "../../scripts/resources/populate/populate.sh .",
           "description": "Add app data to resources"
         },
         {

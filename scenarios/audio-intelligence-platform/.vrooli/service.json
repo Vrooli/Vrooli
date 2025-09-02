@@ -28,7 +28,7 @@
   "ports": {
     "api": {
       "env_var": "SERVICE_PORT",
-      "range": "22000-22249",
+      "port": 22000,
       "fallback": "auto",
       "description": "Audio intelligence API port"
     }
@@ -143,7 +143,7 @@
         },
         {
           "name": "add-data",
-          "run": "scripts/resources/populate/populate.sh .",
+          "run": "../../scripts/resources/populate/populate.sh .",
           "description": "Add app data to resources"
         },
         {

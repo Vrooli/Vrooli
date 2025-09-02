@@ -13,6 +13,8 @@ PROJECT_ROOT="$APP_ROOT"
 source "$PROJECT_ROOT/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "$PROJECT_ROOT/scripts/lib/utils/log.sh"
+# shellcheck disable=SC1091
+source "$SCENARIO_DIR/scripts/lib/resource-utils.sh"
 
 # Configuration
 TEST_CONFIG="$SCENARIO_DIR/scenario-test.yaml"
@@ -20,14 +22,18 @@ TEST_TIMEOUT="${TEST_TIMEOUT:-1800}" # 30 minutes default
 CLEANUP_ON_FAILURE="${CLEANUP_ON_FAILURE:-true}"
 
 # Test results
-TEST_RESULTS_DIR="/tmp/brand-manager-test-results"
+TEST_RESULTS_DIR="${TEST_RESULTS_DIR:-${TMPDIR:-/tmp}/brand-manager-test-results}"
 TEST_LOG_FILE="$TEST_RESULTS_DIR/test-$(date +%Y%m%d-%H%M%S).log"
 
 # Setup test environment
 setup_test_environment() {
     log_info "Setting up test environment..."
     
-    mkdir -p "$TEST_RESULTS_DIR"
+    # Ensure test results directory exists
+    if ! mkdir -p "$TEST_RESULTS_DIR"; then
+        log_error "Failed to create test results directory: $TEST_RESULTS_DIR"
+        exit 1
+    fi
     
     # Redirect output to log file
     exec 1> >(tee -a "$TEST_LOG_FILE")
@@ -42,13 +48,27 @@ setup_test_environment() {
 wait_for_services() {
     log_info "Waiting for services to be ready..."
     
+    # Use dynamic port and hostname resolution
+    local postgres_host=$(get_resource_hostname "postgres")
+    local postgres_port=$(get_resource_port "postgres")
+    local minio_host=$(get_resource_hostname "minio")
+    local minio_port=$(get_resource_port "minio")
+    local n8n_host=$(get_resource_hostname "n8n")
+    local n8n_port=$(get_resource_port "n8n")
+    local windmill_host=$(get_resource_hostname "windmill")
+    local windmill_port=$(get_resource_port "windmill")
+    local ollama_host=$(get_resource_hostname "ollama")
+    local ollama_port=$(get_resource_port "ollama")
+    local comfyui_host=$(get_resource_hostname "comfyui")
+    local comfyui_port=$(get_resource_port "comfyui")
+    
     local services=(
-        "postgres:5432"
-        "minio:9000"
-        "n8n:5678"
-        "windmill:8000"
-        "ollama:11434"
-        "comfyui:8188"
+        "$postgres_host:$postgres_port"
+        "$minio_host:$minio_port"
+        "$n8n_host:$n8n_port"
+        "$windmill_host:$windmill_port"
+        "$ollama_host:$ollama_port"
+        "$comfyui_host:$comfyui_port"
     )
     
     for service in "${services[@]}"; do
@@ -130,15 +150,29 @@ run_test() {
 test_resource_availability() {
     log_info "Testing resource availability..."
     
+    # Get dynamic ports and hostnames
+    local ollama_host=$(get_resource_hostname "ollama")
+    local ollama_port=$(get_resource_port "ollama")
+    local comfyui_host=$(get_resource_hostname "comfyui")
+    local comfyui_port=$(get_resource_port "comfyui")
+    local postgres_host=$(get_resource_hostname "postgres")
+    local postgres_port=$(get_resource_port "postgres")
+    local minio_host=$(get_resource_hostname "minio")
+    local minio_port=$(get_resource_port "minio")
+    local n8n_host=$(get_resource_hostname "n8n")
+    local n8n_port=$(get_resource_port "n8n")
+    local windmill_host=$(get_resource_hostname "windmill")
+    local windmill_port=$(get_resource_port "windmill")
+    
     # Test Ollama
-    if ! curl -sf "http://ollama:11434/api/tags" >/dev/null 2>&1; then
+    if ! curl -sf "http://$ollama_host:$ollama_port/api/tags" >/dev/null 2>&1; then
         log_error "Ollama API not accessible"
         return 1
     fi
     log_info "✓ Ollama API accessible"
     
     # Test ComfyUI
-    if ! curl -sf "http://comfyui:8188/system_stats" >/dev/null 2>&1; then
+    if ! curl -sf "http://$comfyui_host:$comfyui_port/system_stats" >/dev/null 2>&1; then
         log_error "ComfyUI API not accessible"
         return 1
     fi
@@ -146,28 +180,28 @@ test_resource_availability() {
     
     # Test PostgreSQL
     export PGPASSWORD="${POSTGRES_PASSWORD:-password}"
-    if ! psql -h postgres -p 5432 -U "${POSTGRES_USER:-postgres}" -d "${POSTGRES_DB:-brand_manager}" -c "SELECT 1;" >/dev/null 2>&1; then
+    if ! psql -h "$postgres_host" -p "$postgres_port" -U "${POSTGRES_USER:-postgres}" -d "${POSTGRES_DB:-brand_manager}" -c "SELECT 1;" >/dev/null 2>&1; then
         log_error "PostgreSQL not accessible"
         return 1
     fi
     log_info "✓ PostgreSQL accessible"
     
     # Test MinIO
-    if ! curl -sf "http://minio:9000/minio/health/ready" >/dev/null 2>&1; then
+    if ! curl -sf "http://$minio_host:$minio_port/minio/health/ready" >/dev/null 2>&1; then
         log_error "MinIO not accessible"
         return 1
     fi
     log_info "✓ MinIO accessible"
     
     # Test n8n
-    if ! curl -sf "http://n8n:5678/healthz" >/dev/null 2>&1; then
+    if ! curl -sf "http://$n8n_host:$n8n_port/healthz" >/dev/null 2>&1; then
         log_error "n8n not accessible"
         return 1
     fi
     log_info "✓ n8n accessible"
     
     # Test Windmill
-    if ! curl -sf "http://windmill:8000/api/version" >/dev/null 2>&1; then
+    if ! curl -sf "http://$windmill_host:$windmill_port/api/version" >/dev/null 2>&1; then
         log_error "Windmill not accessible"
         return 1
     fi
@@ -179,11 +213,13 @@ test_resource_availability() {
 test_database_initialization() {
     log_info "Testing database initialization..."
     
+    local postgres_host=$(get_resource_hostname "postgres")
+    local postgres_port=$(get_resource_port "postgres")
     export PGPASSWORD="${POSTGRES_PASSWORD:-password}"
     
     # Check brands table
     local brands_count
-    brands_count=$(psql -h postgres -p 5432 -U "${POSTGRES_USER:-postgres}" -d "${POSTGRES_DB:-brand_manager}" -t -c "SELECT COUNT(*) FROM brands;" 2>/dev/null | xargs)
+    brands_count=$(psql -h "$postgres_host" -p "$postgres_port" -U "${POSTGRES_USER:-postgres}" -d "${POSTGRES_DB:-brand_manager}" -t -c "SELECT COUNT(*) FROM brands;" 2>/dev/null | xargs)
     
     if [ "$brands_count" -lt 1 ]; then
         log_error "Brands table has no data (count: $brands_count)"
@@ -193,7 +229,7 @@ test_database_initialization() {
     
     # Check templates table
     local templates_count
-    templates_count=$(psql -h postgres -p 5432 -U "${POSTGRES_USER:-postgres}" -d "${POSTGRES_DB:-brand_manager}" -t -c "SELECT COUNT(*) FROM templates WHERE is_active = true;" 2>/dev/null | xargs)
+    templates_count=$(psql -h "$postgres_host" -p "$postgres_port" -U "${POSTGRES_USER:-postgres}" -d "${POSTGRES_DB:-brand_manager}" -t -c "SELECT COUNT(*) FROM templates WHERE is_active = true;" 2>/dev/null | xargs)
     
     if [ "$templates_count" -lt 3 ]; then
         log_error "Templates table has insufficient active templates (count: $templates_count)"
@@ -221,8 +257,11 @@ test_storage_initialization() {
 test_windmill_applications() {
     log_info "Testing Windmill applications..."
     
+    local windmill_host=$(get_resource_hostname "windmill")
+    local windmill_port=$(get_resource_port "windmill")
+    
     # Test Windmill API availability
-    if ! curl -sf "http://windmill:8000/api/version" >/dev/null 2>&1; then
+    if ! curl -sf "http://$windmill_host:$windmill_port/api/version" >/dev/null 2>&1; then
         log_error "Windmill API not accessible"
         return 1
     fi
@@ -237,8 +276,11 @@ test_windmill_applications() {
 test_n8n_workflow_deployment() {
     log_info "Testing n8n workflow deployment..."
     
+    local n8n_host=$(get_resource_hostname "n8n")
+    local n8n_port=$(get_resource_port "n8n")
+    
     # Test n8n API
-    if ! curl -sf "http://n8n:5678/api/v1/workflows" >/dev/null 2>&1; then
+    if ! curl -sf "http://$n8n_host:$n8n_port/api/v1/workflows" >/dev/null 2>&1; then
         log_error "n8n API not accessible"
         return 1
     fi
@@ -254,8 +296,10 @@ test_brand_generation_complete_flow() {
     log_info "Testing brand generation complete flow..."
     
     # Test webhook endpoint
+    local n8n_host=$(get_resource_hostname "n8n")
+    local n8n_port=$(get_resource_port "n8n")
     local webhook_response
-    webhook_response=$(curl -sf -X POST "http://n8n:5678/webhook/generate-brand" \
+    webhook_response=$(curl -sf -X POST "http://$n8n_host:$n8n_port/webhook/generate-brand" \
         -H "Content-Type: application/json" \
         -d '{
             "brandName": "TestTech Solutions",
@@ -278,9 +322,11 @@ test_brand_generation_complete_flow() {
     sleep 30
     
     # Check if brand was created (simplified)
+    local postgres_host=$(get_resource_hostname "postgres")
+    local postgres_port=$(get_resource_port "postgres")
     export PGPASSWORD="${POSTGRES_PASSWORD:-password}"
     local brand_count
-    brand_count=$(psql -h postgres -p 5432 -U "${POSTGRES_USER:-postgres}" -d "${POSTGRES_DB:-brand_manager}" -t -c "SELECT COUNT(*) FROM brands WHERE name LIKE '%TestTech%';" 2>/dev/null | xargs || echo "0")
+    brand_count=$(psql -h "$postgres_host" -p "$postgres_port" -U "${POSTGRES_USER:-postgres}" -d "${POSTGRES_DB:-brand_manager}" -t -c "SELECT COUNT(*) FROM brands WHERE name LIKE '%TestTech%';" 2>/dev/null | xargs || echo "0")
     
     if [ "$brand_count" -lt 1 ]; then
         log_warn "Brand might not have been created yet (this may be normal for async processing)"
@@ -296,8 +342,10 @@ test_claude_code_integration_flow() {
     
     # This would be a complex test involving creating a test app
     # For now, just verify the webhook is accessible
+    local n8n_host=$(get_resource_hostname "n8n")
+    local n8n_port=$(get_resource_port "n8n")
     local webhook_response
-    webhook_response=$(curl -sf -X POST "http://n8n:5678/webhook/spawn-claude-integration" \
+    webhook_response=$(curl -sf -X POST "http://$n8n_host:$n8n_port/webhook/spawn-claude-integration" \
         -H "Content-Type: application/json" \
         -d '{
             "brandId": "test-brand-id",
@@ -319,15 +367,17 @@ test_integration_monitoring() {
     log_info "Testing integration monitoring..."
     
     # Check if monitoring tables exist
+    local postgres_host=$(get_resource_hostname "postgres")
+    local postgres_port=$(get_resource_port "postgres")
     export PGPASSWORD="${POSTGRES_PASSWORD:-password}"
     
-    if psql -h postgres -p 5432 -U "${POSTGRES_USER:-postgres}" -d "${POSTGRES_DB:-brand_manager}" -c "SELECT 1 FROM integration_metrics LIMIT 1;" >/dev/null 2>&1; then
+    if psql -h "$postgres_host" -p "$postgres_port" -U "${POSTGRES_USER:-postgres}" -d "${POSTGRES_DB:-brand_manager}" -c "SELECT 1 FROM integration_metrics LIMIT 1;" >/dev/null 2>&1; then
         log_info "✓ Integration metrics table accessible"
     else
         log_info "✓ Integration metrics table exists (no data yet)"
     fi
     
-    if psql -h postgres -p 5432 -U "${POSTGRES_USER:-postgres}" -d "${POSTGRES_DB:-brand_manager}" -c "SELECT 1 FROM activity_log LIMIT 1;" >/dev/null 2>&1; then
+    if psql -h "$postgres_host" -p "$postgres_port" -U "${POSTGRES_USER:-postgres}" -d "${POSTGRES_DB:-brand_manager}" -c "SELECT 1 FROM activity_log LIMIT 1;" >/dev/null 2>&1; then
         log_info "✓ Activity log table accessible"
     else
         log_info "✓ Activity log table exists"
@@ -340,7 +390,9 @@ test_windmill_ui_functionality() {
     log_info "Testing Windmill UI functionality..."
     
     # Simplified test - just check that Windmill is accessible
-    if curl -sf "http://windmill:8000" >/dev/null 2>&1; then
+    local windmill_host=$(get_resource_hostname "windmill")
+    local windmill_port=$(get_resource_port "windmill")
+    if curl -sf "http://$windmill_host:$windmill_port" >/dev/null 2>&1; then
         log_info "✓ Windmill UI accessible"
     else
         log_warn "Windmill UI may not be fully ready"
@@ -353,8 +405,10 @@ test_error_handling_and_recovery() {
     log_info "Testing error handling and recovery..."
     
     # Test invalid webhook calls
+    local n8n_host=$(get_resource_hostname "n8n")
+    local n8n_port=$(get_resource_port "n8n")
     local invalid_response
-    invalid_response=$(curl -sf -X POST "http://n8n:5678/webhook/generate-brand" \
+    invalid_response=$(curl -sf -X POST "http://$n8n_host:$n8n_port/webhook/generate-brand" \
         -H "Content-Type: application/json" \
         -d '{"brandName": "", "template": "invalid"}' 2>/dev/null || echo "expected_failure")
     
@@ -372,7 +426,9 @@ test_performance_benchmarks() {
     
     start_time=$(date +%s)
     
-    if curl -sf "http://ollama:11434/api/tags" >/dev/null 2>&1; then
+    local ollama_host=$(get_resource_hostname "ollama")
+    local ollama_port=$(get_resource_port "ollama")
+    if curl -sf "http://$ollama_host:$ollama_port/api/tags" >/dev/null 2>&1; then
         end_time=$(date +%s)
         local duration=$((end_time - start_time))
         log_info "✓ Ollama response time: ${duration}s"
@@ -388,13 +444,15 @@ cleanup_tests() {
     log_info "Cleaning up test data..."
     
     if [ "$CLEANUP_ON_FAILURE" = "true" ] || [ "${1:-success}" = "success" ]; then
+        local postgres_host=$(get_resource_hostname "postgres")
+        local postgres_port=$(get_resource_port "postgres")
         export PGPASSWORD="${POSTGRES_PASSWORD:-password}"
         
         # Remove test brands
-        psql -h postgres -p 5432 -U "${POSTGRES_USER:-postgres}" -d "${POSTGRES_DB:-brand_manager}" -c "DELETE FROM brands WHERE name LIKE '%Test%';" >/dev/null 2>&1 || true
+        psql -h "$postgres_host" -p "$postgres_port" -U "${POSTGRES_USER:-postgres}" -d "${POSTGRES_DB:-brand_manager}" -c "DELETE FROM brands WHERE name LIKE '%Test%';" >/dev/null 2>&1 || true
         
         # Remove test integration requests
-        psql -h postgres -p 5432 -U "${POSTGRES_USER:-postgres}" -d "${POSTGRES_DB:-brand_manager}" -c "DELETE FROM integration_requests WHERE target_app_path LIKE '/tmp/%';" >/dev/null 2>&1 || true
+        psql -h "$postgres_host" -p "$postgres_port" -U "${POSTGRES_USER:-postgres}" -d "${POSTGRES_DB:-brand_manager}" -c "DELETE FROM integration_requests WHERE target_app_path LIKE '/tmp/%';" >/dev/null 2>&1 || true
         
         log_info "Test data cleanup completed"
     else

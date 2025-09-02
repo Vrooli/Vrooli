@@ -28,7 +28,7 @@
   "ports": {
     "api": {
       "env_var": "SERVICE_PORT",
-      "range": "23250-23499",
+      "port": 23250,
       "fallback": "auto",
       "description": "Document manager coordination API port"
     }
@@ -174,7 +174,7 @@
         },
         {
           "name": "add-data",
-          "run": "scripts/resources/populate/populate.sh .",
+          "run": "../../scripts/resources/populate/populate.sh .",
           "description": "Add application data to resources (database schema, collections, workflows)"
         },
         {

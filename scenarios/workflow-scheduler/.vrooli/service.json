@@ -25,7 +25,7 @@
   "ports": {
     "api": {
       "env_var": "SERVICE_PORT",
-      "range": "32000-32249",
+      "port": 32000,
       "fallback": "auto",
       "description": "Workflow Scheduler REST API port"
     }
@@ -107,12 +107,12 @@
       "steps": [
         {
           "name": "base-setup",
-          "run": "bash scripts/lib/setup.sh",
+          "run": "bash ../../scripts/lib/setup.sh",
           "description": "Execute generic setup (e.g. network, system, git)"
         },
         {
           "name": "add-data",
-          "run": "scripts/resources/populate/populate.sh .",
+          "run": "../../scripts/resources/populate/populate.sh .",
           "description": "Add app data to resources (database schema, workflows)"
         },
         {

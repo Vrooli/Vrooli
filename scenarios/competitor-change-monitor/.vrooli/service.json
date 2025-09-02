@@ -27,13 +27,13 @@
   "ports": {
     "api": {
       "env_var": "SERVICE_PORT",
-      "range": "23000-23249",
+      "port": 23000,
       "fallback": "auto",
       "description": "Competitor Monitor API port"
     },
     "ui": {
       "env_var": "UI_PORT",
-      "range": "31000-31249",
+      "port": 31000,
       "fallback": "auto",
       "description": "Competitor Monitor UI port"
     }
@@ -133,7 +133,7 @@
         },
         {
           "name": "add-data",
-          "run": "scripts/resources/populate/populate.sh .",
+          "run": "../../scripts/resources/populate/populate.sh .",
           "description": "Add app data to resources"
         },
         {

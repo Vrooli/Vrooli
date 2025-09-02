@@ -29,7 +29,7 @@
   "ports": {
     "api": {
       "env_var": "SERVICE_PORT",
-      "range": "22250-22499",
+      "port": 22250,
       "fallback": "auto",
       "description": "Brand Manager coordination API port"
     }
@@ -181,7 +181,7 @@
         },
         {
           "name": "add-data",
-          "run": "scripts/resources/populate/populate.sh .",
+          "run": "../../scripts/resources/populate/populate.sh .",
           "description": "Add app data to resources"
         },
         {

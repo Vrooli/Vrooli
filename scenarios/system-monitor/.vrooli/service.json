@@ -28,7 +28,7 @@
   "ports": {
     "api": {
       "env_var": "SERVICE_PORT",
-      "range": "30500-30749",
+      "port": 30500,
       "fallback": "8083",
       "description": "System Monitor API port"
     },
@@ -204,7 +204,7 @@
         },
         {
           "name": "add-data",
-          "run": "scripts/resources/populate/populate.sh .",
+          "run": "../../scripts/resources/populate/populate.sh .",
           "description": "Add app data to resources"
         },
         {

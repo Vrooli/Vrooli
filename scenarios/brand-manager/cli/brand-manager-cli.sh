@@ -67,6 +67,10 @@ case "${1:-help}" in
         [[ -z "${2:-}" ]] && { echo "Usage: $0 get <brand_id>" >&2; exit 1; }
         api_call GET "/api/brands/$2" | format_output
         ;;
+    status) 
+        [[ -z "${2:-}" ]] && { echo "Usage: $0 status <brand_name>" >&2; exit 1; }
+        api_call GET "/api/brands/status/$2" | format_output
+        ;;
     integrations) 
         local limit="${2:-20}"
         local offset="${3:-0}"
@@ -101,6 +105,7 @@ case "${1:-help}" in
 		  create <name> <industry> [template] [logo_style] [color_scheme]
 		                           Generate new brand
 		  get <brand_id>           Get specific brand details
+		  status <brand_name>      Check brand generation status
 		  integrations [limit] [offset]  List integration requests
 		  integrate <brand_id> <app_path> [type] [backup]
 		                           Integrate brand into app
@@ -114,16 +119,17 @@ case "${1:-help}" in
 		  $(basename "$0") list
 		  $(basename "$0") create "TechCorp" "technology" "modern-tech" "minimalist" "primary"
 		  $(basename "$0") get 123e4567-e89b-12d3-a456-426614174000
+		  $(basename "$0") status "TechCorp"
 		  $(basename "$0") integrations
 		  $(basename "$0") integrate 123e4567-e89b-12d3-a456-426614174000 "/path/to/app" "full" true
 		  $(basename "$0") services
 
 		Brand Generation Templates:
-		  - modern-tech      Modern technology company
-		  - creative-agency  Creative design agency
-		  - startup          Startup company
-		  - enterprise       Enterprise business
-		  - ecommerce        E-commerce business
+		  - modern-tech           Modern technology company
+		  - creative-agency       Creative design agency
+		  - professional-services Professional services business
+		  - startup-bold          Bold startup company
+		  - healthcare-trust      Healthcare and medical services
 
 		Logo Styles:
 		  - minimalist       Clean, minimal design
@@ -142,9 +148,10 @@ case "${1:-help}" in
 		  - partial          Selected components only
 		  - theme-only       Theme and colors only
 
-		Environment:
-		  BRAND_MANAGER_API_BASE    API base URL (default: $API_BASE)
-		  BRAND_MANAGER_TOKEN       API token
+		Environment Variables:
+		  BRAND_MANAGER_API_BASE    API base URL (default: http://localhost:8090)
+		  BRAND_MANAGER_TOKEN       API authentication token (default: brand_manager_cli_default_2024)
+		  SERVICE_PORT              Override default API port (8090)
 		EOF
         ;;
     *) 

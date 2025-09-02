@@ -74,7 +74,7 @@
   "ports": {
     "api": {
       "env_var": "SERVICE_PORT",
-      "range": "21750-21999",
+      "port": 21750,
       "fallback": "auto",
       "description": "Personalization API port"
     }
@@ -109,7 +109,7 @@
         },
         {
           "name": "add-data",
-          "run": "scripts/resources/populate/populate.sh .",
+          "run": "../../scripts/resources/populate/populate.sh .",
           "description": "Add app data to resources"
         },
         {

@@ -27,7 +27,7 @@
   "ports": {
     "api": {
       "env_var": "SERVICE_PORT",
-      "range": "22500-22749",
+      "port": 22500,
       "fallback": "auto",
       "description": "Campaign content studio API port"
     }
@@ -148,7 +148,7 @@
         },
         {
           "name": "add-data",
-          "run": "scripts/resources/populate/populate.sh .",
+          "run": "../../scripts/resources/populate/populate.sh .",
           "description": "Add app data to resources"
         },
         {

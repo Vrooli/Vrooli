@@ -30,7 +30,7 @@
   "ports": {
     "api": {
       "env_var": "SERVICE_PORT",
-      "range": "24000-24249",
+      "port": 24000,
       "fallback": "auto",
       "description": "Image generation API port"
     }
@@ -159,7 +159,7 @@
         },
         {
           "name": "add-data",
-          "run": "scripts/resources/populate/populate.sh .",
+          "run": "../../scripts/resources/populate/populate.sh .",
           "description": "Add app data to resources"
         },
         {

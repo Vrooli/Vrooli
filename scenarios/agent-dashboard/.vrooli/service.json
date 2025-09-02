@@ -76,13 +76,13 @@
   "ports": {
     "ui": {
       "env_var": "UI_PORT",
-      "range": "30000-30249",
+      "port": 30100,
       "fallback": "auto",
       "description": "Agent Dashboard UI port"
     },
     "api": {
       "env_var": "SERVICE_PORT",
-      "range": "20000-20249",
+      "port": 20000,
       "fallback": "auto",
       "description": "Agent Dashboard API port"
     }
@@ -123,7 +123,7 @@
         },
         {
           "name": "add-data",
-          "run": "scripts/resources/populate/populate.sh .",
+          "run": "../../scripts/resources/populate/populate.sh .",
           "description": "Add app data to resources"
         },
         {

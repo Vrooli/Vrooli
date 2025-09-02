@@ -24,7 +24,7 @@
   "ports": {
     "api": {
       "env_var": "SERVICE_PORT",
-      "range": "29000-29249",
+      "port": 29000,
       "fallback": "auto",
       "description": "Scenario generator API port"
     }
@@ -119,7 +119,7 @@
         },
         {
           "name": "add-data",
-          "run": "scripts/resources/populate/populate.sh .",
+          "run": "../../scripts/resources/populate/populate.sh .",
           "description": "Add scenario generator data to resources"
         },
         {

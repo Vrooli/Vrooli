@@ -28,13 +28,13 @@
   "ports": {
     "api": {
       "env_var": "SERVICE_PORT",
-      "range": "25250-25499",
+      "port": 25250,
       "fallback": "auto",
       "description": "Morning Vision Walk API port"
     },
     "ui": {
       "env_var": "UI_PORT",
-      "range": "32500-32749",
+      "port": 32600,
       "fallback": "auto",
       "description": "Morning Vision Walk UI port"
     }
@@ -135,7 +135,7 @@
         },
         {
           "name": "add-data",
-          "run": "scripts/resources/populate/populate.sh .",
+          "run": "../../scripts/resources/populate/populate.sh .",
           "description": "Add app data to resources"
         },
         {

@@ -30,7 +30,7 @@
   "ports": {
     "api": {
       "env_var": "SERVICE_PORT",
-      "range": "29750-29999",
+      "port": 29750,
       "fallback": "auto",
       "description": "Smart file manager coordination API port"
     }
@@ -179,7 +179,7 @@
         },
         {
           "name": "add-data",
-          "run": "scripts/resources/populate/populate.sh .",
+          "run": "../../scripts/resources/populate/populate.sh .",
           "description": "Add app data to resources"
         },
         {

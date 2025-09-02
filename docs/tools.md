@@ -76,22 +76,22 @@ vrooli test integration
 ## Container logs
 ```bash
 # View development logs from all containers
-docker-compose --env-file .env-dev logs
+docker compose --env-file .env-dev logs
 
 # View production logs from a specific container
-docker-compose --env-file .env-prod logs server
+docker compose --env-file .env-prod logs server
 
 # Follow logs in real-time
-docker-compose --env-file .env-dev logs -f
+docker compose --env-file .env-dev logs -f
 ```
 
 ## Restarting services
 ```bash
 # Restart a specific service
-docker-compose --env-file .env-dev restart server
+docker compose --env-file .env-dev restart server
 
 # Restart all services
-docker-compose --env-file .env-dev restart
+docker compose --env-file .env-dev restart
 ```
 
 ## Accessing Container Shell

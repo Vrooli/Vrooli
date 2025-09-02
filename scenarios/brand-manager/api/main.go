@@ -311,6 +311,54 @@ func (bm *BrandManagerService) GetBrandByID(w http.ResponseWriter, r *http.Reque
 	json.NewEncoder(w).Encode(brand)
 }
 
+// GetBrandStatus checks generation status by brand name
+func (bm *BrandManagerService) GetBrandStatus(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	brandName := vars["name"]
+
+	var brand Brand
+	var brandColorsJSON, assetsJSON, metadataJSON []byte
+
+	err := bm.db.QueryRow(`
+		SELECT id, name, short_name, slogan, ad_copy, description, 
+		       brand_colors, logo_url, favicon_url, assets, metadata, 
+		       created_at, updated_at
+		FROM brands WHERE name = $1
+		ORDER BY created_at DESC LIMIT 1`, brandName).Scan(
+		&brand.ID, &brand.Name, &brand.ShortName, &brand.Slogan,
+		&brand.AdCopy, &brand.Description, &brandColorsJSON, &brand.LogoURL,
+		&brand.FaviconURL, &assetsJSON, &metadataJSON, &brand.CreatedAt, &brand.UpdatedAt)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			// Brand not found yet - generation might still be in progress
+			response := map[string]interface{}{
+				"status": "in_progress",
+				"message": "Brand generation in progress",
+				"brand_name": brandName,
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(response)
+		} else {
+			HTTPError(w, "Failed to check brand status", http.StatusInternalServerError, err)
+		}
+		return
+	}
+
+	// Parse JSON fields
+	json.Unmarshal(brandColorsJSON, &brand.BrandColors)
+	json.Unmarshal(assetsJSON, &brand.Assets)
+	json.Unmarshal(metadataJSON, &brand.Metadata)
+
+	response := map[string]interface{}{
+		"status": "completed",
+		"brand": brand,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
 // ListIntegrations returns all integration requests with pagination
 func (bm *BrandManagerService) ListIntegrations(w http.ResponseWriter, r *http.Request) {
 	limit := defaultLimit
@@ -455,8 +503,8 @@ func getResourcePort(resourceName string) string {
 		// Fallback to defaults
 		defaults := map[string]string{
 			"n8n":      "5678",
-			"windmill": "5681",
-			"postgres": "5433",
+			"windmill": "8000",
+			"postgres": "5432",
 			"comfyui":  "8188",
 			"minio":    "9000",
 			"vault":    "8200",
@@ -514,7 +562,7 @@ func main() {
 
 	dbURL := os.Getenv("POSTGRES_URL")
 	if dbURL == "" {
-		dbURL = fmt.Sprintf("postgres://postgres:postgres@localhost:%s/brand_manager?sslmode=disable", postgresPort)
+		dbURL = fmt.Sprintf("postgres://postgres:postgres@localhost:%s/vrooli?sslmode=disable", postgresPort)
 	}
 
 	// Connect to database
@@ -551,6 +599,7 @@ func main() {
 	r.HandleFunc("/api/brands", brandManager.ListBrands).Methods("GET")
 	r.HandleFunc("/api/brands", brandManager.CreateBrand).Methods("POST")
 	r.HandleFunc("/api/brands/{id}", brandManager.GetBrandByID).Methods("GET")
+	r.HandleFunc("/api/brands/status/{name}", brandManager.GetBrandStatus).Methods("GET")
 	r.HandleFunc("/api/integrations", brandManager.ListIntegrations).Methods("GET")
 	r.HandleFunc("/api/integrations", brandManager.CreateIntegration).Methods("POST")
 	r.HandleFunc("/api/services", brandManager.GetServiceURLs).Methods("GET")

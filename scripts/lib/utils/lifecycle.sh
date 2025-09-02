@@ -9,6 +9,10 @@
 
 set -euo pipefail
 
+# Source resource verification functions
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/resource-verification.sh"
+
 #######################################
 # Enhanced develop lifecycle with conditional setup
 # Arguments:
@@ -79,6 +83,13 @@ lifecycle::develop_with_auto_setup() {
         log::success "Setup completed, proceeding with develop"
     else
         log::info "✓ Setup is current, proceeding directly to develop"
+    fi
+    
+    # Verify required resources are running before starting develop phase
+    log::info "Verifying required resources are running..."
+    if ! resource_verify::verify_with_priority; then
+        log::warning "Some required resources failed to start, but continuing with develop phase"
+        log::info "Scenarios may fail if they depend on unavailable resources"
     fi
     
     # Now run the actual develop phase
