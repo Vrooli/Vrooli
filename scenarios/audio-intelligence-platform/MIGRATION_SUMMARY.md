@@ -54,7 +54,7 @@ This scenario uses Windmill for UI rather than a custom React application, makin
 ## Environment Variables Used
 
 The scenario now properly uses environment variables for all services:
-- `${SERVICE_PORT}` - API server port
+- `${API_PORT}` - API server port
 - `${RESOURCE_PORTS[n8n]}` - n8n automation platform
 - `${RESOURCE_PORTS[windmill]}` - Windmill UI platform
 - `${RESOURCE_PORTS[whisper]}` - Whisper transcription service

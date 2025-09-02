@@ -97,7 +97,7 @@ func enableCORS(next http.HandlerFunc) http.HandlerFunc {
 }
 
 func main() {
-	port := os.Getenv("SERVICE_PORT")
+	port := os.Getenv("API_PORT")
 	if port == "" {
 		port = "8920"
 	}

@@ -10,7 +10,11 @@
     "type": "inject",
     "z": "docker-monitor-flow",
     "name": "Poll Every 30s",
-    "props": [{"p": "payload"}],
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
     "repeat": "30",
     "crontab": "",
     "once": true,
@@ -26,7 +30,7 @@
     "name": "List Docker Containers",
     "method": "GET",
     "ret": "obj",
-    "url": "http://localhost:{{env.get('SERVICE_PORT') || 8090}}/api/docker/containers",
+    "url": "http://localhost:{{env.get('API_PORT') || 8090}}/api/docker/containers",
     "tls": "",
     "persist": false,
     "proxy": "",
@@ -50,7 +54,7 @@
     "type": "function",
     "z": "docker-monitor-flow",
     "name": "Store in PostgreSQL",
-    "func": "// Send status updates to App Monitor API instead of direct DB access\nconst apiBaseUrl = `http://localhost:${env.get('SERVICE_PORT') || 8090}`;\n\nfor (const app of msg.payload) {\n    const statusUpdate = {\n        url: `${apiBaseUrl}/api/apps/${app.name}/status`,\n        method: 'POST',\n        headers: { 'Content-Type': 'application/json' },\n        payload: {\n            status: app.status,\n            container_id: app.id,\n            timestamp: new Date().toISOString()\n        }\n    };\n    \n    // Send each update (Node-RED will handle async)\n    node.send({ ...statusUpdate, _msgid: msg._msgid + '_' + app.name });\n}\n\nreturn null;",
+    "func": "// Send status updates to App Monitor API instead of direct DB access\nconst apiBaseUrl = `http://localhost:${env.get('API_PORT') || 8090}`;\n\nfor (const app of msg.payload) {\n    const statusUpdate = {\n        url: `${apiBaseUrl}/api/apps/${app.name}/status`,\n        method: 'POST',\n        headers: { 'Content-Type': 'application/json' },\n        payload: {\n            status: app.status,\n            container_id: app.id,\n            timestamp: new Date().toISOString()\n        }\n    };\n    \n    // Send each update (Node-RED will handle async)\n    node.send({ ...statusUpdate, _msgid: msg._msgid + '_' + app.name });\n}\n\nreturn null;",
     "outputs": 1,
     "noerr": 0
   },
@@ -86,7 +90,7 @@
     "name": "Restart Container",
     "method": "POST",
     "ret": "obj",
-    "url": "http://localhost:{{env.get('SERVICE_PORT') || 8090}}/api/apps/{{{payload.appId}}}/start",
+    "url": "http://localhost:{{env.get('API_PORT') || 8090}}/api/apps/{{{payload.appId}}}/start",
     "tls": "",
     "persist": false
   },

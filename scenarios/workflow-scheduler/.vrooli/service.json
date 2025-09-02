@@ -24,7 +24,7 @@
   },
   "ports": {
     "api": {
-      "env_var": "SERVICE_PORT",
+      "env_var": "API_PORT",
       "port": 32000,
       "fallback": "auto",
       "description": "Workflow Scheduler REST API port"
@@ -127,7 +127,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Workflow Scheduler initialized\\n  Scheduling Engine: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${SERVICE_PORT}\\n  Database: postgresql://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/workflow_scheduler\\n  Redis: redis://localhost:${RESOURCE_PORTS[redis]}\\n  CLI: scheduler-cli --help'",
+          "run": "echo '🚀 Workflow Scheduler initialized\\n  Scheduling Engine: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  Database: postgresql://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/workflow_scheduler\\n  Redis: redis://localhost:${RESOURCE_PORTS[redis]}\\n  CLI: scheduler-cli --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -142,7 +142,7 @@
         },
         {
           "name": "start-api-server",
-          "run": "cd api && PORT=$SERVICE_PORT ./workflow-scheduler-api",
+          "run": "cd api && env PORT=$API_PORT ./workflow-scheduler-api",
           "description": "Start Go API server in background",
           "background": true,
           "condition": {
@@ -151,7 +151,7 @@
         },
         {
           "name": "wait-for-api",
-          "run": "sleep 2 && curl -sf http://localhost:$SERVICE_PORT/health > /dev/null",
+          "run": "sleep 2 && curl -sf http://localhost:$API_PORT/health > /dev/null",
           "description": "Wait for API server to be ready",
           "retry": {
             "max_attempts": 15,
@@ -165,7 +165,7 @@
         },
         {
           "name": "show-running-services",
-          "run": "echo '🚀 Workflow Scheduler running:\\n  Scheduling Engine: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$SERVICE_PORT\\n  API Docs: http://localhost:$SERVICE_PORT/docs\\n  CLI: scheduler-cli --help\\n\\nQuick Start:\\n  scheduler-cli create --name \"Daily Report\" --cron \"0 9 * * *\" --url http://localhost:5678/webhook/report'",
+          "run": "echo '🚀 Workflow Scheduler running:\\n  Scheduling Engine: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$API_PORT\\n  API Docs: http://localhost:$API_PORT/docs\\n  CLI: scheduler-cli --help\\n\\nQuick Start:\\n  scheduler-cli create --name \"Daily Report\" --cron \"0 9 * * *\" --url http://localhost:5678/webhook/report'",
           "description": "Display all running service URLs"
         }
       ]
@@ -183,27 +183,27 @@
         },
         {
           "name": "test-api-health",
-          "run": "curl -sf http://localhost:$SERVICE_PORT/health",
+          "run": "curl -sf http://localhost:$API_PORT/health",
           "description": "Test API health endpoint"
         },
         {
           "name": "test-database-connection",
-          "run": "curl -sf http://localhost:$SERVICE_PORT/api/system/db-status",
+          "run": "curl -sf http://localhost:$API_PORT/api/system/db-status",
           "description": "Test database connectivity"
         },
         {
           "name": "test-redis-connection",
-          "run": "curl -sf http://localhost:$SERVICE_PORT/api/system/redis-status",
+          "run": "curl -sf http://localhost:$API_PORT/api/system/redis-status",
           "description": "Test Redis connectivity"
         },
         {
           "name": "test-schedule-endpoints",
-          "run": "curl -sf http://localhost:$SERVICE_PORT/api/schedules && curl -sf http://localhost:$SERVICE_PORT/api/executions",
+          "run": "curl -sf http://localhost:$API_PORT/api/schedules && curl -sf http://localhost:$API_PORT/api/executions",
           "description": "Test main API endpoints"
         },
         {
           "name": "test-cron-validation",
-          "run": "curl -sf 'http://localhost:$SERVICE_PORT/api/cron/validate?expression=0%209%20*%20*%20*'",
+          "run": "curl -sf 'http://localhost:$API_PORT/api/cron/validate?expression=0%209%20*%20*%20*'",
           "description": "Test cron expression validation"
         },
         {

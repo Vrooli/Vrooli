@@ -26,7 +26,7 @@
   },
   "ports": {
     "api": {
-      "env_var": "SERVICE_PORT",
+      "env_var": "API_PORT",
       "port": 26000,
       "fallback": "auto",
       "description": "Nutrition tracker API port"
@@ -149,7 +149,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo 'Nutrition Tracker initialized - UI: http://localhost:${UI_PORT} - API: http://localhost:${SERVICE_PORT}'",
+          "run": "echo 'Nutrition Tracker initialized - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT}'",
           "description": "Display service URLs"
         }
       ]
@@ -159,13 +159,13 @@
       "steps": [
         {
           "name": "start-api",
-          "run": "cd api && PORT=$SERVICE_PORT ./nutrition-tracker-api",
+          "run": "cd api && env PORT=$API_PORT ./nutrition-tracker-api",
           "description": "Start API server",
           "background": true
         },
         {
           "name": "start-ui",
-          "run": "cd ui && PORT=$UI_PORT API_URL=http://localhost:$SERVICE_PORT node server.js",
+          "run": "cd ui && env PORT=$UI_PORT API_URL=http://localhost:$API_PORT node server.js",
           "description": "Start UI server",
           "background": true
         },
@@ -176,7 +176,7 @@
         },
         {
           "name": "show-running",
-          "run": "echo 'Services running - UI: http://localhost:${UI_PORT} - API: http://localhost:${SERVICE_PORT}'",
+          "run": "echo 'Services running - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT}'",
           "description": "Display running services"
         }
       ]

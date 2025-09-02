@@ -1,5 +1,5 @@
 // ZenNotes - Mindful Note Taking App
-const API_URL = window.API_URL || `http://localhost:${window.SERVICE_PORT || 8950}`;
+const API_URL = window.API_URL || `http://localhost:${window.API_PORT || 8950}`;
 
 class ZenNotes {
     constructor() {

@@ -4,7 +4,7 @@ const fs = require('fs');
 
 const app = express();
 const PORT = process.env.UI_PORT || process.env.VEGAN_UI_PORT || 3000;
-const API_PORT = process.env.SERVICE_PORT || process.env.API_PORT || 8080;
+const API_PORT = process.env.API_PORT || 8080;
 
 // Inject API URL configuration into the HTML
 app.get('/', (req, res) => {
@@ -13,18 +13,18 @@ app.get('/', (req, res) => {
         if (err) {
             return res.status(500).send('Error loading page');
         }
-        
+
         // Inject API configuration before app.js loads
         const configScript = `
             <script>
                 window.API_URL = 'http://localhost:${API_PORT}/api';
             </script>
         `;
-        
+
         // Insert config right before the app.js script tag
-        html = html.replace('<script src="app.js"></script>', 
-                          configScript + '<script src="app.js"></script>');
-        
+        html = html.replace('<script src="app.js"></script>',
+            configScript + '<script src="app.js"></script>');
+
         res.send(html);
     });
 });

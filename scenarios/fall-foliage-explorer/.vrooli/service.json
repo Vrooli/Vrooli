@@ -25,7 +25,7 @@
   },
   "ports": {
     "api": {
-      "env_var": "SERVICE_PORT",
+      "env_var": "API_PORT",
       "port": 23500,
       "fallback": "auto",
       "description": "Fall Foliage Explorer API port"
@@ -130,7 +130,7 @@
     "endpoints": [
       {
         "type": "http",
-        "url": "http://localhost:${SERVICE_PORT}/health",
+        "url": "http://localhost:${API_PORT}/health",
         "method": "GET",
         "expected_status": 200
       }
@@ -196,19 +196,19 @@
       "steps": [
         {
           "name": "start-api",
-          "run": "cd api && PORT=$SERVICE_PORT ./foliage-api",
+          "run": "cd api && env PORT=$API_PORT ./foliage-api",
           "description": "Start API server",
           "background": true
         },
         {
           "name": "start-ui",
-          "run": "cd ui && PORT=$UI_PORT API_PORT=$SERVICE_PORT node server.js",
+          "run": "cd ui && env PORT=$UI_PORT API_PORT=$API_PORT node server.js",
           "description": "Start UI server",
           "background": true
         },
         {
           "name": "show-urls",
-          "run": "echo 'Fall Foliage Explorer running:\\n  UI: http://localhost:'$UI_PORT'\\n  API: http://localhost:'$SERVICE_PORT",
+          "run": "echo 'Fall Foliage Explorer running:\\n  UI: http://localhost:'$UI_PORT'\\n  API: http://localhost:'$API_PORT",
           "description": "Display service URLs"
         }
       ]
@@ -223,7 +223,7 @@
         },
         {
           "name": "test-api-health",
-          "run": "curl -sf http://localhost:$SERVICE_PORT/health",
+          "run": "curl -sf http://localhost:$API_PORT/health",
           "description": "Test API health endpoint"
         }
       ]

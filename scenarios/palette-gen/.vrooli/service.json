@@ -25,7 +25,7 @@
   },
   "ports": {
     "api": {
-      "env_var": "SERVICE_PORT",
+      "env_var": "API_PORT",
       "port": 26250,
       "fallback": "auto",
       "description": "Main API port for palette generation"
@@ -128,7 +128,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo -e '🎨 Palette Gen initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${SERVICE_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: palette-gen --help'",
+          "run": "echo -e '🎨 Palette Gen initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: palette-gen --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -138,7 +138,7 @@
       "steps": [
         {
           "name": "start-api-server",
-          "run": "cd api && PORT=$SERVICE_PORT ./palette-gen-api",
+          "run": "cd api && env PORT=$API_PORT ./palette-gen-api",
           "description": "Start Go API server in background",
           "background": true,
           "condition": {
@@ -147,13 +147,13 @@
         },
         {
           "name": "start-ui-server",
-          "run": "cd ui && PORT=$UI_PORT API_URL=http://localhost:$SERVICE_PORT node server.js",
+          "run": "cd ui && env PORT=$UI_PORT API_URL=http://localhost:$API_PORT node server.js",
           "description": "Start UI server in background",
           "background": true
         },
         {
           "name": "wait-for-services",
-          "run": "sleep 2 && curl -sf http://localhost:$SERVICE_PORT/health > /dev/null && curl -sf http://localhost:$UI_PORT > /dev/null",
+          "run": "sleep 2 && curl -sf http://localhost:$API_PORT/health > /dev/null && curl -sf http://localhost:$UI_PORT > /dev/null",
           "description": "Wait for services to be ready",
           "retry": {
             "max_attempts": 15,
@@ -162,7 +162,7 @@
         },
         {
           "name": "show-running-services",
-          "run": "echo -e '🎨 Palette Gen running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${SERVICE_PORT}\\n  CLI: palette-gen --help'",
+          "run": "echo -e '🎨 Palette Gen running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: palette-gen --help'",
           "description": "Display running service URLs"
         }
       ]
@@ -177,12 +177,12 @@
         },
         {
           "name": "test-api-health",
-          "run": "curl -sf http://localhost:$SERVICE_PORT/health",
+          "run": "curl -sf http://localhost:$API_PORT/health",
           "description": "Test API health endpoint"
         },
         {
           "name": "test-palette-generation",
-          "run": "echo '{\"theme\":\"ocean\",\"style\":\"vibrant\",\"num_colors\":5}' | curl -sf -X POST http://localhost:$SERVICE_PORT/generate -H 'Content-Type: application/json' -d @-",
+          "run": "echo '{\"theme\":\"ocean\",\"style\":\"vibrant\",\"num_colors\":5}' | curl -sf -X POST http://localhost:$API_PORT/generate -H 'Content-Type: application/json' -d @-",
           "description": "Test palette generation endpoint"
         },
         {

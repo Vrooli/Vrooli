@@ -13,14 +13,14 @@ setup:
 tests:
   - name: API Health Check
     type: http
-    endpoint: http://localhost:${SERVICE_PORT}/health
+    endpoint: http://localhost:${API_PORT}/health
     method: GET
     expected_status: 200
     timeout: 30
 
   - name: Check Vegan Ingredients
     type: http
-    endpoint: http://localhost:${SERVICE_PORT}/api/check
+    endpoint: http://localhost:${API_PORT}/api/check
     method: POST
     body:
       ingredients: "tofu, soy sauce, rice, vegetables"
@@ -31,7 +31,7 @@ tests:
 
   - name: Check Non-Vegan Ingredients
     type: http
-    endpoint: http://localhost:${SERVICE_PORT}/api/check
+    endpoint: http://localhost:${API_PORT}/api/check
     method: POST
     body:
       ingredients: "milk, eggs, butter, flour"
@@ -42,7 +42,7 @@ tests:
 
   - name: Find Vegan Substitute
     type: http
-    endpoint: http://localhost:${SERVICE_PORT}/api/substitute
+    endpoint: http://localhost:${API_PORT}/api/substitute
     method: POST
     body:
       ingredient: "eggs"

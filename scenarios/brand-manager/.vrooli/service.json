@@ -28,7 +28,7 @@
   },
   "ports": {
     "api": {
-      "env_var": "SERVICE_PORT",
+      "env_var": "API_PORT",
       "port": 22250,
       "fallback": "auto",
       "description": "Brand Manager coordination API port"
@@ -201,7 +201,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Brand Manager initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}/apps/f/brand-manager/dashboard\\n  Integration Monitor: http://localhost:${RESOURCE_PORTS[windmill]}/apps/f/brand-manager/integration-dashboard\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${SERVICE_PORT}\\n  CLI: brand-manager --help'",
+          "run": "echo '🚀 Brand Manager initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}/apps/f/brand-manager/dashboard\\n  Integration Monitor: http://localhost:${RESOURCE_PORTS[windmill]}/apps/f/brand-manager/integration-dashboard\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  CLI: brand-manager --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -216,7 +216,7 @@
         },
         {
           "name": "start-api-server",
-          "run": "cd api && PORT=$SERVICE_PORT ./brand-manager-api",
+          "run": "cd api && env PORT=$API_PORT ./brand-manager-api",
           "description": "Start Go coordination API server in background",
           "background": true,
           "condition": {
@@ -225,7 +225,7 @@
         },
         {
           "name": "wait-for-api",
-          "run": "sleep 2 && curl -sf http://localhost:$SERVICE_PORT/health > /dev/null",
+          "run": "sleep 2 && curl -sf http://localhost:$API_PORT/health > /dev/null",
           "description": "Wait for API server to be ready",
           "retry": {
             "max_attempts": 15,
@@ -234,7 +234,7 @@
         },
         {
           "name": "show-running-services",
-          "run": "echo '🚀 Brand Manager running:\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}/apps/f/brand-manager/dashboard\\n  Integration Monitor: http://localhost:${RESOURCE_PORTS[windmill]}/apps/f/brand-manager/integration-dashboard\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$SERVICE_PORT\\n  CLI: brand-manager --help'",
+          "run": "echo '🚀 Brand Manager running:\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}/apps/f/brand-manager/dashboard\\n  Integration Monitor: http://localhost:${RESOURCE_PORTS[windmill]}/apps/f/brand-manager/integration-dashboard\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$API_PORT\\n  CLI: brand-manager --help'",
           "description": "Display all running service URLs"
         }
       ]
@@ -252,17 +252,17 @@
         },
         {
           "name": "test-api-health",
-          "run": "curl -sf http://localhost:$SERVICE_PORT/health",
+          "run": "curl -sf http://localhost:$API_PORT/health",
           "description": "Test API health endpoint"
         },
         {
           "name": "test-brands-endpoint",
-          "run": "curl -sf http://localhost:$SERVICE_PORT/api/brands",
+          "run": "curl -sf http://localhost:$API_PORT/api/brands",
           "description": "Test API brands endpoint"
         },
         {
           "name": "test-integration-endpoint",
-          "run": "curl -sf http://localhost:$SERVICE_PORT/api/integrations",
+          "run": "curl -sf http://localhost:$API_PORT/api/integrations",
           "description": "Test API integrations endpoint"
         },
         {

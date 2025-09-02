@@ -22,7 +22,7 @@
   },
   "ports": {
     "api": {
-      "env_var": "SERVICE_PORT",
+      "env_var": "API_PORT",
       "port": 27500,
       "fallback": "auto",
       "description": "QR code generator API port"
@@ -121,7 +121,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🎨 QR Code Generator initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${SERVICE_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}'",
+          "run": "echo '🎨 QR Code Generator initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}'",
           "description": "Display service URLs"
         }
       ]
@@ -141,13 +141,13 @@
         },
         {
           "name": "start-api-server",
-          "run": "cd api && echo 'Starting API on port ${SERVICE_PORT}...' && PORT=${SERVICE_PORT} N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} REDIS_URL=redis://localhost:${RESOURCE_PORTS[redis]} ./qr-generator-api",
+          "run": "cd api && echo 'Starting API on port ${API_PORT}...' && PORT=${API_PORT} N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} REDIS_URL=redis://localhost:${RESOURCE_PORTS[redis]} ./qr-generator-api",
           "description": "Start API server",
           "background": true
         },
         {
           "name": "start-ui-server",
-          "run": "cd ui && echo 'Starting UI on port ${UI_PORT}...' && PORT=${UI_PORT} API_URL=http://localhost:${SERVICE_PORT} npm start",
+          "run": "cd ui && echo 'Starting UI on port ${UI_PORT}...' && PORT=${UI_PORT} API_URL=http://localhost:${API_PORT} npm start",
           "description": "Start UI server",
           "background": true
         },
@@ -158,7 +158,7 @@
         },
         {
           "name": "show-running",
-          "run": "echo '🚀 QR Code Generator running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${SERVICE_PORT}'",
+          "run": "echo '🚀 QR Code Generator running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
           "description": "Display running services"
         }
       ]
@@ -168,12 +168,12 @@
       "steps": [
         {
           "name": "test-api",
-          "run": "curl -sf http://localhost:$SERVICE_PORT/health",
+          "run": "curl -sf http://localhost:$API_PORT/health",
           "description": "Test API health"
         },
         {
           "name": "test-generation",
-          "run": "curl -X POST http://localhost:$SERVICE_PORT/generate -H 'Content-Type: application/json' -d '{\"text\":\"test\",\"size\":256}'",
+          "run": "curl -X POST http://localhost:$API_PORT/generate -H 'Content-Type: application/json' -d '{\"text\":\"test\",\"size\":256}'",
           "description": "Test QR generation"
         }
       ]

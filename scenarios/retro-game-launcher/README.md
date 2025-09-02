@@ -203,7 +203,7 @@ retro-game-launcher/
 
 ### Environment Variables
 - `RETRO_API_URL`: API base URL (default: http://localhost:8080)
-- `SERVICE_PORT`: API port (auto-allocated)
+- `API_PORT`: API port (auto-allocated)
 - `UI_PORT`: React dev server port (auto-allocated)
 - `POSTGRES_URL`: Database connection string
 - `N8N_BASE_URL`: n8n instance URL

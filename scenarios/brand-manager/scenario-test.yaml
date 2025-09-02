@@ -50,7 +50,7 @@ tests:
           optional: true
       - check_service:
           name: "Brand Manager API"
-          endpoint: "http://localhost:${SERVICE_PORT}/health"
+          endpoint: "http://localhost:${API_PORT}/health"
           timeout: 10s
 
   - name: database_initialization

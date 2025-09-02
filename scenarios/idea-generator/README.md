@@ -78,7 +78,7 @@ vrooli service develop .
 ### Access Points
 - **UI**: http://localhost:${RESOURCE_PORTS[windmill]} (Windmill Dashboard)
 - **Workflows**: http://localhost:${RESOURCE_PORTS[n8n]} (n8n)
-- **API**: http://localhost:${SERVICE_PORT} (Coordination API)
+- **API**: http://localhost:${API_PORT} (Coordination API)
 - **CLI**: `idea-generator --help`
 
 ### CLI Usage

@@ -9,7 +9,7 @@ readonly CLI_NAME="CLI_NAME_PLACEHOLDER"
 readonly CLI_VERSION="1.0.0"
 readonly CONFIG_DIR="$HOME/.${CLI_NAME}"
 readonly CONFIG_FILE="$CONFIG_DIR/config.json"
-readonly DEFAULT_API_BASE="http://localhost:SERVICE_PORT_PLACEHOLDER"
+readonly DEFAULT_API_BASE="http://localhost:API_PORT_PLACEHOLDER"
 readonly DEFAULT_TOKEN="CLI_TOKEN_PLACEHOLDER"
 
 # Colors for output

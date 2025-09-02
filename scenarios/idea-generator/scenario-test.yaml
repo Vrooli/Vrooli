@@ -77,27 +77,27 @@ tests:
     steps:
       - check: api_health
         method: GET
-        url: http://localhost:${SERVICE_PORT:-8500}/health
+        url: http://localhost:${API_PORT:-8500}/health
         expected_status: 200
       - check: api_status
         method: GET
-        url: http://localhost:${SERVICE_PORT:-8500}/status
+        url: http://localhost:${API_PORT:-8500}/status
         expected_status: 200
       - check: get_campaigns
         method: GET
-        url: http://localhost:${SERVICE_PORT:-8500}/campaigns
+        url: http://localhost:${API_PORT:-8500}/campaigns
         expected_status: 200
       - check: get_ideas
         method: GET
-        url: http://localhost:${SERVICE_PORT:-8500}/ideas
+        url: http://localhost:${API_PORT:-8500}/ideas
         expected_status: 200
       - check: get_workflows
         method: GET
-        url: http://localhost:${SERVICE_PORT:-8500}/workflows
+        url: http://localhost:${API_PORT:-8500}/workflows
         expected_status: 200
       - check: create_campaign
         method: POST
-        url: http://localhost:${SERVICE_PORT:-8500}/campaigns
+        url: http://localhost:${API_PORT:-8500}/campaigns
         body:
           name: Test Campaign
           description: Test campaign for validation

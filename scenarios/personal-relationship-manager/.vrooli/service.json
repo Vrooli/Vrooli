@@ -24,7 +24,7 @@
   },
   "ports": {
     "api": {
-      "env_var": "SERVICE_PORT",
+      "env_var": "API_PORT",
       "port": 26750,
       "fallback": "auto",
       "description": "Main API port"
@@ -68,11 +68,11 @@
       "initialization": [
         {
           "file": "initialization/postgres/schema.sql",
-          "type": "script"
+          "type": "schema"
         },
         {
           "file": "initialization/postgres/seed.sql",
-          "type": "script"
+          "type": "seed"
         }
       ]
     },
@@ -145,7 +145,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo 'Personal Relationship Manager initialized - UI: http://localhost:${UI_PORT} - API: http://localhost:${SERVICE_PORT} - CLI: relationship-manager --help'",
+          "run": "echo 'Personal Relationship Manager initialized - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT} - CLI: relationship-manager --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -160,7 +160,7 @@
         },
         {
           "name": "start-api-server",
-          "run": "PORT=$SERVICE_PORT ./api/personal-relationship-manager-api",
+          "run": "cd api && env PORT=$API_PORT ./personal-relationship-manager-api",
           "description": "Start Go API server in background",
           "background": true,
           "condition": {
@@ -169,13 +169,13 @@
         },
         {
           "name": "start-ui-server",
-          "run": "cd ui && PORT=$UI_PORT API_URL=http://localhost:$SERVICE_PORT npm start",
+          "run": "cd ui && env PORT=$UI_PORT API_URL=http://localhost:$API_PORT npm start",
           "description": "Start UI server in background",
           "background": true
         },
         {
           "name": "wait-for-services",
-          "run": "sleep 2 && curl -sf http://localhost:$SERVICE_PORT/health > /dev/null && curl -sf http://localhost:$UI_PORT > /dev/null",
+          "run": "sleep 2 && curl -sf http://localhost:$API_PORT/health > /dev/null && curl -sf http://localhost:$UI_PORT > /dev/null",
           "description": "Wait for services to be ready",
           "retry": {
             "max_attempts": 15,
@@ -184,7 +184,7 @@
         },
         {
           "name": "show-running-services",
-          "run": "echo 'Services running - UI: http://localhost:${UI_PORT} - API: http://localhost:${SERVICE_PORT} - CLI: relationship-manager --help'",
+          "run": "echo 'Services running - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT} - CLI: relationship-manager --help'",
           "description": "Display all running service URLs"
         }
       ]
@@ -202,12 +202,12 @@
         },
         {
           "name": "test-api-health",
-          "run": "curl -sf http://localhost:$SERVICE_PORT/health",
+          "run": "curl -sf http://localhost:$API_PORT/health",
           "description": "Test API health endpoint"
         },
         {
           "name": "test-contacts-endpoint",
-          "run": "curl -sf http://localhost:$SERVICE_PORT/api/contacts",
+          "run": "curl -sf http://localhost:$API_PORT/api/contacts",
           "description": "Test API contacts endpoint"
         },
         {

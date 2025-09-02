@@ -4,7 +4,7 @@ const http = require('http');
 
 const app = express();
 const PORT = process.env.UI_PORT || process.env.PORT || 3100;
-const API_PORT = process.env.API_PORT || process.env.SERVICE_PORT || 8100;
+const API_PORT = process.env.API_PORT || 8100;
 const N8N_PORT = process.env.RESOURCE_PORTS ? JSON.parse(process.env.RESOURCE_PORTS).n8n : 5678;
 
 // Manual proxy function for API calls
@@ -19,9 +19,9 @@ function proxyToApi(req, res, targetPort, apiPath) {
             host: `localhost:${targetPort}`
         }
     };
-    
+
     console.log(`[PROXY] ${req.method} ${req.url} -> http://localhost:${targetPort}${options.path}`);
-    
+
     const proxyReq = http.request(options, (proxyRes) => {
         res.status(proxyRes.statusCode);
         Object.keys(proxyRes.headers).forEach(key => {
@@ -29,16 +29,16 @@ function proxyToApi(req, res, targetPort, apiPath) {
         });
         proxyRes.pipe(res);
     });
-    
+
     proxyReq.on('error', (err) => {
         console.error('Proxy error:', err.message);
-        res.status(502).json({ 
-            error: 'Server unavailable', 
+        res.status(502).json({
+            error: 'Server unavailable',
             details: err.message,
             target: `http://localhost:${targetPort}${options.path}`
         });
     });
-    
+
     if (req.method !== 'GET' && req.method !== 'HEAD') {
         req.pipe(proxyReq);
     } else {
@@ -64,7 +64,7 @@ app.use('/webhook', (req, res) => {
 });
 
 // Serve static files
-app.use(express.static(__dirname, { 
+app.use(express.static(__dirname, {
     index: false,
     setHeaders: (res, path) => {
         if (path.endsWith('.js')) {

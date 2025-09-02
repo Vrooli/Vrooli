@@ -5,7 +5,7 @@ version: 1.0.0
 tests:
   - name: "API Health Check"
     type: http
-    endpoint: "http://localhost:${SERVICE_PORT}/health"
+    endpoint: "http://localhost:${API_PORT}/health"
     method: GET
     expected_status: 200
     expected_response:
@@ -14,7 +14,7 @@ tests:
 
   - name: "Generate Basic QR Code"
     type: http
-    endpoint: "http://localhost:${SERVICE_PORT}/generate"
+    endpoint: "http://localhost:${API_PORT}/generate"
     method: POST
     headers:
       Content-Type: "application/json"
@@ -29,7 +29,7 @@ tests:
 
   - name: "Generate QR with Custom Colors"
     type: http
-    endpoint: "http://localhost:${SERVICE_PORT}/generate"
+    endpoint: "http://localhost:${API_PORT}/generate"
     method: POST
     headers:
       Content-Type: "application/json"
@@ -46,7 +46,7 @@ tests:
 
   - name: "Invalid Request - Missing Text"
     type: http
-    endpoint: "http://localhost:${SERVICE_PORT}/generate"
+    endpoint: "http://localhost:${API_PORT}/generate"
     method: POST
     headers:
       Content-Type: "application/json"
@@ -57,7 +57,7 @@ tests:
 
   - name: "Batch Processing"
     type: http
-    endpoint: "http://localhost:${SERVICE_PORT}/batch"
+    endpoint: "http://localhost:${API_PORT}/batch"
     method: POST
     headers:
       Content-Type: "application/json"

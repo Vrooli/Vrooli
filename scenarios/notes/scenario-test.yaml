@@ -6,7 +6,7 @@ tests:
   - name: API Health Check
     type: http
     config:
-      url: http://localhost:${SERVICE_PORT}/health
+      url: http://localhost:${API_PORT}/health
       method: GET
       expected_status: 200
       expected_body:
@@ -16,7 +16,7 @@ tests:
   - name: Create Note
     type: http
     config:
-      url: http://localhost:${SERVICE_PORT}/api/notes
+      url: http://localhost:${API_PORT}/api/notes
       method: POST
       headers:
         Content-Type: application/json
@@ -33,7 +33,7 @@ tests:
   - name: List Notes
     type: http
     config:
-      url: http://localhost:${SERVICE_PORT}/api/notes?user_id=default-user
+      url: http://localhost:${API_PORT}/api/notes?user_id=default-user
       method: GET
       expected_status: 200
       validate_response: |

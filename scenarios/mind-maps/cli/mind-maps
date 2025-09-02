@@ -8,7 +8,7 @@ set -e
 COMMAND=${1:-help}
 shift || true
 
-API_URL=${MIND_MAPS_API_URL:-"http://localhost:${SERVICE_PORT:-8093}"}
+API_URL=${MIND_MAPS_API_URL:-"http://localhost:${API_PORT:-8093}"}
 
 case "$COMMAND" in
     create)
@@ -137,8 +137,8 @@ Examples:
   mind-maps list
 
 Environment Variables:
-  MIND_MAPS_API_URL   API endpoint (default: http://localhost:${SERVICE_PORT:-8093})
-  SERVICE_PORT        API port (default: 8093)
+  MIND_MAPS_API_URL   API endpoint (default: http://localhost:${API_PORT:-8093})
+  API_PORT        API port (default: 8093)
 EOF
         ;;
 esac

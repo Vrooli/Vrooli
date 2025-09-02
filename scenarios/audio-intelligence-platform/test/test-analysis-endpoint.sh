@@ -3,7 +3,7 @@
 set -euo pipefail
 
 # Configuration
-API_BASE="${SERVICE_PORT:-8090}"
+API_BASE="${API_PORT:-8090}"
 API_URL="http://localhost:$API_BASE"
 
 # Test data

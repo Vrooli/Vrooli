@@ -30,7 +30,7 @@
   },
   "ports": {
     "api": {
-      "env_var": "SERVICE_PORT",
+      "env_var": "API_PORT",
       "port": 23750,
       "fallback": "auto",
       "description": "Idea generator coordination API port"
@@ -192,7 +192,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Idea Generator initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${SERVICE_PORT}\\n  Vector Search: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  Document Storage: http://localhost:${RESOURCE_PORTS[minio]}\\n  CLI: idea-generator --help'",
+          "run": "echo '🚀 Idea Generator initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  Vector Search: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  Document Storage: http://localhost:${RESOURCE_PORTS[minio]}\\n  CLI: idea-generator --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -202,7 +202,7 @@
       "steps": [
         {
           "name": "start-api-server",
-          "run": "cd api && PORT=$SERVICE_PORT ./idea-generator-api",
+          "run": "cd api && env PORT=$API_PORT ./idea-generator-api",
           "description": "Start Go coordination API server in background",
           "background": true,
           "condition": {
@@ -211,7 +211,7 @@
         },
         {
           "name": "wait-for-api",
-          "run": "sleep 2 && curl -sf http://localhost:$SERVICE_PORT/health > /dev/null",
+          "run": "sleep 2 && curl -sf http://localhost:$API_PORT/health > /dev/null",
           "description": "Wait for API server to be ready",
           "retry": {
             "max_attempts": 15,
@@ -220,7 +220,7 @@
         },
         {
           "name": "show-running-services",
-          "run": "echo '🚀 Idea Generator running:\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$SERVICE_PORT\\n  CLI: idea-generator --help'",
+          "run": "echo '🚀 Idea Generator running:\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$API_PORT\\n  CLI: idea-generator --help'",
           "description": "Display all running service URLs"
         }
       ]
@@ -238,17 +238,17 @@
         },
         {
           "name": "test-api-health",
-          "run": "curl -sf http://localhost:$SERVICE_PORT/health",
+          "run": "curl -sf http://localhost:$API_PORT/health",
           "description": "Test API health endpoint"
         },
         {
           "name": "test-campaigns-endpoint",
-          "run": "curl -sf http://localhost:$SERVICE_PORT/campaigns",
+          "run": "curl -sf http://localhost:$API_PORT/campaigns",
           "description": "Test API campaigns endpoint"
         },
         {
           "name": "test-workflows-endpoint",
-          "run": "curl -sf http://localhost:$SERVICE_PORT/workflows",
+          "run": "curl -sf http://localhost:$API_PORT/workflows",
           "description": "Test API workflows endpoint"
         },
         {

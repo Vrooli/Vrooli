@@ -18,7 +18,7 @@ if [[ -f "$FRAMEWORK_DIR/clients/common.sh" ]]; then
 fi
 
 # Configuration
-API_PORT="${SERVICE_PORT:-8090}"
+API_PORT="${API_PORT:-8090}"
 API_BASE_URL="http://localhost:${API_PORT}"
 
 # Helper function to check API health

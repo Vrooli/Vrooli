@@ -3,7 +3,7 @@
 set -euo pipefail
 
 # Configuration
-API_BASE="${APP_PERSONALIZER_API_BASE:-http://localhost:${SERVICE_PORT:-8300}}"
+API_BASE="${APP_PERSONALIZER_API_BASE:-http://localhost:${API_PORT:-8300}}"
 TEST_APP_PATH="/tmp/test-app"
 TEST_APP_ID=""
 

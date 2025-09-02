@@ -21,7 +21,7 @@ flowchart TB
     end
     
     subgraph "Coordination Layer"
-        GO_API[Go Coordination API<br/>Database-Driven<br/>Port: SERVICE_PORT]
+        GO_API[Go Coordination API<br/>Database-Driven<br/>Port: API_PORT]
     end
     
     subgraph "Workflow Orchestration"
@@ -114,7 +114,7 @@ cd /path/to/vrooli/scenarios/agent-metareasoning-manager
 ../../manage.sh develop --target native-linux
 
 # The 'develop' phase starts:
-# - Go API server on dynamic $SERVICE_PORT
+# - Go API server on dynamic $API_PORT
 # - Connects to n8n on ${RESOURCE_PORTS[n8n]} 
 # - Connects to Windmill on ${RESOURCE_PORTS[windmill]}
 
@@ -129,7 +129,7 @@ agent-metareasoning-manager version                                   # Show CLI
 ### **API Direct Usage**
 ```bash
 # Get the actual ports from the running system
-SERVICE_PORT=$(../../resources/port_registry.sh --action get --service agent-metareasoning-manager)
+API_PORT=$(../../resources/port_registry.sh --action get --service agent-metareasoning-manager)
 N8N_PORT=$(../../resources/port_registry.sh --action get --service n8n)
 WINDMILL_PORT=$(../../resources/port_registry.sh --action get --service windmill)
 
@@ -252,7 +252,7 @@ The API uses environment variables for configuration (automatically set by servi
 
 ```bash
 # These are set dynamically during 'develop' phase:
-export PORT=$SERVICE_PORT                                          # Dynamic API port
+export PORT=$API_PORT                                          # Dynamic API port
 export N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]}       # n8n instance
 export WINDMILL_BASE_URL=http://localhost:${RESOURCE_PORTS[windmill]} # Windmill instance
 export WINDMILL_WORKSPACE=demo                                    # Windmill workspace
@@ -287,7 +287,7 @@ CLI configuration is stored in `~/.metareasoning/config.json`:
 # Check if services are running on expected ports
 lsof -i :${RESOURCE_PORTS[n8n]}       # Should show n8n
 lsof -i :${RESOURCE_PORTS[windmill]}  # Should show Windmill
-lsof -i :$SERVICE_PORT                 # Should show Go API
+lsof -i :$API_PORT                 # Should show Go API
 ```
 
 ### **Service Health Checks**
@@ -310,7 +310,7 @@ curl -f http://localhost:$API_PORT/health                  # Go API
 
 ### **Testing Checklist**
 - [ ] All resources started (`ollama`, `n8n`, `windmill`, `postgres`, `qdrant`)
-- [ ] Go API compiled and running on `$SERVICE_PORT`
+- [ ] Go API compiled and running on `$API_PORT`
 - [ ] CLI installed globally as `metareasoning`
 - [ ] n8n workflows imported (5 workflows visible in n8n UI)
 - [ ] Windmill apps deployed (2 apps visible in Windmill)

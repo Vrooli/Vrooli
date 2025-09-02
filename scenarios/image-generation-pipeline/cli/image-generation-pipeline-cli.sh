@@ -8,7 +8,7 @@ set -euo pipefail
 CLI_VERSION="1.0.0"
 
 # Configuration
-API_BASE="${IMAGE_GENERATION_PIPELINE_API_BASE:-http://localhost:${SERVICE_PORT:-8090}}"
+API_BASE="${IMAGE_GENERATION_PIPELINE_API_BASE:-http://localhost:${API_PORT:-8090}}"
 API_TOKEN="${IMAGE_GENERATION_PIPELINE_TOKEN:-image_generation_pipeline_cli_default_2024}"
 
 # Colors for output
@@ -75,7 +75,7 @@ EXAMPLES:
 ENVIRONMENT VARIABLES:
     IMAGE_GENERATION_PIPELINE_API_BASE    API base URL (default: http://localhost:8090)
     IMAGE_GENERATION_PIPELINE_TOKEN       API authentication token
-    SERVICE_PORT                          Service port (default: 8090)
+    API_PORT                          Service port (default: 8090)
 
 EOF
 }

@@ -15,8 +15,8 @@ app.use(express.json());
 app.use(express.static(__dirname));
 
 // API proxy endpoints (forward to Go API)
-const SERVICE_PORT = process.env.SERVICE_PORT || '8100';
-const API_URL = process.env.API_URL || `http://localhost:${SERVICE_PORT}`;
+const API_PORT = process.env.API_PORT || '8100';
+const API_URL = process.env.API_URL || `http://localhost:${API_PORT}`;
 
 app.use('/api', (req, res) => {
     const fetch = require('node-fetch');

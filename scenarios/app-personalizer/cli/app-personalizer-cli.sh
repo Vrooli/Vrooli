@@ -7,7 +7,7 @@ set -euo pipefail
 CLI_VERSION="1.0.0"
 
 # Configuration
-API_BASE="${APP_PERSONALIZER_API_BASE:-http://localhost:${SERVICE_PORT:-8300}}"
+API_BASE="${APP_PERSONALIZER_API_BASE:-http://localhost:${API_PORT:-8300}}"
 API_TOKEN="${APP_PERSONALIZER_TOKEN:-app_personalizer_cli_default_2024}"
 
 # API request helper

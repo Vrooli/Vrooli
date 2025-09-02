@@ -4,7 +4,7 @@
 set -euo pipefail
 
 # Configuration
-API_BASE="${1:-http://localhost:${SERVICE_PORT:-8090}}"
+API_BASE="${1:-http://localhost:${API_PORT:-8090}}"
 TEST_CAMPAIGN_ID="test-campaign-123"
 TEST_BRAND_ID="test-brand-456"
 

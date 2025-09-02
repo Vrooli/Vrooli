@@ -115,7 +115,7 @@
   },
   "ports": {
     "api": {
-      "env_var": "SERVICE_PORT",
+      "env_var": "API_PORT",
       "port": 27750,
       "fallback": "auto",
       "description": "Research assistant API port"
@@ -166,7 +166,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Research Assistant initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${SERVICE_PORT}\\n  SearXNG: http://localhost:${RESOURCE_PORTS[searxng]}\\n  CLI: research-assistant --help'",
+          "run": "echo '🚀 Research Assistant initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  SearXNG: http://localhost:${RESOURCE_PORTS[searxng]}\\n  CLI: research-assistant --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -176,7 +176,7 @@
       "steps": [
         {
           "name": "start-api-server",
-          "run": "cd api && PORT=$SERVICE_PORT ./research-assistant-api",
+          "run": "cd api && env PORT=$API_PORT ./research-assistant-api",
           "description": "Start Go coordination API server in background",
           "background": true,
           "condition": {
@@ -185,7 +185,7 @@
         },
         {
           "name": "wait-for-api",
-          "run": "sleep 2 && curl -sf http://localhost:$SERVICE_PORT/health > /dev/null",
+          "run": "sleep 2 && curl -sf http://localhost:$API_PORT/health > /dev/null",
           "description": "Wait for API server to be ready",
           "retry": {
             "max_attempts": 15,
@@ -194,7 +194,7 @@
         },
         {
           "name": "show-running-services",
-          "run": "echo '🚀 Services running:\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$SERVICE_PORT\\n  SearXNG: http://localhost:${RESOURCE_PORTS[searxng]}\\n  CLI: research-assistant --help'",
+          "run": "echo '🚀 Services running:\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$API_PORT\\n  SearXNG: http://localhost:${RESOURCE_PORTS[searxng]}\\n  CLI: research-assistant --help'",
           "description": "Display all running service URLs"
         }
       ]
@@ -212,17 +212,17 @@
         },
         {
           "name": "test-api-health",
-          "run": "curl -sf http://localhost:$SERVICE_PORT/health",
+          "run": "curl -sf http://localhost:$API_PORT/health",
           "description": "Test API health endpoint"
         },
         {
           "name": "test-reports-endpoint",
-          "run": "curl -sf http://localhost:$SERVICE_PORT/api/reports",
+          "run": "curl -sf http://localhost:$API_PORT/api/reports",
           "description": "Test API reports endpoint"
         },
         {
           "name": "test-dashboard-endpoint",
-          "run": "curl -sf http://localhost:$SERVICE_PORT/api/dashboard/stats",
+          "run": "curl -sf http://localhost:$API_PORT/api/dashboard/stats",
           "description": "Test API dashboard endpoint"
         },
         {

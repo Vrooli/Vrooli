@@ -25,7 +25,7 @@
   },
   "ports": {
     "api": {
-      "env_var": "SERVICE_PORT",
+      "env_var": "API_PORT",
       "port": 26500,
       "fallback": "auto",
       "description": "Main API port for digital twin service"
@@ -152,7 +152,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Personal Digital Twin initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${SERVICE_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: personal-digital-twin --help'",
+          "run": "echo '🚀 Personal Digital Twin initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: personal-digital-twin --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -167,7 +167,7 @@
         },
         {
           "name": "start-api-server",
-          "run": "cd api && PORT=$SERVICE_PORT ./personal-digital-twin-api",
+          "run": "cd api && env PORT=$API_PORT ./personal-digital-twin-api",
           "description": "Start Go API server in background",
           "background": true,
           "condition": {
@@ -176,13 +176,13 @@
         },
         {
           "name": "start-ui-server",
-          "run": "cd ui && PORT=$UI_PORT API_URL=http://localhost:$SERVICE_PORT node server.js",
+          "run": "cd ui && env PORT=$UI_PORT API_URL=http://localhost:$API_PORT node server.js",
           "description": "Start UI server in background",
           "background": true
         },
         {
           "name": "wait-for-api",
-          "run": "sleep 2 && curl -sf http://localhost:$SERVICE_PORT/health > /dev/null",
+          "run": "sleep 2 && curl -sf http://localhost:$API_PORT/health > /dev/null",
           "description": "Wait for API server to be ready",
           "retry": {
             "max_attempts": 15,
@@ -200,7 +200,7 @@
         },
         {
           "name": "show-running-services",
-          "run": "echo '🚀 Services running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:$SERVICE_PORT\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: personal-digital-twin --help'",
+          "run": "echo '🚀 Services running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:$API_PORT\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: personal-digital-twin --help'",
           "description": "Display all running service URLs"
         }
       ]
@@ -218,7 +218,7 @@
         },
         {
           "name": "test-api-health",
-          "run": "curl -sf http://localhost:$SERVICE_PORT/health",
+          "run": "curl -sf http://localhost:$API_PORT/health",
           "description": "Test API health endpoint"
         },
         {

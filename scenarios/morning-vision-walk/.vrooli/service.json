@@ -27,7 +27,7 @@
   },
   "ports": {
     "api": {
-      "env_var": "SERVICE_PORT",
+      "env_var": "API_PORT",
       "port": 25250,
       "fallback": "auto",
       "description": "Morning Vision Walk API port"
@@ -155,7 +155,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🌅 Morning Vision Walk initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${SERVICE_PORT}'",
+          "run": "echo '🌅 Morning Vision Walk initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
           "description": "Display service URLs"
         }
       ]
@@ -165,7 +165,7 @@
       "steps": [
         {
           "name": "start-api-server",
-          "run": "cd api && PORT=$SERVICE_PORT ./vision-walk-api",
+          "run": "cd api && env PORT=$API_PORT ./vision-walk-api",
           "description": "Start API server",
           "background": true,
           "condition": {
@@ -174,7 +174,7 @@
         },
         {
           "name": "start-ui-server",
-          "run": "cd ui && PORT=$UI_PORT API_URL=http://localhost:$SERVICE_PORT npm start",
+          "run": "cd ui && env PORT=$UI_PORT API_URL=http://localhost:$API_PORT npm start",
           "description": "Start UI server",
           "background": true
         },
@@ -185,7 +185,7 @@
         },
         {
           "name": "show-running",
-          "run": "echo '🚀 Morning Vision Walk running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${SERVICE_PORT}'",
+          "run": "echo '🚀 Morning Vision Walk running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
           "description": "Display running services"
         }
       ]
@@ -195,12 +195,12 @@
       "steps": [
         {
           "name": "test-api",
-          "run": "curl -sf http://localhost:$SERVICE_PORT/health",
+          "run": "curl -sf http://localhost:$API_PORT/health",
           "description": "Test API health"
         },
         {
           "name": "test-conversation",
-          "run": "curl -sf http://localhost:$SERVICE_PORT/api/conversation/start",
+          "run": "curl -sf http://localhost:$API_PORT/api/conversation/start",
           "description": "Test conversation endpoint"
         }
       ]

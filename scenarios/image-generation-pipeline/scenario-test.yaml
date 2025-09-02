@@ -18,7 +18,7 @@ prerequisites:
     WINDMILL_BASE_URL: http://localhost:${RESOURCE_PORTS[windmill]}
     COMFYUI_BASE_URL: http://localhost:${RESOURCE_PORTS[comfyui]}
     WHISPER_BASE_URL: http://localhost:${RESOURCE_PORTS[whisper]}
-    SERVICE_PORT: ${SERVICE_PORT:-dynamic}
+    API_PORT: ${API_PORT:-dynamic}
 
 tests:
   - name: resource_availability
@@ -59,17 +59,17 @@ tests:
         command: test -f api/image-generation-pipeline-api
         expected_status: 0
       - check: api_health
-        command: curl -f http://localhost:${SERVICE_PORT}/health
+        command: curl -f http://localhost:${API_PORT}/health
         expected_status: 200
         contains: "status":"healthy"
       - check: api_campaigns_endpoint
-        command: curl -f http://localhost:${SERVICE_PORT}/api/campaigns
+        command: curl -f http://localhost:${API_PORT}/api/campaigns
         expected_status: 200
       - check: api_brands_endpoint
-        command: curl -f http://localhost:${SERVICE_PORT}/api/brands
+        command: curl -f http://localhost:${API_PORT}/api/brands
         expected_status: 200
       - check: api_generations_endpoint
-        command: curl -f http://localhost:${SERVICE_PORT}/api/generations
+        command: curl -f http://localhost:${API_PORT}/api/generations
         expected_status: 200
 
   - name: n8n_workflow_deployment
@@ -123,7 +123,7 @@ tests:
     steps:
       - check: create_brand
         method: POST
-        url: http://localhost:${SERVICE_PORT}/api/brands
+        url: http://localhost:${API_PORT}/api/brands
         headers:
           Content-Type: application/json
         body:
@@ -135,7 +135,7 @@ tests:
         timeout: 30
       - check: create_campaign
         method: POST
-        url: http://localhost:${SERVICE_PORT}/api/campaigns
+        url: http://localhost:${API_PORT}/api/campaigns
         headers:
           Content-Type: application/json
         body:
@@ -147,7 +147,7 @@ tests:
         timeout: 30
       - check: image_generation_request
         method: POST
-        url: http://localhost:${SERVICE_PORT}/api/generate
+        url: http://localhost:${API_PORT}/api/generate
         headers:
           Content-Type: application/json
         body:
@@ -201,7 +201,7 @@ tests:
         timeout: 30
       - check: campaign_creation_via_api
         method: POST
-        url: http://localhost:${SERVICE_PORT}/api/campaigns
+        url: http://localhost:${API_PORT}/api/campaigns
         headers:
           Content-Type: application/json
         body:

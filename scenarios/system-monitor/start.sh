@@ -52,8 +52,8 @@ else
 fi
 
 # Start API
-echo "Starting API on port ${SERVICE_PORT}..."
-SERVICE_PORT=${SERVICE_PORT} PORT=${PORT} ./system-monitor-api &
+echo "Starting API on port ${API_PORT}..."
+API_PORT=${API_PORT} PORT=${PORT} ./system-monitor-api &
 API_PID=$!
 echo "API started with PID: $API_PID"
 cd ..
@@ -61,7 +61,7 @@ cd ..
 # Wait for API to be ready
 echo "Waiting for API to be ready..."
 for i in {1..10}; do
-    if curl -s "http://localhost:${SERVICE_PORT}/health" >/dev/null 2>&1; then
+    if curl -s "http://localhost:${API_PORT}/health" >/dev/null 2>&1; then
         echo -e "${GREEN}✅ API is ready${NC}"
         break
     fi
@@ -76,7 +76,7 @@ if ! check_port ${UI_PORT}; then
         echo "Installing UI dependencies..."
         npm install express >/dev/null 2>&1
     fi
-    PORT=${UI_PORT} API_PORT=${SERVICE_PORT} node server.js &
+    PORT=${UI_PORT} API_PORT=${API_PORT} node server.js &
     UI_PID=$!
     echo "UI started with PID: $UI_PID"
     cd ..
@@ -92,7 +92,7 @@ echo ""
 echo -e "${GREEN}✨ System Monitor is running!${NC}"
 echo ""
 echo "📊 Dashboard: http://localhost:${UI_PORT}"
-echo "🔧 API:       http://localhost:${SERVICE_PORT}/health"
+echo "🔧 API:       http://localhost:${API_PORT}/health"
 echo ""
 echo "CLI Commands:"
 echo "  ./cli/system-monitor health       - Check system health"

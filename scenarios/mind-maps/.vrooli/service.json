@@ -27,7 +27,7 @@
   },
   "ports": {
     "api": {
-      "env_var": "SERVICE_PORT",
+      "env_var": "API_PORT",
       "port": 25000,
       "fallback": "auto",
       "description": "Main API port for mind maps service"
@@ -187,13 +187,13 @@
       "steps": [
         {
           "name": "start-api-server",
-          "run": "cd api && PORT=$SERVICE_PORT ./mind-maps-api",
+          "run": "cd api && env PORT=$API_PORT ./mind-maps-api",
           "description": "Start Go API server in background",
           "background": true
         },
         {
           "name": "start-ui-server",
-          "run": "cd ui && PORT=$UI_PORT API_URL=http://localhost:$SERVICE_PORT node server.js",
+          "run": "cd ui && env PORT=$UI_PORT API_URL=http://localhost:$API_PORT node server.js",
           "description": "Start UI server in background",
           "background": true
         },

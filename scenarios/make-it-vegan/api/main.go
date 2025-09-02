@@ -253,7 +253,7 @@ func main() {
     
     port := os.Getenv("PORT")
     if port == "" {
-        port = os.Getenv("SERVICE_PORT")
+        port = os.Getenv("API_PORT")
         if port == "" {
             port = "8080"
         }

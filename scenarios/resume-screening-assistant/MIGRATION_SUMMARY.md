@@ -76,7 +76,7 @@ vrooli scenario develop resume-screening-assistant
 ### Access Points
 - **Windmill Dashboard**: `http://localhost:${RESOURCE_PORTS[windmill]}`
 - **n8n Workflows**: `http://localhost:${RESOURCE_PORTS[n8n]}`
-- **API**: `http://localhost:${SERVICE_PORT}`
+- **API**: `http://localhost:${API_PORT}`
 - **CLI**: `resume-screening-assistant --help`
 
 ### API Endpoints

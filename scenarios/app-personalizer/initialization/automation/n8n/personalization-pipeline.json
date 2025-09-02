@@ -5,7 +5,10 @@
       "name": "Personalization Request",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [250, 350],
+      "position": [
+        250,
+        350
+      ],
       "webhookId": "personalize-app",
       "parameters": {
         "path": "personalize",
@@ -16,14 +19,20 @@
       "name": "Manual Trigger",
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
-      "position": [250, 200],
+      "position": [
+        250,
+        200
+      ],
       "parameters": {}
     },
     {
       "name": "Set Defaults",
       "type": "n8n-nodes-base.set",
       "typeVersion": 1,
-      "position": [450, 200],
+      "position": [
+        450,
+        200
+      ],
       "parameters": {
         "values": {
           "string": [
@@ -55,9 +64,12 @@
       "name": "Backup Original App",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
-      "position": [450, 250],
+      "position": [
+        450,
+        250
+      ],
       "parameters": {
-        "url": "http://localhost:{{$env.SERVICE_PORT}}/api/backup",
+        "url": "http://localhost:{{$env.API_PORT}}/api/backup",
         "method": "POST",
         "body": {
           "app_path": "={{$json.app_path}}",
@@ -69,7 +81,10 @@
       "name": "Analyze App Structure",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
-      "position": [450, 350],
+      "position": [
+        450,
+        350
+      ],
       "parameters": {
         "url": "http://localhost:{{$env.RESOURCE_PORTS_n8n}}/webhook/ollama",
         "method": "POST",
@@ -112,7 +127,10 @@
       "name": "Fetch Digital Twin",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
-      "position": [650, 300],
+      "position": [
+        650,
+        300
+      ],
       "parameters": {
         "url": "http://localhost:{{$env.PERSONAL_DIGITAL_TWIN_PORT}}/api/twin/export",
         "method": "POST",
@@ -129,7 +147,10 @@
       "name": "Fetch Brand Assets",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
-      "position": [650, 400],
+      "position": [
+        650,
+        400
+      ],
       "parameters": {
         "url": "http://localhost:{{$env.BRAND_MANAGER_PORT}}/api/brand/export",
         "method": "POST",
@@ -146,7 +167,10 @@
       "name": "Generate Modification Plan",
       "type": "n8n-nodes-base.function",
       "typeVersion": 1,
-      "position": [850, 350],
+      "position": [
+        850,
+        350
+      ],
       "parameters": {
         "functionCode": "// Combine digital twin data and brand assets to create modification plan\nconst modifications = [];\n\n// UI Theme modifications from brand\nif ($json.brand_assets) {\n  modifications.push({\n    type: 'ui_theme',\n    files: ['src/styles/theme.js', 'public/manifest.json'],\n    changes: $json.brand_assets.theme\n  });\n}\n\n// Content personalization from digital twin\nif ($json.twin_data) {\n  modifications.push({\n    type: 'content',\n    files: ['src/components/Welcome.jsx', 'src/data/defaults.js'],\n    changes: {\n      persona_name: $json.twin_data.name,\n      preferences: $json.twin_data.preferences,\n      custom_prompts: $json.twin_data.prompts\n    }\n  });\n}\n\n// Behavior modifications\nif ($json.personalization_type === 'full') {\n  modifications.push({\n    type: 'behavior',\n    files: ['src/config/app.config.js'],\n    changes: {\n      ai_personality: $json.twin_data.personality,\n      interaction_style: $json.twin_data.conversation_style\n    }\n  });\n}\n\nreturn [{json: {modifications, app_path: $json.app_path}}];"
       }
@@ -155,7 +179,10 @@
       "name": "Claude Code Integration",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
-      "position": [1050, 350],
+      "position": [
+        1050,
+        350
+      ],
       "parameters": {
         "url": "http://localhost:{{$env.RESOURCE_PORTS_claude_code}}/api/modify",
         "method": "POST",
@@ -171,7 +198,10 @@
       "name": "Store Personalization",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
-      "position": [1250, 300],
+      "position": [
+        1250,
+        300
+      ],
       "parameters": {
         "operation": "insert",
         "table": "personalizations",
@@ -182,15 +212,24 @@
       "name": "Deploy Mode Router",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 1,
-      "position": [1250, 400],
+      "position": [
+        1250,
+        400
+      ],
       "parameters": {
         "dataType": "string",
         "value1": "={{$json.deployment_mode}}",
         "rules": {
           "rules": [
-            {"value2": "copy"},
-            {"value2": "patch"},
-            {"value2": "multi_tenant"}
+            {
+              "value2": "copy"
+            },
+            {
+              "value2": "patch"
+            },
+            {
+              "value2": "multi_tenant"
+            }
           ]
         }
       }
@@ -199,7 +238,10 @@
       "name": "Create App Copy",
       "type": "n8n-nodes-base.executeCommand",
       "typeVersion": 1,
-      "position": [1450, 350],
+      "position": [
+        1450,
+        350
+      ],
       "parameters": {
         "command": "cp -r {{$json.app_path}} {{$json.app_path}}-personalized-{{$json.persona_id}}"
       }
@@ -208,7 +250,10 @@
       "name": "Apply Patch",
       "type": "n8n-nodes-base.executeCommand",
       "typeVersion": 1,
-      "position": [1450, 400],
+      "position": [
+        1450,
+        400
+      ],
       "parameters": {
         "command": "cd {{$json.app_path}} && git apply {{$json.patch_file}}"
       }
@@ -217,9 +262,12 @@
       "name": "Multi-Tenant Config",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
-      "position": [1450, 450],
+      "position": [
+        1450,
+        450
+      ],
       "parameters": {
-        "url": "http://localhost:{{$env.SERVICE_PORT}}/api/multi-tenant/configure",
+        "url": "http://localhost:{{$env.API_PORT}}/api/multi-tenant/configure",
         "method": "POST",
         "body": {
           "app_id": "={{$json.app_id}}",
@@ -232,13 +280,20 @@
       "name": "Validate & Test",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
-      "position": [1650, 350],
+      "position": [
+        1650,
+        350
+      ],
       "parameters": {
-        "url": "http://localhost:{{$env.SERVICE_PORT}}/api/validate",
+        "url": "http://localhost:{{$env.API_PORT}}/api/validate",
         "method": "POST",
         "body": {
           "app_path": "={{$json.personalized_app_path}}",
-          "tests": ["build", "lint", "startup"]
+          "tests": [
+            "build",
+            "lint",
+            "startup"
+          ]
         }
       }
     },
@@ -246,7 +301,10 @@
       "name": "Notify Completion",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [1850, 350],
+      "position": [
+        1850,
+        350
+      ],
       "parameters": {
         "path": "personalization-complete",
         "method": "POST",
@@ -260,61 +318,143 @@
   ],
   "connections": {
     "Manual Trigger": {
-      "main": [[
-        {"node": "Set Defaults"}
-      ]]
+      "main": [
+        [
+          {
+            "node": "Set Defaults"
+          }
+        ]
+      ]
     },
     "Set Defaults": {
-      "main": [[
-        {"node": "Backup Original App"},
-        {"node": "Analyze App Structure"}
-      ]]
+      "main": [
+        [
+          {
+            "node": "Backup Original App"
+          },
+          {
+            "node": "Analyze App Structure"
+          }
+        ]
+      ]
     },
     "Personalization Request": {
-      "main": [[
-        {"node": "Backup Original App"},
-        {"node": "Analyze App Structure"}
-      ]]
+      "main": [
+        [
+          {
+            "node": "Backup Original App"
+          },
+          {
+            "node": "Analyze App Structure"
+          }
+        ]
+      ]
     },
     "Analyze App Structure": {
-      "main": [[
-        {"node": "Fetch Digital Twin"},
-        {"node": "Fetch Brand Assets"}
-      ]]
+      "main": [
+        [
+          {
+            "node": "Fetch Digital Twin"
+          },
+          {
+            "node": "Fetch Brand Assets"
+          }
+        ]
+      ]
     },
     "Fetch Digital Twin": {
-      "main": [[ {"node": "Generate Modification Plan"} ]]
+      "main": [
+        [
+          {
+            "node": "Generate Modification Plan"
+          }
+        ]
+      ]
     },
     "Fetch Brand Assets": {
-      "main": [[ {"node": "Generate Modification Plan"} ]]
+      "main": [
+        [
+          {
+            "node": "Generate Modification Plan"
+          }
+        ]
+      ]
     },
     "Generate Modification Plan": {
-      "main": [[ {"node": "Claude Code Integration"} ]]
+      "main": [
+        [
+          {
+            "node": "Claude Code Integration"
+          }
+        ]
+      ]
     },
     "Claude Code Integration": {
-      "main": [[
-        {"node": "Store Personalization"},
-        {"node": "Deploy Mode Router"}
-      ]]
+      "main": [
+        [
+          {
+            "node": "Store Personalization"
+          },
+          {
+            "node": "Deploy Mode Router"
+          }
+        ]
+      ]
     },
     "Deploy Mode Router": {
       "main": [
-        [ {"node": "Create App Copy"} ],
-        [ {"node": "Apply Patch"} ],
-        [ {"node": "Multi-Tenant Config"} ]
+        [
+          {
+            "node": "Create App Copy"
+          }
+        ],
+        [
+          {
+            "node": "Apply Patch"
+          }
+        ],
+        [
+          {
+            "node": "Multi-Tenant Config"
+          }
+        ]
       ]
     },
     "Create App Copy": {
-      "main": [[ {"node": "Validate & Test"} ]]
+      "main": [
+        [
+          {
+            "node": "Validate & Test"
+          }
+        ]
+      ]
     },
     "Apply Patch": {
-      "main": [[ {"node": "Validate & Test"} ]]
+      "main": [
+        [
+          {
+            "node": "Validate & Test"
+          }
+        ]
+      ]
     },
     "Multi-Tenant Config": {
-      "main": [[ {"node": "Validate & Test"} ]]
+      "main": [
+        [
+          {
+            "node": "Validate & Test"
+          }
+        ]
+      ]
     },
     "Validate & Test": {
-      "main": [[ {"node": "Notify Completion"} ]]
+      "main": [
+        [
+          {
+            "node": "Notify Completion"
+          }
+        ]
+      ]
     }
   }
 }
