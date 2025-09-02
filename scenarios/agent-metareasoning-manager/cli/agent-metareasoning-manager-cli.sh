@@ -8,7 +8,7 @@ set -euo pipefail
 CLI_VERSION="2.0.0"
 
 # Configuration
-API_BASE="${AGENT_METAREASONING_MANAGER_API_BASE:-http://localhost:${SERVICE_PORT:-8090}}"
+API_BASE="${AGENT_METAREASONING_MANAGER_API_BASE:-http://localhost:${API_PORT:-8090}}"
 API_TOKEN="${AGENT_METAREASONING_MANAGER_TOKEN:-agent_metareasoning_manager_cli_default_2024}"
 
 # API request helper

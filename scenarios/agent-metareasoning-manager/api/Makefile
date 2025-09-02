@@ -8,7 +8,7 @@ GO_FILES=$(shell find . -name '*.go' -not -path "./vendor/*")
 COVERAGE_TARGET=90
 # Use dynamic port from environment or fall back to default
 POSTGRES_PORT ?= 5432
-SERVICE_PORT ?= 8090
+API_PORT ?= 8090
 TEST_DB_URL=postgres://postgres:postgres@localhost:$(POSTGRES_PORT)/metareasoning_test?sslmode=disable
 
 # Default target

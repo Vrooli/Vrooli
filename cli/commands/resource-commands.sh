@@ -758,7 +758,7 @@ resource_start() {
             # Clear source guards before exec to allow proper sourcing
             if (unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED; 
                 export VROOLI_ROOT="${VROOLI_ROOT:-$(cd "$RESOURCES_DIR/.." && pwd)}";
-                "$resource_command" manage start --force >/dev/null 2>&1); then
+                "$resource_command" manage start >/dev/null 2>&1); then
                 exit_code=0
             elif (unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED;
                   export VROOLI_ROOT="${VROOLI_ROOT:-$(cd "$RESOURCES_DIR/.." && pwd)}";

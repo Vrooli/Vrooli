@@ -6,7 +6,7 @@ const path = require('path');
 const url = require('url');
 
 const PORT = process.env.UI_PORT || 3850;
-const API_PORT = process.env.SERVICE_PORT || 8850;
+const API_PORT = process.env.API_PORT || 8850;
 
 const mimeTypes = {
     '.html': 'text/html',

@@ -348,7 +348,7 @@
     },
     "claude-code": {
       "enabled": true,
-      "required": false,
+      "required": true,
       "description": "Claude Code development assistant"
     },
     "cline": {
@@ -358,7 +358,7 @@
     },
     "searxng": {
       "enabled": true,
-      "required": false,
+      "required": true,
       "description": "Privacy-respecting search engine"
     },
     "judge0": {

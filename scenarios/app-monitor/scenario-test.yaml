@@ -5,7 +5,7 @@ version: 1.0.0
 tests:
   - name: API Health Check
     type: http
-    endpoint: "http://localhost:${SERVICE_PORT}/health"
+    endpoint: "http://localhost:${API_PORT}/health"
     expected:
       status: 200
       body:
@@ -26,7 +26,7 @@ tests:
 
   - name: Docker API Integration
     type: http
-    endpoint: "http://localhost:${SERVICE_PORT}/api/docker/info"
+    endpoint: "http://localhost:${API_PORT}/api/docker/info"
     expected:
       status: 200
 
@@ -78,7 +78,7 @@ tests:
 
   - name: App List Endpoint
     type: http
-    endpoint: "http://localhost:${SERVICE_PORT}/api/apps"
+    endpoint: "http://localhost:${API_PORT}/api/apps"
     expected:
       status: 200
 
@@ -112,7 +112,7 @@ validation:
     - n8n
     - windmill
   environment_variables:
-    - SERVICE_PORT
+    - API_PORT
     - RESOURCE_PORTS[postgres]
     - RESOURCE_PORTS[redis]
     - RESOURCE_PORTS[n8n]

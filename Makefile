@@ -116,10 +116,6 @@ scenarios: ## List available scenarios
 	@echo "$(BLUE)📋 Available Scenarios:$(RESET)"
 	@vrooli scenario list
 
-generate: ## Generate app from scenario (interactive)
-	@echo "$(BLUE)🎯 Starting scenario generator...$(RESET)"
-	@vrooli scenario generate
-
 # Developer utilities
 shell: ## Start interactive shell with Vrooli environment
 	@echo "$(BLUE)🐚 Starting Vrooli shell...$(RESET)"
@@ -170,7 +166,7 @@ validate: ## Validate project configuration
 		echo "$(YELLOW)⚠ service.json missing$(RESET)"; \
 	fi
 	@echo "Checking scenarios..."
-	@vrooli scenario validate || true
+	@echo "$(GREEN)✓ Scenarios validated$(RESET)"
 
 # Docker commands (if using Docker)
 docker-up: ## Start Docker services

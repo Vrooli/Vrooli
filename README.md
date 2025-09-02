@@ -237,7 +237,7 @@ Vrooli uses a modern, privacy-first technology stack designed for local resource
 - **AI Model Agnostic:** Works with OpenAI, Anthropic, Mistral, local models
 - **Privacy by Design:** No external dependencies after setup
 
-[Detailed architecture documentation →](docs/architecture/README.md)
+[Detailed architecture documentation →](docs/ARCHITECTURE_OVERVIEW.md)
 
 ## Privacy & Security
 
@@ -269,7 +269,7 @@ Vrooli's local-first architecture provides inherent security advantages:
 
 We have set up a CI/CD pipeline to automatically deploy changes to a development VPS whenever changes are pushed to the `development` branch. This allows for quick testing and validation of changes before they are merged into the main branch and deployed to production.
 
-For detailed instructions on how to set up and use the CI/CD pipeline, see the [CI/CD Setup documentation](docs/deployment/ci_cd_setup.md).
+For detailed instructions on how to set up and use the CI/CD pipeline, see the [CI/CD Setup documentation](docs/devops/ci-cd.md).
 
 # Contributing
 

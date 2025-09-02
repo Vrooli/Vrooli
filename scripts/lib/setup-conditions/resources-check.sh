@@ -58,35 +58,35 @@ while IFS= read -r resource; do
             # For now, check if populate script was run
             if [[ ! -f "$APP_ROOT/data/.postgres-populated" ]]; then
                 echo "[DEBUG] PostgreSQL not populated for app" >&2
-                ((MISSING_COUNT++))
+                ((++MISSING_COUNT))
             fi
             ;;
         redis)
             # Check for Redis keys (would need actual Redis query)
             if [[ ! -f "$APP_ROOT/data/.redis-populated" ]]; then
                 echo "[DEBUG] Redis not populated for app" >&2
-                ((MISSING_COUNT++))
+                ((++MISSING_COUNT))
             fi
             ;;
         windmill)
             # Check for Windmill workspace
             if [[ ! -f "$APP_ROOT/data/.windmill-populated" ]]; then
                 echo "[DEBUG] Windmill workspace not created" >&2
-                ((MISSING_COUNT++))
+                ((++MISSING_COUNT))
             fi
             ;;
         n8n)
             # Check for n8n workflows
             if [[ ! -f "$APP_ROOT/data/.n8n-populated" ]]; then
                 echo "[DEBUG] n8n workflows not loaded" >&2
-                ((MISSING_COUNT++))
+                ((++MISSING_COUNT))
             fi
             ;;
         *)
             # Generic resource check
             if [[ ! -f "$APP_ROOT/data/.${resource}-populated" ]]; then
                 echo "[DEBUG] Resource $resource not populated" >&2
-                ((MISSING_COUNT++))
+                ((++MISSING_COUNT))
             fi
             ;;
     esac

@@ -133,7 +133,18 @@ main() {
             ;;
         status)
             local scenario_name="${1:-}"
-            local orchestrator_api="http://localhost:9500"
+            # Get orchestrator port from registry or environment
+            local orchestrator_port="${ORCHESTRATOR_PORT:-}"
+            if [[ -z "$orchestrator_port" ]]; then
+                # Try to get from port registry
+                if [[ -f "${APP_ROOT}/scripts/resources/port_registry.sh" ]]; then
+                    source "${APP_ROOT}/scripts/resources/port_registry.sh"
+                    orchestrator_port=$(ports::get_resource_port "vrooli-orchestrator")
+                fi
+                # Fallback to default if still empty
+                orchestrator_port="${orchestrator_port:-9500}"
+            fi
+            local orchestrator_api="http://localhost:${orchestrator_port}"
             
             # Check if orchestrator is reachable
             if ! curl -s -f --connect-timeout 2 --max-time 5 "${orchestrator_api}/health" >/dev/null 2>&1; then
@@ -171,33 +182,41 @@ main() {
                     echo "SCENARIO                          STATUS      PORT(S)"
                     echo "────────────────────────────────────────────────────────"
                     
-                    # Parse individual apps
-                    echo "$response" | jq -r '.apps[] | "\(.name)|\(.status)|\(.allocated_ports)"' 2>/dev/null | while IFS='|' read -r name status ports; do
-                        # Format ports
-                        local port_list=""
-                        if [[ "$ports" != "null" ]] && [[ -n "$ports" ]]; then
-                            port_list=$(echo "$ports" | jq -r 'to_entries | map("\(.key):\(.value)") | join(", ")' 2>/dev/null)
-                        fi
-                        
-                        # Color code status
+                    # Parse individual apps - format ports in jq to avoid shell parsing issues
+                    echo "$response" | jq -r '.apps[] | "\(.name)|\(.status)|" + (.allocated_ports | if . == {} or . == null then "" else (. | to_entries | map("\(.key):\(.value)") | join(", ")) end) + "|" + (.actual_health // "unknown")' 2>/dev/null | while IFS='|' read -r name status port_list health; do
+                        # Color code status based on actual health
                         local status_display
-                        case "$status" in
-                            running)
-                                status_display="🟢 running"
-                                ;;
-                            stopped)
-                                status_display="⚫ stopped"
-                                ;;
-                            error)
-                                status_display="🔴 error"
-                                ;;
-                            starting)
-                                status_display="🟡 starting"
-                                ;;
-                            *)
-                                status_display="❓ $status"
-                                ;;
-                        esac
+                        if [ "$status" = "running" ]; then
+                            case "$health" in
+                                healthy)
+                                    status_display="🟢 running"
+                                    ;;
+                                degraded)
+                                    status_display="🟡 degraded"
+                                    ;;
+                                unhealthy)
+                                    status_display="🔴 unhealthy"
+                                    ;;
+                                *)
+                                    status_display="🟢 running"
+                                    ;;
+                            esac
+                        else
+                            case "$status" in
+                                stopped)
+                                    status_display="⚫ stopped"
+                                    ;;
+                                error)
+                                    status_display="🔴 error"
+                                    ;;
+                                starting)
+                                    status_display="🟡 starting"
+                                    ;;
+                                *)
+                                    status_display="❓ $status"
+                                    ;;
+                            esac
+                        fi
                         
                         printf "%-33s %-11s %s\n" "$name" "$status_display" "$port_list"
                     done

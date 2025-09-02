@@ -24,7 +24,7 @@
   },
   "ports": {
     "api": {
-      "env_var": "SERVICE_PORT",
+      "env_var": "API_PORT",
       "port": 27100,
       "description": "Main API port for wheel operations"
     },

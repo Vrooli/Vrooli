@@ -151,9 +151,9 @@ vrooli scenario test <name>              # Test scenario integration
 
 # Manual Execution
 cd scenarios/<name>
-../../scripts/manage.sh develop         # Start scenario
-../../scripts/manage.sh test            # Test scenario
-../../scripts/manage.sh stop            # Stop scenario
+vrooli scenario run <scenario-name>     # Start scenario directly
+vrooli scenario test <scenario-name>    # Test scenario
+vrooli stop scenarios                   # Stop scenarios
 ```
 
 ## 🔄 Emergent Capabilities

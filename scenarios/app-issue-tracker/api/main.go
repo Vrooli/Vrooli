@@ -128,7 +128,7 @@ func loadConfig() *Config {
 	}
 	
 	return &Config{
-		Port:       getEnv("PORT", "8090"),
+		Port:       getEnv("API_PORT", "21250"),
 		QdrantURL:  getEnv("QDRANT_URL", "http://localhost:6333"),
 		IssuesDir:  getEnv("ISSUES_DIR", defaultIssuesDir),
 		N8NBaseURL: getEnv("N8N_BASE_URL", "http://localhost:5678"),
@@ -858,7 +858,7 @@ func main() {
 	api.HandleFunc("/issues", server.getIssuesHandler).Methods("GET")
 	api.HandleFunc("/issues", server.createIssueHandler).Methods("POST")
 	api.HandleFunc("/issues/search", server.searchIssuesHandler).Methods("GET")
-	api.HandleFunc("/issues/search/similar", server.vectorSearchHandler).Methods("POST")
+	// api.HandleFunc("/issues/search/similar", server.vectorSearchHandler).Methods("POST") // TODO: Implement vector search
 	api.HandleFunc("/agents", server.getAgentsHandler).Methods("GET")
 	api.HandleFunc("/apps", server.getAppsHandler).Methods("GET")
 	api.HandleFunc("/investigate", server.triggerInvestigationHandler).Methods("POST")

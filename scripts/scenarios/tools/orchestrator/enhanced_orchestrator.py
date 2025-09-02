@@ -48,7 +48,7 @@ class EnhancedApp:
     """Enhanced app representation with granular state tracking"""
     name: str
     enabled: bool
-    allocated_ports: Dict[str, int] = field(default_factory=dict)
+    allocated_ports: Dict[str, Dict[str, Any]] = field(default_factory=dict)  # Now stores full port config
     process: Optional[asyncio.subprocess.Process] = None
     pid: Optional[int] = None
     log_file: Optional[Path] = None
@@ -61,10 +61,18 @@ class EnhancedApp:
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for API responses"""
+        # Simplify allocated_ports for API response (just port numbers)
+        simple_ports = {}
+        for port_type, port_config in self.allocated_ports.items():
+            if isinstance(port_config, dict):
+                simple_ports[port_type] = port_config.get('port')
+            else:
+                simple_ports[port_type] = port_config
+        
         return {
             "name": self.name,
             "enabled": self.enabled,
-            "allocated_ports": self.allocated_ports,
+            "allocated_ports": simple_ports,
             "pid": self.pid,
             "status": self.status,
             "started_at": self.started_at.isoformat() if self.started_at else None,
@@ -184,7 +192,9 @@ class EnhancedAppOrchestrator:
             
             # Check for running processes related to this app
             # Method 1: Check if ports are in use
-            for port_type, port_num in app.allocated_ports.items():
+            for port_type, port_config in app.allocated_ports.items():
+                # Handle both old and new format
+                port_num = port_config.get('port') if isinstance(port_config, dict) else port_config
                 if not self.is_port_available(port_num):
                     # Port is in use, likely app is running
                     try:
@@ -240,17 +250,50 @@ class EnhancedAppOrchestrator:
         else:
             self.logger.info("No previously running apps detected")
     
-    def pre_allocate_ports_for_app(self, app_name: str, config: Dict) -> Dict[str, int]:
+    def pre_allocate_ports_for_app(self, app_name: str, config: Dict) -> Dict[str, Dict[str, Any]]:
         """Pre-allocate ports for a specific app"""
         ports_config = config.get("ports", {})
         allocated = {}
         
         for port_type, port_info in ports_config.items():
             if isinstance(port_info, dict):
-                if "fixed" in port_info:
+                # Get env_var from config, with smart defaults
+                if port_type == "api":
+                    default_env_var = "API_PORT"
+                elif port_type == "ui":
+                    default_env_var = "UI_PORT"
+                else:
+                    default_env_var = f"{port_type.upper()}_PORT"
+                
+                env_var = port_info.get("env_var", default_env_var)
+                
+                # Handle new service.json format with "port" key
+                if "port" in port_info:
+                    desired_port = int(port_info["port"])
+                    if self.is_port_available(desired_port):
+                        allocated[port_type] = {
+                            "port": desired_port,
+                            "env_var": env_var
+                        }
+                        self.allocated_ports.add(desired_port)
+                    elif port_info.get("fallback") == "auto":
+                        # Auto-allocate a port if desired one is taken
+                        for port in range(30000, 40000):
+                            if self.is_port_available(port):
+                                allocated[port_type] = {
+                                    "port": port,
+                                    "env_var": env_var
+                                }
+                                self.allocated_ports.add(port)
+                                break
+                # Legacy format support
+                elif "fixed" in port_info:
                     fixed_port = int(port_info["fixed"])
                     if self.is_port_available(fixed_port):
-                        allocated[port_type] = fixed_port
+                        allocated[port_type] = {
+                            "port": fixed_port,
+                            "env_var": env_var
+                        }
                         self.allocated_ports.add(fixed_port)
                 elif "range" in port_info:
                     range_str = port_info["range"]
@@ -258,7 +301,10 @@ class EnhancedAppOrchestrator:
                         start, end = map(int, range_str.split("-"))
                         for port in range(start, end + 1):
                             if self.is_port_available(port):
-                                allocated[port_type] = port
+                                allocated[port_type] = {
+                                    "port": port,
+                                    "env_var": env_var
+                                }
                                 self.allocated_ports.add(port)
                                 break
         
@@ -306,18 +352,8 @@ class EnhancedAppOrchestrator:
                 self.logger.error(f"Scenario path not found: {app_path}")
                 return False
             
-            # Create setup markers for compatibility (some scripts may check these)
-            data_dir = app_path / "data"
-            data_dir.mkdir(parents=True, exist_ok=True)
-            
-            # Create the state file for backward compatibility
-            state_file = data_dir / ".setup-state"
-            state_data = {
-                "git_commit": "direct-execution",
-                "timestamp": time.time(),
-                "setup_complete": True
-            }
-            state_file.write_text(json.dumps(state_data, indent=2))
+            # Let lifecycle.sh handle setup state properly
+            # Don't create fake setup markers - this prevents npm install from running
             
             # Prepare environment with allocated ports
             env = os.environ.copy()
@@ -327,25 +363,36 @@ class EnhancedAppOrchestrator:
                 if key.endswith('_PORT'):
                     del env[key]
             
-            # Set allocated ports
-            for port_type, port_num in app.allocated_ports.items():
-                if port_type == "api":
-                    env['SERVICE_PORT'] = str(port_num)
-                    env['PORT'] = str(port_num)
-                elif port_type == "ui":
-                    env['UI_PORT'] = str(port_num)
+            # Set allocated ports using the env_var from service.json
+            for port_type, port_config in app.allocated_ports.items():
+                if isinstance(port_config, dict):
+                    # New format with env_var from service.json
+                    env_var = port_config.get('env_var', f"{port_type.upper()}_PORT")
+                    port_num = port_config.get('port')
+                    if env_var and port_num:
+                        env[env_var] = str(port_num)
                 else:
-                    env[f"{port_type.upper()}_PORT"] = str(port_num)
+                    # Legacy format (backwards compatibility)
+                    port_num = port_config
+                    if port_type == "api":
+                        env['API_PORT'] = str(port_num)
+                    elif port_type == "ui":
+                        env['UI_PORT'] = str(port_num)
+                    else:
+                        env[f"{port_type.upper()}_PORT"] = str(port_num)
             
-            # Call lifecycle.sh directly via subprocess
+            # Call lifecycle.sh through environment setup wrapper
             lifecycle_script = self.vrooli_root / "scripts" / "lib" / "utils" / "lifecycle.sh"
+            env_setup_script = self.vrooli_root / "scripts" / "lib" / "utils" / "scenario-env-setup.sh"
             
             # Ensure log directory exists
             app.log_file.parent.mkdir(parents=True, exist_ok=True)
             
-            # Start the lifecycle execution in background
+            # Start the lifecycle execution in background with proper resource environment
+            # The wrapper script will add resource connection details (postgres, redis, etc.)
             with open(app.log_file, 'a') as log_f:
                 app.process = await asyncio.create_subprocess_exec(
+                    str(env_setup_script),
                     "bash", str(lifecycle_script), app_name, "develop", "--fast",
                     env=env,
                     stdout=log_f,
@@ -457,6 +504,45 @@ class EnhancedAppOrchestrator:
             return False
     
     
+    def check_service_health(self, port: int, port_type: str) -> Dict[str, Any]:
+        """Check if a service on a port is actually responding"""
+        import socket
+        import http.client
+        
+        result = {
+            "port": port,
+            "listening": False,
+            "responding": False,
+            "status_code": None
+        }
+        
+        # First check if port is bound
+        if self.is_port_available(port):
+            return result  # Port not even bound
+        
+        result["listening"] = True
+        
+        # Try HTTP health check with very short timeout
+        try:
+            conn = http.client.HTTPConnection("localhost", port, timeout=1)
+            
+            # Different endpoints for different port types
+            if port_type == "api":
+                path = "/health"
+            else:  # UI
+                path = "/"
+            
+            conn.request("GET", path)
+            response = conn.getresponse()
+            result["responding"] = True
+            result["status_code"] = response.status
+            conn.close()
+            
+        except (socket.timeout, socket.error, http.client.HTTPException):
+            result["responding"] = False
+        
+        return result
+    
     def get_app_status(self, app_name: str) -> Dict[str, Any]:
         """Get detailed status of a specific app"""
         if app_name not in self.apps:
@@ -473,14 +559,27 @@ class EnhancedAppOrchestrator:
         
         status = app.to_dict()
         
-        # Add port availability info
+        # Add enhanced port status with health checks
         port_status = {}
-        for port_type, port_num in app.allocated_ports.items():
-            port_status[port_type] = {
-                "port": port_num,
-                "listening": not self.is_port_available(port_num)
-            }
+        actual_health = "healthy"  # Assume healthy unless proven otherwise
+        
+        for port_type, port_config in app.allocated_ports.items():
+            # Handle both old and new format
+            port_num = port_config.get('port') if isinstance(port_config, dict) else port_config
+            health_check = self.check_service_health(port_num, port_type)
+            port_status[port_type] = health_check
+            
+            # Determine overall health
+            if app.status == "running":
+                if not health_check["listening"]:
+                    actual_health = "degraded"  # Port not bound
+                elif not health_check["responding"]:
+                    actual_health = "unhealthy"  # Port bound but not responding
+                elif port_type == "api" and health_check["status_code"] != 200:
+                    actual_health = "degraded"  # API not healthy
+        
         status["port_status"] = port_status
+        status["actual_health"] = actual_health
         
         return status
 

@@ -23,8 +23,8 @@ try {
   const resourceUrlsRaw = fs.readFileSync(resourceUrlsPath, 'utf8');
   
   // Process templates ({{SECRET_NAME}} substitution would happen here in real deployment)
-  // For now, we'll handle SERVICE_PORT via environment variable
-  const processedConfig = configRaw.replace(/"\{\{SERVICE_PORT\}\}"/g, process.env.SERVICE_PORT || process.env.PORT || '8082');
+  // For now, we'll handle API_PORT via environment variable
+  const processedConfig = configRaw.replace(/"\{\{API_PORT\}\}"/g, process.env.API_PORT || process.env.PORT || '8082');
   
   config = JSON.parse(processedConfig);
   modelCapabilities = JSON.parse(capabilitiesRaw);
@@ -38,7 +38,7 @@ try {
 }
 
 const app = express();
-const port = config.server.port || process.env.SERVICE_PORT || process.env.PORT || '8082';
+const port = config.server.port || process.env.API_PORT || process.env.PORT || '8082';
 
 // Security middleware
 app.use(helmet());

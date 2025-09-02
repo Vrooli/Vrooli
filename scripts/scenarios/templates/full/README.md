@@ -109,8 +109,8 @@ cd {{ scenario.id }}
 ../../manage.sh develop --target native-linux
 
 # Services will be available at:
-# - API Server: http://localhost:${SERVICE_PORT}
-# - API Docs: http://localhost:${SERVICE_PORT}/docs
+# - API Server: http://localhost:${API_PORT}
+# - API Docs: http://localhost:${API_PORT}/docs
 # - Windmill UI: http://localhost:5681
 # - n8n Workflows: http://localhost:5678
 ```
@@ -128,18 +128,18 @@ CLI_NAME_PLACEHOLDER execute workflow-1 "Input data" # Execute workflow
 ### **4. Access API Directly**
 ```bash
 # Health check
-curl http://localhost:${SERVICE_PORT}/health
+curl http://localhost:${API_PORT}/health
 
 # List resources (with authentication)
 curl -H "Authorization: Bearer API_TOKEN_PLACEHOLDER" \
-     http://localhost:${SERVICE_PORT}/api/v1/resources
+     http://localhost:${API_PORT}/api/v1/resources
 
 # Create resource
 curl -X POST \
      -H "Authorization: Bearer API_TOKEN_PLACEHOLDER" \
      -H "Content-Type: application/json" \
      -d '{"name": "Test", "description": "Example"}' \
-     http://localhost:${SERVICE_PORT}/api/v1/resources
+     http://localhost:${API_PORT}/api/v1/resources
 ```
 
 ## 📁 **File Structure**
@@ -230,7 +230,7 @@ CLI_NAME_PLACEHOLDER configure output_format json
 The API uses Bearer token authentication:
 ```bash
 curl -H "Authorization: Bearer API_TOKEN_PLACEHOLDER" \
-     http://localhost:${SERVICE_PORT}/api/v1/resources
+     http://localhost:${API_PORT}/api/v1/resources
 ```
 
 ## 🔧 **Customization Guide**
@@ -297,9 +297,9 @@ Edit `initialization/automation/n8n/main-workflow.json`:
 ### **Manual Testing**
 ```bash
 # Test API endpoints
-curl http://localhost:${SERVICE_PORT}/health
+curl http://localhost:${API_PORT}/health
 curl -H "Authorization: Bearer API_TOKEN_PLACEHOLDER" \
-     http://localhost:${SERVICE_PORT}/api/v1/resources
+     http://localhost:${API_PORT}/api/v1/resources
 
 # Test CLI commands
 CLI_NAME_PLACEHOLDER health
@@ -388,7 +388,7 @@ This scenario template targets projects in the **$10K-$50K** range with proven m
 docker logs <container-name>
 
 # Verify ports
-lsof -i :${SERVICE_PORT}
+lsof -i :${API_PORT}
 
 # Database connection
 psql -h localhost -p 5433 -U postgres

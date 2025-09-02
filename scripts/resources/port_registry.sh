@@ -8,6 +8,7 @@
 declare -g -A RESOURCE_PORTS=(
     # Core Services
     ["vrooli-api"]="8092"      # Vrooli Unified API (was 8090, moved due to Whisper conflict)
+    ["vrooli-orchestrator"]="9500"  # Vrooli Orchestrator for managing scenarios/apps
     
     # AI Services (11xxx range)
     ["ollama"]="11434"         # LLM inference engine

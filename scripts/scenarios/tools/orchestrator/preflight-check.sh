@@ -24,7 +24,9 @@ echo
 # Your system normally runs ~300 user processes (postgres, resque, etc.)
 MAX_USER_PROCESSES=500  # Increased for server with background services
 MIN_MEMORY_MB=1000
-MAX_APPS_TO_START=10
+# Scenarios are lightweight compared to full apps, so we can safely run many more
+# Each scenario typically uses minimal resources until actively processing
+MAX_SCENARIOS_TO_START=100
 CRITICAL_PROCESS_LIMIT=1000  # Only panic if we hit this total
 
 # Check 1: Process count (excluding kernel threads)
@@ -76,12 +78,12 @@ if [[ -d "$SCENARIOS_DIR" ]]; then
     SCENARIO_COUNT=$(find "$SCENARIOS_DIR" -maxdepth 1 -type d ! -name ".*" ! -name "scenarios" | wc -l)
     echo "Scenarios found: $SCENARIO_COUNT"
     
-    if [[ $SCENARIO_COUNT -gt $MAX_APPS_TO_START ]]; then
+    if [[ $SCENARIO_COUNT -gt $MAX_SCENARIOS_TO_START ]]; then
         echo -e "${YELLOW}WARNING: Many scenarios found ($SCENARIO_COUNT)${NC}"
-        echo "Only the first $MAX_APPS_TO_START scenarios will be started to prevent overload."
+        echo "Only the first $MAX_SCENARIOS_TO_START scenarios will be started to prevent overload."
         
         # Create a file to limit scenarios
-        echo "$MAX_APPS_TO_START" > /tmp/vrooli-max-scenarios-limit
+        echo "$MAX_SCENARIOS_TO_START" > /tmp/vrooli-max-scenarios-limit
     fi
 fi
 

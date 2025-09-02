@@ -230,13 +230,13 @@ lifecycle::execute_phase() {
                     fi
                 else
                     log::warning "Process manager not available, falling back to manual process management"
-                    (cd "$exec_dir" && export SERVICE_PORT="${SERVICE_PORT:-}" && exec bash -c "$processed_run") &
+                    (cd "$exec_dir" && export API_PORT="${API_PORT:-}" && exec bash -c "$processed_run") &
                     local bg_pid=$!
                     log::info "  Started background process (PID: $bg_pid) - manual management"
                 fi
             else
                 # Run without timeout wrapper to preserve terminal control for sudo
-                (cd "$exec_dir" && export SERVICE_PORT="${SERVICE_PORT:-}" && bash -c "$processed_run") || {
+                (cd "$exec_dir" && export API_PORT="${API_PORT:-}" && bash -c "$processed_run") || {
                     local exit_code=$?
                     log::error "Step '$name' failed with exit code $exit_code"
                     rm -f "$steps_file"

@@ -28,7 +28,7 @@ type Response struct {
 var (
 	vrooliRoot           = getVrooliRoot()
 	orchestratorProcess  *exec.Cmd
-	orchestratorURL      = "http://localhost:9000"
+	orchestratorURL      = getOrchestratorURL()
 	orchestratorHealthy  = false
 	orchestratorStarting = false
 )
@@ -50,6 +50,25 @@ func getVrooliRoot() string {
 	}
 	ex, _ := os.Executable()
 	return filepath.Dir(filepath.Dir(ex))
+}
+
+func getOrchestratorURL() string {
+	// First check environment variable
+	if port := os.Getenv("ORCHESTRATOR_PORT"); port != "" {
+		return fmt.Sprintf("http://localhost:%s", port)
+	}
+	
+	// Try to get from port registry
+	portRegistryPath := filepath.Join(getVrooliRoot(), "scripts/resources/port_registry.sh")
+	cmd := exec.Command("bash", "-c", fmt.Sprintf("source %s && ports::get_resource_port vrooli-orchestrator", portRegistryPath))
+	if out, err := cmd.Output(); err == nil {
+		if port := strings.TrimSpace(string(out)); port != "" {
+			return fmt.Sprintf("http://localhost:%s", port)
+		}
+	}
+	
+	// Fallback to default
+	return "http://localhost:9500"
 }
 
 // === Orchestrator Management Functions ===
