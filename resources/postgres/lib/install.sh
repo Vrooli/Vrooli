@@ -68,6 +68,20 @@ postgres::install() {
         log::info "You may need to manually add PostgreSQL to ~/.vrooli/service.json"
     fi
     
+    # Auto-create main instance for immediate use
+    log::info "Creating default 'main' instance..."
+    if postgres::instance::create "main" "${POSTGRES_DEFAULT_PORT}" "development"; then
+        log::success "Default 'main' instance created on port ${POSTGRES_DEFAULT_PORT}"
+        # Try to start it
+        if postgres::docker::start "main"; then
+            log::success "Main instance started successfully"
+        else
+            log::warn "Main instance created but could not be started automatically"
+        fi
+    else
+        log::warn "Failed to create default 'main' instance - you can create it manually later"
+    fi
+    
     # Show success message
     log::success "${MSG_INSTALL_SUCCESS}"
     log::info ""

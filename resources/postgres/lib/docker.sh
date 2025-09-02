@@ -122,12 +122,33 @@ postgres::docker::start() {
     local container_name="${POSTGRES_CONTAINER_PREFIX}-${instance_name}"
     
     if ! postgres::common::container_exists "$instance_name"; then
-        log::error "PostgreSQL instance '$instance_name' does not exist. Run create first."
-        return 1
+        # Auto-create main instance if it doesn't exist
+        if [[ "$instance_name" == "main" ]]; then
+            log::info "Main instance doesn't exist, creating it automatically..."
+            if postgres::instance::create "main" "${POSTGRES_DEFAULT_PORT}" "development"; then
+                log::success "Main instance created successfully"
+            else
+                log::error "Failed to auto-create main instance"
+                return 1
+            fi
+        else
+            log::error "PostgreSQL instance '$instance_name' does not exist. Run create first."
+            return 1
+        fi
     fi
     
     if postgres::common::is_running "$instance_name"; then
         log::info "PostgreSQL instance '$instance_name' is already running"
+        # Check for corruption even if running
+        if ! postgres::common::health_check "$instance_name"; then
+            log::warning "Instance is running but unhealthy, checking for corruption..."
+            if postgres::common::detect_and_recover_corruption "$instance_name"; then
+                log::success "Instance recovered and ready"
+                return 0
+            else
+                return 1
+            fi
+        fi
         return 0
     fi
     
@@ -136,6 +157,19 @@ postgres::docker::start() {
     if docker::start_container "${container_name}"; then
         # Wait for container to be ready
         if postgres::common::wait_for_ready "$instance_name"; then
+            # Perform health check which includes corruption detection
+            if ! postgres::common::health_check "$instance_name"; then
+                log::warning "Instance started but failed health check, attempting recovery..."
+                if postgres::common::detect_and_recover_corruption "$instance_name"; then
+                    log::success "Instance recovered and ready"
+                    local port=$(postgres::common::get_instance_config "$instance_name" "port")
+                    log::info "${MSG_INSTANCE_AVAILABLE}: localhost:${port}"
+                    return 0
+                else
+                    log::error "Failed to recover instance"
+                    return 1
+                fi
+            fi
             local port=$(postgres::common::get_instance_config "$instance_name" "port")
             log::success "${MSG_START_SUCCESS}"
             log::info "${MSG_INSTANCE_AVAILABLE}: localhost:${port}"

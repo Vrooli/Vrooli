@@ -339,6 +339,28 @@ lifecycle::allocate_service_ports() {
     if [[ -f "$port_registry" ]]; then
         # shellcheck disable=SC1090
         source "$port_registry" 2>/dev/null || log::warning "Could not load port registry"
+        
+        # Export standard database URLs using postgres container credentials
+        local postgres_port="${RESOURCE_PORTS[postgres]:-5433}"
+        if command -v docker >/dev/null 2>&1 && docker ps --format '{{.Names}}' | grep -q "vrooli-postgres-main"; then
+            # Get credentials from postgres container environment
+            local container_env
+            container_env=$(docker inspect vrooli-postgres-main --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null)
+            
+            local db_user db_pass db_name
+            db_user=$(echo "$container_env" | grep '^POSTGRES_USER=' | cut -d'=' -f2)
+            db_pass=$(echo "$container_env" | grep '^POSTGRES_PASSWORD=' | cut -d'=' -f2)
+            db_name=$(echo "$container_env" | grep '^POSTGRES_DB=' | cut -d'=' -f2)
+            
+            if [[ -n "$db_user" && -n "$db_pass" && -n "$db_name" ]]; then
+                export POSTGRES_URL="postgres://${db_user}:${db_pass}@localhost:${postgres_port}/${db_name}?sslmode=disable"
+                export DATABASE_URL="$POSTGRES_URL"  # Some scenarios use DATABASE_URL
+                export POSTGRES_USER="$db_user"
+                export POSTGRES_PASSWORD="$db_pass"
+                export POSTGRES_DB="$db_name"
+                log::debug "Exported postgres credentials from container"
+            fi
+        fi
     fi
     
     # Build list of reserved ports from project-level service.json if available
@@ -510,6 +532,7 @@ lifecycle::main() {
     export SCENARIO_NAME="$scenario_name"
     export SCENARIO_PATH="$scenario_path"
     export SCENARIO_MODE=true
+    export VROOLI_ROOT="${var_ROOT_DIR}"
     
     # Set PM2 paths for scenario isolation
     export PM_HOME="${HOME}/.vrooli/processes/scenarios/${scenario_name}"

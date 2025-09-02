@@ -37,7 +37,8 @@ while IFS= read -r target; do
     # Check if file exists and is executable
     if [[ ! -f "$target" ]] || [[ ! -x "$target" ]]; then
         echo "[DEBUG] Binary missing or not executable: $target" >&2
-        ((MISSING_COUNT++))
+        # shellcheck disable=SC2219
+        MISSING_COUNT=$((MISSING_COUNT + 1))
     fi
 done <<< "$TARGETS"
 

@@ -241,10 +241,98 @@ postgres::common::health_check() {
     
     # Check if PostgreSQL is accepting connections (with timeout)
     if timeout 5 docker exec "$container_name" pg_isready -U "${POSTGRES_DEFAULT_USER}" >/dev/null 2>&1; then
+        # Additional check: verify the default role exists (corruption detection)
+        if ! postgres::common::verify_role_exists "$instance_name" "${POSTGRES_DEFAULT_USER}"; then
+            log::warning "Database appears corrupted (missing role: ${POSTGRES_DEFAULT_USER})"
+            return 1
+        fi
         return 0
     fi
     
     return 1
+}
+
+#######################################
+# Verify a database role exists
+# Arguments:
+#   $1 - instance name
+#   $2 - role name
+# Returns: 0 if exists, 1 if not
+#######################################
+postgres::common::verify_role_exists() {
+    local instance_name="${1:-main}"
+    local role_name="${2:-${POSTGRES_DEFAULT_USER}}"
+    local container_name="${POSTGRES_CONTAINER_PREFIX}-${instance_name}"
+    
+    # Check if role exists
+    if docker exec "$container_name" psql -U "$role_name" -d postgres -c "SELECT 1" >/dev/null 2>&1; then
+        return 0
+    fi
+    
+    return 1
+}
+
+#######################################
+# Detect and recover from database corruption
+# Arguments:
+#   $1 - instance name
+# Returns: 0 if recovered, 1 if not
+#######################################
+postgres::common::detect_and_recover_corruption() {
+    local instance_name="${1:-main}"
+    local container_name="${POSTGRES_CONTAINER_PREFIX}-${instance_name}"
+    
+    log::info "Checking database integrity for instance: $instance_name"
+    
+    # Check if container exists
+    if ! postgres::common::container_exists "$instance_name"; then
+        log::debug "Container doesn't exist, no corruption to recover"
+        return 0
+    fi
+    
+    # Try to start container if not running
+    if ! postgres::common::is_running "$instance_name"; then
+        docker start "$container_name" >/dev/null 2>&1
+        sleep 3
+    fi
+    
+    # Check for role corruption
+    if ! postgres::common::verify_role_exists "$instance_name" "${POSTGRES_DEFAULT_USER}"; then
+        log::warning "Database corruption detected: missing role '${POSTGRES_DEFAULT_USER}'"
+        log::info "Attempting automatic recovery..."
+        
+        # Stop the container
+        docker stop "$container_name" >/dev/null 2>&1
+        docker rm "$container_name" >/dev/null 2>&1
+        
+        # Remove corrupted data
+        local data_dir="${POSTGRES_INSTANCES_DIR}/${instance_name}/data"
+        if [[ -d "$data_dir" ]]; then
+            log::info "Removing corrupted data directory..."
+            rm -rf "$data_dir"
+        fi
+        
+        # Need to source instance.sh for create function
+        if [[ -f "${APP_ROOT}/resources/postgres/lib/instance.sh" ]]; then
+            source "${APP_ROOT}/resources/postgres/lib/instance.sh"
+        fi
+        
+        # Recreate the instance
+        local port=$(postgres::common::get_instance_config "$instance_name" "port" 2>/dev/null || echo "${POSTGRES_DEFAULT_PORT}")
+        local template=$(postgres::common::get_instance_config "$instance_name" "template" 2>/dev/null || echo "development")
+        
+        log::info "Recreating instance with fresh database..."
+        if postgres::instance::create "$instance_name" "$port" "$template"; then
+            log::success "Database corruption recovered successfully"
+            return 0
+        else
+            log::error "Failed to recover from database corruption"
+            return 1
+        fi
+    fi
+    
+    log::debug "No corruption detected"
+    return 0
 }
 
 #######################################
