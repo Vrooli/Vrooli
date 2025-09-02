@@ -244,6 +244,7 @@ node-red-flows-export-*.json
 
 # Go compiled binaries
 api/api-server
+scenarios/*/api/*-api
 
 # Output of the go coverage tool
 *.out
