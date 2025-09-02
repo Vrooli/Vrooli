@@ -267,7 +267,7 @@ This comprehensive troubleshooting guide provides solutions for common issues en
    node --version
    
    # Check for memory issues
-   node --max-old-space-size=4096 packages/server/dist/index.js
+   vrooli scenario run <scenario-name> --max-memory=4096
    ```
 
 ### Docker Daemon Target Issues
@@ -430,7 +430,7 @@ This comprehensive troubleshooting guide provides solutions for common issues en
 ### Build Dependency Issues
 
 **Symptoms:**
-- TypeScript compilation errors
+- Scenario configuration errors
 - Missing build tools
 - Native dependency compilation failures
 
@@ -754,8 +754,8 @@ This comprehensive troubleshooting guide provides solutions for common issues en
 
 2. **Fix import issues:**
    ```bash
-   # Check TypeScript configuration
-   cat packages/server/tsconfig.json
+   # Check scenario configuration
+   cat scenarios/<scenario-name>/.vrooli/service.json
    
    # Ensure proper file extensions
    import { something } from './module.js';  // Note .js extension
@@ -767,8 +767,7 @@ This comprehensive troubleshooting guide provides solutions for common issues en
    createdb vrooli_test
    
    # Run migrations for test DB
-   cd packages/server
-   NODE_ENV=test pnpm run migrate
+   NODE_ENV=test resource-postgres migrate
    ```
 
 ## CI/CD Pipeline Issues
@@ -1014,8 +1013,7 @@ This comprehensive troubleshooting guide provides solutions for common issues en
 1. **Check migration status:**
    ```bash
    # Check current schema version
-   cd packages/server
-   pnpm run migrate:status
+   resource-postgres migrate:status
    
    # Check migration files
    ls -la src/db/migrations/
@@ -1107,12 +1105,12 @@ This comprehensive troubleshooting guide provides solutions for common issues en
 
 3. **Optimize application:**
    ```bash
-   # Profile Node.js application
-   node --prof packages/server/dist/index.js
+   # Profile scenario application
+   vrooli scenario profile <scenario-name> --prof
    node --prof-process isolate-*.log > profile.txt
    
    # Check memory leaks
-   node --inspect packages/server/dist/index.js
+   vrooli scenario profile <scenario-name> --inspect
    ```
 
 ### Build Performance Issues
@@ -1143,7 +1141,7 @@ This comprehensive troubleshooting guide provides solutions for common issues en
    # Use .dockerignore
    ```
 
-3. **Optimize TypeScript compilation:**
+3. **Optimize scenario execution:**
    ```bash
    # Use incremental compilation
    # Enable project references

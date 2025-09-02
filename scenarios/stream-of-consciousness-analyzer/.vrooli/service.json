@@ -161,13 +161,13 @@
       "steps": [
         {
           "name": "start-api",
-          "run": "cd api && PORT=$SERVICE_PORT npm start &",
+          "run": "cd api && PORT=$SERVICE_PORT npm start",
           "description": "Start API server",
           "background": true
         },
         {
           "name": "start-ui",
-          "run": "cd ui && PORT=$UI_PORT npm start &",
+          "run": "cd ui && PORT=$UI_PORT npm start",
           "description": "Start UI server",
           "background": true
         },

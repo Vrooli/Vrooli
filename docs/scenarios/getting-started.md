@@ -1,63 +1,33 @@
-# Getting Started with Vrooli Scenarios
+# Scenario Creator's Guide
 
-> **Practical guide to creating, testing, and deploying business scenarios**
+> **Tutorial: Build your first $10K-50K business application**
 
-**Prerequisites**: Complete the [Quick Start Guide](../GETTING_STARTED.md) first (15 minutes)
+📍 **Navigation**: [Main Docs](../README.md) → [Getting Started](../GETTING_STARTED.md) → **Scenario Creation Tutorial**
 
-## 📚 Navigation
+⚠️ **Prerequisites**: Complete the [Main Getting Started Guide](../GETTING_STARTED.md) first and choose "Path 2: Create New Scenarios"
 
-- **[CONCEPTS.md](CONCEPTS.md)** - Understanding dual-purpose scenarios and resource orchestration
-- **[VALIDATION.md](VALIDATION.md)** - Testing and validation framework
-- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Running scenarios directly in production
-- **This Guide** - Step-by-step scenario creation tutorial
+**This guide assumes you have:**
+- ✅ Vrooli installed and setup complete
+- ✅ Resources running (`vrooli resource status` shows healthy)  
+- ✅ Successfully run at least one existing scenario
+- ✅ Understanding of direct execution (no build steps)
+
+> 📚 **[Back to Scenario Documentation](README.md)** | **[Main Getting Started](../GETTING_STARTED.md)**
 
 ## 🎯 What You'll Learn
 
-By the end of this tutorial, you'll be able to:
-- ✅ Create a complete scenario from scratch using templates
-- ✅ Test scenario integration with resources  
-- ✅ Validate business requirements and revenue potential
-- ✅ Deploy scenarios directly without conversion
+This tutorial teaches you to:
+- Create scenarios from templates in 15 minutes
+- Configure resource orchestration for business value
+- Write integration tests that validate deployment readiness
+- Structure scenarios for AI generation compatibility
 
 **Time Required**: 30-45 minutes  
-**Audience**: Business application builders using Vrooli scenarios
+**Outcome**: Your first custom revenue-generating scenario
 
 ---
 
-## 🚀 Quick Setup
-
-### Prerequisites
-```bash
-# 1. Ensure you're in the Vrooli root directory
-cd ${VROOLI_ROOT}
-
-# 2. Verify scenarios directory exists
-ls -la scenarios/
-
-# 3. Check available resources
-./resources/index.sh --action discover
-```
-
-### Your First Look
-```bash
-# Explore the scenario ecosystem
-cd scenarios/
-
-# Browse available scenarios
-ls -la                                    # See all scenarios
-
-# Check available scenarios
-ls -la                                    # List all scenarios
-
-# Look at a simple example
-cd research-assistant/
-cat service.json                        # Scenario configuration
-cat README.md                           # Business documentation
-```
-
----
-
-## 🏗️ Step 1: Understanding Scenario Anatomy
+## Step 1: Understanding Scenario Anatomy
 
 Every scenario has **four core components**:
 
@@ -129,14 +99,16 @@ test_scenario
 
 ---
 
-## 🎯 Step 2: Create Your First Scenario
+## Step 2: Create Your First Scenario
 
 ### Choose Your Template
 
+Vrooli provides two starter templates:
+
 | Template | Best For | Complexity |
 |----------|----------|------------|
-| [**basic/**](../templates/basic/) | Resource integration testing | ⭐ Simple |
-| [**full/**](../templates/full/) | Customer applications | ⭐⭐ Moderate |
+| **basic** | Resource integration testing | ⭐ Simple |
+| **full** | Customer applications | ⭐⭐ Moderate |
 
 **For this tutorial, we'll use the full template:**
 
@@ -226,7 +198,7 @@ test_customer_portal
 
 ---
 
-## 🧪 Step 3: Test Your Scenario
+## Step 3: Test Your Scenario
 
 ### Run Integration Tests
 ```bash
@@ -281,7 +253,7 @@ psql -h localhost -U postgres -l              # Test PostgreSQL
 
 ---
 
-## 📊 Step 4: Validate Business Value
+## Step 4: Validate Business Value
 
 ### Revenue Model Validation
 Ask yourself:
@@ -306,7 +278,7 @@ vrooli market-research --scenario customer-portal --platform upwork
 
 ---
 
-## 🎯 Step 5: Prepare for AI Generation
+## Step 5: Prepare for AI Generation
 
 ### AI-Friendly Structure
 Ensure your scenario is optimized for AI consumption:
@@ -348,37 +320,32 @@ Ensure your scenario is optimized for AI consumption:
 
 ---
 
-## 🚀 Next Steps
+## Next Steps
 
 ### Immediate Actions
 1. **Create Your First Scenario**: Follow this guide with a simple business idea
 2. **Test Integration**: Ensure all resources work together
 3. **Document Business Value**: Write compelling README with revenue justification
 
-### Advanced Learning
-- 📖 [AI Generation Guide](ai-generation-guide.md): Optimize scenarios for AI creation
-- 🏗️ [Architecture Deep Dive](architecture.md): Understand the underlying system
-- 🔧 [Resource Integration](resource-integration.md): Advanced resource orchestration
-- 💼 [Business Framework](business-framework.md): Revenue modeling and market validation
-
-### Community & Support
-- 🔍 [Troubleshooting Guide](troubleshooting.md): Common issues and solutions
-- 💡 [Example Scenarios](examples/): Detailed walkthroughs and tutorials
-- 📚 [Complete Documentation](../): Full documentation library
+### Continue Learning
+- [AI Generation Guide](ai-generation-guide.md) - Optimize for AI scenario creation
+- [Validation Framework](VALIDATION.md) - Deep dive into testing
+- [Deployment Guide](DEPLOYMENT.md) - Production deployment strategies
+- [Main Documentation](../README.md) - Complete platform documentation
 
 ---
 
-## 🎯 Success Checklist
+## Success Checklist
 
-You're ready to move forward when you can:
+Before moving to production, ensure you can:
 
-- [ ] **Create** a scenario from template in under 15 minutes
-- [ ] **Test** scenario integration successfully  
-- [ ] **Explain** the business value and target market clearly
-- [ ] **Identify** required resources and their roles
-- [ ] **Structure** scenarios for AI-generation readiness
+- [ ] Create a scenario from template in under 15 minutes
+- [ ] Run integration tests successfully with `./test.sh`
+- [ ] Explain the specific business value proposition
+- [ ] Identify all required resources and their roles
+- [ ] Structure service.json for AI-generation compatibility
 
-**Congratulations!** You now understand the Vrooli scenario system and are ready to create profitable, AI-generated SaaS applications.
+**Congratulations!** You're now ready to create profitable business applications with Vrooli's scenario system.
 
 ---
 

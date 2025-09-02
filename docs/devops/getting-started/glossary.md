@@ -31,55 +31,79 @@ ENVIRONMENT=production
 NODE_ENV=production
 ```
 
-## Deployment Targets
+## Execution Models
 
-### local-services
-**Definition**: Development target running services directly on the host machine.
-**Usage**: Native Node.js, local PostgreSQL/Redis
-**Command**: `vrooli develop --target local-services`
+### Direct Scenario Execution (Primary)
+**Definition**: Scenarios run directly from their source folders without build steps.
+**Usage**: Standard way to run any business application
+**Commands**: 
+```bash
+vrooli scenario run <name>              # Run any scenario
+cd scenarios/<name> && ../../scripts/manage.sh develop
+```
 
-### docker-daemon
-**Definition**: Development target using Docker containers for all services.
-**Usage**: Docker Compose orchestration, containerized services
-**Command**: `vrooli develop --target docker-daemon`
+### Resource Management
+**Definition**: Independent services that provide capabilities to scenarios.
+**Usage**: Start/stop resources that scenarios need
+**Commands**:
+```bash
+vrooli resource start-all               # Start all enabled resources
+resource-<name> start                   # Start specific resource
+```
 
-### k8s-cluster
-**Definition**: Development target using Kubernetes (typically Minikube).
-**Usage**: Helm charts, Kubernetes resources, container orchestration
-**Command**: `vrooli develop --target k8s-cluster`
+### Production Deployment
+**Definition**: Deploy scenario suites to Kubernetes for customers.
+**Usage**: Package multiple scenarios for production use
+**Command**: `./scripts/deployment/package-scenario-deployment.sh`
 
 ## Script Invocation Standards
 
 ### Standard Format
-**Correct**: `./scripts/manage.sh <phase>` or `vrooli <command>`
-**Incorrect**: Using deprecated `scripts/main/` paths
+**Primary Commands**: Use `vrooli` CLI for all common operations
+```bash
+vrooli setup                    # Initial setup
+vrooli develop                  # Start development
+vrooli scenario run <name>      # Run scenarios directly
+vrooli resource start-all       # Start resources
+```
 
-**Migration Reference:**
-- `scripts/main/setup.sh` → `./scripts/manage.sh setup` or `vrooli setup`
-- `scripts/main/develop.sh` → `vrooli develop`  
-- `scripts/main/build.sh` → `./scripts/manage.sh build`
-- `scripts/main/deploy.sh` → `./scripts/manage.sh deploy`
+**Direct Resource Commands**: Use resource-specific CLIs
+```bash
+resource-postgres start         # Start PostgreSQL
+resource-ollama logs           # View Ollama logs
+```
 
-**Note**: The `scripts/main/` directory was removed in Phase 5 of the migration to unified script management. All functionality has been moved to the universal entry points listed above.
+## ⚠️ Deprecated Terms (DO NOT USE)
+
+**These terms reflect obsolete Vrooli architecture:**
+- ❌ **"Converting scenarios"** - Scenarios run directly, no conversion
+- ❌ **"Build process"** - No build steps, direct execution only
+- ❌ **"Standalone apps"** - Scenarios are not converted to apps
+- ❌ **"Packages"** - No monorepo structure, use resources/scenarios
+- ❌ **"scripts/main/"** - Directory no longer exists, use `vrooli` CLI
+- ❌ **"Compilation/Transpilation"** - Direct execution from source
+- ❌ **"Generated code"** - No code generation, scenarios run as-is
 
 ### Argument Format
 **Correct**: `--environment development` (long form)
 **Incorrect**: `-e dev` (short form or abbreviated values)
 
-## Container and Image Terminology
+## Container Terminology (Resources Only)
 
-### Image Tags
-- **Development Images**: Tagged with `development`
-- **Production Images**: Tagged with `production`
-- **Never use**: `dev`, `prod`, `latest` in documentation examples
+**Note**: Scenarios run directly from source and don't use containers. This section applies only to containerized resources.
 
-### Registry References
-**Standard**: Use placeholder format with variables
+### Resource Containers
+- **Local Resources**: May run in Docker containers (PostgreSQL, Redis, etc.)
+- **Production Resources**: Deployed as Kubernetes pods
+- **Scenarios**: Run directly from `scenarios/` folder - no containers needed!
+
+### Image References (If Using Containerized Resources)
 ```yaml
-image: ${DOCKERHUB_USERNAME}/server:development
+# For resources that use containers:
+image: postgres:15-alpine       # PostgreSQL resource
+image: redis:7-alpine           # Redis resource
+image: ollama/ollama:latest     # Ollama AI resource
 ```
-
-**Avoid**: Hardcoded usernames like `vrooli/server:prod`
 
 ## File and Directory Standards
 
@@ -89,11 +113,18 @@ image: ${DOCKERHUB_USERNAME}/server:development
 - `.env-prod` - Production environment configuration
 
 ### Script Paths
-**Standard**: Always reference from repository root
+**Primary Interface**: Use `vrooli` CLI for all operations
 ```bash
-vrooli develop
-./scripts/manage.sh setup
-bash scripts/helpers/utils/log.sh
+vrooli setup                    # Initial setup
+vrooli develop                  # Development environment
+vrooli scenario run <name>      # Direct scenario execution
+vrooli resource start-all       # Resource management
+```
+
+**Direct Execution**: Scenarios run from their folders
+```bash
+cd scenarios/my-app
+../../scripts/manage.sh develop  # Run scenario directly
 ```
 
 ## Service and Component Names
@@ -295,8 +326,9 @@ bash scripts/helpers/utils/log.sh
 # Use vrooli CLI for common operations
 vrooli develop --target local-services
 
-# Use manage.sh for lifecycle operations
-./scripts/manage.sh build --environment development --artifacts docker
+# Use manage.sh for scenario operations
+./scripts/manage.sh develop  # Start development environment
+vrooli scenario run <name>   # Run scenarios directly
 
 # Use consistent quoting
 export ENVIRONMENT="development"

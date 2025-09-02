@@ -196,7 +196,7 @@
       "steps": [
         {
           "name": "start-api-server",
-          "run": "cd api && PORT=$SERVICE_PORT ./secure-document-processing-api &",
+          "run": "cd api && PORT=$SERVICE_PORT ./secure-document-processing-api",
           "description": "Start Go coordination API server in background",
           "background": true,
           "condition": {
@@ -214,7 +214,7 @@
         },
         {
           "name": "start-ui-server",
-          "run": "cd ui && UI_PORT=$UI_PORT node server.js &",
+          "run": "cd ui && UI_PORT=$UI_PORT node server.js",
           "description": "Start UI server in background",
           "background": true
         },

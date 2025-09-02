@@ -157,7 +157,7 @@
       "steps": [
         {
           "name": "start-api-server",
-          "run": "cd api && PORT=$SERVICE_PORT ./resume-screening-assistant-api &",
+          "run": "cd api && PORT=$SERVICE_PORT ./resume-screening-assistant-api",
           "description": "Start Go coordination API server in background",
           "background": true,
           "condition": {
@@ -175,7 +175,7 @@
         },
         {
           "name": "start-ui-server",
-          "run": "cd ui && UI_PORT=$UI_PORT SERVICE_PORT=$SERVICE_PORT npm start &",
+          "run": "cd ui && UI_PORT=$UI_PORT SERVICE_PORT=$SERVICE_PORT npm start",
           "description": "Start UI server in background",
           "background": true
         },

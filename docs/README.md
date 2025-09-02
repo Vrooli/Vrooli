@@ -2,6 +2,9 @@
 
 Comprehensive development guide for the Vrooli platform. For quick reference, see [/CLAUDE.md](/CLAUDE.md).
 
+## Quick Start
+**→ New to Vrooli? Start here: [Getting Started Guide](GETTING_STARTED.md)**
+
 ## Table of Contents
 - [Project Overview](#project-overview)
 - [Technology Stack](#technology-stack)
@@ -50,7 +53,7 @@ Vrooli is a resource orchestration platform for generating complete business app
 - **Resources**: 30+ local services (AI, automation, storage, agents)
 - **Scenarios**: Business applications that orchestrate resources
 - **Management**: Unified CLI and bash automation scripts
-- **Deployment**: Direct scenario execution (no conversion layer)
+- **Deployment**: Direct scenario execution from source
 
 ### Core Resources
 - **AI**: Ollama (local LLM), Whisper (speech-to-text), ComfyUI (image generation)
@@ -107,46 +110,52 @@ See **[ARCHITECTURE_OVERVIEW.md](ARCHITECTURE_OVERVIEW.md)** for complete archit
 - Optimize database queries with proper indexes
 - Use React.memo and useMemo for expensive computations
 
-## Task Management System
+## Development Workflow
 
-### Task Management Commands
+### Working with Scenarios
+Scenarios are complete business applications that orchestrate resources. Each scenario can generate $10k-50k in revenue when deployed.
 
-#### **Organize Next Task**
-**Keywords:** _"organize next task," "structure task," "clarify next task," "organize backlog," "prepare next task"_
+```bash
+# List and explore available scenarios
+vrooli scenario list                    # See all available scenarios
+vrooli scenario info <name>             # Get details about a specific scenario
 
-Process unstructured tasks using scenario-based workflows:
-1. **Explore the Codebase** - Search relevant files and analyze existing implementations
-2. **Clarify and Research** - Ask targeted questions if unclear
-3. **Decide on Splitting Tasks** - Split complex tasks into focused subtasks
-4. **Refine and Document** - Follow established task template with clear descriptions
-5. **Finalize** - Remove original entry and flag any tasks needing more information
+# Run scenarios directly (no build needed!)
+vrooli scenario run research-assistant  # Run a scenario
+vrooli scenario test <name>             # Test scenario integration
 
-#### **Start Next Task**
-**Keywords:** _"start next task," "pick task," "begin task," "go," "work next," "start working"_
+# Create new scenarios from templates
+cp -r scenarios/templates/basic scenarios/my-new-app
+cd scenarios/my-new-app
+../../scripts/manage.sh develop        # Start development
+```
 
-- Select highest-priority task from backlog
-- Explore codebase to determine implementation strategies
-- Draft and present brief implementation plan for confirmation
-- Set task status to **IN_PROGRESS** upon confirmation
-- Wait for explicit confirmation before marking **DONE**
+### Working with Resources
+Resources provide the foundational capabilities (AI, storage, automation) that scenarios orchestrate.
 
-#### **Update Task Status**
-**Keywords:** _"update task statuses," "refresh tasks," "task progress update," "update backlog"_
+```bash
+# Manage resources
+vrooli resource list                   # See available resources
+vrooli resource status                 # Check resource health
+vrooli resource start-all              # Start all enabled resources
+resource-postgres start                # Start specific resource
+resource-ollama logs                   # View resource logs
+```
 
-Review and update:
-- Status (**TODO/IN_PROGRESS/BLOCKED/DONE**)
-- Progress indicators
-- Newly identified blockers or dependencies
+### Common Development Tasks
 
-#### **Research**
-**Keywords:** _"research," "investigate," "explore topic," "find info on," "deep dive"_
+**Creating a Business Application:**
+1. Choose a scenario template that matches your needs
+2. Configure required resources in `.vrooli/service.json`
+3. Implement business logic by orchestrating resources
+4. Test with `vrooli scenario test <name>`
+5. Deploy directly with `vrooli scenario deploy <name>`
 
-Perform in-depth research on specified topics:
-1. **Define Scope** - Clarify research goals in relation to project architecture
-2. **Information Gathering** - Use web search for comprehensive information
-3. **Analyze and Synthesize** - Extract key concepts and integration points
-4. **Document Findings** - Store detailed findings in `/docs/scratch/` for reference
-5. **Present Results** - Summarize findings with key links and next steps
+**Adding New Capabilities:**
+- Need AI? Enable Ollama or OpenRouter resources
+- Need automation? Enable N8n or Windmill resources  
+- Need storage? PostgreSQL, Redis, and Qdrant are available
+- Scenarios automatically leverage available resources
 
 ## Memory Management
 
@@ -364,8 +373,28 @@ See [architecture/execution/emergent-capabilities/README.md](architecture/execut
 - **[Video Scripts](user-guide/video-scripts/)** - Landing page video content
 - **[Legacy Documentation](user-guide/old/)** - Preserved reference materials
 
-### 📋 **Task Management**
-Task management is now handled through scenario-based workflows. See scenario documentation for task orchestration patterns.
+### 📋 **Task Management & Workflow Orchestration**
+
+**How Tasks Work in Vrooli**: Tasks are executed through scenarios that orchestrate resources:
+
+- **Automation Scenarios**: Use N8n, Windmill, or Node-RED resources for workflow automation
+- **AI Task Scenarios**: Leverage Ollama and other AI resources for intelligent task processing  
+- **Business Process Scenarios**: Combine multiple resources to handle complex business workflows
+- **Meta-Scenarios**: Self-improving scenarios that enhance Vrooli itself (Scenario Generator, System Monitor)
+
+**Examples**:
+```bash
+# Run a task automation scenario
+vrooli scenario run invoice-processor      # Processes invoices using N8n + PostgreSQL
+
+# Run an AI task scenario  
+vrooli scenario run research-assistant     # Conducts research using Ollama + SearXNG + Qdrant
+
+# Run a monitoring scenario
+vrooli scenario run system-monitor         # Monitors all running scenarios and resources
+```
+
+See [Scenario Documentation](scenarios/README.md) for creating task orchestration patterns.
 
 ## Security Guidelines
 

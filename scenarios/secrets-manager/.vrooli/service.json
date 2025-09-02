@@ -126,7 +126,7 @@
       "steps": [
         {
           "name": "start-api-server",
-          "run": "cd api && PORT=$SERVICE_PORT ./secrets-manager-api &",
+          "run": "cd api && PORT=$SERVICE_PORT ./secrets-manager-api",
           "description": "Start Go secrets manager API server in background",
           "background": true,
           "condition": {
@@ -135,7 +135,7 @@
         },
         {
           "name": "start-ui-server",
-          "run": "cd ui && PORT=$UI_PORT node server.js &",
+          "run": "cd ui && PORT=$UI_PORT node server.js",
           "description": "Start dark chrome dashboard UI server in background",
           "background": true,
           "condition": {

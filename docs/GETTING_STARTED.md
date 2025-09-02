@@ -1,25 +1,29 @@
 # Getting Started with Vrooli
 
-Vrooli is a resource orchestration platform that runs scenarios directly to create business applications. This guide will get you up and running in 15 minutes.
+Welcome to Vrooli - a platform where business applications run **directly from source** with zero build steps. Create $10K-50K revenue applications by orchestrating 30+ local resources.
 
-## Quick Start (5 Minutes)
+## What is Vrooli?
 
-### 1. Setup Environment
+Vrooli is a **resource orchestration platform** that enables instant business application deployment through direct scenario execution. No compilation, no build artifacts, no conversion - just immediate execution from source.
+
+**Key Innovation**: Scenarios run directly from their `scenarios/` folders - edit and run instantly!
+
+## 5-Minute Quick Start
+
+### 1. Setup
 ```bash
-# Clone and navigate to Vrooli
+# Clone and setup
 git clone https://github.com/Vrooli/Vrooli.git
 cd Vrooli
-
-# Run initial setup
-vrooli setup
+./scripts/setup.sh  # or: vrooli setup
 ```
 
-### 2. Start Core Resources
+### 2. Start Resources
 ```bash
-# Start essential resources (PostgreSQL, Redis, Ollama)
+# Start essential resources
 vrooli resource start-all
 
-# Verify resources are running
+# Verify they're running
 vrooli resource status
 ```
 
@@ -28,117 +32,109 @@ vrooli resource status
 # List available scenarios
 vrooli scenario list
 
-# Run a simple scenario
+# Run a scenario DIRECTLY from source
 vrooli scenario run research-assistant
 
-# Test scenario integration
-vrooli scenario test research-assistant
+# Access at http://localhost:3000 (or configured port)
 ```
 
-You now have Vrooli running with a working scenario!
+**✅ Congratulations!** You have a $15K research assistant application running!
 
-## Core Concepts (5 Minutes)
+## Core Concepts (2 Minutes)
 
-### Resources
-**Resources** are the foundational services that provide capabilities:
-- **AI**: Ollama (local LLM), Whisper (speech-to-text), ComfyUI (image generation)
-- **Storage**: PostgreSQL (database), Redis (cache), Qdrant (vector database)
-- **Automation**: N8n (workflows), Windmill (code-first automation)
-- **Agents**: Agent-S2 (screen automation), Browserless (web automation)
+### Resources = Capabilities
+Local services that provide specific functionality:
+- **AI**: Ollama, Whisper, ComfyUI
+- **Storage**: PostgreSQL, Redis, Qdrant
+- **Automation**: N8n, Windmill, Node-RED
+- **Agents**: Agent-S2, Browserless
 
-**Management**: `vrooli resource <command>` or direct `resource-<name> <command>`
+### Scenarios = Business Applications  
+Complete applications that orchestrate resources:
+- Each scenario worth $10K-50K when deployed
+- Run directly from `scenarios/<name>/` folder
+- Serve as both integration test AND production app
 
-### Scenarios
-**Scenarios** are complete business applications that orchestrate multiple resources:
-- **Purpose**: Deliver specific business value ($10K-50K revenue potential)
-- **Examples**: Research Assistant, Invoice Generator, Customer Service Portal
-- **Architecture**: Combine resources to create emergent business capabilities
-- **Deployment**: Run directly without conversion to standalone apps
+### Direct Execution = No Build Steps
+```
+Traditional: Code → Build → Package → Deploy → Run ❌
+Vrooli:      scenarios/my-app/ → Run! ✅
+```
 
-**Management**: `vrooli scenario <command>`
+## Choose Your Path
 
-### The Key Relationship
-**Scenarios leverage resources** to create business applications through orchestration. Resources provide the raw capabilities, scenarios provide the business logic.
-
-## Common Commands
+### 🚀 Path 1: Use Existing Scenarios
+**For:** Users wanting to run business applications  
+**Time:** Immediate
 
 ```bash
-# System Management
-vrooli setup                    # Initial setup
-vrooli develop                  # Start development environment
-vrooli build                    # Build the system  
-vrooli status                   # Show system health
-vrooli stop                     # Stop all components
-
-# Resource Management
-vrooli resource list            # List available resources
-vrooli resource start-all       # Start all enabled resources
-vrooli resource status          # Show resource health
-vrooli resource stop-all        # Stop all resources
-resource-<name> start           # Start specific resource
-resource-<name> logs            # View resource logs
-
-# Scenario Operations
-vrooli scenario list            # List available scenarios
-vrooli scenario run <name>      # Run a scenario
-vrooli scenario test <name>     # Test scenario integration
+vrooli scenario run invoice-generator
+vrooli scenario run customer-portal
 ```
 
-## Learning Path (Choose Your Track)
+Each scenario is a complete, revenue-generating application ready to deploy.
 
-### 🚀 **Quick User** - Run Existing Scenarios
-**Perfect if**: You want to use Vrooli scenarios immediately
-**Time**: 5 minutes
+### 🛠️ Path 2: Create New Scenarios  
+**For:** Builders creating custom business applications  
+**Time:** 30-45 minutes to first scenario
+
+**→ Continue with [Scenario Creator's Guide](scenarios/getting-started.md)**
+
+Learn to build your own $10K-50K applications from templates.
+
+### 🔧 Path 3: Develop Vrooli Core
+**For:** Contributors improving the platform itself  
+**Time:** 2-4 hours setup
+
 ```bash
-# You're done! Continue with:
-vrooli scenario list                    # Explore available scenarios
-vrooli scenario run <name>              # Try different scenarios
+vrooli develop  # Start development environment
+vrooli test     # Run test suite
 ```
 
-### 🏗️ **Scenario Creator** - Build Business Applications  
-**Perfect if**: You want to create new scenarios for business value
-**Time**: 30-45 minutes
-**Next**: [Comprehensive Scenario Guide](scenarios/getting-started.md)
+**→ See [Contributing Guide](CONTRIBUTING.md)**
 
-### ⚙️ **Platform Developer** - Contribute to Vrooli Core
-**Perfect if**: You want to develop resources, core features, or platform improvements
-**Time**: 60+ minutes  
-**Next**: [Development Environment Setup](devops/development-environment.md)
+## Essential Commands
 
-## Quick Reference
-
-### Core Commands
 ```bash
-# System Management
-vrooli setup                    # Initial setup
-vrooli develop                  # Start development environment
-vrooli build                    # Build the system  
-vrooli status                   # Show system health
-vrooli stop                     # Stop all components
+# Scenarios (Direct Execution)
+vrooli scenario list         # List available
+vrooli scenario run <name>   # Run from source
+vrooli scenario test <name>  # Test integration
 
-# Resource Management  
-vrooli resource start-all       # Start all enabled resources
-vrooli resource status          # Show resource health
-resource-<name> start           # Start specific resource
+# Resources  
+vrooli resource list         # List available
+vrooli resource start-all    # Start all
+vrooli resource status       # Check health
 
-# Scenario Operations
-vrooli scenario list            # List available scenarios
-vrooli scenario run <name>      # Run a scenario
-vrooli scenario test <name>     # Test scenario integration
+# System
+vrooli status               # System health
+vrooli stop                 # Stop everything
 ```
 
-### Get Help
-- **Issues with scenarios**: [Scenario Troubleshooting](devops/troubleshooting.md#scenario-issues)
-- **Resource problems**: [Resource Troubleshooting](devops/troubleshooting.md#resource-issues)  
-- **Contributing**: [Contributing Guide](CONTRIBUTING.md)
+## Quick Troubleshooting
 
-## Success Checklist
+| Issue | Solution |
+|-------|----------|
+| Scenario won't start | Check `vrooli resource status` |
+| Port conflicts | See `~/.vrooli/port-registry.json` |
+| Resource unavailable | Run `vrooli resource start-all` |
 
-You're ready to build with Vrooli when you can:
-- [ ] Start and stop resources reliably
-- [ ] Run existing scenarios successfully  
-- [ ] Create a basic scenario from template
-- [ ] Understand the resource + scenario architecture
-- [ ] Know where to find detailed documentation
+**→ Full troubleshooting: [Troubleshooting Guide](devops/troubleshooting.md)**
 
-**Welcome to Vrooli!** You're now ready to orchestrate resources into profitable business applications.
+## Next Steps
+
+**Immediate Actions:**
+1. Run `vrooli scenario list` to explore applications
+2. Try 2-3 different scenarios to see the variety
+3. Choose your path above based on your goals
+
+**Documentation:**
+- [Architecture Overview](ARCHITECTURE_OVERVIEW.md) - System design
+- [Resource Documentation](resources/README.md) - Available resources
+- [Deployment Guide](deployment/README.md) - Production deployment
+
+---
+
+**Welcome to Vrooli!** Build and deploy business applications instantly with direct execution.
+
+📚 [Main Documentation](README.md) | 💬 [Discord](https://discord.gg/vrooli) | 🐛 [Issues](https://github.com/Vrooli/Vrooli/issues)

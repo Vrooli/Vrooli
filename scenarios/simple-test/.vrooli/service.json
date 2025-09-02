@@ -73,7 +73,7 @@
       "steps": [
         {
           "name": "start-app",
-          "run": "PORT=${SERVICE_PORT} npm start &",
+          "run": "PORT=${SERVICE_PORT} npm start",
           "description": "Start the application server in background",
           "background": true
         },

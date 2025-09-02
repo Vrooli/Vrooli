@@ -426,9 +426,10 @@ SITE_EMAIL_PORT=587
 ssh deploy@server-ip
 cd ~/Vrooli
 
-# Build and deploy
-./scripts/manage.sh build --environment production --artifacts docker
-./scripts/manage.sh deploy --source docker --environment production
+# Deploy scenarios directly (no build step needed)
+vrooli scenario deploy <scenario-name> --environment production
+# Or for multiple scenarios
+./scripts/deployment/package-scenario-deployment.sh "production-suite" ~/deployments/prod scenario1 scenario2
 ```
 
 #### CI/CD Deployment
@@ -533,9 +534,13 @@ sudo chown deploy:deploy ~/.kube/config
 #### Deploy with Kubernetes
 
 ```bash
-# Build and deploy with Kubernetes
-./scripts/manage.sh build --environment production --artifacts k8s --version 1.0.0
-./scripts/manage.sh deploy --source k8s --environment production --version 1.0.0
+# Deploy scenarios directly to Kubernetes (no build required)
+./scripts/deployment/package-scenario-deployment.sh \
+  "production-suite" ~/deployments/prod \
+  research-assistant invoice-generator customer-portal
+
+# Apply to Kubernetes cluster
+kubectl apply -f ~/deployments/prod/k8s/
 ```
 #### Kubernetes Resources
 

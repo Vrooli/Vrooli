@@ -154,8 +154,13 @@
       "description": "Start Personal Relationship Manager with API and UI servers",
       "steps": [
         {
+          "name": "ensure-api-built",
+          "run": "if [ ! -f api/personal-relationship-manager-api ]; then echo 'Building API...'; cd api && go mod download && go build -o personal-relationship-manager-api main.go && echo 'API built successfully'; else echo 'API binary already exists'; fi",
+          "description": "Ensure API binary exists"
+        },
+        {
           "name": "start-api-server",
-          "run": "cd api && PORT=$SERVICE_PORT ./personal-relationship-manager-api &",
+          "run": "PORT=$SERVICE_PORT ./api/personal-relationship-manager-api",
           "description": "Start Go API server in background",
           "background": true,
           "condition": {
@@ -164,7 +169,7 @@
         },
         {
           "name": "start-ui-server",
-          "run": "cd ui && PORT=$UI_PORT API_URL=http://localhost:$SERVICE_PORT npm start &",
+          "run": "cd ui && PORT=$UI_PORT API_URL=http://localhost:$SERVICE_PORT npm start",
           "description": "Start UI server in background",
           "background": true
         },

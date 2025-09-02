@@ -376,10 +376,10 @@ npm run build
 // ecosystem.config.js
 module.exports = {
   apps: [{
-    name: 'vrooli-server',
-    script: 'packages/server/dist/index.js',
-    instances: 'max',
-    exec_mode: 'cluster',
+    name: 'vrooli-scenario',
+    script: 'scripts/manage.sh',
+    args: 'develop',
+    instances: 1,
     env: {
       NODE_ENV: 'production',
       PORT: 3001

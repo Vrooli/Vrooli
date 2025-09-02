@@ -138,7 +138,7 @@
       "steps": [
         {
           "name": "start-api-server",
-          "run": "cd api && PORT=$SERVICE_PORT ./make-it-vegan-api &",
+          "run": "cd api && PORT=$SERVICE_PORT ./make-it-vegan-api",
           "description": "Start Go API server",
           "background": true,
           "condition": {
@@ -147,7 +147,7 @@
         },
         {
           "name": "start-ui-server",
-          "run": "cd ui && PORT=$UI_PORT API_URL=http://localhost:$SERVICE_PORT node server.js &",
+          "run": "cd ui && PORT=$UI_PORT API_URL=http://localhost:$SERVICE_PORT node server.js",
           "description": "Start UI server",
           "background": true
         },

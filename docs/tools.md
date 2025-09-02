@@ -44,25 +44,30 @@ vrooli deploy
 
 # Testing commands
 
-## Package-level unit/integration tests:
+## Scenario Testing:
 ```bash
-# Testing /packages/server
-cd packages/server && pnpm build
-# Testing /packages/jobs
-cd packages/jobs && pnpm build
-# Coverage tests on /packages/shared
-cd packages/shared && pnpm test-coverage
+# Test individual scenarios
+vrooli scenario test research-assistant
+vrooli scenario test invoice-generator
+
+# Test all scenarios
+vrooli test scenarios
 ```
 
-## File-level unit-integration tests:
+## Resource Testing:
 ```bash
-# Testing /packages/server/src/services/stripe.test.ts
-cd packages/server && npx vitest run src/services/stripe.test.ts
+# Test individual resources
+resource-ollama test
+resource-postgres test
+
+# Test all resources
+vrooli test resources
 ```
 
-## Storybook:
+## Integration Testing:
 ```bash
-cd packages/ui && pnpm storybook
+# Run comprehensive integration tests
+vrooli test integration
 ```
 
 

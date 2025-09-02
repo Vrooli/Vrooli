@@ -1,313 +1,369 @@
-# Build & Deploy System
+# Direct Scenario Execution System
 
 > **Prerequisites**: See [Prerequisites Guide](./getting-started/prerequisites.md) for required tools installation.
 
-This guide covers Vrooli's scenario-based build and deploy system, where scenarios are deployed directly and manage their own build and deployment processes.
+This guide covers Vrooli's revolutionary **direct execution model** where scenarios run directly from their source location without any build or conversion steps.
 
 ## Architecture Overview
 
-Vrooli operates as an **AI intelligence system** that runs scenarios directly to create business applications. Unlike traditional platforms that build and deploy themselves, Vrooli's architecture works as follows:
+Vrooli operates as a **resource orchestration platform** that runs scenarios directly from the `scenarios/` directory to create business applications. There are **no build steps, no artifacts, and no conversion process**.
 
-### Current Architecture (Direct Scenario Execution)
+### Direct Execution Model
 
 ```mermaid
-flowchart TD
-    A[Scenario Definition] --> B[Direct Execution]
-    B --> C[Running Scenario]
-    C --> D[scenario/service.json Config]
-    D --> E[Scenario-Specific Build Process]
-    D --> F[Scenario-Specific Deploy Process]
+flowchart LR
+    A[Scenario Definition<br/>in scenarios/folder] --> B[vrooli scenario run]
+    B --> C[Direct Execution<br/>from Source]
+    C --> D[Running Business<br/>Application]
     
-    subgraph "Scenario Lifecycle"
-        G[vrooli scenario run] --> H[Execute Scenario's Build Script]
-        I[vrooli scenario deploy] --> J[Execute Scenario's Deploy Script]
+    subgraph "No Build Step!"
+        E[❌ No Compilation]
+        F[❌ No Transpilation]
+        G[❌ No Bundling]
+        H[❌ No Artifacts]
     end
     
-    E --> G
-    F --> I
-    
-    subgraph "Deployment Targets"
-        K[App Stores]
-        L[Web Platforms]
-        M[SaaS Deployments]
-        N[AI Assistants]
+    subgraph "Direct Benefits"
+        I[✅ Instant Startup]
+        J[✅ Edit & Run]
+        K[✅ Zero Overhead]
+        L[✅ Single Source]
     end
-    
-    J --> K
-    J --> L
-    J --> M
-    J --> N
 ```
 
-### Key Concepts
+### Key Innovation
 
-- **Scenarios**: Define complete business applications (SaaS platforms, AI assistants, mobile apps)
-- **Direct Execution**: Scenarios run directly without conversion to standalone apps
-- **Lifecycle Delegation**: Build/deploy commands delegate to each scenario's specific configuration
-- **Self-Contained Scenarios**: Each scenario knows how to build and deploy itself
+- **Scenarios ARE the Application**: No conversion to standalone apps
+- **Direct Execution**: Run directly from `scenarios/<name>/` folder
+- **Zero Build Time**: Changes take effect immediately
+- **Single Source of Truth**: Everything lives in the scenarios directory
 
 ## Lifecycle Management
 
-### Universal Commands
+### Core Commands
 
-The Vrooli CLI provides universal lifecycle commands that delegate to each application's specific implementation:
+The Vrooli CLI provides direct execution commands:
 
 ```bash
-# Build an application (delegates to app's build process)
-vrooli build [options]
+# Run a scenario directly from source
+vrooli scenario run <name>
 
-# Deploy an application (delegates to app's deploy process) 
-vrooli deploy [options]
+# Test scenario integration (also runs directly)
+vrooli scenario test <name>
 
-# Setup development environment
-vrooli develop
+# List available scenarios
+vrooli scenario list
 
-# Run application-specific tests
-vrooli test [test-type]
+# Check scenario configuration
+vrooli scenario info <name>
 ```
 
-### Application Configuration
+### What About "vrooli build"?
 
-Each scenario includes a `service.json` file that defines its lifecycle:
+The `vrooli build` command **does not build anything**. It only:
+- Validates scenario configurations
+- Checks resource availability
+- Verifies deployment readiness
+- Ensures service.json is valid
+
+```bash
+# Validate scenarios (no building occurs!)
+vrooli build
+
+# This just checks configurations, doesn't create artifacts
+vrooli build --validate-only
+```
+
+## Scenario Configuration
+
+Each scenario includes a `service.json` file that defines its runtime configuration:
 
 ```json
 {
-  "name": "my-scenario-app",
-  "type": "web-application",
-  "lifecycle": {
-    "build": {
-      "command": "npm run build",
-      "output": "dist/",
-      "artifacts": ["static-files", "docker-image"]
+  "service": {
+    "name": "research-assistant",
+    "displayName": "AI Research Assistant",
+    "description": "Enterprise-grade AI research platform"
+  },
+  "resources": {
+    "ai": {
+      "ollama": {
+        "enabled": true,
+        "required": true
+      }
     },
-    "deploy": {
-      "command": "scripts/deploy.sh",
-      "targets": ["vercel", "docker"],
-      "environment": "production"
+    "storage": {
+      "postgres": {
+        "enabled": true,
+        "required": true
+      },
+      "qdrant": {
+        "enabled": true,
+        "required": false
+      }
+    }
+  },
+  "runtime": {
+    "ports": {
+      "ui": 3000,
+      "api": 5000
     },
-    "develop": {
-      "command": "npm run dev",
-      "ports": [3000, 5432],
-      "resources": ["postgresql", "redis"]
+    "environment": {
+      "NODE_ENV": "production"
     }
   }
 }
 ```
 
-## Build Process Flow
+## Direct Execution Flow
 
-### Scenario-Specific Building
+### How Scenarios Run
 
 ```mermaid
-flowchart LR
-    A[vrooli build] --> B[Read .vrooli/service.json]
-    B --> C[Execute App's Build Command]
-    C --> D[Generate Artifacts]
-    D --> E[Prepare for Deployment]
+flowchart TD
+    A[User runs: vrooli scenario run app] --> B[Read scenarios/app/service.json]
+    B --> C[Start Required Resources]
+    C --> D[Set Environment Variables]
+    D --> E[Execute from scenarios/app/]
+    E --> F[Application Running]
     
-    subgraph "Artifact Types"
-        F[Static Files]
-        G[Docker Images]
-        H[Mobile App Packages]
-        I[Desktop Binaries]
+    subgraph "Process Isolation"
+        G[PM_HOME=~/.vrooli/processes/scenarios/app/]
+        H[PM_LOG_DIR=~/.vrooli/logs/scenarios/app/]
     end
     
-    E --> F
-    E --> G
-    E --> H
-    E --> I
+    F --> G
+    F --> H
 ```
 
-### Example Build Configurations
+### No Intermediate Steps
 
-Different scenarios have different build requirements:
+Traditional systems:
+```
+Write Code → Compile → Bundle → Package → Deploy → Run
+```
 
-#### SaaS Web Application
+Vrooli's direct execution:
+```
+scenarios/my-app/ → vrooli scenario run my-app → Running!
+```
+
+## Testing as Validation
+
+Since there's no build process, testing serves as validation:
+
+```bash
+# Test a scenario (runs it and validates functionality)
+vrooli scenario test customer-portal
+
+# This actually:
+# 1. Starts the scenario directly
+# 2. Runs integration tests
+# 3. Validates resource connectivity
+# 4. Confirms business logic
+```
+
+### Test Script Example
+
+```bash
+#!/bin/bash
+# scenarios/customer-portal/test.sh
+
+source ../../framework/helpers/test-helpers.sh
+
+test_scenario() {
+    log_info "Testing customer portal direct execution"
+    
+    # Verify resources are available
+    check_service_health "ollama" "http://localhost:11434"
+    check_service_health "postgres" "postgresql://localhost:5432"
+    
+    # Test that scenario runs correctly
+    test_api_endpoint "http://localhost:3000/api/health"
+    test_database_connection
+    test_ai_integration
+    
+    log_success "Scenario runs correctly from source"
+}
+
+test_scenario
+```
+
+## Deployment = Running
+
+In Vrooli, deployment simply means running the scenario in a production environment:
+
+### Local "Deployment"
+```bash
+# Run locally
+cd scenarios/invoice-generator
+../../scripts/manage.sh develop
+```
+
+### Production "Deployment"
+```bash
+# Run in production (same code, different environment)
+ENVIRONMENT=production vrooli scenario run invoice-generator
+```
+
+### Key Points
+- **No Build Artifacts**: Nothing to deploy except the source
+- **No Container Images**: Unless the scenario specifically needs them
+- **No Compilation**: Interpreted languages run as-is
+- **Environment-Based**: Same source code, different runtime settings
+
+## Resource Integration
+
+Scenarios leverage shared local resources without building or bundling:
+
+### Resource Access
+- Resources run independently (Ollama, PostgreSQL, Redis, etc.)
+- Scenarios connect via APIs and standard protocols
+- No resource code is bundled into scenarios
+- Resources are shared across all scenarios
+
+### Resource Declaration
+Scenarios declare required resources in service.json:
+
 ```json
 {
-  "lifecycle": {
-    "build": {
-      "command": "pnpm build",
-      "artifacts": ["static-bundle", "docker-image"],
-      "environment": {
-        "NODE_ENV": "production"
+  "resources": {
+    "storage": {
+      "postgres": {
+        "enabled": true,
+        "initialization": {
+          "schemas": ["initialization/postgres/schema.sql"]
+        }
+      }
+    },
+    "ai": {
+      "ollama": {
+        "enabled": true,
+        "models": ["llama3.1:8b", "codellama:13b"]
       }
     }
   }
 }
 ```
 
-#### Mobile Application
-```json
-{
-  "lifecycle": {
-    "build": {
-      "command": "scripts/build-mobile.sh",
-      "artifacts": ["android-apk", "ios-ipa"],
-      "platforms": ["android", "ios"]
-    }
-  }
-}
-```
-
-#### AI Assistant
-```json
-{
-  "lifecycle": {
-    "build": {
-      "command": "python setup.py build",
-      "artifacts": ["model-package", "inference-container"],
-      "requirements": ["tensorflow", "transformers"]
-    }
-  }
-}
-```
-
-## Deployment System
-
-### Universal Deployment Interface
-
-```bash
-# Deploy to configured targets
-vrooli deploy
-
-# Deploy to specific environment
-vrooli deploy --environment production
-
-# Deploy to specific platform
-vrooli deploy --target vercel
-
-# Dry run deployment
-vrooli deploy --dry-run
-```
-
-### Deployment Delegation
-
-Each application defines its own deployment strategy:
-
-```mermaid
-flowchart TD
-    A[vrooli deploy] --> B[Load App Config]
-    B --> C{Deployment Target}
-    
-    C -->|Web Platform| D[Vercel/Netlify Deploy]
-    C -->|Container| E[Docker Registry Push]
-    C -->|App Store| F[Store Upload Process]
-    C -->|SaaS Platform| G[Cloud Provider Deploy]
-    
-    D --> H[Live Application]
-    E --> H
-    F --> H
-    G --> H
-```
-
-## Scenario Examples
-
-### E-commerce Platform Scenario
-Generated app includes:
-- React frontend build process
-- Node.js backend containerization
-- Database migration scripts
-- Payment gateway integration
-- Deployment to AWS/Vercel
-
-### AI Chatbot Scenario  
-Generated app includes:
-- Model training pipeline
-- Inference server containerization
-- API endpoint generation
-- Deployment to cloud AI platforms
-
-### Mobile Productivity App Scenario
-Generated app includes:
-- React Native build process
-- Platform-specific configurations
-- App store submission automation
-- Cross-platform compatibility
-
 ## Development Workflow
 
-### Local Development
+### Instant Development Cycle
 
 ```bash
-# Start development environment
-vrooli develop
+# 1. Edit scenario files
+vim scenarios/my-app/index.js
 
-# This delegates to the app's develop configuration:
-# - Starts required resources (databases, caches)
-# - Launches development servers
-# - Sets up hot reloading
-# - Configures development proxies
+# 2. Run immediately (no build needed!)
+vrooli scenario run my-app
+
+# 3. See changes instantly
+# No compilation, no waiting, just results
 ```
 
-### Testing Integration
+### Hot Reloading
+Some scenarios support hot reloading during development:
 
 ```bash
-# Run application tests
-vrooli test unit
-vrooli test integration
-vrooli test e2e
+# Start with development mode
+cd scenarios/my-app
+DEVELOPMENT=true ../../scripts/manage.sh develop
 
-# Each test type delegates to app-specific test suites
+# Edit files - changes appear instantly
+# No rebuild, no restart, just automatic updates
 ```
 
-## Resource Integration
-
-Deployed scenarios can leverage shared local resources:
-
-### Available Resources
-- **Databases**: PostgreSQL, Redis, Neo4j
-- **AI Services**: Ollama, OpenAI-compatible APIs
-- **Automation**: N8n workflows
-- **Storage**: MinIO, local file systems
-- **Monitoring**: Prometheus, logging services
-
-### Resource Declaration
-
-Scenarios declare required resources in their service configuration:
-
-```json
-{
-  "resources": {
-    "postgresql": {
-      "version": "15",
-      "databases": ["app_data", "analytics"]
-    },
-    "redis": {
-      "version": "7",
-      "purpose": "caching"
-    },
-    "ollama": {
-      "models": ["llama2", "codellama"]
-    }
-  }
-}
-```
-
-## Benefits of This Architecture
+## Benefits of Direct Execution
 
 ### For Developers
-- **No Platform Lock-in**: Each scenario defines its own build/deploy strategy
-- **Technology Freedom**: Scenarios can use any tech stack
-- **Resource Sharing**: Efficient use of local development resources
+- **Zero Build Time**: Start working immediately
+- **Instant Feedback**: Changes visible instantly
+- **No Build Failures**: Can't fail what doesn't exist
+- **Simple Mental Model**: Code runs as written
 
 ### For the System
-- **Compound Intelligence**: Each deployed scenario becomes a permanent capability
-- **Recursive Improvement**: Scenarios can enhance other scenarios
-- **Scalable Complexity**: System handles increasingly complex scenarios
+- **Reduced Complexity**: No build pipeline to maintain
+- **Fewer Dependencies**: No build tools needed
+- **Less Disk Usage**: No artifacts or build outputs
+- **Faster CI/CD**: Nothing to compile or package
 
-### For Deployment
-- **Flexible Targets**: Scenarios deploy where they make most sense (app stores, web, cloud)
-- **Optimized Processes**: Each scenario uses deployment strategy suited to its purpose
-- **Business Value**: Deployed scenarios can generate real revenue
+### For Operations
+- **Simple Deployment**: Just sync the source files
+- **Easy Rollback**: Previous version is just older source
+- **Transparent Debugging**: Debug actual source, not compiled output
+- **Minimal Infrastructure**: No artifact repositories needed
+
+## Common Misconceptions
+
+### "But what about TypeScript/JSX/etc?"
+
+Scenarios that need transpilation handle it internally during execution:
+- TypeScript can run via ts-node or Deno
+- JSX can use runtime transforms
+- The platform doesn't force a build step
+
+### "How do you optimize for production?"
+
+- Resources (databases, AI models) are already optimized
+- Scenarios are lightweight orchestration code
+- Performance comes from resource efficiency, not bundling
+
+### "What about dependencies?"
+
+- Resource dependencies are managed by resources themselves
+- Scenario dependencies are minimal (usually just configuration)
+- No need to bundle what's already available
 
 ## Migration from Old System
 
-The previous build system focused on building/deploying Vrooli itself. The new system recognizes that:
+The previous build system assumed conversion to standalone applications. The new direct execution model recognizes that:
 
-1. **Vrooli is the intelligence, not the product**
-2. **Deployed scenarios are the products that provide business value**
-3. **Build/deploy varies by scenario type and target**
-4. **The system grows smarter with each scenario**
+1. **Scenarios are configurations, not applications to build**
+2. **Resources provide the heavy lifting, scenarios orchestrate**
+3. **Direct execution eliminates entire categories of complexity**
+4. **The simplest approach is often the best**
 
-This architectural shift enables Vrooli to run everything from simple websites to complex SaaS businesses, each with deployment strategies optimized for their specific use case.
+## Examples
+
+### Running a Simple Scenario
+```bash
+# Just run it - no build needed
+vrooli scenario run hello-world
+```
+
+### Running a Complex Business Application
+```bash
+# Even complex apps run directly
+vrooli scenario run enterprise-portal
+
+# Check its configuration
+cat scenarios/enterprise-portal/service.json
+
+# Edit and re-run immediately
+vim scenarios/enterprise-portal/config.js
+vrooli scenario run enterprise-portal  # Changes applied!
+```
+
+### Testing Before "Deployment"
+```bash
+# Validate everything works
+vrooli scenario test invoice-generator
+
+# "Deploy" to production (just run it there)
+ssh production-server
+cd vrooli
+vrooli scenario run invoice-generator
+```
+
+## Summary
+
+Vrooli's direct execution model eliminates the traditional build/deploy pipeline entirely:
+
+- ✅ **No Build Step**: Scenarios run directly from source
+- ✅ **No Artifacts**: No compiled outputs or bundles
+- ✅ **Instant Updates**: Edit and run immediately
+- ✅ **Single Source**: scenarios/ folder is the only truth
+- ✅ **Zero Overhead**: No build time, no build failures
+- ✅ **Simple Deployment**: Just run the scenario
+
+This revolutionary approach makes Vrooli incredibly fast, simple, and reliable for creating business applications worth $10K-50K each.

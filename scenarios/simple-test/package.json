@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Simple test application",
   "scripts": {
-    "start": "echo 'Starting simple app...'",
+    "start": "node server.js",
     "build": "echo 'Building simple app...'",
     "test": "echo 'Testing simple app...'"
   }

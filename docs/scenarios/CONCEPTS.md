@@ -1,11 +1,6 @@
 # Core Concepts: Dual-Purpose Scenarios
 
-## 📚 Navigation
-
-- **This Guide** - Understanding dual-purpose scenarios and resource orchestration
-- **[getting-started.md](getting-started.md)** - Step-by-step scenario creation tutorial
-- **[VALIDATION.md](VALIDATION.md)** - Testing and validation framework
-- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Running scenarios directly in production
+> 📚 **[Back to Scenario Documentation](README.md)**
 
 ## 🎯 The Revolutionary Design
 

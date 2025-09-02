@@ -320,10 +320,11 @@ claude_code::run() {
                 log::info "  - Consider upgrading to Claude Pro or Max for higher limits"
                 log::info "  - Check your usage at claude.ai"
             fi
-        else
-            log::error "Claude execution failed with exit code: $exit_code"
-            log::info "For detailed diagnostics, run:"
-            log::info "  $0 --action health-check --check-type full"
+            else
+                log::error "Claude execution failed with exit code: $exit_code"
+                log::info "For detailed diagnostics, run:"
+                log::info "  $0 --action health-check --check-type full"
+            fi
         fi
         
         # Cleanup temp files

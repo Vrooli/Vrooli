@@ -41,7 +41,7 @@ home_assistant::init() {
 # Get Home Assistant port from port registry
 #######################################
 home_assistant::get_port() {
-    local port_registry="${var_SCRIPTS_RESOURCES_DIR}/port-registry.sh"
+    local port_registry="${var_SCRIPTS_RESOURCES_DIR}/port_registry.sh"
     
     if [[ -f "$port_registry" ]]; then
         local registered_port

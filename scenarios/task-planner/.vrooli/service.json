@@ -204,8 +204,13 @@
       "description": "Start task planner with Go API server and UI",
       "steps": [
         {
+          "name": "ensure-api-built",
+          "run": "if [ ! -f api/task-planner-api ]; then echo 'Building API...'; cd api && go mod download && go build -o task-planner-api main.go && echo 'API built successfully'; else echo 'API binary already exists'; fi",
+          "description": "Ensure API binary exists"
+        },
+        {
           "name": "start-api-server",
-          "run": "cd api && PORT=$SERVICE_PORT ./task-planner-api &",
+          "run": "PORT=$SERVICE_PORT ./api/task-planner-api",
           "description": "Start Go coordination API server in background",
           "background": true,
           "condition": {
@@ -214,7 +219,7 @@
         },
         {
           "name": "start-ui-server",
-          "run": "cd ui && UI_PORT=$UI_PORT SERVICE_PORT=$SERVICE_PORT node server.js &",
+          "run": "cd ui && UI_PORT=$UI_PORT SERVICE_PORT=$SERVICE_PORT node server.js",
           "description": "Start UI server in background",
           "background": true,
           "condition": {

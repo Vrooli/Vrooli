@@ -105,7 +105,7 @@
       "steps": [
         {
           "name": "start-api",
-          "run": "cd api && go run main.go &",
+          "run": "cd api && go run main.go",
           "description": "Start Go API server in background",
           "background": true
         },
@@ -120,7 +120,7 @@
         },
         {
           "name": "start-ui",
-          "run": "cd ui && npm start &",
+          "run": "cd ui && npm start",
           "description": "Start React UI in development mode",
           "background": true
         },

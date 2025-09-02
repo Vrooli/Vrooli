@@ -165,8 +165,13 @@
       "description": "Start metareasoning manager with Go API server",
       "steps": [
         {
+          "name": "ensure-api-built",
+          "run": "if [ ! -f api/agent-metareasoning-manager-api ]; then echo 'Building API...'; cd api && go mod download && go build -o agent-metareasoning-manager-api main.go && echo 'API built successfully'; else echo 'API binary already exists'; fi",
+          "description": "Ensure API binary exists"
+        },
+        {
           "name": "start-api-server",
-          "run": "cd api && PORT=$SERVICE_PORT ./agent-metareasoning-manager-api &",
+          "run": "PORT=$SERVICE_PORT ./api/agent-metareasoning-manager-api",
           "description": "Start Go coordination API server in background",
           "background": true,
           "condition": {

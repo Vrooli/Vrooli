@@ -130,7 +130,7 @@
       "steps": [
         {
           "name": "start-file-api",
-          "run": "cd api && PORT=$SERVICE_PORT ./app-issue-tracker-api &",
+          "run": "cd api && PORT=$SERVICE_PORT ./app-issue-tracker-api",
           "description": "Start file-based Go API server",
           "background": true,
           "condition": {
@@ -139,7 +139,7 @@
         },
         {
           "name": "start-ui-server",
-          "run": "cd ui && python3 -m http.server $UI_PORT > ../logs/ui.log 2>&1 &",
+          "run": "cd ui && python3 -m http.server $UI_PORT > ../logs/ui.log 2>&1",
           "description": "Start web UI server",
           "background": true
         },

@@ -1,11 +1,6 @@
 # Scenario Validation Guide
 
-## 📚 Navigation
-
-- **[CONCEPTS.md](CONCEPTS.md)** - Understanding dual-purpose scenarios and resource orchestration
-- **[getting-started.md](getting-started.md)** - Step-by-step scenario creation tutorial
-- **This Guide** - Testing and validation framework
-- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Running scenarios directly in production
+> 📚 **[Back to Scenario Documentation](README.md)**
 
 ## 🎯 Validation Overview
 
@@ -548,4 +543,4 @@ for dir in scenarios/*/; do (cd "$dir" && ./test.sh); done
 3. **Optimize Performance**: Improve metrics for production readiness
 4. **Document Learnings**: Share knowledge with the team
 
-**Next**: [Deployment Guide](DEPLOYMENT.md) - Convert validated scenarios into customer applications.
+**Next**: [Deployment Guide](DEPLOYMENT.md) - Deploy validated scenarios directly as customer applications.

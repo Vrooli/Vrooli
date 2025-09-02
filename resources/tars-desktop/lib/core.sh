@@ -23,8 +23,8 @@ tars_desktop::init() {
     # resource_registry::register "$TARS_DESKTOP_NAME" "$TARS_DESKTOP_CATEGORY"
     
     # Register port
-    if [[ -f "${var_ROOT_DIR}/scripts/resources/port-registry.sh" ]]; then
-        source "${var_ROOT_DIR}/scripts/resources/port-registry.sh"
+    if [[ -f "${var_ROOT_DIR}/scripts/resources/port_registry.sh" ]]; then
+        source "${var_ROOT_DIR}/scripts/resources/port_registry.sh"
         port_registry::register "tars-desktop" "$TARS_DESKTOP_PORT" "TARS Desktop UI Automation API"
     fi
     

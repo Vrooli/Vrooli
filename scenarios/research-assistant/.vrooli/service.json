@@ -176,7 +176,7 @@
       "steps": [
         {
           "name": "start-api-server",
-          "run": "cd api && PORT=$SERVICE_PORT ./research-assistant-api &",
+          "run": "cd api && PORT=$SERVICE_PORT ./research-assistant-api",
           "description": "Start Go coordination API server in background",
           "background": true,
           "condition": {

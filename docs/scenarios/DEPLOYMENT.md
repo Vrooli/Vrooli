@@ -1,11 +1,6 @@
 # Direct Scenario Deployment Guide
 
-## 📚 Navigation
-
-- **[CONCEPTS.md](CONCEPTS.md)** - Understanding dual-purpose scenarios and resource orchestration
-- **[getting-started.md](getting-started.md)** - Step-by-step scenario creation tutorial
-- **[VALIDATION.md](VALIDATION.md)** - Testing and validation framework
-- **This Guide** - Running scenarios directly in production
+> 📚 **[Back to Scenario Documentation](README.md)**
 
 ## 🚀 Running Scenarios Directly
 

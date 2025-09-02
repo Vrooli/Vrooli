@@ -26,8 +26,8 @@ RESOURCE LAYER (Capabilities)          SCENARIO LAYER (Business Applications)
 │   • Redis (cache)           │        │   business capabilities              │
 │   • MinIO (objects)         │        │                                     │
 │                             │        │ 🚀 Direct Execution                 │
-│ 🤖 Agent Resources          │        │   • No conversion step needed        │
-│   • Agent-S2 (screen)       │◄──────►│   • Scenarios run from source        │
+│ 🤖 Agent Resources          │        │   • Scenarios run from source       │
+│   • Agent-S2 (screen)       │◄──────►│   • No build artifacts needed       │
 │   • Browserless (web)       │        │   • Instant deployment              │
 │   [... 25+ more resources]  │        │   [... 40+ scenarios]               │
 └─────────────────────────────┘        └─────────────────────────────────────┘
@@ -57,21 +57,19 @@ graph TD
 
 ### 3. Direct Execution Model
 
-**Key Innovation**: Scenarios run directly from source without conversion.
+**Key Innovation**: Scenarios run directly from source - no intermediate conversion or build step required.
 
 ```bash
-# Traditional (Eliminated)
-Customer Requirements → Code Generation → Deployment Artifacts → Runtime
-
-# Vrooli (Current)  
-Customer Requirements → Scenario → Direct Execution → Business Application
+# Vrooli Direct Execution Model
+Customer Requirements → Scenario Definition → Direct Execution → Business Application
 ```
 
-**Benefits**:
-- ⚡ 2-5 seconds faster operations
-- 💾 Eliminates gigabytes of duplication  
-- 🔧 Single source of truth
-- 📁 Instant updates without regeneration
+**Benefits of Direct Execution**:
+- ⚡ Instant startup (no build step)
+- 💾 No duplicate artifacts or generated code
+- 🔧 Single source of truth in scenarios/ folder
+- 📁 Edit and run immediately without regeneration
+- 🚀 Scenarios ARE the deployment - no conversion needed
 
 ## 🧬 Resource Architecture
 
@@ -249,7 +247,7 @@ Port allocation managed by Vrooli's port registry system
 
 ### Current State (Completed)
 - ✅ Resource orchestration platform (30+ resources)
-- ✅ Direct scenario execution (no conversion layer)
+- ✅ Direct scenario execution from source
 - ✅ Dual-purpose scenarios (test + revenue)
 - ✅ Meta-scenario self-improvement
 
@@ -276,14 +274,14 @@ Port allocation managed by Vrooli's port registry system
 - Unlimited experimentation capability
 - Custom resource modification and extension
 
-### 2. Direct Execution Over Conversion
-**Decision**: Run scenarios directly from source instead of converting to standalone apps.
+### 2. Direct Execution From Source
+**Decision**: Run scenarios directly from their source location in the scenarios/ directory.
 
 **Benefits**:
-- Eliminates ~2000 lines of conversion complexity
-- Saves gigabytes of disk space (no duplication)
-- Provides instant updates without regeneration
-- Creates single source of truth
+- Eliminates build/compilation step entirely
+- Saves gigabytes of disk space (no build artifacts)
+- Provides instant updates (edit and run)
+- Creates single source of truth (scenarios/ folder)
 
 ### 3. Dual-Purpose Scenarios Over Separate Tests
 **Decision**: Every scenario serves as both integration test AND deployable business application.

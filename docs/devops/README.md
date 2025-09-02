@@ -1,10 +1,19 @@
-# DevOps
+# DevOps - Direct Execution Infrastructure
 
-This directory contains scripts for automating various development, build, deployment, and maintenance tasks for the Vrooli project.
+This directory contains documentation for Vrooli's simplified DevOps approach based on **direct scenario execution** - no build artifacts, no conversion steps, just run scenarios from source.
+
+## 🚀 Key Innovation: Direct Execution
+
+**No More Build Steps!** Scenarios run directly from their source location:
+- ✅ Edit scenario files → Run immediately
+- ✅ No compilation or transpilation
+- ✅ No build artifacts or bundles
+- ✅ No conversion to standalone apps
+- ✅ Tests ARE deployments (dual-purpose)
 
 ## System Architecture
 
-Vrooli now uses a unified CLI tool (`vrooli`) that replaces the previous complex script system. The architecture centers around:
+Vrooli uses a unified CLI tool (`vrooli`) for direct scenario management. The architecture centers around:
 
 ```
 cli/                        # Vrooli CLI implementation
@@ -29,7 +38,7 @@ scripts/                    # Backend automation scripts
 - [Development Environment](./development-environment.md) - Comprehensive local development setup guide
 - [Environment Management](./environment-management.md) - Multi-environment support and Vault integration
 - [Testing Infrastructure](./testing-infrastructure.md) - BATS testing framework and quality assurance
-- [Build System](./build-system.md) - Multi-platform builds and artifact management
+- [Build System](./build-system.md) - Multi-platform scenario deployment management
 
 ### Deployment & Infrastructure
 - [Server Deployment](./server-deployment.md) - VPS setup, security hardening, and production deployment
@@ -61,10 +70,10 @@ The `vrooli` CLI provides a unified interface for all development operations:
     *   **Features**: Auto-restart, live reloading, integrated logging
 
 *   **`vrooli build`**:
-    *   **Purpose**: Build production-ready artifacts and deployments
-    *   **Key Functions**: Compiles code, creates containers, packages applications
+    *   **Purpose**: Validate scenarios for production deployment
+    *   **Key Functions**: Validates configurations, checks dependencies, prepares deployment
     *   **Usage**: `vrooli build`
-    *   **Features**: Multi-platform support, optimization, artifact generation
+    *   **Features**: Resource validation, configuration checking, deployment preparation
 
 *   **`vrooli deploy`**:
     *   **Purpose**: Deploy applications to production or staging environments
@@ -73,7 +82,7 @@ The `vrooli` CLI provides a unified interface for all development operations:
     *   **Features**: Environment management, rollback capabilities, health checks
 
 *   **`vrooli clean`**:
-    *   **Purpose**: Clean build artifacts and reset environment state
+    *   **Purpose**: Clean deployment files and reset environment state
     *   **Key Functions**: Removes build files, resets containers, clears caches
     *   **Usage**: `vrooli clean`
 
@@ -88,11 +97,11 @@ The `vrooli` CLI provides a unified interface for all development operations:
     *   **Usage**: `vrooli stop [component]`
 
 
-### **🎯 Scenario Management**  
+### **🎯 Scenario Management (Direct Execution)**  
 
 *   **Scenario Commands**: `vrooli scenario list`, `vrooli scenario run`, `vrooli scenario test`
-*   **Purpose**: Run business application scenarios directly from source
-*   **Features**: Direct execution, integration testing, resource orchestration
+*   **Purpose**: Run business application scenarios **directly from source** - no conversion or build steps
+*   **Features**: Instant execution, dual-purpose testing (test = deployment-ready), resource orchestration
 
 ### **🔧 Resource Management**
 
@@ -124,10 +133,10 @@ The Vrooli CLI is supported by a sophisticated backend system organized into sev
 *   **Testing Infrastructure**: Smoke tests, integration tests, performance validation
 
 ### **🎯 Scenario System (`scripts/scenarios/`)**
-*   **App Generation**: Template-based application creation from scenario definitions
+*   **Direct Execution**: Run scenarios directly from source without build steps
 *   **Validation Framework**: Structure validation, dependency checking, configuration verification  
-*   **Orchestration**: Multi-app coordination, resource allocation, lifecycle management
-*   **Testing Integration**: Scenario-specific testing, end-to-end validation
+*   **Orchestration**: Resource coordination, port allocation, lifecycle management
+*   **Testing Integration**: Scenario-specific testing that proves deployment readiness
 
 ### **⚙️ Configuration Management (`.vrooli/`)**
 *   **Service Configuration**: `service.json` for resource and app definitions
@@ -175,7 +184,7 @@ graph TD
 
     subgraph "Build Phase"
         BuildSh["build.sh<br/>--version X.X.X --artifacts all"]
-        BuildArtifacts["Build Artifacts<br/>• Docker Images<br/>• Helm Charts<br/>• Electron Apps<br/>• ZIP Bundles"]
+        BuildArtifacts["Deployment Packages<br/>• Docker Images<br/>• Helm Charts<br/>• Scenario Bundles<br/>• Resource Configs"]
         Registry["Container Registry<br/>(Docker Hub)"]
     end
 
@@ -382,7 +391,7 @@ graph TD
     
     Test --> TestSuite["Test Execution<br>• Static analysis<br>• Resource validation<br>• Scenario testing"]
     
-    Build --> BuildArtifacts["Build Process<br>• Code compilation<br>• Artifact generation<br>• Container building"]
+    Build --> BuildArtifacts["Validation Process<br>• Scenario structure check<br>• Resource dependency validation<br>• Configuration verification"]
     
     Deploy --> DeployProcess["Deployment<br>• Environment-specific config<br>• Service orchestration<br>• Health verification"]
 
@@ -414,16 +423,16 @@ vrooli test
 
 ### Build Workflows
 ```bash
-# Build project artifacts
+# Validate scenarios for deployment
 vrooli build
 
-# Clean and rebuild
+# Clean and re-validate
 vrooli clean
 vrooli build
 
-# Run comprehensive tests before build
+# Test and validate before deployment
 vrooli test
-vrooli build
+vrooli build  # Confirms deployment readiness
 ```
 
 ### Deployment Workflows
@@ -453,18 +462,18 @@ vrooli resource status
 vrooli resource stop-all
 ```
 
-### Application Management
+### Scenario Execution
 ```bash
-# List all generated applications
+# List all available scenarios
 vrooli scenario list
 
-# Start specific application
+# Run scenario directly from source
 vrooli scenario run <scenario-name>
 
-# View application logs
-vrooli status <app-name>
+# View scenario logs
+vrooli status <scenario-name>
 
-# Stop scenarios
+# Stop all running scenarios
 vrooli stop scenarios
 ```
 

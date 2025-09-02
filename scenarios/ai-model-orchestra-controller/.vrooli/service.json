@@ -220,7 +220,7 @@
         },
         {
           "name": "start-orchestrator",
-          "run": "cd initialization/configuration && PORT=$SERVICE_PORT node api-server.js &",
+          "run": "cd initialization/configuration && PORT=$SERVICE_PORT node api-server.js",
           "description": "Start AI orchestration API server",
           "background": true,
           "condition": {

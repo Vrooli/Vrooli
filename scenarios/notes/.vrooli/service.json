@@ -192,7 +192,7 @@
       "steps": [
         {
           "name": "start-api-server",
-          "run": "cd api && PORT=$SERVICE_PORT ./notes-api &",
+          "run": "cd api && PORT=$SERVICE_PORT ./notes-api",
           "description": "Start API server",
           "background": true,
           "condition": {
@@ -201,7 +201,7 @@
         },
         {
           "name": "start-ui-server",
-          "run": "cd ui && PORT=$UI_PORT API_URL=http://localhost:$SERVICE_PORT npm start &",
+          "run": "cd ui && PORT=$UI_PORT API_URL=http://localhost:$SERVICE_PORT npm start",
           "description": "Start UI server",
           "background": true
         },

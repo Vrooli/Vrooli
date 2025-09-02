@@ -141,8 +141,13 @@
       "description": "Start retro game launcher with custom UI and Go API",
       "steps": [
         {
+          "name": "ensure-api-built",
+          "run": "if [ ! -f api/retro-game-launcher-api ]; then echo 'Building API...'; cd api && go mod download && go build -o retro-game-launcher-api main.go && echo 'API built successfully'; else echo 'API binary already exists'; fi",
+          "description": "Ensure API binary exists"
+        },
+        {
           "name": "start-api-server",
-          "run": "cd api && PORT=$SERVICE_PORT ./retro-game-launcher-api &",
+          "run": "cd api && PORT=$SERVICE_PORT ./retro-game-launcher-api",
           "description": "Start Go API server in background",
           "background": true,
           "condition": {
@@ -160,7 +165,7 @@
         },
         {
           "name": "start-ui",
-          "run": "cd ui && PORT=$UI_PORT REACT_APP_API_URL=http://localhost:$SERVICE_PORT npm start &",
+          "run": "cd ui && PORT=$UI_PORT REACT_APP_API_URL=http://localhost:$SERVICE_PORT npm start",
           "description": "Start React UI in background",
           "background": true,
           "condition": {

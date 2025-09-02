@@ -47,7 +47,7 @@ home_assistant::install() {
     fi
     
     # Register port
-    local port_registry="${var_SCRIPTS_RESOURCES_DIR}/port-registry.sh"
+    local port_registry="${var_SCRIPTS_RESOURCES_DIR}/port_registry.sh"
     if [[ -f "$port_registry" ]]; then
         log::info "Registering port $HOME_ASSISTANT_PORT for Home Assistant"
         "$port_registry" register home-assistant "$HOME_ASSISTANT_PORT"
@@ -129,7 +129,7 @@ home_assistant::uninstall() {
     fi
     
     # Unregister port
-    local port_registry="${var_SCRIPTS_RESOURCES_DIR}/port-registry.sh"
+    local port_registry="${var_SCRIPTS_RESOURCES_DIR}/port_registry.sh"
     if [[ -f "$port_registry" ]]; then
         log::info "Unregistering port for Home Assistant"
         "$port_registry" unregister home-assistant

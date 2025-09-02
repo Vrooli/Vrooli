@@ -49,35 +49,32 @@ vrooli status
 
 ---
 
-## 📦 Package-Level Development
+## 📦 Resource & Scenario Development
 
-### Working with Packages
+### Working with Resources
 
 ```bash
-# Navigate to package for focused development
-cd packages/server
+# Start all enabled resources
+vrooli resource start-all
 
-# Start development server with hot reload
-pnpm dev
+# Check resource status
+vrooli resource status
 
-# Run tests with watch mode
-pnpm test-watch
+# Test specific resource
+resource-ollama test
+resource-postgres test
 
-# Type checking
-pnpm type-check
-
-# Build for production
-pnpm build
+# View resource logs
+resource-<name> logs
 ```
 
-### Package-Specific Workflows
+### Scenario-Specific Workflows
 
-| Package | Primary Commands | Purpose |
+| Component | Primary Commands | Purpose |
 |---------|------------------|---------|
-| **packages/server** | `pnpm dev`, `pnpm test-watch` | API development and testing |
-| **packages/ui** | `pnpm dev`, `pnpm storybook` | UI development and component testing |
-| **packages/shared** | `pnpm test-watch`, `pnpm build` | Type and validation development |
-| **packages/jobs** | `pnpm dev`, `pnpm test` | Background job development |
+| **Resources** | `vrooli resource start`, `resource-<name> test` | Service management and testing |
+| **Scenarios** | `vrooli scenario run`, `vrooli scenario test` | Business application development |
+| **System** | `vrooli develop`, `vrooli status` | Overall system management |
 
 ### Integrated Development
 
@@ -178,7 +175,7 @@ vrooli setup
 vrooli develop
 
 # Code changes automatically trigger:
-# - TypeScript compilation
+# - Scenario configuration validation
 # - Test execution (changed files)
 # - Hot module replacement (UI)
 # - Server restart (API changes)
@@ -188,8 +185,8 @@ curl http://localhost:5555/api/status
 # Open http://localhost:3000 in browser
 
 # Run tests for your changes
-cd packages/server && pnpm test -- --grep "your feature"
-cd packages/ui && pnpm test -- your-component
+vrooli scenario test <scenario-name>
+vrooli test resources --grep "your feature"
 ```
 
 ### 2. Database Development
@@ -198,14 +195,14 @@ cd packages/ui && pnpm test -- your-component
 # Access database directly
 docker exec -it vrooli-postgres-1 psql -U postgres -d vrooli
 
-# Run migrations
-cd packages/server && pnpm prisma migrate dev
+# PostgreSQL resource handles migrations
+resource-postgres migrate
 
 # Reset database (development only)
-cd packages/server && pnpm prisma migrate reset
+resource-postgres reset
 
-# Seed data
-cd packages/server && pnpm prisma db seed
+# Seed data through scenario initialization
+vrooli scenario init <scenario-name>
 ```
 
 ### 3. Testing Workflows
@@ -214,10 +211,10 @@ cd packages/server && pnpm prisma db seed
 # Run all tests
 pnpm test
 
-# Package-specific testing
-cd packages/server && pnpm test-coverage
-cd packages/ui && pnpm test-watch
-cd packages/shared && pnpm test
+# Scenario-specific testing
+vrooli scenario test <scenario-name> --coverage
+vrooli test scenarios --watch
+vrooli test resources
 
 # Integration testing with Docker
 vrooli develop
@@ -225,7 +222,7 @@ vrooli develop
 vrooli test
 
 # E2E testing
-cd packages/ui && pnpm test:e2e
+vrooli test e2e --scenario <scenario-name>
 ```
 
 ### 4. Performance Development
@@ -237,12 +234,14 @@ vrooli develop
 # Monitor resources
 docker stats
 
-# Profile specific packages
-cd packages/server && node --inspect=0.0.0.0:9229 dist/index.js
-cd packages/ui && pnpm build && pnpm analyze
+# Profile scenarios
+vrooli scenario profile <scenario-name> --inspect
+
+# Resource performance analysis
+vrooli resource profile --all
 
 # Memory and CPU analysis
-cd packages/server && pnpm test -- --coverage
+vrooli test performance --scenario <scenario-name>
 ```
 
 ### 5. Debugging Workflows
@@ -256,7 +255,7 @@ vrooli develop
 # Check browser console and network tab
 
 # Debug database queries
-cd packages/server && DEBUG=prisma:query pnpm dev
+DEBUG=postgres:query vrooli develop
 
 # Debug Redis connections
 docker exec -it vrooli-redis-1 redis-cli monitor
@@ -309,8 +308,7 @@ vrooli develop
 
 ```bash
 # Start with test watching
-cd packages/server && pnpm test-watch &
-cd packages/ui && pnpm test-watch &
+vrooli test --watch &
 vrooli develop
 
 # Write failing tests first
@@ -338,11 +336,10 @@ pnpm test:ci
 vrooli develop
 
 # Load testing
-cd packages/server && npm run test:load
-cd packages/ui && npm run test:lighthouse
+vrooli test load --scenario <scenario-name>
 
 # Memory leak testing
-cd packages/server && npm run test:memory
+vrooli test memory --scenario <scenario-name>
 ```
 
 ---
@@ -380,7 +377,8 @@ curl http://localhost:5329/healthcheck
 curl http://localhost:3000
 
 # Database connectivity
-cd packages/server && pnpm prisma db pull
+resource-postgres status
+resource-postgres pull
 
 # Dependencies status
 docker ps
@@ -394,15 +392,15 @@ docker logs vrooli-ui-1
 # Monitor resource usage
 docker stats
 
-# Profile Node.js performance
-cd packages/server && node --inspect=0.0.0.0:9229 dist/index.js
+# Profile scenario performance
+vrooli scenario profile <scenario-name> --inspect
 # Open chrome://inspect in Chrome
 
-# Analyze bundle size
-cd packages/ui && pnpm analyze
+# Analyze resource usage
+vrooli resource analyze
 
 # Database performance
-cd packages/server && DEBUG=prisma:query pnpm dev
+resource-postgres profile
 ```
 
 ---
@@ -429,12 +427,12 @@ docker exec -it vrooli-redis-1 redis-cli info stats
 # Server performance
 curl http://localhost:5329/metrics
 
-# UI performance
-cd packages/ui && pnpm build && pnpm preview
+# Scenario UI performance
+vrooli scenario analyze <scenario-name> --ui
 # Check Lighthouse scores in browser dev tools
 
-# Database performance
-cd packages/server && pnpm prisma studio
+# Database performance monitoring
+resource-postgres studio
 # Monitor query performance
 ```
 
@@ -479,7 +477,7 @@ kubectl rollout status deployment/vrooli-server -n vrooli-production
 |--------|---------|--------------|
 | **vrooli setup** | Initial environment setup | `vrooli setup` |
 | **vrooli develop** | Start development environment | `vrooli develop` |
-| **vrooli build** | Build production artifacts | `vrooli build` |
+| **vrooli build** | Build scenario deployments | `vrooli build` |
 | **vrooli deploy** | Deploy to environments | `vrooli deploy` |
 
 ### Helper Scripts
@@ -543,8 +541,8 @@ kubectl rollout status deployment/vrooli-server -n vrooli-production
 - **[Docker Setup](../setup/working_with_docker.md)** - Docker-specific configuration
 
 ### Development Guides
-- **[Server Development](../../packages/server/README.md)** - API development patterns
-- **[UI Development](../../packages/ui/README.md)** - Frontend development workflows
+- **[Scenario Development](../scenarios/getting-started.md)** - Building business applications
+- **[Resource Integration](../resources/README.md)** - Working with resources
 - **[Testing Strategy](../testing/test-strategy.md)** - Testing approaches and tools
 
 ### Deployment & Operations

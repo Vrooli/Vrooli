@@ -168,48 +168,49 @@ STRIPE_PUBLIC_KEY=<your-key>          # For payment features
 SITE_EMAIL_*=<email-config>           # For email features
 ```
 
-## Package Management with PNPM
+## Resource & Scenario Management
 
-> **Note**: For detailed package management troubleshooting, see [Troubleshooting Guide](./troubleshooting.md#package-management-issues).
+> **Note**: Vrooli uses direct execution - scenarios run from source without build steps. For troubleshooting, see [Troubleshooting Guide](./troubleshooting.md#scenario-issues).
 
-### Why PNPM?
+### Direct Execution Architecture
 
-Vrooli uses PNPM for:
-- **Efficient Storage**: Shared package store reduces disk usage
-- **Fast Installation**: Faster than npm or pnpm for monorepos
-- **Strict Dependencies**: Better dependency management
-- **Workspace Support**: Excellent monorepo support
+Vrooli's development workflow centers on:
+- **Resource Orchestration**: 30+ independent services providing capabilities
+- **Scenario Execution**: Business applications run directly from `scenarios/` folder
+- **No Build Steps**: Edit scenario files and run immediately
+- **Process Isolation**: Each scenario gets isolated PM_HOME and logging
 
-### Common PNPM Commands
+### Common Development Commands
 
 ```bash
-# Install dependencies for all packages
-pnpm install
+# Resource Management
+vrooli resource start-all        # Start all enabled resources
+vrooli resource status           # Check resource health
+resource-ollama start            # Start specific resource
+resource-postgres logs           # View resource logs
 
-# Install dependencies for specific package
-pnpm --filter server install
+# Scenario Development
+vrooli scenario list             # List available scenarios
+vrooli scenario run my-app       # Run scenario directly from source
+vrooli scenario test my-app      # Test scenario integration
 
-# Run scripts across packages
-pnpm run build                    # Build all packages
-pnpm --filter ui run dev         # Run UI development server
-pnpm --filter server run test    # Run server tests
+# Direct Execution (alternative)
+cd scenarios/my-app
+../../scripts/manage.sh develop  # Run from scenario directory
 
-# Add dependencies
-pnpm --filter shared add lodash  # Add to shared package
-pnpm add -D typescript           # Add dev dependency to root
-
-# Update dependencies
-pnpm update                      # Update all packages
-pnpm --filter ui update react   # Update specific package
+# System Management
+vrooli status                    # Overall system health
+vrooli stop                      # Stop all components
 ```
 
-### Workspace Configuration
+### Scenario Structure
 
-```json
-// pnpm-workspace.yaml
-packages:
-  - 'packages/*'
-  - 'docs'
+```
+scenarios/my-app/
+├── .vrooli/service.json        # Configuration (no build needed)
+├── test.sh                     # Integration test (is deployment test)
+├── initialization/             # Startup data and workflows
+└── deployment/                 # Production scripts
 ```
 
 ## Visual Studio Code Configuration
@@ -244,26 +245,27 @@ Create `.vscode/settings.json`:
 {
   "editor.formatOnSave": true,
   "editor.codeActionsOnSave": {
-    "source.fixAll.eslint": true,
-    "source.organizeImports": true
+    "source.fixAll": true
   },
-  "typescript.tsdk": "node_modules/typescript/lib",
-  "typescript.preferences.importModuleSpecifier": "relative",
   "peacock.favoriteColors": [
     { "name": "Development", "value": "#42b883" },
     { "name": "Staging", "value": "#f5a623" },
     { "name": "Production", "value": "#ff4444" }
   ],
   "files.exclude": {
-    "**/node_modules": true,
-    "**/dist": true,
-    "**/.next": true
+    "**/.vrooli/processes": true,
+    "**/.vrooli/logs": true,
+    "**/tmp": true
   },
   "search.exclude": {
-    "**/node_modules": true,
-    "**/dist": true,
-    "**/.next": true,
-    "**/pnpm-lock.yaml": true
+    "**/.vrooli": true,
+    "**/logs": true,
+    "**/tmp": true,
+    "**/archive": true
+  },
+  "files.associations": {
+    "service.json": "json",
+    "*.sh": "shellscript"
   }
 }
 ```
@@ -282,18 +284,18 @@ Create `.vscode/launch.json`:
       "request": "attach",
       "port": 9229,
       "address": "localhost",
-      "localRoot": "${workspaceFolder}/packages/server",
-      "remoteRoot": "/srv/app/packages/server",
-      "outFiles": ["${workspaceFolder}/packages/server/dist/**/*.js"],
+      "localRoot": "${workspaceFolder}/scenarios",
+      "remoteRoot": "/srv/app/scenarios",
+      "outFiles": ["${workspaceFolder}/scenarios/**/*.js"],
       "skipFiles": ["<node_internals>/**"]
     },
     {
       "name": "Debug Server Tests",
       "type": "node",
       "request": "launch",
-      "program": "${workspaceFolder}/packages/server/node_modules/.bin/mocha",
-      "args": ["--require", "ts-node/register", "src/**/*.test.ts"],
-      "cwd": "${workspaceFolder}/packages/server",
+      "program": "${workspaceFolder}/vrooli",
+      "args": ["scenario", "test"],
+      "cwd": "${workspaceFolder}",
       "env": {
         "NODE_ENV": "test"
       }
@@ -332,14 +334,13 @@ docker exec -it postgres psql -U vrooli_dev -d postgres
 
 ```bash
 # Local services target
-cd packages/server
-pnpm run migrate
+resource-postgres migrate
 
 # Docker target
-docker exec -it server bash -c "cd packages/server && pnpm run migrate"
+docker exec -it postgres bash -c "resource-postgres migrate"
 
 # Kubernetes target
-kubectl exec -it $(kubectl get pods -l app=server -o name) -- bash -c "cd packages/server && pnpm run migrate"
+kubectl exec -it $(kubectl get pods -l app=postgres -o name) -- bash -c "resource-postgres migrate"
 ```
 
 ### Creating Test Data
@@ -351,17 +352,15 @@ echo "CREATE_MOCK_DATA=true" >> .env-dev
 # Restart development environment
 vrooli develop
 
-# Or manually create mock data
-cd packages/server
-pnpm run create-mock-data
+# Or manually create mock data through scenarios
+vrooli scenario init <scenario-name> --with-data
 ```
 
 ### Database Utilities
 
 ```bash
 # Reset database (WARNING: Deletes all data)
-cd packages/server
-pnpm run db:reset
+resource-postgres reset
 
 # Backup database
 pg_dump -h localhost -U vrooli_dev postgres > backup.sql
@@ -398,7 +397,7 @@ pnpm --filter server run test:watch
 ### Writing Tests
 
 ```typescript
-// Example unit test (packages/server/src/services/auth.test.ts)
+// Example scenario test (scenarios/<name>/test.sh)
 import { expect } from 'chai';
 import { describe, it } from 'mocha';
 import { authService } from './auth.js';
@@ -598,7 +597,7 @@ rm .env-dev
 vrooli setup
 ```
 
-#### 5. TypeScript Compilation Issues
+#### 5. Scenario Configuration Issues
 
 ```bash
 # Clear TypeScript cache
@@ -695,7 +694,7 @@ cp .env-dev.template .env-dev
 # Use local services for fastest iteration
 vrooli develop
 
-# Enable TypeScript incremental compilation
+# Enable scenario caching for faster execution
 # Already configured in tsconfig.json
 
 # Use PNPM linking for faster installs
