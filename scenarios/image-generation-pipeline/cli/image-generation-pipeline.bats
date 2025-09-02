@@ -3,7 +3,7 @@
 
 setup() {
     # Set test environment
-    export IMAGE_GENERATION_PIPELINE_API_BASE="http://localhost:${SERVICE_PORT:-8090}"
+    export IMAGE_GENERATION_PIPELINE_API_BASE="http://localhost:${API_PORT:-8090}"
     
     # CLI location
     CLI_SCRIPT="$BATS_TEST_DIRNAME/image-generation-pipeline-cli.sh"

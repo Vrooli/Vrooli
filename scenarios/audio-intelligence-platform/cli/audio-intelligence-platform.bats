@@ -5,7 +5,7 @@
 setup() {
     # Point to local CLI script
     CLI_SCRIPT="$BATS_TEST_DIRNAME/audio-intelligence-platform-cli.sh"
-    export AUDIO_INTELLIGENCE_PLATFORM_API_BASE="http://localhost:${SERVICE_PORT:-8090}"
+    export AUDIO_INTELLIGENCE_PLATFORM_API_BASE="http://localhost:${API_PORT:-8090}"
 }
 
 @test "CLI shows version" {

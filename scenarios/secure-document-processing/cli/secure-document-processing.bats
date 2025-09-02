@@ -4,7 +4,7 @@
 
 setup() {
     CLI_PATH="${BATS_TEST_FILENAME%/*}/secure-document-processing"
-    export SERVICE_PORT="${SERVICE_PORT:-8090}"
+    export API_PORT="${API_PORT:-8090}"
 }
 
 @test "CLI shows help when run without arguments" {
@@ -35,7 +35,7 @@ setup() {
 @test "CLI status command works when API is running" {
     # This test assumes the API is running during tests
     # In real scenarios, we'd mock or skip if API is not available
-    if curl -sf "http://localhost:$SERVICE_PORT/health" >/dev/null 2>&1; then
+    if curl -sf "http://localhost:$API_PORT/health" >/dev/null 2>&1; then
         run "$CLI_PATH" status
         [ "$status" -eq 0 ]
         [[ "$output" =~ "API is running" ]]
