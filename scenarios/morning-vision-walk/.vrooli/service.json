@@ -184,7 +184,7 @@
       "steps": [
         {
           "name": "start-api-server",
-          "run": "cd api && env PORT=$API_PORT ./vision-walk-api",
+          "run": "cd api && ./vision-walk-api",
           "description": "Start API server",
           "background": true,
           "condition": {
@@ -198,7 +198,7 @@
         },
         {
           "name": "start-ui-server",
-          "run": "cd ui && env PORT=$UI_PORT API_URL=http://localhost:$API_PORT npm start",
+          "run": "cd ui && node server.js",
           "description": "Start UI server",
           "background": true
         },

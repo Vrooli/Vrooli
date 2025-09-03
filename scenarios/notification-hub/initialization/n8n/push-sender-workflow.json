@@ -1,0 +1,83 @@
+{
+  "name": "Push Sender",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [200, 300],
+      "webhookId": "push-sender"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.all()[0].json;\n\n// Mock Push notification - log the attempt\nconsole.log('MOCK PUSH SEND:', {\n  title: data.channel_content?.title,\n  body: data.channel_content?.body,\n  data: data.channel_content?.data,\n  notification_id: data.notification_id\n});\n\n// Return mock success response\nreturn [{\n  json: {\n    status: 'sent',\n    provider_message_id: `mock_push_${Date.now()}`,\n    provider_response: {\n      mock: true,\n      status: 'sent',\n      timestamp: new Date().toISOString()\n    },\n    notification_id: data.notification_id,\n    channel: 'push',\n    cost_cents: 0, // Push notifications typically free\n    sent_at: new Date().toISOString(),\n    delivered_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "mock-push-send",
+      "name": "Mock Push Send",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [400, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO notification_deliveries (\n  notification_id,\n  channel,\n  provider,\n  status,\n  provider_message_id,\n  provider_response,\n  sent_at,\n  delivered_at,\n  cost_cents\n) VALUES (\n  '{{ $json.notification_id }}',\n  'push',\n  'mock',\n  '{{ $json.status }}',\n  '{{ $json.provider_message_id }}',\n  '{{ JSON.stringify($json.provider_response) }}',\n  '{{ $json.sent_at }}',\n  '{{ $json.delivered_at }}',\n  {{ $json.cost_cents }}\n)",
+        "options": {}
+      },
+      "id": "record-push-delivery",
+      "name": "Record Push Delivery",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [600, 300],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-notification-hub",
+          "name": "PostgreSQL - Notification Hub"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Mock Push Send",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mock Push Send": {
+      "main": [
+        [
+          {
+            "node": "Record Push Delivery",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z",
+      "id": "push-delivery",
+      "name": "push-delivery"
+    }
+  ],
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "push-sender",
+  "versionId": "1"
+}

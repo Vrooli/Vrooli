@@ -31,10 +31,7 @@ type BatchItem struct {
 }
 
 func main() {
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "9100"
-	}
+	port := getEnv("API_PORT", getEnv("PORT", ""))
 
 	n8nURL := os.Getenv("N8N_BASE_URL")
 	if n8nURL == "" {
@@ -100,6 +97,13 @@ func main() {
 	if err := http.ListenAndServe(":"+port, nil); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
 }
 
 func forwardToN8N(url string, data interface{}) (map[string]interface{}, error) {

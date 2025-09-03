@@ -134,7 +134,7 @@
         },
         {
           "name": "start-api-server",
-          "run": "cd api && env PORT=$API_PORT ./mass-update-tracker-api",
+          "run": "cd api && ./mass-update-tracker-api",
           "description": "Start Go API server in background",
           "background": true,
           "condition": {
@@ -143,16 +143,12 @@
         },
         {
           "name": "wait-for-api",
-          "run": "sleep 2 && curl -sf http://localhost:$API_PORT/health > /dev/null",
-          "description": "Wait for API server to be ready",
-          "retry": {
-            "max_attempts": 15,
-            "delay": 1
-          }
+          "run": "sleep 2 && curl -sf http://localhost:${API_PORT}/health > /dev/null",
+          "description": "Wait for API server to be ready"
         },
         {
           "name": "start-ui-server",
-          "run": "cd ui && env PORT=$UI_PORT node server.js",
+          "run": "cd ui && node server.js",
           "description": "Start UI development server",
           "background": true,
           "condition": {
@@ -161,16 +157,12 @@
         },
         {
           "name": "wait-for-ui",
-          "run": "sleep 1 && curl -sf http://localhost:$UI_PORT > /dev/null",
-          "description": "Wait for UI server to be ready",
-          "retry": {
-            "max_attempts": 10,
-            "delay": 1
-          }
+          "run": "sleep 1 && curl -sf http://localhost:${UI_PORT:-3251} > /dev/null",
+          "description": "Wait for UI server to be ready"
         },
         {
           "name": "show-running-services",
-          "run": "echo '🚀 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:$API_PORT\\n  CLI: mass-update-tracker --help'",
+          "run": "echo '🚀 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: mass-update-tracker --help'",
           "description": "Display all running service URLs"
         }
       ]

@@ -131,7 +131,7 @@ func main() {
 	handler := c.Handler(router)
 
 	// Start server
-	port := getEnv("PORT", "8081")
+	port := getEnv("API_PORT", getEnv("PORT", ""))
 	log.Printf("Starting Nutrition Tracker API on port %s", port)
 	if err := http.ListenAndServe(":"+port, handler); err != nil {
 		log.Fatal("Failed to start server:", err)

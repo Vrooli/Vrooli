@@ -117,7 +117,7 @@
       "initialization": [
         {
           "file": "initialization/qdrant/collections.json",
-          "type": "collections"
+          "type": "collection"
         }
       ]
     },
@@ -186,7 +186,7 @@
         },
         {
           "name": "install-cli",
-          "run": "cd cli && chmod +x mind-maps && ln -sf $(pwd)/mind-maps /usr/local/bin/mind-maps 2>/dev/null || true",
+          "run": "cd cli && chmod +x mind-maps && ln -sf $(pwd)/mind-maps ~/.local/bin/mind-maps 2>/dev/null || true",
           "description": "Install CLI command globally"
         },
         {
@@ -206,7 +206,7 @@
       "steps": [
         {
           "name": "start-api-server",
-          "run": "cd api && env PORT=$API_PORT ./mind-maps-api",
+          "run": "cd api && ./mind-maps-api",
           "description": "Start Go API server in background",
           "background": true
         },
@@ -217,7 +217,7 @@
         },
         {
           "name": "start-ui-server",
-          "run": "cd ui && env PORT=$UI_PORT API_URL=http://localhost:$API_PORT node server.js",
+          "run": "cd ui && node server.js",
           "description": "Start UI server in background",
           "background": true
         },

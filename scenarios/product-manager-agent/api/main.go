@@ -20,10 +20,7 @@ type Feature struct {
 }
 
 func main() {
-    port := os.Getenv("PORT")
-    if port == "" {
-        port = "9200"
-    }
+	port := getEnv("API_PORT", getEnv("PORT", ""))
 
     // Enable CORS
     http.HandleFunc("/health", corsMiddleware(healthHandler))
@@ -35,6 +32,13 @@ func main() {
     if err := http.ListenAndServe(":"+port, nil); err != nil {
         log.Fatal(err)
     }
+}
+
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
 }
 
 func corsMiddleware(handler http.HandlerFunc) http.HandlerFunc {

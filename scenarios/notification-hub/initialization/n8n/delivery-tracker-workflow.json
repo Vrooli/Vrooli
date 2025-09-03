@@ -1,0 +1,51 @@
+{
+  "name": "Delivery Tracker",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger", 
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [200, 300],
+      "webhookId": "delivery-tracker"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO notification_events (\n  notification_id,\n  event_type,\n  channel,\n  user_agent,\n  ip_address,\n  data\n) VALUES (\n  '{{ $json.notification_id }}',\n  '{{ $json.event_type }}',\n  '{{ $json.channel }}',\n  '{{ $json.user_agent }}',\n  '{{ $json.ip_address }}',\n  '{{ JSON.stringify($json.data || {}) }}'\n)",
+        "options": {}
+      },
+      "id": "record-delivery-event",
+      "name": "Record Delivery Event",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [400, 300],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-notification-hub",
+          "name": "PostgreSQL - Notification Hub"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Record Delivery Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "id": "delivery-tracker",
+  "versionId": "1"
+}

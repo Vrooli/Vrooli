@@ -84,16 +84,7 @@ func main() {
     wheels = getDefaultWheels()
     history = []SpinResult{}
     
-    port := os.Getenv("API_PORT")
-    if port == "" {
-        port = os.Getenv("API_PORT")
-        if port == "" {
-            port = os.Getenv("PORT")
-            if port == "" {
-                port = "8100"
-            }
-        }
-    }
+	port := getEnv("API_PORT", getEnv("PORT", ""))
 
     router := mux.NewRouter()
 
@@ -120,6 +111,13 @@ func main() {
 
     log.Printf("🎯 Picker Wheel API starting on port %s", port)
     log.Fatal(http.ListenAndServe(":"+port, handler))
+}
+
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
 }
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {

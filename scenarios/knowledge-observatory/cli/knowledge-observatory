@@ -1,0 +1,439 @@
+#!/bin/bash
+
+set -euo pipefail
+
+SCRIPT_NAME="knowledge-observatory"
+VERSION="1.0.0"
+API_URL="${KNOWLEDGE_OBSERVATORY_API_URL:-http://localhost:20260}"
+
+show_help() {
+    cat << EOF
+Knowledge Observatory CLI - Monitor and manage Vrooli's semantic knowledge system
+
+Usage: $SCRIPT_NAME <command> [options]
+
+Commands:
+    status          Show knowledge system operational status
+    search          Semantic search across knowledge base
+    health          Show knowledge system health metrics
+    graph           Generate knowledge relationship graph
+    metrics         Show detailed quality metrics
+    help            Display this help message
+    version         Show version information
+
+Options:
+    --json          Output in JSON format
+    --verbose       Show detailed output
+    --api-url URL   Override API URL (default: $API_URL)
+
+Examples:
+    $SCRIPT_NAME search "How does Vrooli handle scenarios?"
+    $SCRIPT_NAME search "agent workflows" --limit 20 --collection vrooli_knowledge
+    $SCRIPT_NAME health --json
+    $SCRIPT_NAME graph --center "scenario-generator" --depth 3
+    $SCRIPT_NAME metrics --collection scenario_memory --time-range 24h
+
+For detailed help on a specific command:
+    $SCRIPT_NAME <command> --help
+
+EOF
+}
+
+show_version() {
+    echo "$SCRIPT_NAME version $VERSION"
+    echo "API URL: $API_URL"
+}
+
+check_dependencies() {
+    if ! command -v curl &> /dev/null; then
+        echo "Error: curl is required but not installed" >&2
+        exit 1
+    fi
+    if ! command -v jq &> /dev/null && [[ "${JSON_OUTPUT:-false}" == "true" ]]; then
+        echo "Warning: jq is not installed, JSON output will be unformatted" >&2
+    fi
+}
+
+api_request() {
+    local method="$1"
+    local endpoint="$2"
+    local data="${3:-}"
+    local response
+    
+    if [[ -n "$data" ]]; then
+        response=$(curl -s -X "$method" \
+            -H "Content-Type: application/json" \
+            -d "$data" \
+            "${API_URL}${endpoint}")
+    else
+        response=$(curl -s -X "$method" "${API_URL}${endpoint}")
+    fi
+    
+    if [[ $? -ne 0 ]]; then
+        echo "Error: Failed to connect to API at $API_URL" >&2
+        exit 1
+    fi
+    
+    echo "$response"
+}
+
+cmd_status() {
+    local json_output="${1:-false}"
+    local response
+    
+    response=$(api_request GET "/health")
+    
+    if [[ "$json_output" == "true" ]]; then
+        if command -v jq &> /dev/null; then
+            echo "$response" | jq .
+        else
+            echo "$response"
+        fi
+    else
+        echo "🔭 Knowledge Observatory Status"
+        echo "================================"
+        echo ""
+        
+        local status=$(echo "$response" | grep -o '"status":"[^"]*' | cut -d'"' -f4)
+        local total=$(echo "$response" | grep -o '"total_entries":[0-9]*' | cut -d':' -f2)
+        local health=$(echo "$response" | grep -o '"overall_health":"[^"]*' | cut -d'"' -f4)
+        
+        echo "Status: ${status:-unknown}"
+        echo "Total Entries: ${total:-0}"
+        echo "Overall Health: ${health:-unknown}"
+        echo ""
+        echo "Use --json for detailed collection information"
+    fi
+}
+
+cmd_search() {
+    shift
+    local query=""
+    local collection=""
+    local limit="10"
+    local threshold="0.5"
+    local json_output="false"
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --collection)
+                collection="$2"
+                shift 2
+                ;;
+            --limit)
+                limit="$2"
+                shift 2
+                ;;
+            --threshold)
+                threshold="$2"
+                shift 2
+                ;;
+            --json)
+                json_output="true"
+                shift
+                ;;
+            --help)
+                echo "Usage: $SCRIPT_NAME search <query> [options]"
+                echo ""
+                echo "Options:"
+                echo "  --collection NAME  Search specific collection"
+                echo "  --limit N          Maximum results (default: 10)"
+                echo "  --threshold F      Similarity threshold 0-1 (default: 0.5)"
+                echo "  --json            Output raw JSON"
+                exit 0
+                ;;
+            *)
+                if [[ -z "$query" ]]; then
+                    query="$1"
+                else
+                    query="$query $1"
+                fi
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ -z "$query" ]]; then
+        echo "Error: Search query is required" >&2
+        echo "Usage: $SCRIPT_NAME search <query> [options]" >&2
+        exit 1
+    fi
+    
+    local data=$(cat <<EOF
+{
+    "query": "$query",
+    "collection": "$collection",
+    "limit": $limit,
+    "threshold": $threshold
+}
+EOF
+)
+    
+    local response=$(api_request POST "/api/v1/knowledge/search" "$data")
+    
+    if [[ "$json_output" == "true" ]]; then
+        if command -v jq &> /dev/null; then
+            echo "$response" | jq .
+        else
+            echo "$response"
+        fi
+    else
+        echo "🔍 Search Results for: \"$query\""
+        echo "================================"
+        echo ""
+        
+        if command -v jq &> /dev/null; then
+            echo "$response" | jq -r '.results[] | "[\(.score | tostring[0:4])] \(.content[0:100])..."'
+        else
+            echo "$response"
+        fi
+        
+        echo ""
+        local count=$(echo "$response" | grep -o '"count":[0-9]*' | cut -d':' -f2)
+        local time=$(echo "$response" | grep -o '"query_time_ms":[0-9]*' | cut -d':' -f2)
+        echo "Found ${count:-0} results in ${time:-0}ms"
+    fi
+}
+
+cmd_health() {
+    shift
+    local json_output="false"
+    local watch="false"
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --json)
+                json_output="true"
+                shift
+                ;;
+            --watch)
+                watch="true"
+                shift
+                ;;
+            --help)
+                echo "Usage: $SCRIPT_NAME health [options]"
+                echo ""
+                echo "Options:"
+                echo "  --json   Output raw JSON"
+                echo "  --watch  Continuous monitoring mode"
+                exit 0
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ "$watch" == "true" ]]; then
+        while true; do
+            clear
+            cmd_status "$json_output"
+            echo ""
+            echo "Press Ctrl+C to stop monitoring..."
+            sleep 5
+        done
+    else
+        cmd_status "$json_output"
+    fi
+}
+
+cmd_graph() {
+    shift
+    local center=""
+    local depth="2"
+    local max_nodes="100"
+    local format="json"
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --center)
+                center="$2"
+                shift 2
+                ;;
+            --depth)
+                depth="$2"
+                shift 2
+                ;;
+            --max-nodes)
+                max_nodes="$2"
+                shift 2
+                ;;
+            --format)
+                format="$2"
+                shift 2
+                ;;
+            --help)
+                echo "Usage: $SCRIPT_NAME graph [options]"
+                echo ""
+                echo "Options:"
+                echo "  --center CONCEPT   Center graph on concept"
+                echo "  --depth N          Graph traversal depth (default: 2)"
+                echo "  --max-nodes N      Maximum nodes (default: 100)"
+                echo "  --format FORMAT    Output format: json|dot|mermaid"
+                exit 0
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    local data=$(cat <<EOF
+{
+    "center_concept": "$center",
+    "depth": $depth,
+    "max_nodes": $max_nodes
+}
+EOF
+)
+    
+    local response=$(api_request POST "/api/v1/knowledge/graph" "$data")
+    
+    case "$format" in
+        dot)
+            echo "digraph KnowledgeGraph {"
+            if command -v jq &> /dev/null; then
+                echo "$response" | jq -r '.nodes[] | "  \(.id) [label=\"\(.label)\"];"'
+                echo "$response" | jq -r '.edges[] | "  \(.source) -> \(.target) [weight=\(.weight)];"'
+            fi
+            echo "}"
+            ;;
+        mermaid)
+            echo "graph TD"
+            if command -v jq &> /dev/null; then
+                echo "$response" | jq -r '.nodes[] | "  \(.id)[\(.label)]"'
+                echo "$response" | jq -r '.edges[] | "  \(.source) --> \(.target)"'
+            fi
+            ;;
+        *)
+            if command -v jq &> /dev/null; then
+                echo "$response" | jq .
+            else
+                echo "$response"
+            fi
+            ;;
+    esac
+}
+
+cmd_metrics() {
+    shift
+    local collections=""
+    local time_range=""
+    local json_output="false"
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --collection)
+                collections="$2"
+                shift 2
+                ;;
+            --time-range)
+                time_range="$2"
+                shift 2
+                ;;
+            --json)
+                json_output="true"
+                shift
+                ;;
+            --help)
+                echo "Usage: $SCRIPT_NAME metrics [options]"
+                echo ""
+                echo "Options:"
+                echo "  --collection NAME  Specific collection"
+                echo "  --time-range RANGE Time range (1h, 24h, 7d, 30d)"
+                echo "  --json            Output raw JSON"
+                exit 0
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    local data=""
+    if [[ -n "$collections" ]] || [[ -n "$time_range" ]]; then
+        data=$(cat <<EOF
+{
+    "collections": ["$collections"],
+    "time_range": "$time_range"
+}
+EOF
+)
+    fi
+    
+    local response=$(api_request POST "/api/v1/knowledge/metrics" "$data")
+    
+    if [[ "$json_output" == "true" ]]; then
+        if command -v jq &> /dev/null; then
+            echo "$response" | jq .
+        else
+            echo "$response"
+        fi
+    else
+        echo "📊 Knowledge Quality Metrics"
+        echo "================================"
+        echo ""
+        
+        if command -v jq &> /dev/null; then
+            echo "$response" | jq -r '.metrics | to_entries[] | "\(.key):"'
+            echo "$response" | jq -r '.metrics | to_entries[] | "  Coherence:  \(.value.coherence_score)"'
+            echo "$response" | jq -r '.metrics | to_entries[] | "  Freshness:  \(.value.freshness_score)"'
+            echo "$response" | jq -r '.metrics | to_entries[] | "  Redundancy: \(.value.redundancy_score)"'
+            echo "$response" | jq -r '.metrics | to_entries[] | "  Coverage:   \(.value.coverage_score)"'
+            echo ""
+            
+            local alerts=$(echo "$response" | jq -r '.alerts | length')
+            if [[ "$alerts" -gt 0 ]]; then
+                echo "⚠️  Alerts:"
+                echo "$response" | jq -r '.alerts[] | "  [\(.level)] \(.collection): \(.message)"'
+            fi
+        else
+            echo "$response"
+        fi
+    fi
+}
+
+main() {
+    if [[ $# -eq 0 ]]; then
+        show_help
+        exit 0
+    fi
+    
+    case "$1" in
+        status)
+            shift
+            local json="false"
+            [[ "$1" == "--json" ]] && json="true"
+            cmd_status "$json"
+            ;;
+        search)
+            check_dependencies
+            cmd_search "$@"
+            ;;
+        health)
+            check_dependencies
+            cmd_health "$@"
+            ;;
+        graph)
+            check_dependencies
+            cmd_graph "$@"
+            ;;
+        metrics)
+            check_dependencies
+            cmd_metrics "$@"
+            ;;
+        help|--help|-h)
+            show_help
+            ;;
+        version|--version|-v)
+            show_version
+            ;;
+        *)
+            echo "Error: Unknown command '$1'" >&2
+            echo "Run '$SCRIPT_NAME help' for usage information" >&2
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"

@@ -1,0 +1,539 @@
+#!/bin/bash
+
+# Notification Hub CLI Tool
+# Multi-tenant notification management command line interface
+
+set -e
+
+# Default configuration
+DEFAULT_API_URL="http://localhost:28100"
+DEFAULT_CONFIG_FILE="$HOME/.notification-hub/config.json"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+# Global variables
+API_URL="${NOTIFICATION_HUB_API_URL:-$DEFAULT_API_URL}"
+API_KEY="${NOTIFICATION_HUB_API_KEY:-}"
+PROFILE_ID="${NOTIFICATION_HUB_PROFILE_ID:-}"
+VERBOSE=false
+FORMAT="table"
+
+# =============================================================================
+# UTILITY FUNCTIONS
+# =============================================================================
+
+print_usage() {
+    cat << EOF
+🔔 Notification Hub CLI v1.0.0
+
+Usage: notification-hub [OPTIONS] COMMAND [ARGS...]
+
+Multi-tenant notification management for all Vrooli scenarios.
+
+Global Options:
+  --api-url URL       API base URL (default: $DEFAULT_API_URL)
+  --api-key KEY       Profile API key for authentication
+  --profile-id ID     Target profile ID
+  --format FORMAT     Output format: table, json, yaml (default: table)
+  --verbose, -v       Enable verbose output
+  --help, -h          Show help
+
+Commands:
+  profiles            Manage notification profiles
+  contacts            Manage notification contacts
+  templates           Manage notification templates
+  notifications       Send and manage notifications
+  analytics           View delivery analytics and reports
+  providers           Manage notification providers
+  status              Check system and API status
+
+Examples:
+  # Check system status
+  notification-hub status
+
+  # List profiles (admin operation)
+  notification-hub profiles list
+
+  # Send a notification
+  notification-hub --profile-id=abc123 --api-key=key123 notifications send \\
+    --template welcome-email --contact user@example.com
+
+  # View analytics
+  notification-hub --profile-id=abc123 --api-key=key123 analytics delivery-stats
+
+For detailed command help, use: notification-hub COMMAND --help
+EOF
+}
+
+log_info() {
+    echo -e "${CYAN}[INFO]${NC} $1"
+}
+
+log_success() {
+    echo -e "${GREEN}[SUCCESS]${NC} $1"
+}
+
+log_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
+}
+
+log_error() {
+    echo -e "${RED}[ERROR]${NC} $1" >&2
+}
+
+log_verbose() {
+    if [[ "$VERBOSE" == "true" ]]; then
+        echo -e "${PURPLE}[VERBOSE]${NC} $1" >&2
+    fi
+}
+
+# HTTP request wrapper
+api_request() {
+    local method="$1"
+    local endpoint="$2"
+    local data="${3:-}"
+    local extra_headers="${4:-}"
+    
+    local url="${API_URL}${endpoint}"
+    local headers="Content-Type: application/json"
+    
+    if [[ -n "$API_KEY" ]]; then
+        headers="$headers"$'\n'"X-API-Key: $API_KEY"
+    fi
+    
+    if [[ -n "$extra_headers" ]]; then
+        headers="$headers"$'\n'"$extra_headers"
+    fi
+    
+    log_verbose "$method $url"
+    if [[ -n "$data" ]]; then
+        log_verbose "Request body: $data"
+    fi
+    
+    local curl_args=("-s" "-X" "$method" "$url")
+    
+    # Add headers
+    while IFS= read -r header; do
+        if [[ -n "$header" ]]; then
+            curl_args+=("-H" "$header")
+        fi
+    done <<< "$headers"
+    
+    # Add data if provided
+    if [[ -n "$data" ]]; then
+        curl_args+=("-d" "$data")
+    fi
+    
+    local response
+    local http_code
+    
+    # Execute curl and capture response and status code
+    if response=$(curl "${curl_args[@]}" -w "%{http_code}" 2>/dev/null); then
+        http_code="${response: -3}"
+        response="${response%???}"
+        
+        log_verbose "HTTP Status: $http_code"
+        log_verbose "Response: $response"
+        
+        if [[ "$http_code" -ge 200 && "$http_code" -lt 300 ]]; then
+            echo "$response"
+            return 0
+        else
+            log_error "HTTP $http_code: $(echo "$response" | jq -r '.error // .message // "Unknown error"' 2>/dev/null || echo "$response")"
+            return 1
+        fi
+    else
+        log_error "Failed to connect to API at $url"
+        return 1
+    fi
+}
+
+# Format output based on FORMAT setting
+format_output() {
+    local data="$1"
+    
+    case "$FORMAT" in
+        "json")
+            echo "$data" | jq . 2>/dev/null || echo "$data"
+            ;;
+        "yaml")
+            echo "$data" | yq . 2>/dev/null || echo "$data"
+            ;;
+        "table")
+            # Simple table formatting for common cases
+            if echo "$data" | jq -e 'type == "array"' >/dev/null 2>&1; then
+                echo "$data" | jq -r '(.[0] | keys_unsorted) as $keys | $keys, (.[] as $item | $keys | map($item[.] // "")) | @tsv' 2>/dev/null || echo "$data"
+            else
+                echo "$data" | jq . 2>/dev/null || echo "$data"
+            fi
+            ;;
+        *)
+            echo "$data"
+            ;;
+    esac
+}
+
+# =============================================================================
+# COMMAND IMPLEMENTATIONS
+# =============================================================================
+
+cmd_status() {
+    log_info "Checking Notification Hub system status..."
+    
+    local health_response
+    if health_response=$(api_request "GET" "/health"); then
+        log_success "API is healthy"
+        format_output "$health_response"
+        
+        # Check additional endpoints
+        log_info "Checking profile management..."
+        if api_request "GET" "/api/v1/admin/profiles" >/dev/null 2>&1; then
+            log_success "Profile management is available"
+        else
+            log_warning "Profile management may not be accessible"
+        fi
+        
+        return 0
+    else
+        log_error "API health check failed"
+        return 1
+    fi
+}
+
+cmd_profiles() {
+    local subcommand="${1:-list}"
+    shift || true
+    
+    case "$subcommand" in
+        "list")
+            log_info "Listing notification profiles..."
+            local response
+            if response=$(api_request "GET" "/api/v1/admin/profiles"); then
+                format_output "$response"
+            fi
+            ;;
+        "create")
+            local name="$1"
+            local slug="$2"
+            
+            if [[ -z "$name" ]]; then
+                log_error "Profile name is required"
+                echo "Usage: notification-hub profiles create NAME [SLUG]"
+                return 1
+            fi
+            
+            local data="{\"name\": \"$name\""
+            if [[ -n "$slug" ]]; then
+                data="$data, \"slug\": \"$slug\""
+            fi
+            data="$data, \"plan\": \"free\"}"
+            
+            log_info "Creating profile: $name"
+            local response
+            if response=$(api_request "POST" "/api/v1/admin/profiles" "$data"); then
+                log_success "Profile created successfully"
+                format_output "$response"
+            fi
+            ;;
+        "get")
+            local profile_id="$1"
+            if [[ -z "$profile_id" ]]; then
+                profile_id="$PROFILE_ID"
+            fi
+            
+            if [[ -z "$profile_id" ]]; then
+                log_error "Profile ID is required"
+                echo "Usage: notification-hub profiles get PROFILE_ID"
+                return 1
+            fi
+            
+            log_info "Getting profile: $profile_id"
+            local response
+            if response=$(api_request "GET" "/api/v1/admin/profiles/$profile_id"); then
+                format_output "$response"
+            fi
+            ;;
+        *)
+            echo "Available profile commands: list, create, get"
+            echo "Usage: notification-hub profiles COMMAND [ARGS...]"
+            return 1
+            ;;
+    esac
+}
+
+cmd_notifications() {
+    local subcommand="${1:-list}"
+    shift || true
+    
+    if [[ -z "$PROFILE_ID" || -z "$API_KEY" ]]; then
+        log_error "Profile ID and API key are required for notification operations"
+        echo "Use --profile-id and --api-key options"
+        return 1
+    fi
+    
+    case "$subcommand" in
+        "send")
+            local template_id=""
+            local contact_id=""
+            local email=""
+            local subject=""
+            local message=""
+            local channels="email"
+            
+            # Parse arguments
+            while [[ $# -gt 0 ]]; do
+                case $1 in
+                    --template)
+                        template_id="$2"
+                        shift 2
+                        ;;
+                    --contact)
+                        contact_id="$2"
+                        shift 2
+                        ;;
+                    --email)
+                        email="$2"
+                        shift 2
+                        ;;
+                    --subject)
+                        subject="$2"
+                        shift 2
+                        ;;
+                    --message)
+                        message="$2"
+                        shift 2
+                        ;;
+                    --channels)
+                        channels="$2"
+                        shift 2
+                        ;;
+                    *)
+                        log_error "Unknown option: $1"
+                        return 1
+                        ;;
+                esac
+            done
+            
+            # Default to demo contact if not specified
+            if [[ -z "$contact_id" ]]; then
+                contact_id="10000000-0000-0000-0000-000000000001"
+            fi
+            
+            local data="{\"recipients\": [{\"contact_id\": \"$contact_id\", \"variables\": {}}"
+            
+            if [[ -n "$template_id" ]]; then
+                data="$data], \"template_id\": \"$template_id\""
+            else
+                data="$data], \"subject\": \"${subject:-Test Notification}\", \"content\": {\"email\": {\"text\": \"${message:-Test message from Notification Hub}\", \"html\": \"<p>${message:-Test message from Notification Hub}</p>\"}}"
+            fi
+            
+            data="$data, \"channels\": [\"${channels//,/\", \"}\"], \"priority\": \"normal\"}"
+            
+            log_info "Sending notification..."
+            local response
+            if response=$(api_request "POST" "/api/v1/profiles/$PROFILE_ID/notifications/send" "$data"); then
+                log_success "Notification sent successfully"
+                format_output "$response"
+            fi
+            ;;
+        "list")
+            log_info "Listing notifications..."
+            local response
+            if response=$(api_request "GET" "/api/v1/profiles/$PROFILE_ID/notifications"); then
+                format_output "$response"
+            fi
+            ;;
+        *)
+            echo "Available notification commands: send, list"
+            echo "Usage: notification-hub notifications COMMAND [ARGS...]"
+            return 1
+            ;;
+    esac
+}
+
+cmd_contacts() {
+    local subcommand="${1:-list}"
+    shift || true
+    
+    if [[ -z "$PROFILE_ID" || -z "$API_KEY" ]]; then
+        log_error "Profile ID and API key are required for contact operations"
+        echo "Use --profile-id and --api-key options"
+        return 1
+    fi
+    
+    case "$subcommand" in
+        "list")
+            log_info "Listing contacts..."
+            local response
+            if response=$(api_request "GET" "/api/v1/profiles/$PROFILE_ID/contacts"); then
+                format_output "$response"
+            fi
+            ;;
+        *)
+            echo "Available contact commands: list"
+            echo "Usage: notification-hub contacts COMMAND [ARGS...]"
+            return 1
+            ;;
+    esac
+}
+
+cmd_templates() {
+    local subcommand="${1:-list}"
+    shift || true
+    
+    if [[ -z "$PROFILE_ID" || -z "$API_KEY" ]]; then
+        log_error "Profile ID and API key are required for template operations"
+        echo "Use --profile-id and --api-key options"
+        return 1
+    fi
+    
+    case "$subcommand" in
+        "list")
+            log_info "Listing templates..."
+            local response
+            if response=$(api_request "GET" "/api/v1/profiles/$PROFILE_ID/templates"); then
+                format_output "$response"
+            fi
+            ;;
+        *)
+            echo "Available template commands: list"
+            echo "Usage: notification-hub templates COMMAND [ARGS...]"
+            return 1
+            ;;
+    esac
+}
+
+cmd_analytics() {
+    local subcommand="${1:-delivery-stats}"
+    shift || true
+    
+    if [[ -z "$PROFILE_ID" || -z "$API_KEY" ]]; then
+        log_error "Profile ID and API key are required for analytics operations"
+        echo "Use --profile-id and --api-key options"
+        return 1
+    fi
+    
+    case "$subcommand" in
+        "delivery-stats")
+            log_info "Getting delivery statistics..."
+            local response
+            if response=$(api_request "GET" "/api/v1/profiles/$PROFILE_ID/analytics/delivery-stats"); then
+                format_output "$response"
+            fi
+            ;;
+        "daily-stats")
+            log_info "Getting daily statistics..."
+            local response
+            if response=$(api_request "GET" "/api/v1/profiles/$PROFILE_ID/analytics/daily-stats"); then
+                format_output "$response"
+            fi
+            ;;
+        *)
+            echo "Available analytics commands: delivery-stats, daily-stats"
+            echo "Usage: notification-hub analytics COMMAND [ARGS...]"
+            return 1
+            ;;
+    esac
+}
+
+# =============================================================================
+# MAIN SCRIPT
+# =============================================================================
+
+main() {
+    # Parse global options
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --api-url)
+                API_URL="$2"
+                shift 2
+                ;;
+            --api-key)
+                API_KEY="$2"
+                shift 2
+                ;;
+            --profile-id)
+                PROFILE_ID="$2"
+                shift 2
+                ;;
+            --format)
+                FORMAT="$2"
+                shift 2
+                ;;
+            --verbose|-v)
+                VERBOSE=true
+                shift
+                ;;
+            --help|-h)
+                print_usage
+                exit 0
+                ;;
+            -*)
+                log_error "Unknown option: $1"
+                print_usage
+                exit 1
+                ;;
+            *)
+                break
+                ;;
+        esac
+    done
+    
+    # Get command
+    local command="${1:-help}"
+    shift || true
+    
+    # Check for required tools
+    if ! command -v curl >/dev/null 2>&1; then
+        log_error "curl is required but not installed"
+        exit 1
+    fi
+    
+    if ! command -v jq >/dev/null 2>&1 && [[ "$FORMAT" == "json" || "$FORMAT" == "table" ]]; then
+        log_warning "jq is recommended for JSON formatting (install with: apt-get install jq)"
+    fi
+    
+    # Execute command
+    case "$command" in
+        "status")
+            cmd_status "$@"
+            ;;
+        "profiles")
+            cmd_profiles "$@"
+            ;;
+        "contacts")
+            cmd_contacts "$@"
+            ;;
+        "templates")
+            cmd_templates "$@"
+            ;;
+        "notifications")
+            cmd_notifications "$@"
+            ;;
+        "analytics")
+            cmd_analytics "$@"
+            ;;
+        "providers")
+            log_info "Provider management not yet implemented"
+            return 1
+            ;;
+        "help"|"--help"|"-h")
+            print_usage
+            ;;
+        *)
+            log_error "Unknown command: $command"
+            print_usage
+            exit 1
+            ;;
+    esac
+}
+
+# Run main function with all arguments
+main "$@"

@@ -171,7 +171,7 @@
         },
         {
           "name": "start-ui-server",
-          "run": "cd ui && echo 'Starting UI on port ${UI_PORT}...' && PORT=${UI_PORT} API_URL=http://localhost:${API_PORT} npm start",
+          "run": "cd ui && node server.js",
           "description": "Start UI server",
           "background": true
         },

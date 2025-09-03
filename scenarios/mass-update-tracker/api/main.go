@@ -130,7 +130,7 @@ func initDB() error {
 	
 	password := os.Getenv("POSTGRES_PASSWORD")
 	if password == "" {
-		password = "lUq9qvemypKpuEeXCV6Vnxak1"
+		return fmt.Errorf("POSTGRES_PASSWORD environment variable is required")
 	}
 	
 	dbname := os.Getenv("POSTGRES_DB")
@@ -725,10 +725,7 @@ func main() {
 	})
 
 	// Get port from environment
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = defaultPort
-	}
+	port := getEnv("API_PORT", getEnv("PORT", ""))
 
 	logger.Info(fmt.Sprintf("Server starting on port %s", port))
 	logger.Info(fmt.Sprintf("API endpoints: http://localhost:%s/api/v1/campaigns", port))
@@ -737,3 +734,16 @@ func main() {
 		log.Fatalf("Server failed to start: %v", err)
 	}
 }
+
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
+}
+
+	// Get port from environment
+	port := getEnv("API_PORT", getEnv("PORT", ""))
+
+	logger.Info(fmt.Sprintf("Server starting on port %s", port))
+	logger.Info

@@ -546,7 +546,7 @@ func (s *APIServer) HealthCheck(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *APIServer) Start() error {
-	port := getEnv("API_PORT", "8092")
+	port := getEnv("API_PORT", getEnv("PORT", ""))
 	
 	// Enable CORS
 	corsHandler := handlers.CORS(

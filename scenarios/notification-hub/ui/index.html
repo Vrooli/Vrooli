@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔔 Notification Hub Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+        }
+
+        .card-icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            display: block;
+        }
+
+        .card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .card p {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: transform 0.2s ease;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .stat-card {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            color: white;
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 1rem;
+            opacity: 0.9;
+        }
+
+        .quick-actions {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .quick-actions h3 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .action-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .action-btn {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            text-decoration: none;
+            color: #333;
+            transition: background-color 0.2s ease;
+        }
+
+        .action-btn:hover {
+            background: #e9ecef;
+        }
+
+        .action-btn span {
+            margin-right: 12px;
+            font-size: 1.5rem;
+        }
+
+        .nav {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .nav a {
+            color: white;
+            text-decoration: none;
+            padding: 10px 20px;
+            margin: 0 10px;
+            border-radius: 8px;
+            transition: background-color 0.2s ease;
+            display: inline-block;
+        }
+
+        .nav a:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-healthy { background: #28a745; }
+        .status-warning { background: #ffc107; }
+        .status-error { background: #dc3545; }
+
+        @media (max-width: 768px) {
+            .header h1 { font-size: 2rem; }
+            .header p { font-size: 1rem; }
+            .container { padding: 15px; }
+            .dashboard { grid-template-columns: 1fr; }
+            .stats { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔔 Notification Hub</h1>
+            <p>Multi-tenant notification management for all Vrooli scenarios</p>
+        </div>
+
+        <div class="nav">
+            <a href="/">🏠 Dashboard</a>
+            <a href="/profiles">👥 Profiles</a>
+            <a href="/analytics">📊 Analytics</a>
+            <a href="/api/v1/docs">📚 API Docs</a>
+        </div>
+
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-number" id="total-profiles">-</div>
+                <div class="stat-label">Active Profiles</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="total-notifications">-</div>
+                <div class="stat-label">Notifications Today</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="delivery-rate">-</div>
+                <div class="stat-label">Delivery Rate</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="system-status">
+                    <span class="status-indicator status-healthy"></span>
+                    Online
+                </div>
+                <div class="stat-label">System Status</div>
+            </div>
+        </div>
+
+        <div class="dashboard">
+            <div class="card">
+                <span class="card-icon">🚀</span>
+                <h3>Send Notification</h3>
+                <p>Send multi-channel notifications via email, SMS, and push to your contacts using templates or custom content.</p>
+                <button class="btn" onclick="showSendNotificationModal()">Send Now</button>
+            </div>
+
+            <div class="card">
+                <span class="card-icon">👥</span>
+                <h3>Manage Contacts</h3>
+                <p>Add, update, and manage notification recipients with channel preferences and delivery settings.</p>
+                <a href="/contacts" class="btn">Manage Contacts</a>
+            </div>
+
+            <div class="card">
+                <span class="card-icon">📧</span>
+                <h3>Template Library</h3>
+                <p>Create and manage reusable notification templates with multi-channel support and variable substitution.</p>
+                <a href="/templates" class="btn">View Templates</a>
+            </div>
+
+            <div class="card">
+                <span class="card-icon">📊</span>
+                <h3>Analytics & Reports</h3>
+                <p>Track delivery performance, engagement metrics, and costs across all channels and providers.</p>
+                <a href="/analytics" class="btn">View Analytics</a>
+            </div>
+
+            <div class="card">
+                <span class="card-icon">⚙️</span>
+                <h3>Provider Settings</h3>
+                <p>Configure email, SMS, and push notification providers with failover and cost optimization.</p>
+                <a href="/providers" class="btn">Configure Providers</a>
+            </div>
+
+            <div class="card">
+                <span class="card-icon">🔑</span>
+                <h3>API Integration</h3>
+                <p>Integrate notification capabilities into your scenarios with our REST API and SDKs.</p>
+                <a href="/api/v1/docs" class="btn">View API Docs</a>
+            </div>
+        </div>
+
+        <div class="quick-actions">
+            <h3>🚀 Quick Actions</h3>
+            <div class="action-grid">
+                <a href="/profiles" class="action-btn">
+                    <span>➕</span>
+                    <div>
+                        <strong>Create Profile</strong><br>
+                        <small>Add a new organization profile</small>
+                    </div>
+                </a>
+                <a href="#" class="action-btn" onclick="testNotification()">
+                    <span>✉️</span>
+                    <div>
+                        <strong>Test Email</strong><br>
+                        <small>Send a test email notification</small>
+                    </div>
+                </a>
+                <a href="/analytics" class="action-btn">
+                    <span>📈</span>
+                    <div>
+                        <strong>View Reports</strong><br>
+                        <small>Check delivery performance</small>
+                    </div>
+                </a>
+                <a href="/api/v1/docs" class="action-btn">
+                    <span>🔌</span>
+                    <div>
+                        <strong>API Reference</strong><br>
+                        <small>Integration documentation</small>
+                    </div>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Simple modal for sending notifications -->
+    <div id="sendModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000;">
+        <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:white; padding:30px; border-radius:15px; min-width:400px;">
+            <h3>🚀 Send Test Notification</h3>
+            <p style="margin:15px 0;">Send a test notification to verify your setup is working.</p>
+            
+            <div style="margin:15px 0;">
+                <label>Recipient Email:</label><br>
+                <input type="email" id="testEmail" placeholder="test@example.com" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px; margin-top:5px;">
+            </div>
+            
+            <div style="margin:15px 0;">
+                <label>Message:</label><br>
+                <input type="text" id="testMessage" placeholder="Test notification from Notification Hub" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px; margin-top:5px;">
+            </div>
+            
+            <div style="margin:20px 0; text-align:right;">
+                <button onclick="hideSendNotificationModal()" style="margin-right:10px; padding:8px 16px; background:#6c757d; color:white; border:none; border-radius:4px; cursor:pointer;">Cancel</button>
+                <button onclick="sendTestNotification()" style="padding:8px 16px; background:#007cba; color:white; border:none; border-radius:4px; cursor:pointer;">Send Test</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Dashboard functionality
+        async function loadDashboardStats() {
+            try {
+                // Load profile count
+                const profilesResponse = await fetch('/api/v1/admin/profiles');
+                if (profilesResponse.ok) {
+                    const profilesData = await profilesResponse.json();
+                    document.getElementById('total-profiles').textContent = profilesData.profiles?.length || 0;
+                }
+            } catch (error) {
+                console.error('Failed to load dashboard stats:', error);
+            }
+        }
+
+        function showSendNotificationModal() {
+            document.getElementById('sendModal').style.display = 'block';
+        }
+
+        function hideSendNotificationModal() {
+            document.getElementById('sendModal').style.display = 'none';
+        }
+
+        async function sendTestNotification() {
+            const email = document.getElementById('testEmail').value;
+            const message = document.getElementById('testMessage').value;
+
+            if (!email || !message) {
+                alert('Please fill in both email and message fields.');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/v1/profiles/00000000-0000-0000-0000-000000000001/notifications/send', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': 'demo_7f8e9d2c3b4a5e6f7890abcdef123456'
+                    },
+                    body: JSON.stringify({
+                        recipients: [{
+                            contact_id: '10000000-0000-0000-0000-000000000001',
+                            variables: { message: message }
+                        }],
+                        subject: 'Test Notification',
+                        content: {
+                            email: {
+                                html: `<h1>Test Notification</h1><p>${message}</p>`,
+                                text: `Test Notification\n\n${message}`
+                            }
+                        },
+                        channels: ['email'],
+                        priority: 'normal'
+                    })
+                });
+
+                if (response.ok) {
+                    alert('Test notification sent successfully!');
+                    hideSendNotificationModal();
+                } else {
+                    const error = await response.json();
+                    alert('Failed to send notification: ' + (error.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error sending test notification:', error);
+                alert('Failed to send notification: ' + error.message);
+            }
+        }
+
+        async function testNotification() {
+            showSendNotificationModal();
+        }
+
+        // Load dashboard stats on page load
+        document.addEventListener('DOMContentLoaded', loadDashboardStats);
+    </script>
+</body>
+</html>

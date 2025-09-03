@@ -4,7 +4,7 @@ const morgan = require('morgan');
 const path = require('path');
 
 const app = express();
-const PORT = process.env.PORT || process.env.UI_PORT || 3080;
+const PORT = process.env.UI_PORT || process.env.PORT;
 const API_URL = process.env.API_URL || `http://localhost:${process.env.API_PORT || 8090}`;
 const CHAT_URL = process.env.CHAT_URL || `http://localhost:${process.env.CHAT_PORT || 8000}`;
 

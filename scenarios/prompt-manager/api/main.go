@@ -139,10 +139,7 @@ type APIServer struct {
 }
 
 func main() {
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8085"
-	}
+	port := getEnv("API_PORT", getEnv("PORT", ""))
 
 	postgresURL := os.Getenv("POSTGRES_URL")
 	if postgresURL == "" {
@@ -248,6 +245,13 @@ func main() {
 
 	handler := corsHandler(router)
 	log.Fatal(http.ListenAndServe(":"+port, handler))
+}
+
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
 }
 
 // Health check endpoint

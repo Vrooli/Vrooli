@@ -1,0 +1,252 @@
+{
+  "scenario": {
+    "name": "notification-hub",
+    "version": "1.0.0",
+    "description": "Multi-tenant notification management system for email, SMS, and push notifications across all Vrooli scenarios",
+    "tags": [
+      "notifications",
+      "multi-tenant", 
+      "email",
+      "sms",
+      "push-notifications",
+      "infrastructure",
+      "communication",
+      "api",
+      "rate-limiting",
+      "analytics",
+      "compliance",
+      "go-api",
+      "n8n-workflows", 
+      "nodejs-server",
+      "postgres-storage",
+      "redis-cache"
+    ]
+  },
+  "ports": {
+    "API_PORT": 28100,
+    "UI_PORT": 32100
+  },
+  "resources": {
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Store profiles, contacts, templates, notifications, and delivery tracking",
+      "initialization": [
+        {
+          "file": "initialization/storage/postgres/schema.sql",
+          "type": "schema"
+        },
+        {
+          "file": "initialization/storage/postgres/seed.sql", 
+          "type": "seed"
+        }
+      ]
+    },
+    "redis": {
+      "type": "redis",
+      "enabled": true,
+      "required": true,
+      "purpose": "Notification queues, rate limiting counters, and caching"
+    },
+    "n8n": {
+      "type": "n8n",
+      "enabled": true,
+      "required": true,
+      "purpose": "Multi-channel notification workflows and provider integrations",
+      "initialization": [
+        {
+          "file": "initialization/n8n/email-sender-workflow.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/sms-sender-workflow.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/push-sender-workflow.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/notification-router-workflow.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/delivery-tracker-workflow.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/unsubscribe-processor-workflow.json",
+          "type": "workflow"
+        }
+      ]
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Notification Hub health check configuration",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http", 
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "postgres_connection",
+          "type": "postgres",
+          "target": "postgres://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/notification_hub",
+          "critical": true,
+          "timeout": 3000,
+          "interval": 60000
+        },
+        {
+          "name": "redis_connection", 
+          "type": "redis",
+          "target": "redis://localhost:${RESOURCE_PORTS[redis]}",
+          "critical": true,
+          "timeout": 3000,
+          "interval": 60000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 15000
+    },
+    "setup": {
+      "description": "Initialize Notification Hub with multi-tenant capabilities",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/notification-hub-api"
+            ]
+          },
+          {
+            "type": "files",
+            "targets": [
+              "ui/server.js",
+              "cli/notification-hub"
+            ]
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "install-cli",
+          "run": "ln -sf $(pwd)/cli/notification-hub ~/.local/bin/notification-hub 2>/dev/null || sudo ln -sf $(pwd)/cli/notification-hub /usr/local/bin/notification-hub",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o notification-hub-api main.go",
+          "description": "Build Go API server binary"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install Node.js UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🔔 Notification Hub initialized\\n  Web Dashboard: http://localhost:${UI_PORT}\\n  API Docs: http://localhost:${API_PORT}/docs\\n  n8n Workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  CLI: notification-hub --help'",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start Notification Hub with Go API server and Node.js dashboard",
+      "steps": [
+        {
+          "name": "start-api-server",
+          "run": "cd api && env POSTGRES_URL=postgres://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/notification_hub REDIS_URL=redis://localhost:${RESOURCE_PORTS[redis]} N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} ./notification-hub-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/notification-hub-api"
+          }
+        },
+        {
+          "name": "start-ui-server",
+          "run": "cd ui && node server.js",
+          "description": "Start Node.js dashboard server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/server.js"
+          }
+        },
+        {
+          "name": "wait-for-api",
+          "run": "../../scripts/lib/utils/wait-for-service.sh http://localhost:$API_PORT/health 15 2",
+          "description": "Wait for API server to be ready"
+        },
+        {
+          "name": "wait-for-ui", 
+          "run": "sleep 3 && curl -sf http://localhost:$UI_PORT/health > /dev/null",
+          "description": "Wait for UI server to be ready"
+        },
+        {
+          "name": "show-running-services",
+          "run": "echo '🔔 Notification Hub running:\\n  Dashboard: http://localhost:$UI_PORT\\n  API Docs: http://localhost:$API_PORT/docs\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$API_PORT\\n  CLI: notification-hub --help'",
+          "description": "Display all running service URLs"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test notification hub API and delivery workflows",
+      "steps": [
+        {
+          "name": "test-api-health",
+          "run": "curl -f http://localhost:$API_PORT/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-profile-creation",
+          "run": "cd api && go run main.go --test-profile-creation",
+          "description": "Test profile management functionality"
+        },
+        {
+          "name": "test-notification-send",
+          "run": "cd api && go run main.go --test-notification-send",
+          "description": "Test notification sending workflow"
+        },
+        {
+          "name": "test-cli",
+          "run": "notification-hub profiles list --format json",
+          "description": "Test CLI functionality"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop notification hub services",
+      "steps": [
+        {
+          "name": "stop-api-server",
+          "run": "pkill -f 'notification-hub-api' || true",
+          "description": "Stop Go API server processes"
+        },
+        {
+          "name": "stop-ui-server", 
+          "run": "pkill -f \"ui/server.js\" || pkill -f \"node.*server.js\" || true",
+          "description": "Stop Node.js UI server processes"
+        },
+        {
+          "name": "confirm-stop",
+          "run": "echo '🛑 Notification Hub services stopped'",
+          "description": "Confirm services stopped"
+        }
+      ]
+    }
+  }
+}
