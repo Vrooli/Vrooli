@@ -146,7 +146,7 @@ func main() {
     router.POST("/api/ai/generate-flashcards", generateFlashcardsFromText)
     router.POST("/api/ai/study-plan", generateStudyPlan)
     
-    port := getEnv("API_PORT", "8500")
+    port := getEnv("API_PORT", getEnv("PORT", ""))
     log.Printf("Starting Study Buddy API on port %s", port)
     router.Run(":" + port)
 }

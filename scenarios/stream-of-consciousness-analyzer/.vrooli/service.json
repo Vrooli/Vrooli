@@ -180,7 +180,7 @@
       "steps": [
         {
           "name": "start-api",
-          "run": "cd api && env PORT=$API_PORT npm start",
+          "run": "cd api && env PORT=$API_PORT node server.js",
           "description": "Start API server",
           "background": true
         },
@@ -191,7 +191,7 @@
         },
         {
           "name": "start-ui",
-          "run": "cd ui && env PORT=$UI_PORT npm start",
+          "run": "cd ui && node server.js",
           "description": "Start UI server",
           "background": true
         },

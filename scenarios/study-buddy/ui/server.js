@@ -14,7 +14,7 @@ const io = socketIO(server, {
     }
 });
 
-const PORT = process.env.UI_PORT || 3500;
+const PORT = process.env.UI_PORT || process.env.PORT;
 const API_URL = `http://localhost:${process.env.API_PORT || 8500}`;
 
 app.use(cors());

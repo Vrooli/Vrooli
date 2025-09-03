@@ -48,7 +48,7 @@ type SearchResponse struct {
 
 func loadConfig() *Config {
 	return &Config{
-		Port:          getEnv("PORT", "8090"),
+		Port:          getEnv("API_PORT", getEnv("PORT", "")),
 		N8NBaseURL:    getEnv("N8N_BASE_URL", "http://localhost:5678"),
 		WindmillURL:   getEnv("WINDMILL_BASE_URL", "http://localhost:8000"),
 		PostgresURL:   getEnv("POSTGRES_URL", "postgres://postgres:postgres@localhost:5432/resume_screening"),

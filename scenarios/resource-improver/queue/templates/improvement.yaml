@@ -1,0 +1,71 @@
+# Template for resource improvement queue items
+# Priority: critical|high|medium|low
+# Requester: human|ai|system-monitor|auto-migration
+
+id: # unique-identifier (e.g., improve-ollama-health-20250103)
+title: # "Clear, actionable improvement title"
+description: |
+  # Detailed description of what needs to be improved
+  # Include specific issues and desired outcomes
+  
+type: # health-check|cli-enhancement|v2-compliance|documentation|performance
+target: # resource-name (e.g., "ollama", "n8n", "postgres")
+priority: medium # critical|high|medium|low
+
+# Specific improvements needed
+requirements:
+  v2_compliance:
+    - # "Add missing health check"
+    - # "Implement lifecycle hooks"
+    - # "Create lib/common.sh"
+  
+  health_checks:
+    - # "Add timeout handling"
+    - # "Implement retry logic"
+    - # "Support multiple endpoints"
+  
+  cli_enhancements:
+    - # "Add 'content list' command"
+    - # "Implement JSON output"
+    - # "Add verbose mode"
+  
+  documentation:
+    - # "Add usage examples"
+    - # "Document environment variables"
+    - # "Create troubleshooting guide"
+
+# Validation criteria
+validation_criteria:
+  - # "Health check responds within 5 seconds"
+  - # "All CLI commands have help text"
+  - # "v2.0 contract fully satisfied"
+  - # "Tests pass without errors"
+
+# Current compliance status
+compliance_status:
+  v2_contract_score: # 0-100 percentage
+  health_check_reliability: # percentage or "unknown"
+  cli_coverage: # percentage of standard commands
+  documentation_completeness: # percentage
+
+# Risk assessment
+risk_assessment:
+  breaking_changes: false # true if changes might break existing usage
+  downtime_required: false # true if resource needs to be stopped
+  affects_scenarios: [] # List of scenarios that use this resource
+  rollback_difficulty: low # low|medium|high
+
+# Context from Qdrant memory
+memory_context: |
+  # Similar improvements made to other resources:
+  # - Pattern used for health checks
+  # - CLI standardization approach
+  # - Known issues or gotchas
+
+metadata:
+  created_by: # human|ai|system-monitor|auto-migration
+  created_at: # "2025-01-03T10:00:00Z"
+  cooldown_until: # "2025-01-03T11:00:00Z" - prevent collision
+  attempt_count: 0
+  last_attempt: null
+  failure_reasons: [] # Array of previous failure messages

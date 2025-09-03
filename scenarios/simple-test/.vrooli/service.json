@@ -92,18 +92,14 @@
       "steps": [
         {
           "name": "start-app",
-          "run": "PORT=${API_PORT} npm start",
+          "run": "PORT=${API_PORT} node server.js",
           "description": "Start the application server in background",
           "background": true
         },
         {
           "name": "wait-for-app",
-          "run": "sleep 2 && curl -sf http://localhost:${API_PORT}/health > /dev/null",
-          "description": "Wait for application to be ready",
-          "retry": {
-            "max_attempts": 10,
-            "delay": 1
-          }
+          "run": "../../scripts/lib/utils/wait-for-service.sh http://localhost:${API_PORT}/health 15 2",
+          "description": "Wait for application to be ready"
         },
         {
           "name": "show-running-services",
@@ -135,7 +131,7 @@
       "steps": [
         {
           "name": "stop-app",
-          "run": "pkill -f 'npm start' || true",
+          "run": "pkill -f 'node server.js' || true",
           "description": "Stop application processes"
         },
         {

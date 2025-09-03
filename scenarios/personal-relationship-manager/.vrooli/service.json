@@ -149,7 +149,7 @@
         },
         {
           "name": "install-cli",
-          "run": "chmod +x cli/relationship-manager && ln -sf $(pwd)/cli/relationship-manager /usr/local/bin/relationship-manager 2>/dev/null || true",
+          "run": "chmod +x cli/relationship-manager && ln -sf $(pwd)/cli/relationship-manager ~/.local/bin/relationship-manager 2>/dev/null || true",
           "description": "Install CLI command globally"
         },
         {
@@ -179,7 +179,7 @@
         },
         {
           "name": "start-api-server",
-          "run": "cd api && env PORT=$API_PORT ./personal-relationship-manager-api",
+          "run": "cd api && ./personal-relationship-manager-api",
           "description": "Start Go API server in background",
           "background": true,
           "condition": {
@@ -188,27 +188,19 @@
         },
         {
           "name": "wait-for-api",
-          "run": "sleep 2 && curl -sf http://localhost:$API_PORT/health > /dev/null",
-          "description": "Wait for API to be ready",
-          "retry": {
-            "max_attempts": 10,
-            "delay": 1
-          }
+          "run": "../../scripts/lib/utils/wait-for-service.sh http://localhost:$API_PORT/health 15 2",
+          "description": "Wait for API to be ready"
         },
         {
           "name": "start-ui-server",
-          "run": "cd ui && env PORT=$UI_PORT API_URL=http://localhost:$API_PORT npm start",
+          "run": "cd ui && node server.js",
           "description": "Start UI server in background",
           "background": true
         },
         {
           "name": "wait-for-services",
           "run": "sleep 2 && curl -sf http://localhost:$API_PORT/health > /dev/null && curl -sf http://localhost:$UI_PORT > /dev/null",
-          "description": "Wait for services to be ready",
-          "retry": {
-            "max_attempts": 15,
-            "delay": 1
-          }
+          "description": "Wait for services to be ready"
         },
         {
           "name": "show-running-services",

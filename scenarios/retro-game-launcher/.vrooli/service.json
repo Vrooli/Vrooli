@@ -166,7 +166,7 @@
         },
         {
           "name": "start-api-server",
-          "run": "cd api && env PORT=$API_PORT ./retro-game-launcher-api",
+          "run": "cd api && ./retro-game-launcher-api",
           "description": "Start Go API server in background",
           "background": true,
           "condition": {
@@ -175,16 +175,12 @@
         },
         {
           "name": "wait-for-api",
-          "run": "sleep 2 && curl -sf http://localhost:$API_PORT/health > /dev/null",
-          "description": "Wait for API server to be ready",
-          "retry": {
-            "max_attempts": 15,
-            "delay": 1
-          }
+          "run": "../../scripts/lib/utils/wait-for-service.sh http://localhost:$API_PORT/health 15 2",
+          "description": "Wait for API server to be ready"
         },
         {
           "name": "start-ui",
-          "run": "cd ui && env PORT=$UI_PORT REACT_APP_API_URL=http://localhost:$API_PORT npm start",
+          "run": "cd ui && node server.js",
           "description": "Start React UI in background",
           "background": true,
           "condition": {
@@ -193,12 +189,8 @@
         },
         {
           "name": "wait-for-ui",
-          "run": "sleep 5 && curl -sf http://localhost:$UI_PORT > /dev/null",
-          "description": "Wait for UI to be ready",
-          "retry": {
-            "max_attempts": 30,
-            "delay": 1
-          }
+          "run": "../../scripts/lib/utils/wait-for-service.sh http://localhost:$UI_PORT 10 2",
+          "description": "Wait for UI to be ready"
         },
         {
           "name": "show-running-services",

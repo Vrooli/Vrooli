@@ -3,9 +3,7 @@ const path = require('path');
 const http = require('http');
 
 const app = express();
-const PORT = process.env.UI_PORT || process.env.PORT || 3100;
-const API_PORT = process.env.API_PORT || 8100;
-const N8N_PORT = process.env.RESOURCE_PORTS ? JSON.parse(process.env.RESOURCE_PORTS).n8n : 5678;
+const PORT = process.env.UI_PORT || process.env.PORT;
 
 // Manual proxy function for API calls
 function proxyToApi(req, res, targetPort, apiPath) {

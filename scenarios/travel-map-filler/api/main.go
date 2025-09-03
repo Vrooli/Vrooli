@@ -555,7 +555,7 @@ func searchTravelsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	port := getEnv("PORT", "8760")
+	port := getEnv("API_PORT", getEnv("PORT", ""))
 	
 	// Initialize database connection
 	if err := initDB(); err != nil {

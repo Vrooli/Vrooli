@@ -144,7 +144,7 @@
         },
         {
           "name": "start-api-server",
-          "run": "cd api && env PORT=$API_PORT ./vrooli-assistant-api",
+          "run": "cd api && ./vrooli-assistant-api",
           "description": "Start Go API server in background",
           "background": true,
           "condition": {
@@ -153,12 +153,8 @@
         },
         {
           "name": "wait-for-api",
-          "run": "sleep 2 && curl -sf http://localhost:$API_PORT/health > /dev/null",
-          "description": "Wait for API server to be ready",
-          "retry": {
-            "max_attempts": 15,
-            "delay": 1
-          }
+          "run": "../../scripts/lib/utils/wait-for-service.sh http://localhost:$API_PORT/health 15 2",
+          "description": "Wait for API server to be ready"
         },
         {
           "name": "start-electron-daemon",

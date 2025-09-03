@@ -3,13 +3,12 @@ const path = require('path');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 
 const app = express();
-const PORT = process.env.PORT || 31010;
+const PORT = process.env.UI_PORT || process.env.PORT;
 
 // Serve static files
 app.use(express.static(path.join(__dirname)));
 
 // Proxy API requests to the Go backend
-const API_PORT = process.env.API_PORT || 29750;
 app.use('/api', createProxyMiddleware({
     target: `http://localhost:${API_PORT}`,
     changeOrigin: true,

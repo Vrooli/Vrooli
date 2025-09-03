@@ -26,7 +26,7 @@ chmod +x "$INSTALL_DIR/$CLI_NAME"
 
 # Create symlink in system path if possible
 if [ -d "/usr/local/bin" ] && [ -w "/usr/local/bin" ]; then
-    ln -sf "$INSTALL_DIR/$CLI_NAME" "/usr/local/bin/$CLI_NAME"
+    ln -sf "$INSTALL_DIR/$CLI_NAME" "~/.local/bin/$CLI_NAME"
     echo -e "${GREEN}✓ Created symlink in /usr/local/bin${NC}"
 elif [ -d "$HOME/.local/bin" ]; then
     mkdir -p "$HOME/.local/bin"

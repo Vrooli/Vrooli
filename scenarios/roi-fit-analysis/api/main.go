@@ -374,10 +374,7 @@ func main() {
         defer db.Close()
     }
     
-    port := os.Getenv("API_PORT")
-    if port == "" {
-        port = "3000"
-    }
+	port := getEnv("API_PORT", getEnv("PORT", ""))
 
     http.HandleFunc("/analyze", corsMiddleware(analyzeHandler))
     http.HandleFunc("/opportunities", corsMiddleware(opportunitiesHandler))
@@ -388,4 +385,11 @@ func main() {
     if err := http.ListenAndServe(":"+port, nil); err != nil {
         log.Fatal(err)
     }
+}
+
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
 }

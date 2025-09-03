@@ -134,15 +134,19 @@ func main() {
 	// Routes
 	setupRoutes(app)
 
-	// Get port from environment or use default
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		port = "8095"
-	}
+	// Get port from environment
+	port := getEnv("API_PORT", getEnv("PORT", ""))
 
 	// Start server
 	log.Printf("Swarm Manager API starting on port %s", port)
 	log.Fatal(app.Listen(":" + port))
+}
+
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
 }
 
 func initDB() {
