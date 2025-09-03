@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Campaign Content Studio</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-left">
+            <div class="logo">
+                <i class="fas fa-rocket"></i>
+                <span>Campaign Studio</span>
+            </div>
+        </div>
+        <div class="header-center">
+            <div class="search-bar">
+                <i class="fas fa-search"></i>
+                <input type="text" placeholder="Search campaigns, content, or templates...">
+            </div>
+        </div>
+        <div class="header-right">
+            <button class="btn-secondary" onclick="showTemplateGallery()">
+                <i class="fas fa-layer-group"></i>
+                Templates
+            </button>
+            <button class="btn-primary" onclick="createCampaign()">
+                <i class="fas fa-plus"></i>
+                New Campaign
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Layout -->
+    <div class="main-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <nav class="nav-menu">
+                <div class="nav-section">
+                    <h4>Overview</h4>
+                    <a href="#" class="nav-item active" data-view="dashboard">
+                        <i class="fas fa-chart-pie"></i>
+                        Dashboard
+                    </a>
+                    <a href="#" class="nav-item" data-view="calendar">
+                        <i class="fas fa-calendar-alt"></i>
+                        Content Calendar
+                    </a>
+                </div>
+                <div class="nav-section">
+                    <h4>Campaigns</h4>
+                    <div class="campaign-list" id="campaignList">
+                        <!-- Dynamic campaign list will be populated here -->
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <h4>Tools</h4>
+                    <a href="#" class="nav-item" data-view="generator">
+                        <i class="fas fa-magic"></i>
+                        Content Generator
+                    </a>
+                    <a href="#" class="nav-item" data-view="documents">
+                        <i class="fas fa-file-alt"></i>
+                        Documents
+                    </a>
+                    <a href="#" class="nav-item" data-view="analytics">
+                        <i class="fas fa-chart-line"></i>
+                        Analytics
+                    </a>
+                </div>
+            </nav>
+        </aside>
+
+        <!-- Content Area -->
+        <main class="content-area">
+            <!-- Dashboard View -->
+            <div class="view dashboard-view active">
+                <div class="view-header">
+                    <h1>Campaign Dashboard</h1>
+                    <p>Manage your marketing campaigns with AI-powered content generation</p>
+                </div>
+
+                <!-- Quick Stats -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-bullhorn"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 id="activeCampaigns">0</h3>
+                            <p>Active Campaigns</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-file-alt"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 id="contentGenerated">0</h3>
+                            <p>Content Generated</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-upload"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 id="documentsUploaded">0</h3>
+                            <p>Documents Uploaded</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 id="timeSaved">0h</h3>
+                            <p>Time Saved</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Activity -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Recent Activity</h3>
+                        <button class="btn-secondary">View All</button>
+                    </div>
+                    <div class="activity-list" id="recentActivity">
+                        <!-- Recent activity items will be populated here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Content Calendar View -->
+            <div class="view calendar-view">
+                <div class="view-header">
+                    <h1>Content Calendar</h1>
+                    <div class="calendar-controls">
+                        <button class="btn-secondary" onclick="previousMonth()">
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <h3 id="currentMonth">November 2024</h3>
+                        <button class="btn-secondary" onclick="nextMonth()">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="calendar-container">
+                    <div class="calendar-grid" id="calendarGrid">
+                        <!-- Calendar will be rendered here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Content Generator View -->
+            <div class="view generator-view">
+                <div class="view-header">
+                    <h1>AI Content Generator</h1>
+                    <p>Generate marketing content with AI-powered insights</p>
+                </div>
+
+                <div class="generator-container">
+                    <div class="generator-left">
+                        <!-- Content Type Selection -->
+                        <div class="card">
+                            <h3>Content Type</h3>
+                            <div class="content-type-grid">
+                                <button class="content-type-btn active" data-type="blog">
+                                    <i class="fas fa-blog"></i>
+                                    Blog Post
+                                </button>
+                                <button class="content-type-btn" data-type="social">
+                                    <i class="fas fa-share-alt"></i>
+                                    Social Media
+                                </button>
+                                <button class="content-type-btn" data-type="email">
+                                    <i class="fas fa-envelope"></i>
+                                    Email Campaign
+                                </button>
+                                <button class="content-type-btn" data-type="ad">
+                                    <i class="fas fa-ad"></i>
+                                    Advertisement
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Generation Form -->
+                        <div class="card">
+                            <h3>Generate Content</h3>
+                            <div class="form-group">
+                                <label>Campaign</label>
+                                <select id="campaignSelect">
+                                    <option value="">Select a campaign...</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Content Prompt</label>
+                                <textarea id="contentPrompt" rows="4" placeholder="Describe the content you want to generate..."></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>Include Images</label>
+                                <label class="toggle">
+                                    <input type="checkbox" id="includeImages">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                            <button class="btn-primary full-width" onclick="generateContent()">
+                                <i class="fas fa-magic"></i>
+                                Generate Content
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="generator-right">
+                        <!-- Document Context -->
+                        <div class="card">
+                            <h3>Document Context</h3>
+                            <div class="document-search">
+                                <input type="text" placeholder="Search documents..." id="documentSearch">
+                                <button onclick="searchDocuments()">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                            </div>
+                            <div class="document-list" id="contextDocuments">
+                                <!-- Relevant documents will be listed here -->
+                            </div>
+                        </div>
+
+                        <!-- Generated Content Preview -->
+                        <div class="card" id="generatedContentCard" style="display: none;">
+                            <div class="card-header">
+                                <h3>Generated Content</h3>
+                                <div class="content-actions">
+                                    <button class="btn-secondary" onclick="regenerateContent()">
+                                        <i class="fas fa-redo"></i>
+                                        Regenerate
+                                    </button>
+                                    <button class="btn-primary" onclick="saveContent()">
+                                        <i class="fas fa-save"></i>
+                                        Save
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="generated-content" id="generatedContent">
+                                <!-- Generated content will appear here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Documents View -->
+            <div class="view documents-view">
+                <div class="view-header">
+                    <h1>Document Management</h1>
+                    <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <p>Upload Documents</p>
+                        <small>Drag & drop files or click to browse</small>
+                        <input type="file" id="fileInput" multiple style="display: none;" onchange="handleFileUpload(event)">
+                    </div>
+                </div>
+
+                <div class="documents-container">
+                    <div class="documents-filters">
+                        <div class="filter-group">
+                            <label>Campaign</label>
+                            <select id="documentCampaignFilter">
+                                <option value="">All Campaigns</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>File Type</label>
+                            <select id="documentTypeFilter">
+                                <option value="">All Types</option>
+                                <option value="pdf">PDF</option>
+                                <option value="docx">Word Document</option>
+                                <option value="txt">Text File</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="documents-grid" id="documentsGrid">
+                        <!-- Documents will be displayed here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Analytics View -->
+            <div class="view analytics-view">
+                <div class="view-header">
+                    <h1>Campaign Analytics</h1>
+                    <p>Track performance and insights across your campaigns</p>
+                </div>
+
+                <div class="analytics-container">
+                    <div class="analytics-charts">
+                        <div class="card">
+                            <h3>Content Performance</h3>
+                            <div class="chart-placeholder">
+                                <i class="fas fa-chart-line"></i>
+                                <p>Content performance metrics will be displayed here</p>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <h3>Campaign ROI</h3>
+                            <div class="chart-placeholder">
+                                <i class="fas fa-chart-bar"></i>
+                                <p>Campaign ROI analysis coming soon</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal for Campaign Creation -->
+    <div class="modal" id="campaignModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Create New Campaign</h2>
+                <button class="close-btn" onclick="closeCampaignModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Campaign Name</label>
+                    <input type="text" id="campaignName" placeholder="Enter campaign name...">
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="campaignDescription" rows="3" placeholder="Describe your campaign..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Brand Guidelines</label>
+                    <textarea id="campaignGuidelines" rows="3" placeholder="Enter brand voice, tone, and style guidelines..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeCampaignModal()">Cancel</button>
+                <button class="btn-primary" onclick="saveCampaign()">Create Campaign</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Template Gallery Modal -->
+    <div class="modal" id="templateModal">
+        <div class="modal-content large">
+            <div class="modal-header">
+                <h2>Template Gallery</h2>
+                <button class="close-btn" onclick="closeTemplateModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="template-categories">
+                    <button class="template-category active" data-category="all">All Templates</button>
+                    <button class="template-category" data-category="blog">Blog Posts</button>
+                    <button class="template-category" data-category="social">Social Media</button>
+                    <button class="template-category" data-category="email">Email Campaigns</button>
+                    <button class="template-category" data-category="ads">Advertisements</button>
+                </div>
+                <div class="template-grid" id="templateGrid">
+                    <!-- Templates will be populated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p>Generating content...</p>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

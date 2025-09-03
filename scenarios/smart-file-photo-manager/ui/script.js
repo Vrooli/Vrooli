@@ -134,32 +134,43 @@ function renderFiles() {
 }
 
 function createFileCard(file) {
-    const card = document.createElement('div');
-    card.className = 'file-card';
-    card.onclick = () => openFileModal(file);
+    const card = document.createElement("div");
+    const isPhoto = file.type && file.type.startsWith("image/");
+    card.className = isPhoto ? "file-card photo-card" : "file-card";
+    card.onclick = () => openFileModal(file, isPhoto);
 
-    const preview = document.createElement('div');
-    preview.className = 'file-preview';
+    const preview = document.createElement("div");
+    preview.className = "file-preview";
     
-    if (file.thumbnail) {
-        const img = document.createElement('img');
-        img.src = file.thumbnail;
+    if (file.thumbnail || isPhoto) {
+        const img = document.createElement("img");
+        img.src = file.thumbnail || file.url || "#";
         img.alt = file.name;
+        img.onerror = () => {
+            preview.innerHTML = `<div style="font-size: 48px; color: var(--text-tertiary); display: flex; align-items: center; justify-content: center; height: 100%;">${getFileIcon(file.type)}</div>`;
+        };
         preview.appendChild(img);
+        
+        const overlay = document.createElement("div");
+        overlay.className = "overlay";
+        preview.appendChild(overlay);
     } else {
-        preview.textContent = getFileIcon(file.type);
+        preview.innerHTML = `<div style="font-size: 48px; color: var(--text-tertiary); display: flex; align-items: center; justify-content: center; height: 100%;">${getFileIcon(file.type)}</div>`;
     }
 
-    const info = document.createElement('div');
-    info.className = 'file-info';
+    const info = document.createElement("div");
+    info.className = "file-info";
     
-    const name = document.createElement('div');
-    name.className = 'file-name';
+    const name = document.createElement("div");
+    name.className = "file-name";
     name.textContent = file.name;
     
-    const meta = document.createElement('div');
-    meta.className = 'file-meta';
-    meta.textContent = `${formatFileSize(file.size)} • ${formatDate(file.modified)}`;
+    const meta = document.createElement("div");
+    meta.className = "file-meta";
+    const metaText = isPhoto && file.width && file.height ?
+        `${file.width}×${file.height} • ${formatFileSize(file.size)}` :
+        `${formatFileSize(file.size)} • ${formatDate(file.modified)}`;
+    meta.textContent = metaText;
 
     info.appendChild(name);
     info.appendChild(meta);
@@ -415,27 +426,44 @@ async function loadInsights() {
 }
 
 // Modal
-function openFileModal(file) {
+function openFileModal(file, isPhoto = false) {
     const modal = document.getElementById('file-modal');
     const preview = document.getElementById('preview-container');
     const details = document.getElementById('file-details');
 
+    // Add photo modal class for enhanced styling
+    if (isPhoto) {
+        modal.classList.add('photo-modal');
+    } else {
+        modal.classList.remove('photo-modal');
+    }
+
     // Set preview
-    if (file.thumbnail) {
-        preview.innerHTML = `<img src="${file.thumbnail}" alt="${file.name}" style="max-width: 100%; max-height: 400px;">`;
+    if (file.thumbnail || (file.type && file.type.startsWith('image/'))) {
+        const imgSrc = file.thumbnail || file.url || '#';
+        preview.innerHTML = `<img src="${imgSrc}" alt="${file.name}" style="max-width: 100%; max-height: ${isPhoto ? '80vh' : '400px'}; object-fit: ${isPhoto ? 'contain' : 'cover'};">`;
     } else {
         preview.innerHTML = `<div style="font-size: 120px; color: var(--text-tertiary);">${getFileIcon(file.type)}</div>`;
     }
 
-    // Set details
-    details.innerHTML = `
+    // Set details with enhanced info for photos
+    const detailsHtml = `
         <h3>${file.name}</h3>
-        <p>Type: ${file.type || 'Unknown'}</p>
-        <p>Size: ${formatFileSize(file.size)}</p>
-        <p>Modified: ${formatDate(file.modified)}</p>
-        ${file.tags ? `<p>Tags: ${file.tags.join(', ')}</p>` : ''}
+        <p><strong>Type:</strong> ${file.type || 'Unknown'}</p>
+        <p><strong>Size:</strong> ${formatFileSize(file.size)}</p>
+        <p><strong>Modified:</strong> ${formatDate(file.modified)}</p>
+        ${file.tags ? `<p><strong>Tags:</strong> ${file.tags.join(', ')}</p>` : ''}
+        ${isPhoto ? `
+            <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-color);">
+                <p><strong>Photo Details:</strong></p>
+                ${file.width && file.height ? `<p>Dimensions: ${file.width} × ${file.height}px</p>` : ''}
+                ${file.camera ? `<p>Camera: ${file.camera}</p>` : ''}
+                ${file.location ? `<p>Location: ${file.location}</p>` : ''}
+            </div>
+        ` : ''}
     `;
-
+    
+    details.innerHTML = detailsHtml;
     modal.style.display = 'flex';
 }
 
@@ -533,17 +561,36 @@ function filterByTag(tag) {
 // Mock Data Generators
 function generateMockFiles() {
     const types = ['image/jpeg', 'image/png', 'application/pdf', 'video/mp4', 'audio/mp3', 'application/msword'];
-    const names = ['vacation-photo', 'project-report', 'presentation', 'music-track', 'document', 'spreadsheet'];
+    const names = ['beach-sunset', 'mountain-landscape', 'project-report', 'family-portrait', 'city-skyline', 'nature-macro', 'presentation', 'music-track', 'document', 'wedding-photo', 'travel-journal', 'business-meeting'];
     const extensions = ['.jpg', '.png', '.pdf', '.mp4', '.mp3', '.docx'];
+    const photoTags = ['Nature', 'Travel', 'Family', 'Work', 'Landscape', 'Portrait', 'Macro', 'Street', 'Architecture'];
+    const locations = ['Paris, France', 'Tokyo, Japan', 'New York, USA', 'Barcelona, Spain', 'Sydney, Australia'];
+    const cameras = ['Canon EOS R5', 'Nikon D850', 'Sony A7 IV', 'iPhone 14 Pro', 'Fujifilm X-T4'];
     
-    return Array.from({ length: 12 }, (_, i) => ({
-        id: i + 1,
-        name: `${names[i % names.length]}-${i + 1}${extensions[i % extensions.length]}`,
-        type: types[i % types.length],
-        size: Math.floor(Math.random() * 10000000),
-        modified: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000),
-        tags: ['Work', 'Important'].filter(() => Math.random() > 0.5)
-    }));
+    return Array.from({ length: 18 }, (_, i) => {
+        const type = types[i % types.length];
+        const isImage = type.startsWith('image/');
+        const fileName = `${names[i % names.length]}-${i + 1}${extensions[i % extensions.length]}`;
+        
+        return {
+            id: i + 1,
+            name: fileName,
+            type: type,
+            size: Math.floor(Math.random() * (isImage ? 5000000 : 10000000)) + 100000,
+            modified: new Date(Date.now() - Math.random() * 90 * 24 * 60 * 60 * 1000),
+            tags: isImage ? 
+                photoTags.filter(() => Math.random() > 0.6).slice(0, 2) : 
+                ['Work', 'Important'].filter(() => Math.random() > 0.5),
+            // Enhanced photo properties
+            ...(isImage ? {
+                thumbnail: `https://picsum.photos/300/200?random=${i}`,
+                width: Math.floor(Math.random() * 2000) + 1920,
+                height: Math.floor(Math.random() * 1500) + 1080,
+                camera: Math.random() > 0.5 ? cameras[Math.floor(Math.random() * cameras.length)] : undefined,
+                location: Math.random() > 0.7 ? locations[Math.floor(Math.random() * locations.length)] : undefined
+            } : {})
+        };
+    });
 }
 
 function generateMockDuplicates() {

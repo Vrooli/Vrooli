@@ -58,7 +58,6 @@ type Server struct {
 	upgrader    websocket.Upgrader
 	port        string
 	n8nBaseURL  string
-	windmillURL string
 	nodeRedURL  string
 }
 
@@ -82,7 +81,6 @@ func NewServer() (*Server, error) {
 	postgresURL := getEnv("POSTGRES_URL", "postgres://postgres:postgres@localhost:5432/app_monitor?sslmode=disable")
 	redisURL := getEnv("REDIS_URL", "redis://localhost:6379")
 	n8nBaseURL := getEnv("N8N_BASE_URL", "http://localhost:5678")
-	windmillURL := getEnv("WINDMILL_BASE_URL", "http://localhost:3000")
 	nodeRedURL := getEnv("NODE_RED_BASE_URL", "http://localhost:1880")
 
 	// Initialize database connection
@@ -118,7 +116,6 @@ func NewServer() (*Server, error) {
 		docker:      dockerClient,
 		port:        port,
 		n8nBaseURL:  n8nBaseURL,
-		windmillURL: windmillURL,
 		nodeRedURL:  nodeRedURL,
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool {

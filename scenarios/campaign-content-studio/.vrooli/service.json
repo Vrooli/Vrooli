@@ -13,11 +13,11 @@
       "campaign-management",
       "marketing-automation",
       "document-processing",
-      "windmill-ui",
+      "custom-ui",
       "ai-content",
       "go-api",
       "n8n-workflows",
-      "windmill-apps",
+      "nodejs-ui",
       "postgres-storage",
       "qdrant-vectors",
       "minio-storage",
@@ -30,6 +30,12 @@
       "port": 22500,
       "fallback": "auto",
       "description": "Campaign content studio API port"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "port": 31007,
+      "fallback": "auto",
+      "description": "Campaign content studio UI port"
     }
   },
   "resources": {
@@ -53,17 +59,6 @@
         {
           "file": "initialization/automation/n8n/search-retrieval.json",
           "type": "workflow"
-        }
-      ]
-    },
-    "windmill": {
-      "type": "windmill",
-      "enabled": true,
-      "required": true,
-      "initialization": [
-        {
-          "file": "initialization/automation/windmill/campaign-dashboard.json",
-          "type": "app"
         }
       ]
     },
@@ -119,7 +114,26 @@
     }
   },
   "lifecycle": {
-    "version": "1.0.0",
+    "version": "2.0.0",
+    "health": {
+      "description": "Campaign Content Studio health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
     "setup": {
       "description": "Initialize Campaign Content Studio",
       "condition": {
@@ -162,19 +176,29 @@
           "description": "Build Go coordination API binary"
         },
         {
+          "name": "install-ui-dependencies",
+          "run": "cd ui && npm install",
+          "description": "Install Node.js UI dependencies"
+        },
+        {
           "name": "show-urls",
-          "run": "echo '🚀 Campaign Content Studio initialized\\n  Windmill Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  CLI: campaign-content-studio --help'",
+          "run": "echo '🚀 Campaign Content Studio initialized\\n  Web UI: http://localhost:${UI_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  CLI: campaign-content-studio --help'",
           "description": "Display service access URLs"
         }
       ]
     },
     "develop": {
-      "description": "Start campaign content studio with Go API server",
+      "description": "Start campaign content studio with Go API and Node.js UI servers",
       "steps": [
         {
           "name": "ensure-api-built",
           "run": "if [ ! -f api/campaign-content-studio-api ]; then echo 'Building API...'; cd api && go mod download && go build -o campaign-content-studio-api main.go && echo 'API built successfully'; else echo 'API binary already exists'; fi",
           "description": "Ensure API binary exists"
+        },
+        {
+          "name": "ensure-ui-dependencies",
+          "run": "if [ ! -d ui/node_modules ]; then echo 'Installing UI dependencies...'; cd ui && npm install && echo 'UI dependencies installed'; else echo 'UI dependencies already installed'; fi",
+          "description": "Ensure UI dependencies are installed"
         },
         {
           "name": "start-api-server",
@@ -183,6 +207,15 @@
           "background": true,
           "condition": {
             "file_exists": "api/campaign-content-studio-api"
+          }
+        },
+        {
+          "name": "start-ui-server",
+          "run": "cd ui && env UI_PORT=$UI_PORT API_PORT=$API_PORT npm start",
+          "description": "Start Node.js UI server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/server.js"
           }
         },
         {
@@ -195,8 +228,17 @@
           }
         },
         {
+          "name": "wait-for-ui",
+          "run": "sleep 2 && curl -sf http://localhost:$UI_PORT/health > /dev/null",
+          "description": "Wait for UI server to be ready",
+          "retry": {
+            "max_attempts": 15,
+            "delay": 1
+          }
+        },
+        {
           "name": "show-running-services",
-          "run": "echo '🚀 Campaign Content Studio running:\\n  Windmill Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$API_PORT\\n  CLI: campaign-content-studio --help'",
+          "run": "echo '🚀 Campaign Content Studio running:\\n  Web UI: http://localhost:$UI_PORT\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$API_PORT\\n  CLI: campaign-content-studio --help'",
           "description": "Display all running service URLs"
         }
       ]
@@ -223,6 +265,11 @@
           "description": "Test API campaigns endpoint"
         },
         {
+          "name": "test-ui-health",
+          "run": "curl -sf http://localhost:$UI_PORT/health",
+          "description": "Test UI health endpoint"
+        },
+        {
           "name": "test-cli-commands",
           "run": "cd cli && bats campaign-content-studio.bats",
           "description": "Run CLI test suite",
@@ -239,6 +286,11 @@
           "name": "stop-api-server",
           "run": "pkill -f 'campaign-content-studio-api' || true",
           "description": "Stop Go API server processes"
+        },
+        {
+          "name": "stop-ui-server",
+          "run": "pkill -f 'ui/server.js' || pkill -f 'campaign-content-studio-ui' || true",
+          "description": "Stop Node.js UI server processes"
         },
         {
           "name": "confirm-stop",

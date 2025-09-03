@@ -12,13 +12,11 @@
       "audio-processing",
       "content-automation",
       "transcription",
-      "windmill-ui",
       "media-production",
       "audio-intelligence",
       "content-generation",
       "go-api",
       "n8n-workflows",
-      "windmill-apps",
       "postgres-storage",
       "qdrant-vectors",
       "minio-storage",
@@ -31,6 +29,12 @@
       "port": 22000,
       "fallback": "auto",
       "description": "Audio intelligence API port"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "port": 31005,
+      "fallback": "auto",
+      "description": "Audio Intelligence Platform UI port"
     }
   },
   "resources": {
@@ -50,17 +54,6 @@
         {
           "file": "initialization/automation/n8n/semantic-search.json",
           "type": "workflow"
-        }
-      ]
-    },
-    "windmill": {
-      "type": "windmill",
-      "enabled": false,
-      "required": false,
-      "initialization": [
-        {
-          "file": "initialization/automation/windmill/transcription-manager-app.json",
-          "type": "app"
         }
       ]
     },
@@ -108,7 +101,26 @@
     }
   },
   "lifecycle": {
-    "version": "1.0.0",
+    "version": "2.0.0",
+    "health": {
+      "description": "Audio Intelligence Platform health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
     "setup": {
       "description": "Initialize Audio Intelligence Platform",
       "condition": {
@@ -157,8 +169,13 @@
           "description": "Build Go API binary"
         },
         {
+          "name": "install-ui-dependencies",
+          "run": "cd ui && npm install",
+          "description": "Install UI Node.js dependencies"
+        },
+        {
           "name": "show-urls",
-          "run": "echo '🚀 Audio Intelligence Platform initialized\\n  Windmill Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Whisper API: http://localhost:${RESOURCE_PORTS[whisper]}\\n  Ollama API: http://localhost:${RESOURCE_PORTS[ollama]}\\n  Qdrant DB: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  MinIO Storage: http://localhost:${RESOURCE_PORTS[minio]}\\n  API: http://localhost:${API_PORT}\\n  CLI: audio-intelligence-platform --help'",
+          "run": "echo '🚀 Audio Intelligence Platform initialized\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Whisper API: http://localhost:${RESOURCE_PORTS[whisper]}\\n  Ollama API: http://localhost:${RESOURCE_PORTS[ollama]}\\n  Qdrant DB: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  MinIO Storage: http://localhost:${RESOURCE_PORTS[minio]}\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}\\n  CLI: audio-intelligence-platform --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -190,8 +207,28 @@
           }
         },
         {
+          "name": "install-ui-dependencies",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "start-ui-server",
+          "run": "cd ui && env UI_PORT=$UI_PORT API_PORT=$API_PORT node server.js",
+          "description": "Start Node.js UI server in background",
+          "background": true
+        },
+        {
+          "name": "wait-for-ui",
+          "run": "sleep 2 && curl -sf http://localhost:$UI_PORT/health > /dev/null",
+          "description": "Wait for UI server to be ready",
+          "retry": {
+            "max_attempts": 10,
+            "delay": 1
+          }
+        },
+        {
           "name": "show-running-services",
-          "run": "echo '🚀 Audio Intelligence Platform running:\\n  Windmill: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Whisper: http://localhost:${RESOURCE_PORTS[whisper]}\\n  Ollama: http://localhost:${RESOURCE_PORTS[ollama]}\\n  Qdrant: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  MinIO: http://localhost:${RESOURCE_PORTS[minio]}\\n  API: http://localhost:$API_PORT\\n  CLI: audio-intelligence-platform --help'",
+          "run": "echo '🚀 Audio Intelligence Platform running:\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Whisper: http://localhost:${RESOURCE_PORTS[whisper]}\\n  Ollama: http://localhost:${RESOURCE_PORTS[ollama]}\\n  Qdrant: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  MinIO: http://localhost:${RESOURCE_PORTS[minio]}\\n  API: http://localhost:$API_PORT\\n  UI: http://localhost:$UI_PORT\\n  CLI: audio-intelligence-platform --help'",
           "description": "Display all running service URLs"
         }
       ]
@@ -239,6 +276,11 @@
           "name": "stop-api-server",
           "run": "pkill -f 'audio-intelligence-platform-api' || true",
           "description": "Stop Go API server processes"
+        },
+        {
+          "name": "stop-ui-server",
+          "run": "pkill -f 'node server.js' || true",
+          "description": "Stop Node.js UI server processes"
         },
         {
           "name": "confirm-stop",

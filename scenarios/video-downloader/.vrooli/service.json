@@ -1,0 +1,111 @@
+{
+  "name": "video-downloader",
+  "version": "2.0.0",
+  "description": "Video downloader service with Go API and React UI",
+  "enabled": true,
+  "ports": {
+    "api": {
+      "port": 28100,
+      "env_var": "API_PORT",
+      "fallback": "auto"
+    },
+    "ui": {
+      "port": 38100,
+      "env_var": "UI_PORT",
+      "fallback": "auto"
+    }
+  },
+  "services": {
+    "api": {
+      "type": "go",
+      "path": "api",
+      "command": "go run main.go"
+    },
+    "ui": {
+      "type": "node",
+      "path": "ui",
+      "command": "npm start"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Video Downloader health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
+    "setup": {
+      "condition": {
+        "checks": [
+          {
+            "type": "dependency",
+            "service": "api",
+            "command": "test -f go.mod"
+          },
+          {
+            "type": "dependency",
+            "service": "ui",
+            "command": "test -d node_modules"
+          }
+        ],
+        "actions": [
+          {
+            "service": "api",
+            "command": "go mod download",
+            "condition": "test -f go.mod && ! test -d vendor"
+          },
+          {
+            "service": "ui",
+            "command": "npm install --no-fund --no-audit",
+            "condition": "test -f package.json && ! test -d node_modules"
+          }
+        ]
+      }
+    },
+    "develop": {
+      "steps": [
+        {
+          "name": "start_api",
+          "service": "api",
+          "command": "go run main.go",
+          "background": true
+        },
+        {
+          "name": "wait_for_api",
+          "type": "wait",
+          "target": "http://localhost:${API_PORT}/health",
+          "timeout": 30000
+        },
+        {
+          "name": "start_ui",
+          "service": "ui",
+          "command": "npm start",
+          "background": true
+        }
+      ]
+    },
+    "timeout": 90
+  },
+  "resources": {
+    "redis": {
+      "required": false
+    },
+    "postgres": {
+      "required": false
+    }
+  }
+}

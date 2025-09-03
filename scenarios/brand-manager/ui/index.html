@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brand Manager - Professional Brand Creation Studio</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Background -->
+    <div class="background-gradient"></div>
+    
+    <!-- Navigation -->
+    <nav class="navbar glass-card">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <i class="fas fa-palette brand-icon"></i>
+                <span class="brand-text">Brand Manager</span>
+                <span class="brand-subtitle">Professional Studio</span>
+            </div>
+            <div class="nav-actions">
+                <button class="nav-btn" id="newBrandBtn">
+                    <i class="fas fa-plus"></i>
+                    New Brand
+                </button>
+                <button class="nav-btn secondary" id="templateLibraryBtn">
+                    <i class="fas fa-th-large"></i>
+                    Templates
+                </button>
+                <div class="status-indicator" id="apiStatus">
+                    <span class="status-dot"></span>
+                    <span class="status-text">Connecting...</span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Sidebar -->
+        <aside class="sidebar glass-card">
+            <div class="sidebar-section">
+                <h3 class="sidebar-title">
+                    <i class="fas fa-tachometer-alt"></i>
+                    Dashboard
+                </h3>
+                <div class="quick-stats">
+                    <div class="stat-card">
+                        <div class="stat-number" id="totalBrands">-</div>
+                        <div class="stat-label">Total Brands</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="activeIntegrations">-</div>
+                        <div class="stat-label">Active Integrations</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <h3 class="sidebar-title">
+                    <i class="fas fa-history"></i>
+                    Recent Activity
+                </h3>
+                <div class="activity-list" id="recentActivity">
+                    <div class="activity-item loading">
+                        <div class="activity-icon">
+                            <i class="fas fa-spinner fa-spin"></i>
+                        </div>
+                        <div class="activity-content">
+                            <div class="activity-title">Loading activity...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <h3 class="sidebar-title">
+                    <i class="fas fa-tools"></i>
+                    Quick Actions
+                </h3>
+                <div class="quick-actions">
+                    <button class="action-btn" id="generateBrandBtn">
+                        <i class="fas fa-magic"></i>
+                        Generate Brand
+                    </button>
+                    <button class="action-btn" id="importTemplateBtn">
+                        <i class="fas fa-download"></i>
+                        Import Template
+                    </button>
+                    <button class="action-btn" id="bulkExportBtn">
+                        <i class="fas fa-file-export"></i>
+                        Bulk Export
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Brand Dashboard -->
+            <section class="content-section" id="brandDashboard">
+                <div class="section-header">
+                    <h1 class="page-title">Brand Portfolio</h1>
+                    <p class="page-subtitle">Manage your professional brand identities</p>
+                </div>
+
+                <div class="brand-grid" id="brandGrid">
+                    <!-- Brand cards will be populated here -->
+                    <div class="brand-card skeleton">
+                        <div class="brand-preview skeleton-element"></div>
+                        <div class="brand-info">
+                            <div class="brand-name skeleton-element"></div>
+                            <div class="brand-details skeleton-element"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="empty-state" id="emptyState" style="display: none;">
+                    <div class="empty-icon">
+                        <i class="fas fa-palette"></i>
+                    </div>
+                    <h3>No brands yet</h3>
+                    <p>Create your first professional brand identity to get started</p>
+                    <button class="cta-btn" id="createFirstBrandBtn">
+                        <i class="fas fa-plus"></i>
+                        Create Your First Brand
+                    </button>
+                </div>
+            </section>
+
+            <!-- Brand Generator Modal -->
+            <div class="modal-overlay" id="brandGeneratorModal" style="display: none;">
+                <div class="modal glass-card">
+                    <div class="modal-header">
+                        <h2 class="modal-title">
+                            <i class="fas fa-magic"></i>
+                            AI Brand Generator
+                        </h2>
+                        <button class="modal-close" id="closeGeneratorModal">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+
+                    <div class="modal-content">
+                        <form id="brandGeneratorForm" class="generator-form">
+                            <div class="form-step active" id="step1">
+                                <h3 class="step-title">Brand Basics</h3>
+                                <div class="form-group">
+                                    <label for="brandName">Brand Name *</label>
+                                    <input type="text" id="brandName" name="brandName" required>
+                                    <div class="input-hint">Choose a memorable, unique name for your brand</div>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="shortName">Short Name (Optional)</label>
+                                    <input type="text" id="shortName" name="shortName">
+                                    <div class="input-hint">Abbreviated version or nickname</div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="industry">Industry *</label>
+                                    <select id="industry" name="industry" required>
+                                        <option value="">Select your industry...</option>
+                                        <option value="technology">Technology</option>
+                                        <option value="healthcare">Healthcare</option>
+                                        <option value="finance">Finance</option>
+                                        <option value="education">Education</option>
+                                        <option value="retail">Retail</option>
+                                        <option value="food-beverage">Food & Beverage</option>
+                                        <option value="entertainment">Entertainment</option>
+                                        <option value="consulting">Consulting</option>
+                                        <option value="creative">Creative Services</option>
+                                        <option value="other">Other</option>
+                                    </select>
+                                </div>
+
+                                <div class="step-navigation">
+                                    <button type="button" class="btn-secondary" disabled>Previous</button>
+                                    <button type="button" class="btn-primary" id="step1Next">Next</button>
+                                </div>
+                            </div>
+
+                            <div class="form-step" id="step2">
+                                <h3 class="step-title">Style Preferences</h3>
+                                
+                                <div class="form-group">
+                                    <label for="template">Brand Template</label>
+                                    <div class="template-grid">
+                                        <div class="template-option" data-template="modern-tech">
+                                            <div class="template-preview modern-tech"></div>
+                                            <div class="template-name">Modern Tech</div>
+                                        </div>
+                                        <div class="template-option" data-template="creative-studio">
+                                            <div class="template-preview creative-studio"></div>
+                                            <div class="template-name">Creative Studio</div>
+                                        </div>
+                                        <div class="template-option" data-template="professional-corp">
+                                            <div class="template-preview professional-corp"></div>
+                                            <div class="template-name">Professional Corp</div>
+                                        </div>
+                                        <div class="template-option" data-template="minimalist">
+                                            <div class="template-preview minimalist"></div>
+                                            <div class="template-name">Minimalist</div>
+                                        </div>
+                                    </div>
+                                    <input type="hidden" id="template" name="template" value="modern-tech">
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="logoStyle">Logo Style</label>
+                                    <select id="logoStyle" name="logoStyle">
+                                        <option value="minimalist">Minimalist</option>
+                                        <option value="modern">Modern</option>
+                                        <option value="classic">Classic</option>
+                                        <option value="playful">Playful</option>
+                                        <option value="bold">Bold</option>
+                                    </select>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="colorScheme">Color Preference</label>
+                                    <select id="colorScheme" name="colorScheme">
+                                        <option value="primary">Primary (Blue/Purple)</option>
+                                        <option value="warm">Warm (Orange/Red)</option>
+                                        <option value="cool">Cool (Teal/Green)</option>
+                                        <option value="neutral">Neutral (Gray/Black)</option>
+                                        <option value="vibrant">Vibrant (Multi-color)</option>
+                                    </select>
+                                </div>
+
+                                <div class="step-navigation">
+                                    <button type="button" class="btn-secondary" id="step2Previous">Previous</button>
+                                    <button type="submit" class="btn-primary" id="generateBtn">
+                                        <i class="fas fa-magic"></i>
+                                        Generate Brand
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+
+                        <!-- Generation Progress -->
+                        <div class="generation-progress" id="generationProgress" style="display: none;">
+                            <div class="progress-header">
+                                <h3>Creating Your Brand Identity</h3>
+                                <p>Our AI is crafting your professional brand assets...</p>
+                            </div>
+                            
+                            <div class="progress-steps">
+                                <div class="progress-step active">
+                                    <div class="step-icon"><i class="fas fa-brain"></i></div>
+                                    <div class="step-label">Analyzing Requirements</div>
+                                </div>
+                                <div class="progress-step">
+                                    <div class="step-icon"><i class="fas fa-palette"></i></div>
+                                    <div class="step-label">Generating Color Palette</div>
+                                </div>
+                                <div class="progress-step">
+                                    <div class="step-icon"><i class="fas fa-image"></i></div>
+                                    <div class="step-label">Creating Logo</div>
+                                </div>
+                                <div class="progress-step">
+                                    <div class="step-icon"><i class="fas fa-file-text"></i></div>
+                                    <div class="step-label">Writing Brand Copy</div>
+                                </div>
+                            </div>
+
+                            <div class="progress-bar">
+                                <div class="progress-fill" id="progressFill"></div>
+                            </div>
+                            
+                            <div class="progress-status" id="progressStatus">
+                                Starting brand generation...
+                            </div>
+
+                            <div class="estimated-time">
+                                <i class="fas fa-clock"></i>
+                                Estimated time: 60-90 seconds
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Brand Detail Modal -->
+            <div class="modal-overlay" id="brandDetailModal" style="display: none;">
+                <div class="modal glass-card large">
+                    <div class="modal-header">
+                        <h2 class="modal-title" id="brandDetailTitle">
+                            <i class="fas fa-eye"></i>
+                            Brand Details
+                        </h2>
+                        <button class="modal-close" id="closeBrandDetailModal">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+
+                    <div class="modal-content">
+                        <div class="brand-detail-tabs">
+                            <button class="tab-btn active" data-tab="assets">
+                                <i class="fas fa-images"></i>
+                                Assets
+                            </button>
+                            <button class="tab-btn" data-tab="colors">
+                                <i class="fas fa-palette"></i>
+                                Colors
+                            </button>
+                            <button class="tab-btn" data-tab="copy">
+                                <i class="fas fa-file-text"></i>
+                                Brand Copy
+                            </button>
+                            <button class="tab-btn" data-tab="integrate">
+                                <i class="fas fa-plug"></i>
+                                Integrate
+                            </button>
+                        </div>
+
+                        <div class="tab-content">
+                            <div class="tab-panel active" id="assetsPanel">
+                                <div class="asset-grid" id="brandAssets">
+                                    <!-- Brand assets will be populated here -->
+                                </div>
+                            </div>
+
+                            <div class="tab-panel" id="colorsPanel">
+                                <div class="color-palette" id="brandColors">
+                                    <!-- Color palette will be populated here -->
+                                </div>
+                            </div>
+
+                            <div class="tab-panel" id="copyPanel">
+                                <div class="brand-copy" id="brandCopyContent">
+                                    <!-- Brand copy will be populated here -->
+                                </div>
+                            </div>
+
+                            <div class="tab-panel" id="integratePanel">
+                                <div class="integration-center">
+                                    <h3>Integrate Brand with Existing Apps</h3>
+                                    <p>Apply this brand identity to your Vrooli applications</p>
+                                    <!-- Integration options will be populated here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="app.js"></script>
+</body>
+</html>

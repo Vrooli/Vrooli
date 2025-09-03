@@ -14,10 +14,8 @@
       "scheduling",
       "ai",
       "nodejs-ui",
-      "windmill-ui",
       "go-api",
       "n8n-workflows",
-      "windmill-apps",
       "postgres-storage",
       "redis-cache",
       "qdrant-vectors",
@@ -33,7 +31,7 @@
     },
     "ui": {
       "env_var": "UI_PORT",
-      "port": 37250,
+      "port": 31004,
       "fallback": "auto",
       "description": "Task dashboard UI port"
     }
@@ -103,17 +101,6 @@
         }
       ]
     },
-    "windmill": {
-      "type": "windmill",
-      "enabled": true,
-      "required": true,
-      "initialization": [
-        {
-          "file": "initialization/automation/windmill/task-dashboard.json",
-          "type": "app"
-        }
-      ]
-    },
     "ollama": {
       "type": "ollama",
       "enabled": true,
@@ -140,7 +127,26 @@
     }
   },
   "lifecycle": {
-    "version": "1.0.0",
+    "version": "2.0.0",
+    "health": {
+      "description": "Task Planner health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
     "setup": {
       "description": "Initialize Task Planner",
       "condition": {
@@ -207,6 +213,11 @@
           "name": "ensure-api-built",
           "run": "if [ ! -f api/task-planner-api ]; then echo 'Building API...'; cd api && go mod download && go build -o task-planner-api main.go && echo 'API built successfully'; else echo 'API binary already exists'; fi",
           "description": "Ensure API binary exists"
+        },
+        {
+          "name": "ensure-ui-deps",
+          "run": "if [ ! -d ui/node_modules ]; then echo 'Installing UI dependencies...'; cd ui && npm install && echo 'UI dependencies installed'; else echo 'UI dependencies already installed'; fi",
+          "description": "Ensure UI dependencies are installed"
         },
         {
           "name": "start-api-server",

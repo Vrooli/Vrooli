@@ -23,8 +23,8 @@
     },
     "ui": {
       "env_var": "UI_PORT",
-      "port": 4000,
-      "fallback": "4000",
+      "port": 31011,
+      "fallback": "31011",
       "description": "Swarm Manager dashboard UI port"
     }
   },
@@ -60,12 +60,6 @@
       "required": true,
       "description": "Task analysis, priority estimation, and work execution"
     },
-    "windmill": {
-      "type": "windmill",
-      "enabled": false,
-      "required": false,
-      "description": "Alternative UI dashboard for task management"
-    },
     "ollama": {
       "type": "ollama",
       "enabled": false,
@@ -75,6 +69,27 @@
   },
   "lifecycle": {
     "version": "2.0.0",
+    "health": {
+      "description": "Swarm Manager health check configuration",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/",
+        "metrics": "/api/metrics"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
     "setup": {
       "description": "Initialize Swarm Manager",
       "condition": {
@@ -88,9 +103,11 @@
           {
             "type": "directories",
             "targets": [
-              "tasks/todo",
-              "tasks/in_progress",
-              "tasks/completed"
+              "tasks/active",
+              "tasks/backlog",
+              "tasks/completed",
+              "tasks/staged",
+              "tasks/failed"
             ]
           }
         ]
@@ -129,7 +146,7 @@
         },
         {
           "name": "show-status",
-          "run": "echo '✅ Swarm Manager is running at http://localhost:${UI_PORT:-4000}'"
+          "run": "echo '✅ Swarm Manager is running at http://localhost:${UI_PORT:-31011}'"
         }
       ]
     },

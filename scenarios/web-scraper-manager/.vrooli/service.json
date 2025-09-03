@@ -12,13 +12,13 @@
       "web-scraping",
       "automation",
       "multi-platform",
-      "windmill-ui",
+      "custom-ui",
       "orchestration",
       "export",
       "monitoring",
       "go-api",
       "n8n-workflows",
-      "windmill-apps",
+      "node-ui",
       "postgres-storage",
       "redis-cache",
       "qdrant-vectors",
@@ -32,6 +32,12 @@
       "port": 31750,
       "fallback": "auto",
       "description": "Web scraper manager coordination API port"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "port": 31012,
+      "fallback": "auto",
+      "description": "Web scraper manager UI dashboard port"
     }
   },
   "resources": {
@@ -44,26 +50,6 @@
         {
           "file": "initialization/automation/n8n/scraper-orchestrator.json",
           "type": "workflow"
-        }
-      ]
-    },
-    "windmill": {
-      "type": "windmill",
-      "enabled": true,
-      "required": true,
-      "purpose": "UI dashboard for scraper management and monitoring",
-      "initialization": [
-        {
-          "file": "initialization/automation/windmill/agents-manager.json",
-          "type": "app"
-        },
-        {
-          "file": "initialization/automation/windmill/analytics-panel.json",
-          "type": "app"
-        },
-        {
-          "file": "initialization/automation/windmill/dashboard-app.json",
-          "type": "app"
         }
       ]
     },
@@ -133,7 +119,26 @@
     }
   },
   "lifecycle": {
-    "version": "1.0.0",
+    "version": "2.0.0",
+    "health": {
+      "description": "Web Scraper Manager health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
     "setup": {
       "description": "Initialize Web Scraper Manager",
       "condition": {
@@ -194,8 +199,13 @@
           "description": "Build Go coordination API binary"
         },
         {
+          "name": "install-ui-dependencies",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies"
+        },
+        {
           "name": "show-urls",
-          "run": "echo '🚀 Web Scraper Manager initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n orchestrator: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  CLI: web-scraper-manager --help'",
+          "run": "echo '🚀 Web Scraper Manager initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  n8n orchestrator: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  CLI: web-scraper-manager --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -227,13 +237,31 @@
           }
         },
         {
+          "name": "start-ui-server",
+          "run": "cd ui && env UI_PORT=$UI_PORT npm start",
+          "description": "Start Node.js UI server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/server.js"
+          }
+        },
+        {
+          "name": "wait-for-ui",
+          "run": "sleep 3 && curl -sf http://localhost:$UI_PORT/health > /dev/null",
+          "description": "Wait for UI server to be ready",
+          "retry": {
+            "max_attempts": 10,
+            "delay": 2
+          }
+        },
+        {
           "name": "initialize-redis-queues",
           "run": "redis-cli -h localhost -p ${RESOURCE_PORTS[redis]} LPUSH scraper:queue:init \"ready\" > /dev/null",
           "description": "Initialize Redis job queues"
         },
         {
           "name": "show-running-services",
-          "run": "echo '🚀 Web Scraper Manager running:\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n orchestrator: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$API_PORT\\n  MinIO: http://localhost:${RESOURCE_PORTS[minio]}\\n  CLI: web-scraper-manager --help'",
+          "run": "echo '🚀 Web Scraper Manager running:\\n  Dashboard: http://localhost:$UI_PORT\\n  n8n orchestrator: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$API_PORT\\n  MinIO: http://localhost:${RESOURCE_PORTS[minio]}\\n  CLI: web-scraper-manager --help'",
           "description": "Display all running service URLs"
         }
       ]
@@ -287,6 +315,11 @@
     "stop": {
       "description": "Stop web scraper manager services",
       "steps": [
+        {
+          "name": "stop-ui-server",
+          "run": "pkill -f 'ui/server.js' || pkill -f 'npm.*start' || true",
+          "description": "Stop Node.js UI server processes"
+        },
         {
           "name": "stop-api-server",
           "run": "pkill -f 'web-scraper-manager-api' || true",

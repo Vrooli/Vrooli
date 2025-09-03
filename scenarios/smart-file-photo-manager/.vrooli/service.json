@@ -15,11 +15,9 @@
       "semantic-search",
       "duplicate-detection",
       "document-processing",
-      "windmill-ui",
       "automation",
       "go-api",
       "n8n-workflows",
-      "windmill-apps",
       "postgres-storage",
       "redis-cache",
       "qdrant-vectors",
@@ -33,6 +31,12 @@
       "port": 29750,
       "fallback": "auto",
       "description": "Smart file manager coordination API port"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "port": 31010,
+      "fallback": "auto",
+      "description": "Smart File Photo Manager UI port"
     }
   },
   "resources": {
@@ -132,17 +136,6 @@
           "type": "workflow"
         }
       ]
-    },
-    "windmill": {
-      "type": "windmill",
-      "enabled": true,
-      "required": true,
-      "initialization": [
-        {
-          "file": "initialization/automation/windmill/apps/file-manager-ui.json",
-          "type": "app"
-        }
-      ]
     }
   },
   "sharedWorkflows": [
@@ -150,7 +143,26 @@
     "embedding-generator"
   ],
   "lifecycle": {
-    "version": "1.0.0",
+    "version": "2.0.0",
+    "health": {
+      "description": "Smart File Photo Manager health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
     "setup": {
       "description": "Initialize Smart File Photo Manager",
       "condition": {
@@ -194,7 +206,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Smart File Photo Manager initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  MinIO Console: http://localhost:${RESOURCE_PORTS[minio]}\\n  CLI: smart-file-photo-manager --help'",
+          "run": "echo '🚀 Smart File Photo Manager initialized\\n  UI: http://localhost:${UI_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  MinIO Console: http://localhost:${RESOURCE_PORTS[minio]}\\n  CLI: smart-file-photo-manager --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -226,8 +238,34 @@
           }
         },
         {
+          "name": "install-ui-dependencies",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "start-ui-server",
+          "run": "cd ui && env PORT=$UI_PORT node server.js",
+          "description": "Start Node.js UI server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/server.js"
+          }
+        },
+        {
+          "name": "wait-for-ui",
+          "run": "sleep 3 && curl -sf http://localhost:$UI_PORT > /dev/null",
+          "description": "Wait for UI server to be ready",
+          "retry": {
+            "max_attempts": 10,
+            "delay": 1
+          }
+        },
+        {
           "name": "show-running-services",
-          "run": "echo '🚀 Smart File Photo Manager running:\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$API_PORT\\n  MinIO Console: http://localhost:${RESOURCE_PORTS[minio]}\\n  CLI: smart-file-photo-manager --help'",
+          "run": "echo '🚀 Smart File Photo Manager running:\\n  UI: http://localhost:${UI_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$API_PORT\\n  MinIO Console: http://localhost:${RESOURCE_PORTS[minio]}\\n  CLI: smart-file-photo-manager --help'",
           "description": "Display all running service URLs"
         }
       ]
@@ -280,6 +318,11 @@
           "name": "stop-api-server",
           "run": "pkill -f 'smart-file-photo-manager-api' || true",
           "description": "Stop Go API server processes"
+        },
+        {
+          "name": "stop-ui-server",
+          "run": "pkill -f 'node server.js' || true",
+          "description": "Stop Node.js UI server processes"
         },
         {
           "name": "confirm-stop",

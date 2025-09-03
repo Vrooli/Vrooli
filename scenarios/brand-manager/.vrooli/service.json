@@ -15,12 +15,11 @@
       "app-integration",
       "marketing",
       "automation",
-      "windmill-ui",
+      "nodejs-ui",
       "comfyui",
       "claude-code",
       "go-api",
       "n8n-workflows",
-      "windmill-apps",
       "postgres-storage",
       "minio-storage",
       "ollama-ai"
@@ -32,6 +31,12 @@
       "port": 22250,
       "fallback": "auto",
       "description": "Brand Manager coordination API port"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "port": 31006,
+      "fallback": "auto",
+      "description": "Brand Manager web UI port"
     }
   },
   "resources": {
@@ -51,21 +56,6 @@
         {
           "file": "initialization/automation/n8n/integration-monitor.json",
           "type": "workflow"
-        }
-      ]
-    },
-    "windmill": {
-      "type": "windmill",
-      "enabled": true,
-      "required": true,
-      "initialization": [
-        {
-          "file": "initialization/automation/windmill/brand-manager-ui.json",
-          "type": "app"
-        },
-        {
-          "file": "initialization/automation/windmill/integration-dashboard.json",
-          "type": "app"
         }
       ]
     },
@@ -152,7 +142,26 @@
     }
   },
   "lifecycle": {
-    "version": "1.0.0",
+    "version": "2.0.0",
+    "health": {
+      "description": "Brand Manager health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
     "setup": {
       "description": "Initialize Brand Manager platform",
       "condition": {
@@ -200,8 +209,16 @@
           "description": "Create required MinIO buckets"
         },
         {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install --omit=dev",
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
           "name": "show-urls",
-          "run": "echo '🚀 Brand Manager initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}/apps/f/brand-manager/dashboard\\n  Integration Monitor: http://localhost:${RESOURCE_PORTS[windmill]}/apps/f/brand-manager/integration-dashboard\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  CLI: brand-manager --help'",
+          "run": "echo '🚀 Brand Manager initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  CLI: brand-manager --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -215,12 +232,29 @@
           "description": "Ensure API binary exists"
         },
         {
+          "name": "ensure-ui-deps",
+          "run": "if [ ! -d ui/node_modules ]; then echo 'Installing UI dependencies...'; cd ui && npm install && echo 'UI dependencies installed'; else echo 'UI dependencies already installed'; fi",
+          "description": "Ensure UI dependencies are installed",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
           "name": "start-api-server",
           "run": "cd api && env PORT=$API_PORT ./brand-manager-api",
           "description": "Start Go coordination API server in background",
           "background": true,
           "condition": {
             "file_exists": "api/brand-manager-api"
+          }
+        },
+        {
+          "name": "start-ui-server",
+          "run": "cd ui && env PORT=$UI_PORT node server.js",
+          "description": "Start Node.js UI server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/server.js"
           }
         },
         {
@@ -233,8 +267,20 @@
           }
         },
         {
+          "name": "wait-for-ui",
+          "run": "sleep 3 && curl -sf http://localhost:$UI_PORT > /dev/null",
+          "description": "Wait for UI server to be ready",
+          "retry": {
+            "max_attempts": 15,
+            "delay": 1
+          },
+          "condition": {
+            "file_exists": "ui/server.js"
+          }
+        },
+        {
           "name": "show-running-services",
-          "run": "echo '🚀 Brand Manager running:\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}/apps/f/brand-manager/dashboard\\n  Integration Monitor: http://localhost:${RESOURCE_PORTS[windmill]}/apps/f/brand-manager/integration-dashboard\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$API_PORT\\n  CLI: brand-manager --help'",
+          "run": "echo '🚀 Brand Manager running:\\n  Dashboard: http://localhost:$UI_PORT\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$API_PORT\\n  CLI: brand-manager --help'",
           "description": "Display all running service URLs"
         }
       ]
@@ -271,6 +317,14 @@
           "description": "Test brand generation workflow"
         },
         {
+          "name": "test-ui-health",
+          "run": "curl -sf http://localhost:$UI_PORT",
+          "description": "Test UI health endpoint",
+          "condition": {
+            "file_exists": "ui/server.js"
+          }
+        },
+        {
           "name": "test-cli-commands",
           "run": "cd cli && bats brand-manager.bats",
           "description": "Run CLI test suite",
@@ -287,6 +341,11 @@
           "name": "stop-api-server",
           "run": "pkill -f 'brand-manager-api' || true",
           "description": "Stop Go API server processes"
+        },
+        {
+          "name": "stop-ui-server",
+          "run": "pkill -f 'node server.js' || pkill -f 'brand-manager.*server.js' || true",
+          "description": "Stop Node.js UI server processes"
         },
         {
           "name": "confirm-stop",

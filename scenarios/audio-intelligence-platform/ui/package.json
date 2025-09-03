@@ -2,17 +2,22 @@
   "name": "audio-intelligence-platform-ui",
   "version": "1.0.0",
   "description": "Professional audio studio interface for transcription and analysis",
-  "main": "index.html",
+  "main": "server.js",
   "scripts": {
-    "start": "python3 -m http.server 5681",
-    "dev": "python3 -m http.server 5681"
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
   },
   "keywords": [
     "audio",
     "transcription",
     "ai",
     "analysis",
-    "whisper"
+    "whisper",
+    "nodejs",
+    "express"
   ],
   "author": "Vrooli",
   "license": "MIT"

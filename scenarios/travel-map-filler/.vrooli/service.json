@@ -1,0 +1,273 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "2.0.0",
+  "service": {
+    "name": "travel-map-filler",
+    "displayName": "Travel Map Filler",
+    "description": "Interactive world map application for tracking and visualizing your travel history",
+    "version": "1.0.0",
+    "tags": [
+      "travel",
+      "visualization", 
+      "mapping",
+      "achievements",
+      "analytics",
+      "personal-tracking",
+      "go-api",
+      "nodejs-ui",
+      "n8n-workflows",
+      "postgres-storage",
+      "qdrant-vectors",
+      "interactive-map",
+      "location-tracking"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "PORT",
+      "port": 8760,
+      "fallback": "auto",
+      "description": "Travel Map API port"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "port": 3760, 
+      "fallback": "auto",
+      "description": "Travel Map UI port"
+    }
+  },
+  "resources": {
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Store travel records, achievements, and user data",
+      "initialization": [
+        {
+          "file": "initialization/postgres/schema.sql",
+          "type": "script"
+        }
+      ]
+    },
+    "qdrant": {
+      "type": "qdrant",
+      "enabled": true, 
+      "required": true,
+      "purpose": "Vector database for semantic search of travel memories",
+      "initialization": [
+        {
+          "file": "initialization/qdrant/collections.json",
+          "type": "collections"
+        }
+      ]
+    },
+    "n8n": {
+      "type": "n8n",
+      "enabled": true,
+      "required": true,
+      "purpose": "Workflow automation for travel processing and achievement calculation",
+      "initialization": [
+        {
+          "file": "initialization/n8n/travel-tracker.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/travel-search.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/travel-list.json", 
+          "type": "workflow"
+        }
+      ]
+    },
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": false,
+      "purpose": "Generate travel insights and recommendations",
+      "models": [
+        "llama3.2:3b",
+        "nomic-embed-text"
+      ]
+    },
+    "redis": {
+      "type": "redis",
+      "enabled": true,
+      "required": false,
+      "purpose": "Cache map data for fast loading"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Travel Map Filler health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
+    "setup": {
+      "description": "Initialize Travel Map Filler",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/travel-map-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "travel-map"
+          },
+          {
+            "type": "dependencies",
+            "paths": [
+              "ui/package.json"
+            ]
+          },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "generate-embeddings",
+          "run": "vrooli resource qdrant embeddings refresh --force || echo \"Embeddings generation skipped (not critical)\"",
+          "description": "Generate code embeddings for AI assistance"
+        },
+        {
+          "name": "add-data",
+          "run": "../../scripts/resources/populate/populate.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "build-api", 
+          "run": "cd api && go mod download && go build -o travel-map-api main.go",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && chmod +x travel-map && ln -sf $(pwd)/travel-map /usr/local/bin/travel-map 2>/dev/null || true",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo 'Travel Map Filler initialized - UI: http://localhost:${UI_PORT} - API: http://localhost:${PORT} - CLI: travel-map --help'",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start Travel Map Filler with Go API and Node.js UI",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && env PORT=$PORT ./travel-map-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/travel-map-api"
+          }
+        },
+        {
+          "name": "wait-for-api",
+          "run": "curl -sf http://localhost:$PORT/health > /dev/null",
+          "description": "Wait for API to be ready",
+          "retry": {
+            "max_attempts": 30,
+            "delay": 1
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && env PORT=$UI_PORT node server.js",
+          "description": "Start UI server in background",
+          "background": true
+        },
+        {
+          "name": "wait-for-services",
+          "run": "sleep 2 && curl -sf http://localhost:$PORT/health > /dev/null && curl -sf http://localhost:$UI_PORT > /dev/null",
+          "description": "Wait for services to be ready",
+          "retry": {
+            "max_attempts": 15,
+            "delay": 1
+          }
+        },
+        {
+          "name": "show-running-services",
+          "run": "echo 'Travel Map Filler running - UI: http://localhost:${UI_PORT} - API: http://localhost:${PORT} - CLI: travel-map --help'",
+          "description": "Display all running service URLs"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test Travel Map Filler API and CLI",
+      "steps": [
+        {
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build main.go && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$PORT/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-travels-endpoint",
+          "run": "curl -sf http://localhost:$PORT/api/travels",
+          "description": "Test API travels endpoint"
+        },
+        {
+          "name": "test-cli-help",
+          "run": "travel-map --help",
+          "description": "Test CLI help command"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop Travel Map Filler services",
+      "steps": [
+        {
+          "name": "stop-api-server",
+          "run": "pkill -f 'travel-map-api' || true",
+          "description": "Stop Go API server processes"
+        },
+        {
+          "name": "stop-ui-server",
+          "run": "pkill -f 'node.*server.js' || true",
+          "description": "Stop UI server processes"
+        },
+        {
+          "name": "confirm-stop",
+          "run": "echo 'Travel Map Filler services stopped'",
+          "description": "Confirm services stopped"
+        }
+      ]
+    }
+  }
+}

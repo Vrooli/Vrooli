@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -121,7 +122,7 @@ type ApiResponse struct {
 
 func loadConfig() *Config {
 	// Default to the actual scenario issues directory if not specified
-	defaultIssuesDir := "/home/matthalloran8/Vrooli/scenarios/app-issue-tracker/issues"
+	defaultIssuesDir := filepath.Join(getVrooliRoot(), "scenarios/app-issue-tracker/issues")
 	if _, err := os.Stat("./issues"); err == nil {
 		// If local issues directory exists, use it
 		defaultIssuesDir = "./issues"
@@ -829,6 +830,18 @@ func corsMiddleware(next http.Handler) http.Handler {
 		
 		next.ServeHTTP(w, r)
 	})
+}
+
+func getVrooliRoot() string {
+	if root := os.Getenv("VROOLI_ROOT"); root != "" {
+		return root
+	}
+	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
+	if out, err := cmd.Output(); err == nil {
+		return strings.TrimSpace(string(out))
+	}
+	ex, _ := os.Executable()
+	return filepath.Dir(filepath.Dir(ex))
 }
 
 func main() {

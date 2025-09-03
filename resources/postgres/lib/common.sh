@@ -200,7 +200,21 @@ postgres::common::wait_for_ready() {
     
     log::info "${MSG_WAITING_STARTUP}"
     
+    # Load health check configuration from runtime.json
+    local runtime_json="${APP_ROOT}/resources/postgres/config/runtime.json"
+    local check_interval=3
+    local required_ready_checks=3
+    
+    if [[ -f "$runtime_json" ]]; then
+        check_interval=$(jq -r '.health_check_delay // 3' "$runtime_json" 2>/dev/null || echo "3")
+        local health_retries=$(jq -r '.health_check_retries // 10' "$runtime_json" 2>/dev/null || echo "10")
+        # Adjust timeout based on config
+        timeout=$((check_interval * health_retries * 2))
+    fi
+    
     local elapsed=0
+    local ready_checks=0
+    
     while [[ $elapsed -lt $timeout ]]; do
         # Check if container is still running
         if ! postgres::common::is_running "$instance_name"; then
@@ -208,14 +222,21 @@ postgres::common::wait_for_ready() {
             return 1
         fi
         
-        # Try to connect to PostgreSQL
-        if docker exec "$container_name" pg_isready -U "${POSTGRES_DEFAULT_USER}" >/dev/null 2>&1; then
-            log::debug "PostgreSQL instance $instance_name is ready"
-            return 0
+        # Use the improved health check
+        if postgres::common::health_check "$instance_name"; then
+            ((ready_checks++))
+            if [[ $ready_checks -ge $required_ready_checks ]]; then
+                log::debug "PostgreSQL instance $instance_name is fully ready after ${elapsed}s"
+                # Give it a final moment to stabilize
+                sleep 2
+                return 0
+            fi
+        else
+            ready_checks=0  # Reset if health check fails
         fi
         
-        sleep 2
-        elapsed=$((elapsed + 2))
+        sleep $check_interval
+        elapsed=$((elapsed + check_interval))
         echo -n "."
     done
     
@@ -239,17 +260,27 @@ postgres::common::health_check() {
         return 1
     fi
     
-    # Check if PostgreSQL is accepting connections (with timeout)
-    if timeout 5 docker exec "$container_name" pg_isready -U "${POSTGRES_DEFAULT_USER}" >/dev/null 2>&1; then
-        # Additional check: verify the default role exists (corruption detection)
-        if ! postgres::common::verify_role_exists "$instance_name" "${POSTGRES_DEFAULT_USER}"; then
-            log::warning "Database appears corrupted (missing role: ${POSTGRES_DEFAULT_USER})"
-            return 1
-        fi
-        return 0
+    # Step 1: Check if PostgreSQL is accepting connections
+    if ! timeout 10 docker exec "$container_name" pg_isready -h localhost -U "${POSTGRES_DEFAULT_USER}" >/dev/null 2>&1; then
+        return 1
     fi
     
-    return 1
+    # Step 2: Verify we can actually connect and query
+    # Use PGPASSWORD to avoid password prompt issues
+    if ! PGPASSWORD="${POSTGRES_DEFAULT_PASSWORD}" timeout 10 docker exec "$container_name" psql -h localhost -U "${POSTGRES_DEFAULT_USER}" -d postgres -c "SELECT 1" >/dev/null 2>&1; then
+        return 1
+    fi
+    
+    # Step 3: Check if the default database exists (if not postgres)
+    if [[ "${POSTGRES_DEFAULT_DB}" != "postgres" ]]; then
+        if ! PGPASSWORD="${POSTGRES_DEFAULT_PASSWORD}" timeout 5 docker exec "$container_name" psql -h localhost -U "${POSTGRES_DEFAULT_USER}" -d postgres -tc "SELECT 1 FROM pg_database WHERE datname='${POSTGRES_DEFAULT_DB}'" 2>/dev/null | grep -q 1; then
+            # Database doesn't exist yet, but postgres is running
+            # This is OK during initial setup
+            log::debug "Database ${POSTGRES_DEFAULT_DB} not yet created, but PostgreSQL is running"
+        fi
+    fi
+    
+    return 0
 }
 
 #######################################

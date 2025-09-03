@@ -121,7 +121,26 @@
     }
   },
   "lifecycle": {
-    "version": "1.0.0",
+    "version": "2.0.0",
+    "health": {
+      "description": "Study Buddy health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
     "setup": {
       "description": "Initialize Study Buddy",
       "condition": {
@@ -196,6 +215,15 @@
           "background": true,
           "condition": {
             "file_exists": "api/study-buddy-api"
+          }
+        },
+        {
+          "name": "wait-for-api",
+          "run": "curl -sf http://localhost:$API_PORT/health > /dev/null",
+          "description": "Wait for API to be ready",
+          "retry": {
+            "max_attempts": 30,
+            "delay": 1
           }
         },
         {

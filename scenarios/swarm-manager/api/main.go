@@ -106,11 +106,15 @@ type Config struct {
 }
 
 var (
-	db       *sql.DB
-	tasksDir = "/home/matthalloran8/Vrooli/scenarios/swarm-manager/tasks"
+	db        *sql.DB
+	tasksDir  string
+	startTime = time.Now()
 )
 
 func main() {
+	// Initialize paths
+	tasksDir = filepath.Join(getVrooliRoot(), "scenarios/swarm-manager/tasks")
+	
 	// Initialize database connection
 	initDB()
 	defer db.Close()
@@ -142,12 +146,34 @@ func main() {
 }
 
 func initDB() {
-	dbHost := os.Getenv("DB_HOST")
+	// Get connection parameters from environment
+	dbHost := os.Getenv("POSTGRES_HOST")
 	if dbHost == "" {
 		dbHost = "localhost"
 	}
+	
+	dbPort := os.Getenv("POSTGRES_PORT")
+	if dbPort == "" {
+		dbPort = "5433"
+	}
+	
+	dbUser := os.Getenv("POSTGRES_USER")
+	if dbUser == "" {
+		dbUser = "vrooli"
+	}
+	
+	dbPassword := os.Getenv("POSTGRES_PASSWORD")
+	if dbPassword == "" {
+		dbPassword = "postgres"
+	}
+	
+	dbName := os.Getenv("POSTGRES_DB")
+	if dbName == "" {
+		dbName = "vrooli"
+	}
 
-	connStr := fmt.Sprintf("host=%s port=5433 user=postgres dbname=postgres sslmode=disable", dbHost)
+	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", 
+		dbHost, dbPort, dbUser, dbPassword, dbName)
 	var err error
 	db, err = sql.Open("postgres", connStr)
 	if err != nil {
@@ -197,10 +223,68 @@ func setupRoutes(app *fiber.App) {
 }
 
 func healthCheck(c *fiber.Ctx) error {
+	// Perform health checks
+	checks := make(map[string]interface{})
+	overallStatus := "healthy"
+	
+	// Check database connection
+	if db != nil {
+		err := db.Ping()
+		if err != nil {
+			checks["database"] = fiber.Map{
+				"status": "unhealthy",
+				"error": err.Error(),
+			}
+			overallStatus = "unhealthy"
+		} else {
+			// Try a simple query to ensure database is actually responding
+			var result int
+			err := db.QueryRow("SELECT 1").Scan(&result)
+			if err != nil {
+				checks["database"] = fiber.Map{
+					"status": "degraded",
+					"error": "Cannot execute queries",
+				}
+				overallStatus = "degraded"
+			} else {
+				checks["database"] = fiber.Map{
+					"status": "healthy",
+					"message": "Connected and responsive",
+				}
+			}
+		}
+	} else {
+		checks["database"] = fiber.Map{
+			"status": "unhealthy",
+			"error": "Database connection not initialized",
+		}
+		overallStatus = "unhealthy"
+	}
+	
+	// Check task directory access
+	if _, err := os.Stat(tasksDir); os.IsNotExist(err) {
+		checks["filesystem"] = fiber.Map{
+			"status": "unhealthy",
+			"error": "Tasks directory not accessible",
+		}
+		overallStatus = "unhealthy"
+	} else {
+		checks["filesystem"] = fiber.Map{
+			"status": "healthy",
+			"message": "Tasks directory accessible",
+		}
+	}
+	
+	// Calculate uptime
+	uptime := time.Since(startTime).Seconds()
+	
 	return c.JSON(fiber.Map{
-		"status": "healthy",
-		"service": "swarm-manager",
+		"status":    overallStatus,
+		"service":   "swarm-manager",
 		"timestamp": time.Now().Unix(),
+		"uptime":    uptime,
+		"checks":    checks,
+		"version":   "2.0.0",
 	})
 }
 
@@ -995,7 +1079,7 @@ func buildTaskPrompt(task *Task, scenario string) string {
 func executeViaClaude(prompt string) (int, error) {
 	// Execute using resource-claude-code (following auto/ pattern)
 	cmd := exec.Command("resource-claude-code", "run", prompt)
-	cmd.Dir = "/home/matthalloran8/Vrooli" // Set working directory
+	cmd.Dir = getVrooliRoot() // Set working directory
 	
 	output, err := cmd.CombinedOutput()
 	exitCode := 0
@@ -1016,7 +1100,7 @@ func executeViaClaude(prompt string) (int, error) {
 func executeViaScenario(scenario string, task *Task, prompt string) (int, error) {
 	// Execute using scenario CLI
 	cmd := exec.Command(scenario, "run", "--task-id", task.ID, "--prompt", prompt)
-	cmd.Dir = "/home/matthalloran8/Vrooli"
+	cmd.Dir = getVrooliRoot()
 	
 	output, err := cmd.CombinedOutput()
 	exitCode := 0
@@ -1372,7 +1456,7 @@ func convertResourceCostToFloat(cost interface{}) float64 {
 
 func getBasePath() string {
 	// Get the swarm-manager directory path
-	return "/home/matthalloran8/Vrooli/scenarios/swarm-manager"
+	return filepath.Join(getVrooliRoot(), "scenarios/swarm-manager")
 }
 
 // Agent Management System - Based on auto/ worker patterns
@@ -1581,7 +1665,7 @@ func scanProblems(c *fiber.Ctx) error {
 	}
 	
 	if req.ScanPath == "" {
-		req.ScanPath = "/home/matthalloran8/Vrooli"
+		req.ScanPath = getVrooliRoot()
 	}
 	
 	log.Printf("Scanning for problems in: %s", req.ScanPath)
@@ -2065,6 +2149,18 @@ func saveTaskToFile(task Task, taskDir string) error {
 	
 	// Write to file
 	return ioutil.WriteFile(filepath, yamlData, 0644)
+}
+
+func getVrooliRoot() string {
+	if root := os.Getenv("VROOLI_ROOT"); root != "" {
+		return root
+	}
+	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
+	if out, err := cmd.Output(); err == nil {
+		return strings.TrimSpace(string(out))
+	}
+	ex, _ := os.Executable()
+	return filepath.Dir(filepath.Dir(ex))
 }
 
 func errorHandler(c *fiber.Ctx, err error) error {

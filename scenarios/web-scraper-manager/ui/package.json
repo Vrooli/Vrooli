@@ -1,0 +1,26 @@
+{
+  "name": "web-scraper-manager-ui",
+  "version": "1.0.0",
+  "description": "Web Scraper Manager Dashboard - Unified management interface for web scraping across multiple platforms",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [
+    "web-scraping",
+    "dashboard",
+    "data-extraction",
+    "automation",
+    "monitoring"
+  ],
+  "author": "Vrooli",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "path": "^0.12.7"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}

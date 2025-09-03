@@ -28,6 +28,12 @@
       "port": 32000,
       "fallback": "auto",
       "description": "Workflow Scheduler REST API port"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "port": 37500,
+      "fallback": "auto",
+      "description": "Workflow Scheduler UI port"
     }
   },
   "resources": {
@@ -83,7 +89,26 @@
     }
   },
   "lifecycle": {
-    "version": "1.0.0",
+    "version": "2.0.0",
+    "health": {
+      "description": "Workflow Scheduler health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
     "setup": {
       "description": "Initialize Workflow Scheduler platform",
       "condition": {

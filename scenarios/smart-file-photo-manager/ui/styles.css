@@ -438,11 +438,21 @@ body {
     cursor: pointer;
     transition: var(--transition-base);
     box-shadow: var(--shadow-sm);
+    position: relative;
 }
 
 .file-card:hover {
     transform: translateY(-4px);
     box-shadow: var(--shadow-lg);
+}
+
+.file-card.photo-card {
+    border-radius: 16px;
+}
+
+.file-card.photo-card:hover {
+    transform: translateY(-6px) scale(1.02);
+    box-shadow: var(--shadow-xl);
 }
 
 .file-preview {
@@ -462,6 +472,30 @@ body {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    transition: transform 0.3s ease;
+}
+
+.file-card.photo-card .file-preview img {
+    border-radius: 12px 12px 0 0;
+}
+
+.file-card:hover .file-preview img {
+    transform: scale(1.05);
+}
+
+.file-preview .overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.1) 100%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.file-card:hover .file-preview .overlay {
+    opacity: 1;
 }
 
 .file-info {
@@ -706,5 +740,185 @@ body {
     .file-grid {
         grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
         gap: 12px;
+    }
+}
+
+/* Photo Gallery Enhancements */
+.photo-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 16px;
+    padding: 16px 0;
+}
+
+.photo-card {
+    aspect-ratio: 1;
+    border-radius: 16px;
+    overflow: hidden;
+    background: var(--bg-primary);
+    box-shadow: var(--shadow-sm);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+}
+
+.photo-card:hover {
+    transform: translateY(-8px) scale(1.03);
+    box-shadow: var(--shadow-xl);
+}
+
+.photo-preview {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+}
+
+.photo-card:hover .photo-preview {
+    transform: scale(1.1);
+}
+
+/* Enhanced Modal for Photo Viewing */
+.photo-modal .modal-content {
+    max-width: 95vw;
+    max-height: 95vh;
+    padding: 0;
+    border-radius: 20px;
+    overflow: hidden;
+}
+
+.photo-modal .preview-container {
+    padding: 0;
+    min-height: auto;
+    background: #000;
+}
+
+.photo-modal .preview-container img {
+    max-width: 100%;
+    max-height: 80vh;
+    object-fit: contain;
+}
+
+/* Folder Tree Styles */
+.folder-tree {
+    background: var(--bg-primary);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 24px;
+}
+
+.folder-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: var(--transition-base);
+}
+
+.folder-item:hover {
+    background: var(--bg-secondary);
+}
+
+.folder-item.active {
+    background: rgba(99, 102, 241, 0.1);
+    color: var(--primary-color);
+}
+
+.folder-icon {
+    font-size: 18px;
+}
+
+.folder-count {
+    margin-left: auto;
+    font-size: 12px;
+    color: var(--text-tertiary);
+    background: var(--bg-tertiary);
+    padding: 2px 8px;
+    border-radius: 10px;
+}
+
+/* Masonry Layout for Photos */
+.masonry-grid {
+    column-count: 4;
+    column-gap: 16px;
+    padding: 16px 0;
+}
+
+.masonry-item {
+    break-inside: avoid;
+    margin-bottom: 16px;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    transition: var(--transition-base);
+    cursor: pointer;
+}
+
+.masonry-item:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.masonry-item img {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+/* Enhanced Responsive for Photo Focus */
+@media (max-width: 1200px) {
+    .masonry-grid {
+        column-count: 3;
+    }
+    
+    .photo-grid {
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    }
+}
+
+@media (max-width: 768px) {
+    .photo-grid {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        gap: 12px;
+    }
+    
+    .masonry-grid {
+        column-count: 2;
+        column-gap: 12px;
+    }
+}
+
+@media (max-width: 480px) {
+    .photo-grid {
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+        gap: 8px;
+    }
+    
+    .masonry-grid {
+        column-count: 1;
+    }
+}
+
+/* Animation Keyframes for Photo Gallery */
+@keyframes zoomIn {
+    from {
+        transform: scale(0.8);
+        opacity: 0;
+    }
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+@keyframes fadeInUp {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
     }
 }

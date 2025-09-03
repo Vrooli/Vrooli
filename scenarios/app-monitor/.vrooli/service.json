@@ -19,7 +19,6 @@
       "go-api",
       "n8n-workflows",
       "node-red-flows",
-      "windmill-apps",
       "postgres-storage",
       "redis-cache",
       "ollama-ai"
@@ -111,25 +110,29 @@
           "type": "flow"
         }
       ]
-    },
-    "windmill": {
-      "type": "windmill",
-      "enabled": true,
-      "required": true,
-      "initialization": [
-        {
-          "file": "initialization/automation/windmill/app-monitor-dashboard.json",
-          "type": "app"
-        },
-        {
-          "file": "initialization/automation/windmill/app-control-panel.json",
-          "type": "app"
-        }
-      ]
     }
   },
   "lifecycle": {
-    "version": "1.0.0",
+    "version": "2.0.0",
+    "health": {
+      "description": "App Monitor health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
     "setup": {
       "description": "Initialize App Monitor with database schema and automation workflows",
       "condition": {
@@ -184,7 +187,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 App Monitor initialized\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  Windmill: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Node-RED flows: http://localhost:${RESOURCE_PORTS[node-red]}\\n  API: http://localhost:${API_PORT}\\n  CLI: app-monitor --help'",
+          "run": "echo '🚀 App Monitor initialized\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Node-RED flows: http://localhost:${RESOURCE_PORTS[node-red]}\\n  API: http://localhost:${API_PORT}\\n  CLI: app-monitor --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -235,7 +238,7 @@
         },
         {
           "name": "show-running-services",
-          "run": "echo '🚀 App Monitor running:\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  Windmill: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Node-RED: http://localhost:${RESOURCE_PORTS[node-red]}\\n  API: http://localhost:$API_PORT\\n  CLI: app-monitor --help'",
+          "run": "echo '🚀 App Monitor running:\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Node-RED: http://localhost:${RESOURCE_PORTS[node-red]}\\n  API: http://localhost:$API_PORT\\n  CLI: app-monitor --help'",
           "description": "Display all running service URLs"
         }
       ]

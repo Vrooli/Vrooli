@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Scraper Manager Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕷️</text></svg>">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                <span class="logo-icon">🕷️</span>
+                <h1>Web Scraper Manager</h1>
+            </div>
+            <div class="header-controls">
+                <button class="btn btn-primary" id="refresh-all">
+                    <span class="icon">🔄</span>
+                    Refresh All
+                </button>
+                <div class="connection-status" id="connection-status">
+                    <span class="status-indicator"></span>
+                    <span class="status-text">Connecting...</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Layout -->
+    <div class="main-layout">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar">
+            <ul class="nav-menu">
+                <li class="nav-item active">
+                    <a href="#" data-view="dashboard" class="nav-link">
+                        <span class="nav-icon">📊</span>
+                        Dashboard
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" data-view="agents" class="nav-link">
+                        <span class="nav-icon">🤖</span>
+                        Agents
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" data-view="jobs" class="nav-link">
+                        <span class="nav-icon">⚡</span>
+                        Jobs & Monitoring
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" data-view="data" class="nav-link">
+                        <span class="nav-icon">📋</span>
+                        Data Explorer
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" data-view="config" class="nav-link">
+                        <span class="nav-icon">⚙️</span>
+                        Configuration
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" data-view="analytics" class="nav-link">
+                        <span class="nav-icon">📈</span>
+                        Analytics
+                    </a>
+                </li>
+            </ul>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="content">
+            <!-- Dashboard View -->
+            <div id="dashboard-view" class="view active">
+                <div class="view-header">
+                    <h2>Dashboard Overview</h2>
+                    <p>Monitor your web scraping operations across all platforms</p>
+                </div>
+
+                <!-- Metrics Cards -->
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-icon">🤖</div>
+                        <div class="metric-content">
+                            <div class="metric-value" id="total-agents">-</div>
+                            <div class="metric-label">Total Agents</div>
+                        </div>
+                        <div class="metric-trend up">
+                            <span id="active-agents">-</span> active
+                        </div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div class="metric-icon">⚡</div>
+                        <div class="metric-content">
+                            <div class="metric-value" id="running-jobs">-</div>
+                            <div class="metric-label">Running Jobs</div>
+                        </div>
+                        <div class="metric-trend">
+                            <span id="queued-jobs">-</span> queued
+                        </div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div class="metric-icon">📊</div>
+                        <div class="metric-content">
+                            <div class="metric-value" id="total-results">-</div>
+                            <div class="metric-label">Data Points</div>
+                        </div>
+                        <div class="metric-trend up">
+                            Today: <span id="today-results">-</span>
+                        </div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div class="metric-icon">✅</div>
+                        <div class="metric-content">
+                            <div class="metric-value" id="success-rate">-</div>
+                            <div class="metric-label">Success Rate</div>
+                        </div>
+                        <div class="metric-trend">
+                            Last 24h
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Activity -->
+                <div class="dashboard-section">
+                    <h3>Recent Activity</h3>
+                    <div class="activity-list" id="recent-activity">
+                        <div class="loading">Loading recent activity...</div>
+                    </div>
+                </div>
+
+                <!-- Platform Status -->
+                <div class="dashboard-section">
+                    <h3>Platform Status</h3>
+                    <div class="platform-grid" id="platform-status">
+                        <!-- Platform status cards will be populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Agents View -->
+            <div id="agents-view" class="view">
+                <div class="view-header">
+                    <h2>Scraping Agents</h2>
+                    <div class="view-actions">
+                        <button class="btn btn-primary" id="create-agent">
+                            <span class="icon">➕</span>
+                            Create Agent
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Agent Filters -->
+                <div class="filter-bar">
+                    <select id="platform-filter" class="filter-select">
+                        <option value="">All Platforms</option>
+                        <option value="huginn">Huginn</option>
+                        <option value="browserless">Browserless</option>
+                        <option value="agent-s2">Agent-S2</option>
+                    </select>
+                    <select id="status-filter" class="filter-select">
+                        <option value="">All Status</option>
+                        <option value="true">Enabled</option>
+                        <option value="false">Disabled</option>
+                    </select>
+                    <input type="text" id="search-agents" class="search-input" placeholder="Search agents...">
+                </div>
+
+                <!-- Agents Table -->
+                <div class="table-container">
+                    <table class="data-table" id="agents-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Platform</th>
+                                <th>Type</th>
+                                <th>Status</th>
+                                <th>Last Run</th>
+                                <th>Next Run</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="agents-tbody">
+                            <tr>
+                                <td colspan="7" class="loading">Loading agents...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Jobs View -->
+            <div id="jobs-view" class="view">
+                <div class="view-header">
+                    <h2>Jobs & Monitoring</h2>
+                    <div class="view-actions">
+                        <button class="btn btn-secondary" id="refresh-jobs">
+                            <span class="icon">🔄</span>
+                            Refresh
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Job Status Summary -->
+                <div class="job-status-summary">
+                    <div class="status-item">
+                        <span class="status-badge pending">Pending</span>
+                        <span class="status-count" id="pending-count">0</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-badge running">Running</span>
+                        <span class="status-count" id="running-count">0</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-badge success">Success</span>
+                        <span class="status-count" id="success-count">0</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-badge failed">Failed</span>
+                        <span class="status-count" id="failed-count">0</span>
+                    </div>
+                </div>
+
+                <!-- Jobs Table -->
+                <div class="table-container">
+                    <table class="data-table" id="jobs-table">
+                        <thead>
+                            <tr>
+                                <th>Agent</th>
+                                <th>Status</th>
+                                <th>Started</th>
+                                <th>Duration</th>
+                                <th>Data Points</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="jobs-tbody">
+                            <tr>
+                                <td colspan="6" class="loading">Loading job history...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Data Explorer View -->
+            <div id="data-view" class="view">
+                <div class="view-header">
+                    <h2>Data Explorer</h2>
+                    <div class="view-actions">
+                        <button class="btn btn-primary" id="export-data">
+                            <span class="icon">📤</span>
+                            Export Data
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Data Filters -->
+                <div class="filter-bar">
+                    <select id="data-agent-filter" class="filter-select">
+                        <option value="">All Agents</option>
+                    </select>
+                    <input type="date" id="date-from" class="date-input">
+                    <input type="date" id="date-to" class="date-input">
+                    <input type="text" id="search-data" class="search-input" placeholder="Search data...">
+                </div>
+
+                <!-- Data Stats -->
+                <div class="data-stats">
+                    <div class="stat-item">
+                        <label>Total Records:</label>
+                        <span id="total-records">-</span>
+                    </div>
+                    <div class="stat-item">
+                        <label>Filtered Records:</label>
+                        <span id="filtered-records">-</span>
+                    </div>
+                    <div class="stat-item">
+                        <label>Last Updated:</label>
+                        <span id="last-updated">-</span>
+                    </div>
+                </div>
+
+                <!-- Data Table -->
+                <div class="table-container">
+                    <table class="data-table" id="data-table">
+                        <thead>
+                            <tr>
+                                <th>Agent</th>
+                                <th>Status</th>
+                                <th>Data Points</th>
+                                <th>Extracted At</th>
+                                <th>Duration</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="data-tbody">
+                            <tr>
+                                <td colspan="6" class="loading">Loading scraped data...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Configuration View -->
+            <div id="config-view" class="view">
+                <div class="view-header">
+                    <h2>Configuration</h2>
+                    <p>Manage scraping targets, platform settings, and system configuration</p>
+                </div>
+
+                <div class="config-sections">
+                    <div class="config-card">
+                        <h3>Platform Capabilities</h3>
+                        <div id="platform-capabilities">
+                            <div class="loading">Loading platform information...</div>
+                        </div>
+                    </div>
+
+                    <div class="config-card">
+                        <h3>System Status</h3>
+                        <div id="system-status">
+                            <div class="loading">Checking system status...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Analytics View -->
+            <div id="analytics-view" class="view">
+                <div class="view-header">
+                    <h2>Analytics & Reports</h2>
+                    <p>Performance insights and data trends</p>
+                </div>
+
+                <div class="analytics-placeholder">
+                    <div class="placeholder-content">
+                        <h3>📈 Analytics Dashboard</h3>
+                        <p>Advanced analytics and reporting features will be implemented here:</p>
+                        <ul>
+                            <li>Performance trend charts</li>
+                            <li>Success rate analysis</li>
+                            <li>Data volume trends</li>
+                            <li>Cost estimation reports</li>
+                            <li>Custom report builder</li>
+                        </ul>
+                        <p><em>This feature is planned for future development.</em></p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="loading-spinner"></div>
+        <p>Loading...</p>
+    </div>
+
+    <!-- Notification Area -->
+    <div id="notifications" class="notifications"></div>
+
+    <!-- Modals -->
+    <div id="modal-overlay" class="modal-overlay">
+        <div id="modal-content" class="modal-content">
+            <!-- Modal content will be dynamically inserted -->
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

@@ -19,7 +19,12 @@ import (
 )
 
 type HealthResponse struct {
-	Status string `json:"status"`
+	Status    string                 `json:"status"`
+	Service   string                 `json:"service"`
+	Timestamp int64                  `json:"timestamp"`
+	Uptime    float64                `json:"uptime"`
+	Checks    map[string]interface{} `json:"checks"`
+	Version   string                 `json:"version"`
 }
 
 type MetricsResponse struct {
@@ -49,11 +54,12 @@ type InvestigationStep struct {
 	Findings  string    `json:"findings,omitempty"`
 }
 
-// Global variables to store investigations
+// Global variables to store investigations and app state
 var (
 	latestInvestigation *Investigation
 	investigations      = make(map[string]*Investigation)
 	investigationsMutex sync.RWMutex
+	startTime           = time.Now()
 )
 
 type ReportRequest struct {
@@ -116,7 +122,63 @@ func corsMiddleware(next http.Handler) http.Handler {
 }
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
-	response := HealthResponse{Status: "healthy"}
+	// Perform health checks
+	checks := make(map[string]interface{})
+	overallStatus := "healthy"
+	
+	// Check metrics collection capability
+	cpuUsage := getCPUUsage()
+	memUsage := getMemoryUsage()
+	
+	if cpuUsage >= 0 && memUsage >= 0 {
+		checks["metrics_collection"] = map[string]interface{}{
+			"status": "healthy",
+			"message": fmt.Sprintf("Collecting metrics - CPU: %.1f%%, Memory: %.1f%%", cpuUsage, memUsage),
+		}
+	} else {
+		checks["metrics_collection"] = map[string]interface{}{
+			"status": "degraded",
+			"message": "Unable to collect some metrics",
+		}
+		overallStatus = "degraded"
+	}
+	
+	// Check investigation system
+	investigationsMutex.RLock()
+	investigationCount := len(investigations)
+	investigationsMutex.RUnlock()
+	
+	checks["investigation_system"] = map[string]interface{}{
+		"status": "healthy",
+		"message": fmt.Sprintf("Investigation system operational - %d investigations tracked", investigationCount),
+	}
+	
+	// Check filesystem access (for logs/reports)
+	if _, err := os.Stat("/tmp"); err == nil {
+		checks["filesystem"] = map[string]interface{}{
+			"status": "healthy",
+			"message": "Filesystem accessible",
+		}
+	} else {
+		checks["filesystem"] = map[string]interface{}{
+			"status": "unhealthy",
+			"error": "Cannot access filesystem",
+		}
+		overallStatus = "unhealthy"
+	}
+	
+	// Calculate uptime
+	uptime := time.Since(startTime).Seconds()
+	
+	response := HealthResponse{
+		Status:    overallStatus,
+		Service:   "system-monitor",
+		Timestamp: time.Now().Unix(),
+		Uptime:    uptime,
+		Checks:    checks,
+		Version:   "2.0.0",
+	}
+	
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
