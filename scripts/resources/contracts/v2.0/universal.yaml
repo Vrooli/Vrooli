@@ -423,6 +423,7 @@ file_structure:
         - "inject.sh"    # Injection support
     config/:
       optional_files:
+        - "exports.sh"   # Environment variable exports
         - "messages.sh"  # User messages
         - "capabilities.yaml"  # Resource capabilities
     docs/:

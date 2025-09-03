@@ -105,7 +105,7 @@
       "initialization": [
         {
           "file": "initialization/postgres/schema.sql",
-          "type": "script"
+          "type": "schema"
         }
       ]
     },

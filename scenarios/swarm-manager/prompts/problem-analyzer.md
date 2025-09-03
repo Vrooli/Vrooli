@@ -91,18 +91,30 @@ problem_analysis:
 
 When suggesting tasks for problem resolution:
 
+### Core Infrastructure Issues (HIGHEST PRIORITY)
+- Use **core-debugger** for:
+  - CLI failures ("vrooli: command not found")
+  - Orchestrator problems
+  - Setup script failures
+  - Resource manager errors
+  - Core configuration issues
+- These get 10x priority boost as they block all other work
+
 ### Investigation Tasks
-- Use **app-debugger** for error analysis and debugging
+- Use **app-debugger** for application-level error analysis and debugging
 - Use **system-monitor** for performance issues
+- Use **core-debugger** for core infrastructure diagnosis
 - Include specific debugging steps and data to collect
 
 ### Fix Implementation Tasks  
+- Use **core-debugger** for core infrastructure fixes (has workaround database)
 - Use **resource-experimenter** for trying different solutions
 - Use **scenario-generator-v1** for creating new tools/scenarios
 - Be specific about what needs to be implemented
 
 ### Prevention Tasks
 - Use **task-planner** for complex prevention strategies
+- Use **core-debugger** to track recurring core issues
 - Focus on monitoring improvements and process changes
 - Consider automated detection and response
 

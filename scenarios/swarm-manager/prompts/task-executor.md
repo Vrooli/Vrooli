@@ -2,6 +2,13 @@
 
 You are executing a task for the Swarm Manager orchestration system. You have sudo permissions and should complete the task using the appropriate scenario CLI.
 
+## CRITICAL: Pre-Execution Health Check
+Before executing ANY task, verify core infrastructure health:
+```bash
+core-debugger status
+# If status shows "critical", DO NOT PROCEED - fix core issues first
+```
+
 ## Task to Execute
 ```yaml
 {TASK_CONTENT}
@@ -12,6 +19,13 @@ You should use: `{SCENARIO_CLI}`
 
 ## Available Scenario CLIs
 ```bash
+# Monitor and fix core infrastructure (HIGHEST PRIORITY)
+core-debugger status                         # Check overall core health
+core-debugger check-health --component cli   # Check specific component
+core-debugger list-issues                    # List active core issues
+core-debugger get-workaround "<error>"       # Get workaround for error
+core-debugger analyze-issue <issue-id>       # Analyze issue with Claude
+
 # Create new scenarios
 scenario-generator-v1 create --name "<name>" --requirements "<requirements>"
 

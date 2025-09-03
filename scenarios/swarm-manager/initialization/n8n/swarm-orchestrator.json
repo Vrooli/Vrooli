@@ -49,7 +49,7 @@
           "parameters": [
             {
               "name": "scan_path",
-              "value": "/home/matthalloran8/Vrooli"
+              "value": "${VROOLI_ROOT}"
             },
             {
               "name": "force",
@@ -85,7 +85,7 @@
     },
     {
       "parameters": {
-        "path": "/home/matthalloran8/Vrooli/scenarios/swarm-manager/tasks/staged",
+        "path": "${VROOLI_ROOT}/scenarios/swarm-manager/tasks/staged",
         "options": {}
       },
       "id": "get-staged-tasks",
@@ -141,7 +141,7 @@
           "parameters": [
             {
               "name": "prompt",
-              "value": "=Generate new backlog tasks using /home/matthalloran8/Vrooli/scenarios/swarm-manager/prompts/backlog-generator.md"
+              "value": "=Generate new backlog tasks using ${VROOLI_ROOT}/scenarios/swarm-manager/prompts/backlog-generator.md"
             },
             {
               "name": "max_turns",
@@ -172,7 +172,7 @@
         "operation": "append",
         "documentId": {
           "__rl": true,
-          "value": "/home/matthalloran8/Vrooli/scenarios/swarm-manager/logs/decisions/orchestration.log",
+          "value": "${VROOLI_ROOT}/scenarios/swarm-manager/logs/decisions/orchestration.log",
           "mode": "string"
         },
         "text": "={{JSON.stringify($json)}}\n"

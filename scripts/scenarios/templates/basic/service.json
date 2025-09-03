@@ -21,11 +21,11 @@
       "initialization": [
         {
           "file": "initialization/database/schema.sql",
-          "type": "script"
+          "type": "schema"
         },
         {
           "file": "initialization/database/seed.sql",
-          "type": "script"
+          "type": "seed"
         }
       ]
     },

@@ -125,7 +125,7 @@ EOF
         fi
         
         # Start the actual command in background
-        bash -c "$command" >> "$log_file" 2>&1 &
+        env bash -c "$command" >> "$log_file" 2>&1 &
         local cmd_pid=$!
         
         # Save the actual command's PID

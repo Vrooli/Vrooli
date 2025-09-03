@@ -11,7 +11,7 @@ import psutil
 
 # Constants for safety
 MAX_APPS = 100
-MAX_CONCURRENT_STARTS = 3  # Maximum apps starting simultaneously
+MAX_CONCURRENT_STARTS = 20  # Maximum apps starting simultaneously
 MAX_PROCESSES_PER_APP = 5  # Max processes an app can spawn
 ORCHESTRATOR_LOCK_FILE = "/tmp/vrooli-orchestrator.lock"
 ORCHESTRATOR_PID_FILE = "/tmp/vrooli-orchestrator.pid"

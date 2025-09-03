@@ -179,9 +179,9 @@ The swarm-manager automatically discovers and resolves problems across your Vroo
 ### How Problem Discovery Works
 
 1. **Automatic Scanning**: Every 5 minutes, swarm-manager scans for PROBLEMS.md files in:
-   - `/home/matthalloran8/Vrooli/PROBLEMS.md` (system-wide issues)
-   - `/home/matthalloran8/Vrooli/resources/*/PROBLEMS.md` (resource-specific issues)
-   - `/home/matthalloran8/Vrooli/scenarios/*/PROBLEMS.md` (scenario-specific issues)
+   - `${VROOLI_ROOT}/PROBLEMS.md` (system-wide issues)
+   - `${VROOLI_ROOT}/resources/*/PROBLEMS.md` (resource-specific issues)
+   - `${VROOLI_ROOT}/scenarios/*/PROBLEMS.md` (scenario-specific issues)
 
 2. **Semantic Extraction**: Problems are parsed using embedded markers that provide structured data:
    ```markdown
@@ -203,7 +203,7 @@ The swarm-manager automatically discovers and resolves problems across your Vroo
 
 ### PROBLEMS.md Format
 
-Each resource/scenario should maintain a PROBLEMS.md file following the standard template (see `/home/matthalloran8/Vrooli/PROBLEMS_TEMPLATE.md`). Key elements include:
+Each resource/scenario should maintain a PROBLEMS.md file following the standard template (see `${VROOLI_ROOT}/PROBLEMS_TEMPLATE.md`). Key elements include:
 
 - **Problem Metadata**: Status, severity, frequency, impact
 - **Priority Estimates**: Impact score, urgency level, success probability, resource cost
@@ -238,9 +238,9 @@ problem_scanning:
   scan_interval: 300               # Scan every 5 minutes
   auto_create_tasks: true          # Auto-create tasks for problems
   scan_paths:                      # Paths to scan
-    - /home/matthalloran8/Vrooli/PROBLEMS.md
-    - /home/matthalloran8/Vrooli/resources/*/PROBLEMS.md
-    - /home/matthalloran8/Vrooli/scenarios/*/PROBLEMS.md
+    - ${VROOLI_ROOT}/PROBLEMS.md
+    - ${VROOLI_ROOT}/resources/*/PROBLEMS.md
+    - ${VROOLI_ROOT}/scenarios/*/PROBLEMS.md
   severity_thresholds:
     auto_task_creation: high       # Min severity for auto tasks
     alert_notification: critical   # Min severity for alerts

@@ -15,9 +15,8 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-MAGENTA='\033[0;35m'
 CYAN='\033[0;36m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
 show_help() {
     echo -e "${CYAN}📊 Mass Update Tracker CLI${NC}"
@@ -27,35 +26,23 @@ show_help() {
     echo "Usage: mass-update-tracker [command] [options]"
     echo
     echo "Commands:"
-    echo "  create <name> <patterns...>   Create new campaign with file patterns"
-    echo "  list [--status active]        List campaigns (optionally filtered)"
-    echo "  files <campaign-id>          List files in campaign"
-    echo "  update-file <campaign-id> <file-path> <status>"
+    echo "  create NAME PATTERNS...      Create new campaign with file patterns"
+    echo "  list [--status active]       List campaigns (optionally filtered)"
+    echo "  files CAMPAIGN-ID            List files in campaign"
+    echo "  update-file CAMPAIGN-ID FILE-PATH STATUS"
     echo "                               Update specific file status"
-    echo "  status [--campaign-id id]    Show system status or campaign progress"
+    echo "  status [--campaign-id ID]    Show system status or campaign progress"
     echo "  help                         Show this help message"
     echo "  version                      Show version information"
     echo
     echo "File Status Values:"
     echo "  pending, in_progress, completed, failed, skipped"
     echo
-    echo "Options:"
-    echo "  --description 'text'         Campaign description"
-    echo "  --working-dir 'path'         Base directory (default: current)"
-    echo "  --scenario 'name'            Scenario using this campaign"
-    echo "  --status 'status'            Filter by status"
-    echo "  --pending                    Show only pending files"
-    echo "  --failed                     Show only failed files"
-    echo "  --error 'message'            Error message for failed status"
-    echo "  --metadata '{}'"             JSON metadata to store"
-    echo "  --json                       Output raw JSON"
-    echo
     echo "Examples:"
-    echo "  mass-update-tracker create 'migrate-to-ts' 'src/**/*.js' 'tests/**/*.js'"
+    echo "  mass-update-tracker create migrate-to-ts 'src/**/*.js' 'tests/**/*.js'"
     echo "  mass-update-tracker list --status active"
     echo "  mass-update-tracker files abc-123 --pending"
     echo "  mass-update-tracker update-file abc-123 src/main.js completed"
-    echo "  mass-update-tracker status --campaign-id abc-123"
 }
 
 show_version() {
@@ -74,15 +61,15 @@ check_api() {
 create_campaign() {
     local name="$1"
     shift
-    local patterns=("$@")
     
-    if [[ -z "$name" ]] || [[ ${#patterns[@]} -eq 0 ]]; then
-        echo -e "${RED}Error: Campaign name and at least one pattern required${NC}" >&2
-        echo "Usage: mass-update-tracker create <name> <pattern1> [pattern2...]" >&2
+    if [[ -z "$name" ]]; then
+        echo -e "${RED}Error: Campaign name required${NC}" >&2
+        echo "Usage: mass-update-tracker create NAME PATTERN1 [PATTERN2...]" >&2
         exit 1
     fi
     
-    # Parse global options
+    # Parse patterns and options
+    local patterns=()
     local description=""
     local working_dir="$(pwd)"
     local scenario=""
@@ -102,14 +89,16 @@ create_campaign() {
                 shift 2
                 ;;
             *)
-                # If it doesn't start with --, treat as file pattern
-                if [[ ! "$1" =~ ^-- ]]; then
-                    patterns+=("$1")
-                fi
+                patterns+=("$1")
                 shift
                 ;;
         esac
     done
+    
+    if [[ ${#patterns[@]} -eq 0 ]]; then
+        echo -e "${RED}Error: At least one file pattern required${NC}" >&2
+        exit 1
+    fi
     
     # Build JSON payload
     local patterns_json
@@ -150,27 +139,13 @@ create_campaign() {
     echo -e "${GREEN}✓ Campaign created successfully${NC}"
     echo "ID: $campaign_id"
     echo "Files tracked: $file_count"
-    echo
-    echo "Next steps:"
-    echo "  mass-update-tracker files $campaign_id --pending"
-    echo "  mass-update-tracker update-file $campaign_id <file> in_progress"
 }
 
 list_campaigns() {
-    local status_filter=""
-    local scenario_filter=""
     local json_output=false
     
     while [[ $# -gt 0 ]]; do
         case $1 in
-            --status)
-                status_filter="$2"
-                shift 2
-                ;;
-            --scenario)
-                scenario_filter="$2"
-                shift 2
-                ;;
             --json)
                 json_output=true
                 shift
@@ -183,12 +158,7 @@ list_campaigns() {
     
     check_api
     
-    local query_params=""
-    [[ -n "$status_filter" ]] && query_params="?status=$status_filter"
-    [[ -n "$scenario_filter" ]] && query_params="${query_params:+$query_params&}scenario=$scenario_filter"
-    [[ -n "$query_params" && ! "$query_params" =~ ^\? ]] && query_params="?$query_params"
-    
-    response=$(curl -s "${API_URL}/api/v1/campaigns${query_params}")
+    response=$(curl -s "${API_URL}/api/v1/campaigns")
     
     if [[ "$json_output" == true ]]; then
         echo "$response"
@@ -206,15 +176,8 @@ list_campaigns() {
     echo -e "${CYAN}📊 Mass Update Campaigns${NC}"
     echo
     
-    echo "$response" | jq -r '.campaigns[] | 
-        "ID: " + .id + 
-        "\nName: " + .name + 
-        "\nStatus: " + .status + 
-        "\nFiles: " + (.file_patterns | join(", ")) + 
-        "\nWorking Dir: " + .working_directory +
-        (if .scenario_name and .scenario_name != "" then "\nScenario: " + .scenario_name else "" end) +
-        "\nCreated: " + (.created_at | sub("\\.[0-9]+Z$"; "Z") | strptime("%Y-%m-%dT%H:%M:%SZ") | strftime("%Y-%m-%d %H:%M")) +
-        "\n---"'
+    # Simple output without complex jq
+    echo "$response" | jq -r '.campaigns[] | "ID: " + .id + " | Name: " + .name + " | Status: " + .status'
 }
 
 list_files() {
@@ -223,27 +186,20 @@ list_files() {
     
     if [[ -z "$campaign_id" ]]; then
         echo -e "${RED}Error: Campaign ID required${NC}" >&2
-        echo "Usage: mass-update-tracker files <campaign-id> [options]" >&2
         exit 1
     fi
     
-    local status_filter=""
     local json_output=false
-    local pending_only=false
-    local failed_only=false
+    local status_filter=""
     
     while [[ $# -gt 0 ]]; do
         case $1 in
-            --status)
-                status_filter="$2"
-                shift 2
-                ;;
             --pending)
-                pending_only=true
+                status_filter="pending"
                 shift
                 ;;
             --failed)
-                failed_only=true
+                status_filter="failed"
                 shift
                 ;;
             --json)
@@ -255,13 +211,6 @@ list_files() {
                 ;;
         esac
     done
-    
-    # Set status filter based on flags
-    if [[ "$pending_only" == true ]]; then
-        status_filter="pending"
-    elif [[ "$failed_only" == true ]]; then
-        status_filter="failed"
-    fi
     
     check_api
     
@@ -289,17 +238,8 @@ list_files() {
     echo "Total: $total | Remaining: $remaining"
     echo
     
-    echo "$response" | jq -r '.files[] | 
-        .status as $status |
-        (if $status == "pending" then "⏳"
-         elif $status == "in_progress" then "🔄" 
-         elif $status == "completed" then "✅"
-         elif $status == "failed" then "❌"
-         elif $status == "skipped" then "⏭️"
-         else "❓" end) + " " +
-        .file_path + 
-        " (" + $status + ")" +
-        (if .error_message then " - " + .error_message else "" end)'
+    # Simple file listing
+    echo "$response" | jq -r '.files[] | .file_path + " [" + .status + "]"'
 }
 
 update_file_status() {
@@ -310,7 +250,6 @@ update_file_status() {
     
     if [[ -z "$campaign_id" ]] || [[ -z "$file_path" ]] || [[ -z "$status" ]]; then
         echo -e "${RED}Error: Campaign ID, file path, and status required${NC}" >&2
-        echo "Usage: mass-update-tracker update-file <campaign-id> <file-path> <status>" >&2
         exit 1
     fi
     
@@ -335,15 +274,26 @@ update_file_status() {
     
     # Build JSON payload
     local payload
-    payload=$(jq -n \
-        --arg status "$status" \
-        --arg error_message "$error_message" \
-        --argjson metadata "$metadata" \
-        '{
-            status: $status,
-            error_message: (if $error_message != "" then $error_message else null end),
-            metadata: $metadata
-        }')
+    if [[ -n "$error_message" ]]; then
+        payload=$(jq -n \
+            --arg status "$status" \
+            --arg error_message "$error_message" \
+            --argjson metadata "$metadata" \
+            '{
+                status: $status,
+                error_message: $error_message,
+                metadata: $metadata
+            }')
+    else
+        payload=$(jq -n \
+            --arg status "$status" \
+            --argjson metadata "$metadata" \
+            '{
+                status: $status,
+                error_message: null,
+                metadata: $metadata
+            }')
+    fi
     
     check_api
     
@@ -364,107 +314,30 @@ update_file_status() {
     echo -e "${GREEN}✓ File status updated${NC}"
     echo "File: $file_path"
     echo "Status: $status"
-    if [[ -n "$error_message" ]]; then
-        echo "Error: $error_message"
-    fi
 }
 
 show_status() {
-    local campaign_id=""
-    local json_output=false
-    
-    while [[ $# -gt 0 ]]; do
-        case $1 in
-            --campaign-id)
-                campaign_id="$2"
-                shift 2
-                ;;
-            --json)
-                json_output=true
-                shift
-                ;;
-            *)
-                shift
-                ;;
-        esac
-    done
-    
     check_api
     
-    if [[ -n "$campaign_id" ]]; then
-        # Show specific campaign status
-        response=$(curl -s "${API_URL}/api/v1/campaigns/${campaign_id}/files")
-        
-        if echo "$response" | jq -e '.error' >/dev/null 2>&1; then
-            echo -e "${RED}Error:${NC}" >&2
-            echo "$response" | jq -r '.error' >&2
-            exit 1
-        fi
-        
-        if [[ "$json_output" == true ]]; then
-            echo "$response"
-            return
-        fi
-        
-        local total remaining
-        total=$(echo "$response" | jq -r '.total')
-        remaining=$(echo "$response" | jq -r '.remaining')
-        
-        echo -e "${CYAN}📊 Campaign Progress${NC}"
-        echo "Total Files: $total"
-        echo "Remaining: $remaining"
-        echo "Completed: $((total - remaining))"
-        echo
-        
-        # Show status breakdown
-        echo "Status Breakdown:"
-        echo "$response" | jq -r '.files | group_by(.status) | .[] | 
-            .[0].status + ": " + (length | tostring) + " files"' | while read line; do
-            echo "  $line"
-        done
-    else
-        # Show system status
-        health_response=$(curl -s "${API_URL}/health")
-        campaigns_response=$(curl -s "${API_URL}/api/v1/campaigns")
-        
-        if [[ "$json_output" == true ]]; then
-            jq -n \
-                --argjson health "$health_response" \
-                --argjson campaigns "$campaigns_response" \
-                '{health: $health, campaigns: $campaigns}'
-            return
-        fi
-        
-        echo -e "${CYAN}📊 Mass Update Tracker Status${NC}"
-        echo
-        echo "API Status: $(echo "$health_response" | jq -r '.status')"
-        echo "Version: $(echo "$health_response" | jq -r '.version')"
-        echo
-        
-        local total_campaigns active_campaigns
-        total_campaigns=$(echo "$campaigns_response" | jq -r '.total // 0')
-        active_campaigns=$(echo "$campaigns_response" | jq -r '.campaigns | map(select(.status == "active")) | length')
-        
-        echo "Total Campaigns: $total_campaigns"
-        echo "Active Campaigns: $active_campaigns"
-        
-        if [[ "$active_campaigns" -gt 0 ]]; then
-            echo
-            echo "Active Campaigns:"
-            echo "$campaigns_response" | jq -r '.campaigns[] | 
-                select(.status == "active") | 
-                "  " + .name + " (" + .id + ") - " + (.file_patterns | join(", "))'
-        fi
-    fi
+    health_response=$(curl -s "${API_URL}/health")
+    campaigns_response=$(curl -s "${API_URL}/api/v1/campaigns")
+    
+    echo -e "${CYAN}📊 Mass Update Tracker Status${NC}"
+    echo
+    echo "API Status: $(echo "$health_response" | jq -r '.status')"
+    echo "Version: $(echo "$health_response" | jq -r '.version')"
+    echo
+    
+    local total_campaigns
+    total_campaigns=$(echo "$campaigns_response" | jq -r '.total // 0')
+    echo "Total Campaigns: $total_campaigns"
 }
 
 # Main command dispatch
 case "${1:-help}" in
     create)
         shift
-        name="$1"
-        shift
-        create_campaign "$name" "$@"
+        create_campaign "$@"
         ;;
     list)
         shift

@@ -157,7 +157,9 @@ When discovered problems are present:
 2. **Group related problems** into comprehensive resolution tasks
 3. **Consider the full resolution lifecycle**: investigate → fix → prevent
 4. **Match problems to appropriate scenarios** based on problem type:
-   - System failures → app-debugger
+   - Core infrastructure failures → core-debugger (HIGHEST PRIORITY)
+   - CLI/orchestrator issues → core-debugger
+   - Application failures → app-debugger
    - Performance issues → system-monitor
    - Integration problems → resource-experimenter
    - Missing capabilities → scenario-generator-v1

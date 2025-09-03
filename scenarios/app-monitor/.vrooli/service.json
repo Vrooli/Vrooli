@@ -47,11 +47,11 @@
       "initialization": [
         {
           "file": "initialization/storage/postgres/schema.sql",
-          "type": "script"
+          "type": "schema"
         },
         {
           "file": "initialization/storage/postgres/seed.sql",
-          "type": "script"
+          "type": "schema"
         }
       ]
     },
@@ -202,7 +202,7 @@
         },
         {
           "name": "start-api-server",
-          "run": "cd api && env PORT=$API_PORT ./app-monitor-api",
+          "run": "cd api && PORT=$API_PORT ./app-monitor-api",
           "description": "Start Go coordination API server in background",
           "background": true,
           "condition": {

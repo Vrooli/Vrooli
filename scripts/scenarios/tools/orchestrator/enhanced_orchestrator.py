@@ -5,6 +5,7 @@ Provides granular app control with HTTP API for scalable app management
 """
 
 import asyncio
+import http.client
 import json
 import logging
 import os
@@ -14,10 +15,11 @@ import subprocess
 import sys
 import time
 import threading
+import urllib.parse
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Any
+from typing import Dict, List, Optional, Set, Any, Tuple
 import psutil
 
 # FastAPI imports
@@ -32,8 +34,8 @@ except ImportError:
 
 # Import shared utilities
 from orchestrator_utils import (
-    ForkBombDetector, MAX_APPS, ORCHESTRATOR_LOCK_FILE, 
-    ORCHESTRATOR_PID_FILE
+    ForkBombDetector, MAX_APPS, MAX_CONCURRENT_STARTS,
+    ORCHESTRATOR_LOCK_FILE, ORCHESTRATOR_PID_FILE
 )
 
 # Import the new PID manager
@@ -106,6 +108,7 @@ class EnhancedAppOrchestrator:
         # App management
         self.apps: Dict[str, EnhancedApp] = {}
         self.scenarios_dir = self.vrooli_root / "scenarios"
+        self.project_root = self.vrooli_root  # Add project_root attribute
         
         # Safety and monitoring
         self.fork_bomb_detector = ForkBombDetector()
@@ -161,8 +164,18 @@ class EnhancedAppOrchestrator:
                         app_name = scenario_dir.name
                         enabled = config.get("enabled", True)  # Default to enabled
                         
-                        # Pre-allocate ports from config
-                        allocated_ports = self.pre_allocate_ports_for_app(app_name, config)
+                        # Load all configured ports (for discovery, include even if in use)
+                        ports_config = config.get("ports", {})
+                        allocated_ports = {}
+                        for port_type, port_info in ports_config.items():
+                            if isinstance(port_info, dict):
+                                env_var = port_info.get("env_var", f"{port_type.upper()}_PORT")
+                                port_num = port_info.get("port")
+                                if port_num:
+                                    allocated_ports[port_type] = {
+                                        "port": int(port_num),
+                                        "env_var": env_var
+                                    }
                         
                         app = EnhancedApp(
                             name=app_name,
@@ -189,6 +202,8 @@ class EnhancedAppOrchestrator:
         
         for app_name, app in self.apps.items():
             app_dir = self.scenarios_dir / app_name
+            app_detected = False
+            detected_ports = []
             
             # Check for running processes related to this app
             # Method 1: Check if ports are in use
@@ -211,14 +226,40 @@ class EnhancedAppOrchestrator:
                             # Verify it's actually our app
                             proc = psutil.Process(pid)
                             if app_name in proc.cwd() or app_name in ' '.join(proc.cmdline()):
-                                app.pid = pid
-                                app.status = "running"
-                                app.started_at = datetime.fromtimestamp(proc.create_time())
-                                detected_count += 1
-                                self.logger.info(f"Detected {app_name} already running (PID: {pid}, Port: {port_num})")
-                                break
+                                if not app_detected:
+                                    app.pid = pid
+                                    app.status = "running"
+                                    app.started_at = datetime.fromtimestamp(proc.create_time())
+                                    app_detected = True
+                                detected_ports.append(f"{port_type}:{port_num}")
                     except (subprocess.TimeoutExpired, ValueError, psutil.NoSuchProcess, psutil.AccessDenied):
                         pass
+            
+            if app_detected:
+                detected_count += 1
+                # Reload full port configuration from service.json for already-running apps
+                config_path = self.scenarios_dir / app_name / ".vrooli" / "service.json"
+                if config_path.exists():
+                    try:
+                        with open(config_path) as f:
+                            config = json.load(f)
+                        # For running apps, load ALL ports from config (not just available ones)
+                        ports_config = config.get("ports", {})
+                        allocated = {}
+                        for port_type, port_info in ports_config.items():
+                            if isinstance(port_info, dict):
+                                env_var = port_info.get("env_var", f"{port_type.upper()}_PORT")
+                                port_num = port_info.get("port")
+                                if port_num:
+                                    allocated[port_type] = {
+                                        "port": int(port_num),
+                                        "env_var": env_var
+                                    }
+                        app.allocated_ports = allocated
+                    except Exception as e:
+                        self.logger.debug(f"Could not reload port config for {app_name}: {e}")
+                
+                self.logger.info(f"Detected {app_name} already running (PID: {app.pid}, Ports: {', '.join(detected_ports)})")
             
             # Method 2: Check for manage.sh or start.sh processes
             if app.status != "running":
@@ -322,8 +363,8 @@ class EnhancedAppOrchestrator:
         except OSError:
             return False
     
-    async def start_app(self, app_name: str) -> bool:
-        """Start a specific app using direct lifecycle execution"""
+    async def start_app(self, app_name: str, retry_count: int = 0, max_retries: int = 2) -> bool:
+        """Start a specific app using direct lifecycle execution with retry logic"""
         if app_name not in self.apps:
             raise HTTPException(status_code=404, detail=f"App '{app_name}' not found")
         
@@ -336,7 +377,10 @@ class EnhancedAppOrchestrator:
         if not app.enabled:
             raise HTTPException(status_code=400, detail=f"App '{app_name}' is not enabled")
         
-        self.logger.info(f"Starting app: {app_name}")
+        if retry_count > 0:
+            self.logger.info(f"Starting app: {app_name} (retry {retry_count}/{max_retries})")
+        else:
+            self.logger.info(f"Starting app: {app_name}")
         app.status = "starting"
         app.started_at = datetime.now()
         
@@ -347,6 +391,7 @@ class EnhancedAppOrchestrator:
             
             # Use direct lifecycle execution instead of manage.sh
             app_path = self.scenarios_dir / app_name
+            config_path = app_path / ".vrooli" / "service.json"
             
             if not app_path.exists():
                 self.logger.error(f"Scenario path not found: {app_path}")
@@ -363,23 +408,9 @@ class EnhancedAppOrchestrator:
                 if key.endswith('_PORT'):
                     del env[key]
             
-            # Set allocated ports using the env_var from service.json
-            for port_type, port_config in app.allocated_ports.items():
-                if isinstance(port_config, dict):
-                    # New format with env_var from service.json
-                    env_var = port_config.get('env_var', f"{port_type.upper()}_PORT")
-                    port_num = port_config.get('port')
-                    if env_var and port_num:
-                        env[env_var] = str(port_num)
-                else:
-                    # Legacy format (backwards compatibility)
-                    port_num = port_config
-                    if port_type == "api":
-                        env['API_PORT'] = str(port_num)
-                    elif port_type == "ui":
-                        env['UI_PORT'] = str(port_num)
-                    else:
-                        env[f"{port_type.upper()}_PORT"] = str(port_num)
+            # Set allocated ports using the shared function
+            port_env = self.get_port_environment(app)
+            env.update(port_env)
             
             # Call lifecycle.sh through environment setup wrapper
             lifecycle_script = self.vrooli_root / "scripts" / "lib" / "utils" / "lifecycle.sh"
@@ -407,11 +438,23 @@ class EnhancedAppOrchestrator:
             
             # Wait for lifecycle to complete and find actual service processes
             # lifecycle.sh should exit after starting background services
+            # Get timeout from service.json or use default
+            timeout = 60.0  # Default timeout increased from 10 to 60 seconds
+            if config_path.exists():
+                try:
+                    with open(config_path) as f:
+                        config = json.load(f)
+                        # Check for lifecycle.timeout or startup_timeout in config
+                        timeout = float(config.get('lifecycle', {}).get('timeout', 
+                                      config.get('startup_timeout', timeout)))
+                except:
+                    pass  # Use default timeout if config read fails
+            
             try:
-                await asyncio.wait_for(app.process.wait(), timeout=10.0)
+                await asyncio.wait_for(app.process.wait(), timeout=timeout)
             except asyncio.TimeoutError:
-                # Lifecycle is still running, probably stuck
-                self.logger.warning(f"{app_name} lifecycle taking longer than expected")
+                # Lifecycle is still running, probably needs more time
+                self.logger.warning(f"{app_name} lifecycle taking longer than expected (>{timeout}s)")
             
             # Always check for actual service processes (lifecycle may have exited)
             actual_pids = []
@@ -436,12 +479,28 @@ class EnhancedAppOrchestrator:
             else:
                 # Check if lifecycle process failed with error exit code
                 if app.process and app.process.returncode is not None and app.process.returncode > 0:
-                    app.status = "error"
-                    app.pid = None
                     exit_code = app.process.returncode
                     app.process = None
-                    self.logger.error(f"✗ {app_name} failed to start (exit code: {exit_code})")
-                    return False
+                    
+                    # Determine if we should retry based on exit code and retry count
+                    should_retry = (exit_code == 1 and retry_count < max_retries)
+                    
+                    if should_retry:
+                        app.status = "error"
+                        app.pid = None
+                        self.logger.warning(f"✗ {app_name} failed (exit code: {exit_code}), will retry in {5 * (retry_count + 1)}s")
+                        app.restart_count += 1
+                        
+                        # Exponential backoff
+                        await asyncio.sleep(5 * (retry_count + 1))
+                        
+                        # Recursive retry
+                        return await self.start_app(app_name, retry_count + 1, max_retries)
+                    else:
+                        app.status = "error"
+                        app.pid = None
+                        self.logger.error(f"✗ {app_name} failed to start (exit code: {exit_code})")
+                        return False
                 else:
                     # Lifecycle completed but no services detected - might be delayed startup
                     app.status = "running"
@@ -452,8 +511,16 @@ class EnhancedAppOrchestrator:
             app.status = "error"
             app.pid = None 
             app.process = None
-            self.logger.error(f"Failed to start {app_name}: {e}")
-            return False
+            
+            # Retry on certain exceptions
+            if retry_count < max_retries and "Connection" in str(e):
+                self.logger.warning(f"Failed to start {app_name}: {e}, will retry in {5 * (retry_count + 1)}s")
+                app.restart_count += 1
+                await asyncio.sleep(5 * (retry_count + 1))
+                return await self.start_app(app_name, retry_count + 1, max_retries)
+            else:
+                self.logger.error(f"Failed to start {app_name}: {e}")
+                return False
     
     async def stop_app(self, app_name: str, force: bool = False) -> bool:
         """Stop a specific app using lifecycle executor"""
@@ -504,7 +571,21 @@ class EnhancedAppOrchestrator:
             return False
     
     
-    def check_service_health(self, port: int, port_type: str) -> Dict[str, Any]:
+    def get_health_config(self, app_name: str) -> Dict[str, Any]:
+        """Get health configuration from service.json"""
+        config_path = self.scenarios_dir / app_name / ".vrooli" / "service.json"
+        
+        if not config_path.exists():
+            return None
+            
+        try:
+            with open(config_path) as f:
+                config = json.load(f)
+                return config.get("lifecycle", {}).get("health", None)
+        except:
+            return None
+    
+    def check_service_health(self, port: int, port_type: str, app_name: str = None) -> Dict[str, Any]:
         """Check if a service on a port is actually responding"""
         import socket
         import http.client
@@ -522,17 +603,39 @@ class EnhancedAppOrchestrator:
         
         result["listening"] = True
         
-        # Try HTTP health check with very short timeout
-        try:
-            conn = http.client.HTTPConnection("localhost", port, timeout=1)
-            
-            # Different endpoints for different port types
+        # Get health configuration if app_name provided
+        health_config = None
+        health_endpoint = None
+        health_timeout = 1  # Default 1 second
+        
+        if app_name:
+            health_config = self.get_health_config(app_name)
+            if health_config:
+                # Get endpoint path from health config
+                endpoints = health_config.get("endpoints", {})
+                if port_type == "api":
+                    health_endpoint = endpoints.get("api", "/health")
+                elif port_type == "ui":
+                    health_endpoint = endpoints.get("ui", "/")
+                elif port_type == "metrics":
+                    health_endpoint = endpoints.get("metrics", "/metrics")
+                else:
+                    health_endpoint = "/"
+                
+                # Get timeout in seconds (convert from milliseconds)
+                health_timeout = health_config.get("timeout", 5000) / 1000.0
+        
+        # Use defaults if no config
+        if not health_endpoint:
             if port_type == "api":
-                path = "/health"
-            else:  # UI
-                path = "/"
-            
-            conn.request("GET", path)
+                health_endpoint = "/health"
+            else:  # UI or other
+                health_endpoint = "/"
+        
+        # Try HTTP health check
+        try:
+            conn = http.client.HTTPConnection("localhost", port, timeout=health_timeout)
+            conn.request("GET", health_endpoint)
             response = conn.getresponse()
             result["responding"] = True
             result["status_code"] = response.status
@@ -542,6 +645,298 @@ class EnhancedAppOrchestrator:
             result["responding"] = False
         
         return result
+    
+    def get_port_environment(self, app: 'EnhancedApp') -> Dict[str, str]:
+        """Get environment variables for port substitution"""
+        port_env = {}
+        for port_type, port_config in app.allocated_ports.items():
+            if isinstance(port_config, dict):
+                # New format with env_var from service.json
+                env_var = port_config.get('env_var', f"{port_type.upper()}_PORT")
+                port_num = port_config.get('port')
+                if env_var and port_num:
+                    port_env[env_var] = str(port_num)
+            else:
+                # Legacy format (just the port number)
+                port_env[f"{port_type.upper()}_PORT"] = str(port_config)
+        return port_env
+    
+    def _check_http(self, target: str, timeout_ms: int = 5000, method: str = "GET", expected_status: List[int] = None, app_name: str = None) -> Tuple[str, str]:
+        """Perform HTTP health check"""
+        import re
+        import urllib.parse
+        
+        if expected_status is None:
+            expected_status = [200, 204]
+            
+        try:
+            # Substitute port variables if app_name is provided
+            if app_name and app_name in self.apps:
+                port_env = self.get_port_environment(self.apps[app_name])
+                for env_var, port_value in port_env.items():
+                    target = target.replace(f"${{{env_var}}}", port_value)
+                    target = target.replace(f"${env_var}", port_value)
+            
+            # Parse URL and substitute any remaining environment variables
+            target = os.path.expandvars(target)
+            parsed = urllib.parse.urlparse(target)
+            
+            # Extract host and port
+            host = parsed.hostname or "localhost"
+            port = parsed.port or (443 if parsed.scheme == "https" else 80)
+            path = parsed.path or "/"
+            
+            # Make HTTP request
+            timeout = timeout_ms / 1000.0
+            conn = http.client.HTTPConnection(host, port, timeout=timeout)
+            conn.request(method, path)
+            response = conn.getresponse()
+            status_code = response.status
+            conn.close()
+            
+            if status_code in expected_status:
+                return "passed", f"HTTP {method} {target} returned {status_code}"
+            else:
+                return "failed", f"HTTP {method} {target} returned {status_code}, expected {expected_status}"
+                
+        except Exception as e:
+            return "failed", f"HTTP check failed: {str(e)}"
+    
+    def _check_tcp(self, target: str, timeout_ms: int = 3000) -> Tuple[str, str]:
+        """Perform TCP port check"""
+        import re
+        
+        try:
+            # Parse target (format: "host:port" or just "port")
+            target = os.path.expandvars(target)
+            
+            if ":" in target:
+                host, port_str = target.rsplit(":", 1)
+            else:
+                host = "localhost"
+                port_str = target
+                
+            port = int(port_str)
+            timeout = timeout_ms / 1000.0
+            
+            # Try to connect
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(timeout)
+            result = sock.connect_ex((host, port))
+            sock.close()
+            
+            if result == 0:
+                return "passed", f"TCP port {host}:{port} is open"
+            else:
+                return "failed", f"TCP port {host}:{port} is not reachable"
+                
+        except Exception as e:
+            return "failed", f"TCP check failed: {str(e)}"
+    
+    def _check_process(self, target: str, match: str = "exact") -> Tuple[str, str]:
+        """Perform process check"""
+        try:
+            if match == "exact":
+                cmd = ["pgrep", "-x", target]
+            elif match == "contains":
+                cmd = ["pgrep", "-f", target]
+            else:  # regex
+                cmd = ["pgrep", target]
+                
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            
+            if result.returncode == 0:
+                pids = result.stdout.strip().split("\n")
+                return "passed", f"Process '{target}' is running (PIDs: {', '.join(pids)})"
+            else:
+                return "failed", f"Process '{target}' is not running"
+                
+        except Exception as e:
+            return "failed", f"Process check failed: {str(e)}"
+    
+    def _check_file(self, target: str, check: str = "exists") -> Tuple[str, str]:
+        """Perform file/directory check"""
+        try:
+            # Expand path relative to scenario directory
+            if not os.path.isabs(target):
+                # Find the scenario directory for this app
+                for app_name, app in self.apps.items():
+                    if app.is_running():
+                        scenario_dir = self.scenarios_dir / app_name
+                        target = str(scenario_dir / target)
+                        break
+                        
+            path = Path(target)
+            
+            if check == "exists":
+                if path.exists():
+                    return "passed", f"Path '{target}' exists"
+                else:
+                    return "failed", f"Path '{target}' does not exist"
+            elif check == "readable":
+                if path.exists() and os.access(path, os.R_OK):
+                    return "passed", f"Path '{target}' is readable"
+                else:
+                    return "failed", f"Path '{target}' is not readable"
+            elif check == "executable":
+                if path.exists() and os.access(path, os.X_OK):
+                    return "passed", f"Path '{target}' is executable"
+                else:
+                    return "failed", f"Path '{target}' is not executable"
+            else:
+                return "failed", f"Unknown file check type: {check}"
+                
+        except Exception as e:
+            return "failed", f"File check failed: {str(e)}"
+    
+    def _check_resource(self, resource: str, schema: str = None, timeout_ms: int = 5000) -> Tuple[str, str]:
+        """Perform resource health check using vrooli resource status --json"""
+        try:
+            # Call vrooli resource status with JSON output
+            cmd = ["vrooli", "resource", "status", resource, "--json"]
+            timeout = timeout_ms / 1000.0
+            
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                cwd=str(self.project_root)
+            )
+            
+            if result.returncode != 0:
+                return "failed", f"Resource '{resource}' status check failed: {result.stderr}"
+            
+            try:
+                data = json.loads(result.stdout)
+            except json.JSONDecodeError:
+                return "failed", f"Invalid JSON response from resource status"
+            
+            # Check overall resource status using 'running' field
+            resource_running = data.get("running", False)
+            if not resource_running:
+                return "failed", f"Resource '{resource}' is not running"
+            
+            # Check overall health using 'healthy' field
+            resource_healthy = data.get("healthy", False)
+            if not resource_healthy:
+                return "failed", f"Resource '{resource}' is unhealthy"
+            
+            # If schema specified, check schema-specific health
+            if schema:
+                schemas = data.get("schemas", {})
+                if schema in schemas:
+                    schema_info = schemas[schema]
+                    if schema_info.get("healthy", False):
+                        return "passed", f"Resource '{resource}' schema '{schema}' is healthy"
+                    else:
+                        return "failed", f"Resource '{resource}' schema '{schema}' is unhealthy"
+                else:
+                    return "failed", f"Schema '{schema}' not found in resource '{resource}'"
+            
+            return "passed", f"Resource '{resource}' is healthy"
+            
+        except subprocess.TimeoutExpired:
+            return "failed", f"Resource status check timed out after {timeout_ms}ms"
+        except Exception as e:
+            return "failed", f"Resource check failed: {str(e)}"
+    
+    def _check_command(self, run: str, expected_exit: int = 0, timeout_ms: int = 3000) -> Tuple[str, str]:
+        """Perform custom command check"""
+        try:
+            # Expand environment variables
+            run = os.path.expandvars(run)
+            timeout = timeout_ms / 1000.0
+            
+            result = subprocess.run(
+                run,
+                shell=True,
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                cwd=str(self.project_root)
+            )
+            
+            if result.returncode == expected_exit:
+                return "passed", f"Command exited with expected code {expected_exit}"
+            else:
+                return "failed", f"Command exited with {result.returncode}, expected {expected_exit}"
+                
+        except subprocess.TimeoutExpired:
+            return "failed", f"Command timed out after {timeout_ms}ms"
+        except Exception as e:
+            return "failed", f"Command check failed: {str(e)}"
+    
+    def perform_health_checks(self, app_name: str) -> List[Dict[str, Any]]:
+        """Perform comprehensive health checks based on configuration"""
+        health_config = self.get_health_config(app_name)
+        check_results = []
+        
+        if health_config and "checks" in health_config:
+            for check in health_config.get("checks", []):
+                check_type = check.get("type")
+                check_name = check.get("name", f"{check_type}_check")
+                timeout = check.get("timeout", 5000)
+                
+                result = {
+                    "name": check_name,
+                    "type": check_type,
+                    "critical": check.get("critical", True),
+                    "status": "unknown",
+                    "message": ""
+                }
+                
+                # Perform the appropriate check based on type
+                try:
+                    if check_type == "http":
+                        target = check.get("target", "")
+                        method = check.get("method", "GET")
+                        expected_status = check.get("expected_status", [200, 204])
+                        status, message = self._check_http(target, timeout, method, expected_status, app_name)
+                        
+                    elif check_type == "tcp":
+                        target = check.get("target", "")
+                        status, message = self._check_tcp(target, timeout)
+                        
+                    elif check_type == "process":
+                        target = check.get("target", "")
+                        match = check.get("match", "exact")
+                        status, message = self._check_process(target, match)
+                        
+                    elif check_type == "file":
+                        target = check.get("target", "")
+                        check_kind = check.get("check", "exists")
+                        status, message = self._check_file(target, check_kind)
+                        
+                    elif check_type == "resource":
+                        resource = check.get("resource", check.get("target", ""))
+                        schema = check.get("schema")
+                        status, message = self._check_resource(resource, schema, timeout)
+                        
+                    elif check_type in ["postgres", "redis", "qdrant", "n8n", "ollama"]:
+                        # Resource-specific health check - just check if resource is healthy
+                        # Ignore target/schema for these checks as they're not supported yet
+                        status, message = self._check_resource(check_type, None, timeout)
+                        
+                    elif check_type == "command":
+                        run = check.get("run", "")
+                        expected_exit = check.get("expected_exit", 0)
+                        status, message = self._check_command(run, expected_exit, timeout)
+                        
+                    else:
+                        status = "skipped"
+                        message = f"Unknown check type: {check_type}"
+                    
+                    result["status"] = status
+                    result["message"] = message
+                    
+                except Exception as e:
+                    result["status"] = "error"
+                    result["message"] = f"Check failed with error: {str(e)}"
+                
+                check_results.append(result)
+        
+        return check_results
     
     def get_app_status(self, app_name: str) -> Dict[str, Any]:
         """Get detailed status of a specific app"""
@@ -562,24 +957,49 @@ class EnhancedAppOrchestrator:
         # Add enhanced port status with health checks
         port_status = {}
         actual_health = "healthy"  # Assume healthy unless proven otherwise
+        total_ports = len(app.allocated_ports)
+        listening_ports = 0
+        responding_ports = 0
         
         for port_type, port_config in app.allocated_ports.items():
             # Handle both old and new format
             port_num = port_config.get('port') if isinstance(port_config, dict) else port_config
-            health_check = self.check_service_health(port_num, port_type)
+            health_check = self.check_service_health(port_num, port_type, app_name)
             port_status[port_type] = health_check
             
-            # Determine overall health
-            if app.status == "running":
-                if not health_check["listening"]:
-                    actual_health = "degraded"  # Port not bound
-                elif not health_check["responding"]:
-                    actual_health = "unhealthy"  # Port bound but not responding
-                elif port_type == "api" and health_check["status_code"] != 200:
-                    actual_health = "degraded"  # API not healthy
+            # Count port statuses
+            if health_check["listening"]:
+                listening_ports += 1
+                if health_check["responding"]:
+                    responding_ports += 1
+        
+        # Determine overall health based on port statuses
+        if app.status == "running" and total_ports > 0:
+            if responding_ports == total_ports:
+                # All ports responding
+                actual_health = "healthy"
+            elif responding_ports > 0:
+                # Some ports responding
+                actual_health = "degraded"
+            elif listening_ports > 0:
+                # Ports bound but not responding
+                actual_health = "unhealthy"
+            else:
+                # No ports bound
+                actual_health = "degraded"
         
         status["port_status"] = port_status
         status["actual_health"] = actual_health
+        
+        # Add comprehensive health check results if available
+        health_config = self.get_health_config(app_name)
+        if health_config:
+            status["health_checks"] = self.perform_health_checks(app_name)
+            status["health_config"] = {
+                "endpoints": health_config.get("endpoints", {}),
+                "timeout": health_config.get("timeout", 5000),
+                "interval": health_config.get("interval", 30000)
+            }
         
         return status
 
@@ -632,6 +1052,32 @@ class EnhancedAppOrchestrator:
             """Get status of specific app"""
             return self.get_app_status(app_name)
         
+        @self.api_app.get("/apps/{app_name}/health")
+        async def app_health(app_name: str):
+            """Get health status and configuration of specific app"""
+            if app_name not in self.apps:
+                raise HTTPException(status_code=404, detail=f"App '{app_name}' not found")
+            
+            status = self.get_app_status(app_name)
+            return {
+                "name": app_name,
+                "status": status.get("status"),
+                "health": status.get("actual_health"),
+                "health_checks": status.get("health_checks", []),
+                "health_config": status.get("health_config", {}),
+                "port_status": status.get("port_status", {})
+            }
+        
+        @self.api_app.get("/health/configs")
+        async def get_all_health_configs():
+            """Get health configurations for all apps"""
+            configs = {}
+            for app_name in self.apps.keys():
+                health_config = self.get_health_config(app_name)
+                if health_config:
+                    configs[app_name] = health_config
+            return configs
+        
         @self.api_app.post("/apps/{app_name}/start")
         async def start_app_endpoint(app_name: str, background_tasks: BackgroundTasks):
             """Start a specific app"""
@@ -652,15 +1098,34 @@ class EnhancedAppOrchestrator:
         
         @self.api_app.post("/apps/start-all")
         async def start_all_apps():
-            """Start all enabled apps"""
+            """Start all enabled apps using concurrent batching"""
             results = []
-            for app_name, app in self.apps.items():
-                if app.enabled:
-                    try:
-                        success = await self.start_app(app_name)
-                        results.append({"app": app_name, "success": success})
-                    except Exception as e:
-                        results.append({"app": app_name, "success": False, "error": str(e)})
+            enabled_apps = [(name, app) for name, app in self.apps.items() if app.enabled]
+            
+            # Process apps in batches of MAX_CONCURRENT_STARTS
+            for i in range(0, len(enabled_apps), MAX_CONCURRENT_STARTS):
+                batch = enabled_apps[i:i + MAX_CONCURRENT_STARTS]
+                
+                # Start batch concurrently
+                batch_tasks = []
+                for app_name, app in batch:
+                    # Create coroutine for starting each app
+                    async def start_with_error_handling(name):
+                        try:
+                            success = await self.start_app(name)
+                            return {"app": name, "success": success}
+                        except Exception as e:
+                            return {"app": name, "success": False, "error": str(e)}
+                    
+                    batch_tasks.append(start_with_error_handling(app_name))
+                
+                # Wait for all apps in batch to complete
+                batch_results = await asyncio.gather(*batch_tasks)
+                results.extend(batch_results)
+                
+                # Log batch completion
+                batch_successful = sum(1 for r in batch_results if r["success"])
+                self.logger.info(f"Batch completed: {batch_successful}/{len(batch_results)} apps started")
             
             successful = sum(1 for r in results if r["success"])
             return {
@@ -817,11 +1282,28 @@ async def main():
         # Start all apps if requested
         if args.start_all:
             print("Starting all enabled apps...")
-            for app_name, app in orchestrator.apps.items():
-                if app.enabled:
-                    success = await orchestrator.start_app(app_name)
-                    status = "✓" if success else "✗"
-                    print(f"  {status} {app_name}")
+            enabled_apps = [(name, app) for name, app in orchestrator.apps.items() if app.enabled]
+            
+            # Process apps in batches of MAX_CONCURRENT_STARTS
+            for i in range(0, len(enabled_apps), MAX_CONCURRENT_STARTS):
+                batch = enabled_apps[i:i + MAX_CONCURRENT_STARTS]
+                print(f"  Starting batch of {len(batch)} apps...")
+                
+                # Start batch concurrently
+                batch_tasks = []
+                for app_name, app in batch:
+                    batch_tasks.append(orchestrator.start_app(app_name))
+                
+                # Wait for batch to complete
+                batch_results = await asyncio.gather(*batch_tasks, return_exceptions=True)
+                
+                # Display results
+                for (app_name, _), result in zip(batch, batch_results):
+                    if isinstance(result, Exception):
+                        print(f"    ✗ {app_name} (error: {str(result)})")
+                    else:
+                        status = "✓" if result else "✗"
+                        print(f"    {status} {app_name}")
         
         # Summary
         total_apps = len(orchestrator.apps)

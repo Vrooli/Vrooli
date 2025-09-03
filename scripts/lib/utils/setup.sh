@@ -87,13 +87,12 @@ setup::is_needed() {
             files)
                 checker_script="scripts/lib/setup-conditions/files-check.sh"
                 ;;
+            directories)
+                checker_script="scripts/lib/setup-conditions/directories-check.sh"
+                ;;
             *)
                 # Try custom check script
                 checker_script="scripts/lib/setup-conditions/${check_type}-check.sh"
-                if [[ ! -f "$checker_script" ]]; then
-                    log::warn "Unknown check type: $check_type"
-                    continue
-                fi
                 ;;
         esac
         
@@ -135,6 +134,11 @@ setup::is_needed() {
                     ;;
                 files)
                     SETUP_REASONS+=("Required files missing")
+                    ;;
+                directories)
+                    local targets
+                    targets=$(echo "$check" | jq -r '.targets[]?' 2>/dev/null | head -3 | paste -sd, -)
+                    SETUP_REASONS+=("Missing directories: $targets")
                     ;;
                 *)
                     SETUP_REASONS+=("Check failed: $check_type")

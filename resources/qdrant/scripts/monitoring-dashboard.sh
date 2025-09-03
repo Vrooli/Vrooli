@@ -400,7 +400,7 @@ run_interactive_dashboard() {
             case "$action" in
                 r|R) continue ;;
                 h|H) 
-                    /home/matthalloran8/Vrooli/resources/qdrant/monitoring/health-check.sh
+                    "${APP_ROOT}/resources/qdrant/monitoring/health-check.sh"
                     echo "Press any key to continue..."
                     read -n 1 -s
                     ;;

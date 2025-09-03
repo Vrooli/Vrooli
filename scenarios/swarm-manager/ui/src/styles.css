@@ -1,23 +1,38 @@
-/* Swarm Manager - Dark Professional Theme */
+/* Swarm Manager - Cyberpunk Command Center Theme */
 
 :root {
-    --primary-bg: #1a1a2e;
-    --secondary-bg: #16213e;
-    --accent-bg: #0f3460;
-    --card-bg: #1e2139;
-    --hover-bg: #252847;
+    /* Cyberpunk Color Palette */
+    --primary-bg: #0a0a0a;
+    --secondary-bg: #1a1a1a;
+    --panel-bg: #2a2a2a;
+    --card-bg: #1e1e1e;
+    --hover-bg: #333333;
     
-    --success: #00d25b;
-    --warning: #ffab00;
-    --danger: #fc424a;
-    --info: #0090e7;
+    /* Neon Accents */
+    --matrix-green: #00ff41;
+    --cyber-cyan: #00d4ff;
+    --neon-orange: #ff6b35;
+    --hot-pink: #ff0040;
+    --electric-green: #39ff14;
     
-    --text-primary: #ffffff;
-    --text-secondary: #8f95a0;
-    --text-muted: #6c757d;
+    /* Functional Colors */
+    --success: var(--electric-green);
+    --warning: var(--neon-orange);
+    --danger: var(--hot-pink);
+    --info: var(--cyber-cyan);
+    --primary-accent: var(--matrix-green);
     
-    --border-color: #2a2d4a;
-    --shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    /* Text Colors */
+    --text-primary: #e0e0e0;
+    --text-secondary: #a0a0a0;
+    --text-muted: #606060;
+    --text-neon: var(--matrix-green);
+    
+    /* Effects */
+    --border-color: #444444;
+    --neon-glow: 0 0 10px rgba(0, 255, 65, 0.3);
+    --cyber-shadow: 0 4px 15px rgba(0, 0, 0, 0.6);
+    --grid-pattern: rgba(0, 255, 65, 0.08);
 }
 
 * {

@@ -71,6 +71,26 @@ scenarios:
     resource_usage: minimal
     typical_duration: 5-10 minutes
     
+  core-debugger:
+    cli: core-debugger
+    capabilities:
+      - monitor_core_health
+      - diagnose_cli_issues
+      - fix_orchestrator_problems
+      - resolve_setup_failures
+      - provide_workarounds
+      - track_core_issues
+    best_for:
+      - Core infrastructure issues
+      - CLI/orchestrator failures
+      - Setup script problems
+      - Resource manager errors
+      - Workaround application
+    resource_usage: minimal
+    typical_duration: 5-15 minutes
+    zero_dependencies: true  # Only needs claude-code
+    priority_multiplier: 10  # Core issues get 10x priority
+    
   task-planner:
     cli: task-planner
     capabilities:
@@ -118,12 +138,23 @@ default_scenario: claude-code
 
 # Scenario selection rules
 selection_rules:
+  # Core infrastructure gets highest priority
+  - if_contains: ["vrooli", "cli", "orchestrator", "setup", "core", "infrastructure", "command not found", "resource manager"]
+    use: core-debugger
+    priority_boost: 10
+    
   - if_contains: ["create", "generate", "build", "new scenario"]
     use: scenario-generator-v1
     
   - if_contains: ["test", "experiment", "try", "variant"]
     use: resource-experimenter
     
+  # Distinguish app-level debug from core debug
+  - if_contains: ["app", "application", "scenario"]
+    and_contains: ["debug", "fix", "broken", "error", "crash"]
+    use: app-debugger
+    
+  # Fallback debug rule (less specific)
   - if_contains: ["debug", "fix", "broken", "error", "crash"]
     use: app-debugger
     

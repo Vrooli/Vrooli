@@ -72,7 +72,26 @@
     }
   },
   "lifecycle": {
-    "version": "1.0.0",
+    "version": "2.0.0",
+    "health": {
+      "description": "QR Code Generator health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
     "setup": {
       "description": "Initialize QR Code Generator",
       "condition": {
@@ -144,6 +163,11 @@
           "run": "cd api && echo 'Starting API on port ${API_PORT}...' && PORT=${API_PORT} N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} REDIS_URL=redis://localhost:${RESOURCE_PORTS[redis]} ./qr-generator-api",
           "description": "Start API server",
           "background": true
+        },
+        {
+          "name": "wait-for-api",
+          "run": "echo 'Waiting for API to be ready...' && for i in {1..30}; do if curl -sf http://localhost:${API_PORT}/health >/dev/null 2>&1; then echo 'API is ready'; break; fi; echo 'Waiting for API... ($i/30)'; sleep 1; done",
+          "description": "Wait for API to be ready"
         },
         {
           "name": "start-ui-server",

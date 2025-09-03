@@ -43,7 +43,7 @@ clean_pid_files() {
         "/tmp/vrooli-*.pid"
         "/tmp/*.pid"
         "${HOME}/.vrooli/processes/scenarios/*/*.pid"
-        "/home/matthalloran8/Vrooli/.vrooli/*.pid"
+        "${VROOLI_ROOT:-${HOME}/Vrooli}/.vrooli/*.pid"
     )
     
     echo -e "${YELLOW}Cleaning PID files...${NC}"

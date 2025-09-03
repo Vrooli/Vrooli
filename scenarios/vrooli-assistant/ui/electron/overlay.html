@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Vrooli Assistant</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: linear-gradient(135deg, rgba(17, 24, 39, 0.98) 0%, rgba(31, 41, 55, 0.98) 100%);
+      color: #f3f4f6;
+      border-radius: 12px;
+      overflow: hidden;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid rgba(156, 163, 175, 0.2);
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+    }
+
+    .header {
+      background: rgba(0, 0, 0, 0.2);
+      padding: 12px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(156, 163, 175, 0.1);
+      -webkit-app-region: drag;
+    }
+
+    .header h1 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #9ca3af;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .header .actions {
+      display: flex;
+      gap: 8px;
+      -webkit-app-region: no-drag;
+    }
+
+    .header button {
+      background: transparent;
+      border: none;
+      color: #9ca3af;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+
+    .header button:hover {
+      background: rgba(156, 163, 175, 0.1);
+      color: #f3f4f6;
+    }
+
+    .main {
+      flex: 1;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .screenshot-area {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 8px;
+      border: 1px dashed rgba(156, 163, 175, 0.3);
+    }
+
+    .screenshot-preview {
+      width: 60px;
+      height: 40px;
+      background: rgba(156, 163, 175, 0.1);
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      color: #6b7280;
+      overflow: hidden;
+    }
+
+    .screenshot-preview img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .screenshot-info {
+      flex: 1;
+    }
+
+    .screenshot-info .status {
+      font-size: 12px;
+      color: #9ca3af;
+    }
+
+    .screenshot-info .scenario {
+      font-size: 14px;
+      color: #f3f4f6;
+      margin-top: 2px;
+    }
+
+    button.capture-btn {
+      background: rgba(59, 130, 246, 0.1);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      color: #60a5fa;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.2s;
+    }
+
+    button.capture-btn:hover {
+      background: rgba(59, 130, 246, 0.2);
+      border-color: rgba(59, 130, 246, 0.5);
+    }
+
+    .input-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    label {
+      font-size: 12px;
+      color: #9ca3af;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    textarea {
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(156, 163, 175, 0.2);
+      color: #f3f4f6;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 14px;
+      resize: none;
+      flex: 1;
+      font-family: inherit;
+      line-height: 1.5;
+    }
+
+    textarea:focus {
+      outline: none;
+      border-color: rgba(59, 130, 246, 0.5);
+      background: rgba(0, 0, 0, 0.4);
+    }
+
+    textarea::placeholder {
+      color: #6b7280;
+    }
+
+    .agent-selector {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    select {
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(156, 163, 175, 0.2);
+      color: #f3f4f6;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    select:focus {
+      outline: none;
+      border-color: rgba(59, 130, 246, 0.5);
+    }
+
+    .footer {
+      padding: 16px 20px;
+      background: rgba(0, 0, 0, 0.2);
+      border-top: 1px solid rgba(156, 163, 175, 0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .shortcuts {
+      display: flex;
+      gap: 16px;
+      font-size: 11px;
+      color: #6b7280;
+    }
+
+    .shortcut {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .key {
+      background: rgba(156, 163, 175, 0.1);
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: monospace;
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 8px;
+    }
+
+    button.secondary {
+      background: transparent;
+      border: 1px solid rgba(156, 163, 175, 0.3);
+      color: #9ca3af;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.2s;
+    }
+
+    button.secondary:hover {
+      background: rgba(156, 163, 175, 0.1);
+      border-color: rgba(156, 163, 175, 0.5);
+      color: #f3f4f6;
+    }
+
+    button.primary {
+      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+      border: none;
+      color: white;
+      padding: 8px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+
+    button.primary:hover {
+      background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .loading {
+      display: none;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(59, 130, 246, 0.2);
+      border-top-color: #3b82f6;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .success-message {
+      display: none;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .success-icon {
+      font-size: 48px;
+      color: #10b981;
+      margin-bottom: 12px;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translate(-50%, -45%); }
+      to { opacity: 1; transform: translate(-50%, -50%); }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>
+      <span>🚀</span>
+      Vrooli Assistant
+    </h1>
+    <div class="actions">
+      <button onclick="openHistory()" title="History">📋</button>
+      <button onclick="openSettings()" title="Settings">⚙️</button>
+      <button onclick="hideOverlay()" title="Close (Esc)">✕</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="screenshot-area">
+      <div class="screenshot-preview" id="screenshotPreview">
+        📸
+      </div>
+      <div class="screenshot-info">
+        <div class="status" id="screenshotStatus">No screenshot captured</div>
+        <div class="scenario" id="scenarioName">Press button to capture</div>
+      </div>
+      <button class="capture-btn" onclick="captureScreenshot()">
+        Capture Screenshot
+      </button>
+    </div>
+
+    <div class="input-area">
+      <label>Describe the issue or improvement</label>
+      <textarea 
+        id="description" 
+        placeholder="What needs to be fixed or improved? Be specific about what you expected vs what happened..."
+        autofocus
+      ></textarea>
+    </div>
+
+    <div class="agent-selector">
+      <label style="margin-right: 8px;">Agent Type:</label>
+      <select id="agentType">
+        <option value="claude-code">Claude Code</option>
+        <option value="agent-s2">Agent S2</option>
+        <option value="custom">Custom Agent</option>
+        <option value="none">No Agent (Create Task Only)</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="shortcuts">
+      <div class="shortcut">
+        <span class="key">Esc</span>
+        <span>Close</span>
+      </div>
+      <div class="shortcut">
+        <span class="key">Cmd+Enter</span>
+        <span>Submit</span>
+      </div>
+    </div>
+    <div class="action-buttons">
+      <button class="secondary" onclick="hideOverlay()">Cancel</button>
+      <button class="primary" id="submitBtn" onclick="submitIssue()">
+        Submit & Spawn Agent
+      </button>
+    </div>
+  </div>
+
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <div style="margin-top: 12px; color: #9ca3af;">Processing...</div>
+  </div>
+
+  <div class="success-message" id="successMessage">
+    <div class="success-icon">✓</div>
+    <div style="color: #f3f4f6; font-weight: 500;">Issue Captured!</div>
+    <div style="color: #9ca3af; font-size: 12px; margin-top: 4px;">Agent spawned successfully</div>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>

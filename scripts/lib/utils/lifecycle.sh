@@ -230,13 +230,13 @@ lifecycle::execute_phase() {
                     fi
                 else
                     log::warning "Process manager not available, falling back to manual process management"
-                    (cd "$exec_dir" && export API_PORT="${API_PORT:-}" && exec bash -c "$processed_run") &
+                    (cd "$exec_dir" && exec env bash -c "$processed_run") &
                     local bg_pid=$!
                     log::info "  Started background process (PID: $bg_pid) - manual management"
                 fi
             else
                 # Run without timeout wrapper to preserve terminal control for sudo
-                (cd "$exec_dir" && export API_PORT="${API_PORT:-}" && bash -c "$processed_run") || {
+                (cd "$exec_dir" && env bash -c "$processed_run") || {
                     local exit_code=$?
                     log::error "Step '$name' failed with exit code $exit_code"
                     rm -f "$steps_file"
@@ -335,6 +335,39 @@ show_develop_next_steps() {
 }
 
 #######################################
+# Load resource-specific environment exports (v2.0 pattern)
+# Sources config/exports.sh from each resource if available
+# Returns:
+#   0 on success
+#######################################
+lifecycle::load_resource_environments() {
+    local resources_dir="${var_ROOT_DIR}/resources"
+    
+    # Check if resources directory exists
+    [[ -d "$resources_dir" ]] || return 0
+    
+    log::debug "Loading resource environment exports..."
+    
+    # Iterate through resource directories
+    for resource_dir in "$resources_dir"/*; do
+        [[ -d "$resource_dir" ]] || continue
+        
+        local resource_name="${resource_dir##*/}"
+        local exports_file="$resource_dir/config/exports.sh"
+        
+        # Check if exports.sh exists (it's optional in v2.0)
+        if [[ -f "$exports_file" ]]; then
+            log::debug "Loading environment for resource: $resource_name"
+            # Source the exports file
+            # shellcheck disable=SC1090
+            source "$exports_file" 2>/dev/null || log::warning "Failed to load exports for $resource_name"
+        fi
+    done
+    
+    return 0
+}
+
+#######################################
 # Allocate dynamic ports from service.json
 # Reads .ports config and allocates/exports ports
 # Returns:
@@ -351,29 +384,10 @@ lifecycle::allocate_service_ports() {
     if [[ -f "$port_registry" ]]; then
         # shellcheck disable=SC1090
         source "$port_registry" 2>/dev/null || log::warning "Could not load port registry"
-        
-        # Export standard database URLs using postgres container credentials
-        local postgres_port="${RESOURCE_PORTS[postgres]:-5433}"
-        if command -v docker >/dev/null 2>&1 && docker ps --format '{{.Names}}' | grep -q "vrooli-postgres-main"; then
-            # Get credentials from postgres container environment
-            local container_env
-            container_env=$(docker inspect vrooli-postgres-main --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null)
-            
-            local db_user db_pass db_name
-            db_user=$(echo "$container_env" | grep '^POSTGRES_USER=' | cut -d'=' -f2)
-            db_pass=$(echo "$container_env" | grep '^POSTGRES_PASSWORD=' | cut -d'=' -f2)
-            db_name=$(echo "$container_env" | grep '^POSTGRES_DB=' | cut -d'=' -f2)
-            
-            if [[ -n "$db_user" && -n "$db_pass" && -n "$db_name" ]]; then
-                export POSTGRES_URL="postgres://${db_user}:${db_pass}@localhost:${postgres_port}/${db_name}?sslmode=disable"
-                export DATABASE_URL="$POSTGRES_URL"  # Some scenarios use DATABASE_URL
-                export POSTGRES_USER="$db_user"
-                export POSTGRES_PASSWORD="$db_pass"
-                export POSTGRES_DB="$db_name"
-                log::debug "Exported postgres credentials from container"
-            fi
-        fi
     fi
+    
+    # Load resource-specific environment exports (v2.0 pattern)
+    lifecycle::load_resource_environments
     
     # Build list of reserved ports from project-level service.json if available
     local -a reserved_ports=()

@@ -125,12 +125,12 @@ func initDB() error {
 	
 	user := os.Getenv("POSTGRES_USER")
 	if user == "" {
-		user = "postgres"
+		user = "vrooli"
 	}
 	
 	password := os.Getenv("POSTGRES_PASSWORD")
 	if password == "" {
-		password = "postgres"
+		password = "lUq9qvemypKpuEeXCV6Vnxak1"
 	}
 	
 	dbname := os.Getenv("POSTGRES_DB")
@@ -615,13 +615,71 @@ func updateFileByPathHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	// Reuse the file ID update logic by setting the file_id in vars
-	r = mux.SetURLVars(r, map[string]string{
-		"id":      vars["id"],
-		"file_id": fileID.String(),
-	})
+	// Update file entry directly (can't reuse handler since request body is consumed)
+	// Validate status
+	validStatuses := []string{"pending", "in_progress", "completed", "failed", "skipped"}
+	isValid := false
+	for _, status := range validStatuses {
+		if req.Status == status {
+			isValid = true
+			break
+		}
+	}
+	if !isValid {
+		HTTPError(w, "Invalid status value", http.StatusBadRequest, nil)
+		return
+	}
 	
-	updateFileStatusHandler(w, r)
+	// Update file entry
+	metadataJSON, _ := json.Marshal(req.Metadata)
+	now := time.Now()
+	
+	var completedAt *time.Time
+	if req.Status == "completed" {
+		completedAt = &now
+	}
+	
+	var errorMessage *string
+	if req.ErrorMessage != "" {
+		errorMessage = &req.ErrorMessage
+	}
+	
+	_, err = db.Exec(`
+		UPDATE file_entries 
+		SET status = $1, error_message = $2, last_attempt_at = $3, completed_at = $4, 
+		    metadata = $5, attempts = attempts + 1
+		WHERE id = $6 AND campaign_id = $7
+	`, req.Status, errorMessage, now, completedAt, metadataJSON, fileID, campaignID)
+	
+	if err != nil {
+		HTTPError(w, "Failed to update file status", http.StatusInternalServerError, err)
+		return
+	}
+	
+	// Get updated file entry
+	var f FileEntry
+	var metadataStr string
+	err = db.QueryRow(`
+		SELECT id, campaign_id, file_path, absolute_path, status, error_message,
+		       attempts, last_attempt_at, completed_at, metadata
+		FROM file_entries WHERE id = $1
+	`, fileID).Scan(&f.ID, &f.CampaignID, &f.FilePath, &f.AbsolutePath, &f.Status,
+		&f.ErrorMessage, &f.Attempts, &f.LastAttemptAt, &f.CompletedAt, &metadataStr)
+	
+	if err != nil {
+		HTTPError(w, "Failed to retrieve updated file", http.StatusInternalServerError, err)
+		return
+	}
+	
+	json.Unmarshal([]byte(metadataStr), &f.Metadata)
+	
+	w.Header().Set("Content-Type", "application/json")
+	response := map[string]interface{}{
+		"success": true,
+		"file":    f,
+	}
+	
+	json.NewEncoder(w).Encode(response)
 }
 
 func main() {

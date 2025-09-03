@@ -75,11 +75,11 @@
       "initialization": [
         {
           "file": "initialization/postgres/schema.sql",
-          "type": "script"
+          "type": "schema"
         },
         {
           "file": "initialization/postgres/seed.sql",
-          "type": "script"
+          "type": "seed"
         }
       ]
     },
@@ -97,7 +97,26 @@
     }
   },
   "lifecycle": {
-    "version": "1.0.0",
+    "version": "2.0.0",
+    "health": {
+      "description": "Personal Digital Twin health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
     "setup": {
       "description": "Initialize Personal Digital Twin",
       "condition": {

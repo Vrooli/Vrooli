@@ -41,6 +41,10 @@ available_scenarios:
     cli: system-monitor
     purpose: "Monitor system health and investigate anomalies"
     
+  - name: core-debugger
+    cli: core-debugger
+    purpose: "Monitor and fix core Vrooli infrastructure (CLI, orchestrator, setup)"
+    
   - name: task-planner
     cli: task-planner
     purpose: "Plan and implement complex multi-step tasks"
@@ -55,11 +59,11 @@ problem_scanning:
   scan_interval: 300               # Seconds between problem scans (5 minutes)
   auto_create_tasks: true          # Auto-create tasks for high/critical problems
   scan_paths:                      # Default paths to scan for problem files
-    - /home/matthalloran8/Vrooli/PROBLEMS.md           # Global issues
-    - /home/matthalloran8/Vrooli/resources/*/PROBLEMS.md  # Resource issues
-    - /home/matthalloran8/Vrooli/scenarios/*/PROBLEMS.md  # Scenario issues
-    - /home/matthalloran8/Vrooli/resources/*/TROUBLESHOOTING.md  # Resource troubleshooting
-    - /home/matthalloran8/Vrooli/scenarios/*/TROUBLESHOOTING.md  # Scenario troubleshooting
+    - ${VROOLI_ROOT}/PROBLEMS.md           # Global issues
+    - ${VROOLI_ROOT}/resources/*/PROBLEMS.md  # Resource issues
+    - ${VROOLI_ROOT}/scenarios/*/PROBLEMS.md  # Scenario issues
+    - ${VROOLI_ROOT}/resources/*/TROUBLESHOOTING.md  # Resource troubleshooting
+    - ${VROOLI_ROOT}/scenarios/*/TROUBLESHOOTING.md  # Scenario troubleshooting
   severity_thresholds:
     auto_task_creation: high       # Minimum severity for auto task creation
     alert_notification: critical   # Minimum severity for alerts
@@ -68,15 +72,45 @@ problem_scanning:
 
 # Task Type Mappings
 task_type_scenarios:
+  core-infrastructure: core-debugger  # Core Vrooli issues (highest priority)
+  core-fix: core-debugger
+  cli-issue: core-debugger
+  orchestrator-issue: core-debugger
+  setup-failure: core-debugger
   scenario: scenario-generator-v1
   experiment: resource-experimenter
   bug-fix: app-debugger
+  app-debug: app-debugger  # Clarified for app-level issues
   issue: app-issue-tracker
   monitoring: system-monitor
+  system-performance: system-monitor
   planning: task-planner
   feature: claude-code
   optimization: claude-code
   integration: claude-code
   documentation: claude-code
   testing: claude-code
-  problem-resolution: app-debugger  # Added for problem-generated tasks
+  problem-resolution: app-debugger  # App-level problems
+  core-problem: core-debugger  # Core infrastructure problems
+
+# Priority Modifiers - Applied to calculated priority scores
+priority_modifiers:
+  core_infrastructure_issue: 10.0   # Core issues block everything, get 10x priority
+  has_workaround_available: 0.5     # If workaround exists, reduce priority by 50%
+  user_reported: 2.0                # User-reported issues get 2x priority
+  critical_severity: 5.0             # Critical severity gets 5x priority
+  high_severity: 2.5                # High severity gets 2.5x priority
+  affects_multiple_scenarios: 3.0   # Issues affecting multiple scenarios get 3x priority
+  repeated_failure: 1.5              # Tasks that failed before get 1.5x priority
+  
+# Health Check Configuration
+health_check_before_dispatch:
+  enabled: true                      # Check core health before dispatching tasks
+  block_on_critical: true            # Don't dispatch if core is critical
+  warn_on_degraded: true             # Log warning if core is degraded
+  check_interval: 60                 # Seconds between health checks
+  components_to_check:
+    - cli                           # Vrooli CLI
+    - orchestrator                  # Scenario orchestrator
+    - resource-manager              # Resource lifecycle manager
+    - setup                         # Setup scripts

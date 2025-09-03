@@ -70,11 +70,11 @@
       "initialization": [
         {
           "file": "initialization/postgres/schema.sql",
-          "type": "script"
+          "type": "schema"
         },
         {
           "file": "initialization/postgres/seed.sql",
-          "type": "script"
+          "type": "seed"
         }
       ]
     },
@@ -100,7 +100,26 @@
     }
   },
   "lifecycle": {
-    "version": "1.0.0",
+    "version": "2.0.0",
+    "health": {
+      "description": "Nutrition Tracker health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
     "setup": {
       "description": "Initialize Nutrition Tracker",
       "condition": {
@@ -162,6 +181,11 @@
           "run": "cd api && env PORT=$API_PORT ./nutrition-tracker-api",
           "description": "Start API server",
           "background": true
+        },
+        {
+          "name": "wait-for-api",
+          "run": "until curl -f http://localhost:${API_PORT}/health >/dev/null 2>&1; do echo 'Waiting for API to be ready...'; sleep 2; done",
+          "description": "Wait for API to be ready"
         },
         {
           "name": "start-ui",

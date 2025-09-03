@@ -1184,7 +1184,7 @@ embeddings_refresh_sequential_impl() {
     
     # Find workflow files using a simpler approach
     local workflow_files
-    workflow_files=$(find "${APP_ROOT:-/home/matthalloran8/Vrooli}/initialization/n8n" -name "*.json" -type f 2>/dev/null | head -3)
+    workflow_files=$(find "${APP_ROOT:-${HOME}/Vrooli}/initialization/n8n" -name "*.json" -type f 2>/dev/null | head -3)
     
     if [[ -n "$workflow_files" ]]; then
         while IFS= read -r file; do

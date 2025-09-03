@@ -10,6 +10,18 @@ TASKS_DIR="${SCRIPT_DIR}/tasks"
 API_BASE="http://localhost:8095"
 SERVICE_NAME="swarm-manager"
 
+# Get Vrooli root directory
+get_vrooli_root() {
+    if [ -n "${VROOLI_ROOT:-}" ]; then
+        echo "$VROOLI_ROOT"
+    elif git rev-parse --show-toplevel &>/dev/null; then
+        git rev-parse --show-toplevel
+    else
+        echo "$(dirname "$(dirname "$SCRIPT_DIR")")"
+    fi
+}
+VROOLI_ROOT="$(get_vrooli_root)"
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -208,8 +220,8 @@ show_status() {
     echo ""
     echo "Problem Discovery:"
     echo "-----------------"
-    problems_count=$(find /home/matthalloran8/Vrooli -name "PROBLEMS.md" 2>/dev/null | wc -l)
-    troubleshooting_count=$(find /home/matthalloran8/Vrooli -name "TROUBLESHOOTING.md" 2>/dev/null | wc -l)
+    problems_count=$(find "$VROOLI_ROOT" -name "PROBLEMS.md" 2>/dev/null | wc -l)
+    troubleshooting_count=$(find "$VROOLI_ROOT" -name "TROUBLESHOOTING.md" 2>/dev/null | wc -l)
     printf "  %-20s %3d files\n" "PROBLEMS.md:" "$problems_count"
     printf "  %-20s %3d files\n" "TROUBLESHOOTING.md:" "$troubleshooting_count"
     
@@ -492,7 +504,7 @@ scan_problems() {
                 problems_found=$((problems_found + active_count))
             fi
         fi
-    done < <(find /home/matthalloran8/Vrooli -name "PROBLEMS.md" 2>/dev/null)
+    done < <(find "$VROOLI_ROOT" -name "PROBLEMS.md" 2>/dev/null)
     
     # Find and scan TROUBLESHOOTING.md files
     echo ""
@@ -509,7 +521,7 @@ scan_problems() {
                 troubleshooting_found=$((troubleshooting_found + pattern_count))
             fi
         fi
-    done < <(find /home/matthalloran8/Vrooli -name "TROUBLESHOOTING.md" 2>/dev/null)
+    done < <(find "$VROOLI_ROOT" -name "TROUBLESHOOTING.md" 2>/dev/null)
     
     # Summary
     echo ""
@@ -638,7 +650,7 @@ resolve_problem() {
 
 # Scan for problems implementation (fixed)
 scan_for_problems_impl() {
-    local scan_path="${1:-/home/matthalloran8/Vrooli}"
+    local scan_path="${1:-$VROOLI_ROOT}"
     local output_file="${SCRIPT_DIR}/logs/problem-scan-$(date +%Y%m%d-%H%M%S).log"
     
     echo "Scanning path: $scan_path"
@@ -755,7 +767,7 @@ scan_for_problems() {
     # If no path provided, use configured defaults
     if [ -z "$scan_path" ]; then
         # Read from config
-        scan_path="/home/matthalloran8/Vrooli"
+        scan_path="$VROOLI_ROOT"
     fi
     
     echo "Scanning path: $scan_path"

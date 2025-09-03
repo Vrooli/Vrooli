@@ -48,11 +48,11 @@
       "initialization": [
         {
           "file": "initialization/storage/postgres/schema.sql",
-          "type": "script"
+          "type": "schema"
         },
         {
           "file": "initialization/storage/postgres/seed.sql",
-          "type": "script"
+          "type": "seed"
         }
       ]
     },

@@ -76,11 +76,11 @@
       "initialization": [
         {
           "file": "initialization/postgres/schema.sql",
-          "type": "script"
+          "type": "schema"
         },
         {
           "file": "initialization/postgres/seed.sql",
-          "type": "script"
+          "type": "seed"
         }
       ]
     },

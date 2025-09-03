@@ -150,6 +150,6 @@ For existing resources/scenarios:
 
 ## See Also
 
-- [PROBLEMS_TEMPLATE.md](/home/matthalloran8/Vrooli/PROBLEMS_TEMPLATE.md)
+- [PROBLEMS_TEMPLATE.md](${VROOLI_ROOT}/PROBLEMS_TEMPLATE.md)
 - [V2.0 Resource Contract](/scripts/resources/contracts/v2.0/universal.yaml)
 - [Swarm Manager README](../README.md)
