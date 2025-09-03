@@ -116,7 +116,26 @@
     }
   },
   "lifecycle": {
-    "version": "1.0.0",
+    "version": "2.0.0",
+    "health": {
+      "description": "SEO Optimizer health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
     "setup": {
       "description": "Initialize SEO Optimizer",
       "condition": {
@@ -187,6 +206,11 @@
           "condition": {
             "file_exists": "api/seo-optimizer-api"
           }
+        },
+        {
+          "name": "wait-for-api",
+          "run": "timeout 30 bash -c 'until curl -sf http://localhost:$API_PORT/health > /dev/null 2>&1; do sleep 1; done' || echo 'API health check timeout'",
+          "description": "Wait for API to be ready"
         },
         {
           "name": "start-ui-server",

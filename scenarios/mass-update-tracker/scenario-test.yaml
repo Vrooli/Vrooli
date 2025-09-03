@@ -1,0 +1,130 @@
+version: 1.0
+scenario: mass-update-tracker
+
+structure:
+  required_files:
+    - .vrooli/service.json
+    - PRD.md
+    - api/main.go
+    - api/go.mod
+    - cli/mass-update-tracker
+    - cli/install.sh
+    - initialization/storage/postgres/schema.sql
+    - scenario-test.yaml
+    - ui/index.html
+    - ui/package.json
+    - ui/server.js
+    
+  required_dirs:
+    - api
+    - cli
+    - initialization
+    - initialization/storage
+    - initialization/storage/postgres
+    - ui
+    - test
+
+resources:
+  required: [postgres]
+  optional: []
+  health_timeout: 60
+
+tests:
+  - name: "PostgreSQL is accessible"
+    type: resource_health
+    service: postgres
+    expect:
+      status: healthy
+      
+  - name: "API health endpoint responds"
+    type: http
+    service: api
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+      body:
+        status: healthy
+        service: mass-update-tracker
+        
+  - name: "API campaigns endpoint accessible"
+    type: http
+    service: api
+    endpoint: /api/v1/campaigns
+    method: GET
+    expect:
+      status: 200
+      
+  - name: "Campaign creation works"
+    type: http
+    service: api
+    endpoint: /api/v1/campaigns
+    method: POST
+    body:
+      name: "test-campaign"
+      description: "Test campaign for validation"
+      file_patterns: ["*.md"]
+      working_directory: "/tmp"
+      scenario_name: "mass-update-tracker"
+    expect:
+      status: 201
+      body:
+        id: "[uuid-pattern]"
+        file_count: "[number]"
+        
+  - name: "CLI status command executes"
+    type: exec
+    command: ./cli/mass-update-tracker status --json
+    expect:
+      exit_code: 0
+      output_contains: ["campaigns"]
+      
+  - name: "CLI help command works"
+    type: exec
+    command: ./cli/mass-update-tracker help
+    expect:
+      exit_code: 0
+      output_contains: ["Mass Update Tracker CLI", "create", "list", "files"]
+      
+  - name: "CLI version command works"
+    type: exec
+    command: ./cli/mass-update-tracker version
+    expect:
+      exit_code: 0
+      output_contains: ["mass-update-tracker CLI v1.0.0"]
+      
+  - name: "Database schema is initialized"
+    type: sql
+    service: postgres
+    query: "SELECT COUNT(*) FROM information_schema.tables WHERE table_name IN ('campaigns', 'file_entries')"
+    expect:
+      rows: 
+        - count: 2
+        
+  - name: "Database indexes exist"
+    type: sql
+    service: postgres
+    query: "SELECT COUNT(*) FROM pg_indexes WHERE tablename IN ('campaigns', 'file_entries')"
+    expect:
+      rows:
+        - count: "[number >= 6]"
+        
+  - name: "UI server responds"
+    type: http
+    service: ui
+    endpoint: /
+    method: GET
+    expect:
+      status: 200
+      content_contains: ["Mass Update Tracker"]
+      
+  - name: "UI config endpoint works"
+    type: http
+    service: ui
+    endpoint: /config
+    method: GET
+    expect:
+      status: 200
+      body:
+        service: mass-update-tracker
+        version: "1.0.0"

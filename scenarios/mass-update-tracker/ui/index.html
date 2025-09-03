@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mass Update Tracker - Campaign Dashboard</title>
+    <style>
+        :root {
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-tertiary: #21262d;
+            --text-primary: #f0f6fc;
+            --text-secondary: #8b949e;
+            --text-muted: #6e7681;
+            --accent-primary: #238636;
+            --accent-secondary: #1f6feb;
+            --accent-warning: #d29922;
+            --accent-danger: #da3633;
+            --border-primary: #30363d;
+            --border-secondary: #21262d;
+            --status-pending: #d29922;
+            --status-progress: #1f6feb;
+            --status-completed: #238636;
+            --status-failed: #da3633;
+            --status-skipped: #8b949e;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.5;
+        }
+
+        .header {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-primary);
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--accent-primary);
+        }
+
+        .stats {
+            display: flex;
+            gap: 24px;
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        .section {
+            margin-bottom: 32px;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: 1px solid var(--border-primary);
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            background: var(--bg-secondary);
+            border-color: var(--accent-secondary);
+        }
+
+        .btn-primary {
+            background: var(--accent-primary);
+            border-color: var(--accent-primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2ea043;
+            border-color: #2ea043;
+        }
+
+        .campaign-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+            gap: 16px;
+        }
+
+        .campaign-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: 8px;
+            padding: 16px;
+            transition: border-color 0.2s;
+        }
+
+        .campaign-card:hover {
+            border-color: var(--accent-secondary);
+        }
+
+        .campaign-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text-primary);
+        }
+
+        .campaign-meta {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+        }
+
+        .campaign-patterns {
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+            font-size: 12px;
+            background: var(--bg-tertiary);
+            padding: 8px;
+            border-radius: 4px;
+            margin-bottom: 12px;
+            color: var(--text-secondary);
+        }
+
+        .progress-bar {
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+            overflow: hidden;
+            height: 6px;
+            margin-bottom: 12px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .status-active { background: var(--status-progress); color: white; }
+        .status-completed { background: var(--status-completed); color: white; }
+        .status-failed { background: var(--status-failed); color: white; }
+        .status-paused { background: var(--status-warning); color: white; }
+
+        .file-status {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            margin-top: 8px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+        }
+
+        .modal-content {
+            position: relative;
+            background: var(--bg-secondary);
+            margin: 5% auto;
+            padding: 24px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 600px;
+            border: 1px solid var(--border-primary);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .close {
+            color: var(--text-muted);
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close:hover {
+            color: var(--text-primary);
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 4px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 8px 12px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-primary);
+            border-radius: 4px;
+            color: var(--text-primary);
+            font-size: 14px;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--accent-secondary);
+        }
+
+        .form-textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .loading {
+            text-align: center;
+            color: var(--text-secondary);
+            padding: 40px;
+        }
+
+        .empty-state {
+            text-align: center;
+            color: var(--text-muted);
+            padding: 40px;
+        }
+
+        .file-list {
+            max-height: 400px;
+            overflow-y: auto;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-primary);
+            border-radius: 4px;
+            margin-top: 12px;
+        }
+
+        .file-item {
+            padding: 8px 12px;
+            border-bottom: 1px solid var(--border-secondary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+        }
+
+        .file-item:last-child {
+            border-bottom: none;
+        }
+
+        .file-path {
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+            color: var(--text-secondary);
+        }
+
+        .file-status-badge {
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 500;
+        }
+
+        .file-pending { background: var(--status-pending); color: black; }
+        .file-in_progress { background: var(--status-progress); color: white; }
+        .file-completed { background: var(--status-completed); color: white; }
+        .file-failed { background: var(--status-failed); color: white; }
+        .file-skipped { background: var(--status-skipped); color: white; }
+
+        @media (max-width: 768px) {
+            .campaign-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .container {
+                padding: 16px;
+            }
+            
+            .header {
+                padding: 12px 16px;
+                flex-direction: column;
+                gap: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">📊 Mass Update Tracker</div>
+        <div class="stats" id="global-stats">
+            <span>Loading...</span>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="section">
+            <div class="section-header">
+                <h2 class="section-title">Active Campaigns</h2>
+                <button class="btn btn-primary" onclick="openCreateModal()">+ Create Campaign</button>
+            </div>
+            <div id="campaigns-container">
+                <div class="loading">Loading campaigns...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Campaign Modal -->
+    <div id="createModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Create New Campaign</h3>
+                <span class="close" onclick="closeCreateModal()">&times;</span>
+            </div>
+            <form onsubmit="createCampaign(event)">
+                <div class="form-group">
+                    <label class="form-label">Campaign Name</label>
+                    <input type="text" class="form-input" id="campaignName" required 
+                           placeholder="e.g., migrate-to-typescript">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Description</label>
+                    <textarea class="form-input form-textarea" id="campaignDescription" 
+                              placeholder="Optional description of this campaign..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">File Patterns</label>
+                    <textarea class="form-input form-textarea" id="campaignPatterns" required 
+                              placeholder="src/**/*.js&#10;tests/**/*.js&#10;docs/*.md"
+                              rows="3"></textarea>
+                    <small style="color: var(--text-muted); font-size: 12px;">
+                        One glob pattern per line (e.g., src/**/*.ts, *.json)
+                    </small>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Working Directory</label>
+                    <input type="text" class="form-input" id="campaignWorkingDir" 
+                           placeholder="/path/to/project (leave empty for current)">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Scenario Name</label>
+                    <input type="text" class="form-input" id="campaignScenario" 
+                           placeholder="Optional: scenario using this campaign">
+                </div>
+                <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                    <button type="button" class="btn" onclick="closeCreateModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Campaign</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Campaign Details Modal -->
+    <div id="detailsModal" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <h3 id="detailsTitle">Campaign Details</h3>
+                <span class="close" onclick="closeDetailsModal()">&times;</span>
+            </div>
+            <div id="detailsContent">
+                <div class="loading">Loading campaign details...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let apiUrl = '';
+        let campaigns = [];
+        
+        // Initialize app
+        async function init() {
+            try {
+                const config = await fetch('/config').then(r => r.json());
+                apiUrl = config.apiUrl;
+                await loadCampaigns();
+                updateGlobalStats();
+            } catch (error) {
+                console.error('Initialization error:', error);
+                document.getElementById('campaigns-container').innerHTML = 
+                    '<div class="empty-state">❌ Failed to connect to API</div>';
+            }
+        }
+
+        // Load campaigns from API
+        async function loadCampaigns() {
+            try {
+                const response = await fetch(`${apiUrl}/api/v1/campaigns`);
+                const data = await response.json();
+                campaigns = data.campaigns || [];
+                renderCampaigns();
+            } catch (error) {
+                console.error('Error loading campaigns:', error);
+                document.getElementById('campaigns-container').innerHTML = 
+                    '<div class="empty-state">Error loading campaigns</div>';
+            }
+        }
+
+        // Render campaigns grid
+        function renderCampaigns() {
+            const container = document.getElementById('campaigns-container');
+            
+            if (campaigns.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        🔄 No campaigns yet<br>
+                        <small>Create your first campaign to start tracking mass file operations</small>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = `
+                <div class="campaign-grid">
+                    ${campaigns.map(campaign => `
+                        <div class="campaign-card" onclick="showCampaignDetails('${campaign.id}')">
+                            <div class="campaign-title">${campaign.name}</div>
+                            <div class="campaign-meta">
+                                Created ${new Date(campaign.created_at).toLocaleDateString()} • 
+                                ${campaign.scenario_name || 'No scenario'}
+                            </div>
+                            <div class="campaign-patterns">
+                                ${campaign.file_patterns.join('\n')}
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: 0%; background: var(--status-progress);" 
+                                     data-campaign-id="${campaign.id}"></div>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span class="status-badge status-${campaign.status}">${campaign.status}</span>
+                                <span class="file-status" data-campaign-id="${campaign.id}">
+                                    <span>Loading...</span>
+                                </span>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            
+            // Load file stats for each campaign
+            campaigns.forEach(campaign => loadCampaignStats(campaign.id));
+        }
+
+        // Load statistics for a specific campaign
+        async function loadCampaignStats(campaignId) {
+            try {
+                const response = await fetch(`${apiUrl}/api/v1/campaigns/${campaignId}/files`);
+                const data = await response.json();
+                
+                const total = data.total || 0;
+                const remaining = data.remaining || 0;
+                const completed = total - remaining;
+                const progress = total > 0 ? (completed / total) * 100 : 0;
+                
+                // Update progress bar
+                const progressBar = document.querySelector(`[data-campaign-id="${campaignId}"].progress-fill`);
+                if (progressBar) {
+                    progressBar.style.width = `${progress}%`;
+                }
+                
+                // Update file status
+                const fileStatus = document.querySelector(`[data-campaign-id="${campaignId}"] span`);
+                if (fileStatus) {
+                    fileStatus.textContent = `${completed}/${total} files`;
+                }
+            } catch (error) {
+                console.error(`Error loading stats for campaign ${campaignId}:`, error);
+            }
+        }
+
+        // Update global statistics
+        function updateGlobalStats() {
+            const total = campaigns.length;
+            const active = campaigns.filter(c => c.status === 'active').length;
+            const completed = campaigns.filter(c => c.status === 'completed').length;
+            
+            document.getElementById('global-stats').innerHTML = `
+                <span>Total: ${total}</span>
+                <span>Active: ${active}</span>
+                <span>Completed: ${completed}</span>
+            `;
+        }
+
+        // Show campaign details modal
+        async function showCampaignDetails(campaignId) {
+            const modal = document.getElementById('detailsModal');
+            const title = document.getElementById('detailsTitle');
+            const content = document.getElementById('detailsContent');
+            
+            // Find campaign
+            const campaign = campaigns.find(c => c.id === campaignId);
+            title.textContent = `${campaign.name} - Files`;
+            
+            content.innerHTML = '<div class="loading">Loading files...</div>';
+            modal.style.display = 'block';
+            
+            try {
+                const response = await fetch(`${apiUrl}/api/v1/campaigns/${campaignId}/files`);
+                const data = await response.json();
+                
+                const files = data.files || [];
+                const total = data.total || 0;
+                const remaining = data.remaining || 0;
+                
+                content.innerHTML = `
+                    <div style="margin-bottom: 16px;">
+                        <strong>Progress:</strong> ${total - remaining}/${total} files completed
+                    </div>
+                    <div class="file-list">
+                        ${files.length === 0 ? 
+                            '<div style="padding: 20px; text-align: center; color: var(--text-muted);">No files found</div>' :
+                            files.map(file => `
+                                <div class="file-item">
+                                    <span class="file-path">${file.file_path}</span>
+                                    <span class="file-status-badge file-${file.status}">${file.status}</span>
+                                </div>
+                            `).join('')
+                        }
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Error loading campaign details:', error);
+                content.innerHTML = '<div class="empty-state">❌ Error loading files</div>';
+            }
+        }
+
+        // Modal management
+        function openCreateModal() {
+            document.getElementById('createModal').style.display = 'block';
+        }
+
+        function closeCreateModal() {
+            document.getElementById('createModal').style.display = 'none';
+            // Reset form
+            document.getElementById('campaignName').value = '';
+            document.getElementById('campaignDescription').value = '';
+            document.getElementById('campaignPatterns').value = '';
+            document.getElementById('campaignWorkingDir').value = '';
+            document.getElementById('campaignScenario').value = '';
+        }
+
+        function closeDetailsModal() {
+            document.getElementById('detailsModal').style.display = 'none';
+        }
+
+        // Create new campaign
+        async function createCampaign(event) {
+            event.preventDefault();
+            
+            const name = document.getElementById('campaignName').value;
+            const description = document.getElementById('campaignDescription').value;
+            const patternsText = document.getElementById('campaignPatterns').value;
+            const workingDir = document.getElementById('campaignWorkingDir').value || '';
+            const scenario = document.getElementById('campaignScenario').value;
+            
+            const patterns = patternsText.split('\n')
+                .map(p => p.trim())
+                .filter(p => p.length > 0);
+                
+            if (patterns.length === 0) {
+                alert('At least one file pattern is required');
+                return;
+            }
+            
+            const payload = {
+                name,
+                description,
+                file_patterns: patterns,
+                working_directory: workingDir,
+                scenario_name: scenario,
+                metadata: {}
+            };
+            
+            try {
+                const response = await fetch(`${apiUrl}/api/v1/campaigns`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                const result = await response.json();
+                
+                if (result.error) {
+                    alert(`Error: ${result.error}`);
+                    return;
+                }
+                
+                closeCreateModal();
+                await loadCampaigns();
+                updateGlobalStats();
+                
+                alert(`Campaign created successfully!\nID: ${result.id}\nFiles: ${result.file_count}`);
+            } catch (error) {
+                console.error('Error creating campaign:', error);
+                alert('Failed to create campaign. Check console for details.');
+            }
+        }
+
+        // Close modals when clicking outside
+        window.onclick = function(event) {
+            const createModal = document.getElementById('createModal');
+            const detailsModal = document.getElementById('detailsModal');
+            
+            if (event.target === createModal) {
+                closeCreateModal();
+            }
+            if (event.target === detailsModal) {
+                closeDetailsModal();
+            }
+        }
+
+        // Auto-refresh campaigns every 10 seconds
+        setInterval(async () => {
+            await loadCampaigns();
+            updateGlobalStats();
+        }, 10000);
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

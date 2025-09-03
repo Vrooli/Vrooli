@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎨 Enterprise Image Generation Pipeline</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Hero Header -->
+        <header class="hero-header">
+            <div class="hero-gradient"></div>
+            <div class="hero-content">
+                <div class="hero-text">
+                    <h1 class="hero-title">
+                        <span class="gradient-text">🎨 Enterprise Image Generation</span>
+                        <span class="hero-subtitle">AI-Powered Creative Studio</span>
+                    </h1>
+                    <p class="hero-description">
+                        Transform voice briefings into stunning visuals with enterprise-grade AI workflows
+                    </p>
+                </div>
+                <div class="hero-stats">
+                    <div class="stat-card">
+                        <div class="stat-number" id="total-images">0</div>
+                        <div class="stat-label">Images Generated</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="active-campaigns">0</div>
+                        <div class="stat-label">Active Campaigns</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="quality-score">94.2</div>
+                        <div class="stat-label">Avg Quality</div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Navigation Tabs -->
+        <nav class="nav-tabs">
+            <button class="nav-tab active" data-tab="generation-studio">
+                <i class="fas fa-magic"></i>
+                <span>Generation Studio</span>
+            </button>
+            <button class="nav-tab" data-tab="campaign-manager">
+                <i class="fas fa-project-diagram"></i>
+                <span>Campaign Manager</span>
+            </button>
+            <button class="nav-tab" data-tab="gallery">
+                <i class="fas fa-images"></i>
+                <span>Image Gallery</span>
+            </button>
+            <button class="nav-tab" data-tab="brand-center">
+                <i class="fas fa-palette"></i>
+                <span>Brand Center</span>
+            </button>
+            <button class="nav-tab" data-tab="analytics">
+                <i class="fas fa-chart-line"></i>
+                <span>Analytics</span>
+            </button>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Generation Studio Tab -->
+            <div class="tab-content active" id="generation-studio">
+                <div class="studio-layout">
+                    <!-- Generation Controls -->
+                    <div class="generation-panel">
+                        <div class="panel-header">
+                            <h2><i class="fas fa-wand-magic-sparkles"></i> AI Generation Studio</h2>
+                        </div>
+                        
+                        <!-- Voice Brief Section -->
+                        <div class="section voice-brief-section">
+                            <h3><i class="fas fa-microphone"></i> Voice Briefing</h3>
+                            <div class="voice-upload-area" id="voice-upload">
+                                <div class="upload-content">
+                                    <i class="fas fa-cloud-upload-alt upload-icon"></i>
+                                    <p class="upload-text">Drop audio file or click to upload</p>
+                                    <p class="upload-hint">MP3, WAV, M4A - Max 50MB</p>
+                                    <input type="file" id="voice-file" accept="audio/*" hidden>
+                                </div>
+                                <div class="voice-processing" id="voice-processing" style="display: none;">
+                                    <div class="processing-animation">
+                                        <div class="wave"></div>
+                                        <div class="wave"></div>
+                                        <div class="wave"></div>
+                                        <div class="wave"></div>
+                                    </div>
+                                    <p>Processing voice brief...</p>
+                                </div>
+                            </div>
+                            <button class="btn btn-primary" id="process-voice" disabled>
+                                <i class="fas fa-brain"></i> Process Voice Brief
+                            </button>
+                        </div>
+
+                        <!-- Prompt Optimization -->
+                        <div class="section">
+                            <h3><i class="fas fa-edit"></i> Prompt Engineering</h3>
+                            <div class="form-group">
+                                <label>Image Description</label>
+                                <textarea 
+                                    id="prompt-input" 
+                                    placeholder="Describe the image you want to generate... e.g., 'Professional corporate headshot with clean blue background, confident business person, studio lighting'"
+                                    rows="4"
+                                ></textarea>
+                            </div>
+                            <button class="btn btn-secondary" id="optimize-prompt">
+                                <i class="fas fa-lightbulb"></i> AI Optimize Prompt
+                            </button>
+                        </div>
+
+                        <!-- Style & Settings -->
+                        <div class="section">
+                            <h3><i class="fas fa-sliders-h"></i> Generation Settings</h3>
+                            <div class="settings-grid">
+                                <div class="form-group">
+                                    <label>Style Preset</label>
+                                    <select id="style-preset">
+                                        <option value="professional">🏢 Professional/Corporate</option>
+                                        <option value="artistic">🎨 Artistic/Creative</option>
+                                        <option value="marketing">📢 Marketing/Commercial</option>
+                                        <option value="brand">🏷️ Brand-Specific</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Image Size</label>
+                                    <select id="image-size">
+                                        <option value="1024x1024">Square (1024×1024)</option>
+                                        <option value="1920x1080">Landscape (1920×1080)</option>
+                                        <option value="1080x1920">Portrait (1080×1920)</option>
+                                        <option value="1200x630">Social (1200×630)</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Quality Level</label>
+                                    <select id="quality-level">
+                                        <option value="draft">Draft - Fast</option>
+                                        <option value="standard">Standard</option>
+                                        <option value="high" selected>High Quality</option>
+                                        <option value="ultra">Ultra HD</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Variations: <span id="variations-count">3</span></label>
+                                    <input type="range" id="variations-slider" min="1" max="8" value="3" class="slider">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Generation Button -->
+                        <div class="generation-actions">
+                            <button class="btn btn-primary btn-large" id="generate-btn">
+                                <i class="fas fa-sparkles"></i>
+                                Generate Images
+                            </button>
+                            <button class="btn btn-outline" id="batch-generate-btn">
+                                <i class="fas fa-layer-group"></i>
+                                Batch Generate
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Results Panel -->
+                    <div class="results-panel">
+                        <div class="panel-header">
+                            <h2><i class="fas fa-images"></i> Generation Results</h2>
+                        </div>
+
+                        <!-- Generation Progress -->
+                        <div class="generation-progress" id="generation-progress" style="display: none;">
+                            <div class="progress-header">
+                                <h3><i class="fas fa-cogs"></i> Generation in Progress</h3>
+                            </div>
+                            <div class="progress-steps">
+                                <div class="step" data-step="1">
+                                    <div class="step-icon"><i class="fas fa-search"></i></div>
+                                    <div class="step-text">Processing Prompt</div>
+                                    <div class="step-status"></div>
+                                </div>
+                                <div class="step" data-step="2">
+                                    <div class="step-icon"><i class="fas fa-cogs"></i></div>
+                                    <div class="step-text">Creating Workflow</div>
+                                    <div class="step-status"></div>
+                                </div>
+                                <div class="step" data-step="3">
+                                    <div class="step-icon"><i class="fas fa-paint-brush"></i></div>
+                                    <div class="step-text">Generating Images</div>
+                                    <div class="step-status"></div>
+                                </div>
+                                <div class="step" data-step="4">
+                                    <div class="step-icon"><i class="fas fa-check-circle"></i></div>
+                                    <div class="step-text">Quality Analysis</div>
+                                    <div class="step-status"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Image Gallery Grid -->
+                        <div class="image-gallery" id="image-gallery">
+                            <!-- Generated images will be inserted here -->
+                            <div class="empty-gallery">
+                                <i class="fas fa-images empty-icon"></i>
+                                <h3>Ready to Generate</h3>
+                                <p>Enter a prompt and click generate to see your AI-created images appear here</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Campaign Manager Tab -->
+            <div class="tab-content" id="campaign-manager">
+                <div class="campaign-layout">
+                    <div class="campaign-header">
+                        <h2><i class="fas fa-project-diagram"></i> Campaign Management</h2>
+                        <button class="btn btn-primary" id="new-campaign-btn">
+                            <i class="fas fa-plus"></i> New Campaign
+                        </button>
+                    </div>
+                    
+                    <div class="campaigns-grid" id="campaigns-grid">
+                        <div class="empty-campaigns">
+                            <i class="fas fa-folder-open empty-icon"></i>
+                            <h3>No Active Campaigns</h3>
+                            <p>Create your first campaign to organize image generation projects</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gallery Tab -->
+            <div class="tab-content" id="gallery">
+                <div class="gallery-layout">
+                    <div class="gallery-header">
+                        <h2><i class="fas fa-images"></i> Image Gallery</h2>
+                        <div class="gallery-filters">
+                            <input type="text" placeholder="Search images..." class="search-input" id="gallery-search">
+                            <select id="gallery-filter" class="filter-select">
+                                <option value="all">All Images</option>
+                                <option value="recent">Recent</option>
+                                <option value="approved">Approved</option>
+                                <option value="pending">Pending Review</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="masonry-gallery" id="masonry-gallery">
+                        <!-- Gallery items will be loaded here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Brand Center Tab -->
+            <div class="tab-content" id="brand-center">
+                <div class="brand-layout">
+                    <div class="brand-header">
+                        <h2><i class="fas fa-palette"></i> Brand Management Center</h2>
+                        <button class="btn btn-primary" id="add-brand-btn">
+                            <i class="fas fa-plus"></i> Add Brand
+                        </button>
+                    </div>
+                    
+                    <div class="brands-grid" id="brands-grid">
+                        <!-- Brand cards will be loaded here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Analytics Tab -->
+            <div class="tab-content" id="analytics">
+                <div class="analytics-layout">
+                    <div class="analytics-header">
+                        <h2><i class="fas fa-chart-line"></i> Performance Analytics</h2>
+                    </div>
+                    
+                    <div class="analytics-cards">
+                        <div class="metric-card">
+                            <div class="metric-icon blue"><i class="fas fa-images"></i></div>
+                            <div class="metric-content">
+                                <div class="metric-value" id="analytics-images">0</div>
+                                <div class="metric-label">Total Images</div>
+                            </div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-icon green"><i class="fas fa-project-diagram"></i></div>
+                            <div class="metric-content">
+                                <div class="metric-value" id="analytics-campaigns">0</div>
+                                <div class="metric-label">Campaigns</div>
+                            </div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-icon orange"><i class="fas fa-star"></i></div>
+                            <div class="metric-content">
+                                <div class="metric-value" id="analytics-quality">94.2</div>
+                                <div class="metric-label">Avg Quality</div>
+                            </div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-icon purple"><i class="fas fa-dollar-sign"></i></div>
+                            <div class="metric-content">
+                                <div class="metric-value" id="analytics-savings">$127K</div>
+                                <div class="metric-label">Cost Savings</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="charts-placeholder">
+                        <i class="fas fa-chart-bar chart-icon"></i>
+                        <h3>Advanced Analytics Coming Soon</h3>
+                        <p>Detailed performance charts and insights will be displayed here</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modals and overlays will be added via JavaScript -->
+    <div id="modal-overlay" class="modal-overlay"></div>
+    
+    <script src="script.js"></script>
+</body>
+</html>

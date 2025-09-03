@@ -13,14 +13,14 @@
       "competitive-intelligence",
       "knowledge-management",
       "privacy-focused",
-      "windmill-ui",
+      "custom-ui",
       "market-analysis",
       "content-synthesis",
       "searxng-integration",
       "rag-system",
       "go-api",
       "n8n-workflows",
-      "windmill-apps",
+      "express-ui",
       "postgres-storage",
       "qdrant-vectors",
       "minio-storage",
@@ -48,21 +48,6 @@
         {
           "file": "initialization/automation/n8n/scheduled-reports.json",
           "type": "workflow"
-        }
-      ]
-    },
-    "windmill": {
-      "type": "windmill",
-      "enabled": true,
-      "required": true,
-      "initialization": [
-        {
-          "file": "initialization/automation/windmill/dashboard-app.json",
-          "type": "app"
-        },
-        {
-          "file": "initialization/automation/windmill/windmill-app.json",
-          "type": "app"
         }
       ]
     },
@@ -119,10 +104,35 @@
       "port": 27750,
       "fallback": "auto",
       "description": "Research assistant API port"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "port": 31001,
+      "fallback": "auto",
+      "description": "Research assistant UI dashboard port"
     }
   },
   "lifecycle": {
-    "version": "1.0.0",
+    "version": "2.0.0",
+    "health": {
+      "description": "Research Assistant health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
     "setup": {
       "description": "Initialize Research Assistant",
       "condition": {
@@ -165,8 +175,16 @@
           "description": "Build Go coordination API binary"
         },
         {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
           "name": "show-urls",
-          "run": "echo '🚀 Research Assistant initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  SearXNG: http://localhost:${RESOURCE_PORTS[searxng]}\\n  CLI: research-assistant --help'",
+          "run": "echo '🚀 Research Assistant initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  SearXNG: http://localhost:${RESOURCE_PORTS[searxng]}\\n  CLI: research-assistant --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -184,6 +202,15 @@
           }
         },
         {
+          "name": "start-ui-server",
+          "run": "cd ui && env UI_PORT=$UI_PORT API_URL=http://localhost:$API_PORT node server.js",
+          "description": "Start UI server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/server.js"
+          }
+        },
+        {
           "name": "wait-for-api",
           "run": "sleep 2 && curl -sf http://localhost:$API_PORT/health > /dev/null",
           "description": "Wait for API server to be ready",
@@ -193,8 +220,17 @@
           }
         },
         {
+          "name": "wait-for-ui",
+          "run": "sleep 3 && curl -sf http://localhost:$UI_PORT/health > /dev/null",
+          "description": "Wait for UI server to be ready",
+          "retry": {
+            "max_attempts": 15,
+            "delay": 1
+          }
+        },
+        {
           "name": "show-running-services",
-          "run": "echo '🚀 Services running:\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$API_PORT\\n  SearXNG: http://localhost:${RESOURCE_PORTS[searxng]}\\n  CLI: research-assistant --help'",
+          "run": "echo '🚀 Services running:\\n  Dashboard: http://localhost:$UI_PORT\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$API_PORT\\n  SearXNG: http://localhost:${RESOURCE_PORTS[searxng]}\\n  CLI: research-assistant --help'",
           "description": "Display all running service URLs"
         }
       ]
@@ -242,6 +278,11 @@
           "name": "stop-api-server",
           "run": "pkill -f 'research-assistant-api' || true",
           "description": "Stop Go API server processes"
+        },
+        {
+          "name": "stop-ui-server",
+          "run": "pkill -f 'node.*server.js' || true",
+          "description": "Stop UI Node.js server processes"
         },
         {
           "name": "confirm-stop",

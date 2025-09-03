@@ -1,0 +1,227 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "mass-update-tracker",
+    "displayName": "Mass Update Tracker",
+    "description": "Campaign-based mass file operation tracking with persistent state across conversations",
+    "version": "1.0.0",
+    "tags": [
+      "file-management",
+      "batch-operations",
+      "campaign-tracking",
+      "refactoring-support",
+      "developer-tools",
+      "state-persistence",
+      "progress-tracking",
+      "go-api",
+      "postgres-storage",
+      "mass-operations"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "port": 20251,
+      "fallback": "auto",
+      "description": "Mass Update Tracker API port"
+    },
+    "ui": {
+      "env_var": "UI_PORT", 
+      "port": 3251,
+      "fallback": "auto",
+      "description": "Campaign management dashboard port"
+    }
+  },
+  "resources": {
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Persistent storage for campaigns and file tracking data",
+      "initialization": [
+        {
+          "file": "initialization/storage/postgres/schema.sql",
+          "type": "schema"
+        }
+      ]
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Mass Update Tracker health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "postgres_connection",
+          "type": "postgres",
+          "target": "postgres://postgres:postgres@localhost:5432/vrooli",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 60000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
+    "setup": {
+      "description": "Initialize Mass Update Tracker",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/mass-update-tracker-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "mass-update-tracker"
+          },
+          {
+            "type": "resources", 
+            "populated": true
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "add-data",
+          "run": "../../scripts/resources/populate/populate.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o mass-update-tracker-api main.go",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && if [ -f package.json ]; then npm install; else echo 'No package.json found, skipping npm install'; fi",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Mass Update Tracker initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: mass-update-tracker --help'",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start mass update tracker with API and UI servers",
+      "steps": [
+        {
+          "name": "ensure-api-built",
+          "run": "if [ ! -f api/mass-update-tracker-api ]; then echo 'Building API...'; cd api && go mod download && go build -o mass-update-tracker-api main.go && echo 'API built successfully'; else echo 'API binary already exists'; fi",
+          "description": "Ensure API binary exists"
+        },
+        {
+          "name": "start-api-server",
+          "run": "cd api && env PORT=$API_PORT ./mass-update-tracker-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/mass-update-tracker-api"
+          }
+        },
+        {
+          "name": "wait-for-api",
+          "run": "sleep 2 && curl -sf http://localhost:$API_PORT/health > /dev/null",
+          "description": "Wait for API server to be ready",
+          "retry": {
+            "max_attempts": 15,
+            "delay": 1
+          }
+        },
+        {
+          "name": "start-ui-server",
+          "run": "cd ui && env PORT=$UI_PORT node server.js",
+          "description": "Start UI development server",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/server.js"
+          }
+        },
+        {
+          "name": "wait-for-ui",
+          "run": "sleep 1 && curl -sf http://localhost:$UI_PORT > /dev/null",
+          "description": "Wait for UI server to be ready",
+          "retry": {
+            "max_attempts": 10,
+            "delay": 1
+          }
+        },
+        {
+          "name": "show-running-services",
+          "run": "echo '🚀 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:$API_PORT\\n  CLI: mass-update-tracker --help'",
+          "description": "Display all running service URLs"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test mass update tracker API and CLI",
+      "steps": [
+        {
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build main.go && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$API_PORT/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-campaigns-endpoint",
+          "run": "curl -sf http://localhost:$API_PORT/api/v1/campaigns",
+          "description": "Test campaigns list endpoint"
+        },
+        {
+          "name": "test-cli-commands",
+          "run": "cd cli && if [ -f mass-update-tracker.bats ]; then bats mass-update-tracker.bats; else echo 'CLI tests not implemented yet'; fi",
+          "description": "Run CLI test suite"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop mass update tracker services",
+      "steps": [
+        {
+          "name": "stop-api-server", 
+          "run": "pkill -f 'mass-update-tracker-api' || true",
+          "description": "Stop Go API server processes"
+        },
+        {
+          "name": "stop-ui-server",
+          "run": "pkill -f 'server.js.*mass-update-tracker' || true",
+          "description": "Stop UI server processes"
+        },
+        {
+          "name": "confirm-stop",
+          "run": "echo '🛑 Mass Update Tracker services stopped'",
+          "description": "Confirm services stopped"
+        }
+      ]
+    }
+  }
+}

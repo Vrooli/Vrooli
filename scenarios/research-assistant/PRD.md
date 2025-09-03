@@ -496,6 +496,26 @@ color_palette:
   accent: "#F59E0B"  # Highlight amber
   background: "#FFFFFF" / "#1F2937" (dark mode)
   text: "#111827" / "#F9FAFB" (dark mode)
+
+implementation:
+  technology_stack: "Custom HTML/CSS/JS with Express.js server"
+  architecture: "Single-page application with tab-based navigation"
+  ui_port: 31001
+  features:
+    - Professional SaaS dashboard aesthetic
+    - Real-time metrics display
+    - Responsive design (desktop-first)
+    - Dark/light theme toggle
+    - Interactive chat interface with AI assistant
+    - Report management and filtering
+    - Schedule automation interface
+    - Settings panel with system monitoring
+    - Professional typography using Inter font
+    - Font Awesome icons for consistency
+    - Toast notifications for user feedback
+    - Modal dialogs for complex interactions
+    - Loading states and error handling
+    - Clean table layouts for data display
 ```
 
 ### Target Audience Alignment

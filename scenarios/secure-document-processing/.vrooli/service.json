@@ -16,10 +16,8 @@
       "semantic-search",
       "automation",
       "nodejs-ui",
-      "windmill-ui",
       "go-api",
       "n8n-workflows",
-      "windmill-apps",
       "postgres-storage",
       "qdrant-vectors",
       "minio-storage",
@@ -35,7 +33,7 @@
     },
     "ui": {
       "env_var": "UI_PORT",
-      "port": 35750,
+      "port": 31009,
       "fallback": "auto",
       "description": "Secure document processing UI port"
     }
@@ -70,8 +68,8 @@
     },
     "windmill": {
       "type": "windmill",
-      "enabled": true,
-      "required": true,
+      "enabled": false,
+      "required": false,
       "initialization": [
         {
           "file": "initialization/automation/windmill/document-portal.json",
@@ -131,7 +129,26 @@
     }
   },
   "lifecycle": {
-    "version": "1.0.0",
+    "version": "2.0.0",
+    "health": {
+      "description": "Secure Document Processing health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
     "setup": {
       "description": "Initialize Secure Document Processing Pipeline",
       "condition": {
@@ -186,7 +203,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Secure Document Processing initialized\\n  UI: http://localhost:${UI_PORT}\\n  Document Portal: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  MinIO Storage: http://localhost:${RESOURCE_PORTS[minio]}\\n  Vault: http://localhost:${RESOURCE_PORTS[vault]}\\n  CLI: secure-document-processing --help'",
+          "run": "echo '🚀 Secure Document Processing initialized\\n  UI: http://localhost:${UI_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  MinIO Storage: http://localhost:${RESOURCE_PORTS[minio]}\\n  Vault: http://localhost:${RESOURCE_PORTS[vault]}\\n  CLI: secure-document-processing --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -229,7 +246,7 @@
         },
         {
           "name": "show-running-services",
-          "run": "echo '🚀 Services running:\\n  UI: http://localhost:$UI_PORT\\n  Document Portal: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$API_PORT\\n  MinIO: http://localhost:${RESOURCE_PORTS[minio]}\\n  Vault: http://localhost:${RESOURCE_PORTS[vault]}\\n  CLI: secure-document-processing --help'",
+          "run": "echo '🚀 Services running:\\n  UI: http://localhost:$UI_PORT\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$API_PORT\\n  MinIO: http://localhost:${RESOURCE_PORTS[minio]}\\n  Vault: http://localhost:${RESOURCE_PORTS[vault]}\\n  CLI: secure-document-processing --help'",
           "description": "Display all running service URLs"
         }
       ]

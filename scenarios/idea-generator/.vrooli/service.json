@@ -16,11 +16,11 @@
       "innovation",
       "document-processing",
       "semantic-search",
-      "windmill-ui",
+      "custom-ui",
       "multi-agent",
       "go-api",
       "n8n-workflows",
-      "windmill-apps",
+      "nodejs-server",
       "postgres-storage",
       "redis-cache",
       "qdrant-vectors",
@@ -34,6 +34,12 @@
       "port": 23750,
       "fallback": "auto",
       "description": "Idea generator coordination API port"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "port": 31008,
+      "fallback": "auto",
+      "description": "Creative brainstorming web interface port"
     }
   },
   "resources": {
@@ -70,17 +76,6 @@
         {
           "file": "initialization/n8n/chat-refinement-workflow.json",
           "type": "workflow"
-        }
-      ]
-    },
-    "windmill": {
-      "type": "windmill",
-      "enabled": true,
-      "required": true,
-      "initialization": [
-        {
-          "file": "initialization/automation/windmill/idea-generator-app.json",
-          "type": "app"
         }
       ]
     },
@@ -148,7 +143,26 @@
     }
   },
   "lifecycle": {
-    "version": "1.0.0",
+    "version": "2.0.0",
+    "health": {
+      "description": "Idea Generator health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
     "setup": {
       "description": "Initialize Idea Generator",
       "condition": {
@@ -191,14 +205,19 @@
           "description": "Build Go coordination API binary"
         },
         {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install Node.js UI dependencies"
+        },
+        {
           "name": "show-urls",
-          "run": "echo '🚀 Idea Generator initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  Vector Search: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  Document Storage: http://localhost:${RESOURCE_PORTS[minio]}\\n  CLI: idea-generator --help'",
+          "run": "echo '\ud83d\ude80 Idea Generator initialized\\n  Web UI: http://localhost:${UI_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  Vector Search: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  Document Storage: http://localhost:${RESOURCE_PORTS[minio]}\\n  CLI: idea-generator --help'",
           "description": "Display service access URLs"
         }
       ]
     },
     "develop": {
-      "description": "Start idea generator with Go API server",
+      "description": "Start idea generator with Go API server and Node.js UI",
       "steps": [
         {
           "name": "start-api-server",
@@ -207,6 +226,15 @@
           "background": true,
           "condition": {
             "file_exists": "api/idea-generator-api"
+          }
+        },
+        {
+          "name": "start-ui-server",
+          "run": "cd ui && env UI_PORT=$UI_PORT API_URL=http://localhost:$API_PORT npm start",
+          "description": "Start Node.js UI server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/server.js"
           }
         },
         {
@@ -220,7 +248,7 @@
         },
         {
           "name": "show-running-services",
-          "run": "echo '🚀 Idea Generator running:\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$API_PORT\\n  CLI: idea-generator --help'",
+          "run": "echo '\ud83d\ude80 Idea Generator running:\\n  Web UI: http://localhost:$UI_PORT\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$API_PORT\\n  CLI: idea-generator --help'",
           "description": "Display all running service URLs"
         }
       ]
@@ -275,8 +303,13 @@
           "description": "Stop Go API server processes"
         },
         {
+          "name": "stop-ui-server",
+          "run": "pkill -f \"ui/server.js\" || pkill -f \"node.*server.js\" || true",
+          "description": "Stop Node.js UI server processes"
+        },
+        {
           "name": "confirm-stop",
-          "run": "echo '🛑 Idea Generator services stopped'",
+          "run": "echo '\ud83d\uded1 Idea Generator services stopped'",
           "description": "Confirm services stopped"
         }
       ]

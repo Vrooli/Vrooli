@@ -64,13 +64,40 @@ This scenario demonstrates advanced multimodal AI capabilities (voice + vision +
 2. **Campaign Batch Generation**: Select campaign → Define variations → Batch generate → Review → Export
 3. **Brand Compliance Check**: Upload existing images → Check against brand → Get compliance report
 
-### 4.2 UI Components (Windmill)
-- **Generation Studio**: Main workspace for creating images
-- **Campaign Manager**: Organize and track campaigns
-- **Brand Engine**: Configure brand guidelines
-- **Quality Control**: Review and approve generated content
-- **Asset Manager**: Browse and organize generated assets
-- **Analytics Dashboard**: Track usage and performance
+### 4.2 UI Components (Creative Gallery Interface)
+The UI features a vibrant, creative design with a focus on visual presentation:
+
+#### Design Philosophy
+- **Creative & Vibrant**: Bold color palette with gradients (purple, pink, blue, cyan, orange)
+- **Gallery-First**: Visual emphasis on image display with masonry/grid layouts  
+- **Professional Enterprise**: Clean, modern interface suitable for Fortune 500 clients
+- **Responsive Design**: Works seamlessly across desktop, tablet, and mobile devices
+
+#### Color Palette
+- Primary Colors: Purple (#8B5CF6), Pink (#EC4899), Blue (#3B82F6), Cyan (#06B6D4), Orange (#F59E0B)
+- Gradients: Creative gradient backgrounds for headers and accent elements
+- Neutrals: Gray scale from #F9FAFB to #111827 for content and text
+
+#### Key UI Components
+- **Hero Header**: Animated gradient background with sparkle effects and key metrics
+- **Generation Studio**: Main workspace with voice upload, prompt optimization, and generation controls
+- **Image Gallery**: Dynamic grid layout with hover effects and action overlays
+- **Campaign Manager**: Card-based layout for organizing image generation projects
+- **Brand Center**: Brand management with color palette and style keyword configuration
+- **Quality Control**: Dashboard for reviewing and approving generated content
+- **Analytics**: Performance metrics with colorful metric cards and placeholder for charts
+
+#### Interactive Elements
+- **Voice Brief Upload**: Drag-and-drop area with processing animations
+- **Generation Progress**: Step-by-step progress indicator with animations
+- **Image Actions**: Hover overlays with download, approve, and variation buttons
+- **Responsive Navigation**: Tab-based navigation with icons and responsive design
+- **Modal Dialogs**: Full-screen image viewing with overlay controls
+
+#### Typography
+- Primary Font: Inter (modern, professional)
+- Display Font: Playfair Display (elegant headers)
+- Font weights: 300-800 range for hierarchy and emphasis
 
 ## 5. Business Value
 

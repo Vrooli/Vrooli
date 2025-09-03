@@ -495,69 +495,152 @@ installation:
   - dashboard_integration: Open browser to Windmill UI
 ```
 
-## 🎨 Style and Branding Requirements
+## 🎨 UI Design & Implementation
+
+### Custom Node.js Web Interface
+The idea-generator features a **custom creative brainstorming interface** built with Node.js, HTML5, CSS3, and JavaScript, designed to inspire innovation and facilitate seamless AI-powered ideation.
+
+#### Core Interface Components
+
+**Magic Generation Center**
+- **Animated Dice Button**: Central focal point with rotating gradient border and bounce animations
+- **Creativity Slider**: Interactive control for AI creativity levels (Focused → Balanced → Wild)  
+- **Context Input**: Optional field for providing generation context
+- **Magic Circle Animation**: Continuous rotating gradient border creating a mystical effect
+
+**Dynamic Campaign System**
+- **Colorful Campaign Tabs**: Each campaign has a unique color theme with idea counters
+- **Quick Campaign Switching**: Instant context switching between different brainstorming sessions
+- **Campaign Creation Modal**: Clean form with color picker and description fields
+
+**Ideas Board & Visualization**
+- **Card-Based Layout**: Each idea displayed as an interactive card with actions
+- **Status Indicators**: Visual badges for Draft, Refined, Validated states
+- **Hover Animations**: Smooth lift effects and shadow transitions
+- **View Toggle**: Switch between card grid and list views
+
+**AI Agent Chat Panel**
+- **Slide-out Interface**: Right-side panel for AI agent interactions
+- **Agent Selector**: Dropdown for choosing specialized agents (Revise, Research, Critique, etc.)
+- **Message Bubbles**: Distinct styling for user vs. AI messages with avatars
+- **Typing Indicators**: Real-time feedback with animated dots
+- **Quick Suggestions**: AI-generated suggestion buttons for rapid iteration
+
+**Semantic Search Interface**
+- **Floating Search Modal**: Full-screen overlay with backdrop blur
+- **Real-time Results**: Instant semantic search across ideas and documents
+- **Similarity Scoring**: Visual percentage indicators for search relevance
+- **Keyboard Shortcuts**: Cmd+K for quick access
+
+**Document Upload System**
+- **Drag & Drop Zone**: Interactive area with hover states and visual feedback
+- **File Progress**: Real-time upload and processing status
+- **Format Support**: PDF, DOCX, TXT with intelligent content extraction
+
+#### Visual Design System
+```yaml
+style_profile:
+  category: creative_professional
+  inspiration: "Figma meets Notion - creative collaboration with enterprise polish"
+  
+  visual_hierarchy:
+    primary_focus: Central magic dice with rotating gradient border
+    secondary_focus: Colorful campaign tabs with dynamic indicators  
+    tertiary_focus: Idea cards with hover animations and status badges
+    
+  interaction_patterns:
+    generation: Single-click magic dice with loading animations
+    navigation: Smooth tab switching with color transitions
+    refinement: Slide-out chat panel with agent selection
+    discovery: Floating search with semantic results
+
+color_palette:
+  # Brand Colors
+  primary: "#6366F1"      # Indigo for primary actions and magic effects
+  secondary: "#EC4899"    # Pink for creative energy and gradients
+  tertiary: "#10B981"     # Green for success states and validation
+  accent: "#F59E0B"       # Amber for highlights and attention
+  
+  # Interface Colors  
+  background: "#F8FAFC"   # Light blue-gray background
+  surface: "#FFFFFF"      # Pure white for cards and panels
+  text: "#1E293B"         # Dark slate for primary text
+  text_light: "#64748B"   # Medium slate for secondary text
+  border: "#E2E8F0"       # Light border color
+  
+  # Campaign Color Palette (User Selectable)
+  campaign_colors:
+    - "#EF4444"  # Red - Energy & Urgency
+    - "#F97316"  # Orange - Innovation & Creativity
+    - "#EAB308"  # Yellow - Optimism & Ideas
+    - "#22C55E"  # Green - Growth & Success
+    - "#06B6D4"  # Cyan - Fresh & Modern
+    - "#3B82F6"  # Blue - Trust & Stability  
+    - "#8B5CF6"  # Purple - Imagination & Magic
+    - "#EC4899"  # Pink - Creative Energy & Fun
+
+typography:
+  font_family: 'Inter' with system fallbacks
+  headings: 700 weight, optimized line heights
+  body: 400 weight, 1.6 line height for readability
+  ui_elements: 500 weight for buttons and labels
+  
+animations:
+  dice_bounce: 1s ease-in-out infinite bounce
+  gradient_rotation: 10s linear infinite rotation  
+  hover_lift: 0.3s cubic-bezier(0.4, 0, 0.2, 1)
+  slide_transitions: 0.3s ease for panel movements
+  fade_animations: 0.5s ease-out for content loading
+```
+
+#### Responsive Design Strategy
+- **Desktop-First**: Optimized for creative professionals on large screens
+- **Tablet Adaptation**: Collapsible panels and touch-friendly interactions
+- **Mobile Support**: Essential features accessible on smaller devices
+- **Keyboard Navigation**: Full accessibility with shortcuts (Space=Generate, Cmd+K=Search, Esc=Close)
+
+#### Technical Implementation
+- **Server**: Express.js on port 31008 with API proxying
+- **Architecture**: Single-page application with modular JavaScript classes
+- **Performance**: CSS animations using transform/opacity for 60fps
+- **Accessibility**: ARIA labels, semantic HTML, keyboard navigation
+- **Browser Support**: Modern evergreen browsers with graceful degradation
 
 ### UI/UX Style Guidelines
 ```yaml
-style_profile:
-  category: creative
-  inspiration: "Figma meets Notion - creative collaboration with polish"
-  
-  visual_style:
-    color_scheme: vibrant but professional, dynamic campaign colors
-    typography: modern sans with creative flair
-    layout: dashboard with collapsible panels
-    animations: playful dice rolls, smooth transitions
-  
-  personality:
-    tone: creative, inspiring, collaborative
-    mood: energetic innovation, focused creativity
-    target_feeling: "Ideas are flowing and being refined"
+interaction_design:
+  generation_flow:
+    1. Visual focus on central magic dice
+    2. Optional context input and creativity adjustment
+    3. Single-click generation with loading animation
+    4. Idea card appears with slide-up animation
+    5. Quick actions for refinement, editing, deletion
+    
+  refinement_flow:
+    1. Click brain icon on idea card
+    2. Chat panel slides in from right
+    3. Select AI agent type from dropdown
+    4. Interactive conversation with typing indicators
+    5. Apply suggestions or continue refinement
+    
+  campaign_management:
+    1. Click + button to create new campaign
+    2. Modal with name, description, color selection
+    3. New tab appears with selected color theme
+    4. Ideas automatically organized by campaign
+    
+  document_integration:
+    1. Upload button in header or drag-drop in modal
+    2. Visual progress during file processing
+    3. Extracted context available for idea generation
+    4. Documents searchable via semantic interface
 
-ui_components:
-  campaign_tabs:
-    - Colorful chips with custom colors per campaign
-    - Quick-switch interface
-    - Badge indicators for new ideas
-    - Add/edit campaign modals
-    
-  idea_workspace:
-    - Central content area with context display
-    - Animated dice button for generation
-    - Rich text editor for idea refinement
-    - Document upload drop zone
-    
-  chat_panel:
-    - Slide-out panel for agent interactions
-    - Agent type selector with descriptions
-    - Message bubbles with agent avatars
-    - Typing indicators and response streaming
-    
-  search_sidebar:
-    - Semantic search with filters
-    - Idea gallery with thumbnails
-    - Document browser with previews
-    - Recent activity feed
-
-color_palette:
-  primary: "#6366F1"      # Indigo for primary actions
-  secondary: "#EC4899"    # Pink for creative energy
-  tertiary: "#10B981"     # Green for success/validation
-  accent: "#F59E0B"       # Amber for highlights
-  background: "#F8FAFC"   # Light blue-gray
-  surface: "#FFFFFF"      # Pure white
-  text: "#1E293B"         # Dark slate
-  
-  # Campaign colors (user selectable)
-  campaign_colors:
-    - "#EF4444"  # Red
-    - "#F97316"  # Orange  
-    - "#EAB308"  # Yellow
-    - "#22C55E"  # Green
-    - "#06B6D4"  # Cyan
-    - "#3B82F6"  # Blue
-    - "#8B5CF6"  # Purple
-    - "#EC4899"  # Pink
+visual_feedback:
+  loading_states: Animated dice, progress spinners, typing indicators
+  success_states: Green checkmarks, slide-up animations, toast notifications
+  error_states: Red indicators, helpful error messages, retry options
+  hover_effects: Subtle shadows, color transitions, scale transforms
+  focus_states: Blue outline rings, keyboard navigation highlights
 ```
 
 ### Target Audience Alignment

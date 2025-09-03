@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Research Assistant - Professional Research Intelligence Platform</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Navigation Header -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <i class="fas fa-search-dollar brand-icon"></i>
+                <h1 class="brand-title">AI Research Assistant</h1>
+                <span class="brand-subtitle">Professional Research Intelligence Platform</span>
+            </div>
+            <div class="nav-actions">
+                <button class="nav-button" onclick="toggleDarkMode()">
+                    <i class="fas fa-moon"></i>
+                </button>
+                <button class="nav-button" onclick="showNotifications()">
+                    <i class="fas fa-bell"></i>
+                    <span class="notification-badge" id="notificationCount">3</span>
+                </button>
+                <div class="user-profile">
+                    <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40&h=40&fit=crop&crop=face" alt="User" class="user-avatar">
+                    <span class="user-name">Research Team</span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Layout -->
+    <div class="main-layout">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <nav class="sidebar-nav">
+                <a href="#dashboard" class="nav-item active" data-tab="dashboard">
+                    <i class="fas fa-tachometer-alt"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="#reports" class="nav-item" data-tab="reports">
+                    <i class="fas fa-file-chart"></i>
+                    <span>Research Reports</span>
+                </a>
+                <a href="#chat" class="nav-item" data-tab="chat">
+                    <i class="fas fa-robot"></i>
+                    <span>AI Assistant</span>
+                </a>
+                <a href="#schedules" class="nav-item" data-tab="schedules">
+                    <i class="fas fa-calendar-check"></i>
+                    <span>Schedules</span>
+                </a>
+                <a href="#settings" class="nav-item" data-tab="settings">
+                    <i class="fas fa-cog"></i>
+                    <span>Settings</span>
+                </a>
+            </nav>
+            
+            <!-- Resource Status -->
+            <div class="resource-status">
+                <h4>System Status</h4>
+                <div class="status-item">
+                    <i class="fas fa-database status-icon healthy"></i>
+                    <span>Database</span>
+                </div>
+                <div class="status-item">
+                    <i class="fas fa-brain status-icon healthy"></i>
+                    <span>AI Models</span>
+                </div>
+                <div class="status-item">
+                    <i class="fas fa-search status-icon healthy"></i>
+                    <span>Search Engine</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="content-area">
+            <!-- Dashboard Tab -->
+            <div id="dashboard" class="tab-content active">
+                <!-- Welcome Section -->
+                <div class="welcome-section">
+                    <div class="welcome-text">
+                        <h2>Welcome to AI Research Assistant</h2>
+                        <p>Enterprise-Grade Research Intelligence Platform with DeepSearch Quality Reports, Conversational AI, and Complete Privacy</p>
+                    </div>
+                    <div class="welcome-actions">
+                        <button class="primary-button" onclick="showNewReportModal()">
+                            <i class="fas fa-plus"></i>
+                            New Research Report
+                        </button>
+                        <button class="secondary-button" onclick="switchTab('chat')">
+                            <i class="fas fa-comments"></i>
+                            Chat with AI
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Key Metrics -->
+                <div class="metrics-grid">
+                    <div class="metric-card blue">
+                        <div class="metric-icon">
+                            <i class="fas fa-file-alt"></i>
+                        </div>
+                        <div class="metric-content">
+                            <h3 id="totalReports">0</h3>
+                            <p>Total Reports</p>
+                            <span class="metric-change positive">+12% this week</span>
+                        </div>
+                    </div>
+                    <div class="metric-card green">
+                        <div class="metric-icon">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="metric-content">
+                            <h3 id="activeSchedules">0</h3>
+                            <p>Active Schedules</p>
+                            <span class="metric-change neutral">No change</span>
+                        </div>
+                    </div>
+                    <div class="metric-card orange">
+                        <div class="metric-icon">
+                            <i class="fas fa-comments"></i>
+                        </div>
+                        <div class="metric-content">
+                            <h3 id="chatSessions">0</h3>
+                            <p>Chat Sessions</p>
+                            <span class="metric-change positive">+5% this week</span>
+                        </div>
+                    </div>
+                    <div class="metric-card purple">
+                        <div class="metric-icon">
+                            <i class="fas fa-star"></i>
+                        </div>
+                        <div class="metric-content">
+                            <h3 id="avgConfidence">0%</h3>
+                            <p>Avg Confidence</p>
+                            <span class="metric-change positive">+2% this week</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="quick-actions-section">
+                    <h3>Quick Actions</h3>
+                    <div class="action-cards">
+                        <div class="action-card" onclick="showNewReportModal()">
+                            <i class="fas fa-chart-line action-icon blue"></i>
+                            <div class="action-content">
+                                <h4>Generate New Report</h4>
+                                <p>Create a comprehensive research report on any topic</p>
+                            </div>
+                        </div>
+                        <div class="action-card" onclick="switchTab('chat')">
+                            <i class="fas fa-robot action-icon green"></i>
+                            <div class="action-content">
+                                <h4>AI Research Assistant</h4>
+                                <p>Chat with your reports and ask questions</p>
+                            </div>
+                        </div>
+                        <div class="action-card" onclick="switchTab('schedules')">
+                            <i class="fas fa-calendar-plus action-icon orange"></i>
+                            <div class="action-content">
+                                <h4>Automated Scheduling</h4>
+                                <p>Set up recurring research reports</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Activity -->
+                <div class="recent-activity">
+                    <div class="section-header">
+                        <h3>Recent Reports</h3>
+                        <button class="text-button" onclick="switchTab('reports')">View All</button>
+                    </div>
+                    <div class="activity-table-container">
+                        <table class="data-table" id="recentReportsTable">
+                            <thead>
+                                <tr>
+                                    <th>Title</th>
+                                    <th>Depth</th>
+                                    <th>Words</th>
+                                    <th>Confidence</th>
+                                    <th>Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reports Tab -->
+            <div id="reports" class="tab-content">
+                <div class="section-header">
+                    <h2>Research Reports Library</h2>
+                    <div class="header-actions">
+                        <input type="text" placeholder="Search reports..." class="search-input" id="reportSearch">
+                        <select class="filter-select" id="statusFilter">
+                            <option value="all">All Status</option>
+                            <option value="completed">Completed</option>
+                            <option value="processing">Processing</option>
+                            <option value="failed">Failed</option>
+                        </select>
+                        <button class="primary-button" onclick="showNewReportModal()">
+                            <i class="fas fa-plus"></i>
+                            New Report
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="table-container">
+                    <table class="data-table" id="reportsTable">
+                        <thead>
+                            <tr>
+                                <th>Title</th>
+                                <th>Topic</th>
+                                <th>Depth</th>
+                                <th>Words</th>
+                                <th>Sources</th>
+                                <th>Confidence</th>
+                                <th>Status</th>
+                                <th>Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Chat Tab -->
+            <div id="chat" class="tab-content">
+                <div class="chat-container">
+                    <div class="chat-header">
+                        <div class="chat-title">
+                            <i class="fas fa-robot"></i>
+                            <h3>AI Research Assistant</h3>
+                            <span class="chat-status online">Online</span>
+                        </div>
+                        <div class="chat-actions">
+                            <button class="icon-button" onclick="clearChat()">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                            <button class="icon-button" onclick="exportChat()">
+                                <i class="fas fa-download"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="chat-messages" id="chatMessages">
+                        <div class="chat-message assistant">
+                            <div class="message-avatar">
+                                <i class="fas fa-robot"></i>
+                            </div>
+                            <div class="message-content">
+                                <p>Hello! I'm your AI Research Assistant. I can help you with questions about your research reports, analyze data, or start new research projects. What would you like to know?</p>
+                                <div class="message-time">Just now</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="chat-input-area">
+                        <div class="quick-prompts">
+                            <button class="prompt-button" onclick="sendQuickPrompt('Latest AI trends')">
+                                📈 Latest AI Trends
+                            </button>
+                            <button class="prompt-button" onclick="sendQuickPrompt('Competitor analysis')">
+                                🏢 Competitor Analysis
+                            </button>
+                            <button class="prompt-button" onclick="sendQuickPrompt('Market research')">
+                                📊 Market Research
+                            </button>
+                        </div>
+                        
+                        <div class="chat-input-container">
+                            <textarea 
+                                id="chatInput" 
+                                placeholder="Ask me anything about your research or request new analysis..."
+                                rows="3"></textarea>
+                            <button class="send-button" onclick="sendMessage()">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Schedules Tab -->
+            <div id="schedules" class="tab-content">
+                <div class="section-header">
+                    <h2>Automated Report Schedules</h2>
+                    <button class="primary-button" onclick="showNewScheduleModal()">
+                        <i class="fas fa-plus"></i>
+                        New Schedule
+                    </button>
+                </div>
+                
+                <div class="table-container">
+                    <table class="data-table" id="schedulesTable">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Topic</th>
+                                <th>Frequency</th>
+                                <th>Depth</th>
+                                <th>Next Run</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Settings Tab -->
+            <div id="settings" class="tab-content">
+                <div class="settings-container">
+                    <div class="settings-sidebar">
+                        <nav class="settings-nav">
+                            <a href="#general-settings" class="settings-nav-item active" data-setting="general">
+                                <i class="fas fa-cog"></i>
+                                General
+                            </a>
+                            <a href="#research-settings" class="settings-nav-item" data-setting="research">
+                                <i class="fas fa-search"></i>
+                                Research Defaults
+                            </a>
+                            <a href="#notification-settings" class="settings-nav-item" data-setting="notifications">
+                                <i class="fas fa-bell"></i>
+                                Notifications
+                            </a>
+                            <a href="#system-settings" class="settings-nav-item" data-setting="system">
+                                <i class="fas fa-server"></i>
+                                System Info
+                            </a>
+                        </nav>
+                    </div>
+                    
+                    <div class="settings-content">
+                        <div id="general-settings" class="settings-panel active">
+                            <h3>General Settings</h3>
+                            <div class="settings-form">
+                                <div class="form-group">
+                                    <label>Theme</label>
+                                    <select id="themeSelect">
+                                        <option value="light">Light</option>
+                                        <option value="dark">Dark</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Language</label>
+                                    <select>
+                                        <option value="en">English</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Timezone</label>
+                                    <input type="text" value="UTC-5 (EST)" readonly>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="research-settings" class="settings-panel">
+                            <h3>Research Defaults</h3>
+                            <div class="settings-form">
+                                <div class="form-group">
+                                    <label>Default Research Depth</label>
+                                    <select>
+                                        <option value="quick">Quick (5-10 sources)</option>
+                                        <option value="standard" selected>Standard (15-20 sources)</option>
+                                        <option value="deep">Deep (25-40 sources)</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Default Report Length</label>
+                                    <input type="number" min="1" max="10" value="5">
+                                    <small>Pages (1-10)</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="notification-settings" class="settings-panel">
+                            <h3>Notification Settings</h3>
+                            <div class="settings-form">
+                                <div class="form-group">
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" checked>
+                                        <span class="checkbox-custom"></span>
+                                        Email Notifications
+                                    </label>
+                                </div>
+                                <div class="form-group">
+                                    <label>Notification Frequency</label>
+                                    <select>
+                                        <option value="immediate">Immediate</option>
+                                        <option value="daily" selected>Daily Summary</option>
+                                        <option value="weekly">Weekly Summary</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="system-settings" class="settings-panel">
+                            <h3>System Information</h3>
+                            <div class="system-info">
+                                <div class="info-grid">
+                                    <div class="info-item">
+                                        <i class="fas fa-server info-icon"></i>
+                                        <div>
+                                            <strong>API Version</strong>
+                                            <p>v1.0.0</p>
+                                        </div>
+                                    </div>
+                                    <div class="info-item">
+                                        <i class="fas fa-database info-icon"></i>
+                                        <div>
+                                            <strong>Database Status</strong>
+                                            <p>Connected</p>
+                                        </div>
+                                    </div>
+                                    <div class="info-item">
+                                        <i class="fas fa-brain info-icon"></i>
+                                        <div>
+                                            <strong>AI Models</strong>
+                                            <p>qwen2.5:32b, nomic-embed-text</p>
+                                        </div>
+                                    </div>
+                                    <div class="info-item">
+                                        <i class="fas fa-search info-icon"></i>
+                                        <div>
+                                            <strong>Search Engines</strong>
+                                            <p>70+ Sources Active</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- New Report Modal -->
+    <div id="newReportModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Generate New Research Report</h3>
+                <button class="close-button" onclick="closeModal('newReportModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="newReportForm">
+                    <div class="form-group">
+                        <label for="reportTopic">Research Topic *</label>
+                        <input type="text" id="reportTopic" placeholder="Enter your research topic..." required>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="reportDepth">Research Depth</label>
+                            <select id="reportDepth">
+                                <option value="quick">Quick (5-10 sources)</option>
+                                <option value="standard" selected>Standard (15-20 sources)</option>
+                                <option value="deep">Deep (25-40 sources)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="reportLength">Target Length</label>
+                            <input type="number" id="reportLength" min="1" max="10" value="5">
+                            <small>Pages</small>
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="secondary-button" onclick="closeModal('newReportModal')">Cancel</button>
+                        <button type="submit" class="primary-button">
+                            <i class="fas fa-rocket"></i>
+                            Generate Report
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Indicator -->
+    <div id="loadingIndicator" class="loading-overlay">
+        <div class="loading-spinner">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p>Processing your request...</p>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- JavaScript -->
+    <script src="app.js"></script>
+</body>
+</html>
