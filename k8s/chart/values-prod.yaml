@@ -11,10 +11,10 @@ tlsSecretName: "vrooli-tls"
 imagePullSecrets:
   - name: "dockerhub-secret"
 # --- Docker Hub Configuration ---
-dockerhubUsername: "${DOCKER_HUB_USERNAME:-matthalloran8}"
+dockerhubUsername: "${DOCKER_HUB_USERNAME}"
 # --- Global Image Settings ---
 image:
-  registry: "docker.io/${DOCKER_HUB_USERNAME:-matthalloran8}"
+  registry: "docker.io/${DOCKER_HUB_USERNAME}"
   tag: "2.0.0"
   pullPolicy: Always
 # --- Replica Counts ---

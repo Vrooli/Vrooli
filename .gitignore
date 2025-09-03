@@ -156,9 +156,12 @@ test-dist/
 # Stores VSCode versions used for testing VSCode extensions
 .vscode-test
 
-# Temporary folders
+# Temporary files
 tmp/
 temp/
+*.tmp
+*.backup
+*.bak
 
 ### react ###
 .DS_*
@@ -308,6 +311,12 @@ db.sqlite3-journal
 # Flask stuff:
 instance/
 .webassets-cache
+
+# PostgreSQL instance configurations - SECURITY CRITICAL
+# These contain passwords and should NEVER be committed
+resources/postgres/instances/
+**/instances/*/config/instance.conf
+**/instance.conf.backup
 
 # Scrapy stuff:
 .scrapy

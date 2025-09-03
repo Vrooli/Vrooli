@@ -130,7 +130,7 @@
         },
         {
           "name": "install-cli",
-          "run": "chmod +x cli/prompt-manager && ln -sf $(pwd)/cli/prompt-manager /usr/local/bin/prompt-manager 2>/dev/null || true",
+          "run": "chmod +x cli/prompt-manager && ln -sf $(pwd)/cli/prompt-manager ~/.local/bin/prompt-manager 2>/dev/null || true",
           "description": "Install CLI command globally"
         },
         {

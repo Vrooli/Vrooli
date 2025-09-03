@@ -140,7 +140,7 @@
         },
         {
           "name": "install-cli",
-          "run": "chmod +x cli/picker-wheel && ln -sf $(pwd)/cli/picker-wheel /usr/local/bin/picker-wheel 2>/dev/null || true",
+          "run": "chmod +x cli/picker-wheel && ln -sf $(pwd)/cli/picker-wheel ~/.local/bin/picker-wheel 2>/dev/null || true",
           "description": "Install CLI command globally"
         },
         {
@@ -174,7 +174,7 @@
         },
         {
           "name": "start-ui-server",
-          "run": "cd ui && env PORT=$UI_PORT API_URL=http://localhost:$API_PORT npm start",
+          "run": "cd ui && node server.js",
           "description": "Start UI server in background",
           "background": true
         },

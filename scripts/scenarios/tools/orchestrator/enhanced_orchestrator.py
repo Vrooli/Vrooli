@@ -412,18 +412,16 @@ class EnhancedAppOrchestrator:
             port_env = self.get_port_environment(app)
             env.update(port_env)
             
-            # Call lifecycle.sh through environment setup wrapper
+            # Call lifecycle.sh directly (it handles resource environment loading internally)
             lifecycle_script = self.vrooli_root / "scripts" / "lib" / "utils" / "lifecycle.sh"
-            env_setup_script = self.vrooli_root / "scripts" / "lib" / "utils" / "scenario-env-setup.sh"
             
             # Ensure log directory exists
             app.log_file.parent.mkdir(parents=True, exist_ok=True)
             
-            # Start the lifecycle execution in background with proper resource environment
-            # The wrapper script will add resource connection details (postgres, redis, etc.)
+            # Start the lifecycle execution in background
+            # lifecycle.sh automatically loads resource environments via lifecycle::load_resource_environments()
             with open(app.log_file, 'a') as log_f:
                 app.process = await asyncio.create_subprocess_exec(
-                    str(env_setup_script),
                     "bash", str(lifecycle_script), app_name, "develop", "--fast",
                     env=env,
                     stdout=log_f,
@@ -946,7 +944,14 @@ class EnhancedAppOrchestrator:
         app = self.apps[app_name]
         
         # Update status based on actual process state
-        if app.status == "running" and not app.is_running():
+        is_running = app.is_running()
+        if is_running and app.status != "running":
+            # App is running but status says stopped - update it
+            app.status = "running"
+            if not app.started_at:
+                app.started_at = datetime.now()
+        elif not is_running and app.status == "running":
+            # App is not running but status says running - update it
             app.status = "stopped"
             app.stopped_at = datetime.now()
             app.pid = None

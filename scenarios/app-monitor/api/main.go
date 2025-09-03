@@ -8,7 +8,9 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/docker/docker/api/types"
@@ -51,6 +53,41 @@ type HealthStatus struct {
 	Services  map[string]string `json:"services"`
 }
 
+// OrchestratorResponse represents the response from vrooli scenario status --json
+type OrchestratorResponse struct {
+	Total   int                   `json:"total"`
+	Running int                   `json:"running"`
+	Apps    []OrchestratorApp     `json:"apps"`
+}
+
+type OrchestratorApp struct {
+	Name           string            `json:"name"`
+	Status         string            `json:"status"`
+	ActualHealth   string            `json:"actual_health,omitempty"`
+	AllocatedPorts map[string]int    `json:"allocated_ports,omitempty"`
+	PID            int               `json:"pid,omitempty"`
+	StartedAt      string            `json:"started_at,omitempty"`
+	StoppedAt      string            `json:"stopped_at,omitempty"`
+	RestartCount   int               `json:"restart_count,omitempty"`
+}
+
+// Resource represents a Vrooli resource
+type Resource struct {
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	Type    string `json:"type"`
+	Status  string `json:"status"`
+	Enabled bool   `json:"enabled"`
+	Running bool   `json:"running"`
+}
+
+// VrooliResource represents the response from vrooli resource status --json
+type VrooliResource struct {
+	Name    string `json:"Name"`
+	Enabled bool   `json:"Enabled"`
+	Running bool   `json:"Running"`
+}
+
 type Server struct {
 	db          *sql.DB
 	redis       *redis.Client
@@ -83,31 +120,35 @@ func NewServer() (*Server, error) {
 	n8nBaseURL := getEnv("N8N_BASE_URL", "http://localhost:5678")
 	nodeRedURL := getEnv("NODE_RED_BASE_URL", "http://localhost:1880")
 
-	// Initialize database connection
+	// Initialize database connection (optional for now since we use vrooli CLI)
 	db, err := sql.Open("postgres", postgresURL)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to database: %w", err)
+		log.Printf("Warning: failed to connect to database: %v (continuing without DB)", err)
+		db = nil
+	} else if err := db.Ping(); err != nil {
+		log.Printf("Warning: failed to ping database: %v (continuing without DB)", err)
+		db = nil
 	}
 
-	if err := db.Ping(); err != nil {
-		return nil, fmt.Errorf("failed to ping database: %w", err)
-	}
-
-	// Initialize Redis connection
+	// Initialize Redis connection (optional)
+	var rdb *redis.Client
 	redisOpts, err := redis.ParseURL(redisURL)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse Redis URL: %w", err)
+		log.Printf("Warning: failed to parse Redis URL: %v (continuing without Redis)", err)
+		rdb = nil
+	} else {
+		rdb = redis.NewClient(redisOpts)
+		if err := rdb.Ping(context.Background()).Err(); err != nil {
+			log.Printf("Warning: failed to connect to Redis: %v (continuing without Redis)", err)
+			rdb = nil
+		}
 	}
-	rdb := redis.NewClient(redisOpts)
 
-	if err := rdb.Ping(context.Background()).Err(); err != nil {
-		return nil, fmt.Errorf("failed to connect to Redis: %w", err)
-	}
-
-	// Initialize Docker client
+	// Initialize Docker client (optional)
 	dockerClient, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
-		return nil, fmt.Errorf("failed to create Docker client: %w", err)
+		log.Printf("Warning: failed to create Docker client: %v (continuing without Docker)", err)
+		dockerClient = nil
 	}
 
 	return &Server{
@@ -157,6 +198,9 @@ func setupRoutes(s *Server) *gin.Engine {
 	r.GET("/health", s.healthCheck)
 	r.GET("/api/health", s.apiHealth)
 
+	// System endpoints
+	r.GET("/api/system/info", s.getSystemInfo)
+
 	// App management endpoints
 	r.GET("/api/apps", s.getApps)
 	r.GET("/api/apps/:id", s.getApp)
@@ -164,6 +208,9 @@ func setupRoutes(s *Server) *gin.Engine {
 	r.POST("/api/apps/:id/stop", s.stopApp)
 	r.GET("/api/apps/:id/logs", s.getAppLogs)
 	r.GET("/api/apps/:id/metrics", s.getAppMetrics)
+	
+	// Resource endpoints
+	r.GET("/api/resources", s.getResources)
 
 	// Docker integration endpoints
 	r.GET("/api/docker/info", s.getDockerInfo)
@@ -180,21 +227,27 @@ func (s *Server) healthCheck(c *gin.Context) {
 	services := make(map[string]string)
 
 	// Check database
-	if err := s.db.Ping(); err != nil {
+	if s.db == nil {
+		services["database"] = "disabled"
+	} else if err := s.db.Ping(); err != nil {
 		services["database"] = "error"
 	} else {
 		services["database"] = "ok"
 	}
 
 	// Check Redis
-	if err := s.redis.Ping(ctx).Err(); err != nil {
+	if s.redis == nil {
+		services["redis"] = "disabled"
+	} else if err := s.redis.Ping(ctx).Err(); err != nil {
 		services["redis"] = "error"
 	} else {
 		services["redis"] = "ok"
 	}
 
 	// Check Docker
-	if _, err := s.docker.Ping(ctx); err != nil {
+	if s.docker == nil {
+		services["docker"] = "disabled"
+	} else if _, err := s.docker.Ping(ctx); err != nil {
 		services["docker"] = "error"
 	} else {
 		services["docker"] = "ok"
@@ -224,42 +277,144 @@ func (s *Server) apiHealth(c *gin.Context) {
 	})
 }
 
-func (s *Server) getApps(c *gin.Context) {
-	query := `
-		SELECT a.id, a.name, a.scenario_name, a.path, a.created_at, a.updated_at, a.status,
-		       COALESCE(a.port_mappings, '{}') as port_mappings,
-		       COALESCE(a.environment, '{}') as environment,
-		       COALESCE(a.config, '{}') as config
-		FROM apps a
-		ORDER BY a.name
-	`
-
-	rows, err := s.db.Query(query)
+func (s *Server) getSystemInfo(c *gin.Context) {
+	// Get orchestrator PID first
+	pidCmd := exec.Command("bash", "-c", "ps aux | grep 'enhanced_orchestrator.py' | grep -v grep | awk '{print $2}' | head -1")
+	pidOutput, err := pidCmd.Output()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch apps"})
+		log.Printf("Failed to get orchestrator PID: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get orchestrator process"})
 		return
 	}
-	defer rows.Close()
 
-	var apps []App
-	for rows.Next() {
-		var app App
-		var portMappingsJSON, environmentJSON, configJSON string
+	pid := strings.TrimSpace(string(pidOutput))
+	if pid == "" {
+		c.JSON(http.StatusOK, gin.H{
+			"orchestrator_running": false,
+			"uptime": "00:00:00",
+			"uptime_seconds": 0,
+		})
+		return
+	}
 
-		err := rows.Scan(
-			&app.ID, &app.Name, &app.ScenarioName, &app.Path,
-			&app.CreatedAt, &app.UpdatedAt, &app.Status,
-			&portMappingsJSON, &environmentJSON, &configJSON,
-		)
-		if err != nil {
-			log.Printf("Error scanning app row: %v", err)
-			continue
+	// Get uptime using the PID
+	uptimeCmd := exec.Command("ps", "-p", pid, "-o", "etime=")
+	uptimeOutput, err := uptimeCmd.Output()
+	if err != nil {
+		log.Printf("Failed to get orchestrator uptime: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get orchestrator uptime"})
+		return
+	}
+
+	uptime := strings.TrimSpace(string(uptimeOutput))
+	
+	// Parse uptime to seconds for easier use
+	uptimeSeconds := parseUptimeToSeconds(uptime)
+
+	// Get orchestrator status from API
+	orchStatus := make(map[string]interface{})
+	resp, err := http.Get("http://localhost:9500/status")
+	if err == nil {
+		defer resp.Body.Close()
+		json.NewDecoder(resp.Body).Decode(&orchStatus)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"orchestrator_running": true,
+		"orchestrator_pid": pid,
+		"uptime": uptime,
+		"uptime_seconds": uptimeSeconds,
+		"orchestrator_status": orchStatus,
+		"timestamp": time.Now().Format(time.RFC3339),
+	})
+}
+
+// Helper function to parse uptime string to seconds
+func parseUptimeToSeconds(uptime string) int {
+	uptime = strings.TrimSpace(uptime)
+	parts := strings.Split(uptime, ":")
+	
+	switch len(parts) {
+	case 2: // MM:SS
+		minutes, _ := strconv.Atoi(parts[0])
+		seconds, _ := strconv.Atoi(parts[1])
+		return minutes*60 + seconds
+	case 3: // HH:MM:SS or DD-HH:MM
+		if strings.Contains(parts[0], "-") {
+			// DD-HH:MM format
+			dayHour := strings.Split(parts[0], "-")
+			days, _ := strconv.Atoi(dayHour[0])
+			hours, _ := strconv.Atoi(dayHour[1])
+			minutes, _ := strconv.Atoi(parts[1])
+			seconds, _ := strconv.Atoi(parts[2])
+			return days*86400 + hours*3600 + minutes*60 + seconds
+		} else {
+			// HH:MM:SS format
+			hours, _ := strconv.Atoi(parts[0])
+			minutes, _ := strconv.Atoi(parts[1])
+			seconds, _ := strconv.Atoi(parts[2])
+			return hours*3600 + minutes*60 + seconds
+		}
+	default:
+		return 0
+	}
+}
+
+func (s *Server) getApps(c *gin.Context) {
+	// Execute vrooli scenario status --json to get real-time app status
+	cmd := exec.Command("vrooli", "scenario", "status", "--json")
+	output, err := cmd.Output()
+	if err != nil {
+		log.Printf("Failed to execute vrooli scenario status: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch apps from orchestrator"})
+		return
+	}
+
+	// Parse the orchestrator response
+	var orchestratorResp OrchestratorResponse
+	if err := json.Unmarshal(output, &orchestratorResp); err != nil {
+		log.Printf("Failed to parse orchestrator response: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse orchestrator response"})
+		return
+	}
+
+	// Convert orchestrator apps to our App format
+	apps := make([]App, 0, len(orchestratorResp.Apps))
+	for _, orchApp := range orchestratorResp.Apps {
+		// Map orchestrator status to our status format
+		status := orchApp.Status
+		if orchApp.Status == "running" && orchApp.ActualHealth != "" {
+			// Use actual health for running apps
+			if orchApp.ActualHealth == "degraded" || orchApp.ActualHealth == "unhealthy" {
+				status = orchApp.ActualHealth
+			}
 		}
 
-		// Parse JSON fields
-		json.Unmarshal([]byte(portMappingsJSON), &app.PortMappings)
-		json.Unmarshal([]byte(environmentJSON), &app.Environment)
-		json.Unmarshal([]byte(configJSON), &app.Config)
+		// Format ports for display
+		portMappings := make(map[string]interface{})
+		for name, port := range orchApp.AllocatedPorts {
+			portMappings[name] = port
+		}
+
+		app := App{
+			ID:           orchApp.Name, // Use name as ID for now
+			Name:         orchApp.Name,
+			ScenarioName: orchApp.Name,
+			Status:       status,
+			PortMappings: portMappings,
+			Environment:  make(map[string]interface{}),
+			Config:       make(map[string]interface{}),
+			CreatedAt:    time.Now(), // We'll improve this later
+			UpdatedAt:    time.Now(),
+		}
+		
+		// Parse started_at if available
+		if orchApp.StartedAt != "" && orchApp.StartedAt != "never" {
+			if t, err := time.Parse(time.RFC3339, orchApp.StartedAt); err == nil {
+				app.CreatedAt = t
+				app.UpdatedAt = t
+			}
+		}
 
 		apps = append(apps, app)
 	}
@@ -518,6 +673,70 @@ func (s *Server) getContainers(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, containers)
+}
+
+func (s *Server) getResources(c *gin.Context) {
+	// Execute vrooli resource status --json to get real-time resource status
+	cmd := exec.Command("vrooli", "resource", "status", "--json")
+	output, err := cmd.Output()
+	if err != nil {
+		log.Printf("Failed to execute vrooli resource status: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch resources"})
+		return
+	}
+
+	// Parse the JSON response
+	var vrooliResources []VrooliResource
+	if err := json.Unmarshal(output, &vrooliResources); err != nil {
+		log.Printf("Failed to parse resource response: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse resource response"})
+		return
+	}
+
+	// Convert to our Resource format
+	resources := make([]Resource, 0, len(vrooliResources))
+	for _, vr := range vrooliResources {
+		// Determine status based on enabled/running state
+		status := "offline"
+		if vr.Running {
+			status = "online"
+		} else if vr.Enabled {
+			status = "stopped"
+		}
+
+		// Map resource type from name
+		resourceType := vr.Name
+		switch vr.Name {
+		case "postgres", "postgresql":
+			resourceType = "postgres"
+		case "redis":
+			resourceType = "redis"
+		case "n8n":
+			resourceType = "n8n"
+		case "ollama":
+			resourceType = "ollama"
+		case "qdrant":
+			resourceType = "qdrant"
+		case "minio":
+			resourceType = "minio"
+		case "windmill":
+			resourceType = "windmill"
+		case "node-red", "nodered":
+			resourceType = "node-red"
+		}
+
+		resource := Resource{
+			ID:      vr.Name,
+			Name:    vr.Name,
+			Type:    resourceType,
+			Status:  status,
+			Enabled: vr.Enabled,
+			Running: vr.Running,
+		}
+		resources = append(resources, resource)
+	}
+
+	c.JSON(http.StatusOK, resources)
 }
 
 func (s *Server) handleWebSocket(c *gin.Context) {

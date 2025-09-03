@@ -4,7 +4,18 @@ const http = require('http');
 
 const app = express();
 const PORT = process.env.UI_PORT || 3000;
-const API_PORT = process.env.API_PORT || 8090;
+const SCENARIO_NAME = process.env.SCENARIO_NAME || 'app-issue-tracker';
+
+
+// Health check endpoint for orchestrator
+app.get('/health', (req, res) => {
+    res.json({ 
+        status: 'healthy',
+        scenario: 'app-issue-tracker',
+        port: PORT,
+        timestamp: new Date().toISOString()
+    });
+});
 
 // Manual proxy function for API calls
 function proxyToApi(req, res, apiPath) {

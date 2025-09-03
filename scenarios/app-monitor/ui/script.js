@@ -10,11 +10,11 @@ let resources = [];
 let selectedApp = null;
 
 // Initialize dashboard
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     initializeWebSocket();
     initializeEventListeners();
-    loadInitialData();
-    startUptimeCounter();
+    await loadInitialData();  // Wait for initial data to load
+    startUptimeCounter();     // Now start the counter with actual uptime
     initializeMatrixEffect();
 });
 
@@ -113,6 +113,7 @@ function initializeEventListeners() {
 
 // Load initial data
 async function loadInitialData() {
+    await loadSystemInfo();
     await loadApps();
     await loadResources();
     await loadMetrics();
@@ -244,15 +245,92 @@ function createResourceCard(resource) {
 function getResourceIcon(type) {
     const icons = {
         'postgres': '🗄️',
+        'postgresql': '🗄️',
         'redis': '⚡',
         'n8n': '🔄',
         'ollama': '🤖',
         'windmill': '🌀',
         'node-red': '🔴',
+        'nodered': '🔴',
         'qdrant': '🔍',
-        'minio': '📦'
+        'minio': '📦',
+        'docker': '🐳',
+        'kubernetes': '☸️',
+        'mongodb': '🍃',
+        'mysql': '🐬',
+        'elasticsearch': '🔎',
+        'kafka': '📨',
+        'rabbitmq': '🐰',
+        'nginx': '🌐',
+        'apache': '🪶',
+        'jenkins': '🏗️',
+        'gitlab': '🦊',
+        'github': '🐙',
+        'grafana': '📊',
+        'prometheus': '📈',
+        'vault': '🔐',
+        'consul': '🔗',
+        'terraform': '🏗️',
+        'ansible': '⚙️',
+        'traefik': '🚦',
+        'portainer': '🚢',
+        'keycloak': '🔑',
+        'jupyterhub': '📓',
+        'airflow': '🌬️',
+        'superset': '📊',
+        'metabase': '📊',
+        'hasura': '⚡',
+        'strapi': '🚀',
+        'supabase': '⚡',
+        'appsmith': '🛠️',
+        'budibase': '🏗️',
+        'nocodb': '📊',
+        'baserow': '📊',
+        'directus': '🎯',
+        'pocketbase': '📦',
+        'umami': '📊',
+        'plausible': '📊',
+        'matomo': '📊',
+        'sentry': '🚨',
+        'datadog': '🐕',
+        'newrelic': '👁️',
+        'splunk': '🔍',
+        'elastic': '🔍',
+        'logstash': '📝',
+        'kibana': '📊',
+        'fluentd': '💧',
+        'vector': '➡️',
+        'temporal': '⏰',
+        'camunda': '⚙️',
+        'activiti': '⚙️',
+        'prefect': '🌊',
+        'dagster': '⛰️',
+        'dbt': '🔧',
+        'spark': '✨',
+        'flink': '⚡',
+        'beam': '📡',
+        'nifi': '🌊',
+        'streamsets': '🌊',
+        'airbyte': '🔄',
+        'fivetran': '🔄',
+        'stitch': '🔄',
+        'segment': '📊',
+        'rudderstack': '📊',
+        'snowplow': '❄️',
+        'mixpanel': '📊',
+        'amplitude': '📊',
+        'heap': '📊',
+        'posthog': '🦔',
+        'growthbook': '📊',
+        'flagsmith': '🚩',
+        'launchdarkly': '🚀',
+        'unleash': '🚀',
+        'flipt': '🔄',
+        'statsig': '📊',
+        'split': '🔀',
+        'optimizely': '🎯'
     };
-    return icons[type] || '📊';
+    return icons[type.toLowerCase()] || '📊';
 }
 
 // Switch view
@@ -642,17 +720,73 @@ function updateCharts(metrics) {
     drawChart('disk-chart', metrics.disk || 0);
 }
 
-// Uptime counter
+// Global variable to store initial uptime
+let orchestratorUptimeSeconds = 0;
+
+// Load system info including real uptime
+async function loadSystemInfo() {
+    try {
+        const response = await fetch(`${API_BASE}/api/system/info`);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        
+        const systemInfo = await response.json();
+        console.log('System info loaded:', systemInfo); // Debug log
+        
+        if (systemInfo.orchestrator_running) {
+            orchestratorUptimeSeconds = systemInfo.uptime_seconds || 0;
+            console.log('Orchestrator uptime seconds set to:', orchestratorUptimeSeconds); // Debug log
+            updateSystemStatus('ONLINE');
+            addLog('info', `Orchestrator running - PID: ${systemInfo.orchestrator_pid}, Uptime: ${systemInfo.uptime}`);
+            
+            // Immediately display the actual uptime
+            const days = Math.floor(orchestratorUptimeSeconds / 86400);
+            const hours = Math.floor((orchestratorUptimeSeconds % 86400) / 3600);
+            const minutes = Math.floor((orchestratorUptimeSeconds % 3600) / 60);
+            const secs = orchestratorUptimeSeconds % 60;
+            
+            let uptime;
+            if (days > 0) {
+                uptime = `${days}d ${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+            } else {
+                uptime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+            }
+            
+            document.getElementById('uptime').textContent = uptime;
+        } else {
+            orchestratorUptimeSeconds = 0;
+            updateSystemStatus('OFFLINE');
+            addLog('warning', 'Orchestrator not running');
+        }
+    } catch (error) {
+        console.error('Failed to load system info:', error);
+        orchestratorUptimeSeconds = 0;
+        addLog('error', `Failed to load system info: ${error.message}`);
+    }
+}
+
+// Uptime counter using real orchestrator uptime
 function startUptimeCounter() {
-    let seconds = 0;
+    let baseSeconds = orchestratorUptimeSeconds;
+    let startTime = Date.now();
+    
+    console.log('Starting uptime counter with base seconds:', baseSeconds); // Debug log
     
     setInterval(() => {
-        seconds++;
-        const hours = Math.floor(seconds / 3600);
-        const minutes = Math.floor((seconds % 3600) / 60);
-        const secs = seconds % 60;
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        const totalSeconds = baseSeconds + elapsed;
         
-        const uptime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        const days = Math.floor(totalSeconds / 86400);
+        const hours = Math.floor((totalSeconds % 86400) / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const secs = totalSeconds % 60;
+        
+        let uptime;
+        if (days > 0) {
+            uptime = `${days}d ${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        } else {
+            uptime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        }
+        
         document.getElementById('uptime').textContent = uptime;
     }, 1000);
 }

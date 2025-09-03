@@ -3,7 +3,7 @@ nameOverride: ""
 fullnameOverride: "vrooli"
 
 image:
-  registry: "docker.io/${DOCKER_HUB_USERNAME:-matthalloran8}"
+  registry: "docker.io/${DOCKER_HUB_USERNAME}"
   tag: "2.0.0"
   pullPolicy: Always
 

@@ -61,7 +61,7 @@
       "initialization": [
         {
           "file": "initialization/storage/postgres/schema.sql",
-          "type": "script"
+          "type": "schema"
         }
       ]
     },
@@ -229,16 +229,12 @@
         },
         {
           "name": "wait-for-api",
-          "run": "sleep 2 && curl -sf http://localhost:$API_PORT/health > /dev/null",
-          "description": "Wait for API server to be ready",
-          "retry": {
-            "max_attempts": 15,
-            "delay": 1
-          }
+          "run": "../../scripts/lib/utils/wait-for-service.sh http://localhost:$API_PORT/health 15 2",
+          "description": "Wait for API server to be ready"
         },
         {
           "name": "start-ui-server",
-          "run": "cd ui && env UI_PORT=$UI_PORT npm start",
+          "run": "cd ui && node server.js",
           "description": "Start Node.js UI server in background",
           "background": true,
           "condition": {
@@ -248,11 +244,7 @@
         {
           "name": "wait-for-ui",
           "run": "sleep 3 && curl -sf http://localhost:$UI_PORT/health > /dev/null",
-          "description": "Wait for UI server to be ready",
-          "retry": {
-            "max_attempts": 10,
-            "delay": 2
-          }
+          "description": "Wait for UI server to be ready"
         },
         {
           "name": "initialize-redis-queues",

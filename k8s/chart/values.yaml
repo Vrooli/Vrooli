@@ -29,15 +29,15 @@ imagePullSecrets:
 # A Kubernetes Secret (ImagePullSecret) named 'vrooli-dockerhub-pull-secret' is expected to be created
 # by the Vault Secrets Operator (VSO), containing credentials for this Docker Hub user.
 # This secret allows Kubernetes to pull private images from the specified user's Docker Hub repositories.
-dockerhubUsername: "${DOCKER_HUB_USERNAME:-matthalloran8}"
+dockerhubUsername: "${DOCKER_HUB_USERNAME}"
 
 # --- Global Image Settings ---
 # These settings apply to all container images deployed by the chart, unless overridden at the service level.
 image:
-  # `registry` specifies the Docker registry host and path (e.g., "docker.io/matthalloran8").
+  # `registry` specifies the Docker registry host and path (e.g., "docker.io/username").
   # This is prepended to service-specific image names defined in `services.<name>.repository`
   # UNLESS the `services.<name>.repository` value is a full image path (e.g., contains a '/').
-  registry: "docker.io/${DOCKER_HUB_USERNAME:-matthalloran8}"
+  registry: "docker.io/${DOCKER_HUB_USERNAME}"
   # `pullPolicy` defines when Kubernetes should attempt to pull the image.
   # - IfNotPresent: Pull only if the image is not already on the node.
   # - Always: Always pull the image, even if present. Useful for 'latest' tags or frequent updates.

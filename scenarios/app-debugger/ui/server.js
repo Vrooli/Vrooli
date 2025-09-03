@@ -3,7 +3,7 @@ const cors = require('cors');
 const path = require('path');
 
 const app = express();
-const PORT = process.env.PORT || 30151;
+const PORT = process.env.UI_PORT || process.env.PORT;
 
 // Enable CORS for API communication
 app.use(cors());
