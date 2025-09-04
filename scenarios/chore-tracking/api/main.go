@@ -443,7 +443,7 @@ func main() {
     
     handler := c.Handler(router)
     
-    port := getEnv("CHORE_API_PORT", "8456")
+    port := getEnv("API_PORT", getEnv("PORT", ""))
     log.Printf("🎮 ChoreQuest API Server starting on port %s", port)
     log.Fatal(http.ListenAndServe(":"+port, handler))
 }

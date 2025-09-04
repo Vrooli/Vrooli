@@ -1,0 +1,133 @@
+version: 1.0
+scenario: core-debugger
+
+# Structure validation - files and directories that MUST exist:
+structure:
+  required_files:
+    - .vrooli/service.json
+    - PRD.md
+    - api/main.go
+    - api/go.mod
+    - cli/core-debugger
+    - data/components.json
+    - data/workarounds/common.json
+    - scenario-test.yaml
+    
+  required_dirs:
+    - api
+    - cli
+    - data
+    - data/issues
+    - data/health
+    - data/workarounds
+    - data/patterns
+    - data/logs
+    - ui
+    - scripts
+
+# Resource validation:
+resources:
+  required: [claude-code]
+  optional: []
+  health_timeout: 30
+
+# Declarative tests:
+tests:
+  # File structure tests:
+  - name: "Data directories exist"
+    type: file
+    path: data
+    operation: directory_exists
+    expect:
+      exists: true
+      
+  - name: "Components registry is valid JSON"
+    type: json
+    file: data/components.json
+    expect:
+      valid: true
+      has_key: components
+      
+  - name: "Workarounds database is valid"
+    type: json
+    file: data/workarounds/common.json
+    expect:
+      valid: true
+      has_key: workarounds
+      
+  # CLI tests:
+  - name: "CLI is executable"
+    type: exec
+    command: test -x cli/core-debugger
+    expect:
+      exit_code: 0
+      
+  - name: "CLI help command works"
+    type: exec
+    command: ./cli/core-debugger help
+    expect:
+      exit_code: 0
+      output_contains: ["Core Debugger", "COMMANDS", "status"]
+      
+  - name: "CLI version command works"
+    type: exec
+    command: ./cli/core-debugger version
+    expect:
+      exit_code: 0
+      output_contains: ["Core Debugger", "v1.0.0"]
+      
+  # API build tests:
+  - name: "API Go modules are valid"
+    type: exec
+    command: cd api && go mod verify
+    expect:
+      exit_code: 0
+      
+  - name: "API builds successfully"
+    type: exec
+    command: cd api && go build -o test-build main.go && rm test-build
+    expect:
+      exit_code: 0
+      
+  # Health monitoring tests:
+  - name: "Health monitor script is executable"
+    type: exec
+    command: test -x scripts/health-monitor.sh
+    expect:
+      exit_code: 0
+      
+  # Integration tests (when API is running):
+  - name: "API health endpoint responds"
+    type: http
+    service: api
+    endpoint: /health
+    method: GET
+    condition:
+      service_running: api
+    expect:
+      status: 200
+      body_contains: ["status", "components"]
+      
+  - name: "API issues endpoint responds"
+    type: http
+    service: api
+    endpoint: /api/v1/issues
+    method: GET
+    condition:
+      service_running: api
+    expect:
+      status: 200
+      body_contains: ["issues"]
+      
+  # File-based storage tests:
+  - name: "Issue storage is writable"
+    type: exec
+    command: touch data/issues/test.json && rm data/issues/test.json
+    expect:
+      exit_code: 0
+      
+  - name: "Health logs are writable"
+    type: exec
+    command: echo "test" >> data/health/test.jsonl && rm data/health/test.jsonl
+    expect:
+      exit_code: 0

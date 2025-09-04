@@ -104,6 +104,10 @@ pm::start() {
     # We have the lock - proceed with starting the process
     echo -e "${BLUE}Starting: $name${NC}"
     
+    # Clear the log file for fresh execution (avoid confusion from old runs)
+    # This ensures each process start has a clean log
+    > "$log_file"
+    
     # Save process info
     cat > "$info_file" <<EOF
 command=$command

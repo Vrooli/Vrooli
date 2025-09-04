@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Core Debugger - Vrooli Infrastructure Status</title>
+    <style>
+        :root {
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-tertiary: #21262d;
+            --text-primary: #c9d1d9;
+            --text-secondary: #8b949e;
+            --border: #30363d;
+            --green: #3fb950;
+            --yellow: #d29922;
+            --red: #f85149;
+            --blue: #58a6ff;
+            --purple: #bc8cff;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        header {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            padding: 1.5rem 0;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h1 {
+            font-size: 1.75rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .logo {
+            width: 32px;
+            height: 32px;
+            background: var(--blue);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .overall-status {
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .status-healthy { background: var(--green); }
+        .status-degraded { background: var(--yellow); }
+        .status-critical { background: var(--red); }
+
+        .overall-status.healthy {
+            background: rgba(63, 185, 80, 0.1);
+            color: var(--green);
+            border: 1px solid rgba(63, 185, 80, 0.3);
+        }
+
+        .overall-status.degraded {
+            background: rgba(210, 153, 34, 0.1);
+            color: var(--yellow);
+            border: 1px solid rgba(210, 153, 34, 0.3);
+        }
+
+        .overall-status.critical {
+            background: rgba(248, 81, 73, 0.1);
+            color: var(--red);
+            border: 1px solid rgba(248, 81, 73, 0.3);
+        }
+
+        main {
+            padding: 2rem 0;
+        }
+
+        .dashboard {
+            display: grid;
+            gap: 2rem;
+        }
+
+        .section {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .section-header {
+            padding: 1rem 1.5rem;
+            background: var(--bg-tertiary);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .section-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .section-content {
+            padding: 1.5rem;
+        }
+
+        .component-grid {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .component-item {
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s;
+        }
+
+        .component-item:hover {
+            border-color: var(--blue);
+        }
+
+        .component-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .component-name {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .component-desc {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .component-status {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .response-time {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .issues-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .issue-item {
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+        }
+
+        .issue-severity {
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .severity-critical {
+            background: rgba(248, 81, 73, 0.1);
+            color: var(--red);
+            border: 1px solid rgba(248, 81, 73, 0.3);
+        }
+
+        .severity-high {
+            background: rgba(210, 153, 34, 0.1);
+            color: var(--yellow);
+            border: 1px solid rgba(210, 153, 34, 0.3);
+        }
+
+        .severity-medium, .severity-low {
+            background: rgba(88, 166, 255, 0.1);
+            color: var(--blue);
+            border: 1px solid rgba(88, 166, 255, 0.3);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .stat-card {
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 1rem;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        .refresh-btn {
+            background: var(--blue);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        .refresh-btn:hover {
+            opacity: 0.9;
+        }
+
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem;
+            color: var(--text-secondary);
+        }
+
+        .spinner {
+            border: 2px solid var(--border);
+            border-top: 2px solid var(--blue);
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            margin-right: 0.5rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .last-updated {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        .error-message {
+            background: rgba(248, 81, 73, 0.1);
+            border: 1px solid rgba(248, 81, 73, 0.3);
+            color: var(--red);
+            padding: 1rem;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+        }
+
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <h1>
+                    <span class="logo">🔍</span>
+                    Core Debugger Status
+                </h1>
+                <div id="overall-status" class="overall-status healthy">
+                    <span class="status-indicator status-healthy"></span>
+                    <span>All Systems Operational</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <div class="container">
+            <div class="dashboard">
+                <!-- Statistics -->
+                <div class="section">
+                    <div class="section-header">
+                        <h2 class="section-title">System Overview</h2>
+                        <button class="refresh-btn" onclick="refreshData()">↻ Refresh</button>
+                    </div>
+                    <div class="section-content">
+                        <div class="stats-grid" id="stats-grid">
+                            <div class="stat-card">
+                                <div class="stat-value">-</div>
+                                <div class="stat-label">Active Issues</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value">-</div>
+                                <div class="stat-label">Healthy Components</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value">-</div>
+                                <div class="stat-label">Known Workarounds</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value">-</div>
+                                <div class="stat-label">Avg Response Time</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Component Health -->
+                <div class="section">
+                    <div class="section-header">
+                        <h2 class="section-title">Component Health</h2>
+                        <span class="last-updated" id="last-updated">Last updated: -</span>
+                    </div>
+                    <div class="section-content">
+                        <div class="component-grid" id="components-grid">
+                            <div class="loading">
+                                <div class="spinner"></div>
+                                Loading components...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Active Issues -->
+                <div class="section">
+                    <div class="section-header">
+                        <h2 class="section-title">Active Issues</h2>
+                    </div>
+                    <div class="section-content">
+                        <div class="issues-list" id="issues-list">
+                            <div class="loading">
+                                <div class="spinner"></div>
+                                Loading issues...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const API_BASE = `http://localhost:${window.location.port.replace('100', '000')}/api/v1`;
+
+        async function fetchHealth() {
+            try {
+                const response = await fetch(`${API_BASE}/health`);
+                if (!response.ok) throw new Error('Failed to fetch health');
+                return await response.json();
+            } catch (error) {
+                console.error('Error fetching health:', error);
+                return null;
+            }
+        }
+
+        async function fetchIssues() {
+            try {
+                const response = await fetch(`${API_BASE}/issues`);
+                if (!response.ok) throw new Error('Failed to fetch issues');
+                const data = await response.json();
+                return data.issues || [];
+            } catch (error) {
+                console.error('Error fetching issues:', error);
+                return [];
+            }
+        }
+
+        function updateOverallStatus(status) {
+            const element = document.getElementById('overall-status');
+            element.className = `overall-status ${status}`;
+            
+            const indicator = element.querySelector('.status-indicator');
+            indicator.className = `status-indicator status-${status}`;
+            
+            const text = element.querySelector('span:last-child');
+            switch(status) {
+                case 'critical':
+                    text.textContent = 'Major Outage';
+                    break;
+                case 'degraded':
+                    text.textContent = 'Partial Outage';
+                    break;
+                default:
+                    text.textContent = 'All Systems Operational';
+            }
+        }
+
+        function renderComponents(components) {
+            const grid = document.getElementById('components-grid');
+            if (!components || components.length === 0) {
+                grid.innerHTML = '<div class="error-message">No component data available</div>';
+                return;
+            }
+
+            grid.innerHTML = components.map(comp => `
+                <div class="component-item">
+                    <div class="component-info">
+                        <span class="status-indicator status-${comp.status === 'healthy' ? 'healthy' : 'critical'}"></span>
+                        <div>
+                            <div class="component-name">${comp.component}</div>
+                            <div class="component-desc">Last checked: ${new Date(comp.last_check).toLocaleTimeString()}</div>
+                        </div>
+                    </div>
+                    <div class="component-status">
+                        <span class="response-time">${comp.response_time_ms}ms</span>
+                        <span style="color: ${comp.status === 'healthy' ? 'var(--green)' : 'var(--red)'}">
+                            ${comp.status === 'healthy' ? 'Operational' : 'Down'}
+                        </span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderIssues(issues) {
+            const list = document.getElementById('issues-list');
+            if (!issues || issues.length === 0) {
+                list.innerHTML = '<div style="color: var(--text-secondary); text-align: center; padding: 2rem;">No active issues</div>';
+                return;
+            }
+
+            list.innerHTML = issues.map(issue => `
+                <div class="issue-item">
+                    <div>
+                        <div style="margin-bottom: 0.5rem;">
+                            <span class="issue-severity severity-${issue.severity}">${issue.severity}</span>
+                            <span style="margin-left: 0.5rem; color: var(--text-secondary);">${issue.component}</span>
+                        </div>
+                        <div>${issue.description}</div>
+                        <div style="font-size: 0.875rem; color: var(--text-secondary); margin-top: 0.25rem;">
+                            First seen: ${new Date(issue.first_seen).toLocaleString()}
+                        </div>
+                    </div>
+                    <div>
+                        <span style="color: var(--text-secondary);">ID: ${issue.id}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function updateStats(health, issues) {
+            const stats = document.getElementById('stats-grid');
+            const activeIssues = health?.active_issues || issues?.length || 0;
+            const healthyComponents = health?.components?.filter(c => c.status === 'healthy').length || 0;
+            const totalComponents = health?.components?.length || 0;
+            const avgResponseTime = health?.components?.reduce((sum, c) => sum + c.response_time_ms, 0) / (totalComponents || 1);
+
+            stats.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-value" style="color: ${activeIssues > 0 ? 'var(--yellow)' : 'var(--green)'}">${activeIssues}</div>
+                    <div class="stat-label">Active Issues</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" style="color: var(--green)">${healthyComponents}/${totalComponents}</div>
+                    <div class="stat-label">Healthy Components</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" style="color: var(--blue)">8</div>
+                    <div class="stat-label">Known Workarounds</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${Math.round(avgResponseTime)}ms</div>
+                    <div class="stat-label">Avg Response Time</div>
+                </div>
+            `;
+        }
+
+        async function refreshData() {
+            const [health, issues] = await Promise.all([fetchHealth(), fetchIssues()]);
+            
+            if (health) {
+                updateOverallStatus(health.status);
+                renderComponents(health.components);
+                updateStats(health, issues);
+                
+                const lastUpdated = document.getElementById('last-updated');
+                lastUpdated.textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+            }
+            
+            renderIssues(issues);
+        }
+
+        // Initial load and auto-refresh
+        refreshData();
+        setInterval(refreshData, 30000); // Refresh every 30 seconds
+    </script>
+</body>
+</html>

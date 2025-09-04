@@ -21,9 +21,22 @@ scenario::run() {
     local phase="${1:-develop}"
     shift || true
     
-    # Call lifecycle.sh directly
+    # Set up logging for the scenario lifecycle execution
+    local lifecycle_log="${HOME}/.vrooli/logs/${scenario_name}.log"
+    mkdir -p "$(dirname "$lifecycle_log")"
+    
+    # Clear the log file for fresh execution (no confusion from old runs)
+    > "$lifecycle_log"
+    
+    # Call lifecycle.sh directly, capturing output to both console and log file
     log::info "Running scenario '$scenario_name' with direct lifecycle execution"
-    "${SCRIPT_DIR}/../utils/lifecycle.sh" "$scenario_name" "$phase" "$@"
+    
+    # Use tee to show output on console AND write to log file
+    # This preserves real-time output while capturing for later review
+    "${SCRIPT_DIR}/../utils/lifecycle.sh" "$scenario_name" "$phase" "$@" 2>&1 | tee -a "$lifecycle_log"
+    
+    # Preserve the exit code from the pipeline
+    return "${PIPESTATUS[0]}"
 }
 
 scenario::list() {

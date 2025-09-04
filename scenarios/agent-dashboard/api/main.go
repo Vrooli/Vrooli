@@ -31,10 +31,7 @@ type APIServer struct {
 }
 
 func main() {
-    port := os.Getenv("PORT")
-    if port == "" {
-        port = "8100"
-    }
+	port := getEnv("API_PORT", getEnv("PORT", ""))
 
     // API endpoints
     http.HandleFunc("/health", healthHandler)
@@ -46,6 +43,13 @@ func main() {
     if err := http.ListenAndServe(":"+port, nil); err != nil {
         log.Fatal(err)
     }
+}
+
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
 }
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {

@@ -97,11 +97,11 @@
       "initialization": [
         {
           "file": "initialization/storage/postgres/schema.sql",
-          "type": "script"
+          "type": "schema"
         },
         {
           "file": "initialization/storage/postgres/seed.sql",
-          "type": "script"
+          "type": "seed"
         }
       ]
     },
@@ -221,7 +221,7 @@
       "steps": [
         {
           "name": "start-api-server",
-          "run": "cd api && env PORT=$API_PORT ./idea-generator-api",
+          "run": "cd api && ./idea-generator-api",
           "description": "Start Go coordination API server in background",
           "background": true,
           "condition": {
@@ -230,7 +230,7 @@
         },
         {
           "name": "start-ui-server",
-          "run": "cd ui && env UI_PORT=$UI_PORT API_URL=http://localhost:$API_PORT npm start",
+          "run": "cd ui && node server.js",
           "description": "Start Node.js UI server in background",
           "background": true,
           "condition": {
@@ -239,12 +239,8 @@
         },
         {
           "name": "wait-for-api",
-          "run": "sleep 2 && curl -sf http://localhost:$API_PORT/health > /dev/null",
-          "description": "Wait for API server to be ready",
-          "retry": {
-            "max_attempts": 15,
-            "delay": 1
-          }
+          "run": "../../scripts/lib/utils/wait-for-service.sh http://localhost:$API_PORT/health 15 2",
+          "description": "Wait for API server to be ready"
         },
         {
           "name": "show-running-services",

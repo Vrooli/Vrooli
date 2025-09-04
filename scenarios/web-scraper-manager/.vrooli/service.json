@@ -220,7 +220,7 @@
         },
         {
           "name": "start-api-server",
-          "run": "cd api && env PORT=$API_PORT ./web-scraper-manager-api",
+          "run": "cd api && ./web-scraper-manager-api",
           "description": "Start Go coordination API server in background",
           "background": true,
           "condition": {

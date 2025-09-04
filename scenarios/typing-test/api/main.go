@@ -73,10 +73,7 @@ var n8nURL string
 
 func main() {
     // Get environment variables
-    port := os.Getenv("PORT")
-    if port == "" {
-        port = "9200"
-    }
+	port := getEnv("API_PORT", getEnv("PORT", ""))
 
     postgresURL := os.Getenv("POSTGRES_URL")
     if postgresURL == "" {
@@ -592,4 +589,11 @@ func generateFallbackText(request AdaptiveTextRequest) string {
 
     // Return first text as default
     return texts[0]
+}
+
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
 }

@@ -86,10 +86,16 @@ lifecycle::develop_with_auto_setup() {
     fi
     
     # Verify required resources are running before starting develop phase
-    log::info "Verifying required resources are running..."
-    if ! resource_verify::verify_with_priority; then
-        log::warning "Some required resources failed to start, but continuing with develop phase"
-        log::info "Scenarios may fail if they depend on unavailable resources"
+    # IMPORTANT: Only verify resources at the main Vrooli level, not for individual scenarios
+    # Scenarios should use resources managed by the main Vrooli orchestrator
+    if [[ "${SCENARIO_MODE:-false}" != "true" ]]; then
+        log::info "Verifying required resources are running..."
+        if ! resource_verify::verify_with_priority; then
+            log::warning "Some required resources failed to start, but continuing with develop phase"
+            log::info "Scenarios may fail if they depend on unavailable resources"
+        fi
+    else
+        log::debug "Skipping resource verification in scenario mode (resources managed by main Vrooli)"
     fi
     
     # Now run the actual develop phase
@@ -418,7 +424,8 @@ lifecycle::allocate_service_ports() {
         local env_var range fixed fallback description
         env_var=$(echo "$port_config" | jq -r '.env_var // ""')
         range=$(echo "$port_config" | jq -r '.range // ""')
-        fixed=$(echo "$port_config" | jq -r '.fixed // ""')
+        # Support both 'fixed' and 'port' fields for fixed port allocation
+        fixed=$(echo "$port_config" | jq -r '.fixed // .port // ""')
         fallback=$(echo "$port_config" | jq -r '.fallback // "auto"')
         description=$(echo "$port_config" | jq -r '.description // ""')
         

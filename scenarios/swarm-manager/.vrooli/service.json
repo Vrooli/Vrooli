@@ -137,7 +137,7 @@
         },
         {
           "name": "wait-for-api",
-          "run": "timeout 30 bash -c 'until curl -s http://localhost:${API_PORT:-8095}/health > /dev/null 2>&1; do sleep 1; done' || exit 1"
+          "run": "timeout 30 bash -c 'until curl -s http://localhost:${API_PORT}/health > /dev/null 2>&1; do sleep 1; done' || exit 1"
         },
         {
           "name": "start-ui",
@@ -146,7 +146,7 @@
         },
         {
           "name": "show-status",
-          "run": "echo '✅ Swarm Manager is running at http://localhost:${UI_PORT:-31011}'"
+          "run": "echo \"✅ Swarm Manager is running at http://localhost:${UI_PORT}\""
         }
       ]
     },

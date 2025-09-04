@@ -1,0 +1,13 @@
+{
+  "name": "workflow-scheduler-ui",
+  "version": "1.0.0",
+  "description": "UI server for workflow-scheduler",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}

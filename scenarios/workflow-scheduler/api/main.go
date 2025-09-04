@@ -164,10 +164,7 @@ func (a *App) setRoutes() {
 
 // Run starts the HTTP server
 func (a *App) Run() {
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8090"
-	}
+	port := getEnv("API_PORT", getEnv("PORT", ""))
 	
 	// Configure CORS
 	c := cors.New(cors.Options{
@@ -184,6 +181,13 @@ func (a *App) Run() {
 	if err := http.ListenAndServe(":"+port, handler); err != nil {
 		log.Fatal("Server failed to start:", err)
 	}
+}
+
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
 }
 
 // Health check endpoint

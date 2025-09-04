@@ -361,10 +361,7 @@ func healthCheck(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8049"
-	}
+	port := getEnv("API_PORT", getEnv("PORT", ""))
 	
 	n8nBaseURL = os.Getenv("N8N_BASE_URL")
 	if n8nBaseURL == "" {
@@ -398,4 +395,11 @@ func main() {
 	if err := http.ListenAndServe(":"+port, handler); err != nil {
 		log.Fatal("Server failed to start:", err)
 	}
+}
+
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
 }

@@ -251,16 +251,17 @@ func main() {
 
     handler := c.Handler(router)
     
-    port := os.Getenv("PORT")
-    if port == "" {
-        port = os.Getenv("API_PORT")
-        if port == "" {
-            port = "8080"
-        }
-    }
+	port := getEnv("API_PORT", getEnv("PORT", ""))
 
     log.Printf("Make It Vegan API starting on port %s", port)
     if err := http.ListenAndServe(":"+port, handler); err != nil {
         log.Fatal(err)
     }
+}
+
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
 }

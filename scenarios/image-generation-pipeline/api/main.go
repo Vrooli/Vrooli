@@ -86,7 +86,7 @@ type Config struct {
 
 func loadConfig() *Config {
 	return &Config{
-		Port:              getEnv("PORT", "8090"),
+		Port:              getEnv("API_PORT", getEnv("PORT", "")),
 		PostgresURL:       getEnv("POSTGRES_URL", "postgres://postgres:postgres@localhost:5432/image_generation_pipeline?sslmode=disable"),
 		N8NBaseURL:        getEnv("N8N_BASE_URL", "http://localhost:5678"),
 		WindmillBaseURL:   getEnv("WINDMILL_BASE_URL", "http://localhost:8000"),

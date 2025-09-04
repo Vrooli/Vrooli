@@ -1,11 +1,9 @@
 const express = require('express');
 const path = require('path');
 const app = express();
+const PORT = process.env.UI_PORT || process.env.PORT;
 
 // Get port from environment variable or default to 31005
-const PORT = process.env.UI_PORT || 31005;
-const API_PORT = process.env.API_PORT || 22000;
-const N8N_PORT = process.env.N8N_PORT || 5678;
 
 // Serve static files from current directory
 app.use(express.static(__dirname));

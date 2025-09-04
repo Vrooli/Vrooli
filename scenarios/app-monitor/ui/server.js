@@ -5,11 +5,10 @@ const http = require('http');
 require('dotenv').config();
 
 const app = express();
-const PORT = process.env.UI_PORT || 3000;
+const PORT = process.env.UI_PORT || process.env.PORT;
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-const SCENARIO_NAME = process.env.SCENARIO_NAME || 'app-monitor';
 const API_BASE = process.env.API_BASE || `http://localhost:${API_PORT}`;
 
 // Serve static files

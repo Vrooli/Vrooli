@@ -48,7 +48,7 @@ For each PostgreSQL node:
    - Host: localhost
    - Database: issue_tracker
    - User: postgres
-   - Password: postgres
+   - Password: [YOUR_POSTGRES_PASSWORD]
    - Port: 5432
 
 ### 5. Test the Workflow
@@ -142,7 +142,9 @@ curl "http://localhost:6333/collections"
 curl "http://localhost:8090/health"
 
 # Test PostgreSQL connection
-PGPASSWORD=postgres psql -h localhost -p 5432 -U postgres -d issue_tracker -c "SELECT COUNT(*) FROM issues;"
+# Set your PostgreSQL password as environment variable first:
+# export POSTGRES_PASSWORD="your_password_here"
+PGPASSWORD="${POSTGRES_PASSWORD}" psql -h localhost -p 5432 -U postgres -d issue_tracker -c "SELECT COUNT(*) FROM issues;"
 ```
 
 ## Monitoring

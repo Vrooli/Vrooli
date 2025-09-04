@@ -111,10 +111,7 @@ type App struct {
 
 func main() {
 	// Load environment variables
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8090"
-	}
+	port := getEnv("API_PORT", getEnv("PORT", ""))
 
 	// Initialize database
 	db, err := initDB()
@@ -606,4 +603,11 @@ func (app *App) getFileStats(c *gin.Context) {
 
 func (app *App) getProcessingStats(c *gin.Context) {
 	c.JSON(501, gin.H{"error": "Not implemented yet"})
+}
+
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
 }

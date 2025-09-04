@@ -1,0 +1,264 @@
+{
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "version": "2.0.0",
+  "service": {
+    "name": "core-debugger",
+    "displayName": "Core Debugger - Vrooli Infrastructure Monitor",
+    "description": "Monitors and debugs Vrooli core infrastructure (CLI, orchestrator, resource manager, setup scripts) with file-based issue tracking and workaround database",
+    "version": "1.0.0",
+    "tags": [
+      "infrastructure",
+      "monitoring",
+      "debugging",
+      "core",
+      "health-check",
+      "self-healing",
+      "file-based-storage",
+      "zero-dependency",
+      "claude-code-integration",
+      "git-trackable",
+      "workaround-database"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "port": 22000,
+      "fallback": "auto",
+      "description": "Core debugger API port"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "port": 22100,
+      "fallback": "auto",
+      "description": "Core debugger status page UI port"
+    }
+  },
+  "resources": {
+    "claude-code": {
+      "type": "claude-code",
+      "enabled": true,
+      "required": true,
+      "purpose": "Intelligent issue analysis and fix generation",
+      "description": "Analyzes core issues and suggests fixes"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Core Debugger health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
+    "setup": {
+      "description": "Initialize Core Debugger with file-based storage",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/core-debugger-api"
+            ]
+          },
+          {
+            "type": "directories",
+            "targets": [
+              "data/issues",
+              "data/health",
+              "data/workarounds"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "core-debugger"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "create-data-structure",
+          "run": "mkdir -p data/{issues,health,workarounds,patterns,logs}",
+          "description": "Create file-based storage directories"
+        },
+        {
+          "name": "initialize-component-registry",
+          "run": "cat > data/components.json << 'EOF'\n{\n  \"components\": [\n    {\n      \"id\": \"cli\",\n      \"name\": \"Vrooli CLI\",\n      \"description\": \"Main command-line interface\",\n      \"health_check\": \"vrooli help\",\n      \"critical\": true\n    },\n    {\n      \"id\": \"orchestrator\",\n      \"name\": \"Orchestrator\",\n      \"description\": \"Scenario orchestration system\",\n      \"health_check\": \"vrooli status\",\n      \"critical\": true\n    },\n    {\n      \"id\": \"resource-manager\",\n      \"name\": \"Resource Manager\",\n      \"description\": \"Resource lifecycle management\",\n      \"health_check\": \"vrooli resource list\",\n      \"critical\": true\n    },\n    {\n      \"id\": \"setup\",\n      \"name\": \"Setup Scripts\",\n      \"description\": \"Installation and configuration scripts\",\n      \"health_check\": \"test -f scripts/manage.sh\",\n      \"critical\": true\n    },\n    {\n      \"id\": \"api\",\n      \"name\": \"Core API\",\n      \"description\": \"Main Vrooli API server\",\n      \"health_check\": \"curl -sf http://localhost:4000/health || true\",\n      \"critical\": false\n    }\n  ]\n}\nEOF",
+          "description": "Initialize component registry"
+        },
+        {
+          "name": "create-issue-templates",
+          "run": "mkdir -p data/templates && cat > data/templates/issue-template.json << 'EOF'\n{\n  \"id\": \"\",\n  \"component\": \"\",\n  \"severity\": \"medium\",\n  \"status\": \"active\",\n  \"description\": \"\",\n  \"error_signature\": \"\",\n  \"first_seen\": \"\",\n  \"last_seen\": \"\",\n  \"occurrence_count\": 1,\n  \"workarounds\": [],\n  \"fix_attempts\": [],\n  \"metadata\": {}\n}\nEOF",
+          "description": "Create issue templates"
+        },
+        {
+          "name": "install-cli",
+          "run": "chmod +x cli/core-debugger && ln -sf $(pwd)/cli/core-debugger ~/.local/bin/core-debugger 2>/dev/null || echo '  CLI available at ./cli/core-debugger'",
+          "description": "Install CLI command"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o core-debugger-api main.go",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "initialize-health-baseline",
+          "run": "echo '{}' > data/health/baseline.json",
+          "description": "Initialize health baseline file"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🔍 Core Debugger initialized\\n  📊 Status Page: http://localhost:${UI_PORT}\\n  📡 API: http://localhost:${API_PORT}\\n  🎯 CLI: core-debugger --help\\n  📂 Data: ./data/\\n\\n💡 Check core health:\\n  core-debugger check-health\\n  core-debugger list-issues\\n  core-debugger status --verbose'",
+          "description": "Display service information"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start Core Debugger monitoring services",
+      "steps": [
+        {
+          "name": "ensure-api-built",
+          "run": "if [ ! -f api/core-debugger-api ]; then echo 'Building API...'; cd api && go mod download && go build -o core-debugger-api main.go; fi",
+          "description": "Ensure API binary exists"
+        },
+        {
+          "name": "start-api",
+          "run": "cd api && ./core-debugger-api",
+          "description": "Start Core Debugger API server",
+          "background": true,
+          "condition": {
+            "file_exists": "api/core-debugger-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && python3 -m http.server $UI_PORT > /dev/null 2>&1",
+          "description": "Start status page UI server",
+          "background": true
+        },
+        {
+          "name": "start-health-monitor",
+          "run": "bash scripts/health-monitor.sh &",
+          "description": "Start background health monitoring",
+          "background": true,
+          "condition": {
+            "file_exists": "scripts/health-monitor.sh"
+          }
+        },
+        {
+          "name": "wait-for-api",
+          "run": "../../scripts/lib/utils/wait-for-service.sh http://localhost:$API_PORT/health 15 2",
+          "description": "Wait for API server to be ready"
+        },
+        {
+          "name": "initial-health-check",
+          "run": "sleep 1 && ./cli/core-debugger check-health || true",
+          "description": "Run initial health check on all components"
+        },
+        {
+          "name": "show-running-services",
+          "run": "echo '🔍 Core Debugger running:\\n  📊 Status Page: http://localhost:$UI_PORT\\n  📡 API: http://localhost:$API_PORT/health\\n  🎯 CLI: core-debugger --help\\n\\n🔬 Monitor core components:\\n  core-debugger status\\n  core-debugger check-health --component cli\\n  core-debugger list-issues --severity critical\\n\\n📝 Report issues:\\n  core-debugger report-issue --component orchestrator --description \"Error details\"\\n  core-debugger analyze-issue <issue-id>'",
+          "description": "Display running services and usage"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test Core Debugger functionality",
+      "steps": [
+        {
+          "name": "test-data-structure",
+          "run": "test -d data/issues && test -d data/health && test -d data/workarounds && echo '✓ Data structure exists' || (echo '✗ Data structure missing' && exit 1)",
+          "description": "Verify data directories exist"
+        },
+        {
+          "name": "test-component-registry",
+          "run": "test -f data/components.json && jq '.components | length' data/components.json > /dev/null && echo '✓ Component registry valid' || (echo '✗ Component registry invalid' && exit 1)",
+          "description": "Verify component registry"
+        },
+        {
+          "name": "test-cli",
+          "run": "bash cli/core-debugger --help | grep -q 'Core Debugger' && echo '✓ CLI working' || echo '⚠ CLI test failed'",
+          "description": "Test CLI functionality"
+        },
+        {
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build main.go && rm test-build && echo '✓ Go compilation successful' || echo '⚠ Go compilation failed'",
+          "description": "Test Go compilation"
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$API_PORT/health && echo '✓ API healthy' || echo '⚠ API not running (expected if not started)'",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-health-checks",
+          "run": "./cli/core-debugger check-health --json > /tmp/health.json && test -s /tmp/health.json && echo '✓ Health checks working' || echo '⚠ Health checks not available'",
+          "description": "Test component health checks"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop Core Debugger services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f 'core-debugger-api' || true",
+          "description": "Stop API server"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f 'python3.*http.server.*$UI_PORT' || true",
+          "description": "Stop UI server"
+        },
+        {
+          "name": "stop-monitor",
+          "run": "pkill -f 'health-monitor.sh' || true",
+          "description": "Stop health monitor"
+        },
+        {
+          "name": "save-final-state",
+          "run": "if [ -f api/core-debugger-api ]; then ./cli/core-debugger check-health --json > data/health/last-state-$(date +%Y%m%d-%H%M%S).json || true; fi",
+          "description": "Save final health state"
+        },
+        {
+          "name": "confirm-stop",
+          "run": "echo '🛑 Core Debugger services stopped\\n📁 Data preserved at: ./data/'",
+          "description": "Confirm services stopped"
+        }
+      ]
+    },
+    "clean": {
+      "description": "Archive old Core Debugger data",
+      "steps": [
+        {
+          "name": "archive-old-issues",
+          "run": "mkdir -p data/archive && find data/issues -name '*.json' -mtime +30 -exec mv {} data/archive/ \\;",
+          "description": "Archive issues older than 30 days"
+        },
+        {
+          "name": "compress-logs",
+          "run": "find data/logs -name '*.log' -mtime +7 -exec gzip {} \\;",
+          "description": "Compress old log files"
+        },
+        {
+          "name": "cleanup-summary",
+          "run": "echo 'Cleanup complete. Archived $(find data/archive -name \"*.json\" | wc -l) old issues.'",
+          "description": "Show cleanup summary"
+        }
+      ]
+    }
+  }
+}

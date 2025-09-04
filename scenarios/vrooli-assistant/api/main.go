@@ -93,16 +93,17 @@ func main() {
 	handler := c.Handler(router)
 	
 	// Get port from environment or use default
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = os.Getenv("API_PORT")
-		if port == "" {
-			port = "3250"
-		}
-	}
+	port := getEnv("API_PORT", getEnv("PORT", ""))
 	
 	log.Printf("Vrooli Assistant API starting on port %s", port)
 	log.Fatal(http.ListenAndServe(":"+port, handler))
+}
+
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
 }
 
 func initDB() {

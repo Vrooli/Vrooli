@@ -252,7 +252,7 @@ func main() {
 		handlers.AllowedHeaders([]string{"*"}),
 	)(r)
 
-	port := getEnvOrDefault("PORT", "8500")
+	port := getEnvOrDefault("API_PORT", getEnvOrDefault("PORT", ""))
 	
 	log.Printf("Idea Generator API server starting on port %s", port)
 	log.Printf("Services:")

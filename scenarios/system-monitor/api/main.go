@@ -68,13 +68,7 @@ type ReportRequest struct {
 
 func main() {
 	// Try API_PORT first (allocated by Vrooli), then PORT, then fallback
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		port = os.Getenv("PORT")
-	}
-	if port == "" {
-		port = "8080"
-	}
+	port := getEnv("API_PORT", getEnv("PORT", ""))
 
 	r := mux.NewRouter()
 
@@ -104,6 +98,13 @@ func main() {
 
 	log.Printf("System Monitor API starting on port %s", port)
 	log.Fatal(http.ListenAndServe(":"+port, r))
+}
+
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
 }
 
 func corsMiddleware(next http.Handler) http.Handler {

@@ -149,7 +149,7 @@ func main() {
 
 func loadConfig() Config {
 	return Config{
-		Port:        getEnv("PORT", "8091"),
+		Port:        getEnv("API_PORT", getEnv("PORT", "")),
 		PostgresURL: getEnv("POSTGRES_URL", "postgres://postgres:postgres@localhost:5432/scraper_manager?sslmode=disable"),
 		RedisURL:    getEnv("REDIS_URL", "redis://localhost:6379"),
 		MinioURL:    getEnv("MINIO_URL", "http://localhost:9000"),

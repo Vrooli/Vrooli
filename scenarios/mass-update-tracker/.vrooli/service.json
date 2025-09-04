@@ -149,7 +149,7 @@
         },
         {
           "name": "wait-for-ui",
-          "run": "sleep 1 && curl -sf http://localhost:${UI_PORT:-3251} > /dev/null",
+          "run": "sleep 1 && curl -sf http://localhost:${UI_PORT} > /dev/null",
           "description": "Wait for UI server to be ready"
         },
         {

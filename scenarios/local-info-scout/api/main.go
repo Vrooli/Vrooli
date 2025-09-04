@@ -122,10 +122,7 @@ func enableCORS(next http.HandlerFunc) http.HandlerFunc {
 }
 
 func main() {
-    port := os.Getenv("API_PORT")
-    if port == "" {
-        port = "8900"
-    }
+	port := getEnv("API_PORT", getEnv("PORT", ""))
     
     http.HandleFunc("/health", enableCORS(healthHandler))
     http.HandleFunc("/api/search", enableCORS(searchHandler))
@@ -135,4 +132,11 @@ func main() {
     if err := http.ListenAndServe(fmt.Sprintf(":%s", port), nil); err != nil {
         log.Fatal(err)
     }
+}
+
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
 }

@@ -116,7 +116,7 @@
     },
     {
       "parameters": {
-        "command": "/home/matthalloran8/Vrooli/scenarios/app-issue-tracker/scripts/claude-fix-generator.sh test '{{ $json.issue_id }}' '{{ $json.project_path }}'",
+        "command": "${VROOLI_ROOT:-${HOME}/Vrooli}/scenarios/app-issue-tracker/scripts/claude-fix-generator.sh test '{{ $json.issue_id }}' '{{ $json.project_path }}'",
         "options": {
           "timeout": 300
         }

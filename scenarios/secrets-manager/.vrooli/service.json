@@ -145,7 +145,7 @@
       "steps": [
         {
           "name": "start-api-server",
-          "run": "cd api && env PORT=$API_PORT ./secrets-manager-api",
+          "run": "cd api && ./secrets-manager-api",
           "description": "Start Go secrets manager API server in background",
           "background": true,
           "condition": {
@@ -154,7 +154,7 @@
         },
         {
           "name": "start-ui-server",
-          "run": "cd ui && env PORT=$UI_PORT node server.js",
+          "run": "cd ui && node server.js",
           "description": "Start dark chrome dashboard UI server in background",
           "background": true,
           "condition": {
@@ -163,21 +163,13 @@
         },
         {
           "name": "wait-for-api",
-          "run": "sleep 2 && curl -sf http://localhost:$API_PORT/health > /dev/null",
-          "description": "Wait for API server to be ready",
-          "retry": {
-            "max_attempts": 15,
-            "delay": 1
-          }
+          "run": "../../scripts/lib/utils/wait-for-service.sh http://localhost:$API_PORT/health 15 2",
+          "description": "Wait for API server to be ready"
         },
         {
           "name": "wait-for-ui",
-          "run": "sleep 1 && curl -sf http://localhost:$UI_PORT > /dev/null",
-          "description": "Wait for UI server to be ready",
-          "retry": {
-            "max_attempts": 10,
-            "delay": 1
-          }
+          "run": "../../scripts/lib/utils/wait-for-service.sh http://localhost:$UI_PORT 10 2",
+          "description": "Wait for UI server to be ready"
         },
         {
           "name": "run-initial-scan",

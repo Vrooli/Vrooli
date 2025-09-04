@@ -293,6 +293,13 @@ postgres::docker::create_client_instance() {
     
     log::info "Creating PostgreSQL client instance for: ${client_id}"
     
+    # Validate POSTGRES_PASSWORD is set
+    if [[ -z "${POSTGRES_PASSWORD:-}" ]]; then
+        log::error "POSTGRES_PASSWORD environment variable must be set"
+        echo "Please export POSTGRES_PASSWORD with a secure password before creating client instances" >&2
+        return 1
+    fi
+    
     # Use shared database client creation
     local client_port
     client_port=$(docker_resource::create_database_client_instance \
@@ -302,7 +309,7 @@ postgres::docker::create_client_instance() {
         "5432" \
         "${POSTGRES_CLIENT_PORT_START:-5434}" \
         "${POSTGRES_CLIENT_PORT_END:-5450}" \
-        "${POSTGRES_PASSWORD:-postgres}")
+        "${POSTGRES_PASSWORD}")
     
     if [[ $? -eq 0 && -n "$client_port" ]]; then
         # Save client configuration metadata

@@ -17,9 +17,9 @@ function proxyToApi(req, res, apiPath) {
             host: `localhost:${API_PORT}`
         }
     };
-    
+
     console.log(`[PROXY] ${req.method} ${req.url} -> http://localhost:${API_PORT}${options.path}`);
-    
+
     const proxyReq = http.request(options, (proxyRes) => {
         res.status(proxyRes.statusCode);
         Object.keys(proxyRes.headers).forEach(key => {
@@ -27,16 +27,16 @@ function proxyToApi(req, res, apiPath) {
         });
         proxyRes.pipe(res);
     });
-    
+
     proxyReq.on('error', (err) => {
         console.error('Proxy error:', err.message);
-        res.status(502).json({ 
-            error: 'API server unavailable', 
+        res.status(502).json({
+            error: 'API server unavailable',
             details: err.message,
             target: `http://localhost:${API_PORT}${options.path}`
         });
     });
-    
+
     if (req.method !== 'GET' && req.method !== 'HEAD') {
         req.pipe(proxyReq);
     } else {
@@ -51,7 +51,7 @@ app.use('/api', (req, res) => {
 });
 
 // Serve static files
-app.use(express.static(__dirname, { 
+app.use(express.static(__dirname, {
     index: false,
     setHeaders: (res, path) => {
         if (path.endsWith('.js')) {

@@ -1,0 +1,17 @@
+{
+  "name": "core-debugger-ui",
+  "version": "1.0.0",
+  "description": "UI server for core-debugger",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "test": "curl -f http://localhost:${UI_PORT:-3000}/health || exit 1"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

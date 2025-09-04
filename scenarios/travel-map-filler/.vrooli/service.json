@@ -163,7 +163,7 @@
         },
         {
           "name": "install-cli",
-          "run": "cd cli && chmod +x travel-map && ln -sf $(pwd)/travel-map /usr/local/bin/travel-map 2>/dev/null || true",
+          "run": "cd cli && chmod +x travel-map && ln -sf $(pwd)/travel-map ~/.local/bin/travel-map 2>/dev/null || true",
           "description": "Install CLI command globally"
         },
         {
@@ -183,7 +183,7 @@
       "steps": [
         {
           "name": "start-api",
-          "run": "cd api && env PORT=$PORT ./travel-map-api",
+          "run": "cd api && ./travel-map-api",
           "description": "Start Go API server in background",
           "background": true,
           "condition": {
@@ -192,27 +192,19 @@
         },
         {
           "name": "wait-for-api",
-          "run": "curl -sf http://localhost:$PORT/health > /dev/null",
-          "description": "Wait for API to be ready",
-          "retry": {
-            "max_attempts": 30,
-            "delay": 1
-          }
+          "run": "../../scripts/lib/utils/wait-for-service.sh http://localhost:$PORT/health 15 2",
+          "description": "Wait for API to be ready"
         },
         {
           "name": "start-ui",
-          "run": "cd ui && env PORT=$UI_PORT node server.js",
+          "run": "cd ui && node server.js",
           "description": "Start UI server in background",
           "background": true
         },
         {
           "name": "wait-for-services",
-          "run": "sleep 2 && curl -sf http://localhost:$PORT/health > /dev/null && curl -sf http://localhost:$UI_PORT > /dev/null",
-          "description": "Wait for services to be ready",
-          "retry": {
-            "max_attempts": 15,
-            "delay": 1
-          }
+          "run": "../../scripts/lib/utils/wait-for-service.sh http://localhost:$PORT/health 10 2 && ../../scripts/lib/utils/wait-for-service.sh http://localhost:$UI_PORT 10 2",
+          "description": "Wait for services to be ready"
         },
         {
           "name": "show-running-services",

@@ -73,7 +73,26 @@
     }
   },
   "lifecycle": {
-    "version": "1.0.0",
+    "version": "2.0.0",
+    "health": {
+      "description": "Make It Vegan health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
     "setup": {
       "description": "Initialize Make It Vegan app",
       "condition": {
@@ -113,7 +132,7 @@
         },
         {
           "name": "install-cli",
-          "run": "cd cli && chmod +x make-it-vegan && ln -sf $(pwd)/make-it-vegan /usr/local/bin/make-it-vegan 2>/dev/null || true",
+          "run": "cd cli && chmod +x make-it-vegan && ln -sf $(pwd)/make-it-vegan ~/.local/bin/make-it-vegan 2>/dev/null || true",
           "description": "Install CLI command"
         },
         {
@@ -138,7 +157,7 @@
       "steps": [
         {
           "name": "start-api-server",
-          "run": "cd api && env PORT=$API_PORT ./make-it-vegan-api",
+          "run": "cd api && ./make-it-vegan-api",
           "description": "Start Go API server",
           "background": true,
           "condition": {
@@ -146,8 +165,13 @@
           }
         },
         {
+          "name": "wait-for-api",
+          "run": "timeout 30 bash -c 'until curl -sf http://localhost:$API_PORT/health; do sleep 1; done' || echo 'API health check timeout'",
+          "description": "Wait for API to be ready"
+        },
+        {
           "name": "start-ui-server",
-          "run": "cd ui && env PORT=$UI_PORT API_URL=http://localhost:$API_PORT node server.js",
+          "run": "cd ui && node server.js",
           "description": "Start UI server",
           "background": true
         },
