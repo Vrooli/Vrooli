@@ -1,0 +1,73 @@
+version: '1.0'
+name: app-debugger
+description: Tests for App Debugger scenario
+
+tests:
+  - name: API Health Check
+    type: http
+    request:
+      method: GET
+      url: http://localhost:30150/health
+    expected:
+      status: 200
+      body:
+        status: healthy
+
+  - name: List Apps Endpoint
+    type: http
+    request:
+      method: GET
+      url: http://localhost:30150/api/apps
+    expected:
+      status: 200
+      
+  - name: Debug Session Endpoint
+    type: http
+    request:
+      method: POST
+      url: http://localhost:30150/api/debug
+      headers:
+        Content-Type: application/json
+      body:
+        app_name: test-app
+        debug_type: errors
+    expected:
+      status: 200
+      body:
+        status: initiated
+
+  - name: Report Error Endpoint
+    type: http
+    request:
+      method: POST
+      url: http://localhost:30150/api/report-error
+      headers:
+        Content-Type: application/json
+      body:
+        app_name: test-app
+        error_message: Test error
+        stack_trace: "at test.js:1"
+        context: {}
+    expected:
+      status: 200
+      body:
+        status: received
+
+  - name: UI Health Check
+    type: http
+    request:
+      method: GET
+      url: http://localhost:30151/health
+    expected:
+      status: 200
+      body:
+        status: healthy
+        service: app-debugger-ui
+
+  - name: UI Loads Successfully
+    type: http
+    request:
+      method: GET
+      url: http://localhost:30151/
+    expected:
+      status: 200

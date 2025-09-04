@@ -1,0 +1,102 @@
+#!/bin/bash
+
+# App Debugger CLI
+# Provides command-line interface to the App Debugger API
+
+API_URL="${APP_DEBUGGER_API_URL:-http://localhost:30150}"
+
+show_help() {
+    cat << EOF
+App Debugger CLI - Debug and analyze Vrooli apps
+
+Usage: app-debugger [command] [options]
+
+Commands:
+    health              Check API health status
+    list                List all running apps
+    debug <app> <type>  Start debug session (types: errors, logs, performance, fix)
+    error <app>         Report an error for analysis
+    help                Show this help message
+
+Examples:
+    app-debugger list
+    app-debugger debug app-monitor errors
+    app-debugger error prompt-manager
+
+Environment:
+    APP_DEBUGGER_API_URL    API endpoint (default: http://localhost:30150)
+EOF
+}
+
+check_health() {
+    echo "Checking App Debugger API health..."
+    curl -s "${API_URL}/health" | jq '.' 2>/dev/null || echo "API is not responding"
+}
+
+list_apps() {
+    echo "Fetching running apps..."
+    curl -s "${API_URL}/api/apps" | jq '.' 2>/dev/null || echo "Failed to fetch apps"
+}
+
+start_debug() {
+    local app_name="$1"
+    local debug_type="$2"
+    
+    if [[ -z "$app_name" ]] || [[ -z "$debug_type" ]]; then
+        echo "Error: Both app name and debug type are required"
+        echo "Usage: app-debugger debug <app> <type>"
+        exit 1
+    fi
+    
+    echo "Starting debug session for $app_name (mode: $debug_type)..."
+    curl -s -X POST "${API_URL}/api/debug" \
+        -H "Content-Type: application/json" \
+        -d "{\"app_name\":\"$app_name\",\"debug_type\":\"$debug_type\"}" | \
+        jq '.' 2>/dev/null || echo "Failed to start debug session"
+}
+
+report_error() {
+    local app_name="$1"
+    
+    if [[ -z "$app_name" ]]; then
+        echo "Error: App name is required"
+        echo "Usage: app-debugger error <app>"
+        exit 1
+    fi
+    
+    echo "Enter error message (press Ctrl+D when done):"
+    local error_message
+    error_message=$(cat)
+    
+    echo "Reporting error for analysis..."
+    curl -s -X POST "${API_URL}/api/report-error" \
+        -H "Content-Type: application/json" \
+        -d "{\"app_name\":\"$app_name\",\"error_message\":\"$error_message\",\"stack_trace\":\"\",\"context\":{}}" | \
+        jq '.' 2>/dev/null || echo "Failed to report error"
+}
+
+# Main command handler
+case "$1" in
+    health)
+        check_health
+        ;;
+    list)
+        list_apps
+        ;;
+    debug)
+        start_debug "$2" "$3"
+        ;;
+    error)
+        report_error "$2"
+        ;;
+    help|--help|-h)
+        show_help
+        ;;
+    *)
+        if [[ -n "$1" ]]; then
+            echo "Unknown command: $1"
+        fi
+        show_help
+        exit 1
+        ;;
+esac

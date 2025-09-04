@@ -178,7 +178,7 @@
       "steps": [
         {
           "name": "start-api",
-          "run": "cd api && env PORT=$API_PORT ./nutrition-tracker-api",
+          "run": "cd api && ./nutrition-tracker-api",
           "description": "Start API server",
           "background": true
         },
@@ -189,7 +189,7 @@
         },
         {
           "name": "start-ui",
-          "run": "cd ui && env PORT=$UI_PORT API_URL=http://localhost:$API_PORT node server.js",
+          "run": "cd ui && node server.js",
           "description": "Start UI server",
           "background": true
         },

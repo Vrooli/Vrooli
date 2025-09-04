@@ -1,0 +1,95 @@
+name: resource-experimenter
+description: Ultra-simple resource experimentation platform
+version: 1.0.0
+
+resources:
+  required:
+    - postgres
+    - claude-code
+
+tests:
+  - name: Database Connection
+    type: connectivity
+    target: postgres
+    config:
+      database: postgres
+      timeout: 30
+    
+  - name: Database Schema Check
+    type: postgres
+    operation: SELECT
+    query: SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('experiments', 'experiment_templates', 'available_scenarios')
+    expected:
+      rows: 3
+      
+  - name: API Health Check
+    type: http
+    method: GET
+    url: http://localhost:8092/health
+    expected:
+      status: 200
+      body:
+        status: healthy
+        
+  - name: Experiments API
+    type: http
+    method: GET
+    url: http://localhost:8092/api/experiments
+    expected:
+      status: 200
+      
+  - name: Scenarios API
+    type: http
+    method: GET
+    url: http://localhost:8092/api/scenarios
+    expected:
+      status: 200
+      
+  - name: Templates API
+    type: http
+    method: GET
+    url: http://localhost:8092/api/templates
+    expected:
+      status: 200
+      
+  - name: Create Test Experiment
+    type: http
+    method: POST
+    url: http://localhost:8092/api/experiments
+    body:
+      name: Test Experiment
+      description: Test resource experimentation
+      prompt: Add redis to analytics-dashboard
+      target_scenario: analytics-dashboard
+      new_resource: redis
+    expected:
+      status: 200
+      body:
+        name: Test Experiment
+        status: requested
+        
+  - name: Claude Code Health Check
+    type: command
+    command: resource-claude-code test smoke
+    expected:
+      exit_code: 0
+      
+validation:
+  startup:
+    timeout: 60
+    health_checks:
+      - service: postgres
+        port: 5433
+      - service: api
+        port: 8092
+        
+  runtime:
+    monitoring:
+      - metric: active_experiments
+        threshold: 100
+      - metric: database_connections
+        threshold: 10
+        
+  cleanup:
+    commands:
+      - echo "Cleaning up test data..."

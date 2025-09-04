@@ -101,7 +101,9 @@ resources/<name>/
 │       ├── test-smoke.sh    # Quick health check (REQUIRED)
 │       ├── test-integration.sh # Full functionality (REQUIRED)
 │       └── test-unit.sh     # Library validation (REQUIRED)
-└── config/defaults.sh       # Default configuration (REQUIRED)
+└── config/
+    ├── defaults.sh          # Default configuration (REQUIRED)
+    └── exports.sh           # Environment variable exports (OPTIONAL, v2.0)
 ```
 
 ## 📊 Performance Requirements

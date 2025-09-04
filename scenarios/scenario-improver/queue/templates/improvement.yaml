@@ -1,0 +1,51 @@
+# Template for scenario improvement queue items
+# Priority: critical|high|medium|low
+# Requester: human|ai|system-monitor|auto-migration
+
+id: # unique-identifier
+title: # "Clear, actionable improvement title"
+description: |
+  # Detailed description of what needs to be improved
+  # Include specific requirements and context
+  
+type: improvement # improvement|fix|optimization|prd-compliance|documentation
+target: # scenario-name (e.g., "system-monitor", "scenario-generator-v1")
+priority: medium # critical|high|medium|low
+
+# Intelligence for selection algorithm
+priority_estimates:
+  impact: 5              # 1-10 scale - how much this improves the scenario
+  urgency: medium        # critical|high|medium|low
+  success_prob: 0.7      # 0-1 probability of successful completion
+  resource_cost: moderate # minimal|moderate|heavy
+
+requirements:
+  - # "Specific requirement 1"
+  - # "Specific requirement 2"
+  - # "Must maintain backward compatibility"
+
+validation_criteria:
+  - # "How to verify the improvement worked"
+  - # "What tests should pass"
+  - # "PRD requirements to check"
+
+# Cross-scenario considerations
+cross_scenario:
+  affected_scenarios: []  # List of scenarios that might be impacted
+  shared_resources: []    # Shared resources to check
+  breaking_changes: false # true if this introduces breaking changes
+
+# Context from Qdrant memory search
+memory_context: |
+  # Related past work and patterns:
+  # - Previous similar improvements
+  # - Known issues or gotchas
+  # - Successful patterns to follow
+
+metadata:
+  created_by: # human|ai|system-monitor|auto-migration
+  created_at: # "2025-01-03T10:00:00Z"
+  cooldown_until: # "2025-01-03T11:00:00Z" - 1 hour default
+  attempt_count: 0
+  last_attempt: null
+  failure_reasons: []  # Array of previous failure messages

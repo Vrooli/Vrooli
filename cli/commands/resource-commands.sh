@@ -586,6 +586,7 @@ format_resource_status_data() {
     status=$(echo "$raw_data" | grep "^status:" | cut -d: -f2)
     path=$(echo "$raw_data" | grep "^path:" | cut -d: -f2-)
     
+    # Format output (JSON format now handled earlier in the chain)
     format::output "$format" "kv" \
         "name" "$name" \
         "enabled" "$enabled" \
@@ -694,6 +695,20 @@ resource_status_core() {
         format_resource_overview_data "$format" "$resource_data"
     else
         # Show status of specific resource
+        # For JSON format with resource CLI, get JSON directly
+        if [[ "$format" == "json" ]] && has_resource_cli "$resource_name"; then
+            # Get JSON directly from resource CLI
+            local status_json
+            status_json=$(unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED; "resource-${resource_name}" status --format json 2>&1 || true)
+            
+            # Check if we got valid JSON output
+            if [[ -n "$status_json" ]] && echo "$status_json" | grep -q '^\s*{'; then
+                echo "$status_json"
+                return
+            fi
+        fi
+        
+        # Fall back to structured data for text format or resources without CLI
         local status_data
         status_data=$(get_resource_status_data "$resource_name")
         

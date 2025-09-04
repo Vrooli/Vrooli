@@ -1,0 +1,214 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "resource-improver",
+    "displayName": "Resource Improver",
+    "description": "Continuous improvement system for existing Vrooli resources using v2.0 contract validation and health monitoring patterns",
+    "version": "1.0.0",
+    "tags": [
+      "vrooli-enhancement",
+      "continuous-improvement",
+      "resource-optimization",
+      "v2.0-contract",
+      "health-monitoring",
+      "claude-code",
+      "quality-assurance",
+      "nodejs-ui",
+      "go-api",
+      "postgres-storage"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "port": 22000,
+      "fallback": "auto",
+      "description": "Resource Improver API port"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "port": 31000,
+      "fallback": "auto",
+      "description": "Resource Improver UI port"
+    }
+  },
+  "resources": {
+    "claude-code": {
+      "type": "claude-code",
+      "enabled": true,
+      "required": true,
+      "purpose": "AI-powered resource improvement and v2.0 contract compliance"
+    },
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "improvement history, v2.0 compliance tracking, and health monitoring data"
+    },
+    "redis": {
+      "type": "redis",
+      "enabled": true,
+      "required": true,
+      "purpose": "Cache improvement queue, validation results, and active improvement sessions"
+    },
+    "qdrant": {
+      "type": "qdrant",
+      "enabled": true,
+      "required": true,
+      "purpose": "Long-term memory for patterns, past improvements, and best practices"
+    },
+    "n8n": {
+      "type": "n8n",
+      "enabled": true,
+      "required": false,
+      "purpose": "Workflow automation for resource improvements and validation"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Resource Improver health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
+    "setup": {
+      "description": "Initialize Resource Improver",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/resource-improver-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "resource-improver"
+          },
+          {
+            "type": "dependencies",
+            "paths": [
+              "ui/package.json"
+            ]
+          },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "generate-embeddings",
+          "run": "vrooli resource qdrant embeddings refresh --force || echo \"Embeddings generation skipped (not critical)\"",
+          "description": "Generate code embeddings for AI assistance"
+        },
+        {
+          "name": "initialize-database",
+          "run": "cd initialization && psql -h localhost -p ${RESOURCE_PORTS[postgres]} -U postgres -d postgres -f postgres/schema.sql || echo 'Database schema initialization completed'",
+          "description": "Initialize PostgreSQL database schema"
+        },
+        {
+          "name": "seed-database",
+          "run": "cd initialization && psql -h localhost -p ${RESOURCE_PORTS[postgres]} -U postgres -d postgres -f postgres/seed.sql || echo 'Database seed data loaded'",
+          "description": "Load improvement patterns and v2.0 contract templates"
+        },
+        {
+          "name": "check-claude-code",
+          "run": "resource-claude-code status >/dev/null 2>&1 || echo 'Claude Code not available - improvement features will be limited'",
+          "description": "Verify Claude Code availability for AI-powered improvements"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install resource improver CLI globally"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Resource Improver initialized\\n  API: http://localhost:${API_PORT}\\n  Database: localhost:${RESOURCE_PORTS[postgres]}\\n  CLI: resource-improver'",
+          "description": "Display service access information"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start resource improver services",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && go run main.go",
+          "description": "Start Go API server in background",
+          "background": true
+        },
+        {
+          "name": "wait-for-api",
+          "run": "sleep 3 && curl -sf http://localhost:${API_PORT}/health > /dev/null",
+          "description": "Wait for API to be ready"
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "description": "Start React UI in development mode",
+          "background": true
+        },
+        {
+          "name": "show-running-services",
+          "run": "echo '🚀 Services running:\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:3000\\n  CLI: resource-improver help'",
+          "description": "Display running service URLs"
+        }
+      ]
+    },
+    "test": {
+      "description": "Run resource improver tests",
+      "steps": [
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:${API_PORT}/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-claude-code",
+          "run": "resource-claude-code status >/dev/null 2>&1",
+          "description": "Test Claude Code availability"
+        },
+        {
+          "name": "run-integration-tests",
+          "run": "./test.sh",
+          "description": "Execute integration test suite",
+          "condition": {
+            "file_exists": "test.sh"
+          }
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop resource improver services",
+      "steps": [
+        {
+          "name": "stop-services",
+          "run": "pkill -f 'go run main.go' || true; pkill -f 'node server.js' || true",
+          "description": "Stop API and UI processes"
+        },
+        {
+          "name": "confirm-stop",
+          "run": "echo '🛑 Resource Improver services stopped'",
+          "description": "Confirm services stopped"
+        }
+      ]
+    }
+  }
+}

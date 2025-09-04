@@ -1,0 +1,168 @@
+{
+  "name": "App Debugger - Fix Suggester",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "fix-suggester",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 500]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "return {\n  error_id: 1,\n  app_name: 'test-app',\n  file_path: '/app/src/main.js',\n  line_number: 45,\n  error_type: 'TypeError'\n};"
+      },
+      "id": "set_test_defaults",
+      "name": "Set Test Defaults",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [400, 500]
+    },
+    {
+      "parameters": {},
+      "id": "merge_triggers",
+      "name": "Merge Triggers",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [600, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM error_logs WHERE id = $1",
+        "additionalFields": {
+          "queryParams": "={{ $json.error_id || 1 }}"
+        }
+      },
+      "id": "fetch_error",
+      "name": "Fetch Error Details",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [800, 400],
+      "credentials": {
+        "postgres": {
+          "id": "shared",
+          "name": "Shared PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const input = $input.item.json;\nconst errorData = input.length > 0 ? input[0] : {};\n\n// Build fix generation prompt\nconst prompt = `Generate a code fix for this error:\n\nApp: ${errorData.app_name || 'unknown'}\nError Type: ${errorData.error_type || 'unknown'}\nAnalysis: ${JSON.stringify(errorData.analysis || {}, null, 2)}\n\nProvide:\n1. A specific code fix (if file path is known)\n2. General fix approach\n3. Testing steps to verify the fix\n4. Preventive measures\n\nFormat as JSON with fields: code_fix, approach, testing_steps, prevention`;\n\nreturn {\n  prompt: prompt,\n  model: 'phi3.5:3.8b',\n  type: 'code',\n  quiet: true,\n  error_data: errorData\n};"
+      },
+      "id": "prepare_fix_prompt",
+      "name": "Prepare Fix Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1000, 400]
+    },
+    {
+      "parameters": {
+        "workflowId": "={{ $env.SHARED_WORKFLOW_OLLAMA_ID || 'ollama' }}",
+        "waitForSubWorkflow": true,
+        "data": {
+          "prompt": "={{ $json.prompt }}",
+          "model": "={{ $json.model }}",
+          "type": "={{ $json.type }}",
+          "quiet": "={{ $json.quiet }}"
+        }
+      },
+      "id": "generate_fix",
+      "name": "Generate Fix",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [1200, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const fixResponse = $input.item.json;\nconst errorData = $('Prepare Fix Prompt').item.json.error_data;\n\n// Parse fix suggestions\nlet fixSuggestions = {};\ntry {\n  if (fixResponse.response) {\n    const jsonMatch = fixResponse.response.match(/\\{[\\s\\S]*\\}/);\n    if (jsonMatch) {\n      fixSuggestions = JSON.parse(jsonMatch[0]);\n    } else {\n      fixSuggestions = {\n        approach: fixResponse.response,\n        code_fix: '',\n        testing_steps: [],\n        prevention: ''\n      };\n    }\n  }\n} catch (e) {\n  fixSuggestions = {\n    approach: 'Unable to generate fix',\n    error: e.message\n  };\n}\n\n// Build comprehensive fix package\nconst fixPackage = {\n  error_id: errorData.id,\n  app_name: errorData.app_name,\n  error_type: errorData.error_type,\n  severity: errorData.severity,\n  fix_suggestions: fixSuggestions,\n  generated_at: new Date().toISOString(),\n  implementation_status: 'pending'\n};\n\nreturn fixPackage;"
+      },
+      "id": "format_fix",
+      "name": "Format Fix",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1400, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO fix_suggestions (error_id, suggestions, status, created_at) VALUES ($1, $2, $3, $4) RETURNING id",
+        "additionalFields": {
+          "queryParams": "={{ $json.error_id }},{{ JSON.stringify($json.fix_suggestions) }},{{ $json.implementation_status }},{{ $json.generated_at }}"
+        }
+      },
+      "id": "store_fix",
+      "name": "Store Fix",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [1600, 400],
+      "credentials": {
+        "postgres": {
+          "id": "shared",
+          "name": "Shared PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json, null, 2) }}",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1800, 300]
+    }
+  ],
+  "connections": {
+    "webhook_trigger": {
+      "main": [[{"node": "merge_triggers", "type": "main", "index": 0}]]
+    },
+    "manual_trigger": {
+      "main": [[{"node": "set_test_defaults", "type": "main", "index": 0}]]
+    },
+    "set_test_defaults": {
+      "main": [[{"node": "merge_triggers", "type": "main", "index": 1}]]
+    },
+    "merge_triggers": {
+      "main": [[{"node": "fetch_error", "type": "main", "index": 0}]]
+    },
+    "fetch_error": {
+      "main": [[{"node": "prepare_fix_prompt", "type": "main", "index": 0}]]
+    },
+    "prepare_fix_prompt": {
+      "main": [[{"node": "generate_fix", "type": "main", "index": 0}]]
+    },
+    "generate_fix": {
+      "main": [[{"node": "format_fix", "type": "main", "index": 0}]]
+    },
+    "format_fix": {
+      "main": [[{"node": "store_fix", "type": "main", "index": 0}]]
+    },
+    "store_fix": {
+      "main": [[{"node": "respond", "type": "main", "index": 0}]]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "id": "app-debugger-fix-suggester"
+}

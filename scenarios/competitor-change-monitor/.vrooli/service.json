@@ -157,7 +157,7 @@
         },
         {
           "name": "install-cli",
-          "run": "cd cli && chmod +x competitor-monitor && ln -sf $(pwd)/competitor-monitor /usr/local/bin/competitor-monitor 2>/dev/null || true",
+          "run": "cd cli && chmod +x competitor-monitor && ln -sf $(pwd)/competitor-monitor ~/.local/bin/competitor-monitor 2>/dev/null || true",
           "description": "Install CLI command"
         },
         {
@@ -182,7 +182,7 @@
       "steps": [
         {
           "name": "start-api-server",
-          "run": "cd api && env PORT=$API_PORT ./competitor-monitor-api",
+          "run": "cd api && ./competitor-monitor-api",
           "description": "Start API server",
           "background": true,
           "condition": {
@@ -196,7 +196,7 @@
         },
         {
           "name": "start-ui-server",
-          "run": "cd ui && env PORT=$UI_PORT API_URL=http://localhost:$API_PORT npm start",
+          "run": "cd ui && node server.js",
           "description": "Start UI server",
           "background": true
         },

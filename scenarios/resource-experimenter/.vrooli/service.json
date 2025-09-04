@@ -137,15 +137,11 @@
         {
           "name": "wait-for-api",
           "run": "sleep 3 && curl -sf http://localhost:${API_PORT}/health > /dev/null",
-          "description": "Wait for API to be ready",
-          "retry": {
-            "max_attempts": 10,
-            "delay": 2
-          }
+          "description": "Wait for API to be ready"
         },
         {
           "name": "start-ui",
-          "run": "cd ui && npm start",
+          "run": "cd ui && node server.js",
           "description": "Start React UI in development mode",
           "background": true
         },
@@ -184,7 +180,7 @@
       "steps": [
         {
           "name": "stop-services",
-          "run": "pkill -f 'go run main.go' || true; pkill -f 'npm start' || true",
+          "run": "pkill -f 'go run main.go' || true; pkill -f 'node server.js' || true",
           "description": "Stop API and UI processes"
         },
         {

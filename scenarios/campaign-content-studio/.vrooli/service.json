@@ -202,7 +202,7 @@
         },
         {
           "name": "start-api-server",
-          "run": "cd api && env PORT=$API_PORT ./campaign-content-studio-api",
+          "run": "cd api && ./campaign-content-studio-api",
           "description": "Start Go coordination API server in background",
           "background": true,
           "condition": {
@@ -211,7 +211,7 @@
         },
         {
           "name": "start-ui-server",
-          "run": "cd ui && env UI_PORT=$UI_PORT API_PORT=$API_PORT npm start",
+          "run": "cd ui && node server.js",
           "description": "Start Node.js UI server in background",
           "background": true,
           "condition": {
@@ -220,21 +220,13 @@
         },
         {
           "name": "wait-for-api",
-          "run": "sleep 2 && curl -sf http://localhost:$API_PORT/health > /dev/null",
-          "description": "Wait for API server to be ready",
-          "retry": {
-            "max_attempts": 15,
-            "delay": 1
-          }
+          "run": "../../scripts/lib/utils/wait-for-service.sh http://localhost:$API_PORT/health 15 2",
+          "description": "Wait for API server to be ready"
         },
         {
           "name": "wait-for-ui",
           "run": "sleep 2 && curl -sf http://localhost:$UI_PORT/health > /dev/null",
-          "description": "Wait for UI server to be ready",
-          "retry": {
-            "max_attempts": 15,
-            "delay": 1
-          }
+          "description": "Wait for UI server to be ready"
         },
         {
           "name": "show-running-services",

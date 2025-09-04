@@ -3,7 +3,7 @@ const path = require('path');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 
 const app = express();
-const PORT = process.env.PORT || 3780;
+const PORT = process.env.UI_PORT || process.env.PORT;
 const API_URL = process.env.API_URL || 'http://localhost:8780';
 
 // Serve static files

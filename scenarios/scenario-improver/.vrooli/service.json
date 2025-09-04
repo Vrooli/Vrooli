@@ -1,0 +1,243 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "scenario-improver",
+    "displayName": "Scenario Improver",
+    "description": "Continuous improvement system for existing Vrooli scenarios using PRD-driven validation and cross-scenario impact analysis",
+    "version": "1.0.0",
+    "tags": [
+      "vrooli-enhancement",
+      "continuous-improvement",
+      "scenario-optimization",
+      "prd-compliance",
+      "validation-gates",
+      "cross-scenario-analysis",
+      "quality-assurance",
+      "automated-improvement",
+      "javascript-ui",
+      "terminal-ui",
+      "nodejs-ui",
+      "go-api",
+      "n8n-workflows",
+      "postgres-storage"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "port": 21000,
+      "fallback": "auto",
+      "description": "Scenario Improver API port"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "port": 30250,
+      "fallback": "auto",
+      "description": "Scenario Improver UI port"
+    }
+  },
+  "resources": {
+    "n8n": {
+      "type": "n8n",
+      "enabled": true,
+      "required": true,
+      "shared_workflows": [
+        "ollama",
+        "rate-limiter"
+      ],
+      "initialization": [
+        {
+          "file": "initialization/n8n/error-analyzer.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/fix-suggester.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/log-monitor.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/performance-profiler.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/debug-orchestrator.json",
+          "type": "workflow"
+        }
+      ]
+    },
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Store improvement history, PRD compliance tracking, validation results, and cross-scenario impacts",
+      "initialization": [
+        {
+          "file": "initialization/postgres/schema.sql",
+          "type": "schema"
+        }
+      ]
+    },
+    "redis": {
+      "type": "redis",
+      "enabled": true,
+      "required": true,
+      "purpose": "Cache improvement queue, validation results, and active improvement sessions"
+    },
+    "questdb": {
+      "type": "questdb",
+      "enabled": true,
+      "required": false,
+      "purpose": "Time-series storage for improvement metrics and success rate tracking"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Scenario Improver health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
+    "setup": {
+      "description": "Initialize App Debugger",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/app-debugger-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "app-debugger"
+          },
+          {
+            "type": "dependencies",
+            "paths": [
+              "ui/package.json"
+            ]
+          },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "generate-embeddings",
+          "run": "vrooli resource qdrant embeddings refresh --force || echo \"Embeddings generation skipped (not critical)\"",
+          "description": "Generate code embeddings for AI assistance"
+        },
+        {
+          "name": "add-data",
+          "run": "../../scripts/resources/populate/populate.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && chmod +x app-debugger && ln -sf $(pwd)/app-debugger ~/.local/bin/app-debugger 2>/dev/null || true",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o app-debugger-api main.go",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "setup-ui",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🐛 App Debugger initialized\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${API_PORT}'",
+          "description": "Display service URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start App Debugger services",
+      "steps": [
+        {
+          "name": "start-api-server",
+          "run": "cd api && ./app-debugger-api",
+          "description": "Start API server",
+          "background": true,
+          "condition": {
+            "file_exists": "api/app-debugger-api"
+          }
+        },
+        {
+          "name": "wait-for-api",
+          "run": "sleep 2 && curl -sf http://localhost:$API_PORT/health || (echo 'Waiting for API to be ready...' && sleep 3)",
+          "description": "Wait for API to be ready"
+        },
+        {
+          "name": "start-ui-server",
+          "run": "cd ui && node server.js",
+          "description": "Start UI server",
+          "background": true
+        },
+        {
+          "name": "wait-for-services",
+          "run": "sleep 3",
+          "description": "Wait for services to start"
+        },
+        {
+          "name": "show-running",
+          "run": "echo '🚀 App Debugger running:\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${API_PORT}'",
+          "description": "Display running services"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test App Debugger services",
+      "steps": [
+        {
+          "name": "test-api",
+          "run": "curl -sf http://localhost:$API_PORT/health",
+          "description": "Test API health"
+        },
+        {
+          "name": "test-apps",
+          "run": "curl -sf http://localhost:$API_PORT/api/apps",
+          "description": "Test apps endpoint"
+        },
+        {
+          "name": "test-errors",
+          "run": "curl -sf http://localhost:$API_PORT/api/errors",
+          "description": "Test errors endpoint"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop App Debugger services",
+      "steps": [
+        {
+          "name": "stop-services",
+          "run": "pkill -f 'app-debugger-api' || true; pkill -f 'npm.*app-debugger' || true",
+          "description": "Stop all services"
+        }
+      ]
+    }
+  }
+}

@@ -186,7 +186,7 @@
         },
         {
           "name": "install-cli",
-          "run": "cd cli && chmod +x notes && ln -sf $(pwd)/notes /usr/local/bin/notes 2>/dev/null || true",
+          "run": "cd cli && chmod +x notes && ln -sf $(pwd)/notes ~/.local/bin/notes 2>/dev/null || true",
           "description": "Install CLI command"
         },
         {
@@ -211,7 +211,7 @@
       "steps": [
         {
           "name": "start-api-server",
-          "run": "cd api && env PORT=$API_PORT ./notes-api",
+          "run": "cd api && ./notes-api",
           "description": "Start API server",
           "background": true,
           "condition": {
@@ -225,7 +225,7 @@
         },
         {
           "name": "start-ui-server",
-          "run": "cd ui && env PORT=$UI_PORT API_URL=http://localhost:$API_PORT npm start",
+          "run": "cd ui && node server.js",
           "description": "Start UI server",
           "background": true
         },

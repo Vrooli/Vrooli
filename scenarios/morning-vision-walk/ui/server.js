@@ -3,7 +3,7 @@ const cors = require('cors');
 const path = require('path');
 
 const app = express();
-const PORT = process.env.PORT || 3900;
+const PORT = process.env.UI_PORT || process.env.PORT;
 const API_URL = process.env.API_URL || 'http://localhost:8900';
 
 // Middleware

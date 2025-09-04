@@ -26,10 +26,7 @@ type PaletteResponse struct {
 }
 
 func main() {
-    port := os.Getenv("PORT")
-    if port == "" {
-        port = "8780"
-    }
+	port := getEnv("API_PORT", getEnv("PORT", ""))
 
     http.HandleFunc("/health", healthHandler)
     http.HandleFunc("/generate", generateHandler)
@@ -40,6 +37,13 @@ func main() {
     if err := http.ListenAndServe(":"+port, nil); err != nil {
         log.Fatal("Server failed to start:", err)
     }
+}
+
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
 }
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {

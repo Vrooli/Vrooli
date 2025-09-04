@@ -3,7 +3,7 @@ const path = require('path');
 const cors = require('cors');
 
 const app = express();
-const PORT = process.env.UI_PORT || 31007;
+const PORT = process.env.UI_PORT || process.env.PORT;
 
 // Middleware
 app.use(cors());
@@ -19,7 +19,6 @@ app.get('/health', (req, res) => {
 app.get('/api/campaigns', async (req, res) => {
     try {
         // In a real implementation, this would proxy to the Go API
-        const API_PORT = process.env.API_PORT || 22500;
         const response = await fetch(`http://localhost:${API_PORT}/campaigns`);
         
         if (response.ok) {
@@ -65,7 +64,6 @@ app.get('/api/campaigns', async (req, res) => {
 
 app.post('/api/campaigns', async (req, res) => {
     try {
-        const API_PORT = process.env.API_PORT || 22500;
         const response = await fetch(`http://localhost:${API_PORT}/campaigns`, {
             method: 'POST',
             headers: {
@@ -94,7 +92,6 @@ app.post('/api/campaigns', async (req, res) => {
 
 app.get('/api/documents', async (req, res) => {
     try {
-        const API_PORT = process.env.API_PORT || 22500;
         const response = await fetch(`http://localhost:${API_PORT}/documents`);
         
         if (response.ok) {
@@ -123,7 +120,6 @@ app.get('/api/documents', async (req, res) => {
 
 app.post('/api/generate-content', async (req, res) => {
     try {
-        const API_PORT = process.env.API_PORT || 22500;
         const response = await fetch(`http://localhost:${API_PORT}/generate-content`, {
             method: 'POST',
             headers: {

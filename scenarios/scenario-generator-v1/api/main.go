@@ -84,10 +84,7 @@ type APIServer struct {
 }
 
 func main() {
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		port = "8080"
-	}
+	port := getEnv("API_PORT", getEnv("PORT", ""))
 
 	postgresURL := os.Getenv("POSTGRES_URL")
 	if postgresURL == "" {
@@ -177,6 +174,13 @@ func main() {
 
 	handler := corsHandler(router)
 	log.Fatal(http.ListenAndServe(":"+port, handler))
+}
+
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
 }
 
 func checkClaudeCode() bool {

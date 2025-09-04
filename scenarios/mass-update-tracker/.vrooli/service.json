@@ -27,7 +27,7 @@
       "description": "Mass Update Tracker API port"
     },
     "ui": {
-      "env_var": "UI_PORT", 
+      "env_var": "UI_PORT",
       "port": 3251,
       "fallback": "auto",
       "description": "Campaign management dashboard port"
@@ -62,14 +62,6 @@
           "critical": true,
           "timeout": 5000,
           "interval": 30000
-        },
-        {
-          "name": "postgres_connection",
-          "type": "postgres",
-          "target": "postgres://postgres:postgres@localhost:5432/vrooli",
-          "critical": true,
-          "timeout": 5000,
-          "interval": 60000
         }
       ],
       "timeout": 5000,
@@ -91,7 +83,7 @@
             "command": "mass-update-tracker"
           },
           {
-            "type": "resources", 
+            "type": "resources",
             "populated": true
           }
         ]
@@ -199,7 +191,7 @@
       "description": "Stop mass update tracker services",
       "steps": [
         {
-          "name": "stop-api-server", 
+          "name": "stop-api-server",
           "run": "pkill -f 'mass-update-tracker-api' || true",
           "description": "Stop Go API server processes"
         },

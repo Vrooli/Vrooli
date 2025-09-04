@@ -129,7 +129,7 @@ func loadConfig() *Config {
 	}
 	
 	return &Config{
-		Port:       getEnv("API_PORT", "21250"),
+		Port:       getEnv("API_PORT", getEnv("PORT", "")),
 		QdrantURL:  getEnv("QDRANT_URL", "http://localhost:6333"),
 		IssuesDir:  getEnv("ISSUES_DIR", defaultIssuesDir),
 		N8NBaseURL: getEnv("N8N_BASE_URL", "http://localhost:5678"),

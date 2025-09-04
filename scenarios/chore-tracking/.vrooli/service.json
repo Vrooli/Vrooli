@@ -149,7 +149,7 @@
         },
         {
           "name": "install-cli",
-          "run": "cd cli && chmod +x chore-tracker && ln -sf $(pwd)/chore-tracker /usr/local/bin/chore-tracker",
+          "run": "cd cli && chmod +x chore-tracker && ln -sf $(pwd)/chore-tracker ~/.local/bin/chore-tracker",
           "description": "Install CLI command globally"
         },
         {
@@ -174,7 +174,7 @@
       "steps": [
         {
           "name": "start-api-server",
-          "run": "cd api && env PORT=$API_PORT ./chore-tracker-api",
+          "run": "cd api && ./chore-tracker-api",
           "description": "Start API server",
           "background": true,
           "condition": {
@@ -188,7 +188,7 @@
         },
         {
           "name": "start-ui-server",
-          "run": "cd ui && env PORT=$UI_PORT API_URL=http://localhost:$API_PORT npm start",
+          "run": "cd ui && node server.js",
           "description": "Start UI server",
           "background": true
         },

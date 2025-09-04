@@ -125,15 +125,19 @@ func main() {
 	handler := c.Handler(router)
 	
 	// Start server
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8950"
-	}
+	port := getEnv("API_PORT", getEnv("PORT", ""))
 	
 	log.Printf("SmartNotes API starting on port %s", port)
 	if err := http.ListenAndServe(":"+port, handler); err != nil {
 		log.Fatal("Server failed to start:", err)
 	}
+}
+
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
 }
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {

@@ -414,11 +414,15 @@ func main() {
 
 	handler := c.Handler(r)
 
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		port = "39001"
-	}
+	port := getEnv("API_PORT", getEnv("PORT", ""))
 
 	log.Printf("Personal Relationship Manager API starting on port %s", port)
 	log.Fatal(http.ListenAndServe(":"+port, handler))
+}
+
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
 }

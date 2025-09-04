@@ -146,7 +146,7 @@ var config Config
 
 func loadConfig() Config {
 	return Config{
-		Port:        getEnv("PORT", "8200"),
+		Port:        getEnv("API_PORT", getEnv("PORT", "")),
 		ChatPort:    getEnv("CHAT_PORT", "8201"),
 		PostgresURL: getEnv("POSTGRES_URL", "postgres://postgres:postgres@localhost:5432/digital_twin?sslmode=disable"),
 		QdrantURL:   getEnv("QDRANT_URL", "http://localhost:6333"),

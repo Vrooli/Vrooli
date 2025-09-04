@@ -23,7 +23,7 @@ SUBCOMMANDS:
     test <name>             Test a scenario
     list                    List available scenarios
     logs <name> [--follow]  View logs for a scenario
-    status [name]           Show scenario status from orchestrator
+    status [name] [--json]  Show scenario status from orchestrator
 
 OPTIONS FOR LOGS:
     --follow, -f            Follow log output (live view)
@@ -35,7 +35,9 @@ EXAMPLES:
     vrooli scenario logs system-monitor
     vrooli scenario logs system-monitor --follow
     vrooli scenario status              # Show all scenarios
+    vrooli scenario status --json       # Show all scenarios in JSON format
     vrooli scenario status system-monitor  # Show specific scenario
+    vrooli scenario status system-monitor --json  # Show specific scenario in JSON
 EOF
 }
 
@@ -133,6 +135,16 @@ main() {
             ;;
         status)
             local scenario_name="${1:-}"
+            local json_output=false
+            
+            # Parse arguments for --json flag
+            if [[ "$scenario_name" == "--json" ]]; then
+                json_output=true
+                scenario_name=""
+            elif [[ "${2:-}" == "--json" ]]; then
+                json_output=true
+            fi
+            
             # Get orchestrator port from registry or environment
             local orchestrator_port="${ORCHESTRATOR_PORT:-}"
             if [[ -z "$orchestrator_port" ]]; then
@@ -155,15 +167,27 @@ main() {
             
             if [[ -z "$scenario_name" ]]; then
                 # Show all scenarios status
-                log::info "Fetching status for all scenarios from orchestrator..."
-                echo ""
+                if [[ "$json_output" != "true" ]]; then
+                    log::info "Fetching status for all scenarios from orchestrator..."
+                    echo ""
+                fi
                 
                 local response
                 response=$(curl -s "${orchestrator_api}/apps" 2>/dev/null)
                 
                 if [[ -z "$response" ]]; then
-                    log::error "Failed to get response from orchestrator"
+                    if [[ "$json_output" == "true" ]]; then
+                        echo '{"error": "Failed to get response from orchestrator"}'
+                    else
+                        log::error "Failed to get response from orchestrator"
+                    fi
                     return 1
+                fi
+                
+                # If JSON output requested, just pass through the response
+                if [[ "$json_output" == "true" ]]; then
+                    echo "$response"
+                    return 0
                 fi
                 
                 # Parse JSON response
@@ -223,16 +247,28 @@ main() {
                 fi
             else
                 # Show specific scenario status
-                log::info "Fetching status for scenario: $scenario_name"
-                echo ""
+                if [[ "$json_output" != "true" ]]; then
+                    log::info "Fetching status for scenario: $scenario_name"
+                    echo ""
+                fi
                 
                 local response
                 response=$(curl -s "${orchestrator_api}/apps/${scenario_name}/status" 2>/dev/null)
                 
                 if echo "$response" | grep -q "not found"; then
-                    log::error "Scenario '$scenario_name' not found in orchestrator"
-                    log::info "Use 'vrooli scenario status' to see all available scenarios"
+                    if [[ "$json_output" == "true" ]]; then
+                        echo "{\"error\": \"Scenario '$scenario_name' not found in orchestrator\"}"
+                    else
+                        log::error "Scenario '$scenario_name' not found in orchestrator"
+                        log::info "Use 'vrooli scenario status' to see all available scenarios"
+                    fi
                     return 1
+                fi
+                
+                # If JSON output requested, just pass through the response
+                if [[ "$json_output" == "true" ]]; then
+                    echo "$response"
+                    return 0
                 fi
                 
                 # Parse and display detailed status

@@ -926,13 +926,17 @@ func main() {
     // Apply CORS middleware
     handler := enableCORS(r)
     
-    port := os.Getenv("PORT")
-    if port == "" {
-        port = "8093"
-    }
+	port := getEnv("API_PORT", getEnv("PORT", ""))
     
     log.Printf("Mind Maps API starting on port %s", port)
     if err := http.ListenAndServe(":"+port, handler); err != nil {
         log.Fatal(err)
     }
+}
+
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
 }

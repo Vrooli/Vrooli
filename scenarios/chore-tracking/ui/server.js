@@ -6,7 +6,7 @@ const path = require('path');
 require('dotenv').config();
 
 const app = express();
-const PORT = process.env.CHORE_TRACKER_PORT || 3456;
+const PORT = process.env.UI_PORT || process.env.PORT;
 const API_URL = process.env.API_URL || 'http://localhost:8456';
 
 app.use(cors());
