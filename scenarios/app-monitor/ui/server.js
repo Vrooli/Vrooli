@@ -8,7 +8,11 @@ const app = express();
 const PORT = process.env.UI_PORT || process.env.PORT;
 const API_PORT = process.env.API_PORT;
 const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
+// Only handle WebSocket on /ws path, not all connections
+const wss = new WebSocket.Server({
+    server,
+    path: '/ws'  // Only handle WebSocket connections on /ws endpoint
+});
 
 const API_BASE = process.env.API_BASE || `http://localhost:${API_PORT}`;
 
@@ -28,9 +32,9 @@ function proxyToApi(req, res, apiPath) {
             host: `localhost:${API_PORT}`
         }
     };
-    
+
     console.log(`[PROXY] ${req.method} ${req.url} -> http://localhost:${API_PORT}${options.path}`);
-    
+
     const proxyReq = http.request(options, (proxyRes) => {
         res.status(proxyRes.statusCode);
         Object.keys(proxyRes.headers).forEach(key => {
@@ -38,16 +42,16 @@ function proxyToApi(req, res, apiPath) {
         });
         proxyRes.pipe(res);
     });
-    
+
     proxyReq.on('error', (err) => {
         console.error('Proxy error:', err.message);
-        res.status(502).json({ 
-            error: 'API server unavailable', 
+        res.status(502).json({
+            error: 'API server unavailable',
             details: err.message,
             target: `http://localhost:${API_PORT}${options.path}`
         });
     });
-    
+
     if (req.method !== 'GET' && req.method !== 'HEAD') {
         req.pipe(proxyReq);
     } else {
@@ -64,13 +68,24 @@ app.use('/api', (req, res) => {
 // WebSocket handling
 wss.on('connection', (ws) => {
     console.log('New WebSocket client connected');
-    
-    // Send initial connection message
-    ws.send(JSON.stringify({
-        type: 'connection',
-        payload: { status: 'connected' }
-    }));
-    
+
+    // Add error handling to prevent crashes
+    ws.on('error', (error) => {
+        console.error('WebSocket error:', error.message);
+        // Don't crash the server on WebSocket errors
+    });
+
+    // Send initial connection message (wrapped in try-catch)
+    try {
+        ws.send(JSON.stringify({
+            type: 'connection',
+            payload: { status: 'connected' }
+        }));
+    } catch (error) {
+        console.error('Failed to send initial message:', error.message);
+        return;
+    }
+
     // Simulate real-time updates (in production, this would connect to actual monitoring)
     const metricsInterval = setInterval(() => {
         if (ws.readyState === WebSocket.OPEN) {
@@ -85,13 +100,13 @@ wss.on('connection', (ws) => {
             }));
         }
     }, 5000);
-    
+
     // Handle client messages
     ws.on('message', (message) => {
         try {
             const data = JSON.parse(message);
             console.log('Received:', data);
-            
+
             // Handle different message types
             switch (data.type) {
                 case 'subscribe':
@@ -107,12 +122,12 @@ wss.on('connection', (ws) => {
             console.error('WebSocket message error:', error);
         }
     });
-    
+
     ws.on('close', () => {
         console.log('WebSocket client disconnected');
         clearInterval(metricsInterval);
     });
-    
+
     ws.on('error', (error) => {
         console.error('WebSocket error:', error);
     });
@@ -139,7 +154,7 @@ async function processCommand(command) {
     // This would integrate with the actual system
     // For now, return mock responses
     const [cmd, ...args] = command.split(' ');
-    
+
     switch (cmd) {
         case 'status':
             return { status: 'System operational', apps: 5, resources: 8 };
@@ -164,7 +179,7 @@ function broadcastAppUpdate() {
             memory: Math.floor(Math.random() * 1024)
         }
     };
-    
+
     wss.clients.forEach((client) => {
         if (client.readyState === WebSocket.OPEN) {
             client.send(JSON.stringify(mockUpdate));
@@ -185,7 +200,7 @@ function broadcastLogEntry() {
         'Backup completed',
         'API request processed'
     ];
-    
+
     const mockLog = {
         type: 'log_entry',
         payload: {
@@ -194,7 +209,7 @@ function broadcastLogEntry() {
             timestamp: new Date().toISOString()
         }
     };
-    
+
     wss.clients.forEach((client) => {
         if (client.readyState === WebSocket.OPEN) {
             client.send(JSON.stringify(mockLog));
@@ -228,7 +243,7 @@ server.listen(PORT, () => {
 ║  Access dashboard at:                      ║
 ║  http://localhost:${PORT}                     ║
 ╔════════════════════════════════════════════╗
-    `);
+    boop`);
 });
 
 // Graceful shutdown
