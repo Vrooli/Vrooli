@@ -433,6 +433,7 @@ lifecycle::allocate_service_ports() {
         
         # Check if already set
         if [[ -n "${!env_var:-}" ]]; then
+            export "$env_var=${!env_var}"
             log::info "  • $port_name: Using existing $env_var=${!env_var}"
             continue
         fi

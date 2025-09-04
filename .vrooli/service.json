@@ -44,23 +44,24 @@
   "ports": {
     "api": {
       "env_var": "VROOLI_API_PORT",
-      "fixed": 8092,
+      "port": 8092,
       "description": "Vrooli unified API server for orchestration and resource management"
     },
         "health": {
       "env_var": "HEALTH_PORT",
-      "fixed": 3001,
+      "port": 3001,
       "description": "Health check and monitoring endpoint"
     },
     "orchestrator": {
       "env_var": "ORCHESTRATOR_PORT",
-      "fixed": 9500,
+      "port": 9500,
       "description": "Scenario orchestrator API for managing running scenarios"
     }
   },
   "resources": {
     "postgres": {
       "enabled": true,
+"required": true,
       "baseUrl": "http://localhost:5433",
       "healthCheck": {
         "intervalMs": 60000,
@@ -75,6 +76,7 @@
     },
     "qdrant": {
       "enabled": true,
+"required": true,
       "baseUrl": "http://localhost:6333",
       "container_name": "qdrant", 
       "data_directory": "${HOME}/.qdrant/data",
@@ -95,7 +97,7 @@
     },
     "vault": {
       "enabled": true,
-      "required": false,
+      "required": true,
       "description": "Secrets management and secure storage"
     },
     "neo4j": {

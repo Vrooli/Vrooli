@@ -154,11 +154,6 @@
           }
         },
         {
-          "name": "wait-for-api",
-          "run": "../../scripts/lib/utils/wait-for-service.sh http://localhost:$API_PORT/health 15 2",
-          "description": "Wait for API server to be ready"
-        },
-        {
           "name": "initial-health-check",
           "run": "sleep 1 && ./cli/core-debugger check-health || true",
           "description": "Run initial health check on all components"

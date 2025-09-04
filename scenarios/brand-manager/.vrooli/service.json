@@ -245,19 +245,6 @@
           }
         },
         {
-          "name": "wait-for-api",
-          "run": "../../scripts/lib/utils/wait-for-service.sh http://localhost:$API_PORT/health 15 2",
-          "description": "Wait for API server to be ready"
-        },
-        {
-          "name": "wait-for-ui",
-          "run": "../../scripts/lib/utils/wait-for-service.sh http://localhost:$UI_PORT 10 2",
-          "description": "Wait for UI server to be ready",
-          "condition": {
-            "file_exists": "ui/server.js"
-          }
-        },
-        {
           "name": "show-running-services",
           "run": "echo '🚀 Brand Manager running:\\n  Dashboard: http://localhost:$UI_PORT\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$API_PORT\\n  CLI: brand-manager --help'",
           "description": "Display all running service URLs"

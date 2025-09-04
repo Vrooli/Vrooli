@@ -166,11 +166,6 @@
           }
         },
         {
-          "name": "wait-for-api",
-          "run": "../../scripts/lib/utils/wait-for-service.sh http://localhost:$API_PORT/health 15 2",
-          "description": "Wait for API server to be ready"
-        },
-        {
           "name": "show-running-services",
           "run": "echo '📁 File-Based Issue Tracker running:\\n  🌐 Web UI: http://localhost:$UI_PORT\\n  📡 API: http://localhost:$API_PORT\\n  🎯 CLI: app-issue-tracker-v2 --help\\n  📊 Management: ./app-issue-tracker-api/manage.sh status\\n\\n📝 Create issues:\\n  app-issue-tracker-v2 create --title \"Bug title\" --priority high\\n  ./app-issue-tracker-api/manage.sh add\\n\\n📂 File Operations:\\n  ls issues/open/*.yaml\\n  mv issues/open/001-bug.yaml issues/investigating/\\n  ./app-issue-tracker-api/manage.sh search \"keyword\"'",
           "description": "Display all running services and usage examples"

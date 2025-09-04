@@ -190,20 +190,10 @@
           }
         },
         {
-          "name": "wait-for-api",
-          "run": "sleep 2 && curl -sf http://localhost:$API_PORT/health || (sleep 3 && curl -sf http://localhost:$API_PORT/health)",
-          "description": "Wait for API to be ready"
-        },
-        {
           "name": "start-ui-server",
           "run": "cd ui && node server.js",
           "description": "Start UI server",
           "background": true
-        },
-        {
-          "name": "wait-for-services",
-          "run": "sleep 3",
-          "description": "Wait for services to start"
         },
         {
           "name": "show-running",

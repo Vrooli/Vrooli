@@ -170,7 +170,7 @@
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod download && go build -o agent-metareasoning-manager-api main.go",
+          "run": "cd api && go mod download && go build -o agent-metareasoning-manager-api .",
           "description": "Build Go coordination API binary"
         },
         {
@@ -184,11 +184,6 @@
       "description": "Start metareasoning manager with Go API server",
       "steps": [
         {
-          "name": "ensure-api-built",
-          "run": "if [ ! -f api/agent-metareasoning-manager-api ]; then echo 'Building API...'; cd api && go mod download && go build -o agent-metareasoning-manager-api main.go && echo 'API built successfully'; else echo 'API binary already exists'; fi",
-          "description": "Ensure API binary exists"
-        },
-        {
           "name": "start-api-server",
           "run": "cd api && ./agent-metareasoning-manager-api",
           "description": "Start Go coordination API server in background",
@@ -196,11 +191,6 @@
           "condition": {
             "file_exists": "api/agent-metareasoning-manager-api"
           }
-        },
-        {
-          "name": "wait-for-api",
-          "run": "../../scripts/lib/utils/wait-for-service.sh http://localhost:$API_PORT/health 15 2",
-          "description": "Wait for API server to be ready"
         },
         {
           "name": "show-running-services",
@@ -214,7 +204,7 @@
       "steps": [
         {
           "name": "test-go-build",
-          "run": "cd api && go build -o test-build main.go && rm test-build",
+          "run": "cd api && go build -o test-build . && rm test-build",
           "description": "Test Go compilation",
           "condition": {
             "file_exists": "api/main.go"

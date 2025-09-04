@@ -152,7 +152,7 @@
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod download && go build -o agent-dashboard-api main.go",
+          "run": "cd api && go mod download && go build -o agent-dashboard-api .",
           "description": "Build Go API binary"
         },
         {
@@ -186,11 +186,6 @@
           "background": true
         },
         {
-          "name": "wait-for-services",
-          "run": "sleep 2 && curl -sf http://localhost:$API_PORT/health > /dev/null && curl -sf http://localhost:$UI_PORT > /dev/null",
-          "description": "Wait for services to be ready"
-        },
-        {
           "name": "show-running-services",
           "run": "echo 'Services running - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT} - CLI: agent-dashboard --help'",
           "description": "Display all running service URLs"
@@ -202,7 +197,7 @@
       "steps": [
         {
           "name": "test-go-build",
-          "run": "cd api && go build -o test-build main.go && rm test-build",
+          "run": "cd api && go build -o test-build . && rm test-build",
           "description": "Test Go compilation",
           "condition": {
             "file_exists": "api/main.go"

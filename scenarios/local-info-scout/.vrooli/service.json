@@ -69,15 +69,21 @@
     "develop": {
       "steps": [
         {
-          "name": "start_api",
+          "name": "start-api",
           "run": "cd api && ./local-info-scout-api",
           "description": "Start API server",
           "background": true
         },
         {
-          "name": "wait_for_api",
-          "run": "timeout 10 bash -c 'until curl -sf http://localhost:$API_PORT/health; do sleep 1; done' || echo 'API health check timeout'",
-          "description": "Wait for API to be ready"
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "description": "Start UI server",
+          "background": true
+        },
+        {
+          "name": "show-running-services",
+          "run": "echo '🚀 Services running:\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}\\n  CLI: local-info-scout --help'",
+          "description": "Display running service URLs"
         }
       ]
     },

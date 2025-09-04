@@ -159,7 +159,7 @@
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod download && go build -o app-debugger-api main.go",
+          "run": "cd api && go mod download && go build -o app-debugger-api .",
           "description": "Build Go API binary"
         },
         {
@@ -187,20 +187,10 @@
           }
         },
         {
-          "name": "wait-for-api",
-          "run": "sleep 2 && curl -sf http://localhost:$API_PORT/health || (echo 'Waiting for API to be ready...' && sleep 3)",
-          "description": "Wait for API to be ready"
-        },
-        {
           "name": "start-ui-server",
           "run": "cd ui && node server.js",
           "description": "Start UI server",
           "background": true
-        },
-        {
-          "name": "wait-for-services",
-          "run": "sleep 3",
-          "description": "Wait for services to start"
         },
         {
           "name": "show-running",

@@ -1117,36 +1117,35 @@ class EnhancedAppOrchestrator:
         
         @self.api_app.post("/apps/start-all")
         async def start_all_apps():
-            """Start all enabled apps using concurrent batching"""
+            """Start all enabled apps using rolling window concurrency"""
             results = []
             enabled_apps = [(name, app) for name, app in self.apps.items() if app.enabled]
             
-            # Process apps in batches of MAX_CONCURRENT_STARTS
-            for i in range(0, len(enabled_apps), MAX_CONCURRENT_STARTS):
-                batch = enabled_apps[i:i + MAX_CONCURRENT_STARTS]
-                
-                # Start batch concurrently
-                batch_tasks = []
-                for app_name, app in batch:
-                    # Create coroutine for starting each app
-                    async def start_with_error_handling(name):
-                        try:
-                            success = await self.start_app(name)
-                            return {"app": name, "success": success}
-                        except Exception as e:
-                            return {"app": name, "success": False, "error": str(e)}
-                    
-                    batch_tasks.append(start_with_error_handling(app_name))
-                
-                # Wait for all apps in batch to complete
-                batch_results = await asyncio.gather(*batch_tasks)
-                results.extend(batch_results)
-                
-                # Log batch completion
-                batch_successful = sum(1 for r in batch_results if r["success"])
-                self.logger.info(f"Batch completed: {batch_successful}/{len(batch_results)} apps started")
+            # Use semaphore for rolling window concurrency
+            semaphore = asyncio.Semaphore(MAX_CONCURRENT_STARTS)
+            
+            async def start_with_semaphore(name):
+                async with semaphore:
+                    try:
+                        self.logger.info(f"Starting {name}...")
+                        success = await self.start_app(name)
+                        result = {"app": name, "success": success}
+                        if success:
+                            self.logger.info(f"✓ {name} started successfully")
+                        else:
+                            self.logger.warning(f"✗ {name} failed to start")
+                        return result
+                    except Exception as e:
+                        self.logger.error(f"✗ {name} error: {str(e)}")
+                        return {"app": name, "success": False, "error": str(e)}
+            
+            # Start all apps with rolling window concurrency
+            tasks = [start_with_semaphore(app_name) for app_name, _ in enabled_apps]
+            results = await asyncio.gather(*tasks)
             
             successful = sum(1 for r in results if r["success"])
+            self.logger.info(f"Completed: {successful}/{len(results)} apps started successfully")
+            
             return {
                 "message": f"Started {successful}/{len(results)} apps",
                 "results": results
@@ -1300,29 +1299,39 @@ async def main():
         
         # Start all apps if requested
         if args.start_all:
-            print("Starting all enabled apps...")
+            print(f"Starting all enabled apps (max {MAX_CONCURRENT_STARTS} concurrent)...")
             enabled_apps = [(name, app) for name, app in orchestrator.apps.items() if app.enabled]
+            print(f"  Total scenarios to start: {len(enabled_apps)}")
             
-            # Process apps in batches of MAX_CONCURRENT_STARTS
-            for i in range(0, len(enabled_apps), MAX_CONCURRENT_STARTS):
-                batch = enabled_apps[i:i + MAX_CONCURRENT_STARTS]
-                print(f"  Starting batch of {len(batch)} apps...")
-                
-                # Start batch concurrently
-                batch_tasks = []
-                for app_name, app in batch:
-                    batch_tasks.append(orchestrator.start_app(app_name))
-                
-                # Wait for batch to complete
-                batch_results = await asyncio.gather(*batch_tasks, return_exceptions=True)
-                
-                # Display results
-                for (app_name, _), result in zip(batch, batch_results):
-                    if isinstance(result, Exception):
-                        print(f"    ✗ {app_name} (error: {str(result)})")
-                    else:
-                        status = "✓" if result else "✗"
-                        print(f"    {status} {app_name}")
+            # Use semaphore for rolling window concurrency
+            semaphore = asyncio.Semaphore(MAX_CONCURRENT_STARTS)
+            start_times = {}
+            
+            async def start_with_semaphore(app_name):
+                async with semaphore:
+                    start_time = time.time()
+                    start_times[app_name] = start_time
+                    try:
+                        print(f"  ⟳ Starting {app_name}...")
+                        success = await orchestrator.start_app(app_name)
+                        elapsed = time.time() - start_time
+                        if success:
+                            print(f"  ✓ {app_name} started ({elapsed:.1f}s)")
+                        else:
+                            print(f"  ✗ {app_name} failed ({elapsed:.1f}s)")
+                        return app_name, success
+                    except Exception as e:
+                        elapsed = time.time() - start_time
+                        print(f"  ✗ {app_name} error: {str(e)} ({elapsed:.1f}s)")
+                        return app_name, False
+            
+            # Start all apps with rolling window concurrency
+            tasks = [start_with_semaphore(app_name) for app_name, _ in enabled_apps]
+            results = await asyncio.gather(*tasks)
+            
+            # Summary
+            successful = sum(1 for _, success in results if success)
+            print(f"\nCompleted: {successful}/{len(results)} scenarios started successfully")
         
         # Summary
         total_apps = len(orchestrator.apps)

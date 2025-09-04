@@ -214,11 +214,6 @@
           }
         },
         {
-          "name": "wait-for-services",
-          "run": "../../scripts/lib/utils/wait-for-service.sh http://localhost:$CTM_API_PORT/health 15 2",
-          "description": "Wait for services to be ready"
-        },
-        {
           "name": "show-running-services",
           "run": "echo '🧹 Code Tidiness Manager running:\\n  Dashboard: http://localhost:${CTM_UI_PORT}\\n  API: http://localhost:${CTM_API_PORT}\\n  CLI: code-tidiness-manager --help\\n\\n  Run a scan: code-tidiness-manager scan'",
           "description": "Display all running service URLs"

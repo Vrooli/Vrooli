@@ -75,12 +75,7 @@
       "enabled": true,
       "required": true,
       "purpose": "orchestration metrics and model performance data",
-      "initialization": [
-        {
-          "file": "initialization/scripts/setup.sh",
-          "type": "script"
-        }
-      ]
+      "initialization": []
     },
     "redis": {
       "type": "redis",
@@ -220,11 +215,6 @@
           "background": true
         },
         {
-          "name": "wait-for-api",
-          "run": "../../scripts/lib/utils/wait-for-service.sh http://localhost:$API_PORT/health 15 2",
-          "description": "Wait for API server to be ready"
-        },
-        {
           "name": "show-urls",
           "run": "echo '🚀 AI Model Orchestra Controller initialized\\n  API: http://localhost:${API_PORT}\\n  Dashboard: http://localhost:${API_PORT}/dashboard\\n  Node-RED: http://localhost:${RESOURCE_PORTS[node_red]}\\n  Health: curl http://localhost:${API_PORT}/health'",
           "description": "Display service access URLs"
@@ -235,11 +225,6 @@
       "description": "Start AI orchestration development environment",
       "steps": [
         {
-          "name": "ensure-resource-urls",
-          "run": "bash initialization/scripts/create-resource-urls.sh",
-          "description": "Ensure resource URLs are current"
-        },
-        {
           "name": "start-orchestrator",
           "run": "cd initialization/configuration && PORT=$API_PORT node api-server.js",
           "description": "Start AI orchestration API server",
@@ -247,11 +232,6 @@
           "condition": {
             "file_exists": "initialization/configuration/api-server.js"
           }
-        },
-        {
-          "name": "wait-for-orchestrator",
-          "run": "../../scripts/lib/utils/wait-for-service.sh http://localhost:$API_PORT/health 15 2",
-          "description": "Wait for orchestrator to be ready"
         },
         {
           "name": "show-running-services",
