@@ -171,7 +171,7 @@
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod download && go build -o roi-fit-analysis-api main.go",
+          "run": "cd api && go mod download && go build -o roi-fit-analysis-api .",
           "description": "Build Go API binary"
         },
         {
@@ -199,20 +199,10 @@
           }
         },
         {
-          "name": "wait-for-api",
-          "run": "curl -sf http://localhost:$API_PORT/health > /dev/null",
-          "description": "Wait for API to be ready"
-        },
-        {
           "name": "start-ui-server",
           "run": "cd ui && node server.js",
           "description": "Start UI server in background",
           "background": true
-        },
-        {
-          "name": "wait-for-services",
-          "run": "sleep 2 && curl -sf http://localhost:$API_PORT/health > /dev/null && curl -sf http://localhost:$UI_PORT > /dev/null",
-          "description": "Wait for services to be ready"
         },
         {
           "name": "show-running-services",
@@ -226,7 +216,7 @@
       "steps": [
         {
           "name": "test-go-build",
-          "run": "cd api && go build -o test-build main.go && rm test-build",
+          "run": "cd api && go build -o test-build . && rm test-build",
           "description": "Test Go compilation",
           "condition": {
             "file_exists": "api/main.go"

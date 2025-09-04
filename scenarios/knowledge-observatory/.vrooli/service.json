@@ -193,11 +193,6 @@
           "background": true
         },
         {
-          "name": "wait-for-services",
-          "run": "sleep 3 && curl -sf http://localhost:$API_PORT/health > /dev/null && curl -sf http://localhost:$UI_PORT/ > /dev/null",
-          "description": "Wait for services to be ready"
-        },
-        {
           "name": "show-running-services",
           "run": "echo '🔭 Knowledge Observatory running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Qdrant: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  CLI: knowledge-observatory --help'",
           "description": "Display all running service URLs"

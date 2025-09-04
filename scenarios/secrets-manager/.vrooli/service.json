@@ -162,16 +162,6 @@
           }
         },
         {
-          "name": "wait-for-api",
-          "run": "../../scripts/lib/utils/wait-for-service.sh http://localhost:$API_PORT/health 15 2",
-          "description": "Wait for API server to be ready"
-        },
-        {
-          "name": "wait-for-ui",
-          "run": "../../scripts/lib/utils/wait-for-service.sh http://localhost:$UI_PORT 10 2",
-          "description": "Wait for UI server to be ready"
-        },
-        {
           "name": "run-initial-scan",
           "run": "sleep 3 && ./cli/secrets-manager scan || echo \"Initial scan failed - run manually: secrets-manager scan\"",
           "description": "Perform initial resource secret discovery scan"

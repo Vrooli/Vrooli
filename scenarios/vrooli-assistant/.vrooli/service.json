@@ -147,11 +147,6 @@
           }
         },
         {
-          "name": "wait-for-api",
-          "run": "../../scripts/lib/utils/wait-for-service.sh http://localhost:$API_PORT/health 15 2",
-          "description": "Wait for API server to be ready"
-        },
-        {
           "name": "start-electron-daemon",
           "run": "cd ui/electron && npm run start:daemon",
           "description": "Start Electron overlay daemon",

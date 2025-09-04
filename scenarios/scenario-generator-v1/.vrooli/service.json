@@ -148,14 +148,19 @@
           "description": "Add scenario generator data to resources"
         },
         {
-          "name": "check-claude-code",
-          "run": "resource-claude-code test smoke >/dev/null 2>&1 || echo 'Claude Code not available - generation features will be limited'",
-          "description": "Verify Claude Code availability for AI generation"
-        },
-        {
           "name": "install-cli",
           "run": "cd cli && ./install.sh",
           "description": "Install scenario generator CLI globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o scenario-generator-v1-api .",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "check-claude-code",
+          "run": "resource-claude-code test smoke >/dev/null 2>&1 || echo 'Claude Code not available - generation features will be limited'",
+          "description": "Verify Claude Code availability for AI generation"
         },
         {
           "name": "show-urls",
@@ -169,14 +174,9 @@
       "steps": [
         {
           "name": "start-api",
-          "run": "cd api && go run main.go",
+          "run": "cd api && ./scenario-generator-v1-api",
           "description": "Start Go API server in background",
           "background": true
-        },
-        {
-          "name": "wait-for-api",
-          "run": "sleep 3 && curl -sf http://localhost:${API_PORT}/health > /dev/null",
-          "description": "Wait for API to be ready"
         },
         {
           "name": "start-ui",
@@ -219,7 +219,7 @@
       "steps": [
         {
           "name": "stop-services",
-          "run": "pkill -f 'go run main.go' || true; pkill -f 'node server.js' || true",
+          "run": "pkill -f 'scenario-generator-v1-api' || true; pkill -f 'node server.js' || true",
           "description": "Stop API and UI processes"
         },
         {

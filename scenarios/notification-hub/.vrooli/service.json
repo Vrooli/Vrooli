@@ -5,7 +5,7 @@
     "description": "Multi-tenant notification management system for email, SMS, and push notifications across all Vrooli scenarios",
     "tags": [
       "notifications",
-      "multi-tenant", 
+      "multi-tenant",
       "email",
       "sms",
       "push-notifications",
@@ -16,7 +16,7 @@
       "analytics",
       "compliance",
       "go-api",
-      "n8n-workflows", 
+      "n8n-workflows",
       "nodejs-server",
       "postgres-storage",
       "redis-cache"
@@ -38,7 +38,7 @@
           "type": "schema"
         },
         {
-          "file": "initialization/storage/postgres/seed.sql", 
+          "file": "initialization/storage/postgres/seed.sql",
           "type": "seed"
         }
       ]
@@ -93,7 +93,7 @@
       "checks": [
         {
           "name": "api_endpoint",
-          "type": "http", 
+          "type": "http",
           "target": "http://localhost:${API_PORT}/health",
           "critical": true,
           "timeout": 5000,
@@ -108,7 +108,7 @@
           "interval": 60000
         },
         {
-          "name": "redis_connection", 
+          "name": "redis_connection",
           "type": "redis",
           "target": "redis://localhost:${RESOURCE_PORTS[redis]}",
           "critical": true,
@@ -187,16 +187,6 @@
           }
         },
         {
-          "name": "wait-for-api",
-          "run": "../../scripts/lib/utils/wait-for-service.sh http://localhost:$API_PORT/health 15 2",
-          "description": "Wait for API server to be ready"
-        },
-        {
-          "name": "wait-for-ui", 
-          "run": "sleep 3 && curl -sf http://localhost:$UI_PORT/health > /dev/null",
-          "description": "Wait for UI server to be ready"
-        },
-        {
           "name": "show-running-services",
           "run": "echo '🔔 Notification Hub running:\\n  Dashboard: http://localhost:$UI_PORT\\n  API Docs: http://localhost:$API_PORT/docs\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$API_PORT\\n  CLI: notification-hub --help'",
           "description": "Display all running service URLs"
@@ -237,7 +227,7 @@
           "description": "Stop Go API server processes"
         },
         {
-          "name": "stop-ui-server", 
+          "name": "stop-ui-server",
           "run": "pkill -f \"ui/server.js\" || pkill -f \"node.*server.js\" || true",
           "description": "Stop Node.js UI server processes"
         },

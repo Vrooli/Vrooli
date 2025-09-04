@@ -1,0 +1,376 @@
+version: 1.0
+scenario: scenario-authenticator
+description: Test suite for universal authentication service
+
+# Structure validation - files and directories that MUST exist
+structure:
+  required_files:
+    - .vrooli/service.json
+    - PRD.md
+    - README.md
+    - api/main.go
+    - api/go.mod
+    - cli/scenario-authenticator
+    - initialization/postgres/schema.sql
+    - initialization/postgres/seed.sql
+    - initialization/redis/config.lua
+    - initialization/n8n/auth-validator.json
+    - initialization/n8n/password-reset.json
+    - ui/index.html
+    - ui/auth.js
+    - ui/server.js
+    - ui/package.json
+    - scenario-test.yaml
+    
+  required_dirs:
+    - api
+    - cli
+    - initialization
+    - initialization/postgres
+    - initialization/redis
+    - initialization/n8n
+    - ui
+    - data/keys
+    - test
+
+# Resource dependencies and health checks
+resources:
+  required: [postgres, redis]
+  optional: [n8n, mailpit]
+  health_timeout: 60
+
+# Test scenarios
+tests:
+  # Resource Health Checks
+  - name: "PostgreSQL is accessible"
+    type: http
+    service: postgres
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+      
+  - name: "Redis is accessible"
+    type: redis
+    service: redis
+    command: ping
+    expect:
+      response: "PONG"
+
+  # API Health and Startup
+  - name: "Authentication API is healthy"
+    type: http
+    service: api
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+      body:
+        status: "healthy"
+        database: true
+        redis: true
+        
+  - name: "Authentication UI is accessible"
+    type: http
+    service: ui
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+      
+  # Database Schema Tests
+  - name: "User table exists and is accessible"
+    type: sql
+    service: postgres
+    database: scenario_authenticator
+    query: "SELECT COUNT(*) as count FROM information_schema.tables WHERE table_name = 'users'"
+    expect:
+      rows:
+        - count: 1
+        
+  - name: "Default roles are seeded"
+    type: sql
+    service: postgres
+    database: scenario_authenticator
+    query: "SELECT name FROM roles ORDER BY name"
+    expect:
+      rows:
+        - name: "admin"
+        - name: "guest"
+        - name: "user"
+        
+  - name: "Admin user is seeded"
+    type: sql
+    service: postgres
+    database: scenario_authenticator
+    query: "SELECT email FROM users WHERE email = 'admin@vrooli.local'"
+    expect:
+      rows:
+        - email: "admin@vrooli.local"
+
+  # Authentication Flow Tests
+  - name: "User registration works"
+    type: http
+    service: api
+    endpoint: /api/v1/auth/register
+    method: POST
+    body:
+      email: "test@test.com"
+      password: "TestPass123!"
+      username: "testuser"
+    expect:
+      status: 201
+      body:
+        success: true
+        user:
+          email: "test@test.com"
+          username: "testuser"
+        
+  - name: "User login works with valid credentials"
+    type: http
+    service: api
+    endpoint: /api/v1/auth/login
+    method: POST
+    body:
+      email: "admin@vrooli.local"
+      password: "Admin123!"
+    expect:
+      status: 200
+      body:
+        success: true
+        token: "!empty"
+        refresh_token: "!empty"
+        user:
+          email: "admin@vrooli.local"
+          
+  - name: "User login fails with invalid credentials"
+    type: http
+    service: api
+    endpoint: /api/v1/auth/login
+    method: POST
+    body:
+      email: "admin@vrooli.local"
+      password: "WrongPassword"
+    expect:
+      status: 401
+      body:
+        success: false
+        error: "Invalid email or password"
+
+  # Token Validation Tests  
+  - name: "Token validation works with valid token"
+    type: http_sequence
+    service: api
+    steps:
+      - name: login
+        endpoint: /api/v1/auth/login
+        method: POST
+        body:
+          email: "admin@vrooli.local"
+          password: "Admin123!"
+        extract:
+          token: "$.token"
+      - name: validate
+        endpoint: /api/v1/auth/validate
+        method: GET
+        headers:
+          Authorization: "Bearer ${token}"
+        expect:
+          status: 200
+          body:
+            valid: true
+            user_id: "!empty"
+            email: "admin@vrooli.local"
+
+  - name: "Token validation fails with invalid token"
+    type: http
+    service: api
+    endpoint: /api/v1/auth/validate
+    method: GET
+    headers:
+      Authorization: "Bearer invalid_token"
+    expect:
+      status: 200
+      body:
+        valid: false
+
+  # CLI Tests
+  - name: "CLI status command works"
+    type: exec
+    command: ./cli/scenario-authenticator status --json
+    expect:
+      exit_code: 0
+      output_json:
+        status: "healthy"
+        
+  - name: "CLI help command works"
+    type: exec
+    command: ./cli/scenario-authenticator help
+    expect:
+      exit_code: 0
+      output_contains: ["Scenario Authenticator CLI", "Commands:", "user", "token"]
+      
+  - name: "CLI version command works"
+    type: exec
+    command: ./cli/scenario-authenticator version
+    expect:
+      exit_code: 0
+      output_contains: ["Scenario Authenticator CLI v1.0.0"]
+
+  # n8n Workflow Tests (if n8n is available)
+  - name: "Auth validator workflow is active"
+    type: n8n
+    service: n8n
+    workflow: auth-validator
+    expect:
+      active: true
+      node_count: 9
+      
+  - name: "Password reset workflow is active"
+    type: n8n
+    service: n8n
+    workflow: password-reset
+    expect:
+      active: true
+      node_count: 12
+
+  # Integration Tests
+  - name: "Complete auth flow integration test"
+    type: http_sequence
+    service: api
+    steps:
+      # Register new user
+      - name: register
+        endpoint: /api/v1/auth/register
+        method: POST
+        body:
+          email: "integration@test.com"
+          password: "IntegrationTest123!"
+        extract:
+          user_id: "$.user.id"
+          token: "$.token"
+          refresh_token: "$.refresh_token"
+      
+      # Validate token
+      - name: validate
+        endpoint: /api/v1/auth/validate
+        method: GET
+        headers:
+          Authorization: "Bearer ${token}"
+        expect:
+          status: 200
+          body:
+            valid: true
+            user_id: "${user_id}"
+            email: "integration@test.com"
+      
+      # Logout
+      - name: logout
+        endpoint: /api/v1/auth/logout
+        method: POST
+        headers:
+          Authorization: "Bearer ${token}"
+        expect:
+          status: 200
+          body:
+            success: true
+      
+      # Try to use token after logout (should fail)
+      - name: validate_after_logout
+        endpoint: /api/v1/auth/validate
+        method: GET
+        headers:
+          Authorization: "Bearer ${token}"
+        expect:
+          status: 200
+          body:
+            valid: false
+
+  # Security Tests
+  - name: "SQL injection prevention in login"
+    type: http
+    service: api
+    endpoint: /api/v1/auth/login
+    method: POST
+    body:
+      email: "admin@vrooli.local'; DROP TABLE users; --"
+      password: "anything"
+    expect:
+      status: 401
+      body:
+        success: false
+        
+  - name: "Rate limiting works (if implemented)"
+    type: http_sequence
+    service: api
+    steps:
+      - name: attempt1
+        endpoint: /api/v1/auth/login
+        method: POST
+        body:
+          email: "nonexistent@test.com"
+          password: "wrong"
+        expect:
+          status: 401
+    # Note: Would need multiple rapid requests to test rate limiting
+
+  # Performance Tests
+  - name: "Token validation is fast"
+    type: http_performance
+    service: api
+    endpoint: /api/v1/auth/validate
+    method: GET
+    headers:
+      Authorization: "Bearer ${admin_token}"
+    expect:
+      max_response_time: 100  # milliseconds
+      
+  - name: "User registration is reasonably fast"
+    type: http_performance
+    service: api
+    endpoint: /api/v1/auth/register
+    method: POST
+    body:
+      email: "perf@test.com"
+      password: "PerfTest123!"
+    expect:
+      max_response_time: 500  # milliseconds
+
+# Test Data Setup
+setup:
+  # Create test admin token for tests that need authentication
+  - name: "Get admin token for tests"
+    type: http
+    service: api
+    endpoint: /api/v1/auth/login
+    method: POST
+    body:
+      email: "admin@vrooli.local"
+      password: "Admin123!"
+    extract:
+      admin_token: "$.token"
+
+# Cleanup after tests
+teardown:
+  # Clean up test users (optional - they'll be cleaned up on next setup anyway)
+  - name: "Clean test data"
+    type: sql
+    service: postgres
+    database: scenario_authenticator
+    query: "DELETE FROM users WHERE email LIKE '%@test.com'"
+
+# Performance targets
+performance:
+  api_response_time_p95: 200  # 95% of requests under 200ms
+  token_validation_time: 50   # Token validation under 50ms
+  concurrent_sessions: 100    # Support 100 concurrent sessions
+  throughput_rps: 100         # 100 requests per second
+
+# Security requirements
+security:
+  password_hashing: bcrypt
+  token_signing: rsa256
+  session_storage: redis
+  audit_logging: enabled
+  csrf_protection: recommended
+  rate_limiting: recommended

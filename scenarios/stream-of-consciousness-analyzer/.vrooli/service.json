@@ -185,20 +185,10 @@
           "background": true
         },
         {
-          "name": "wait-for-api",
-          "run": "timeout 30 bash -c 'until curl -sf http://localhost:$API_PORT/health; do sleep 1; done'",
-          "description": "Wait for API to be ready"
-        },
-        {
           "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start UI server",
           "background": true
-        },
-        {
-          "name": "wait-for-services",
-          "run": "sleep 3",
-          "description": "Wait for services to start"
         },
         {
           "name": "show-running",

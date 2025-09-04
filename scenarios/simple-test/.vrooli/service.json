@@ -97,11 +97,6 @@
           "background": true
         },
         {
-          "name": "wait-for-app",
-          "run": "../../scripts/lib/utils/wait-for-service.sh http://localhost:${API_PORT}/health 15 2",
-          "description": "Wait for application to be ready"
-        },
-        {
           "name": "show-running-services",
           "run": "echo '🚀 Services running:\\n  Application: http://localhost:${API_PORT}'",
           "description": "Display running service URLs"

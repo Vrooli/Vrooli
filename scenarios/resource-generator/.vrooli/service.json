@@ -150,7 +150,7 @@
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod init resource-generator && go mod tidy && go build -o resource-generator-api main.go",
+          "run": "cd api && go mod init resource-generator && go mod tidy && go build -o resource-generator-api .",
           "description": "Build Go API binary"
         },
         {
@@ -164,20 +164,10 @@
       "description": "Start Resource Generator services",
       "steps": [
         {
-          "name": "ensure-api-built",
-          "run": "if [ ! -f api/resource-generator-api ]; then cd api && go build -o resource-generator-api main.go; fi",
-          "description": "Ensure API binary exists"
-        },
-        {
           "name": "start-api-server",
           "run": "cd api && ./resource-generator-api",
           "description": "Start Go API server",
           "background": true
-        },
-        {
-          "name": "wait-for-api",
-          "run": "timeout 30 bash -c 'until curl -s http://localhost:${API_PORT}/health > /dev/null 2>&1; do sleep 1; done' || exit 1",
-          "description": "Wait for API to be ready"
         },
         {
           "name": "start-ui",

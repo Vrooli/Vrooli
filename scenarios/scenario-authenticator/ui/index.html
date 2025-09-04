@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vrooli Authentication</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-color: #4F46E5;
+            --primary-hover: #4338CA;
+            --secondary-color: #6B7280;
+            --success-color: #10B981;
+            --error-color: #EF4444;
+            --warning-color: #F59E0B;
+            --bg-color: #F9FAFB;
+            --card-bg: #FFFFFF;
+            --text-primary: #111827;
+            --text-secondary: #6B7280;
+            --border-color: #E5E7EB;
+            --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-color: #111827;
+                --card-bg: #1F2937;
+                --text-primary: #F9FAFB;
+                --text-secondary: #9CA3AF;
+                --border-color: #374151;
+            }
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: var(--bg-color);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .auth-container {
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .auth-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 32px;
+            box-shadow: var(--shadow-lg);
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .logo h1 {
+            color: var(--primary-color);
+            font-size: 32px;
+            font-weight: 700;
+            letter-spacing: -1px;
+        }
+
+        .logo p {
+            color: var(--text-secondary);
+            margin-top: 8px;
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 14px;
+            background: var(--card-bg);
+            color: var(--text-primary);
+            transition: all 0.2s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+
+        input.error {
+            border-color: var(--error-color);
+        }
+
+        .error-message {
+            color: var(--error-color);
+            font-size: 12px;
+            margin-top: 4px;
+            display: none;
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        .success-message {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid var(--success-color);
+            color: var(--success-color);
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .success-message.show {
+            display: block;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: var(--primary-hover);
+            transform: translateY(-1px);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--primary-color);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-color);
+        }
+
+        .divider {
+            text-align: center;
+            margin: 24px 0;
+            position: relative;
+        }
+
+        .divider::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: var(--border-color);
+        }
+
+        .divider span {
+            background: var(--card-bg);
+            padding: 0 16px;
+            color: var(--text-secondary);
+            font-size: 12px;
+            position: relative;
+        }
+
+        .form-footer {
+            text-align: center;
+            margin-top: 24px;
+        }
+
+        .form-footer a {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .form-footer a:hover {
+            text-decoration: underline;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+        }
+
+        .checkbox-group label {
+            margin-bottom: 0;
+            font-weight: 400;
+        }
+
+        .password-strength {
+            margin-top: 8px;
+            height: 4px;
+            background: var(--border-color);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .password-strength-bar {
+            height: 100%;
+            transition: all 0.3s;
+            width: 0%;
+        }
+
+        .password-strength-bar.weak {
+            width: 33%;
+            background: var(--error-color);
+        }
+
+        .password-strength-bar.medium {
+            width: 66%;
+            background: var(--warning-color);
+        }
+
+        .password-strength-bar.strong {
+            width: 100%;
+            background: var(--success-color);
+        }
+
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 10px;
+            background: transparent;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .tab.active {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        .tab:hover:not(.active) {
+            background: var(--bg-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="logo">
+                <h1>Vrooli</h1>
+                <p>Secure Authentication Service</p>
+            </div>
+
+            <div class="success-message" id="successMessage"></div>
+
+            <div class="tabs">
+                <button class="tab active" data-tab="login">Sign In</button>
+                <button class="tab" data-tab="register">Sign Up</button>
+            </div>
+
+            <!-- Login Form -->
+            <form id="loginForm" class="auth-form">
+                <div class="form-group">
+                    <label for="loginEmail">Email Address</label>
+                    <input type="email" id="loginEmail" name="email" required autocomplete="email">
+                    <div class="error-message" id="loginEmailError"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="loginPassword">Password</label>
+                    <input type="password" id="loginPassword" name="password" required autocomplete="current-password">
+                    <div class="error-message" id="loginPasswordError"></div>
+                </div>
+
+                <div class="checkbox-group">
+                    <input type="checkbox" id="rememberMe" name="remember">
+                    <label for="rememberMe">Remember me for 7 days</label>
+                </div>
+
+                <button type="submit" class="btn btn-primary" id="loginButton">
+                    <span>Sign In</span>
+                    <div class="spinner hidden"></div>
+                </button>
+
+                <div class="form-footer">
+                    <a href="#" id="forgotPassword">Forgot your password?</a>
+                </div>
+            </form>
+
+            <!-- Register Form -->
+            <form id="registerForm" class="auth-form hidden">
+                <div class="form-group">
+                    <label for="registerEmail">Email Address</label>
+                    <input type="email" id="registerEmail" name="email" required autocomplete="email">
+                    <div class="error-message" id="registerEmailError"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="registerUsername">Username (Optional)</label>
+                    <input type="text" id="registerUsername" name="username" autocomplete="username">
+                    <div class="error-message" id="registerUsernameError"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="registerPassword">Password</label>
+                    <input type="password" id="registerPassword" name="password" required autocomplete="new-password">
+                    <div class="password-strength">
+                        <div class="password-strength-bar" id="passwordStrength"></div>
+                    </div>
+                    <div class="error-message" id="registerPasswordError"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="confirmPassword">Confirm Password</label>
+                    <input type="password" id="confirmPassword" name="confirmPassword" required autocomplete="new-password">
+                    <div class="error-message" id="confirmPasswordError"></div>
+                </div>
+
+                <div class="checkbox-group">
+                    <input type="checkbox" id="agreeTerms" name="agree" required>
+                    <label for="agreeTerms">I agree to the Terms and Conditions</label>
+                </div>
+
+                <button type="submit" class="btn btn-primary" id="registerButton">
+                    <span>Create Account</span>
+                    <div class="spinner hidden"></div>
+                </button>
+            </form>
+
+            <!-- Reset Password Form -->
+            <form id="resetForm" class="auth-form hidden">
+                <p style="color: var(--text-secondary); margin-bottom: 20px; font-size: 14px;">
+                    Enter your email address and we'll send you instructions to reset your password.
+                </p>
+
+                <div class="form-group">
+                    <label for="resetEmail">Email Address</label>
+                    <input type="email" id="resetEmail" name="email" required autocomplete="email">
+                    <div class="error-message" id="resetEmailError"></div>
+                </div>
+
+                <button type="submit" class="btn btn-primary" id="resetButton">
+                    <span>Send Reset Instructions</span>
+                    <div class="spinner hidden"></div>
+                </button>
+
+                <div class="form-footer">
+                    <a href="#" id="backToLogin">Back to Sign In</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="auth.js"></script>
+</body>
+</html>

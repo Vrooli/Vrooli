@@ -165,15 +165,6 @@
           }
         },
         {
-          "name": "wait-for-api",
-          "run": "sleep 2 && curl -sf http://localhost:$API_PORT/health > /dev/null",
-          "description": "Wait for API server to be ready",
-          "retry": {
-            "max_attempts": 15,
-            "delay": 1
-          }
-        },
-        {
           "name": "show-running-services",
           "run": "echo '🚀 Services running:\\n  Windmill: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$API_PORT\\n  CLI: CLI_NAME_PLACEHOLDER --help'",
           "description": "Display all running service URLs"

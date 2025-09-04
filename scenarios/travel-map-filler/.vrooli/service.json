@@ -191,20 +191,10 @@
           }
         },
         {
-          "name": "wait-for-api",
-          "run": "../../scripts/lib/utils/wait-for-service.sh http://localhost:$PORT/health 15 2",
-          "description": "Wait for API to be ready"
-        },
-        {
           "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start UI server in background",
           "background": true
-        },
-        {
-          "name": "wait-for-services",
-          "run": "../../scripts/lib/utils/wait-for-service.sh http://localhost:$PORT/health 10 2 && ../../scripts/lib/utils/wait-for-service.sh http://localhost:$UI_PORT 10 2",
-          "description": "Wait for services to be ready"
         },
         {
           "name": "show-running-services",

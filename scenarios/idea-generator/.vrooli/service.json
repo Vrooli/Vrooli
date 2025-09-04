@@ -238,11 +238,6 @@
           }
         },
         {
-          "name": "wait-for-api",
-          "run": "../../scripts/lib/utils/wait-for-service.sh http://localhost:$API_PORT/health 15 2",
-          "description": "Wait for API server to be ready"
-        },
-        {
           "name": "show-running-services",
           "run": "echo '\ud83d\ude80 Idea Generator running:\\n  Web UI: http://localhost:$UI_PORT\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$API_PORT\\n  CLI: idea-generator --help'",
           "description": "Display all running service URLs"

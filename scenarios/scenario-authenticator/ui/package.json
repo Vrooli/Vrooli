@@ -1,0 +1,20 @@
+{
+  "name": "scenario-authenticator-ui",
+  "version": "1.0.0",
+  "description": "Authentication UI for Vrooli scenarios",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "AUTH_UI_PORT=3251 node server.js"
+  },
+  "keywords": [
+    "authentication",
+    "vrooli",
+    "jwt",
+    "login"
+  ],
+  "author": "Vrooli",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {}
+}

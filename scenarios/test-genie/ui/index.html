@@ -1,0 +1,1118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Genie - AI-Powered Test Management</title>
+    <meta name="description" content="Comprehensive AI-powered test generation, execution, and management platform">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            /* Color Scheme */
+            --bg-primary: #0a0a0a;
+            --bg-secondary: #1a1a1a;
+            --bg-panel: #2a2a2a;
+            --bg-card: #333333;
+            --accent-primary: #00ff41;
+            --accent-secondary: #00d4ff;
+            --accent-warning: #ff6b35;
+            --accent-error: #ff0040;
+            --accent-success: #39ff14;
+            --text-primary: #e0e0e0;
+            --text-secondary: #a0a0a0;
+            --text-muted: #606060;
+            --border: rgba(255, 255, 255, 0.1);
+            --glow-primary: rgba(0, 255, 65, 0.3);
+            --glow-secondary: rgba(0, 212, 255, 0.3);
+            
+            /* Typography */
+            --font-mono: 'JetBrains Mono', 'Consolas', monospace;
+            --font-sans: 'Inter', 'Arial', sans-serif;
+            
+            /* Spacing */
+            --spacing-xs: 0.5rem;
+            --spacing-sm: 1rem;
+            --spacing-md: 1.5rem;
+            --spacing-lg: 2rem;
+            --spacing-xl: 3rem;
+            
+            /* Dimensions */
+            --header-height: 60px;
+            --sidebar-width: 280px;
+            --panel-border-radius: 8px;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            overflow-x: hidden;
+            background-image: 
+                linear-gradient(rgba(0, 255, 65, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 65, 0.05) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        /* Header */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: var(--header-height);
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 var(--spacing-lg);
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+        }
+
+        .logo {
+            font-family: var(--font-mono);
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--accent-primary);
+            text-shadow: 0 0 10px var(--glow-primary);
+        }
+
+        .system-status {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+            padding: 0.25rem 0.75rem;
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            font-size: 0.875rem;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent-success);
+            box-shadow: 0 0 10px var(--accent-success);
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+        }
+
+        .header-stats {
+            display: flex;
+            gap: var(--spacing-lg);
+            font-family: var(--font-mono);
+            font-size: 0.875rem;
+        }
+
+        .stat {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+        }
+
+        .stat-value {
+            font-weight: 600;
+            color: var(--accent-secondary);
+        }
+
+        .stat-label {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+        }
+
+        /* Main Layout */
+        .main-container {
+            margin-top: var(--header-height);
+            display: flex;
+            min-height: calc(100vh - var(--header-height));
+        }
+
+        .sidebar {
+            width: var(--sidebar-width);
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            padding: var(--spacing-lg);
+            position: sticky;
+            top: var(--header-height);
+            height: calc(100vh - var(--header-height));
+            overflow-y: auto;
+        }
+
+        .nav-section {
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .nav-title {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            margin-bottom: var(--spacing-sm);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            padding: 0.75rem var(--spacing-sm);
+            border-radius: var(--panel-border-radius);
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 1px solid transparent;
+            margin-bottom: 0.25rem;
+        }
+
+        .nav-item:hover {
+            background: var(--bg-panel);
+            border-color: var(--border);
+            color: var(--text-primary);
+        }
+
+        .nav-item.active {
+            background: var(--bg-panel);
+            border-color: var(--accent-primary);
+            color: var(--accent-primary);
+            box-shadow: 0 0 10px var(--glow-primary);
+        }
+
+        .nav-icon {
+            width: 18px;
+            height: 18px;
+            font-family: var(--font-mono);
+            font-size: 0.875rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Content Area */
+        .content {
+            flex: 1;
+            padding: var(--spacing-lg);
+        }
+
+        .page {
+            display: none;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        .page-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .page-title {
+            font-size: 2rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .page-subtitle {
+            color: var(--text-secondary);
+            margin-top: 0.25rem;
+        }
+
+        /* Dashboard Grid */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: var(--spacing-lg);
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .metric-card {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: var(--panel-border-radius);
+            padding: var(--spacing-lg);
+            transition: all 0.2s ease;
+        }
+
+        .metric-card:hover {
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 20px var(--glow-primary);
+            transform: translateY(-2px);
+        }
+
+        .metric-header {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .metric-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-mono);
+            font-size: 1.25rem;
+        }
+
+        .metric-icon.primary {
+            background: var(--glow-primary);
+            color: var(--accent-primary);
+        }
+
+        .metric-icon.secondary {
+            background: var(--glow-secondary);
+            color: var(--accent-secondary);
+        }
+
+        .metric-icon.warning {
+            background: rgba(255, 107, 53, 0.3);
+            color: var(--accent-warning);
+        }
+
+        .metric-title {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .metric-value {
+            font-family: var(--font-mono);
+            font-size: 2.5rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            line-height: 1;
+        }
+
+        .metric-change {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            margin-top: 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        .change-positive {
+            color: var(--accent-success);
+        }
+
+        .change-negative {
+            color: var(--accent-error);
+        }
+
+        /* Panels */
+        .panel {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: var(--panel-border-radius);
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .panel-header {
+            padding: var(--spacing-lg);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .panel-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .panel-body {
+            padding: var(--spacing-lg);
+        }
+
+        /* Forms */
+        .form-group {
+            margin-bottom: var(--spacing-md);
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: var(--spacing-xs);
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .form-input,
+        .form-select,
+        .form-textarea {
+            width: 100%;
+            padding: 0.75rem var(--spacing-sm);
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--panel-border-radius);
+            color: var(--text-primary);
+            font-family: inherit;
+            transition: all 0.2s ease;
+        }
+
+        .form-input:focus,
+        .form-select:focus,
+        .form-textarea:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 10px var(--glow-primary);
+        }
+
+        .form-textarea {
+            min-height: 100px;
+            resize: vertical;
+            font-family: var(--font-mono);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--spacing-md);
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+            padding: 0.75rem var(--spacing-lg);
+            background: transparent;
+            border: 1px solid var(--accent-primary);
+            border-radius: var(--panel-border-radius);
+            color: var(--accent-primary);
+            font-family: inherit;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+        }
+
+        .btn:hover {
+            background: var(--accent-primary);
+            color: var(--bg-primary);
+            box-shadow: 0 0 20px var(--glow-primary);
+            transform: translateY(-1px);
+        }
+
+        .btn.secondary {
+            border-color: var(--accent-secondary);
+            color: var(--accent-secondary);
+        }
+
+        .btn.secondary:hover {
+            background: var(--accent-secondary);
+            box-shadow: 0 0 20px var(--glow-secondary);
+        }
+
+        .btn.warning {
+            border-color: var(--accent-warning);
+            color: var(--accent-warning);
+        }
+
+        .btn.warning:hover {
+            background: var(--accent-warning);
+            box-shadow: 0 0 20px rgba(255, 107, 53, 0.5);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn:disabled:hover {
+            background: transparent;
+            box-shadow: none;
+        }
+
+        /* Tables */
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .table th,
+        .table td {
+            padding: var(--spacing-sm);
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .table th {
+            background: var(--bg-secondary);
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .table td {
+            color: var(--text-secondary);
+        }
+
+        .table tr:hover td {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+
+        /* Status Indicators */
+        .status {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .status.success {
+            background: rgba(57, 255, 20, 0.2);
+            color: var(--accent-success);
+        }
+
+        .status.warning {
+            background: rgba(255, 107, 53, 0.2);
+            color: var(--accent-warning);
+        }
+
+        .status.error {
+            background: rgba(255, 0, 64, 0.2);
+            color: var(--accent-error);
+        }
+
+        .status.info {
+            background: rgba(0, 212, 255, 0.2);
+            color: var(--accent-secondary);
+        }
+
+        /* Progress Bar */
+        .progress {
+            width: 100%;
+            height: 8px;
+            background: var(--bg-secondary);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+            border-radius: 4px;
+            transition: width 0.3s ease;
+            box-shadow: 0 0 10px var(--glow-primary);
+        }
+
+        /* Loading */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: var(--spacing-xl);
+            font-family: var(--font-mono);
+            color: var(--text-muted);
+        }
+
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--bg-panel);
+            border-top: 2px solid var(--accent-primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: var(--spacing-sm);
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Code Display */
+        .code-block {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--panel-border-radius);
+            padding: var(--spacing-md);
+            font-family: var(--font-mono);
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1024px) {
+            .sidebar {
+                width: 240px;
+            }
+            
+            .dashboard-grid {
+                grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            }
+        }
+
+        @media (max-width: 768px) {
+            :root {
+                --sidebar-width: 200px;
+            }
+            
+            .header {
+                padding: 0 var(--spacing-md);
+            }
+            
+            .header-stats {
+                display: none;
+            }
+            
+            .main-container {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+                height: auto;
+                position: static;
+            }
+            
+            .content {
+                padding: var(--spacing-md);
+            }
+            
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Accessibility */
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        /* Focus indicators */
+        .nav-item:focus,
+        .btn:focus,
+        .form-input:focus,
+        .form-select:focus,
+        .form-textarea:focus {
+            outline: 2px solid var(--accent-primary);
+            outline-offset: 2px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-left">
+            <div class="logo">🧪 TEST GENIE</div>
+            <div class="system-status">
+                <div class="status-dot"></div>
+                <span>System Healthy</span>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="header-stats">
+                <div class="stat">
+                    <div class="stat-value" id="active-suites">0</div>
+                    <div class="stat-label">Active Suites</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="running-tests">0</div>
+                    <div class="stat-label">Running Tests</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="avg-coverage">0%</div>
+                    <div class="stat-label">Avg Coverage</div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Sidebar -->
+        <nav class="sidebar">
+            <div class="nav-section">
+                <h3 class="nav-title">Main</h3>
+                <div class="nav-item active" data-page="dashboard">
+                    <span class="nav-icon">📊</span>
+                    <span>Dashboard</span>
+                </div>
+                <div class="nav-item" data-page="generate">
+                    <span class="nav-icon">⚡</span>
+                    <span>Generate Tests</span>
+                </div>
+                <div class="nav-item" data-page="suites">
+                    <span class="nav-icon">🧪</span>
+                    <span>Test Suites</span>
+                </div>
+                <div class="nav-item" data-page="executions">
+                    <span class="nav-icon">🚀</span>
+                    <span>Executions</span>
+                </div>
+            </div>
+            
+            <div class="nav-section">
+                <h3 class="nav-title">Analysis</h3>
+                <div class="nav-item" data-page="coverage">
+                    <span class="nav-icon">📈</span>
+                    <span>Coverage Analysis</span>
+                </div>
+                <div class="nav-item" data-page="vault">
+                    <span class="nav-icon">🏛️</span>
+                    <span>Test Vaults</span>
+                </div>
+                <div class="nav-item" data-page="reports">
+                    <span class="nav-icon">📋</span>
+                    <span>Reports</span>
+                </div>
+            </div>
+
+            <div class="nav-section">
+                <h3 class="nav-title">System</h3>
+                <div class="nav-item" data-page="settings">
+                    <span class="nav-icon">⚙️</span>
+                    <span>Settings</span>
+                </div>
+                <div class="nav-item" data-page="help">
+                    <span class="nav-icon">❓</span>
+                    <span>Help</span>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Content Area -->
+        <main class="content">
+            <!-- Dashboard Page -->
+            <div class="page active" id="dashboard">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">Dashboard</h1>
+                        <p class="page-subtitle">Comprehensive overview of your testing ecosystem</p>
+                    </div>
+                </div>
+
+                <!-- Dashboard Metrics -->
+                <div class="dashboard-grid">
+                    <div class="metric-card">
+                        <div class="metric-header">
+                            <div class="metric-icon primary">🧪</div>
+                            <div class="metric-title">Total Test Suites</div>
+                        </div>
+                        <div class="metric-value" id="metric-total-suites">0</div>
+                        <div class="metric-change">
+                            <span class="change-positive">↗ +5 this week</span>
+                        </div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div class="metric-header">
+                            <div class="metric-icon secondary">⚡</div>
+                            <div class="metric-title">Tests Generated</div>
+                        </div>
+                        <div class="metric-value" id="metric-tests-generated">0</div>
+                        <div class="metric-change">
+                            <span class="change-positive">↗ +127 today</span>
+                        </div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div class="metric-header">
+                            <div class="metric-icon primary">📊</div>
+                            <div class="metric-title">Average Coverage</div>
+                        </div>
+                        <div class="metric-value" id="metric-avg-coverage">0%</div>
+                        <div class="metric-change">
+                            <span class="change-positive">↗ +2.3% improvement</span>
+                        </div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div class="metric-header">
+                            <div class="metric-icon warning">⚠️</div>
+                            <div class="metric-title">Failed Tests</div>
+                        </div>
+                        <div class="metric-value" id="metric-failed-tests">0</div>
+                        <div class="metric-change">
+                            <span class="change-negative">↘ -5 from yesterday</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Activity Panel -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h2 class="panel-title">Recent Test Executions</h2>
+                        <button class="btn" onclick="refreshDashboard()">🔄 Refresh</button>
+                    </div>
+                    <div class="panel-body">
+                        <div id="recent-executions" class="loading">
+                            <div class="spinner"></div>
+                            Loading recent executions...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Generate Tests Page -->
+            <div class="page" id="generate">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">Generate Test Suite</h1>
+                        <p class="page-subtitle">AI-powered comprehensive test generation</p>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-header">
+                        <h2 class="panel-title">Test Generation Configuration</h2>
+                    </div>
+                    <div class="panel-body">
+                        <form id="generate-form">
+                            <div class="form-group">
+                                <label class="form-label" for="scenario-name">Scenario Name</label>
+                                <input type="text" id="scenario-name" class="form-input" placeholder="Enter scenario name..." required>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label class="form-label" for="test-types">Test Types</label>
+                                    <select id="test-types" class="form-select" multiple>
+                                        <option value="unit" selected>Unit Tests</option>
+                                        <option value="integration" selected>Integration Tests</option>
+                                        <option value="performance">Performance Tests</option>
+                                        <option value="vault">Vault Tests</option>
+                                        <option value="regression">Regression Tests</option>
+                                    </select>
+                                </div>
+
+                                <div class="form-group">
+                                    <label class="form-label" for="coverage-target">Coverage Target (%)</label>
+                                    <input type="number" id="coverage-target" class="form-input" value="95" min="50" max="100">
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">
+                                    <input type="checkbox" id="include-performance" checked> Include Performance Tests
+                                </label>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">
+                                    <input type="checkbox" id="include-security" checked> Include Security Tests
+                                </label>
+                            </div>
+
+                            <div class="form-group">
+                                <button type="submit" class="btn" id="generate-btn">
+                                    ⚡ Generate Test Suite
+                                </button>
+                            </div>
+                        </form>
+
+                        <div id="generation-result" class="code-block" style="display: none;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Test Suites Page -->
+            <div class="page" id="suites">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">Test Suites</h1>
+                        <p class="page-subtitle">Manage and monitor all test suites</p>
+                    </div>
+                    <button class="btn" onclick="loadTestSuites()">🔄 Refresh</button>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-body">
+                        <div id="suites-table" class="loading">
+                            <div class="spinner"></div>
+                            Loading test suites...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Test Executions Page -->
+            <div class="page" id="executions">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">Test Executions</h1>
+                        <p class="page-subtitle">Monitor active and completed test runs</p>
+                    </div>
+                    <button class="btn" onclick="loadExecutions()">🔄 Refresh</button>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-body">
+                        <div id="executions-table" class="loading">
+                            <div class="spinner"></div>
+                            Loading test executions...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Coverage Analysis Page -->
+            <div class="page" id="coverage">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">Coverage Analysis</h1>
+                        <p class="page-subtitle">Analyze test coverage and identify gaps</p>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-header">
+                        <h2 class="panel-title">Coverage Analysis Configuration</h2>
+                    </div>
+                    <div class="panel-body">
+                        <form id="coverage-form">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label class="form-label" for="coverage-scenario">Scenario Name</label>
+                                    <input type="text" id="coverage-scenario" class="form-input" placeholder="Enter scenario name..." required>
+                                </div>
+
+                                <div class="form-group">
+                                    <label class="form-label" for="analysis-depth">Analysis Depth</label>
+                                    <select id="analysis-depth" class="form-select">
+                                        <option value="basic">Basic</option>
+                                        <option value="comprehensive" selected>Comprehensive</option>
+                                        <option value="deep">Deep Analysis</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <button type="submit" class="btn">📈 Analyze Coverage</button>
+                            </div>
+                        </form>
+
+                        <div id="coverage-result" class="code-block" style="display: none;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Test Vaults Page -->
+            <div class="page" id="vault">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">Test Vaults</h1>
+                        <p class="page-subtitle">Phase-based comprehensive testing</p>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-header">
+                        <h2 class="panel-title">Create Test Vault</h2>
+                    </div>
+                    <div class="panel-body">
+                        <form id="vault-form">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label class="form-label" for="vault-scenario">Scenario Name</label>
+                                    <input type="text" id="vault-scenario" class="form-input" placeholder="Enter scenario name..." required>
+                                </div>
+
+                                <div class="form-group">
+                                    <label class="form-label" for="vault-phases">Test Phases</label>
+                                    <select id="vault-phases" class="form-select" multiple>
+                                        <option value="setup" selected>Setup</option>
+                                        <option value="develop" selected>Develop</option>
+                                        <option value="test" selected>Test</option>
+                                        <option value="deploy">Deploy</option>
+                                        <option value="monitor">Monitor</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label" for="vault-timeout">Phase Timeout (seconds)</label>
+                                <input type="number" id="vault-timeout" class="form-input" value="1800" min="60">
+                            </div>
+
+                            <div class="form-group">
+                                <button type="submit" class="btn">🏛️ Create Test Vault</button>
+                            </div>
+                        </form>
+
+                        <div id="vault-result" class="code-block" style="display: none;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reports Page -->
+            <div class="page" id="reports">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">Reports & Analytics</h1>
+                        <p class="page-subtitle">Comprehensive testing insights and trends</p>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-body">
+                        <p>📊 Advanced reporting and analytics features coming soon...</p>
+                        <p>This will include:</p>
+                        <ul style="margin: 1rem 0; padding-left: 2rem; color: var(--text-secondary);">
+                            <li>Test trend analysis</li>
+                            <li>Coverage evolution tracking</li>
+                            <li>Performance benchmarking</li>
+                            <li>Quality metrics visualization</li>
+                            <li>AI-powered insights and recommendations</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings Page -->
+            <div class="page" id="settings">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">Settings</h1>
+                        <p class="page-subtitle">Configure Test Genie preferences</p>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-header">
+                        <h2 class="panel-title">API Configuration</h2>
+                    </div>
+                    <div class="panel-body">
+                        <div class="form-group">
+                            <label class="form-label">API Base URL</label>
+                            <input type="text" class="form-input" value="http://localhost:8200" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">AI Model Provider</label>
+                            <input type="text" class="form-input" value="Ollama (localhost:11434)" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Database</label>
+                            <input type="text" class="form-input" value="PostgreSQL (localhost:5432)" readonly>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-header">
+                        <h2 class="panel-title">Default Settings</h2>
+                    </div>
+                    <div class="panel-body">
+                        <div class="form-group">
+                            <label class="form-label">Default Coverage Target (%)</label>
+                            <input type="number" class="form-input" value="95" min="50" max="100">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Default Test Types</label>
+                            <select class="form-select" multiple>
+                                <option value="unit" selected>Unit Tests</option>
+                                <option value="integration" selected>Integration Tests</option>
+                                <option value="performance">Performance Tests</option>
+                                <option value="vault">Vault Tests</option>
+                                <option value="regression">Regression Tests</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <button class="btn">💾 Save Settings</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Help Page -->
+            <div class="page" id="help">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">Help & Documentation</h1>
+                        <p class="page-subtitle">Get started with Test Genie</p>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-header">
+                        <h2 class="panel-title">Quick Start Guide</h2>
+                    </div>
+                    <div class="panel-body">
+                        <h3 style="color: var(--accent-primary); margin-bottom: 1rem;">1. Generate Your First Test Suite</h3>
+                        <p style="margin-bottom: 1rem;">Navigate to the "Generate Tests" page and enter your scenario name. Select test types and configure options, then click "Generate Test Suite".</p>
+
+                        <h3 style="color: var(--accent-primary); margin-bottom: 1rem;">2. Execute Tests</h3>
+                        <p style="margin-bottom: 1rem;">Once generated, go to "Test Suites" to view and execute your tests. Monitor progress in the "Executions" page.</p>
+
+                        <h3 style="color: var(--accent-primary); margin-bottom: 1rem;">3. Analyze Coverage</h3>
+                        <p style="margin-bottom: 1rem;">Use the "Coverage Analysis" page to identify gaps and improve test coverage.</p>
+
+                        <h3 style="color: var(--accent-primary); margin-bottom: 1rem;">4. Create Test Vaults</h3>
+                        <p style="margin-bottom: 1rem;">For complex scenarios, create test vaults with multiple phases for comprehensive validation.</p>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-header">
+                        <h2 class="panel-title">CLI Commands</h2>
+                    </div>
+                    <div class="panel-body">
+                        <div class="code-block">
+# Generate test suite
+test-genie generate my-scenario --types unit,integration --coverage 95
+
+# Execute test suite
+test-genie execute [suite-id] --type full --environment local
+
+# Analyze coverage
+test-genie coverage my-scenario --depth comprehensive --report
+
+# Create test vault
+test-genie vault my-scenario --phases setup,develop,test
+
+# Check system status
+test-genie status
+
+# Get help
+test-genie help
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

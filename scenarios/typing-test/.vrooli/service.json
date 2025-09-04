@@ -173,11 +173,6 @@
           "background": true
         },
         {
-          "name": "wait-for-services",
-          "run": "../../scripts/lib/utils/wait-for-service.sh http://localhost:$API_PORT/health 10 2 && ../../scripts/lib/utils/wait-for-service.sh http://localhost:$UI_PORT 10 2",
-          "description": "Wait for services to be ready"
-        },
-        {
           "name": "show-running-services",
           "run": "echo '🚀 Services running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: typing-test --help'",
           "description": "Display all running service URLs"

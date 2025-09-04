@@ -1,0 +1,211 @@
+{
+  "name": "Elo Swipe Smart Pairing",
+  "nodes": [
+    {
+      "id": "webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "position": [250, 300],
+      "webhookId": "elo-swipe-smart-pairing",
+      "parameters": {
+        "path": "elo-swipe/smart-pairing",
+        "responseMode": "lastNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "manual",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "position": [250, 500],
+      "parameters": {}
+    },
+    {
+      "id": "defaults",
+      "name": "Set Defaults",
+      "type": "n8n-nodes-base.set",
+      "position": [450, 500],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "list_id",
+              "value": "test-list-123"
+            }
+          ],
+          "json": [
+            {
+              "name": "items",
+              "value": "[{\"id\":\"1\",\"content\":\"Feature A\"},{\"id\":\"2\",\"content\":\"Feature B\"}]"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "merge",
+      "name": "Merge",
+      "type": "n8n-nodes-base.merge",
+      "position": [650, 400],
+      "parameters": {
+        "mode": "mergeByIndex",
+        "join": "inner"
+      }
+    },
+    {
+      "id": "analyze",
+      "name": "Analyze with Ollama",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [850, 400],
+      "parameters": {
+        "method": "POST",
+        "url": "=${service.n8n.url}/webhook/ollama",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "prompt",
+              "value": "Analyze these items for ranking comparisons. Suggest which pairs would be most informative to compare, considering similarity and importance:\n\nItems: {{$json.items}}\n\nReturn a JSON object with 'suggested_pairs' array, each containing 'item_a_id', 'item_b_id', and 'priority' (0-100)."
+            },
+            {
+              "name": "temperature",
+              "value": "0.3"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "parse",
+      "name": "Parse AI Response",
+      "type": "n8n-nodes-base.code",
+      "position": [1050, 400],
+      "parameters": {
+        "language": "javascript",
+        "code": "const response = items[0].json;\nlet suggested_pairs = [];\n\ntry {\n  // Extract JSON from response\n  const jsonMatch = response.match(/\\{[\\s\\S]*\\}/);
+n  if (jsonMatch) {\n    const parsed = JSON.parse(jsonMatch[0]);\n    suggested_pairs = parsed.suggested_pairs || [];\n  }\n} catch (error) {\n  // Fallback to random pairing\n  const itemIds = JSON.parse($input.first().json.items).map(i => i.id);\n  if (itemIds.length >= 2) {\n    suggested_pairs = [{\n      item_a_id: itemIds[0],\n      item_b_id: itemIds[1],\n      priority: 50\n    }];\n  }\n}\n\nreturn suggested_pairs.map(pair => ({ json: pair }));"
+      }
+    },
+    {
+      "id": "store",
+      "name": "Store in Database",
+      "type": "n8n-nodes-base.postgres",
+      "position": [1250, 400],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO elo_swipe.pairing_queue (list_id, item_a_id, item_b_id, priority, uncertainty_score)\nVALUES ('{{$json.list_id}}', '{{$json.item_a_id}}', '{{$json.item_b_id}}', {{$json.priority}}, {{$json.priority / 100}})\nON CONFLICT (list_id, item_a_id, item_b_id) DO UPDATE\nSET priority = EXCLUDED.priority,\n    uncertainty_score = EXCLUDED.uncertainty_score,\n    suggested_at = CURRENT_TIMESTAMP\nRETURNING *;",
+        "options": {}
+      }
+    },
+    {
+      "id": "response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.set",
+      "position": [1450, 400],
+      "parameters": {
+        "values": {
+          "json": [
+            {
+              "name": "success",
+              "value": true
+            },
+            {
+              "name": "pairs_suggested",
+              "value": "={{$items().length}}"
+            },
+            {
+              "name": "message",
+              "value": "Smart pairing suggestions generated"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "connections": {
+    "webhook": {
+      "main": [
+        [
+          {
+            "node": "merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "manual": {
+      "main": [
+        [
+          {
+            "node": "defaults",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "defaults": {
+      "main": [
+        [
+          {
+            "node": "merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "merge": {
+      "main": [
+        [
+          {
+            "node": "analyze",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "analyze": {
+      "main": [
+        [
+          {
+            "node": "parse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "parse": {
+      "main": [
+        [
+          {
+            "node": "store",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "store": {
+      "main": [
+        [
+          {
+            "node": "response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": ["elo-swipe", "ai-enhanced", "ranking"],
+  "updatedAt": "2024-01-04T12:00:00.000Z",
+  "createdAt": "2024-01-04T12:00:00.000Z"
+}

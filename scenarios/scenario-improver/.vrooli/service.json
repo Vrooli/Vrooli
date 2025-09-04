@@ -26,7 +26,7 @@
   "ports": {
     "api": {
       "env_var": "API_PORT",
-      "port": 21000,
+      "port": 21100,
       "fallback": "auto",
       "description": "Scenario Improver API port"
     },
@@ -122,12 +122,12 @@
           {
             "type": "binaries",
             "targets": [
-              "api/app-debugger-api"
+              "api/scenario-improver-api"
             ]
           },
           {
             "type": "cli",
-            "command": "app-debugger"
+            "command": "scenario-improver"
           },
           {
             "type": "dependencies",
@@ -159,7 +159,7 @@
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod download && go build -o app-debugger-api main.go",
+          "run": "cd api && go mod download && go build -o scenario-improver-api .",
           "description": "Build Go API binary"
         },
         {
@@ -179,28 +179,18 @@
       "steps": [
         {
           "name": "start-api-server",
-          "run": "cd api && ./app-debugger-api",
+          "run": "cd api && ./scenario-improver-api",
           "description": "Start API server",
           "background": true,
           "condition": {
-            "file_exists": "api/app-debugger-api"
+            "file_exists": "api/scenario-improver-api"
           }
-        },
-        {
-          "name": "wait-for-api",
-          "run": "sleep 2 && curl -sf http://localhost:$API_PORT/health || (echo 'Waiting for API to be ready...' && sleep 3)",
-          "description": "Wait for API to be ready"
         },
         {
           "name": "start-ui-server",
           "run": "cd ui && node server.js",
           "description": "Start UI server",
           "background": true
-        },
-        {
-          "name": "wait-for-services",
-          "run": "sleep 3",
-          "description": "Wait for services to start"
         },
         {
           "name": "show-running",

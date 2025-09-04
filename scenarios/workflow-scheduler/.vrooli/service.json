@@ -170,11 +170,6 @@
           }
         },
         {
-          "name": "wait-for-api",
-          "run": "../../scripts/lib/utils/wait-for-service.sh http://localhost:$API_PORT/health 15 2",
-          "description": "Wait for API server to be ready"
-        },
-        {
           "name": "configure-redis",
           "run": "redis-cli -p ${RESOURCE_PORTS[redis]} CONFIG SET notify-keyspace-events Ex > /dev/null 2>&1 || true",
           "description": "Configure Redis for keyspace notifications"

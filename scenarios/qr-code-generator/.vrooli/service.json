@@ -155,20 +155,10 @@
           "background": true
         },
         {
-          "name": "wait-for-api",
-          "run": "echo 'Waiting for API to be ready...' && for i in {1..30}; do if curl -sf http://localhost:${API_PORT}/health >/dev/null 2>&1; then echo 'API is ready'; break; fi; echo 'Waiting for API... ($i/30)'; sleep 1; done",
-          "description": "Wait for API to be ready"
-        },
-        {
           "name": "start-ui-server",
           "run": "cd ui && node server.js",
           "description": "Start UI server",
           "background": true
-        },
-        {
-          "name": "wait-for-services",
-          "run": "sleep 3",
-          "description": "Wait for services to start"
         },
         {
           "name": "show-running",

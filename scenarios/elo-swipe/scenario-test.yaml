@@ -1,0 +1,175 @@
+version: 1.0
+scenario: elo-swipe
+
+# Structure validation
+structure:
+  required_files:
+    - .vrooli/service.json
+    - PRD.md
+    - README.md
+    - api/main.go
+    - api/go.mod
+    - cli/main.go
+    - cli/go.mod
+    - cli/install.sh
+    - ui/index.html
+    - ui/styles.css
+    - ui/app.js
+    - ui/server.js
+    - initialization/storage/postgres/schema.sql
+    - scenario-test.yaml
+    
+  required_dirs:
+    - api
+    - cli
+    - ui
+    - initialization
+    - initialization/storage
+    - initialization/storage/postgres
+
+# Resource validation
+resources:
+  required: 
+    - postgres
+  optional: 
+    - redis
+    - n8n
+  health_timeout: 60
+
+# Declarative tests
+tests:
+  # Database tests
+  - name: "PostgreSQL is accessible"
+    type: sql
+    service: postgres
+    query: "SELECT 1"
+    expect:
+      rows:
+        - ?column?: 1
+
+  - name: "Database schema is initialized"
+    type: sql
+    service: postgres
+    query: "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'elo_swipe'"
+    expect:
+      rows:
+        - count: 8  # lists, items, comparisons, pairing_queue, sessions, current_rankings, list_statistics
+
+  # API tests
+  - name: "API health check"
+    type: http
+    service: api
+    endpoint: /api/v1/health
+    method: GET
+    expect:
+      status: 200
+      body:
+        status: healthy
+
+  - name: "Create list endpoint"
+    type: http
+    service: api
+    endpoint: /api/v1/lists
+    method: POST
+    body:
+      name: "Test List"
+      description: "Test ranking list"
+      items:
+        - content: "Option A"
+        - content: "Option B"
+        - content: "Option C"
+    expect:
+      status: 201
+      body_contains:
+        - list_id
+        - item_count
+        - comparison_url
+
+  - name: "Get lists endpoint"
+    type: http
+    service: api
+    endpoint: /api/v1/lists
+    method: GET
+    expect:
+      status: 200
+      body_type: array
+
+  # CLI tests
+  - name: "CLI status command"
+    type: exec
+    command: ./cli/elo-swipe status --json
+    expect:
+      exit_code: 0
+      output_contains:
+        - status
+
+  - name: "CLI help command"
+    type: exec
+    command: ./cli/elo-swipe help
+    expect:
+      exit_code: 0
+      output_contains:
+        - "Elo Swipe CLI"
+        - "create-list"
+        - "rankings"
+
+  - name: "CLI version command"
+    type: exec
+    command: ./cli/elo-swipe version
+    expect:
+      exit_code: 0
+      output_contains:
+        - "elo-swipe version"
+
+  # UI tests
+  - name: "UI server is accessible"
+    type: http
+    service: ui
+    endpoint: /
+    method: GET
+    expect:
+      status: 200
+      content_type: text/html
+
+# Performance validation
+performance:
+  - name: "API response time"
+    type: http
+    service: api
+    endpoint: /api/v1/health
+    method: GET
+    max_response_time: 100ms
+    
+  - name: "Ranking calculation speed"
+    type: http
+    service: api
+    endpoint: /api/v1/lists/{test_list_id}/rankings
+    method: GET
+    max_response_time: 500ms
+
+# Integration validation
+integration:
+  - name: "End-to-end ranking flow"
+    type: sequence
+    steps:
+      - create_list:
+          endpoint: /api/v1/lists
+          method: POST
+          capture: list_id
+      - get_comparison:
+          endpoint: /api/v1/lists/{list_id}/next-comparison
+          method: GET
+          capture: [item_a.id, item_b.id]
+      - submit_comparison:
+          endpoint: /api/v1/comparisons
+          method: POST
+          body:
+            list_id: "{list_id}"
+            winner_id: "{item_a.id}"
+            loser_id: "{item_b.id}"
+      - get_rankings:
+          endpoint: /api/v1/lists/{list_id}/rankings
+          method: GET
+          expect:
+            body_contains:
+              - rankings

@@ -140,11 +140,6 @@
           "background": true
         },
         {
-          "name": "wait-for-api",
-          "run": "sleep 3 && curl -sf http://localhost:${API_PORT}/health > /dev/null",
-          "description": "Wait for API to be ready"
-        },
-        {
           "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start React UI in development mode",

@@ -211,20 +211,10 @@
           "background": true
         },
         {
-          "name": "wait-for-api",
-          "run": "sleep 2 && until curl -s http://localhost:$API_PORT/health > /dev/null 2>&1; do echo 'Waiting for API...'; sleep 1; done",
-          "description": "Wait for API server to be ready"
-        },
-        {
           "name": "start-ui-server",
           "run": "cd ui && node server.js",
           "description": "Start UI server in background",
           "background": true
-        },
-        {
-          "name": "wait-for-services",
-          "run": "sleep 3",
-          "description": "Wait for services to be ready"
         }
       ]
     },

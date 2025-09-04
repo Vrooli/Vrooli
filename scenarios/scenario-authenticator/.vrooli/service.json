@@ -1,0 +1,303 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "scenario-authenticator",
+    "displayName": "Scenario Authenticator",
+    "description": "Universal authentication and authorization service that enables any scenario to secure its endpoints with user management, JWT tokens, and role-based access control",
+    "version": "1.0.0",
+    "tags": [
+      "security",
+      "authentication",
+      "authorization",
+      "jwt",
+      "user-management",
+      "session-management",
+      "api-security",
+      "foundational",
+      "cross-scenario",
+      "go-api",
+      "postgres-storage",
+      "redis-cache",
+      "n8n-workflows"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "AUTH_API_PORT",
+      "port": 3250,
+      "description": "Authentication API server port"
+    },
+    "ui": {
+      "env_var": "AUTH_UI_PORT",
+      "port": 3251,
+      "description": "Authentication UI server port"
+    }
+  },
+  "resources": {
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Store user accounts, API keys, and audit logs",
+      "initialization": [
+        {
+          "file": "initialization/postgres/schema.sql",
+          "type": "schema"
+        },
+        {
+          "file": "initialization/postgres/seed.sql",
+          "type": "seed"
+        }
+      ]
+    },
+    "redis": {
+      "type": "redis",
+      "enabled": true,
+      "required": true,
+      "purpose": "Session storage, token blacklisting, and rate limiting",
+      "initialization": [
+        {
+          "file": "initialization/redis/config.lua",
+          "type": "script"
+        }
+      ]
+    },
+    "n8n": {
+      "type": "n8n",
+      "enabled": true,
+      "required": false,
+      "purpose": "Workflow automation for auth validation and password reset",
+      "initialization": [
+        {
+          "file": "initialization/n8n/auth-validator.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/password-reset.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/token-refresh.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/user-onboarding.json",
+          "type": "workflow"
+        }
+      ]
+    },
+    "mailpit": {
+      "type": "mailpit",
+      "enabled": false,
+      "required": false,
+      "purpose": "Email sending for password reset and verification",
+      "fallback": "Log email content to console"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Authentication service health check configuration",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${AUTH_API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "postgres_connection",
+          "type": "resource",
+          "target": "postgres",
+          "critical": true
+        },
+        {
+          "name": "redis_connection",
+          "type": "resource",
+          "target": "redis",
+          "critical": true
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
+    "setup": {
+      "description": "Initialize Scenario Authenticator",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/scenario-authenticator-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "scenario-authenticator"
+          },
+          {
+            "type": "dependencies",
+            "paths": [
+              "ui/package.json"
+            ]
+          },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "initialize-database",
+          "run": "resource-postgres create-database scenario-authenticator || true",
+          "description": "Create authentication database"
+        },
+        {
+          "name": "configure-redis",
+          "run": "resource-redis set-config maxmemory 256mb || true",
+          "description": "Configure Redis for session storage"
+        },
+        {
+          "name": "add-data",
+          "run": "../../scripts/resources/populate/populate.sh .",
+          "description": "Initialize auth data in resources"
+        },
+        {
+          "name": "install-cli",
+          "run": "chmod +x cli/scenario-authenticator && ln -sf $(pwd)/cli/scenario-authenticator ~/.local/bin/scenario-authenticator 2>/dev/null || true",
+          "description": "Install authentication CLI globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o scenario-authenticator-api .",
+          "description": "Build authentication API server"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "generate-jwt-keys",
+          "run": "mkdir -p data/keys && openssl genrsa -out data/keys/private.pem 2048 && openssl rsa -in data/keys/private.pem -pubout -out data/keys/public.pem",
+          "description": "Generate JWT signing keys",
+          "condition": {
+            "file_not_exists": "data/keys/private.pem"
+          }
+        },
+        {
+          "name": "show-urls",
+          "run": "echo 'Authentication Service initialized - UI: http://localhost:${AUTH_UI_PORT} - API: http://localhost:${AUTH_API_PORT} - CLI: scenario-authenticator --help'",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start Authentication Service with API and UI",
+      "steps": [
+        {
+          "name": "start-api-server",
+          "run": "cd api && ./scenario-authenticator-api",
+          "description": "Start authentication API server",
+          "background": true,
+          "condition": {
+            "file_exists": "api/scenario-authenticator-api"
+          }
+        },
+        {
+          "name": "start-ui-server",
+          "run": "cd ui && node server.js",
+          "description": "Start authentication UI server",
+          "background": true
+        },
+        {
+          "name": "show-running-services",
+          "run": "echo 'Auth Services running - UI: http://localhost:${AUTH_UI_PORT} - API: http://localhost:${AUTH_API_PORT} - CLI: scenario-authenticator --help'",
+          "description": "Display all running service URLs"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test authentication service functionality",
+      "steps": [
+        {
+          "name": "test-api-build",
+          "run": "cd api && go test ./...",
+          "description": "Run API unit tests"
+        },
+        {
+          "name": "test-integration",
+          "run": "./test/integration.sh",
+          "description": "Run integration tests",
+          "condition": {
+            "file_exists": "test/integration.sh"
+          }
+        },
+        {
+          "name": "test-cli",
+          "run": "./cli/scenario-authenticator status --json",
+          "description": "Test CLI functionality"
+        },
+        {
+          "name": "test-auth-flow",
+          "run": "./test/auth-flow.sh",
+          "description": "Test complete authentication flow",
+          "condition": {
+            "file_exists": "test/auth-flow.sh"
+          }
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop authentication services",
+      "steps": [
+        {
+          "name": "stop-services",
+          "run": "pkill -f scenario-authenticator-api || true",
+          "description": "Stop authentication API server"
+        },
+        {
+          "name": "clear-sessions",
+          "run": "resource-redis flush-db 0 || true",
+          "description": "Clear active sessions from Redis"
+        }
+      ]
+    }
+  },
+  "integration": {
+    "shared_capabilities": [
+      {
+        "name": "auth_validation",
+        "description": "JWT token validation for any scenario",
+        "endpoint": "/api/v1/auth/validate",
+        "workflow": "initialization/n8n/auth-validator.json"
+      },
+      {
+        "name": "user_management",
+        "description": "User CRUD operations",
+        "endpoint": "/api/v1/users",
+        "cli": "scenario-authenticator user"
+      },
+      {
+        "name": "session_management",
+        "description": "Session creation and validation",
+        "endpoint": "/api/v1/sessions",
+        "cli": "scenario-authenticator session"
+      }
+    ],
+    "example_integration": {
+      "api": "const isValid = await fetch('http://localhost:3250/api/v1/auth/validate', { headers: { 'Authorization': `Bearer ${token}` } });",
+      "cli": "scenario-authenticator token validate $TOKEN",
+      "workflow": "Use auth-validator.json workflow with webhook trigger"
+    }
+  }
+}
