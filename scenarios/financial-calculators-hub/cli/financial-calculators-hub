@@ -1,0 +1,387 @@
+#!/bin/bash
+
+API_PORT="${API_PORT:-20100}"
+API_URL="http://localhost:${API_PORT}"
+
+show_help() {
+    cat << EOF
+Financial Calculators Hub CLI
+
+Usage: financial-calculators-hub <command> [options]
+
+Commands:
+  fire                Calculate Financial Independence Retire Early
+  compound            Calculate compound interest
+  mortgage            Calculate mortgage/loan amortization
+  inflation           Calculate inflation impact
+  status              Show service status
+  help                Show this help message
+  version             Show version information
+
+Examples:
+  financial-calculators-hub fire --age 30 --savings 100000 --income 100000 --expenses 50000
+  financial-calculators-hub compound --principal 10000 --rate 7 --years 10
+  financial-calculators-hub mortgage --amount 300000 --rate 4.5 --years 30
+
+Use 'financial-calculators-hub <command> --help' for detailed command options
+EOF
+}
+
+show_fire_help() {
+    cat << EOF
+FIRE (Financial Independence Retire Early) Calculator
+
+Usage: financial-calculators-hub fire [options]
+
+Required Options:
+  --age <n>           Current age
+  --savings <n>       Current savings amount
+  --income <n>        Annual income
+  --expenses <n>      Annual expenses
+
+Optional Options:
+  --savings-rate <n>  Savings rate percentage (default: calculated from income/expenses)
+  --return <n>        Expected annual return percentage (default: 7)
+  --withdrawal <n>    Target withdrawal rate percentage (default: 4)
+  --json              Output in JSON format
+
+Example:
+  financial-calculators-hub fire --age 30 --savings 100000 --income 100000 --expenses 50000
+EOF
+}
+
+show_compound_help() {
+    cat << EOF
+Compound Interest Calculator
+
+Usage: financial-calculators-hub compound [options]
+
+Required Options:
+  --principal <n>     Initial investment amount
+  --rate <n>          Annual interest rate percentage
+  --years <n>         Number of years
+
+Optional Options:
+  --contribution <n>  Monthly contribution amount
+  --frequency <freq>  Compound frequency (monthly|quarterly|annually) (default: monthly)
+  --json              Output in JSON format
+
+Example:
+  financial-calculators-hub compound --principal 10000 --rate 7 --years 10 --contribution 500
+EOF
+}
+
+show_mortgage_help() {
+    cat << EOF
+Mortgage/Loan Calculator
+
+Usage: financial-calculators-hub mortgage [options]
+
+Required Options:
+  --amount <n>        Loan amount
+  --rate <n>          Annual interest rate percentage
+  --years <n>         Loan term in years
+
+Optional Options:
+  --down <n>          Down payment amount
+  --extra <n>         Extra monthly payment
+  --json              Output in JSON format
+
+Example:
+  financial-calculators-hub mortgage --amount 300000 --rate 4.5 --years 30 --down 60000
+EOF
+}
+
+show_inflation_help() {
+    cat << EOF
+Inflation Calculator
+
+Usage: financial-calculators-hub inflation [options]
+
+Required Options:
+  --amount <n>        Current amount
+  --years <n>         Number of years
+  --rate <n>          Annual inflation rate percentage
+
+Optional Options:
+  --json              Output in JSON format
+
+Example:
+  financial-calculators-hub inflation --amount 100000 --years 20 --rate 3
+EOF
+}
+
+calculate_fire() {
+    local age=""
+    local savings=""
+    local income=""
+    local expenses=""
+    local savings_rate=""
+    local return_rate="7"
+    local withdrawal="4"
+    local json_output=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --age) age="$2"; shift 2 ;;
+            --savings) savings="$2"; shift 2 ;;
+            --income) income="$2"; shift 2 ;;
+            --expenses) expenses="$2"; shift 2 ;;
+            --savings-rate) savings_rate="$2"; shift 2 ;;
+            --return) return_rate="$2"; shift 2 ;;
+            --withdrawal) withdrawal="$2"; shift 2 ;;
+            --json) json_output=true; shift ;;
+            --help) show_fire_help; exit 0 ;;
+            *) echo "Unknown option: $1"; show_fire_help; exit 1 ;;
+        esac
+    done
+    
+    if [[ -z "$age" || -z "$savings" || -z "$income" || -z "$expenses" ]]; then
+        echo "Error: Missing required parameters"
+        show_fire_help
+        exit 1
+    fi
+    
+    if [[ -z "$savings_rate" ]]; then
+        savings_rate=$(echo "scale=2; (($income - $expenses) / $income) * 100" | bc)
+    fi
+    
+    local payload=$(cat <<EOF
+{
+    "current_age": $age,
+    "current_savings": $savings,
+    "annual_income": $income,
+    "annual_expenses": $expenses,
+    "savings_rate": $savings_rate,
+    "expected_return": $return_rate,
+    "target_withdrawal_rate": $withdrawal
+}
+EOF
+    )
+    
+    local response=$(curl -s -X POST "${API_URL}/api/v1/calculate/fire" \
+        -H "Content-Type: application/json" \
+        -d "$payload")
+    
+    if [[ "$json_output" == "true" ]]; then
+        echo "$response"
+    else
+        echo "FIRE Calculation Results:"
+        echo "========================="
+        echo "$response" | jq -r '
+            "Retirement Age: \(.retirement_age | floor)",
+            "Years to Retirement: \(.years_to_retirement | floor)",
+            "Target Nest Egg: $\(.target_nest_egg | floor | tostring | gsub("(?<a>[0-9])(?=([0-9]{3})+$)"; "\(.a),"))",
+            "Monthly Savings Required: $\(.monthly_savings_required | floor | tostring | gsub("(?<a>[0-9])(?=([0-9]{3})+$)"; "\(.a),"))"
+        ' 2>/dev/null || echo "$response"
+    fi
+}
+
+calculate_compound() {
+    local principal=""
+    local rate=""
+    local years=""
+    local contribution="0"
+    local frequency="monthly"
+    local json_output=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --principal) principal="$2"; shift 2 ;;
+            --rate) rate="$2"; shift 2 ;;
+            --years) years="$2"; shift 2 ;;
+            --contribution) contribution="$2"; shift 2 ;;
+            --frequency) frequency="$2"; shift 2 ;;
+            --json) json_output=true; shift ;;
+            --help) show_compound_help; exit 0 ;;
+            *) echo "Unknown option: $1"; show_compound_help; exit 1 ;;
+        esac
+    done
+    
+    if [[ -z "$principal" || -z "$rate" || -z "$years" ]]; then
+        echo "Error: Missing required parameters"
+        show_compound_help
+        exit 1
+    fi
+    
+    local payload=$(cat <<EOF
+{
+    "principal": $principal,
+    "annual_rate": $rate,
+    "years": $years,
+    "monthly_contribution": $contribution,
+    "compound_frequency": "$frequency"
+}
+EOF
+    )
+    
+    local response=$(curl -s -X POST "${API_URL}/api/v1/calculate/compound-interest" \
+        -H "Content-Type: application/json" \
+        -d "$payload")
+    
+    if [[ "$json_output" == "true" ]]; then
+        echo "$response"
+    else
+        echo "Compound Interest Results:"
+        echo "========================="
+        echo "$response" | jq -r '
+            "Final Amount: $\(.final_amount | floor | tostring | gsub("(?<a>[0-9])(?=([0-9]{3})+$)"; "\(.a),"))",
+            "Total Contributions: $\(.total_contributions | floor | tostring | gsub("(?<a>[0-9])(?=([0-9]{3})+$)"; "\(.a),"))",
+            "Total Interest: $\(.total_interest | floor | tostring | gsub("(?<a>[0-9])(?=([0-9]{3})+$)"; "\(.a),"))"
+        ' 2>/dev/null || echo "$response"
+    fi
+}
+
+calculate_mortgage() {
+    local amount=""
+    local rate=""
+    local years=""
+    local down="0"
+    local extra="0"
+    local json_output=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --amount) amount="$2"; shift 2 ;;
+            --rate) rate="$2"; shift 2 ;;
+            --years) years="$2"; shift 2 ;;
+            --down) down="$2"; shift 2 ;;
+            --extra) extra="$2"; shift 2 ;;
+            --json) json_output=true; shift ;;
+            --help) show_mortgage_help; exit 0 ;;
+            *) echo "Unknown option: $1"; show_mortgage_help; exit 1 ;;
+        esac
+    done
+    
+    if [[ -z "$amount" || -z "$rate" || -z "$years" ]]; then
+        echo "Error: Missing required parameters"
+        show_mortgage_help
+        exit 1
+    fi
+    
+    local payload=$(cat <<EOF
+{
+    "loan_amount": $amount,
+    "annual_rate": $rate,
+    "years": $years,
+    "down_payment": $down,
+    "extra_monthly_payment": $extra
+}
+EOF
+    )
+    
+    local response=$(curl -s -X POST "${API_URL}/api/v1/calculate/mortgage" \
+        -H "Content-Type: application/json" \
+        -d "$payload")
+    
+    if [[ "$json_output" == "true" ]]; then
+        echo "$response"
+    else
+        echo "Mortgage Calculation Results:"
+        echo "============================"
+        echo "$response" | jq -r '
+            "Monthly Payment: $\(.monthly_payment | floor | tostring | gsub("(?<a>[0-9])(?=([0-9]{3})+$)"; "\(.a),"))",
+            "Total Interest: $\(.total_interest | floor | tostring | gsub("(?<a>[0-9])(?=([0-9]{3})+$)"; "\(.a),"))",
+            "Total Paid: $\(.total_paid | floor | tostring | gsub("(?<a>[0-9])(?=([0-9]{3})+$)"; "\(.a),"))",
+            "Payoff Date: \(.payoff_date)"
+        ' 2>/dev/null || echo "$response"
+    fi
+}
+
+calculate_inflation() {
+    local amount=""
+    local years=""
+    local rate=""
+    local json_output=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --amount) amount="$2"; shift 2 ;;
+            --years) years="$2"; shift 2 ;;
+            --rate) rate="$2"; shift 2 ;;
+            --json) json_output=true; shift ;;
+            --help) show_inflation_help; exit 0 ;;
+            *) echo "Unknown option: $1"; show_inflation_help; exit 1 ;;
+        esac
+    done
+    
+    if [[ -z "$amount" || -z "$years" || -z "$rate" ]]; then
+        echo "Error: Missing required parameters"
+        show_inflation_help
+        exit 1
+    fi
+    
+    local payload=$(cat <<EOF
+{
+    "amount": $amount,
+    "years": $years,
+    "inflation_rate": $rate
+}
+EOF
+    )
+    
+    local response=$(curl -s -X POST "${API_URL}/api/v1/calculate/inflation" \
+        -H "Content-Type: application/json" \
+        -d "$payload")
+    
+    if [[ "$json_output" == "true" ]]; then
+        echo "$response"
+    else
+        echo "Inflation Impact Results:"
+        echo "========================"
+        echo "$response" | jq -r '
+            "Future Value (to maintain purchasing power): $\(.future_value | floor | tostring | gsub("(?<a>[0-9])(?=([0-9]{3})+$)"; "\(.a),"))",
+            "Current Purchasing Power in Future: $\(.purchasing_power | floor | tostring | gsub("(?<a>[0-9])(?=([0-9]{3})+$)"; "\(.a),"))",
+            "Total Inflation: \(.total_inflation | floor)%"
+        ' 2>/dev/null || echo "$response"
+    fi
+}
+
+show_status() {
+    local response=$(curl -s "${API_URL}/health")
+    if [[ -n "$response" ]]; then
+        echo "Financial Calculators Hub Status:"
+        echo "$response" | jq '.' 2>/dev/null || echo "$response"
+    else
+        echo "Service is not responding on port $API_PORT"
+        exit 1
+    fi
+}
+
+show_version() {
+    echo "Financial Calculators Hub v1.0.0"
+    echo "API Port: $API_PORT"
+}
+
+case "${1:-}" in
+    fire)
+        shift
+        calculate_fire "$@"
+        ;;
+    compound)
+        shift
+        calculate_compound "$@"
+        ;;
+    mortgage)
+        shift
+        calculate_mortgage "$@"
+        ;;
+    inflation)
+        shift
+        calculate_inflation "$@"
+        ;;
+    status)
+        show_status
+        ;;
+    version)
+        show_version
+        ;;
+    help|--help|-h|"")
+        show_help
+        ;;
+    *)
+        echo "Unknown command: $1"
+        show_help
+        exit 1
+        ;;
+esac

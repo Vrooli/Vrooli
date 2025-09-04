@@ -196,7 +196,7 @@
       "description": "Start Code Tidiness Manager services",
       "steps": [
         {
-          "name": "start-api-server",
+          "name": "start-api",
           "run": "cd api && ./code-tidiness-manager-api",
           "description": "Start Go API server",
           "background": true,
@@ -205,7 +205,7 @@
           }
         },
         {
-          "name": "start-ui-server",
+          "name": "start-ui",
           "run": "cd ui && npm run dev",
           "description": "Start UI development server",
           "background": true,
@@ -262,27 +262,22 @@
       ]
     },
     "stop": {
-      "description": "Stop Code Tidiness Manager services",
+      "description": "Stop services",
       "steps": [
         {
-          "name": "stop-api-server",
-          "run": "pkill -f 'code-tidiness-manager-api' || true",
-          "description": "Stop Go API server"
+          "name": "source-pm",
+          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
+          "description": "Source process manager"
         },
         {
-          "name": "stop-ui-server",
-          "run": "pkill -f 'npm run dev.*code-tidiness-manager' || true",
-          "description": "Stop UI development server"
+          "name": "stop-api",
+          "run": "pm::stop \"vrooli.develop.code-tidiness-manager.start-api\" 2>/dev/null || pkill -f \"code-tidiness-manager-api\" 2>/dev/null || true",
+          "description": "Stop API process"
         },
         {
-          "name": "cleanup-cache",
-          "run": "resource-redis del 'ctm:*' || echo 'Cache cleanup skipped'",
-          "description": "Clear Redis cache"
-        },
-        {
-          "name": "confirm-stop",
-          "run": "echo '🛑 Code Tidiness Manager services stopped'",
-          "description": "Confirm services stopped"
+          "name": "stop-ui",
+          "run": "pm::stop \"vrooli.develop.code-tidiness-manager.start-ui\" 2>/dev/null || true",
+          "description": "Stop UI process"
         }
       ]
     },

@@ -1,0 +1,214 @@
+{
+  "name": "Batch Algorithm Validator",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "algorithm/validate-batch",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 500]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Return test defaults for manual trigger\nreturn {\n  algorithm_id: 'quicksort',\n  language: 'python',\n  implementation: 'def quicksort(arr):\\n    if len(arr) <= 1:\\n        return arr\\n    pivot = arr[len(arr) // 2]\\n    left = [x for x in arr if x < pivot]\\n    middle = [x for x in arr if x == pivot]\\n    right = [x for x in arr if x > pivot]\\n    return quicksort(left) + middle + quicksort(right)',\n  test_cases: [\n    { input: { arr: [3, 7, 1, 4, 6, 2, 5] }, expected: [1, 2, 3, 4, 5, 6, 7] },\n    { input: { arr: [] }, expected: [] },\n    { input: { arr: [1] }, expected: [1] },\n    { input: { arr: [5, 4, 3, 2, 1] }, expected: [1, 2, 3, 4, 5] }\n  ]\n};"
+      },
+      "id": "set_test_defaults",
+      "name": "Set Test Defaults",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [400, 500]
+    },
+    {
+      "parameters": {},
+      "id": "merge_triggers",
+      "name": "Merge Triggers",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [600, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Validate batch input and prepare test cases\nconst input = $input.item.json;\n\n// Validate required fields\nif (!input.algorithm_id || typeof input.algorithm_id !== 'string') {\n  throw new Error('Missing required parameter: algorithm_id');\n}\n\nif (!input.language || typeof input.language !== 'string') {\n  throw new Error('Missing required parameter: language');\n}\n\nif (!input.implementation || typeof input.implementation !== 'string') {\n  throw new Error('Missing required parameter: implementation');\n}\n\nif (!input.test_cases || !Array.isArray(input.test_cases) || input.test_cases.length === 0) {\n  throw new Error('Missing or empty test_cases array');\n}\n\n// Prepare batch validation data\nconst batchId = 'batch_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);\n\nreturn {\n  batch_id: batchId,\n  algorithm_id: input.algorithm_id,\n  language: input.language,\n  implementation: input.implementation,\n  test_cases: input.test_cases,\n  test_count: input.test_cases.length,\n  started_at: new Date().toISOString()\n};"
+      },
+      "id": "validate_batch_input",
+      "name": "Validate Batch Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [800, 400]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "test_cases",
+        "include": "selectedOtherFields",
+        "fieldsToInclude": "batch_id, algorithm_id, language, implementation",
+        "options": {}
+      },
+      "id": "split_test_cases",
+      "name": "Split Test Cases",
+      "type": "n8n-nodes-base.itemLists",
+      "typeVersion": 1,
+      "position": [1000, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Prepare individual test for execution\nconst testCase = $input.item.json.test_cases;\nconst implementation = $input.item.json.implementation;\nconst language = $input.item.json.language;\n\n// Build test wrapper code based on language\nlet testCode = '';\nlet expectedOutput = '';\n\nif (language === 'python') {\n  // Python test wrapper\n  const inputJson = JSON.stringify(testCase.input);\n  expectedOutput = JSON.stringify(testCase.expected);\n  \n  testCode = implementation + `\n\n# Test execution\nimport json\ntest_input = json.loads('${inputJson}')\nif 'arr' in test_input:\n    result = quicksort(test_input['arr'])\nelif 'array' in test_input:\n    result = quicksort(test_input['array'])\nelif 'n' in test_input:\n    result = fibonacci(test_input['n'])\nelse:\n    # Handle other input types\n    result = None\n\nprint(json.dumps(result))`;\n\n} else if (language === 'javascript') {\n  // JavaScript test wrapper\n  const inputJson = JSON.stringify(testCase.input);\n  expectedOutput = JSON.stringify(testCase.expected);\n  \n  testCode = implementation + `\n\n// Test execution\nconst testInput = ${inputJson};\nlet result;\nif ('arr' in testInput) {\n    result = quicksort(testInput.arr);\n} else if ('array' in testInput) {\n    result = quicksort(testInput.array);\n} else if ('n' in testInput) {\n    result = fibonacci(testInput.n);\n}\n\nconsole.log(JSON.stringify(result));`;\n\n} else {\n  // Generic fallback\n  testCode = implementation;\n  expectedOutput = JSON.stringify(testCase.expected);\n}\n\nreturn {\n  batch_id: $input.item.json.batch_id,\n  algorithm_id: $input.item.json.algorithm_id,\n  test_case_index: $itemIndex,\n  code: testCode,\n  language: language,\n  stdin: '',\n  expected_output: expectedOutput,\n  timeout: 5,\n  test_input: testCase.input\n};"
+      },
+      "id": "prepare_test_code",
+      "name": "Prepare Test Code",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1200, 400]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.N8N_URL }}/webhook/algorithm/execute",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "code",
+              "value": "={{ $json.code }}"
+            },
+            {
+              "name": "language",
+              "value": "={{ $json.language }}"
+            },
+            {
+              "name": "stdin",
+              "value": "={{ $json.stdin }}"
+            },
+            {
+              "name": "expected_output",
+              "value": "={{ $json.expected_output }}"
+            },
+            {
+              "name": "timeout",
+              "value": "={{ $json.timeout }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "execute_test",
+      "name": "Execute Test",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [1400, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process individual test result\nconst result = $input.item.json;\nconst testData = $('Prepare Test Code').item.json;\n\nreturn {\n  batch_id: testData.batch_id,\n  algorithm_id: testData.algorithm_id,\n  test_case_index: testData.test_case_index,\n  test_input: testData.test_input,\n  passed: result.success,\n  status: result.status,\n  actual_output: result.output,\n  expected_output: testData.expected_output,\n  execution_time: result.execution_time,\n  memory_used: result.memory_used,\n  error_details: result.error_details\n};"
+      },
+      "id": "collect_result",
+      "name": "Collect Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1600, 400]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "multiplex",
+        "options": {}
+      },
+      "id": "aggregate_results",
+      "name": "Aggregate Results",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [1800, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Compile batch validation report\nconst allResults = $input.all();\nconst batchData = $('Validate Batch Input').item.json;\n\n// Process all test results\nconst results = allResults.map(item => item.json);\nconst totalTests = results.length;\nconst passedTests = results.filter(r => r.passed).length;\nconst failedTests = totalTests - passedTests;\nconst successRate = totalTests > 0 ? (passedTests / totalTests * 100).toFixed(2) : 0;\n\n// Calculate average performance metrics\nconst validTimes = results\n  .filter(r => r.execution_time)\n  .map(r => parseFloat(r.execution_time));\nconst avgExecutionTime = validTimes.length > 0 \n  ? (validTimes.reduce((a, b) => a + b, 0) / validTimes.length).toFixed(2)\n  : null;\n\n// Group results by status\nconst resultsByStatus = {};\nresults.forEach(r => {\n  if (!resultsByStatus[r.status]) {\n    resultsByStatus[r.status] = 0;\n  }\n  resultsByStatus[r.status]++;\n});\n\n// Build validation report\nconst report = {\n  batch_id: batchData.batch_id,\n  algorithm_id: batchData.algorithm_id,\n  language: batchData.language,\n  validation_summary: {\n    total_tests: totalTests,\n    passed: passedTests,\n    failed: failedTests,\n    success_rate: parseFloat(successRate),\n    all_passed: passedTests === totalTests\n  },\n  performance_metrics: {\n    average_execution_time: avgExecutionTime ? avgExecutionTime + ' ms' : null,\n    total_execution_time: validTimes.reduce((a, b) => a + b, 0).toFixed(2) + ' ms'\n  },\n  status_breakdown: resultsByStatus,\n  test_results: results.map(r => ({\n    test_index: r.test_case_index,\n    input: r.test_input,\n    passed: r.passed,\n    status: r.status,\n    actual_output: r.actual_output,\n    expected_output: r.expected_output,\n    execution_time: r.execution_time,\n    error: r.error_details\n  })),\n  validation_timestamp: {\n    started_at: batchData.started_at,\n    completed_at: new Date().toISOString()\n  },\n  recommendation: passedTests === totalTests \n    ? 'Implementation is valid and passes all test cases'\n    : `Implementation has issues. ${failedTests} test(s) failed. Review the failed test cases for details.`\n};\n\nreturn report;"
+      },
+      "id": "compile_report",
+      "name": "Compile Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [2000, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json, null, 2) }}",
+        "responseHeaders": {
+          "values": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        }
+      },
+      "id": "respond_report",
+      "name": "Respond Report",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2200, 400]
+    }
+  ],
+  "connections": {
+    "webhook_trigger": {
+      "main": [[{"node": "merge_triggers", "type": "main", "index": 0}]]
+    },
+    "manual_trigger": {
+      "main": [[{"node": "set_test_defaults", "type": "main", "index": 0}]]
+    },
+    "set_test_defaults": {
+      "main": [[{"node": "merge_triggers", "type": "main", "index": 1}]]
+    },
+    "merge_triggers": {
+      "main": [[{"node": "validate_batch_input", "type": "main", "index": 0}]]
+    },
+    "validate_batch_input": {
+      "main": [[{"node": "split_test_cases", "type": "main", "index": 0}]]
+    },
+    "split_test_cases": {
+      "main": [[{"node": "prepare_test_code", "type": "main", "index": 0}]]
+    },
+    "prepare_test_code": {
+      "main": [[{"node": "execute_test", "type": "main", "index": 0}]]
+    },
+    "execute_test": {
+      "main": [[{"node": "collect_result", "type": "main", "index": 0}]]
+    },
+    "collect_result": {
+      "main": [[{"node": "aggregate_results", "type": "main", "index": 0}]]
+    },
+    "aggregate_results": {
+      "main": [[{"node": "compile_report", "type": "main", "index": 0}]]
+    },
+    "compile_report": {
+      "main": [[{"node": "respond_report", "type": "main", "index": 0}]]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1.0.0",
+  "id": "batch-algorithm-validator",
+  "meta": {
+    "templateVersion": 1
+  },
+  "tags": []
+}

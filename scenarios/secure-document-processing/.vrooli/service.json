@@ -212,7 +212,7 @@
       "description": "Start secure document processing pipeline with Go API server",
       "steps": [
         {
-          "name": "start-api-server",
+          "name": "start-api",
           "run": "cd api && ./secure-document-processing-api",
           "description": "Start Go coordination API server in background",
           "background": true,
@@ -221,7 +221,7 @@
           }
         },
         {
-          "name": "start-ui-server",
+          "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start UI server in background",
           "background": true
@@ -280,17 +280,22 @@
       ]
     },
     "stop": {
-      "description": "Stop secure document processing services",
+      "description": "Stop services",
       "steps": [
         {
-          "name": "stop-api-server",
-          "run": "pkill -f 'secure-document-processing-api' || true",
-          "description": "Stop Go API server processes"
+          "name": "source-pm",
+          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
+          "description": "Source process manager"
         },
         {
-          "name": "confirm-stop",
-          "run": "echo '🛑 Secure Document Processing services stopped'",
-          "description": "Confirm services stopped"
+          "name": "stop-api",
+          "run": "pm::stop \"vrooli.develop.secure-document-processing.start-api\" 2>/dev/null || pkill -f \"secure-document-processing-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pm::stop \"vrooli.develop.secure-document-processing.start-ui\" 2>/dev/null || true",
+          "description": "Stop UI process"
         }
       ]
     }

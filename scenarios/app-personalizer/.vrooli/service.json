@@ -152,7 +152,7 @@
       "description": "Start App Personalizer with Go API server",
       "steps": [
         {
-          "name": "start-api-server",
+          "name": "start-api",
           "run": "cd api && ./app-personalizer-api",
           "description": "Start Go API server in background",
           "background": true,
@@ -199,17 +199,22 @@
       ]
     },
     "stop": {
-      "description": "Stop App Personalizer services",
+      "description": "Stop services",
       "steps": [
         {
-          "name": "stop-api-server",
-          "run": "pkill -f 'app-personalizer-api' || true",
-          "description": "Stop Go API server processes"
+          "name": "source-pm",
+          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
+          "description": "Source process manager"
         },
         {
-          "name": "confirm-stop",
-          "run": "echo '🛑 App Personalizer services stopped'",
-          "description": "Confirm services stopped"
+          "name": "stop-api",
+          "run": "pm::stop \"vrooli.develop.app-personalizer.start-api\" 2>/dev/null || pkill -f \"app-personalizer-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pm::stop \"vrooli.develop.app-personalizer.start-ui\" 2>/dev/null || true",
+          "description": "Stop UI process"
         }
       ]
     }

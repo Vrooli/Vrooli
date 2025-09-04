@@ -158,7 +158,7 @@
       "description": "Start Typing Test services",
       "steps": [
         {
-          "name": "start-api-server",
+          "name": "start-api",
           "run": "cd api && ./typing-test-api",
           "description": "Start Go API server in background",
           "background": true,
@@ -167,7 +167,7 @@
           }
         },
         {
-          "name": "start-ui-server",
+          "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start UI server in background",
           "background": true
@@ -208,22 +208,22 @@
       ]
     },
     "stop": {
-      "description": "Stop Typing Test services",
+      "description": "Stop services",
       "steps": [
         {
-          "name": "stop-api-server",
-          "run": "pkill -f 'typing-test-api' || true",
-          "description": "Stop Go API server"
+          "name": "source-pm",
+          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
+          "description": "Source process manager"
         },
         {
-          "name": "stop-ui-server",
-          "run": "pkill -f 'node server.js' || true",
-          "description": "Stop UI server"
+          "name": "stop-api",
+          "run": "pm::stop \"vrooli.develop.typing-test.start-api\" 2>/dev/null || pkill -f \"typing-test-api\" 2>/dev/null || true",
+          "description": "Stop API process"
         },
         {
-          "name": "confirm-stop",
-          "run": "echo '🛑 Typing Test services stopped'",
-          "description": "Confirm services stopped"
+          "name": "stop-ui",
+          "run": "pm::stop \"vrooli.develop.typing-test.start-ui\" 2>/dev/null || true",
+          "description": "Stop UI process"
         }
       ]
     }

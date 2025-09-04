@@ -161,7 +161,7 @@
       "description": "Start Workflow Scheduler with API server and scheduling engine",
       "steps": [
         {
-          "name": "start-api-server",
+          "name": "start-api",
           "run": "cd api && ./workflow-scheduler-api",
           "description": "Start Go API server in background",
           "background": true,
@@ -241,17 +241,22 @@
       ]
     },
     "stop": {
-      "description": "Stop Workflow Scheduler services",
+      "description": "Stop services",
       "steps": [
         {
-          "name": "stop-api-server",
-          "run": "pkill -f 'workflow-scheduler-api' || true",
-          "description": "Stop Go API server processes"
+          "name": "source-pm",
+          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
+          "description": "Source process manager"
         },
         {
-          "name": "confirm-stop",
-          "run": "echo '🛑 Workflow Scheduler services stopped'",
-          "description": "Confirm services stopped"
+          "name": "stop-api",
+          "run": "pm::stop \"vrooli.develop.workflow-scheduler.start-api\" 2>/dev/null || pkill -f \"workflow-scheduler-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pm::stop \"vrooli.develop.workflow-scheduler.start-ui\" 2>/dev/null || true",
+          "description": "Stop UI process"
         }
       ]
     }

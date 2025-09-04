@@ -191,7 +191,7 @@
       "description": "Start campaign content studio with Go API and Node.js UI servers",
       "steps": [
         {
-          "name": "start-api-server",
+          "name": "start-api",
           "run": "cd api && ./campaign-content-studio-api",
           "description": "Start Go coordination API server in background",
           "background": true,
@@ -200,7 +200,7 @@
           }
         },
         {
-          "name": "start-ui-server",
+          "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start Node.js UI server in background",
           "background": true,
@@ -252,22 +252,22 @@
       ]
     },
     "stop": {
-      "description": "Stop campaign content studio services",
+      "description": "Stop services",
       "steps": [
         {
-          "name": "stop-api-server",
-          "run": "pkill -f 'campaign-content-studio-api' || true",
-          "description": "Stop Go API server processes"
+          "name": "source-pm",
+          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
+          "description": "Source process manager"
         },
         {
-          "name": "stop-ui-server",
-          "run": "pkill -f 'ui/server.js' || pkill -f 'campaign-content-studio-ui' || true",
-          "description": "Stop Node.js UI server processes"
+          "name": "stop-api",
+          "run": "pm::stop \"vrooli.develop.campaign-content-studio.start-api\" 2>/dev/null || pkill -f \"campaign-content-studio-api\" 2>/dev/null || true",
+          "description": "Stop API process"
         },
         {
-          "name": "confirm-stop",
-          "run": "echo '🛑 Campaign Content Studio services stopped'",
-          "description": "Confirm services stopped"
+          "name": "stop-ui",
+          "run": "pm::stop \"vrooli.develop.campaign-content-studio.start-ui\" 2>/dev/null || true",
+          "description": "Stop UI process"
         }
       ]
     }

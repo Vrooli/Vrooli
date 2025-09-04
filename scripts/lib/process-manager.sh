@@ -115,78 +115,47 @@ working_dir=$working_dir
 started=$(date -Iseconds)
 EOF
     
-    # Start the process with lock held
-    # Use a wrapper that holds the lock and monitors the actual process
-    (
-        # Acquire the lock for this wrapper
-        exec 200>"$lock_file"
-        flock 200
-        
-        # Change to working directory
-        if ! cd "$working_dir"; then
-            echo "Failed to change to directory: $working_dir" >&2
-            exit 1
-        fi
-        
-        # Start the actual command in background
-        env bash -c "$command" >> "$log_file" 2>&1 &
-        local cmd_pid=$!
-        
-        # Save the actual command's PID
-        echo "$cmd_pid" > "$pid_file"
-        
-        # Wait for the command to complete
-        # This wrapper holds the lock until the command exits
-        wait "$cmd_pid"
-        local exit_code=$?
-        
-        # Clean up PID file when command exits
-        rm -f "$pid_file"
-        
-        # Exit with same code as command
-        exit $exit_code
-    ) &
+    # Start the process detached - no wrapper needed
+    # Change to working directory first
+    local original_dir="$(pwd)"
+    if ! cd "$working_dir"; then
+        echo -e "${RED}Failed to change to directory: $working_dir${NC}" >&2
+        exec 200>&-  # Release lock
+        return 1
+    fi
     
-    local launcher_pid=$!
+    # Start the actual command in background with proper detachment
+    # Use setsid to create a new session group for full detachment
+    setsid bash -c "$command" >> "$log_file" 2>&1 &
+    local cmd_pid=$!
     
-    # Wait briefly to ensure process started and PID is written
+    # Save the actual command's PID immediately
+    echo "$cmd_pid" > "$pid_file"
+    
+    # Return to original directory
+    cd "$original_dir"
+    
+    # Release the lock - we don't need to hold it while process runs
+    # The PID file is our source of truth now
+    exec 200>&-
+    
+    # Give the process a moment to start properly
     sleep 0.5
     
-    # Check if the launcher is still running
-    if kill -0 "$launcher_pid" 2>/dev/null; then
-        # Get the actual PID from the file
-        if [[ -f "$pid_file" ]]; then
-            local actual_pid
-            actual_pid=$(cat "$pid_file" 2>/dev/null)
-            
-            # Verify the actual process is running
-            if [[ -n "$actual_pid" ]] && kill -0 "$actual_pid" 2>/dev/null; then
-                echo -e "${GREEN}✓ Started: $name (PID: $actual_pid)${NC}"
-                return 0
-            else
-                echo -e "${RED}✗ Process failed to start: $name${NC}" >&2
-                rm -f "$pid_file" "$info_file"
-                return 1
-            fi
-        else
-            # PID file not yet created, but launcher is running
-            echo -e "${GREEN}✓ Started: $name (starting...)${NC}"
-            return 0
-        fi
-    else
-        # Launcher exited - check if it was successful
-        if [[ -f "$pid_file" ]]; then
-            local actual_pid
-            actual_pid=$(cat "$pid_file" 2>/dev/null)
-            if [[ -n "$actual_pid" ]] && kill -0 "$actual_pid" 2>/dev/null; then
-                echo -e "${GREEN}✓ Started: $name (PID: $actual_pid)${NC}"
-                return 0
-            fi
-        fi
+    # Verify the process actually started
+    if kill -0 "$cmd_pid" 2>/dev/null; then
+        echo -e "${GREEN}✓ Started: $name (PID: $cmd_pid)${NC}"
         
+        # Note: We don't need a cleanup task - the process manager 
+        # functions (stop, status, is_running) handle cleanup when
+        # they detect a dead process. This keeps things simple and
+        # doesn't block the parent process.
+        
+        return 0
+    else
         # Process failed to start
         echo -e "${RED}✗ Failed to start: $name${NC}" >&2
-        rm -f "$pid_file" "$info_file"
+        rm -f "$pid_file" "$info_file" "$lock_file"
         return 1
     fi
 }
@@ -295,7 +264,6 @@ _pm_status_single() {
     local process_dir="$PM_HOME/$name"
     local pid_file="$process_dir/pid"
     local info_file="$process_dir/info"
-    local lock_file="$process_dir/lock"
     
     # Check if process directory exists
     if [[ ! -d "$process_dir" ]]; then
@@ -303,61 +271,63 @@ _pm_status_single() {
         return 0
     fi
     
-    # Use consistent locking mechanism
-    local lock_fd
-    if ! exec {lock_fd}<>"$lock_file" 2>/dev/null; then
-        echo -e "${RED}✗${NC} Error: $name (cannot access lock file)"
-        return 1
-    fi
-    
-    if flock -n "$lock_fd" 2>/dev/null; then
-        # Got lock - process is NOT running
-        flock -u "$lock_fd" 2>/dev/null || true
-        exec {lock_fd}>&- 2>/dev/null || true
-        echo -e "${YELLOW}○${NC} Stopped: $name"
+    # Primary check: PID file and process existence
+    if [[ -f "$pid_file" ]]; then
+        local pid
+        pid=$(cat "$pid_file" 2>/dev/null || echo "")
         
-        # Clean up stale files
-        rm -rf "$process_dir" 2>/dev/null || true
-    else
-        # Lock is held - process might be running
-        exec {lock_fd}>&- 2>/dev/null || true
-        
-        if [[ -f "$pid_file" ]]; then
-            local pid
-            pid=$(cat "$pid_file" 2>/dev/null || echo "unknown")
+        if [[ -n "$pid" ]] && [[ "$pid" =~ ^[0-9]+$ ]] && kill -0 "$pid" 2>/dev/null; then
+            # Process is running - get additional info
+            local process_info
+            process_info=$(ps -p "$pid" -o pid,ppid,comm,etime --no-headers 2>/dev/null || echo "")
             
-            # Triple-check the PID is valid and process is actually running
-            if [[ "$pid" != "unknown" ]] && [[ "$pid" =~ ^[0-9]+$ ]] && kill -0 "$pid" 2>/dev/null; then
-                # Get process info for additional verification
-                local process_info
-                process_info=$(ps -p "$pid" -o pid,ppid,comm,etime --no-headers 2>/dev/null || echo "")
-                
-                if [[ -n "$process_info" ]]; then
-                    local started=""
-                    if [[ -f "$info_file" ]]; then
-                        started=$(grep "^started=" "$info_file" 2>/dev/null | cut -d= -f2 || echo "")
-                        if [[ -n "$started" ]]; then
-                            # Format the date nicely
-                            started=$(date -d "$started" '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo "$started")
-                        fi
+            if [[ -n "$process_info" ]]; then
+                local started=""
+                if [[ -f "$info_file" ]]; then
+                    started=$(grep "^started=" "$info_file" 2>/dev/null | cut -d= -f2 || echo "")
+                    if [[ -n "$started" ]]; then
+                        # Format the date nicely
+                        started=$(date -d "$started" '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo "$started")
                     fi
-                    
-                    echo -e "${GREEN}●${NC} Running: $name (PID: $pid${started:+, Started: $started})"
-                else
-                    # PID exists but process not found - cleanup needed
-                    echo -e "${RED}✗${NC} Stale: $name (PID $pid not found, cleaning up)"
-                    pm::force_cleanup "$name" >/dev/null 2>&1 || true
                 fi
+                
+                echo -e "${GREEN}●${NC} Running: $name (PID: $pid${started:+, Started: $started})"
             else
-                # Invalid PID but lock is held - might be starting or corrupt
-                if [[ "$pid" == "unknown" ]] || [[ ! "$pid" =~ ^[0-9]+$ ]]; then
-                    echo -e "${BLUE}●${NC} Starting: $name (acquiring PID...)"
-                else
-                    echo -e "${RED}✗${NC} Error: $name (PID $pid invalid, lock held)"
-                fi
+                # PID exists but process not found - cleanup needed
+                echo -e "${RED}✗${NC} Stale: $name (PID $pid not found, cleaning up)"
+                pm::force_cleanup "$name" >/dev/null 2>&1 || true
             fi
         else
-            echo -e "${BLUE}●${NC} Starting: $name (no PID file yet)"
+            # PID file exists but process is dead
+            echo -e "${YELLOW}○${NC} Stopped: $name (stale PID file)"
+            rm -rf "$process_dir" 2>/dev/null || true
+        fi
+    else
+        # No PID file - check if recently started
+        if [[ -f "$info_file" ]]; then
+            local started
+            started=$(grep "^started=" "$info_file" 2>/dev/null | cut -d= -f2 || echo "")
+            if [[ -n "$started" ]]; then
+                local start_epoch
+                start_epoch=$(date -d "$started" +%s 2>/dev/null || echo "0")
+                local now_epoch
+                now_epoch=$(date +%s)
+                local diff=$((now_epoch - start_epoch))
+                
+                # If started within last 2 seconds, might still be initializing
+                if [[ $diff -le 2 ]]; then
+                    echo -e "${BLUE}●${NC} Starting: $name (initializing...)"
+                else
+                    echo -e "${YELLOW}○${NC} Stopped: $name (failed to start)"
+                    rm -rf "$process_dir" 2>/dev/null || true
+                fi
+            else
+                echo -e "${YELLOW}○${NC} Stopped: $name"
+                rm -rf "$process_dir" 2>/dev/null || true
+            fi
+        else
+            echo -e "${YELLOW}○${NC} Stopped: $name"
+            rm -rf "$process_dir" 2>/dev/null || true
         fi
     fi
 }
@@ -400,7 +370,6 @@ pm::is_running() {
     fi
     
     local process_dir="$PM_HOME/$name"
-    local lock_file="$process_dir/lock"
     local pid_file="$process_dir/pid"
     
     # If process directory doesn't exist, process isn't running
@@ -408,60 +377,43 @@ pm::is_running() {
         return 1
     fi
     
-    # If lock file doesn't exist, process isn't running
-    if [[ ! -f "$lock_file" ]]; then
-        # Clean up stale directory
-        rm -rf "$process_dir" 2>/dev/null || true
-        return 1
+    # Primary check: PID file and process existence
+    if [[ -f "$pid_file" ]]; then
+        local pid
+        pid=$(cat "$pid_file" 2>/dev/null || echo "")
+        if [[ -n "$pid" ]] && [[ "$pid" =~ ^[0-9]+$ ]] && kill -0 "$pid" 2>/dev/null; then
+            # Process is running
+            return 0
+        else
+            # PID file exists but process is dead - clean up
+            rm -rf "$process_dir" 2>/dev/null || true
+            return 1
+        fi
     fi
     
-    # Try to acquire lock non-blocking
-    local lock_fd
-    exec {lock_fd}<>"$lock_file" 2>/dev/null || return 1
-    
-    if flock -n "$lock_fd" 2>/dev/null; then
-        # Got the lock - process is NOT running
-        # Check if there's a PID file with a dead process
-        if [[ -f "$pid_file" ]]; then
-            local pid
-            pid=$(cat "$pid_file" 2>/dev/null || echo "")
-            if [[ -n "$pid" ]] && ! kill -0 "$pid" 2>/dev/null; then
-                # Process is dead, clean up
-                rm -rf "$process_dir" 2>/dev/null || true
+    # No PID file - process isn't running (or still starting)
+    # Check if this is a very recent start (within 2 seconds)
+    local info_file="$process_dir/info"
+    if [[ -f "$info_file" ]]; then
+        local started
+        started=$(grep "^started=" "$info_file" 2>/dev/null | cut -d= -f2 || echo "")
+        if [[ -n "$started" ]]; then
+            local start_epoch
+            start_epoch=$(date -d "$started" +%s 2>/dev/null || echo "0")
+            local now_epoch
+            now_epoch=$(date +%s)
+            local diff=$((now_epoch - start_epoch))
+            
+            # If started within last 2 seconds, might still be initializing
+            if [[ $diff -le 2 ]]; then
+                return 0
             fi
         fi
-        
-        flock -u "$lock_fd" 2>/dev/null || true
-        exec {lock_fd}>&- 2>/dev/null || true
-        return 1
-    else
-        # Could not get lock - verify the process is actually running
-        exec {lock_fd}>&- 2>/dev/null || true
-        
-        # Double-check with PID if available
-        if [[ -f "$pid_file" ]]; then
-            local pid
-            pid=$(cat "$pid_file" 2>/dev/null || echo "")
-            if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
-                return 0  # Process is definitely running
-            else
-                # PID is dead but lock is held - possible race condition
-                # Give it a moment and try again
-                sleep 0.1
-                if [[ -f "$pid_file" ]]; then
-                    pid=$(cat "$pid_file" 2>/dev/null || echo "")
-                    if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
-                        return 0
-                    fi
-                fi
-                # Process appears to be dead despite lock
-                return 1
-            fi
-        fi
-        
-        # Lock is held but no PID file - process might be starting
-        return 0
     fi
+    
+    # Process not running
+    rm -rf "$process_dir" 2>/dev/null || true
+    return 1
 }
 
 # Force cleanup (emergency use only)
@@ -501,50 +453,52 @@ pm::list() {
         return 0
     fi
     
-    # Only list processes that are actually running or have valid state
+    # Only list processes that are actually running
     for process_dir in "$PM_HOME"/*/; do
         if [[ -d "$process_dir" ]]; then
             local process_name
             process_name=$(basename "$process_dir")
-            local lock_file="$process_dir/lock"
             local pid_file="$process_dir/pid"
             
-            # Only list if there's evidence this process exists
-            if [[ -f "$lock_file" ]]; then
-                # Check if lock is held or if there's a valid PID
-                local lock_fd
-                if exec {lock_fd}<>"$lock_file" 2>/dev/null; then
-                    if ! flock -n "$lock_fd" 2>/dev/null; then
-                        # Lock is held - process is likely running
-                        echo "$process_name"
-                        exec {lock_fd}>&- 2>/dev/null || true
-                    elif [[ -f "$pid_file" ]]; then
-                        local pid
-                        pid=$(cat "$pid_file" 2>/dev/null || echo "")
-                        if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
-                            # Process is running but lock not held - transitional state
-                            echo "$process_name"
-                        else
-                            # Stale process - cleanup
-                            rm -rf "$process_dir" 2>/dev/null || true
-                        fi
-                        exec {lock_fd}>&- 2>/dev/null || true
-                    else
-                        exec {lock_fd}>&- 2>/dev/null || true
-                    fi
+            # Check if PID file exists and process is running
+            if [[ -f "$pid_file" ]]; then
+                local pid
+                pid=$(cat "$pid_file" 2>/dev/null || echo "")
+                if [[ -n "$pid" ]] && [[ "$pid" =~ ^[0-9]+$ ]] && kill -0 "$pid" 2>/dev/null; then
+                    # Process is running
+                    echo "$process_name"
                 else
-                    # Cannot access lock file - might be permissions issue
-                    if [[ -f "$pid_file" ]]; then
-                        local pid
-                        pid=$(cat "$pid_file" 2>/dev/null || echo "")
-                        if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
-                            echo "$process_name"
-                        fi
-                    fi
+                    # Stale process - cleanup
+                    rm -rf "$process_dir" 2>/dev/null || true
                 fi
             else
-                # No lock file - clean up directory
-                rm -rf "$process_dir" 2>/dev/null || true
+                # No PID file - check if recently started
+                local info_file="$process_dir/info"
+                if [[ -f "$info_file" ]]; then
+                    local started
+                    started=$(grep "^started=" "$info_file" 2>/dev/null | cut -d= -f2 || echo "")
+                    if [[ -n "$started" ]]; then
+                        local start_epoch
+                        start_epoch=$(date -d "$started" +%s 2>/dev/null || echo "0")
+                        local now_epoch
+                        now_epoch=$(date +%s)
+                        local diff=$((now_epoch - start_epoch))
+                        
+                        # If started within last 2 seconds, might still be initializing
+                        if [[ $diff -le 2 ]]; then
+                            echo "$process_name"
+                        else
+                            # Old directory without running process - cleanup
+                            rm -rf "$process_dir" 2>/dev/null || true
+                        fi
+                    else
+                        # No info about when started - cleanup
+                        rm -rf "$process_dir" 2>/dev/null || true
+                    fi
+                else
+                    # No info file - cleanup
+                    rm -rf "$process_dir" 2>/dev/null || true
+                fi
             fi
         fi
     done

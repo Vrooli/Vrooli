@@ -122,17 +122,22 @@
       ]
     },
     "stop": {
-      "description": "Stop application services",
+      "description": "Stop services",
       "steps": [
         {
-          "name": "stop-app",
-          "run": "pkill -f 'node server.js' || true",
-          "description": "Stop application processes"
+          "name": "source-pm",
+          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
+          "description": "Source process manager"
         },
         {
-          "name": "confirm-stop",
-          "run": "echo '🛑 Simple Test App services stopped'",
-          "description": "Confirm services stopped"
+          "name": "stop-api",
+          "run": "pm::stop \"vrooli.develop.simple-test.start-api\" 2>/dev/null || pkill -f \"simple-test-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pm::stop \"vrooli.develop.simple-test.start-ui\" 2>/dev/null || true",
+          "description": "Stop UI process"
         }
       ]
     }

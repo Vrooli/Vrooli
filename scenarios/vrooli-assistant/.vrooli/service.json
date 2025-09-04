@@ -138,7 +138,7 @@
       "description": "Start Vrooli Assistant with Electron overlay and API server",
       "steps": [
         {
-          "name": "start-api-server",
+          "name": "start-api",
           "run": "cd api && ./vrooli-assistant-api",
           "description": "Start Go API server in background",
           "background": true,
@@ -190,22 +190,22 @@
       ]
     },
     "stop": {
-      "description": "Stop Vrooli Assistant services",
+      "description": "Stop services",
       "steps": [
         {
-          "name": "stop-electron-daemon",
-          "run": "pkill -f 'vrooli-assistant-daemon' || true",
-          "description": "Stop Electron overlay daemon"
+          "name": "source-pm",
+          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
+          "description": "Source process manager"
         },
         {
-          "name": "stop-api-server",
-          "run": "pkill -f 'vrooli-assistant-api' || true",
-          "description": "Stop Go API server"
+          "name": "stop-api",
+          "run": "pm::stop \"vrooli.develop.vrooli-assistant.start-api\" 2>/dev/null || pkill -f \"vrooli-assistant-api\" 2>/dev/null || true",
+          "description": "Stop API process"
         },
         {
-          "name": "confirm-stop",
-          "run": "echo '🛑 Vrooli Assistant stopped'",
-          "description": "Confirm services stopped"
+          "name": "stop-ui",
+          "run": "pm::stop \"vrooli.develop.vrooli-assistant.start-ui\" 2>/dev/null || true",
+          "description": "Stop UI process"
         }
       ]
     }

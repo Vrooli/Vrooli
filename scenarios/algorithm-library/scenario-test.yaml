@@ -1,0 +1,153 @@
+version: 1.0
+scenario: algorithm-library
+
+structure:
+  required_files:
+    - .vrooli/service.json
+    - PRD.md
+    - api/main.go
+    - api/go.mod
+    - cli/algorithm-library
+    - cli/install.sh
+    - initialization/postgres/schema.sql
+    - initialization/postgres/seed.sql
+    - initialization/n8n/algorithm-executor.json
+    - initialization/n8n/batch-validator.json
+    - ui/package.json
+    - ui/src/App.jsx
+    - README.md
+    - scenario-test.yaml
+    
+  required_dirs:
+    - api
+    - cli
+    - initialization
+    - initialization/n8n
+    - initialization/postgres
+    - ui
+    - ui/src
+    - tests
+
+resources:
+  required: 
+    - postgres
+    - judge0
+    - n8n
+  optional: 
+    - redis
+    - ollama
+  health_timeout: 60
+
+tests:
+  # Check PostgreSQL is initialized
+  - name: "PostgreSQL schema initialized"
+    type: sql
+    service: postgres
+    query: "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'algorithms'"
+    expect:
+      rows:
+        - count: 1
+        
+  - name: "Algorithms seeded in database"
+    type: sql
+    service: postgres
+    query: "SELECT COUNT(*) FROM algorithms"
+    expect:
+      rows:
+        - count: ">= 8"
+        
+  # Check Judge0 availability
+  - name: "Judge0 is accessible"
+    type: http
+    service: judge0
+    endpoint: /about
+    method: GET
+    expect:
+      status: 200
+      
+  # Check API endpoints
+  - name: "API health endpoint responds"
+    type: http
+    service: api
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+      body:
+        status: healthy
+        
+  - name: "API search endpoint works"
+    type: http
+    service: api
+    endpoint: /api/v1/algorithms/search?category=sorting
+    method: GET
+    expect:
+      status: 200
+      body:
+        total: ">= 3"
+        
+  - name: "API stats endpoint works"
+    type: http
+    service: api
+    endpoint: /api/v1/algorithms/stats
+    method: GET
+    expect:
+      status: 200
+      body:
+        statistics:
+          total_algorithms: ">= 8"
+          
+  # Check CLI functionality
+  - name: "CLI is executable"
+    type: exec
+    command: test -x cli/algorithm-library
+    expect:
+      exit_code: 0
+      
+  - name: "CLI help command works"
+    type: exec
+    command: ./cli/algorithm-library help
+    expect:
+      exit_code: 0
+      output_contains: 
+        - "Algorithm Library CLI"
+        - "COMMANDS"
+        
+  - name: "CLI version command works"
+    type: exec
+    command: ./cli/algorithm-library version
+    expect:
+      exit_code: 0
+      output_contains: 
+        - "Algorithm Library CLI v1.0.0"
+        
+  # Check n8n workflows
+  - name: "Algorithm executor workflow exists"
+    type: n8n
+    workflow: algorithm-executor
+    expect:
+      active: true
+      node_count: ">= 10"
+      
+  - name: "Batch validator workflow exists"
+    type: n8n
+    workflow: batch-algorithm-validator
+    expect:
+      active: true
+      node_count: ">= 10"
+      
+  # Check UI build
+  - name: "UI dependencies installable"
+    type: exec
+    command: cd ui && npm install --dry-run
+    expect:
+      exit_code: 0
+      
+  - name: "UI build configuration exists"
+    type: file
+    path: ui/vite.config.js
+    expect:
+      exists: true
+      contains:
+        - "port: 3251"
+        - "proxy"

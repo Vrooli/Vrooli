@@ -195,45 +195,80 @@ class EnhancedAppOrchestrator:
         
         self.logger.info(f"Discovered {len(self.apps)} apps ({sum(1 for a in self.apps.values() if a.enabled)} enabled)")
     
-    def detect_running_apps(self):
+    def detect_running_apps(self, verbose_log=True):
         """Detect apps that are already running (started outside orchestrator)"""
-        self.logger.info("Detecting already-running apps...")
+        if verbose_log:
+            self.logger.info("Detecting already-running apps...")
         detected_count = 0
+        status_changes = []
         
         for app_name, app in self.apps.items():
             app_dir = self.scenarios_dir / app_name
             app_detected = False
             detected_ports = []
+            detected_pids = []
             
-            # Check for running processes related to this app
-            # Method 1: Check if ports are in use
-            for port_type, port_config in app.allocated_ports.items():
-                # Handle both old and new format
-                port_num = port_config.get('port') if isinstance(port_config, dict) else port_config
-                if not self.is_port_available(port_num):
-                    # Port is in use, likely app is running
+            # Look for actual service processes (not lifecycle.sh)
+            try:
+                for proc in psutil.process_iter(['pid', 'cmdline', 'cwd', 'create_time']):
                     try:
-                        # Try to find the PID using lsof
-                        import subprocess
-                        result = subprocess.run(
-                            ["lsof", "-t", f"-i:{port_num}"],
-                            capture_output=True,
-                            text=True,
-                            timeout=2
-                        )
-                        if result.returncode == 0 and result.stdout.strip():
-                            pid = int(result.stdout.strip().split('\n')[0])
-                            # Verify it's actually our app
-                            proc = psutil.Process(pid)
-                            if app_name in proc.cwd() or app_name in ' '.join(proc.cmdline()):
-                                if not app_detected:
-                                    app.pid = pid
-                                    app.status = "running"
-                                    app.started_at = datetime.fromtimestamp(proc.create_time())
-                                    app_detected = True
-                                detected_ports.append(f"{port_type}:{port_num}")
-                    except (subprocess.TimeoutExpired, ValueError, psutil.NoSuchProcess, psutil.AccessDenied):
-                        pass
+                        cmdline = ' '.join(proc.info['cmdline'] or [])
+                        cwd = proc.info['cwd'] or ''
+                        pid = proc.info['pid']
+                        
+                        # Look for actual API/UI processes
+                        if (f"{app_name}-api" in cmdline or  # Go API binary
+                            (f"scenarios/{app_name}/ui" in cwd and "node server.js" in cmdline) or  # Node UI
+                            (f"scenarios/{app_name}/api" in cwd and any(x in cmdline for x in ["go run", "./", app_name]))):  # API process
+                            
+                            detected_pids.append(pid)
+                            if not app_detected:
+                                # Use first found PID as primary
+                                prev_status = app.status
+                                app.pid = pid
+                                app.status = "running"
+                                app.started_at = datetime.fromtimestamp(proc.info['create_time'])
+                                app_detected = True
+                                if prev_status != "running":
+                                    status_changes.append((app_name, prev_status, "running"))
+                                
+                    except (psutil.NoSuchProcess, psutil.AccessDenied, KeyError):
+                        continue
+            except Exception as e:
+                self.logger.debug(f"Error detecting process for {app_name}: {e}")
+            
+            # Check for running processes related to this app via ports
+            if not app_detected:
+                for port_type, port_config in app.allocated_ports.items():
+                    # Handle both old and new format
+                    port_num = port_config.get('port') if isinstance(port_config, dict) else port_config
+                    if not self.is_port_available(port_num):
+                        # Port is in use, likely app is running
+                        try:
+                            # Try to find the PID using lsof
+                            import subprocess
+                            result = subprocess.run(
+                                ["lsof", "-t", f"-i:{port_num}"],
+                                capture_output=True,
+                                text=True,
+                                timeout=2
+                            )
+                            if result.returncode == 0 and result.stdout.strip():
+                                pid = int(result.stdout.strip().split('\n')[0])
+                                # Verify it's actually our app
+                                proc = psutil.Process(pid)
+                                if app_name in proc.cwd() or app_name in ' '.join(proc.cmdline()):
+                                    if not app_detected:
+                                        prev_status = app.status
+                                        app.pid = pid
+                                        app.status = "running"
+                                        app.started_at = datetime.fromtimestamp(proc.create_time())
+                                        app_detected = True
+                                        if prev_status != "running":
+                                            status_changes.append((app_name, prev_status, "running"))
+                                    detected_ports.append(f"{port_type}:{port_num}")
+                        except (subprocess.TimeoutExpired, ValueError, psutil.NoSuchProcess, psutil.AccessDenied):
+                            pass
             
             if app_detected:
                 detected_count += 1
@@ -259,37 +294,24 @@ class EnhancedAppOrchestrator:
                     except Exception as e:
                         self.logger.debug(f"Could not reload port config for {app_name}: {e}")
                 
-                self.logger.info(f"Detected {app_name} already running (PID: {app.pid}, Ports: {', '.join(detected_ports)})")
-            
-            # Method 2: Check for manage.sh or start.sh processes
-            if app.status != "running":
-                try:
-                    for proc in psutil.process_iter(['pid', 'cmdline', 'cwd', 'create_time']):
-                        try:
-                            cmdline = ' '.join(proc.info['cmdline'] or [])
-                            cwd = proc.info['cwd'] or ''
-                            
-                            # Check if this process is related to our app
-                            if (f"scenarios/{app_name}" in cmdline or 
-                                f"scenarios/{app_name}" in cwd or
-                                (app_name in cwd and "scenarios" in cwd)):
-                                
-                                # Found a process for this app
-                                app.pid = proc.info['pid']
-                                app.status = "running"
-                                app.started_at = datetime.fromtimestamp(proc.info['create_time'])
-                                detected_count += 1
-                                self.logger.info(f"Detected {app_name} already running (PID: {proc.info['pid']})")
-                                break
-                        except (psutil.NoSuchProcess, psutil.AccessDenied, KeyError):
-                            continue
-                except Exception as e:
-                    self.logger.debug(f"Error detecting process for {app_name}: {e}")
+                if verbose_log or status_changes:
+                    self.logger.info(f"Detected {app_name} already running (PID: {app.pid}, Ports: {', '.join(detected_ports) if detected_ports else 'N/A'})")
+            elif app.status == "running" and not app_detected:
+                # App was marked as running but no process found - mark as stopped
+                prev_status = app.status
+                app.status = "stopped"
+                app.pid = None
+                status_changes.append((app_name, prev_status, "stopped"))
+                if verbose_log:
+                    self.logger.info(f"App {app_name} no longer running (was {prev_status})")
         
-        if detected_count > 0:
-            self.logger.info(f"Detected {detected_count} apps already running")
-        else:
-            self.logger.info("No previously running apps detected")
+        if verbose_log:
+            if detected_count > 0:
+                self.logger.info(f"Detected {detected_count} apps already running")
+            else:
+                self.logger.info("No previously running apps detected")
+        
+        return status_changes
     
     def pre_allocate_ports_for_app(self, app_name: str, config: Dict) -> Dict[str, Dict[str, Any]]:
         """Pre-allocate ports for a specific app"""
@@ -1343,10 +1365,40 @@ async def main():
         print(f"  API Server: http://localhost:{API_PORT}")
         print(f"  Apps: {running_apps}/{total_apps} running ({enabled_apps} enabled)")
         print(f"  Management: Use API or CLI commands")
+        print(f"  Auto-detection: Checking for externally started apps every 10s")
         print(f"{'=' * 60}\n")
         
         print("Orchestrator running. Press Ctrl+C to stop all apps and exit.")
-        await asyncio.Event().wait()
+        
+        # Periodic detection loop - check for externally started apps
+        detection_interval = 10  # seconds
+        last_detection_time = time.time()
+        
+        while True:
+            try:
+                # Wait for the detection interval
+                await asyncio.sleep(detection_interval)
+                
+                # Detect externally started apps (silent unless changes detected)
+                status_changes = orchestrator.detect_running_apps(verbose_log=False)
+                
+                # Log any status changes
+                if status_changes:
+                    for app_name, old_status, new_status in status_changes:
+                        if new_status == "running":
+                            orchestrator.logger.info(f"✓ Detected {app_name} started externally (status: {old_status} → {new_status})")
+                        else:
+                            orchestrator.logger.info(f"✗ Detected {app_name} stopped (status: {old_status} → {new_status})")
+                    
+                    # Update running count
+                    running_apps = len([a for a in orchestrator.apps.values() if a.is_running()])
+                    orchestrator.logger.debug(f"Updated app count: {running_apps}/{total_apps} running")
+                
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                orchestrator.logger.error(f"Error in detection loop: {e}")
+                # Continue loop even if detection fails
         
     except KeyboardInterrupt:
         await orchestrator.shutdown()

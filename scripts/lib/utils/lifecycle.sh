@@ -572,6 +572,48 @@ lifecycle::main() {
     export PM_HOME="${HOME}/.vrooli/processes/scenarios/${scenario_name}"
     export PM_LOG_DIR="${HOME}/.vrooli/logs/scenarios/${scenario_name}"
     
+    # Clean up orphaned log files from renamed steps (only for develop phase)
+    if [[ "$phase" == "develop" ]] && [[ -d "$PM_LOG_DIR" ]]; then
+        # Get list of expected background step names from service.json
+        local expected_steps=()
+        local service_json="$scenario_path/.vrooli/service.json"
+        [[ ! -f "$service_json" ]] && service_json="$scenario_path/service.json"
+        
+        if [[ -f "$service_json" ]] && command -v jq >/dev/null 2>&1; then
+            # Extract background step names for develop phase
+            local step_names
+            step_names=$(jq -r '.lifecycle.develop.steps[]? | select(.background == true) | .name' "$service_json" 2>/dev/null || true)
+            
+            if [[ -n "$step_names" ]]; then
+                while IFS= read -r step_name; do
+                    expected_steps+=("vrooli.develop.${scenario_name}.${step_name}.log")
+                done <<< "$step_names"
+            fi
+            
+            # Remove orphaned log files
+            if [[ ${#expected_steps[@]} -gt 0 ]]; then
+                for log_file in "$PM_LOG_DIR"/vrooli.develop.${scenario_name}.*.log; do
+                    [[ ! -f "$log_file" ]] && continue
+                    
+                    local basename=$(basename "$log_file")
+                    local is_orphaned=true
+                    
+                    for expected in "${expected_steps[@]}"; do
+                        if [[ "$basename" == "$expected" ]]; then
+                            is_orphaned=false
+                            break
+                        fi
+                    done
+                    
+                    if [[ "$is_orphaned" == "true" ]]; then
+                        rm -f "$log_file"
+                        log::debug "Removed orphaned log file: $basename"
+                    fi
+                done
+            fi
+        fi
+    fi
+    
     # Change to scenario directory for execution
     cd "$scenario_path" || exit 1
     

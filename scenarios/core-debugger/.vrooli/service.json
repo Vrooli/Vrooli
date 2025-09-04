@@ -201,32 +201,22 @@
       ]
     },
     "stop": {
-      "description": "Stop Core Debugger services",
+      "description": "Stop services",
       "steps": [
         {
+          "name": "source-pm",
+          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
+          "description": "Source process manager"
+        },
+        {
           "name": "stop-api",
-          "run": "pkill -f 'core-debugger-api' || true",
-          "description": "Stop API server"
+          "run": "pm::stop \"vrooli.develop.core-debugger.start-api\" 2>/dev/null || pkill -f \"core-debugger-api\" 2>/dev/null || true",
+          "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f 'python3.*http.server.*$UI_PORT' || true",
-          "description": "Stop UI server"
-        },
-        {
-          "name": "stop-monitor",
-          "run": "pkill -f 'health-monitor.sh' || true",
-          "description": "Stop health monitor"
-        },
-        {
-          "name": "save-final-state",
-          "run": "if [ -f api/core-debugger-api ]; then ./cli/core-debugger check-health --json > data/health/last-state-$(date +%Y%m%d-%H%M%S).json || true; fi",
-          "description": "Save final health state"
-        },
-        {
-          "name": "confirm-stop",
-          "run": "echo '🛑 Core Debugger services stopped\\n📁 Data preserved at: ./data/'",
-          "description": "Confirm services stopped"
+          "run": "pm::stop \"vrooli.develop.core-debugger.start-ui\" 2>/dev/null || true",
+          "description": "Stop UI process"
         }
       ]
     },

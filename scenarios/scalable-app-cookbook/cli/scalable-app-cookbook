@@ -1,0 +1,427 @@
+#!/bin/bash
+
+# Scalable App Cookbook CLI
+# Provides command-line access to architectural patterns and recipes
+
+set -e
+
+# Configuration
+API_HOST="${SCALABLE_APP_COOKBOOK_API_HOST:-localhost}"
+API_PORT="${SCALABLE_APP_COOKBOOK_API_PORT:-3300}"
+API_URL="http://${API_HOST}:${API_PORT}"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+# Help function
+show_help() {
+    cat << EOF
+Scalable App Cookbook CLI - Architectural patterns for scalable applications
+
+USAGE:
+    scalable-app-cookbook <command> [arguments] [options]
+
+COMMANDS:
+    search <query>           Search for architectural patterns
+    get <pattern>            Get detailed pattern information and recipes
+    generate <recipe> <lang> Generate code template from recipe
+    chapters                 List all cookbook chapters
+    stats                    Show cookbook statistics
+    status                   Check service health status
+    help                     Show this help message
+    version                  Show version information
+
+PATTERN SEARCH OPTIONS:
+    --chapter <name>         Filter by cookbook chapter
+    --section <name>         Filter by chapter section
+    --level <L0-L4>         Filter by maturity level (L0=prototype, L4=enterprise)
+    --tags <tag1,tag2>      Filter by pattern tags
+    --json                   Output in JSON format
+
+RECIPE OPTIONS:
+    --recipe-type <type>     Filter recipes by type (greenfield/brownfield/migration)
+    --output-dir <path>      Generate code templates to specified directory
+    --platform <name>        Target platform for code generation
+
+EXAMPLES:
+    scalable-app-cookbook search "dependency injection"
+    scalable-app-cookbook search --chapter "Part A" --level L2
+    scalable-app-cookbook get "Hexagonal Architecture" --recipe-type greenfield
+    scalable-app-cookbook generate jwt-auth-recipe go --output-dir ./auth
+    scalable-app-cookbook chapters
+    scalable-app-cookbook stats --json
+
+MATURITY LEVELS:
+    L0 - Prototype: Basic patterns for MVP development
+    L1 - Single-node: Patterns for single-server applications
+    L2 - HA/Multi-AZ: High availability patterns
+    L3 - Global/Multi-Region: Global scale patterns
+    L4 - Regulated/Enterprise: Enterprise-grade patterns
+
+For detailed documentation, visit the Scalable App Cookbook web interface.
+EOF
+}
+
+# Version function
+show_version() {
+    echo "Scalable App Cookbook CLI v1.0.0"
+    echo "API: ${API_URL}"
+}
+
+# Status function
+check_status() {
+    echo -e "${BLUE}Checking Scalable App Cookbook status...${NC}"
+    
+    response=$(curl -s "${API_URL}/health" 2>/dev/null || echo '{"status":"unreachable"}')
+    
+    if echo "$response" | grep -q '"status":"healthy"'; then
+        echo -e "${GREEN}✓ Scalable App Cookbook is healthy${NC}"
+        if [[ "$1" == "--json" ]]; then
+            echo "$response" | jq '.' 2>/dev/null || echo "$response"
+        else
+            echo "  API: Running at ${API_URL}"
+            echo "  Database: Connected"
+            echo "  Web UI: http://${API_HOST}:$((API_PORT + 1))"
+        fi
+    else
+        echo -e "${RED}✗ Scalable App Cookbook is not healthy${NC}"
+        if [[ "$1" == "--json" ]]; then
+            echo "$response"
+        else
+            echo "  Status: Service unavailable"
+            echo "  Try: vrooli scenario run scalable-app-cookbook"
+        fi
+        exit 1
+    fi
+}
+
+# Search function
+search_patterns() {
+    local query="$1"
+    shift
+    
+    # Build query parameters
+    local params=""
+    local json_output=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --chapter)
+                params="${params}&chapter=$(printf '%s' "$2" | sed 's/ /%20/g')"
+                shift 2
+                ;;
+            --section)
+                params="${params}&section=$(printf '%s' "$2" | sed 's/ /%20/g')"
+                shift 2
+                ;;
+            --level)
+                params="${params}&maturity_level=$2"
+                shift 2
+                ;;
+            --tags)
+                params="${params}&tags=$2"
+                shift 2
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    # Make API request
+    local url="${API_URL}/api/v1/patterns/search?query=$(printf '%s' "$query" | sed 's/ /%20/g')${params}"
+    local response=$(curl -s "$url" 2>/dev/null)
+    
+    if [[ "$json_output" == "true" ]]; then
+        echo "$response" | jq '.' 2>/dev/null || echo "$response"
+    else
+        # Parse and format output
+        local total=$(echo "$response" | jq -r '.total // 0' 2>/dev/null)
+        
+        if [[ "$total" == "0" ]]; then
+            echo -e "${YELLOW}No patterns found matching your search.${NC}"
+            echo -e "${CYAN}Try broader search terms or check available chapters:${NC}"
+            echo "  scalable-app-cookbook chapters"
+        else
+            echo -e "${GREEN}Found ${total} pattern(s):${NC}\n"
+            
+            echo "$response" | jq -r '.patterns[]? | 
+                "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
+                "Title: \(.title)\n" +
+                "Chapter: \(.chapter)\n" +
+                "Section: \(.section)\n" +
+                "Maturity: \(.maturity_level)\n" +
+                "Recipes: \(.recipe_count) available\n" +
+                "Languages: \(.implementation_count) implementations\n" +
+                "Tags: \(.tags | join(", "))"' 2>/dev/null
+        fi
+    fi
+}
+
+# Get pattern function
+get_pattern() {
+    local pattern="$1"
+    shift
+    
+    local recipe_type=""
+    local format="text"
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --recipe-type)
+                recipe_type="$2"
+                shift 2
+                ;;
+            --format)
+                format="$2"
+                shift 2
+                ;;
+            --json)
+                format="json"
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    # Make API request
+    local url="${API_URL}/api/v1/patterns/${pattern}/recipes"
+    if [[ -n "$recipe_type" ]]; then
+        url="${url}?type=${recipe_type}"
+    fi
+    
+    local response=$(curl -s "$url" 2>/dev/null)
+    
+    if echo "$response" | grep -q "not found"; then
+        echo -e "${RED}Pattern '${pattern}' not found.${NC}"
+        echo -e "${CYAN}Try searching: scalable-app-cookbook search \"${pattern}\"${NC}"
+        exit 1
+    fi
+    
+    if [[ "$format" == "json" ]]; then
+        echo "$response" | jq '.' 2>/dev/null || echo "$response"
+    else
+        # Format output
+        echo -e "${GREEN}Pattern Details:${NC}"
+        echo "$response" | jq -r '.pattern | 
+            "\nTitle: \(.title)" +
+            "\nChapter: \(.chapter)" +
+            "\nSection: \(.section)" +
+            "\nMaturity Level: \(.maturity_level)" +
+            "\nTags: \(.tags | join(\", \"))\n" +
+            "\nWhat & Why:\n\(.what_and_why)\n" +
+            "\nWhen to Use:\n\(.when_to_use)\n" +
+            "\nTrade-offs:\n\(.tradeoffs)"' 2>/dev/null
+        
+        echo -e "\n${BLUE}Available Recipes:${NC}"
+        echo "$response" | jq -r '.recipes[]? |
+            "\n━━━ \(.title) (\(.type)) ━━━" +
+            "\nSteps: \(.steps | length)" +
+            "\nPrerequisites: \(.prerequisites | join(\", \"))" +
+            "\nArtifacts: \(.artifacts | join(\", \"))" +
+            "\nTimeout: \(.timeout_sec)s"' 2>/dev/null
+    fi
+}
+
+# Generate code function
+generate_code() {
+    local recipe="$1"
+    local language="$2"
+    shift 2
+    
+    if [[ -z "$recipe" ]] || [[ -z "$language" ]]; then
+        echo -e "${RED}Error: Recipe and language are required${NC}"
+        echo "Usage: scalable-app-cookbook generate <recipe> <language> [options]"
+        exit 1
+    fi
+    
+    local output_dir=""
+    local platform=""
+    local json_output=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --output-dir)
+                output_dir="$2"
+                shift 2
+                ;;
+            --platform)
+                platform="$2"
+                shift 2
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    echo -e "${BLUE}Generating ${language} code from recipe: ${recipe}...${NC}"
+    
+    # Create JSON payload
+    local payload=$(jq -n \
+        --arg recipe "$recipe" \
+        --arg lang "$language" \
+        --arg platform "$platform" \
+        '{recipe_id: $recipe, language: $lang, target_platform: $platform, parameters: {}}')
+    
+    # Make API request
+    local response=$(curl -s -X POST \
+        -H "Content-Type: application/json" \
+        -d "$payload" \
+        "${API_URL}/api/v1/recipes/generate" 2>/dev/null)
+    
+    if echo "$response" | grep -q "not found"; then
+        echo -e "${RED}Recipe '${recipe}' not found or no ${language} implementation available.${NC}"
+        exit 1
+    fi
+    
+    if [[ "$json_output" == "true" ]]; then
+        echo "$response" | jq '.' 2>/dev/null || echo "$response"
+    else
+        echo -e "${GREEN}✓ Code generated successfully!${NC}\n"
+        
+        # Extract generated code
+        local code=$(echo "$response" | jq -r '.generated_code' 2>/dev/null)
+        local deps=$(echo "$response" | jq -r '.dependencies[]?' 2>/dev/null)
+        local instructions=$(echo "$response" | jq -r '.setup_instructions[]?' 2>/dev/null)
+        
+        if [[ -n "$output_dir" ]]; then
+            # Write to files
+            mkdir -p "$output_dir"
+            local filename=$(echo "$response" | jq -r '.file_structure.main_file' 2>/dev/null)
+            echo "$code" > "${output_dir}/${filename}"
+            echo -e "${CYAN}Code written to: ${output_dir}/${filename}${NC}"
+        else
+            # Show code on stdout
+            echo -e "${CYAN}Generated Code:${NC}"
+            echo "────────────────────────────────────────"
+            echo "$code"
+            echo "────────────────────────────────────────"
+        fi
+        
+        if [[ -n "$deps" ]]; then
+            echo -e "\n${BLUE}Dependencies:${NC}"
+            echo "$deps" | while read dep; do
+                echo "  • $dep"
+            done
+        fi
+        
+        if [[ -n "$instructions" ]]; then
+            echo -e "\n${BLUE}Setup Instructions:${NC}"
+            echo "$instructions" | while read instruction; do
+                echo "  $instruction"
+            done
+        fi
+    fi
+}
+
+# Chapters function
+list_chapters() {
+    local response=$(curl -s "${API_URL}/api/v1/patterns/chapters" 2>/dev/null)
+    
+    if [[ "$1" == "--json" ]]; then
+        echo "$response" | jq '.' 2>/dev/null || echo "$response"
+    else
+        echo -e "${GREEN}Cookbook Chapters:${NC}\n"
+        echo "$response" | jq -r '.[]? | "  • \(.name): \(.pattern_count) patterns"' 2>/dev/null
+    fi
+}
+
+# Stats function
+show_stats() {
+    local response=$(curl -s "${API_URL}/api/v1/patterns/stats" 2>/dev/null)
+    
+    if [[ "$1" == "--json" ]]; then
+        echo "$response" | jq '.' 2>/dev/null || echo "$response"
+    else
+        echo -e "${GREEN}Scalable App Cookbook Statistics:${NC}\n"
+        echo "$response" | jq -r '.statistics |
+            "  Total Patterns: \(.total_patterns)" +
+            "\n  Total Recipes: \(.total_recipes)" +
+            "\n  Total Implementations: \(.total_implementations)" +
+            "\n  Total Chapters: \(.total_chapters)"' 2>/dev/null
+        
+        echo -e "\n${BLUE}Maturity Level Distribution:${NC}"
+        echo "$response" | jq -r '.maturity_levels | to_entries[] | "  • \(.key): \(.value) patterns"' 2>/dev/null
+        
+        echo -e "\n${CYAN}Implementation Languages:${NC}"
+        echo "$response" | jq -r '.languages | to_entries[] | "  • \(.key): \(.value) implementations"' 2>/dev/null
+    fi
+}
+
+# Main command handler
+case "${1:-}" in
+    search)
+        shift
+        if [[ -z "${1:-}" ]]; then
+            echo -e "${RED}Error: Search query required${NC}"
+            echo "Usage: scalable-app-cookbook search <query> [options]"
+            exit 1
+        fi
+        search_patterns "$@"
+        ;;
+    
+    get)
+        shift
+        if [[ -z "${1:-}" ]]; then
+            echo -e "${RED}Error: Pattern name required${NC}"
+            echo "Usage: scalable-app-cookbook get <pattern> [options]"
+            exit 1
+        fi
+        get_pattern "$@"
+        ;;
+    
+    generate)
+        shift
+        if [[ -z "${1:-}" ]] || [[ -z "${2:-}" ]]; then
+            echo -e "${RED}Error: Recipe and language are required${NC}"
+            echo "Usage: scalable-app-cookbook generate <recipe> <language> [options]"
+            exit 1
+        fi
+        generate_code "$@"
+        ;;
+    
+    chapters)
+        shift
+        list_chapters "$@"
+        ;;
+    
+    stats)
+        shift
+        show_stats "$@"
+        ;;
+    
+    status)
+        shift
+        check_status "$@"
+        ;;
+    
+    version|--version|-v)
+        show_version
+        ;;
+    
+    help|--help|-h|"")
+        show_help
+        ;;
+    
+    *)
+        echo -e "${RED}Unknown command: $1${NC}"
+        echo "Run 'scalable-app-cookbook help' for usage information"
+        exit 1
+        ;;
+esac

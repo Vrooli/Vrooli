@@ -8,7 +8,7 @@
     "version": "1.0.0",
     "tags": [
       "travel",
-      "visualization", 
+      "visualization",
       "mapping",
       "achievements",
       "analytics",
@@ -31,7 +31,7 @@
     },
     "ui": {
       "env_var": "UI_PORT",
-      "port": 3760, 
+      "port": 3760,
       "fallback": "auto",
       "description": "Travel Map UI port"
     }
@@ -51,7 +51,7 @@
     },
     "qdrant": {
       "type": "qdrant",
-      "enabled": true, 
+      "enabled": true,
       "required": true,
       "purpose": "Vector database for semantic search of travel memories",
       "initialization": [
@@ -76,7 +76,7 @@
           "type": "workflow"
         },
         {
-          "file": "initialization/n8n/travel-list.json", 
+          "file": "initialization/n8n/travel-list.json",
           "type": "workflow"
         }
       ]
@@ -157,7 +157,7 @@
           "description": "Add app data to resources"
         },
         {
-          "name": "build-api", 
+          "name": "build-api",
           "run": "cd api && go mod download && go build -o travel-map-api .",
           "description": "Build Go API binary"
         },
@@ -232,22 +232,22 @@
       ]
     },
     "stop": {
-      "description": "Stop Travel Map Filler services",
+      "description": "Stop services",
       "steps": [
         {
-          "name": "stop-api-server",
-          "run": "pkill -f 'travel-map-api' || true",
-          "description": "Stop Go API server processes"
+          "name": "source-pm",
+          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
+          "description": "Source process manager"
         },
         {
-          "name": "stop-ui-server",
-          "run": "pkill -f 'node.*server.js' || true",
-          "description": "Stop UI server processes"
+          "name": "stop-api",
+          "run": "pm::stop \"vrooli.develop.travel-map-filler.start-api\" 2>/dev/null || pkill -f \"travel-map-filler-api\" 2>/dev/null || true",
+          "description": "Stop API process"
         },
         {
-          "name": "confirm-stop",
-          "run": "echo 'Travel Map Filler services stopped'",
-          "description": "Confirm services stopped"
+          "name": "stop-ui",
+          "run": "pm::stop \"vrooli.develop.travel-map-filler.start-ui\" 2>/dev/null || true",
+          "description": "Stop UI process"
         }
       ]
     }
